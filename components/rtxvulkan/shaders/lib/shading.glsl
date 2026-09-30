@@ -74,9 +74,11 @@ struct DirectLight
 ///
 /// @param gloss the surface's specular half, `glossOf`: made once by the caller, which reports it
 ///        to the bounce's draw as well.
-/// @param seed which draw sequence the lamp reservoir steps. **One per depth of the path**, because
-///        a bounce shades a second surface and two reservoirs stepping one sequence would keep
-///        correlated lamps at both ends of it.
+/// @param key the pixel's own, `pixelKey`, which every sequence here is drawn from with a `SEED_`
+///        added: `lamps`, and `SEED_INDIRECT_LIGHT` for the bounce's rate.
+/// @param lamps which draw sequence the lamp reservoir steps. **One per depth of the path**,
+///        because a bounce shades a second surface and two reservoirs stepping one sequence would
+///        keep correlated lamps at both ends of it.
 /// @param path `PATH_SEEN` or `PATH_INDIRECT`. It decides whether the moons are asked at all, and
 ///        whether the rest of this is drawn at `INDIRECT_LIGHT_RATE` or spent on every hit.
 /// @param split whether the sky's source is handed back apart, `DirectLight::mSkyDiffuse` and the
@@ -84,7 +86,7 @@ struct DirectLight
 ///        what the eye sees splits — its own solid, and what the water's legs find — and the pane and
 ///        the bounce compose. Only with `PATH_SEEN`: the split terms do not carry the rate that
 ///        `PATH_INDIRECT` draws at.
-DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path, bool split)
+DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path, bool split)
 {
     const vec3 position = surface.mPosition;
     const Facing facing = facingOf(surface);
@@ -108,29 +110,22 @@ DirectLight gather(Surface surface, Gloss gloss, uint seed, uint path, bool spli
     float rated = 1.0;
     if (path == PATH_INDIRECT && skyLights())
     {
-        // Only the bounce shades as indirect, so `seed` is its pixel's key and `SEED_LAMPS_BOUNCE`,
-        // and the draw is the key's own entry of the chain.
-        uint rate = randomSeed(seed - SEED_LAMPS_BOUNCE + SEED_INDIRECT_LIGHT);
+        uint rate = randomSeed(key + SEED_INDIRECT_LIGHT);
         if (randomNext(rate) >= INDIRECT_LIGHT_RATE)
             return lit;
 
         rated = 1.0 / INDIRECT_LIGHT_RATE;
     }
 
-    uint state = randomSeed(seed);
+    uint state = randomSeed(key + lamps);
 
     // **Where on a source a shadow ray leaves from is drawn before anything is weighed**, so that it
     // does not depend on how many lamps the cell happened to hold: the two pairs sit at a fixed
     // place in the sequence and the reservoir's own draws follow them. Otherwise a lamp arriving in
     // the next cell along would move the penumbra of the one already there.
+    // A pair aims the sky's one ray and a draw picks which of its sources the ray goes to.
     const vec2 sunDraw = vec2(randomNext(state), randomNext(state));
-    // **Three pairs are drawn and one ray is traced.** The first aims the sky's one ray, the third's
-    // first draw picks which source it goes to, and the other three are drawn for their place alone:
-    // taking one out shortens the sequence and moves every lamp draw below.
-    randomNext(state);
-    randomNext(state);
     const float skyPick = randomNext(state);
-    randomNext(state);
     const vec2 lampDraw = vec2(randomNext(state), randomNext(state));
 
     // **The sky's sources are weighed and drawn the way the lamps are.** What each would deliver
@@ -349,9 +344,9 @@ SplitLight mixSplit(SplitLight a, SplitLight b, float t, float draw)
 /// @param incoming what arrives from everything that is not a light, `pathEnd` at the hit a
 ///        hemisphere found.
 /// @param split as `gather` takes it, and a literal at every call for the same reason.
-SplitLight shadeSurface(Surface surface, Gloss gloss, vec3 incoming, uint seed, uint path, bool split)
+SplitLight shadeSurface(Surface surface, Gloss gloss, vec3 incoming, uint key, uint lamps, uint path, bool split)
 {
-    const DirectLight lit = gather(surface, gloss, seed, path, split);
+    const DirectLight lit = gather(surface, gloss, key, lamps, path, split);
     return SplitLight(
         litSurface(surface, incoming + lit.mDiffuse, lit.mSpecular), skyLight(surface, lit), lit.mSkyOpen);
 }
@@ -471,16 +466,18 @@ float ambientReaching(vec3 position, vec3 normal, vec3 plane, float transmission
 /// under a canopy, one shadow ray a pixel speckles a reflection that the same rock seen directly
 /// hands to the shadow denoiser. The bounce composes it, since the wavelet filters its whole light.
 ///
-/// @param ambientSeed the sequence the occlusion ray draws from, and `lampSeed` the one the lamp
-///        reservoir steps. Two, for the reason `SEED_AMBIENT_REACHING` gives.
+/// @param key the pixel's own, `pixelKey`, and `ambient` and `lamps` the `SEED_` the occlusion ray
+///        and the lamp reservoir draw from with it. Two, for the reason `SEED_AMBIENT_REACHING`
+///        gives.
 /// @param split as `gather` takes it.
 /// @param ambientRate as `ambientReaching` takes it.
-SplitLight shadeAtPathEnd(Surface hit, uint ambientSeed, uint lampSeed, uint path, bool split, float ambientRate)
+SplitLight shadeAtPathEnd(
+    Surface hit, uint key, uint ambient, uint lamps, uint path, bool split, float ambientRate)
 {
     const float reaching = ambientReaching(
-        hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, ambientSeed, ambientRate);
+        hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, key + ambient, ambientRate);
 
-    return shadeSurface(hit, glossOf(hit), pathEnd(hit.mPosition, reaching), lampSeed, path, split);
+    return shadeSurface(hit, glossOf(hit), pathEnd(hit.mPosition, reaching), key, lamps, path, split);
 }
 
 /// What a see-through layer sends back, in the pieces the pane filter takes apart.
@@ -506,12 +503,12 @@ struct SeenPane
 /// **At `AMBIENT_EXTERIOR_RATE`**, because the pane filter takes what it draws, as the glossy filter
 /// takes what a lobe's path end draws at the same rate.
 ///
-/// @param ambientSeed,lampSeed as `shadeAtPathEnd` takes them.
-SeenPane shadePane(Surface hit, uint ambientSeed, uint lampSeed)
+/// @param key,ambient,lamps as `shadeAtPathEnd` takes them.
+SeenPane shadePane(Surface hit, uint key, uint ambient, uint lamps)
 {
     const float reaching = ambientReaching(
-        hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, ambientSeed, AMBIENT_EXTERIOR_RATE);
-    const DirectLight lit = gather(hit, glossOf(hit), lampSeed, PATH_SEEN, false);
+        hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, key + ambient, AMBIENT_EXTERIOR_RATE);
+    const DirectLight lit = gather(hit, glossOf(hit), key, lamps, PATH_SEEN, false);
 
     return SeenPane(litSurface(hit, vec3(0.0), vec3(0.0)), pathEnd(hit.mPosition, reaching) + lit.mDiffuse,
         lit.mSpecular, responseOf(hit));
@@ -682,7 +679,7 @@ vec3 bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pixel)
     // the path is two copies, and a warp whose lanes drew both halves runs them one after the
     // other. Chosen at run time, the diffuse half's hit asks the moons and finds they weigh nought.
     return weight
-        * composed(shadeAtPathEnd(hit, pixelKey(pixel) + SEED_AMBIENT_REACHING, pixelKey(pixel) + SEED_LAMPS_BOUNCE,
+        * composed(shadeAtPathEnd(hit, pixelKey(pixel), SEED_AMBIENT_REACHING, SEED_LAMPS_BOUNCE,
             drawn.mSpecular ? PATH_SEEN : PATH_INDIRECT, false, AMBIENT_EXTERIOR_RATE));
 }
 
@@ -754,7 +751,7 @@ struct SeenSolid
 SeenSolid shadeSolid(Surface hit, uvec2 pixel, Cone cone)
 {
     const Gloss gloss = glossOf(hit);
-    const DirectLight lit = gather(hit, gloss, pixelKey(pixel) + SEED_LAMPS_EYE, PATH_SEEN, true);
+    const DirectLight lit = gather(hit, gloss, pixelKey(pixel), SEED_LAMPS_EYE, PATH_SEEN, true);
     const Bounce bounced = bounceLight(hit, gloss, pixel, cone);
 
     // **The lamps' diffuse half joins the bounce, and the filter takes both**, which is what a

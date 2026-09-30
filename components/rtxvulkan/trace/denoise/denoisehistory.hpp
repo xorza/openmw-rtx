@@ -49,7 +49,7 @@ namespace Rtx
         void reset() { mTurns.reset(); }
 
         /// What a world distance is multiplied by before a surface history holds it, for a frame
-        /// whose far plane is `far`: `AccumulateConstants::mDistanceScale`, which says why.
+        /// whose far plane is `far`: `HistoryConstants::mDistanceScale`, which says why.
         static float distanceScaleFor(float far);
 
         /// Turns to the other half of every pair for the frame being recorded, on which `runs` run:

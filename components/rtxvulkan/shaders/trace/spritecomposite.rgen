@@ -71,7 +71,7 @@ layout(push_constant, scalar) uniform Push
 void gatherLit(ivec2 tap, uvec2 tracedExtent, float near, inout vec3 lit, inout float weight)
 {
     const vec4 read = imageLoad(puffs, clamp(tap, ivec2(0), ivec2(tracedExtent) - 1));
-    const float covered = (1.0 - puffsThrough(read)) * near;
+    const float covered = (1.0 - read.a) * near;
 
     lit += read.rgb * covered;
     weight += covered;
@@ -106,7 +106,7 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
     // a surface beyond every emitter hides none — and it lost: under M[FR]'s mist nearly every ray
     // passes one, and the walk of the tile's sprites it took to find the bound cost this launch a
     // tenth to a fifth of a millisecond more than the longer query it saved, at 2560 by 1440.
-    const float distance = arms ? imageLoad(surfaceChannel, ivec2(traced)).y
+    const float distance = arms ? surfaceDistance(imageLoad(surfaceChannel, ivec2(traced)).y)
                                 : surfaceWithin(WorldRay(origin, direction), 0.0, frame.mFar, cone,
                                     RayRule(worldMask(frame.mRayMask), true, true));
 
@@ -212,7 +212,7 @@ void main()
 
     // Which eye the trace cast this pixel's ray from — the arms' where it drew the pixel on an arm,
     // so the march here runs along the same ray the trace lit them on.
-    const bool arms = puffsOnArms(imageLoad(puffs, ivec2(traced)));
+    const bool arms = surfaceOnArms(imageLoad(surfaceChannel, ivec2(traced)).y);
 
     // **Nothing to draw and nothing to write.** The curve makes the same test and reads a one
     // where this wrote nothing; `puffsCoverNothing` says what it saves.

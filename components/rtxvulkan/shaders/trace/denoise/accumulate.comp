@@ -77,7 +77,7 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_BLENDED_OUT, ATROUS_CHANNEL) un
 
 layout(push_constant, scalar) uniform Push
 {
-    AccumulateConstants frame;
+    HistoryConstants frame;
 };
 
 /// The variance written where a pixel has no history to have measured one.
@@ -105,7 +105,8 @@ void main()
     const vec3 sampled = imageLoad(indirect, at).rgb;
     const vec2 seen = imageLoad(surfaceChannel, at).xy;
     const vec3 normal = unpackSurfaceNormal(seen.x);
-    const float scaled = seen.y * frame.mDistanceScale;
+    const float away = surfaceDistance(seen.y);
+    const float scaled = away * frame.mDistanceScale;
 
     // A pixel with no surface under it has nothing to accumulate and nothing to hand on. The sky is
     // resolved into `direct` by the trace and never reaches here as light.
@@ -140,7 +141,7 @@ void main()
         {
             const float bilinear = historyShare(before, i);
             const ivec2 tap = historyTap(before, i);
-            if (bilinear <= 0.0 || !sameSurface(tap, normal, seen.y, moved))
+            if (bilinear <= 0.0 || !sameSurface(tap, normal, away, moved))
                 continue;
 
             const vec4 heldMoments = imageLoad(historyMoments, tap);

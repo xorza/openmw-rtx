@@ -20,23 +20,29 @@ vec3 tangentTo(vec3 axis)
     return normalize(cross(aside, axis));
 }
 
-/// A shading normal turned back toward `fallback` until it faces the ray that found it at `least`,
-/// where it faced that ray less: Schüssler et al.'s problem, answered the cheap way. A normal a wave
-/// or a normal map leans past the ray has no light to give back along it, and the self-occlusion
-/// that would have hidden it is what a tilt stands in for. One statement for the water and for a
+/// How squarely a shading normal has to face the ray that found its surface before `facingRay`
+/// tilts it back: a wave facet toward the water's plane, a mapped normal toward the interpolated
+/// one, a lobe's normal toward the plane. Small — a guard against a normal leaning past the ray,
+/// and not a limit on the waves or the map.
+const float MIN_FACING = 0.03;
+
+/// A shading normal turned back toward `fallback` until it faces the ray that found it at
+/// `MIN_FACING`, where it faced that ray less: Schüssler et al.'s problem, answered the cheap way.
+/// A normal a wave or a normal map leans past the ray has no light to give back along it, and the
+/// self-occlusion that would have hidden it is what a tilt stands in for. One statement for the water and for a
 /// mapped solid, so the two cannot come to answer it differently.
 ///
 /// @param fallback the normal that faces the ray, or faces it more — the water's plane, a solid's
 ///        interpolated normal. Where it does not face it either, the blend stops at it.
-vec3 facingRay(vec3 normal, vec3 fallback, vec3 incident, float least)
+vec3 facingRay(vec3 normal, vec3 fallback, vec3 incident)
 {
     const float facing = dot(-incident, normal);
-    if (!(facing < least))
+    if (!(facing < MIN_FACING))
         return normal;
 
-    // The dot is linear in the blend, so this is the exact fraction that brings it back to `least` —
-    // solved rather than iterated.
-    const float back = (least - facing) / max(dot(-incident, fallback) - facing, 1e-4);
+    // The dot is linear in the blend, so this is the exact fraction that brings it back to
+    // `MIN_FACING` — solved rather than iterated.
+    const float back = (MIN_FACING - facing) / max(dot(-incident, fallback) - facing, 1e-4);
     return normalize(mix(normal, fallback, clamp(back, 0.0, 1.0)));
 }
 

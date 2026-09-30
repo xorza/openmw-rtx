@@ -520,7 +520,9 @@ namespace Rtx::Testing
 
                 // The centre pixel's ray leans `0.5 / 32` of the half width off the axis either way,
                 // which at ninety degrees is `200 sqrt(1 + 2 (1 / 64)^2)` = 200.0488 units.
-                EXPECT_NEAR(surface[centre * 2 + 1], 200.0488f, 0.01f) << "the arms' eye did not find the wall";
+                EXPECT_NEAR(Shaders::surfaceDistance(surface[centre * 2 + 1]), 200.0488f, 0.01f)
+                    << "the arms' eye did not find the wall";
+                EXPECT_TRUE(std::signbit(surface[centre * 2 + 1])) << "the pixel does not say the arms' eye cast it";
                 EXPECT_NEAR(motion[centre * 4], 0.64f, 0.02f) << "the arms reprojected through the world's plane";
                 EXPECT_NEAR(motion[centre * 4 + 1], 0.0f, 1e-3f);
             }
@@ -902,6 +904,9 @@ namespace Rtx::Testing
                 float mArmDistance;
                 float mMiddleDistance;
 
+                /// Whether the arm's pixel says the arms' eye cast its ray — `packSurfaceDistance`.
+                bool mArmOnArms;
+
                 /// Two floats a pixel: the normal's code, then distance from the eye.
                 std::vector<float> mSurface;
             };
@@ -918,18 +923,21 @@ namespace Rtx::Testing
                     .mMiddle = { frame.byte(centre * 4), frame.byte(centre * 4 + 1), frame.byte(centre * 4 + 2) },
                 };
                 mRenderer.readChannel(Channel::Surface, seen.mSurface);
-                seen.mArmDistance = seen.mSurface[arm * 2 + 1];
-                seen.mMiddleDistance = seen.mSurface[centre * 2 + 1];
+                seen.mArmDistance = Shaders::surfaceDistance(seen.mSurface[arm * 2 + 1]);
+                seen.mMiddleDistance = Shaders::surfaceDistance(seen.mSurface[centre * 2 + 1]);
+                seen.mArmOnArms = std::signbit(seen.mSurface[arm * 2 + 1]);
 
                 return seen;
             };
 
             const Seen narrow = seenWith(camera.mCamera);
             EXPECT_EQ(narrow.mArm, narrow.mMiddle) << "the pane is off a thirty-degree picture";
+            EXPECT_FALSE(narrow.mArmOnArms) << "a pixel the arms miss says the arms' eye cast it";
             EXPECT_NEAR(narrow.mMiddleDistance, 100.0f, 0.01f);
 
             const Seen wide = seenWith(cameraAtFieldOfView(camera.mCamera, 60.0f));
             EXPECT_GT(int{ wide.mArm[0] }, 200) << "the arms' eye did not see the pane";
+            EXPECT_TRUE(wide.mArmOnArms);
             EXPECT_LT(int{ wide.mArm[1] }, 50) << "the arms' eye saw something other than the pane";
             EXPECT_EQ(wide.mMiddle, narrow.mMiddle) << "the arms' eye moved the wall";
             EXPECT_NEAR(wide.mMiddleDistance, 100.0f, 0.01f);
@@ -943,6 +951,7 @@ namespace Rtx::Testing
             const Seen faded = seenWith(cameraAtFieldOfView(camera.mCamera, 60.0f), 0.5f);
             EXPECT_EQ(faded.mArmDistance, narrow.mArmDistance)
                 << "the world behind a see-through arm was not the world's eye's";
+            EXPECT_FALSE(faded.mArmOnArms);
             EXPECT_EQ(faded.mSurface, narrow.mSurface) << "the arm moved the world behind it";
             EXPECT_NE(faded.mArm, narrow.mArm) << "the faded arm was not drawn at all";
         }

@@ -11,7 +11,7 @@ namespace Rtx
         const Shaders::VisibilityConstants& mSampled;
 
         /// What a world distance is multiplied by before a surface history holds it —
-        /// `AccumulateConstants::mDistanceScale` says why — worked out once for the frame.
+        /// `HistoryConstants::mDistanceScale` says why — worked out once for the frame.
         float mDistanceScale;
     };
 }

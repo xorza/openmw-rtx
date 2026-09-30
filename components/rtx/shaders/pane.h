@@ -1,7 +1,7 @@
 #ifndef OPENMW_COMPONENTS_RTX_SHADERS_PANE_H
 #define OPENMW_COMPONENTS_RTX_SHADERS_PANE_H
 
-#include "camera.h"
+#include "accumulate.h"
 #include "hosttypes.h"
 #include "portable.h"
 #include "storageformat.h"
@@ -32,27 +32,6 @@ namespace Rtx::Shaders
 
     /// Threads along each edge of the pane filter's workgroup.
     const uint PANE_WORKGROUP = 8;
-
-    /// What the pane filter reads that is not an image.
-    struct PaneConstants
-    {
-        /// The eye, for its extent and the jitter the layers' motion was written against. The
-        /// arms' eye is jittered alike, so one serves both.
-        Camera mCamera;
-
-        /// Non-zero where there is no history to reuse, as the accumulator is told.
-        uint mReset;
-
-        /// What a world distance is multiplied by before the history holds it —
-        /// `AccumulateConstants::mDistanceScale`, the same rule over the layers' distances.
-        float mDistanceScale;
-    };
-
-    // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
-    // reads them are different compilers.
-#ifdef RTX_HOST
-    static_assert(sizeof(PaneConstants) == 68, "PaneConstants must be scalar-packed on every side");
-#endif
 
 #ifdef RTX_HOST
 }

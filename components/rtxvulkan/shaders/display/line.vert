@@ -25,8 +25,7 @@ layout(location = 1) out vec4 outColour;
 void main()
 {
     const vec3 offset = inPosition - frame.mOrigin;
-    const Screen screen
-        = screenOf(frame.mCamera.mForward, frame.mCamera.mRight, frame.mCamera.mUp, offset, vec2(1.0));
+    const Screen screen = screenOf(basisOf(frame.mCamera), offset, vec2(1.0));
 
     gl_Position = vec4(screen.mAt, screen.mAhead - frame.mNear, screen.mAhead);
 

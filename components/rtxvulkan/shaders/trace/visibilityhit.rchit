@@ -3,10 +3,6 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_ray_tracing : require
 
-// `gl_HitTriangleVertexPositionsEXT`, which is the stage's own reading of what `traversal.glsl`
-// reads off a query.
-#extension GL_EXT_ray_tracing_position_fetch : require
-
 // The one closest-hit shader the trace's hit table names, compiled three times.
 //
 // **Picked by traversal and not by a branch.** `SceneAcceleration::placeRow` writes each
@@ -104,7 +100,7 @@ bool peeled(Surface surface)
 void answerPane(inout Answer answer, Surface surface)
 {
     const uint key = pixelKey(stagePixel());
-    const SeenPane seen = shadePane(surface, key + paneAmbientSeed(record.mLayer), key + paneSeed(record.mLayer));
+    const SeenPane seen = shadePane(surface, key, paneAmbientSeed(record.mLayer), paneSeed(record.mLayer));
 
     answer.mPane = true;
     answer.mOpacity = surface.mOpacity;

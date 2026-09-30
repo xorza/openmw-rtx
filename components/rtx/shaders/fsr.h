@@ -113,8 +113,7 @@ namespace Rtx::Shaders
     const uint FSR_INPUTS_BIND_FARTHEST_DEPTH = 6;
     const uint FSR_INPUTS_BIND_CURRENT_LUMA = 7;
     const uint FSR_INPUTS_BIND_CONSTANTS = 8;
-    const uint FSR_INPUTS_BIND_PUFFS = 9;
-    const uint FSR_INPUTS_BIND_INPUTS = 10;
+    const uint FSR_INPUTS_BIND_INPUTS = 9;
 
     const uint FSR_PYRAMID_BIND_CURRENT_LUMA = 0;
     const uint FSR_PYRAMID_BIND_FARTHEST_DEPTH = 1;

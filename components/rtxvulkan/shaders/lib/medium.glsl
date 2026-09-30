@@ -89,8 +89,9 @@ Crossing crossingOf(
 }
 
 /// How a walk of candidates weighs what it crosses: which class it is cast against, and what of a
-/// crossing it reads. **A literal at every call**, so what a rule folds out is dead code and not a
-/// branch — the two walks below are one loop under two of these.
+/// crossing it reads, which follows from the class — `gatherRuleFor`. **A literal at every call**,
+/// so what a rule folds out is dead code and not a branch — the two walks below are one loop under
+/// two of these.
 struct GatherRule
 {
     /// The one class the walk is cast against: `MASK_MEDIUM` or `MASK_ADDITIVE`.
@@ -116,6 +117,14 @@ struct GatherRule
     /// shell its winding names carries no meaning on that content.
     bool mDraws;
 };
+
+/// The rule of a walk cast against `mask`, `MASK_MEDIUM` or `MASK_ADDITIVE`: every other field is
+/// the one choice between a layer that covers and a sheet that adds, stated once.
+GatherRule gatherRuleFor(uint mask)
+{
+    const bool adds = mask == MASK_ADDITIVE;
+    return GatherRule(mask, !adds, adds, adds, !adds, adds);
+}
 
 /// What a walk gathered along a ray.
 ///
@@ -291,7 +300,7 @@ PuffLayer mediumAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Con
     PuffLayer layer = noPuffs();
 
     const Gathered gathered
-        = gatherAlong(origin, direction, limit, cone, GatherRule(MASK_MEDIUM, true, false, false, true, false));
+        = gatherAlong(origin, direction, limit, cone, gatherRuleFor(MASK_MEDIUM));
     if (gathered.mCoverage == 0u)
         return layer;
 
@@ -330,7 +339,7 @@ PuffLayer mediumAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Con
 vec3 additiveAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Cone cone)
 {
     const Gathered gathered
-        = gatherAlong(origin, direction, limit, cone, GatherRule(MASK_ADDITIVE, false, true, true, false, true));
+        = gatherAlong(origin, direction, limit, cone, gatherRuleFor(MASK_ADDITIVE));
     if (gathered.mCoverage == 0u)
         return vec3(0.0);
 

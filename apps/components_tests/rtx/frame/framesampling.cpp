@@ -86,9 +86,11 @@ namespace Rtx
             EXPECT_EQ(sampled.mNoise, Shaders::NOISE_WHITE_HASH);
             EXPECT_EQ(sampled.mLevelBias, -0.5f);
             EXPECT_EQ(sampled.mArmsSpread, osg::Vec2f(1.5f, 1.0f));
+            EXPECT_EQ(sampled.mUnitRight, osg::Vec3f(1.0f, 0.0f, 0.0f)) << "a right of two, taken unit";
+            EXPECT_EQ(sampled.mUnitUp, osg::Vec3f(0.0f, 0.0f, 1.0f));
             EXPECT_EQ(sampled.mArmsInFrame, 1u);
             EXPECT_EQ(sampled.mCameraMotion, osg::Vec3f(3.0f, 0.0f, 0.0f));
-            EXPECT_EQ(sampled.mPreviousForward, osg::Vec3f(0.0f, 1.0f, 0.0f));
+            EXPECT_EQ(sampled.mPrevious.mForward, osg::Vec3f(0.0f, 1.0f, 0.0f));
 
             // What the statement carried passes through untouched.
             EXPECT_EQ(sampled.mOrigin, stated().mOrigin);

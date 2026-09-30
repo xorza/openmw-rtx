@@ -64,8 +64,6 @@
 #include "gbuffer.h"
 #include "sets.h"
 
-#include "lib/spritelist.glsl"
-
 #include "fsr3upscaler/ffx_fsr3upscaler_resources.h"
 
 #if defined(FFX_GPU)
@@ -137,7 +135,6 @@ FfxFloat32x2 SampleSPDMipLevel(FfxFloat32x2 fUV, FfxUInt32 mipLevel)
 
 #if defined(FSR3UPSCALER_BIND_SRV_INPUT_DEPTH)
 layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_INPUT_DEPTH) uniform texture2D r_input_surface;
-layout (set = SET_PASS, binding = FSR_INPUTS_BIND_PUFFS) uniform texture2D r_input_puffs;
 layout (set = SET_PASS, binding = FSR_INPUTS_BIND_INPUTS, scalar) uniform cbInputs_t
 {
     FsrInputConstants cbInputs;
@@ -151,8 +148,8 @@ layout (set = SET_PASS, binding = FSR_INPUTS_BIND_INPUTS, scalar) uniform cbInpu
 FfxFloat32 LoadInputDepth(FfxInt32x2 iPxPos)
 {
     const vec2 seen = texelFetch(r_input_surface, iPxPos, 0).rg;
-    const Camera eye = eyeOfPixel(texelFetch(r_input_puffs, iPxPos, 0), cbInputs.mCamera, cbInputs.mArms);
-    const float along = seen.y * dot(rayAt(eye, vec2(iPxPos)).mDirection, eye.mForward);
+    const Camera eye = eyeOfPixel(seen.y, cbInputs.mCamera, cbInputs.mArms);
+    const float along = surfaceDistance(seen.y) * dot(rayAt(eye, vec2(iPxPos)).mDirection, eye.mForward);
     return seen.x == SURFACE_NO_NORMAL ? 0.0 : cbInputs.mNear / max(along, cbInputs.mNear);
 }
 #endif

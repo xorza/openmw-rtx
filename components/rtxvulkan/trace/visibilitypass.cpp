@@ -487,9 +487,7 @@ namespace Rtx
         // separately. The frame that carries it reprojects nothing, which is what it is for.
         if (historyLost)
         {
-            described.mPreviousForward = Shaders::vec3();
-            described.mPreviousRight = Shaders::vec3();
-            described.mPreviousUp = Shaders::vec3();
+            described.mPrevious = Shaders::Basis{};
         }
 
         described.mComposed = composed ? 1u : 0u;

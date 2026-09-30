@@ -150,6 +150,12 @@ namespace Rtx::Shaders
         /// them.
         vec2 mArmsSpread;
 
+        /// The eye's right and up at unit length, where `mCamera` carries them scaled by the image
+        /// plane's half extents: the eye space a sphere-mapped sheet is indexed in. Worked out once
+        /// on the host, where every hit that wears a sheet normalised both again.
+        vec3 mUnitRight;
+        vec3 mUnitUp;
+
         /// Where the debug lines' depth range starts, in world units from the eye. **A ray tracer has
         /// no near plane**: nothing the trace does clips against it, and the lines, which are
         /// rasterized, are the one reader.
@@ -477,14 +483,12 @@ namespace Rtx::Shaders
         /// an offset from its own eye.
         vec3 mCameraMotion;
 
-        /// The previous frame's basis, in the same form as `mForward`, `mRight` and `mUp`, with the
-        /// translation left out — it is `mCameraMotion` that carries where the eye was.
+        /// The previous frame's eye, with the translation left out — it is `mCameraMotion` that
+        /// carries where the eye was.
         ///
         /// All zero before there is a previous frame, which the shader reads as "no answer" and
         /// leaves the motion at nothing.
-        vec3 mPreviousForward;
-        vec3 mPreviousRight;
-        vec3 mPreviousUp;
+        Basis mPrevious;
 
         /// Which frame this is, for anything that wants a different answer than last time.
         ///
@@ -572,8 +576,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1200, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1384, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1224, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1408, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(HitRecord) == 8, "HitRecord must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 8, "PuffConstants must be scalar-packed on every side");
 #endif

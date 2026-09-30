@@ -412,13 +412,9 @@ void main()
     // which is the composite's; gathered here as well, it was hidden and let through by this
     // jittered sample and not by the pixel the picture shows, and a cloud's edge shook the way a
     // puff's did at a silhouette.
-    //
-    // And which eye this pixel's ray was cast from, for the composite to march its own again
-    // through the same one — in the sign of what the sprites let through, `packPuffs`. The world's
-    // behind a see-through arm, whose puffs the composite lays down by what the arms let through.
     const PuffLayer sprites
         = spritesAlong(binnedPixel(pixel, direction, arms), origin, direction, distance, cone, true);
-    imageStore(puffs, ivec2(pixel), packPuffs(sprites.mColour, sprites.mTransmittance, arms));
+    imageStore(puffs, ivec2(pixel), vec4(sprites.mColour, sprites.mTransmittance));
 
     // **The sun glare fader's query, one ray at a time.** The rasterizer draws the sun's quad
     // against the world's depth and counts the pixels that survived; here every primary ray inside
@@ -508,7 +504,10 @@ void main()
     // what the arms' share beside it is for.
     imageStore(backdrop, at, vec4(answer.mBackdropShown * transmittance, armsStack.mThrough));
 
-    // A miss is as far away as anything can be, and the miss shader answered `mFar` for it.
+    // A miss is as far away as anything can be, and the miss shader answered `mFar` for it. And
+    // which eye this pixel's ray was cast from, in the distance's sign, for every pass that
+    // rebuilds the ray — the world's behind a see-through arm, whose puffs the composite lays
+    // down by what the arms let through.
     RTX_STORE_COUNTED(surfaceChannel, at, BOUNDARY_GUIDE,
-        vec4(answer.mResponse.mNormal, distance, 0.0, 0.0))
+        vec4(answer.mResponse.mNormal, packSurfaceDistance(distance, arms), 0.0, 0.0))
 }

@@ -37,10 +37,6 @@ const float WATER_MAX_PATH = 2000.0;
 /// number moves no pixel.
 const float WATER_UNBOUNDED_PATH = 40000.0;
 
-/// How squarely a wave facet has to face the ray that found it before it is tilted back toward the
-/// plane. Small: a guard against a facet turning away entirely, not a limit on the waves.
-const float WATER_MIN_FACING = 0.03;
-
 /// What a ray sent out from the water surface found.
 struct WaterPath
 {
@@ -76,15 +72,16 @@ struct WaterPath
 /// a refraction ray offset to the far side of the plane began under the ground wherever the bed sat
 /// nearer the surface than the offset, and reported water of unbounded depth.
 ///
-/// @param seed which draw sequence the lamp reservoir at the far end of this ray steps. The
-///        reflection and the refraction take different ones, or both keep the same lamp.
-/// @param ambientSeed the one the occlusion ray there draws from, for the same reason.
+/// @param key the pixel's own, `pixelKey`.
+/// @param lamps which draw sequence the lamp reservoir at the far end of this ray steps from `key`.
+///        The reflection and the refraction take different ones, or both keep the same lamp.
+/// @param ambient the one the occlusion ray there draws from, for the same reason.
 /// @param cone the pixel's own cone where the ray leaves, whose spread the lobe widens.
 /// @param lobe how wide, across, the cone those slopes fill is — a *width*, as everything a spread
 ///        feeds is: `resolved` compares it against a wavelength and `coneLod` against a texel area,
 ///        and `mSpreadAngle` is the whole angle a pixel covers rather than half of one. The sky's
 ///        disc takes half of it, because a disc is named by its radius.
-WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint seed, uint ambientSeed)
+WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint key, uint lamps, uint ambient)
 {
     const vec3 origin = ray.mFrom;
     const vec3 direction = ray.mAlong;
@@ -100,7 +97,7 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint seed, uint ambientS
     {
         path.mDistance = hit.mDistance;
 
-        path.mLight = shadeAtPathEnd(hit, ambientSeed, seed, PATH_SEEN, true, AMBIENT_UNFILTERED_RATE);
+        path.mLight = shadeAtPathEnd(hit, key, ambient, lamps, PATH_SEEN, true, AMBIENT_UNFILTERED_RATE);
         return path;
     }
 
@@ -251,7 +248,7 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
 
     // A facet still facing away is one the surface would have hidden behind the wave in front of it,
     // and tilting it back toward the plane is what keeps a glancing reflection finite.
-    normal = facingRay(normal, plane, incident, WATER_MIN_FACING);
+    normal = facingRay(normal, plane, incident);
 
     // **Schlick at the angle in the air, which from below is the refracted one.** The curve is
     // written for light arriving from the rarer medium; taken at the incident angle under the
@@ -299,7 +296,7 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     // The reflection stays on the eye's side of the plane, and the refraction crosses it.
     const WorldRay mirrored = WorldRay(leaving, reflect(incident, normal));
     const WaterPath bounced = waterRay(
-        mirrored, Cone(surface.mFootprint, cone.mSpread), lobe, key + SEED_LAMPS_MIRROR, key + SEED_AMBIENT_MIRROR);
+        mirrored, Cone(surface.mFootprint, cone.mSpread), lobe, key, SEED_LAMPS_MIRROR, SEED_AMBIENT_MIRROR);
     const SplitLight reflected = alongLeg(bounced, mirrored, fromBelow, surface.mFootprint, pixel, before);
 
     const vec3 bent = refract(incident, normal, fromBelow ? WATER_IOR : 1.0 / WATER_IOR);
@@ -324,7 +321,7 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     // blurred correspondingly less by the same lost slopes.
     const WorldRay across = WorldRay(leaving, through);
     const WaterPath behind = waterRay(across, Cone(surface.mFootprint, cone.mSpread), lobe * WATER_REFRACTION_BEND,
-        key + SEED_LAMPS_THROUGH, key + SEED_AMBIENT_THROUGH);
+        key, SEED_LAMPS_THROUGH, SEED_AMBIENT_THROUGH);
     const SplitLight refracted = alongLeg(behind, across, !fromBelow, surface.mFootprint, pixel, before);
 
     // **Shared by the luminance each ray adds**, as `mixSplit` shares the sun's bit. A ray that went

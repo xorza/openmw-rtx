@@ -154,7 +154,7 @@ namespace Rtx
                 .mExposure = *exposure,
                 .mSunGlare = *share,
                 .mBackdrop = channels.get(Channel::Backdrop),
-                .mPuffs = channels.get(Channel::Puffs),
+                .mSurface = channels.get(Channel::Surface),
                 .mBloom = look != nullptr ? mBloom.getPyramid() : nullptr,
                 .mTextures = inputs.mSubject.mScene->getTextures(),
                 .mTarget = what.mTarget,

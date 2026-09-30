@@ -27,7 +27,7 @@ namespace Rtx
             computeBinding(Shaders::TONE_BIND_EXPOSURE, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
             computeBinding(Shaders::TONE_BIND_BLOOM, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER),
             computeBinding(Shaders::TONE_BIND_SUN_GLARE, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
-            computeBinding(Shaders::TONE_BIND_PUFFS, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::TONE_BIND_SURFACE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
         };
     }
 
@@ -44,7 +44,7 @@ namespace Rtx
         const Buffer& exposure = what.mExposure;
         const Buffer& sunGlare = what.mSunGlare;
         const Image& backdrop = what.mBackdrop;
-        const Image& puffs = what.mPuffs;
+        const Image& surface = what.mSurface;
         const Image* const bloom = what.mBloom;
         const VkDescriptorSet textures = what.mTextures;
         const Image& target = what.mTarget;
@@ -67,7 +67,7 @@ namespace Rtx
         writes.buffer(Shaders::TONE_BIND_EXPOSURE, exposure.describe());
         writes.image(Shaders::TONE_BIND_BLOOM, spread.describeSampled(mSampler.get()));
         writes.buffer(Shaders::TONE_BIND_SUN_GLARE, sunGlare.describe());
-        writes.image(Shaders::TONE_BIND_PUFFS, puffs.describeStorage());
+        writes.image(Shaders::TONE_BIND_SURFACE, surface.describeStorage());
 
         // The scene's textures before the launch and beside the pushed set, which the two are
         // independent of: a pushed set and a bound one only have to be in place by the dispatch.

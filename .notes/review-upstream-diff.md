@@ -34,37 +34,17 @@ Severity: **high** is a wrong value, a crash, undefined behaviour, or a check th
 
 ## 12. One number spelled several ways
 
-- [ ] **medium** — `components/rtxvulkan/shaders/trace/denoise/shadowtiles.comp:114`, `:118`, `:152`, `:255`–`:270` — The index arithmetic is right only while `SHADOW_WORKGROUP`, `SHADOW_APRON` and `KERNEL_RADIUS` are all 8: `gRows` stores row `local.y + SHADOW_APRON` at index `local.y + SHADOW_WORKGROUP`, and `horizontalNeighbourhood` hard-codes 17 taps and a centre of 8. Changing any one reads the wrong rows or goes past the shared arrays. Fix: one constant for the reach, and derive the apron, the tap count, the radius and the stride from it.
-- [ ] **medium** — `components/rtxvulkan/shaders/trace/denoise/shadowfilter.comp:86`–`:87`, `:179` — `APRON` is `SHADOW_WORKGROUP / 2`, but what it must cover is the widest level's step, `1 << (SHADOW_FILTER_LEVELS - 1)`. Both are 4 today, and a fourth level would index the shared arrays out of bounds. Fix: derive `APRON` from the widest step, and give the shader `SHADOW_FILTER_LEVELS`.
-- [ ] **low** — `components/rtxvulkan/shaders/trace/denoise/shadowtiles.comp:119`–`:123` — `KERNEL_SUM` is the sum of `kernelWeight` written by hand, with `81` for `(KERNEL_RADIUS + 1)^2`. Fix: a constant loop the compiler folds.
-- [ ] **low** — `components/rtx/shaders/accumulate.h:65`–`:85`, `components/rtx/shaders/pane.h:37`–`:49`, `components/rtx/shaders/shadow.h:102`–`:115` — `AccumulateConstants`, `PaneConstants` and `ShadowTilesConstants` are the same 68-byte record (`Camera`, `mReset`, `mDistanceScale`), filled from one frame. Fix: one `HistoryConstants`.
-- [ ] **low** — `components/rtx/shaders/visibility.h:485`–`:487`, `components/rtx/shaders/specular.h:50`–`:53`, `components/rtx/shaders/camera.h:225` — The previous eye's basis travels as three loose `vec3` in two records, and `specular.comp:96`–`:103` rebuilds `rayAcross` by hand. Fix: a `Basis` struct that `Camera` holds, and `toEyeBefore` calls the shared ray rule.
-- [ ] **low** — `components/rtxvulkan/shaders/lib/basis.glsl:31`, `components/rtxvulkan/shaders/lib/water.glsl:42`, `components/rtxvulkan/shaders/lib/traversal.glsl:97` — `WATER_MIN_FACING` and `SHADING_MIN_FACING` are both 0.03 for the same guard, and every call of `facingRay` passes one of them. Fix: one constant, and drop the parameter.
-- [ ] **low** — `components/rtxvulkan/shaders/lib/medium.glsl:94`, `:294`, `:333` — The six fields of `GatherRule` all flip together between its two callers. Fix: one choice, with the flags derived from it.
 - [ ] **low** — `components/rtxvulkan/display/displaychain.cpp:200`–`:203` against `:198`–`:217` (`toneFor`) — The lines take the traced extent from the channels' size and the grid from the target's size, while the tone pass takes both from the sampled camera and `mExtent`, and says why the channels' size is the wrong source. They agree today only because `renderFrame` asserts it. Fix: read them as `toneFor` does.
 - [ ] **low** — `apps/openmw/mwrender/rtx/worldmirror.hpp:91`, `apps/openmw/mwrender/rtx/skyreader.hpp:85`, `apps/openmw/mwrender/renderingmanager.cpp:944`, `apps/openmw/mwrender/framedescriber.cpp:132` — Arguments repeat what the callee can read: `mirror` takes `frame.mWhen.getFrameNumber()` beside `frame`, `SkyReader::read` takes five pieces of one `SceneFrame`, and the projection goes from the describer to `RenderingManager` and back. Fix: take `const SceneFrame&`, and let `FrameDescriber::describe` fill `mProjectionMatrix` itself.
 
 ## 13. Work done per frame, per pixel or per arrival that could be done once
 
-- [ ] **medium** — `components/rtxvulkan/shaders/lib/spritelist.glsl:98`–`:119`, read at `trace/denoise/atrous.comp:119`–`:130`, `:187`, `trace/denoise/shadowfilter.comp:95`–`:98`, `:115`, `trace/denoise/specular.comp:128`–`:130`, `upscale/fsrcallbacks.glsl:139`, `:153`, `display/tone.comp:60`, `:111` — The flag for which eye a pixel's ray left rides in the sign of `CHANNEL_PUFFS`' alpha, so four surface filters and the tone pass bind the sprites' channel to read one bit. The wavelet reads it at every tap: 25 extra 8-byte fetches per pixel per level, over three levels. `gbuffer.h:41`–`:49` says the surface channel was made one fetch per tap to avoid such a second fetch. Fix: carry the flag in `CHANNEL_SURFACE`, for example in the sign bit of the distance, which is never negative.
-- [ ] **low** — `components/rtxvulkan/shaders/lib/starfield.glsl:74` — `textureSize` on the star sheet at every shown pixel. Fix: carry the sheet's extent in `StarField`.
-- [ ] **low** — `components/rtxvulkan/shaders/trace/spriteemitters.rgen:42`–`:47` — `mLayerThrough` and `mTexels` depend only on the emitter's texture and are recomputed every frame. Fix: put them on `GpuEmitter` at load.
-- [ ] **low** — `components/rtxvulkan/shaders/lib/traversal.glsl:1078`–`:1079` — Normalizes `frame.mCamera.mRight` and `mUp`, which are frame constants, at every environment-mapped hit. Fix: carry the unit basis in the frame block.
-- [ ] **low** — `components/rtxvulkan/shaders/trace/fogintegrate.comp:131` — Reads the froxel grid with `imageSize` where every other reader uses `frame.mFogColumns`. Fix: use `frame.mFogColumns`.
-- [ ] **low** — `components/rtxvulkan/upscale/upscaler.cpp:404`, `:414` — `FsrFrame::pyramidFor(targets.mRender)` is recomputed and its block rewritten every frame, and depends only on the render extent. Fix: compute it at `resize`.
-- [ ] **low** — `components/rtxvulkan/texture/texture.cpp:595` — `costAt`'s `bakeOf` runs a linear `find_if` over the whole arrival for each bake, up to twice per halving in `chooseSide`, on the frame the arrival lands. Fix: a slot-to-arrival lookup built once per `write` in a scratch buffer.
 - [ ] **low** — `components/rtx/preprocess/texture/finesttexels.cpp:33`, `components/rtx/image/alphaimage.cpp:217`, `components/rtx/preprocess/contentpreprocessor.cpp:20`–`:27` — `SolidReach` keys its input by hashing every byte of the finest level, while the pass stops at the first solid block, and the cache the key is for holds nothing. Fix: skip the key while `ContentCache` holds nothing, and turn it on with the store.
 - [ ] **low** — `components/rtx/image/alphaimage.cpp:195`–`:205` — `describeFinest` widens or gathers every level into the scratch, then keeps level 0 only. Fix: describe level 0 alone.
 - [ ] **low** — `components/rtxvulkan/scene/skintables.cpp:23`, `components/rtxvulkan/scene/sceneacceleration.cpp:47`–`:49`, `components/rtxvulkan/scene/scenebuffers.cpp:131`–`:133`, `components/rtx/scene/scenetextures.cpp:29`–`:30` — "Every index below N" is built four ways, and `SceneBuffers` allocates a fresh vector on every build. Fix: one helper and one held list.
 - [ ] **low** — `apps/openmw/mwrender/rtx/tracedterrain.hpp:57`, `:87` — The comment says an arriving cell "allocates nothing after the first few", but `mCells` is a `std::map`, so every `loadCell` allocates a node. Fix: a flat vector searched by `(x, y)`, beside `mSpare`.
 - [ ] **low** — `components/rtx/scene/placementtable.hpp:169`–`:171` — Duplicates in `mMoved` are justified as "a memcpy of a hundred bytes", but each entry costs `recordOf`, a 4×4 inverse and a row in both device tables. Fix: dedupe with a `SlotSet`, or state the real cost.
 - [ ] **low** — `tools/omw/main.py:69`–`:70`, `tools/omw/gate.py:32`–`:33`, `tools/omw/testing.py:18`–`:21` — `test_targets()` configures, and the `build()` after it configures again. Fix: let `build` take its targets from the configure it already made.
-
-## 14. Random draws whose order the code states one way and does another
-
-- [ ] **low** — `components/rtxvulkan/shaders/trace/fogscatter.rgen:180`–`:211` — The sun's pair, the moon's pair and the moon's pick are drawn after `lampsInAir` stepped the same state once per lamp, so a lamp entering a column moves the froxel's sky shadow draws. `gather` states the opposite rule (`shading.glsl:122`–`:125`), and the comment at `fogscatter.rgen:195` says the lamp keeps its numbers. Fix: draw the sky's pairs before the walk, or give them their own seed.
-- [ ] **low** — `components/rtxvulkan/shaders/lib/shading.glsl:127`–`:133` — `gather` draws three numbers and throws them away so that later draws keep their place. Fix: drop them. The noise pattern moves once, and the estimate does not.
-- [ ] **low** — `components/rtxvulkan/shaders/lib/shading.glsl:113` — `gather` rebuilds the pixel key as `seed - SEED_LAMPS_BOUNCE + SEED_INDIRECT_LIGHT`, right only because its one caller passes `pixelKey + SEED_LAMPS_BOUNCE`. Fix: pass the pixel key and let `gather` add both seeds.
 
 ## 15. Code in the folder or file of another responsibility
 
@@ -104,8 +84,6 @@ Severity: **high** is a wrong value, a crash, undefined behaviour, or a check th
 - [ ] **low** — `apps/rtxtool/stopwriter.cpp:749`–`:754`, `apps/rtxtool/model/benchrun.cpp:49`–`:52` — `CameraStands` answers yes for a stop with no eye, but `canAsk` never asks it of one. Fix: remove the branch, or assert the eye.
 - [ ] **low** — `apps/rtxtool/.gitattributes:1` — It names `rtx.cmd`, which does not exist, and the root `.gitattributes` already covers every `*.cmd`. Fix: delete the file.
 - [ ] **low** — `components/rtx/scene/meshtable.cpp:194`, `components/rtx/scene/materialtable.cpp:105` — Both guard against releasing an empty run, which `RunAllocator::release` already ignores. Fix: drop the guards.
-- [ ] **low** — `components/rtxvulkan/shaders/trace/visibilityhit.rchit:6`–`:8` — Declares `GL_EXT_ray_tracing_position_fetch`, which `lib/traversal.glsl:12` already declares for every stage that includes it. Fix: drop the stage's copy.
-- [ ] **low** — `components/rtx/shaders/camera.h:156` — `normalize(camera.mForward)` on a vector `camera.h:37` states is unit. Fix: use it as it is. The orthographic rays may move by one ulp, once.
 
 ## 18. Comments that describe code or designs that are gone
 
@@ -138,3 +116,14 @@ Severity: **high** is a wrong value, a crash, undefined behaviour, or a check th
 - [ ] **low** — `apps/rtxtool/stager.hpp:51`, `apps/rtxtool/main.cpp:784`, `apps/rtxtool/stager.cpp:56` — Two comments say a million gold, and the constant is ten million.
 - [ ] **low** — `apps/rtxtool/model/benchrecord.hpp:161`–`:162` — `BenchPlace::mClock` says "as this place ended", and `CardWatch` samples it through the measured frames. Fix: say range and mean over the measured frames.
 - [ ] **low** — `components/rtx/common/slots.cpp:32` — `SlotChanges::note` compacts on every call, which defeats the deferred compaction `SlotSet::remove` argues for (`slots.hpp:107`–`:109`). Fix: compact once where the changes are read.
+
+## Not a finding
+
+- The flat identity maps: no caller of `Kept` keeps an iterator or a reference into a map across an insert into the same map.
+- The crash catcher's note table, shared page, packaging and hang watch hold up, except the heartbeat sites in group 4.
+- `holdWeather`'s crossing arithmetic, `PaintedTexture`, the optimizer's merge order, and the settings menus (checked against `Rtx::sUpscaleMenu` at compile time).
+- `components/rtxvulkan/vulkanrenderer.cpp:140`: only a test calls `setSea`, so the game always runs `SeaState{}`. That is an observation, not a defect.
+- `components/shader/automaps.cpp:269` against `components/shader/shadervisitor.cpp:595`: the second copy is upstream's rasterizer path, and the two differ only for a mesh whose texture coordinates stand past the tangent unit and nowhere before it. One helper would change the rasterizer's choice there, which the rules forbid, or keep two rules under one name.
+- `apps/openmw/mwgui/mapwindow.cpp:622`: a map view can arrive after the first ask, when a later request makes its segment, so asking until it comes is the rule. One "asked" flag would leave such a tile blank.
+- `components/rtxvulkan/shaders/lib/starfield.glsl:74` and `components/rtxvulkan/shaders/trace/spriteemitters.rgen:42`–`:47`: the side a texture stands at is the device's choice when it arrives (`TextureArray::chooseSide` holds an arrival to what the room fits), so the host cannot state the star sheet's extent or an emitter texture's levels at load. The queries read the device's own answer, once a pixel with stars and once an emitter a frame.
+

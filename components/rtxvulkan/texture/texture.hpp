@@ -291,6 +291,12 @@ namespace Rtx
         std::vector<VkWriteDescriptorSet> mWriteScratch;
         std::vector<VkBufferImageCopy> mRegionScratch;
 
+        /// Where each slot stands in the arrival `chooseSide` is weighing, `sNoIndex` for a slot that
+        /// did not arrive: what a bake's cost asks of its source, where a search of the arrival asked
+        /// it up to twice a halving for every bake. Refilled per arrival, and kept — scratch, which
+        /// is why a question that is otherwise const may write it.
+        mutable std::vector<Index> mArrivingAt;
+
         /// Indexed by slot. A slot the scene has freed holds nothing until something takes it over —
         /// `drop` buries the image it had, and the descriptor is left naming what has gone for the
         /// reason `drop` gives.

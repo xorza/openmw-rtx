@@ -109,7 +109,7 @@ layout(set = SET_CHANNELS, binding = CHANNEL_MOTION, GBUFFER_MOTION) uniform wri
 layout(set = SET_CHANNELS, binding = CHANNEL_BACKDROP, GBUFFER_BACKDROP) uniform image2D backdrop;
 
 /// The sprites in front of the surface: their straight colour lit where they stand and already
-/// fog-attenuated, and what they let through in `a` with the arms' flag in its sign — `packPuffs`.
+/// fog-attenuated, and what they let through in `a`.
 /// Read back by `spritecomposite.rgen`, which is why it is not `writeonly`.
 layout(set = SET_CHANNELS, binding = CHANNEL_PUFFS, GBUFFER_LAYER) uniform image2D puffs;
 

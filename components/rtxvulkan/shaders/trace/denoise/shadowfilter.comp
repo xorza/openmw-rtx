@@ -56,7 +56,6 @@
 #include "shadow.h"
 
 #include "lib/pixels.glsl"
-#include "lib/spritelist.glsl"
 #include "lib/surfacematch.glsl"
 
 /// Which of the `SHADOW_FILTER_LEVELS` this module is: its taps are `1 << SHADOW_LEVEL` apart.
@@ -65,9 +64,6 @@ layout(constant_id = SHADOW_SPEC_LEVEL) const uint SHADOW_LEVEL = 0u;
 layout(local_size_x = SHADOW_WORKGROUP, local_size_y = SHADOW_WORKGROUP) in;
 
 layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
-
-/// For the one bit that says which eye a pixel's ray left, `eyeOfPixel`.
-layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_PUFFS, GBUFFER_LAYER) uniform readonly image2D puffs;
 
 layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_TILES, SHADOW_TILES) uniform readonly image2D tiles;
 
@@ -81,10 +77,10 @@ layout(push_constant, scalar) uniform Push
     ShadowFilterConstants level;
 };
 
-/// The side of the square a workgroup reads: its own eight pixels and four either side, which is as
-/// far as the widest level's taps reach.
-const uint SPAN = 2u * SHADOW_WORKGROUP;
-const int APRON = int(SHADOW_WORKGROUP) / 2;
+/// How far past the workgroup the square reaches on every side: the widest level's step, which is
+/// how far its taps reach. And the side of the square a workgroup reads.
+const int APRON = 1 << (SHADOW_FILTER_LEVELS - 1u);
+const uint SPAN = SHADOW_WORKGROUP + 2u * uint(APRON);
 
 /// The level's input as two halves in a word, the surface's normal code — `SURFACE_NO_NORMAL` where
 /// the pixel receives nothing, so no test passes it — and where the surface stands.
@@ -92,9 +88,10 @@ shared uint gInput[SPAN][SPAN];
 shared float gNormal[SPAN][SPAN];
 shared vec3 gPosition[SPAN][SPAN];
 
-Camera eyeAt(ivec2 pixel)
+/// The eye that cast the ray of a pixel whose distance the surface channel packs as `packed`.
+Camera eyeAt(float packed)
 {
-    return eyeOfPixel(imageLoad(puffs, pixel), level.mCamera, level.mArms);
+    return eyeOfPixel(packed, level.mCamera, level.mArms);
 }
 
 /// Fills the workgroup's square, four texels a lane, clamped to the frame as the SDK clamps them.
@@ -112,7 +109,8 @@ void readSquare(ivec2 corner)
 
         gInput[square.y][square.x] = packHalf2x16(value);
         gNormal[square.y][square.x] = lit ? seen.x : SURFACE_NO_NORMAL;
-        gPosition[square.y][square.x] = lit ? positionAlong(eyeAt(pixel), pixel, seen.y) : vec3(0.0);
+        gPosition[square.y][square.x]
+            = lit ? positionAlong(eyeAt(seen.y), pixel, surfaceDistance(seen.y)) : vec3(0.0);
     }
 }
 
@@ -173,7 +171,8 @@ void main()
         const vec2 here = inputAt(centre);
         const vec3 normal = unpackSurfaceNormal(normalCode);
         const vec3 position = gPosition[centre.y][centre.x];
-        const float footprint = footprintAlong(eyeAt(at), imageLoad(surfaceChannel, at).g);
+        const float packed = imageLoad(surfaceChannel, at).g;
+        const float footprint = footprintAlong(eyeAt(packed), surfaceDistance(packed));
         const float deviation = sqrt(max(filteredVariance(centre) + 1e-9, 0.0));
 
         const int step = 1 << SHADOW_LEVEL;

@@ -76,10 +76,21 @@ namespace Rtx::Shaders
         uint mHeight;
     };
 
+    /// Which way an eye looks and how wide its image plane is, in the form `Camera` holds the
+    /// three: what a previous frame's eye is kept as, where its jitter, extent and projection are
+    /// this frame's.
+    struct Basis
+    {
+        vec3 mForward;
+        vec3 mRight;
+        vec3 mUp;
+    };
+
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(Camera) == 60, "Camera must be scalar-packed on every side");
+    static_assert(sizeof(Basis) == 36, "Basis must be scalar-packed on every side");
 #endif
 
     /// The traced camera on the grid a pass draws at once: the same basis, `width` by `height`
@@ -142,24 +153,22 @@ namespace Rtx::Shaders
         vec3 mDirection;
     };
 
-    /// The ray through `uv`, minus one to one across and down the image plane: the one rule for which
-    /// way a point of the picture looks, for the trace, every shader that recomputes its ray, and a
-    /// pick on the processor. Its components are read as `uv[i]`, which both sides spell alike.
-    RTX_SHADER Ray rayAcross(Camera camera, vec2 uv)
+    /// The three vectors of `camera`'s eye.
+    RTX_SHADER Basis basisOf(Camera camera)
     {
-        Ray ray;
-        if (camera.mOrthographic != 0u)
-        {
-            // The same pair of multiply-adds the perspective branch pins below, for the same reason.
-            RTX_PRECISE vec3 offset = camera.mRight * uv[0] - camera.mUp * uv[1];
-            ray.mOffset = offset;
-            ray.mDirection = normalize(camera.mForward);
+        Basis basis;
+        basis.mForward = camera.mForward;
+        basis.mRight = camera.mRight;
+        basis.mUp = camera.mUp;
 
-            return ray;
-        }
+        return basis;
+    }
 
-        ray.mOffset = vec3(0.0, 0.0, 0.0);
-
+    /// Which way the point `uv` of a pinhole eye's image plane looks, minus one to one across and
+    /// down it: the rule `rayAcross` traces by, over a basis alone, so an eye kept from a previous
+    /// frame looks the way it did. Its components are read as `uv[i]`, which both sides spell alike.
+    RTX_SHADER vec3 directionAcross(Basis basis, vec2 uv)
+    {
         // **The sum is written out rather than hoisted into a shared term, and that is not an
         // oversight.** Floating-point addition does not associate: `f + (a - b)` and `(f + a) - b`
         // differ in the last place, and a direction that differs in the last place is a hit a texel
@@ -176,8 +185,29 @@ namespace Rtx::Shaders
         // the surfaces it reaches and another sample on a few hundred pixels. `precise` keeps these
         // steps apart in every module, so each computes the written sum; the `normalize` under it the
         // build writes out in one order for all of them.
-        RTX_PRECISE vec3 summed = camera.mForward + camera.mRight * uv[0] - camera.mUp * uv[1];
-        ray.mDirection = normalize(summed);
+        RTX_PRECISE vec3 summed = basis.mForward + basis.mRight * uv[0] - basis.mUp * uv[1];
+        return normalize(summed);
+    }
+
+    /// The ray through `uv`, minus one to one across and down the image plane: the one rule for which
+    /// way a point of the picture looks, for the trace, every shader that recomputes its ray, and a
+    /// pick on the processor.
+    RTX_SHADER Ray rayAcross(Camera camera, vec2 uv)
+    {
+        Ray ray;
+        if (camera.mOrthographic != 0u)
+        {
+            // The same pair of multiply-adds `directionAcross` pins, for the same reason. The forward
+            // is unit already, as `Camera` states.
+            RTX_PRECISE vec3 offset = camera.mRight * uv[0] - camera.mUp * uv[1];
+            ray.mOffset = offset;
+            ray.mDirection = camera.mForward;
+
+            return ray;
+        }
+
+        ray.mOffset = vec3(0.0, 0.0, 0.0);
+        ray.mDirection = directionAcross(basisOf(camera), uv);
 
         return ray;
     }
@@ -217,15 +247,18 @@ struct Screen
 
 /// The inverse of the generation in `rayAt`, for one basis and one point `offset` from its eye.
 ///
-/// **Over a basis and not a `Camera`**, so the previous frame's three vectors pass through it as
-/// this frame's do. The basis carries the image plane's half extents, so dividing by each vector's
-/// own square undoes the direction and the scale together; a plane `spread` times wider puts the
-/// same point that much nearer its middle. **The association is the reprojection's**, because a
-/// motion vector is what the answer is judged by: every caller lands on the same bits.
-RTX_SHADER Screen screenOf(vec3 forward, vec3 right, vec3 up, vec3 offset, vec2 spread)
+/// **Over a basis and not a `Camera`**, so the previous frame's eye passes through it as this
+/// frame's does. The basis carries the image plane's half extents, so dividing by each vector's own
+/// square undoes the direction and the scale together; a plane `spread` times wider puts the same
+/// point that much nearer its middle. **The association is the reprojection's**, because a motion
+/// vector is what the answer is judged by: every caller lands on the same bits.
+RTX_SHADER Screen screenOf(Basis basis, vec3 offset, vec2 spread)
 {
+    const vec3 right = basis.mRight;
+    const vec3 up = basis.mUp;
+
     Screen screen;
-    screen.mAhead = dot(offset, forward);
+    screen.mAhead = dot(offset, basis.mForward);
     screen.mAt = vec2(dot(offset, right) / dot(right, right) / spread.x, -dot(offset, up) / dot(up, up) / spread.y);
 
     return screen;

@@ -89,7 +89,7 @@ namespace Rtx
             writes.image(Shaders::SHADOW_TILES_BIND_TILES, images.mTiles.describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_MASK, images.mMask.describeStorage());
 
-            const Shaders::ShadowTilesConstants constants{
+            const Shaders::HistoryConstants constants{
                 .mCamera = camera,
                 .mReset = images.mFresh ? 1u : 0u,
                 .mDistanceScale = frame.mDistanceScale,
@@ -113,7 +113,6 @@ namespace Rtx
 
             DescriptorWrites writes(mFilters[level]);
             writes.image(Shaders::SHADOW_FILTER_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
-            writes.image(Shaders::SHADOW_FILTER_BIND_PUFFS, buffer.get(Channel::Puffs).describeStorage());
             writes.image(Shaders::SHADOW_FILTER_BIND_TILES, images.mTiles.describeStorage());
             writes.image(Shaders::SHADOW_FILTER_BIND_SOURCE, sources[level]->describeStorage());
             writes.image(Shaders::SHADOW_FILTER_BIND_FILTERED, targets[level]->describeStorage());
