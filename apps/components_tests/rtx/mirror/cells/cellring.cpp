@@ -1417,7 +1417,7 @@ namespace Rtx::Testing
             PreparedModel model;
             model.mPositions.reserve(100);
 
-            for (const auto [held, kept] : { std::pair{ 100u, 100u }, std::pair{ 50u, 100u }, std::pair{ 40u, 0u } })
+            for (const auto& [held, kept] : { std::pair{ 100u, 100u }, std::pair{ 50u, 100u }, std::pair{ 40u, 0u } })
             {
                 model.mPositions.resize(held);
                 ASSERT_EQ(model.mPositions.capacity(), 100u) << "the room this starts from";
