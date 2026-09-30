@@ -9,13 +9,16 @@
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 
+#include "tonepass.hpp"
+
 namespace Rtx
 {
     namespace
     {
         /// The trace's surface channel, whose distance every fragment reads.
         constexpr std::array<VkDescriptorSetLayoutBinding, 1> sBindings{
-            VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+            VkDescriptorSetLayoutBinding{
+                Shaders::LINE_BIND_SURFACE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
         };
 
         constexpr std::array<VkVertexInputBindingDescription, 1> sVertexBindings{
@@ -43,9 +46,9 @@ namespace Rtx
         }
     }
 
-    LinePass::LinePass(const Device& device, const VkFormat targetFormat)
-        : mLines(device, describePipeline(targetFormat, VK_PRIMITIVE_TOPOLOGY_LINE_LIST))
-        , mTriangles(device, describePipeline(targetFormat, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST))
+    LinePass::LinePass(const Device& device)
+        : mLines(device, describePipeline(TonePass::sTargetFormat, VK_PRIMITIVE_TOPOLOGY_LINE_LIST))
+        , mTriangles(device, describePipeline(TonePass::sTargetFormat, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST))
     {
     }
 
@@ -81,7 +84,7 @@ namespace Rtx
                       return;
 
                   DescriptorWrites traced(pipeline);
-                  traced.image(0, surface.describeStorage());
+                  traced.image(Shaders::LINE_BIND_SURFACE, surface.describeStorage());
 
                   bind(commands, pipeline);
                   pushDescriptors(commands, pipeline, traced);

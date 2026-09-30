@@ -59,8 +59,8 @@ namespace Rtx
         {
             SkyContent textures;
             textures.mClouds.fill(Rtx::sNoIndex);
-            textures.mClouds[Rtx::Shaders::WEATHER_CLEAR] = 3;
-            textures.mCloudMean[Rtx::Shaders::WEATHER_CLEAR] = 0.435f;
+            textures.mClouds[Rtx::sWeatherClear] = 3;
+            textures.mCloudMean[Rtx::sWeatherClear] = 0.435f;
             textures.mShell = Rtx::CloudShell{
                 .mTiles = osg::Vec2f(0.75f, -0.75f), .mCurvature = 0.06f, .mRings = osg::Vec3f(1.0f, 1.5f, 2.0f)
             };
@@ -104,8 +104,8 @@ namespace Rtx
                 .mStarRoll = 0.125f,
                 .mSky = skyWithSheets(),
                 .mClouds = Rtx::CloudCrossing{
-                    .mWeather = Rtx::Shaders::WEATHER_CLEAR,
-                    .mNext = Rtx::Shaders::WEATHER_CLEAR,
+                    .mWeather = Rtx::sWeatherClear,
+                    .mNext = Rtx::sWeatherClear,
                     .mScroll = 0.25f,
                 },
                 .mWaterLevel = -37.5f,

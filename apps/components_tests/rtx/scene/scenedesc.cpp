@@ -231,7 +231,7 @@ namespace Rtx
                 ASSERT_EQ(textures.add(names[at]), at);
 
             EXPECT_EQ(textures.add(names.back()), sNoIndex);
-            EXPECT_EQ(textures.addBaked("chunk/1"), sNoIndex);
+            EXPECT_EQ(textures.addBaked("chunk/1", TextureEncoding::Colour), sNoIndex);
             EXPECT_EQ(textures.getRefused(), 2u);
             EXPECT_EQ(textures.add(names[7]), 7u) << "a texture that stands takes no slot";
 
@@ -1036,7 +1036,7 @@ namespace Rtx
             // The bake of the texture's alpha sits in the same table, which is why the count of
             // textures at the end is two.
             const Index lighting = scene.textures().addBaked(
-                SpriteLightMap::keyFor(VFS::Path::NormalizedView("textures/tx_fire_00.dds")));
+                SpriteLightMap::keyFor(VFS::Path::NormalizedView("textures/tx_fire_00.dds")), TextureEncoding::Colour);
 
             const std::array sPlume{
                 Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
@@ -1889,7 +1889,7 @@ namespace Rtx
         {
             SceneDesc scene;
 
-            const Index baked = scene.textures().addBaked("composite/-3,-2/2");
+            const Index baked = scene.textures().addBaked("composite/-3,-2/2", TextureEncoding::Colour);
             ASSERT_EQ(baked, 0u);
 
             // Standing, and standing is not free — the path is empty because it has none, which is
@@ -1899,7 +1899,8 @@ namespace Rtx
             EXPECT_EQ(scene.textures().getRows()[baked].mBaked, "composite/-3,-2/2");
 
             // The key is what makes two chunks that would bake the same image share one slot.
-            EXPECT_EQ(scene.textures().addBaked("composite/-3,-2/2"), baked) << "the same bake took a second slot";
+            EXPECT_EQ(scene.textures().addBaked("composite/-3,-2/2", TextureEncoding::Colour), baked)
+                << "the same bake took a second slot";
             EXPECT_EQ(scene.textures().getRows().size(), 1u);
 
             // A file beside it, so the free list has to hand back the right one.
@@ -1920,7 +1921,7 @@ namespace Rtx
             EXPECT_TRUE(scene.textures().getRows()[next].mBaked.empty()) << "the slot kept what the last tenant was";
 
             // The key is free again too, or a bake that came back would find a slot somebody else has.
-            const Index again = scene.textures().addBaked("composite/-3,-2/2");
+            const Index again = scene.textures().addBaked("composite/-3,-2/2", TextureEncoding::Colour);
             EXPECT_EQ(again, 2u) << "a key the table gave back found a slot somebody else has";
             EXPECT_FALSE(scene.textures().isFree(file)) << "the file beside it was never touched";
         }

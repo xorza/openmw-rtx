@@ -32,7 +32,7 @@ namespace Settings
         /// the renderer is made and again when the menu moves it, so the rings, the air and the map
         /// follow one number. How much world exists is a property of the structure rays are cast
         /// against and not of the camera, which is what `viewing distance` is about; the air is
-        /// tuned to it as well as the ground (`Rtx::distantLandReach`).
+        /// tuned to it as well as the ground (`Rtx::CellGrid::reachOf`).
         SettingValue<float> mDistantLandCells{ mIndex, "RTX", "distant land cells",
             makeClampSanitizerFloat(0.0f, sMaxDistantLandCells) };
 

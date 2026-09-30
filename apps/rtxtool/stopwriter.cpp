@@ -590,11 +590,11 @@ namespace RtxTool
             {
                 // **Every cell of the reach, the active grid's included**: the game builds no ground
                 // for this renderer, so a cell short is a hole the player can walk on. The reach is
-                // the disc `Rtx::withinReach` draws about the eye the walk stood, counted by the
+                // the disc `Rtx::CellGrid::withinReach` draws about the eye the walk stood, counted by the
                 // same rule.
                 const bool outdoors = MWBase::Environment::get().getWorld()->isCellExterior();
                 std::uint32_t expected = 0;
-                Rtx::forEachCellWithin(context.mEye, context.mReach, [&](const osg::Vec2i&) { ++expected; });
+                context.mGrid.forEachCellWithin(context.mEye, context.mReach, [&](const osg::Vec2i&) { ++expected; });
 
                 found = std::format(
                     "{} cells of ground stand against {} in the reach", stats.mGroundCells, outdoors ? expected : 0);

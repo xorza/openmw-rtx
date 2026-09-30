@@ -24,6 +24,7 @@
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/look.h>
+#include <components/sky/vertexrules.hpp>
 #include <components/vfs/manager.hpp>
 
 namespace Rtx
@@ -225,10 +226,9 @@ namespace Rtx
                 return nullptr;
             }
 
-            /// `MWRender::ModVertexAlphaVisitor::Stars`'s rule, read rather than reimplemented
-            /// twice: the engine draws a vertex of the star dome only where its authored colour is
-            /// exactly white, and its bottom ring alone is not — so what it keeps begins at the ring
-            /// above the horizon. Nothing authored means the whole of it is kept.
+            /// The engine draws a vertex of the star dome only where `Sky::starVertexShown` says, and
+            /// its bottom ring alone is not shown — so what it keeps begins at the ring above the
+            /// horizon. Nothing authored means the whole of it is kept.
             static float keptFrom(const osg::Geometry& geometry, const std::vector<osg::Vec3f>& directions)
             {
                 const auto* colours = dynamic_cast<const osg::Vec4Array*>(geometry.getColorArray());
@@ -237,7 +237,7 @@ namespace Rtx
 
                 float lowest = 0.5f * osg::PIf;
                 for (std::size_t i = 0; i < directions.size(); ++i)
-                    if ((*colours)[i].x() == 1.0f)
+                    if (Sky::starVertexShown((*colours)[i]))
                         lowest = std::min(lowest, std::asin(std::clamp(directions[i].z(), -1.0f, 1.0f)));
 
                 return std::max(lowest, 0.0f);

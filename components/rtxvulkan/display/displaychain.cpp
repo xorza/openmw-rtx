@@ -53,14 +53,14 @@ namespace Rtx
         }
     }
 
-    DisplayChain::DisplayChain(const Device& device, const VisibilityPass& puffs,
-        const VkDescriptorSetLayout textureLayout, const VkFormat targetFormat)
+    DisplayChain::DisplayChain(
+        const Device& device, const VisibilityPass& puffs, const VkDescriptorSetLayout textureLayout)
         : mPuffs(puffs)
         , mBloom(device)
         , mExposure(device)
         , mSunGlare(device)
         , mTone(device, textureLayout)
-        , mLines(device, targetFormat)
+        , mLines(device)
     {
     }
 

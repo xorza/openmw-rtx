@@ -22,7 +22,7 @@ layout(push_constant, scalar) uniform Push
     LineConstants frame;
 };
 
-layout(set = SET_PASS, binding = 0, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
+layout(set = SET_PASS, binding = LINE_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
 
 layout(location = 0) in vec3 inOffset;
 layout(location = 1) in vec4 inColour;

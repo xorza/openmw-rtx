@@ -33,6 +33,7 @@
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/sceneutil/waterutil.hpp>
+#include <components/terrain/storage.hpp>
 #include <components/terrain/world.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -273,21 +274,26 @@ namespace MWRender
         // The eye, the reach, the world's own grid, the hour and the day-night mode, said once to
         // the ring: what the game has stood for itself is what the ring may not stand again, and
         // its lamps burn and its windows light at the world's clock as the graph's do.
+        Terrain::Storage* const ground = frame.mTerrain.getStorage();
+        const ESM::RefId worldspace = frame.mTerrain.getWorldspace();
+        mGrid = ground != nullptr ? Rtx::CellGrid(ground->getCellWorldSize(worldspace)) : Rtx::CellGrid();
+
         const Rtx::WorldAround around{
             .mWorld = {
                 .mStorage = &frame.mObjectStorage,
-                .mGround = frame.mTerrain.getStorage(),
+                .mGround = ground,
                 .mContent = mContent.get(),
-                .mWorldspace = frame.mTerrain.getWorldspace(),
+                .mWorldspace = worldspace,
+                .mGrid = mGrid,
                 // The world's mask and never the walk's own: a mask that moves makes
                 // `Rtx::CellRing::forget` read the ring from nothing, and the player bit moves
                 // while the camera settles.
                 .mMask = sWorldTraversal,
             },
             .mEye = eye,
-            .mReach = mReach,
+            .mReach = getReach(),
             .mActiveGrid = frame.mTerrain.getActiveGrid(),
-            .mExterior = !frame.mWorld.isInteriorCell(),
+            .mExterior = frame.mWorld.mLocation == Location::Exterior,
             .mSimulationTime = frame.mWhen.getSimulationTime(),
             .mNightDay = nightDayOf(frame.mWorld),
         };

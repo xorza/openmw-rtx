@@ -1150,6 +1150,11 @@ namespace MWRender
     }
 
     // Defined here because the walk it wraps is file-local
+    bool ObjectStorage::handsOver(const int type)
+    {
+        return typeFilter(type, false, Terrain::RefKinds::Both);
+    }
+
     void ObjectStorage::collect(float size, const osg::Vec2i& startCell, ESM::RefId worldspace, Terrain::RefKinds kinds,
         Terrain::RefCollector& collector, std::vector<Terrain::PagedCellRef>& into) const
     {

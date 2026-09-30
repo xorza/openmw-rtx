@@ -25,8 +25,7 @@ namespace Rtx
     class GuiDrawer
     {
     public:
-        /// @param targetFormat what the frame's targets are, which the pass draws into.
-        GuiDrawer(const Device& device, VkFormat targetFormat);
+        explicit GuiDrawer(const Device& device);
 
         GuiTextures& getTextures() { return mTextures; }
         const GuiTextures& getTextures() const { return mTextures; }

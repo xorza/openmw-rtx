@@ -4,6 +4,7 @@
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 
 namespace MWRender
@@ -45,7 +46,10 @@ namespace MWRender
 
             const RtxSettings derived = RtxSettings::derive(valid());
             EXPECT_EQ(derived.mUpscale, Rtx::Upscale::Balanced);
-            EXPECT_EQ(derived.mMirror.mReach, 49152.0f) << "six cells of 8192 units";
+            // Cells and the viewing distance, which a worldspace's grid turns into units: six of
+            // Morrowind's 8192 are 49152.
+            EXPECT_EQ(derived.mMirror.mReach, (Rtx::LandReach{ .mCells = 6.0f, .mViewingDistance = 7168.0f }));
+            EXPECT_EQ(Rtx::CellGrid().reachOf(derived.mMirror.mReach), 49152.0f);
             EXPECT_FALSE(derived.mMirror.mDistantStatics);
             EXPECT_EQ(derived.mMirror.mMinSize, 0.025f);
             EXPECT_EQ(derived.mMirror.mSpecularLayout, Rtx::SpecularLayout::MetalRoughness);
@@ -53,7 +57,7 @@ namespace MWRender
 
             RtxSettingValues handedBack = valid();
             handedBack.mDistantLandCells = 0.0f;
-            EXPECT_EQ(RtxSettings::derive(handedBack).mMirror.mReach, 7168.0f)
+            EXPECT_EQ(Rtx::CellGrid().reachOf(RtxSettings::derive(handedBack).mMirror.mReach), 7168.0f)
                 << "nought cells hands the reach to the viewing distance";
 
             RtxSettingValues unfiltered = valid();

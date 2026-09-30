@@ -44,7 +44,7 @@ namespace Rtx
         std::string mBaked;
         TextureWrap mWrap = TextureWrap::Repeat;
 
-        /// What the slot is read as. A bake is a colour.
+        /// What the slot is read as: a file's as it was taken, a bake's as `addBaked` was told.
         TextureEncoding mEncoding = TextureEncoding::Colour;
 
         /// A file's image, which the upload reads: the one the adder held, so the frame that
@@ -93,7 +93,7 @@ namespace Rtx
         /// that would bake the same image must find the same slot, so `key` has to be stable across
         /// frames. The same slots and the same reference counting as a file's. Clamped, because a
         /// bake is one image whose coordinates run edge to edge. `sNoIndex` as `add` answers it.
-        Index addBaked(std::string_view key);
+        Index addBaked(std::string_view key, TextureEncoding encoding);
 
         /// The slot `path` stands in as a colour under any wrap, or `sNoIndex` where it stands in
         /// none. What a bake made from a file's alpha finds its source by: the alpha is the same
@@ -130,7 +130,7 @@ namespace Rtx
 
         /// How many slots this has ever given back, which is what says a texture refused for want of
         /// room may find some now: until it moves, asking again is a path built to be refused.
-        std::uint64_t getFreedCount() const { return mFreed; }
+        std::uint64_t getFreedCount() const { return mRows.getFreedCount(); }
 
         /// The formats of the images the standing slots keep, one count a slot.
         const FormatCensus& getFormats() const { return mFormats; }
@@ -185,7 +185,6 @@ namespace Rtx
 
         std::uint64_t mRevision = 0;
         std::uint32_t mRefused = 0;
-        std::uint64_t mFreed = 0;
         FormatCensus mFormats;
     };
 

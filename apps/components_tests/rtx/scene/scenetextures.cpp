@@ -569,7 +569,7 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView smoke("textures/tx_smoke.dds");
 
             Rtx::SceneDesc scene;
-            const Rtx::Index bake = scene.textures().addBaked(SpriteLightMap::keyFor(smoke));
+            const Rtx::Index bake = scene.textures().addBaked(SpriteLightMap::keyFor(smoke), TextureEncoding::Colour);
 
             SceneTextures described;
             described.describeAll(scene);

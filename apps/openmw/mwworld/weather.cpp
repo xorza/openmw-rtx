@@ -855,8 +855,7 @@ namespace MWWorld
                 orbit = 2.f * t - 1.f;
             }
 
-            // Hardcoded constant from Morrowind
-            const osg::Vec3f sunDir(-400.f * orbit, 75.f, -100.f);
+            const osg::Vec3f sunDir = Sky::sunDirection(orbit);
             mRendering.setSunDirection(sunDir);
             mSky.mSunDirection = sunDir;
             mSky.mNight = isNight;

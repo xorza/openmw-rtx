@@ -46,7 +46,7 @@ namespace Rtx
             void SetUp() override
             {
                 Testing::DeviceTest::SetUp();
-                mPass = std::make_unique<GuiPass>(getDevice(), VK_FORMAT_R8G8B8A8_UNORM);
+                mPass = std::make_unique<GuiPass>(getDevice());
             }
 
             /// The pass before the base reads the layers, so what its teardown does is this test's

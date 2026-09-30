@@ -17,6 +17,7 @@
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/result.hpp>
 #include <components/rtx/shaders/look.h>
+#include <components/sky/vertexrules.hpp>
 #include <components/vfs/manager.hpp>
 
 namespace Rtx
@@ -52,11 +53,12 @@ namespace Rtx
                     mPlaced.push_back(placed.preMult((*vertices)[i]));
                     mCoords.push_back((*coords)[i]);
 
-                    // `ModVertexAlphaVisitor::Clouds`, applied here rather than read: it writes by
-                    // vertex index and nothing in the file records what it wrote.
-                    mAlphas.push_back(i >= 49 && i <= 64 ? 0.0f
-                            : i >= 33 && i <= 48         ? Shaders::CLOUD_RING_ALPHA
-                                                         : 1.0f);
+                    // The engine's rows, applied here rather than read: it writes by vertex index
+                    // and nothing in the file records what it wrote.
+                    const Sky::CloudRow row = Sky::cloudRowOf(i);
+                    mAlphas.push_back(row == Sky::CloudRow::Bottom ? 0.0f
+                            : row == Sky::CloudRow::Second         ? Shaders::CLOUD_RING_ALPHA
+                                                                   : 1.0f);
                 }
             }
 

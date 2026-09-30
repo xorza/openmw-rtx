@@ -571,14 +571,8 @@ namespace MWRender
 
         const MWWorld::DateTimeManager& timeManager = *MWBase::Environment::get().getWorld()->getTimeManager();
 
-        // UV Scroll the clouds
-        float cloudDelta = duration * mCloudSpeed / 400.f;
-        if (mTimescaleClouds)
-            cloudDelta *= timeManager.getGameTimeScale() / 60.f;
-
-        mCloudAnimationTimer += cloudDelta;
-        if (mCloudAnimationTimer >= 4.f)
-            mCloudAnimationTimer -= 4.f;
+        mCloudAnimationTimer = Sky::scrollClouds(mCloudAnimationTimer,
+            Sky::cloudScrollStep(duration, mCloudSpeed, timeManager.getGameTimeScale(), mTimescaleClouds));
 
         mNextCloudUpdater->setTextureCoord(mCloudAnimationTimer);
         mCloudUpdater->setTextureCoord(mCloudAnimationTimer);

@@ -16,24 +16,6 @@ namespace Rtx::Shaders
 {
 #endif
 
-    /// Morrowind's ten weathers, in the order `MWWorld::WeatherManager` registers them.
-    ///
-    /// That order is not an arrangement of this renderer's: it is what a weather's script id counts
-    /// along, and it is the order the `Weather_<name>_*` keys sit in a content file. Naming them
-    /// here is what lets the game hand over a script id and the harness a name off a command line
-    /// and have the two mean one sky — `Rtx::weatherIndex` is the table that joins them.
-    const uint WEATHER_CLEAR = 0u;
-    const uint WEATHER_CLOUDY = 1u;
-    const uint WEATHER_FOGGY = 2u;
-    const uint WEATHER_OVERCAST = 3u;
-    const uint WEATHER_RAIN = 4u;
-    const uint WEATHER_THUNDERSTORM = 5u;
-    const uint WEATHER_ASHSTORM = 6u;
-    const uint WEATHER_BLIGHT = 7u;
-    const uint WEATHER_SNOW = 8u;
-    const uint WEATHER_BLIZZARD = 9u;
-    const uint WEATHER_COUNT = 10u;
-
     /// Morrowind's cloud deck, as a ray that reached nothing finds it.
     ///
     /// **A layer at a height rather than the dome the game shipped.** The engine hangs its clouds on

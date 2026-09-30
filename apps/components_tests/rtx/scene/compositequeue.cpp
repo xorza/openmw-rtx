@@ -9,6 +9,7 @@
 #include <apps/components_tests/rtx/support/layers.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -76,12 +77,18 @@ namespace Rtx
                     << "the slot the chunk was given is not named as its ground";
                 EXPECT_FALSE(queue.find(baked).mGloss);
 
+                // **The row says what the slot is read as**, and the description reads the row: the
+                // albedo a colour, the gloss data. The gloss's row said colour while its description
+                // said data, and the scene's digest hashed the row.
+                EXPECT_EQ(scene.textures().getRows()[baked].mEncoding, TextureEncoding::Colour);
+
                 if (reflecting)
                 {
                     ASSERT_NE(given.mSpecular, sNoIndex) << "a chunk that reflects was given no gloss";
                     EXPECT_NE(given.mSpecular, baked);
                     EXPECT_EQ(queue.find(given.mSpecular).mMaterial, chunk);
                     EXPECT_TRUE(queue.find(given.mSpecular).mGloss) << "the gloss is named as the albedo";
+                    EXPECT_EQ(scene.textures().getRows()[given.mSpecular].mEncoding, TextureEncoding::Data);
                 }
                 else
                     EXPECT_EQ(given.mSpecular, sNoIndex) << "a chunk that reflects nowhere was given a gloss";

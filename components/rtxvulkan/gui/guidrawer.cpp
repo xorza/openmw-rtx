@@ -10,9 +10,9 @@
 
 namespace Rtx
 {
-    GuiDrawer::GuiDrawer(const Device& device, const VkFormat targetFormat)
+    GuiDrawer::GuiDrawer(const Device& device)
         : mDevice(device)
-        , mPass(device, targetFormat)
+        , mPass(device)
         , mTextures(device)
     {
         // Allocated once and recorded into again.

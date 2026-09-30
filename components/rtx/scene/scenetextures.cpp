@@ -159,6 +159,7 @@ namespace Rtx
                 .mSource = TextureSource::SpriteBake,
                 .mFrom = *kept.mBakedFrom,
                 .mFormat = TextureFormat::Rgba8Unorm,
+                .mEncoding = kept.mEncoding,
             };
         }
 
@@ -174,13 +175,14 @@ namespace Rtx
                 .mSource = TextureSource::GroundGloss,
                 .mFrom = chunk.mMaterial,
                 .mFormat = TextureFormat::Rgba8Unorm,
-                .mEncoding = TextureEncoding::Data,
+                .mEncoding = kept.mEncoding,
             };
 
         return TextureData{
             .mSource = TextureSource::GroundComposite,
             .mFrom = chunk.mMaterial,
             .mFormat = TextureFormat::Rgba8Srgb,
+            .mEncoding = kept.mEncoding,
         };
     }
 }

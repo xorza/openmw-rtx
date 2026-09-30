@@ -392,6 +392,10 @@ namespace MWRender
         /// `Rtx::FrameOptions::mSinceLast` is measured from.
         std::optional<double> mTracedAt;
 
+        /// The run's word on whether the ground waits, where it says one — `RunSetup::mSettled` —
+        /// which `configureResources` weighs against the frame clock's stated step.
+        std::optional<bool> mSettled;
+
         /// Whether a camera the builder refused has already been reported. `describeTrace` says why
         /// once is the whole of it.
         bool mComplained = false;

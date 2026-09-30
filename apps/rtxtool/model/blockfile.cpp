@@ -238,12 +238,13 @@ namespace RtxTool
         return value;
     }
 
-    const std::string& BlockFile::weather(const BlockField& field) const
+    std::string BlockFile::weather(const BlockField& field) const
     {
-        if (const std::optional<std::string_view> why = weatherRefusal(field.mValue))
-            refuseValue(field, *why);
+        const std::optional<std::uint32_t> named = Rtx::weatherIndex(field.mValue);
+        if (!named.has_value())
+            refuseValue(field, *weatherRefusal(field.mValue));
 
-        return field.mValue;
+        return std::string(Rtx::weatherName(*named));
     }
 
     osg::Vec3f BlockFile::point(const BlockField& field) const

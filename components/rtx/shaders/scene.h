@@ -562,9 +562,19 @@ namespace Rtx::Shaders
     const uint TANGENT_COORDINATE_MASK = (1u << TANGENT_COORDINATE_BITS) - 1u;
     const uint TANGENT_STEPS = TANGENT_COORDINATE_MASK / 2u;
 
+    /// The device's material table puts the untextured material a placement with none wears at
+    /// row nought, for the table's life, and the scene's material `i` at row `i + 1`. First and not
+    /// past the end, so a table that grows appends and moves no row an instance already names: a
+    /// sentinel that followed the end handed its old row to the next material, under every
+    /// placement still naming it.
+    const uint MATERIAL_ROW_UNTEXTURED = 0u;
+    const uint MATERIAL_ROW_FIRST = 1u;
+
     struct GpuInstance
     {
         uint mMesh;
+
+        /// A row of the material table — `MATERIAL_ROW_FIRST` says how a material's index maps to it.
         uint mMaterial;
 
         /// How much of this placement is there, before its material and its texture are asked.

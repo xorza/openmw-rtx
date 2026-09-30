@@ -8,7 +8,7 @@
 #include "gui.h"
 #include "sets.h"
 
-layout(set = SET_PASS, binding = 0) uniform sampler2D uTexture;
+layout(set = SET_PASS, binding = GUI_BIND_TEXTURE) uniform sampler2D uTexture;
 
 /// Whether the texture holds its colour already weighed by its alpha, `Rtx::AlphaForm`: a traced
 /// picture. The blend then takes the colour as it is, so the vertex's own alpha — a window fading

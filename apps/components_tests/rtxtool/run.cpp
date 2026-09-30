@@ -513,15 +513,17 @@ hour = 19.25
             EXPECT_NO_THROW(readViews(std::string(sShip) + "[dark]\nlike = ship\nhour = 0\n"));
             EXPECT_NO_THROW(readViews(std::string(sShip) + "[late]\nlike = ship\nhour = 23.99\n"));
 
-            // **A weather is one of the ten and spelled as the content files spell it.** Anything
-            // else reaches the fallback map as a key it refuses, which is a throw at the frame
-            // rather than at the file — and by then the run has staged a cell for it.
+            // **A weather is one of the ten, in any case, as the game reads a weather's id**, and
+            // refused at the file rather than at the frame, when the run has staged a cell for it.
+            // It is kept as the content files spell it.
             EXPECT_THROW(readViews(std::string(sShip) + "[grim]\nlike = ship\nweather = Drizzle\n"), std::runtime_error)
                 << "a weather that is none of the ten";
 
-            EXPECT_THROW(
-                readViews(std::string(sShip) + "[grim]\nlike = ship\nweather = overcast\n"), std::runtime_error)
-                << "a weather spelled in the wrong case";
+            const std::vector<RtxTool::Stop> lowered
+                = readViews(std::string(sShip) + "[grim]\nlike = ship\nweather = overcast\n");
+            ASSERT_EQ(lowered.size(), 2u);
+            EXPECT_EQ(lowered[1].mSky.mWeather, std::optional<std::string>("Overcast"))
+                << "a weather kept as the file spelled it";
 
             EXPECT_NO_THROW(readViews(std::string(sShip) + "[grim]\nlike = ship\nweather = Thunderstorm\n"));
 

@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <limits>
 
 #include <gtest/gtest.h>
 
@@ -265,6 +266,25 @@ namespace MWRender
 
             const Rtx::WorldReading plain = readFrom(standingIn(Location::Exterior));
             EXPECT_EQ(plain.mMoons[static_cast<std::size_t>(Rtx::Moon::Secunda)].mPaint, white);
+        }
+
+        /// **The cloud blend is cleaned where it enters.** `Weather::transitionDelta` divides by
+        /// `Clouds_Maximum_Percent`, which the shipped fallbacks leave at nought for ash and blight,
+        /// so a crossing into either hands over an infinity or a NaN: nothing recorded is a deck
+        /// crossed at once. A share is clamped to one, and a real one passes through.
+        TEST(RtxReadWorldTest, aCloudBlendNothingRecordedIsACrossingDone)
+        {
+            const auto blendOf = [](float factor) {
+                Standing standing = standingIn(Location::Exterior);
+                standing.mSky.mWeather.mCloudBlendFactor = factor;
+                return readFrom(standing).mClouds.mBlend;
+            };
+
+            EXPECT_EQ(blendOf(std::numeric_limits<float>::quiet_NaN()), 1.0f);
+            EXPECT_EQ(blendOf(std::numeric_limits<float>::infinity()), 1.0f);
+            EXPECT_EQ(blendOf(-1.0f), 0.0f);
+            EXPECT_EQ(blendOf(7.0f), 1.0f);
+            EXPECT_EQ(blendOf(0.25f), 0.25f);
         }
 
         /// What falls is kept off by a roof up to the top of the game's own occluder box — the

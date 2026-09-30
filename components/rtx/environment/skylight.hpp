@@ -152,11 +152,29 @@ namespace Rtx
         Fog mFog;
     };
 
+    /// Morrowind's ten weathers, in the order `MWWorld::WeatherManager` registers them.
+    ///
+    /// That order is not an arrangement of this renderer's: it is what a weather's script id counts
+    /// along, and it is the order the `Weather_<name>_*` keys sit in a content file. Naming them
+    /// here is what lets the game hand over a script id and the harness a name off a command line
+    /// and have the two mean one sky — `weatherIndex` joins them, through `ESM::Weather`'s table.
+    inline constexpr std::uint32_t sWeatherClear = 0;
+    inline constexpr std::uint32_t sWeatherCloudy = 1;
+    inline constexpr std::uint32_t sWeatherFoggy = 2;
+    inline constexpr std::uint32_t sWeatherOvercast = 3;
+    inline constexpr std::uint32_t sWeatherRain = 4;
+    inline constexpr std::uint32_t sWeatherThunderstorm = 5;
+    inline constexpr std::uint32_t sWeatherAshstorm = 6;
+    inline constexpr std::uint32_t sWeatherBlight = 7;
+    inline constexpr std::uint32_t sWeatherSnow = 8;
+    inline constexpr std::uint32_t sWeatherBlizzard = 9;
+    inline constexpr std::uint32_t sWeatherCount = 10;
+
     /// A weather's index, as `MWWorld::WeatherManager` registers them, or nothing for a name that is
-    /// none of the ten.
+    /// none of the ten. Any case, as the game reads a weather's id.
     std::optional<std::uint32_t> weatherIndex(std::string_view weather);
 
-    /// The name that index spells. Empty for an index past the ten.
+    /// The name that index spells, as `ESM::Weather` spells it. Empty for an index past the ten.
     std::string_view weatherName(std::uint32_t weather);
 
     /// A room's light out of its own `AMBI` record, and not the rasterizer's reading of it, which

@@ -13,6 +13,7 @@
 #include <components/rtx/scene/specularlayout.hpp>
 #include <components/vfs/pathutil.hpp>
 
+#include "cellgrid.hpp"
 #include "nightday.hpp"
 
 namespace Terrain
@@ -58,6 +59,10 @@ namespace Rtx
 
         ESM::RefId mWorldspace;
 
+        /// The worldspace's own grid, which every ring measures its cells by — the width the land
+        /// is read at (`Terrain::Storage::getCellWorldSize`).
+        CellGrid mGrid;
+
         /// Which nodes a walk of a template may descend into — the frame walk's own.
         osg::Node::NodeMask mMask = ~0u;
 
@@ -76,8 +81,8 @@ namespace Rtx
     /// follows the menu through `WorldMirror::setReach`.
     struct MirrorKnobs
     {
-        /// `distantLandReach`, in units.
-        float mReach = 0.0f;
+        /// How far out the world is built, in cells — `CellGrid::reachOf` puts it in units.
+        LandReach mReach;
 
         /// `object paging`: whether the distance's statics stand at all.
         bool mDistantStatics = true;
@@ -99,7 +104,7 @@ namespace Rtx
         /// Where the eye is, which decides every ring.
         osg::Vec3f mEye;
 
-        /// How far out anything is stood, in units — `distantLandReach`. Told rather than asked,
+        /// How far out anything is stood, in units — `CellGrid::reachOf`. Told rather than asked,
         /// so this library reads no settings. Nought stands nothing.
         float mReach = 0.0f;
 

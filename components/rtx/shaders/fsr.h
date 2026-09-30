@@ -4,10 +4,32 @@
 #include "camera.h"
 #include "hosttypes.h"
 #include "portable.h"
+#include "storageformat.h"
 
 // What the FSR 3.1.4 port's passes are handed, for both sides that have to agree. Included verbatim
 // by both sides, for the reason `visibility.h` is. The passes are AMD's (`extern/fidelityfx/`); what
 // they bind and read is the port's (`components/rtxvulkan/shaders/upscale/fsrcallbacks.glsl`).
+
+// **Each image's layout, once for both sides** (`storageformat.h`): the shader's qualifier and the
+// host's format are one line each, which the luma history's once were not — `rgba8` declared over a
+// half-float image, which only a validated run reports. `FSR_INTERMEDIATE_FORMAT` is the one image
+// the SDK aliases, as the farthest depth and the luma instability both.
+#define FSR_ACCUMULATION_FORMAT STORAGE_R8
+#define FSR_LUMA_FORMAT STORAGE_R16F
+#define FSR_INTERMEDIATE_FORMAT STORAGE_R16F
+#define FSR_SHADING_CHANGE_FORMAT STORAGE_R8
+#define FSR_NEW_LOCKS_FORMAT STORAGE_R8
+#define FSR_HISTORY_FORMAT STORAGE_RGBA16F
+#define FSR_SPD_MIPS_FORMAT STORAGE_RG16F
+#define FSR_FARTHEST_DEPTH_MIP1_FORMAT STORAGE_R16F
+#define FSR_LUMA_HISTORY_FORMAT STORAGE_RGBA16F
+#define FSR_SPD_ATOMIC_FORMAT STORAGE_R32UI
+#define FSR_DILATED_MASKS_FORMAT STORAGE_RGBA8
+#define FSR_FRAME_INFO_FORMAT STORAGE_RGBA32F
+#define FSR_DILATED_DEPTH_FORMAT STORAGE_R32F
+#define FSR_DILATED_MOTION_FORMAT STORAGE_RG16F
+#define FSR_PREVIOUS_DEPTH_FORMAT STORAGE_R32UI
+#define FSR_OUTPUT_FORMAT STORAGE_RGBA16F
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders
@@ -99,13 +121,13 @@ namespace Rtx::Shaders
     const uint FSR_PYRAMID_BIND_ATOMIC = 2;
     const uint FSR_PYRAMID_BIND_FRAME_INFO = 3;
     const uint FSR_PYRAMID_BIND_MIP_0 = 4;
-    const uint FSR_PYRAMID_BIND_FARTHEST_DEPTH_MIP1 = 10;
-    const uint FSR_PYRAMID_BIND_CONSTANTS = 11;
-    const uint FSR_PYRAMID_BIND_SPD = 12;
 
     /// How many levels of the SPD image the luma pyramid writes, each a binding of its own from
-    /// `FSR_PYRAMID_BIND_MIP_0`.
+    /// `FSR_PYRAMID_BIND_MIP_0`, and the bindings after them follow the last.
     const uint FSR_PYRAMID_MIPS = 6;
+    const uint FSR_PYRAMID_BIND_FARTHEST_DEPTH_MIP1 = FSR_PYRAMID_BIND_MIP_0 + FSR_PYRAMID_MIPS;
+    const uint FSR_PYRAMID_BIND_CONSTANTS = FSR_PYRAMID_BIND_FARTHEST_DEPTH_MIP1 + 1;
+    const uint FSR_PYRAMID_BIND_SPD = FSR_PYRAMID_BIND_CONSTANTS + 1;
 
     const uint FSR_CHANGE_PYRAMID_BIND_CURRENT_LUMA = 0;
     const uint FSR_CHANGE_PYRAMID_BIND_PREVIOUS_LUMA = 1;

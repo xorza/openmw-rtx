@@ -13,8 +13,8 @@
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/display/displaychain.hpp>
+#include <components/rtxvulkan/display/tonepass.hpp>
 #include <components/rtxvulkan/gui/guitextures.hpp>
-#include <components/rtxvulkan/present/presenttargets.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/trace/tracemedia.hpp>
 #include <components/rtxvulkan/trace/tracerecording.hpp>
@@ -39,7 +39,7 @@ namespace Rtx
     void PictureTracer::grow(const VkExtent2D extent, const RadianceWidth radiance)
     {
         mChain.grow(extent.width, extent.height, radiance);
-        mTarget = Image(mDevice, mChain.getWidth(), mChain.getHeight(), PresentTargets::sFormat,
+        mTarget = Image(mDevice, mChain.getWidth(), mChain.getHeight(), TonePass::sTargetFormat,
             VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "view target");
     }
 

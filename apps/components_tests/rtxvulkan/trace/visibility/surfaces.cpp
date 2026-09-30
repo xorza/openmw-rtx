@@ -331,6 +331,55 @@ namespace Rtx::Testing
             EXPECT_TRUE(wearsBlue(centre)) << "the description landed at its position rather than its slot";
         }
 
+        /// **A placement with no material keeps wearing none when a material arrives.** The
+        /// untextured row stood one past the materials, so an arrival took that row over and every
+        /// placement still naming it wore the arrival — a plausible picture of the wrong surface.
+        /// It stands first now, and a material appended lands past it.
+        TEST_F(RtxVisibilityTest, anUntexturedPlacementWearsNothingAfterAMaterialArrives)
+        {
+            constexpr std::uint32_t size = 32;
+            constexpr std::size_t centre = centreValueOf(size);
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            SceneDesc scene;
+            const Index mesh
+                = scene.addMesh(MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+            Testing::SceneHolds holds(scene);
+            holds.mesh(mesh);
+            scene.addInstance(MeshInstance{ .mMesh = mesh });
+
+            mRenderer.resize(size, size);
+            mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+
+            std::vector<std::uint8_t> untextured;
+            mRenderer.readPixels(untextured);
+
+            // Settled, as every hand-over of the world settles it: a placement still on the moved
+            // list has its row written again at every hand-over, which would hide the fault.
+            scene.placements().advance();
+            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            scene.placements().advance();
+
+            // A red material arrives and nothing wears it: the row it lands in is the one the
+            // untextured placement named before, where the old layout kept its sentinel.
+            constexpr std::array<std::uint8_t, 4> redTexel{ 255, 0, 0, 255 };
+            const Index red
+                = scene.addMaterial(Material{ .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("red.dds")) });
+            holds.material(red);
+            const TextureData arrived = describeTexel(redTexel, scene.materials().getRows()[red].mDiffuse);
+            mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&arrived, 1));
+            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+
+            std::vector<std::uint8_t> after;
+            mRenderer.readPixels(after);
+            for (std::size_t channel = 0; channel < 3; ++channel)
+                EXPECT_EQ(after[centre + channel], untextured[centre + channel])
+                    << "channel " << channel << " of the untextured wall moved when a material arrived";
+        }
+
         /// **The pass is built once and kept, because building one compiles a shader** — so the set
         /// layout the bindless array declares cannot depend on how many textures a cell holds. A scene
         /// with a different count would produce a layout the kept pipeline layout does not accept,
@@ -1878,7 +1927,7 @@ namespace Rtx::Testing
             // composite — which chunk it is the ground of, and no bytes.
             Material flattened = material;
             flattened.mFlatten = true;
-            flattened.mDiffuse = scene.textures().addBaked("chunk/0");
+            flattened.mDiffuse = scene.textures().addBaked("chunk/0", TextureEncoding::Colour);
             scene.setMaterial(chunk, flattened);
             const TextureData composite{
                 .mSlot = flattened.mDiffuse,

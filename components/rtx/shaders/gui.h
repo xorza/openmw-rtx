@@ -12,6 +12,9 @@ namespace Rtx::Shaders
 {
 #endif
 
+    /// The texture a batch draws with — the pass's one binding, `bindings.h`'s rule.
+    const uint GUI_BIND_TEXTURE = 0;
+
     /// The module's specialization constants, by `constant_id`: whether the texture it draws holds
     /// premultiplied colour — `Rtx::AlphaForm`.
     const uint GUI_SPEC_PREMULTIPLIED = 0u;

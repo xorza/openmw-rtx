@@ -34,19 +34,46 @@ namespace Sky
             constexpr float cloudSpeed = 400.0f;
 
             SkyClock shipped;
-            shipped.step(step, sVanillaTimeScale, cloudSpeed);
+            shipped.step(step, sVanillaTimeScale, cloudSpeed, false);
             EXPECT_FLOAT_EQ(shipped.mCloudScroll, step);
             EXPECT_DOUBLE_EQ(shipped.mSeconds, static_cast<double>(step));
 
             SkyClock doubled;
-            doubled.step(step, 2.0f * sVanillaTimeScale, cloudSpeed);
+            doubled.step(step, 2.0f * sVanillaTimeScale, cloudSpeed, false);
             EXPECT_FLOAT_EQ(doubled.mCloudScroll, 2.0f * step);
             EXPECT_DOUBLE_EQ(doubled.mSeconds, 2.0 * shipped.mSeconds);
 
             SkyClock wrapping;
             wrapping.mCloudScroll = 3.99f;
-            wrapping.step(step, sVanillaTimeScale, cloudSpeed);
+            wrapping.step(step, sVanillaTimeScale, cloudSpeed, false);
             EXPECT_FLOAT_EQ(wrapping.mCloudScroll, 3.99f + step - 4.0f);
+        }
+
+        /// **`Weather_Timescale_Clouds` paces the deck by the game's scale over sixty**, as the
+        /// rasterizer's `SkyManager` reads it: at the shipped thirty that is half the frame's
+        /// seconds, and at sixty the frame's own. The traced deck read the flag nowhere and ran at
+        /// twice the rasterizer's pace under content that set it. The sky's seconds are the time-lapse
+        /// either way, because the fog drifts on them and the flag is the deck's.
+        TEST(SkyClockTest, contentThatTimescalesItsCloudsPacesTheDeckByTheGamesScale)
+        {
+            constexpr float step = 1.0f / 60.0f;
+            constexpr float cloudSpeed = 400.0f;
+
+            EXPECT_FLOAT_EQ(cloudScrollStep(step, cloudSpeed, sVanillaTimeScale, false), step);
+            EXPECT_FLOAT_EQ(cloudScrollStep(step, cloudSpeed, sVanillaTimeScale, true), step / 2.0f);
+            EXPECT_FLOAT_EQ(cloudScrollStep(step, cloudSpeed, 60.0f, true), step);
+
+            SkyClock timescaled;
+            timescaled.step(step, sVanillaTimeScale, cloudSpeed, true);
+            EXPECT_FLOAT_EQ(timescaled.mCloudScroll, step / 2.0f);
+            EXPECT_DOUBLE_EQ(timescaled.mSeconds, static_cast<double>(step))
+                << "the fog's clock is the flag's to leave";
+
+            // At a doubled scale the flag's deck is the frame's seconds, where the time-lapse's
+            // would be twice them: the content's word stands over the time-lapse.
+            SkyClock doubled;
+            doubled.step(step, 2.0f * sVanillaTimeScale, cloudSpeed, true);
+            EXPECT_FLOAT_EQ(doubled.mCloudScroll, step);
         }
 
         /// Once round in four days, counter-clockwise, so negative: a day is a quarter turn, -π/2,

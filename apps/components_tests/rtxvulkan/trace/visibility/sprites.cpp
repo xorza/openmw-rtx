@@ -988,8 +988,8 @@ namespace Rtx::Testing
 
                 SceneDesc scene;
                 const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
-                const Index bake
-                    = scene.textures().addBaked(SpriteLightMap::keyFor(VFS::Path::NormalizedView("sprite.dds")));
+                const Index bake = scene.textures().addBaked(
+                    SpriteLightMap::keyFor(VFS::Path::NormalizedView("sprite.dds")), TextureEncoding::Colour);
                 const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
                     .mRadius = 60.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
