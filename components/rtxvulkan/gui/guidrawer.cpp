@@ -33,17 +33,8 @@ namespace Rtx
         Slot& slot = mSlots.at(FrameSlot{ static_cast<std::uint32_t>(mDrawn % sFrameSlots) });
         slot.mVertices.get().waitIdle("the interface drawn two frames ago");
 
-        // After the wait, which collected, and before anything is handed over: this draw's submit
-        // is the first that says every draw with a texture given back has finished, and the staging
-        // turns on the same signal.
-        mTextures.startFrame();
-
         slot.mVertices.outgrow(vertices.size_bytes());
         slot.mVertices.get().write(vertices);
-
-        // Named by hand, because a vertex buffer is bound by handle and not handed out as an
-        // address or a descriptor.
-        slot.mVertices.get().nameForNext();
 
         mDraws.clear();
         mDraws.reserve(batches.size());
@@ -63,7 +54,7 @@ namespace Rtx
         const VkCommandBuffer commands = slot.mCommands;
         mDevice.getPool().begin(commands);
         target.transition(commands, Use::sComputeWrite, Use::sColourAttachment);
-        mPass.record(commands, target, slot.mVertices.get().getHandle(), mDraws);
+        mPass.record(commands, target, slot.mVertices.get(), mDraws);
         target.transition(commands, Use::sColourAttachment, Use::sAnyGeneralRead);
         mDevice.getPool().submit(commands);
 

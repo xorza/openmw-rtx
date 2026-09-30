@@ -120,6 +120,7 @@ namespace Rtx
                 // none of this: the array holds no image of what went.
                 done.mDropped = dropFreed(renderer, slot, tables);
                 renderer.extendScene(slot, tables, mTextures.getDescriptions());
+                renderer.placeScene(slot, tables);
                 done.mKind = SceneUpload::Kind::Extended;
             }
 
@@ -142,9 +143,10 @@ namespace Rtx
             composites->releaseFinished();
 
         // Last, after every branch has read what moved: a walk that handed nothing over keeps its
-        // lists for the hand-over that will.
-        if (handing.mAdvance)
-            scene.placements().advance();
+        // lists for the hand-over that will. Every hand-over, a picture's too, whose scene would
+        // otherwise hold every change it ever had; a picture reads no motion, because its trace
+        // has no past to reproject.
+        scene.placements().advance();
 
         return done;
     }

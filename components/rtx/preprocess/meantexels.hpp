@@ -16,12 +16,13 @@ namespace Rtx
 {
     class ContentPreprocessor;
 
-    /// The mean texel of every map this has been asked about, kept for the life of the process
-    /// and keyed by the file, because a file's mean never changes and a session meets tens of
+    /// The mean texel of every map this has been asked about, kept for the life of its thread's
+    /// owner and keyed by the file, because a file's mean never changes and a session meets tens of
     /// additive maps. Kept here and not beside the texture's slot, which the scene gives back when
     /// the last material naming the image goes — and a spell's map goes with every burst, so a
     /// cache that died with the slot read every texel again on the frame of the next cast. One
-    /// instance a thread, like its `ContentPreprocessor`: the ring's reader has its own.
+    /// instance a thread, like its `ContentPreprocessor` — `ThreadContent`: the ring's reader has
+    /// its own.
     class MeanTexels
     {
     public:

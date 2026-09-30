@@ -10,6 +10,8 @@
 #include <osg/Group>
 #include <osg/MatrixTransform>
 #include <osg/Node>
+#include <osg/NodeVisitor>
+#include <osg/StateSet>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
@@ -17,6 +19,8 @@
 #include <apps/components_tests/rtx/support/countingrenderer.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
+#include <components/rtx/preprocess/contentpass.hpp>
+#include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
@@ -24,6 +28,7 @@
 #include <components/rtx/view/offscreentrace.hpp>
 #include <components/rtx/view/viewscene.hpp>
 #include <components/sceneutil/offscreenframing.hpp>
+#include <components/sceneutil/statesetupdater.hpp>
 
 namespace Rtx
 {
@@ -205,6 +210,62 @@ namespace Rtx
             // drag redraws the same subject sixty times a second, and every one of those after the
             // first appends to what is already on the device.
             EXPECT_EQ(renderer.mRebuilt, 1u);
+
+            // **And every redraw ends its placement**, so the change lists hold nothing after a
+            // hand-over however often the subject changes. A picture's scene that never advanced
+            // kept every add and drop it ever had, and rewrote each one on every redraw.
+            for (unsigned int redraw = 4; redraw < 104; ++redraw)
+            {
+                subject->removeChild(boots);
+                boots = Testing::makeQuad();
+                subject->addChild(boots);
+
+                ASSERT_TRUE(trace.rebuildSubject(*stampAt(redraw)));
+                ASSERT_TRUE(scene.placements().getMoved().empty()) << "redraw " << redraw;
+            }
+        }
+
+        /// A controller that notes the clock it was applied at, as a glow or a flipbook reads it.
+        class ClockedController : public SceneUtil::StateSetUpdater
+        {
+        public:
+            void setDefaults(osg::StateSet*) override {}
+
+            void apply(osg::StateSet*, osg::NodeVisitor* visitor) override
+            {
+                mAt = visitor->getFrameStamp()->getSimulationTime();
+            }
+
+            double mAt = -1.0;
+        };
+
+        /// **A subject's walk is the frame thread's walk.** What it computes from the content goes
+        /// into the thread's content, so the doll's first frame counts into the frame's figures and
+        /// its shapes are the world's cache's; and what hangs on it runs at the world's clock, the
+        /// one the posing stamp carries. A walk with a content and a clock of its own left the
+        /// doll's preprocessing out of every figure and ran its glow at nought.
+        TEST(RtxOffscreenTraceTest, aSubjectsWalkSharesTheThreadsContentAndRunsAtTheWorldsClock)
+        {
+            Testing::CountingRenderer renderer;
+
+            const osg::ref_ptr<ClockedController> glow = new ClockedController;
+            osg::ref_ptr<osg::Group> subject = new osg::Group;
+            subject->setCullCallback(glow);
+            subject->addChild(Testing::makeQuad());
+
+            ThreadContent content;
+            OffscreenTrace trace(renderer,
+                ViewRequest{ .mWidth = 64,
+                    .mHeight = 64,
+                    .mRayMask = Shaders::MASK_EVERY_CLASS,
+                    .mSubject = subject.get(),
+                    .mSubjectMask = sEveryNode,
+                    .mContent = &content });
+            ASSERT_TRUE(trace.rebuildSubject(*stampAt(7)));
+
+            EXPECT_EQ(content.mPreprocessor.takeStats().at(ContentPassId::Shape).mAsked, 1u)
+                << "the doll's one shape was folded somewhere nobody counts";
+            EXPECT_EQ(glow->mAt, 7.0) << "the doll's glow ran at a clock of its own";
         }
 
         /// A subject with nothing in it is a picture nobody should trace.

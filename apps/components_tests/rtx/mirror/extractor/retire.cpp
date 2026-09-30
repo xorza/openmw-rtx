@@ -195,7 +195,6 @@ namespace Rtx::Testing
             SceneUtil::StableIdentity::stamp(*second, 8);
             root->addChild(first);
             root->addChild(second);
-            ASSERT_EQ(mExtractor.getStampDepth(), 0u) << "a fresh extractor reads stamps on the root alone";
 
             walk(*root);
             ASSERT_TRUE(mExtractor.retire().empty());

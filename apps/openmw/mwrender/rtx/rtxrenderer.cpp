@@ -563,15 +563,15 @@ namespace MWRender
     std::unique_ptr<OffscreenView> RtxRenderer::createWorldView(const OffscreenViewSpec& spec) noexcept
     {
         assert(mGui != nullptr && "a view before the interface was made");
-        return std::make_unique<TracedView>(
-            spec, ViewKind::World, *mRenderer, mViews, *mGui, mMirror.getTraversals(), mMirror.getSpecularLayout());
+        return std::make_unique<TracedView>(spec, ViewKind::World, *mRenderer, mViews, *mGui, mMirror.getTraversals(),
+            mMirror.getContent(), mMirror.getSpecularLayout());
     }
 
     std::unique_ptr<SubjectView> RtxRenderer::createSubjectView(const OffscreenViewSpec& spec) noexcept
     {
         assert(mGui != nullptr && "a view before the interface was made");
-        return std::make_unique<TracedView>(
-            spec, ViewKind::Subject, *mRenderer, mViews, *mGui, mMirror.getTraversals(), mMirror.getSpecularLayout());
+        return std::make_unique<TracedView>(spec, ViewKind::Subject, *mRenderer, mViews, *mGui, mMirror.getTraversals(),
+            mMirror.getContent(), mMirror.getSpecularLayout());
     }
 
     std::unique_ptr<MapOverlay> RtxRenderer::createMapOverlay(const MapOverlaySpec& spec) noexcept

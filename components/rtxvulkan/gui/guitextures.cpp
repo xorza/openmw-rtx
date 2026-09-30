@@ -10,6 +10,7 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
@@ -17,13 +18,6 @@
 
 namespace Rtx
 {
-    namespace
-    {
-        /// What `vkCmdCopyBufferToImage` requires of a buffer offset: a multiple of four and of the
-        /// texel block, and every texture here is four bytes a texel.
-        constexpr VkDeviceSize sCopyAlignment = 4;
-    }
-
     GuiTextures::GuiTextures(const Device& device)
         : mDevice(device)
         , mBatch(device.getPool())
@@ -72,15 +66,13 @@ namespace Rtx
             && "a region past the edge of the texture");
 
         const VkDeviceSize bytes = VkDeviceSize{ region.mWidth } * region.mHeight * 4;
-
-        // Before the lend is on the books, because a run that does not fit hands what is already
-        // recorded over to the next submit — and nothing may be lent across that.
-        mLentAt = reserve(bytes);
+        const StagingLend lent = mBatch.reserve(bytes);
 
         mLentSlot = slot;
         mLentRegion = region;
+        mLentRun = lent.mRun;
 
-        return mStaging[mArena].writable<std::uint8_t>(mLentAt, bytes);
+        return std::span<std::uint8_t>(reinterpret_cast<std::uint8_t*>(lent.mBytes.data()), lent.mBytes.size());
     }
 
     void GuiTextures::send(const GuiSlot slot)
@@ -102,43 +94,15 @@ namespace Rtx
         image.transition(commands, Use::sFragmentSample, Use::sCopyWrite);
 
         const VkBufferImageCopy copy{
-            .bufferOffset = mLentAt,
+            .bufferOffset = mLentRun.mOffset,
             .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
             .imageOffset = { static_cast<std::int32_t>(region.mX), static_cast<std::int32_t>(region.mY), 0 },
             .imageExtent = { region.mWidth, region.mHeight, 1 },
         };
         vkCmdCopyBufferToImage(
-            commands, mStaging[mArena].getHandle(), image.getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+            commands, mLentRun.mBuffer, image.getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
 
         image.transition(commands, Use::sCopyWrite, Use::sFragmentSample);
-    }
-
-    VkDeviceSize GuiTextures::reserve(const VkDeviceSize bytes)
-    {
-        Buffer& arena = mStaging[mArena];
-        const VkDeviceSize at = alignUp(mStagingUsed, sCopyAlignment);
-
-        if (at + bytes <= arena.getSize())
-        {
-            mStagingUsed = at + bytes;
-            return at;
-        }
-
-        // **Handed over and replaced, never waited for and rewound.** Once handed over, every copy
-        // recorded against the arena rides the next submit, and the old arena buries itself under
-        // that same submit — so the bytes outlive this frame's copies and whatever the interface's
-        // draw two frames back is still reading. A wait here idled the queue on every overflow,
-        // and the layers still reported the arena it then destroyed as read by a pending copy.
-        //
-        // **Grown to the frame's writes so far and not to this one alone**, so a frame that writes
-        // as much again lands in one arena: grown to the region, an arena a frame overflows with
-        // two regions was replaced on every frame that wrote them.
-        handOver();
-        arena = Buffer::hostWritten(
-            mDevice, std::max(at + bytes, arena.getSize()), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "gui staging");
-
-        mStagingUsed = bytes;
-        return 0;
     }
 
     void GuiTextures::handOver()
@@ -156,16 +120,6 @@ namespace Rtx
         // when there is something left in the batch to submit.
         mBatch.flush();
         mDevice.getPool().finishDeferred();
-
-        mStagingUsed = 0;
-    }
-
-    void GuiTextures::startFrame()
-    {
-        assert(mLentSlot.isNone() && "an interface frame that began with a lend outstanding");
-
-        mArena = (mArena + 1) % sStagingArenas;
-        mStagingUsed = 0;
     }
 
     void GuiTextures::drop(const GuiSlot slot)

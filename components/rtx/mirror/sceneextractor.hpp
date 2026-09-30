@@ -16,6 +16,7 @@
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/meantexels.hpp>
+#include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -55,7 +56,6 @@ namespace SceneUtil
 namespace Rtx
 {
     class CellRing;
-    class MirrorTraversal;
 
     /// Mirrors an OpenSceneGraph subtree into a `SceneDesc`. The identity maps live across calls,
     /// so the same geometry met again resolves to the mesh already uploaded rather than to a copy,
@@ -67,7 +67,10 @@ namespace Rtx
         ///        that can reach one graph — the game hands the same counter to the world's walk
         ///        and to every traced view. Left out, the extractor keeps a sequence of its own,
         ///        which is right for a harness where nothing else walks the same nodes.
-        explicit SceneExtractor(SceneDesc& scene, Traversals* traversals = nullptr);
+        /// @param content what this thread computes from the content — `ThreadContent`. The game
+        ///        hands the frame thread's to the world's walk and to every traced view's; left out,
+        ///        the extractor keeps its own, for the reason `traversals` gives.
+        explicit SceneExtractor(SceneDesc& scene, Traversals* traversals = nullptr, ThreadContent* content = nullptr);
 
         /// Gives back every hold the maps took on the scene — every placement, every row, every
         /// texture — so a scene that outlives this holds nothing of it. The scene outlives it by
@@ -84,7 +87,6 @@ namespace Rtx
         /// whether anything has told the loader yet, and in the game nothing has. A default that is
         /// plainly everything is wrong where it shows rather than wrong where it does not.
         void setTraversalMask(osg::Node::NodeMask mask) { mTraversalMask = mask; }
-        osg::Node::NodeMask getTraversalMask() const { return mTraversalMask; }
 
         /// Which nodes are the world's water, as an `osg` node mask. None by default. Water reaches
         /// here as an ordinary blended quad, so without this it is shaded as a painted surface:
@@ -104,17 +106,12 @@ namespace Rtx
         /// nothing here, so everything it walks is `Static`.
         void setClassMask(InstanceClass what, osg::Node::NodeMask mask);
 
-        /// The class a node carrying `mask` states, or nothing where it states none. Asked by the
-        /// walk at every node, which is why it is not the drawable's own question like water.
-        std::optional<InstanceClass> classOf(osg::Node::NodeMask mask) const;
-
         /// How far under a walk's root a `SceneUtil::StableIdentity` is looked for: nought is the
         /// root alone, which is what a caller that stamps nothing wants. The game stamps the
         /// scene root's children and grandchildren — a cell root, and a reference root under it —
         /// and says two; a look deeper than the stamps go is a line of every node loaded for
         /// nothing.
         void setStampDepth(unsigned int depth) { mStampDepth = depth; }
-        unsigned int getStampDepth() const { return mStampDepth; }
 
         /// Where the walks that follow are looked at from, for a billboard to face: the camera's
         /// own basis, `viewBasisOf` its inverse view. Nothing, which is what a fresh extractor
@@ -126,7 +123,6 @@ namespace Rtx
         /// is the eye, the look and the up in the node's own frame, and that is what the walk
         /// hands `computeMatrixForFrame` instead.
         void setEye(const std::optional<ViewBasis>& eye) { mEye = eye; }
-        const std::optional<ViewBasis>& getEye() const { return mEye; }
 
         /// The world's clock, in seconds, once per frame: what everything the graph animates is
         /// driven by. `SceneUtil::FrameTimeSource` reads the simulation time off the visitor's frame
@@ -163,6 +159,8 @@ namespace Rtx
         /// **`ring` is told `frame` here**, because this is the call that holds both: a ring told
         /// one frame and walked for another adopts twice on a frame walked twice, and a caller
         /// that has to remember two calls is a caller that can forget one.
+        ///
+        /// @param ring one made on this extractor, which is what it adopts through.
         ExtractionStats extractWorld(const osg::Node& root, const osg::Matrixf& transform, std::size_t anchor,
             std::size_t frame, CellRing& ring);
 
@@ -178,7 +176,7 @@ namespace Rtx
         /// This thread's preprocessor: what the walks compute from the content, and what the host
         /// reads off it between them — the sky's sheets. Its counts are the thread's and not a
         /// walk's, so whoever owns the frame takes them once, after the frame's last walk.
-        ContentPreprocessor& getPreprocessor() { return mContent; }
+        ContentPreprocessor& getPreprocessor() { return mContent.mPreprocessor; }
 
         /// Lets go of everything the walks stood and the ring held, for a world that is detached:
         /// the ring's holds are given back — the two releases read nothing of a walk — and then a
@@ -199,38 +197,6 @@ namespace Rtx
         /// left it: `SceneDesc::noteWalked` marks the scene at every walk and this is what clears
         /// the mark, and a hand-over of a marked scene is a call out of its turn.
         Retirement retire();
-
-        /// Places one light. The graph and not the content files, because that is where a light
-        /// that moves with the thing carrying it exists: a torch in an NPC's hand is no cell
-        /// record, and neither is a lamp something picked up and put down.
-        void addLight(const SceneUtil::LightSource& source, const osg::Matrixf& place, double simulationTime);
-
-        /// Opens the glow of a magic effect the walk has entered, and closes it where the walk
-        /// leaves it — `Rtx::Glow`. One at a time, because the walk is inside one effect at a time:
-        /// an effect stated under an effect is the outer one's. Closed and not yet a lamp, because
-        /// the effect's flames are read after the walk, with the other emitters; `walk` makes the
-        /// lamps once they are.
-        void openGlow();
-        void closeGlow();
-
-        /// Resolves one drawable and places it. The visitor's whole contract with this class.
-        /// `place` is handed over rather than worked out from `path`, because
-        /// `osg::computeLocalToWorld` rebuilds the whole chain from the root for every drawable. A
-        /// drawable and not an `osg::Geometry`, because a skinned body is an `osg::Drawable` over
-        /// a source geometry — the bind pose — beside the rig that poses it.
-        void addDrawable(const osg::Drawable& drawable, std::size_t who, std::span<const Shading> shading,
-            const osg::Matrixf& place, InstanceClass what);
-
-        /// The state set a node shades with where that is not the one it wears, or null where it
-        /// is — `MaterialResolver::animate`, which says what the two cases are. Applied here rather
-        /// than left to a callback: a `SceneUtil::StateSetUpdater` as a cull callback writes a state
-        /// set that exists only inside a cull traversal, and as an update callback alternates the
-        /// node's own between two copies, so a material keyed on the address is added and swept
-        /// once a frame. One state set per node, rewritten in place, keeps the address stable.
-        ///
-        /// @param underAnimated whether an animated state set stands above `node` on the chain,
-        ///        which makes a node with a state set of its own animated too.
-        const osg::StateSet* animate(osg::Node& node, bool underAnimated);
 
     private:
         /// Where the extractor stands: between walks, or inside one. A walk inside a walk would
@@ -261,8 +227,8 @@ namespace Rtx
         };
 
         /// What the ring may do, and nothing else may. `Rtx::SceneAdopter` is implemented
-        /// privately, so its four calls are reachable through that interface and not in front of
-        /// every reader of this class. The two adoptions mean anything only inside a walk; the
+        /// privately, so its calls are reachable through that interface and not in front of every
+        /// reader of this class. The two adoptions mean anything only inside a walk; the
         /// two releases are allowed between walks as well — `detach` — because giving a hold
         /// back reads nothing of a walk.
         Index adoptMesh(const osg::Drawable& drawable, const MeshReading& reading) override
@@ -277,9 +243,54 @@ namespace Rtx
         }
         void releaseMesh(const osg::Drawable& drawable) override { mMeshes.release(drawable); }
         void releaseMaterial(const osg::StateSet* key) override { mMaterials.release(key); }
+        SceneDesc& getScene() override { return mScene; }
+        ExtractionStats& getStats() override { return mPass.getStats(); }
+
+        /// Walks the graph and hands every geometry it meets to the extractor, through the calls
+        /// below, which nothing else may make.
+        class Traversal;
+
+        /// Places one light. The graph and not the content files, because that is where a light
+        /// that moves with the thing carrying it exists: a torch in an NPC's hand is no cell
+        /// record, and neither is a lamp something picked up and put down.
+        ///
+        /// @param glow the effect the light hangs on, where the walk is inside one.
+        void addLight(const SceneUtil::LightSource& source, const osg::Matrixf& place, double simulationTime,
+            std::optional<std::size_t> glow);
+
+        /// Opens the glow of a magic effect the walk has entered — `Rtx::Glow` — and returns its
+        /// index, which the walk carries down the effect's subtree. Not yet a lamp, because the
+        /// effect's flames are read after the walk, with the other emitters; `walk` makes the
+        /// lamps once they are.
+        std::size_t openGlow();
+
+        /// Resolves one drawable and places it.
+        /// `place` is handed over rather than worked out from `path`, because
+        /// `osg::computeLocalToWorld` rebuilds the whole chain from the root for every drawable. A
+        /// drawable and not an `osg::Geometry`, because a skinned body is an `osg::Drawable` over
+        /// a source geometry — the bind pose — beside the rig that poses it.
+        ///
+        /// @param glow the effect the drawable stands under, where the walk is inside one.
+        void addDrawable(const osg::Drawable& drawable, std::size_t who, std::span<const Shading> shading,
+            const osg::Matrixf& place, InstanceClass what, std::optional<std::size_t> glow);
+
+        /// The state set a node shades with where that is not the one it wears, or null where it
+        /// is — `MaterialResolver::animate`, which says what the two cases are. Applied here rather
+        /// than left to a callback: a `SceneUtil::StateSetUpdater` as a cull callback writes a state
+        /// set that exists only inside a cull traversal, and as an update callback alternates the
+        /// node's own between two copies, so a material keyed on the address is added and swept
+        /// once a frame. One state set per node, rewritten in place, keeps the address stable.
+        ///
+        /// @param underAnimated whether an animated state set stands above `node` on the chain,
+        ///        which makes a node with a state set of its own animated too.
+        const osg::StateSet* animate(osg::Node& node, bool underAnimated);
 
         /// Whether a drawable carrying `mask` is the world's water.
         bool isWater(osg::Node::NodeMask mask) const;
+
+        /// The class a node carrying `mask` states, or nothing where it states none. Asked by the
+        /// walk at every node, which is why it is not the drawable's own question like water.
+        std::optional<InstanceClass> classOf(osg::Node::NodeMask mask) const;
 
         /// Whether `mask` carries no bit outside `named`, which is what both questions above ask.
         static bool carriesOnly(osg::Node::NodeMask mask, osg::Node::NodeMask named);
@@ -298,7 +309,7 @@ namespace Rtx
 
         /// The walk itself, made once rather than per call, because the chain of state sets it
         /// refills as it descends would be a per-frame allocation as a local.
-        std::unique_ptr<MirrorTraversal> mWalk;
+        std::unique_ptr<Traversal> mWalk;
 
         /// Used only where the caller named none.
         Traversals mOwnTraversals;
@@ -327,17 +338,18 @@ namespace Rtx
         /// See `setEye`.
         std::optional<ViewBasis> mEye;
 
-        /// Every effect this walk entered, in the order it entered them, and which of them it is
-        /// inside, where it is inside one. Reserved once, `sEffectBudget`.
+        /// Every effect this walk entered, in the order it entered them. Which of them the walk
+        /// is inside is the traversal's, carried down the subtree beside the class. Reserved once,
+        /// `sEffectBudget`.
         std::vector<Glow> mGlows;
-        std::optional<std::size_t> mGlow;
 
-        /// Everything the walks compute from what the content holds, on this extractor's thread.
-        ContentPreprocessor mContent;
+        /// Used only where the caller named none.
+        std::optional<ThreadContent> mOwnContent;
 
-        /// The mean texel of every additive map met, for the process: a sheet's and a flame's
-        /// alike, so the two resolvers below share it.
-        MeanTexels mMeans{ mContent };
+        /// Everything the walks compute from what the content holds, on this extractor's thread:
+        /// the thread's, handed in, or this extractor's own. The mean texels in it are a sheet's
+        /// and a flame's alike, so the resolvers below share them.
+        ThreadContent& mContent;
 
         /// Which sweep is current, and where the walk in progress puts its counts. Declared before
         /// the walk and every resolver below, which borrow it rather than keep a copy that could
@@ -351,13 +363,13 @@ namespace Rtx
         Kept<boost::unordered_flat_map<std::size_t, Known>> mPlacements{ mPass };
 
         /// The drawables the walk met, and what poses the ones that deform.
-        MeshResolver mMeshes{ mScene, mPass, mContent };
+        MeshResolver mMeshes{ mScene, mPass, mContent.mPreprocessor };
 
         /// What the content says each surface is, and the textures those name.
-        MaterialResolver mMaterials{ mScene, mPass, mMeans, mContent };
+        MaterialResolver mMaterials{ mScene, mPass, mContent.mMeans, mContent.mPreprocessor };
 
         /// The particle systems the walk met, and the sprite textures they hold.
-        EmitterResolver mEmitters{ mScene, mPass, mMeans };
+        EmitterResolver mEmitters{ mScene, mPass, mContent.mMeans };
 
         /// How many meshes and materials the scene had freed at the last retire, which the next
         /// one counts what went from.

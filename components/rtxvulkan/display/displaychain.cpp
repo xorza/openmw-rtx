@@ -202,7 +202,7 @@ namespace Rtx
                     .mNear = what.mSampled.mNear,
                     .mTraced = Shaders::uvec2(channels.getWidth(), channels.getHeight()),
                 },
-                .mVertices = look.mDebugVertices.get().getHandle(),
+                .mVertices = look.mDebugVertices.get(),
                 .mLineCount = static_cast<std::uint32_t>(debug.mLines.size()),
                 .mTriangleCount = static_cast<std::uint32_t>(debug.mTriangles.size()),
             });

@@ -6,6 +6,7 @@
 
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/shaders/gui.h>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/display/tonepass.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -87,7 +88,7 @@ namespace Rtx
     }
 
     void GuiPass::record(
-        VkCommandBuffer commands, const Image& target, VkBuffer vertices, std::span<const GuiDraw> draws) const
+        VkCommandBuffer commands, const Image& target, const Buffer& vertices, std::span<const GuiDraw> draws) const
     {
         if (draws.empty())
             return;
@@ -95,8 +96,12 @@ namespace Rtx
         // MyGUI computes its vertices for a clip space with +Y up, which is OpenGL's.
         beginDrawingOver(commands, target, ClipUp::Up);
 
+        // Named by hand, because a vertex buffer is bound by handle and not handed out as an
+        // address or a descriptor.
+        const VkBuffer handle = vertices.getHandle();
         const VkDeviceSize offset = 0;
-        vkCmdBindVertexBuffers(commands, 0, 1, &vertices, &offset);
+        vkCmdBindVertexBuffers(commands, 0, 1, &handle, &offset);
+        vertices.nameForNext();
 
         const Pipeline* bound = nullptr;
 

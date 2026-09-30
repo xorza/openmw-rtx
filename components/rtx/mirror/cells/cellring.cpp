@@ -4,8 +4,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <span>
-#include <utility>
 #include <vector>
 
 #include <components/crashcatcher/crashnote.hpp>
@@ -39,9 +37,9 @@ namespace Rtx
         };
     }
 
-    CellRing::CellRing(SceneDesc& scene)
-        : mScene(scene)
-        , mPlacer(scene)
+    CellRing::CellRing(SceneAdopter& adopter)
+        : mAdopter(adopter)
+        , mPlacer(adopter.getScene())
     {
     }
 
@@ -53,7 +51,7 @@ namespace Rtx
         // ring of no world whether or not a walk came between.
         mTurn.step(Turn::Followed, Turn::Collected, Turn::Followed);
         mAround = around;
-        mPlacer.setNightDay(around.mNightDay, std::span<HeldCell>(mCells.begin(), mCells.end()));
+        mPlacer.setNightDay(around.mNightDay);
 
         if (mSupply.isReading(around.mWorld))
             return;
@@ -68,19 +66,11 @@ namespace Rtx
 
     void CellRing::forget()
     {
-        for (HeldCell& cell : mCells)
-        {
-            mPlacer.dropSlots(cell);
-            mPlacer.dropGround(cell);
-
-            // Nothing is given back — what the reader lent dies with it — but the rows are the
-            // frame's own, and a worldspace change is the one time this runs while the game plays.
-            cell.reuse();
-            mSpareCells.give(std::move(cell));
-        }
+        // Nothing is given back — what the reader lent dies with it — but the rows are the frame's
+        // own, and a worldspace change is the one time this runs while the game plays.
+        mPlacer.dropUnless([](const HeldCell&) { return false; }, [](const HeldCell&) {});
 
         mHolds.forget();
-        mCells.clear();
         mHanded.clear();
     }
 
@@ -98,11 +88,6 @@ namespace Rtx
     void CellRing::setSettled(const bool settled)
     {
         mSettled = settled;
-    }
-
-    bool CellRing::holds(const osg::Vec2i& cell) const
-    {
-        return mCells.contains(cell);
     }
 
     bool CellRing::handed(const osg::Vec2i& cell) const
@@ -163,7 +148,7 @@ namespace Rtx
 
         const CellGrid& grid = mAround.mWorld.mGrid;
         grid.forEachCellWithin(eye, band, [&](const osg::Vec2i& cell) {
-            if (!holds(cell) && !handed(cell))
+            if (!mPlacer.holds(cell) && !handed(cell))
                 mAsking.mCells.push_back(cell);
         });
 
@@ -176,7 +161,7 @@ namespace Rtx
     {
         const std::size_t before = mHanded.size();
         std::erase_if(mHanded, [&](PreparedCell* cell) {
-            if (mAround.mWorld.mGrid.withinReach(cell->mCell, eye, band) && !holds(cell->mCell))
+            if (mAround.mWorld.mGrid.withinReach(cell->mCell, eye, band) && !mPlacer.holds(cell->mCell))
                 return false;
 
             discard(*cell);
@@ -198,7 +183,7 @@ namespace Rtx
         }
     }
 
-    void CellRing::adoptHanded(SceneAdopter& into, ExtractionStats& stats)
+    void CellRing::adoptHanded()
     {
         // One cell a frame, and one frame walked twice adopts once. A cell's meshes are copied
         // into the scene and its structures built by the hand-over that follows; two on one frame
@@ -208,38 +193,31 @@ namespace Rtx
             return;
 
         mAdoptedFrame = mFrame;
-        adopt(*mHanded.front(), into, stats);
+        adopt(*mHanded.front());
         mHanded.erase(mHanded.begin());
         mAskStale = true;
     }
 
-    void CellRing::adopt(PreparedCell& cell, SceneAdopter& into, ExtractionStats& stats)
+    void CellRing::adopt(PreparedCell& cell)
     {
         const Crash::NoteScope noted("adopting the cell {}, {}", cell.mCell.x(), cell.mCell.y());
 
-        // A spare comes back through `reuse`, so what it holds is room and nothing else.
-        HeldCell held = mSpareCells.take();
-        held.mCell = cell.mCell;
-        held.mStatics = cell.mStatics;
+        ExtractionStats& stats = mAdopter.getStats();
+        HeldCell& held = mPlacer.hold(cell, mAround, stats);
 
-        mPlacer.adoptGround(cell, held, mAround, stats);
-
-        mScene.refusals().refuse(cell.mRefusals);
+        mAdopter.getScene().refusals().refuse(cell.mRefusals);
         stats.mPreprocessed.mOffFrame += cell.mPreprocessed;
 
         for (PreparedModel* model : cell.mModels)
         {
             CellHolds::HeldModel& known = mHolds.knownOf(*model);
             if (known.mParts.empty())
-                mHolds.adoptParts(known, into);
+                mHolds.adoptParts(known, mAdopter);
 
             held.mModels.push_back(model);
         }
 
         mPlacer.adoptPlacements(cell, held, mHolds);
-
-        [[maybe_unused]] const bool fresh = mCells.insert(std::move(held)).second;
-        assert(fresh && "a cell adopted twice");
 
         mSupply.giveBack().mCells.push_back(&cell);
     }
@@ -255,85 +233,62 @@ namespace Rtx
         mSupply.giveBack().mCells.push_back(&cell);
     }
 
-    void CellRing::dropCell(HeldCell& cell)
+    void CellRing::letGo(const HeldCell& cell)
     {
-        mPlacer.dropSlots(cell);
-
         for (PreparedModel* model : cell.mModels)
             mHolds.release(*model);
 
         giveBackHolds(cell);
-
-        mPlacer.dropGround(cell);
-
-        cell.reuse();
-        mSpareCells.give(std::move(cell));
     }
 
     void CellRing::setReferenceEnabled(const ESM::RefNum refnum, const bool enabled)
     {
         mTurn.expect(Turn::Collected);
-        mPlacer.setReferenceEnabled(refnum, enabled, std::span<HeldCell>(mCells.begin(), mCells.end()));
+        mPlacer.setReferenceEnabled(refnum, enabled);
     }
 
     void CellRing::blacklistReference(const ESM::RefNum refnum)
     {
         mTurn.expect(Turn::Collected);
-        mPlacer.blacklistReference(refnum, std::span<HeldCell>(mCells.begin(), mCells.end()));
+        mPlacer.blacklistReference(refnum);
     }
 
     void CellRing::forgetReferences()
     {
         mTurn.expect(Turn::Collected);
-        mPlacer.forgetReferences(std::span<HeldCell>(mCells.begin(), mCells.end()));
+        mPlacer.forgetReferences();
     }
 
     void CellRing::setGate(const std::uint32_t gate, const Terrain::GateState state)
     {
         mTurn.expect(Turn::Collected);
-        mPlacer.setGate(gate, state, std::span<HeldCell>(mCells.begin(), mCells.end()));
-    }
-
-    void CellRing::dropPlacements()
-    {
-        for (HeldCell& cell : mCells)
-            mPlacer.dropSlots(cell);
+        mPlacer.setGate(gate, state);
     }
 
     void CellRing::collectStanding(std::vector<ESM::RefNum>& into) const
     {
-        for (const HeldCell& cell : mCells)
-            for (std::size_t at = 0; at < cell.mShown; ++at)
-                if (cell.mPlacements[at].mStood.isStanding())
-                    into.push_back(cell.mPlacements[at].mState.mRefNum);
+        mPlacer.collectStanding(into);
     }
 
     void CellRing::collectGateVerdicts(std::vector<GateVerdict>& into) const
     {
-        for (const HeldCell& cell : mCells)
-            if (inActiveGrid(cell.mCell, mAround.mActiveGrid))
-                mPlacer.collectGateVerdicts(cell, into);
+        mPlacer.collectGateVerdicts(mAround.mActiveGrid, into);
     }
 
-    bool CellRing::standsAsHeld() const
-    {
-        for (const HeldCell& cell : mCells)
-            if (!mPlacer.standsAsHeld(cell, mAround))
-                return false;
-
-        return mPlacer.standsNoMore();
-    }
-
-    void CellRing::collect(SceneAdopter& into, ExtractionStats& stats)
+    void CellRing::collect()
     {
         mTurn.step(Turn::Collected, Turn::Followed);
+        ExtractionStats& stats = mAdopter.getStats();
 
         // What `forget` let go of since the last walk, and then what this walk lets go of.
-        mHolds.releaseParts(into);
-        walkRings(into, stats);
-        mHolds.releaseParts(into);
+        mHolds.releaseParts(mAdopter);
+        walkRings(stats);
+        mHolds.releaseParts(mAdopter);
 
-        assert(standsAsHeld() && "the ring stands something its cells do not hold, or holds what it does not stand");
+        // Asserted after every walk, so a placement that outlived its cell, or a cell whose
+        // placement went missing, is found on the frame it happened rather than seen at the horizon.
+        assert(mPlacer.standsAsHeld(mAround)
+            && "the ring stands something its cells do not hold, or holds what it does not stand");
 
         // What stands, counted off the slots and not off a tally: a world with no reader and an
         // interior have both dropped every slot by now, and stand nothing.
@@ -342,7 +297,7 @@ namespace Rtx
         stats.mGroundCells += mPlacer.getGroundPlaced();
     }
 
-    void CellRing::walkRings(SceneAdopter& into, ExtractionStats& stats)
+    void CellRing::walkRings(ExtractionStats& stats)
     {
         if (!mSupply.hasReader())
             return;
@@ -353,7 +308,7 @@ namespace Rtx
         // what is held stays held for the way back out, and nothing stands.
         if (!mAround.mExterior)
         {
-            dropPlacements();
+            mPlacer.dropSlots();
             mSupply.publish();
             return;
         }
@@ -373,22 +328,12 @@ namespace Rtx
         }
 
         // A cell held with the statics the other way is dropped whole and read again, for the
-        // reason `takeDone` gives. Erased one by one and not `erase_if`, because a cell that goes is
-        // given back first, which a remove's predicate may not do to its row. A band is a hundred
-        // or so cells and a crossing drops a few, so the shifts are nobody's concern.
-        std::size_t dropped = 0;
-        for (auto cell = mCells.begin(); cell != mCells.end();)
-        {
-            if (mAround.mWorld.mGrid.withinReach(cell->mCell, eye, band) && cell->mStatics == mStatics)
-            {
-                ++cell;
-                continue;
-            }
-
-            dropCell(*cell);
-            cell = mCells.erase(cell);
-            ++dropped;
-        }
+        // reason `takeDone` gives.
+        const std::size_t dropped = mPlacer.dropUnless(
+            [&](const HeldCell& cell) {
+                return mAround.mWorld.mGrid.withinReach(cell.mCell, eye, band) && cell.mStatics == mStatics;
+            },
+            [&](const HeldCell& cell) { letGo(cell); });
         if (dropped > 0)
             mAskStale = true;
 
@@ -402,10 +347,9 @@ namespace Rtx
         if (mSettled && mHanded.empty() && !mAsking.mCells.empty())
             waitForNext(eye, band);
 
-        adoptHanded(into, stats);
+        adoptHanded();
 
-        for (HeldCell& cell : mCells)
-            stats.mLights += mPlacer.place(cell, mAround);
+        stats.mLights += mPlacer.place(mAround);
 
         mSupply.publish();
     }

@@ -132,7 +132,7 @@ namespace MWRender
     }
 
     WorldMirror::WorldMirror(const Rtx::MirrorKnobs& knobs)
-        : mExtractor(mScene, &mTraversals)
+        : mExtractor(mScene, &mTraversals, &mThreadContent)
         , mReach(knobs.mReach)
         , mSpecularLayout(knobs.mSpecularLayout)
     {
@@ -229,6 +229,11 @@ namespace MWRender
 
         mShowsPlayer = shows;
         mExtractor.setTraversalMask(worldTraversal(mShowsPlayer));
+    }
+
+    osg::Node::NodeMask WorldMirror::getTraversalMask() const
+    {
+        return worldTraversal(mShowsPlayer);
     }
 
     Rtx::ExtractionStats WorldMirror::mirror(

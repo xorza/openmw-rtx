@@ -308,8 +308,8 @@ set(RTX_VULKAN_FILES
     pipeline/tracepipeline.hpp
     present/presenter.cpp
     present/presenter.hpp
-    present/presenttargets.cpp
-    present/presenttargets.hpp
+    present/presenttarget.cpp
+    present/presenttarget.hpp
     present/swapchain.cpp
     present/swapchain.hpp
     scene/bottomlevelstore.cpp

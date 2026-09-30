@@ -75,7 +75,7 @@ namespace Rtx
 
         /// Builds what the upscaler keeps for one pair of extents and the image it writes, releasing
         /// the last, and clears all of it: the frame after starts a history of its own. Once per
-        /// resolution, and never per frame. The caller has waited for anything still reading the old.
+        /// resolution, and never per frame.
         void resize(VkExtent2D render, VkExtent2D output);
 
         /// Lets what `resize` built go and keeps the pipelines, for a mode turned off that may come back.
