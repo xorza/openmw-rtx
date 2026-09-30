@@ -24,10 +24,6 @@ Severity: **high** is a wrong value, a crash, undefined behaviour, or a check th
 - [ ] **low** — `apps/openmw/mwgui/windowmanagerimp.cpp:781`, `:2108` — Both nested loops hold a hidden window the same way: sleep 5 ms, then `mRenderer.advance(mRenderer.getFrameStamp().getSimulationTime())`. The seam owns the drawn case (`renderGuiFrame`). Fix: a seam member for a GUI frame that is not drawn, called from both loops.
 - [ ] **low** — `apps/openmw/mwrender/rtx/rtxrenderer.cpp:730` — When `!drawsWorld()`, `renderFrame` returns before `traceWorld`, the only caller of `drawViews`. `tws` hides only `sToggleWorldMask`, so the rasterizer keeps redrawing the doll and the map tiles, and the ray tracer freezes them. Fix: draw the deferred subject views on frames where the world is hidden, or document the difference on `toggleRenderMode`.
 
-## 7. The water column asks a narrower sun question than the surfaces in it
-
-- [ ] **high** — `components/rtxvulkan/shaders/lib/underwater.glsl:273` against `:115`–`:128` — The shaft march tests the sun only from the water surface up (`skyVisible(vec3(met, frame.mWaterLevel), ...)`). `skyPassageThrough` states that an occluder between an underwater point and the surface needs its own ray, and traces it for every submerged surface. So a sunken hull shadows the bed, and the water in front of it stays lit by a full shaft. Fix: call `skyPassageThrough(frame.mSun, at, draw)` at each step. It costs one short ray per step, `WATER_SHAFT_STEPS` of them, only where a shaft shows, so measure it.
-
 ## 11. Untrusted values that reach arithmetic, loops or files without a check
 
 - [ ] **low** — `docs/source/reference/modding/settings/rtx.rst:27` — `distant land cells` is documented as "≥ 0", and the sanitizer clamps it to `[0, 10]`. Fix: document `0 to 10`.

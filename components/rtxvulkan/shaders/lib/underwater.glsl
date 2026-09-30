@@ -261,16 +261,22 @@ WaterColumn waterColumn(vec3 from, vec3 direction, float path, float footprint, 
 
         const vec3 weight = waterTransmittance(reach + along) * (ahead - behind);
 
-        // Where the light met the surface, up-sun of where it is scattering — one point, read for
-        // the lens that focused it and asked whether anything stood over it.
+        // Where the light met the surface, up-sun of where it is scattering, read for the lens that
+        // focused it.
         const vec2 met = at.xy - sun.mTravelling.xy * reach;
 
         // **Outside the fade, because a shadow is not fine detail.** `show` brings the *pattern* in
         // across the gate, and a rock's edge has to be there whether or not the filaments are. The
         // draw is one pair carried along the R2 steps, so each step aims its own way inside the
         // disc without a second draw a step — `SEED_WATER_SHAFT` says why not the offset's.
+        //
+        // **Asked the way a submerged surface asks it**, `skyPassageThrough`: up the bent line to
+        // the surface as well as on from it, so a hull or a rock under the water shadows the water
+        // in front of it as it shadows the bed. One short ray more a step, and only where a shaft
+        // shows.
         const vec2 draw = fract(aimed + float(step) * R2_STEPS);
-        const float visible = skyVisible(vec3(met, frame.mWaterLevel), SKY_SOURCE_SUN, draw);
+        const Passage passage = skyPassageThrough(skySourceAt(SKY_SOURCE_SUN), at, draw);
+        const float visible = passage.mOpen * passage.mThrough;
 
         lit += weight * mix(1.0, caustic(met, under, footprint), show) * visible;
         plain += weight;
