@@ -60,6 +60,10 @@ namespace RtxTool
     /// command line both refuse by, so a sky the line names is held to what a view's is.
     std::optional<std::string_view> hourRefusal(float hour);
 
+    /// Why `day` is no day of the game, or nothing where it is one — days from the first, and
+    /// never before it: the rule a view file and the command line both refuse by.
+    std::optional<std::string_view> dayRefusal(int day);
+
     /// Why `weather` is none of the weathers the content files name, or nothing where it is one.
     std::optional<std::string_view> weatherRefusal(std::string_view weather);
 

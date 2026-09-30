@@ -442,6 +442,11 @@ namespace RtxTool
             if (view == nullptr)
                 throw std::runtime_error("no view is called \"" + name + "\"; --list-views prints them");
 
+            // A view named twice is one place visited twice under one name, and every table the
+            // run writes by name — the frame hashes first — refuses it once written.
+            if (findView(chosen, name) != nullptr)
+                throw std::runtime_error("the view \"" + name + "\" is named twice");
+
             chosen.push_back(*view);
         }
 

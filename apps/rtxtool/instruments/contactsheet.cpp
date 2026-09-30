@@ -4,6 +4,8 @@
 #include <cmath>
 #include <cstddef>
 #include <optional>
+#include <span>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -15,6 +17,7 @@
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/png.hpp>
+#include <components/rtx/scene/texturetable.hpp>
 
 namespace RtxTool
 {
@@ -121,6 +124,16 @@ namespace RtxTool
         }
 
         return drawn;
+    }
+
+    void listSheetNames(std::span<const Rtx::TextureData> drawn, std::span<const Rtx::TextureRow> rows,
+        std::vector<std::string_view>& into)
+    {
+        for (const Rtx::TextureData& texture : drawn)
+        {
+            const Rtx::TextureRow& row = rows[texture.mSlot];
+            into.push_back(row.mKind == Rtx::TextureKind::File ? row.mPath.value() : std::string_view(row.mBaked));
+        }
     }
 
     ContactSheet writeContactSheet(

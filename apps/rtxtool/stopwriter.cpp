@@ -364,11 +364,11 @@ namespace RtxTool
             return;
         }
 
-        // The sheet carries no lettering, so the order is printed instead: left to right, top to
-        // bottom, the way it was drawn.
-        const std::span<const Rtx::TextureRow> rows = scene.textures().getRows();
-        for (std::size_t at = 0; at < rows.size(); ++at)
-            into.mRecord.note(std::format("  {}  {}\n", at, rows[at].mPath.value()));
+        // Left to right, top to bottom, the way it was drawn.
+        std::vector<std::string_view> names;
+        listSheetNames(described.getDescriptions(), scene.textures().getRows(), names);
+        for (std::size_t at = 0; at < names.size(); ++at)
+            into.mRecord.note(std::format("  {}  {}\n", at, names[at]));
 
         into.mRecord.note(std::format(
             "wrote {}, {} textures at delight {}\n", Files::pathToUnicodeString(sheet), drawn.mCount, delight));

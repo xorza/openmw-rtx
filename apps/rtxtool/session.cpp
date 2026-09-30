@@ -93,7 +93,7 @@ namespace RtxTool
         if (mDone || !mStarted)
             return std::nullopt;
 
-        return mMeasurer.getSeen();
+        return currentStop().mSchedule.mSampleOffset + mMeasurer.getSeen();
     }
 
     std::uint32_t Session::getAccumulated() const
@@ -204,9 +204,14 @@ namespace RtxTool
         if (mMeasurer.getSeen() == 0)
             Stager::forgetHistory();
 
-        mHome.listen();
-        if (const SkyPress press = mSkyKeys.listen(); press.mSteps != 0)
-            mCamera.turnSkyBy(currentStop(), press.mSteps, press.mAtOnce);
+        // Where somebody plays the run, and nowhere else: a key pressed in a measured window
+        // would move what the measurement records nothing of.
+        if (mRequest.mPlayed)
+        {
+            mHome.listen();
+            if (const SkyPress press = mSkyKeys.listen(); press.mSteps != 0)
+                mCamera.turnSkyBy(currentStop(), press.mSteps, press.mAtOnce);
+        }
         mCamera.step(currentStop(), mMeasurer.getMeasuredIndex(), mRequest.mSetup.getWorldStep());
 
         // **After the camera has stepped and on every frame, warm-up included.** `CameraDriver::aim`

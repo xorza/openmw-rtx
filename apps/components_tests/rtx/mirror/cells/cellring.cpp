@@ -1429,11 +1429,13 @@ namespace Rtx::Testing
             }
         }
 
+        /// And a model the walk refused, which no cell holds, is counted as filed and never as lent.
         TEST(RtxCellReaderTest, aModelsRoomIsCountedLentThenSpareAndNeverBoth)
         {
             FakeLand land;
             FewStatics storage;
             storage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "tree.nif" });
+            storage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "broken.nif" });
             FewContent content;
             CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u);
 
@@ -1449,6 +1451,7 @@ namespace Rtx::Testing
             const ReaderMemory lent = reader.measure();
             EXPECT_EQ(lent.mLentModels, 1u);
             EXPECT_EQ(lent.mSpareModels, 0u);
+            EXPECT_EQ(lent.mFiledModels, 1u) << "the broken model, which no cell holds";
             EXPECT_EQ(lent.mLentBytes, tree.getRoomBytes());
             EXPECT_EQ(lent.mSpareBytes, 0u);
 
@@ -1458,6 +1461,8 @@ namespace Rtx::Testing
             const ReaderMemory spare = reader.measure();
             EXPECT_EQ(spare.mLentModels, 0u);
             EXPECT_EQ(spare.mSpareModels, 1u);
+            EXPECT_EQ(spare.mFiledModels, 1u);
+            EXPECT_EQ(spare.mFiledBytes, lent.mFiledBytes);
             EXPECT_EQ(spare.mLentBytes, 0u);
             EXPECT_EQ(spare.mSpareBytes, lent.mLentBytes) << "the spare keeps the room the lent model grew to";
         }

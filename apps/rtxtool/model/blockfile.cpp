@@ -205,6 +205,14 @@ namespace RtxTool
         return std::nullopt;
     }
 
+    std::optional<std::string_view> dayRefusal(const int day)
+    {
+        if (day < 0)
+            return "is before the first day";
+
+        return std::nullopt;
+    }
+
     std::optional<std::string_view> weatherRefusal(const std::string_view weather)
     {
         // **Checked where it is read rather than at the frame**, for the reason a mistyped view id
@@ -280,8 +288,10 @@ namespace RtxTool
         const std::string& text = field.mValue;
         int value = 0;
         const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
-        if (error != std::errc() || end != text.data() + text.size() || value < 0)
-            refuseValue(field, "is not a whole number of days from nought");
+        if (error != std::errc() || end != text.data() + text.size())
+            refuseValue(field, "is not a whole number of days");
+        if (const std::optional<std::string_view> why = dayRefusal(value))
+            refuseValue(field, *why);
 
         return value;
     }

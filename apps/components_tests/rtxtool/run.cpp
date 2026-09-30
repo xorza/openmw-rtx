@@ -557,13 +557,17 @@ hour = 19.25
             EXPECT_THROW(RtxTool::chooseViews(two, {}), std::runtime_error) << "a list that names nothing";
             EXPECT_EQ(RtxTool::chooseViews(two, { "all" }).size(), 2u);
             EXPECT_EQ(RtxTool::chooseViews(two, { "dawn" }).size(), 1u);
+            EXPECT_THROW(RtxTool::chooseViews(two, { "dawn", "ship", "dawn" }), std::runtime_error)
+                << "a view named twice, whose hashes the run would then refuse to read";
 
-            // **The command line refuses by the same rules**, `hourRefusal` and `weatherRefusal`,
-            // which is what these are.
+            // **The command line refuses by the same rules**, `hourRefusal`, `dayRefusal` and
+            // `weatherRefusal`, which is what these are.
             EXPECT_TRUE(RtxTool::hourRefusal(24.0f).has_value());
             EXPECT_TRUE(RtxTool::hourRefusal(-0.01f).has_value());
             EXPECT_FALSE(RtxTool::hourRefusal(0.0f).has_value());
             EXPECT_FALSE(RtxTool::hourRefusal(23.99f).has_value());
+            EXPECT_TRUE(RtxTool::dayRefusal(-3).has_value());
+            EXPECT_FALSE(RtxTool::dayRefusal(0).has_value());
             EXPECT_TRUE(RtxTool::weatherRefusal("Rian").has_value());
             EXPECT_FALSE(RtxTool::weatherRefusal("Rain").has_value());
             EXPECT_EQ(RtxTool::listWeathers(),

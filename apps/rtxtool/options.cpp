@@ -534,11 +534,11 @@ namespace RtxTool
         // savegame's business — it restores the player, the camera, the hour and every cell the
         // session had loaded, which no pair of coordinates can — and what the world draws at random
         // is the seed's, which is what makes two runs of one build the same run.
-        option(Verbs::Every, "load-savegame",
+        option(sFramed, "load-savegame",
             bpo::value<Files::MaybeQuotedPath>()->default_value(Files::MaybeQuotedPath(), ""),
             "start from this savegame rather than from a new game");
 
-        option(Verbs::Every, "random-seed", bpo::value<unsigned int>()->default_value(42),
+        option(sFramed, "random-seed", bpo::value<unsigned int>()->default_value(42),
             "seed the world's random draws, so two runs of one build draw the same world");
 
         Files::ConfigurationManager::addCommonOptions(result.mDescription);
