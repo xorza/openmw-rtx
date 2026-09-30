@@ -465,9 +465,9 @@ namespace Rtx
         , mTraversalMask(~0u)
     {
         // Reserved once, so no frame rehashes a map. A cell's drawables arriving grow every
-        // identity map on that frame, and an `unordered_map` that grows past its buckets rehashes
-        // on the insert that did it. Budgets past what a Morrowind exterior reaches at four cells
-        // of distance, and a few hundred kilobytes of buckets apiece.
+        // identity map on that frame, and a table that grows past its room moves every entry on the
+        // insert that did it. Budgets past what a Morrowind exterior reaches at four cells of
+        // distance.
         mPlacements.reserve(sPlacementBudget);
         mMeshes.reserve(sMeshBudget, sDeformerBudget);
         mMaterials.reserve(sMaterialBudget, sTextureBudget, sAnimatedBudget);

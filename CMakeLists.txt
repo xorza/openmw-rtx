@@ -492,7 +492,7 @@ endif(HAVE_MULTIVIEW)
 
 set(BOOST_COMPONENTS iostreams program_options)
 
-find_package(Boost 1.70.0 CONFIG REQUIRED COMPONENTS ${BOOST_COMPONENTS} OPTIONAL_COMPONENTS ${BOOST_OPTIONAL_COMPONENTS})
+find_package(Boost 1.83.0 CONFIG REQUIRED COMPONENTS ${BOOST_COMPONENTS} OPTIONAL_COMPONENTS ${BOOST_OPTIONAL_COMPONENTS})
 
 if(OPENMW_USE_SYSTEM_MYGUI)
     find_package(MyGUI 3.4.3 REQUIRED)
@@ -1049,7 +1049,7 @@ elseif(NOT APPLE)
     install(FILES "${RUNTIME_OUTPUT_DIRECTORY}/defaults.bin"
                   "${RUNTIME_OUTPUT_DIRECTORY}/gamecontrollerdb.txt"
                   TYPE SYSCONF)
-    
+
     if (OPENMW_LOCAL_INSTALL)
         install(FILES "${OpenMW_SOURCE_DIR}/files/openmw.cfg.local" TYPE SYSCONF RENAME "openmw.cfg")
     else ()

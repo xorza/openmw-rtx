@@ -13,6 +13,7 @@
 #include <osgParticle/Particle>
 #include <osgParticle/ParticleSystem>
 
+#include <components/rtx/common/contract.hpp>
 #include <components/rtx/common/finite.hpp>
 #include <components/rtx/common/result.hpp>
 #include <components/rtx/image/colour.hpp>
@@ -158,7 +159,6 @@ namespace Rtx
         mPending.push_back(Pending{
             .mParticles = &particles,
             .mPlace = place,
-            .mHeld = &held,
             .mFalls = mPass.mFalls,
             .mGlow = glow,
         });
@@ -178,7 +178,11 @@ namespace Rtx
 
         const osgParticle::ParticleSystem& particles = *pending.mParticles;
         const osg::Matrixf& place = pending.mPlace;
-        HeldSprite& held = *pending.mHeld;
+        // Found again rather than remembered from `add`: the other emitters met after it may have
+        // grown the map, and a grown map moves every entry. The walk abandons none of them.
+        const auto known = mHeld.find(pending.mParticles);
+        contract(known != mHeld.end(), "an emitter pending that the mirror does not hold");
+        HeldSprite& held = known->second;
 
         const float scale = placedScale(place);
 

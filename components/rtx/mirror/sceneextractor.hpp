@@ -5,9 +5,9 @@
 #include <memory>
 #include <optional>
 #include <span>
-#include <unordered_map>
 #include <vector>
 
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/Matrixf>
 #include <osg/Node>
 
@@ -348,7 +348,7 @@ namespace Rtx
 
         /// Which slot each placement holds, and when it was last met. One lookup a placement a
         /// frame, and the scene keeps the transform.
-        Kept<std::unordered_map<std::size_t, Known>> mPlacements{ mPass };
+        Kept<boost::unordered_flat_map<std::size_t, Known>> mPlacements{ mPass };
 
         /// The drawables the walk met, and what poses the ones that deform.
         MeshResolver mMeshes{ mScene, mPass, mContent };

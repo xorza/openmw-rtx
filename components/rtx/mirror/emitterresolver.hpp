@@ -132,9 +132,6 @@ namespace Rtx
             const osgParticle::ParticleSystem* mParticles;
             osg::Matrixf mPlace;
 
-            /// The map's own entry, which holds its place until `retire`, after every flush.
-            HeldSprite* mHeld;
-
             /// Whether its sprites fall from the sky, which is the walk's word and not the system's.
             bool mFalls;
 

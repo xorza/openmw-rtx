@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include <osg/Group>
 #include <osg/Math>
 #include <osg/Matrix>
 #include <osg/StateAttribute>
@@ -641,6 +642,35 @@ namespace Rtx::Testing
             EXPECT_EQ(seen, 20u);
 
             EXPECT_EQ(walk(*plume.mRoot).mSprites, 20u) << "a walk on a clock that did not move emits nothing";
+        }
+
+        /// **An emitter's sprites are read from its entry as the map holds it after the walk**, and
+        /// not from where the entry stood when the walk met the emitter. Sprites are read once the
+        /// walk is over, and the emitters met after this one grow the map, which moves every entry.
+        /// Four times the two thousand and forty-eight the extractor reserves, because the table
+        /// rounds its room up: three thousand stayed inside it. Each plume stands one particle at its
+        /// own x, so a sprite read through an entry that moved would stand elsewhere or not at all.
+        TEST_F(RtxSceneExtractorTest, anEmitterMetBeforeItsMapGrewPlacesItsOwnSprite)
+        {
+            constexpr std::size_t count = 4 * 2048;
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            std::vector<Plume> plumes;
+            plumes.reserve(count);
+            for (std::size_t at = 0; at < count; ++at)
+            {
+                plumes.push_back(makePlume(osg::Matrix::translate(static_cast<double>(at), 0.0, 0.0), true));
+                emit(*plumes.back().mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+                root->addChild(plumes.back().mRoot);
+            }
+
+            const ExtractionStats stats = walk(*root);
+            EXPECT_EQ(stats.mEmitters, count);
+            EXPECT_EQ(stats.mSprites, count);
+
+            ASSERT_EQ(mScene.sprites().size(), count);
+            for (std::size_t at = 0; at < count; ++at)
+                EXPECT_EQ(mScene.sprites()[at].mPosition, osg::Vec3f(static_cast<float>(at), 0.0f, 0.0f))
+                    << "plume " << at;
         }
     }
 }
