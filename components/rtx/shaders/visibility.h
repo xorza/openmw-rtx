@@ -24,6 +24,20 @@ namespace Rtx::Shaders
 {
 #endif
 
+    /// The trace's specialization constants, by `constant_id`: the frame's tuple, which every stage
+    /// of a trace pipeline is handed, and after it the hit module's own pair, which each hit stage
+    /// sets for itself. `lib/variants.glsl` and `visibilityhit.rchit` declare them by these names,
+    /// and the host fills one table indexed by them, so no table's order has to agree with a
+    /// declaration's.
+    const uint SPEC_COUNTING = 0u;
+    const uint SPEC_HAS_SUN = 1u;
+    const uint SPEC_HAS_MOONS = 2u;
+    const uint SPEC_HAS_SEA = 3u;
+    const uint SPEC_HAS_MAPS = 4u;
+    const uint SPEC_LAYERED = 5u;
+    const uint SPEC_WATER = 6u;
+    const uint SPEC_COUNT = 7u;
+
     /// How many closest-hit shaders the trace has: one for each `Rtx::MaterialKind`, in the order
     /// that enum names them, each standing behind `HIT_RECORD_LAYERS` records of the shader binding
     /// table.

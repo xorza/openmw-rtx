@@ -61,6 +61,10 @@ namespace Rtx::Shaders
     /// specialization constant, and its taps stand `1 << level` pixels apart.
     const uint SHADOW_FILTER_LEVELS = 3;
 
+    /// The filter module's specialization constants, by `constant_id`: the level alone.
+    const uint SHADOW_SPEC_LEVEL = 0u;
+    const uint SHADOW_SPEC_COUNT = 1u;
+
     /// Where `shadowtiles.comp` binds what it reads and writes in set 0, and how many there are.
     const uint SHADOW_TILES_BIND_SUNLIT = 0;
     const uint SHADOW_TILES_BIND_SURFACE = 1;

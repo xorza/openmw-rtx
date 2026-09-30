@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <filesystem>
 
 #include <vulkan/vulkan_core.h>
 
@@ -26,7 +25,7 @@ namespace Rtx
     class ShadowPass
     {
     public:
-        ShadowPass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit ShadowPass(const Device& device);
 
         /// Records the five dispatches and hands back the filtered visibility, its mean in `r`,
         /// ordered for a compute read. `buffer` must have been handed over, and
@@ -35,8 +34,8 @@ namespace Rtx
             const DenoiseFrame& frame) const;
 
     private:
-        ComputePipeline mMask;
-        ComputePipeline mTiles;
-        std::array<ComputePipeline, Shaders::SHADOW_FILTER_LEVELS> mFilters;
+        ComputePipeline<Shaders::ShadowMaskConstants> mMask;
+        ComputePipeline<Shaders::ShadowTilesConstants> mTiles;
+        std::array<ComputePipeline<Shaders::ShadowFilterConstants>, Shaders::SHADOW_FILTER_LEVELS> mFilters;
     };
 }

@@ -220,6 +220,7 @@ add_custom_target(openmw-rtx-vulkan-shaders ALL DEPENDS ${RTX_SHADER_OUTPUTS}
 set(RTX_VULKAN_FILES
     createrenderer.cpp
     createrenderer.hpp
+    device/bindingtable.hpp
     device/buffermarkers.cpp
     device/buffermarkers.hpp
     device/commands.cpp
@@ -301,6 +302,7 @@ set(RTX_VULKAN_FILES
     pipeline/dispatch.hpp
     pipeline/graphicspipeline.cpp
     pipeline/graphicspipeline.hpp
+    pipeline/pipeline.cpp
     pipeline/pipeline.hpp
     pipeline/tracepipeline.cpp
     pipeline/tracepipeline.hpp

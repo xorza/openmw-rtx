@@ -34,7 +34,7 @@ namespace Rtx
             std::vector<std::uint16_t> mapOf(const TextureData& data, std::string_view name, std::uint32_t first = 0)
             {
                 Device& device = getDevice();
-                const TexturePasses passes(device, Testing::getShaderDirectory());
+                const TexturePasses passes(device);
 
                 const Image map(device, Shaders::SHADING_EXTENT, Shaders::SHADING_EXTENT, VK_FORMAT_R16_UNORM,
                     VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,

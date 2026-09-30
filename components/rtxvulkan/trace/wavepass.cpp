@@ -61,14 +61,11 @@ namespace Rtx
         }
     }
 
-    WavePass::WavePass(const Device& device, const std::filesystem::path& shaderDirectory)
+    WavePass::WavePass(const Device& device)
         : mDevice(device)
-        , mFormPipeline(device, sFormBindings, sizeof(Shaders::WaveFormConstants), {},
-              shaderDirectory / "waveform.comp.spv", "wave form")
-        , mLinePipeline(device, sLineBindings, sizeof(Shaders::WaveConstants), {},
-              shaderDirectory / "waveline.comp.spv", "wave line")
-        , mComposePipeline(device, sComposeBindings, sizeof(Shaders::WaveComposeConstants), {},
-              shaderDirectory / "wavecompose.comp.spv", "wave compose")
+        , mFormPipeline(device, sFormBindings, {}, "waveform.comp.spv", "wave form")
+        , mLinePipeline(device, sLineBindings, {}, "waveline.comp.spv", "wave line")
+        , mComposePipeline(device, sComposeBindings, {}, "wavecompose.comp.spv", "wave compose")
         , mSampler(makeContentSampler(device, "wave"))
     {
         constexpr VkImageUsageFlags usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
@@ -153,7 +150,7 @@ namespace Rtx
             const Tile& tile = mTiles[index];
             const std::uint32_t grid = gridOf(index);
 
-            DescriptorWrites<Shaders::WAVE_FORM_BINDINGS> forms;
+            DescriptorWrites forms(mFormPipeline);
             forms.buffer(Shaders::WAVE_FORM_BIND_AMPLITUDES, tile.mAmplitudes.describe());
             forms.buffer(Shaders::WAVE_FORM_BIND_TURN_RATES, tile.mTurnRates.describe());
             forms.buffer(Shaders::WAVE_FORM_BIND_FIELD, tile.mField.describe());
@@ -163,8 +160,8 @@ namespace Rtx
                 .mExtent = sWaveTiles[index].mExtent,
                 .mTime = seconds,
             };
-            dispatch(commands, mFormPipeline, forms.get(), shaped, groupsFor(grid, Shaders::WAVE_TILE_WORKGROUP),
-                groupsFor(grid, Shaders::WAVE_TILE_WORKGROUP));
+            dispatch(
+                commands, mFormPipeline, forms, shaped, Groups::covering(grid, grid, Shaders::WAVE_TILE_WORKGROUP));
         }
         handOver(commands);
 
@@ -179,9 +176,9 @@ namespace Rtx
                 {
                     const std::uint32_t count = gridOf(index);
 
-                    DescriptorWrites<Shaders::WAVE_LINE_BINDINGS> writes;
+                    DescriptorWrites writes(mLinePipeline);
                     writes.buffer(Shaders::WAVE_LINE_BIND_FIELD, mTiles[index].mField.describe());
-                    pushDescriptors(commands, mLinePipeline, writes.get());
+                    pushDescriptors(commands, mLinePipeline, writes);
 
                     const Shaders::WaveConstants along{
                         .mCount = count,
@@ -189,7 +186,7 @@ namespace Rtx
                         .mJump = pass == 0 ? count : 1u,
                         .mOffset = pair * count * count,
                     };
-                    pushConstants(commands, mLinePipeline, along);
+                    mLinePipeline.push(commands, along);
                     vkCmdDispatch(commands, count, 1, 1);
                 }
                 handOver(commands);
@@ -200,14 +197,14 @@ namespace Rtx
             const Tile& tile = mTiles[index];
             const std::uint32_t grid = gridOf(index);
 
-            DescriptorWrites<Shaders::WAVE_COMPOSE_BINDINGS> composes;
+            DescriptorWrites composes(mComposePipeline);
             composes.buffer(Shaders::WAVE_COMPOSE_BIND_FIELD, tile.mField.describe());
             composes.image(Shaders::WAVE_COMPOSE_BIND_SURFACE, tile.mSurface.describeStorage());
             composes.image(Shaders::WAVE_COMPOSE_BIND_CURVATURE, tile.mCurvature.describeStorage());
 
             const Shaders::WaveComposeConstants unpacked{ .mCount = grid };
-            dispatch(commands, mComposePipeline, composes.get(), unpacked,
-                groupsFor(grid, Shaders::WAVE_TILE_WORKGROUP), groupsFor(grid, Shaders::WAVE_TILE_WORKGROUP));
+            dispatch(commands, mComposePipeline, composes, unpacked,
+                Groups::covering(grid, grid, Shaders::WAVE_TILE_WORKGROUP));
         }
 
         Image::buildMips(commands, images);

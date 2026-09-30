@@ -59,9 +59,9 @@ namespace Rtx
             Baked bakeOf(float tiling, std::uint32_t outputs, bool authored, bool standsIn = false)
             {
                 Device& device = getDevice();
-                const TexturePasses passes(device, Testing::getShaderDirectory());
+                const TexturePasses passes(device);
                 const SetLayout layout = TextureArray::describeLayout(device);
-                const GroundCompositePass pass(device, Testing::getShaderDirectory(), layout.get());
+                const GroundCompositePass pass(device, layout.get());
 
                 constexpr std::array<std::uint8_t, 4> red{ 255, 0, 0, 255 };
                 Testing::TestTexture ladder;

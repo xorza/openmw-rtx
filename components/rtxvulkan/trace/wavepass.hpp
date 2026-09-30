@@ -2,7 +2,6 @@
 
 #include <array>
 #include <cstddef>
-#include <filesystem>
 
 #include <osg/Vec2f>
 #include <vulkan/vulkan_core.h>
@@ -30,7 +29,7 @@ namespace Rtx
     public:
         /// Draws the amplitudes of `SeaState{}` and synthesises the first frame's tiles. Submits and
         /// waits.
-        WavePass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit WavePass(const Device& device);
 
         /// Draws the amplitudes for another sea, replacing whatever was drawn before. Submits and
         /// waits, and frees the spectrum it replaces, so nothing may be in flight:
@@ -94,9 +93,9 @@ namespace Rtx
 
         const Device& mDevice;
 
-        ComputePipeline mFormPipeline;
-        ComputePipeline mLinePipeline;
-        ComputePipeline mComposePipeline;
+        ComputePipeline<Shaders::WaveFormConstants> mFormPipeline;
+        ComputePipeline<Shaders::WaveConstants> mLinePipeline;
+        ComputePipeline<Shaders::WaveComposeConstants> mComposePipeline;
 
         Sampler mSampler;
 

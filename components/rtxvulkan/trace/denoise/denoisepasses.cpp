@@ -13,12 +13,12 @@
 
 namespace Rtx
 {
-    DenoisePasses::DenoisePasses(const Device& device, const std::filesystem::path& shaderDirectory)
-        : mAccumulate(device, shaderDirectory)
-        , mShadow(device, shaderDirectory)
-        , mSpecular(device, shaderDirectory)
-        , mPane(device, shaderDirectory)
-        , mFilter(device, shaderDirectory)
+    DenoisePasses::DenoisePasses(const Device& device)
+        : mAccumulate(device)
+        , mShadow(device)
+        , mSpecular(device)
+        , mPane(device)
+        , mFilter(device)
     {
     }
 

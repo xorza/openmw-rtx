@@ -27,8 +27,7 @@ namespace Rtx
             VkVertexInputAttributeDescription{ 1, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(DebugVertex, mColour) },
         };
 
-        GraphicsPipelineOptions describePipeline(
-            const std::filesystem::path& shaderDirectory, VkFormat targetFormat, VkPrimitiveTopology topology)
+        GraphicsPipelineOptions describePipeline(VkFormat targetFormat, VkPrimitiveTopology topology)
         {
             GraphicsPipelineOptions options;
             options.mBindings = sBindings;
@@ -37,17 +36,16 @@ namespace Rtx
             options.mColourFormat = targetFormat;
             options.mBlend = Blend::Over;
             options.mTopology = topology;
-            options.mPushConstantBytes = sizeof(Shaders::LineConstants);
-            options.mVertexModule = shaderDirectory / "line.vert.spv";
-            options.mFragmentModule = shaderDirectory / "line.frag.spv";
+            options.mVertexModule = "line.vert.spv";
+            options.mFragmentModule = "line.frag.spv";
             options.mName = topology == VK_PRIMITIVE_TOPOLOGY_LINE_LIST ? "debug lines" : "debug triangles";
             return options;
         }
     }
 
-    LinePass::LinePass(const Device& device, const std::filesystem::path& shaderDirectory, const VkFormat targetFormat)
-        : mLines(device, describePipeline(shaderDirectory, targetFormat, VK_PRIMITIVE_TOPOLOGY_LINE_LIST))
-        , mTriangles(device, describePipeline(shaderDirectory, targetFormat, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST))
+    LinePass::LinePass(const Device& device, const VkFormat targetFormat)
+        : mLines(device, describePipeline(targetFormat, VK_PRIMITIVE_TOPOLOGY_LINE_LIST))
+        , mTriangles(device, describePipeline(targetFormat, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST))
     {
     }
 
@@ -75,20 +73,21 @@ namespace Rtx
         const VkDeviceSize offset = 0;
         vkCmdBindVertexBuffers(commands, 0, 1, &vertices, &offset);
 
-        DescriptorWrites<1> traced;
-        traced.image(0, surface.describeStorage());
-
         // Each pipeline is handed the set and the block again: a push is only defined against
         // the layout in force, and the two layouts are the same in everything but the handle.
-        const auto draw = [&](const GraphicsPipeline& pipeline, std::uint32_t first, std::uint32_t count) {
-            if (count == 0)
-                return;
+        const auto draw
+            = [&](const GraphicsPipeline<Shaders::LineConstants>& pipeline, std::uint32_t first, std::uint32_t count) {
+                  if (count == 0)
+                      return;
 
-            bind(commands, pipeline);
-            pushDescriptors(commands, pipeline, traced.get());
-            pushConstants(commands, pipeline, constants);
-            vkCmdDraw(commands, count, 1, first, 0);
-        };
+                  DescriptorWrites traced(pipeline);
+                  traced.image(0, surface.describeStorage());
+
+                  bind(commands, pipeline);
+                  pushDescriptors(commands, pipeline, traced);
+                  pipeline.push(commands, constants);
+                  vkCmdDraw(commands, count, 1, first, 0);
+              };
 
         draw(mLines, 0, lineCount);
         draw(mTriangles, lineCount, triangleCount);

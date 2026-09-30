@@ -228,7 +228,7 @@ namespace Rtx
             Binned bin(const Layer& layer, const Shaders::VisibilityConstants& constants, std::uint32_t capacity)
             {
                 Device& device = getDevice();
-                const SpriteBinPass pass(device, Testing::getShaderDirectory());
+                const SpriteBinPass pass(device);
 
                 Binned result;
                 result.mAcross = Shaders::spriteTilesOver(constants.mCamera.mWidth);
@@ -807,7 +807,7 @@ namespace Rtx
 
             explicit Shading(const Device& device)
                 : mDevice(device)
-                , mPass(device, Testing::getShaderDirectory())
+                , mPass(device)
             {
             }
 

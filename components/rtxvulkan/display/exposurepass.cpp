@@ -25,11 +25,9 @@ namespace Rtx
 
     }
 
-    ExposurePass::ExposurePass(const Device& device, const std::filesystem::path& shaderDirectory)
-        : mHistogramPipeline(device, sHistogramBindings, sizeof(Shaders::HistogramConstants), {},
-            shaderDirectory / "histogram.comp.spv", "histogram")
-        , mReducePipeline(device, sReduceBindings, sizeof(Shaders::ExposureConstants), {},
-              shaderDirectory / "exposure.comp.spv", "exposure")
+    ExposurePass::ExposurePass(const Device& device)
+        : mHistogramPipeline(device, sHistogramBindings, {}, "histogram.comp.spv", "histogram")
+        , mReducePipeline(device, sReduceBindings, {}, "exposure.comp.spv", "exposure")
         , mHistogram(Buffer::deviceLocal(device, Shaders::EXPOSURE_BINS * sizeof(std::uint32_t),
               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "histogram"))
         // `TRANSFER_SRC` because the exposure is the whole of what this pass produces and so the
@@ -64,7 +62,7 @@ namespace Rtx
         mHistogram.clear(commands);
         mHistogram.transition(commands, Use::sBufferClearWrite, Use::sBufferComputeReadWrite);
 
-        DescriptorWrites<Shaders::HISTOGRAM_BINDINGS> binning;
+        DescriptorWrites binning(mHistogramPipeline);
         binning.image(Shaders::HISTOGRAM_BIND_SOURCE, frame.describeStorage());
         binning.buffer(Shaders::HISTOGRAM_BIND_BINS, mHistogram.describe());
 
@@ -73,15 +71,14 @@ namespace Rtx
             .mHeight = frame.getHeight(),
         };
 
-        dispatch(commands, mHistogramPipeline, binning.get(), extent,
-            groupsFor(extent.mWidth, Shaders::HISTOGRAM_WORKGROUP),
-            groupsFor(extent.mHeight, Shaders::HISTOGRAM_WORKGROUP));
+        dispatch(commands, mHistogramPipeline, binning, extent,
+            Groups::covering(extent.mWidth, extent.mHeight, Shaders::HISTOGRAM_WORKGROUP));
 
         // The reduction has to see every pixel's contribution before it divides by the total, which
         // is what this dispatch boundary is for.
         mHistogram.transition(commands, Use::sBufferComputeWrite, Use::sBufferComputeRead);
 
-        DescriptorWrites<Shaders::EXPOSURE_BINDINGS> reducing;
+        DescriptorWrites reducing(mReducePipeline);
         reducing.buffer(Shaders::EXPOSURE_BIND_HISTOGRAM, mHistogram.describe());
         reducing.buffer(Shaders::EXPOSURE_BIND_EXPOSURE, mExposure.describe());
 
@@ -93,7 +90,7 @@ namespace Rtx
         };
 
         // One group, because the reduction is over the bins and the bins are one workgroup's worth.
-        dispatch(commands, mReducePipeline, reducing.get(), counted, 1);
+        dispatch(commands, mReducePipeline, reducing, counted, Groups{});
 
         // The curve reads what the reduction wrote.
         mExposure.transition(commands, Use::sBufferComputeWrite, Use::sBufferComputeRead);

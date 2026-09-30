@@ -63,7 +63,8 @@ namespace Rtx
         /// What this cache is called: the driver that can read it back, and the shaders it was
         /// built from. Both halves are the key, so a run reads only the file it can use, and
         /// `sweep` bounds the rest.
-        std::filesystem::path cachePath(const PipelineCacheSpec& spec, const VkPhysicalDeviceProperties& properties)
+        std::filesystem::path cachePath(const PipelineCacheSpec& spec, const VkPhysicalDeviceProperties& properties,
+            const std::filesystem::path& shaderDirectory)
         {
             if (spec.mDirectory.empty())
                 return {};
@@ -73,7 +74,7 @@ namespace Rtx
             if (failed)
                 return {};
 
-            const std::array<std::uint64_t, 2> shaders = digestShaders(spec.mShaderDirectory);
+            const std::array<std::uint64_t, 2> shaders = digestShaders(shaderDirectory);
 
             std::array<std::uint8_t, sizeof(shaders)> digest{};
             std::memcpy(digest.data(), shaders.data(), digest.size());
@@ -128,10 +129,10 @@ namespace Rtx
             && std::memcmp(blob.data() + sUuidAt, properties.pipelineCacheUUID, VK_UUID_SIZE) == 0;
     }
 
-    PipelineCache::PipelineCache(
-        VkDevice device, const VkPhysicalDeviceProperties& properties, const PipelineCacheSpec& spec)
+    PipelineCache::PipelineCache(VkDevice device, const VkPhysicalDeviceProperties& properties,
+        const PipelineCacheSpec& spec, const std::filesystem::path& shaderDirectory)
         : mDevice(device)
-        , mPath(cachePath(spec, properties))
+        , mPath(cachePath(spec, properties, shaderDirectory))
     {
         // No file is no object: `PipelineCacheSpec::mDirectory` says why a measuring process may
         // not share even an empty one between its compiles.

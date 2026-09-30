@@ -39,8 +39,8 @@
 /// The two the hit module is specialized on, after the frame's tuple in `variants.glsl`: whether
 /// ground that kept its layer stack can reach this stage, and whether a hit is shaded as water.
 /// `VisibilityPass` hands each of the three stages its pair.
-layout(constant_id = 5) const bool LAYERED = false;
-layout(constant_id = 6) const bool WATER = false;
+layout(constant_id = SPEC_LAYERED) const bool LAYERED = false;
+layout(constant_id = SPEC_WATER) const bool WATER = false;
 
 layout(location = RTX_PAYLOAD) rayPayloadInEXT VisibilityPayload packed;
 hitAttributeEXT vec2 barycentrics;

@@ -194,7 +194,7 @@ namespace Rtx
             Batch tableSetup(pool);
             SkinTables tables(device, tableSetup, scene, 2);
             tableSetup.flush();
-            const SkinPass pass(device, Testing::getShaderDirectory());
+            const SkinPass pass(device);
 
             const VkDeviceSize poseBytes = VkDeviceSize{ posedVertices } * sizeof(osg::Vec3f);
             const VkDeviceSize normalBytes = VkDeviceSize{ vertices } * sizeof(osg::Vec3f);
@@ -419,7 +419,7 @@ namespace Rtx
             normals.open(device, 2, readable, "posed normals");
             tangents.open(device, 2, readable, "posed tangents");
 
-            const SkinPass pass(device, Testing::getShaderDirectory());
+            const SkinPass pass(device);
 
             // The load: the tables and the room for one quad, into every copy.
             Batch load(pool);

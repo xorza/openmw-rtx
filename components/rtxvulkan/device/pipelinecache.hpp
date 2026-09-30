@@ -12,7 +12,7 @@
 
 namespace Rtx
 {
-    /// Where a pipeline cache is kept, and what it is keyed on.
+    /// Where a pipeline cache is kept.
     struct PipelineCacheSpec
     {
         /// The directory the file goes in, made if it is not there. Empty keeps no cache at all —
@@ -29,9 +29,6 @@ namespace Rtx
         /// pixel a part in 255 apart on one frame in two hundred, with every input the same, and
         /// none of twelve did with the object gone. The compiles are faster without it as well.
         std::filesystem::path mDirectory;
-
-        /// The compiled shaders the pipelines are built from, digested into the file's name.
-        std::filesystem::path mShaderDirectory;
     };
 
     /// A `VkPipelineCache` that outlives the process, kept in a file in the user's cache directory,
@@ -46,7 +43,10 @@ namespace Rtx
         /// @param properties identifies the driver the cache was built by. Vulkan will reject a blob
         ///        that does not match, and the name carries it so that a driver update starts a new
         ///        cache instead of rejecting the old one on every run.
-        PipelineCache(VkDevice device, const VkPhysicalDeviceProperties& properties, const PipelineCacheSpec& spec);
+        /// @param shaderDirectory the compiled shaders the pipelines are built from, digested into the
+        ///        file's name.
+        PipelineCache(VkDevice device, const VkPhysicalDeviceProperties& properties, const PipelineCacheSpec& spec,
+            const std::filesystem::path& shaderDirectory);
         ~PipelineCache();
 
         /// Null where the spec keeps no cache or the cache could not be created, which every

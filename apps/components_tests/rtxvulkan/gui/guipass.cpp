@@ -46,7 +46,7 @@ namespace Rtx
             void SetUp() override
             {
                 Testing::DeviceTest::SetUp();
-                mPass = std::make_unique<GuiPass>(getDevice(), Testing::getShaderDirectory(), VK_FORMAT_R8G8B8A8_UNORM);
+                mPass = std::make_unique<GuiPass>(getDevice(), VK_FORMAT_R8G8B8A8_UNORM);
             }
 
             /// The pass before the base reads the layers, so what its teardown does is this test's
@@ -104,7 +104,7 @@ namespace Rtx
             /// Its shading map is estimated as the renderer's would be, and read by nothing here.
             Texture makeTexture(const TextureData& data, std::string_view name)
             {
-                const TexturePasses passes(getDevice(), Testing::getShaderDirectory());
+                const TexturePasses passes(getDevice());
 
                 Batch upload(getPool());
                 std::vector<VkBufferImageCopy> regions;

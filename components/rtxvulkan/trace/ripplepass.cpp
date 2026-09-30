@@ -50,18 +50,13 @@ namespace Rtx
                 std::floor(seconds * static_cast<double>(Shaders::RIPPLE_STEP_RATE) + 1.0e-3));
         }
 
-        std::uint32_t groups()
-        {
-            return groupsFor(sGrid, Shaders::RIPPLE_WORKGROUP);
-        }
+        constexpr Groups sGroups = Groups::covering(sGrid, sGrid, Shaders::RIPPLE_WORKGROUP);
     }
 
-    RipplePass::RipplePass(const Device& device, const std::filesystem::path& shaderDirectory)
+    RipplePass::RipplePass(const Device& device)
         : mDevice(device)
-        , mStepPipeline(device, sStepBindings, sizeof(Shaders::RippleStepConstants), {},
-              shaderDirectory / "ripplestep.comp.spv", "ripple step")
-        , mComposePipeline(
-              device, sComposeBindings, 0, {}, shaderDirectory / "ripplecompose.comp.spv", "ripple compose")
+        , mStepPipeline(device, sStepBindings, {}, "ripplestep.comp.spv", "ripple step")
+        , mComposePipeline(device, sComposeBindings, {}, "ripplecompose.comp.spv", "ripple compose")
         , mSampler(makeBorderSampler(device, "ripples"))
         , mImpulses([&](const FrameSlot) {
             return Buffer::hostWritten(device, Shaders::RIPPLE_IMPULSES_MOST * sizeof(Shaders::GpuRippleImpulse),
@@ -172,7 +167,7 @@ namespace Rtx
         const Image& after = mFields[1 - mLatest];
         mLatest = 1 - mLatest;
 
-        DescriptorWrites<Shaders::RIPPLE_STEP_BINDINGS> steps;
+        DescriptorWrites steps(mStepPipeline);
         steps.image(Shaders::RIPPLE_STEP_BIND_BEFORE, before.describeStorage());
         steps.image(Shaders::RIPPLE_STEP_BIND_AFTER, after.describeStorage());
         steps.buffer(Shaders::RIPPLE_STEP_BIND_IMPULSES, impulseBuffer.describe());
@@ -182,7 +177,7 @@ namespace Rtx
             .mCount = static_cast<std::uint32_t>(mImpulseScratch.size()),
         };
 
-        dispatch(commands, mStepPipeline, steps.get(), stepped, groups(), groups());
+        dispatch(commands, mStepPipeline, steps, stepped, sGroups);
 
         // The step wrote what the compose reads, and what the next step reads back.
         handOver(commands, Use::sBufferComputeWrite, Use::sBufferComputeReadWrite);
@@ -196,15 +191,12 @@ namespace Rtx
             opened.add(image->describeTransition(Use::sUndefined, Use::sComputeWrite));
         opened.flush();
 
-        DescriptorWrites<Shaders::RIPPLE_COMPOSE_BINDINGS> composes;
+        DescriptorWrites composes(mComposePipeline);
         composes.image(Shaders::RIPPLE_COMPOSE_BIND_FIELD, after.describeStorage());
         composes.image(Shaders::RIPPLE_COMPOSE_BIND_SURFACE, mSurface.describeStorage());
         composes.image(Shaders::RIPPLE_COMPOSE_BIND_CURVATURE, mCurvature.describeStorage());
 
-        // Bound and pushed by hand: the compose is told nothing, and `dispatch` pushes a block.
-        bind(commands, mComposePipeline);
-        pushDescriptors(commands, mComposePipeline, composes.get());
-        vkCmdDispatch(commands, groups(), groups(), 1);
+        dispatch(commands, mComposePipeline, composes, NoConstants{}, sGroups);
 
         Image::buildMips(commands, std::array<const Image*, 2>{ &mSurface, &mCurvature });
 

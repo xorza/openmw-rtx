@@ -1,7 +1,5 @@
 #pragma once
 
-#include <filesystem>
-
 #include "mipchainpass.hpp"
 #include "normalspreadpass.hpp"
 #include "shadingpass.hpp"
@@ -16,11 +14,11 @@ namespace Rtx
     /// map's spread, and a sprite's own light bake.
     struct TexturePasses
     {
-        TexturePasses(const Device& device, const std::filesystem::path& shaders)
-            : mChain(device, shaders)
-            , mShading(device, shaders)
-            , mSpread(device, shaders)
-            , mBake(device, shaders)
+        explicit TexturePasses(const Device& device)
+            : mChain(device)
+            , mShading(device)
+            , mSpread(device)
+            , mBake(device)
         {
         }
 

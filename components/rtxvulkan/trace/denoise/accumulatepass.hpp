@@ -1,9 +1,8 @@
 #pragma once
 
-#include <filesystem>
-
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/shaders/accumulate.h>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 
 #include "denoiseframe.hpp"
@@ -21,7 +20,7 @@ namespace Rtx
     class AccumulatePass
     {
     public:
-        AccumulatePass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit AccumulatePass(const Device& device);
 
         /// Blends the buffer's indirect channel with the history, and leaves the blend and its variance
         /// in `images.mBlended` where the cascade can read them — an image of the history's own, or
@@ -31,6 +30,6 @@ namespace Rtx
             const DenoiseFrame& frame) const;
 
     private:
-        ComputePipeline mPipeline;
+        ComputePipeline<Shaders::AccumulateConstants> mPipeline;
     };
 }

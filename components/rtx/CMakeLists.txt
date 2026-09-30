@@ -230,6 +230,7 @@ set(RTX_SHADER_HEADERS
     shaders/fogvolume.h
     shaders/gbuffer.h
     shaders/glare.h
+    shaders/gui.h
     shaders/ground.h
     shaders/hosttypes.h
     shaders/line.h

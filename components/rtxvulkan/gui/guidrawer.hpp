@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <filesystem>
 #include <span>
 #include <vector>
 
@@ -27,7 +26,7 @@ namespace Rtx
     {
     public:
         /// @param targetFormat what the frame's targets are, which the pass draws into.
-        GuiDrawer(const Device& device, const std::filesystem::path& shaders, VkFormat targetFormat);
+        GuiDrawer(const Device& device, VkFormat targetFormat);
 
         GuiTextures& getTextures() { return mTextures; }
         const GuiTextures& getTextures() const { return mTextures; }

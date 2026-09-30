@@ -66,28 +66,26 @@ namespace Rtx
 
     VulkanRenderer::VulkanRenderer(const RendererOptions& options)
         : mInstance(options.mValidation, surfaceExtensionsFor(options))
-        , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle()),
-              PipelineCacheSpec{ .mDirectory = options.mCacheDirectory, .mShaderDirectory = options.mShaderDirectory })
+        , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle()), options.mShaderDirectory,
+              PipelineCacheSpec{ .mDirectory = options.mCacheDirectory })
         , mCounting(options.mCounting)
         , mProfile(options.mProfile)
         , mReadsCounts(mCounting || mProfile.mStressOverlapMs > 0.0)
-        , mScenePasses(mDevice, options.mShaderDirectory)
-        , mTracePasses(
-              mDevice, options.mShaderDirectory, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
+        , mScenePasses(mDevice)
+        , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
         , mFrame(mDevice, mTracePasses)
-        , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get(), options.mShaderDirectory,
-              PresentTargets::sFormat)
-        , mDigest(mDevice, options.mShaderDirectory)
-        , mMedia(mDevice, options.mShaderDirectory)
+        , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get(), PresentTargets::sFormat)
+        , mDigest(mDevice)
+        , mMedia(mDevice)
         , mScenes(mDevice)
-        , mGui(mDevice, options.mShaderDirectory, PresentTargets::sFormat)
+        , mGui(mDevice, PresentTargets::sFormat)
         , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures())
-        , mUpscaler(mDevice, options.mShaderDirectory)
+        , mUpscaler(mDevice)
     {
         mDevice.getMemory().limitBudget(options.mMemoryBudget);
 
         if (mProfile.mStressOverlapMs > 0.0)
-            mStress = std::make_unique<StressPass>(mDevice, options.mShaderDirectory, mProfile.mStressOverlapMs);
+            mStress = std::make_unique<StressPass>(mDevice, mProfile.mStressOverlapMs);
 
         // Before the first targets, because a windowed renderer is sized by its surface rather
         // than by what the caller guessed the window would come up at.

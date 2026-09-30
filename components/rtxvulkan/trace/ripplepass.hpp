@@ -3,7 +3,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <filesystem>
 #include <span>
 #include <vector>
 
@@ -42,7 +41,7 @@ namespace Rtx
     public:
         /// Makes the field still, and leaves every tile in the layout the trace samples it in.
         /// Submits and waits.
-        RipplePass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit RipplePass(const Device& device);
 
         /// Steps the field once where a sixtieth has accrued on `waterSeconds` since the last step,
         /// presses `impulses`, and unpacks the tiles. The window follows `eye` by whole texels.
@@ -79,8 +78,8 @@ namespace Rtx
 
         const Device& mDevice;
 
-        ComputePipeline mStepPipeline;
-        ComputePipeline mComposePipeline;
+        ComputePipeline<Shaders::RippleStepConstants> mStepPipeline;
+        ComputePipeline<NoConstants> mComposePipeline;
 
         Sampler mSampler;
 

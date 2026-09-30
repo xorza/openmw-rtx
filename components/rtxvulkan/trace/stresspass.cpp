@@ -18,10 +18,8 @@ namespace Rtx
             = computeBindings<Shaders::STRESS_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     }
 
-    StressPass::StressPass(
-        const Device& device, const std::filesystem::path& shaderDirectory, const double milliseconds)
-        : mPipeline(
-            device, sBindings, sizeof(Shaders::StressConstants), {}, shaderDirectory / "stress.comp.spv", "stress")
+    StressPass::StressPass(const Device& device, const double milliseconds)
+        : mPipeline(device, sBindings, {}, "stress.comp.spv", "stress")
         , mNanoseconds(static_cast<std::uint32_t>(std::llround(milliseconds * 1.0e6)))
     {
     }
@@ -30,9 +28,9 @@ namespace Rtx
     {
         timer.open(commands, RenderProfile::sHoldZone);
 
-        DescriptorWrites<Shaders::STRESS_BINDINGS> writes;
+        DescriptorWrites writes(mPipeline);
         writes.buffer(Shaders::STRESS_BIND_COUNTS, counts.describe());
-        dispatch(commands, mPipeline, writes.get(), Shaders::StressConstants{ .mNanoseconds = mNanoseconds }, 1);
+        dispatch(commands, mPipeline, writes, Shaders::StressConstants{ .mNanoseconds = mNanoseconds }, Groups{});
 
         timer.close(commands);
     }

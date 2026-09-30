@@ -90,8 +90,8 @@ namespace Rtx::Testing
 
             // The two the trace's own bin writes, which it hands out the same way, whether or not
             // anything was ever binned into it.
-            const SpriteShadePass shading(device, getShaderDirectory());
-            const SpriteBinPass binning(device, getShaderDirectory());
+            const SpriteShadePass shading(device);
+            const SpriteBinPass binning(device);
             const SpriteBin bin(device, shading, binning);
             addressed.mSprites = bin.getSpritesAddress();
             addressed.mSpriteTileList = bin.getTileListAddress();

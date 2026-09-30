@@ -15,9 +15,8 @@ namespace Rtx
             = computeBindings<Shaders::SUN_GLARE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
     }
 
-    SunGlarePass::SunGlarePass(const Device& device, const std::filesystem::path& shaderDirectory)
-        : mPipeline(device, sBindings, sizeof(Shaders::SunGlareConstants), {}, shaderDirectory / "sunglare.comp.spv",
-            "sun glare")
+    SunGlarePass::SunGlarePass(const Device& device)
+        : mPipeline(device, sBindings, {}, "sunglare.comp.spv", "sun glare")
         , mCounts(Buffer::deviceLocal(device, sizeof(Shaders::SunGlareCount),
               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "sun glare counts"))
         , mShare(Buffer::deviceLocal(device, sizeof(float),
@@ -46,7 +45,7 @@ namespace Rtx
             BufferUse{ VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT },
             Use::sBufferComputeRead);
 
-        DescriptorWrites<Shaders::SUN_GLARE_BINDINGS> writes;
+        DescriptorWrites writes(mPipeline);
         writes.buffer(Shaders::SUN_GLARE_BIND_COUNT, mCounts.describe());
         writes.buffer(Shaders::SUN_GLARE_BIND_SHARE, mShare.describe());
 
@@ -55,7 +54,7 @@ namespace Rtx
             .mReset = reset ? 1u : 0u,
         };
 
-        dispatch(commands, mPipeline, writes.get(), constants, 1);
+        dispatch(commands, mPipeline, writes, constants, Groups{});
 
         // The curve reads what the easing wrote.
         mShare.transition(commands, Use::sBufferComputeWrite, Use::sBufferComputeRead);

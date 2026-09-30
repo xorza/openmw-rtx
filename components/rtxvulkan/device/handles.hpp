@@ -2,15 +2,16 @@
 
 #include <array>
 #include <cstdint>
-#include <filesystem>
 #include <span>
 #include <string_view>
+#include <utility>
 
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/shaders/sets.h>
 
+#include "bindingtable.hpp"
 #include "owned.hpp"
 
 namespace Rtx
@@ -20,7 +21,6 @@ namespace Rtx
     /// The handles this renderer makes in one place and holds in many, each as its `Owned`: the
     /// type already says what it owns and when it ends, so what is left to say is how one is made.
     using ShaderModule = Owned<VkShaderModule, vkDestroyShaderModule>;
-    using SetLayout = Owned<VkDescriptorSetLayout, vkDestroyDescriptorSetLayout>;
     using Sampler = Owned<VkSampler, vkDestroySampler>;
     using Semaphore = Owned<VkSemaphore, vkDestroySemaphore>;
     using Fence = Owned<VkFence, vkDestroyFence>;
@@ -33,13 +33,33 @@ namespace Rtx
     /// The timeline semaphore the queue's clock is, starting at nought.
     Semaphore makeTimelineSemaphore(const Device& device, std::string_view name);
 
+    /// A descriptor set layout and the bindings it was made from, so whatever writes a set of it
+    /// reads each binding's type and count from the one statement of them.
+    class SetLayout
+    {
+    public:
+        SetLayout(Owned<VkDescriptorSetLayout, vkDestroyDescriptorSetLayout>&& handle,
+            std::span<const VkDescriptorSetLayoutBinding> bindings)
+            : mHandle(std::move(handle))
+            , mBindings(bindings)
+        {
+        }
+
+        VkDescriptorSetLayout get() const { return mHandle.get(); }
+        const BindingTable& getBindings() const { return mBindings; }
+
+    private:
+        Owned<VkDescriptorSetLayout, vkDestroyDescriptorSetLayout> mHandle;
+        BindingTable mBindings;
+    };
+
     /// A fence that starts signalled, so the first wait on it returns at once.
     Fence makeSignalledFence(const Device& device);
 
-    /// A `VkShaderModule` built from a SPIR-V file the build produced and validated; what this
-    /// checks is that the file is the one the build wrote, because a truncated `.spv` is otherwise
-    /// a driver crash with no explanation.
-    ShaderModule loadShaderModule(const Device& device, const std::filesystem::path& path);
+    /// A `VkShaderModule` built from the SPIR-V file the build wrote as `module` in the device's
+    /// shader directory; what this checks is that the file is the one the build wrote, because a
+    /// truncated `.spv` is otherwise a driver crash with no explanation.
+    ShaderModule loadShaderModule(const Device& device, std::string_view module);
 
     /// A descriptor set layout, for `GBuffer::describeLayout` and its siblings to build theirs
     /// through. `flags` is what a push descriptor set needs; `next` is binding flags for a bindless
@@ -117,6 +137,9 @@ namespace Rtx
         /// How many sets the layout names, its own among them: the shared ones are the numbers
         /// between `SET_PASS` and this, which is what a bind has to hand over.
         std::uint32_t getSetCount() const { return mSetCount; }
+
+        /// `SET_PASS`'s bindings.
+        const BindingTable& getBindings() const { return mSetLayout.getBindings(); }
 
     private:
         SetLayout mSetLayout;

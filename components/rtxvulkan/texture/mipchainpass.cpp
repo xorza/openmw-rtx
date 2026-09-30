@@ -21,9 +21,8 @@ namespace Rtx
         };
     }
 
-    MipChainPass::MipChainPass(const Device& device, const std::filesystem::path& shaderDirectory)
-        : mPipeline(device, sBindings, sizeof(Shaders::MipChainConstants), {}, shaderDirectory / "mipchain.comp.spv",
-            "mip chain")
+    MipChainPass::MipChainPass(const Device& device)
+        : mPipeline(device, sBindings, {}, "mipchain.comp.spv", "mip chain")
     {
     }
 
@@ -47,10 +46,9 @@ namespace Rtx
             if (level > 0)
                 chain.transition(commands, Use::sComputeReadWrite, Use::sComputeReadWrite);
 
-            DescriptorWrites<Shaders::MIPCHAIN_BINDINGS> writes;
+            DescriptorWrites writes(mPipeline);
             writes.image(Shaders::MIPCHAIN_BIND_SOURCE,
-                source.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
-                VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+                source.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
             writes.image(Shaders::MIPCHAIN_BIND_ABOVE, chain.describeStorage(level > 0 ? level - 1 : 0));
             writes.image(Shaders::MIPCHAIN_BIND_INTO, chain.describeStorage(level));
 
@@ -61,9 +59,8 @@ namespace Rtx
                 .mEncoded = encoded ? 1u : 0u,
             };
 
-            dispatch(commands, mPipeline, writes.get(), constants,
-                groupsFor(constants.mWidth, Shaders::MIP_CHAIN_WORKGROUP),
-                groupsFor(constants.mHeight, Shaders::MIP_CHAIN_WORKGROUP));
+            dispatch(commands, mPipeline, writes, constants,
+                Groups::covering(constants.mWidth, constants.mHeight, Shaders::MIP_CHAIN_WORKGROUP));
         }
 
         chain.transition(commands, Use::sComputeReadWrite, Use::sTextureSample);

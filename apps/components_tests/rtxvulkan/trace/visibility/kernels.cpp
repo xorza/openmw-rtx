@@ -7,7 +7,11 @@
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/kernelprogress.hpp>
+#include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/device/instance.hpp>
+#include <components/rtxvulkan/device/physicaldevice.hpp>
+#include <components/rtxvulkan/device/pipelinecache.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
 #include <components/rtxvulkan/trace/fogvolume.hpp>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
@@ -36,8 +40,7 @@ namespace Rtx
         /// were four seconds of this binary for an answer the 7 already give.
         TEST_F(RtxVisibilityKernelsTest, theKernelsAreCountedAsTheyLandAndTheCountEndsWithTheCompile)
         {
-            const VisibilityPass pass(
-                getDevice(), Testing::getShaderDirectory(), mTextures, mChannels, mVolume, false, false);
+            const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, false);
             constexpr std::uint32_t expected = 1 + 1 + 5;
 
             KernelProgress progress = pass.awaitKernels(std::chrono::milliseconds::zero());
@@ -64,10 +67,17 @@ namespace Rtx
         /// A kernel that cannot be made is thrown to every ask, the bounded one included, and not
         /// only to the first: a caller that caught it once must not go on to record from a table
         /// with a hole in it. The constructor returns before any kernel is made, so it is the one
-        /// call that does not throw.
+        /// call that does not throw. **A device of its own, whose shader directory holds nothing**,
+        /// because the modules are the device's to find.
         TEST_F(RtxVisibilityKernelsTest, aKernelThatCannotBeMadeIsThrownToEveryAsk)
         {
-            const VisibilityPass pass(getDevice(), "no-such-directory", mTextures, mChannels, mVolume, false, true);
+            const Instance& instance = *mHarness.mInstance;
+            const Device empty(
+                instance, PhysicalDevice::select(instance.getHandle()), "no-such-directory", PipelineCacheSpec{});
+            const SetLayout textures = TextureArray::describeLayout(empty);
+            const SetLayout channels = GBuffer::describeLayout(empty);
+            const SetLayout volume = FogVolume::describeLayout(empty);
+            const VisibilityPass pass(empty, textures, channels, volume, false, true);
 
             EXPECT_THROW(pass.awaitKernels(), InputError);
             EXPECT_THROW(pass.awaitKernels(), InputError);

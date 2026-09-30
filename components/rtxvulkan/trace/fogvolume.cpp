@@ -149,11 +149,10 @@ namespace Rtx
             named[Shaders::BIND_FOG_COLUMN_DEPTH] = &mColumnDepth;
             named[Shaders::BIND_FOG_COLUMN_MOONS] = &mColumnMoons;
 
-            DescriptorWrites<sBindings> writes(mSets.get(parity));
+            DescriptorWrites writes(layout, mSets.get(parity));
             for (std::uint32_t binding = 0; binding < sBindings; ++binding)
                 if (sampledAt(binding))
-                    writes.image(binding, named[binding]->describeSampled(mSampler.get()),
-                        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+                    writes.image(binding, named[binding]->describeSampled(mSampler.get()));
                 else
                     writes.image(binding, named[binding]->describeStorage());
 

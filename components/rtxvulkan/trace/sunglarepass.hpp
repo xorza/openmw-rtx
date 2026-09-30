@@ -1,9 +1,8 @@
 #pragma once
 
-#include <filesystem>
-
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/shaders/glare.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 
@@ -18,7 +17,7 @@ namespace Rtx
     class SunGlarePass
     {
     public:
-        SunGlarePass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit SunGlarePass(const Device& device);
 
         /// Zeroes the counts, ahead of the trace that adds to them.
         void begin(VkCommandBuffer commands) const;
@@ -41,7 +40,7 @@ namespace Rtx
         const Buffer& getNoShare() const { return mNoShare; }
 
     private:
-        ComputePipeline mPipeline;
+        ComputePipeline<Shaders::SunGlareConstants> mPipeline;
 
         Buffer mCounts;
         Buffer mShare;

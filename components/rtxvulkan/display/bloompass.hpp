@@ -2,11 +2,11 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <filesystem>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/shaders/bloom.h>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
@@ -25,7 +25,7 @@ namespace Rtx
     class BloomPass
     {
     public:
-        BloomPass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit BloomPass(const Device& device);
 
         /// Builds a pyramid for a frame this size, if the last one was not this size. The caller
         /// waited for anything still reading the old one. Before the first frame.
@@ -51,13 +51,13 @@ namespace Rtx
         void handOver(VkCommandBuffer commands, const Image& level) const;
 
         /// One dispatch: `source` sampled, `target` written, over `target`'s own extent.
-        void run(VkCommandBuffer commands, const ComputePipeline& pipeline, const Image& source, const Image& target,
-            float mix) const;
+        void run(VkCommandBuffer commands, const ComputePipeline<Shaders::BloomConstants>& pipeline,
+            const Image& source, const Image& target, float mix) const;
 
         const Device& mDevice;
 
-        ComputePipeline mHalvePipeline;
-        ComputePipeline mSpreadPipeline;
+        ComputePipeline<Shaders::BloomConstants> mHalvePipeline;
+        ComputePipeline<Shaders::BloomConstants> mSpreadPipeline;
 
         /// Linear and clamped, which is what both kernels are counted in: every tap sits on a texel
         /// corner so one fetch reads four texels, and a tap that ran off the edge would otherwise

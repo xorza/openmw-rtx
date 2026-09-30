@@ -1,7 +1,5 @@
 #pragma once
 
-#include <filesystem>
-
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/scene/spritepasses.hpp>
@@ -24,8 +22,7 @@ namespace Rtx
         /// @param textureLayout what every scene's texture array is shaped by, which the trace reads.
         /// @param counting `RendererOptions::mCounting`: whether the trace counts what its rays met.
         /// @param specialize `RenderProfile::mSpecializeLaunches`.
-        TracePasses(const Device& device, const std::filesystem::path& shaders, const SetLayout& textureLayout,
-            bool counting, bool specialize);
+        TracePasses(const Device& device, const SetLayout& textureLayout, bool counting, bool specialize);
 
         SetLayout mChannels;
         SetLayout mFog;

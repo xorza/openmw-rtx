@@ -53,12 +53,11 @@ namespace Rtx
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
         };
 
-        /// The fields in, and the three textures out.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 4> sComposeBindings{
+        /// The fields in, and the two textures out.
+        constexpr std::array<VkDescriptorSetLayoutBinding, 3> sComposeBindings{
             VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
             VkDescriptorSetLayoutBinding{ 2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
-            VkDescriptorSetLayoutBinding{ 3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
         };
 
         /// What one texel of the surface and the curvature came out as.
@@ -74,17 +73,14 @@ namespace Rtx
         /// The three the chain runs through, built once for a whole test.
         struct Passes
         {
-            ComputePipeline mForming;
-            ComputePipeline mLine;
-            ComputePipeline mComposing;
+            ComputePipeline<Shaders::WaveFormConstants> mForming;
+            ComputePipeline<Shaders::WaveConstants> mLine;
+            ComputePipeline<Shaders::WaveComposeConstants> mComposing;
 
             explicit Passes(const Device& device)
-                : mForming(device, sFormBindings, sizeof(Shaders::WaveFormConstants), {},
-                    Testing::getShaderDirectory() / "waveform.comp.spv", "test-waveform")
-                , mLine(device, sLineBindings, sizeof(Shaders::WaveConstants), {},
-                      Testing::getShaderDirectory() / "waveline.comp.spv", "test-waveline")
-                , mComposing(device, sComposeBindings, sizeof(Shaders::WaveComposeConstants), {},
-                      Testing::getShaderDirectory() / "wavecompose.comp.spv", "test-wavecompose")
+                : mForming(device, sFormBindings, {}, "waveform.comp.spv", "test-waveform")
+                , mLine(device, sLineBindings, {}, "waveline.comp.spv", "test-waveline")
+                , mComposing(device, sComposeBindings, {}, "wavecompose.comp.spv", "test-wavecompose")
             {
             }
         };
@@ -93,9 +89,9 @@ namespace Rtx
         std::vector<Sampled> run(const Device& device, CommandPool& pool, const Passes& passes,
             std::span<const osg::Vec2f> amplitudes, std::span<const float> turnRates, const osg::Vec2f& time)
         {
-            const ComputePipeline& forming = passes.mForming;
-            const ComputePipeline& line = passes.mLine;
-            const ComputePipeline& composing = passes.mComposing;
+            const ComputePipeline<Shaders::WaveFormConstants>& forming = passes.mForming;
+            const ComputePipeline<Shaders::WaveConstants>& line = passes.mLine;
+            const ComputePipeline<Shaders::WaveComposeConstants>& composing = passes.mComposing;
 
             const Buffer table
                 = Buffer::staging(device, amplitudes.size_bytes(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "test");
@@ -112,25 +108,6 @@ namespace Rtx
             const Image curvature(
                 device, sCount, sCount, toVulkanFormat(WAVE_TILE_FORMAT), usage, "test-wave-curvature");
 
-            const auto buffer = [](std::uint32_t binding, const VkDescriptorBufferInfo& info) {
-                return VkWriteDescriptorSet{
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstBinding = binding,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                    .pBufferInfo = &info,
-                };
-            };
-            const auto stored = [](std::uint32_t binding, const VkDescriptorImageInfo& info) {
-                return VkWriteDescriptorSet{
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstBinding = binding,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-                    .pImageInfo = &info,
-                };
-            };
-
             const VkDescriptorBufferInfo whole[]{ { table.getHandle(), 0, VK_WHOLE_SIZE },
                 { turning.getHandle(), 0, VK_WHOLE_SIZE }, { field.getHandle(), 0, VK_WHOLE_SIZE } };
 
@@ -141,15 +118,18 @@ namespace Rtx
                 for (const Image* image : { &surface, &curvature })
                     image->transition(commands, Use::sUndefined, Use::sComputeWrite);
 
-                const std::array<VkWriteDescriptorSet, 3> forms{ buffer(0, whole[0]), buffer(1, whole[1]),
-                    buffer(2, whole[2]) };
+                DescriptorWrites forms(forming);
+                forms.buffer(0, whole[0]);
+                forms.buffer(1, whole[1]);
+                forms.buffer(2, whole[2]);
                 const Shaders::WaveFormConstants shaped{ .mCount = sCount, .mExtent = sExtent, .mTime = time };
 
-                dispatch(commands, forming, forms, shaped, groupsFor(sCount, Shaders::WAVE_TILE_WORKGROUP),
-                    groupsFor(sCount, Shaders::WAVE_TILE_WORKGROUP));
+                dispatch(
+                    commands, forming, forms, shaped, Groups::covering(sCount, sCount, Shaders::WAVE_TILE_WORKGROUP));
                 Testing::orderStorageWrites(commands);
 
-                const std::array<VkWriteDescriptorSet, 1> lines{ buffer(0, whole[2]) };
+                DescriptorWrites lines(line);
+                lines.buffer(0, whole[2]);
                 bind(commands, line);
                 pushDescriptors(commands, line, lines);
 
@@ -163,17 +143,19 @@ namespace Rtx
                             .mOffset = pair * static_cast<std::uint32_t>(sCells),
                         };
 
-                        pushConstants(commands, line, along);
+                        line.push(commands, along);
                         vkCmdDispatch(commands, sCount, 1, 1);
                         Testing::orderStorageWrites(commands);
                     }
 
-                const std::array<VkWriteDescriptorSet, 3> composes{ buffer(0, whole[2]), stored(1, images[0]),
-                    stored(2, images[1]) };
+                DescriptorWrites composes(composing);
+                composes.buffer(0, whole[2]);
+                composes.image(1, images[0]);
+                composes.image(2, images[1]);
                 const Shaders::WaveComposeConstants unpacked{ .mCount = sCount };
 
-                dispatch(commands, composing, composes, unpacked, groupsFor(sCount, Shaders::WAVE_TILE_WORKGROUP),
-                    groupsFor(sCount, Shaders::WAVE_TILE_WORKGROUP));
+                dispatch(commands, composing, composes, unpacked,
+                    Groups::covering(sCount, sCount, Shaders::WAVE_TILE_WORKGROUP));
             });
 
             const std::vector<float> heights = Testing::readHalves(surface);

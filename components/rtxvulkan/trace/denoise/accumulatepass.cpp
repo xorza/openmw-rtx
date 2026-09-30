@@ -21,9 +21,8 @@ namespace Rtx
             = computeBindings<Shaders::ACCUMULATE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     }
 
-    AccumulatePass::AccumulatePass(const Device& device, const std::filesystem::path& shaderDirectory)
-        : mPipeline(device, sBindings, sizeof(Shaders::AccumulateConstants), {},
-            shaderDirectory / "accumulate.comp.spv", "accumulate")
+    AccumulatePass::AccumulatePass(const Device& device)
+        : mPipeline(device, sBindings, {}, "accumulate.comp.spv", "accumulate")
     {
     }
 
@@ -33,7 +32,7 @@ namespace Rtx
         const Shaders::Camera& camera = frame.mSampled.mCamera;
         assert(images.mBlended.getWidth() >= camera.mWidth && images.mBlended.getHeight() >= camera.mHeight);
 
-        DescriptorWrites<Shaders::ACCUMULATE_BINDINGS> writes;
+        DescriptorWrites writes(mPipeline);
         writes.image(Shaders::ACCUMULATE_BIND_INDIRECT, buffer.get(Channel::Indirect).describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
@@ -43,7 +42,6 @@ namespace Rtx
         writes.image(Shaders::ACCUMULATE_BIND_SURFACE_OUT, images.mSurface.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_MOMENTS_OUT, images.mMoments.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_BLENDED_OUT, images.mBlended.describeStorage());
-        assert(writes.size() == Shaders::ACCUMULATE_BINDINGS && "a binding the layout declares was left unwritten");
 
         const Shaders::AccumulateConstants constants{
             .mCamera = camera,
@@ -51,7 +49,7 @@ namespace Rtx
             .mDistanceScale = frame.mDistanceScale,
         };
 
-        dispatch(commands, mPipeline, writes.get(), constants, groupsFor(camera.mWidth, Shaders::ACCUMULATE_WORKGROUP),
-            groupsFor(camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
+        dispatch(commands, mPipeline, writes, constants,
+            Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
     }
 }

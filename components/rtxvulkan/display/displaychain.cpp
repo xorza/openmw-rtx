@@ -54,13 +54,13 @@ namespace Rtx
     }
 
     DisplayChain::DisplayChain(const Device& device, const VisibilityPass& puffs,
-        const VkDescriptorSetLayout textureLayout, const std::filesystem::path& shaders, const VkFormat targetFormat)
+        const VkDescriptorSetLayout textureLayout, const VkFormat targetFormat)
         : mPuffs(puffs)
-        , mBloom(device, shaders)
-        , mExposure(device, shaders)
-        , mSunGlare(device, shaders)
-        , mTone(device, textureLayout, shaders)
-        , mLines(device, shaders, targetFormat)
+        , mBloom(device)
+        , mExposure(device)
+        , mSunGlare(device)
+        , mTone(device, textureLayout)
+        , mLines(device, targetFormat)
     {
     }
 

@@ -5,6 +5,7 @@
 // **Display-referred, and after the tone curve.** The GUI's colours and its atlases were authored
 // against a monitor, so they are written out as they are, over a picture already in display values.
 
+#include "gui.h"
 #include "sets.h"
 
 layout(set = SET_PASS, binding = 0) uniform sampler2D uTexture;
@@ -12,7 +13,7 @@ layout(set = SET_PASS, binding = 0) uniform sampler2D uTexture;
 /// Whether the texture holds its colour already weighed by its alpha, `Rtx::AlphaForm`: a traced
 /// picture. The blend then takes the colour as it is, so the vertex's own alpha — a window fading
 /// out — has to weigh it here.
-layout(constant_id = 0) const bool PREMULTIPLIED = false;
+layout(constant_id = GUI_SPEC_PREMULTIPLIED) const bool PREMULTIPLIED = false;
 
 layout(location = 0) in vec4 inColour;
 layout(location = 1) in vec2 inTexCoord;

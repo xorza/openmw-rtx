@@ -26,12 +26,10 @@ namespace Rtx
         };
     }
 
-    BloomPass::BloomPass(const Device& device, const std::filesystem::path& shaderDirectory)
+    BloomPass::BloomPass(const Device& device)
         : mDevice(device)
-        , mHalvePipeline(device, sBindings, sizeof(Shaders::BloomConstants), {}, shaderDirectory / "bloomdown.comp.spv",
-              "bloom halve")
-        , mSpreadPipeline(device, sBindings, sizeof(Shaders::BloomConstants), {}, shaderDirectory / "bloomup.comp.spv",
-              "bloom spread")
+        , mHalvePipeline(device, sBindings, {}, "bloomdown.comp.spv", "bloom halve")
+        , mSpreadPipeline(device, sBindings, {}, "bloomup.comp.spv", "bloom spread")
         , mSampler(makeTargetSampler(device, "bloom"))
     {
     }
@@ -65,15 +63,14 @@ namespace Rtx
         level.transition(commands, Use::sComputeWrite, Use::sComputeSample);
     }
 
-    void BloomPass::run(VkCommandBuffer commands, const ComputePipeline& pipeline, const Image& source,
-        const Image& target, float mix) const
+    void BloomPass::run(VkCommandBuffer commands, const ComputePipeline<Shaders::BloomConstants>& pipeline,
+        const Image& source, const Image& target, float mix) const
     {
         // Sampled from `GENERAL` rather than moved to a read-only layout. A level is written as
         // a storage image and read as a sampled one within a few dispatches of each other, and the
         // layout this renderer keeps everything in is one both accesses are legal from.
-        DescriptorWrites<Shaders::BLOOM_BINDINGS> writes;
-        writes.image(Shaders::BLOOM_BIND_SOURCE, source.describeSampled(mSampler.get()),
-            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        DescriptorWrites writes(pipeline);
+        writes.image(Shaders::BLOOM_BIND_SOURCE, source.describeSampled(mSampler.get()));
         writes.image(Shaders::BLOOM_BIND_LEVEL, target.describeStorage());
 
         const Shaders::BloomConstants constants{
@@ -84,8 +81,8 @@ namespace Rtx
             .mMix = mix,
         };
 
-        dispatch(commands, pipeline, writes.get(), constants, groupsFor(target.getWidth(), Shaders::BLOOM_WORKGROUP),
-            groupsFor(target.getHeight(), Shaders::BLOOM_WORKGROUP));
+        dispatch(commands, pipeline, writes, constants,
+            Groups::covering(target.getWidth(), target.getHeight(), Shaders::BLOOM_WORKGROUP));
     }
 
     void BloomPass::record(VkCommandBuffer commands, const Image& frame) const

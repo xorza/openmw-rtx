@@ -1,7 +1,5 @@
 #pragma once
 
-#include <filesystem>
-
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/shaders/visibility.h>
@@ -33,7 +31,7 @@ namespace Rtx
     class DenoisePasses
     {
     public:
-        DenoisePasses(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit DenoisePasses(const Device& device);
 
         /// Records every pass over `buffer`, which must have been handed over, and hands back where
         /// the light ended up.

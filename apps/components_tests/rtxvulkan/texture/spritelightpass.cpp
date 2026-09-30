@@ -33,7 +33,7 @@ namespace Rtx
             std::vector<std::vector<std::uint8_t>> bakeOf(const TextureData& sprite)
             {
                 Device& device = getDevice();
-                const TexturePasses passes(device, Testing::getShaderDirectory());
+                const TexturePasses passes(device);
 
                 const auto levels = static_cast<std::uint32_t>(sprite.mLevels.size());
                 const Image bake(device, sprite.mWidth, sprite.mHeight, VK_FORMAT_R8G8B8A8_UNORM,

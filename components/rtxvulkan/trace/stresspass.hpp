@@ -1,10 +1,10 @@
 #pragma once
 
 #include <cstdint>
-#include <filesystem>
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/shaders/stress.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 
@@ -29,7 +29,7 @@ namespace Rtx
     {
     public:
         /// @param milliseconds how long every frame's hold is to be.
-        StressPass(const Device& device, const std::filesystem::path& shaderDirectory, double milliseconds);
+        StressPass(const Device& device, double milliseconds);
 
         /// Records the hold into `commands`, timed as `RenderProfile::sHoldZone`, leaving what the
         /// loop's clock read in `counts`: the frame's own block, so the reading is the frame's and
@@ -37,7 +37,7 @@ namespace Rtx
         void record(VkCommandBuffer commands, GpuTimer& timer, const Buffer& counts);
 
     private:
-        ComputePipeline mPipeline;
+        ComputePipeline<Shaders::StressConstants> mPipeline;
 
         std::uint32_t mNanoseconds;
     };

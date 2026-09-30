@@ -13,13 +13,10 @@
 
 namespace Rtx
 {
-    SpriteBinPass::SpriteBinPass(const Device& device, const std::filesystem::path& shaderDirectory)
-        : mRects(device, {}, sizeof(Shaders::SpriteBinConstants), {}, shaderDirectory / "spriterects.comp.spv",
-            "sprite rects")
-        , mStarts(device, {}, sizeof(Shaders::SpriteBinConstants), {}, shaderDirectory / "spritestarts.comp.spv",
-              "sprite starts")
-        , mRuns(device, {}, sizeof(Shaders::SpriteBinConstants), {}, shaderDirectory / "spriteruns.comp.spv",
-              "sprite runs")
+    SpriteBinPass::SpriteBinPass(const Device& device)
+        : mRects(device, {}, {}, "spriterects.comp.spv", "sprite rects")
+        , mStarts(device, {}, {}, "spritestarts.comp.spv", "sprite starts")
+        , mRuns(device, {}, {}, "spriteruns.comp.spv", "sprite runs")
     {
     }
 
@@ -57,12 +54,12 @@ namespace Rtx
         // invocations after the last sprite's.
         if (const std::uint32_t bounded = bin.mCount + bin.mPresenceCount; bounded > 0)
         {
-            dispatch(commands, mRects, {}, bin,
-                groupsFor(bounded * Shaders::SPRITE_BIN_LANES, Shaders::SPRITE_BIN_WORKGROUP));
+            dispatch(commands, mRects, bin,
+                Groups::along(bounded * Shaders::SPRITE_BIN_LANES, Shaders::SPRITE_BIN_WORKGROUP));
             handOver(commands, Use::sBufferComputeWrite, Use::sBufferComputeReadWrite);
         }
 
-        dispatch(commands, mStarts, {}, bin, 1);
+        dispatch(commands, mStarts, bin, Groups{});
 
         // The runs read the starts, and the host reads the report after the fence — which a fence
         // alone does not make visible, so the host's read is named here.
@@ -71,8 +68,8 @@ namespace Rtx
                 Use::sBufferComputeReadWrite.mAccess | Use::sBufferHostRead.mAccess });
 
         if (bin.mCount > 0)
-            dispatch(commands, mRuns, {}, bin,
-                groupsFor(tiles * Shaders::SPRITE_RUNS_LANES, Shaders::SPRITE_RUNS_WORKGROUP));
+            dispatch(commands, mRuns, bin,
+                Groups::along(tiles * Shaders::SPRITE_RUNS_LANES, Shaders::SPRITE_RUNS_WORKGROUP));
 
         // The trace reads the list from its generation shader, and a picture's does the same.
         handOver(commands, Use::sBufferComputeWrite, Use::sBufferShaderRead);
@@ -80,9 +77,8 @@ namespace Rtx
         closeZone(timer, commands);
     }
 
-    SpriteShadePass::SpriteShadePass(const Device& device, const std::filesystem::path& shaderDirectory)
-        : mShade(device, {}, sizeof(Shaders::SpriteShadeConstants), {}, shaderDirectory / "spriteshade.comp.spv",
-            "sprite shade")
+    SpriteShadePass::SpriteShadePass(const Device& device)
+        : mShade(device, {}, {}, "spriteshade.comp.spv", "sprite shade")
     {
     }
 
@@ -104,7 +100,7 @@ namespace Rtx
         // pass that worked out which ones to launch and wrote a list of them. Whatever the queue
         // last did to this copy — the frame before last's trace — is behind the head barrier
         // `CommandPool::begin` recorded; the host's write of the emitters is behind the submit.
-        dispatch(commands, mShade, {}, shade, shade.mEmitterCount * Shaders::SPRITE_SHADE_LIGHTS);
+        dispatch(commands, mShade, shade, Groups{ .mX = shade.mEmitterCount * Shaders::SPRITE_SHADE_LIGHTS });
 
         // The bin reads the sprites next and the trace reads them after that.
         handOver(commands, Use::sBufferComputeWrite, Use::sBufferShaderRead);

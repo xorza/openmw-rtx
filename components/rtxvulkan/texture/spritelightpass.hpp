@@ -1,9 +1,8 @@
 #pragma once
 
-#include <filesystem>
-
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/shaders/spritelight.h>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 
 namespace Rtx
@@ -17,7 +16,7 @@ namespace Rtx
     class SpriteLightPass
     {
     public:
-        SpriteLightPass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit SpriteLightPass(const Device& device);
 
         /// Records `source`'s bake into `bake`, every level. `source` is met as a texture the trace
         /// samples, which is how an upload leaves it; `bake` is met undefined and left the same way,
@@ -26,6 +25,6 @@ namespace Rtx
         void record(VkCommandBuffer commands, const Image& source, const Image& bake) const;
 
     private:
-        ComputePipeline mPipeline;
+        ComputePipeline<Shaders::SpriteLightConstants> mPipeline;
     };
 }

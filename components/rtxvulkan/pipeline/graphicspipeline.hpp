@@ -1,11 +1,14 @@
 #pragma once
 
 #include <cstdint>
-#include <filesystem>
 #include <span>
 #include <string_view>
+#include <utility>
 
 #include <vulkan/vulkan_core.h>
+
+#include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/device/owned.hpp>
 
 #include "pipeline.hpp"
 
@@ -70,22 +73,42 @@ namespace Rtx
         /// modes are.
         VkPrimitiveTopology mTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-        /// The one push range, for both stages, or nought for a pipeline told nothing.
-        std::uint32_t mPushConstantBytes = 0;
-
-        std::filesystem::path mVertexModule;
-        std::filesystem::path mFragmentModule;
+        /// The stages' compiled SPIR-V, by name in the device's shader directory.
+        std::string_view mVertexModule;
+        std::string_view mFragmentModule;
 
         /// What a capture calls the pipeline.
         std::string_view mName;
     };
 
-    /// A graphics pipeline and its layout. The one thing in this backend that is not compute,
-    /// because there is nothing to be gained by tracing a font atlas.
-    class GraphicsPipeline : public Pipeline
+    /// A graphics pipeline's handle against `layout`: the part of `GraphicsPipeline` its constants
+    /// do not decide.
+    Owned<VkPipeline, vkDestroyPipeline> makeGraphicsPipeline(
+        const Device& device, VkPipelineLayout layout, const GraphicsPipelineOptions& options);
+
+    /// A graphics pipeline and its layout, pushed a `Constants` to both stages. The one thing in
+    /// this backend that is not compute, because there is nothing to be gained by tracing a font
+    /// atlas.
+    template <class Constants>
+    class GraphicsPipeline : public TypedPipeline<Constants>
     {
     public:
-        GraphicsPipeline(const Device& device, const GraphicsPipelineOptions& options);
+        GraphicsPipeline(const Device& device, const GraphicsPipelineOptions& options)
+            : GraphicsPipeline(device,
+                PipelineLayout(device, options.mBindings,
+                    VkPushConstantRange{ .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                        .size = pushBytesOf<Constants>() },
+                    {}),
+                options)
+        {
+        }
+
+    private:
+        GraphicsPipeline(const Device& device, PipelineLayout&& layout, const GraphicsPipelineOptions& options)
+            : TypedPipeline<Constants>(std::move(layout), makeGraphicsPipeline(device, layout.getHandle(), options),
+                VK_PIPELINE_BIND_POINT_GRAPHICS)
+        {
+        }
     };
 
     /// Which way the clip space a pass writes has `+Y`: Vulkan's own, down as a picture is

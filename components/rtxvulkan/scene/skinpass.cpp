@@ -40,15 +40,14 @@ namespace Rtx
         }
     }
 
-    SkinPass::SkinPass(const Device& device, const std::filesystem::path& shaderDirectory)
-        : mSkin(device, {}, sizeof(Shaders::SkinConstants), {}, shaderDirectory / "skin.comp.spv", "skin")
-        , mMorph(device, {}, sizeof(Shaders::MorphConstants), {}, shaderDirectory / "morph.comp.spv", "morph")
+    SkinPass::SkinPass(const Device& device)
+        : mSkin(device, {}, {}, "skin.comp.spv", "skin")
+        , mMorph(device, {}, {}, "morph.comp.spv", "morph")
     {
     }
 
     void SkinPass::pose(VkCommandBuffer commands, const Skinning& what, const Index index, const Rows rows,
-        BlockedBuffer& into, BlockedBuffer& normalsInto, BlockedBuffer& tangentsInto,
-        const ComputePipeline*& bound) const
+        BlockedBuffer& into, BlockedBuffer& normalsInto, BlockedBuffer& tangentsInto, const Pipeline*& bound) const
     {
         const SceneDesc& scene = what.mScene;
         SkinTables& tables = what.mTables;
@@ -91,7 +90,7 @@ namespace Rtx
                 bound = &mSkin;
             }
 
-            pushConstants(commands, mSkin, push);
+            mSkin.push(commands, push);
         }
         else
         {
@@ -110,7 +109,7 @@ namespace Rtx
                 bound = &mMorph;
             }
 
-            pushConstants(commands, mMorph, push);
+            mMorph.push(commands, push);
         }
 
         vkCmdDispatch(commands, groupsFor(mesh.mVertices.mCount, Shaders::SKIN_WORKGROUP), 1, 1);
@@ -124,7 +123,7 @@ namespace Rtx
 
         // One pipeline bound at a time, and a bind only where the kind changes: a crowd is one
         // kind for most of its length.
-        const ComputePipeline* bound = nullptr;
+        const Pipeline* bound = nullptr;
         bool recorded = false;
 
         BlockedBuffer& normalsInto = what.mNormals.at(what.mSlot);
@@ -153,7 +152,7 @@ namespace Rtx
     bool SkinPass::recordArrived(
         VkCommandBuffer commands, const Skinning& what, const std::span<const Index> arrived) const
     {
-        const ComputePipeline* bound = nullptr;
+        const Pipeline* bound = nullptr;
         bool recorded = false;
 
         BlockedBuffer& into = what.mPoses.at(what.mSlot);

@@ -25,10 +25,9 @@ namespace Rtx
         };
     }
 
-    GroundCompositePass::GroundCompositePass(
-        const Device& device, const std::filesystem::path& shaderDirectory, const VkDescriptorSetLayout textures)
-        : mPipeline(device, sBindings, sizeof(Shaders::GroundCompositeConstants),
-            SharedSetLayouts{ .mTextures = textures }, shaderDirectory / "groundcomposite.comp.spv", "ground composite")
+    GroundCompositePass::GroundCompositePass(const Device& device, const VkDescriptorSetLayout textures)
+        : mPipeline(device, sBindings, SharedSetLayouts{ .mTextures = textures }, "groundcomposite.comp.spv",
+            "ground composite")
         , mNoTarget(makeStandIn(
               device, toVulkanFormat(TEXTURE_WRITTEN_FORMAT), VK_IMAGE_USAGE_STORAGE_BIT, "no ground target"))
     {
@@ -60,7 +59,7 @@ namespace Rtx
         if (albedo == nullptr || gloss == nullptr)
             mNoTarget.transition(commands, Use::sComputeWrite, Use::sComputeWrite);
 
-        DescriptorWrites<Shaders::GROUND_COMPOSITE_BINDINGS> writes;
+        DescriptorWrites writes(mPipeline);
         writes.image(
             Shaders::GROUND_COMPOSITE_BIND_ALBEDO, (albedo != nullptr ? *albedo : mNoTarget).describeStorage());
         writes.image(Shaders::GROUND_COMPOSITE_BIND_GLOSS, (gloss != nullptr ? *gloss : mNoTarget).describeStorage());
@@ -69,9 +68,9 @@ namespace Rtx
         // and a bound one only have to be in place by the dispatch.
         bindSets(commands, mPipeline, SharedSetBinds{ .mTextures = textures });
 
-        constexpr std::uint32_t groups
-            = groupsFor(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_WORKGROUP);
-        dispatch(commands, mPipeline, writes.get(), chunk, groups, groups);
+        dispatch(commands, mPipeline, writes, chunk,
+            Groups::covering(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT,
+                Shaders::GROUND_COMPOSITE_WORKGROUP));
 
         // The chains, box filtered in light through each image's own format, which is the filter
         // the sum was made for; left where the array's sampler expects a texture.

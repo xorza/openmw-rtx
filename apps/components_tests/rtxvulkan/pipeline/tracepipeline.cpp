@@ -13,6 +13,7 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
+#include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/pipeline/tracepipeline.hpp>
 
@@ -54,9 +55,10 @@ namespace Rtx
             const Device& device = getDevice();
 
             const TraceShaders shaders{
-                .mRaygen = Testing::getShaderDirectory() / "traceprobe.rgen.spv",
+                .mRaygen = "traceprobe.rgen.spv",
             };
-            const TracePipeline pipeline(device, sBindings, {}, shaders, "trace probe");
+            const TracePipeline<NoConstants> pipeline(device, sBindings, {}, shaders, "trace probe");
+            EXPECT_EQ(pipeline.getPushRange().size, 0u) << "a pipeline pushed nothing declared a range";
 
             constexpr std::uint32_t sCount = sWidth * sHeight;
             const Buffer written
@@ -65,19 +67,13 @@ namespace Rtx
             constexpr std::uint32_t sUnwritten = 0xFFFFFFFFu;
             std::memset(written.map(), 0xFF, sCount * sizeof(Launched));
 
-            const VkDescriptorBufferInfo into{ written.getHandle(), 0, VK_WHOLE_SIZE };
-            const VkWriteDescriptorSet write{
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .dstBinding = 0,
-                .descriptorCount = 1,
-                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                .pBufferInfo = &into,
-            };
+            DescriptorWrites write(pipeline);
+            write.buffer(0, VkDescriptorBufferInfo{ written.getHandle(), 0, VK_WHOLE_SIZE });
 
             EXPECT_EQ(pipeline.getTable().getNamedUntil(), 0u) << "the table was named before any launch";
             getPool().submitAndWait([&](VkCommandBuffer commands) {
                 bind(commands, pipeline);
-                pushDescriptors(commands, pipeline, std::span(&write, 1));
+                pushDescriptors(commands, pipeline, write);
                 pipeline.traceRays(commands, sWidth, sHeight);
 
                 // The launch reads the table by address, so the launch is what names it.

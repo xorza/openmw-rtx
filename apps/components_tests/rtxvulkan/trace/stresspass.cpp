@@ -53,8 +53,8 @@ namespace Rtx
             Device& device = getDevice();
             GpuTimer timer(device);
 
-            StressPass four(device, Testing::getShaderDirectory(), 4.0);
-            StressPass eight(device, Testing::getShaderDirectory(), 8.0);
+            StressPass four(device, 4.0);
+            StressPass eight(device, 8.0);
 
             // Where the loop leaves its reading, as the ring's frame slot holds it.
             Buffer counts = Buffer::readBack(

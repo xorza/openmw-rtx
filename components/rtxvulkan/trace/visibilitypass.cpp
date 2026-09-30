@@ -5,7 +5,6 @@
 #include <cassert>
 #include <chrono>
 #include <cstddef>
-#include <filesystem>
 #include <future>
 #include <memory>
 #include <span>
@@ -84,13 +83,6 @@ namespace Rtx
         /// layers per eye, which is how a stage is told which eye cast the ray and which layer of
         /// the peel it stands at. `hitRecordTable` is the one statement of it.
         const auto sHitRecords = Shaders::hitRecordTable();
-
-        /// The one hit module under its three settings, in `MaterialKind` order, which is the
-        /// order traversal indexes them by: which albedo `resolve` may build, and whether the hit
-        /// is shaded as water. Constants five and six, after the frame's tuple.
-        constexpr std::array<std::uint32_t, 2> sSurfaceHit{ 0u, 0u };
-        constexpr std::array<std::uint32_t, 2> sTerrainHit{ 1u, 0u };
-        constexpr std::array<std::uint32_t, 2> sWaterHit{ 0u, 1u };
 
         /// Whether a deck that is drawn names a sheet at both ends of its blend. The shader mixes
         /// the two unconditionally — `CloudDeck::mBlend` — so a deck with a sheet and no sheet
@@ -206,9 +198,8 @@ namespace Rtx
         return name;
     }
 
-    VisibilityPass::VisibilityPass(const Device& device, const std::filesystem::path& shaderDirectory,
-        const SetLayout& textureLayout, const SetLayout& channelLayout, const SetLayout& volumeLayout, bool counting,
-        const bool specialize)
+    VisibilityPass::VisibilityPass(const Device& device, const SetLayout& textureLayout, const SetLayout& channelLayout,
+        const SetLayout& volumeLayout, bool counting, const bool specialize)
         : mDevice(device)
         , mBlueNoise(uploadOnce(device, BlueNoise::shared().getValues(), "blue noise"))
         , mSpecularAlbedo(uploadOnce(device, SpecularAlbedo::shared().getValues(), "specular albedo"))
@@ -219,10 +210,10 @@ namespace Rtx
         , mChannelLayout(channelLayout.get())
         , mVolumeLayout(volumeLayout.get())
     {
-        compileEvery(shaderDirectory, textureLayout.get());
+        compileEvery(textureLayout.get());
     }
 
-    void VisibilityPass::compileEvery(const std::filesystem::path& shaders, VkDescriptorSetLayout textureLayout)
+    void VisibilityPass::compileEvery(VkDescriptorSetLayout textureLayout)
     {
         // Queued after the tuples, which take seconds apiece where these take tens of milliseconds:
         // a hand takes up whatever is next, and a tuple taken last is the whole batch waiting on
@@ -261,11 +252,11 @@ namespace Rtx
         // hand is one nobody ever collects.
         const std::thread::id caller = std::this_thread::get_id();
 
-        std::packaged_task<void()> compileAll([this, shaders, textureLayout, caller, wanted = std::move(wanted)] {
+        std::packaged_task<void()> compileAll([this, textureLayout, caller, wanted = std::move(wanted)] {
             runInParallel(
                 wanted.size(), [caller] { return AdoptedThread(caller); },
                 [&](const std::size_t at) {
-                    compile(wanted[at], shaders, textureLayout);
+                    compile(wanted[at], textureLayout);
                     mKernelsMade.fetch_add(1, std::memory_order_relaxed);
                 });
         });
@@ -274,73 +265,85 @@ namespace Rtx
         mCompiling = std::jthread(std::move(compileAll));
     }
 
-    void VisibilityPass::compile(
-        const Wanted& wanted, const std::filesystem::path& shaders, const VkDescriptorSetLayout textureLayout)
+    void VisibilityPass::compile(const Wanted& wanted, const VkDescriptorSetLayout textureLayout)
     {
         const VisibilityVariant variant = wanted.mVariant;
 
-        // One word per `constant_id`, in the order `lib/variants.glsl` declares them. The volume
-        // traces no primary ray and so adds no miss, but its froxels are a boundary the finiteness
-        // count watches, so it counts under the same word as the trace.
-        const std::array<std::uint32_t, 5> specialization{ mCounting, variant.mSun ? 1u : 0u, variant.mMoons ? 1u : 0u,
-            variant.mSea ? 1u : 0u, variant.mMaps ? 1u : 0u };
+        // One word per `constant_id`. The volume traces no primary ray and so adds no miss, but its
+        // froxels are a boundary the finiteness count watches, so it counts under the same word as
+        // the trace.
+        std::array<std::uint32_t, Shaders::SPEC_COUNT> specialization{};
+        specialization[Shaders::SPEC_COUNTING] = mCounting;
+        specialization[Shaders::SPEC_HAS_SUN] = variant.mSun ? 1u : 0u;
+        specialization[Shaders::SPEC_HAS_MOONS] = variant.mMoons ? 1u : 0u;
+        specialization[Shaders::SPEC_HAS_SEA] = variant.mSea ? 1u : 0u;
+        specialization[Shaders::SPEC_HAS_MAPS] = variant.mMaps ? 1u : 0u;
 
         switch (wanted.mKernel)
         {
             case Kernel::Visibility:
             {
-                const std::array<std::filesystem::path, Shaders::MISS_RECORD_COUNT> miss{
-                    shaders / "visibility.rmiss.spv", shaders / "visibilityunshaded.rmiss.spv"
+                const std::array<std::string_view, Shaders::MISS_RECORD_COUNT> miss{ "visibility.rmiss.spv",
+                    "visibilityunshaded.rmiss.spv" };
+                // The one hit module under its three settings, in `MaterialKind` order, which is the
+                // order traversal indexes them by: which albedo `resolve` may build, and whether the
+                // hit is shaded as water.
+                const auto settled = [&](const bool layered, const bool water) {
+                    std::array<std::uint32_t, Shaders::SPEC_COUNT> words = specialization;
+                    words[Shaders::SPEC_LAYERED] = layered ? 1u : 0u;
+                    words[Shaders::SPEC_WATER] = water ? 1u : 0u;
+                    return words;
                 };
-                const std::filesystem::path hitModule = shaders / "visibilityhit.rchit.spv";
+                const std::array<std::array<std::uint32_t, Shaders::SPEC_COUNT>, Shaders::HIT_SHADER_COUNT> hitWords{
+                    settled(false, false), settled(true, false), settled(false, true)
+                };
+                const std::string_view hitModule = "visibilityhit.rchit.spv";
                 const std::array<HitShader, Shaders::HIT_SHADER_COUNT> hit{
-                    HitShader{ .mModule = hitModule, .mSpecialization = sSurfaceHit },
-                    HitShader{ .mModule = hitModule, .mSpecialization = sTerrainHit },
-                    HitShader{ .mModule = hitModule, .mSpecialization = sWaterHit },
+                    HitShader{ .mModule = hitModule, .mSpecialization = hitWords[0] },
+                    HitShader{ .mModule = hitModule, .mSpecialization = hitWords[1] },
+                    HitShader{ .mModule = hitModule, .mSpecialization = hitWords[2] },
                 };
 
                 mPipelines[variant.index()]
-                    = std::make_unique<TracePipeline>(mDevice, sBindings, sharedSets(textureLayout),
+                    = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
                         TraceShaders{
-                            .mRaygen = shaders / "visibility.rgen.spv",
+                            .mRaygen = "visibility.rgen.spv",
                             .mMiss = miss,
                             .mHit = hit,
                             .mHitRecordsPerShader = Shaders::HIT_RECORDS_PER_SHADER,
                             .mHitRecordData = std::as_bytes(std::span(sHitRecords)),
-                            .mAnyHit = shaders / "visibility.rahit.spv",
+                            .mAnyHit = "visibility.rahit.spv",
                         },
                         variant.describe("visibility"), specialization);
                 return;
             }
             case Kernel::Scatter:
-                mScatterPipelines[variant.index()] = std::make_unique<TracePipeline>(mDevice, sBindings,
-                    sharedSets(textureLayout), TraceShaders{ .mRaygen = shaders / "fogscatter.rgen.spv" },
+                mScatterPipelines[variant.index()] = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
+                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "fogscatter.rgen.spv" },
                     variant.describe("fog scatter"), specialization);
                 return;
             // From here on no tuple and no specialization: each reads what a launch before it
             // wrote, or traces nothing, and has no opinion about the sky.
             case Kernel::Depth:
-                mDepthPipeline = std::make_unique<TracePipeline>(mDevice, sBindings, sharedSets(textureLayout),
-                    TraceShaders{ .mRaygen = shaders / "fogdepth.rgen.spv" }, "fog depth");
+                mDepthPipeline = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
+                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "fogdepth.rgen.spv" }, "fog depth");
                 return;
             case Kernel::Integrate:
-                mIntegratePipeline = std::make_unique<ComputePipeline>(mDevice, sBindings, 0, sharedSets(textureLayout),
-                    shaders / "fogintegrate.comp.spv", "fog integrate");
+                mIntegratePipeline = std::make_unique<ComputePipeline<NoConstants>>(
+                    mDevice, sBindings, sharedSets(textureLayout), "fogintegrate.comp.spv", "fog integrate");
                 return;
             case Kernel::SpriteComposite:
-                mSpriteCompositePipeline
-                    = std::make_unique<TracePipeline>(mDevice, sCompositeBindings, sharedSets(textureLayout),
-                        TraceShaders{ .mRaygen = shaders / "spritecomposite.rgen.spv",
-                            .mRaygenConstantBytes = sizeof(Shaders::PuffConstants) },
-                        "sprite composite");
+                mSpriteCompositePipeline = std::make_unique<TracePipeline<Shaders::PuffConstants>>(mDevice,
+                    sCompositeBindings, sharedSets(textureLayout),
+                    TraceShaders{ .mRaygen = "spritecomposite.rgen.spv" }, "sprite composite");
                 return;
             case Kernel::SpriteShelter:
-                mSpriteShelterPipeline = std::make_unique<TracePipeline>(mDevice, sBindings, sharedSets(textureLayout),
-                    TraceShaders{ .mRaygen = shaders / "spriteshelter.rgen.spv" }, "sprite shelter");
+                mSpriteShelterPipeline = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
+                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "spriteshelter.rgen.spv" }, "sprite shelter");
                 return;
             case Kernel::SpriteEmitters:
-                mSpriteEmittersPipeline = std::make_unique<TracePipeline>(mDevice, sBindings, sharedSets(textureLayout),
-                    TraceShaders{ .mRaygen = shaders / "spriteemitters.rgen.spv" }, "sprite emitters");
+                mSpriteEmittersPipeline = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
+                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "spriteemitters.rgen.spv" }, "sprite emitters");
                 return;
         }
     }
@@ -369,18 +372,18 @@ namespace Rtx
         return mSpecialize ? variant.index() : VisibilityVariant{}.index();
     }
 
-    const TracePipeline& VisibilityPass::pipelineFor(const VisibilityVariant variant) const
+    const TracePipeline<NoConstants>& VisibilityPass::pipelineFor(const VisibilityVariant variant) const
     {
-        const std::unique_ptr<TracePipeline>& held = mPipelines[slotOf(variant)];
+        const std::unique_ptr<TracePipeline<NoConstants>>& held = mPipelines[slotOf(variant)];
         assert(held != nullptr && "a tuple `compileEvery` did not make");
 
         return *held;
     }
 
-    const TracePipeline& VisibilityPass::scatterPipelineFor(VisibilityVariant variant) const
+    const TracePipeline<NoConstants>& VisibilityPass::scatterPipelineFor(VisibilityVariant variant) const
     {
         variant.mMaps = false;
-        const std::unique_ptr<TracePipeline>& held = mScatterPipelines[slotOf(variant)];
+        const std::unique_ptr<TracePipeline<NoConstants>>& held = mScatterPipelines[slotOf(variant)];
         assert(held != nullptr && "a tuple `compileEvery` made no scatter kernel for");
 
         return *held;
@@ -429,9 +432,7 @@ namespace Rtx
             curvatures[cascade] = waves.getCurvature(cascade).describeSampled(sampler);
         }
 
-        // Appended in binding order rather than indexed, so a channel added cannot silently move
-        // two writes on top of each other; the count is checked below rather than maintained.
-        DescriptorWrites<sCompositeBindings.size(), 2 * Shaders::WAVE_CASCADES + 5> writes;
+        DescriptorWrites writes(pipeline);
         writes.structure(Shaders::BIND_SCENE, sceneWrite);
 
         // The two buffers still bound: the hit counter, and the frame block every table is reached
@@ -439,19 +440,16 @@ namespace Rtx
         // and cost this renderer a device before the layers were asked.
         assert(!counts.isEmpty() && !mConstants.isEmpty() && "an input bound as nothing");
         writes.buffer(Shaders::BIND_COUNTS, counts.describe());
-        writes.buffer(Shaders::BIND_FRAME, mConstants.describe(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        writes.buffer(Shaders::BIND_FRAME, mConstants.describe());
 
-        writes.images(Shaders::BIND_WAVE_SURFACE, surfaces, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        writes.images(Shaders::BIND_WAVE_CURVATURE, curvatures, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        writes.images(Shaders::BIND_WAVE_SURFACE, surfaces);
+        writes.images(Shaders::BIND_WAVE_CURVATURE, curvatures);
 
         writes.image(Shaders::BIND_FOG_FIELD,
-            fog.getField().describeSampled(fog.getSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
-            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+            fog.getField().describeSampled(fog.getSampler(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
 
-        writes.image(Shaders::BIND_RIPPLE_SURFACE, ripples.getSurface().describeSampled(ripples.getSampler()),
-            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        writes.image(Shaders::BIND_RIPPLE_CURVATURE, ripples.getCurvature().describeSampled(ripples.getSampler()),
-            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        writes.image(Shaders::BIND_RIPPLE_SURFACE, ripples.getSurface().describeSampled(ripples.getSampler()));
+        writes.image(Shaders::BIND_RIPPLE_CURVATURE, ripples.getCurvature().describeSampled(ripples.getSampler()));
 
         assert(inputs.mSubject.mSunGlare != nullptr && !inputs.mSubject.mSunGlare->isEmpty()
             && "a trace with no glare query to count into");
@@ -463,12 +461,7 @@ namespace Rtx
             writes.image(Shaders::BIND_SHOWN, shown->describeStorage());
         }
 
-        // Every binding the layout declares, written exactly once — a shader that grew one and a
-        // record that did not is the failure this counts.
-        assert(writes.size() == (shown != nullptr ? sCompositeBindings.size() : sBindings.size())
-            && "a binding the layout declares was left unwritten");
-
-        pushDescriptors(commands, pipeline, writes.get());
+        pushDescriptors(commands, pipeline, writes);
 
         // The three sets nothing pushes: the bindless textures a scene brought, the channels the
         // trace writes, and the air in front of the camera. Each is written when what it names is
@@ -608,7 +601,7 @@ namespace Rtx
         const FrameSlot trace = inputs.mSubject.mTraceSlot;
         inputs.mFogVolume.begin(commands, trace);
 
-        const TracePipeline& scatter = scatterPipelineFor(variant);
+        const TracePipeline<NoConstants>& scatter = scatterPipelineFor(variant);
 
         // Every column the image has and not every column the camera needs. A traced view is
         // drawn into a volume grown to the largest one asked for, and the pixel at its edge
@@ -656,7 +649,7 @@ namespace Rtx
 
         openZone(timer, commands, "trace");
 
-        const TracePipeline& pipeline = pipelineFor(variant);
+        const TracePipeline<NoConstants>& pipeline = pipelineFor(variant);
         bind(commands, pipeline);
 
         // One invocation a pixel and no tail, where the dispatch it replaces covered the picture
@@ -682,8 +675,8 @@ namespace Rtx
 
         bind(commands, *mSpriteCompositePipeline);
         pushInputs(commands, *mSpriteCompositePipeline, inputs, &shown);
-        pushConstants(commands, *mSpriteCompositePipeline,
-            Shaders::PuffConstants{ .mShownWidth = extent.width, .mShownHeight = extent.height });
+        mSpriteCompositePipeline->push(
+            commands, Shaders::PuffConstants{ .mShownWidth = extent.width, .mShownHeight = extent.height });
 
         // One invocation a traced pixel, which composites the shown pixels over it —
         // `spritecomposite.rgen` says why.

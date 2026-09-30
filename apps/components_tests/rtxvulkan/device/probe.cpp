@@ -117,36 +117,25 @@ namespace Rtx
         /// Runs the probe and gives back everything it read.
         ///
         /// @param addresses the uniform block holding the pattern's address and the rows'.
-        Readings runProbe(const Device& device, const ComputePipeline& pipeline, CommandPool& pool, VkBuffer source,
-            VkDeviceAddress address, const Buffer& blocks, const Buffer& addresses)
+        Readings runProbe(const Device& device, const ComputePipeline<Shaders::ProbeConstants>& pipeline,
+            CommandPool& pool, VkBuffer source, VkDeviceAddress address, const Buffer& blocks, const Buffer& addresses)
         {
             const Buffer readings = Buffer::readBack(device, sizeof(osg::Vec3f) * sCount * Shaders::PROBE_READINGS,
                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "test");
             const Buffer rowReadings = Buffer::readBack(
                 device, sizeof(Shaders::ProbeRow) * sCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "test");
 
-            const VkDescriptorBufferInfo from{ source, 0, VK_WHOLE_SIZE };
-            const VkDescriptorBufferInfo into{ readings.getHandle(), 0, VK_WHOLE_SIZE };
-            const VkDescriptorBufferInfo table{ blocks.getHandle(), 0, VK_WHOLE_SIZE };
-            const VkDescriptorBufferInfo addressed{ addresses.getHandle(), 0, VK_WHOLE_SIZE };
-            const VkDescriptorBufferInfo rowsInto{ rowReadings.getHandle(), 0, VK_WHOLE_SIZE };
-
-            const auto write = [](std::uint32_t binding, const VkDescriptorBufferInfo& info) {
-                return VkWriteDescriptorSet{
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstBinding = binding,
-                    .descriptorCount = 1,
-                    .descriptorType = sBindings[binding].descriptorType,
-                    .pBufferInfo = &info,
-                };
-            };
-            const std::array<VkWriteDescriptorSet, sBindings.size()> writes{ write(0, from), write(1, into),
-                write(2, table), write(3, addressed), write(4, rowsInto) };
+            DescriptorWrites writes(pipeline);
+            writes.buffer(0, VkDescriptorBufferInfo{ source, 0, VK_WHOLE_SIZE });
+            writes.buffer(1, VkDescriptorBufferInfo{ readings.getHandle(), 0, VK_WHOLE_SIZE });
+            writes.buffer(2, VkDescriptorBufferInfo{ blocks.getHandle(), 0, VK_WHOLE_SIZE });
+            writes.buffer(3, VkDescriptorBufferInfo{ addresses.getHandle(), 0, VK_WHOLE_SIZE });
+            writes.buffer(4, VkDescriptorBufferInfo{ rowReadings.getHandle(), 0, VK_WHOLE_SIZE });
 
             const Shaders::ProbeConstants constants{ .mSource = address, .mCount = sCount, .mBlock = sBlock };
 
             pool.submitAndWait([&](VkCommandBuffer commands) {
-                dispatch(commands, pipeline, writes, constants, groupsFor(sCount, Shaders::PROBE_WORKGROUP));
+                dispatch(commands, pipeline, writes, constants, Groups::along(sCount, Shaders::PROBE_WORKGROUP));
 
                 Barriers written(commands);
                 written.add(readings.describeBarrier(Use::sBufferComputeWrite, Use::sBufferHostRead));
@@ -170,9 +159,9 @@ namespace Rtx
         }
 
         /// One memory kind, every reading, against the patterns.
-        void expectEveryReadingAgrees(const Device& device, const ComputePipeline& pipeline, CommandPool& pool,
-            const std::vector<osg::Vec3f>& pattern, const std::vector<Shaders::ProbeRow>& rows, Place place,
-            const std::string& memory)
+        void expectEveryReadingAgrees(const Device& device, const ComputePipeline<Shaders::ProbeConstants>& pipeline,
+            CommandPool& pool, const std::vector<osg::Vec3f>& pattern, const std::vector<Shaders::ProbeRow>& rows,
+            Place place, const std::string& memory)
         {
             const Buffer whole = place(device, pool, std::as_bytes(std::span<const osg::Vec3f>(pattern)));
 
@@ -254,8 +243,8 @@ namespace Rtx
         TEST_F(RtxProbeTest, aPointerAndADescriptorReadTheSameBytes)
         {
             const Device& device = getDevice();
-            const ComputePipeline pipeline(device, sBindings, sizeof(Shaders::ProbeConstants), {},
-                Testing::getShaderDirectory() / "probe.comp.spv", "probe");
+            const ComputePipeline<Shaders::ProbeConstants> pipeline(device, sBindings, {}, "probe.comp.spv", "probe");
+            ASSERT_EQ(pipeline.getPushRange().size, sizeof(Shaders::ProbeConstants));
             CommandPool& pool = getPool();
 
             const std::vector<osg::Vec3f> pattern = makePattern();
