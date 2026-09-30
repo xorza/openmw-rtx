@@ -5,4 +5,8 @@ https://github.com/ThePhD/sol2/pull/1676 (a6872ef46b08704b9069ebf83161f4637459ce
 https://github.com/ThePhD/sol2/pull/1716 (5b6881ed94c795298eae72b6848308e9a37e42c5)
 https://github.com/ThePhD/sol2/pull/1722 (ab874eb0e8ef8aea4c10074a89efa25f62a29d9a)
 
+and patched locally so a failed aligned allocation in `sol/stack_core.hpp` ends in `std::abort()` after `luaL_error`,
+which raises and never returns, rather than in `return nullptr`: GCC read that null as a value handed to
+`std::construct_at` and reported it with `-Wnull-dereference` in every file that pushes a usertype.
+
 License: MIT
