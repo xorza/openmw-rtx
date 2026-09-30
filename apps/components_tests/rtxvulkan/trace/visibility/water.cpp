@@ -779,7 +779,9 @@ namespace Rtx::Testing
         /// is, the caustic and the phase are the same in both frames and cancel in the ratio. The
         /// lid reaches three hundred thousand units, because a ray under the water that finds
         /// nothing is water to the far plane, and a march that ran on past the lid's end was lit
-        /// there by a sun the lid no longer hid.
+        /// there by a sun the lid no longer hid. **And the water's surface as far**, because a
+        /// row looking up past its edge left the water under no surface, and marched on through
+        /// the air past the lid's edge, where the sun is asked from the point itself.
         ///
         /// **What the tolerance holds.** A pixel's four steps are weighed by how much light each
         /// sends, and on a ray that runs level one of them carries nearly all of it, so a frame is
@@ -797,8 +799,8 @@ namespace Rtx::Testing
             const float edge = -0.5f * radius;
             const double hidden = (std::acos(0.5) - 0.5 * std::sqrt(0.75)) / osg::PI;
 
-            SceneDesc lidded = makeOpenWater(4000.0f);
             constexpr float wide = 300000.0f;
+            SceneDesc lidded = makeOpenWater(wide);
             const std::array<osg::Vec3f, 4> lid{ osg::Vec3f(-wide, -wide, over), osg::Vec3f(edge, -wide, over),
                 osg::Vec3f(edge, wide, over), osg::Vec3f(-wide, wide, over) };
             addQuad(lidded, lid);
@@ -821,7 +823,7 @@ namespace Rtx::Testing
                 return green;
             };
 
-            const std::vector<double> open = shafts(makeOpenWater(4000.0f));
+            const std::vector<double> open = shafts(makeOpenWater(wide));
             const std::vector<double> shaded = shafts(lidded);
 
             double kept = 0.0;
@@ -831,6 +833,24 @@ namespace Rtx::Testing
                 kept += shaded[row] / open[row];
             }
             EXPECT_NEAR(kept / double{ size }, 1.0 - hidden, 0.02) << "the share of the disc the edge leaves";
+
+            // **And a strip wholly under the water shadows the water under it**, as it shadows a
+            // bed: each scattering point of the middle column asks up its own bent line, which the
+            // sun keeps at x = 0, and a strip a hundred units down and fifty either side of x = 0
+            // covers the whole disc from every one of them — `31` units wide at the nine hundred
+            // units up to it. Asked from where the light met the surface instead, the strip is
+            // under that point and hides nothing. Only the rows below the horizon, whose own rays
+            // run level or down and never meet the strip; what they keep is the sky's share alone.
+            SceneDesc sunken = makeOpenWater(wide);
+            constexpr float strip = 50.0f;
+            const std::array<osg::Vec3f, 4> under{ osg::Vec3f(-strip, -wide, -over), osg::Vec3f(strip, -wide, -over),
+                osg::Vec3f(strip, wide, -over), osg::Vec3f(-strip, wide, -over) };
+            addQuad(sunken, under);
+
+            const std::vector<double> sunk = shafts(sunken);
+            for (std::uint32_t row = column + 1; row < size; ++row)
+                EXPECT_LT(sunk[row] / open[row], 0.1)
+                    << "the water under a sunken strip lit by a full shaft, row " << row;
         }
 
         /// The sky loses the column of water over a bed just as the sun does.
