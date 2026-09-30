@@ -102,7 +102,9 @@ namespace Rtx
                 std::vector<Refusal> refused;
                 array.write(setup, textures, refused);
                 array.sync(FrameSlot{});
-                const SceneBuffers buffers(device, setup, scene, {}, 1);
+                std::vector<Index> everyMesh;
+                const SceneBuffers buffers(
+                    device, setup, scene, everyIndexBelow(scene.meshes().getRows().size(), everyMesh), {}, 1);
 
                 Shaders::GpuTables tables{};
                 buffers.describeTables(FrameSlot{}, tables);
@@ -112,7 +114,7 @@ namespace Rtx
                         .mMaterials = tables.mMaterials,
                         .mLayers = tables.mLayers,
                         .mMasks = tables.mMasks,
-                        .mMaterial = material,
+                        .mMaterial = material + Shaders::MATERIAL_ROW_FIRST,
                         .mOutputs = outputs,
                         .mTexels = array.getTexelsAddress(FrameSlot{}),
                     });

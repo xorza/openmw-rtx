@@ -18,6 +18,8 @@
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
+#include "digest.hpp"
+
 namespace RtxTool
 {
     namespace

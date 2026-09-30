@@ -251,8 +251,8 @@
         <translation>Вертикальная синхронизация</translation>
     </message>
     <message>
-        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs an NVIDIA GPU with hardware ray tracing (Turing or later).</source>
-        <translation>Заменяет рендерер OpenGL экспериментальным рендерером Vulkan с трассировкой лучей. Требуется видеокарта NVIDIA с аппаратной трассировкой лучей (Turing или новее).</translation>
+        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs a GPU with hardware ray tracing: NVIDIA Turing or AMD RDNA 2, or later.</source>
+        <translation>Заменяет рендерер OpenGL экспериментальным рендерером Vulkan с трассировкой лучей. Требуется видеокарта с аппаратной трассировкой лучей: NVIDIA Turing или AMD RDNA 2, либо новее.</translation>
     </message>
     <message>
         <source>Experimental Ray Tracing</source>
@@ -263,8 +263,8 @@
         <translation>Масштабирование</translation>
     </message>
     <message>
-        <source>How far below the window&apos;s size the ray tracer traces. The upscaler reconstructs the frame across frames whichever mode is chosen, and every mode but Native traces fewer pixels than it shows.</source>
-        <translation>Насколько ниже размера окна выполняется трассировка лучей. Масштабировщик восстанавливает кадр по нескольким кадрам в любом режиме, и каждый режим, кроме «Нативное», трассирует меньше пикселей, чем показывает.</translation>
+        <source>How far below the window&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
+        <translation>Насколько ниже размера окна выполняется трассировка лучей. «Отключено» трассирует каждый пиксель без масштабировщика; любой другой режим запускает масштабировщик, который восстанавливает кадр по нескольким кадрам, и каждый режим, кроме «Отключено» и «Нативное», трассирует меньше пикселей, чем показывает.</translation>
     </message>
     <message>
         <source>Off</source>

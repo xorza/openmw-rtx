@@ -42,15 +42,14 @@ namespace Rtx
     public:
         explicit DenoiseHistory(const Device& device);
 
-        /// Makes room for a frame this size, if the last one was not. A resize is a reset. The
-        /// caller has waited for anything still reading the old images.
+        /// Makes room for a frame this size, if the last one was not. A resize is a reset.
         void resize(std::uint32_t width, std::uint32_t height);
 
         /// Says every history is worthless, until each filter next runs.
         void reset() { mTurns.reset(); }
 
         /// What a world distance is multiplied by before a surface history holds it, for a frame
-        /// whose far plane is `far`: `AccumulateConstants::mDistanceScale`, which says why.
+        /// whose far plane is `far`: `HistoryConstants::mDistanceScale`, which says why.
         static float distanceScaleFor(float far);
 
         /// Turns to the other half of every pair for the frame being recorded, on which `runs` run:

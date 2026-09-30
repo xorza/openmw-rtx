@@ -275,6 +275,10 @@ namespace MWWorld
             MWRender::RenderingManager& rendering, MWWorld::ESMStore& store, MWWorld::WeatherStore& weatherStore);
         ~WeatherManager();
 
+        // A copy's reference members would name the original's sky.
+        WeatherManager(const WeatherManager&) = delete;
+        WeatherManager& operator=(const WeatherManager&) = delete;
+
         /**
          * Change the weather in the specified region by id of the weather
          * @param region that should be changed

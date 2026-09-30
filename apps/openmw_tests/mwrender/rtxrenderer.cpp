@@ -147,7 +147,7 @@ namespace MWRender
             const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({});
 
             Resource::ResourceSystem stepped(vfs.get(), sSetting, nullptr);
-            RtxRenderer::setResourceExpiry(stepped, sStepSeconds);
+            RtxRenderer::setResourceExpiry(stepped, 1.0f / 60.0f);
             EXPECT_EQ(stepped.getSceneManager()->getExpiryDelay(), sForever);
             EXPECT_EQ(stepped.getImageManager()->getExpiryDelay(), sForever);
 

@@ -56,28 +56,36 @@ struct MediumAhead
 /// one accumulation read twice and the water march draws from the same pixel — so the two agree
 /// where they meet by construction rather than by tolerance.
 ///
-/// @param air how far the fog is measured over. Its own march clamps this to the reach.
-/// @param water,width the stretch of water the column march takes and how wide the ray's cone is at
-///        the end of it. Not the same as `air` for a ray that escaped, which carries `mFar` for its
-///        distance and no cone at all — `WATER_UNBOUNDED_PATH` is what such a ray crossed.
-MediumAhead mediumAhead(uvec2 pixel, WorldRay ray, float air, float water, float width, bool submerged)
+/// **Which of them stands in front depends on where the eye is.** Above the surface it is the air
+/// alone: every ray of it that meets the water is stopped by the water's surface, whose own shader
+/// charges what stands under it. Under it, the water — as far as the ray stays under the plane,
+/// `waterAlong` — and then the air past where it rose through it, behind the water, so what the air
+/// scatters reaches the eye through the column.
+///
+/// @param air how far the path runs, which the air is measured over. Its own march clamps this to
+///        the reach.
+/// @param water how far the column would run where the ray stayed under the plane. Not the same as
+///        `air` for a ray that escaped, which carries `mFar` for its distance — `WATER_UNBOUNDED_PATH`
+///        is what such a ray crossed.
+/// @param cone the ray's own, which the column's march is read at the far end of.
+MediumAhead mediumAhead(uvec2 pixel, WorldRay ray, float air, float water, Cone cone)
 {
-    MediumAhead ahead = MediumAhead(vec3(0.0), vec3(1.0));
-
-    if (submerged)
+    if (!(waterOver(ray.mFrom) > 0.0))
     {
-        const WaterColumn column = waterColumn(ray.mFrom, ray.mAlong, water, width, pixel);
-
-        ahead.mScattered = column.mScattered;
-        ahead.mThrough = column.mTransmittance;
+        const vec4 fog = fogAlong(pixel, ray, air);
+        return MediumAhead(fog.xyz, vec3(fog.w));
     }
 
-    const vec4 fog = fogAlong(pixel, ray, air);
+    const float under = waterAlong(ray.mFrom, ray.mAlong, water);
+    const WaterColumn column = waterColumn(ray.mFrom, ray.mAlong, under, cone.mWidth + cone.mSpread * under, pixel);
 
-    ahead.mScattered = throughAir(ahead.mScattered, fog);
-    ahead.mThrough *= fog.w;
+    // The eye's own froxels hold no air in front of a submerged eye (`fogAlong`), so what lies past
+    // the plane is charged as a leg's air is, from where the ray rose through it.
+    const vec4 above = under < water
+        ? fogAlongLeg(ray.mFrom + ray.mAlong * under, ray.mAlong, max(air - under, 0.0), under)
+        : vec4(0.0, 0.0, 0.0, 1.0);
 
-    return ahead;
+    return MediumAhead(column.mScattered + column.mTransmittance * above.xyz, column.mTransmittance * above.w);
 }
 
 /// The see-through layers peeled off one ray, composited as they are met: what they sent, what they
@@ -230,14 +238,13 @@ void main()
     if (arms && answer.mPane)
     {
         const Cone armsCone = coneAt(frame.mArms);
-        const bool armsSubmerged = waterOver(origin) > 0.0;
 
         bool behind = false;
         for (; layer < PEEL_LAYERS && answer.mPane; ++layer)
         {
             const float distance = answer.mDistance;
-            const MediumAhead ahead = mediumAhead(pixel, WorldRay(origin, direction), distance, distance,
-                armsCone.mWidth + armsCone.mSpread * distance, armsSubmerged);
+            const MediumAhead ahead
+                = mediumAhead(pixel, WorldRay(origin, direction), distance, distance, armsCone);
 
             if (layer == 0u)
                 nearest = nearestPaneOf(answer);
@@ -269,7 +276,6 @@ void main()
     // Both are the eye's own and neither moves as the ray carries on past a layer: the cone is the
     // eye's the ray was cast from, and what stands over the eye is what the eye stands in.
     const Cone cone = coneAt(eyeOf(uint(arms)));
-    const bool submerged = waterOver(origin) > 0.0;
 
     // **The surfaces the eye is looking through, peeled off nearest first and kept.** A pane of
     // glass is one, and so is an actor the game is fading — Invisibility, Chameleon, or the distance
@@ -313,8 +319,7 @@ void main()
     for (; layer < PEEL_LAYERS && answer.mPane; ++layer)
     {
         const float distance = answer.mDistance;
-        const MediumAhead ahead = mediumAhead(
-            pixel, WorldRay(origin, direction), distance, distance, cone.mWidth + cone.mSpread * distance, submerged);
+        const MediumAhead ahead = mediumAhead(pixel, WorldRay(origin, direction), distance, distance, cone);
 
         if (layer == 0u)
             nearest = nearestPaneOf(answer);
@@ -351,22 +356,21 @@ void main()
     // aimed up from a hundred units down found the surface exactly as bright as one aimed up from
     // ten.
     //
-    // The air stands over all of it, which is the order `mediumAhead` composes them in: everything
-    // else in the frame is what the fog stands between the eye and, the water's own absorption
-    // included.
+    // Which medium stands in front of which is `mediumAhead`'s: the air in front of the water's
+    // own absorption for an eye above it, and the water in front of the air past the plane for an
+    // eye under it.
     //
     // Applied to the whole colour rather than to the albedo alone — what the depth took is a
     // property of the path, so it belongs to the modulation and not to the material.
     //
-    // **An escaped ray carries neither of the two numbers a column is measured with**: it kept
-    // `mFar` for its distance and nought for its cone. What an unbounded one crossed is the whole
-    // column, read at the width a cone that far out has — which is wider than any wave, so the
-    // shaft march finds no pattern there to resolve.
+    // **An escaped ray carries no distance a column is measured with**: it kept `mFar`. What an
+    // unbounded one crossed is the whole column, read at the width a cone that far out has — which
+    // is wider than any wave, so the shaft march finds no pattern there to resolve. One that climbs
+    // leaves the water at the plane, `waterAlong`, whatever it met past it.
     const bool unbounded = waterUnbounded(hit, origin, direction);
     const float crossed = unbounded ? WATER_UNBOUNDED_PATH : distance;
-    const float width = hit || unbounded ? cone.mWidth + cone.mSpread * crossed : 0.0;
 
-    const MediumAhead whole = mediumAhead(pixel, WorldRay(origin, direction), distance, crossed, width, submerged);
+    const MediumAhead whole = mediumAhead(pixel, WorldRay(origin, direction), distance, crossed, cone);
 
     shaded = shaded * whole.mThrough + whole.mScattered;
     transmittance *= whole.mThrough;
@@ -412,13 +416,9 @@ void main()
     // which is the composite's; gathered here as well, it was hidden and let through by this
     // jittered sample and not by the pixel the picture shows, and a cloud's edge shook the way a
     // puff's did at a silhouette.
-    //
-    // And which eye this pixel's ray was cast from, for the composite to march its own again
-    // through the same one — in the sign of what the sprites let through, `packPuffs`. The world's
-    // behind a see-through arm, whose puffs the composite lays down by what the arms let through.
     const PuffLayer sprites
         = spritesAlong(binnedPixel(pixel, direction, arms), origin, direction, distance, cone, true);
-    imageStore(puffs, ivec2(pixel), packPuffs(sprites.mColour, sprites.mTransmittance, arms));
+    imageStore(puffs, ivec2(pixel), vec4(sprites.mColour, sprites.mTransmittance));
 
     // **The sun glare fader's query, one ray at a time.** The rasterizer draws the sun's quad
     // against the world's depth and counts the pixels that survived; here every primary ray inside
@@ -508,7 +508,10 @@ void main()
     // what the arms' share beside it is for.
     imageStore(backdrop, at, vec4(answer.mBackdropShown * transmittance, armsStack.mThrough));
 
-    // A miss is as far away as anything can be, and the miss shader answered `mFar` for it.
+    // A miss is as far away as anything can be, and the miss shader answered `mFar` for it. And
+    // which eye this pixel's ray was cast from, in the distance's sign, for every pass that
+    // rebuilds the ray — the world's behind a see-through arm, whose puffs the composite lays
+    // down by what the arms let through.
     RTX_STORE_COUNTED(surfaceChannel, at, BOUNDARY_GUIDE,
-        vec4(answer.mResponse.mNormal, distance, 0.0, 0.0))
+        vec4(answer.mResponse.mNormal, packSurfaceDistance(distance, arms), 0.0, 0.0))
 }

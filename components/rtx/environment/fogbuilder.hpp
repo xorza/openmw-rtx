@@ -56,7 +56,7 @@ namespace Rtx
     /// linearly from `view * (1 - depth)` to `view`, and a medium has no clear zone, so the two are
     /// matched where each is half gone: `sigma = ln(2) / (view * (1 - depth / 2))`. Clear weather's
     /// 0.69 over the game's 7168 comes to 1.476e-4. `over` is the distance the half-life is
-    /// measured across — `distantLandReach` out of doors, `sInteriorFogReach` in a room — and a
+    /// measured across — `CellGrid::reachOf` out of doors, `sInteriorFogReach` in a room — and a
     /// parameter, never a setting, because air tuned short of the world swallows the ground beyond.
     float fogExtinction(float depth, float over);
 
@@ -94,7 +94,7 @@ namespace Rtx
     constexpr float sInteriorFogReach = 25.0f * 7168.0f;
 
     /// The open air, from the colour and the fog depth a weather is at. One place decides what
-    /// `reach` (`distantLandReach`) means: the extinction is a half-life over it, the edge closes
+    /// `reach` (`CellGrid::reachOf`) means: the extinction is a half-life over it, the edge closes
     /// at it, and only a landscape is large enough to bank.
     Fog exteriorFog(const osg::Vec3f& colour, float depth, float wind, float reach);
 

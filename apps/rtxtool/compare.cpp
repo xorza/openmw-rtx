@@ -247,6 +247,16 @@ namespace RtxTool
         return 1;
     }
 
+    std::optional<std::string> refuseAgainst(const std::filesystem::path& out, const std::filesystem::path& against)
+    {
+        if (against.empty() || !std::filesystem::exists(against) || !std::filesystem::exists(out)
+            || !std::filesystem::equivalent(out, against))
+            return std::nullopt;
+
+        return std::format(
+            "--against={} is where this run writes; name another --out", Files::pathToUnicodeString(against));
+    }
+
     int compareRuns(const std::filesystem::path& wrote, const std::filesystem::path& against,
         const std::span<const WrittenPicture> pictures)
     {

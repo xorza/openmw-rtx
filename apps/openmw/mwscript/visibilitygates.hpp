@@ -99,12 +99,6 @@ namespace MWScript
         void update(const VisibilityReads& reads, std::vector<GateChange>& changes);
 
     private:
-        struct Named
-        {
-            ESM::RefId mName;
-            std::uint32_t mGate = Terrain::sNoGate;
-        };
-
         struct Script
         {
             ESM::RefId mId;
@@ -114,8 +108,10 @@ namespace MWScript
             /// The gate of the references that wear it, where it enables or disables them.
             std::uint32_t mOwnGate = Terrain::sNoGate;
 
-            /// A gate for each record it enables or disables by name.
-            std::vector<Named> mNamed;
+            /// A gate for each record it enables or disables by name: a run of `mGates` from
+            /// `mFirstNamed`, each gate carrying its name.
+            std::uint32_t mFirstNamed = 0;
+            std::uint32_t mNamedCount = 0;
 
             /// What the last run read, with what it read then.
             std::vector<VisibilityInput> mInputs;
@@ -140,12 +136,11 @@ namespace MWScript
             bool mTold = false;
         };
 
-        /// One name some script enables or disables, the script, and the gate: kept sorted by
-        /// name, so a cell's reference finds what names it by one search.
+        /// One name some script enables or disables, and the gate: kept sorted by name, so a cell's
+        /// reference finds what names it by one search. The script is the gate's.
         struct NamedBy
         {
             ESM::RefId mName;
-            std::uint32_t mScript = 0;
             std::uint32_t mGate = Terrain::sNoGate;
         };
 

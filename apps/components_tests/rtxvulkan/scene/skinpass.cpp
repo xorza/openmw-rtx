@@ -21,7 +21,6 @@
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/scene/tangent.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/skinning.h>
 #include <components/rtx/shaders/tangent.h>
@@ -276,8 +275,11 @@ namespace Rtx
 
             // Off the axes, below the equator: the device's word is the host's for the same turn of
             // the same stored tangent, `(x, y, z)` to `(-y, x, z)`.
-            const osg::Vec4f stored = Shaders::unpackTangent(packTangent(alongX[2]));
-            EXPECT_EQ(tangentOf(turned, 2), packTangent(osg::Vec4f(-stored.y(), stored.x(), stored.z(), stored.w())));
+            const osg::Vec4f& along = alongX[2];
+            const osg::Vec4f stored = Shaders::unpackTangent(
+                Shaders::packTangent(osg::Vec3f(along.x(), along.y(), along.z()), along.w() < 0.0f));
+            EXPECT_EQ(tangentOf(turned, 2),
+                Shaders::packTangent(osg::Vec3f(-stored.y(), stored.x(), stored.z()), stored.w() < 0.0f));
             EXPECT_EQ(tangentOf(turned, 3), 0u) << "no tangent posed into one";
 
             // The morph: half of a unit lift on every corner, and a normal a morph never touches
@@ -317,7 +319,7 @@ namespace Rtx
             // 2 there and 1 elsewhere, so a stale bind, a stale row or a stale influence would each
             // show as a different number.
             const MeshRange went = scene.meshes().getRows()[blended];
-            const Deformer wentRig = scene.deformers().getDeformers()[onTwoBones.mDeformer];
+            const Deformer wentRig = scene.deformers().getRows()[onTwoBones.mDeformer];
             scene.clearArrivals();
             holds.dropMesh(blended);
             ASSERT_FALSE(scene.meshes().isLive(blended));
@@ -339,8 +341,8 @@ namespace Rtx
             ASSERT_EQ(arrived, blended) << "the slot was not handed out again";
             ASSERT_EQ(taken.mBindOffset, went.mBindOffset) << "the bind run was not handed out again";
             ASSERT_EQ(taken.mPoseOffset, went.mPoseOffset) << "the rows were not handed out again";
-            ASSERT_EQ(scene.deformers().getDeformers()[twoMore].mRuns, wentRig.mRuns) << "the run words were not";
-            ASSERT_EQ(scene.deformers().getDeformers()[twoMore].mInfluences, wentRig.mInfluences)
+            ASSERT_EQ(scene.deformers().getRows()[twoMore].mRuns, wentRig.mRuns) << "the run words were not";
+            ASSERT_EQ(scene.deformers().getRows()[twoMore].mInfluences, wentRig.mInfluences)
                 << "the influences were not";
 
             const std::array oneAndThree{ Testing::boneUp(1.0f), Testing::boneUp(3.0f) };

@@ -24,7 +24,7 @@ namespace Rtx
 {
     /// What stands in a live texture slot, and so which of the row's two names carries it, stated
     /// rather than deduced from two names. Whether a slot is live is the table's to say
-    /// (`TextureTable::isFree`), and a free row's kind means nothing.
+    /// (`HeldRows::isLive`), and a free row's kind means nothing.
     enum class TextureKind : std::uint8_t
     {
         /// A file the content named. `TextureRow::mPath` carries it.
@@ -44,7 +44,7 @@ namespace Rtx
         std::string mBaked;
         TextureWrap mWrap = TextureWrap::Repeat;
 
-        /// What the slot is read as. A bake is a colour.
+        /// What the slot is read as: a file's as it was taken, a bake's as `addBaked` was told.
         TextureEncoding mEncoding = TextureEncoding::Colour;
 
         /// A file's image, which the upload reads: the one the adder held, so the frame that
@@ -53,7 +53,8 @@ namespace Rtx
     };
 
     /// Every texture the scene names, what still names each one, and which slots changed. A slot
-    /// is reference counted and given back the moment nothing names it, because waiting for a
+    /// is live from its take, before anything names it, reference counted from the hold that
+    /// follows, and given back the moment nothing names it, because waiting for a
     /// sweep would keep a region's images alive across the crossing that left it. Two ways in and
     /// one table: a slot is a file the content named or a key this renderer made for something it
     /// baked, never both. A slot that is freed keeps its index.
@@ -62,7 +63,7 @@ namespace Rtx
     /// repeating is two slots, because a sampler is per slot and the wrap is the sampler's; the
     /// same file bound as a colour and as data is two, because the encoding is the image's format.
     /// A file names up to twelve, one per `TextureWrap` and `TextureEncoding`.
-    class TextureTable
+    class TextureTable : public HeldRows<TextureRow>
     {
     public:
         /// How many slots stand at once: the bindless array's, less the one its neutral texel
@@ -93,26 +94,12 @@ namespace Rtx
         /// that would bake the same image must find the same slot, so `key` has to be stable across
         /// frames. The same slots and the same reference counting as a file's. Clamped, because a
         /// bake is one image whose coordinates run edge to edge. `sNoIndex` as `add` answers it.
-        Index addBaked(std::string_view key);
+        Index addBaked(std::string_view key, TextureEncoding encoding);
 
         /// The slot `path` stands in as a colour under any wrap, or `sNoIndex` where it stands in
         /// none. What a bake made from a file's alpha finds its source by: the alpha is the same
         /// under every wrap, and the bake's key carries the file and not the wrap.
         Index findFile(VFS::Path::NormalizedView path) const;
-
-        /// Whether nothing stands in `texture`. Asked of the slots and not of a count of holds,
-        /// because a slot is taken before it is named.
-        bool isFree(Index texture) const { return !mRows.isLive(texture); }
-
-        /// How many slots stand a texture, which is what an empty scene has nought of.
-        std::size_t getLiveCount() const { return mRows.getLiveCount(); }
-
-        /// What names `texture`, which is nought only between the take and the hold that follows
-        /// it: a live slot with no hold after that is one no sweep can reach.
-        std::uint32_t getHolds(Index texture) const { return mRows.getHolds(texture); }
-
-        /// Every slot, free ones included, in slot order.
-        std::span<const TextureRow> getRows() const { return mRows.getRows(); }
 
         std::span<const Index> getArrived() const { return mChanges.getArrived(); }
         std::span<const Index> getFreed() const { return mChanges.getFreed(); }
@@ -127,10 +114,6 @@ namespace Rtx
         /// How many new textures were refused because `sCapacity` slots stood, ever. Drawn neutral,
         /// and reported by `SceneTextures`.
         std::uint32_t getRefused() const { return mRefused; }
-
-        /// How many slots this has ever given back, which is what says a texture refused for want of
-        /// room may find some now: until it moves, asking again is a path built to be refused.
-        std::uint64_t getFreedCount() const { return mFreed; }
 
         /// The formats of the images the standing slots keep, one count a slot.
         const FormatCensus& getFormats() const { return mFormats; }
@@ -165,8 +148,6 @@ namespace Rtx
         /// The slot a file holds under each encoding and wrap, `sNoIndex` where it holds none.
         using FileSlots = std::array<std::array<Index, sTextureWrapCount>, sTextureEncodingCount>;
 
-        SlotRows<TextureRow> mRows;
-
         SlotChanges mChanges;
 
         /// Hashes a baked key without building a `std::string` to do it.
@@ -185,7 +166,6 @@ namespace Rtx
 
         std::uint64_t mRevision = 0;
         std::uint32_t mRefused = 0;
-        std::uint64_t mFreed = 0;
         FormatCensus mFormats;
     };
 

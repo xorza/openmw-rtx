@@ -10,7 +10,6 @@
 #include <MyGUI_TextBox.h>
 #include <MyGUI_UString.h>
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/rng.hpp>
@@ -271,8 +270,6 @@ namespace MWGui
         mResourceSystem->reportStats(frameNumber, stats);
 
         mRenderer.renderLoadingFrame(getTargetFrameRate());
-        Crash::heartbeat();
-
         mLastRenderTime = mTimer.time_m();
     }
 

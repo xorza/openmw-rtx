@@ -20,6 +20,7 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/heldimages.hpp>
 #include <components/resource/bgsmfilemanager.hpp>
 #include <components/resource/imagemanager.hpp>
@@ -56,30 +57,20 @@ namespace Rtx
         /// distinct colours, so a field written from the wrong one shows.
         const Rtx::DeckLight sLight{ .mLit = osg::Vec3f(0.5f, 0.6f, 0.7f), .mShadowed = osg::Vec3f(0.1f, 0.2f, 0.3f) };
 
-        /// A blend that is not a number is not a sky.
-        ///
-        /// **The bug this is here for turned the game's sky black and left the harness's alone.**
-        /// `MWWorld::Weather::transitionDelta` divides the transition by `Clouds_Maximum_Percent`, and
-        /// the shipped fallbacks record none for ash or blight — so a transition into either handed
-        /// back a NaN. The rasterizer survives one, because a NaN opacity draws nothing and the sky
-        /// it already had stays; a tracer mixes its whole sky by it and gets a NaN back, which is
-        /// black. `MWRender::RenderingManager::setWeather` is what stands between the two now.
-        ///
-        /// **And `std::clamp` does not catch it**, which is the part worth a test rather than a
-        /// comment: it asks whether the value is *outside* the range, both comparisons are false for
-        /// a NaN, and it hands the NaN straight back. The boundary has to ask the question the other
-        /// way round.
-        TEST(RtxSkyBuilderTest, aCloudBlendThatIsNotANumberComesOutAsNoBlendAtAll)
+        /// A share of the crossing is passed through, and one the reader should have cleaned is a
+        /// broken contract: the builder is handed a share, never a content file's division, and
+        /// `SkyReader::read` is the one place a NaN or an infinity becomes one.
+        TEST(RtxSkyBuilderTest, aCloudBlendIsPassedThroughAndOneOutsideAShareIsAContractBroken)
         {
             SkyContent textures;
-            textures.mClouds[Rtx::Shaders::WEATHER_CLEAR] = 3;
-            textures.mClouds[Rtx::Shaders::WEATHER_RAIN] = 5;
+            textures.mClouds[Rtx::sWeatherClear] = 3;
+            textures.mClouds[Rtx::sWeatherRain] = 5;
             textures.mShell = sShell;
 
             const osg::Vec3f north(0.0f, 1.0f, 0.0f);
             const auto deck = [&](float blend) {
-                return describeClouds(Rtx::CloudCrossing{ .mWeather = Rtx::Shaders::WEATHER_CLEAR,
-                                          .mNext = Rtx::Shaders::WEATHER_RAIN,
+                return describeClouds(Rtx::CloudCrossing{ .mWeather = Rtx::sWeatherClear,
+                                          .mNext = Rtx::sWeatherRain,
                                           .mBlend = blend,
                                           .mDirection = north,
                                           .mNextDirection = north,
@@ -87,16 +78,12 @@ namespace Rtx
                     sLight, textures);
             };
 
-            EXPECT_EQ(deck(std::numeric_limits<float>::quiet_NaN()).mBlend, 0.0f) << "a NaN is no crossing";
-            EXPECT_EQ(deck(-1.0f).mBlend, 0.0f) << "and neither is anything under nought";
-            EXPECT_EQ(deck(7.0f).mBlend, 1.0f) << "or over one";
-            EXPECT_EQ(deck(0.25f).mBlend, 0.25f) << "while a real one is passed through untouched";
-
-            // The rest of the deck still says what it says, so the guard is on the blend and not a
-            // bail-out that would have taken the clouds with it.
-            EXPECT_EQ(deck(std::numeric_limits<float>::quiet_NaN()).mTexture, 3u);
-            EXPECT_EQ(deck(std::numeric_limits<float>::quiet_NaN()).mNext, 5u);
-            EXPECT_GT(deck(std::numeric_limits<float>::quiet_NaN()).mOpacity, 0.0f);
+            EXPECT_EQ(deck(0.25f).mBlend, 0.25f);
+            EXPECT_EQ(deck(0.0f).mBlend, 0.0f);
+            EXPECT_EQ(deck(1.0f).mBlend, 1.0f);
+            Testing::expectAssertDies(
+                [&] { deck(std::numeric_limits<float>::quiet_NaN()); }, "a cloud blend the reader did not clean");
+            Testing::expectAssertDies([&] { deck(7.0f); }, "a cloud blend the reader did not clean");
         }
 
         /// A weather the content files give no cloud texture has no deck, rather than a grey one.
@@ -108,23 +95,22 @@ namespace Rtx
         {
             SkyContent textures;
             textures.mClouds.fill(Rtx::sNoIndex);
-            textures.mClouds[Rtx::Shaders::WEATHER_CLEAR] = 3;
+            textures.mClouds[Rtx::sWeatherClear] = 3;
             textures.mShell = sShell;
 
-            EXPECT_EQ(textures.cloudsOf(Rtx::Shaders::WEATHER_CLEAR), 3u);
-            EXPECT_EQ(textures.cloudsOf(Rtx::Shaders::WEATHER_ASHSTORM), Rtx::Shaders::NO_TEXTURE);
-            EXPECT_EQ(textures.cloudsOf(Rtx::Shaders::WEATHER_COUNT + 4u), Rtx::Shaders::NO_TEXTURE)
+            EXPECT_EQ(textures.cloudsOf(Rtx::sWeatherClear), 3u);
+            EXPECT_EQ(textures.cloudsOf(Rtx::sWeatherAshstorm), Rtx::Shaders::NO_TEXTURE);
+            EXPECT_EQ(textures.cloudsOf(Rtx::sWeatherCount + 4u), Rtx::Shaders::NO_TEXTURE)
                 << "and an index past the ten is not a lookup";
 
             const osg::Vec3f north(0.0f, 1.0f, 0.0f);
-            const Rtx::Shaders::CloudDeck none
-                = describeClouds(Rtx::CloudCrossing{ .mWeather = Rtx::Shaders::WEATHER_ASHSTORM,
-                                     .mNext = Rtx::Shaders::WEATHER_ASHSTORM,
-                                     .mBlend = 0.0f,
-                                     .mDirection = north,
-                                     .mNextDirection = north,
-                                     .mScroll = 0.0f },
-                    sLight, textures);
+            const Rtx::Shaders::CloudDeck none = describeClouds(Rtx::CloudCrossing{ .mWeather = Rtx::sWeatherAshstorm,
+                                                                    .mNext = Rtx::sWeatherAshstorm,
+                                                                    .mBlend = 0.0f,
+                                                                    .mDirection = north,
+                                                                    .mNextDirection = north,
+                                                                    .mScroll = 0.0f },
+                sLight, textures);
 
             EXPECT_EQ(none.mOpacity, 0.0f) << "nothing to draw, said the way an interior says it";
             EXPECT_EQ(none.mTexture, Rtx::Shaders::NO_TEXTURE);
@@ -133,8 +119,8 @@ namespace Rtx
             // weather names.
             SkyContent unhung = textures;
             unhung.mShell = Rtx::CloudShell{};
-            EXPECT_EQ(describeClouds(Rtx::CloudCrossing{ .mWeather = Rtx::Shaders::WEATHER_CLEAR,
-                                         .mNext = Rtx::Shaders::WEATHER_CLEAR,
+            EXPECT_EQ(describeClouds(Rtx::CloudCrossing{ .mWeather = Rtx::sWeatherClear,
+                                         .mNext = Rtx::sWeatherClear,
                                          .mBlend = 0.0f,
                                          .mDirection = north,
                                          .mNextDirection = north,
@@ -214,18 +200,17 @@ namespace Rtx
         {
             SkyContent textures;
             textures.mClouds.fill(Rtx::sNoIndex);
-            textures.mClouds[Rtx::Shaders::WEATHER_CLEAR] = 3;
+            textures.mClouds[Rtx::sWeatherClear] = 3;
             textures.mShell = sShell;
 
             const osg::Vec3f north(0.0f, 1.0f, 0.0f);
-            const Rtx::Shaders::CloudDeck deck
-                = describeClouds(Rtx::CloudCrossing{ .mWeather = Rtx::Shaders::WEATHER_CLEAR,
-                                     .mNext = Rtx::Shaders::WEATHER_CLEAR,
-                                     .mBlend = 0.0f,
-                                     .mDirection = north,
-                                     .mNextDirection = north,
-                                     .mScroll = 0.0f },
-                    sLight, textures);
+            const Rtx::Shaders::CloudDeck deck = describeClouds(Rtx::CloudCrossing{ .mWeather = Rtx::sWeatherClear,
+                                                                    .mNext = Rtx::sWeatherClear,
+                                                                    .mBlend = 0.0f,
+                                                                    .mDirection = north,
+                                                                    .mNextDirection = north,
+                                                                    .mScroll = 0.0f },
+                sLight, textures);
 
             EXPECT_EQ(deck.mCurvature, sShell.mCurvature);
             EXPECT_EQ(deck.mRings, sShell.mRings);
@@ -249,21 +234,20 @@ namespace Rtx
         {
             SkyContent textures;
             textures.mClouds.fill(Rtx::sNoIndex);
-            textures.mClouds[Rtx::Shaders::WEATHER_CLEAR] = 3;
-            textures.mClouds[Rtx::Shaders::WEATHER_RAIN] = 5;
+            textures.mClouds[Rtx::sWeatherClear] = 3;
+            textures.mClouds[Rtx::sWeatherRain] = 5;
             textures.mShell = sShell;
 
             const osg::Vec3f north(0.0f, 1.0f, 0.0f);
             const osg::Vec3f east(1.0f, 0.0f, 0.0f);
 
-            const Rtx::Shaders::CloudDeck deck
-                = describeClouds(Rtx::CloudCrossing{ .mWeather = Rtx::Shaders::WEATHER_CLEAR,
-                                     .mNext = Rtx::Shaders::WEATHER_RAIN,
-                                     .mBlend = 0.5f,
-                                     .mDirection = north,
-                                     .mNextDirection = east,
-                                     .mScroll = 0.0f },
-                    sLight, textures);
+            const Rtx::Shaders::CloudDeck deck = describeClouds(Rtx::CloudCrossing{ .mWeather = Rtx::sWeatherClear,
+                                                                    .mNext = Rtx::sWeatherRain,
+                                                                    .mBlend = 0.5f,
+                                                                    .mDirection = north,
+                                                                    .mNextDirection = east,
+                                                                    .mScroll = 0.0f },
+                sLight, textures);
 
             EXPECT_EQ(deck.mBearing, osg::Vec2f(1.0f, 0.0f)) << "due north is no turn at all";
             EXPECT_EQ(deck.mNextBearing, osg::Vec2f(0.0f, 1.0f)) << "and due east is a quarter of one";
@@ -271,14 +255,13 @@ namespace Rtx
             // **A direction nobody stated is zero, and a bearing of zero collapses the whole sheet
             // onto one texel.** `WeatherResult` names the weather ahead's storm only while one is
             // arriving, and leaves the field where the last transition left it otherwise.
-            const Rtx::Shaders::CloudDeck settled
-                = describeClouds(Rtx::CloudCrossing{ .mWeather = Rtx::Shaders::WEATHER_CLEAR,
-                                     .mNext = Rtx::Shaders::WEATHER_RAIN,
-                                     .mBlend = 0.5f,
-                                     .mDirection = north,
-                                     .mNextDirection = osg::Vec3f(),
-                                     .mScroll = 0.0f },
-                    sLight, textures);
+            const Rtx::Shaders::CloudDeck settled = describeClouds(Rtx::CloudCrossing{ .mWeather = Rtx::sWeatherClear,
+                                                                       .mNext = Rtx::sWeatherRain,
+                                                                       .mBlend = 0.5f,
+                                                                       .mDirection = north,
+                                                                       .mNextDirection = osg::Vec3f(),
+                                                                       .mScroll = 0.0f },
+                sLight, textures);
 
             EXPECT_EQ(settled.mNextBearing, osg::Vec2f(1.0f, 0.0f)) << "which reads as due north";
         }
@@ -293,15 +276,15 @@ namespace Rtx
         {
             SkyContent textures;
             textures.mClouds.fill(Rtx::sNoIndex);
-            textures.mClouds[Rtx::Shaders::WEATHER_CLEAR] = 3;
-            textures.mClouds[Rtx::Shaders::WEATHER_RAIN] = 5;
+            textures.mClouds[Rtx::sWeatherClear] = 3;
+            textures.mClouds[Rtx::sWeatherRain] = 5;
             textures.mShell = sShell;
-            textures.mCloudMean[Rtx::Shaders::WEATHER_CLEAR] = 0.4f;
-            textures.mCloudMean[Rtx::Shaders::WEATHER_RAIN] = 0.2f;
+            textures.mCloudMean[Rtx::sWeatherClear] = 0.4f;
+            textures.mCloudMean[Rtx::sWeatherRain] = 0.2f;
 
             const osg::Vec3f north(0.0f, 1.0f, 0.0f);
             const auto deck = [&](std::uint32_t next, float blend) {
-                return describeClouds(Rtx::CloudCrossing{ .mWeather = Rtx::Shaders::WEATHER_CLEAR,
+                return describeClouds(Rtx::CloudCrossing{ .mWeather = Rtx::sWeatherClear,
                                           .mNext = next,
                                           .mBlend = blend,
                                           .mDirection = north,
@@ -310,17 +293,16 @@ namespace Rtx
                     sLight, textures);
             };
 
-            EXPECT_EQ(deck(Rtx::Shaders::WEATHER_RAIN, 0.0f).mMean, 0.4f);
-            EXPECT_EQ(deck(Rtx::Shaders::WEATHER_RAIN, 1.0f).mMean, 0.2f);
+            EXPECT_EQ(deck(Rtx::sWeatherRain, 0.0f).mMean, 0.4f);
+            EXPECT_EQ(deck(Rtx::sWeatherRain, 1.0f).mMean, 0.2f);
 
             // A quarter of the way across: `0.75 * 0.4 + 0.25 * 0.2`.
-            EXPECT_NEAR(deck(Rtx::Shaders::WEATHER_RAIN, 0.25f).mMean, 0.35f, 1.0e-6f);
+            EXPECT_NEAR(deck(Rtx::sWeatherRain, 0.25f).mMean, 0.35f, 1.0e-6f);
 
             // Ash names no sheet in the shipped fallbacks, so the shader reads the clear one at both
             // ends of that crossing and this stays the clear one's whatever the blend says.
-            EXPECT_EQ(deck(Rtx::Shaders::WEATHER_ASHSTORM, 0.5f).mMean, 0.4f);
-            EXPECT_EQ(textures.meanOf(Rtx::Shaders::WEATHER_COUNT + 4u), 0.0f)
-                << "and an index past the ten is not a lookup";
+            EXPECT_EQ(deck(Rtx::sWeatherAshstorm, 0.5f).mMean, 0.4f);
+            EXPECT_EQ(textures.meanOf(Rtx::sWeatherCount + 4u), 0.0f) << "and an index past the ten is not a lookup";
         }
 
         /// The stars go out when the weather keeps them in, and the sheet is not even named then.
@@ -372,8 +354,9 @@ namespace Rtx
             Resource::ImageManager images(&vfs, 0);
 
             std::vector<TextureHold> moonHolds;
-            const Rtx::MoonFaces moons
-                = Rtx::addMoonFaces(scene, images, Rtx::MoonSizes{ .mMasser = 94.0f, .mSecunda = 40.0f }, moonHolds);
+            ContentPreprocessor preprocessor;
+            const Rtx::MoonFaces moons = Rtx::addMoonFaces(
+                scene, images, Rtx::MoonSizes{ .mMasser = 94.0f, .mSecunda = 40.0f }, moonHolds, preprocessor);
             EXPECT_EQ(scene.textures().getHolds(moons.mMasser), 1u);
             EXPECT_EQ(scene.textures().getHolds(moons.mSecunda), 1u);
 
@@ -381,7 +364,7 @@ namespace Rtx
             // sky of a field and one patch, held once each, and the rest unset.
             SkyContent content;
             std::vector<TextureHold> skyHolds;
-            for (const std::uint32_t weather : { Rtx::Shaders::WEATHER_CLEAR, Rtx::Shaders::WEATHER_CLOUDY })
+            for (const std::uint32_t weather : { Rtx::sWeatherClear, Rtx::sWeatherCloudy })
             {
                 content.mClouds[weather] = scene.textures().add(VFS::Path::NormalizedView("textures/deck.dds"));
                 skyHolds.push_back(scene.holdTexture(content.mClouds[weather]));
@@ -393,7 +376,7 @@ namespace Rtx
             skyHolds.push_back(scene.holdTexture(content.mNight.mPatches[0].mTexture));
 
             EXPECT_EQ(scene.textures().getLiveCount(), 5u);
-            EXPECT_EQ(scene.textures().getHolds(content.mClouds[Rtx::Shaders::WEATHER_CLEAR]), 2u)
+            EXPECT_EQ(scene.textures().getHolds(content.mClouds[Rtx::sWeatherClear]), 2u)
                 << "one file under one wrap is one slot, held once per deck naming it";
             EXPECT_TRUE(scene.isConsistent());
 
@@ -436,8 +419,8 @@ namespace Rtx
                     .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif") },
                 preprocessor, holds);
 
-            EXPECT_EQ(content.cloudsOf(Shaders::WEATHER_CLEAR), Shaders::NO_TEXTURE) << "a grey sky";
-            EXPECT_EQ(content.cloudsOf(Shaders::WEATHER_OVERCAST), Shaders::NO_TEXTURE);
+            EXPECT_EQ(content.cloudsOf(sWeatherClear), Shaders::NO_TEXTURE) << "a grey sky";
+            EXPECT_EQ(content.cloudsOf(sWeatherOvercast), Shaders::NO_TEXTURE);
             EXPECT_EQ(scene.textures().findFile(VFS::Path::NormalizedView("textures/tx_sky_clear.dds")), sNoIndex)
                 << "a slot the upload would stand in for";
             EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 4u) << "both decks, the cloud cap and the star dome";

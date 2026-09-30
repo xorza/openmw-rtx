@@ -136,10 +136,10 @@ namespace Rtx
             .pStages = stages.data(),
             .groupCount = static_cast<std::uint32_t>(groups.size()),
             .pGroups = groups.data(),
-            // One, and one is the whole of it. The launch traces a hit object and runs the
-            // shader it names; that shader traces again with inline ray queries, which are not
-            // recursion and cost the stack nothing. Nothing anywhere calls `traceRayEXT`, so no
-            // second level exists to be sized for.
+            // One, and one is the whole of it. Ray generation calls `traceRayEXT` and the shader
+            // the hit selects runs; that shader traces again with inline ray queries, which are
+            // not recursion and cost the stack nothing. Nothing a hit or a miss runs calls
+            // `traceRayEXT`, so no second level exists to be sized for.
             .maxPipelineRayRecursionDepth = 1,
             .layout = layout,
         };

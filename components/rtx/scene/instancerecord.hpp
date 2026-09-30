@@ -49,6 +49,11 @@ namespace Rtx
         /// The mesh whose bottom-level structure this places.
         Index mMesh = sNoIndex;
 
+        /// The material it wears, `sNoIndex` for none, and how much of it the game shows — the
+        /// placement's own, carried here so a row a backend writes has one source for all of it.
+        Index mMaterial = sNoIndex;
+        float mOpacity = 1.0f;
+
         /// What shading a hit on this instance takes — the material's own kind, carried on the
         /// placement so that traversal picks the shader through the shader-table record offset
         /// instead of the shader reading a material row.

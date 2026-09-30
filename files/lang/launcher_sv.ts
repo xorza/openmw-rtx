@@ -183,8 +183,8 @@
         <translation>16</translation>
     </message>
     <message>
-        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs an NVIDIA GPU with hardware ray tracing (Turing or later).</source>
-        <translation>Ersätter OpenGL-renderaren med den experimentella Vulkan-renderaren med strålspårning. Kräver ett NVIDIA-grafikkort med strålspårning i hårdvara (Turing eller senare).</translation>
+        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs a GPU with hardware ray tracing: NVIDIA Turing or AMD RDNA 2, or later.</source>
+        <translation>Ersätter OpenGL-renderaren med den experimentella Vulkan-renderaren med strålspårning. Kräver ett grafikkort med strålspårning i hårdvara: NVIDIA Turing eller AMD RDNA 2, eller senare.</translation>
     </message>
     <message>
         <source>Experimental Ray Tracing</source>
@@ -195,8 +195,8 @@
         <translation>Uppskalning</translation>
     </message>
     <message>
-        <source>How far below the window&apos;s size the ray tracer traces. The upscaler reconstructs the frame across frames whichever mode is chosen, and every mode but Native traces fewer pixels than it shows.</source>
-        <translation>Hur långt under fönstrets storlek strålspårningen sker. Uppskalaren rekonstruerar bilden över flera bilder i varje läge, och varje läge utom Nativ spårar färre pixlar än det visar.</translation>
+        <source>How far below the window&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
+        <translation>Hur långt under fönstrets storlek strålspårningen sker. Av spårar varje pixel utan uppskalare; varje annat läge kör uppskalaren, som rekonstruerar bilden över flera bilder, och varje läge utom Av och Nativ spårar färre pixlar än det visar.</translation>
     </message>
     <message>
         <source>Off</source>

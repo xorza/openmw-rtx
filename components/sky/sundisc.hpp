@@ -6,6 +6,20 @@ namespace Sky
 {
     struct TimeOfDaySettings;
 
+    /// Morrowind's own sun, hardcoded in the engine it came from: how far east and west its
+    /// direction swings, how far north it sits, and how far down it points. Named once for the
+    /// weather manager that places it, the disc drawn along it, and the ray tracer's day.
+    inline constexpr float sSunSwing = 400.f;
+    inline constexpr float sSunNorthing = 75.f;
+    inline constexpr float sSunDepth = -100.f;
+
+    /// The sun's direction at `orbit`, from -1 at one end of its day or night to 1 at the other:
+    /// `MWWorld::WeatherManager::update`'s own.
+    inline osg::Vec3f sunDirection(float orbit)
+    {
+        return osg::Vec3f(-sSunSwing * orbit, sSunNorthing, sSunDepth);
+    }
+
     /// Whether the sun is drawn at `hour`: `MWWorld::WeatherManager::update`'s own gate, which hides
     /// the disc from the night's start to its end. Lifted here so the renderer that asks whether
     /// there is a sun to cast a shadow from reads the rule the weather manager draws by.

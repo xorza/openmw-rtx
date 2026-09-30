@@ -4,7 +4,7 @@
 #include <cassert>
 #include <cstdint>
 
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/specular.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -36,7 +36,6 @@ namespace Rtx
         writes.image(Shaders::SPECULAR_BIND_SPECULAR, buffer.get(Channel::Specular).describeStorage());
         writes.image(Shaders::SPECULAR_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
-        writes.image(Shaders::SPECULAR_BIND_PUFFS, buffer.get(Channel::Puffs).describeStorage());
         writes.image(Shaders::SPECULAR_BIND_HELD_SURFACE, images.mHeldSurface.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MEAN_BEFORE, images.mMeanBefore.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MEAN, images.mMean.describeStorage());
@@ -44,9 +43,7 @@ namespace Rtx
         const Shaders::SpecularConstants constants{
             .mCamera = sampled.mCamera,
             .mArms = sampled.mArms,
-            .mPreviousForward = sampled.mPreviousForward,
-            .mPreviousRight = sampled.mPreviousRight,
-            .mPreviousUp = sampled.mPreviousUp,
+            .mPrevious = sampled.mPrevious,
             .mArmsSpread = sampled.mArmsSpread,
             .mReset = images.mFresh ? 1u : 0u,
             .mDistanceScale = frame.mDistanceScale,

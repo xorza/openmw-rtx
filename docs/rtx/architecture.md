@@ -12,7 +12,10 @@ field's words in [`components/rtx/GLOSSARY.md`](../../components/rtx/GLOSSARY.md
 Upstream OpenMW stays the host engine: cells, references, physics, scripts, animation, weather,
 GUI logic. A second renderer stands beside the OpenGL rasterizer and replaces the whole picture:
 primary visibility, shadows, direct and indirect light, sky, water and fog are ray traced. The
-rasterizer is not modified. Both renderers stand behind one interface, one binary ships both,
+rasterizer's picture is upstream's but for three corrections the ray tracer needed, each where
+upstream's was wrong: the optimizer merges in child order, an exterior map tile keeps its land
+where the quad tree has not built the chunk yet, and a `NightDaySwitch` shows its mode's child from
+its first frame. Both renderers stand behind one interface, one binary ships both,
 and the one not chosen never starts.
 
 The target is NVIDIA RTX, Turing and later, and AMD RDNA 2 and later, through Vulkan with ray
@@ -171,7 +174,8 @@ source-tree test holds the order.
   after it is a pixel.
 - **`Rtx::ContentPreprocessor`** is the one way anything is computed from what the content files
   hold — a shape's fold and the normals it smoothed across a hard edge split, a texture's alpha and
-  mean. One lives on each thread that reads content: the frame's walk and the ring's reader. Every
+  mean. One lives on each thread that reads content (`Rtx::ThreadContent`): the frame's, which the
+  world's walk, the sky and every picture's walk share, and the ring's reader's. Every
   pass is keyed on everything it reads and asked of `ContentCache` first; the cache holds nothing
   yet, so every pass runs, and what each costs is counted into the walk's stats and the
   `preprocess` row of a frame.

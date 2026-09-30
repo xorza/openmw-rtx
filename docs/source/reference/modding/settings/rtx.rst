@@ -24,7 +24,7 @@ also follow the settings window while the game runs.
 .. omw-setting::
    :title: distant land cells
    :type: float32
-   :range: ≥ 0
+   :range: 0 to 10
    :default: 4
 
    How far out from the eye the world is built, in cells. Rays go everywhere, so this says how much

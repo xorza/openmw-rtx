@@ -140,6 +140,14 @@ namespace Rtx
         /// the tables — the copy just written, whose set is synced. True where one was recorded.
         bool bakeGround(VkCommandBuffer commands, FrameSlot slot);
 
+        /// Gives back the structures of the meshes the scene freed since the last hand-over, once
+        /// per hand-over whichever of `extend` and `place` meets them first. Departures before
+        /// arrivals, and their rooms cool rather than going straight back, so an arrival cannot be
+        /// built into room a frame in flight is still tracing. The two lists are disjoint, so a
+        /// slot handed out again appears only among the arrivals, and `buildArrived` buries what
+        /// the slot held.
+        void releaseFreed(const SceneDesc& scene);
+
         const ScenePasses& mPasses;
 
         /// One row per placement slot, made whole when the scene is built and kept across frames,
@@ -154,6 +162,11 @@ namespace Rtx
         /// terrain a frame behind.
         std::vector<Index> mChangedRecords;
 
+        /// Every mesh slot the scene was built with, which the halves write and build the whole scene
+        /// through, down the path a list of arrivals takes. Here, as the records are, because both
+        /// read it. Before the halves.
+        std::vector<Index> mEveryMesh;
+
         SceneAcceleration mAcceleration;
         SceneBuffers mBuffers;
 
@@ -164,6 +177,10 @@ namespace Rtx
         /// Which revision of the mesh table the structures were built from, so `extend` can tell
         /// a scene that only gained textures from one that gained geometry too.
         std::uint64_t mBuiltMeshes = 0;
+
+        /// `MeshTable::getFreedCount` as `releaseFreed` last gave its list back, which a list
+        /// already given back in this hand-over matches.
+        std::uint64_t mReleasedFreed = 0;
 
         /// The revision of the whole structure this was built from: what `describe` answers and
         /// an uploader appends against.

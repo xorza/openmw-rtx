@@ -29,7 +29,7 @@ namespace Rtx
     struct PreparedModel;
 
     /// A read-only walk over a model as the loader built it, into a `PreparedModel`, for a thread
-    /// that is not the frame's. Not `MirrorTraversal`, because that one steps sequences and runs
+    /// that is not the frame's. Not `SceneExtractor::Traversal`, because that one steps sequences and runs
     /// controllers, and a template is shared with every clone and the preloader, so a walk from
     /// another thread may write nothing into it. `SceneUtil::CopyOp` shares the drawables, state
     /// sets and transforms, so a mesh read here is the mesh the frame's walk finds under the clone.

@@ -16,6 +16,7 @@
 #include <apps/components_tests/rtx/support/heldimages.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/rtx/environment/moonbuilder.hpp>
+#include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -79,13 +80,30 @@ namespace Rtx
             VFS::Manager vfs;
             Testing::HeldImages images(&vfs, 0);
             const osg::ref_ptr<osg::Image> portrait = new osg::Image;
+            portrait->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            for (std::size_t texel = 0; texel < 4; ++texel)
+            {
+                unsigned char* const at = portrait->data() + texel * 4;
+                at[0] = 255;
+                at[1] = 0;
+                at[2] = 0;
+                at[3] = 255;
+            }
             portrait->setFileName(std::string(moonFaceOf(Moon::Masser).value()));
             images.hold(moonFaceOf(Moon::Masser), portrait);
 
             SceneDesc scene;
+            ContentPreprocessor content;
             std::vector<TextureHold> holds;
             const MoonFaces faces
-                = addMoonFaces(scene, images, MoonSizes{ .mMasser = masser, .mSecunda = secunda }, holds);
+                = addMoonFaces(scene, images, MoonSizes{ .mMasser = masser, .mSecunda = secunda }, holds, content);
+
+            // **A face that opens is lit as it is painted, and one that does not as the shipped
+            // portrait**: an opaque red face averages red, and Secunda's keeps the shipped mean.
+            EXPECT_EQ(faces.meanOf(Moon::Masser), osg::Vec3f(1.0f, 0.0f, 0.0f)) << "a replaced portrait's own colour";
+            EXPECT_EQ(faces.meanOf(Moon::Secunda), sShippedSecundaFace);
+            EXPECT_EQ(placeMoon(faces, Moon::Masser, 47.0f, 35.0f, Sky::MoonPhase::Full, 1.0f).mColour,
+                osg::Vec3f(1.0f, 0.0f, 0.0f));
             EXPECT_EQ(holds.size(), 2u) << "a hold on each face";
             EXPECT_EQ(faces.radiusOf(Moon::Masser), moonAngularRadius(masser)) << "the size it was handed";
             EXPECT_EQ(faces.radiusOf(Moon::Secunda), moonAngularRadius(secunda));
@@ -101,7 +119,7 @@ namespace Rtx
             SceneDesc broken;
             std::vector<TextureHold> brokenHolds;
             const MoonFaces unsized
-                = addMoonFaces(broken, images, MoonSizes{ .mMasser = -3.0f, .mSecunda = 0.0f }, brokenHolds);
+                = addMoonFaces(broken, images, MoonSizes{ .mMasser = -3.0f, .mSecunda = 0.0f }, brokenHolds, content);
             EXPECT_EQ(unsized.radiusOf(Moon::Masser), 0.0f);
             EXPECT_EQ(unsized.radiusOf(Moon::Secunda), 0.0f);
             EXPECT_EQ(broken.refusals().count(Refused::Moon), 1u) << "Masser, and not Secunda";

@@ -52,14 +52,6 @@ namespace MWRender
 
         void setEnabled(bool enabled);
 
-        int getMasserPhase() const;
-        ///< 0 new moon, 1 waxing or waning cresecent, 2 waxing or waning half,
-        /// 3 waxing or waning gibbous, 4 full moon
-
-        int getSecundaPhase() const;
-        ///< 0 new moon, 1 waxing or waning cresecent, 2 waxing or waning half,
-        /// 3 waxing or waning gibbous, 4 full moon
-
         void setMoonColour(bool red);
         ///< change Secunda colour to red
 
@@ -68,8 +60,6 @@ namespace MWRender
         void sunEnable();
 
         void sunDisable();
-
-        bool isEnabled();
 
         void setSunDirection(const osg::Vec3f& direction);
 
@@ -81,13 +71,9 @@ namespace MWRender
         void listAssetsToPreload(
             std::vector<VFS::Path::Normalized>& models, std::vector<VFS::Path::Normalized>& textures);
 
-        float getBaseWindSpeed() const;
-
         void setSunglare(bool enabled);
 
         SceneUtil::RTTNode* getSkyRTT() { return mSkyRTT.get(); }
-
-        osg::Vec4f getSkyColor() const { return mSkyColour; }
 
     private:
         void create();
@@ -136,8 +122,6 @@ namespace MWRender
         osg::Vec4f mCloudColour;
         osg::Vec4f mSkyColour;
         osg::Vec4f mFogColour;
-
-        float mBaseWindSpeed;
 
         bool mEnabled;
         bool mSunglareEnabled;

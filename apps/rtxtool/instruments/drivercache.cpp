@@ -8,7 +8,7 @@
 #include <components/platform/process.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 
-#include "scenedigest.hpp"
+#include "digest.hpp"
 
 namespace RtxTool
 {

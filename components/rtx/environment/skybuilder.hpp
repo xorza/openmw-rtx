@@ -43,16 +43,16 @@ namespace Rtx
     {
         /// Every weather's deck unset — what a content that has not been read holds, and what
         /// `std::array`'s own default is not, since `sNoIndex` is not nought.
-        static constexpr std::array<Index, Shaders::WEATHER_COUNT> noDecks()
+        static constexpr std::array<Index, sWeatherCount> noDecks()
         {
-            std::array<Index, Shaders::WEATHER_COUNT> none{};
+            std::array<Index, sWeatherCount> none{};
             none.fill(sNoIndex);
             return none;
         }
 
-        /// One per weather, in `WEATHER_*` order. `sNoIndex` where the content files record no
+        /// One per weather, in `sWeather*` order. `sNoIndex` where the content files record no
         /// cloud texture for that weather, which the shipped fallbacks do for ash and blight.
-        std::array<Index, Shaders::WEATHER_COUNT> mClouds = noDecks();
+        std::array<Index, sWeatherCount> mClouds = noDecks();
 
         /// The mean luminance of what each weather's sheet paints, linear. Nought where no sheet
         /// was read. What a texel is read as a ratio to, so the painting gives shape and not a
@@ -61,13 +61,13 @@ namespace Rtx
         /// `_thunder` carry an alpha of 255 in every texel; their means are 0.268, 0.283 and 0.357,
         /// against clear 0.435, cloudy 0.552, foggy 0.639. Measured over the alpha, because clear
         /// weather's cirrus covers a quarter of its own sheet.
-        std::array<float, Shaders::WEATHER_COUNT> mCloudMean{};
+        std::array<float, sWeatherCount> mCloudMean{};
 
         /// The mean alpha of each weather's sheet: how much sky its deck hides on average, which a
         /// cloud's shadow is measured against because the content's own `Sun_*_Color` has already
         /// dimmed the sun for that weather (`Shaders::CLOUD_SHADOW_DEPTH`). A quarter for clear
         /// weather's cirrus, three quarters for cloudy, all of it for the three opaque sheets.
-        std::array<float, Shaders::WEATHER_COUNT> mCloudCover{};
+        std::array<float, sWeatherCount> mCloudCover{};
 
         /// The night sky, read off the mesh the rasterizer draws it with: the star field, the scale
         /// its sheet is laid at, where it fades, and the six patches painted across it.
@@ -121,8 +121,8 @@ namespace Rtx
     /// Which weather's deck is over the eye, which one is arriving, and how the two sheets stand.
     struct CloudCrossing
     {
-        std::uint32_t mWeather = Shaders::WEATHER_CLEAR;
-        std::uint32_t mNext = Shaders::WEATHER_CLEAR;
+        std::uint32_t mWeather = sWeatherClear;
+        std::uint32_t mNext = sWeatherClear;
 
         /// How far the deck has crossed from this weather's sheet to the next one's.
         float mBlend = 0.0f;
@@ -146,13 +146,13 @@ namespace Rtx
     ///
     /// @param fade the engine's `Stars` ramp at this hour, which is what brings them out at dusk.
     /// @param glare the weather's `Glare_View`, which is what keeps them in under an overcast.
-    /// @param turn `MWRender::WorldState::mStarRoll`.
+    /// @param turn `Rtx::WorldReading::mStarRoll`.
     Shaders::StarField describeStars(float fade, float glare, float turn, const SkyContent& textures);
 
     /// The nebulae and the constellations, placed — the same shape a moon is, a direction, a size
     /// and a texture, drawn as the disc the moons are. Where they go was read off the mesh.
     ///
-    /// @param turn `MWRender::WorldState::mStarRoll`, because they are on the star sphere.
+    /// @param turn `Rtx::WorldReading::mStarRoll`, because they are on the star sphere.
     /// @param patches written here rather than returned, so a frame's description costs no
     ///        allocation.
     void describePatches(

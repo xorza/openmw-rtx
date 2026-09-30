@@ -19,31 +19,8 @@
 #include "skybuilder.hpp"
 #include "skylight.hpp"
 
-namespace osg
-{
-    class Node;
-}
-
 namespace Rtx
 {
-    class SceneExtractor;
-
-    /// Walks what the weather drops, which is a second root to whoever mirrors the world. Those
-    /// nodes hang under the sky's camera-relative transform, so their particles are placed about
-    /// the origin and stood at the eye the drops were driven with — the one place the box travels
-    /// nowhere, so a sprite's travel between two frames is its fall. Not walked where the eye is
-    /// under water: the sky manager freezes the drops where they stand, and walked anyway they hang
-    /// in the air.
-    ///
-    /// @param fall what is falling — the sky manager's rain box or its driven effect — or null for
-    ///        a world with nothing of that kind over it.
-    /// @param anchor what tells this walk's placements from another's over the same extractor, as
-    ///        `SceneExtractor::extract` takes it: the rain and the driven effect are two roots the
-    ///        walk cannot tell apart by structure.
-    /// @param frameNumber the frame the walk belongs to, as `SceneExtractor::extractWorld` takes it.
-    void mirrorPrecipitation(SceneExtractor& extractor, osg::Node* fall, const osg::Vec3f& eye, bool underwater,
-        std::size_t anchor, std::size_t frameNumber);
-
     /// The deck and the star field a world with no sky has: nothing to draw, which the shader reads
     /// off the texture slot before it samples anything. Built whole and then named rather than by
     /// designated initializer, which GCC cannot tell from an aggregate left short.
@@ -163,9 +140,9 @@ namespace Rtx
     /// clock and the glare fader. The camera's half is the builders' (`makeCameraFromView`) and is
     /// left alone, and so is every option the world does not decide. The order is the whole of what
     /// this is for: the stars before the sky's budget, the budget before the air, and both before
-    /// the deck. One call and not twenty assignments per host, or a field added to one host is
-    /// forgotten in the other. `drift` is stepped here by this reading's clock and wind, because the
-    /// heading it blows along is the deck's, which is settled here and nowhere else.
+    /// the deck. One call and not twenty assignments at the reader, so the order is stated where the
+    /// fields are and a field added is placed by it. `drift` is stepped here by this reading's clock and wind, because
+    /// the heading it blows along is the deck's, which is settled here and nowhere else.
     void describeWorld(
         const WorldReading& reading, FogDrift& drift, Shaders::VisibilityConstants& constants, FrameOptions& options);
 }

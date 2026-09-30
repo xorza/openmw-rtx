@@ -70,11 +70,11 @@ set(RTX_TEST_FILES
     rtx/scene/scenedesc.cpp
     rtx/scene/scenetextures.cpp
     rtx/scene/surface.cpp
-    rtx/scene/tangent.cpp
     rtx/shaders/brdf.cpp
     rtx/shaders/exposure.cpp
     rtx/shaders/hitrecords.cpp
     rtx/shaders/pixelgrid.cpp
+    rtx/shaders/tangent.cpp
     rtx/sourcetree.cpp
     rtx/support/halfstep.cpp
     rtx/view/offscreentrace.cpp
@@ -174,7 +174,6 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/pipeline/tracepipeline.cpp
     rtxvulkan/scene/bottomlevelstore.cpp
     rtxvulkan/scene/skinpass.cpp
-    rtxvulkan/scene/spritepasses.cpp
     rtxvulkan/spirv/pinnedarithmetic.cpp
     rtxvulkan/texture/groundcompositepass.cpp
     rtxvulkan/texture/mipchainpass.cpp
@@ -182,7 +181,9 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/texture/shadingpass.cpp
     rtxvulkan/texture/spritelightpass.cpp
     rtxvulkan/texture/texturearray.cpp
+    rtxvulkan/trace/fogvolume.cpp
     rtxvulkan/trace/ripplepass.cpp
+    rtxvulkan/trace/spritepasses.cpp
     rtxvulkan/trace/stresspass.cpp
     rtxvulkan/trace/visibility/filter.cpp
     rtxvulkan/trace/visibility/fixture.hpp

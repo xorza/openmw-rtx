@@ -46,7 +46,6 @@ namespace Rtx::Testing
             Rtx::SceneSlot slot, const Rtx::SceneDesc& scene, std::span<const Rtx::TextureData> textures) override
         {
             ++mRebuilt;
-            mDescribed = textures.size();
             recordSlots(textures);
 
             // What the backend does: the array is made again and ends where the scene's table
@@ -59,7 +58,6 @@ namespace Rtx::Testing
             Rtx::SceneSlot slot, const Rtx::SceneDesc& scene, std::span<const Rtx::TextureData> arrived) override
         {
             ++mExtended;
-            mDescribed = arrived.size();
             recordSlots(arrived);
 
             // **The array reaches the highest slot written, and is not a count of what arrived.**
@@ -74,11 +72,7 @@ namespace Rtx::Testing
             heldAt(slot).mRevision = scene.getStructureRevision();
         }
 
-        void placeScene(Rtx::SceneSlot, const Rtx::SceneDesc&) override
-        {
-            ++mPlaced;
-            mDescribed = 0;
-        }
+        void placeScene(Rtx::SceneSlot, const Rtx::SceneDesc&) override { ++mPlaced; }
 
         Rtx::SceneHeld describeHeld(Rtx::SceneSlot slot) const override
         {
@@ -203,10 +197,6 @@ namespace Rtx::Testing
         std::uint32_t mPlaced = 0;
         std::uint32_t mExtended = 0;
         std::uint32_t mRebuilt = 0;
-
-        /// How many descriptions the last call was handed, which is what says whether a texture
-        /// already uploaded was decoded and shading-estimated a second time.
-        std::size_t mDescribed = 0;
 
         std::uint32_t mTextures = 0;
         bool mAppendedToWrongEnd = false;

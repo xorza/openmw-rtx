@@ -19,7 +19,6 @@ namespace MWRender
             .mObjectPagingMinSize = Settings::terrain().mObjectPagingMinSize,
             .mSpecularMapLayout = Settings::rtx().mSpecularMapLayout.get(),
             .mAnisotropy = Settings::general().mAnisotropy,
-            .mGroundcover = Settings::groundcover().mEnabled,
         };
     }
 
@@ -28,7 +27,7 @@ namespace MWRender
         return RtxSettings{
             .mUpscale = Rtx::sUpscaleNames.require(values.mUpscale, "an upscale mode"),
             .mMirror = {
-                .mReach = Rtx::distantLandReach(values.mDistantLandCells, values.mViewingDistance),
+                .mReach = { .mCells = values.mDistantLandCells, .mViewingDistance = values.mViewingDistance },
                 .mDistantStatics = values.mObjectPaging,
                 .mMinSize = values.mObjectPagingMinSize,
                 .mSpecularLayout = Rtx::sSpecularLayoutNames.require(values.mSpecularMapLayout, "a specular map layout"),

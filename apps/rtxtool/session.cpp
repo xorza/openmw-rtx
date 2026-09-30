@@ -79,7 +79,7 @@ namespace RtxTool
 
         mStarted = true;
 
-        const float step = mRequest.mSetup.getWorldStep();
+        const float step = worldStep(mRequest.mSetup);
         Log(Debug::Info) << "Ray tracing session: stop " << (mAt + 1) << " of " << mRequest.mStops.size() << ", "
                          << (stop.mName.empty() ? "unnamed" : stop.mName) << " — "
                          << stop.mSchedule.mSpec.getWarmup(step) << " frames warming up then "
@@ -93,7 +93,7 @@ namespace RtxTool
         if (mDone || !mStarted)
             return std::nullopt;
 
-        return mMeasurer.getSeen();
+        return currentStop().mSchedule.mSampleOffset + mMeasurer.getSeen();
     }
 
     std::uint32_t Session::getAccumulated() const
@@ -204,10 +204,15 @@ namespace RtxTool
         if (mMeasurer.getSeen() == 0)
             Stager::forgetHistory();
 
-        mHome.listen();
-        if (const SkyPress press = mSkyKeys.listen(); press.mSteps != 0)
-            mCamera.turnSkyBy(currentStop(), press.mSteps, press.mAtOnce);
-        mCamera.step(currentStop(), mMeasurer.getMeasuredIndex(), mRequest.mSetup.getWorldStep());
+        // Where somebody plays the run, and nowhere else: a key pressed in a measured window
+        // would move what the measurement records nothing of.
+        if (mRequest.mPlayed)
+        {
+            mHome.listen();
+            if (const SkyPress press = mSkyKeys.listen(); press.mSteps != 0)
+                mCamera.turnSkyBy(currentStop(), press.mSteps, press.mAtOnce);
+        }
+        mCamera.step(currentStop(), mMeasurer.getMeasuredIndex(), worldStep(mRequest.mSetup));
 
         // **After the camera has stepped and on every frame, warm-up included.** `CameraDriver::aim`
         // says why once is not enough; the warm-up frames stand at the route's start.

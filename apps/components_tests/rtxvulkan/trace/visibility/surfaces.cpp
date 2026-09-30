@@ -27,7 +27,7 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/material.hpp>
@@ -42,8 +42,8 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
-#include <components/rtxvulkan/scene/spritebin.hpp>
-#include <components/rtxvulkan/scene/spritepasses.hpp>
+#include <components/rtxvulkan/trace/spritebin.hpp>
+#include <components/rtxvulkan/trace/spritepasses.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"
@@ -79,7 +79,7 @@ namespace Rtx::Testing
 
             // No sprites, so no tiles, and the table is still a buffer rather than `VK_NULL_HANDLE`.
             Batch setup(pool);
-            const SceneBuffers buffers(device, setup, empty, {}, 1);
+            const SceneBuffers buffers(device, setup, empty, {}, {}, 1);
             setup.flush();
 
             // **Every table this hands out**, because the rule is the same for all of them; which
@@ -178,6 +178,7 @@ namespace Rtx::Testing
                 const Testing::NoRoomForContent full(mRenderer.getDevice());
                 mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&second, 1));
             }
+            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
 
             // The meshes first, because the structures are stood before the textures.
             const std::span<const Refusal> refused = mRenderer.getRefusals(Rtx::SceneSlot::world());
@@ -262,6 +263,7 @@ namespace Rtx::Testing
             const Index blueTexture = scene.materials().getRows()[blue].mDiffuse;
             const TextureData second = describeTexel(blueTexel, blueTexture);
             mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&second, 1));
+            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
             EXPECT_EQ(mRenderer.describeHeld(Rtx::SceneSlot::world()).mTextureCount, 2u);
 
             mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
@@ -288,7 +290,7 @@ namespace Rtx::Testing
             // `SceneUploader` recognising its own scene, and every frame after this would build the
             // world again from nothing.
             holds.dropMaterial(blue);
-            ASSERT_TRUE(scene.textures().isFree(blueTexture));
+            ASSERT_FALSE(scene.textures().isLive(blueTexture));
             ASSERT_EQ(scene.textures().getRows().size(), 2u) << "the table does not shrink";
 
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, std::span(&first, 1));
@@ -322,13 +324,63 @@ namespace Rtx::Testing
             scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = again });
 
             holds.dropMaterial(red);
-            ASSERT_TRUE(scene.textures().isFree(0u));
+            ASSERT_FALSE(scene.textures().isLive(0u));
 
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, std::span(&second, 1));
             mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             mRenderer.readPixels(shown);
 
             EXPECT_TRUE(wearsBlue(centre)) << "the description landed at its position rather than its slot";
+        }
+
+        /// **A placement with no material keeps wearing none when a material arrives.** The
+        /// untextured row stood one past the materials, so an arrival took that row over and every
+        /// placement still naming it wore the arrival — a plausible picture of the wrong surface.
+        /// It stands first now, and a material appended lands past it.
+        TEST_F(RtxVisibilityTest, anUntexturedPlacementWearsNothingAfterAMaterialArrives)
+        {
+            constexpr std::uint32_t size = 32;
+            constexpr std::size_t centre = centreValueOf(size);
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            SceneDesc scene;
+            const Index mesh
+                = scene.addMesh(MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+            Testing::SceneHolds holds(scene);
+            holds.mesh(mesh);
+            scene.addInstance(MeshInstance{ .mMesh = mesh });
+
+            mRenderer.resize(size, size);
+            mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+
+            std::vector<std::uint8_t> untextured;
+            mRenderer.readPixels(untextured);
+
+            // Settled, as every hand-over of the world settles it: a placement still on the moved
+            // list has its row written again at every hand-over, which would hide the fault.
+            scene.placements().advance();
+            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            scene.placements().advance();
+
+            // A red material arrives and nothing wears it: the row it lands in is the one the
+            // untextured placement named before, where the old layout kept its sentinel.
+            constexpr std::array<std::uint8_t, 4> redTexel{ 255, 0, 0, 255 };
+            const Index red
+                = scene.addMaterial(Material{ .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("red.dds")) });
+            holds.material(red);
+            const TextureData arrived = describeTexel(redTexel, scene.materials().getRows()[red].mDiffuse);
+            mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&arrived, 1));
+            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+            mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
+
+            std::vector<std::uint8_t> after;
+            mRenderer.readPixels(after);
+            for (std::size_t channel = 0; channel < 3; ++channel)
+                EXPECT_EQ(after[centre + channel], untextured[centre + channel])
+                    << "channel " << channel << " of the untextured wall moved when a material arrived";
         }
 
         /// **The pass is built once and kept, because building one compiles a shader** — so the set
@@ -1878,7 +1930,7 @@ namespace Rtx::Testing
             // composite — which chunk it is the ground of, and no bytes.
             Material flattened = material;
             flattened.mFlatten = true;
-            flattened.mDiffuse = scene.textures().addBaked("chunk/0");
+            flattened.mDiffuse = scene.textures().addBaked("chunk/0", TextureEncoding::Colour);
             scene.setMaterial(chunk, flattened);
             const TextureData composite{
                 .mSlot = flattened.mDiffuse,
@@ -1888,8 +1940,9 @@ namespace Rtx::Testing
             };
 
             // Into the standing world: the arrival stands the composite empty, and the placement
-            // `extendScene` ends in bakes it.
+            // after it bakes it.
             mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&composite, 1));
+            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
             mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             ASSERT_TRUE(mRenderer.finishFrame().has_value());
             frame = readFrame(size);

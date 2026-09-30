@@ -233,7 +233,13 @@ namespace Rtx
         if (!(depth > 0.0f))
             return 0.0f;
 
-        return std::log(2.0f) / (over * (1.0f - 0.5f * depth));
+        // **A depth of two or more is half fogged at the eye**: the original's ramp then starts a
+        // whole view or more behind it. A medium puts its half-life no nearer than the eye, so such
+        // a record is the densest air there is, a half-life of the shortest distance the world
+        // measures — and a divisor that reached nought or crossed it was an infinite or negative
+        // extinction, a frame of black or of NaN.
+        constexpr float leastHalfLife = 1.0f;
+        return std::log(2.0f) / std::max(over * (1.0f - 0.5f * depth), leastHalfLife);
     }
 
     float fogLift(float depth, float wind)

@@ -168,33 +168,4 @@ namespace RtxTool
     /// One number for the whole layout, for a caller with one line to print; a report with room
     /// for the columns names them instead.
     std::array<std::uint64_t, 2> digestLayout(const ScenePartDigests& parts);
-
-    /// MurmurHash3 over whatever is fed to it, in the order it is fed. Chained through the seed, so
-    /// a digest of many spans needs no copy of them laid end to end.
-    class Digest
-    {
-    public:
-        void add(std::span<const std::byte> bytes);
-
-        template <class T>
-        void add(std::span<const T> values)
-        {
-            add(std::as_bytes(values));
-        }
-
-        template <class T>
-        void add(const T& value)
-        {
-            add(std::span<const T>(&value, 1));
-        }
-
-        const std::array<std::uint64_t, 2>& getWords() const { return mWords; }
-
-    private:
-        std::array<std::uint64_t, 2> mWords{};
-    };
-
-    /// Thirty-two hex digits, which is how a hashes file spells one and how `scene` reports one.
-    std::string spellHash(const std::array<std::uint64_t, 2>& words);
-
 }

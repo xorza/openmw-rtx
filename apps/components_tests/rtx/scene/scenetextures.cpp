@@ -273,6 +273,14 @@ namespace Rtx
                 EXPECT_EQ(std::to_integer<std::size_t>(gathered.mBytes[at]), source % 256) << "byte " << at;
             }
 
+            // Its finest level alone is the first slice's 64 bytes, spanned where they lie.
+            const Rtx::TextureData finest = describeFinestLevel(*rgba, levels, texels).value();
+            EXPECT_EQ(finest.mBytes.data(), reinterpret_cast<const std::byte*>(rgba->data()));
+            EXPECT_EQ(finest.mBytes.size(), 64u);
+            ASSERT_EQ(finest.mLevels.size(), 1u);
+            EXPECT_EQ(finest.mLevels[0].mOffset, 0u);
+            EXPECT_EQ(finest.mLevels[0].mWidth, 4u);
+
             const osg::ref_ptr<osg::Image> flat = makeVolume(GL_RGBA, GL_UNSIGNED_BYTE, 4);
             flat->setMipmapLevels({});
             ASSERT_EQ(flat->getTotalSizeInBytesIncludingMipmaps(), 128u) << "both slices, which a stage once read";
@@ -533,8 +541,8 @@ namespace Rtx
 
             scene.dropInstance(going.mPlacement, Rtx::Stander::Walk);
             ASSERT_EQ(going.mTexture, 0u) << "the gap has to be below something to be a gap";
-            ASSERT_TRUE(scene.textures().isFree(going.mTexture));
-            ASSERT_FALSE(scene.textures().isFree(staying.mTexture));
+            ASSERT_FALSE(scene.textures().isLive(going.mTexture));
+            ASSERT_TRUE(scene.textures().isLive(staying.mTexture));
 
             // The slot keeps no image, so the one that is described does not resolve — which is the other
             // half of the statement: a slot that named a file and failed at it is a failure, and a
@@ -569,7 +577,7 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView smoke("textures/tx_smoke.dds");
 
             Rtx::SceneDesc scene;
-            const Rtx::Index bake = scene.textures().addBaked(SpriteLightMap::keyFor(smoke));
+            const Rtx::Index bake = scene.textures().addBaked(SpriteLightMap::keyFor(smoke), TextureEncoding::Colour);
 
             SceneTextures described;
             described.describeAll(scene);

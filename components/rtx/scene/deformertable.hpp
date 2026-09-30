@@ -111,8 +111,10 @@ namespace Rtx
     /// have to be released in one order across five allocators. A mesh standing on a deformer is
     /// one hold on its row. Every call takes the `MeshRange`, because which deformer poses a mesh
     /// is the mesh's own fact. One row table, one arrival set and one pose buffer for both kinds,
-    /// because everything but the kernel that reads them is the same bookkeeping.
-    class DeformerTable
+    /// because everything but the kernel that reads them is the same bookkeeping. A row's holds are
+    /// nought only between `addRig` or `addMorph` and the stand `SceneDesc::addMesh` makes in the
+    /// same call.
+    class DeformerTable : public HeldRows<Deformer>
     {
     public:
         /// Copies a skin's runs and influences into the shared tables and returns the rig's index.
@@ -137,12 +139,10 @@ namespace Rtx
         /// where this was the last mesh standing on it.
         void release(MeshRange& range);
 
-        std::span<const Deformer> getDeformers() const { return mDeformers.getRows(); }
-
         /// What poses `mesh`: its deformer's kind, or `Deform::None` for a mesh that stands.
         Deform kindOf(const MeshRange& mesh) const
         {
-            return mesh.deforms() ? mDeformers.at(mesh.mDeformer).mKind : Deform::None;
+            return mesh.deforms() ? mRows.at(mesh.mDeformer).mKind : Deform::None;
         }
 
         std::span<const std::uint32_t> getRuns() const { return mRuns.getAll(); }
@@ -159,26 +159,16 @@ namespace Rtx
         /// The pose a mesh holds, in words.
         std::span<const PoseWord> getMeshPose(const MeshRange& range) const;
 
-        /// Settles what `release` took out of the arrivals, so they can be read again. Called where
-        /// a sweep ends, which is the only thing that releases a deformer.
+        /// Settles what `release` took out of the arrivals, so they can be read again. Called by
+        /// `MeshTable::drop` after every release of a deformer, which is the only thing that
+        /// releases one.
         void compact();
 
         void clearArrivals();
 
-        /// Whether `deformer` holds a rig or a set of targets: what `SceneDesc::isConsistent`
-        /// asks beside the holds, because a live row with none is one nothing frees.
-        bool isLive(Index deformer) const { return mDeformers.isLive(deformer); }
-        std::size_t getLiveCount() const { return mDeformers.getLiveCount(); }
-
-        /// How many meshes stand on a deformer. Nought is a free slot, or one the mesh that
-        /// brought it has not stood on yet — a window `SceneDesc::addMesh` closes in the same call.
-        std::uint32_t getHolds(Index deformer) const { return mDeformers.getHolds(deformer); }
-
     private:
         /// Files `deformer` in a slot and among the arrivals.
         Index take(const Deformer& deformer);
-
-        SlotRows<Deformer> mDeformers;
 
         /// Unblocked, unlike the bind runs below: a backend reaches each of these by an address
         /// it is handed per dispatch, so nothing here has to keep an address across a growth.

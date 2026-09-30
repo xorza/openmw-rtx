@@ -6,6 +6,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <string>
+#include <thread>
 
 #include <SDL_hints.h>
 #include <SDL_video.h>
@@ -14,6 +15,7 @@
 #include <osg/Group>
 #include <osg/Stats>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/misc/frameclock.hpp>
 #include <components/misc/frameratelimiter.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -67,6 +69,11 @@ namespace MWRender
 
     std::chrono::steady_clock::duration Renderer::awaitFrame()
     {
+        // Here, because every frame the game draws opens through here: the world's, the loading
+        // screen's, and the nested ones a video and a blocking message box draw. A frame counted
+        // anywhere else leaves one of them to read as a hang.
+        Crash::heartbeat();
+
         const std::chrono::steady_clock::time_point began = std::chrono::steady_clock::now();
         mLimiter.limit();
         mLastHold = std::chrono::steady_clock::now() - began;
@@ -120,6 +127,12 @@ namespace MWRender
         eventTraversal();
         updateTraversal();
         renderGui();
+        advance(getFrameStamp().getSimulationTime());
+    }
+
+    void Renderer::skipGuiFrame()
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
         advance(getFrameStamp().getSimulationTime());
     }
 

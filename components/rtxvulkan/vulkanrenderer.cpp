@@ -22,8 +22,8 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
-#include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/kernelprogress.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/slot.hpp>
@@ -70,14 +70,13 @@ namespace Rtx
               PipelineCacheSpec{ .mDirectory = options.mCacheDirectory })
         , mCounting(options.mCounting)
         , mProfile(options.mProfile)
-        , mReadsCounts(mCounting || mProfile.mStressOverlapMs > 0.0)
+        , mRing(mDevice, mCounting || mProfile.mStressOverlapMs > 0.0)
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
         , mFrame(mDevice, mTracePasses)
-        , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get(), PresentTargets::sFormat)
-        , mDigest(mDevice)
+        , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get())
         , mMedia(mDevice)
-        , mGui(mDevice, PresentTargets::sFormat)
+        , mGui(mDevice)
         , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures())
         , mUpscaler(mDevice)
     {
@@ -133,7 +132,7 @@ namespace Rtx
 
         mProfile.mUpscale = upscale;
 
-        const VkExtent2D output = mTargets.getExtent();
+        const VkExtent2D output = mTarget.getExtent();
         createTargets(output.width, output.height);
     }
 
@@ -156,9 +155,7 @@ namespace Rtx
         const VkExtent2D render{ extents.mRenderWidth, extents.mRenderHeight };
         mFrame.resize(render.width, render.height, mProfile.mRadianceWidth);
 
-        // Two, and interchangeable, because the frame after this one must not rewrite the image
-        // the present is still blitting out of. `PresentTargets` is what holds that rule.
-        mTargets.resize(mDevice, width, height);
+        mTarget.resize(mDevice, width, height);
 
         // An upscaler a mode turned off keeps nothing but its pipelines: its images go with the mode.
         if (upscaling())
@@ -274,14 +271,10 @@ namespace Rtx
         Batch setup(mDevice.getPool());
         held.extend(setup, scene, arrived, timer);
 
-        // Deferred to the placement's submit: `placeScene` submits this ahead of the refit and the
-        // top level, and the barrier every upload and build ends in orders them, so a composite
-        // landing costs no submit, fence or wait of its own.
+        // Deferred to the placement's submit: the `placeScene` the caller owes after this submits
+        // it ahead of the refit and the top level, and the barrier every upload and build ends in
+        // orders them, so a composite landing costs no submit, fence or wait of its own.
         setup.defer();
-
-        // Always, because the top level names every instance and an arrival changed the list. It is
-        // rebuilt every frame regardless, so an arrival costs it nothing.
-        placeScene(slot, scene);
 
         // The history is kept. Nothing was renumbered, so what the last frame resolved still
         // describes the same surfaces — and throwing it away is a visible flash every time an actor
@@ -445,7 +438,7 @@ namespace Rtx
             height = shown.height;
         }
 
-        if (width == mTargets.getExtent().width && height == mTargets.getExtent().height)
+        if (width == mTarget.getExtent().width && height == mTarget.getExtent().height)
             return;
 
         createTargets(width, height);
@@ -473,7 +466,7 @@ namespace Rtx
 
     void VulkanRenderer::drawGui(std::span<const GuiVertex> vertices, std::span<const GuiBatch> batches)
     {
-        assert(mTargets.isOpen());
+        assert(mTarget.isOpen());
 
         if (vertices.empty() || batches.empty())
             return;
@@ -481,24 +474,15 @@ namespace Rtx
         // After the frame's submit, and not waited for. The GUI is collected once the world has
         // been drawn and there is nothing to gain by holding the frame open for it; the queue draws
         // it after the frame, and the present blits after both.
-        mGui.draw(vertices, batches, claimTarget());
+        mGui.draw(vertices, batches, mTarget.get());
     }
 
     void VulkanRenderer::presentFrame()
     {
         assert(mPresenter != nullptr && "presentFrame on a renderer that was given no window");
-        assert(mTargets.isOpen());
+        assert(mTarget.isOpen());
 
-        mPresenter->present(mTargets.current());
-        mTargets.presented();
-    }
-
-    Image& VulkanRenderer::claimTarget()
-    {
-        // A present's blit outlives the call that queued it — under FIFO it waits until the
-        // presentation engine has let that swapchain image go — and no barrier's source scope
-        // reaches across a submit, so the target is waited for by the stamp the blit left on it.
-        return mTargets.claim([](const Image& target) { target.waitIdle("the blit that last read this frame"); });
+        mPresenter->present(mTarget.get());
     }
 
     FrameExtents VulkanRenderer::getExtents() const
@@ -506,8 +490,8 @@ namespace Rtx
         return FrameExtents{
             .mRenderWidth = mFrame.getWidth(),
             .mRenderHeight = mFrame.getHeight(),
-            .mOutputWidth = mTargets.getExtent().width,
-            .mOutputHeight = mTargets.getExtent().height,
+            .mOutputWidth = mTarget.getExtent().width,
+            .mOutputHeight = mTarget.getExtent().height,
         };
     }
 
@@ -535,13 +519,6 @@ namespace Rtx
         FrameRecord& frame = mRing.begin();
 
         const float sinceLastMs = options.mSinceLast * 1000.0f;
-
-        // The miss count is an atomic sum over the frame, so the block starts each one at nothing
-        // — and it is not started at all where nothing reads it back, which is the other half of
-        // taking the counters out of the game: the atomics went with `COUNTING`, and this is the
-        // write a frame that never reads it was still paying for.
-        if (mReadsCounts)
-            frame.mCounts.writable<Shaders::FrameCounts>(0, 1).front() = Shaders::FrameCounts{};
 
         // What reconstructs this frame, decided once and by one rule. Every switch below reads
         // this rather than working the interaction out again; the same value goes back in the frame
@@ -584,7 +561,7 @@ namespace Rtx
             mMedia.placeRipples(sampled);
         }
 
-        Image& target = claimTarget();
+        Image& target = mTarget.get();
 
         const TraceResult traced = mFrame.record(commands,
             TraceRecording{
@@ -606,13 +583,14 @@ namespace Rtx
             for (const Channel channel : sEveryChannel)
                 digested[bindingOf(channel)] = &channels.get(channel);
 
-            mDigest.record(commands, digested, frame.mDigestLanes, &timer);
-            frame.mDigest = FrameDigest{
-                .mJitterX = sampled.mCamera.mJitter.x(),
-                .mJitterY = sampled.mCamera.mJitter.y(),
-                .mFrameDeltaMs = sinceLastMs,
-                .mReset = reconstruction.upscaled() && mUpscaler.isFresh() ? 1u : 0u,
-            };
+            mRing.readDigest(frame, commands, digested,
+                FrameDigest{
+                    .mJitterX = sampled.mCamera.mJitter.x(),
+                    .mJitterY = sampled.mCamera.mJitter.y(),
+                    .mFrameDeltaMs = sinceLastMs,
+                    .mReset = reconstruction.upscaled() && mUpscaler.isFresh() ? 1u : 0u,
+                },
+                &timer);
         }
 
         if (reconstruction.upscaled())
@@ -623,7 +601,6 @@ namespace Rtx
                     .mColour = traced.mColour,
                     .mSurface = channels.get(Channel::Surface),
                     .mMotion = channels.get(Channel::Motion),
-                    .mPuffs = channels.get(Channel::Puffs),
                     .mMasks = channels.get(Channel::UpscaleMasks),
                     .mCamera = sampled.mCamera,
                     .mArms = sampled.mArms,
@@ -654,7 +631,7 @@ namespace Rtx
                 .mTrace = traced,
                 .mShown = upscaled ? mUpscaler.getOutput() : traced.mColour,
                 .mShownFrom = upscaled ? Use::sAnyGeneralWrite : Use::sAnyGeneralRead,
-                .mExtent = mTargets.getExtent(),
+                .mExtent = mTarget.getExtent(),
                 .mSampled = sampled,
                 .mTarget = target,
                 .mFrame = FrameLook{
@@ -666,17 +643,9 @@ namespace Rtx
                 },
             });
 
-        // The picture as the curve left it and before the interface, into host memory of the
-        // ring's, for the report that comes back with the frame. Grown here and not at the resize,
-        // because most frames never ask.
+        // The picture as the curve left it and before the interface.
         if (options.mReadBack)
-        {
-            const VkDeviceSize bytes = target.getReadBytes();
-            GrowableBuffer& picture = mRing.pictureOf(mRing.getRecording());
-            picture.growTo(bytes);
-            target.recordRead(commands, Use::sComputeWrite, Use::sComputeWrite, picture.get());
-            frame.mReadBackBytes = bytes;
-        }
+            mRing.readPicture(frame, commands, target);
 
         // After the picture and inside the frame's trace, so the frame is finished when its value
         // has passed and the hold is the last thing it did.
@@ -684,12 +653,7 @@ namespace Rtx
             mStress->record(commands, timer, frame.mCounts);
 
         // Submitted and not waited for: `finishFrame` or `collectFrame` brings the counts and the
-        // report back a frame or two late. A wait's access scope is the device's, so the counts
-        // need a dependency of their own, recorded here after every pass that could have written
-        // them — the hold included.
-        if (mReadsCounts)
-            frame.mCounts.orderForHostRead(commands);
-
+        // report back a frame or two late.
         mRing.submit(frame);
 
         // What the next frame reprojects against, and the camera as the caller gave it: a jitter is
@@ -748,13 +712,9 @@ namespace Rtx
 
     void VulkanRenderer::readPixels(std::vector<std::uint8_t>& pixels)
     {
-        assert(mTargets.isOpen());
+        assert(mTarget.isOpen());
 
-        // The frame that was finished, not the one the next will be written into. A present has
-        // already swapped those two; with no window nothing presents, nothing swaps, and the frame
-        // just written is still the one `mTargets.current()` names.
-        const Image& frame = mTargets.lastPresented() != nullptr ? *mTargets.lastPresented() : mTargets.current();
-        frame.read(VK_IMAGE_LAYOUT_GENERAL, pixels);
+        mTarget.get().read(VK_IMAGE_LAYOUT_GENERAL, pixels);
     }
 
     void VulkanRenderer::readChannel(const Channel channel, std::vector<float>& values)

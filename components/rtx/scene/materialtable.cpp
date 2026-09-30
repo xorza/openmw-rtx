@@ -102,8 +102,7 @@ namespace Rtx
         for (const MaterialLayer& layer : going.mLayers.in(getLayers()))
             mMasks.release(maskOf(layer));
 
-        if (!going.mLayers.empty())
-            mLayers.release(going.mLayers);
+        mLayers.release(going.mLayers);
 
         going = Material{};
         mRows.free(material);

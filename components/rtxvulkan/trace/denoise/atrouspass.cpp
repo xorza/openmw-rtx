@@ -3,7 +3,7 @@
 #include <array>
 #include <cassert>
 
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/atrous.h>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/look.h>
@@ -17,15 +17,14 @@ namespace Rtx
     namespace
     {
         /// The channel coming in with its variance, which says where the edges in the light are,
-        /// the channel going out, the one that says where the edges in the surface are, and the
-        /// puffs. All pushed. Sampled on the three this pass only reads, because a twenty-five tap
+        /// the channel going out, and the one that says where the edges in the surface are and which
+        /// eye each pixel's ray left. All pushed. Sampled on the two this pass only reads, because a twenty-five tap
         /// gather wants the texture unit's cache — a few per cent of the cascade — and legal from
         /// `VK_IMAGE_LAYOUT_GENERAL`.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ATROUS_BINDINGS> sBindings{
             computeBinding(Shaders::ATROUS_BIND_SOURCE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_FILTERED, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_SURFACE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
-            computeBinding(Shaders::ATROUS_BIND_PUFFS, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
         };
 
         /// Both reads, because a level's inputs are sampled and its target is storage. An image
@@ -103,7 +102,6 @@ namespace Rtx
             writes.image(Shaders::ATROUS_BIND_SOURCE, source->describeSampled(VK_NULL_HANDLE));
             writes.image(Shaders::ATROUS_BIND_FILTERED, target->describeStorage());
             writes.image(Shaders::ATROUS_BIND_SURFACE, buffer.get(Channel::Surface).describeSampled(VK_NULL_HANDLE));
-            writes.image(Shaders::ATROUS_BIND_PUFFS, buffer.get(Channel::Puffs).describeSampled(VK_NULL_HANDLE));
 
             level.mStep = 1u << pass;
 

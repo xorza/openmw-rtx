@@ -4,10 +4,13 @@
 #include <cassert>
 #include <cstddef>
 
-#include <components/rtx/scene/debuglines.hpp>
+#include <components/rtx/frame/debuglines.hpp>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
+
+#include "tonepass.hpp"
 
 namespace Rtx
 {
@@ -15,7 +18,8 @@ namespace Rtx
     {
         /// The trace's surface channel, whose distance every fragment reads.
         constexpr std::array<VkDescriptorSetLayoutBinding, 1> sBindings{
-            VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+            VkDescriptorSetLayoutBinding{
+                Shaders::LINE_BIND_SURFACE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
         };
 
         constexpr std::array<VkVertexInputBindingDescription, 1> sVertexBindings{
@@ -43,9 +47,9 @@ namespace Rtx
         }
     }
 
-    LinePass::LinePass(const Device& device, const VkFormat targetFormat)
-        : mLines(device, describePipeline(targetFormat, VK_PRIMITIVE_TOPOLOGY_LINE_LIST))
-        , mTriangles(device, describePipeline(targetFormat, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST))
+    LinePass::LinePass(const Device& device)
+        : mLines(device, describePipeline(TonePass::sTargetFormat, VK_PRIMITIVE_TOPOLOGY_LINE_LIST))
+        , mTriangles(device, describePipeline(TonePass::sTargetFormat, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST))
     {
     }
 
@@ -54,7 +58,7 @@ namespace Rtx
         const Image& target = what.mTarget;
         const Image& surface = what.mSurface;
         const Shaders::LineConstants& constants = what.mConstants;
-        const VkBuffer vertices = what.mVertices;
+        const Buffer& vertices = what.mVertices;
         const std::uint32_t lineCount = what.mLineCount;
         const std::uint32_t triangleCount = what.mTriangleCount;
 
@@ -70,8 +74,10 @@ namespace Rtx
         // `line.vert` writes Vulkan's own clip space, `+Y` down as the picture is indexed.
         beginDrawingOver(commands, target, ClipUp::Down);
 
+        const VkBuffer bound = vertices.getHandle();
         const VkDeviceSize offset = 0;
-        vkCmdBindVertexBuffers(commands, 0, 1, &vertices, &offset);
+        vkCmdBindVertexBuffers(commands, 0, 1, &bound, &offset);
+        vertices.nameForNext();
 
         // Each pipeline is handed the set and the block again: a push is only defined against
         // the layout in force, and the two layouts are the same in everything but the handle.
@@ -81,7 +87,7 @@ namespace Rtx
                       return;
 
                   DescriptorWrites traced(pipeline);
-                  traced.image(0, surface.describeStorage());
+                  traced.image(Shaders::LINE_BIND_SURFACE, surface.describeStorage());
 
                   bind(commands, pipeline);
                   pushDescriptors(commands, pipeline, traced);

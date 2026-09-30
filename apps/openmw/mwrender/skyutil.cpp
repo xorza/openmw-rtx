@@ -31,6 +31,7 @@
 #include <components/fallback/fallback.hpp>
 
 #include <components/sceneutil/statesetupdater.hpp>
+#include <components/sky/vertexrules.hpp>
 
 #include "../mwbase/environment.hpp"
 
@@ -899,11 +900,6 @@ namespace MWRender
         mUpdater->mMoonColor = color;
     }
 
-    unsigned int Moon::getPhaseInt() const
-    {
-        return MoonState::phaseToInt(mPhase);
-    }
-
     void Moon::setPhase(const MoonState::Phase& phase)
     {
         if (mPhase == phase)
@@ -1026,12 +1022,8 @@ namespace MWRender
                 }
                 case ModVertexAlphaVisitor::Clouds:
                 {
-                    if (i >= 49 && i <= 64)
-                        alpha = 0.f; // bottom-most row
-                    else if (i >= 33 && i <= 48)
-                        alpha = 0.25098f; // second row
-                    else
-                        alpha = 1.f;
+                    const Sky::CloudRow row = Sky::cloudRowOf(i);
+                    alpha = row == Sky::CloudRow::Bottom ? 0.f : row == Sky::CloudRow::Second ? 0.25098f : 1.f;
                     break;
                 }
                 case ModVertexAlphaVisitor::Stars:
@@ -1039,7 +1031,7 @@ namespace MWRender
                     if (geometry.getColorArray())
                     {
                         osg::Vec4Array* origColors = static_cast<osg::Vec4Array*>(geometry.getColorArray());
-                        alpha = ((*origColors)[i].x() == 1.f) ? 1.f : 0.f;
+                        alpha = Sky::starVertexShown((*origColors)[i]) ? 1.f : 0.f;
                     }
                     else
                         alpha = 1.f;

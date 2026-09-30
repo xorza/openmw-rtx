@@ -61,8 +61,11 @@ namespace Rtx::Shaders
     /// Threads along each edge of the accumulator's workgroup.
     const uint ACCUMULATE_WORKGROUP = 8;
 
-    /// What a level of the wavelet is handed, and what the accumulator writes for it.
-    struct AccumulateConstants
+    /// What a pass that keeps a history of the frame's surfaces is handed: the accumulator, which
+    /// writes the history a level of the wavelet reads, the pane filter and the shadow denoiser's
+    /// temporal half, which read and keep histories of their own over the same pixels. One record,
+    /// because all three are filled from one frame by one rule.
+    struct HistoryConstants
     {
         /// The camera the frame was traced with. **The jitter is why this is here**: the motion
         /// vector is written against the jittered pixel centre the ray was actually aimed at, so
@@ -87,7 +90,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(AccumulateConstants) == 68, "AccumulateConstants must be scalar-packed on every side");
+    static_assert(sizeof(HistoryConstants) == 68, "HistoryConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

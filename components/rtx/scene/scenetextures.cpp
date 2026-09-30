@@ -2,7 +2,6 @@
 
 #include <cassert>
 #include <cstddef>
-#include <numeric>
 #include <optional>
 #include <span>
 #include <string>
@@ -26,10 +25,7 @@ namespace Rtx
 {
     void SceneTextures::describeAll(const SceneDesc& scene, const CompositeQueue* composites)
     {
-        mEverything.resize(scene.textures().getRows().size());
-        std::iota(mEverything.begin(), mEverything.end(), Index{ 0 });
-
-        describe(scene, mEverything, composites);
+        describe(scene, everyIndexBelow(scene.textures().getRows().size(), mEverything), composites);
     }
 
     void SceneTextures::describe(const SceneDesc& scene, std::span<const Index> slots, const CompositeQueue* composites)
@@ -48,7 +44,7 @@ namespace Rtx
             // gave back and leaves it in the table until something takes it over; describing it
             // would build an image, a shading map and a descriptor write for a slot no material can
             // reach — and count it as a texture that arrived.
-            if (scene.textures().isFree(slot))
+            if (!scene.textures().isLive(slot))
                 continue;
 
             // A slot this renderer made rather than opened has no file to be asked for, and the
@@ -159,6 +155,7 @@ namespace Rtx
                 .mSource = TextureSource::SpriteBake,
                 .mFrom = *kept.mBakedFrom,
                 .mFormat = TextureFormat::Rgba8Unorm,
+                .mEncoding = kept.mEncoding,
             };
         }
 
@@ -174,13 +171,14 @@ namespace Rtx
                 .mSource = TextureSource::GroundGloss,
                 .mFrom = chunk.mMaterial,
                 .mFormat = TextureFormat::Rgba8Unorm,
-                .mEncoding = TextureEncoding::Data,
+                .mEncoding = kept.mEncoding,
             };
 
         return TextureData{
             .mSource = TextureSource::GroundComposite,
             .mFrom = chunk.mMaterial,
             .mFormat = TextureFormat::Rgba8Srgb,
+            .mEncoding = kept.mEncoding,
         };
     }
 }

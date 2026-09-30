@@ -3,10 +3,10 @@
 # from the top-level `CMakeLists.txt` under `OPENMW_RTX`, so that file carries the options and one
 # line — before `components`, so its CMakeLists can name the fork's files there.
 
-# Vulkan ray tracing on NVIDIA hardware, which macOS has neither of. Refused by name rather than
-# left to fail at the first Vulkan header, and off there unless asked for.
+# Vulkan ray tracing, which macOS has not. Refused by name rather than left to fail at the first
+# Vulkan header, and off there unless asked for.
 if (APPLE)
-    message(FATAL_ERROR "The ray tracer needs Vulkan on NVIDIA hardware, which macOS has not: "
+    message(FATAL_ERROR "The ray tracer needs Vulkan ray tracing, which macOS has not: "
                         "configure with -DOPENMW_RTX=OFF")
 endif()
 

@@ -13,7 +13,7 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/renderer/kernelprogress.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
@@ -26,10 +26,9 @@
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
-#include <components/rtxvulkan/display/digestpass.hpp>
 #include <components/rtxvulkan/display/displaychain.hpp>
 #include <components/rtxvulkan/gui/guidrawer.hpp>
-#include <components/rtxvulkan/present/presenttargets.hpp>
+#include <components/rtxvulkan/present/presenttarget.hpp>
 #include <components/rtxvulkan/scene/scenepasses.hpp>
 #include <components/rtxvulkan/scene/sceneslots.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
@@ -124,10 +123,6 @@ namespace Rtx
         void takeValidationErrors(std::vector<std::string>& errors);
 
     private:
-        /// The image this frame writes, with the present that last read it waited for — once per
-        /// frame, at the first of the trace and the interface to want it.
-        Image& claimTarget();
-
         /// @param width, height what the frame is presented at. What it is traced at is that over
         ///        the mode's ratio, `extentsFor`.
         void createTargets(std::uint32_t width, std::uint32_t height);
@@ -140,9 +135,9 @@ namespace Rtx
         /// submits the ring does not count; and the graveyard last, once nothing can be reading.
         void drain();
 
-        /// Whether a frame is upscaled, which is the mode alone: a mode that wants a runtime has
-        /// one, because `setUpscale` raises it before it moves the mode. The runtime outlives a
-        /// mode being turned off, because raising it again costs a quarter of a second.
+        /// Whether a frame is upscaled, which is the mode alone: the upscaler's pipelines are built
+        /// with the renderer whatever the mode, and `createTargets` makes its images where a mode
+        /// upscales and lets them go where it does not.
         bool upscaling() const { return upscales(mProfile.mUpscale); }
 
         // Declaration order is destruction order reversed, and everything below the device is built
@@ -164,20 +159,13 @@ namespace Rtx
         /// says so.
         RenderProfile mProfile;
 
-        /// Whether a frame's counts come back to the host at all: where the trace counts its
-        /// hits, and where a hold leaves its reading. One answer, read where the block is cleared,
-        /// ordered for the host and read back, so the three cannot disagree.
-        bool mReadsCounts = false;
+        /// The frames in flight and what each came to.
+        FrameRing mRing;
 
-        /// The frames in flight and what each came to. After the flag it is handed.
-        FrameRing mRing{ mDevice, mReadsCounts };
-
-        /// The frame as bytes at the output extent, which is what anything outside this reads: two
-        /// images, swapped by every present, and the one the last present read. It is also where
-        /// that extent is stated — `PresentTargets::getExtent` — rather than beside it in a pair
-        /// of members something would have to keep level. `PresentTargets`
-        /// says why there are two.
-        PresentTargets mTargets;
+        /// The frame as bytes at the output extent, which is what anything outside this reads. It
+        /// is also where that extent is stated — `PresentTarget::getExtent` — rather than beside
+        /// it in a pair of members something would have to keep level.
+        PresentTarget mTarget;
 
         /// Before the trace's passes and the display, which read the scenes' texture layout.
         ScenePasses mScenePasses;
@@ -201,9 +189,6 @@ namespace Rtx
         /// inside the interface.
         DisplayChain mDisplay;
 
-        /// What folds the frame's images into `FrameResult::mDigest`, on the frames that ask.
-        DigestPass mDigest;
-
         TraceMedia mMedia;
 
         /// The hold `RenderProfile::mStressOverlapMs` asked for, or nothing.
@@ -217,9 +202,9 @@ namespace Rtx
         /// After the media, the display and the interface, which it holds by reference.
         PictureTracer mPictures;
 
-        /// Null where nothing asked for a window. After `mTargets`, so it is destroyed before them:
+        /// Null where nothing asked for a window. After `mTarget`, so it is destroyed before it:
         /// its command buffers, out of the device's pool, still hold recordings that blit out of
-        /// their images, and destroying an image while a recording names it is
+        /// the image, and destroying an image while a recording names it is
         /// `VUID-vkDestroyImage-image-01000`.
         std::unique_ptr<Presenter> mPresenter;
 

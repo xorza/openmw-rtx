@@ -84,7 +84,7 @@ namespace MWRender
                 out[0] = sampled[0];
                 out[1] = sampled[1];
                 out[2] = sampled[2];
-                out[3] = static_cast<std::uint8_t>(sampled[3] * mask / 255);
+                out[3] = static_cast<std::uint8_t>((sampled[3] * mask + 127) / 255);
             }
         }
 

@@ -21,6 +21,10 @@ namespace Rtx::Shaders
 {
 #endif
 
+    /// The traced surface channel the fragment stage tests each line's depth against — the pass's
+    /// one binding, `bindings.h`'s rule.
+    const uint LINE_BIND_SURFACE = 0;
+
     /// What both stages are told: the camera on the picture's own grid, where the eye stands, the
     /// near plane a vertex is clipped at, and the traced extent the surface channel is read over.
     struct LineConstants

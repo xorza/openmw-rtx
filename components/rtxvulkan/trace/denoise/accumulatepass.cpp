@@ -3,7 +3,7 @@
 #include <array>
 #include <cassert>
 
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/accumulate.h>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -43,7 +43,7 @@ namespace Rtx
         writes.image(Shaders::ACCUMULATE_BIND_MOMENTS_OUT, images.mMoments.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_BLENDED_OUT, images.mBlended.describeStorage());
 
-        const Shaders::AccumulateConstants constants{
+        const Shaders::HistoryConstants constants{
             .mCamera = camera,
             .mReset = images.mFresh ? 1u : 0u,
             .mDistanceScale = frame.mDistanceScale,

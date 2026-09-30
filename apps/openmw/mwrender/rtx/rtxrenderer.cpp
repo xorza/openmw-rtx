@@ -11,6 +11,7 @@
 #include <ratio>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #include <MyGUI_ITexture.h>
 #include <SDL_video.h>
@@ -132,20 +133,7 @@ namespace MWRender
         , mStartTick(osg::Timer::instance()->tick())
         , mMirror(setup.mMirror)
     {
-        // **The run's stated step decides whether the ground waits, unless the run says otherwise.**
-        // A composite comes back whenever the baker finishes it, so which frame it lands on is a
-        // thread's answer rather than the schedule's, and a run whose pictures are compared with
-        // another's cannot have that. The step the host hands the frame clock is this one.
-        //
-        // **The step and not what a run does with its frames.** `shot` is what the reference
-        // pictures are made with and it hashes no frame, so a condition asking about hashes would
-        // leave out the run that most needs this: measured on `balmora`, four processes drew four
-        // different frames after half a second of warming and one frame after a tenth of one.
-        //
-        // **And a run that means to time the streaming path overrides it**, because waiting is
-        // most of what that path then measures. `RunSetup::mSettled` says what the override costs
-        // and what it buys.
-        mMirror.setSettled(setup.mSettled.value_or(setup.mStep.has_value()));
+        mSettled = setup.mSettled;
 
         // **Made here, because there is no viewer to make them.** Every renderer needs the four and
         // one built on `osgViewer` gets them already wired together.
@@ -222,7 +210,7 @@ namespace MWRender
         // **Grass hangs off the quad tree, and this renderer has the game build none**: its ground is
         // the cell ring's. Said and not refused, because a game that asked for grass plays the same
         // without it; the content still loads, which is the world's to decide.
-        if (RtxSettingValues::fromRegistry().mGroundcover)
+        if (Settings::groundcover().mEnabled)
             Log(Debug::Warning) << "Groundcover is on, and the ray tracer draws none";
 
         mRenderer = Rtx::createVulkanRenderer(options);
@@ -277,7 +265,24 @@ namespace MWRender
 
     void RtxRenderer::configureResources(Resource::ResourceSystem& resources) noexcept
     {
-        setResourceExpiry(resources, getFrameClock().getStatedStep());
+        const std::optional<float> stated = getFrameClock().getStatedStep();
+        setResourceExpiry(resources, stated);
+
+        // **The run's stated step decides whether the ground waits, unless the run says otherwise.**
+        // A composite comes back whenever the baker finishes it, so which frame it lands on is a
+        // thread's answer rather than the schedule's, and a run whose pictures are compared with
+        // another's cannot have that. The step is the frame clock's, which is the one route a
+        // stated step reaches this renderer by.
+        //
+        // **The step and not what a run does with its frames.** `shot` is what the reference
+        // pictures are made with and it hashes no frame, so a condition asking about hashes would
+        // leave out the run that most needs this: measured on `balmora`, four processes drew four
+        // different frames after half a second of warming and one frame after a tenth of one.
+        //
+        // **And a run that means to time the streaming path overrides it**, because waiting is
+        // most of what that path then measures. `RunSetup::mSettled` says what the override costs
+        // and what it buys.
+        mMirror.setSettled(mSettled.value_or(stated.has_value()));
 
         Resource::SceneManager& scene = *resources.getSceneManager();
         scene.setShadersEnabled(false);
@@ -297,7 +302,8 @@ namespace MWRender
 
     osg::ref_ptr<osg::Group> RtxRenderer::createSceneRoot() noexcept
     {
-        return new osg::Group;
+        mSceneRoot = new osg::Group;
+        return mSceneRoot;
     }
 
     std::unique_ptr<Ground> RtxRenderer::createGround(const GroundSpec& spec) noexcept
@@ -338,14 +344,15 @@ namespace MWRender
         SkyReader::listAssets(*getResources().getVFS(), models, textures);
     }
 
-    void RtxRenderer::attachWorld(RenderingManager& world, osg::Group& worldRoot) noexcept
+    void RtxRenderer::attachWorld(RenderingManager&, osg::Group& worldRoot) noexcept
     {
         mPhase.expect(Phase::Between);
         mAttachment.step(Attachment::Attached, Attachment::Detached);
         // Straight under the root: the rasterizer hangs its shadowed scene between the two, and
         // this renderer has nothing to put there. The root is kept for what the game hangs on it
         // beside the scene: its debug nodes, which every frame reads off it.
-        worldRoot.addChild(world.getSceneRoot());
+        assert(mSceneRoot != nullptr && "the world is built under a root this renderer made");
+        worldRoot.addChild(std::exchange(mSceneRoot, nullptr));
         mWorldRoot = &worldRoot;
 
         mMirror.attach(getResources());
@@ -432,6 +439,7 @@ namespace MWRender
             .mScene = mMirror.getScene(),
             .mReach = mMirror.getReach(),
             .mEye = mMirror.getEye(),
+            .mGrid = mMirror.getGrid(),
         };
     }
 
@@ -466,9 +474,10 @@ namespace MWRender
     /// main menu, or the moment before the first cell finishes loading.
     void RtxRenderer::renderGui() noexcept
     {
-        // From between two frames, which is a loading screen presenting; from the walk, which is
-        // a frame with the world hidden; or from the frame's own trace and the run's hook after it.
-        mPhase.step(Phase::Gui, Phase::Between, Phase::Walking, Phase::Tracing, Phase::Run);
+        // From between two frames, which is a loading screen presenting; from the walk of a frame
+        // with nothing placed; from the pictures of a frame with the world hidden; or from the
+        // frame's own trace and the run's hook after it.
+        mPhase.step(Phase::Gui, Phase::Between, Phase::Walking, Phase::Views, Phase::Tracing, Phase::Run);
         const Crash::NoteScope noted("drawing the interface and presenting");
 
         const std::chrono::steady_clock::time_point began = std::chrono::steady_clock::now();
@@ -558,15 +567,15 @@ namespace MWRender
     std::unique_ptr<OffscreenView> RtxRenderer::createWorldView(const OffscreenViewSpec& spec) noexcept
     {
         assert(mGui != nullptr && "a view before the interface was made");
-        return std::make_unique<TracedView>(
-            spec, ViewKind::World, *mRenderer, mViews, *mGui, mMirror.getTraversals(), mMirror.getSpecularLayout());
+        return std::make_unique<TracedView>(spec, ViewKind::World, *mRenderer, mViews, *mGui, mMirror.getTraversals(),
+            mMirror.getContent(), mMirror.getSpecularLayout());
     }
 
     std::unique_ptr<SubjectView> RtxRenderer::createSubjectView(const OffscreenViewSpec& spec) noexcept
     {
         assert(mGui != nullptr && "a view before the interface was made");
-        return std::make_unique<TracedView>(
-            spec, ViewKind::Subject, *mRenderer, mViews, *mGui, mMirror.getTraversals(), mMirror.getSpecularLayout());
+        return std::make_unique<TracedView>(spec, ViewKind::Subject, *mRenderer, mViews, *mGui, mMirror.getTraversals(),
+            mMirror.getContent(), mMirror.getSpecularLayout());
     }
 
     std::unique_ptr<MapOverlay> RtxRenderer::createMapOverlay(const MapOverlaySpec& spec) noexcept
@@ -603,7 +612,7 @@ namespace MWRender
         }
 
         if (upscale)
-            setUpscale(settings->mUpscale);
+            mUpscale = settings->mUpscale;
 
         // The menu moves the reach while the game runs, and the ring, the air and the map all
         // follow it: a slider that took effect at the next start was a slider that did nothing.
@@ -613,13 +622,6 @@ namespace MWRender
 
         if (anisotropy)
             mRenderer->setAnisotropy(settings->mAnisotropy);
-    }
-
-    void RtxRenderer::setUpscale(const Rtx::Upscale upscale)
-    {
-        // Taken at the next frame's start, where a stop's own mode is: one place changes the
-        // targets, ahead of the camera that is built for them.
-        mUpscale = upscale;
     }
 
     MyGUI::ITexture& RtxRenderer::freezeFrame() noexcept
@@ -680,8 +682,6 @@ namespace MWRender
         // frame: a crash in the game's update after it names no step of a frame already drawn.
         const Crash::NoteScope noted("drawing frame {}", frame.mWhen.getFrameNumber());
 
-        const osg::FrameStamp& when = frame.mWhen;
-
         FrameReport report{ .mPaused = frame.mPaused };
 
         // **What the game spent since this renderer last let go of the frame** — its update, its
@@ -727,8 +727,14 @@ namespace MWRender
         // **The emitter clock stops with it**, which is what a clock of its own is for: it counts
         // the seconds this renderer has shown, so a plume resumes where it left off rather than
         // being handed the loading screen in one step.
+        //
+        // **A picture of a subject is drawn all the same**, as the rasterizer's cameras go on
+        // drawing the doll under `tws`: it stands on a scene of its own, which no walk of the world
+        // feeds. A picture of the world waits for the world, and none of its budget is spent.
         if (!drawsWorld())
         {
+            mPhase.step(Phase::Views, Phase::Walking);
+            mViews.draw(0, getFrameStamp());
             renderGui();
             return;
         }
@@ -754,7 +760,7 @@ namespace MWRender
             const Crash::NoteScope walking("walking the scene");
 
             const std::chrono::steady_clock::time_point walked = std::chrono::steady_clock::now();
-            mWalked.mFound = mMirror.mirror(frame, view, when.getFrameNumber());
+            mWalked.mFound = mMirror.mirror(frame, view);
             report.mSpend.at(Rtx::Timing::Walk) = Rtx::since(walked, std::chrono::steady_clock::now());
             report.mSpend.at(Rtx::Timing::Preprocess) = mWalked.mFound.mPreprocessed.mOnFrame.getMs();
 
@@ -762,7 +768,7 @@ namespace MWRender
             // it, because a second whole-graph walk is the largest cost a frame has.
             mWalked.mAgain.reset();
             if (mRun.wantsSecondWalk())
-                mWalked.mAgain = mMirror.mirror(frame, view, when.getFrameNumber());
+                mWalked.mAgain = mMirror.mirror(frame, view);
 
             mWalked.mSession += mWalked.mFound.mPreprocessed;
             if (mWalked.mAgain.has_value())

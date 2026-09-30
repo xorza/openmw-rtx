@@ -13,8 +13,8 @@
 #include <apps/rtxtool/instruments/framehashes.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
-#include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/testing/util.hpp>
 

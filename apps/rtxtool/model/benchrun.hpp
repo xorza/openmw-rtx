@@ -22,6 +22,24 @@
 
 namespace RtxTool
 {
+    /// How fast a measured run steps the world unless it states otherwise, in frames a second: world
+    /// time and not wall time, so ten seconds is the same six hundred frames on a build that draws
+    /// them in four seconds and on one that takes twenty. Sixty because that is what the frame
+    /// budget is written against. A default a run states (`RunSetup::mStep`), and never read in
+    /// place of the step a run stated.
+    inline constexpr float sStepRate = 60.0f;
+
+    /// How long one of those frames stands for, which is what a measured frame tells the renderer.
+    inline constexpr float sStepSeconds = 1.0f / sStepRate;
+
+    /// What one frame of world counts for where a run turns seconds into frames — a span, a flight,
+    /// a turning sky: the stated step, or where the wall decides, the step a measured run states by
+    /// default.
+    inline float worldStep(const MWRender::RunSetup& setup)
+    {
+        return setup.mStep.value_or(sStepSeconds);
+    }
+
     /// One thing a run asserts about what the renderer was handed or what it drew, of the running
     /// game and never of a staged world, which reads its cells and dresses its people by rules of
     /// its own.
@@ -233,6 +251,12 @@ namespace RtxTool
         /// square root of this, a hundred is a clean picture and a thousand is a reference.
         std::uint32_t mAccumulate = 0;
 
+        /// Where the stop's frames start in the sampler's sequence: added to the count of its
+        /// frames the renderer samples by (`MWRender::RtxRun::getSampleFrame`). Two stops at one
+        /// place, the world held, draw the same samples frame for frame unless this sets them
+        /// apart, and then what was to be a mean of independent draws is one draw again.
+        std::uint32_t mSampleOffset = 0;
+
         /// What every frame of the stop asks of the reconstruction and of the exposure in place of
         /// the profile's, or nothing for the profile's: `MWRender::RtxRun::getReconstruction`.
         std::optional<Rtx::ReconstructionRequest> mReconstruction;
@@ -247,9 +271,9 @@ namespace RtxTool
         /// lands, so nothing in the world moves.
         bool mFrozen = false;
 
-        /// Whether the player keeps their own camera and collision: a session somebody flies. A
-        /// view's coordinates are where a camera stands and not where a body fits, so the walls come
-        /// off with it.
+        /// Whether the player keeps their own camera and collision: a session somebody flies,
+        /// `VerbPolicy::mPlayed`. A view's coordinates are where a camera stands and not where a
+        /// body fits, so the walls come off with it.
         bool mFreeCamera = false;
     };
 

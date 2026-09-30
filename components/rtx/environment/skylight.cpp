@@ -7,11 +7,12 @@
 #include <osg/Math>
 #include <osg/Vec4f>
 
+#include <components/esm3/loadregn.hpp>
+#include <components/rtx/common/contract.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
-#include <components/rtx/shaders/sky.h>
 #include <components/sceneutil/util.hpp>
 #include <components/sky/sundisc.hpp>
 
@@ -19,12 +20,6 @@ namespace Rtx
 {
     namespace
     {
-        /// Morrowind's own sun, hardcoded in the engine it came from and in
-        /// `MWWorld::WeatherManager::update`: how far east and west it swings, and how far north it
-        /// sits.
-        constexpr float sSwing = 400.0f;
-        constexpr float sNorthing = 75.0f;
-
         /// How long the day is, in hours.
         ///
         /// **A night that begins before the sunrise it followed belongs to the next day**, which is
@@ -37,22 +32,6 @@ namespace Rtx
 
             return nightStart - times.mNightEnd;
         }
-
-        /// Morrowind's ten weathers, in `MWWorld::WeatherManager`'s registration order — which is
-        /// what a script id counts along and what a `Weather_<name>_*` key spells. The shader names
-        /// the same order as `WEATHER_*`; this is the only place the spellings live.
-        constexpr std::array<std::string_view, Shaders::WEATHER_COUNT> sWeathers = {
-            "Clear",
-            "Cloudy",
-            "Foggy",
-            "Overcast",
-            "Rain",
-            "Thunderstorm",
-            "Ashstorm",
-            "Blight",
-            "Snow",
-            "Blizzard",
-        };
 
         /// How much of the hour's own darkness the exposure keeps, as a power of the light it
         /// gives: two stops and four fifths between a clear noon and a clear midnight, which are
@@ -179,10 +158,10 @@ namespace Rtx
         if (!(day > 0.0f))
             return 0.0f;
 
-        // The disc stands at `sSwing - |east|` over a horizontal `hypot(sSwing, sNorthing)`, so near
+        // The disc stands at `swing - |east|` over a horizontal `hypot(swing, northing)`, so near
         // either end its elevation is that ratio times what the orbit has left to run — and the
-        // orbit crosses two units over the whole day.
-        return 2.0f * sSwing / std::hypot(sSwing, sNorthing) / day;
+        // orbit crosses two units over the whole day (`Sky::sunDirection`).
+        return 2.0f * Sky::sSunSwing / std::hypot(Sky::sSunSwing, Sky::sSunNorthing) / day;
     }
 
     float sunShareAloft(float hour, const Sky::TimeOfDaySettings& times)
@@ -205,16 +184,23 @@ namespace Rtx
 
     std::optional<std::uint32_t> weatherIndex(std::string_view weather)
     {
-        const auto found = std::find(sWeathers.begin(), sWeathers.end(), weather);
-        if (found == sWeathers.end())
+        const int index = ESM::Weather::refIdToIndex(ESM::RefId::stringRefId(weather));
+        if (index < 0)
             return std::nullopt;
 
-        return static_cast<std::uint32_t>(found - sWeathers.begin());
+        return static_cast<std::uint32_t>(index);
     }
 
     std::string_view weatherName(std::uint32_t weather)
     {
-        return weather < sWeathers.size() ? sWeathers[weather] : std::string_view();
+        if (weather >= sWeatherCount)
+            return {};
+
+        // The table's own interned spelling, which outlives every caller.
+        const ESM::RefId id = ESM::Weather::indexToRefId(static_cast<int>(weather));
+        const ESM::StringRefId* const named = id.getIf<ESM::StringRefId>();
+        contract(named != nullptr, "a weather ESM::Weather does not name by a string");
+        return named->getValue();
     }
 
     Daylight makeRoomLight(const ESM::Cell::AMBIstruct& room, const osg::Vec3f& nightEye)

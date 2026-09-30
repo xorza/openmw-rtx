@@ -48,7 +48,7 @@ namespace Rtx
         /// @param pass the walk in progress: its sweep stamp and its counts, read at every call.
         ///        Borrowed, so that the mirror and everything resolving into it cannot come to hold
         ///        two answers.
-        /// @param means the process's mean texels, shared with the materials, because a flame's
+        /// @param means the thread's mean texels, shared with the materials, because a flame's
         ///        texture is a sheet's too and one file is averaged once.
         EmitterResolver(SceneDesc& scene, const MirrorPass& pass, MeanTexels& means)
             : mScene(scene)
@@ -63,6 +63,11 @@ namespace Rtx
 
         EmitterResolver(const EmitterResolver&) = delete;
         EmitterResolver& operator=(const EmitterResolver&) = delete;
+
+        /// Forgets what a walk that threw left noted and never placed, ahead of the next walk: its
+        /// places and its effects belong to a walk that is over, and an effect index into a list
+        /// the next walk refilled reads past its end.
+        void begin() { mPending.clear(); }
 
         /// Notes one system the walk met, to be read when the walk is over.
         ///
@@ -121,7 +126,7 @@ namespace Rtx
             RefusedTakes mRefused;
 
             /// That image's mean texel, or null until an effect's glow asks for it: read then and
-            /// kept, because `MeanTexels` keeps a named file's mean for the process, and every
+            /// kept, because `MeanTexels` keeps a named file's mean for as long as its thread runs, and every
             /// image here is a named file. Nulled with `mSprite`.
             const MeanTexel* mMean = nullptr;
         };

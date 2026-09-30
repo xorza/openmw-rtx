@@ -6,8 +6,8 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/frame/debuglines.hpp>
 #include <components/rtx/frame/sunglare.hpp>
-#include <components/rtx/scene/debuglines.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
@@ -114,9 +114,7 @@ namespace Rtx
         /// @param puffs the trace's own pass, which composites the sprites over what was traced.
         /// @param textureLayout the scene's bindless textures, which the curve samples the star
         ///        sheet out of.
-        /// @param targetFormat what the curve writes and the lines draw over.
-        DisplayChain(const Device& device, const VisibilityPass& puffs, VkDescriptorSetLayout textureLayout,
-            VkFormat targetFormat);
+        DisplayChain(const Device& device, const VisibilityPass& puffs, VkDescriptorSetLayout textureLayout);
 
         /// The lens over `width` by `height`, which is what the frame is by the time the curve
         /// maps it: the upscaler's output where one runs and the trace's own extent where none

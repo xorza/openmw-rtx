@@ -17,7 +17,7 @@
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/camera.hpp>
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
@@ -351,6 +351,37 @@ namespace Rtx::Testing
             for (std::size_t channel = 0; channel < 3; ++channel)
                 EXPECT_NEAR(below[channel], above[channel], 2) << "channel " << channel << ": " << above[channel]
                                                                << " from above, " << below[channel] << " from below";
+        }
+
+        /// **The water ends at its plane, whether or not a surface stands there.** An eye fifty units
+        /// under the plane, with no water mesh anywhere, looks straight up at the sun: its ray rises
+        /// through the plane, meets nothing, and escapes with the far plane for its distance. The
+        /// column in front of it is the fifty units under the plane, so the pixel is the same under a
+        /// far plane of ten thousand units and of a hundred thousand; marched to the far plane, the
+        /// column scattered the sun's shaft over the whole of it, ten times as far under the second.
+        /// A bed a thousand units down keeps the scene from being empty, out of the eye's view.
+        TEST_F(RtxVisibilityTest, anEyeUnderThePlaneSeesWaterOnlyAsFarAsThePlane)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+
+            SceneDesc scene;
+            addQuad(scene, sheetAt(400.0f, -1000.0f));
+
+            const auto look = [&](float far) {
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, -0.05f, -50.0f), osg::Vec3f(0.0f, 0.0f, 50.0f), 60.0f, size, size, far);
+                litThroughWater(camera);
+
+                const Frame frame = shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
+                return std::array<int, 3>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2) };
+            };
+
+            const std::array<int, 3> near = look(10000.0f);
+            const std::array<int, 3> farther = look(100000.0f);
+
+            EXPECT_GT(near[1], 0) << "the fifty units of water scatter the sun toward the eye";
+            EXPECT_EQ(near, farther) << "the column ran on past the plane to the far plane";
         }
 
         /// **A submerged surface's sun shadow is cast along the refracted path**, as its light and
@@ -831,6 +862,24 @@ namespace Rtx::Testing
                 kept += shaded[row] / open[row];
             }
             EXPECT_NEAR(kept / double{ size }, 1.0 - hidden, 0.02) << "the share of the disc the edge leaves";
+
+            // **And a strip wholly under the water shadows the water under it**, as it shadows a
+            // bed: each scattering point of the middle column asks up its own bent line, which the
+            // sun keeps at x = 0, and a strip a hundred units down and fifty either side of x = 0
+            // covers the whole disc from every one of them — `31` units wide at the nine hundred
+            // units up to it. Asked from where the light met the surface instead, the strip is
+            // under that point and hides nothing. Only the rows below the horizon, whose own rays
+            // run level or down and never meet the strip; what they keep is the sky's share alone.
+            SceneDesc sunken = makeOpenWater(4000.0f);
+            constexpr float strip = 50.0f;
+            const std::array<osg::Vec3f, 4> under{ osg::Vec3f(-strip, -wide, -over), osg::Vec3f(strip, -wide, -over),
+                osg::Vec3f(strip, wide, -over), osg::Vec3f(-strip, wide, -over) };
+            addQuad(sunken, under);
+
+            const std::vector<double> sunk = shafts(sunken);
+            for (std::uint32_t row = column + 1; row < size; ++row)
+                EXPECT_LT(sunk[row] / open[row], 0.1)
+                    << "the water under a sunken strip lit by a full shaft, row " << row;
         }
 
         /// The sky loses the column of water over a bed just as the sun does.

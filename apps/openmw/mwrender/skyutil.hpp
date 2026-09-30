@@ -270,8 +270,6 @@ namespace MWRender
         void setAtmosphereColor(const osg::Vec4f& color);
         void setColor(const osg::Vec4f& color);
 
-        unsigned int getPhaseInt() const;
-
     private:
         Type mType;
         MoonState::Phase mPhase;

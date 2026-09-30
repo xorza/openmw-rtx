@@ -6,15 +6,15 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/frame/reconstruction.hpp>
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
-#include <components/rtxvulkan/scene/spritebin.hpp>
 #include <components/rtxvulkan/trace/denoise/denoisehistory.hpp>
 
 #include "fogvolume.hpp"
 #include "gbuffer.hpp"
+#include "spritebin.hpp"
 
 namespace Rtx
 {
@@ -37,8 +37,7 @@ namespace Rtx
         /// @param passes what the chain traces with, which outlives it.
         TraceChain(const Device& device, const TracePasses& passes);
 
-        /// Builds the chain at exactly this extent, whatever it was before. The caller has waited
-        /// for anything still reading what this replaces.
+        /// Builds the chain at exactly this extent, whatever it was before.
         ///
         /// @param radiance how wide the radiance channels and the frame composed from them are
         ///        stored — the run's choice, which `Rtx::RadianceWidth` argues.

@@ -18,10 +18,9 @@ namespace MWRender
         return false;
     }
 
-    bool TracedGround::blacklistReference(int type, const MWWorld::ConstPtr& ptr)
+    void TracedGround::blacklistReference(int type, const MWWorld::ConstPtr& ptr)
     {
         mMirror.blacklistReference(ptr.getCellRef().getRefNum());
-        return false;
     }
 
     void TracedGround::setGate(const std::uint32_t gate, const Terrain::GateState state)

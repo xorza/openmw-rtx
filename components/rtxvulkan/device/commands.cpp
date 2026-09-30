@@ -289,20 +289,29 @@ namespace Rtx
 
     StagingRun Batch::stage(std::span<const std::byte> bytes)
     {
+        const StagingLend lent = reserve(bytes.size());
+        std::copy(bytes.begin(), bytes.end(), lent.mBytes.begin());
+        return lent.mRun;
+    }
+
+    StagingLend Batch::reserve(const VkDeviceSize bytes)
+    {
         VkDeviceSize at = alignUp(mFilled, sStagingAlignment);
 
         std::vector<std::size_t>& blocks = mPool.holdAt(mHold).mBlocks;
-        if (blocks.empty() || at + bytes.size() > mPool.stagingAt(blocks.back()).getSize())
+        if (blocks.empty() || at + bytes > mPool.stagingAt(blocks.back()).getSize())
         {
-            blocks.push_back(mPool.takeStaging(bytes.size()));
+            blocks.push_back(mPool.takeStaging(bytes));
             at = 0;
         }
 
         const Buffer& block = mPool.stagingAt(blocks.back());
-        block.writeAt(at, bytes);
-        mFilled = at + bytes.size();
+        mFilled = at + bytes;
 
-        return StagingRun{ .mBuffer = block.getHandle(), .mOffset = at };
+        return StagingLend{
+            .mRun = StagingRun{ .mBuffer = block.getHandle(), .mOffset = at },
+            .mBytes = block.writable<std::byte>(at, bytes),
+        };
     }
 
     void Batch::release()

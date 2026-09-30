@@ -7,6 +7,7 @@
 
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/renderer/framespend.hpp>
@@ -108,5 +109,8 @@ namespace MWRender
         /// a check counts the ground in is the one the last walk stood.
         float mReach = 0.0f;
         osg::Vec3f mEye;
+
+        /// The grid that disc is counted in: the worldspace's own cells.
+        Rtx::CellGrid mGrid;
     };
 }

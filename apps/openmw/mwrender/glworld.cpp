@@ -327,12 +327,14 @@ namespace MWRender
         state.setAmbientColor(world.mAmbientColour);
         state.setSkyColor(sky.mWeather.mSkyColor);
         state.setIsInterior(!world.mSkyShown);
-        state.setIsWaterEnabled(world.mWater.isShown());
+        // The cell's own flag and the air's fog whatever the eye is in, as upstream fed them: a
+        // technique reads `omw.isWaterEnabled` and `omw.fogColor` as the level's, and the water's
+        // own fog reaches only the clear colour below.
+        state.setIsWaterEnabled(world.mWater.mEnabled);
         state.setWaterHeight(world.mWater.mHeight);
         state.setIsUnderwater(world.mUnderwater);
-        const FogBand& fog = world.mUnderwater ? world.mWaterFog : world.mAir;
-        state.setFogColor(fog.mColour);
-        state.setFogRange(fog.mStart, fog.mEnd);
+        state.setFogColor(world.mAir.mColour);
+        state.setFogRange(world.mAir.mStart, world.mAir.mEnd);
         state.setNearFar(eye.mNearClip, eye.mViewDistance);
         state.setProjectionMatrix(eye.mProjectionMatrix);
         state.setFov(eye.mFieldOfView);
@@ -376,7 +378,7 @@ namespace MWRender
         if (Stereo::getStereo())
             Stereo::Manager::instance().setMasterProjectionMatrix(eye.mProjectionMatrix);
 
-        mViewer.getCamera()->setClearColor(fog.mColour);
+        mViewer.getCamera()->setClearColor(world.mUnderwater ? world.mWaterFog.mColour : world.mAir.mColour);
 
         // **The dome, fed as the weather manager fed it**: every setter per frame, in the weather
         // manager's order — a moon's state sets its transparency and the weather then scales it —

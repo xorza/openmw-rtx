@@ -15,7 +15,6 @@
 #include <osg/Matrixf>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
-#include <smhasher/MurmurHash3.h>
 
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -30,6 +29,8 @@
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/skinning.h>
 #include <components/vfs/pathutil.hpp>
+
+#include "digest.hpp"
 
 namespace RtxTool
 {
@@ -522,7 +523,7 @@ namespace RtxTool
         // What poses a mesh that deforms, and the pose itself. The trace reads the posed vertices,
         // which live on the device and nowhere here, so these are what stands for them.
         Column deformers(mScratch);
-        for (const Rtx::Deformer& deformer : scene.deformers().getDeformers())
+        for (const Rtx::Deformer& deformer : scene.deformers().getRows())
             deformers.addFields(fieldsOf(deformer));
         deformers.add(scene.deformers().getRuns());
         deformers.add(scene.deformers().getInfluences());
@@ -553,18 +554,4 @@ namespace RtxTool
 
         return whole.getWords();
     }
-
-    void Digest::add(std::span<const std::byte> bytes)
-    {
-        // The seed is read whole before anything is written, but a copy costs two words and makes
-        // that true whatever the implementation does.
-        const std::array<std::uint64_t, 2> seed = mWords;
-        MurmurHash3_x64_128(bytes.data(), static_cast<int>(bytes.size()), seed.data(), mWords.data());
-    }
-
-    std::string spellHash(const std::array<std::uint64_t, 2>& words)
-    {
-        return std::format("{:016x}{:016x}", words[0], words[1]);
-    }
-
 }

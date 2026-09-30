@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -436,6 +437,18 @@ namespace Rtx
             // And a depth of zero is no fog at all rather than a ramp starting at the view distance,
             // which is what the original engine reads it as too.
             EXPECT_EQ(fogExtinction(0.0f, view), 0.0f);
+
+            // **A depth of two or more is the densest air, and never an infinity or a negative.**
+            // A cell's `AMBI` density reaches here unclamped: at 2 the divisor was nought, above it
+            // the air grew brighter with distance. Both, and an infinite depth, are a half-life of
+            // one unit, so ln 2 per unit; just short of 2 the ramp's own half-life still stands:
+            // 7168 * (1 - 1.99 / 2) = 35.84 units.
+            const float densest = std::log(2.0f);
+            EXPECT_EQ(fogExtinction(2.0f, view), densest);
+            EXPECT_EQ(fogExtinction(3.0f, view), densest);
+            EXPECT_EQ(fogExtinction(std::numeric_limits<float>::infinity(), view), densest);
+            EXPECT_NEAR(fogExtinction(1.99f, view), std::log(2.0f) / 35.84f, 1e-5f);
+            EXPECT_EQ(fogExtinction(std::numeric_limits<float>::quiet_NaN(), view), 0.0f) << "no depth is no fog";
 
             // **And the reach is what scales it**, which is the whole of §3.4: the same weather over
             // four cells is thinner in exactly that proportion, so ground built that far out is

@@ -190,6 +190,7 @@ namespace Rtx
             Testing::addQuad(scene, sWallCorners, sNoIndex, osg::Matrixf::translate(0.0f, -50.0f, 0.0f));
 
             mRenderer.extendScene(Rtx::SceneSlot::world(), scene, {});
+            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
             const Drawn arrived = draw(mRenderer, camera);
 
             EXPECT_TRUE(reports(arrived.mGpu.spans(), "blas"))

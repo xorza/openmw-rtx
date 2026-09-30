@@ -35,7 +35,7 @@ namespace Rtx
 
     private:
         ComputePipeline<Shaders::ShadowMaskConstants> mMask;
-        ComputePipeline<Shaders::ShadowTilesConstants> mTiles;
+        ComputePipeline<Shaders::HistoryConstants> mTiles;
         std::array<ComputePipeline<Shaders::ShadowFilterConstants>, Shaders::SHADOW_FILTER_LEVELS> mFilters;
     };
 }

@@ -35,7 +35,10 @@ What the fork is
 Upstream OpenMW stays the host engine: cells, references, physics, scripts, animation, weather
 and the GUI. It no longer owns the picture. A second renderer stands beside the OpenGL rasterizer
 and replaces the whole image: primary visibility, shadows, direct and indirect light, sky, water
-and fog are ray traced on the GPU. The rasterizer is not modified. One binary ships both
+and fog are ray traced on the GPU. The rasterizer draws upstream's picture but for three
+corrections upstream needed as well: the optimizer merges in child order, an exterior map tile
+keeps its land before the quad tree builds its chunk, and a day-night switch shows its mode's child
+from the first frame. One binary ships both
 renderers, and the one not chosen never starts.
 
 Vanilla content is read as it is. Morrowind's textures are pre-lit, so the renderer estimates

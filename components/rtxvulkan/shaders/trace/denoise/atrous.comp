@@ -40,7 +40,6 @@
 #include "sets.h"
 
 #include "lib/pixels.glsl"
-#include "lib/spritelist.glsl"
 #include "lib/surfacematch.glsl"
 
 layout(local_size_x = ATROUS_WORKGROUP, local_size_y = ATROUS_WORKGROUP) in;
@@ -59,14 +58,11 @@ layout(set = SET_PASS, binding = ATROUS_BIND_SOURCE) uniform texture2D source;
 /// Where this level puts what it made of it.
 layout(set = SET_PASS, binding = ATROUS_BIND_FILTERED, ATROUS_CHANNEL) uniform writeonly image2D filtered;
 
-/// The shading normal's code in `r` and the distance from the eye in `g`, in world units —
-/// `CHANNEL_SURFACE`. A ray that hit nothing left `SURFACE_NO_NORMAL`, which no surface can match,
-/// so the sky neither contributes nor gets filtered.
+/// The shading normal's code in `r` and the distance from the eye in `g`, in world units, with the
+/// eye the ray left in its sign — `CHANNEL_SURFACE`, `packSurfaceDistance`. A ray that hit nothing
+/// left `SURFACE_NO_NORMAL`, which no surface can match, so the sky neither contributes nor gets
+/// filtered.
 layout(set = SET_PASS, binding = ATROUS_BIND_SURFACE) uniform texture2D surfaceChannel;
-
-/// The puffs the trace left, read for the one bit that says which eye a pixel's ray left,
-/// `eyeOfPixel`.
-layout(set = SET_PASS, binding = ATROUS_BIND_PUFFS) uniform texture2D puffs;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -116,17 +112,18 @@ float varianceAround(ivec2 at)
     return sum / weight;
 }
 
-Camera eyeAt(ivec2 pixel)
+/// The eye that cast the ray of a pixel whose distance the surface channel packs as `packed`.
+Camera eyeAt(float packed)
 {
-    return eyeOfPixel(texelFetch(puffs, pixel, 0), level.mCamera, level.mArms);
+    return eyeOfPixel(packed, level.mCamera, level.mArms);
 }
 
-/// Where the trace's ray through `pixel` ended up, `away` along it, through the eye that cast it.
-/// An arm's pixel rebuilt through the world's eye stood on a plane the arm is not, and the plane
-/// test turned its neighbours away.
-vec3 positionAt(ivec2 pixel, float away)
+/// Where the trace's ray through `pixel` ended up, off its distance as the surface channel packs it,
+/// through the eye that cast it. An arm's pixel rebuilt through the world's eye stood on a plane the
+/// arm is not, and the plane test turned its neighbours away.
+vec3 positionAt(ivec2 pixel, float packed)
 {
-    return positionAlong(eyeAt(pixel), pixel, away);
+    return positionAlong(eyeAt(packed), pixel, surfaceDistance(packed));
 }
 
 void main()
@@ -145,14 +142,14 @@ void main()
     }
 
     const vec3 normal = unpackSurfaceNormal(seen.x);
-    const float away = seen.y;
-    const vec3 position = positionAt(at, away);
+    const float away = surfaceDistance(seen.y);
+    const vec3 position = positionAt(at, seen.y);
 
     // What one pixel covers where this surface is, which is the scale every plane offset below is
     // measured against. Reading `mSpreadAngle` for it instead lands on nought for a parallel
     // projection, and a footprint of nought rejects every tap but the centre — a map tile running
     // every level of this and coming out exactly as it went in.
-    const float footprint = footprintAlong(eyeAt(at), away);
+    const float footprint = footprintAlong(eyeAt(seen.y), away);
 
     // **How noisy this pixel still is, which is what makes the brightness test mean anything.** A
     // difference of one against a variance of four is nothing; the same difference against a settled

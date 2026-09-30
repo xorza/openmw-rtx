@@ -12,6 +12,7 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
+#include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
@@ -27,7 +28,6 @@ namespace Rtx
             Motion,
             Surface,
             Colour,
-            Puffs,
             Masks,
             DilatedMotion,
             DilatedDepth,
@@ -107,11 +107,12 @@ namespace Rtx
             Bind{ F::FSR_INPUTS_BIND_FARTHEST_DEPTH, S::Storage, R::Intermediate },
             Bind{ F::FSR_INPUTS_BIND_CURRENT_LUMA, S::Storage, R::LumaNow },
             Bind{ F::FSR_INPUTS_BIND_CONSTANTS, S::Block, R::Constants },
-            Bind{ F::FSR_INPUTS_BIND_PUFFS, S::Sampled, R::Puffs },
             Bind{ F::FSR_INPUTS_BIND_INPUTS, S::Block, R::Inputs },
             Bind{ F::FSR_BIND_SAMPLER, S::Sampler, R::Sampler },
         };
 
+        // One binding a level of the SPD image, listed, and as many as the shader declares.
+        static_assert(Shaders::FSR_PYRAMID_MIPS == 6, "the pyramid's mip bindings below are one a level");
         constexpr std::array sLumaPyramid{
             Bind{ F::FSR_PYRAMID_BIND_CURRENT_LUMA, S::Sampled, R::LumaNow },
             Bind{ F::FSR_PYRAMID_BIND_FARTHEST_DEPTH, S::Sampled, R::Intermediate },
@@ -282,32 +283,35 @@ namespace Rtx
         Targets(const Device& device, const VkExtent2D render, const VkExtent2D output)
             : mRender(render)
             , mOutput(output)
+            , mPyramid(FsrFrame::pyramidFor(render))
         {
             const VkExtent2D half{ std::max(render.width / 2, 1u), std::max(render.height / 2, 1u) };
             const auto make = [&](VkExtent2D extent, VkFormat format, std::string_view name, std::uint32_t levels = 1) {
                 return Image(device, extent.width, extent.height, format, sUsage, name, levels);
             };
 
-            add(mAccumulation[0], make(render, VK_FORMAT_R8_UNORM, "fsr-accumulation-0"));
-            add(mAccumulation[1], make(render, VK_FORMAT_R8_UNORM, "fsr-accumulation-1"));
-            add(mLuma[0], make(render, VK_FORMAT_R16_SFLOAT, "fsr-luma-0"));
-            add(mLuma[1], make(render, VK_FORMAT_R16_SFLOAT, "fsr-luma-1"));
-            add(mIntermediate, make(render, VK_FORMAT_R16_SFLOAT, "fsr-intermediate"));
-            add(mShadingChange, make(half, VK_FORMAT_R8_UNORM, "fsr-shading-change"));
-            add(mNewLocks, make(output, VK_FORMAT_R8_UNORM, "fsr-new-locks"));
-            add(mHistory[0], make(output, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-history-0"));
-            add(mHistory[1], make(output, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-history-1"));
-            add(mSpdMips, make(half, VK_FORMAT_R16G16_SFLOAT, "fsr-spd-mips", levelsTo1x1(half.width, half.height)));
-            add(mFarthestDepthMip1, make(half, VK_FORMAT_R16_SFLOAT, "fsr-farthest-depth-mip1"));
-            add(mLumaHistory[0], make(render, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-luma-history-0"));
-            add(mLumaHistory[1], make(render, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-luma-history-1"));
-            add(mSpdAtomic, make(VkExtent2D{ 1, 1 }, VK_FORMAT_R32_UINT, "fsr-spd-atomic"));
-            add(mDilatedMasks, make(render, VK_FORMAT_R8G8B8A8_UNORM, "fsr-dilated-masks"));
-            add(mFrameInfo, make(VkExtent2D{ 1, 1 }, VK_FORMAT_R32G32B32A32_SFLOAT, "fsr-frame-info"));
-            add(mDilatedDepth, make(render, VK_FORMAT_R32_SFLOAT, "fsr-dilated-depth"));
-            add(mDilatedMotion, make(render, VK_FORMAT_R16G16_SFLOAT, "fsr-dilated-motion"));
-            add(mPreviousDepth, make(render, VK_FORMAT_R32_UINT, "fsr-previous-depth"));
-            add(mOutputImage, make(output, VK_FORMAT_R16G16B16A16_SFLOAT, "fsr-output"));
+            add(mAccumulation[0], make(render, toVulkanFormat(FSR_ACCUMULATION_FORMAT), "fsr-accumulation-0"));
+            add(mAccumulation[1], make(render, toVulkanFormat(FSR_ACCUMULATION_FORMAT), "fsr-accumulation-1"));
+            add(mLuma[0], make(render, toVulkanFormat(FSR_LUMA_FORMAT), "fsr-luma-0"));
+            add(mLuma[1], make(render, toVulkanFormat(FSR_LUMA_FORMAT), "fsr-luma-1"));
+            add(mIntermediate, make(render, toVulkanFormat(FSR_INTERMEDIATE_FORMAT), "fsr-intermediate"));
+            add(mShadingChange, make(half, toVulkanFormat(FSR_SHADING_CHANGE_FORMAT), "fsr-shading-change"));
+            add(mNewLocks, make(output, toVulkanFormat(FSR_NEW_LOCKS_FORMAT), "fsr-new-locks"));
+            add(mHistory[0], make(output, toVulkanFormat(FSR_HISTORY_FORMAT), "fsr-history-0"));
+            add(mHistory[1], make(output, toVulkanFormat(FSR_HISTORY_FORMAT), "fsr-history-1"));
+            add(mSpdMips,
+                make(half, toVulkanFormat(FSR_SPD_MIPS_FORMAT), "fsr-spd-mips", levelsTo1x1(half.width, half.height)));
+            add(mFarthestDepthMip1,
+                make(half, toVulkanFormat(FSR_FARTHEST_DEPTH_MIP1_FORMAT), "fsr-farthest-depth-mip1"));
+            add(mLumaHistory[0], make(render, toVulkanFormat(FSR_LUMA_HISTORY_FORMAT), "fsr-luma-history-0"));
+            add(mLumaHistory[1], make(render, toVulkanFormat(FSR_LUMA_HISTORY_FORMAT), "fsr-luma-history-1"));
+            add(mSpdAtomic, make(VkExtent2D{ 1, 1 }, toVulkanFormat(FSR_SPD_ATOMIC_FORMAT), "fsr-spd-atomic"));
+            add(mDilatedMasks, make(render, toVulkanFormat(FSR_DILATED_MASKS_FORMAT), "fsr-dilated-masks"));
+            add(mFrameInfo, make(VkExtent2D{ 1, 1 }, toVulkanFormat(FSR_FRAME_INFO_FORMAT), "fsr-frame-info"));
+            add(mDilatedDepth, make(render, toVulkanFormat(FSR_DILATED_DEPTH_FORMAT), "fsr-dilated-depth"));
+            add(mDilatedMotion, make(render, toVulkanFormat(FSR_DILATED_MOTION_FORMAT), "fsr-dilated-motion"));
+            add(mPreviousDepth, make(render, toVulkanFormat(FSR_PREVIOUS_DEPTH_FORMAT), "fsr-previous-depth"));
+            add(mOutputImage, make(output, toVulkanFormat(FSR_OUTPUT_FORMAT), "fsr-output"));
         }
 
         Targets(const Targets&) = delete;
@@ -319,6 +323,9 @@ namespace Rtx
 
         VkExtent2D mRender;
         VkExtent2D mOutput;
+
+        /// How the luma pyramid is dispatched over the render extent, which is all it depends on.
+        FsrFrame::Pyramid mPyramid;
 
         std::array<Image, 2> mAccumulation;
         std::array<Image, 2> mLuma;
@@ -401,7 +408,7 @@ namespace Rtx
             .mJitterPhases = inputs.mJitterPhases,
             .mSeconds = inputs.mSeconds,
         });
-        const FsrFrame::Pyramid pyramid = FsrFrame::pyramidFor(targets.mRender);
+        const FsrFrame::Pyramid& pyramid = targets.mPyramid;
 
         const Buffer& blocks = mBlocks.at(inputs.mSlot);
         const Shaders::FsrInputConstants inputConstants{
@@ -427,8 +434,6 @@ namespace Rtx
                     return inputs.mSurface;
                 case R::Colour:
                     return inputs.mColour;
-                case R::Puffs:
-                    return inputs.mPuffs;
                 case R::Masks:
                     return inputs.mMasks;
                 case R::DilatedMotion:

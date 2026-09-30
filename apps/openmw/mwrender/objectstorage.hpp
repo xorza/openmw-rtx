@@ -14,6 +14,11 @@ namespace MWRender
     class ObjectStorage final : public Terrain::ObjectStorage
     {
     public:
+        /// Whether `collect` hands a cell's reference of record `type` to a chunk as near as one
+        /// cell, lamps included: what the distance stands of a cell, and so which references a
+        /// script's word on them reaches (`MWScript::VisibilityGates`).
+        static bool handsOver(int type);
+
         void collect(float size, const osg::Vec2i& startCell, ESM::RefId worldspace, Terrain::RefKinds kinds,
             Terrain::RefCollector& collector, std::vector<Terrain::PagedCellRef>& into) const override;
 

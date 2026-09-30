@@ -79,9 +79,8 @@ namespace RtxTool
         // failure. A window somebody closes has finished no stop and owes no numbers.
         const bool scheduled = request.mQuitAtEnd;
 
-        // What the renderer is made with, taken before the request is handed to the session that
-        // owns it from here on.
-        const MWRender::RunSetup setup = request.mSetup;
+        // Taken before the request is handed to the session that owns it from here on.
+        const bool played = request.mPlayed;
 
         const unsigned int seed = request.mRandomSeed;
 
@@ -109,12 +108,14 @@ namespace RtxTool
 
             config.filterOutNonExistingPaths(dataDirs);
 
-            // **The keys exist where there is a window.** A watched run answers the brackets, the
-            // comma, the full stop, the slash and the page keys with the weather and the clock,
-            // through the Lua scripts under the harness's own data directory, and Home with where
-            // it stands, through the session; a headless run has nobody to press them, and the
-            // played game names neither the directory nor the file.
-            if (!setup.mHeadless)
+            // **The keys exist where somebody plays the run** — `VerbPolicy::mPlayed`, and not
+            // wherever there is a window: a bench shows one, and a key pressed there moved the
+            // clock, the hour or the weather under a measurement that recorded none of it. A played
+            // run answers the brackets, the comma, the full stop, the slash and the page keys with
+            // the weather and the clock, through the Lua scripts under the harness's own data
+            // directory, and Home with where it stands, through the session; the played game names
+            // neither the directory nor the file.
+            if (played)
                 dataDirs.push_back(resources / "rtx" / "vfs");
 
             engine.setDataDirs(dataDirs);
@@ -127,7 +128,7 @@ namespace RtxTool
             // one, which is the drift this whole path exists to remove. A copy, and named as one:
             // the rule lives in an upstream file this fork does not edit.
             engine.addContentFile("builtin.omwscripts");
-            if (!setup.mHeadless)
+            if (played)
                 engine.addContentFile("rtxtool.omwscripts");
             std::set<std::string> once{ "builtin.omwscripts" };
             for (const std::string& file : content)

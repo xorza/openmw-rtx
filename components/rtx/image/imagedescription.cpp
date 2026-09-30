@@ -98,12 +98,12 @@ namespace Rtx
             }
         }
 
-        /// Whether the first slices of an image's kept levels lie back to back, which is what a
+        /// Whether the first slices of an image's first `levels` lie back to back, which is what a
         /// description spans. A volume's levels are each every slice of it, so from its second
         /// level on they do not.
-        bool slicesAdjoin(const osg::Image& image)
+        bool slicesAdjoin(const osg::Image& image, const std::uint32_t levels)
         {
-            return image.r() == 1 || keptLevels(image) == 1;
+            return image.r() == 1 || levels == 1;
         }
 
         /// `checkUploadable` of a format already read.
@@ -172,7 +172,7 @@ namespace Rtx
     std::size_t laidBytes(const osg::Image& image, const TextureFormat format)
     {
         const bool widened = isWidened(format);
-        if (!widened && (!isUploadable(format) || slicesAdjoin(image)))
+        if (!widened && (!isUploadable(format) || slicesAdjoin(image, keptLevels(image))))
             return 0;
         if (image.s() <= 0 || image.t() <= 0)
             return 0;
@@ -194,104 +194,121 @@ namespace Rtx
         return describeImage(image, readFormat(image, encoding), encoding, levels, texels);
     }
 
+    namespace
+    {
+        /// `describeImage` of the first `count` levels, which is no more than the image keeps.
+        Result<TextureData, std::string> describeLevels(const osg::Image& image, const TextureFormat format,
+            const TextureEncoding encoding, const std::uint32_t count, std::vector<MipLevel>& levels,
+            std::vector<std::byte>& texels)
+        {
+            // Every reader of an image's bytes on the processor comes through here first, so a crash
+            // in one names the file.
+            const Crash::NoteScope noted("describing the texture \"{}\"", image.getFileName());
+
+            if (const Result<void, std::string> uploadable = checkFormat(image, format); !uploadable.isOk())
+                return Err{ uploadable.error() };
+
+            const TexelLayout layout = layoutOf(format);
+            const auto width = static_cast<std::uint32_t>(image.s());
+            const auto height = static_cast<std::uint32_t>(image.t());
+
+            // **The layout held against OpenSceneGraph's before a byte is read.** Every reader of the
+            // bytes below and the upload take a level's size from `layout`, and the image's buffer is
+            // what its loader allocated level by level, `computeImageSizeInBytes`; where the two count
+            // a level differently, reading the image by `layout` runs past its buffer or short of its
+            // levels. A format read by its pixel format alone did that to every sixteen-bit file — and
+            // a padded row would do it again. Level by level and not by `getTotalSizeInBytes`, whose
+            // count of a block format with no chain differs between OpenSceneGraph builds: a two-by-two
+            // BC3 is four bytes of its sixteen in one and 32 in another. The bytes are the kept levels'
+            // and no more, so an upload stages none of what they leave out.
+            //
+            // **A volume is its first slice**, as the rasterizer draws a file bound as a flat texture:
+            // each level is read at its own offset for one slice, and every slice counts toward where
+            // the next level begins. A player's crash in the staging copy was a 128 by 128 DXT3 file of
+            // four slices staged at all four.
+            const std::size_t first = levels.size();
+            const auto depth = static_cast<std::uint32_t>(image.r());
+            std::size_t kept = 0;
+            std::size_t laid = 0;
+            for (std::uint32_t level = 0; level < count; ++level)
+            {
+                const std::uint32_t across = std::max(width >> level, 1u);
+                const std::uint32_t down = std::max(height >> level, 1u);
+                const std::size_t ours = layout.levelBytes(across, down);
+                const auto theirs = [&](std::uint32_t slices) -> std::size_t {
+                    return osg::Image::computeImageSizeInBytes(static_cast<int>(across), static_cast<int>(down),
+                        static_cast<int>(slices), image.getPixelFormat(), image.getDataType(), image.getPacking());
+                };
+
+                if (image.getMipmapOffset(level) != laid || ours != theirs(1))
+                {
+                    levels.resize(first);
+                    return Err{ "its level " + std::to_string(level) + " is " + std::to_string(theirs(1))
+                        + " bytes at byte " + std::to_string(image.getMipmapOffset(level)) + ", where "
+                        + std::string(nameOf(format)) + " at " + std::to_string(across) + " by " + std::to_string(down)
+                        + " is " + std::to_string(ours) + " at byte " + std::to_string(laid) };
+                }
+
+                levels.push_back(
+                    MipLevel{ .mOffset = static_cast<std::uint32_t>(kept), .mWidth = across, .mHeight = down });
+                kept += ours;
+                laid += theirs(std::max(depth >> level, 1u));
+            }
+
+            const auto* const data = reinterpret_cast<const std::byte*>(image.data());
+            TextureData described{
+                .mFormat = format,
+                .mEncoding = encoding,
+                .mWidth = width,
+                .mHeight = height,
+                .mBytes = std::span(data, kept),
+                .mLevels = std::span<const MipLevel>(levels).subspan(first, count),
+                .mName = image.getFileName(),
+            };
+            const bool widened = isWidened(format);
+            if (!widened && slicesAdjoin(image, count))
+                return described;
+
+            // **Laid into `texels`, which the caller holds**, so the description spans storage that
+            // outlives this call as the image's own does: level by level from where each lies in the
+            // image, widened where the format is sixteen bits a texel. Widened is twice the bytes,
+            // because RGBA8 is four bytes a texel, and so every level begins at twice the offset.
+            const std::size_t scale = widened ? 2 : 1;
+            const std::size_t from = texels.size();
+            texels.resize(from + kept * scale);
+            const std::span<std::byte> into = std::span(texels).subspan(from);
+            for (std::uint32_t level = 0; level < count; ++level)
+            {
+                MipLevel& laidOut = levels[first + level];
+                const std::size_t bytes = layout.levelBytes(laidOut.mWidth, laidOut.mHeight);
+                const std::span<const std::byte> source(data + image.getMipmapOffset(level), bytes);
+                const std::span<std::byte> target = into.subspan(laidOut.mOffset * scale, bytes * scale);
+                if (widened)
+                    widen(format, source, target);
+                else
+                    std::copy(source.begin(), source.end(), target.begin());
+
+                laidOut.mOffset *= static_cast<std::uint32_t>(scale);
+            }
+
+            if (widened)
+                described.mFormat
+                    = encoding == TextureEncoding::Colour ? TextureFormat::Rgba8Srgb : TextureFormat::Rgba8Unorm;
+            described.mBytes = std::span<const std::byte>(texels).subspan(from, kept * scale);
+            return described;
+        }
+    }
+
     Result<TextureData, std::string> describeImage(const osg::Image& image, const TextureFormat format,
         const TextureEncoding encoding, std::vector<MipLevel>& levels, std::vector<std::byte>& texels)
     {
-        // Every reader of an image's bytes on the processor comes through here first, so a crash
-        // in one names the file.
-        const Crash::NoteScope noted("describing the texture \"{}\"", image.getFileName());
+        return describeLevels(image, format, encoding, keptLevels(image), levels, texels);
+    }
 
-        if (const Result<void, std::string> uploadable = checkFormat(image, format); !uploadable.isOk())
-            return Err{ uploadable.error() };
-
-        const TexelLayout layout = layoutOf(format);
-        const auto width = static_cast<std::uint32_t>(image.s());
-        const auto height = static_cast<std::uint32_t>(image.t());
-
-        // **The layout held against OpenSceneGraph's before a byte is read.** Every reader of the
-        // bytes below and the upload take a level's size from `layout`, and the image's buffer is
-        // what its loader allocated level by level, `computeImageSizeInBytes`; where the two count
-        // a level differently, reading the image by `layout` runs past its buffer or short of its
-        // levels. A format read by its pixel format alone did that to every sixteen-bit file — and
-        // a padded row would do it again. Level by level and not by `getTotalSizeInBytes`, whose
-        // count of a block format with no chain differs between OpenSceneGraph builds: a two-by-two
-        // BC3 is four bytes of its sixteen in one and 32 in another. The bytes are the kept levels'
-        // and no more, so an upload stages none of what they leave out.
-        //
-        // **A volume is its first slice**, as the rasterizer draws a file bound as a flat texture:
-        // each level is read at its own offset for one slice, and every slice counts toward where
-        // the next level begins. A player's crash in the staging copy was a 128 by 128 DXT3 file of
-        // four slices staged at all four.
-        const std::size_t first = levels.size();
-        const std::uint32_t count = keptLevels(image);
-        const auto depth = static_cast<std::uint32_t>(image.r());
-        std::size_t kept = 0;
-        std::size_t laid = 0;
-        for (std::uint32_t level = 0; level < count; ++level)
-        {
-            const std::uint32_t across = std::max(width >> level, 1u);
-            const std::uint32_t down = std::max(height >> level, 1u);
-            const std::size_t ours = layout.levelBytes(across, down);
-            const auto theirs = [&](std::uint32_t slices) -> std::size_t {
-                return osg::Image::computeImageSizeInBytes(static_cast<int>(across), static_cast<int>(down),
-                    static_cast<int>(slices), image.getPixelFormat(), image.getDataType(), image.getPacking());
-            };
-
-            if (image.getMipmapOffset(level) != laid || ours != theirs(1))
-            {
-                levels.resize(first);
-                return Err{ "its level " + std::to_string(level) + " is " + std::to_string(theirs(1))
-                    + " bytes at byte " + std::to_string(image.getMipmapOffset(level)) + ", where "
-                    + std::string(nameOf(format)) + " at " + std::to_string(across) + " by " + std::to_string(down)
-                    + " is " + std::to_string(ours) + " at byte " + std::to_string(laid) };
-            }
-
-            levels.push_back(
-                MipLevel{ .mOffset = static_cast<std::uint32_t>(kept), .mWidth = across, .mHeight = down });
-            kept += ours;
-            laid += theirs(std::max(depth >> level, 1u));
-        }
-
-        const auto* const data = reinterpret_cast<const std::byte*>(image.data());
-        TextureData described{
-            .mFormat = format,
-            .mEncoding = encoding,
-            .mWidth = width,
-            .mHeight = height,
-            .mBytes = std::span(data, kept),
-            .mLevels = std::span<const MipLevel>(levels).subspan(first, count),
-            .mName = image.getFileName(),
-        };
-        const bool widened = isWidened(format);
-        if (!widened && slicesAdjoin(image))
-            return described;
-
-        // **Laid into `texels`, which the caller holds**, so the description spans storage that
-        // outlives this call as the image's own does: level by level from where each lies in the
-        // image, widened where the format is sixteen bits a texel. Widened is twice the bytes,
-        // because RGBA8 is four bytes a texel, and so every level begins at twice the offset.
-        const std::size_t scale = widened ? 2 : 1;
-        const std::size_t from = texels.size();
-        texels.resize(from + kept * scale);
-        const std::span<std::byte> into = std::span(texels).subspan(from);
-        for (std::uint32_t level = 0; level < count; ++level)
-        {
-            MipLevel& laidOut = levels[first + level];
-            const std::size_t bytes = layout.levelBytes(laidOut.mWidth, laidOut.mHeight);
-            const std::span<const std::byte> source(data + image.getMipmapOffset(level), bytes);
-            const std::span<std::byte> target = into.subspan(laidOut.mOffset * scale, bytes * scale);
-            if (widened)
-                widen(format, source, target);
-            else
-                std::copy(source.begin(), source.end(), target.begin());
-
-            laidOut.mOffset *= static_cast<std::uint32_t>(scale);
-        }
-
-        if (widened)
-            described.mFormat
-                = encoding == TextureEncoding::Colour ? TextureFormat::Rgba8Srgb : TextureFormat::Rgba8Unorm;
-        described.mBytes = std::span<const std::byte>(texels).subspan(from, kept * scale);
-        return described;
+    Result<TextureData, std::string> describeFinestLevel(
+        const osg::Image& image, std::vector<MipLevel>& levels, std::vector<std::byte>& texels)
+    {
+        const TextureEncoding encoding = TextureEncoding::Colour;
+        return describeLevels(image, readFormat(image, encoding), encoding, 1, levels, texels);
     }
 }

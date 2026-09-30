@@ -27,8 +27,8 @@ namespace Rtx
     public:
         explicit BloomPass(const Device& device);
 
-        /// Builds a pyramid for a frame this size, if the last one was not this size. The caller
-        /// waited for anything still reading the old one. Before the first frame.
+        /// Builds a pyramid for a frame this size, if the last one was not this size. Before the
+        /// first frame.
         void resize(std::uint32_t width, std::uint32_t height);
 
         /// Builds the pyramid out of `frame`, leaving `frame` as it found it.

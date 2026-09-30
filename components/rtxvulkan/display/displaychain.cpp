@@ -6,6 +6,7 @@
 #include <span>
 #include <variant>
 
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/line.h>
@@ -53,14 +54,14 @@ namespace Rtx
         }
     }
 
-    DisplayChain::DisplayChain(const Device& device, const VisibilityPass& puffs,
-        const VkDescriptorSetLayout textureLayout, const VkFormat targetFormat)
+    DisplayChain::DisplayChain(
+        const Device& device, const VisibilityPass& puffs, const VkDescriptorSetLayout textureLayout)
         : mPuffs(puffs)
         , mBloom(device)
         , mExposure(device)
         , mSunGlare(device)
         , mTone(device, textureLayout)
-        , mLines(device, targetFormat)
+        , mLines(device)
     {
     }
 
@@ -154,7 +155,7 @@ namespace Rtx
                 .mExposure = *exposure,
                 .mSunGlare = *share,
                 .mBackdrop = channels.get(Channel::Backdrop),
-                .mPuffs = channels.get(Channel::Puffs),
+                .mSurface = channels.get(Channel::Surface),
                 .mBloom = look != nullptr ? mBloom.getPyramid() : nullptr,
                 .mTextures = inputs.mSubject.mScene->getTextures(),
                 .mTarget = what.mTarget,
@@ -197,12 +198,12 @@ namespace Rtx
                 .mTarget = target,
                 .mSurface = channels.get(Channel::Surface),
                 .mConstants = {
-                    .mCamera = Shaders::cameraOnGrid(what.mSampled.mCamera, target.getWidth(), target.getHeight()),
+                    .mCamera = Shaders::cameraOnGrid(what.mSampled.mCamera, what.mExtent.width, what.mExtent.height),
                     .mOrigin = what.mSampled.mOrigin,
                     .mNear = what.mSampled.mNear,
-                    .mTraced = Shaders::uvec2(channels.getWidth(), channels.getHeight()),
+                    .mTraced = Shaders::uvec2(what.mSampled.mCamera.mWidth, what.mSampled.mCamera.mHeight),
                 },
-                .mVertices = look.mDebugVertices.get().getHandle(),
+                .mVertices = look.mDebugVertices.get(),
                 .mLineCount = static_cast<std::uint32_t>(debug.mLines.size()),
                 .mTriangleCount = static_cast<std::uint32_t>(debug.mTriangles.size()),
             });
