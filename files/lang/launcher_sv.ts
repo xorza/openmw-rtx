@@ -470,7 +470,7 @@ de ordinarie fonterna i Morrowind. Bocka denna ruta om du ändå föredrar ordin
     </message>
     <message>
         <source>This build was made without the ray tracing renderer.</source>
-        <translation>Det här bygget skapades utan strålspårningsrenderaren.</translation>
+        <translation type="vanished">Det här bygget skapades utan strålspårningsrenderaren.</translation>
     </message>
     <message>
         <source>Error receiving resolutions</source>

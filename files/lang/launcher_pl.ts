@@ -471,7 +471,7 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
     </message>
     <message>
         <source>This build was made without the ray tracing renderer.</source>
-        <translation>Ta wersja została zbudowana bez renderera ze śledzeniem promieni.</translation>
+        <translation type="vanished">Ta wersja została zbudowana bez renderera ze śledzeniem promieni.</translation>
     </message>
     <message>
         <source>Error receiving resolutions</source>
