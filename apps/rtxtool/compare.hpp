@@ -40,6 +40,48 @@ namespace RtxTool
     /// their extents.
     FrameDifference compareFrames(const Rtx::PngImage& before, const Rtx::PngImage& after);
 
+    /// How far a picture the wavelet put together may stand from the same picture of another run of
+    /// one build, out of 255: **the card's arithmetic under the wavelet, and not the tree's**
+    /// (`docs/rtx/architecture.md`, the denoiser). What it was measured to leave is one half-float
+    /// step in the filtered light, and one level in the picture. Measured and not derived, so a
+    /// card that ever moves a picture further fails the run, which is the answer.
+    inline constexpr std::uint32_t sDenoiserNoiseLevels = 1;
+
+    /// What a picture of a run is held to against the same picture of its reference.
+    enum class PictureRule
+    {
+        /// Nothing between the tree and the picture that two runs may disagree about: any
+        /// difference is one.
+        Exact,
+
+        /// The wavelet put it together — a doll, a map tile, a frame denoised and not upscaled:
+        /// within `sDenoiserNoiseLevels` is the card's, and past it a difference.
+        Denoised,
+
+        /// A frame whose verdict is its hashes (`FrameHashes`): measured for where a difference
+        /// sits and how large it is, and never judged here.
+        Hashed,
+    };
+
+    /// What one picture came to under its rule.
+    enum class PictureVerdict
+    {
+        Same,
+        WithinDenoiserNoise,
+        Moved,
+        NoReference,
+        Measured,
+    };
+
+    PictureVerdict judgePicture(const FrameDifference& difference, PictureRule rule);
+
+    /// A picture a run wrote, named relative to where it wrote them, and what it is held to.
+    struct WrittenPicture
+    {
+        std::string mFile;
+        PictureRule mRule = PictureRule::Exact;
+    };
+
     /// How far a picture stands from the one it should converge to, in levels of 255. A pixel's error
     /// is its worst colour channel, as `FrameDifference` counts a pixel.
     struct PictureError
@@ -132,16 +174,14 @@ namespace RtxTool
 
     /// Reads back what a run wrote and says what moved since `against`: a directory an earlier run
     /// wrote on this machine, never a corpus in the tree, because the picture is a function of the
-    /// driver and the card as much as of the code. `files` are the pictures the run wrote, named
-    /// relative to `wrote`, and each is looked for under `against` by the same name. Returns a
-    /// process exit status, non-zero where any picture differs and zero where `against` is empty.
+    /// driver and the card as much as of the code. Each of `pictures` is looked for under `against`
+    /// by the name it has under `wrote`, and held to its rule. Returns a process exit status,
+    /// non-zero where any picture moved or has no reference, and zero where `against` is empty.
     ///
-    /// **A frame's picture is measured here and judged by its hashes.** `frames` names the files
-    /// among `files` that are frames of the run, and those are subtracted for the figure — where a
-    /// difference the hashes reported sits, and how large it is — and never for the status: where
-    /// an upscaler reconstructed the frame the picture is the upscaler's, and where none did the
-    /// hashes already hold the same bytes. Every other picture is traced without one and is judged
-    /// here.
+    /// **A frame's picture is judged by its hashes where they can judge it.** Where an upscaler
+    /// reconstructed the frame the picture is the upscaler's, and where nothing composed it past
+    /// the trace the hashes already hold the same bytes. Where the wavelet composed it, the hashes
+    /// cannot tell the card's last bit from a change, and the picture is what is held.
     int compareRuns(const std::filesystem::path& wrote, const std::filesystem::path& against,
-        std::span<const std::string> files, std::span<const std::string> frames);
+        std::span<const WrittenPicture> pictures);
 }

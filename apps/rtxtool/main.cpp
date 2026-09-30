@@ -684,26 +684,33 @@ namespace RtxTool
                 = variables["out"].defaulted() ? "shot" : variables["out"].as<std::string>();
             std::filesystem::create_directories(out);
 
+            // **What each picture is held to is where it came from.** A frame the wavelet composed and
+            // nothing upscaled is the picture the hashes cannot judge; a doll and a tile are always
+            // denoised (`Reconstruction::forPicture`); the sheet is the textures and nothing traced.
+            const Rtx::RenderProfile& profile = framed.mSetup.mProfile;
+            const PictureRule frameRule = profile.mReconstruction.mDenoise && !Rtx::upscales(profile.mUpscale)
+                ? PictureRule::Denoised
+                : PictureRule::Hashed;
+
             const std::string doll = variables["doll"].as<std::string>();
-            std::vector<std::string> written;
-            std::vector<std::string> framePictures;
+            std::vector<WrittenPicture> written;
             for (Stop& stop : stops)
             {
                 stop.mSchedule.mAccumulate = accumulate;
 
-                const auto file = [&](const std::string_view suffix) {
-                    written.push_back(stop.mName + std::string(suffix) + ".png");
-                    return out / written.back();
+                const auto file = [&](const std::string_view suffix, const PictureRule rule) {
+                    written.push_back(
+                        WrittenPicture{ .mFile = stop.mName + std::string(suffix) + ".png", .mRule = rule });
+                    return out / written.back().mFile;
                 };
 
-                stop.mActions.mCapture = file("");
-                framePictures.push_back(written.back());
+                stop.mActions.mCapture = file("", frameRule);
                 if (!doll.empty())
-                    stop.mActions.mDoll = Actions::Doll{ .mWho = doll, .mFile = file("-doll") };
+                    stop.mActions.mDoll = Actions::Doll{ .mWho = doll, .mFile = file("-doll", PictureRule::Denoised) };
                 if (variables["map"].as<bool>())
-                    stop.mActions.mMapTile = file("-map");
+                    stop.mActions.mMapTile = file("-map", PictureRule::Denoised);
                 if (variables["textures"].as<bool>())
-                    stop.mActions.mSheet = file("-textures");
+                    stop.mActions.mSheet = file("-textures", PictureRule::Exact);
             }
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));
@@ -716,7 +723,7 @@ namespace RtxTool
                 status != 0)
                 return status;
 
-            return compareRuns(out, against, written, framePictures);
+            return compareRuns(out, against, written);
         }
 
         int commandBench(const Command& command)

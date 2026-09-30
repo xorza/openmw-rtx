@@ -63,6 +63,7 @@ namespace RtxTool
             std::span<const std::uint8_t> mPixels;
             Rtx::FrameDigest mDigest;
             Rtx::Upscale mUpscale = Rtx::Upscale::Off;
+            bool mDenoised = false;
 
             Rtx::FrameResult result() const
             {
@@ -71,6 +72,7 @@ namespace RtxTool
                 finished.mPixels = mPixels;
                 finished.mDigest = mDigest;
                 finished.mReconstruction.mUpscale = mUpscale;
+                finished.mReconstruction.mDenoised = mDenoised;
                 return finished;
             }
         };
@@ -94,6 +96,15 @@ namespace RtxTool
         FrameHashes plainRun(const Rtx::Upscale upscale = Rtx::Upscale::Off)
         {
             return runOf(partsOf(100), sPixels, digestOf(100), upscale);
+        }
+
+        /// One frame the wavelet composed, nothing upscaling it.
+        FrameHashes denoisedRunOf(const std::span<const std::uint8_t> pixels, const Rtx::FrameDigest& digest)
+        {
+            FrameHashes run;
+            run.note("somewhere", 1, 1, partsOf(100));
+            run.picture(Finished{ .mFrame = 1, .mPixels = pixels, .mDigest = digest, .mDenoised = true }.result());
+            return run;
         }
 
         FrameHashes::ViewDifference onlyView(const std::vector<FrameHashes::ViewDifference>& came)
@@ -160,10 +171,74 @@ namespace RtxTool
                 = onlyView(runOf(partsOf(100), sOtherPixels, digestOf(100), Rtx::Upscale::Quality).against(plainRun()));
             EXPECT_TRUE(mixed.mDiffering.empty());
             EXPECT_EQ(mixed.mReconstructedDiffering, std::vector<std::uint32_t>{ 1u });
-            EXPECT_EQ(mixed.mUpscaledDiffering, 1u);
+            EXPECT_EQ(mixed.mConfigurationDiffering, 1u);
             EXPECT_FALSE(mixed.same());
             EXPECT_NE(describeDifference(mixed).find("reconstructed 1 frames differently"), std::string::npos)
                 << describeDifference(mixed);
+        }
+
+        /// **The composed frame of two denoised runs is the wavelet's, whose last bit is the card's.**
+        /// Moved there alone — the column, the picture, or both — it is reported and not a verdict.
+        /// Moved beside another column, it follows the trace and is named with it. Moved in two runs
+        /// the denoiser did not compose, it is a verdict as every column is. One run denoised and the
+        /// other not is two configurations.
+        TEST(RtxFrameHashesTest, aComposedFrameThatMovedAloneUnderTheDenoiserIsReportedAndNeverAVerdict)
+        {
+            Rtx::FrameDigest composed = digestOf(100);
+            composed.mImages[Rtx::bindingOf(Rtx::Channel::Direct)] = hashOf(4242);
+            Rtx::FrameDigest traced = composed;
+            traced.mImages[Rtx::bindingOf(Rtx::Channel::Albedo)] = hashOf(4243);
+            const FrameHashes reference = denoisedRunOf(sPixels, digestOf(100));
+
+            for (const bool pictureToo : { false, true })
+            {
+                SCOPED_TRACE(pictureToo);
+                const FrameHashes::ViewDifference alone
+                    = onlyView(denoisedRunOf(pictureToo ? sOtherPixels : sPixels, composed).against(reference));
+                EXPECT_EQ(alone.mDenoisedDiffering, std::vector<std::uint32_t>{ 1u });
+                EXPECT_TRUE(alone.mTraceDiffering.empty());
+                EXPECT_TRUE(alone.mDiffering.empty()) << "the picture is the composed frame's";
+                EXPECT_TRUE(alone.same());
+
+                const std::string report = describeDifference(alone);
+                EXPECT_NE(report.find("the trace and the scene the same on every one"), std::string::npos) << report;
+                EXPECT_NE(
+                    report.find("the composed frame differs on 1 frames where nothing else did"), std::string::npos)
+                    << report;
+                EXPECT_EQ(report.find("the composed frame", report.find("the composed frame") + 1), std::string::npos)
+                    << "said once: " << report;
+            }
+
+            const FrameHashes::ViewDifference pictureAlone
+                = onlyView(denoisedRunOf(sOtherPixels, digestOf(100)).against(reference));
+            EXPECT_EQ(pictureAlone.mDenoisedDiffering, std::vector<std::uint32_t>{ 1u });
+            EXPECT_TRUE(pictureAlone.same());
+
+            const FrameHashes::ViewDifference withTrace
+                = onlyView(denoisedRunOf(sOtherPixels, traced).against(reference));
+            EXPECT_TRUE(withTrace.mDenoisedDiffering.empty()) << "the composed frame followed the trace";
+            EXPECT_EQ(withTrace.mTraceDiffering, std::vector<std::uint32_t>{ 1u });
+            EXPECT_TRUE(withTrace.mDiffering.empty());
+            EXPECT_FALSE(withTrace.same());
+            for (std::size_t column = 0; column < sTracedColumns; ++column)
+                EXPECT_EQ(withTrace.mTracedDiffering[column],
+                    column == Rtx::bindingOf(Rtx::Channel::Albedo) || column == Rtx::bindingOf(Rtx::Channel::Direct)
+                        ? 1u
+                        : 0u)
+                    << tracedName(column);
+
+            const FrameHashes::ViewDifference unfiltered
+                = onlyView(runOf(partsOf(100), sOtherPixels, composed).against(plainRun()));
+            EXPECT_TRUE(unfiltered.mDenoisedDiffering.empty());
+            EXPECT_EQ(unfiltered.mTraceDiffering, std::vector<std::uint32_t>{ 1u });
+            EXPECT_EQ(unfiltered.mDiffering, std::vector<std::uint32_t>{ 1u });
+            EXPECT_FALSE(unfiltered.same());
+
+            const FrameHashes::ViewDifference mixed
+                = onlyView(denoisedRunOf(sPixels, digestOf(100)).against(plainRun()));
+            EXPECT_EQ(mixed.mConfigurationDiffering, 1u);
+            EXPECT_TRUE(mixed.mDenoisedDiffering.empty()) << "only one of the two was denoised";
+            EXPECT_FALSE(mixed.same());
         }
 
         TEST(RtxFrameHashesTest, aTraceThatMovedIsTheVerdictWhateverThePictureDid)
@@ -265,7 +340,7 @@ namespace RtxTool
             const FrameHashes::ViewDifference against = onlyView(plainRun(Rtx::Upscale::Quality).against(read));
             EXPECT_TRUE(against.same());
             EXPECT_TRUE(against.mSceneDiffering.empty());
-            EXPECT_EQ(against.mUpscaledDiffering, 0u) << "what reconstructed the picture survived the file";
+            EXPECT_EQ(against.mConfigurationDiffering, 0u) << "what reconstructed the picture survived the file";
 
             // Every column comes back: a run against the file that moved one is told so.
             Rtx::FrameDigest moved = digestOf(100);
@@ -273,14 +348,23 @@ namespace RtxTool
             EXPECT_EQ(onlyView(runOf(partsOf(100), sPixels, moved, Rtx::Upscale::Quality).against(read))
                           .mTracedDiffering[Rtx::bindingOf(Rtx::Channel::Direct)],
                 1u);
-            EXPECT_EQ(onlyView(plainRun().against(read)).mUpscaledDiffering, 1u);
+            EXPECT_EQ(onlyView(plainRun().against(read)).mConfigurationDiffering, 1u);
+
+            // And whether the denoiser composed it comes back too.
+            const std::filesystem::path denoisedFile = TestingOpenMW::outputFilePath("hashes-denoised-test.csv");
+            denoisedRunOf(sPixels, digestOf(100)).write(denoisedFile);
+            const FrameHashes denoisedRead = FrameHashes::read(denoisedFile);
+            EXPECT_EQ(
+                onlyView(denoisedRunOf(sPixels, digestOf(100)).against(denoisedRead)).mConfigurationDiffering, 0u);
+            EXPECT_EQ(onlyView(runOf(partsOf(100), sPixels).against(denoisedRead)).mConfigurationDiffering, 1u);
+            std::filesystem::remove(denoisedFile);
 
             std::string header;
             {
                 std::ifstream in(file);
                 std::getline(in, header);
             }
-            EXPECT_EQ(header.substr(0, 37), "hashes 4: view,frame,upscale,picture,");
+            EXPECT_EQ(header.substr(0, 45), "hashes 5: view,frame,upscale,denoise,picture,");
             EXPECT_NE(header.find(",g-direct,"), std::string::npos) << header;
             EXPECT_NE(header.find(",g-puffs,g-sunlit,g-specular,g-pane,g-pane-albedo,g-pane-surface,g-pane-motion,"
                                   "g-upscale-masks,reconstruction,positions,"),

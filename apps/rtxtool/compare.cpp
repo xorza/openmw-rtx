@@ -85,6 +85,23 @@ namespace RtxTool
         return difference;
     }
 
+    PictureVerdict judgePicture(const FrameDifference& difference, const PictureRule rule)
+    {
+        if (rule == PictureRule::Hashed)
+            return PictureVerdict::Measured;
+
+        if (difference.mMismatched)
+            return PictureVerdict::NoReference;
+
+        if (difference.same())
+            return PictureVerdict::Same;
+
+        if (rule == PictureRule::Denoised && difference.mWorst <= sDenoiserNoiseLevels)
+            return PictureVerdict::WithinDenoiserNoise;
+
+        return PictureVerdict::Moved;
+    }
+
     PictureError measureError(const Rtx::PngImage& picture, const Rtx::PngImage& reference)
     {
         if (!comparable(picture, reference))
@@ -231,47 +248,55 @@ namespace RtxTool
     }
 
     int compareRuns(const std::filesystem::path& wrote, const std::filesystem::path& against,
-        const std::span<const std::string> files, const std::span<const std::string> frames)
+        const std::span<const WrittenPicture> pictures)
     {
         if (against.empty())
             return 0;
 
-        out() << std::format("{} {} against {}\n", files.size(), files.size() == 1 ? "picture" : "pictures",
+        out() << std::format("{} {} against {}\n", pictures.size(), pictures.size() == 1 ? "picture" : "pictures",
             Files::pathToUnicodeString(against));
 
-        std::uint32_t differing = 0;
+        std::uint32_t moved = 0;
         std::uint32_t unmatched = 0;
+        std::uint32_t noisy = 0;
+        std::size_t hashed = 0;
 
-        for (const std::string& file : files)
+        for (const WrittenPicture& picture : pictures)
         {
-            const Rtx::PngImage drawn = Rtx::readPng(wrote / file);
-            const Rtx::PngImage reference = Rtx::readPng(against / file);
+            const Rtx::PngImage drawn = Rtx::readPng(wrote / picture.mFile);
+            const Rtx::PngImage reference = Rtx::readPng(against / picture.mFile);
             const FrameDifference difference = compareFrames(reference, drawn);
-            const bool frame = std::find(frames.begin(), frames.end(), file) != frames.end();
+            const PictureVerdict verdict = judgePicture(difference, picture.mRule);
 
-            out() << std::format("  {:<36} {}{}\n", file, describe(difference),
-                frame && !difference.same() ? ", which the hashes judge" : "");
+            std::string_view note;
+            if (verdict == PictureVerdict::WithinDenoiserNoise)
+                note = ", within the denoiser's noise on this card";
+            else if (verdict == PictureVerdict::Measured && !difference.same())
+                note = ", which the hashes judge";
 
-            if (frame)
-                continue;
+            out() << std::format("  {:<36} {}{}\n", picture.mFile, describe(difference), note);
 
-            if (difference.mMismatched)
-                ++unmatched;
-            else if (!difference.same())
-                ++differing;
+            hashed += picture.mRule == PictureRule::Hashed ? 1 : 0;
+            moved += verdict == PictureVerdict::Moved ? 1 : 0;
+            unmatched += verdict == PictureVerdict::NoReference ? 1 : 0;
+            noisy += verdict == PictureVerdict::WithinDenoiserNoise ? 1 : 0;
         }
 
-        const std::size_t judged = files.size() - frames.size();
-        const std::string_view frameNote = frames.empty() ? "" : "; the frames are judged by their hashes above";
+        const std::size_t judged = pictures.size() - hashed;
+        const std::string_view hashNote = hashed == 0 ? "" : "; the frames are judged by their hashes above";
+        const std::string noiseNote
+            = noisy == 0 ? std::string() : std::format(", {} within the denoiser's noise on this card", noisy);
 
-        if (differing == 0 && unmatched == 0)
+        if (moved == 0 && unmatched == 0)
         {
-            out() << std::format("  every picture judged here is the same{}\n", frameNote);
+            out() << std::format("  {}{}{}\n",
+                noisy == 0 ? "every picture judged here is the same" : "no picture judged here moved", noiseNote,
+                hashNote);
             return 0;
         }
 
-        out() << std::format("  {} of {} pictures moved, {} had nothing to compare against{}\n", differing, judged,
-            unmatched, frameNote);
+        out() << std::format("  {} of {} pictures moved, {} had nothing to compare against{}{}\n", moved, judged,
+            unmatched, noiseNote, hashNote);
 
         return 1;
     }
