@@ -845,21 +845,24 @@ namespace Rtx
             EXPECT_EQ(counts().mMapped, 1u);
         }
 
-        /// A reclass reaches the placements wearing the material and no other, through the list
-        /// threaded through the slots: one that wears another material, one that was dropped and
-        /// one that took a dropped slot under another material are each left out, and a slot that
-        /// changed hands is on the list of what it wears now.
-        TEST(RtxSceneDescTest, aReclassReachesOnlyThePlacementsWearingTheMaterial)
+        /// A reclass reaches the placements wearing the material and no other, and a mesh's list
+        /// the placements placing it and no other, through the lists threaded through the slots:
+        /// one that wears another material or places another mesh, one that was dropped and one
+        /// that took a dropped slot under another material and mesh are each left out, and a slot
+        /// that changed hands is on the lists of what it wears and places now.
+        TEST(RtxSceneDescTest, aReclassOrAMeshReachesOnlyItsOwnPlacements)
         {
             SceneDesc scene;
             const Index mesh = Testing::addQuadMesh(scene);
+            const Index other = Testing::addQuadMesh(scene);
+            const Index unplaced = Testing::addQuadMesh(scene);
             const Index glass = scene.addMaterial(Material{ .mOpacity = 0.5f, .mAlphaMode = AlphaMode::Blend });
             const Index stone = scene.addMaterial(Material{ .mAlphaMode = AlphaMode::Blend });
 
             const Index one = scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = glass });
             const Index two = scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = glass });
             const Index three = scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = stone });
-            const Index bare = scene.addInstance(MeshInstance{ .mMesh = mesh });
+            const Index bare = scene.addInstance(MeshInstance{ .mMesh = other });
             scene.placements().advance();
 
             const auto reclass = [&](const Index material, const float opacity) {
@@ -867,6 +870,15 @@ namespace Rtx
                 worn.mOpacity = opacity;
                 scene.setMaterial(material, worn);
             };
+            const auto placing = [&](const Index placed) {
+                std::vector<Index> slots;
+                scene.placements().forEachPlacing(placed, [&](const Index slot) { slots.push_back(slot); });
+                return sorted(slots);
+            };
+
+            EXPECT_EQ(placing(mesh), (std::vector<Index>{ one, two, three }));
+            EXPECT_EQ(placing(other), (std::vector<Index>{ bare }));
+            EXPECT_TRUE(placing(unplaced).empty()) << "a mesh nothing places, past every list made";
 
             reclass(glass, 1.0f);
             EXPECT_EQ(sorted(scene.placements().getMoved()), (std::vector<Index>{ one, two }));
@@ -876,8 +888,11 @@ namespace Rtx
             // another material joins that one's.
             scene.dropInstance(two, Stander::Walk);
             scene.placements().advance();
-            EXPECT_EQ(scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = stone }), two);
+            EXPECT_EQ(placing(mesh), (std::vector<Index>{ one, three }));
+            EXPECT_EQ(scene.addInstance(MeshInstance{ .mMesh = other, .mMaterial = stone }), two);
             scene.placements().advance();
+            EXPECT_EQ(placing(mesh), (std::vector<Index>{ one, three }));
+            EXPECT_EQ(placing(other), (std::vector<Index>{ two, bare }));
 
             reclass(glass, 0.5f);
             EXPECT_EQ(sorted(scene.placements().getMoved()), (std::vector<Index>{ one }));
@@ -892,6 +907,12 @@ namespace Rtx
             scene.placements().advance();
             reclass(glass, 1.0f);
             EXPECT_EQ(sorted(scene.placements().getMoved()), (std::vector<Index>{ one }));
+            EXPECT_EQ(placing(other), (std::vector<Index>{ two })) << "the oldest dropped, the newest kept";
+
+            // `three` is the newest on the first mesh's list, and a list keeps its tail when its
+            // head goes, as it kept its ends when `two` went from the middle.
+            scene.dropInstance(three, Stander::Walk);
+            EXPECT_EQ(placing(mesh), (std::vector<Index>{ one }));
         }
 
         /// Every change to a placement's row is reported, and nothing else is.

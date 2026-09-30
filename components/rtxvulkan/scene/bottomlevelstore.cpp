@@ -54,6 +54,9 @@ namespace Rtx
 
         state.mTightness = Tightness::None;
         row.mStructure = AccelerationStructure();
+
+        if (mRefittable.has(slot))
+            mRefittable.remove(slot);
     }
 
     void BottomLevelStore::release(std::span<const Index> meshes)
@@ -67,6 +70,8 @@ namespace Rtx
 
             retire(mesh);
         }
+
+        mRefittable.compact();
     }
 
     void BottomLevelStore::build(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes,
@@ -222,6 +227,10 @@ namespace Rtx
             mBuild.mRanges[at] = VkAccelerationStructureBuildRangeInfoKHR{ .primitiveCount = triangles };
         }
 
+        // Before the structures below are made: a slot retired above and refitted again is then
+        // named once.
+        mRefittable.compact();
+
         if (scratchTotal == 0)
             return;
 
@@ -263,6 +272,10 @@ namespace Rtx
             // Built loose whatever stood in the slot before, and a mesh that refits keeps its
             // slack: a refit writes back into it.
             row.mCompaction.mTightness = row.mUpdatable ? Tightness::None : Tightness::Loose;
+            if (row.mUpdatable)
+                mRefittable.addMakingRoom(slot);
+            else
+                mLoose.push_back(slot);
 
             mLiveBuilds.push_back(mBuild.mBuilds[at]);
             mBuild.mRangePointers.push_back(&mBuild.mRanges[at]);
@@ -300,9 +313,13 @@ namespace Rtx
             mCompactable = QueryPool::make(mDevice, vkCreateQueryPool, create, "vkCreateQueryPool");
             mCompactablePool = wanted;
 
-            for (Row& row : mRows)
-                if (row.mCompaction.mTightness == Tightness::Asked)
-                    row.mCompaction.mTightness = Tightness::Loose;
+            for (std::size_t at = 0; at < mAsked.size(); ++at)
+                if (isOutstanding(mAsked.at(at)))
+                {
+                    const Index slot = mAsked.at(at).mSlot;
+                    mRows[slot].mCompaction.mTightness = Tightness::Loose;
+                    mLoose.push_back(slot);
+                }
         }
 
         // One reset and one write per run of consecutive slots, which is what a cell's
@@ -313,26 +330,28 @@ namespace Rtx
         // The value the batch rides, which is the pool's next submit: a batch is flushed into
         // it or deferred ahead of it, and nothing else takes a value in between.
         const std::uint64_t rides = mDevice.getTimeline().getNext();
+        std::sort(mLoose.begin(), mLoose.end());
         std::uint32_t first = 0;
         mAskScratch.clear();
-        for (std::uint32_t slot = 0; slot < held; ++slot)
+        for (const Index slot : mLoose)
         {
+            // A slot named twice is asked once: the first naming leaves it asked.
             Compaction& state = mRows[slot].mCompaction;
             if (state.mTightness != Tightness::Loose)
-            {
-                askRun(commands, first);
                 continue;
-            }
 
+            if (!mAskScratch.empty() && slot != first + mAskScratch.size())
+                askRun(commands, first);
             if (mAskScratch.empty())
                 first = slot;
             mAskScratch.push_back(mRows[slot].mStructure.getHandle());
 
             state.mTightness = Tightness::Asked;
             state.mAskedAt = rides;
-            mAsked.push(Ask{ .mSlot = static_cast<Index>(slot), .mAt = rides });
+            mAsked.push(Ask{ .mSlot = slot, .mAt = rides });
         }
         askRun(commands, first);
+        mLoose.clear();
     }
 
     void BottomLevelStore::askRun(const VkCommandBuffer commands, const std::uint32_t first)

@@ -91,6 +91,10 @@ namespace Rtx
         /// fixed when it arrives, so this is also whether the mesh can ever be refitted.
         bool isUpdatable(const Index mesh) const { return mRows[mesh].mUpdatable; }
 
+        /// Every mesh that `stands` and `isUpdatable`: a few dozen bodies among thousands of
+        /// statics, which is what sizing the refit's scratch reads rather than every slot.
+        std::span<const Index> getRefittable() const { return mRefittable.getSlots(); }
+
         /// What a refit of `mesh` asks for, so a frame does not have to ask the driver again.
         /// Nought for a mesh that was not built to be refitted.
         VkDeviceSize getUpdateScratch(const Index mesh) const { return mRows[mesh].mUpdateScratch; }
@@ -169,7 +173,8 @@ namespace Rtx
             VkDeviceSize mTightSize = 0;
         };
 
-        /// Records the compaction question for every loose structure not yet asked about.
+        /// Records the compaction question for every loose structure not yet asked about — `mLoose`,
+        /// and whoever a replaced pool loses the answer of.
         void askWhatCompactionWouldSave(VkCommandBuffer commands);
 
         /// Records the question for the run of consecutive slots gathered in `mAskScratch`, which
@@ -256,6 +261,13 @@ namespace Rtx
         QueryPool mCompactable;
         std::uint32_t mCompactablePool = 0;
 
+        /// What `getRefittable` answers, kept as each slot is built and retired.
+        SlotSet mRefittable;
+
+        /// The slots built loose and not yet asked about, which is the whole of what the next
+        /// question names: a walk of every slot for them missed the cache a slot, on every arrival.
+        std::vector<Index> mLoose;
+
         /// The questions outstanding, oldest first, and the slots answered and not yet copied.
         Backlog<Ask> mAsked;
         Backlog<Index> mAnswered;
@@ -272,7 +284,7 @@ namespace Rtx
         /// What this placement copies, refilled each time. Kept so a compaction allocates nothing.
         std::vector<VkCopyAccelerationStructureInfoKHR> mCompactionCopies;
 
-        /// The meshes those copies moved, for the caller's walk over the rows placing them.
+        /// The meshes those copies moved, whose placements the caller writes again.
         SlotSet mMovedMeshes;
     };
 }

@@ -70,49 +70,48 @@ namespace Rtx
             .mWorn = worn,
         });
 
-        link(slot, instance.mMaterial);
+        link(slot, instance.mMaterial, mFirstWearing, &PlacementRow::mWearing);
+        link(slot, instance.mMesh, mFirstPlacing, &PlacementRow::mPlacing);
         count(slot);
 
         mMoved.push_back(slot);
         return slot;
     }
 
-    void PlacementTable::link(const Index slot, const Index material)
+    void PlacementTable::link(
+        const Index slot, const Index key, std::vector<Index>& heads, PlacementLinks PlacementRow::*const links)
     {
-        if (material == sNoIndex)
+        if (key == sNoIndex)
             return;
 
-        // Grown with the materials rather than with the slots, on the arrival that first names a
-        // material this many: the table of materials grows on the same frame.
-        if (material >= mFirstWearing.size())
-            mFirstWearing.resize(std::size_t{ material } + 1, sNoIndex);
+        // Grown with the materials or the meshes rather than with the slots, on the arrival that
+        // first names a key this high: their table grows on the same frame.
+        if (key >= heads.size())
+            heads.resize(std::size_t{ key } + 1, sNoIndex);
 
-        PlacementRow& row = mRows.at(slot);
-        const Index first = mFirstWearing[material];
-        row.mNextWearing = first;
-        row.mPrevWearing = sNoIndex;
+        PlacementLinks& at = mRows.at(slot).*links;
+        const Index first = heads[key];
+        at = PlacementLinks{ .mNext = first };
         if (first != sNoIndex)
-            mRows.at(first).mPrevWearing = slot;
-        mFirstWearing[material] = slot;
+            (mRows.at(first).*links).mPrevious = slot;
+        heads[key] = slot;
     }
 
-    void PlacementTable::unlink(const Index slot, const Index material)
+    void PlacementTable::unlink(
+        const Index slot, const Index key, std::vector<Index>& heads, PlacementLinks PlacementRow::*const links)
     {
-        if (material == sNoIndex)
+        if (key == sNoIndex)
             return;
 
-        PlacementRow& row = mRows.at(slot);
-        const Index next = row.mNextWearing;
-        const Index previous = row.mPrevWearing;
-        if (previous != sNoIndex)
-            mRows.at(previous).mNextWearing = next;
+        PlacementLinks& at = mRows.at(slot).*links;
+        if (at.mPrevious != sNoIndex)
+            (mRows.at(at.mPrevious).*links).mNext = at.mNext;
         else
-            mFirstWearing[material] = next;
-        if (next != sNoIndex)
-            mRows.at(next).mPrevWearing = previous;
+            heads[key] = at.mNext;
+        if (at.mNext != sNoIndex)
+            (mRows.at(at.mNext).*links).mPrevious = at.mPrevious;
 
-        row.mNextWearing = sNoIndex;
-        row.mPrevWearing = sNoIndex;
+        at = PlacementLinks{};
     }
 
     void PlacementTable::rewriteWearing(const Index material, const Material::Traversed& worn)
@@ -120,7 +119,7 @@ namespace Rtx
         if (material >= mFirstWearing.size())
             return;
 
-        for (Index slot = mFirstWearing[material]; slot != sNoIndex; slot = mRows.at(slot).mNextWearing)
+        for (Index slot = mFirstWearing[material]; slot != sNoIndex; slot = mRows.at(slot).mWearing.mNext)
         {
             discount(slot);
             mRows.at(slot).mWorn = worn;
@@ -166,7 +165,8 @@ namespace Rtx
         assert(row.mInstance.isPlaced() && "a slot dropped twice, or one nothing stood in");
         assert(row.mInstance.mStander == by && "a slot dropped by a stander that did not stand it");
 
-        unlink(slot, row.mInstance.mMaterial);
+        unlink(slot, row.mInstance.mMaterial, mFirstWearing, &PlacementRow::mWearing);
+        unlink(slot, row.mInstance.mMesh, mFirstPlacing, &PlacementRow::mPlacing);
         discount(slot);
 
         // Emptied, so a slot keeps no link: what the row holds after this is what `isPlaced`

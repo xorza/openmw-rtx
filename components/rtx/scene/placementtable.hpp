@@ -14,6 +14,14 @@
 
 namespace Rtx
 {
+    /// A slot's place in one list of slots threaded through the table, doubly linked so a drop
+    /// leaves it in constant time.
+    struct PlacementLinks
+    {
+        Index mNext = sNoIndex;
+        Index mPrevious = sNoIndex;
+    };
+
     /// One slot of the table: the placement, and everything the table knows about the slot beside
     /// it. One row and not a row with arrays beside it, so nothing can fall out of step with the
     /// slot it describes.
@@ -31,10 +39,13 @@ namespace Rtx
         /// through `rewriteWearing`. Default for a placement wearing nothing.
         Material::Traversed mWorn;
 
-        /// The slots wearing the same material, doubly linked and headed by
-        /// `PlacementTable::mFirstWearing`, so a material rewrite reaches its wearers alone.
-        Index mNextWearing = sNoIndex;
-        Index mPrevWearing = sNoIndex;
+        /// The slots wearing the same material, headed by `PlacementTable::mFirstWearing`, so a
+        /// material rewrite reaches its wearers alone.
+        PlacementLinks mWearing;
+
+        /// The slots placing the same mesh, headed by `PlacementTable::mFirstPlacing`, so a
+        /// backend that moved a mesh's structure rewrites its placements alone.
+        PlacementLinks mPlacing;
     };
 
     /// Where every mesh stands, where it stood, what each counts as and which rows a backend has
@@ -68,6 +79,19 @@ namespace Rtx
         /// slots, so a fade crossing opaque costs its own placements rather than a walk of the
         /// world's.
         void rewriteWearing(Index material, const Material::Traversed& worn);
+
+        /// Calls `visit` with every slot placing `mesh`, newest first. The placements of that mesh
+        /// and no other, which is what a backend whose structure for it moved rewrites: a walk of
+        /// every row was a cache miss a row, on every placement that compacted anything.
+        template <class Visit>
+        void forEachPlacing(const Index mesh, Visit&& visit) const
+        {
+            if (mesh >= mFirstPlacing.size())
+                return;
+
+            for (Index slot = mFirstPlacing[mesh]; slot != sNoIndex; slot = mRows.at(slot).mPlacing.mNext)
+                visit(slot);
+        }
 
         /// Ends a placement a backend took: what moved becomes where things were. Costs what moved
         /// and not what stands. What was moved becomes `getSettled`, and `getMoved` starts empty —
@@ -128,16 +152,19 @@ namespace Rtx
         void count(Index slot);
         void discount(Index slot);
 
-        /// Puts `slot` at the head of `material`'s list, and takes it out again. Nothing for a
-        /// placement wearing no material.
-        void link(Index slot, Index material);
-        void unlink(Index slot, Index material);
+        /// Puts `slot` at the head of the list `heads` keeps for `key` and threads through `links`,
+        /// and takes it out again. Nothing for a key of `sNoIndex`, which is a placement wearing no
+        /// material.
+        void link(Index slot, Index key, std::vector<Index>& heads, PlacementLinks PlacementRow::*links);
+        void unlink(Index slot, Index key, std::vector<Index>& heads, PlacementLinks PlacementRow::*links);
 
         SlotRows<PlacementRow> mRows;
 
-        /// The newest placement wearing each material, `sNoIndex` where none does. Parallel to the
-        /// materials and grown with them.
+        /// The newest placement wearing each material, and the newest placing each mesh,
+        /// `sNoIndex` where none does. Parallel to the materials and the meshes, and grown with
+        /// them.
         std::vector<Index> mFirstWearing;
+        std::vector<Index> mFirstPlacing;
 
         /// Plain lists that hold duplicates, where every other change list in this scene is a
         /// `SlotSet`: a slot named twice is a memcpy of a hundred bytes, bounded by the three facts
