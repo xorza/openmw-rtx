@@ -49,18 +49,18 @@
 /// for every primary ray that ends in nothing, so the misses are the same count from the other side,
 /// and a room adds nought. A ballot would add one word a subgroup instead, and a subgroup operation
 /// in the launch loses the device on this driver — `visibility.rgen` holds hit objects.
-layout(constant_id = 0) const bool COUNTING = false;
+layout(constant_id = SPEC_COUNTING) const bool COUNTING = false;
 
 /// Whether the sun is over the horizon: the constant half of `sunUp`, which says the rest.
-layout(constant_id = 1) const bool HAS_SUN = true;
+layout(constant_id = SPEC_HAS_SUN) const bool HAS_SUN = true;
 
 /// Whether either moon is drawn or lights anything. Both a disc with an alpha and a light with an
 /// irradiance, because the sky draws one where the surfaces are lit by neither.
-layout(constant_id = 2) const bool HAS_MOONS = true;
+layout(constant_id = SPEC_HAS_MOONS) const bool HAS_MOONS = true;
 
 /// Whether this frame holds any water: a surface the eye can meet, or a level the eye can stand
 /// under. False takes the waves, the caustics and the whole underwater column out of a room.
-layout(constant_id = 3) const bool HAS_SEA = true;
+layout(constant_id = SPEC_HAS_SEA) const bool HAS_SEA = true;
 
 /// Whether this frame's scene places a material with a normal map or a specular map. False takes
 /// the tangent fetch, the maps' reads and the whole specular half out of a scene that has none —
@@ -71,9 +71,9 @@ layout(constant_id = 3) const bool HAS_SEA = true;
 /// driver compiled the Lambert arithmetic around it even where not one hit ran it: every vanilla view
 /// traced a different frame by a rounding. Specialized out, the kernel a vanilla scene runs is the
 /// one it ran before the maps existed.
-layout(constant_id = 4) const bool HAS_MAPS = true;
+layout(constant_id = SPEC_HAS_MAPS) const bool HAS_MAPS = true;
 
-// Constants six and seven are the hit module's own — `visibilityhit.rchit` — and stand after these
-// so that one table of words serves every stage of a pipeline.
+// `SPEC_LAYERED` and `SPEC_WATER` are the hit module's own — `visibilityhit.rchit` — and stand after
+// these in the one table every stage of a pipeline is handed.
 
 #endif

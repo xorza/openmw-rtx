@@ -45,7 +45,7 @@ namespace Rtx
         {
             const Device& device = getDevice();
             CommandPool& pool = getPool();
-            const WavePass waves(device, Testing::getShaderDirectory());
+            const WavePass waves(device);
 
             synthesise(waves, pool, 0.0);
 
@@ -114,7 +114,7 @@ namespace Rtx
         {
             const Device& device = getDevice();
             CommandPool& pool = getPool();
-            const WavePass waves(device, Testing::getShaderDirectory());
+            const WavePass waves(device);
 
             synthesise(waves, pool, 0.0);
 
@@ -195,7 +195,7 @@ namespace Rtx
         {
             const Device& device = getDevice();
             CommandPool& pool = getPool();
-            const WavePass waves(device, Testing::getShaderDirectory());
+            const WavePass waves(device);
 
             synthesise(waves, pool, 0.0);
 
@@ -255,7 +255,7 @@ namespace Rtx
         {
             const Device& device = getDevice();
             CommandPool& pool = getPool();
-            const WavePass waves(device, Testing::getShaderDirectory());
+            const WavePass waves(device);
 
             const Image& surface = waves.getSurface(0);
 

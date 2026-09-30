@@ -68,8 +68,8 @@ namespace Rtx::Testing
         if (vkEnumeratePhysicalDevices(harness->mInstance->getHandle(), &count, nullptr) != VK_SUCCESS || count == 0)
             throw std::runtime_error("no Vulkan device is installed");
 
-        harness->mDevice = std::make_unique<Device>(
-            *harness->mInstance, PhysicalDevice::select(harness->mInstance->getHandle()), getPipelineCacheSpec());
+        harness->mDevice = std::make_unique<Device>(*harness->mInstance,
+            PhysicalDevice::select(harness->mInstance->getHandle()), getShaderDirectory(), getPipelineCacheSpec());
         if (ValidationLog* log = harness->mInstance->getValidationLog(); log != nullptr)
             log->takeErrorsOnThisThread(harness->mMadeWith);
 
@@ -203,7 +203,7 @@ namespace Rtx::Testing
         // constructor reads no files to answer it.
         static const std::filesystem::path directory = Files::ConfigurationManager(true).getCachePath();
 
-        return PipelineCacheSpec{ .mDirectory = directory, .mShaderDirectory = getShaderDirectory() };
+        return PipelineCacheSpec{ .mDirectory = directory };
     }
 
     RendererOptions describeRenderer(std::uint32_t width, std::uint32_t height, bool validation)

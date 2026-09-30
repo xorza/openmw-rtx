@@ -1,9 +1,8 @@
 #pragma once
 
-#include <filesystem>
-
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/shaders/mipchain.h>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 
 namespace Rtx
@@ -17,7 +16,7 @@ namespace Rtx
     class MipChainPass
     {
     public:
-        MipChainPass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit MipChainPass(const Device& device);
 
         /// Records `chain`'s levels from `source`: the first is `source` texel for texel and the
         /// rest each the box over the one above. `source` is one level, met as a texture the trace
@@ -30,6 +29,6 @@ namespace Rtx
         void record(VkCommandBuffer commands, const Image& source, const Image& chain, bool encoded) const;
 
     private:
-        ComputePipeline mPipeline;
+        ComputePipeline<Shaders::MipChainConstants> mPipeline;
     };
 }

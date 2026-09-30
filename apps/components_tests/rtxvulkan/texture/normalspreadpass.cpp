@@ -32,7 +32,7 @@ namespace Rtx
                 std::span<const std::uint8_t> texels, std::uint32_t width, std::uint32_t height)
             {
                 Device& device = getDevice();
-                const TexturePasses passes(device, Testing::getShaderDirectory());
+                const TexturePasses passes(device);
 
                 const std::uint32_t across = std::max(width / 2, 1u);
                 const std::uint32_t down = std::max(height / 2, 1u);

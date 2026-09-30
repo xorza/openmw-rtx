@@ -23,9 +23,8 @@ namespace Rtx
         };
     }
 
-    NormalSpreadPass::NormalSpreadPass(const Device& device, const std::filesystem::path& shaderDirectory)
-        : mPipeline(device, sBindings, sizeof(Shaders::NormalSpreadConstants), {},
-            shaderDirectory / "normalspread.comp.spv", "normal spread")
+    NormalSpreadPass::NormalSpreadPass(const Device& device)
+        : mPipeline(device, sBindings, {}, "normalspread.comp.spv", "normal spread")
     {
     }
 
@@ -48,10 +47,9 @@ namespace Rtx
             if (level > 0)
                 means.transition(commands, Use::sComputeReadWrite, Use::sComputeReadWrite);
 
-            DescriptorWrites<Shaders::NORMALSPREAD_BINDINGS> writes;
+            DescriptorWrites writes(mPipeline);
             writes.image(Shaders::NORMALSPREAD_BIND_SOURCE,
-                map.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
-                VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+                map.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
             writes.image(Shaders::NORMALSPREAD_BIND_ABOVE, means.describeStorage(level > 0 ? level - 1 : 0));
             writes.image(Shaders::NORMALSPREAD_BIND_MEAN, means.describeStorage(level));
             writes.image(Shaders::NORMALSPREAD_BIND_SPREAD, spread.describeStorage(level));
@@ -63,9 +61,8 @@ namespace Rtx
                 .mPadding = 0,
             };
 
-            dispatch(commands, mPipeline, writes.get(), constants,
-                groupsFor(constants.mWidth, Shaders::NORMAL_SPREAD_WORKGROUP),
-                groupsFor(constants.mHeight, Shaders::NORMAL_SPREAD_WORKGROUP));
+            dispatch(commands, mPipeline, writes, constants,
+                Groups::covering(constants.mWidth, constants.mHeight, Shaders::NORMAL_SPREAD_WORKGROUP));
         }
 
         spread.transition(commands, Use::sComputeWrite, Use::sTextureSample);

@@ -1,9 +1,8 @@
 #pragma once
 
-#include <filesystem>
-
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/shaders/atrous.h>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 
 #include "denoiseframe.hpp"
@@ -23,7 +22,7 @@ namespace Rtx
     class AtrousPass
     {
     public:
-        AtrousPass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit AtrousPass(const Device& device);
 
         /// Runs every level and returns the channel the result ended up in, because the levels
         /// alternate and a copy back would be bandwidth spent on tidiness.
@@ -39,6 +38,6 @@ namespace Rtx
             const GBuffer& buffer, const DenoiseFrame& frame) const;
 
     private:
-        ComputePipeline mPipeline;
+        ComputePipeline<Shaders::AtrousConstants> mPipeline;
     };
 }

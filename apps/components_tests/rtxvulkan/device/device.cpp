@@ -114,17 +114,15 @@ namespace Rtx
 
         TEST_F(RtxDeviceTest, theShaderBuildStepProducesLoadableModules)
         {
-            const std::filesystem::path visibility = Testing::getShaderDirectory() / "visibility.rgen.spv";
-            ASSERT_TRUE(std::filesystem::exists(visibility)) << visibility;
+            ASSERT_TRUE(std::filesystem::exists(mHarness.mDevice->getShaderDirectory() / "visibility.rgen.spv"));
 
-            const ShaderModule module = loadShaderModule(*mHarness.mDevice, visibility);
+            const ShaderModule module = loadShaderModule(*mHarness.mDevice, "visibility.rgen.spv");
             EXPECT_NE(module.get(), VK_NULL_HANDLE);
         }
 
         TEST_F(RtxDeviceTest, aFileThatIsNotSpirvIsRejectedRatherThanHandedToTheDriver)
         {
-            const std::filesystem::path missing = Testing::getShaderDirectory() / "there-is-no-such-shader.spv";
-            EXPECT_THROW(loadShaderModule(*mHarness.mDevice, missing), InputError);
+            EXPECT_THROW(loadShaderModule(*mHarness.mDevice, "there-is-no-such-shader.spv"), InputError);
         }
 
         TEST_F(RtxDeviceTest, theReportNamesTheDeviceAndItsRayTracingLimits)

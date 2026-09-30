@@ -1,7 +1,5 @@
 #pragma once
 
-#include <filesystem>
-
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/shaders/composite.h>
@@ -25,7 +23,7 @@ namespace Rtx
     class CompositePass
     {
     public:
-        CompositePass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit CompositePass(const Device& device);
 
         /// @param buffer must have been handed over, so its writes are visible to this read, and
         ///        its direct channel made writable by compute, which is where the frame goes. Its
@@ -40,7 +38,7 @@ namespace Rtx
             Shaders::CompositeConstants constants) const;
 
     private:
-        ComputePipeline mPipeline;
+        ComputePipeline<Shaders::CompositeConstants> mPipeline;
 
         /// What the sum's binding points at when nothing is being summed. The shader touches the
         /// sum only inside `if (mAccumulate > 0u)`, and `makeStandIn` says the rest.

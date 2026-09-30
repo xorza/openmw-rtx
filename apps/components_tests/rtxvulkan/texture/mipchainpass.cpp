@@ -43,7 +43,7 @@ namespace Rtx
                 const TextureData& file, std::string_view name, VkFormat stored = VK_FORMAT_R8G8B8A8_UNORM)
             {
                 Device& device = getDevice();
-                const TexturePasses passes(device, Testing::getShaderDirectory());
+                const TexturePasses passes(device);
 
                 const bool encoded = isSrgb(file.mFormat);
                 const std::uint32_t levels = levelsTo1x1(file.mWidth, file.mHeight);
@@ -75,7 +75,7 @@ namespace Rtx
                 file.mCompleteChain = MipChain::wantedFor(file);
 
                 Device& device = getDevice();
-                const TexturePasses passes(device, Testing::getShaderDirectory());
+                const TexturePasses passes(device);
 
                 Batch upload(getPool());
                 std::vector<VkBufferImageCopy> regions;

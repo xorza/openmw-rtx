@@ -5,10 +5,8 @@
 #include <cstdint>
 #include <cstring>
 #include <deque>
-#include <optional>
 #include <vector>
 
-#include <components/crashcatcher/crashnote.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
@@ -18,57 +16,60 @@
 
 namespace Rtx
 {
-    TracePipeline::TracePipeline(const Device& device, std::span<const VkDescriptorSetLayoutBinding> bindings,
-        const SharedSetLayouts& shared, const TraceShaders& shaders, std::string_view name,
-        std::span<const std::uint32_t> specialization)
-        : Pipeline(PipelineLayout(device, bindings,
-                       VkPushConstantRange{
-                           .stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR, .size = shaders.mRaygenConstantBytes },
-                       shared),
-            VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR)
-        , mDevice(device)
+    namespace
     {
-        const Crash::NoteScope noted("compiling the pipeline \"{}\"", name);
-        const bool anyHitWanted = !shaders.mAnyHit.empty();
-        const std::size_t hitRecords = shaders.mHit.size() * shaders.mHitRecordsPerShader;
+        /// How many hit records `shaders` lays out: each closest-hit shader stands behind its run.
+        std::size_t hitRecordsOf(const TraceShaders& shaders)
+        {
+            assert(shaders.mHitRecordsPerShader > 0 && "a closest-hit shader with no record to stand behind");
+            return shaders.mHit.size() * shaders.mHitRecordsPerShader;
+        }
 
-        assert(shaders.mHitRecordsPerShader > 0 && "a closest-hit shader with no record to stand behind");
-        assert((hitRecords == 0 ? shaders.mHitRecordData.empty() : shaders.mHitRecordData.size() % hitRecords == 0)
-            && "hit record data that does not divide into one block per record");
-        const std::size_t hitRecordBytes = hitRecords == 0 ? 0 : shaders.mHitRecordData.size() / hitRecords;
+        /// How many groups `shaders` makes: the ray generation stage's, one a miss, one a hit record.
+        std::size_t groupsOf(const TraceShaders& shaders)
+        {
+            return 1 + shaders.mMiss.size() + hitRecordsOf(shaders);
+        }
+    }
+
+    Owned<VkPipeline, vkDestroyPipeline> makeTracePipeline(const Device& device, const VkPipelineLayout layout,
+        const TraceShaders& shaders, const std::string_view name, const std::span<const std::uint32_t> specialization)
+    {
+        PipelineCreation creation(device, name);
+        const bool anyHitWanted = !shaders.mAnyHit.empty();
 
         // A stage is not a group: one any-hit is compiled and every hit group names it, and one
         // closest-hit stage stands behind a run of groups. The handles come back in group order,
-        // which is the order the table below is filled in.
+        // which is the order `ShaderBindingTable` fills its records in.
         std::vector<ShaderModule> compiled;
         compiled.reserve(1 + shaders.mMiss.size() + (anyHitWanted ? 1 : 0) + shaders.mHit.size());
 
         const Specialization constants(specialization);
 
-        // A closest-hit stage's own words after the pipeline's, one table a stage, kept until the
-        // pipeline is made because the info the stage names points into it. A deque, because
-        // `Specialization` points into itself and may not move.
+        // A closest-hit stage's own table, kept until the pipeline is made because the info the
+        // stage names points into it. A deque, because `Specialization` points into itself and may
+        // not move.
         std::deque<Specialization> hitConstants;
 
         std::vector<VkPipelineShaderStageCreateInfo> stages;
         std::vector<VkRayTracingShaderGroupCreateInfoKHR> groups;
         stages.reserve(compiled.capacity());
-        groups.reserve(1 + shaders.mMiss.size() + hitRecords);
+        groups.reserve(groupsOf(shaders));
 
-        const auto addStage = [&](VkShaderStageFlagBits stage, const std::filesystem::path& module,
-                                  const VkSpecializationInfo* specialized) {
-            const auto at = static_cast<std::uint32_t>(stages.size());
-            compiled.push_back(loadShaderModule(device, module));
-            stages.push_back(VkPipelineShaderStageCreateInfo{
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .stage = stage,
-                .module = compiled.back().get(),
-                .pName = "main",
-                .pSpecializationInfo = specialized,
-            });
+        const auto addStage
+            = [&](VkShaderStageFlagBits stage, const std::string_view module, const VkSpecializationInfo* specialized) {
+                  const auto at = static_cast<std::uint32_t>(stages.size());
+                  compiled.push_back(loadShaderModule(device, module));
+                  stages.push_back(VkPipelineShaderStageCreateInfo{
+                      .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                      .stage = stage,
+                      .module = compiled.back().get(),
+                      .pName = "main",
+                      .pSpecializationInfo = specialized,
+                  });
 
-            return at;
-        };
+                  return at;
+              };
 
         const auto addGeneral = [&](std::uint32_t stage) {
             groups.push_back(VkRayTracingShaderGroupCreateInfoKHR{
@@ -82,7 +83,7 @@ namespace Rtx
         };
 
         addGeneral(addStage(VK_SHADER_STAGE_RAYGEN_BIT_KHR, shaders.mRaygen, constants.getInfo()));
-        for (const std::filesystem::path& module : shaders.mMiss)
+        for (const std::string_view module : shaders.mMiss)
             addGeneral(addStage(VK_SHADER_STAGE_MISS_BIT_KHR, module, constants.getInfo()));
 
         const std::uint32_t anyHit = anyHitWanted
@@ -93,7 +94,7 @@ namespace Rtx
         {
             const VkSpecializationInfo* specialized = hit.mSpecialization.empty()
                 ? constants.getInfo()
-                : hitConstants.emplace_back(specialization, hit.mSpecialization).getInfo();
+                : hitConstants.emplace_back(hit.mSpecialization).getInfo();
 
             const std::uint32_t closestHit = addStage(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, hit.mModule, specialized);
             for (std::uint32_t record = 0; record < shaders.mHitRecordsPerShader; ++record)
@@ -106,14 +107,6 @@ namespace Rtx
                     .intersectionShader = VK_SHADER_UNUSED_KHR,
                 });
         }
-
-        // Asked to say how long the whole pipeline took, and nothing per stage: what the report
-        // wants is whether it was compiled at all, which seconds say and milliseconds do not.
-        VkPipelineCreationFeedback feedback{};
-        const VkPipelineCreationFeedbackCreateInfo timed{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO,
-            .pPipelineCreationFeedback = &feedback,
-        };
 
         // What the pipeline promises the driver it will never do, so the driver may leave those
         // paths out of traversal: no procedural geometry anywhere in this renderer, so no AABB is
@@ -132,12 +125,13 @@ namespace Rtx
 
         const VkRayTracingPipelineCreateInfoKHR pipeline{
             .sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
-            .pNext = &timed,
-            // Asked for and, on this driver, not answered. NVIDIA reports one executable for
-            // every compute pipeline in this renderer and none at all for a ray tracing one —
-            // `Device::reportPipeline` is where that shows. The flag stays because it costs the
-            // frame nothing and is what makes the report appear the day a driver answers.
-            .flags = VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR | promises,
+            .pNext = creation.chain(nullptr),
+            // The statistics are asked for and, on this driver, not answered: NVIDIA reports one
+            // executable for every compute pipeline in this renderer and none at all for a ray
+            // tracing one — `Device::reportPipeline` is where that shows. Asked for anyway,
+            // because it costs the frame nothing and is what makes the report appear the day a
+            // driver answers.
+            .flags = PipelineCreation::sFlags | promises,
             .stageCount = static_cast<std::uint32_t>(stages.size()),
             .pStages = stages.data(),
             .groupCount = static_cast<std::uint32_t>(groups.size()),
@@ -147,21 +141,26 @@ namespace Rtx
             // recursion and cost the stack nothing. Nothing anywhere calls `traceRayEXT`, so no
             // second level exists to be sized for.
             .maxPipelineRayRecursionDepth = 1,
-            .layout = mLayout.getHandle(),
+            .layout = layout,
         };
+        Owned<VkPipeline, vkDestroyPipeline> handle;
         checkVk(device.getFunctions().mCreateRayTracingPipelines(device.getHandle(), VK_NULL_HANDLE,
-                    device.getPipelineCache(), 1, &pipeline, nullptr, mHandle.put(device.getHandle())),
+                    device.getPipelineCache(), 1, &pipeline, nullptr, handle.put(device.getHandle())),
             "vkCreateRayTracingPipelinesKHR");
 
-        constexpr VkPipelineCreationFeedbackFlags valid = VK_PIPELINE_CREATION_FEEDBACK_VALID_BIT;
-        constexpr VkPipelineCreationFeedbackFlags fromApplicationCache
-            = VK_PIPELINE_CREATION_FEEDBACK_APPLICATION_PIPELINE_CACHE_HIT_BIT;
-        std::optional<double> compileMs;
-        if ((feedback.flags & (valid | fromApplicationCache)) == valid)
-            compileMs = static_cast<double>(feedback.duration) / 1e6;
+        creation.finish(handle.get());
+        return handle;
+    }
 
-        device.setName(mHandle.get(), name);
-        device.reportPipeline(mHandle.get(), name, compileMs);
+    ShaderBindingTable::ShaderBindingTable(
+        const Device& device, const VkPipeline pipeline, const TraceShaders& shaders, const std::string_view name)
+        : mDevice(device)
+    {
+        const std::size_t hitRecords = hitRecordsOf(shaders);
+        assert((hitRecords == 0 ? shaders.mHitRecordData.empty() : shaders.mHitRecordData.size() % hitRecords == 0)
+            && "hit record data that does not divide into one block per record");
+        const std::size_t hitRecordBytes = hitRecords == 0 ? 0 : shaders.mHitRecordData.size() / hitRecords;
+        const std::size_t groups = groupsOf(shaders);
 
         const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& limits
             = device.getPhysicalDevice().getProperties().mRayTracingPipeline;
@@ -204,9 +203,9 @@ namespace Rtx
         const std::span<std::byte> table = mTable.unnamed<std::byte>();
         std::memset(table.data(), 0, table.size());
 
-        std::vector<std::uint8_t> handles(groups.size() * limits.shaderGroupHandleSize);
-        checkVk(device.getFunctions().mGetRayTracingShaderGroupHandles(device.getHandle(), mHandle.get(), 0,
-                    static_cast<std::uint32_t>(groups.size()), handles.size(), handles.data()),
+        std::vector<std::uint8_t> handles(groups * limits.shaderGroupHandleSize);
+        checkVk(device.getFunctions().mGetRayTracingShaderGroupHandles(device.getHandle(), pipeline, 0,
+                    static_cast<std::uint32_t>(groups), handles.size(), handles.data()),
             "vkGetRayTracingShaderGroupHandlesKHR");
 
         // Each region's records, in the order their groups were made: the handles came back packed
@@ -243,7 +242,7 @@ namespace Rtx
             described->deviceAddress = described->size > 0 ? base + described->deviceAddress : 0;
     }
 
-    void TracePipeline::traceRays(
+    void ShaderBindingTable::traceRays(
         VkCommandBuffer commands, std::uint32_t width, std::uint32_t height, std::uint32_t depth) const
     {
         // The regions carry the table by address, taken once at the fill, so the launch is the

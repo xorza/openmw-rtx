@@ -4,7 +4,6 @@
 #include <cassert>
 #include <cstdint>
 
-#include <components/crashcatcher/crashnote.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -14,14 +13,10 @@
 
 namespace Rtx
 {
-    GraphicsPipeline::GraphicsPipeline(const Device& device, const GraphicsPipelineOptions& options)
-        : Pipeline(PipelineLayout(device, options.mBindings,
-                       VkPushConstantRange{ .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                           .size = options.mPushConstantBytes },
-                       {}),
-            VK_PIPELINE_BIND_POINT_GRAPHICS)
+    Owned<VkPipeline, vkDestroyPipeline> makeGraphicsPipeline(
+        const Device& device, const VkPipelineLayout layout, const GraphicsPipelineOptions& options)
     {
-        const Crash::NoteScope noted("compiling the pipeline \"{}\"", options.mName);
+        PipelineCreation creation(device, options.mName);
         const ShaderModule vertex = loadShaderModule(device, options.mVertexModule);
         const ShaderModule fragment = loadShaderModule(device, options.mFragmentModule);
         const Specialization constants(options.mSpecialization);
@@ -119,10 +114,8 @@ namespace Rtx
 
         const VkGraphicsPipelineCreateInfo pipeline{
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-            .pNext = &rendering,
-            // Asked for at creation because it cannot be asked for afterwards, and paid at
-            // creation rather than at draw. `Device::reportPipeline` says what it buys.
-            .flags = VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR,
+            .pNext = creation.chain(&rendering),
+            .flags = PipelineCreation::sFlags,
             .stageCount = static_cast<std::uint32_t>(stages.size()),
             .pStages = stages.data(),
             .pVertexInputState = &vertexInput,
@@ -132,14 +125,15 @@ namespace Rtx
             .pMultisampleState = &multisample,
             .pColorBlendState = &blend,
             .pDynamicState = &dynamic,
-            .layout = mLayout.getHandle(),
+            .layout = layout,
         };
+        Owned<VkPipeline, vkDestroyPipeline> handle;
         checkVk(vkCreateGraphicsPipelines(device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr,
-                    mHandle.put(device.getHandle())),
+                    handle.put(device.getHandle())),
             "vkCreateGraphicsPipelines");
 
-        device.setName(mHandle.get(), options.mName);
-        device.reportPipeline(mHandle.get(), options.mName);
+        creation.finish(handle.get());
+        return handle;
     }
 
     void beginDrawingOver(const VkCommandBuffer commands, const Image& target, const ClipUp up)

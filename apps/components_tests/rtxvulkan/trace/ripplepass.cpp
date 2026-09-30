@@ -48,7 +48,7 @@ namespace Rtx
         /// on the eye.
         TEST_F(RtxRipplePassTest, aFieldNothingDisturbedIsStillWater)
         {
-            RipplePass ripples(getDevice(), Testing::getShaderDirectory());
+            RipplePass ripples(getDevice());
             run(ripples, getPool(), {}, 10);
 
             const std::vector<float> surface = Testing::readHalves(ripples.getSurface(), 0);
@@ -80,7 +80,7 @@ namespace Rtx
         /// by symmetry.
         TEST_F(RtxRipplePassTest, aFootfallPressesARingThatSpreadsAndStaysSymmetric)
         {
-            RipplePass ripples(getDevice(), Testing::getShaderDirectory());
+            RipplePass ripples(getDevice());
 
             // On the middle texel's own centre, half a texel past the origin along each axis, so
             // the ring is symmetric about that texel and not about the corner between two.
@@ -131,7 +131,7 @@ namespace Rtx
         /// The window follows the eye by whole texels and the ring stays where it was pressed.
         TEST_F(RtxRipplePassTest, theWindowFollowsTheEyeAndTheRingStaysWhereItWasPressed)
         {
-            RipplePass ripples(getDevice(), Testing::getShaderDirectory());
+            RipplePass ripples(getDevice());
 
             const std::array<RippleImpulse, 1> footfall{ RippleImpulse{
                 .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f } };

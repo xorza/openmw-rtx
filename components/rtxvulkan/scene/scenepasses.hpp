@@ -1,7 +1,5 @@
 #pragma once
 
-#include <filesystem>
-
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/texture/groundcompositepass.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
@@ -20,11 +18,11 @@ namespace Rtx
     /// keeps one, and every scene holds it.
     struct ScenePasses
     {
-        ScenePasses(const Device& device, const std::filesystem::path& shaders)
+        explicit ScenePasses(const Device& device)
             : mTextureLayout(TextureArray::describeLayout(device))
-            , mSkin(device, shaders)
-            , mTextures(device, shaders)
-            , mGround(device, shaders, mTextureLayout.get())
+            , mSkin(device)
+            , mTextures(device)
+            , mGround(device, mTextureLayout.get())
         {
         }
 

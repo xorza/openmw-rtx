@@ -1,11 +1,11 @@
 #pragma once
 
-#include <filesystem>
 #include <span>
 
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/shaders/skinning.h>
 #include <components/rtxvulkan/device/memory/blockedbuffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/slottable.hpp>
@@ -54,7 +54,7 @@ namespace Rtx
     class SkinPass
     {
     public:
-        SkinPass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit SkinPass(const Device& device);
 
         /// Records `what.mSlot`'s dispatches into `commands`: every mesh `what.mPoses` owes, its
         /// rows or weights written into the tables' copy first, and one barrier after them for
@@ -84,9 +84,9 @@ namespace Rtx
         /// `into`, `normalsInto` and `tangentsInto` are `what`'s three tables at its own slot, taken
         /// once by the caller rather than per mesh.
         void pose(VkCommandBuffer commands, const Skinning& what, Index mesh, Rows rows, BlockedBuffer& into,
-            BlockedBuffer& normalsInto, BlockedBuffer& tangentsInto, const ComputePipeline*& bound) const;
+            BlockedBuffer& normalsInto, BlockedBuffer& tangentsInto, const Pipeline*& bound) const;
 
-        ComputePipeline mSkin;
-        ComputePipeline mMorph;
+        ComputePipeline<Shaders::SkinConstants> mSkin;
+        ComputePipeline<Shaders::MorphConstants> mMorph;
     };
 }

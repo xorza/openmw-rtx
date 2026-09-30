@@ -1,9 +1,8 @@
 #pragma once
 
-#include <filesystem>
-
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/shaders/exposure.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 
@@ -20,7 +19,7 @@ namespace Rtx
     class ExposurePass
     {
     public:
-        ExposurePass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit ExposurePass(const Device& device);
 
         /// Measures `frame` and moves the answer toward it at a rate in seconds, where `getExposure`
         /// points, because a brightness that was a pure function of the frame turned every
@@ -46,8 +45,8 @@ namespace Rtx
         const Buffer& getPictureExposure() const { return mPicture; }
 
     private:
-        ComputePipeline mHistogramPipeline;
-        ComputePipeline mReducePipeline;
+        ComputePipeline<Shaders::HistogramConstants> mHistogramPipeline;
+        ComputePipeline<Shaders::ExposureConstants> mReducePipeline;
 
         /// One `uint` per bin, cleared at the start of every measurement — a shader that cleared it
         /// would race with the workgroups already accumulating into it.

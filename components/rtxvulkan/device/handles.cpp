@@ -4,19 +4,17 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <string>
 #include <vector>
 
-#include <components/files/conversion.hpp>
 #include <components/rtxvulkan/spirv/spirvfile.hpp>
 
 #include "device.hpp"
 
 namespace Rtx
 {
-    ShaderModule loadShaderModule(const Device& device, const std::filesystem::path& path)
+    ShaderModule loadShaderModule(const Device& device, const std::string_view module)
     {
-        const std::vector<std::uint32_t> words = readSpirv(path);
+        const std::vector<std::uint32_t> words = readSpirv(device.getShaderDirectory() / module);
 
         const VkShaderModuleCreateInfo createInfo{
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -27,9 +25,7 @@ namespace Rtx
         ShaderModule handle
             = ShaderModule::make(device.getHandle(), vkCreateShaderModule, createInfo, "vkCreateShaderModule");
 
-        // The name is built from a path, so it can throw — and a handle already made is destroyed
-        // on the way out.
-        device.setName(handle.get(), Files::pathToUnicodeString(path.filename()).c_str());
+        device.setName(handle.get(), module);
 
         return handle;
     }
@@ -75,8 +71,9 @@ namespace Rtx
             .bindingCount = static_cast<std::uint32_t>(bindings.size()),
             .pBindings = bindings.data(),
         };
-        return SetLayout::make(
-            device.getHandle(), vkCreateDescriptorSetLayout, describe, "vkCreateDescriptorSetLayout");
+        return SetLayout(Owned<VkDescriptorSetLayout, vkDestroyDescriptorSetLayout>::make(
+                             device.getHandle(), vkCreateDescriptorSetLayout, describe, "vkCreateDescriptorSetLayout"),
+            bindings);
     }
 
     namespace

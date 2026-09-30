@@ -1,7 +1,5 @@
 #pragma once
 
-#include <filesystem>
-
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/shaders/ground.h>
@@ -21,8 +19,7 @@ namespace Rtx
     public:
         /// @param textures the layout of the scene's texture set, bound at `SET_TEXTURES` — the
         ///        layers' textures and their shading maps.
-        GroundCompositePass(
-            const Device& device, const std::filesystem::path& shaderDirectory, VkDescriptorSetLayout textures);
+        GroundCompositePass(const Device& device, VkDescriptorSetLayout textures);
 
         /// Records `chunk`'s bake into its albedo and its gloss, every level of each: one sum into
         /// both first levels, the chains blitted below them in step. Each is met undefined and left
@@ -35,7 +32,7 @@ namespace Rtx
             const Shaders::GroundCompositeConstants& chunk) const;
 
     private:
-        ComputePipeline mPipeline;
+        ComputePipeline<Shaders::GroundCompositeConstants> mPipeline;
 
         /// What an image the bake does not write is bound as, because a descriptor has to point
         /// somewhere: a chunk whose two images arrived apart is baked once for each.

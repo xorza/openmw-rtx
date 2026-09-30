@@ -31,10 +31,8 @@ namespace Rtx
         };
     }
 
-    TonePass::TonePass(
-        const Device& device, VkDescriptorSetLayout textureLayout, const std::filesystem::path& shaderDirectory)
-        : mPipeline(device, sBindings, sizeof(Shaders::ToneConstants), SharedSetLayouts{ .mTextures = textureLayout },
-            shaderDirectory / "tone.comp.spv", "tone")
+    TonePass::TonePass(const Device& device, VkDescriptorSetLayout textureLayout)
+        : mPipeline(device, sBindings, SharedSetLayouts{ .mTextures = textureLayout }, "tone.comp.spv", "tone")
         , mSampler(makeTargetSampler(device, "tone"))
         , mNoBloom(makeStandIn(device, toVulkanFormat(BLOOM_LEVEL), VK_IMAGE_USAGE_SAMPLED_BIT, "no-bloom"))
     {
@@ -62,13 +60,12 @@ namespace Rtx
         constants.mBloomTexel
             = osg::Vec2f(1.0f / static_cast<float>(spread.getWidth()), 1.0f / static_cast<float>(spread.getHeight()));
 
-        DescriptorWrites<Shaders::TONE_BINDINGS> writes;
+        DescriptorWrites writes(mPipeline);
         writes.image(Shaders::TONE_BIND_COLOUR, colour.describeStorage());
         writes.image(Shaders::TONE_BIND_TARGET, target.describeStorage());
         writes.image(Shaders::TONE_BIND_BACKDROP, backdrop.describeStorage());
         writes.buffer(Shaders::TONE_BIND_EXPOSURE, exposure.describe());
-        writes.image(Shaders::TONE_BIND_BLOOM, spread.describeSampled(mSampler.get()),
-            VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        writes.image(Shaders::TONE_BIND_BLOOM, spread.describeSampled(mSampler.get()));
         writes.buffer(Shaders::TONE_BIND_SUN_GLARE, sunGlare.describe());
         writes.image(Shaders::TONE_BIND_PUFFS, puffs.describeStorage());
 
@@ -76,8 +73,7 @@ namespace Rtx
         // independent of: a pushed set and a bound one only have to be in place by the dispatch.
         bindSets(commands, mPipeline, SharedSetBinds{ .mTextures = textures });
 
-        dispatch(commands, mPipeline, writes.get(), constants,
-            groupsFor(constants.mCamera.mWidth, Shaders::TONE_WORKGROUP),
-            groupsFor(constants.mCamera.mHeight, Shaders::TONE_WORKGROUP));
+        dispatch(commands, mPipeline, writes, constants,
+            Groups::covering(constants.mCamera.mWidth, constants.mCamera.mHeight, Shaders::TONE_WORKGROUP));
     }
 }

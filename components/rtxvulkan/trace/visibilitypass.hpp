@@ -4,7 +4,6 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
-#include <filesystem>
 #include <future>
 #include <memory>
 #include <string>
@@ -143,9 +142,8 @@ namespace Rtx
         ///        were not finite — a harness facility, specialized away rather than branched on.
         /// @param specialize whether to make a kernel per tuple, or the full tuple's alone and
         ///        answer every frame with it — `RenderProfile::mSpecializeLaunches`.
-        VisibilityPass(const Device& device, const std::filesystem::path& shaderDirectory,
-            const SetLayout& textureLayout, const SetLayout& channelLayout, const SetLayout& volumeLayout,
-            bool counting, bool specialize);
+        VisibilityPass(const Device& device, const SetLayout& textureLayout, const SetLayout& channelLayout,
+            const SetLayout& volumeLayout, bool counting, bool specialize);
 
         /// Waits for every kernel, and rethrows what making one threw — every time it is asked,
         /// so a caller that caught it once cannot go on to record with a table half empty. Ahead
@@ -236,11 +234,11 @@ namespace Rtx
         /// the caller's thread, because the whole set takes ten seconds cold and the window has to
         /// go on answering meanwhile. In parallel, because the driver's cache is internally
         /// synchronised, and `PipelineCache` outlives the process.
-        void compileEvery(const std::filesystem::path& shaders, VkDescriptorSetLayout textureLayout);
+        void compileEvery(VkDescriptorSetLayout textureLayout);
 
         /// Makes the one kernel `wanted` names, into its slot. On a hand of `compileEvery`'s, each
         /// writing a slot no other hand does.
-        void compile(const Wanted& wanted, const std::filesystem::path& shaders, VkDescriptorSetLayout textureLayout);
+        void compile(const Wanted& wanted, VkDescriptorSetLayout textureLayout);
 
         /// The shared sets every kernel of the pass reads. A pipeline layout names every set it will
         /// ever be handed, and the kernels are handed the same.
@@ -263,13 +261,13 @@ namespace Rtx
         std::uint32_t slotOf(VisibilityVariant variant) const;
 
         /// The kernel for `variant`, which `compileEvery` made.
-        const TracePipeline& pipelineFor(VisibilityVariant variant) const;
+        const TracePipeline<NoConstants>& pipelineFor(VisibilityVariant variant) const;
 
         /// The same, for the launch that fills the fog volume's froxels. Every tuple has one, a
         /// room's included: the volume walks the lamps once per froxel where the closed form would
         /// be a lamp reservoir and a shadow ray per pixel. **The maps are not a question it asks**,
         /// so a tuple with maps is answered by its twin without them.
-        const TracePipeline& scatterPipelineFor(VisibilityVariant variant) const;
+        const TracePipeline<NoConstants>& scatterPipelineFor(VisibilityVariant variant) const;
 
         const Device& mDevice;
 
@@ -298,34 +296,34 @@ namespace Rtx
         VkDescriptorSetLayout mVolumeLayout = VK_NULL_HANDLE;
 
         /// One pipeline per tuple, every one of them made by `compileEvery`.
-        std::array<std::unique_ptr<TracePipeline>, VisibilityVariant::sCount> mPipelines;
+        std::array<std::unique_ptr<TracePipeline<NoConstants>>, VisibilityVariant::sCount> mPipelines;
 
         /// The same table for the launch that fills the froxels, made for the tuples without maps —
         /// `scatterPipelineFor` says why. A launch and not a dispatch, and so is the column pass
         /// under it: `fogscatter.rgen` says what a ray query answers inside a dispatch when another
         /// process shares the card.
-        std::array<std::unique_ptr<TracePipeline>, VisibilityVariant::sCount> mScatterPipelines;
+        std::array<std::unique_ptr<TracePipeline<NoConstants>>, VisibilityVariant::sCount> mScatterPipelines;
 
         /// And one for the launch that finds where each column's ray stops, which no tuple
         /// changes: it traces and shades nothing.
-        std::unique_ptr<TracePipeline> mDepthPipeline;
+        std::unique_ptr<TracePipeline<NoConstants>> mDepthPipeline;
 
         /// And one for the launch that composites the puffs over the shown frame, which takes no
         /// tuple either: it reads the bin and the air and traces nothing. A launch and not a
         /// dispatch for the reason `spritecomposite.rgen` gives.
-        std::unique_ptr<TracePipeline> mSpriteCompositePipeline;
+        std::unique_ptr<TracePipeline<Shaders::PuffConstants>> mSpriteCompositePipeline;
 
         /// The launch over the sprite list that keeps the rain from under the roofs. One, like the
         /// composite's: it reads the structure and the tables and has no opinion about the sky.
-        std::unique_ptr<TracePipeline> mSpriteShelterPipeline;
+        std::unique_ptr<TracePipeline<NoConstants>> mSpriteShelterPipeline;
 
         /// And the launch over the emitters that writes what each is for this camera, for the same
         /// reason.
-        std::unique_ptr<TracePipeline> mSpriteEmittersPipeline;
+        std::unique_ptr<TracePipeline<NoConstants>> mSpriteEmittersPipeline;
 
         /// And one for the pass that integrates the columns, which takes no tuple at all: every
         /// question was answered by the pass that filled the froxels.
-        std::unique_ptr<ComputePipeline> mIntegratePipeline;
+        std::unique_ptr<ComputePipeline<NoConstants>> mIntegratePipeline;
 
         /// How many kernels `compileEvery` makes, and how many of them the hands have made so far.
         std::uint32_t mKernelCount = 0;

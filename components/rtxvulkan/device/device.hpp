@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
@@ -156,9 +157,13 @@ namespace Rtx
         ///
         /// @param instance must outlive the device. Not held: a `VkDevice` does not reference its
         ///        instance, but every entry point reached through it does.
-        /// @param cache where the pipeline cache is kept and what it is keyed on. An empty
-        ///        directory keeps none, and every pipeline is compiled from source every run.
-        Device(const Instance& instance, PhysicalDevice&& physicalDevice, const PipelineCacheSpec& cache);
+        /// @param shaderDirectory the compiled shaders every pipeline on this device is built from,
+        ///        and what the pipeline cache is keyed on: one directory for both, so no pipeline
+        ///        loads a module the cache was not keyed on.
+        /// @param cache where the pipeline cache is kept. An empty directory keeps none, and every
+        ///        pipeline is compiled from source every run.
+        Device(const Instance& instance, PhysicalDevice&& physicalDevice, const std::filesystem::path& shaderDirectory,
+            const PipelineCacheSpec& cache);
         ~Device();
 
         VkDevice getHandle() const { return mHandle.get(); }
@@ -192,6 +197,8 @@ namespace Rtx
         /// Handed to every `vkCreate*Pipelines` on this device, so that a shader is compiled once
         /// per change rather than once per pipeline.
         VkPipelineCache getPipelineCache() const;
+
+        const std::filesystem::path& getShaderDirectory() const { return mShaderDirectory; }
 
         /// Logs what the driver's compiler made of `pipeline` — registers a thread, spills, shared
         /// memory a block. The register count exists only inside the driver, which is what lets an
@@ -302,6 +309,8 @@ namespace Rtx
         PFN_vkGetQueueCheckpointDataNV mGetQueueCheckpointData = nullptr;
 
         bool mPresentFences = false;
+
+        std::filesystem::path mShaderDirectory;
 
         // Last, so that they are torn down first, and in this order, because a later one dies
         // earlier: the graveyard gives memory back to the allocator, the pool and the clock hold

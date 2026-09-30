@@ -239,21 +239,21 @@ namespace Rtx
         }
         static_assert(everyPassHasAModule(), "a pass `Pass` names and `sPassSpecs` leaves out");
 
-        ComputePipeline makePass(const Device& device, const std::filesystem::path& shaders, const PassSpec& pass)
+        ComputePipeline<NoConstants> makePass(const Device& device, const PassSpec& pass)
         {
             std::array<VkDescriptorSetLayoutBinding, sMostBindings> bindings{};
             for (std::size_t at = 0; at < pass.mBinds.size(); ++at)
                 bindings[at] = computeBinding(pass.mBinds[at].mBinding, typeOf(pass.mBinds[at].mAccess));
 
-            return ComputePipeline(
-                device, std::span(bindings.data(), pass.mBinds.size()), 0, {}, shaders / pass.mModule, pass.mName);
+            return ComputePipeline<NoConstants>(
+                device, std::span(bindings.data(), pass.mBinds.size()), {}, pass.mModule, pass.mName);
         }
 
         template <std::size_t... At>
-        std::array<ComputePipeline, Upscaler::sPasses> makePasses(
-            const Device& device, const std::filesystem::path& shaders, std::index_sequence<At...>)
+        std::array<ComputePipeline<NoConstants>, Upscaler::sPasses> makePasses(
+            const Device& device, std::index_sequence<At...>)
         {
-            return { makePass(device, shaders, sPassSpecs[At])... };
+            return { makePass(device, sPassSpecs[At])... };
         }
 
         /// What every image the upscaler keeps is made for: written and read by its passes, sampled
@@ -347,9 +347,9 @@ namespace Rtx
         }
     };
 
-    Upscaler::Upscaler(const Device& device, const std::filesystem::path& shaderDirectory)
+    Upscaler::Upscaler(const Device& device)
         : mDevice(device)
-        , mPipelines(makePasses(device, shaderDirectory, std::make_index_sequence<sPasses>{}))
+        , mPipelines(makePasses(device, std::make_index_sequence<sPasses>{}))
         , mSampler(makeTargetSampler(device, "fsr linear clamp"))
         , mBlocks([&](const FrameSlot) {
             return Buffer::hostWritten(
@@ -499,16 +499,16 @@ namespace Rtx
 
         const auto between = [&] { handOver(commands, sPassWork, sPassWork); };
 
-        const auto run = [&](const Pass pass, const std::uint32_t groupsX, const std::uint32_t groupsY) {
+        const auto run = [&](const Pass pass, const Groups groups) {
             const PassSpec& spec = sPassSpecs[static_cast<std::size_t>(pass)];
-            DescriptorWrites<sMostBindings> writes;
+            const ComputePipeline<NoConstants>& pipeline = mPipelines[static_cast<std::size_t>(pass)];
+            DescriptorWrites writes(pipeline);
             for (const Bind& bind : spec.mBinds)
             {
                 switch (bind.mAccess)
                 {
                     case Access::Sampled:
-                        writes.image(bind.mBinding, pick(bind.mBound).describeSampled(VK_NULL_HANDLE),
-                            VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+                        writes.image(bind.mBinding, pick(bind.mBound).describeSampled(VK_NULL_HANDLE));
                         break;
                     case Access::Storage:
                     {
@@ -522,20 +522,16 @@ namespace Rtx
                         break;
                     }
                     case Access::Block:
-                        writes.buffer(bind.mBinding, blockOf(bind.mBound), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+                        writes.buffer(bind.mBinding, blockOf(bind.mBound));
                         break;
                     case Access::Sampler:
                         writes.image(bind.mBinding,
-                            VkDescriptorImageInfo{ mSampler.get(), VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED },
-                            VK_DESCRIPTOR_TYPE_SAMPLER);
+                            VkDescriptorImageInfo{ mSampler.get(), VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED });
                         break;
                 }
             }
 
-            const ComputePipeline& pipeline = mPipelines[static_cast<std::size_t>(pass)];
-            bind(commands, pipeline);
-            pushDescriptors(commands, pipeline, writes.get());
-            vkCmdDispatch(commands, groupsX, groupsY, 1);
+            dispatch(commands, pipeline, writes, NoConstants{}, groups);
         };
 
         // The SDK's clears, ahead of the passes: at a reset, the accumulation read this frame, the
@@ -554,23 +550,21 @@ namespace Rtx
 
         const VkExtent2D render = targets.mRender;
         const VkExtent2D output = targets.mOutput;
-        const std::uint32_t renderX = groupsFor(render.width, Shaders::FSR_WORKGROUP);
-        const std::uint32_t renderY = groupsFor(render.height, Shaders::FSR_WORKGROUP);
+        const Groups overRender = Groups::covering(render.width, render.height, Shaders::FSR_WORKGROUP);
+        const Groups overPyramid{ .mX = pyramid.mGroupsX, .mY = pyramid.mGroupsY };
 
-        run(Pass::Inputs, renderX, renderY);
+        run(Pass::Inputs, overRender);
         between();
-        run(Pass::LumaPyramid, pyramid.mGroupsX, pyramid.mGroupsY);
+        run(Pass::LumaPyramid, overPyramid);
         between();
-        run(Pass::ChangePyramid, pyramid.mGroupsX, pyramid.mGroupsY);
+        run(Pass::ChangePyramid, overPyramid);
         between();
-        run(Pass::Change, groupsFor(render.width / 2, Shaders::FSR_WORKGROUP),
-            groupsFor(render.height / 2, Shaders::FSR_WORKGROUP));
+        run(Pass::Change, Groups::covering(render.width / 2, render.height / 2, Shaders::FSR_WORKGROUP));
         between();
-        run(Pass::Reactivity, renderX, renderY);
+        run(Pass::Reactivity, overRender);
         between();
-        run(Pass::Instability, renderX, renderY);
+        run(Pass::Instability, overRender);
         between();
-        run(Pass::Accumulate, groupsFor(output.width, Shaders::FSR_WORKGROUP),
-            groupsFor(output.height, Shaders::FSR_WORKGROUP));
+        run(Pass::Accumulate, Groups::covering(output.width, output.height, Shaders::FSR_WORKGROUP));
     }
 }

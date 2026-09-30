@@ -64,7 +64,7 @@ namespace Rtx
             Image mFrame;
 
             Bloomed(const Device& device, std::uint32_t width, std::uint32_t height)
-                : mBloom(device, Testing::getShaderDirectory())
+                : mBloom(device)
                 , mFrame(Testing::makeTestImage(
                       device, VkExtent2D{ width, height }, VK_FORMAT_R32G32B32A32_SFLOAT, "test-bloom-frame"))
             {
@@ -186,7 +186,7 @@ namespace Rtx
 
             // 40 by 32 halves to 20, 10 and 5 across, and to 16, 8 and 4 down — three levels, where
             // the fourth would be 2 high.
-            BloomPass counting(device, Testing::getShaderDirectory());
+            BloomPass counting(device);
             counting.resize(40, 32);
             EXPECT_EQ(counting.getLevelCount(), 3u);
             EXPECT_NE(counting.getPyramid(), nullptr);

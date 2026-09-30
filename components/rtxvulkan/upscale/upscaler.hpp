@@ -2,7 +2,6 @@
 
 #include <array>
 #include <cstdint>
-#include <filesystem>
 #include <memory>
 #include <string_view>
 
@@ -68,7 +67,7 @@ namespace Rtx
     class Upscaler
     {
     public:
-        Upscaler(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit Upscaler(const Device& device);
         ~Upscaler();
 
         Upscaler(const Upscaler&) = delete;
@@ -117,7 +116,7 @@ namespace Rtx
 
         const Device& mDevice;
 
-        std::array<ComputePipeline, sPasses> mPipelines;
+        std::array<ComputePipeline<NoConstants>, sPasses> mPipelines;
         Sampler mSampler;
 
         /// The three constant blocks, one buffer a frame in flight: `FSR_BLOCKS_BYTES` written whole

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <filesystem>
 #include <optional>
 #include <variant>
 
@@ -117,7 +116,7 @@ namespace Rtx
         ///        sheet out of.
         /// @param targetFormat what the curve writes and the lines draw over.
         DisplayChain(const Device& device, const VisibilityPass& puffs, VkDescriptorSetLayout textureLayout,
-            const std::filesystem::path& shaders, VkFormat targetFormat);
+            VkFormat targetFormat);
 
         /// The lens over `width` by `height`, which is what the frame is by the time the curve
         /// maps it: the upscaler's output where one runs and the trace's own extent where none

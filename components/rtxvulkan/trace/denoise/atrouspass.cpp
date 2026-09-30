@@ -47,9 +47,8 @@ namespace Rtx
         /// attempt should start from.
     }
 
-    AtrousPass::AtrousPass(const Device& device, const std::filesystem::path& shaderDirectory)
-        : mPipeline(
-            device, sBindings, sizeof(Shaders::AtrousConstants), {}, shaderDirectory / "atrous.comp.spv", "atrous")
+    AtrousPass::AtrousPass(const Device& device)
+        : mPipeline(device, sBindings, {}, "atrous.comp.spv", "atrous")
     {
     }
 
@@ -100,19 +99,16 @@ namespace Rtx
 
             // Sampled from `GENERAL` on the three this pass only reads. A `SAMPLED_IMAGE`
             // descriptor names the image alone and no sampler, which is what `sBindings` declares.
-            DescriptorWrites<Shaders::ATROUS_BINDINGS> writes;
-            writes.image(
-                Shaders::ATROUS_BIND_SOURCE, source->describeSampled(VK_NULL_HANDLE), VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+            DescriptorWrites writes(mPipeline);
+            writes.image(Shaders::ATROUS_BIND_SOURCE, source->describeSampled(VK_NULL_HANDLE));
             writes.image(Shaders::ATROUS_BIND_FILTERED, target->describeStorage());
-            writes.image(Shaders::ATROUS_BIND_SURFACE, buffer.get(Channel::Surface).describeSampled(VK_NULL_HANDLE),
-                VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
-            writes.image(Shaders::ATROUS_BIND_PUFFS, buffer.get(Channel::Puffs).describeSampled(VK_NULL_HANDLE),
-                VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+            writes.image(Shaders::ATROUS_BIND_SURFACE, buffer.get(Channel::Surface).describeSampled(VK_NULL_HANDLE));
+            writes.image(Shaders::ATROUS_BIND_PUFFS, buffer.get(Channel::Puffs).describeSampled(VK_NULL_HANDLE));
 
             level.mStep = 1u << pass;
 
-            dispatch(commands, mPipeline, writes.get(), level, groupsFor(camera.mWidth, Shaders::ATROUS_WORKGROUP),
-                groupsFor(camera.mHeight, Shaders::ATROUS_WORKGROUP));
+            dispatch(commands, mPipeline, writes, level,
+                Groups::covering(camera.mWidth, camera.mHeight, Shaders::ATROUS_WORKGROUP));
 
             // The next level reads what this one wrote, and writes whichever of the other two it is
             // not reading — the blend after the first level, and the scratch and the blend by turns

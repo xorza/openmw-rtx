@@ -22,9 +22,8 @@ namespace Rtx
         };
     }
 
-    DigestPass::DigestPass(const Device& device, const std::filesystem::path& shaderDirectory)
-        : mPipeline(
-            device, sBindings, sizeof(Shaders::DigestConstants), {}, shaderDirectory / "digest.comp.spv", "digest")
+    DigestPass::DigestPass(const Device& device)
+        : mPipeline(device, sBindings, {}, "digest.comp.spv", "digest")
         , mLanes(Buffer::deviceLocal(device, sBytes,
               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
               "digest lanes"))
@@ -52,13 +51,13 @@ namespace Rtx
         mLanes.clear(commands);
         mLanes.transition(commands, Use::sBufferClearWrite, Use::sBufferComputeReadWrite);
 
-        DescriptorWrites<Shaders::DIGEST_BINDINGS, Shaders::DIGEST_IMAGES> writes;
-        writes.images(Shaders::DIGEST_BIND_IMAGES, described, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+        DescriptorWrites writes(mPipeline);
+        writes.images(Shaders::DIGEST_BIND_IMAGES, described);
         writes.buffer(Shaders::DIGEST_BIND_LANES, mLanes.describe());
 
         const Shaders::DigestConstants constants{ .mWidth = first.getWidth(), .mHeight = first.getHeight() };
-        dispatch(commands, mPipeline, writes.get(), constants, groupsFor(first.getWidth(), Shaders::DIGEST_WORKGROUP),
-            groupsFor(first.getHeight(), Shaders::DIGEST_WORKGROUP));
+        dispatch(commands, mPipeline, writes, constants,
+            Groups::covering(first.getWidth(), first.getHeight(), Shaders::DIGEST_WORKGROUP));
 
         // The host's read of what `into` held before is behind the submit that carries this — a
         // host read finished before the queue took the commands needs no dependency of its own.

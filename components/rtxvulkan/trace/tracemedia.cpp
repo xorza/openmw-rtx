@@ -11,9 +11,9 @@
 
 namespace Rtx
 {
-    TraceMedia::TraceMedia(const Device& device, const std::filesystem::path& shaders)
-        : mWaves(device, shaders)
-        , mRipples(device, shaders)
+    TraceMedia::TraceMedia(const Device& device)
+        : mWaves(device)
+        , mRipples(device)
         , mFog(device)
         , mNoSprites(Buffer::hostWritten(
               device, 2 * sizeof(std::uint32_t), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "no sprites"))

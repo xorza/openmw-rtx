@@ -1,7 +1,5 @@
 #pragma once
 
-#include <filesystem>
-
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/shaders/tone.h>
@@ -67,13 +65,12 @@ namespace Rtx
     public:
         /// @param textureLayout the scene's bindless textures, which this samples the star sheet
         ///        out of — `ToneConstants::mStars` says why the field is drawn here.
-        TonePass(
-            const Device& device, VkDescriptorSetLayout textureLayout, const std::filesystem::path& shaderDirectory);
+        TonePass(const Device& device, VkDescriptorSetLayout textureLayout);
 
         void record(VkCommandBuffer commands, const Tone& what) const;
 
     private:
-        ComputePipeline mPipeline;
+        ComputePipeline<Shaders::ToneConstants> mPipeline;
 
         /// Linear and clamped, which is what the tent the pyramid is spread with is counted in.
         Sampler mSampler;

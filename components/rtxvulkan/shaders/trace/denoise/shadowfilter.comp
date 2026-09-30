@@ -60,7 +60,7 @@
 #include "lib/surfacematch.glsl"
 
 /// Which of the `SHADOW_FILTER_LEVELS` this module is: its taps are `1 << SHADOW_LEVEL` apart.
-layout(constant_id = 0) const uint SHADOW_LEVEL = 0u;
+layout(constant_id = SHADOW_SPEC_LEVEL) const uint SHADOW_LEVEL = 0u;
 
 layout(local_size_x = SHADOW_WORKGROUP, local_size_y = SHADOW_WORKGROUP) in;
 

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <filesystem>
 
 #include <vulkan/vulkan_core.h>
 
@@ -43,14 +42,14 @@ namespace Rtx
     public:
         /// @param targetFormat the format of the image this will draw over, fixed at construction
         ///        because a pipeline is compiled against it.
-        LinePass(const Device& device, const std::filesystem::path& shaderDirectory, VkFormat targetFormat);
+        LinePass(const Device& device, VkFormat targetFormat);
 
         void record(VkCommandBuffer commands, const Lines& what) const;
 
     private:
         /// Two, because a topology is baked into a pipeline: the navmesh is triangles and its
         /// edges, the pathgrid its lines, the collision shapes both.
-        GraphicsPipeline mLines;
-        GraphicsPipeline mTriangles;
+        GraphicsPipeline<Shaders::LineConstants> mLines;
+        GraphicsPipeline<Shaders::LineConstants> mTriangles;
     };
 }

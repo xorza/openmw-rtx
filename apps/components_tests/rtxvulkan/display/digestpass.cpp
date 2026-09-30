@@ -79,7 +79,7 @@ namespace Rtx
             std::vector<Lanes> digest(const std::span<Image* const> images, const ImageUse& from = Use::sTextureSample)
             {
                 Device& device = getDevice();
-                const DigestPass pass(device, Testing::getShaderDirectory());
+                const DigestPass pass(device);
                 const Buffer lanes = Buffer::readBack(
                     device, DigestPass::sBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "digest test lanes");
 

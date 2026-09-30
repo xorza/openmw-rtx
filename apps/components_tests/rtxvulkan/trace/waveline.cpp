@@ -21,6 +21,7 @@
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
+#include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 
 namespace Rtx
@@ -41,26 +42,20 @@ namespace Rtx
         ///
         /// **Two dispatches of one shader.** A separable transform is the line transform run along
         /// the rows and then along the columns, which is the same code with its two strides swapped.
-        std::vector<osg::Vec2f> transform(
-            const Device& device, const ComputePipeline& pipeline, CommandPool& pool, std::span<const osg::Vec2f> grid)
+        std::vector<osg::Vec2f> transform(const Device& device, const ComputePipeline<Shaders::WaveConstants>& pipeline,
+            CommandPool& pool, std::span<const osg::Vec2f> grid)
         {
             const Buffer field = Buffer::readBack(device, grid.size_bytes(),
                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
 
             field.write(grid);
 
-            const VkDescriptorBufferInfo info{ field.getHandle(), 0, VK_WHOLE_SIZE };
-            const VkWriteDescriptorSet write{
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .dstBinding = 0,
-                .descriptorCount = 1,
-                .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                .pBufferInfo = &info,
-            };
+            DescriptorWrites write(pipeline);
+            write.buffer(0, VkDescriptorBufferInfo{ field.getHandle(), 0, VK_WHOLE_SIZE });
 
             pool.submitAndWait([&](VkCommandBuffer commands) {
                 bind(commands, pipeline);
-                pushDescriptors(commands, pipeline, std::span(&write, 1));
+                pushDescriptors(commands, pipeline, write);
 
                 for (int pass = 0; pass < 2; ++pass)
                 {
@@ -73,7 +68,7 @@ namespace Rtx
                         .mOffset = 0,
                     };
 
-                    pushConstants(commands, pipeline, constants);
+                    pipeline.push(commands, constants);
                     vkCmdDispatch(commands, sCount, 1, 1);
                     Testing::orderStorageWrites(commands);
                 }
@@ -104,8 +99,8 @@ namespace Rtx
         {
             const Device& device = getDevice();
             CommandPool& pool = getPool();
-            const ComputePipeline pipeline(device, sBindings, sizeof(Shaders::WaveConstants), {},
-                Testing::getShaderDirectory() / "waveline.comp.spv", "test-waveline");
+            const ComputePipeline<Shaders::WaveConstants> pipeline(
+                device, sBindings, {}, "waveline.comp.spv", "test-waveline");
 
             for (const std::pair<std::uint32_t, std::uint32_t>& wavevector :
                 { std::pair{ 1u, 0u }, std::pair{ 0u, 3u }, std::pair{ 2u, 5u } })
@@ -145,8 +140,8 @@ namespace Rtx
         {
             const Device& device = getDevice();
             CommandPool& pool = getPool();
-            const ComputePipeline pipeline(device, sBindings, sizeof(Shaders::WaveConstants), {},
-                Testing::getShaderDirectory() / "waveline.comp.spv", "test-waveline");
+            const ComputePipeline<Shaders::WaveConstants> pipeline(
+                device, sBindings, {}, "waveline.comp.spv", "test-waveline");
 
             std::vector<osg::Vec2f> grid(sCells);
 

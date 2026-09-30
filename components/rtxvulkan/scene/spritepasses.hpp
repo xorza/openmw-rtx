@@ -1,7 +1,5 @@
 #pragma once
 
-#include <filesystem>
-
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/shaders/spritebin.h>
@@ -20,7 +18,7 @@ namespace Rtx
     class SpriteBinPass
     {
     public:
-        SpriteBinPass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit SpriteBinPass(const Device& device);
 
         /// Records the bin into `commands`, into a frame's own copy of the list that the frame
         /// before last finished with. What is recorded after this reads the list through the
@@ -34,9 +32,9 @@ namespace Rtx
             const Buffer& presence, GpuTimer* timer) const;
 
     private:
-        ComputePipeline mRects;
-        ComputePipeline mStarts;
-        ComputePipeline mRuns;
+        ComputePipeline<Shaders::SpriteBinConstants> mRects;
+        ComputePipeline<Shaders::SpriteBinConstants> mStarts;
+        ComputePipeline<Shaders::SpriteBinConstants> mRuns;
     };
 
     /// Counts how many layers of its own emitter stand between each sprite and each light, on the
@@ -45,7 +43,7 @@ namespace Rtx
     class SpriteShadePass
     {
     public:
-        SpriteShadePass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit SpriteShadePass(const Device& device);
 
         /// Records the shading into `commands`, writing each sprite's two layer counts in place in
         /// a frame's own copy. What is recorded after this reads them through the barrier this
@@ -53,6 +51,6 @@ namespace Rtx
         void record(VkCommandBuffer commands, const Shaders::SpriteShadeConstants& shade, GpuTimer* timer) const;
 
     private:
-        ComputePipeline mShade;
+        ComputePipeline<Shaders::SpriteShadeConstants> mShade;
     };
 }

@@ -1,9 +1,8 @@
 #pragma once
 
-#include <filesystem>
-
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/shaders/specular.h>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 
 #include "denoiseframe.hpp"
@@ -22,7 +21,7 @@ namespace Rtx
     class SpecularPass
     {
     public:
-        SpecularPass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit SpecularPass(const Device& device);
 
         /// Records the one dispatch and hands back the filtered light, ordered for a compute read.
         /// `buffer` must have been handed over, and `DenoiseHistory::discard` has readied the images.
@@ -30,6 +29,6 @@ namespace Rtx
             const GBuffer& buffer, const DenoiseFrame& frame) const;
 
     private:
-        ComputePipeline mPipeline;
+        ComputePipeline<Shaders::SpecularConstants> mPipeline;
     };
 }

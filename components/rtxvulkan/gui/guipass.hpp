@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <filesystem>
 #include <span>
 
 #include <vulkan/vulkan_core.h>
@@ -38,7 +37,7 @@ namespace Rtx
     public:
         /// @param targetFormat the format of the image this will draw over. Fixed at construction
         ///        because a pipeline is compiled against it; a resize does not change it.
-        GuiPass(const Device& device, const std::filesystem::path& shaderDirectory, VkFormat targetFormat);
+        GuiPass(const Device& device, VkFormat targetFormat);
 
         /// @param target what to draw over, in `VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL` and made
         ///        with `VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT`, which is asserted. Loaded rather than
@@ -50,16 +49,16 @@ namespace Rtx
             VkCommandBuffer commands, const Image& target, VkBuffer vertices, std::span<const GuiDraw> draws) const;
 
     private:
-        const GraphicsPipeline& pipelineFor(const GuiDraw& draw) const;
+        const GraphicsPipeline<NoConstants>& pipelineFor(const GuiDraw& draw) const;
 
         /// Four, because a blend mode is baked into a pipeline: over or added, of a straight texture
         /// or a premultiplied one. The alternative is `VK_EXT_extended_dynamic_state3`, which is a
         /// device feature to require and a driver path to trust for something that is four objects
         /// compiled once at startup.
-        GraphicsPipeline mOver;
-        GraphicsPipeline mAdditive;
-        GraphicsPipeline mOverPremultiplied;
-        GraphicsPipeline mAdditivePremultiplied;
+        GraphicsPipeline<NoConstants> mOver;
+        GraphicsPipeline<NoConstants> mAdditive;
+        GraphicsPipeline<NoConstants> mOverPremultiplied;
+        GraphicsPipeline<NoConstants> mAdditivePremultiplied;
 
         /// Clamped, because a widget's atlas entry runs to the edge of what it was given and
         /// wrapping would fetch the glyph next to it.

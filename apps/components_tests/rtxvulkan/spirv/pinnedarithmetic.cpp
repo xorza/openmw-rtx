@@ -213,8 +213,8 @@ namespace Rtx
         TEST_F(RtxPinningTest, theDeviceComputesThePinnedOrderToTheBit)
         {
             const Device& device = getDevice();
-            const ComputePipeline pipeline(device, sBindings, sizeof(Shaders::PinningConstants), {},
-                Testing::getShaderDirectory() / "pinning.comp.spv", "pinning");
+            const ComputePipeline<Shaders::PinningConstants> pipeline(
+                device, sBindings, {}, "pinning.comp.spv", "pinning");
             CommandPool& pool = getPool();
 
             const std::vector<Shaders::PinningCase> cases = makeCases();
@@ -224,24 +224,13 @@ namespace Rtx
             const Buffer written = Buffer::readBack(
                 device, sizeof(float) * sCount * Shaders::PINNING_RESULTS, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "test");
 
-            const VkDescriptorBufferInfo from{ source.getHandle(), 0, VK_WHOLE_SIZE };
-            const VkDescriptorBufferInfo into{ written.getHandle(), 0, VK_WHOLE_SIZE };
-            const std::array<VkWriteDescriptorSet, 2> writes{
-                VkWriteDescriptorSet{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstBinding = 0,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                    .pBufferInfo = &from },
-                VkWriteDescriptorSet{ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstBinding = 1,
-                    .descriptorCount = 1,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                    .pBufferInfo = &into },
-            };
+            DescriptorWrites writes(pipeline);
+            writes.buffer(0, VkDescriptorBufferInfo{ source.getHandle(), 0, VK_WHOLE_SIZE });
+            writes.buffer(1, VkDescriptorBufferInfo{ written.getHandle(), 0, VK_WHOLE_SIZE });
 
             pool.submitAndWait([&](VkCommandBuffer commands) {
                 dispatch(commands, pipeline, writes, Shaders::PinningConstants{ .mCount = sCount },
-                    groupsFor(sCount, Shaders::PINNING_WORKGROUP));
+                    Groups::along(sCount, Shaders::PINNING_WORKGROUP));
                 Barriers done(commands);
                 done.add(written.describeBarrier(Use::sBufferComputeWrite, Use::sBufferHostRead));
                 done.flush();

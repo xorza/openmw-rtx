@@ -1,6 +1,5 @@
 #pragma once
 
-#include <filesystem>
 #include <vector>
 
 #include <osg/Vec2f>
@@ -30,7 +29,7 @@ namespace Rtx
     class TraceMedia
     {
     public:
-        TraceMedia(const Device& device, const std::filesystem::path& shaders);
+        explicit TraceMedia(const Device& device);
 
         /// What a trace of `held` under `camera` reads, for the copy its last placement wrote, and
         /// what its launches bind beside it — but for the chain's own images, which

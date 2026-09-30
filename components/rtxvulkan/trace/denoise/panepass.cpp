@@ -19,8 +19,8 @@ namespace Rtx
             = computeBindings<Shaders::PANE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     }
 
-    PanePass::PanePass(const Device& device, const std::filesystem::path& shaderDirectory)
-        : mPipeline(device, sBindings, sizeof(Shaders::PaneConstants), {}, shaderDirectory / "pane.comp.spv", "pane")
+    PanePass::PanePass(const Device& device)
+        : mPipeline(device, sBindings, {}, "pane.comp.spv", "pane")
     {
     }
 
@@ -32,7 +32,7 @@ namespace Rtx
         const std::uint32_t height = camera.mHeight;
         assert(images.mMean.getWidth() >= width && images.mMean.getHeight() >= height);
 
-        DescriptorWrites<Shaders::PANE_BINDINGS> writes;
+        DescriptorWrites writes(mPipeline);
         writes.image(Shaders::PANE_BIND_PANE, buffer.get(Channel::Pane).describeStorage());
         writes.image(Shaders::PANE_BIND_SURFACE, buffer.get(Channel::PaneSurface).describeStorage());
         writes.image(Shaders::PANE_BIND_MOTION, buffer.get(Channel::PaneMotion).describeStorage());
@@ -40,7 +40,6 @@ namespace Rtx
         writes.image(Shaders::PANE_BIND_HELD, images.mHeld.describeStorage());
         writes.image(Shaders::PANE_BIND_MEAN_BEFORE, images.mMeanBefore.describeStorage());
         writes.image(Shaders::PANE_BIND_MEAN, images.mMean.describeStorage());
-        assert(writes.size() == Shaders::PANE_BINDINGS && "a binding the layout declares was left unwritten");
 
         const Shaders::PaneConstants constants{
             .mCamera = camera,
@@ -48,8 +47,7 @@ namespace Rtx
             .mDistanceScale = frame.mDistanceScale,
         };
 
-        dispatch(commands, mPipeline, writes.get(), constants, groupsFor(width, Shaders::PANE_WORKGROUP),
-            groupsFor(height, Shaders::PANE_WORKGROUP));
+        dispatch(commands, mPipeline, writes, constants, Groups::covering(width, height, Shaders::PANE_WORKGROUP));
 
         images.mMean.transition(commands, Use::sComputeWrite, Use::sComputeRead);
         return images.mMean;

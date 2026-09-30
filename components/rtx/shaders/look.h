@@ -286,7 +286,7 @@ namespace Rtx::Shaders
     ///
     /// `ModVertexAlphaVisitor::Clouds`'s own 64 over 255, and the only number in the deck's fade
     /// that is not a radius read off the mesh. `CloudShell::mRings` carries where it applies.
-    const float CLOUD_RING_ALPHA = 0.25098f;
+    const float CLOUD_RING_ALPHA = 64.0f / 255.0f;
 
     /// How far above its own mean a texel of a cloud sheet reads as a cloud in full sunlight.
     ///

@@ -1,9 +1,8 @@
 #pragma once
 
-#include <filesystem>
-
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 
@@ -18,7 +17,7 @@ namespace Rtx
     class ShadingPass
     {
     public:
-        ShadingPass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit ShadingPass(const Device& device);
 
         /// Records `source`'s estimate into `map`. `source` is met as a texture the trace samples,
         /// which is how an upload leaves it; `map` is met undefined and left the same way, ready
@@ -32,8 +31,8 @@ namespace Rtx
         void record(VkCommandBuffer commands, const Image& source, const Image& map, bool punchThrough) const;
 
     private:
-        ComputePipeline mSum;
-        ComputePipeline mMap;
+        ComputePipeline<Shaders::ShadingConstants> mSum;
+        ComputePipeline<Shaders::ShadingConstants> mMap;
 
         /// Every cell's sum, from the one stage to the other. One for every texture in turn:
         /// textures arrive one after another in one recording, and a barrier between the last

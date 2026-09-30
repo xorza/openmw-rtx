@@ -26,7 +26,7 @@ namespace Rtx
             float meter(std::uint32_t width, std::uint32_t height, float luminance)
             {
                 Device& device = getDevice();
-                const ExposurePass pass(device, Testing::getShaderDirectory());
+                const ExposurePass pass(device);
                 const Image frame = Testing::makeTestImage(
                     device, VkExtent2D{ width, height }, VK_FORMAT_R16G16B16A16_SFLOAT, "test-exposure-frame");
                 const Buffer read

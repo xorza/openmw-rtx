@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/shaders/gui.h>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
@@ -33,12 +34,18 @@ namespace Rtx
             VkVertexInputAttributeDescription{ 2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(GuiVertex, mU) },
         };
 
-        /// `gui.frag`'s `PREMULTIPLIED`, which is the texture's `AlphaForm`.
-        constexpr std::array<std::uint32_t, 1> sStraight{ 0 };
-        constexpr std::array<std::uint32_t, 1> sPremultiplied{ 1 };
+        /// `gui.frag`'s table, which says the texture's `AlphaForm`.
+        constexpr std::array<std::uint32_t, Shaders::GUI_SPEC_COUNT> specializationFor(const bool premultiplied)
+        {
+            std::array<std::uint32_t, Shaders::GUI_SPEC_COUNT> words{};
+            words[Shaders::GUI_SPEC_PREMULTIPLIED] = premultiplied ? 1u : 0u;
+            return words;
+        }
 
-        GraphicsPipelineOptions describePipeline(
-            const std::filesystem::path& shaderDirectory, VkFormat targetFormat, Blend blend, AlphaForm source)
+        constexpr std::array<std::uint32_t, Shaders::GUI_SPEC_COUNT> sStraight = specializationFor(false);
+        constexpr std::array<std::uint32_t, Shaders::GUI_SPEC_COUNT> sPremultiplied = specializationFor(true);
+
+        GraphicsPipelineOptions describePipeline(VkFormat targetFormat, Blend blend, AlphaForm source)
         {
             const bool premultiplied = source == AlphaForm::Premultiplied;
 
@@ -50,8 +57,8 @@ namespace Rtx
             options.mBlend = blend;
             options.mSource = source;
             options.mSpecialization = premultiplied ? sPremultiplied : sStraight;
-            options.mVertexModule = shaderDirectory / "gui.vert.spv";
-            options.mFragmentModule = shaderDirectory / "gui.frag.spv";
+            options.mVertexModule = "gui.vert.spv";
+            options.mFragmentModule = "gui.frag.spv";
             if (blend == Blend::Additive)
                 options.mName = premultiplied ? "gui additive premultiplied" : "gui additive";
             else
@@ -60,18 +67,16 @@ namespace Rtx
         }
     }
 
-    GuiPass::GuiPass(const Device& device, const std::filesystem::path& shaderDirectory, VkFormat targetFormat)
-        : mOver(device, describePipeline(shaderDirectory, targetFormat, Blend::Over, AlphaForm::Straight))
-        , mAdditive(device, describePipeline(shaderDirectory, targetFormat, Blend::Additive, AlphaForm::Straight))
-        , mOverPremultiplied(
-              device, describePipeline(shaderDirectory, targetFormat, Blend::Over, AlphaForm::Premultiplied))
-        , mAdditivePremultiplied(
-              device, describePipeline(shaderDirectory, targetFormat, Blend::Additive, AlphaForm::Premultiplied))
+    GuiPass::GuiPass(const Device& device, VkFormat targetFormat)
+        : mOver(device, describePipeline(targetFormat, Blend::Over, AlphaForm::Straight))
+        , mAdditive(device, describePipeline(targetFormat, Blend::Additive, AlphaForm::Straight))
+        , mOverPremultiplied(device, describePipeline(targetFormat, Blend::Over, AlphaForm::Premultiplied))
+        , mAdditivePremultiplied(device, describePipeline(targetFormat, Blend::Additive, AlphaForm::Premultiplied))
         , mSampler(makeTargetSampler(device, "gui"))
     {
     }
 
-    const GraphicsPipeline& GuiPass::pipelineFor(const GuiDraw& draw) const
+    const GraphicsPipeline<NoConstants>& GuiPass::pipelineFor(const GuiDraw& draw) const
     {
         if (draw.mSource == AlphaForm::Premultiplied)
             return draw.mBlend == Blend::Additive ? mAdditivePremultiplied : mOverPremultiplied;
@@ -91,11 +96,11 @@ namespace Rtx
         const VkDeviceSize offset = 0;
         vkCmdBindVertexBuffers(commands, 0, 1, &vertices, &offset);
 
-        const GraphicsPipeline* bound = nullptr;
+        const Pipeline* bound = nullptr;
 
         for (const GuiDraw& draw : draws)
         {
-            const GraphicsPipeline& pipeline = pipelineFor(draw);
+            const GraphicsPipeline<NoConstants>& pipeline = pipelineFor(draw);
             if (&pipeline != bound)
             {
                 bind(commands, pipeline);
@@ -104,11 +109,10 @@ namespace Rtx
 
             // Against the layout of the pipeline that is bound: the four are identical, but a push
             // is only defined against the one in force.
-            DescriptorWrites<1> texture;
-            texture.image(0,
-                VkDescriptorImageInfo{ mSampler.get(), draw.mTexture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL },
-                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-            pushDescriptors(commands, pipeline, texture.get());
+            DescriptorWrites texture(pipeline);
+            texture.image(
+                0, VkDescriptorImageInfo{ mSampler.get(), draw.mTexture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL });
+            pushDescriptors(commands, pipeline, texture);
             vkCmdDraw(commands, draw.mVertexCount, 1, draw.mFirstVertex, 0);
         }
 

@@ -47,7 +47,7 @@ namespace Rtx
             CommandPool& pool = getPool();
 
             const SetLayout layout = TextureArray::describeLayout(device);
-            const TexturePasses passes(device, Testing::getShaderDirectory());
+            const TexturePasses passes(device);
             Batch setup(pool);
             TextureArray textures(device, setup, layout, passes, 1);
             setup.flush();
@@ -107,7 +107,7 @@ namespace Rtx
         {
             Device& device = getDevice();
             const SetLayout layout = TextureArray::describeLayout(device);
-            const TexturePasses passes(device, Testing::getShaderDirectory());
+            const TexturePasses passes(device);
             Batch setup(getPool());
             const TextureArray textures(device, setup, layout, passes, 3);
             setup.flush();
@@ -167,7 +167,7 @@ namespace Rtx
         {
             Device& device = getDevice();
             const SetLayout layout = TextureArray::describeLayout(device);
-            const TexturePasses passes(device, Testing::getShaderDirectory());
+            const TexturePasses passes(device);
             Batch setup(getPool());
             TextureArray textures(device, setup, layout, passes, 2);
             setup.flush();
@@ -223,7 +223,7 @@ namespace Rtx
             Device& device = getDevice();
             MemoryAllocator& memory = device.getMemory();
             const SetLayout layout = TextureArray::describeLayout(device);
-            const TexturePasses passes(device, Testing::getShaderDirectory());
+            const TexturePasses passes(device);
             Batch setup(getPool());
             TextureArray textures(device, setup, layout, passes, 2);
             setup.flush();

@@ -2,7 +2,6 @@
 
 #include <array>
 #include <cstdint>
-#include <filesystem>
 
 #include <vulkan/vulkan_core.h>
 
@@ -25,7 +24,7 @@ namespace Rtx
         /// What `record` copies into its buffer, which is what that buffer has to have room for.
         static constexpr VkDeviceSize sBytes = sizeof(std::uint32_t) * Shaders::DIGEST_IMAGES * Shaders::DIGEST_LANES;
 
-        DigestPass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit DigestPass(const Device& device);
 
         /// `images` into `into`, image `i` filling the `DIGEST_LANES` words from `i * DIGEST_LANES`,
         /// ordered for a host read last. Every image is at one extent and readable as a storage
@@ -35,7 +34,7 @@ namespace Rtx
             const Buffer& into, GpuTimer* timer) const;
 
     private:
-        ComputePipeline mPipeline;
+        ComputePipeline<Shaders::DigestConstants> mPipeline;
 
         /// Where the words are folded, in the device's own memory, and copied out of once:
         /// folded straight into the frame's read-back buffer, every atomic was a transaction across

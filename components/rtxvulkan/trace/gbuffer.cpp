@@ -112,7 +112,7 @@ namespace Rtx
             mChannels.emplace_back(device, width, height, described.mFormat, described.mUsage, channelName(channel));
         }
 
-        DescriptorWrites<sChannelCount> writes(mSet.get(0));
+        DescriptorWrites writes(layout, mSet.get(0));
         for (std::uint32_t channel = 0; channel < sChannelCount; ++channel)
             writes.image(channel, mChannels[channel].describeStorage());
 

@@ -19,9 +19,8 @@ namespace Rtx
             = computeBindings<Shaders::SPECULAR_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     }
 
-    SpecularPass::SpecularPass(const Device& device, const std::filesystem::path& shaderDirectory)
-        : mPipeline(device, sBindings, sizeof(Shaders::SpecularConstants), {}, shaderDirectory / "specular.comp.spv",
-            "specular")
+    SpecularPass::SpecularPass(const Device& device)
+        : mPipeline(device, sBindings, {}, "specular.comp.spv", "specular")
     {
     }
 
@@ -33,7 +32,7 @@ namespace Rtx
         const std::uint32_t height = sampled.mCamera.mHeight;
         assert(images.mMean.getWidth() >= width && images.mMean.getHeight() >= height);
 
-        DescriptorWrites<Shaders::SPECULAR_BINDINGS> writes;
+        DescriptorWrites writes(mPipeline);
         writes.image(Shaders::SPECULAR_BIND_SPECULAR, buffer.get(Channel::Specular).describeStorage());
         writes.image(Shaders::SPECULAR_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
@@ -41,7 +40,6 @@ namespace Rtx
         writes.image(Shaders::SPECULAR_BIND_HELD_SURFACE, images.mHeldSurface.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MEAN_BEFORE, images.mMeanBefore.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MEAN, images.mMean.describeStorage());
-        assert(writes.size() == Shaders::SPECULAR_BINDINGS && "a binding the layout declares was left unwritten");
 
         const Shaders::SpecularConstants constants{
             .mCamera = sampled.mCamera,
@@ -54,8 +52,7 @@ namespace Rtx
             .mDistanceScale = frame.mDistanceScale,
         };
 
-        dispatch(commands, mPipeline, writes.get(), constants, groupsFor(width, Shaders::SPECULAR_WORKGROUP),
-            groupsFor(height, Shaders::SPECULAR_WORKGROUP));
+        dispatch(commands, mPipeline, writes, constants, Groups::covering(width, height, Shaders::SPECULAR_WORKGROUP));
 
         images.mMean.transition(commands, Use::sComputeWrite, Use::sComputeRead);
         return images.mMean;

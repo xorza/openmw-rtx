@@ -250,7 +250,7 @@ namespace Rtx::Testing
             };
 
             const SetLayout layout = TextureArray::describeLayout(device);
-            const TexturePasses passes(device, Testing::getShaderDirectory());
+            const TexturePasses passes(device);
             Batch setup(pool);
             TextureArray array(device, setup, layout, passes, slots);
             setup.flush();

@@ -1,9 +1,8 @@
 #pragma once
 
-#include <filesystem>
-
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/shaders/normalspread.h>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 
 namespace Rtx
@@ -31,7 +30,7 @@ namespace Rtx
     class NormalSpreadPass
     {
     public:
-        NormalSpreadPass(const Device& device, const std::filesystem::path& shaderDirectory);
+        explicit NormalSpreadPass(const Device& device);
 
         /// Records `spread`'s levels from `map`: `spread`'s first is what the map's second level
         /// lost, and so on down. `map` is met as a texture the trace samples, which is how an
@@ -41,6 +40,6 @@ namespace Rtx
         void record(VkCommandBuffer commands, const Image& map, const Image& means, const Image& spread) const;
 
     private:
-        ComputePipeline mPipeline;
+        ComputePipeline<Shaders::NormalSpreadConstants> mPipeline;
     };
 }

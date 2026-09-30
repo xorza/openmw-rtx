@@ -20,9 +20,8 @@ namespace Rtx
         };
     }
 
-    SpriteLightPass::SpriteLightPass(const Device& device, const std::filesystem::path& shaderDirectory)
-        : mPipeline(device, sBindings, sizeof(Shaders::SpriteLightConstants), {},
-            shaderDirectory / "spritelight.comp.spv", "sprite light")
+    SpriteLightPass::SpriteLightPass(const Device& device)
+        : mPipeline(device, sBindings, {}, "spritelight.comp.spv", "sprite light")
     {
     }
 
@@ -34,10 +33,9 @@ namespace Rtx
 
         for (std::uint32_t level = 0; level < bake.getMipLevels(); ++level)
         {
-            DescriptorWrites<Shaders::SPRITE_LIGHT_BINDINGS> writes;
+            DescriptorWrites writes(mPipeline);
             writes.image(Shaders::SPRITE_LIGHT_BIND_SOURCE,
-                source.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
-                VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+                source.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
             writes.image(Shaders::SPRITE_LIGHT_BIND_BAKE, bake.describeStorage(level));
 
             const Shaders::SpriteLightConstants constants{
@@ -46,9 +44,8 @@ namespace Rtx
                 .mHeight = bake.getHeightAt(level),
             };
 
-            dispatch(commands, mPipeline, writes.get(), constants,
-                groupsFor(constants.mWidth, Shaders::SPRITE_LIGHT_WORKGROUP),
-                groupsFor(constants.mHeight, Shaders::SPRITE_LIGHT_WORKGROUP));
+            dispatch(commands, mPipeline, writes, constants,
+                Groups::covering(constants.mWidth, constants.mHeight, Shaders::SPRITE_LIGHT_WORKGROUP));
         }
 
         bake.transition(commands, Use::sComputeWrite, Use::sTextureSample);

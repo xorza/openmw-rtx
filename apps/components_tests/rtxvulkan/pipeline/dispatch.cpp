@@ -36,6 +36,21 @@ namespace Rtx
                     ASSERT_LT((groups - 1) * workgroup, extent)
                         << extent << " lanes of " << workgroup << " took a group too many";
                 }
+
+            // **`Groups` is that rounding on each axis it covers, and one group on the others.** A
+            // row of 9 lanes at 8 is 2 by 1 by 1. 1920 by 1080 at a square 8 is 240 by 135. The
+            // shadow mask's 8 by 4 workgroup over 9 by 9 is 2 by 3, and swapping the edges gives 3
+            // by 2, so each axis is rounded by its own edge.
+            const auto expectGroups = [](const Groups got, std::uint32_t x, std::uint32_t y) {
+                EXPECT_EQ(got.mX, x);
+                EXPECT_EQ(got.mY, y);
+                EXPECT_EQ(got.mZ, 1u);
+            };
+            expectGroups(Groups{}, 1, 1);
+            expectGroups(Groups::along(9, 8), 2, 1);
+            expectGroups(Groups::covering(1920, 1080, 8), 240, 135);
+            expectGroups(Groups::covering(9, 9, 8, 4), 2, 3);
+            expectGroups(Groups::covering(9, 9, 4, 8), 3, 2);
         }
     }
 }

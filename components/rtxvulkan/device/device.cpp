@@ -96,8 +96,10 @@ namespace Rtx
         }
     }
 
-    Device::Device(const Instance& instance, PhysicalDevice&& physicalDevice, const PipelineCacheSpec& cache)
+    Device::Device(const Instance& instance, PhysicalDevice&& physicalDevice,
+        const std::filesystem::path& shaderDirectory, const PipelineCacheSpec& cache)
         : mPhysicalDevice(std::move(physicalDevice))
+        , mShaderDirectory(shaderDirectory)
     {
         const Crash::NoteScope noted("making the device");
         std::vector<const char*> extensions;
@@ -242,7 +244,7 @@ namespace Rtx
         }
 
         mPipelineCache = std::make_unique<PipelineCache>(
-            mHandle.get(), mPhysicalDevice.getProperties().mProperties2.properties, cache);
+            mHandle.get(), mPhysicalDevice.getProperties().mProperties2.properties, cache, mShaderDirectory);
         mMemory = std::make_unique<MemoryAllocator>(instance.getHandle(), mPhysicalDevice.getHandle(), mHandle.get(),
             mPhysicalDevice.getProperties().mMemory, has(DeviceOption::MemoryBudget));
         mTimeline = std::make_unique<Timeline>(*this);

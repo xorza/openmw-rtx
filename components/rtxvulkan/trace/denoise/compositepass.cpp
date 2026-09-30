@@ -21,9 +21,8 @@ namespace Rtx
             = computeBindings<Shaders::COMPOSITE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     }
 
-    CompositePass::CompositePass(const Device& device, const std::filesystem::path& shaderDirectory)
-        : mPipeline(device, sBindings, sizeof(Shaders::CompositeConstants), {}, shaderDirectory / "composite.comp.spv",
-            "composite")
+    CompositePass::CompositePass(const Device& device)
+        : mPipeline(device, sBindings, {}, "composite.comp.spv", "composite")
         , mNoSum(makeStandIn(device, toVulkanFormat(COMPOSITE_SUM_FORMAT), VK_IMAGE_USAGE_STORAGE_BIT, "no-sum"))
         , mNoShadow(makeStandIn(device, toVulkanFormat(SHADOW_REPROJECTED), VK_IMAGE_USAGE_STORAGE_BIT, "no-shadow"))
     {
@@ -53,7 +52,7 @@ namespace Rtx
         const Image& bound = sum != nullptr ? *sum : mNoSum;
         const Image& shadowBound = denoised.mShadow != nullptr ? *denoised.mShadow : mNoShadow;
 
-        DescriptorWrites<Shaders::COMPOSITE_BINDINGS> writes;
+        DescriptorWrites writes(mPipeline);
         writes.image(Shaders::COMPOSITE_BIND_DIRECT, buffer.get(Channel::Direct).describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_INDIRECT, indirect.describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_ALBEDO, buffer.get(Channel::Albedo).describeStorage());
@@ -64,8 +63,7 @@ namespace Rtx
         writes.image(Shaders::COMPOSITE_BIND_PANE, pane.describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_PANE_ALBEDO, buffer.get(Channel::PaneAlbedo).describeStorage());
 
-        dispatch(commands, mPipeline, writes.get(), constants,
-            groupsFor(constants.mWidth, Shaders::COMPOSITE_WORKGROUP),
-            groupsFor(constants.mHeight, Shaders::COMPOSITE_WORKGROUP));
+        dispatch(commands, mPipeline, writes, constants,
+            Groups::covering(constants.mWidth, constants.mHeight, Shaders::COMPOSITE_WORKGROUP));
     }
 }

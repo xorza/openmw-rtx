@@ -166,7 +166,7 @@ namespace Rtx
 
             const auto only = [&](const std::filesystem::path& shaders) {
                 const PipelineCache cache(getDevice().getHandle(), deviceProperties(),
-                    PipelineCacheSpec{ .mDirectory = cacheDirectory, .mShaderDirectory = shaders });
+                    PipelineCacheSpec{ .mDirectory = cacheDirectory }, shaders);
                 EXPECT_NE(cache.getHandle(), VK_NULL_HANDLE) << "a cache was made";
             };
 
@@ -231,8 +231,8 @@ namespace Rtx
             // **And no directory is no cache object**, `PipelineCacheSpec::mDirectory`: a
             // measuring process shares nothing between its compiles, not even an empty object the
             // driver would fill as they run.
-            const PipelineCache none(getDevice().getHandle(), deviceProperties(),
-                PipelineCacheSpec{ .mShaderDirectory = Testing::getShaderDirectory() });
+            const PipelineCache none(
+                getDevice().getHandle(), deviceProperties(), PipelineCacheSpec{}, Testing::getShaderDirectory());
             EXPECT_EQ(none.getHandle(), VK_NULL_HANDLE) << "a spec with no directory made a cache object";
             EXPECT_EQ(filesIn(cacheDirectory).size(), 6u) << "a spec with no directory touched the directory";
 
