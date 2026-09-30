@@ -81,6 +81,14 @@ namespace Rtx
         ReferenceState mState;
     };
 
+    /// Where one reference is met in its cell: a placement's slot in `HeldCell::mPlacements`, or,
+    /// counted on past them, a lamp's in `HeldCell::mLights`.
+    struct ReferenceSpot
+    {
+        ESM::RefNum mRefNum;
+        std::uint32_t mAt = 0;
+    };
+
     /// One lamp's light the ring may stand: what `CellPlacer::place` builds a light from on every
     /// walk, and what the game says of the lamp.
     struct HeldLight
@@ -140,6 +148,11 @@ namespace Rtx
         /// The cell's lamps, which `CellPlacer::place` stands on every walk at the frame's own hour.
         std::vector<HeldLight> mLights;
 
+        /// Every placement and every lamp by its reference, sorted by the reference and then by
+        /// where it is met, so what the game says of one reference reaches that reference's own
+        /// and not every row of every cell held.
+        std::vector<ReferenceSpot> mByReference;
+
         /// Empties it for the next cell, keeping the room every list grew.
         void reuse()
         {
@@ -155,6 +168,7 @@ namespace Rtx
             mPlacements.clear();
             mModels.clear();
             mLights.clear();
+            mByReference.clear();
             mGround.reuse();
         }
     };

@@ -57,15 +57,21 @@ namespace Rtx
             SceneDesc mScene;
             SlotBlocks mPoses{ Shaders::VERTEX_BLOCK, sizeof(osg::Vec3f) };
             BlockedBuffer mIndices{ Shaders::INDEX_BLOCK, sizeof(std::uint32_t) };
+            bool mOpened = false;
 
-            /// Puts the scene's index runs on the device, which is what a build reads through.
+            /// Puts the scene's index runs on the device, which is what a build reads through. Again
+            /// after meshes are added, which writes every run once more.
             void stage()
             {
                 const Device& device = getDevice();
                 const SceneDesc& tables = mScene;
 
-                mPoses.open(device, 1, sBuildInputUsage, "poses");
-                mIndices.open(device, sBuildInputUsage, "indices");
+                if (!mOpened)
+                {
+                    mPoses.open(device, 1, sBuildInputUsage, "poses");
+                    mIndices.open(device, sBuildInputUsage, "indices");
+                    mOpened = true;
+                }
 
                 Batch setup(getPool());
                 mIndices.reserve(setup, static_cast<std::uint32_t>(tables.meshes().getIndices().size()));
@@ -182,6 +188,42 @@ namespace Rtx
 
             EXPECT_EQ(store.getCompactableBytes(), 0u);
             EXPECT_EQ(store.getCompactableNowBytes(), 0u);
+
+            // Before the store goes: a buried structure gives its room back to the store's storage.
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+        }
+
+        /// **A question the query pool is replaced under is asked again through the new one.** The
+        /// pool holds one query a mesh slot and is made again where the scene outgrows it, and a
+        /// question still in a batch the queue has not reached is lost with the old pool. So the
+        /// first grid is asked through the pool of two, the scene grows to five, and the build
+        /// that outgrows it asks the first grid again beside the three it builds — handed over
+        /// out of slot order, and asked in the two runs their slots make, around the second grid
+        /// that was never built. Every answer then reads from the new pool.
+        TEST_F(RtxBottomLevelStoreTest, aQuestionThePoolIsReplacedUnderIsAskedAgain)
+        {
+            const Index first = addGrid(mScene, 64, 0.0f);
+            const Index unbuilt = addGrid(mScene, 64, 1.0f);
+            stage();
+
+            BottomLevelStore store(getDevice());
+            buildDeferred(store, std::span(&first, 1));
+
+            const std::array<Index, 3> late{ addGrid(mScene, 64, 4.0f), addGrid(mScene, 64, 2.0f),
+                addGrid(mScene, 64, 3.0f) };
+            stage();
+            build(store, late);
+
+            const SlotSet& moved = place(store);
+            EXPECT_TRUE(moved.has(first)) << "a question lost with the pool it was asked through";
+            for (const Index grid : late)
+                EXPECT_TRUE(moved.has(grid)) << "grid " << grid << " built beside the pool's growth";
+            EXPECT_FALSE(moved.has(unbuilt)) << "a slot never built was asked about";
+            EXPECT_EQ(moved.getSlots().size(), 4u);
+
+            EXPECT_TRUE(place(store).empty()) << "something was copied twice";
+            EXPECT_EQ(store.getCompactableBytes(), 0u) << "an answer outlived its copy";
 
             // Before the store goes: a buried structure gives its room back to the store's storage.
             getDevice().waitIdle();

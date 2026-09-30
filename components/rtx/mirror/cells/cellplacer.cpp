@@ -4,7 +4,9 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
+#include <ranges>
 #include <span>
 #include <string_view>
 #include <utility>
@@ -39,9 +41,7 @@ namespace Rtx
         else if (!enabled && !known)
             mDisabled.insert(at, refnum);
 
-        changeReferencesWhere(
-            held, [&](const ReferenceState& state) { return state.mRefNum == refnum; },
-            [&](ReferenceState& state) { state.mDisabled = !enabled; });
+        changeReference(refnum, held, [&](ReferenceState& state) { state.mDisabled = !enabled; });
     }
 
     void CellPlacer::blacklistReference(const ESM::RefNum refnum, const std::span<HeldCell> held)
@@ -51,9 +51,7 @@ namespace Rtx
             return;
 
         mBlacklisted.insert(at, refnum);
-        changeReferencesWhere(
-            held, [&](const ReferenceState& state) { return state.mRefNum == refnum; },
-            [](ReferenceState& state) { state.mBlacklisted = true; });
+        changeReference(refnum, held, [](ReferenceState& state) { state.mBlacklisted = true; });
     }
 
     void CellPlacer::setGate(const std::uint32_t gate, const Terrain::GateState state, const std::span<HeldCell> held)
@@ -83,8 +81,9 @@ namespace Rtx
     template <class Match, class Visit>
     void CellPlacer::forEachPlacementWhere(const std::span<HeldCell> held, Match match, Visit visit)
     {
-        // Every cell, because none is indexed by what is asked: a script's toggle, a gate and the
-        // day-night mode each move rarely enough that the walk is cheaper than an index kept for it.
+        // Every cell, because none is indexed by what is asked: a gate and the day-night mode each
+        // move rarely enough that the walk is cheaper than an index kept for it. A reference is
+        // indexed, because the game blacklists one for every object a script moves.
         for (HeldCell& cell : held)
             for (std::size_t slot = 0; slot < cell.mPlacements.size(); ++slot)
                 if (match(cell.mPlacements[slot]))
@@ -107,6 +106,28 @@ namespace Rtx
             for (HeldLight& lamp : cell.mLights)
                 if (match(lamp.mState))
                     change(lamp.mState);
+    }
+
+    template <class Change>
+    void CellPlacer::changeReference(const ESM::RefNum refnum, const std::span<HeldCell> held, Change change)
+    {
+        for (HeldCell& cell : held)
+        {
+            const auto [first, last]
+                = std::ranges::equal_range(cell.mByReference, refnum, std::less<>{}, &ReferenceSpot::mRefNum);
+            for (const ReferenceSpot& spot : std::ranges::subrange(first, last))
+            {
+                if (spot.mAt >= cell.mPlacements.size())
+                {
+                    change(cell.mLights[spot.mAt - cell.mPlacements.size()].mState);
+                    continue;
+                }
+
+                Placement& placement = cell.mPlacements[spot.mAt];
+                change(placement.mState);
+                restand(placement, spot.mAt < cell.mShown);
+            }
+        }
     }
 
     void CellPlacer::forgetReferences(const std::span<HeldCell> held)
@@ -328,6 +349,24 @@ namespace Rtx
                 .mRecord = lamp.mRecord,
                 .mState = heard(lamp.mRefNum, lamp.mGate),
             });
+
+        // By where each is met within a reference, so a change reaches a reference's placements in
+        // slot order and then its lamps, as a walk of the rows would.
+        held.mByReference.clear();
+        held.mByReference.reserve(held.mPlacements.size() + held.mLights.size());
+        for (std::size_t at = 0; at < held.mPlacements.size(); ++at)
+            held.mByReference.push_back(ReferenceSpot{
+                .mRefNum = held.mPlacements[at].mState.mRefNum,
+                .mAt = static_cast<std::uint32_t>(at),
+            });
+        for (std::size_t at = 0; at < held.mLights.size(); ++at)
+            held.mByReference.push_back(ReferenceSpot{
+                .mRefNum = held.mLights[at].mState.mRefNum,
+                .mAt = static_cast<std::uint32_t>(held.mPlacements.size() + at),
+            });
+        std::ranges::sort(held.mByReference, [](const ReferenceSpot& left, const ReferenceSpot& right) {
+            return left.mRefNum < right.mRefNum || (left.mRefNum == right.mRefNum && left.mAt < right.mAt);
+        });
     }
 
     ReferenceState CellPlacer::heard(const ESM::RefNum refnum, const std::uint32_t gate) const

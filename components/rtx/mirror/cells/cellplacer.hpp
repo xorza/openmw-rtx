@@ -138,6 +138,11 @@ namespace Rtx
         template <class Match, class Change>
         void changeReferencesWhere(std::span<HeldCell> held, Match match, Change change);
 
+        /// The same for the states of `refnum` alone, found through each cell's
+        /// `HeldCell::mByReference`.
+        template <class Change>
+        void changeReference(ESM::RefNum refnum, std::span<HeldCell> held, Change change);
+
         /// What `gate` said last, `Unknown` where it said nothing yet.
         Terrain::GateState stateOf(std::uint32_t gate) const;
 

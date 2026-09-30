@@ -181,7 +181,7 @@ namespace Rtx
 
         /// Writes again every row placing a mesh whose structure the compaction moved. True where
         /// anything moved, which is also when there is a copy to record.
-        bool placeCompacted(std::span<const InstanceRecord> records);
+        bool placeCompacted(const SceneDesc& scene, std::span<const InstanceRecord> records);
 
         const Device& mDevice;
 

@@ -9,6 +9,7 @@
 #include <components/rtx/common/contract.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/slots.hpp>
+#include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/commands.hpp>
@@ -135,11 +136,8 @@ namespace Rtx
 
         VkDeviceSize updates = 0;
         VkDeviceSize rebuild = 0;
-        for (Index mesh = 0; mesh < mBottomLevel.size(); ++mesh)
+        for (const Index mesh : mBottomLevel.getRefittable())
         {
-            if (!mBottomLevel.stands(mesh) || !mBottomLevel.isUpdatable(mesh))
-                continue;
-
             const VkDeviceSize update = alignUp(mBottomLevel.getUpdateScratch(mesh), alignment);
             const VkDeviceSize build = alignUp(mBottomLevel.getBuildScratch(mesh), alignment);
             updates += update;
@@ -285,7 +283,7 @@ namespace Rtx
         // After the rows are grown to the scene and before the copy they are synced from. A
         // structure copied tight has moved, and the rows naming it are written again here — into
         // the same table, so every copy owes them the way it owes anything else.
-        const bool compacting = placeCompacted(records);
+        const bool compacting = placeCompacted(scene, records);
 
         if (!compacting && !mRowTable.owes(placing.mSlot) && mRefit.mBuilds.empty())
             return false;
@@ -306,22 +304,19 @@ namespace Rtx
         return true;
     }
 
-    bool SceneAcceleration::placeCompacted(std::span<const InstanceRecord> records)
+    bool SceneAcceleration::placeCompacted(const SceneDesc& scene, std::span<const InstanceRecord> records)
     {
         const SlotSet& moved = mBottomLevel.prepareCompaction();
         if (moved.empty())
             return false;
 
-        // Every row that placed one of these names an address that has moved. Nothing indexes
-        // the instances by the mesh they place, so the records are walked — only on a placement that
-        // compacted something, which is the twenty or so after a cell arrives and never again for
-        // those meshes.
-        for (std::size_t at = 0; at < records.size(); ++at)
-        {
-            const InstanceRecord& record = records[at];
-            if (record.mPlaced && moved.has(record.mMesh))
-                placeRow(static_cast<Index>(at), record);
-        }
+        // Every row that placed one of these names an address that has moved.
+        for (const Index mesh : moved.getSlots())
+            scene.placements().forEachPlacing(mesh, [&](const Index slot) {
+                assert(records[slot].mPlaced && records[slot].mMesh == mesh
+                    && "a record behind the scene it was made from");
+                placeRow(slot, records[slot]);
+            });
 
         return true;
     }

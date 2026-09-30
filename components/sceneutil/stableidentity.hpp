@@ -2,10 +2,12 @@
 
 #include <cassert>
 #include <cstdint>
+#include <typeinfo>
 
 #include <osg/CopyOp>
 #include <osg/Node>
 #include <osg/Object>
+#include <osg/Referenced>
 #include <osg/UserDataContainer>
 
 namespace SceneUtil
@@ -18,7 +20,7 @@ namespace SceneUtil
     /// Kept in the node's user data slot (`osg::Object::setUserData`) rather than among its user
     /// objects, because nothing else in the engine writes that slot on a node and a reader then
     /// finds it in one load rather than a scan.
-    class StableIdentity : public osg::Object
+    class StableIdentity final : public osg::Object
     {
     public:
         StableIdentity() = default;
@@ -55,7 +57,15 @@ namespace SceneUtil
             if (held == nullptr)
                 return nullptr;
 
-            return dynamic_cast<const StableIdentity*>(held->getUserData());
+            // An exact type test and not a `dynamic_cast`, which the class being final makes the
+            // same answer: the cast is a call into the runtime's search of the class hierarchy,
+            // made for every stamped node the mirror meets on every frame, and profiled at a
+            // fortieth of the frame thread's time.
+            const osg::Referenced* data = held->getUserData();
+            if (data == nullptr || typeid(*data) != typeid(StableIdentity))
+                return nullptr;
+
+            return static_cast<const StableIdentity*>(data);
         }
 
     private:
