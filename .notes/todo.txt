@@ -3,3 +3,4 @@
 
 - fix rendering resolution and allow to resize window
 - Result<>
+- threading consolidation
