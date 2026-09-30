@@ -121,8 +121,9 @@ namespace RtxTool
         /// An hour of the day, from nought up to but not including twenty-four.
         float hour(const BlockField& field) const;
 
-        /// One of the ten weathers the content files name, spelt as they spell it.
-        const std::string& weather(const BlockField& field) const;
+        /// One of the ten weathers the content files name, in any case, and handed back spelled as
+        /// they spell it, so nothing after the file meets another spelling.
+        std::string weather(const BlockField& field) const;
 
         /// Three numbers separated by commas; an empty value is no point, and not one left unsaid.
         osg::Vec3f point(const BlockField& field) const;

@@ -444,7 +444,8 @@ namespace Rtx
                 && standing.mMaterial == stood.mMaterial;
         };
 
-        const bool inReach = around.mExterior && withinReach(cell.mCell, around.mEye, around.mReach);
+        const bool inReach
+            = around.mExterior && around.mWorld.mGrid.withinReach(cell.mCell, around.mEye, around.mReach);
         const bool shown = inReach && !inActiveGrid(cell.mCell, around.mActiveGrid);
         if (!shown && cell.mShown != 0)
             return false;
@@ -474,7 +475,7 @@ namespace Rtx
 
     std::uint32_t CellPlacer::place(HeldCell& cell, const WorldAround& around)
     {
-        const bool inReach = withinReach(cell.mCell, around.mEye, around.mReach);
+        const bool inReach = around.mWorld.mGrid.withinReach(cell.mCell, around.mEye, around.mReach);
 
         // The ground stands inside the active grid too: the game builds none for this
         // renderer, so what a cell's land says is stood here wherever the cell is.
@@ -506,7 +507,8 @@ namespace Rtx
         // threshold at the eye's distance to its cell. The placements are sorted largest first, so
         // what clears is a prefix and where it ends is one search — and what this walk touches is
         // what entered or left that prefix since the last one, which on a standing frame is nothing.
-        const float threshold = shown ? mMinSize * chebyshevDistanceTo(cell.mCell, around.mEye) : 0.0f;
+        const float threshold
+            = shown ? mMinSize * around.mWorld.mGrid.chebyshevDistanceTo(cell.mCell, around.mEye) : 0.0f;
         const float threshold2 = threshold * threshold;
 
         const std::span<Placement> placements = cell.mPlacements;

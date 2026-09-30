@@ -1,6 +1,7 @@
 #include "skybuilder.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <string>
@@ -70,7 +71,7 @@ namespace Rtx
 
         SkyContent loaded;
 
-        for (std::uint32_t weather = 0; weather < Shaders::WEATHER_COUNT; ++weather)
+        for (std::uint32_t weather = 0; weather < sWeatherCount; ++weather)
         {
             // A bare file name the archive holds under `textures/`, and empty where the weather
             // names none, which the shipped fallbacks do for ash and blight.
@@ -169,9 +170,10 @@ namespace Rtx
         const float scroll = clouds.mScroll;
         const std::uint32_t slot = textures.cloudsOf(weather);
 
-        // Written so a NaN lands on nought, which `std::clamp` does not do: the blend comes off a
-        // content file by way of a division, and a NaN through `clamp` blacks out the sky.
-        const float mixed = blend > 0.0f ? (blend < 1.0f ? blend : 1.0f) : 0.0f;
+        // Cleaned where it enters, by the reader that takes it off the weather (`SkyReader::read`):
+        // the builder is handed a share and never a content file's division.
+        assert(blend >= 0.0f && blend <= 1.0f && "a cloud blend the reader did not clean");
+        const float mixed = blend;
 
         // The level the sheet is read against crosses with the sheet, and falls back the way it
         // does. Where the weather ahead names no deck the near sheet stands at both ends of the

@@ -171,8 +171,8 @@ namespace Rtx
         /// still owes are one thing and belong to one object (`SlotTable`).
         SlotTable<Shaders::GpuInstance> mInstanceTable;
 
-        /// Every material the scene holds, and one row past them for the sentinel a placement with
-        /// no material of its own wears.
+        /// The untextured material a placement with none wears, and every material the scene holds
+        /// a row after it — `Shaders::MATERIAL_ROW_FIRST`.
         SlotTable<Shaders::GpuMaterial> mMaterialTable;
 
         /// Blocked like the geometry they belong to, so a scene that grows keeps the blocks it

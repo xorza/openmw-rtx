@@ -120,13 +120,17 @@ namespace MWRender
         void forgetReferences() { mRing.forgetReferences(); }
 
         /// How much world this renderer builds, in units: the ground, the air and the distant
-        /// lights are all measured over it — `Rtx::distantLandReach`, as the settings stood when
-        /// the mirror was made or when the menu last moved them.
-        float getReach() const { return mReach; }
+        /// lights are all measured over it. The settings' count of cells, as they stood when the
+        /// mirror was made or when the menu last moved them, in the cells of the worldspace the
+        /// last walk stood in (`Rtx::CellGrid::reachOf`).
+        float getReach() const { return mGrid.reachOf(mReach); }
+
+        /// The worldspace's grid, as the last walk read it off the land.
+        const Rtx::CellGrid& getGrid() const { return mGrid; }
 
         /// The menu moved the reach, or the view distance it falls back to. Told rather than read
         /// per frame, so the ring, the air and the map follow one number a frame was handed.
-        void setReach(float reach) { mReach = reach; }
+        void setReach(const Rtx::LandReach& reach) { mReach = reach; }
 
         /// Where the last walk stood the rings: the camera's eye, which is not the player's feet.
         const osg::Vec3f& getEye() const { return mEye; }
@@ -203,7 +207,8 @@ namespace MWRender
         /// ground to flatten.
         Rtx::CompositeQueue mComposites;
 
-        float mReach;
+        Rtx::LandReach mReach;
+        Rtx::CellGrid mGrid;
         osg::Vec3f mEye;
         Rtx::SpecularLayout mSpecularLayout;
     };

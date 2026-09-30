@@ -35,9 +35,8 @@ namespace Rtx
     class GuiPass
     {
     public:
-        /// @param targetFormat the format of the image this will draw over. Fixed at construction
-        ///        because a pipeline is compiled against it; a resize does not change it.
-        GuiPass(const Device& device, VkFormat targetFormat);
+        /// Draws over the curve's picture, in `TonePass::sTargetFormat`.
+        explicit GuiPass(const Device& device);
 
         /// @param target what to draw over, in `VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL` and made
         ///        with `VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT`, which is asserted. Loaded rather than

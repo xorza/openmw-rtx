@@ -2,6 +2,7 @@
 
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 #include <components/esm/refid.hpp>
@@ -45,19 +46,9 @@ namespace MWScript
     /// One value a run read, and what it was: a gate is evaluated again when one of these moves.
     struct VisibilityInput
     {
-        enum class Kind
-        {
-            Global,
-            Journal,
-        };
-
-        Kind mKind = Kind::Global;
-
-        /// The global's name, where it is one.
-        std::string mGlobal;
-
-        /// The quest, where it is a journal entry.
-        ESM::RefId mQuest;
+        /// What was read: a global by its name, or a journal entry by its quest. One identity, so
+        /// two reads of one value compare equal and a read of a global never names a quest.
+        std::variant<std::string, ESM::RefId> mRead;
 
         /// Doubles, so a long global compares exactly.
         double mValue = 0.0;

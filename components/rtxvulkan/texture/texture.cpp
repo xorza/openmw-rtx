@@ -859,7 +859,7 @@ namespace Rtx
                     .mMaterials = tables.mMaterials,
                     .mLayers = tables.mLayers,
                     .mMasks = tables.mMasks,
-                    .mMaterial = material,
+                    .mMaterial = material + Shaders::MATERIAL_ROW_FIRST,
                     .mOutputs = outputs,
                     .mTexels = tables.mTextureTexels,
                 });

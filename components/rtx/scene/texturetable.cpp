@@ -92,7 +92,7 @@ namespace Rtx
         return sNoIndex;
     }
 
-    Index TextureTable::addBaked(const std::string_view key)
+    Index TextureTable::addBaked(const std::string_view key, const TextureEncoding encoding)
     {
         assert(!key.empty() && "a baked texture with no key is one nothing can find again");
 
@@ -107,6 +107,7 @@ namespace Rtx
             .mKind = TextureKind::Baked,
             .mBaked = std::string(key),
             .mWrap = TextureWrap::Clamp,
+            .mEncoding = encoding,
         });
 
         mBakedIndex.emplace(key, index);
@@ -157,6 +158,5 @@ namespace Rtx
         row = TextureRow{};
         mRows.free(texture);
         mChanges.note(texture, SlotNews::Freed);
-        ++mFreed;
     }
 }

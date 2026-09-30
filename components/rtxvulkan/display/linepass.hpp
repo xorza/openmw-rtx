@@ -40,9 +40,8 @@ namespace Rtx
     class LinePass
     {
     public:
-        /// @param targetFormat the format of the image this will draw over, fixed at construction
-        ///        because a pipeline is compiled against it.
-        LinePass(const Device& device, VkFormat targetFormat);
+        /// Draws over the curve's picture, in `TonePass::sTargetFormat`.
+        explicit LinePass(const Device& device);
 
         void record(VkCommandBuffer commands, const Lines& what) const;
 

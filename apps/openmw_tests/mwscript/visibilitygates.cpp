@@ -7,6 +7,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -194,16 +195,15 @@ End
             mReads.mGlobals["stronghold"] = row.mStronghold;
             EXPECT_EQ(run(sStageScript, inputs), row.mState) << "Stronghold " << row.mStronghold;
             ASSERT_EQ(inputs.size(), 1u);
-            EXPECT_EQ(inputs[0].mKind, MWScript::VisibilityInput::Kind::Global);
-            EXPECT_EQ(inputs[0].mGlobal, "stronghold");
+            EXPECT_EQ(inputs[0].mRead, (std::variant<std::string, ESM::RefId>(std::string("stronghold"))));
             EXPECT_EQ(inputs[0].mValue, row.mStronghold);
         }
 
         mReads.mJournal["c3_destroydagoth"] = 10;
         EXPECT_EQ(run(sFenceScript, inputs), GateState::Open) << "the heart is not struck";
         ASSERT_EQ(inputs.size(), 1u) << "read under every answer to the cell change and the sound, and kept once";
-        EXPECT_EQ(inputs[0].mKind, MWScript::VisibilityInput::Kind::Journal);
-        EXPECT_EQ(inputs[0].mQuest, ESM::RefId::stringRefId("c3_destroydagoth"));
+        EXPECT_EQ(
+            inputs[0].mRead, (std::variant<std::string, ESM::RefId>(ESM::RefId::stringRefId("c3_destroydagoth"))));
         EXPECT_EQ(inputs[0].mValue, 10);
 
         mReads.mJournal["c3_destroydagoth"] = 20;

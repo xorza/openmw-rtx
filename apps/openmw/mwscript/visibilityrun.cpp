@@ -85,12 +85,10 @@ namespace MWScript
             {
                 const int index = mReads.getJournalIndex(quest);
                 if (std::none_of(mInputs.begin(), mInputs.end(), [&](const VisibilityInput& input) {
-                        return input.mKind == VisibilityInput::Kind::Journal && input.mQuest == quest;
+                        const ESM::RefId* read = std::get_if<ESM::RefId>(&input.mRead);
+                        return read != nullptr && *read == quest;
                     }))
-                    mInputs.push_back(VisibilityInput{ .mKind = VisibilityInput::Kind::Journal,
-                        .mGlobal = {},
-                        .mQuest = quest,
-                        .mValue = static_cast<double>(index) });
+                    mInputs.push_back(VisibilityInput{ .mRead = quest, .mValue = static_cast<double>(index) });
                 return index;
             }
 
@@ -159,12 +157,10 @@ namespace MWScript
 
                 // Once, though every way `VisibilityRun::run` tries reads it again.
                 if (std::none_of(mInputs.begin(), mInputs.end(), [&](const VisibilityInput& input) {
-                        return input.mKind == VisibilityInput::Kind::Global && input.mGlobal == name;
+                        const std::string* read = std::get_if<std::string>(&input.mRead);
+                        return read != nullptr && *read == name;
                     }))
-                    mInputs.push_back(VisibilityInput{ .mKind = VisibilityInput::Kind::Global,
-                        .mGlobal = std::string(name),
-                        .mQuest = {},
-                        .mValue = value });
+                    mInputs.push_back(VisibilityInput{ .mRead = std::string(name), .mValue = value });
                 return value;
             }
 

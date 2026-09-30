@@ -87,6 +87,8 @@ namespace Rtx
                 .mTransform = toTransform3x4(placement),
                 .mMotion = sStillTransform,
                 .mMesh = instance.mMesh,
+                .mMaterial = instance.mMaterial,
+                .mOpacity = instance.mOpacity,
                 .mKind = worn.mKind,
                 .mClass = kind,
                 // **A medium carries the medium bit alone**, so traversal hands it to the two rays

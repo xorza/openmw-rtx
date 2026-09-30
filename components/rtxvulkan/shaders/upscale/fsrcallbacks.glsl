@@ -62,6 +62,7 @@
 #include "camera.h"
 #include "fsr.h"
 #include "gbuffer.h"
+#include "sets.h"
 
 #include "lib/spritelist.glsl"
 
@@ -77,7 +78,7 @@
 #endif // FFX_PREFER_WAVE64
 
 #if defined(FSR3UPSCALER_BIND_CB_FSR3UPSCALER)
-layout (set = 0, binding = FSR3UPSCALER_BIND_CB_FSR3UPSCALER, scalar) uniform cbFSR3UPSCALER_t
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_CB_FSR3UPSCALER, scalar) uniform cbFSR3UPSCALER_t
 {
     FsrConstants cbFSR3Upscaler;
 };
@@ -107,7 +108,7 @@ FfxFloat32 MinDisocclusionAccumulation() { return cbFSR3Upscaler.mMinDisocclusio
 #endif // #if defined(FSR3UPSCALER_BIND_CB_FSR3UPSCALER)
 
 #if defined(FSR3UPSCALER_BIND_CB_SPD)
-layout (set = 0, binding = FSR3UPSCALER_BIND_CB_SPD, scalar) uniform cbSPD_t
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_CB_SPD, scalar) uniform cbSPD_t
 {
     FsrPyramidConstants cbSPD;
 };
@@ -118,10 +119,10 @@ FfxUInt32x2 WorkGroupOffset() { return cbSPD.mWorkGroupOffset; }
 FfxUInt32x2 SPD_RenderSize() { return cbSPD.mRenderSize; }
 #endif // #if defined(FSR3UPSCALER_BIND_CB_SPD)
 
-layout (set = 0, binding = FSR_BIND_SAMPLER) uniform sampler s_LinearClamp;
+layout (set = SET_PASS, binding = FSR_BIND_SAMPLER) uniform sampler s_LinearClamp;
 
 #if defined(FSR3UPSCALER_BIND_SRV_SPD_MIPS)
-layout (set = 0, binding = FSR3UPSCALER_BIND_SRV_SPD_MIPS) uniform texture2D  r_spd_mips;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_SPD_MIPS) uniform texture2D  r_spd_mips;
 
 FfxInt32x2 GetSPDMipDimensions(FfxUInt32 uMipLevel)
 {
@@ -135,9 +136,9 @@ FfxFloat32x2 SampleSPDMipLevel(FfxFloat32x2 fUV, FfxUInt32 mipLevel)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_INPUT_DEPTH)
-layout (set = 0, binding = FSR3UPSCALER_BIND_SRV_INPUT_DEPTH) uniform texture2D r_input_surface;
-layout (set = 0, binding = FSR_INPUTS_BIND_PUFFS) uniform texture2D r_input_puffs;
-layout (set = 0, binding = FSR_INPUTS_BIND_INPUTS, scalar) uniform cbInputs_t
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_INPUT_DEPTH) uniform texture2D r_input_surface;
+layout (set = SET_PASS, binding = FSR_INPUTS_BIND_PUFFS) uniform texture2D r_input_puffs;
+layout (set = SET_PASS, binding = FSR_INPUTS_BIND_INPUTS, scalar) uniform cbInputs_t
 {
     FsrInputConstants cbInputs;
 };
@@ -157,7 +158,7 @@ FfxFloat32 LoadInputDepth(FfxInt32x2 iPxPos)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_REACTIVE_MASK) || defined(FSR3UPSCALER_BIND_SRV_TRANSPARENCY_AND_COMPOSITION_MASK)
-layout (set = 0, binding = FSR_REACTIVITY_BIND_MASKS) uniform texture2D r_upscale_masks;
+layout (set = SET_PASS, binding = FSR_REACTIVITY_BIND_MASKS) uniform texture2D r_upscale_masks;
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_REACTIVE_MASK)
@@ -180,7 +181,7 @@ FfxFloat32 SampleTransparencyAndCompositionMask(FfxFloat32x2 fUV)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_INPUT_COLOR)
-layout (set = 0, binding = FSR3UPSCALER_BIND_SRV_INPUT_COLOR) uniform texture2D  r_input_color_jittered;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_INPUT_COLOR) uniform texture2D  r_input_color_jittered;
 
 FfxFloat32x3 LoadInputColor(FfxInt32x2 iPxPos)
 {
@@ -194,7 +195,7 @@ FfxFloat32x3 SampleInputColor(FfxFloat32x2 fUV)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_INPUT_MOTION_VECTORS)
-layout (set = 0, binding = FSR3UPSCALER_BIND_SRV_INPUT_MOTION_VECTORS) uniform texture2D  r_input_motion_vectors;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_INPUT_MOTION_VECTORS) uniform texture2D  r_input_motion_vectors;
 
 FfxFloat32x2 LoadInputMotionVector(FfxInt32x2 iPxDilatedMotionVectorPos)
 {
@@ -211,7 +212,7 @@ FfxFloat32x2 LoadInputMotionVector(FfxInt32x2 iPxDilatedMotionVectorPos)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_INTERNAL_UPSCALED)
-layout (set = 0, binding = FSR3UPSCALER_BIND_SRV_INTERNAL_UPSCALED) uniform texture2D  r_internal_upscaled_color;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_INTERNAL_UPSCALED) uniform texture2D  r_internal_upscaled_color;
 
 FfxFloat32x4 LoadHistory(FfxInt32x2 iPxHistory)
 {
@@ -225,7 +226,7 @@ FfxFloat32x4 SampleHistory(FfxFloat32x2 fUV)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_UAV_LUMA_HISTORY)
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_LUMA_HISTORY, rgba16f) uniform image2D  rw_luma_history;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_LUMA_HISTORY, FSR_LUMA_HISTORY_FORMAT) uniform image2D  rw_luma_history;
 
 void StoreLumaHistory(FfxInt32x2 iPxPos, FfxFloat32x4 fLumaHistory)
 {
@@ -234,7 +235,7 @@ void StoreLumaHistory(FfxInt32x2 iPxPos, FfxFloat32x4 fLumaHistory)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_LUMA_HISTORY)
-layout (set = 0, binding = FSR3UPSCALER_BIND_SRV_LUMA_HISTORY) uniform texture2D  r_luma_history;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_LUMA_HISTORY) uniform texture2D  r_luma_history;
 
 FfxFloat32x4 LoadLumaHistory(FfxInt32x2 iPxPos)
 {
@@ -248,7 +249,7 @@ FfxFloat32x4 SampleLumaHistory(FfxFloat32x2 fUV)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_UAV_INTERNAL_UPSCALED)
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_INTERNAL_UPSCALED, rgba16f) writeonly uniform image2D  rw_internal_upscaled_color;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_INTERNAL_UPSCALED, FSR_HISTORY_FORMAT) writeonly uniform image2D  rw_internal_upscaled_color;
 
 void StoreReprojectedHistory(FfxInt32x2 iPxHistory, FfxFloat32x4 fHistory)
 {
@@ -262,7 +263,7 @@ void StoreInternalColorAndWeight(FfxInt32x2 iPxPos, FfxFloat32x4 fColorAndWeight
 #endif
 
 #if defined(FSR3UPSCALER_BIND_UAV_UPSCALED_OUTPUT)
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_UPSCALED_OUTPUT, rgba16f) writeonly uniform image2D  rw_upscaled_output;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_UPSCALED_OUTPUT, FSR_OUTPUT_FORMAT) writeonly uniform image2D  rw_upscaled_output;
 
 void StoreUpscaledOutput(FfxInt32x2 iPxPos, FfxFloat32x3 fColor)
 {
@@ -271,7 +272,7 @@ void StoreUpscaledOutput(FfxInt32x2 iPxPos, FfxFloat32x3 fColor)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_ACCUMULATION)
-layout(set = 0, binding = FSR3UPSCALER_BIND_SRV_ACCUMULATION) uniform texture2D  r_accumulation;
+layout(set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_ACCUMULATION) uniform texture2D  r_accumulation;
 
 FfxFloat32 SampleAccumulation(FfxFloat32x2 fUV)
 {
@@ -280,7 +281,7 @@ FfxFloat32 SampleAccumulation(FfxFloat32x2 fUV)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_UAV_ACCUMULATION)
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_ACCUMULATION, r8) uniform image2D  rw_accumulation;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_ACCUMULATION, FSR_ACCUMULATION_FORMAT) uniform image2D  rw_accumulation;
 
 void StoreAccumulation(FfxInt32x2 iPxPos, FfxFloat32 fAccumulation)
 {
@@ -289,7 +290,7 @@ void StoreAccumulation(FfxInt32x2 iPxPos, FfxFloat32 fAccumulation)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_SHADING_CHANGE)
-layout(set = 0, binding = FSR3UPSCALER_BIND_SRV_SHADING_CHANGE) uniform texture2D  r_shading_change;
+layout(set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_SHADING_CHANGE) uniform texture2D  r_shading_change;
 
 FfxFloat32 LoadShadingChange(FfxInt32x2 iPxPos)
 {
@@ -303,7 +304,7 @@ FfxFloat32 SampleShadingChange(FfxFloat32x2 fUV)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_UAV_SHADING_CHANGE)
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_SHADING_CHANGE, r8) uniform image2D  rw_shading_change;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_SHADING_CHANGE, FSR_SHADING_CHANGE_FORMAT) uniform image2D  rw_shading_change;
 
 void StoreShadingChange(FfxInt32x2 iPxPos, FfxFloat32 fShadingChange)
 {
@@ -312,7 +313,7 @@ void StoreShadingChange(FfxInt32x2 iPxPos, FfxFloat32 fShadingChange)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_FARTHEST_DEPTH)
-layout(set = 0, binding = FSR3UPSCALER_BIND_SRV_FARTHEST_DEPTH) uniform texture2D  r_farthest_depth;
+layout(set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_FARTHEST_DEPTH) uniform texture2D  r_farthest_depth;
 
 FfxInt32x2 GetFarthestDepthResourceDimensions()
 {
@@ -331,7 +332,7 @@ FfxFloat32 SampleFarthestDepth(FfxFloat32x2 fUV)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_UAV_FARTHEST_DEPTH)
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_FARTHEST_DEPTH, r16f) uniform image2D  rw_farthest_depth;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_FARTHEST_DEPTH, FSR_INTERMEDIATE_FORMAT) uniform image2D  rw_farthest_depth;
 
 void StoreFarthestDepth(FfxInt32x2 iPxPos, FfxFloat32 fDepth)
 {
@@ -340,7 +341,7 @@ void StoreFarthestDepth(FfxInt32x2 iPxPos, FfxFloat32 fDepth)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_FARTHEST_DEPTH_MIP1)
-layout(set = 0, binding = FSR3UPSCALER_BIND_SRV_FARTHEST_DEPTH_MIP1) uniform texture2D  r_farthest_depth_mip1;
+layout(set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_FARTHEST_DEPTH_MIP1) uniform texture2D  r_farthest_depth_mip1;
 
 FfxInt32x2 GetFarthestDepthMip1ResourceDimensions()
 {
@@ -359,7 +360,7 @@ FfxFloat32 SampleFarthestDepthMip1(FfxFloat32x2 fUV)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_UAV_FARTHEST_DEPTH_MIP1)
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_FARTHEST_DEPTH_MIP1, r16f) uniform image2D  rw_farthest_depth_mip1;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_FARTHEST_DEPTH_MIP1, FSR_FARTHEST_DEPTH_MIP1_FORMAT) uniform image2D  rw_farthest_depth_mip1;
 
 void StoreFarthestDepthMip1(FfxInt32x2 iPxPos, FfxFloat32 fDepth)
 {
@@ -368,7 +369,7 @@ void StoreFarthestDepthMip1(FfxInt32x2 iPxPos, FfxFloat32 fDepth)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_CURRENT_LUMA)
-layout(set = 0, binding = FSR3UPSCALER_BIND_SRV_CURRENT_LUMA) uniform texture2D  r_current_luma;
+layout(set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_CURRENT_LUMA) uniform texture2D  r_current_luma;
 
 FfxFloat32 LoadCurrentLuma(FfxInt32x2 iPxPos)
 {
@@ -382,7 +383,7 @@ FfxFloat32 SampleCurrentLuma(FfxFloat32x2 uv)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_UAV_CURRENT_LUMA)
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_CURRENT_LUMA, r16f) uniform image2D  rw_current_luma;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_CURRENT_LUMA, FSR_LUMA_FORMAT) uniform image2D  rw_current_luma;
 
 void StoreCurrentLuma(FfxInt32x2 iPxPos, FfxFloat32 fLuma)
 {
@@ -391,7 +392,7 @@ void StoreCurrentLuma(FfxInt32x2 iPxPos, FfxFloat32 fLuma)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_LUMA_INSTABILITY)
-layout(set = 0, binding = FSR3UPSCALER_BIND_SRV_LUMA_INSTABILITY) uniform texture2D  r_luma_instability;
+layout(set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_LUMA_INSTABILITY) uniform texture2D  r_luma_instability;
 
 FfxFloat32 SampleLumaInstability(FfxFloat32x2 uv)
 {
@@ -400,7 +401,7 @@ FfxFloat32 SampleLumaInstability(FfxFloat32x2 uv)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_UAV_LUMA_INSTABILITY)
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_LUMA_INSTABILITY, r16f) uniform image2D  rw_luma_instability;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_LUMA_INSTABILITY, FSR_INTERMEDIATE_FORMAT) uniform image2D  rw_luma_instability;
 
 void StoreLumaInstability(FfxInt32x2 iPxPos, FfxFloat32 fLumaInstability)
 {
@@ -409,7 +410,7 @@ void StoreLumaInstability(FfxInt32x2 iPxPos, FfxFloat32 fLumaInstability)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_PREVIOUS_LUMA)
-layout(set = 0, binding = FSR3UPSCALER_BIND_SRV_PREVIOUS_LUMA) uniform texture2D  r_previous_luma;
+layout(set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_PREVIOUS_LUMA) uniform texture2D  r_previous_luma;
 
 FfxFloat32 LoadPreviousLuma(FfxInt32x2 iPxPos)
 {
@@ -423,7 +424,7 @@ FfxFloat32 SamplePreviousLuma(FfxFloat32x2 uv)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_NEW_LOCKS)
-layout(set = 0, binding = FSR3UPSCALER_BIND_SRV_NEW_LOCKS) uniform texture2D  r_new_locks;
+layout(set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_NEW_LOCKS) uniform texture2D  r_new_locks;
 
 FfxFloat32 LoadNewLocks(FfxInt32x2 iPxPos)
 {
@@ -432,7 +433,7 @@ FfxFloat32 LoadNewLocks(FfxInt32x2 iPxPos)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_UAV_NEW_LOCKS)
-layout(set = 0, binding = FSR3UPSCALER_BIND_UAV_NEW_LOCKS, r8) uniform image2D  rw_new_locks;
+layout(set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_NEW_LOCKS, FSR_NEW_LOCKS_FORMAT) uniform image2D  rw_new_locks;
 
 FfxFloat32 LoadRwNewLocks(FfxInt32x2 iPxPos)
 {
@@ -446,7 +447,7 @@ void StoreNewLocks(FfxInt32x2 iPxPos, FfxFloat32 newLock)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_RECONSTRUCTED_PREV_NEAREST_DEPTH)
-layout (set = 0, binding = FSR3UPSCALER_BIND_SRV_RECONSTRUCTED_PREV_NEAREST_DEPTH) uniform utexture2D r_reconstructed_previous_nearest_depth;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_RECONSTRUCTED_PREV_NEAREST_DEPTH) uniform utexture2D r_reconstructed_previous_nearest_depth;
 
 FfxFloat32 LoadReconstructedPrevDepth(FfxInt32x2 iPxPos)
 {
@@ -455,7 +456,7 @@ FfxFloat32 LoadReconstructedPrevDepth(FfxInt32x2 iPxPos)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_UAV_RECONSTRUCTED_PREV_NEAREST_DEPTH)
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_RECONSTRUCTED_PREV_NEAREST_DEPTH, r32ui) uniform uimage2D  rw_reconstructed_previous_nearest_depth;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_RECONSTRUCTED_PREV_NEAREST_DEPTH, FSR_PREVIOUS_DEPTH_FORMAT) uniform uimage2D  rw_reconstructed_previous_nearest_depth;
 
 void StoreReconstructedDepth(FfxInt32x2 iPxSample, FfxFloat32 fDepth)
 {
@@ -475,7 +476,7 @@ void SetReconstructedDepth(FfxInt32x2 iPxSample, FfxUInt32 uValue)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_UAV_DILATED_DEPTH)
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_DILATED_DEPTH, r32f) writeonly uniform image2D  rw_dilated_depth;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_DILATED_DEPTH, FSR_DILATED_DEPTH_FORMAT) writeonly uniform image2D  rw_dilated_depth;
 
 void StoreDilatedDepth(FFX_PARAMETER_IN FfxInt32x2 iPxPos, FFX_PARAMETER_IN FfxFloat32 fDepth)
 {
@@ -484,7 +485,7 @@ void StoreDilatedDepth(FFX_PARAMETER_IN FfxInt32x2 iPxPos, FFX_PARAMETER_IN FfxF
 #endif
 
 #if defined(FSR3UPSCALER_BIND_UAV_DILATED_MOTION_VECTORS)
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_DILATED_MOTION_VECTORS, rg16f) writeonly uniform image2D  rw_dilated_motion_vectors;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_DILATED_MOTION_VECTORS, FSR_DILATED_MOTION_FORMAT) writeonly uniform image2D  rw_dilated_motion_vectors;
 
 void StoreDilatedMotionVector(FFX_PARAMETER_IN FfxInt32x2 iPxPos, FFX_PARAMETER_IN FfxFloat32x2 fMotionVector)
 {
@@ -493,7 +494,7 @@ void StoreDilatedMotionVector(FFX_PARAMETER_IN FfxInt32x2 iPxPos, FFX_PARAMETER_
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_DILATED_MOTION_VECTORS)
-layout (set = 0, binding = FSR3UPSCALER_BIND_SRV_DILATED_MOTION_VECTORS) uniform texture2D  r_dilated_motion_vectors;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_DILATED_MOTION_VECTORS) uniform texture2D  r_dilated_motion_vectors;
 
 FfxFloat32x2 LoadDilatedMotionVector(FfxInt32x2 iPxInput)
 {
@@ -507,7 +508,7 @@ FfxFloat32x2 SampleDilatedMotionVector(FfxFloat32x2 fUV)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_DILATED_DEPTH)
-layout (set = 0, binding = FSR3UPSCALER_BIND_SRV_DILATED_DEPTH) uniform texture2D  r_dilated_depth;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_DILATED_DEPTH) uniform texture2D  r_dilated_depth;
 
 FfxFloat32 LoadDilatedDepth(FfxInt32x2 iPxInput)
 {
@@ -521,7 +522,7 @@ FfxFloat32 SampleDilatedDepth(FfxFloat32x2 fUV)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_INPUT_EXPOSURE)
-layout (set = 0, binding = FSR3UPSCALER_BIND_SRV_INPUT_EXPOSURE) uniform texture2D  r_input_exposure;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_INPUT_EXPOSURE) uniform texture2D  r_input_exposure;
 
 FfxFloat32 Exposure()
 {
@@ -537,7 +538,7 @@ FfxFloat32 Exposure()
 
 // BEGIN: FSR3UPSCALER_BIND_SRV_LANCZOS_LUT
 #if defined(FSR3UPSCALER_BIND_SRV_LANCZOS_LUT)
-layout (set = 0, binding = FSR3UPSCALER_BIND_SRV_LANCZOS_LUT) uniform texture2D  r_lanczos_lut;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_LANCZOS_LUT) uniform texture2D  r_lanczos_lut;
 #endif
 
 FfxFloat32 SampleLanczos2Weight(FfxFloat32 x)
@@ -551,7 +552,7 @@ FfxFloat32 SampleLanczos2Weight(FfxFloat32 x)
 // END: FSR3UPSCALER_BIND_SRV_LANCZOS_LUT
 
 #if defined(FSR3UPSCALER_BIND_SRV_DILATED_REACTIVE_MASKS)
-layout (set = 0, binding = FSR3UPSCALER_BIND_SRV_DILATED_REACTIVE_MASKS) uniform texture2D  r_dilated_reactive_masks;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_DILATED_REACTIVE_MASKS) uniform texture2D  r_dilated_reactive_masks;
 
 FfxFloat32x4 SampleDilatedReactiveMasks(FfxFloat32x2 fUV)
 {
@@ -560,7 +561,7 @@ FfxFloat32x4 SampleDilatedReactiveMasks(FfxFloat32x2 fUV)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_UAV_DILATED_REACTIVE_MASKS)
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_DILATED_REACTIVE_MASKS, rgba8) writeonly uniform image2D  rw_dilated_reactive_masks;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_DILATED_REACTIVE_MASKS, FSR_DILATED_MASKS_FORMAT) writeonly uniform image2D  rw_dilated_reactive_masks;
 
 void StoreDilatedReactiveMasks(FFX_PARAMETER_IN FfxInt32x2 iPxPos, FFX_PARAMETER_IN FfxFloat32x4 fDilatedReactiveMasks)
 {
@@ -569,7 +570,7 @@ void StoreDilatedReactiveMasks(FFX_PARAMETER_IN FfxInt32x2 iPxPos, FFX_PARAMETER
 #endif
 
 #if defined(FSR3UPSCALER_BIND_UAV_FRAME_INFO)
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_FRAME_INFO, rgba32f) uniform image2D  rw_frame_info;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_FRAME_INFO, FSR_FRAME_INFO_FORMAT) uniform image2D  rw_frame_info;
 
 FfxFloat32x4 LoadFrameInfo()
 {
@@ -583,7 +584,7 @@ void StoreFrameInfo(FfxFloat32x4 fInfo)
 #endif
 
 #if defined(FSR3UPSCALER_BIND_SRV_FRAME_INFO)
-layout(set = 0, binding = FSR3UPSCALER_BIND_SRV_FRAME_INFO) uniform texture2D  r_frame_info;
+layout(set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_FRAME_INFO) uniform texture2D  r_frame_info;
 
 FfxFloat32x4 FrameInfo()
 {
@@ -598,12 +599,12 @@ FfxFloat32x4 FrameInfo()
     defined(FSR3UPSCALER_BIND_UAV_SPD_MIPS_LEVEL_4)    && \
     defined(FSR3UPSCALER_BIND_UAV_SPD_MIPS_LEVEL_5)
 
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_SPD_MIPS_LEVEL_0, rg16f)          uniform image2D  rw_spd_mip0;
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_SPD_MIPS_LEVEL_1, rg16f)          uniform image2D  rw_spd_mip1;
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_SPD_MIPS_LEVEL_2, rg16f)          uniform image2D  rw_spd_mip2;
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_SPD_MIPS_LEVEL_3, rg16f)          uniform image2D  rw_spd_mip3;
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_SPD_MIPS_LEVEL_4, rg16f)          uniform image2D  rw_spd_mip4;
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_SPD_MIPS_LEVEL_5, rg16f) coherent uniform image2D  rw_spd_mip5;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_SPD_MIPS_LEVEL_0, FSR_SPD_MIPS_FORMAT)          uniform image2D  rw_spd_mip0;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_SPD_MIPS_LEVEL_1, FSR_SPD_MIPS_FORMAT)          uniform image2D  rw_spd_mip1;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_SPD_MIPS_LEVEL_2, FSR_SPD_MIPS_FORMAT)          uniform image2D  rw_spd_mip2;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_SPD_MIPS_LEVEL_3, FSR_SPD_MIPS_FORMAT)          uniform image2D  rw_spd_mip3;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_SPD_MIPS_LEVEL_4, FSR_SPD_MIPS_FORMAT)          uniform image2D  rw_spd_mip4;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_SPD_MIPS_LEVEL_5, FSR_SPD_MIPS_FORMAT) coherent uniform image2D  rw_spd_mip5;
 
 FfxFloat32x2 RWLoadPyramid(FFX_PARAMETER_IN FfxInt32x2 iPxPos, FFX_PARAMETER_IN FfxUInt32 index)
 {
@@ -644,7 +645,7 @@ void StorePyramid(FFX_PARAMETER_IN FfxInt32x2 iPxPos, FFX_PARAMETER_IN FfxFloat3
 #endif
 
 #if defined FSR3UPSCALER_BIND_UAV_SPD_GLOBAL_ATOMIC
-layout (set = 0, binding = FSR3UPSCALER_BIND_UAV_SPD_GLOBAL_ATOMIC, r32ui) coherent uniform uimage2D  rw_spd_global_atomic;
+layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_UAV_SPD_GLOBAL_ATOMIC, FSR_SPD_ATOMIC_FORMAT) coherent uniform uimage2D  rw_spd_global_atomic;
 
 void SPD_IncreaseAtomicCounter(inout FfxUInt32 spdCounter)
 {

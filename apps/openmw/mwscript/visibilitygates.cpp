@@ -15,6 +15,7 @@
 #include <components/esm3/loadscpt.hpp>
 #include <components/misc/strings/lower.hpp>
 
+#include "../mwrender/objectstorage.hpp"
 #include "../mwworld/esmstore.hpp"
 
 namespace MWScript
@@ -69,15 +70,6 @@ namespace MWScript
             return toggled;
         }
 
-        /// Whether a cell's walk hands the distance references of `type`: what a paging stands, and
-        /// the lamps (`MWRender::ObjectStorage::collect`). A name of any other type — an actor, an
-        /// item — is nothing the distance shows, and no gate is made for it.
-        bool handedOver(int type)
-        {
-            return type == ESM::REC_STAT || type == ESM::REC_ACTI || type == ESM::REC_DOOR || type == ESM::REC_CONT
-                || type == ESM::REC_LIGH;
-        }
-
         /// Whether the text can hold either instruction at all, so a script that cannot is never
         /// compiled here: the game compiles a script the first time it runs, and most never do.
         bool mayToggle(std::string_view text)
@@ -111,8 +103,9 @@ namespace MWScript
                 if (compiled.has_value())
                 {
                     Toggled toggled = toggledBy(*compiled->mProgram);
-                    std::erase_if(
-                        toggled.mNames, [&](const ESM::RefId& name) { return !handedOver(store.findStatic(name)); });
+                    std::erase_if(toggled.mNames, [&](const ESM::RefId& name) {
+                        return !MWRender::ObjectStorage::handsOver(store.findStatic(name));
+                    });
                     if (toggled.mItself || !toggled.mNames.empty())
                     {
                         index = static_cast<std::uint32_t>(mScripts.size());
@@ -127,15 +120,16 @@ namespace MWScript
                             mGates.push_back(Gate{
                                 .mScript = index, .mName = {}, .mState = Terrain::GateState::Unknown, .mTold = false });
                         }
+                        script.mFirstNamed = static_cast<std::uint32_t>(mGates.size());
+                        script.mNamedCount = static_cast<std::uint32_t>(toggled.mNames.size());
                         for (const ESM::RefId& name : toggled.mNames)
                         {
-                            const auto gate = static_cast<std::uint32_t>(mGates.size());
+                            mNamedBy.push_back(
+                                NamedBy{ .mName = name, .mGate = static_cast<std::uint32_t>(mGates.size()) });
                             mGates.push_back(Gate{ .mScript = index,
                                 .mName = name,
                                 .mState = Terrain::GateState::Unknown,
                                 .mTold = false });
-                            script.mNamed.push_back(Named{ .mName = name, .mGate = gate });
-                            mNamedBy.push_back(NamedBy{ .mName = name, .mScript = index, .mGate = gate });
                         }
                     }
                 }
@@ -146,7 +140,8 @@ namespace MWScript
                 mWornBy.emplace(record, Worn{ .mScript = found->second, .mOwnGate = mScripts[found->second].mOwnGate });
         };
 
-        // The record types `handedOver` names that carry a script. A static carries none.
+        // The record types `MWRender::ObjectStorage::handsOver` names that carry a script. A static
+        // carries none.
         for (const ESM::Activator& record : store.get<ESM::Activator>())
             wear(record.mId, record.mScript);
         for (const ESM::Door& record : store.get<ESM::Door>())
@@ -190,7 +185,7 @@ namespace MWScript
             {
                 const auto wears = [&](const Terrain::PagedCellRef& other) {
                     const auto worn = mWornBy.find(other.mRefId);
-                    return worn != mWornBy.end() && worn->second.mScript == named->mScript;
+                    return worn != mWornBy.end() && worn->second.mScript == mGates[named->mGate].mScript;
                 };
                 if (std::any_of(cell.begin(), cell.end(), wears))
                 {
@@ -231,10 +226,10 @@ namespace MWScript
 
     bool VisibilityGates::moved(const VisibilityInput& input, const VisibilityReads& reads)
     {
-        if (input.mKind == VisibilityInput::Kind::Journal)
-            return reads.getJournalIndex(input.mQuest) != input.mValue;
+        if (const ESM::RefId* quest = std::get_if<ESM::RefId>(&input.mRead))
+            return reads.getJournalIndex(*quest) != input.mValue;
 
-        return reads.getGlobal(input.mGlobal) != input.mValue;
+        return reads.getGlobal(std::get<std::string>(input.mRead)) != input.mValue;
     }
 
     void VisibilityGates::settle(
@@ -282,11 +277,12 @@ namespace MWScript
 
             // A name the run did not leave the same on every path, or a run that could not finish,
             // is the game's to answer.
-            for (const Named& named : script.mNamed)
+            for (std::uint32_t gate = script.mFirstNamed; gate < script.mFirstNamed + script.mNamedCount; ++gate)
             {
-                const auto left = std::find_if(mRunNamed.begin(), mRunNamed.end(),
-                    [&](const VisibilityNamed& run) { return run.mName == named.mName; });
-                settle(named.mGate, left != mRunNamed.end() ? left->mState : Terrain::GateState::Undecided, changes);
+                const ESM::RefId& name = mGates[gate].mName;
+                const auto left = std::find_if(
+                    mRunNamed.begin(), mRunNamed.end(), [&](const VisibilityNamed& run) { return run.mName == name; });
+                settle(gate, left != mRunNamed.end() ? left->mState : Terrain::GateState::Undecided, changes);
             }
         }
 
@@ -304,10 +300,8 @@ namespace MWScript
             script.mWatches.clear();
             for (const VisibilityInput& input : script.mInputs)
             {
-                const auto same = std::find_if(mWatched.begin(), mWatched.end(), [&](const Watched& watched) {
-                    return watched.mInput.mKind == input.mKind && watched.mInput.mGlobal == input.mGlobal
-                        && watched.mInput.mQuest == input.mQuest;
-                });
+                const auto same = std::find_if(mWatched.begin(), mWatched.end(),
+                    [&](const Watched& watched) { return watched.mInput.mRead == input.mRead; });
                 if (same == mWatched.end())
                 {
                     script.mWatches.push_back(static_cast<std::uint32_t>(mWatched.size()));

@@ -20,21 +20,17 @@ namespace Rtx
 {
     namespace
     {
-        /// How far past the reach a cell is prepared before it can be seen: one cell, which at the
-        /// island route's speed is most of a second, so the frame a cell crosses into the reach owes
-        /// only its placements.
-        constexpr float sPreparedBand = sCellSize;
-
         /// The order the prepared disc's missing cells are read in: nearest first, then a fixed
         /// order among equals, so two runs from one eye ask for one list.
         struct Nearer
         {
+            const CellGrid& mGrid;
             osg::Vec3f mEye;
 
             bool operator()(const osg::Vec2i& left, const osg::Vec2i& right) const
             {
-                const float leftAway = distanceSquaredTo(left, mEye);
-                const float rightAway = distanceSquaredTo(right, mEye);
+                const float leftAway = mGrid.distanceSquaredTo(left, mEye);
+                const float rightAway = mGrid.distanceSquaredTo(right, mEye);
                 if (leftAway != rightAway)
                     return leftAway < rightAway;
 
@@ -165,12 +161,13 @@ namespace Rtx
         mAsking.mCells.clear();
         mAsking.mStatics = mStatics;
 
-        forEachCellWithin(eye, band, [&](const osg::Vec2i& cell) {
+        const CellGrid& grid = mAround.mWorld.mGrid;
+        grid.forEachCellWithin(eye, band, [&](const osg::Vec2i& cell) {
             if (!holds(cell) && !handed(cell))
                 mAsking.mCells.push_back(cell);
         });
 
-        std::sort(mAsking.mCells.begin(), mAsking.mCells.end(), Nearer{ eye });
+        std::sort(mAsking.mCells.begin(), mAsking.mCells.end(), Nearer{ .mGrid = grid, .mEye = eye });
 
         mSupply.ask(mAsking);
     }
@@ -179,7 +176,7 @@ namespace Rtx
     {
         const std::size_t before = mHanded.size();
         std::erase_if(mHanded, [&](PreparedCell* cell) {
-            if (withinReach(cell->mCell, eye, band) && !holds(cell->mCell))
+            if (mAround.mWorld.mGrid.withinReach(cell->mCell, eye, band) && !holds(cell->mCell))
                 return false;
 
             discard(*cell);
@@ -362,7 +359,9 @@ namespace Rtx
         }
 
         const osg::Vec3f& eye = mAround.mEye;
-        const float band = mAround.mReach + sPreparedBand;
+        // One cell past the reach, which at the island route's speed is most of a second, so the
+        // frame a cell crosses into the reach owes only its placements.
+        const float band = mAround.mReach + mAround.mWorld.mGrid.getCellSize();
 
         // Any move, because the disc is measured from the eye itself and a cell at its rim can
         // enter or leave on a step. What that costs is a walk over the band's cells on the frames
@@ -380,7 +379,7 @@ namespace Rtx
         std::size_t dropped = 0;
         for (auto cell = mCells.begin(); cell != mCells.end();)
         {
-            if (withinReach(cell->mCell, eye, band) && cell->mStatics == mStatics)
+            if (mAround.mWorld.mGrid.withinReach(cell->mCell, eye, band) && cell->mStatics == mStatics)
             {
                 ++cell;
                 continue;

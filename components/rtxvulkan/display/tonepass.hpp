@@ -5,6 +5,7 @@
 #include <components/rtx/shaders/tone.h>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
+#include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 
@@ -63,6 +64,11 @@ namespace Rtx
     class TonePass
     {
     public:
+        /// What the curve writes the finished picture in, and so what every pass drawn over it —
+        /// the lines, the interface — is compiled against, and what the targets are made in. Not
+        /// display-encoded by the hardware, because the curve encoded it already.
+        static constexpr VkFormat sTargetFormat = toVulkanFormat(TONE_TARGET_FORMAT);
+
         /// @param textureLayout the scene's bindless textures, which this samples the star sheet
         ///        out of — `ToneConstants::mStars` says why the field is drawn here.
         TonePass(const Device& device, VkDescriptorSetLayout textureLayout);

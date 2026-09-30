@@ -7,6 +7,7 @@
 #include <span>
 #include <string_view>
 
+#include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/shaders/scene.h>
 
 namespace Rtx
@@ -121,7 +122,7 @@ namespace Rtx
 
             // A table with no room left keeps the chunk on its stack, which the shader sums at the
             // hit as it does for every chunk still waiting.
-            const Index slot = scene.textures().addBaked(mKey);
+            const Index slot = scene.textures().addBaked(mKey, TextureEncoding::Colour);
             if (slot == sNoIndex)
                 continue;
 
@@ -134,7 +135,7 @@ namespace Rtx
             if (reflects(scene, given.mLayers))
             {
                 nameComposite(mKey, "gloss/", asked.mMaterial);
-                given.mSpecular = scene.textures().addBaked(mKey);
+                given.mSpecular = scene.textures().addBaked(mKey, TextureEncoding::Data);
                 if (given.mSpecular != sNoIndex)
                     mFinished.push_back(
                         Given{ .mSlot = given.mSpecular, .mBaked = { .mMaterial = asked.mMaterial, .mGloss = true } });

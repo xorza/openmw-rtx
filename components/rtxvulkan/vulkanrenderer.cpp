@@ -74,10 +74,10 @@ namespace Rtx
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
         , mFrame(mDevice, mTracePasses)
-        , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get(), PresentTargets::sFormat)
+        , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get())
         , mDigest(mDevice)
         , mMedia(mDevice)
-        , mGui(mDevice, PresentTargets::sFormat)
+        , mGui(mDevice)
         , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures())
         , mUpscaler(mDevice)
     {

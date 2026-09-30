@@ -132,20 +132,7 @@ namespace MWRender
         , mStartTick(osg::Timer::instance()->tick())
         , mMirror(setup.mMirror)
     {
-        // **The run's stated step decides whether the ground waits, unless the run says otherwise.**
-        // A composite comes back whenever the baker finishes it, so which frame it lands on is a
-        // thread's answer rather than the schedule's, and a run whose pictures are compared with
-        // another's cannot have that. The step the host hands the frame clock is this one.
-        //
-        // **The step and not what a run does with its frames.** `shot` is what the reference
-        // pictures are made with and it hashes no frame, so a condition asking about hashes would
-        // leave out the run that most needs this: measured on `balmora`, four processes drew four
-        // different frames after half a second of warming and one frame after a tenth of one.
-        //
-        // **And a run that means to time the streaming path overrides it**, because waiting is
-        // most of what that path then measures. `RunSetup::mSettled` says what the override costs
-        // and what it buys.
-        mMirror.setSettled(setup.mSettled.value_or(setup.mStep.has_value()));
+        mSettled = setup.mSettled;
 
         // **Made here, because there is no viewer to make them.** Every renderer needs the four and
         // one built on `osgViewer` gets them already wired together.
@@ -277,7 +264,24 @@ namespace MWRender
 
     void RtxRenderer::configureResources(Resource::ResourceSystem& resources) noexcept
     {
-        setResourceExpiry(resources, getFrameClock().getStatedStep());
+        const std::optional<float> stated = getFrameClock().getStatedStep();
+        setResourceExpiry(resources, stated);
+
+        // **The run's stated step decides whether the ground waits, unless the run says otherwise.**
+        // A composite comes back whenever the baker finishes it, so which frame it lands on is a
+        // thread's answer rather than the schedule's, and a run whose pictures are compared with
+        // another's cannot have that. The step is the frame clock's, which is the one route a
+        // stated step reaches this renderer by.
+        //
+        // **The step and not what a run does with its frames.** `shot` is what the reference
+        // pictures are made with and it hashes no frame, so a condition asking about hashes would
+        // leave out the run that most needs this: measured on `balmora`, four processes drew four
+        // different frames after half a second of warming and one frame after a tenth of one.
+        //
+        // **And a run that means to time the streaming path overrides it**, because waiting is
+        // most of what that path then measures. `RunSetup::mSettled` says what the override costs
+        // and what it buys.
+        mMirror.setSettled(mSettled.value_or(stated.has_value()));
 
         Resource::SceneManager& scene = *resources.getSceneManager();
         scene.setShadersEnabled(false);
@@ -432,6 +436,7 @@ namespace MWRender
             .mScene = mMirror.getScene(),
             .mReach = mMirror.getReach(),
             .mEye = mMirror.getEye(),
+            .mGrid = mMirror.getGrid(),
         };
     }
 
