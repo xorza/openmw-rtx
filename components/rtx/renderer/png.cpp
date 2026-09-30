@@ -18,8 +18,8 @@
 #include <osgDB/WriteFile>
 #include <zlib.h>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
-#include <components/rtx/common/contract.hpp>
 #include <components/rtx/common/error.hpp>
 
 #include "frameimage.hpp"
@@ -60,7 +60,7 @@ namespace Rtx
         const osg::ref_ptr<osg::Image> image
             = frameImage(TracedFrame{ .mWidth = width, .mHeight = height, .mPixels = pixels }, static_cast<int>(width),
                 static_cast<int>(height), RowOrder::BottomFirst);
-        contract(image != nullptr, "a picture written from fewer pixels than its size");
+        Crash::contract(image != nullptr, "a picture written from fewer pixels than its size");
 
         // zlib's fastest level: a 1080p frame in 60 ms against 260 at the plugin's default, for a
         // file a fifth larger — and a run that keeps every frame writes hundreds of them.
@@ -85,7 +85,7 @@ namespace Rtx
 
         std::string bytes = std::move(encoded).str();
         constexpr std::size_t endChunk = 12;
-        contract(bytes.size() > endChunk && bytes.compare(bytes.size() - 8, 4, "IEND") == 0,
+        Crash::contract(bytes.size() > endChunk && bytes.compare(bytes.size() - 8, 4, "IEND") == 0,
             "the PNG plugin wrote a file that does not end in IEND");
         bytes.insert(bytes.size() - endChunk, textChunk("Description", description));
 

@@ -1131,7 +1131,7 @@ namespace MWWorld
 
     void Scene::preloadCells(float dt)
     {
-        if (dt <= 1e-06)
+        if (static_cast<double>(dt) <= 1e-06)
             return;
         std::vector<PositionCellGrid> exteriorPositions;
 

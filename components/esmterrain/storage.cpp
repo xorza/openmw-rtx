@@ -623,7 +623,7 @@ namespace ESMTerrain
         if (true)
         {
             // odd row
-            bool secondTri = ((1.0 - yParam) > xParam);
+            bool secondTri = ((1.0 - static_cast<double>(yParam)) > static_cast<double>(xParam));
             if (secondTri)
                 plane = osg::Plane(v0, v1, v3);
             else
@@ -642,8 +642,9 @@ namespace ESMTerrain
         */
 
         // Solve plane equation for z
-        return static_cast<float>(
-            (-plane.getNormal().x() * nX - plane.getNormal().y() * nY - plane[3]) / plane.getNormal().z() * cellSize);
+        return static_cast<float>((-plane.getNormal().x() * static_cast<double>(nX)
+                                      - plane.getNormal().y() * static_cast<double>(nY) - plane[3])
+            / plane.getNormal().z() * static_cast<double>(cellSize));
     }
 
     const LandObject* Storage::getLand(ESM::ExteriorCellLocation cellLocation, LandCache& cache)

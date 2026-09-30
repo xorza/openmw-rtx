@@ -145,7 +145,7 @@ namespace MWWorld
 
     void DateTimeManager::advanceTime(double hours, Globals& globalVariables)
     {
-        hours += mGameHour;
+        hours += static_cast<double>(mGameHour);
         setHour(hours);
 
         int days = static_cast<int>(hours / 24);

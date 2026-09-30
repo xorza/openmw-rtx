@@ -2,6 +2,7 @@
 
 #include "worldspacedata.hpp"
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/generatenavmeshtile.hpp>
@@ -554,6 +555,7 @@ namespace NavMeshTool
             {
                 const std::lock_guard lock(mProgressMutex);
                 const auto it = mProgress.find(worldspace);
+                Crash::contract(it != mProgress.end(), "progress on a worldspace no job was made for");
                 if (++it->second.mProvided == it->second.mExpected)
                 {
                     Log(Debug::Info) << "Generated " << it->second.mExpected << " navmesh tiles for " << worldspace

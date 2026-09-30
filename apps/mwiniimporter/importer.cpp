@@ -30,7 +30,7 @@ MwIniImporter::MwIniImporter()
     : mVerbose(false)
     , mEncoding(ToUTF8::WINDOWS_1250)
 {
-    const char* map[][2] = { { "no-sound", "General:Disable Audio" }, { 0, 0 } };
+    const char* map[][2] = { { "no-sound", "General:Disable Audio" }, { nullptr, nullptr } };
     const char* fallback[] = {
 
         // light
@@ -268,7 +268,7 @@ MwIniImporter::MwIniImporter()
         // werewolf (Bloodmoon)
         "General:Werewolf FOV",
 
-        0
+        nullptr
     };
 
     for (int i = 0; map[i][0]; i++)

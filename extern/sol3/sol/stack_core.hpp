@@ -36,6 +36,7 @@
 #include <sol/demangle.hpp>
 #include <sol/forward_detail.hpp>
 
+#include <cstdlib>
 #include <vector>
 #include <bitset>
 #include <forward_list>
@@ -339,7 +340,8 @@ namespace sol {
 				else {
 					luaL_error(L, "aligned allocation of userdata block (data section) for '%s' failed", detail::demangle<T>().c_str());
 				}
-				return nullptr;
+				// luaL_error raises and never returns, which its declaration does not say.
+				std::abort();
 			}
 
 			T** pointerpointer = reinterpret_cast<T**>(pointer_adjusted);
@@ -393,7 +395,8 @@ namespace sol {
 				else {
 					luaL_error(L, "aligned allocation of userdata block (data section) for '%s' failed", detail::demangle<T>().c_str());
 				}
-				return nullptr;
+				// luaL_error raises and never returns, which its declaration does not say.
+				std::abort();
 			}
 
 			pref = static_cast<T**>(pointer_adjusted);

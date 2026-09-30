@@ -180,7 +180,7 @@ namespace SceneUtil
         definesWithShadows["perspectiveShadowMaps"]
             = mShadowSettings->getShadowMapProjectionHint() == ShadowSettings::PERSPECTIVE_SHADOW_MAP ? "1" : "0";
 
-        definesWithShadows["disableNormalOffsetShadows"] = settings.mNormalOffsetDistance == 0.0 ? "1" : "0";
+        definesWithShadows["disableNormalOffsetShadows"] = settings.mNormalOffsetDistance == 0.0f ? "1" : "0";
 
         definesWithShadows["shadowNormalOffset"] = std::to_string(settings.mNormalOffsetDistance);
 

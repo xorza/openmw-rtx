@@ -39,7 +39,7 @@ namespace
     inline bool materialNeedShadows(SceneUtil::Material* m)
     {
         // I'm pretty sure this needs to check the colour mode - vertex colours might override this value.
-        return m->getDiffuse().a() > 0.5;
+        return m->getDiffuse().a() > 0.5f;
     }
 }
 

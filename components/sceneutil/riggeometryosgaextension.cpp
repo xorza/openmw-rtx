@@ -7,6 +7,7 @@
 
 #include <osgUtil/CullVisitor>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 
 namespace SceneUtil
@@ -264,6 +265,7 @@ namespace SceneUtil
                         updateBackToOriginTransform(&geom);
                     else
                     {
+                        Crash::contract(!getParents().empty(), "a rig geometry accepted with no parent");
                         osg::MatrixTransform* matrixTransform
                             = dynamic_cast<osg::MatrixTransform*>(this->getParents()[0]);
                         if (matrixTransform)

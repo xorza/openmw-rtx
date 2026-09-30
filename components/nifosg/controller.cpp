@@ -421,7 +421,7 @@ namespace NifOsg
             // Note: in original game rotation speed is the framerate-dependent in a very tricky way.
             // Do not replicate this behaviour until we will really need it.
             // For now consider controller's current value as an angular speed in radians per 1/60 seconds.
-            node->preMult(osg::Matrix::rotate(value * duration * 60.f, 0, 0, 1));
+            node->preMult(osg::Matrix::rotate(static_cast<double>(value) * duration * 60.0, 0, 0, 1));
 
             // Note: doing it like this means RollControllers are not compatible with KeyframeControllers.
             // KeyframeController currently wins the conflict.

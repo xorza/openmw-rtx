@@ -7,6 +7,7 @@
 #include <osgUtil/CullVisitor>
 #include <osgUtil/RenderBin>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 
 #include <components/misc/rng.hpp>
@@ -337,7 +338,8 @@ namespace MWRender
         {
             osg::State* state = renderInfo.getState();
 
-            PostProcessor* postProcessor = static_cast<PostProcessor*>(renderInfo.getCurrentCamera()->getUserData());
+            PostProcessor* postProcessor = static_cast<PostProcessor*>(
+                Crash::notNull(renderInfo.getCurrentCamera(), "a draw with no camera")->getUserData());
 
             state->applyAttribute(mDepth);
 
@@ -383,7 +385,8 @@ namespace MWRender
         {
             osgUtil::CullVisitor* cv = static_cast<osgUtil::CullVisitor*>(nv);
             float fov, aspect, zNear, zFar;
-            if (cv->getProjectionMatrix()->getPerspective(fov, aspect, zNear, zFar) && std::abs(fov - mFov) > 0.001)
+            if (cv->getProjectionMatrix()->getPerspective(fov, aspect, zNear, zFar)
+                && static_cast<double>(std::abs(fov - mFov)) > 0.001)
             {
                 fov = mFov;
                 osg::ref_ptr<osg::RefMatrix> newProjectionMatrix = new osg::RefMatrix();
@@ -391,8 +394,8 @@ namespace MWRender
 
                 osg::Vec2f offset = mRenderingManager->getProjectionOffset();
 
-                double offsetX = (offset.x() / cv->getViewport()->width()) * 2.0;
-                double offsetY = (offset.y() / cv->getViewport()->height()) * 2.0;
+                double offsetX = (static_cast<double>(offset.x()) / cv->getViewport()->width()) * 2.0;
+                double offsetY = (static_cast<double>(offset.y()) / cv->getViewport()->height()) * 2.0;
 
                 const osg::Matrix translation = osg::Matrix::translate(offsetX, offsetY, 0.0);
                 newProjectionMatrix->postMult(translation);

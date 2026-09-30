@@ -32,17 +32,16 @@ namespace ESM
         }
         else
         {
-            switch (indexIt->second->mState)
+            it = indexIt->second;
+            switch (it->mState)
             {
                 case State::Busy:
                     throw std::logic_error("ESMReader at index " + std::to_string(index) + " is busy");
                 case State::Free:
-                    it = indexIt->second;
                     mBusyItems.splice(mBusyItems.end(), mFreeItems, it);
                     break;
                 case State::Closed:
                     closeExtraReaders();
-                    it = indexIt->second;
                     if (it->mName.has_value())
                     {
                         it->mReader.open(*it->mName);

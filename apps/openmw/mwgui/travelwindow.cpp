@@ -67,7 +67,7 @@ namespace MWGui
                 + std::pow(pos.pos[2] - playerPos.pos[2], 2));
             float fTravelMult = gmst.find("fTravelMult")->mValue.getFloat();
             if (fTravelMult != 0)
-                price = static_cast<int>(d / fTravelMult);
+                price = static_cast<int>(d / static_cast<double>(fTravelMult));
             else
                 price = static_cast<int>(d);
         }

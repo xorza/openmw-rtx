@@ -3,6 +3,8 @@
 
 #include <osg/Callback>
 
+#include <components/crashcatcher/crash.hpp>
+
 namespace osg
 {
     class Node;
@@ -24,7 +26,9 @@ namespace SceneUtil
 
         bool run(osg::Object* object, osg::Object* data) override
         {
-            static_cast<Derived*>(this)->operator()((NodeType)object, (VisitorType)data->asNodeVisitor());
+            // OSG runs a node callback with the visitor that reached the node and nothing else.
+            osg::NodeVisitor* visitor = Crash::notNull(data->asNodeVisitor(), "a node callback run by no visitor");
+            static_cast<Derived*>(this)->operator()((NodeType)object, (VisitorType)visitor);
             return true;
         }
 

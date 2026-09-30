@@ -9,6 +9,8 @@
 
 #include "searchbox.hpp"
 
+Q_MOC_INCLUDE("apps/opencs/model/doc/document.hpp")
+
 namespace CSMDoc
 {
     class Document;

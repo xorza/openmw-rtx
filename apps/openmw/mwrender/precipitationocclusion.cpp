@@ -4,6 +4,7 @@
 
 #include <osgUtil/CullVisitor>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/misc/constants.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
@@ -36,7 +37,7 @@ namespace
         }
         void apply(osg::StateSet* stateset, osg::NodeVisitor* nv) override
         {
-            osg::Camera* camera = nv->asCullVisitor()->getCurrentCamera();
+            osg::Camera* camera = Crash::notNull(nv->asCullVisitor(), "a cull by no cull visitor")->getCurrentCamera();
             stateset->getUniform("depthSpaceMatrix")->set(camera->getViewMatrix() * camera->getProjectionMatrix());
         }
 
@@ -71,7 +72,7 @@ namespace
         }
         void apply(osg::StateSet* stateset, osg::NodeVisitor* nv) override
         {
-            osg::Camera* camera = nv->asCullVisitor()->getCurrentCamera();
+            osg::Camera* camera = Crash::notNull(nv->asCullVisitor(), "a cull by no cull visitor")->getCurrentCamera();
             stateset->getUniform("projectionMatrix")->set(camera->getProjectionMatrix());
         }
 

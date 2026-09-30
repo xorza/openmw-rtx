@@ -10,8 +10,9 @@
 
 MATCHER_P2(Vec3fEq, other, precision, "")
 {
-    return std::abs(arg.x() - other.x()) < precision && std::abs(arg.y() - other.y()) < precision
-        && std::abs(arg.z() - other.z()) < precision;
+    return std::abs(static_cast<double>(arg.x()) - static_cast<double>(other.x())) < static_cast<double>(precision)
+        && std::abs(static_cast<double>(arg.y()) - static_cast<double>(other.y())) < static_cast<double>(precision)
+        && std::abs(static_cast<double>(arg.z()) - static_cast<double>(other.z())) < static_cast<double>(precision);
 }
 
 namespace testing

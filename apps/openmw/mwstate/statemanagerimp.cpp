@@ -745,7 +745,7 @@ MWState::StateManager::CharacterIterator MWState::StateManager::characterEnd()
 
 void MWState::StateManager::update(float duration)
 {
-    mTimePlayed += duration;
+    mTimePlayed += static_cast<double>(duration);
 
     // Note: It would be nicer to trigger this from InputManager, i.e. the very beginning of the frame update.
     if (mAskLoadRecent)

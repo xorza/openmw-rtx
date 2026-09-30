@@ -25,7 +25,10 @@ namespace MWWorld
         std::string_view getMonthName(int month = -1) const; // -1: current month
         TimeStamp getTimeStamp() const;
         ESM::EpochTimeStamp getEpochTimeStamp() const;
-        double getGameTime() const { return (static_cast<double>(mDaysPassed) * 24 + mGameHour) * 3600.0; }
+        double getGameTime() const
+        {
+            return (static_cast<double>(mDaysPassed) * 24 + static_cast<double>(mGameHour)) * 3600.0;
+        }
         float getGameTimeScale() const { return mGameTimeScale; }
         void setGameTimeScale(float scale); // game time to simulation time ratio
 

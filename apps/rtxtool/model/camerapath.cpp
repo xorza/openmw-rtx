@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include <components/rtx/common/contract.hpp>
+#include <components/crashcatcher/crash.hpp>
 
 #include "cameratrack.hpp"
 
@@ -80,7 +80,7 @@ namespace RtxTool
 
     CameraPath::CameraPath(const std::span<const TrackKey> keys)
     {
-        Rtx::contract(!keys.empty(), "a camera path needs a key");
+        Crash::contract(!keys.empty(), "a camera path needs a key");
 
         const std::size_t count = keys.size();
         mEyes.reserve(count);

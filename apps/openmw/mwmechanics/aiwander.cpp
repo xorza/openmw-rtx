@@ -126,8 +126,8 @@ namespace MWMechanics
                 {
                     // FIXME: doesn't handle a door with the same X/Y
                     //        coordinates but with a different Z
-                    if (std::abs(allowedPositions[j].x() - point.x()) <= 0.5
-                        && std::abs(allowedPositions[j].y() - point.y()) <= 0.5)
+                    if (std::abs(allowedPositions[j].x() - point.x()) <= 0.5f
+                        && std::abs(allowedPositions[j].y() - point.y()) <= 0.5f)
                     {
                         allowedPositions.erase(allowedPositions.begin() + j);
                         break;

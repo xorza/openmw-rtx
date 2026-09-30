@@ -51,7 +51,7 @@ namespace RtxTool
         if (stop.mSchedule.mTrack.has_value())
         {
             const MWWorld::TimeStamp now = MWBase::Environment::get().getWorld()->getTimeStamp();
-            mClockFrom = now.getDay() * 24.0 + now.getHour();
+            mClockFrom = now.getDay() * 24.0 + static_cast<double>(now.getHour());
             mFacing = stop.mStand.getRotation();
         }
 
@@ -78,7 +78,8 @@ namespace RtxTool
             // the day, the month and the days passed in step with the hour, which the moons read.
             MWBase::World& world = *MWBase::Environment::get().getWorld();
             const MWWorld::TimeStamp now = world.getTimeStamp();
-            const double behind = mClockFrom + pose.mHoursOn - (now.getDay() * 24.0 + now.getHour());
+            const double behind
+                = mClockFrom + pose.mHoursOn - (now.getDay() * 24.0 + static_cast<double>(now.getHour()));
             if (behind > 0.0)
                 world.advanceTime(behind, true);
             return;

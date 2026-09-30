@@ -8,7 +8,7 @@
 #include <osg/Math>
 #include <osg/Matrixd>
 
-#include <components/rtx/common/contract.hpp>
+#include <components/crashcatcher/crash.hpp>
 #include <components/rtx/common/radicalinverse.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/scene.h>
@@ -156,7 +156,7 @@ namespace Rtx
     {
         assert(width > 0 && height > 0);
 
-        contract(worldWidth > 0.f && worldHeight > 0.f, "an orthographic camera with no extent sees nothing");
+        Crash::contract(worldWidth > 0.f && worldHeight > 0.f, "an orthographic camera with no extent sees nothing");
 
         const std::optional<ViewBasis> basis = basisOf(view);
         if (!basis.has_value())

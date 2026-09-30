@@ -88,8 +88,8 @@ std::pair<int, int> CSMWorld::CellCoordinates::coordinatesToCellIndex(float x, f
 
 std::pair<int, int> CSMWorld::CellCoordinates::toTextureCoords(const osg::Vec3d& worldPos)
 {
-    const auto xd = static_cast<float>(worldPos.x() * ESM::Land::LAND_TEXTURE_SIZE / ESM::Land::REAL_SIZE - 0.25f);
-    const auto yd = static_cast<float>(worldPos.y() * ESM::Land::LAND_TEXTURE_SIZE / ESM::Land::REAL_SIZE + 0.25f);
+    const auto xd = static_cast<float>(worldPos.x() * ESM::Land::LAND_TEXTURE_SIZE / ESM::Land::REAL_SIZE - 0.25);
+    const auto yd = static_cast<float>(worldPos.y() * ESM::Land::LAND_TEXTURE_SIZE / ESM::Land::REAL_SIZE + 0.25);
 
     const auto x = static_cast<int>(std::floor(xd));
     const auto y = static_cast<int>(std::floor(yd));
@@ -99,8 +99,8 @@ std::pair<int, int> CSMWorld::CellCoordinates::toTextureCoords(const osg::Vec3d&
 
 std::pair<int, int> CSMWorld::CellCoordinates::toVertexCoords(const osg::Vec3d& worldPos)
 {
-    const auto xd = static_cast<float>(worldPos.x() * (ESM::Land::LAND_SIZE - 1) / ESM::Land::REAL_SIZE + 0.5f);
-    const auto yd = static_cast<float>(worldPos.y() * (ESM::Land::LAND_SIZE - 1) / ESM::Land::REAL_SIZE + 0.5f);
+    const auto xd = static_cast<float>(worldPos.x() * (ESM::Land::LAND_SIZE - 1) / ESM::Land::REAL_SIZE + 0.5);
+    const auto yd = static_cast<float>(worldPos.y() * (ESM::Land::LAND_SIZE - 1) / ESM::Land::REAL_SIZE + 0.5);
 
     const auto x = static_cast<int>(std::floor(xd));
     const auto y = static_cast<int>(std::floor(yd));

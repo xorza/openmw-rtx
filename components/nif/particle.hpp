@@ -76,7 +76,7 @@ namespace Nif
         osg::Vec3f mPosition;
         osg::Vec3f mDirection;
 
-        void read(NIFStream* nif);
+        void read(NIFStream* nif) override;
     };
 
     struct NiParticleCollider : NiParticleModifier

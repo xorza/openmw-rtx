@@ -8,6 +8,8 @@
 
 #include <osg/Image>
 
+#include <components/crashcatcher/crash.hpp>
+
 namespace MWRender
 {
     namespace
@@ -66,6 +68,11 @@ namespace MWRender
         assert(tile.getPixelFormat() == GL_RGBA && tile.getDataType() == GL_UNSIGNED_BYTE);
         assert(into.getPixelFormat() == GL_RGBA && into.getDataType() == GL_UNSIGNED_BYTE);
 
+        // Addressed as `osg::Image::data(column, row)` addresses it, off one pointer checked once.
+        const std::uint8_t* alpha = Crash::notNull(landAlpha.data(), "a land mask with no texels");
+        const std::size_t alphaBits = landAlpha.getPixelSizeInBits();
+        const std::size_t alphaRow = landAlpha.getRowStepInBytes();
+
         const int width = destination.mWidth;
         const int height = destination.mHeight;
         const std::size_t stride = static_cast<std::size_t>(width) * 4;
@@ -79,7 +86,8 @@ namespace MWRender
                 sampleBilinear(tile, (x + 0.5f) / width, (y + 0.5f) / height, sampled);
 
                 // One texel of the mask per pixel of the overlay
-                const unsigned int mask = *landAlpha.data(destination.mX + x, destination.mY + y);
+                const unsigned int mask = alpha[static_cast<std::size_t>(destination.mX + x) * alphaBits / 8
+                    + static_cast<std::size_t>(destination.mY + y) * alphaRow];
                 std::uint8_t* out = scratch.data() + static_cast<std::size_t>(y) * stride + x * 4;
                 out[0] = sampled[0];
                 out[1] = sampled[1];

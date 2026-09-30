@@ -154,7 +154,7 @@ namespace MWLua
                         const double value = LuaUtil::cast<double>(obj);
                         const int32_t intV = static_cast<int32_t>(value);
                         const float floatV = static_cast<float>(value);
-                        if (intV == value && (!preferFloat || floatV != value))
+                        if (intV == value && (!preferFloat || static_cast<double>(floatV) != value))
                         {
                             gmst.mValue.setType(ESM::VT_Int);
                             gmst.mValue.setInteger(intV);

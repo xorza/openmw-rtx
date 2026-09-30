@@ -18,6 +18,8 @@
 #include "../../model/world/columnbase.hpp"
 #include "../../model/world/commanddispatcher.hpp"
 #include "../../model/world/universalid.hpp"
+
+Q_MOC_INCLUDE("apps/opencs/model/doc/document.hpp")
 #endif
 
 class QAbstractItemModel;

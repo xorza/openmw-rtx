@@ -492,7 +492,7 @@ void MWShadowTechnique::LightData::setLightData(osg::RefMatrix* lm, const Light*
     light = l;
 
     lightPos = light->getPosition();
-    directionalLight = (light->getPosition().w()== 0.0);
+    directionalLight = (light->getPosition().w()== 0.0f);
     if (directionalLight)
     {
         lightPos3.set(0.0, 0.0, 0.0); // directional light has no destinct position
@@ -2526,7 +2526,7 @@ struct RenderLeafBounds
         computeRatios(false),
         numRenderLeaf(0),
         n(0.0),
-        previous_modelview(0),
+        previous_modelview(nullptr),
         clip_min_x(-1.0), clip_max_x(1.0),
         clip_min_y(-1.0), clip_max_y(1.0),
         clip_min_z(-1.0), clip_max_z(1.0),

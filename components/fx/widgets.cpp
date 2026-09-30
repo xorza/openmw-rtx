@@ -1,5 +1,6 @@
 #include "widgets.hpp"
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/widgets/box.hpp>
 
 namespace
@@ -14,8 +15,9 @@ namespace
 
         for (int i = 0; i < T::num_components; ++i)
         {
-            auto* widget = client->createWidget<WidgetT>(
-                "MW_ValueEditNumber", { 0, height * i, client->getWidth(), height }, MyGUI::Align::Default);
+            auto* widget = Crash::notNull(client->createWidget<WidgetT>("MW_ValueEditNumber",
+                                              { 0, height * i, client->getWidth(), height }, MyGUI::Align::Default),
+                "a uniform's editor MyGUI did not make");
             widget->setData(uniform, static_cast<Fx::Widgets::Index>(i));
             base->addItem(widget);
         }
@@ -151,8 +153,10 @@ namespace Fx
 
                     if (arg.mChoices.size() > 0)
                     {
-                        auto* widget = mClient->createWidget<EditChoice>("MW_ValueEditChoice",
-                            { 0, 0, mClient->getWidth(), mClient->getHeight() }, MyGUI::Align::Stretch);
+                        auto* widget = Crash::notNull(
+                            mClient->createWidget<EditChoice>("MW_ValueEditChoice",
+                                { 0, 0, mClient->getWidth(), mClient->getHeight() }, MyGUI::Align::Stretch),
+                            "a uniform's editor MyGUI did not make");
                         widget->setData(uniform);
                         mBases.emplace_back(widget);
                     }
@@ -172,22 +176,28 @@ namespace Fx
                         }
                         else if constexpr (std::is_same_v<T, float>)
                         {
-                            auto* widget = mClient->createWidget<EditNumberFloat>("MW_ValueEditNumber",
-                                { 0, 0, mClient->getWidth(), mClient->getHeight() }, MyGUI::Align::Stretch);
+                            auto* widget = Crash::notNull(
+                                mClient->createWidget<EditNumberFloat>("MW_ValueEditNumber",
+                                    { 0, 0, mClient->getWidth(), mClient->getHeight() }, MyGUI::Align::Stretch),
+                                "a uniform's editor MyGUI did not make");
                             widget->setData(uniform);
                             mBases.emplace_back(widget);
                         }
                         else if constexpr (std::is_same_v<T, int>)
                         {
-                            auto* widget = mClient->createWidget<EditNumberInt>("MW_ValueEditNumber",
-                                { 0, 0, mClient->getWidth(), mClient->getHeight() }, MyGUI::Align::Stretch);
+                            auto* widget = Crash::notNull(
+                                mClient->createWidget<EditNumberInt>("MW_ValueEditNumber",
+                                    { 0, 0, mClient->getWidth(), mClient->getHeight() }, MyGUI::Align::Stretch),
+                                "a uniform's editor MyGUI did not make");
                             widget->setData(uniform);
                             mBases.emplace_back(widget);
                         }
                         else if constexpr (std::is_same_v<T, bool>)
                         {
-                            auto* widget = mClient->createWidget<EditBool>("MW_ValueEditBool",
-                                { 0, 0, mClient->getWidth(), mClient->getHeight() }, MyGUI::Align::Stretch);
+                            auto* widget = Crash::notNull(
+                                mClient->createWidget<EditBool>("MW_ValueEditBool",
+                                    { 0, 0, mClient->getWidth(), mClient->getHeight() }, MyGUI::Align::Stretch),
+                                "a uniform's editor MyGUI did not make");
                             widget->setData(uniform);
                             mBases.emplace_back(widget);
                         }

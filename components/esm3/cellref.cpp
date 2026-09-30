@@ -193,7 +193,7 @@ namespace ESM
             return;
         }
 
-        if (mScale != 1.0)
+        if (mScale != 1.0f)
         {
             esm.writeHNT("XSCL", std::clamp(mScale, 0.5f, 2.0f));
         }

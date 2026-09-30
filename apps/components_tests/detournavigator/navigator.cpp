@@ -30,12 +30,16 @@
 
 MATCHER_P3(Vec3fEq, x, y, z, "")
 {
-    return std::abs(arg.x() - x) < 1e-3 && std::abs(arg.y() - y) < 1e-3 && std::abs(arg.z() - z) < 1e-3;
+    return std::abs(static_cast<double>(arg.x()) - static_cast<double>(x)) < 1e-3
+        && std::abs(static_cast<double>(arg.y()) - static_cast<double>(y)) < 1e-3
+        && std::abs(static_cast<double>(arg.z()) - static_cast<double>(z)) < 1e-3;
 }
 
 MATCHER_P4(Vec3fEq, x, y, z, precision, "")
 {
-    return std::abs(arg.x() - x) < precision && std::abs(arg.y() - y) < precision && std::abs(arg.z() - z) < precision;
+    return std::abs(static_cast<double>(arg.x()) - static_cast<double>(x)) < static_cast<double>(precision)
+        && std::abs(static_cast<double>(arg.y()) - static_cast<double>(y)) < static_cast<double>(precision)
+        && std::abs(static_cast<double>(arg.z()) - static_cast<double>(z)) < static_cast<double>(precision);
 }
 
 namespace

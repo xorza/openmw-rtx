@@ -58,7 +58,7 @@ namespace Rtx
     /// The same viewpoint with no perspective in it: every ray travels the view direction, and
     /// which one a pixel sends comes from where it sits on a box `worldWidth` by `worldHeight`
     /// centred on the eye. A box with no extent is a caller's contract and not a matrix's, and
-    /// `Rtx::contract` holds it.
+    /// `Crash::contract` holds it.
     std::optional<Shaders::VisibilityConstants> makeOrthographicCameraFromView(const osg::Matrixf& view,
         float worldWidth, float worldHeight, std::uint32_t width, std::uint32_t height, float near, float far);
 

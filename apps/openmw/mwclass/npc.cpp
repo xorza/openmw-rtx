@@ -97,9 +97,9 @@ namespace
     {
         float i = std::floor(f);
         f -= i;
-        if (f < 0.5)
+        if (f < 0.5f)
             return i;
-        if (f > 0.5)
+        if (f > 0.5f)
             return i + 1.f;
         if (isEven(i))
             return i;

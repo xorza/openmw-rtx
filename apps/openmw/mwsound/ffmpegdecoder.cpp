@@ -180,8 +180,8 @@ namespace MWSound
                         mDataBufLen = mFrame->nb_samples;
                 }
 
-                if (swr_convert(mSwr, (uint8_t**)&mDataBuf, mFrame->nb_samples, (const uint8_t**)mFrame->extended_data,
-                        mFrame->nb_samples)
+                if (swr_convert(mSwr, (uint8_t**)&mDataBuf, mFrame->nb_samples,
+                        const_cast<const uint8_t**>(mFrame->extended_data), mFrame->nb_samples)
                     < 0)
                 {
                     return false;

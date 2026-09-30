@@ -10,6 +10,7 @@
 
 #include <osgGA/GUIEventHandler>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/sceneutil/nodecallback.hpp>
 #include <components/sceneutil/paintedtexture.hpp>
@@ -129,7 +130,7 @@ namespace MyGUIPlatform
                 {
                     state->bindVertexBufferObject(bufferobject);
 
-                    glVertexPointer(3, GL_FLOAT, sizeof(MyGUI::Vertex), reinterpret_cast<char*>(0));
+                    glVertexPointer(3, GL_FLOAT, sizeof(MyGUI::Vertex), nullptr);
                     glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(MyGUI::Vertex), reinterpret_cast<char*>(12));
                     glTexCoordPointer(2, GL_FLOAT, sizeof(MyGUI::Vertex), reinterpret_cast<char*>(16));
                 }
@@ -446,7 +447,7 @@ namespace MyGUIPlatform
 
         if (OSGTexture* osgtexture = static_cast<OSGTexture*>(texture))
         {
-            batch.mTexture = osgtexture->getTexture();
+            batch.mTexture = Crash::notNull(osgtexture->getTexture(), "a MyGUI texture with no image");
             if (batch.mTexture->getDataVariance() == osg::Object::DYNAMIC)
                 mDrawable->setDataVariance(osg::Object::DYNAMIC); // only for this frame, reset in begin()
             if (!mInjectState && osgtexture->getInjectState())

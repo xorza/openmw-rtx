@@ -109,8 +109,8 @@ namespace MWLua
             double fovTan = std::tan(osg::DegreesToRadians(renderingManager->getFieldOfView()) / 2);
             osg::Matrixf invertedViewMatrix;
             invertedViewMatrix.invert(camera->getViewMatrix());
-            float x = static_cast<float>((pos.x() * 2 - 1) * aspect * fovTan);
-            float y = static_cast<float>((1 - pos.y() * 2) * fovTan);
+            float x = static_cast<float>(static_cast<double>(pos.x() * 2 - 1) * aspect * fovTan);
+            float y = static_cast<float>(static_cast<double>(1 - pos.y() * 2) * fovTan);
             return invertedViewMatrix.preMult(osg::Vec3f(x, y, -1)) - camera->getPosition();
         };
 

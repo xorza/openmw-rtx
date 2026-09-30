@@ -455,7 +455,7 @@ namespace Rtx
             EXPECT_TRUE(found.empty()) << joined(found);
         }
 
-        /// The files `rtx/sources.cmake` names in its list `list`, as paths.
+        /// The files `rtx/tests.cmake` names in its list `list`, as paths.
         std::vector<std::filesystem::path> listedIn(const std::string_view list)
         {
             const std::filesystem::path tests = sRoot / "apps" / "components_tests";
@@ -463,7 +463,7 @@ namespace Rtx
 
             std::vector<std::filesystem::path> files;
             bool inside = false;
-            for (const std::string& line : linesOf(tests / "rtx" / "sources.cmake"))
+            for (const std::string& line : linesOf(tests / "rtx" / "tests.cmake"))
             {
                 const std::string_view entry = std::string_view(line).substr(skipSpace(line, 0));
                 if (!inside)
@@ -493,7 +493,7 @@ namespace Rtx
 
             std::vector<std::string> found;
             const std::vector<std::filesystem::path> device = listedIn("RTX_GPU_TEST_FILES");
-            ASSERT_FALSE(device.empty()) << "sources.cmake lists no device tests: the list was renamed";
+            ASSERT_FALSE(device.empty()) << "tests.cmake lists no device tests: the list was renamed";
             for (const std::filesystem::path& file : device)
             {
                 if (file.extension() != ".cpp")

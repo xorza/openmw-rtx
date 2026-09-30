@@ -9,12 +9,19 @@
 #include <osg/ref_ptr>
 
 #include <apps/openmw/mwrender/pixels.hpp>
+#include <components/crashcatcher/crash.hpp>
 #include <components/sceneutil/imageregion.hpp>
 
 namespace MWRender
 {
     namespace
     {
+        /// The first byte of the texel at (x, y), of an image the test gave pixels.
+        std::uint8_t& texelAt(osg::Image& image, int x, int y)
+        {
+            return *Crash::notNull(image.data(x, y), "a test image with no pixels");
+        }
+
         /// A grey picture `width` by `height`, with `value(x, y)` in every channel of every pixel.
         osg::ref_ptr<osg::Image> makeGrey(int width, int height, const std::function<int(int, int)>& value)
         {
@@ -141,8 +148,8 @@ namespace MWRender
             land->allocateImage(4, 4, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
             for (int y = 0; y < 4; ++y)
                 for (int x = 0; x < 4; ++x)
-                    *land->data(x, y) = x < 3 ? 255 : 0;
-            *land->data(2, 2) = 200;
+                    texelAt(*land, x, y) = x < 3 ? 255 : 0;
+            texelAt(*land, 2, 2) = 200;
 
             const osg::ref_ptr<osg::Image> overlay = makeGrey(4, 4, [](int, int) { return 0; });
             std::vector<std::uint8_t> scratch;
@@ -151,17 +158,17 @@ namespace MWRender
             const SceneUtil::ImageRegion cell{ 2, 1, 2, 2 };
             EXPECT_TRUE(compositeTile(*tile, *land, *overlay, cell, scratch));
 
-            const std::uint8_t* lowerLeft = overlay->data(2, 1);
+            const std::uint8_t* lowerLeft = &texelAt(*overlay, 2, 1);
             EXPECT_EQ(lowerLeft[0], 50);
             EXPECT_EQ(lowerLeft[3], 50) << "land keeps the tile's alpha";
-            const std::uint8_t* lowerRight = overlay->data(3, 1);
+            const std::uint8_t* lowerRight = &texelAt(*overlay, 3, 1);
             EXPECT_EQ(lowerRight[0], 150) << "the colour stays";
             EXPECT_EQ(lowerRight[3], 0) << "sea takes the alpha";
-            const std::uint8_t* upperLeft = overlay->data(2, 2);
+            const std::uint8_t* upperLeft = &texelAt(*overlay, 2, 2);
             EXPECT_EQ(upperLeft[0], 70);
             EXPECT_EQ(upperLeft[3], 55) << "a coast's alpha truncated where GL rounds";
-            EXPECT_EQ(overlay->data(1, 1)[0], 0) << "nothing outside the cell";
-            EXPECT_EQ(overlay->data(2, 3)[0], 0) << "nothing outside the cell";
+            EXPECT_EQ(texelAt(*overlay, 1, 1), 0) << "nothing outside the cell";
+            EXPECT_EQ(texelAt(*overlay, 2, 3), 0) << "nothing outside the cell";
 
             EXPECT_FALSE(compositeTile(*tile, *land, *overlay, cell, scratch)) << "the same tile again changes nothing";
         }

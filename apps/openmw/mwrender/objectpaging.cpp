@@ -17,6 +17,7 @@
 #include <osgParticle/ParticleSystemUpdater>
 #include <osgUtil/IncrementalCompileOperation>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/esm/path.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/loadacti.hpp>
@@ -296,7 +297,8 @@ namespace MWRender
                 {
                     if (node->getCullCallback()->getNestedCallback())
                     {
-                        osg::Callback* clonedCallback = osg::clone(callback, osg::CopyOp::SHALLOW_COPY);
+                        osg::Callback* clonedCallback = Crash::notNull(
+                            osg::clone(callback, osg::CopyOp::SHALLOW_COPY), "a cull callback OSG could not clone");
                         clonedCallback->setNestedCallback(nullptr);
                         cloned->addCullCallback(clonedCallback);
                     }

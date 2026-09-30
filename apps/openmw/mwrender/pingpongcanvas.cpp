@@ -166,8 +166,8 @@ namespace MWRender
                 glClear(GL_COLOR_BUFFER_BIT);
 
                 mMultiviewResolveStateSet->setTextureAttribute(PostProcessor::Unit_LastShader,
-                    (osg::Texture*)mMultiviewResolveFramebuffer->getAttachment(osg::Camera::COLOR_BUFFER0)
-                        .getTexture());
+                    const_cast<osg::Texture*>(
+                        mMultiviewResolveFramebuffer->getAttachment(osg::Camera::COLOR_BUFFER0).getTexture()));
             }
 
             mLuminanceCalculator->dirty(mTextureScene->getTextureWidth(), mTextureScene->getTextureHeight());
@@ -289,17 +289,17 @@ namespace MWRender
                     pass.mStateSet->setTextureAttribute(PostProcessor::Unit_LastShader, mTextureScene);
                 else
                     pass.mStateSet->setTextureAttribute(PostProcessor::Unit_LastShader,
-                        (osg::Texture*)mFbos[lastShader - GL_COLOR_ATTACHMENT0_EXT]
-                            ->getAttachment(osg::Camera::COLOR_BUFFER0)
-                            .getTexture());
+                        const_cast<osg::Texture*>(mFbos[lastShader - GL_COLOR_ATTACHMENT0_EXT]
+                                                      ->getAttachment(osg::Camera::COLOR_BUFFER0)
+                                                      .getTexture()));
 
                 if (lastDraw == 0)
                     pass.mStateSet->setTextureAttribute(PostProcessor::Unit_LastPass, mTextureScene);
                 else
                     pass.mStateSet->setTextureAttribute(PostProcessor::Unit_LastPass,
-                        (osg::Texture*)mFbos[lastDraw - GL_COLOR_ATTACHMENT0_EXT]
-                            ->getAttachment(osg::Camera::COLOR_BUFFER0)
-                            .getTexture());
+                        const_cast<osg::Texture*>(mFbos[lastDraw - GL_COLOR_ATTACHMENT0_EXT]
+                                                      ->getAttachment(osg::Camera::COLOR_BUFFER0)
+                                                      .getTexture()));
 
                 if (pass.mRenderTarget)
                 {

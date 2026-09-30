@@ -14,7 +14,7 @@
 #include <osg/Vec2f>
 #include <osg/Vec4f>
 
-#include <components/rtx/common/contract.hpp>
+#include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
@@ -172,7 +172,7 @@ namespace Rtx
         for (std::size_t at = 0; at < worn.mCount; ++at)
         {
             const auto held = mTextureOf.find(worn.mImages[at]);
-            contract(held != mTextureOf.end(), "a worn image the mirror does not hold");
+            Crash::contract(held != mTextureOf.end(), "a worn image the mirror does not hold");
             mTextureOf.drop(held);
         }
     }
@@ -243,7 +243,7 @@ namespace Rtx
             return;
 
         const auto known = mMaterials.find(key);
-        contract(known != mMaterials.end(), "a material released that the mirror does not hold");
+        Crash::contract(known != mMaterials.end(), "a material released that the mirror does not hold");
         mMaterials.drop(known);
     }
 
@@ -328,7 +328,7 @@ namespace Rtx
                 {
                     // The oldest goes, which is the one `mNext` stands on once the ring is full.
                     const auto oldest = mTextureOf.find(worn->mImages[worn->mNext]);
-                    contract(oldest != mTextureOf.end(), "a worn image the mirror does not hold");
+                    Crash::contract(oldest != mTextureOf.end(), "a worn image the mirror does not hold");
                     mTextureOf.drop(oldest);
                     ++stats.mWornBeyondKept;
                 }

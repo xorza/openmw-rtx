@@ -200,7 +200,9 @@ bool OMW::Engine::frame(unsigned frameNumber, float frametime)
                 if (!paused)
                 {
                     const bool held = mHost != nullptr && mHost->holdsGameClock();
-                    double hours = held ? 0.0 : (frametime * mWorld->getTimeManager()->getGameTimeScale()) / 3600.0;
+                    double hours = held
+                        ? 0.0
+                        : static_cast<double>(frametime * mWorld->getTimeManager()->getGameTimeScale()) / 3600.0;
                     mWorld->advanceTime(hours, true);
                     mWorld->rechargeItems(frametime, true);
                 }
@@ -715,7 +717,7 @@ void OMW::Engine::go()
         // The renderer holds the frame to the frame-rate limit and moves the clock by what the wall
         // says the last frame took, which a host's stated step overrules. Before input, because
         // what is read after this is what the frame shows.
-        const double dt = mRenderer->openFrame() * timeManager.getSimulationTimeScale();
+        const double dt = mRenderer->openFrame() * static_cast<double>(timeManager.getSimulationTimeScale());
 
         mRenderer->advance(timeManager.getRenderingSimulationTime());
 

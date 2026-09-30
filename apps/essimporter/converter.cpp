@@ -6,6 +6,7 @@
 
 #include <osgDB/Registry>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/esm3/containerstate.hpp>
 #include <components/esm3/creaturestate.hpp>
 
@@ -147,8 +148,11 @@ namespace ESSImport
             for (int x = 0; x < cellSize; ++x)
                 for (int y = 0; y < cellSize; ++y)
                 {
-                    unsigned int col = *(unsigned int*)mGlobalMapImage->data(imageLeftSrc + x, imageTopSrc + y, 0);
-                    *(unsigned int*)image2->data(imageLeftDst + x, imageTopDst + y, 0) = col;
+                    unsigned int col = *(unsigned int*)Crash::notNull(
+                        mGlobalMapImage->data(imageLeftSrc + x, imageTopSrc + y, 0), "a global map with no texels");
+                    *(unsigned int*)Crash::notNull(
+                        image2->data(imageLeftDst + x, imageTopDst + y, 0), "a global map with no texels")
+                        = col;
                 }
         }
 
@@ -256,8 +260,8 @@ namespace ESSImport
             // Converting the interior markers correctly could be rather tricky, but is probably similar logic
             // as used for the FoW texture placement, which we need to figure out anyway
             notepos[1] += 31.f;
-            notepos[0] += 0.5;
-            notepos[1] += 0.5;
+            notepos[0] += 0.5f;
+            notepos[1] += 0.5f;
             notepos[0] = Constants::CellSizeInUnits * notepos[0] / 32.f;
             notepos[1] = Constants::CellSizeInUnits * notepos[1] / 32.f;
             if (cell.isExterior())

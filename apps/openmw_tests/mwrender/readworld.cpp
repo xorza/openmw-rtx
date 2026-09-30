@@ -46,7 +46,9 @@ namespace MWRender
         /// straight overhead, the weather run wherever there is a sky over the player.
         Standing standingIn(const Location where)
         {
-            Standing standing;
+            // Value-initialised: upstream's `WeatherResult` leaves its scalars unset, and the reader
+            // reads every one of them.
+            Standing standing{};
             SkyState& sky = standing.mSky;
             WorldState& world = standing.mWorld;
 

@@ -19,6 +19,7 @@
 #include <LinearMath/btQuickprof.h>
 #include <LinearMath/btVector3.h>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loadmgef.hpp>
@@ -700,7 +701,7 @@ namespace MWPhysics
             if (animatedObject->animateCollisionShapes())
             {
                 auto obj = mObjects.find(animatedObject->getPtr().mRef);
-                assert(obj != mObjects.end());
+                Crash::contract(obj != mObjects.end(), "an animated object the physics holds no object for");
                 mTaskScheduler->updateSingleAabb(obj->second);
                 changed = true;
             }

@@ -14,8 +14,8 @@
 #include <osg/Matrix>
 #include <osg/Matrixf>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
-#include <components/rtx/common/contract.hpp>
 #include <components/rtx/common/result.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
@@ -207,7 +207,7 @@ namespace Rtx
     void MeshResolver::release(const osg::Drawable& drawable)
     {
         const auto known = mMeshes.find(&drawable);
-        contract(known != mMeshes.end(), "a mesh released that the mirror does not hold");
+        Crash::contract(known != mMeshes.end(), "a mesh released that the mirror does not hold");
         mMeshes.drop(known);
     }
 
@@ -300,7 +300,7 @@ namespace Rtx
         // this drawable's, and an entry names a deformer from the moment it is made (`addMesh`
         // makes the rows first) — so a deformer the sweep had taken would have failed that test
         // rather than reach here.
-        contract(held.mEntry != mDeformers.end(), "a deforming mesh reused on a deformer the mirror has lost");
+        Crash::contract(held.mEntry != mDeformers.end(), "a deforming mesh reused on a deformer the mirror has lost");
         mDeformers.stamp(held.mEntry);
     }
 

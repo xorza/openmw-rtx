@@ -75,7 +75,7 @@ namespace MWGui
 
             mWatchedTimeToStartDrowning = timeToDrown;
 
-            if (timeToDrown >= fHoldBreathTime || timeToDrown == -1.0) // -1.0 is a special value during initialization
+            if (timeToDrown >= fHoldBreathTime || timeToDrown == -1.0f) // -1.0 is a special value during initialization
                 winMgr->setDrowningBarVisibility(false);
             else
             {

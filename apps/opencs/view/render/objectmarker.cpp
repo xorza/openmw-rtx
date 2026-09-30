@@ -6,6 +6,7 @@
 #include <osg/PositionAttitudeTransform>
 #include <osgUtil/CullVisitor>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/material.hpp>
@@ -199,7 +200,8 @@ namespace CSVRender
                 break;
         }
 
-        mMarkerNodes[parentMarkerNode]->asGroup()->setNodeMask(Mask_Reference);
+        Crash::notNull(mMarkerNodes[parentMarkerNode]->asGroup(), "a marker that is no group")
+            ->setNodeMask(Mask_Reference);
 
         return true;
     }

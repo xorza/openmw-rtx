@@ -228,7 +228,7 @@ bool MWMechanics::AiPackage::pathTo(const MWWorld::Ptr& actor, const osg::Vec3f&
         auto& movement = actor.getClass().getMovementSettings(actor);
         float distToNextSqr = osg::Vec2f(destination.x() - position.x(), destination.y() - position.y()).length2();
         float diffAngle = zAngleToNext - actor.getRefData().getPosition().rot[2];
-        if (std::cos(diffAngle) < -0.1)
+        if (static_cast<double>(std::cos(diffAngle)) < -0.1)
             movement.mPosition[0] = movement.mPosition[1] = 0;
         else if (distToNextSqr > smoothTurnReservedDist * smoothTurnReservedDist)
         { // Go forward (and slowly turn towards the next path point)
@@ -373,7 +373,8 @@ bool MWMechanics::AiPackage::checkWayIsClearForActor(
         = AI_REACTION_TIME * actorSpeed + actorSpeed / getAngularVelocity(actorSpeed) * 2; // *2 - for reliability
     const float distToTarget = osg::Vec2f(endPoint.x(), endPoint.y()).length();
 
-    const float offsetXY = distToTarget > maxAvoidDist * 1.5 ? maxAvoidDist : maxAvoidDist / 2;
+    const float offsetXY
+        = static_cast<double>(distToTarget) > static_cast<double>(maxAvoidDist) * 1.5 ? maxAvoidDist : maxAvoidDist / 2;
 
     // update shortcut prohibit state
     if (checkWayIsClear(startPoint, endPoint, offsetXY))

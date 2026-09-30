@@ -711,7 +711,7 @@ namespace MWGui
                 1.f, MWMechanics::calcEffectCost(effect, nullptr, MWMechanics::EffectCostMethod::PlayerSpell));
 
             if (effect.mRange == ESM::RT_Target)
-                y *= 1.5;
+                y *= 1.5f;
         }
 
         mSpell.mEffects.populate(mEffects);

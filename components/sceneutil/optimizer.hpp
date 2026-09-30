@@ -284,7 +284,7 @@ class Optimizer
         {
             public:
 
-                FlattenStaticTransformsVisitor(Optimizer* optimizer=0):
+                FlattenStaticTransformsVisitor(Optimizer* optimizer=nullptr):
                     BaseOptimizerVisitor(optimizer, FLATTEN_STATIC_TRANSFORMS) {}
 
                 void apply(osg::Node& node) override;
@@ -317,7 +317,7 @@ class Optimizer
         {
             public:
 
-                CombineStaticTransformsVisitor(Optimizer* optimizer=0):
+                CombineStaticTransformsVisitor(Optimizer* optimizer=nullptr):
                     BaseOptimizerVisitor(optimizer, FLATTEN_STATIC_TRANSFORMS) {}
 
                 void apply(osg::MatrixTransform& transform) override;
@@ -340,7 +340,7 @@ class Optimizer
                 typedef std::set<osg::Node*> NodeList;
                 NodeList                     _redundantNodeList;
 
-                RemoveEmptyNodesVisitor(Optimizer* optimizer=0):
+                RemoveEmptyNodesVisitor(Optimizer* optimizer=nullptr):
                     BaseOptimizerVisitor(optimizer, REMOVE_REDUNDANT_NODES) {}
 
                 void apply(osg::Group& group) override;
@@ -358,7 +358,7 @@ class Optimizer
                 typedef std::set<osg::Node*> NodeList;
                 NodeList                     _redundantNodeList;
 
-                RemoveRedundantNodesVisitor(Optimizer* optimizer=0):
+                RemoveRedundantNodesVisitor(Optimizer* optimizer=nullptr):
                     BaseOptimizerVisitor(optimizer, REMOVE_REDUNDANT_NODES) {}
 
                 void apply(osg::Group& group) override;
@@ -408,7 +408,7 @@ class Optimizer
             public:
 
                 /// default to traversing all children.
-                MergeGeometryVisitor(Optimizer* optimizer=0) :
+                MergeGeometryVisitor(Optimizer* optimizer=nullptr) :
                     BaseOptimizerVisitor(optimizer, MERGE_GEOMETRY),
                     _targetMaximumNumberOfVertices(10000), _alphaBlendingActive(false), _mergeAlphaBlending(false) {}
 

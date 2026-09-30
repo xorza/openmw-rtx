@@ -7,6 +7,7 @@
 #include <oics/ICSChannelListener.h>
 #include <oics/ICSInputControlSystem.h>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/sdlutil/sdlmappings.hpp>
@@ -242,7 +243,7 @@ namespace MWInput
 
     bool BindingsManager::actionIsActive(int id) const
     {
-        return getActionValue(id) == 1.0;
+        return getActionValue(id) == 1.0f;
     }
 
     void BindingsManager::loadKeyDefaults(bool force)
@@ -523,10 +524,12 @@ namespace MWInput
 
     std::string BindingsManager::getActionKeyBindingName(int action)
     {
-        if (mInputBinder->getChannel(action)->getControlsCount() == 0)
+        const auto controls = Crash::notNull(mInputBinder->getChannel(action), "an action with no input channel")
+                                  ->getAttachedControls();
+        if (controls.empty())
             return "#{Interface:None}";
 
-        ICS::Control* c = mInputBinder->getChannel(action)->getAttachedControls().front().control;
+        ICS::Control* c = controls.front().control;
 
         SDL_Scancode key = mInputBinder->getKeyBinding(c, ICS::Control::INCREASE);
         unsigned int mouse = mInputBinder->getMouseButtonBinding(c, ICS::Control::INCREASE);
@@ -555,10 +558,12 @@ namespace MWInput
 
     std::string BindingsManager::getActionControllerBindingName(int action)
     {
-        if (mInputBinder->getChannel(action)->getControlsCount() == 0)
+        const auto controls = Crash::notNull(mInputBinder->getChannel(action), "an action with no input channel")
+                                  ->getAttachedControls();
+        if (controls.empty())
             return "#{Interface:None}";
 
-        ICS::Control* c = mInputBinder->getChannel(action)->getAttachedControls().front().control;
+        ICS::Control* c = controls.front().control;
 
         if (mInputBinder->getJoystickAxisBinding(c, sFakeDeviceId, ICS::Control::INCREASE)
             != ICS::InputControlSystem::UNASSIGNED)
@@ -598,7 +603,10 @@ namespace MWInput
     void BindingsManager::enableDetectingBindingMode(int action, bool keyboard)
     {
         mListener->setDetectingKeyboard(keyboard);
-        ICS::Control* c = mInputBinder->getChannel(action)->getAttachedControls().front().control;
+        const auto controls = Crash::notNull(mInputBinder->getChannel(action), "an action with no input channel")
+                                  ->getAttachedControls();
+        Crash::contract(!controls.empty(), "a binding detected for an action with no control");
+        ICS::Control* c = controls.front().control;
         mInputBinder->enableDetectingBindingState(c, ICS::Control::INCREASE);
     }
 
@@ -696,7 +704,7 @@ namespace MWInput
                 action = A_CycleSpellLeft;
         }
 
-        if (previousValue <= 0.6 && currentValue > 0.6)
+        if (static_cast<double>(previousValue) <= 0.6 && static_cast<double>(currentValue) > 0.6)
             manager->executeAction(action);
     }
 

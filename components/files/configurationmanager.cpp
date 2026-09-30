@@ -488,3 +488,8 @@ namespace Files
     }
 
 } /* namespace Files */
+
+template void boost::program_options::typed_value<std::string, char>::notify(const boost::any&) const;
+template void boost::program_options::typed_value<std::vector<std::string>, char>::notify(const boost::any&) const;
+template void boost::program_options::typed_value<Files::MaybeQuotedPathContainer, char>::notify(
+    const boost::any&) const;

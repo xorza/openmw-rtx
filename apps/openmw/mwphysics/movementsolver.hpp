@@ -30,7 +30,7 @@ namespace MWPhysics
     static bool isWalkableSlope(const Vec3& normal)
     {
         static const float sMaxSlopeCos = std::cos(osg::DegreesToRadians(Constants::sMaxSlope));
-        return (normal.z() > sMaxSlopeCos);
+        return (static_cast<double>(normal.z()) > static_cast<double>(sMaxSlopeCos));
     }
 
     class Actor;

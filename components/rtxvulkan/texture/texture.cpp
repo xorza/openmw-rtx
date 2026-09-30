@@ -15,7 +15,6 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/rtx/common/contract.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/mipchain.hpp>
@@ -169,7 +168,7 @@ namespace Rtx
         VkFormat writtenAs(const TextureFormat format)
         {
             const VkFormat image = toVulkanFormat(format);
-            contract(
+            Crash::contract(
                 withoutCurve(image) == sWrittenFormat, "a texture described in a format its dispatch does not store");
             return image;
         }
@@ -496,7 +495,7 @@ namespace Rtx
 
         // The last slot is the neutral texel's. `TextureTable` refuses a slot past it, so a scene
         // that reaches it is a table that broke that rule.
-        contract(slots <= Shaders::TEXTURE_NEUTRAL, "a scene with more textures than its table may hand out");
+        Crash::contract(slots <= Shaders::TEXTURE_NEUTRAL, "a scene with more textures than its table may hand out");
 
         // The neutral texel's count, and nought for every slot nothing stands, which no material
         // names. Owed to every copy and every set from the start, the way an arrival is: written by
@@ -516,7 +515,7 @@ namespace Rtx
 
     void TextureArray::reserveSlot(std::uint32_t slot)
     {
-        contract(slot < Shaders::TEXTURE_NEUTRAL, "a texture slot past what its table may hand out");
+        Crash::contract(slot < Shaders::TEXTURE_NEUTRAL, "a texture slot past what its table may hand out");
 
         // Grown to reach it rather than one at a time: arrivals come in whatever order the scene's
         // free list handed the slots out, so the highest is not always the last.
@@ -678,7 +677,7 @@ namespace Rtx
                 // `write` stands every source ahead of every bake. A bake of a slot that holds
                 // nothing is a contract broken and not content. A source drawing the stand-in is
                 // baked as the stand-in, as it is drawn.
-                contract(texture.mFrom < mSlots.size() && !mSlots[texture.mFrom].isEmpty(),
+                Crash::contract(texture.mFrom < mSlots.size() && !mSlots[texture.mFrom].isEmpty(),
                     "a sprite light bake names a source that does not stand");
                 return Texture::bakeOf(
                     mDevice, batch, mPasses, standingIn(mSlots[texture.mFrom]), texture.mFormat, name);

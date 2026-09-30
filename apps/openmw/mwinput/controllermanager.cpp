@@ -117,7 +117,7 @@ namespace MWInput
         {
             float xAxis = mBindingsManager->getActionValue(A_MoveLeftRight);
             float yAxis = mBindingsManager->getActionValue(A_MoveForwardBackward);
-            if (xAxis != 0.5 || yAxis != 0.5)
+            if (xAxis != 0.5f || yAxis != 0.5f)
             {
                 mJoystickLastUsed = true;
                 MWBase::Environment::get().getInputManager()->resetIdleTime();

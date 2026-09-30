@@ -3,6 +3,7 @@
 #include <osg/ClusterCullingCallback>
 #include <osgUtil/CullVisitor>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 
 #include "compositemaprenderer.hpp"
@@ -66,7 +67,7 @@ namespace Terrain
         if (_cullingActive && cv->isCulled(getBoundingBox()))
             return;
 
-        bool shadowcam = cv->getCurrentCamera()->getName() == "ShadowCamera";
+        bool shadowcam = Crash::notNull(cv->getCurrentCamera(), "a cull with no camera")->getName() == "ShadowCamera";
 
         if (cv->getCullingMode() & osg::CullStack::CLUSTER_CULLING
             && clusterCull(mClusterCullingCallback, cv->getEyePoint(), shadowcam))

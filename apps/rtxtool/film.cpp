@@ -17,7 +17,6 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
-#include <components/rtx/common/contract.hpp>
 #include <components/rtx/environment/skylight.hpp>
 
 #include "model/benchrecord.hpp"
@@ -309,7 +308,7 @@ namespace RtxTool
         {
             const auto owed = static_cast<std::uint32_t>(
                 std::count_if(shares.begin(), shares.end(), [](double share) { return share > 0.0; }));
-            Rtx::contract(total >= owed, "fewer frames than flights to share them out to");
+            Crash::contract(total >= owed, "fewer frames than flights to share them out to");
 
             std::vector<std::uint32_t> whole(shares.size());
             std::uint32_t given = 0;
@@ -318,7 +317,7 @@ namespace RtxTool
                 whole[at] = static_cast<std::uint32_t>(std::floor(shares[at]));
                 given += whole[at];
             }
-            Rtx::contract(given <= total, "shares that add to more than their total");
+            Crash::contract(given <= total, "shares that add to more than their total");
 
             std::vector<std::size_t> order;
             for (std::size_t at = 0; at < shares.size(); ++at)
@@ -329,7 +328,7 @@ namespace RtxTool
             });
             for (std::size_t at = 0; given < total; ++at, ++given)
             {
-                Rtx::contract(at < order.size(), "more left over than the shares have remainders");
+                Crash::contract(at < order.size(), "more left over than the shares have remainders");
                 ++whole[order[at]];
             }
 
@@ -379,7 +378,7 @@ namespace RtxTool
 
             // The flights were timed to fill their frames exactly, so what is left is rounding.
             const auto last = static_cast<double>(draft.mFixed + flightFrames);
-            Rtx::contract(std::abs(frame - last) < 1e-6 * std::max(1.0, last), "a take timed off its own frames");
+            Crash::contract(std::abs(frame - last) < 1e-6 * std::max(1.0, last), "a take timed off its own frames");
             take.mTrack.back().mFrame = last;
             if (!take.mSegments.empty() && draft.mHolds.back() == 0)
                 take.mSegments.back().mArrival = last;

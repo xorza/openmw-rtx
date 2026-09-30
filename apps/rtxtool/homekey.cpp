@@ -11,10 +11,10 @@
 #include <SDL_scancode.h>
 
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
+#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
-#include <components/rtx/common/contract.hpp>
 #include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
@@ -113,7 +113,7 @@ namespace RtxTool
                 std::move(stop), [this] { return anyIn(RoomState::Waiting); },
                 [this] {
                     mDeveloping = firstIn(RoomState::Waiting);
-                    Rtx::contract(mDeveloping != nullptr, "the Home writer picked up a picture with none waiting");
+                    Crash::contract(mDeveloping != nullptr, "the Home writer picked up a picture with none waiting");
                     mDeveloping->mState = RoomState::Developing;
                 },
                 [this](std::stop_token) {

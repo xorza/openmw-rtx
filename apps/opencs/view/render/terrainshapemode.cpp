@@ -619,7 +619,7 @@ void CSVRender::TerrainShapeMode::alterHeight(
             osg::Vec3d eye, center, up;
             paged->getCamera()->getViewMatrixAsLookAt(eye, center, up);
             osg::Vec3d distance = eye - mEditingPos;
-            alteredHeight = alteredHeight * (distance.length() / 500);
+            alteredHeight = static_cast<double>(alteredHeight) * (distance.length() / 500);
         }
         if (mShapeEditTool == ShapeEditTool_PaintToRaise)
             alteredHeight = *paged->getCellAlteredHeight(cellCoords, inCellX, inCellY) + alteredHeight;

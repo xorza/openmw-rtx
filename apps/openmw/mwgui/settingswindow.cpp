@@ -346,25 +346,6 @@ namespace MWGui
         getWidget(mShadowMapResolution, "ShadowMapResolution");
         getWidget(mRayTracingUpscale, "RayTracingUpscaleList");
 
-        MyGUI::Button* rayTracingButton;
-        MyGUI::Widget* upscaleText;
-        MyGUI::Widget* distantLandText;
-        MyGUI::Widget* restartHint;
-        MyGUI::Widget* unavailableHint;
-        getWidget(rayTracingButton, "RayTracingButton");
-        getWidget(upscaleText, "RayTracingUpscaleText");
-        getWidget(distantLandText, "RayTracingDistantLandText");
-        getWidget(restartHint, "RayTracingRestartHint");
-        getWidget(unavailableHint, "RayTracingUnavailableHint");
-
-        // A build without the renderer shows the switch disabled with a hint saying why, and hides the rest
-        const bool rayTracing = Settings::sRayTracingBuilt;
-        unavailableHint->setVisible(!rayTracing);
-        rayTracingButton->setEnabled(rayTracing);
-        for (MyGUI::Widget* widget : { restartHint, static_cast<MyGUI::Widget*>(distantLand), distantLandText,
-                 static_cast<MyGUI::Widget*>(mRayTracingUpscale), upscaleText })
-            widget->setVisible(rayTracing);
-
         addMenuItems(mRayTracingUpscale, sUpscaleLabels);
         mRayTracingUpscale->eventComboChangePosition
             += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingUpscaleChanged);

@@ -87,7 +87,7 @@ namespace MWMechanics
             const float angle = std::acos(mDir * actorToDoor);
 
             // Allow 60 degrees angle between actor and door
-            if (angle < -osg::PI / 3 || angle > osg::PI / 3)
+            if (static_cast<double>(angle) < -osg::PI / 3 || static_cast<double>(angle) > osg::PI / 3)
                 return true;
 
             mResult = ptr;

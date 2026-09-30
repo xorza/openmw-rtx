@@ -928,8 +928,8 @@ namespace MWRender
 
         if (width != 0 && height != 0)
         {
-            double offsetX = (mProjectionOffset.x() / width) * 2.0;
-            double offsetY = (mProjectionOffset.y() / height) * 2.0;
+            double offsetX = (static_cast<double>(mProjectionOffset.x()) / width) * 2.0;
+            double offsetY = (static_cast<double>(mProjectionOffset.y()) / height) * 2.0;
 
             const osg::Matrix translation = osg::Matrix::translate(offsetX, offsetY, 0.0);
 

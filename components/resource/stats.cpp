@@ -488,7 +488,9 @@ namespace Resource
                 if (mStats == nullptr)
                     return;
 
-                osgText::Text* text = (osgText::Text*)(drawable);
+                // OSG hands a draw callback its drawable const and expects it to write the text all the same, as
+                // its own `StatsHandler` does.
+                osgText::Text* text = const_cast<osgText::Text*>(static_cast<const osgText::Text*>(drawable));
 
                 std::ostringstream viewStr;
                 viewStr.setf(std::ios::left, std::ios::adjustfield);

@@ -56,7 +56,8 @@ namespace MWPhysics
         // test. (Multiplying by 2 in 'square distance' units gives us about 1.4x the threshold length. In benchmarks
         // this was
         //  slightly better for the performance of normal scenes than 4.0, and just plain better than 1.0.)
-        if (attemptShortTrace && (btend - btstart).length2() > fallbackLength * fallbackLength * 2.0)
+        if (attemptShortTrace
+            && (btend - btstart).length2() > static_cast<double>(fallbackLength * fallbackLength) * 2.0)
         {
             btend = btstart + (btend - btstart).normalized() * fallbackLength;
             doingShortTrace = true;
@@ -69,8 +70,9 @@ namespace MWPhysics
         {
             mFraction = static_cast<float>(traceCallback.m_closestHitFraction);
             // ensure fraction is correct (covers intended distance traveled instead of actual distance traveled)
-            if (doingShortTrace && (end - start).length2() > 0.0)
-                mFraction *= static_cast<float>((btend - btstart).length() / (end - start).length());
+            if (doingShortTrace && (end - start).length2() > 0.0f)
+                mFraction
+                    *= static_cast<float>((btend - btstart).length() / static_cast<double>((end - start).length()));
             mPlaneNormal = Misc::Convert::toOsg(traceCallback.m_hitNormalWorld);
             mEndPos = (end - start) * mFraction + start;
             mHitPoint = Misc::Convert::toOsg(traceCallback.m_hitPointWorld);

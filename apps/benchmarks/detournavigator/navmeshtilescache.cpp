@@ -92,7 +92,7 @@ namespace
         std::vector<float> vertices;
         std::vector<int> indices;
         std::vector<AreaType> areaTypes;
-        if (distribution(random) < 0.939)
+        if (static_cast<double>(distribution(random)) < 0.939)
         {
             generateVertices(std::back_inserter(vertices), static_cast<std::size_t>(triangles * 2.467), random);
             generateIndices(std::back_inserter(indices), static_cast<int>(vertices.size() / 3) - 1,

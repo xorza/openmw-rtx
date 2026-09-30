@@ -13,8 +13,8 @@
 #include <system_error>
 #include <utility>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
-#include <components/rtx/common/contract.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
@@ -173,7 +173,7 @@ namespace RtxTool
 
     void FrameHashes::write(const std::filesystem::path& file) const
     {
-        Rtx::contract(countUnpictured() == 0, "frames were noted and never pictured; the ring was not drained");
+        Crash::contract(countUnpictured() == 0, "frames were noted and never pictured; the ring was not drained");
 
         std::ofstream out(file);
         out << headerLine() << '\n';

@@ -33,7 +33,8 @@ namespace DetourNavigator
 
     inline bool shouldAddTile(const TilePosition& changedTile, const TilePosition& playerTile, int maxTiles)
     {
-        const auto expectedTilesCount = std::ceil(osg::PI * osg::square(getDistance(changedTile, playerTile)));
+        const auto expectedTilesCount
+            = std::ceil(osg::PI * static_cast<double>(osg::square(getDistance(changedTile, playerTile))));
         return expectedTilesCount <= maxTiles;
     }
 

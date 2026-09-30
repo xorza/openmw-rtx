@@ -62,7 +62,7 @@ namespace
         {
         }
 
-        virtual void apply(osg::Transform& transform)
+        void apply(osg::Transform& transform) override
         {
             if (&transform != mLastAppliedTransform)
             {
@@ -246,9 +246,9 @@ namespace NifOsg
     void GrowFadeAffector::operate(osgParticle::Particle* particle, double /* dt */)
     {
         float size = mCachedDefaultSize;
-        if (particle->getAge() < mGrowTime && mGrowTime != 0.f)
-            size *= static_cast<float>(particle->getAge() / mGrowTime);
-        if (particle->getLifeTime() - particle->getAge() < mFadeTime && mFadeTime != 0.f)
+        if (particle->getAge() < static_cast<double>(mGrowTime) && mGrowTime != 0.f)
+            size *= static_cast<float>(particle->getAge() / static_cast<double>(mGrowTime));
+        if (particle->getLifeTime() - particle->getAge() < static_cast<double>(mFadeTime) && mFadeTime != 0.f)
             size *= static_cast<float>(particle->getLifeTime() - particle->getAge()) / mFadeTime;
         particle->setSizeRange(osgParticle::rangef(size, size));
     }
@@ -724,7 +724,7 @@ namespace NifOsg
                 float d = (mSphereInParticleSpace.radius2() - u.length2()) / particle->getVelocity().length2();
                 float k = insideSphere ? (std::sqrt(d) + b) : (b - std::sqrt(d));
 
-                if (k < dt)
+                if (static_cast<double>(k) < dt)
                 {
                     // collision detected; reflect off the tangent plane
                     osg::Vec3f contact = particle->getPosition() + particle->getVelocity() * k;

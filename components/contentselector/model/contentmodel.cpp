@@ -332,8 +332,12 @@ bool ContentSelectorModel::ContentModel::dropMimeData(
         beginRow = parent.row();
 
     int firstModifiable = 0;
-    while (item(firstModifiable)->builtIn() || item(firstModifiable)->fromAnotherConfigFile())
+    while (const EsmFile* file = item(firstModifiable))
+    {
+        if (!file->builtIn() && !file->fromAnotherConfigFile())
+            break;
         ++firstModifiable;
+    }
 
     if (beginRow < firstModifiable)
         return false;

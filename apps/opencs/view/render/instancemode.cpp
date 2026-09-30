@@ -99,7 +99,7 @@ float CSVRender::InstanceMode::roundFloatToMult(const float val, const double mu
 {
     if (mult == 0)
         return val;
-    return round(val / mult) * mult;
+    return round(static_cast<double>(val) / mult) * mult;
 }
 
 osg::Vec3 CSVRender::InstanceMode::calculateSnapPositionRelativeToTarget(osg::Vec3 initalPosition,
@@ -179,8 +179,8 @@ osg::Vec3f CSVRender::InstanceMode::getMousePlaneCoords(const QPoint& point, con
        note: is there a reason to use getCamera()->getViewport()->computeWindowMatrix() instead? */
     const float scale = getWorldspaceWidget().devicePixelRatioF();
     const osg::Viewport* viewport = getWorldspaceWidget().getCamera()->getViewport();
-    float x = point.x() * scale / viewport->width();
-    float y = point.y() * scale / viewport->height();
+    float x = static_cast<double>(point.x() * scale) / viewport->width();
+    float y = static_cast<double>(point.y() * scale) / viewport->height();
     x = x * 2.0f - 1.0f;
     y = 1.0f - y * 2.0f;
 
@@ -772,7 +772,7 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
             osg::Vec3f screenDir = cameraRotation * osg::Vec3f(diffX, diffY, 0);
             screenDir.normalize();
 
-            angle = std::sqrt(diffX * diffX + diffY * diffY) * rotationFactor;
+            angle = std::sqrt(diffX * diffX + diffY * diffY) * static_cast<double>(rotationFactor);
             axis = screenDir ^ camForward;
         }
         else
@@ -812,7 +812,7 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
                 newVec.normalize();
 
             // Find angle and axis of rotation
-            angle = std::acos(std::clamp(oldVec * newVec, -1.0f, 1.0f)) * speedFactor;
+            angle = static_cast<double>(std::acos(std::clamp(oldVec * newVec, -1.0f, 1.0f))) * speedFactor;
             if (((oldVec ^ newVec) * camBack < 0) ^ (camBack.z() < 0))
                 angle *= -1;
         }
@@ -1352,7 +1352,7 @@ float CSVRender::InstanceMode::calculateDropHeight(CSVRender::Object* object, fl
     osg::Vec3d point = object->getPosition().asVec3();
 
     osg::Vec3d start = point;
-    start.z() += objectHeight;
+    start.z() += static_cast<double>(objectHeight);
     osg::Vec3d end = point;
     end.z() = std::numeric_limits<float>::lowest();
 
@@ -1370,7 +1370,7 @@ float CSVRender::InstanceMode::calculateDropHeight(CSVRender::Object* object, fl
     {
         osgUtil::LineSegmentIntersector::Intersection intersection = *it;
         float collisionLevel = intersection.getWorldIntersectPoint().z();
-        return point.z() - collisionLevel + objectHeight;
+        return point.z() - static_cast<double>(collisionLevel) + static_cast<double>(objectHeight);
     }
 
     return 0.0f;

@@ -12,7 +12,7 @@ namespace SceneUtil
         {
         }
 
-        virtual void drawImplementation(osg::RenderInfo& renderInfo, const osg::Drawable* drawable) const
+        void drawImplementation(osg::RenderInfo& renderInfo, const osg::Drawable* drawable) const override
         {
             drawable->drawImplementation(renderInfo);
             renderInfo.getState()->get<osg::GLExtensions>()->glMemoryBarrier(mBarriers);
