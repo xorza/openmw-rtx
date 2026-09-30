@@ -251,8 +251,8 @@
         <translation>Synchronizacja pionowa</translation>
     </message>
     <message>
-        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs an NVIDIA GPU with hardware ray tracing (Turing or later).</source>
-        <translation>Zastępuje renderer OpenGL eksperymentalnym rendererem Vulkan ze śledzeniem promieni. Wymaga karty graficznej NVIDIA ze sprzętowym śledzeniem promieni (Turing lub nowszej).</translation>
+        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs a GPU with hardware ray tracing: NVIDIA Turing or AMD RDNA 2, or later.</source>
+        <translation>Zastępuje renderer OpenGL eksperymentalnym rendererem Vulkan ze śledzeniem promieni. Wymaga karty graficznej ze sprzętowym śledzeniem promieni: NVIDIA Turing lub AMD RDNA 2, albo nowszej.</translation>
     </message>
     <message>
         <source>Experimental Ray Tracing</source>
@@ -263,8 +263,8 @@
         <translation>Skalowanie</translation>
     </message>
     <message>
-        <source>How far below the window&apos;s size the ray tracer traces. The upscaler reconstructs the frame across frames whichever mode is chosen, and every mode but Native traces fewer pixels than it shows.</source>
-        <translation>Jak bardzo poniżej rozmiaru okna odbywa się śledzenie promieni. Skaler odtwarza obraz z wielu klatek w każdym trybie, a każdy tryb poza Natywna śledzi mniej pikseli, niż pokazuje.</translation>
+        <source>How far below the window&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
+        <translation>Jak bardzo poniżej rozmiaru okna odbywa się śledzenie promieni. Wyłączone śledzi każdy piksel bez skalera; każdy inny tryb uruchamia skaler, który odtwarza obraz z wielu klatek, a każdy tryb poza Wyłączone i Natywna śledzi mniej pikseli, niż pokazuje.</translation>
     </message>
     <message>
         <source>Off</source>

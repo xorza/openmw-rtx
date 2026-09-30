@@ -7,7 +7,6 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
-#include <components/rtx/scene/tangent.hpp>
 #include <components/rtx/shaders/tangent.h>
 
 namespace Rtx
@@ -22,8 +21,8 @@ namespace Rtx
         /// bit over them — the flipped bit as well for the other handedness.
         TEST(RtxTangentTest, theAxesComeBackExactlyWithTheirHandedness)
         {
-            EXPECT_EQ(packTangent(osg::Vec4f(1.0f, 0.0f, 0.0f, 1.0f)), 0x9FFFFFFEu);
-            EXPECT_EQ(packTangent(osg::Vec4f(1.0f, 0.0f, 0.0f, -1.0f)), 0xDFFFFFFEu);
+            EXPECT_EQ(Shaders::packTangent(osg::Vec3f(1.0f, 0.0f, 0.0f), false), 0x9FFFFFFEu);
+            EXPECT_EQ(Shaders::packTangent(osg::Vec3f(1.0f, 0.0f, 0.0f), true), 0xDFFFFFFEu);
 
             const std::array axes{
                 osg::Vec3f(1.0f, 0.0f, 0.0f),
@@ -36,8 +35,8 @@ namespace Rtx
             for (const osg::Vec3f& axis : axes)
                 for (const float handedness : { 1.0f, -1.0f })
                 {
-                    const osg::Vec4f tangent(axis, handedness);
-                    EXPECT_EQ(Shaders::unpackTangent(packTangent(tangent)), tangent)
+                    EXPECT_EQ(Shaders::unpackTangent(Shaders::packTangent(axis, handedness < 0.0f)),
+                        osg::Vec4f(axis, handedness))
                         << axis.x() << ' ' << axis.y() << ' ' << axis.z() << ' ' << handedness;
                 }
         }
@@ -46,9 +45,9 @@ namespace Rtx
         /// left undefined. None reads back as nought.
         TEST(RtxTangentTest, noLengthIsNoTangent)
         {
-            EXPECT_EQ(packTangent(osg::Vec4f(0.0f, 0.0f, 0.0f, 1.0f)), 0u);
-            EXPECT_EQ(packTangent(osg::Vec4f(0.0f, 0.0f, 0.0f, -1.0f)), 0u);
-            EXPECT_EQ(packTangent(osg::Vec4f(std::nanf(""), 0.0f, 0.0f, 1.0f)), 0u);
+            EXPECT_EQ(Shaders::packTangent(osg::Vec3f(0.0f, 0.0f, 0.0f), false), 0u);
+            EXPECT_EQ(Shaders::packTangent(osg::Vec3f(0.0f, 0.0f, 0.0f), true), 0u);
+            EXPECT_EQ(Shaders::packTangent(osg::Vec3f(std::nanf(""), 0.0f, 0.0f), false), 0u);
             EXPECT_EQ(Shaders::unpackTangent(0u), osg::Vec4f());
         }
 
@@ -76,8 +75,8 @@ namespace Rtx
                         const osg::Vec3f direction(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z));
                         for (const float handedness : { 1.0f, -1.0f })
                         {
-                            const osg::Vec4f tangent(direction, handedness);
-                            const std::uint32_t packed = packTangent(tangent);
+                            const bool flipped = handedness < 0.0f;
+                            const std::uint32_t packed = Shaders::packTangent(direction, flipped);
                             const osg::Vec4f unpacked = Shaders::unpackTangent(packed);
 
                             osg::Vec3f unit = direction;
@@ -85,7 +84,7 @@ namespace Rtx
                             EXPECT_LE((osg::Vec3f(unpacked.x(), unpacked.y(), unpacked.z()) - unit).length(), bound)
                                 << x << ' ' << y << ' ' << z;
                             EXPECT_EQ(unpacked.w(), handedness) << x << ' ' << y << ' ' << z;
-                            EXPECT_EQ(packTangent(tangent * 2.0f), packed)
+                            EXPECT_EQ(Shaders::packTangent(direction * 2.0f, flipped), packed)
                                 << "the length was stored: " << x << ' ' << y << ' ' << z;
                         }
                     }

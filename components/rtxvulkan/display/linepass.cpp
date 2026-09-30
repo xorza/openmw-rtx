@@ -4,7 +4,7 @@
 #include <cassert>
 #include <cstddef>
 
-#include <components/rtx/scene/debuglines.hpp>
+#include <components/rtx/frame/debuglines.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>

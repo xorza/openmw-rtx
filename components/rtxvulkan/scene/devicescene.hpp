@@ -162,6 +162,11 @@ namespace Rtx
         /// terrain a frame behind.
         std::vector<Index> mChangedRecords;
 
+        /// Every mesh slot the scene was built with, which the halves write and build the whole scene
+        /// through, down the path a list of arrivals takes. Here, as the records are, because both
+        /// read it. Before the halves.
+        std::vector<Index> mEveryMesh;
+
         SceneAcceleration mAcceleration;
         SceneBuffers mBuffers;
 

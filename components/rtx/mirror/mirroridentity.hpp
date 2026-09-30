@@ -104,11 +104,9 @@ namespace Rtx
 
         /// Records that the walk in progress met `entry`. An entry two walks of one epoch both
         /// reach counts once; a held entry is stamped and not counted.
-        void stamp(Entry entry) { stamp(entry->second); }
-
-        /// The same for an entry a caller already holds.
-        void stamp(Value& held)
+        void stamp(Entry entry)
         {
+            Value& held = entry->second;
             freshen();
             mReached += held.mReach.mHolds == 0 && held.mReach.mEpoch != mPass.mEpoch ? 1 : 0;
             held.mReach.mEpoch = mPass.mEpoch;

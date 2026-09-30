@@ -37,11 +37,11 @@
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
-#include <components/rtxvulkan/scene/spritebin.hpp>
 
 #include "fogvolume.hpp"
 #include "gbuffer.hpp"
 #include "ripplepass.hpp"
+#include "spritebin.hpp"
 #include "tracemedia.hpp"
 #include "wavepass.hpp"
 

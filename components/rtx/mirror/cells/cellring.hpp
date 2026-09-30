@@ -42,7 +42,7 @@ namespace Rtx
     /// the ring's own: no drawable will ever name them, so the placer holds them on the scene. What
     /// this adopts goes through the extractor's own resolvers inside the walk (`SceneAdopter`),
     /// which is also the scene everything here stands in and the walk's counts it adds to, and
-    /// holds by `Known::mHolds` rather than being named again on every walk. Everything the
+    /// holds by `Reach::mHolds` rather than being named again on every walk. Everything the
     /// thread reads is lent and given back — `Spares` says why an address and not a shared count,
     /// and `giveBackHolds` why a hold is a cell's.
     ///

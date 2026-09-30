@@ -231,10 +231,10 @@ namespace Rtx
                 return false;
 
         for (Index slot = 0; slot < mTextures.getRows().size(); ++slot)
-            if (!mTextures.isFree(slot) && mTextures.getHolds(slot) == 0)
+            if (mTextures.isLive(slot) && mTextures.getHolds(slot) == 0)
                 return false;
 
-        for (Index slot = 0; slot < mDeformers.getDeformers().size(); ++slot)
+        for (Index slot = 0; slot < mDeformers.getRows().size(); ++slot)
             if (mDeformers.isLive(slot) && mDeformers.getHolds(slot) == 0)
                 return false;
 
@@ -313,18 +313,9 @@ namespace Rtx
             if (!instance.isPlaced())
                 continue;
 
-            // Each mesh's own box carried through its instances, rather than every vertex of
-            // every instance — the difference between eight transforms per instance and several
-            // hundred. The mesh kept it as its vertices arrived, so nothing is walked here at all.
-            const osg::BoundingBoxf& box = mMeshes.getRows()[instance.mMesh].mBounds;
-            if (!box.valid())
-                continue;
-
-            osg::BoundingBoxf placed;
-            for (unsigned int corner = 0; corner < 8; ++corner)
-                placed.expandBy(box.corner(corner) * instance.mTransform);
-
-            visit(row, placed);
+            const osg::BoundingBoxf placed = instance.placedBox(mMeshes.getRows()[instance.mMesh].mBounds);
+            if (placed.valid())
+                visit(row, placed);
         }
     }
 

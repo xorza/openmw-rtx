@@ -65,8 +65,8 @@ namespace MWRender
         virtual bool enableReference(int type, const MWWorld::ConstPtr& ptr, bool enabled) = 0;
 
         /// The game moved, deleted or animates the reference, so the distance must never stand it
-        /// again, whatever a script says of it later. @return as `enableReference`.
-        virtual bool blacklistReference(int type, const MWWorld::ConstPtr& ptr) = 0;
+        /// again, whatever a script says of it later.
+        virtual void blacklistReference(int type, const MWWorld::ConstPtr& ptr) = 0;
 
         /// The cell grid has moved: what the game told the distance while the grid changed may now
         /// be applied. @return whether what the distance draws changed. A renderer that keeps no

@@ -3,7 +3,7 @@
 #include <array>
 #include <cassert>
 
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/accumulate.h>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>

@@ -64,7 +64,6 @@
 #include "../mwmechanics/actorutil.hpp"
 
 #include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 
 #include "actorspaths.hpp"
@@ -192,7 +191,7 @@ namespace MWRender
         mFog = std::make_unique<FogManager>();
 
         auto mask = ~(Mask_UpdateVisitor | Mask_SimpleWater);
-        MWBase::Environment::get().getWindowManager()->setCullMask(mask);
+        mRenderer.setViewMask(mask);
         NifOsg::Loader::setHiddenNodeMask(Mask_UpdateVisitor);
         NifOsg::Loader::setIntersectionDisabledNodeMask(Mask_Effect);
         NifOsg::Loader::setSoftEffectEnabled(Settings::shaders().mSoftParticles);

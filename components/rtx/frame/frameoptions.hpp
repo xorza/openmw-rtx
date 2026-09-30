@@ -5,8 +5,7 @@
 
 #include <osg/Vec2f>
 
-#include <components/rtx/scene/debuglines.hpp>
-
+#include "debuglines.hpp"
 #include "reconstruction.hpp"
 #include "sunglare.hpp"
 #include "surfaceview.hpp"

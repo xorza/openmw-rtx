@@ -250,7 +250,6 @@ namespace MWRender
         , mCloudBlendFactor(0.f)
         , mCloudSpeed(0.f)
         , mStarsOpacity(0.f)
-        , mBaseWindSpeed(0.f)
         , mEnabled(true)
         , mSunglareEnabled(true)
     {
@@ -501,25 +500,6 @@ namespace MWRender
             mSkyRootNode->getParent(0)->removeChild(mSkyRootNode);
             mSkyRootNode = nullptr;
         }
-    }
-
-    int SkyManager::getMasserPhase() const
-    {
-        if (!mCreated)
-            return 0;
-        return mMasser->getPhaseInt();
-    }
-
-    int SkyManager::getSecundaPhase() const
-    {
-        if (!mCreated)
-            return 0;
-        return mSecunda->getPhaseInt();
-    }
-
-    bool SkyManager::isEnabled()
-    {
-        return mEnabled;
     }
 
     bool Precipitation::hasRain() const
@@ -777,8 +757,6 @@ namespace MWRender
         if (!mCreated)
             return;
 
-        mBaseWindSpeed = weather.mBaseWindSpeed;
-
         mIsStorm = weather.mIsStorm;
 
         if (mIsStorm)
@@ -876,14 +854,6 @@ namespace MWRender
         }
 
         mAtmosphereNightNode->setNodeMask(weather.mNight ? ~0u : 0);
-    }
-
-    float SkyManager::getBaseWindSpeed() const
-    {
-        if (!mCreated)
-            return 0.f;
-
-        return mBaseWindSpeed;
     }
 
     void SkyManager::setSunglare(bool enabled)

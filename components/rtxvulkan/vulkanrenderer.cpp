@@ -22,8 +22,8 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
-#include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/kernelprogress.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/slot.hpp>

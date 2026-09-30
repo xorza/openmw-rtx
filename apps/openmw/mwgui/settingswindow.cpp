@@ -344,24 +344,25 @@ namespace MWGui
         getWidget(mTerrainShadowsButton, "TerrainShadowsButton");
         getWidget(mObjectShadowsButton, "ObjectShadowsButton");
         getWidget(mShadowMapResolution, "ShadowMapResolution");
-        getWidget(mRayTracingButton, "RayTracingButton");
         getWidget(mRayTracingUpscale, "RayTracingUpscaleList");
-        getWidget(mRayTracingUpscaleText, "RayTracingUpscaleText");
-        getWidget(mRayTracingDistantLand, "RayTracingDistantLandSlider");
-        getWidget(mRayTracingDistantLandText, "RayTracingDistantLandText");
-        getWidget(mRayTracingRestartHint, "RayTracingRestartHint");
-        getWidget(mRayTracingUnavailableHint, "RayTracingUnavailableHint");
+
+        MyGUI::Button* rayTracingButton;
+        MyGUI::Widget* upscaleText;
+        MyGUI::Widget* distantLandText;
+        MyGUI::Widget* restartHint;
+        MyGUI::Widget* unavailableHint;
+        getWidget(rayTracingButton, "RayTracingButton");
+        getWidget(upscaleText, "RayTracingUpscaleText");
+        getWidget(distantLandText, "RayTracingDistantLandText");
+        getWidget(restartHint, "RayTracingRestartHint");
+        getWidget(unavailableHint, "RayTracingUnavailableHint");
 
         // A build without the renderer shows the switch disabled with a hint saying why, and hides the rest
         const bool rayTracing = Settings::sRayTracingBuilt;
-        mRayTracingUnavailableHint->setVisible(!rayTracing);
-        mRayTracingButton->setEnabled(rayTracing);
-        mRayTracingRestartHint->setVisible(rayTracing);
-        for (MyGUI::Widget* widget :
-            { static_cast<MyGUI::Widget*>(mRayTracingDistantLand), mRayTracingDistantLandText })
-            widget->setVisible(rayTracing);
-
-        for (MyGUI::Widget* widget : { static_cast<MyGUI::Widget*>(mRayTracingUpscale), mRayTracingUpscaleText })
+        unavailableHint->setVisible(!rayTracing);
+        rayTracingButton->setEnabled(rayTracing);
+        for (MyGUI::Widget* widget : { restartHint, static_cast<MyGUI::Widget*>(distantLand), distantLandText,
+                 static_cast<MyGUI::Widget*>(mRayTracingUpscale), upscaleText })
             widget->setVisible(rayTracing);
 
         addMenuItems(mRayTracingUpscale, sUpscaleLabels);

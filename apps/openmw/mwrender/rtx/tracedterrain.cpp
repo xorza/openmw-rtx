@@ -1,5 +1,6 @@
 #include "tracedterrain.hpp"
 
+#include <algorithm>
 #include <utility>
 
 #include <osg/Geometry>
@@ -63,10 +64,17 @@ namespace MWRender
         return grid;
     }
 
+    TracedTerrain::CellGrid* TracedTerrain::findGrid(const osg::Vec2i& cell)
+    {
+        const auto found
+            = std::find_if(mCells.begin(), mCells.end(), [&](const CellGrid& grid) { return grid.mCell == cell; });
+        return found == mCells.end() ? nullptr : &*found;
+    }
+
     void TracedTerrain::loadCell(const int x, const int y)
     {
-        const std::pair<int, int> key(x, y);
-        if (mCells.contains(key))
+        const osg::Vec2i cell(x, y);
+        if (findGrid(cell) != nullptr)
             return;
 
         Terrain::World::loadCell(x, y);
@@ -75,6 +83,7 @@ namespace MWRender
         // which is where the transform stands them. A cell with no land record is the default
         // plane, which is the ground the rasterizer's chunk stands there too.
         CellGrid grid = takeGrid();
+        grid.mCell = cell;
         const osg::Vec2f centre(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f);
         mStorage->fillVertexBuffers(0, 1.0f, centre, mWorldspace, *grid.mPositions, *mNormals, *mColours);
         grid.mPositions->dirty();
@@ -84,19 +93,21 @@ namespace MWRender
         grid.mRoot->setPosition(osg::Vec3f(centre.x() * cellSize, centre.y() * cellSize, 0.0f));
 
         mTerrainRoot->addChild(grid.mRoot);
-        mCells.emplace(key, std::move(grid));
+        mCells.push_back(std::move(grid));
     }
 
     void TracedTerrain::unloadCell(const int x, const int y)
     {
-        const auto found = mCells.find(std::pair<int, int>(x, y));
-        if (found == mCells.end())
+        CellGrid* const found = findGrid(osg::Vec2i(x, y));
+        if (found == nullptr)
             return;
 
         Terrain::World::unloadCell(x, y);
 
-        mTerrainRoot->removeChild(found->second.mRoot);
-        mSpare.push_back(std::move(found->second));
-        mCells.erase(found);
+        mTerrainRoot->removeChild(found->mRoot);
+        mSpare.push_back(std::move(*found));
+        if (found != &mCells.back())
+            *found = std::move(mCells.back());
+        mCells.pop_back();
     }
 }

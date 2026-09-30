@@ -58,6 +58,12 @@ namespace Rtx
     Result<TextureData, std::string> describeImage(const osg::Image& image, TextureFormat format,
         TextureEncoding encoding, std::vector<MipLevel>& levels, std::vector<std::byte>& texels);
 
+    /// `describeImage` of the finest level alone, as a colour, for a reader of nothing else: the
+    /// coarser levels are neither held against OpenSceneGraph's count nor laid, and a volume's first
+    /// slice of it is spanned where it lies.
+    Result<TextureData, std::string> describeFinestLevel(
+        const osg::Image& image, std::vector<MipLevel>& levels, std::vector<std::byte>& texels);
+
     /// The image at `path`, or why nothing reads there — an error and not an exception, because a
     /// live scene graph names textures that were never files and a renderer that fell over on one
     /// would fall over on a cell. Never null.

@@ -6,6 +6,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <string>
+#include <thread>
 
 #include <SDL_hints.h>
 #include <SDL_video.h>
@@ -126,6 +127,12 @@ namespace MWRender
         eventTraversal();
         updateTraversal();
         renderGui();
+        advance(getFrameStamp().getSimulationTime());
+    }
+
+    void Renderer::skipGuiFrame()
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
         advance(getFrameStamp().getSimulationTime());
     }
 

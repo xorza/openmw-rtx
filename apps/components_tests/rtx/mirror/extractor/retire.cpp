@@ -504,7 +504,7 @@ namespace Rtx::Testing
             EXPECT_EQ(
                 boneAt(mScene.getMeshPose(standing->mInstance.mMesh), 0).mRows[2], osg::Vec4f(0.0f, 0.0f, 1.0f, 11.0f))
                 << "the sweep kept the actor from the cell that unloaded";
-            EXPECT_EQ(mScene.deformers().getDeformers().size(), 2u) << "a rig is a slot and keeps its index";
+            EXPECT_EQ(mScene.deformers().getRows().size(), 2u) << "a rig is a slot and keeps its index";
             EXPECT_EQ(mScene.deformers().getHolds(mScene.meshes().getRows()[standing->mInstance.mMesh].mDeformer), 1u)
                 << "the rig of the one that left went with it and the survivor's stayed";
         }

@@ -120,6 +120,19 @@ namespace Rtx
         /// Whether this slot holds anything. A dropped placement leaves its slot behind rather than
         /// closing the gap, because the slot index is what a hit reads back.
         bool isPlaced() const { return mMesh != sNoIndex; }
+
+        /// The mesh's own box as this places it: the box around its eight corners carried through
+        /// the transform, which is eight transforms against a vertex's several hundred. Invalid
+        /// where `box` is.
+        osg::BoundingBoxf placedBox(const osg::BoundingBoxf& box) const
+        {
+            osg::BoundingBoxf placed;
+            if (box.valid())
+                for (unsigned int corner = 0; corner < 8; ++corner)
+                    placed.expandBy(box.corner(corner) * mTransform);
+
+            return placed;
+        }
     };
 
     /// The uniform scale a placement carries, as the length of its first basis row. Morrowind
@@ -169,7 +182,7 @@ namespace Rtx
         /// means; the scene keeps them and draws nothing from them.
         FoldedShape mShape;
 
-        /// The rig or the morph that poses it, into `DeformerTable::getDeformers`. `sNoIndex` for
+        /// The rig or the morph that poses it, into `DeformerTable::getRows`. `sNoIndex` for
         /// a mesh that stands.
         Index mDeformer = sNoIndex;
 

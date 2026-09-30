@@ -1,8 +1,9 @@
-#include "finesttexels.hpp"
+#include "texturepass.hpp"
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 
 #include <components/rtx/image/alphaimage.hpp>
@@ -31,5 +32,15 @@ namespace Rtx
         const std::size_t bytes
             = std::min(layoutOf(finest.mFormat).levelBytes(level.mWidth, level.mHeight), finest.mBytes.size() - from);
         digest.add(finest.mBytes.subspan(from, bytes));
+    }
+
+    bool solidReachOf(const std::optional<TextureData>& finest, AlphaScratch&)
+    {
+        return !finest.has_value() || reachesSolid(*finest);
+    }
+
+    MeanTexel texelMeanOf(const std::optional<TextureData>& finest, AlphaScratch& scratch)
+    {
+        return finest.has_value() ? meanTexel(*finest, scratch) : MeanTexel();
     }
 }

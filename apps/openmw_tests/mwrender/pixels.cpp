@@ -130,6 +130,9 @@ namespace MWRender
         /// pixel is its own texel: (0.5 / 2) * 2 - 0.5 = 0 is dead on texel nought. The land alpha
         /// is land on the left column and sea on the right, so the right column's alpha goes to
         /// nought and its colour stays. Painted again, nothing changed and the caller is told so.
+        ///
+        /// **A coast's partial alpha rounds as GL's blend does**: the upper left pixel's land is 200,
+        /// so `70 × 200 / 255 = 54.9` lands on 55, where truncation wrote 54.
         TEST(MWRenderPixelsTest, aTilePaintsThroughTheLandAlphaAndReportsAChange)
         {
             const osg::ref_ptr<osg::Image> tile = makeGrey(2, 2, [](int x, int y) { return 50 + x * 100 + y * 20; });
@@ -139,6 +142,7 @@ namespace MWRender
             for (int y = 0; y < 4; ++y)
                 for (int x = 0; x < 4; ++x)
                     *land->data(x, y) = x < 3 ? 255 : 0;
+            *land->data(2, 2) = 200;
 
             const osg::ref_ptr<osg::Image> overlay = makeGrey(4, 4, [](int, int) { return 0; });
             std::vector<std::uint8_t> scratch;
@@ -155,7 +159,7 @@ namespace MWRender
             EXPECT_EQ(lowerRight[3], 0) << "sea takes the alpha";
             const std::uint8_t* upperLeft = overlay->data(2, 2);
             EXPECT_EQ(upperLeft[0], 70);
-            EXPECT_EQ(upperLeft[3], 70);
+            EXPECT_EQ(upperLeft[3], 55) << "a coast's alpha truncated where GL rounds";
             EXPECT_EQ(overlay->data(1, 1)[0], 0) << "nothing outside the cell";
             EXPECT_EQ(overlay->data(2, 3)[0], 0) << "nothing outside the cell";
 

@@ -49,17 +49,13 @@ namespace MWRender
     }
 
     // Upstream's, from RenderingManager::pagingBlacklistObject.
-    bool GlGround::blacklistReference(const int type, const MWWorld::ConstPtr& ptr)
+    void GlGround::blacklistReference(const int type, const MWWorld::ConstPtr& ptr)
     {
         if (!mObjectPaging)
-            return false;
+            return;
         if (mObjectPaging->blacklistObject(
                 type, ptr.getCellRef().getRefNum(), ptr.getCellRef().getPosition().asVec3(), cellOf(ptr)))
-        {
             mTerrain->rebuildViews();
-            return true;
-        }
-        return false;
     }
 
     // Upstream's, from RenderingManager::pagingUnlockCache.

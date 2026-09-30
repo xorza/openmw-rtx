@@ -22,6 +22,24 @@
 
 namespace RtxTool
 {
+    /// How fast a measured run steps the world unless it states otherwise, in frames a second: world
+    /// time and not wall time, so ten seconds is the same six hundred frames on a build that draws
+    /// them in four seconds and on one that takes twenty. Sixty because that is what the frame
+    /// budget is written against. A default a run states (`RunSetup::mStep`), and never read in
+    /// place of the step a run stated.
+    inline constexpr float sStepRate = 60.0f;
+
+    /// How long one of those frames stands for, which is what a measured frame tells the renderer.
+    inline constexpr float sStepSeconds = 1.0f / sStepRate;
+
+    /// What one frame of world counts for where a run turns seconds into frames — a span, a flight,
+    /// a turning sky: the stated step, or where the wall decides, the step a measured run states by
+    /// default.
+    inline float worldStep(const MWRender::RunSetup& setup)
+    {
+        return setup.mStep.value_or(sStepSeconds);
+    }
+
     /// One thing a run asserts about what the renderer was handed or what it drew, of the running
     /// game and never of a staged world, which reads its cells and dresses its people by rules of
     /// its own.

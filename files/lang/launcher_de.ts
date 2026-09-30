@@ -183,8 +183,8 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs an NVIDIA GPU with hardware ray tracing (Turing or later).</source>
-        <translation>Ersetzt den OpenGL-Renderer durch den experimentellen Vulkan-Raytracing-Renderer. Benötigt eine NVIDIA-GPU mit Hardware-Raytracing (Turing oder neuer).</translation>
+        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs a GPU with hardware ray tracing: NVIDIA Turing or AMD RDNA 2, or later.</source>
+        <translation>Ersetzt den OpenGL-Renderer durch den experimentellen Vulkan-Raytracing-Renderer. Benötigt eine GPU mit Hardware-Raytracing: NVIDIA Turing oder AMD RDNA 2, oder neuer.</translation>
     </message>
     <message>
         <source>Experimental Ray Tracing</source>
@@ -195,8 +195,8 @@
         <translation>Hochskalierung</translation>
     </message>
     <message>
-        <source>How far below the window&apos;s size the ray tracer traces. The upscaler reconstructs the frame across frames whichever mode is chosen, and every mode but Native traces fewer pixels than it shows.</source>
-        <translation>Wie weit unter der Fenstergröße der Raytracer rendert. Der Hochskalierer rekonstruiert das Bild in jedem Modus über mehrere Bilder, und alle Modi außer Nativ tracen weniger Pixel, als sie anzeigen.</translation>
+        <source>How far below the window&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
+        <translation>Wie weit unter der Fenstergröße der Raytracer rendert. Aus traced jedes Pixel ohne Hochskalierer; jeder andere Modus lässt den Hochskalierer laufen, der das Bild über mehrere Bilder rekonstruiert, und alle Modi außer Aus und Nativ tracen weniger Pixel, als sie anzeigen.</translation>
     </message>
     <message>
         <source>Off</source>

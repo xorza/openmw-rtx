@@ -3,8 +3,7 @@
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
-#include <components/rtx/preprocess/texture/solidreach.hpp>
-#include <components/rtx/preprocess/texture/texelmean.hpp>
+#include <components/rtx/preprocess/texture/texturepass.hpp>
 
 #include "contentcache.hpp"
 #include "contentpass.hpp"

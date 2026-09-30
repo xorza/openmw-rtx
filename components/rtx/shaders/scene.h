@@ -945,7 +945,7 @@ namespace Rtx::Shaders
         /// and hides nothing behind it, where the rest blend over and are smoke that needs its
         /// colour ramp to fade it — and `EMITTER_FALLS` for what the weather drops, the rain box
         /// or a driven storm, which `spriteshelter.rgen` keeps out from under a roof.
-        /// `Rtx::SceneExtractor::extractFalling` is the walk that says so.
+        /// `Rtx::SceneExtractor::extractPrecipitation` is the walk that says so.
         uint mFlags;
 
         /// How wide this emitter's quads are against their own axis, per unit of

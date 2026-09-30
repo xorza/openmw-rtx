@@ -900,11 +900,6 @@ namespace MWRender
         mUpdater->mMoonColor = color;
     }
 
-    unsigned int Moon::getPhaseInt() const
-    {
-        return MoonState::phaseToInt(mPhase);
-    }
-
     void Moon::setPhase(const MoonState::Phase& phase)
     {
         if (mPhase == phase)

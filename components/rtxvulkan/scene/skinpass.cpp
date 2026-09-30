@@ -67,7 +67,7 @@ namespace Rtx
         const VkDeviceAddress pose
             = rows == Rows::Written ? tables.writePose(scene, what.mSlot, index) : tables.getPose(mesh, what.mSlot);
 
-        const Deformer& deformer = scene.deformers().getDeformers()[mesh.mDeformer];
+        const Deformer& deformer = scene.deformers().getRows()[mesh.mDeformer];
         if (deformer.mKind == Deform::Rig)
         {
             const Shaders::SkinConstants push{

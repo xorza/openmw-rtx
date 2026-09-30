@@ -27,7 +27,7 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
-#include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/material.hpp>
@@ -42,8 +42,8 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
-#include <components/rtxvulkan/scene/spritebin.hpp>
-#include <components/rtxvulkan/scene/spritepasses.hpp>
+#include <components/rtxvulkan/trace/spritebin.hpp>
+#include <components/rtxvulkan/trace/spritepasses.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"
@@ -79,7 +79,7 @@ namespace Rtx::Testing
 
             // No sprites, so no tiles, and the table is still a buffer rather than `VK_NULL_HANDLE`.
             Batch setup(pool);
-            const SceneBuffers buffers(device, setup, empty, {}, 1);
+            const SceneBuffers buffers(device, setup, empty, {}, {}, 1);
             setup.flush();
 
             // **Every table this hands out**, because the rule is the same for all of them; which
@@ -290,7 +290,7 @@ namespace Rtx::Testing
             // `SceneUploader` recognising its own scene, and every frame after this would build the
             // world again from nothing.
             holds.dropMaterial(blue);
-            ASSERT_TRUE(scene.textures().isFree(blueTexture));
+            ASSERT_FALSE(scene.textures().isLive(blueTexture));
             ASSERT_EQ(scene.textures().getRows().size(), 2u) << "the table does not shrink";
 
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, std::span(&first, 1));
@@ -324,7 +324,7 @@ namespace Rtx::Testing
             scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = again });
 
             holds.dropMaterial(red);
-            ASSERT_TRUE(scene.textures().isFree(0u));
+            ASSERT_FALSE(scene.textures().isLive(0u));
 
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, std::span(&second, 1));
             mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });

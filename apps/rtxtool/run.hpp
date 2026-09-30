@@ -155,7 +155,7 @@ namespace RtxTool
         /// otherwise. The request `sessionFor` builds carries it as it is, so a knob `RunSetup`
         /// gains reaches every command by being read here.
         MWRender::RunSetup mSetup{
-            .mProfile = { .mUpscale = sUpscaleByDefault }, .mHeadless = true, .mStep = MWRender::sStepSeconds
+            .mProfile = { .mUpscale = sUpscaleByDefault }, .mHeadless = true, .mStep = sStepSeconds
         };
 
         /// Which day, counted from the one a new game begins on. Only the moons read it.
@@ -224,6 +224,10 @@ namespace RtxTool
 
     /// The view called `name`, or null.
     const Stop* findView(const std::vector<Stop>& views, std::string_view name);
+
+    /// The view called `name`. Throws where there is none, in the one words every verb refuses an
+    /// unknown view with.
+    const Stop& requireView(const std::vector<Stop>& views, std::string_view name);
 
     /// The views `named` asks for, in the order it names them; every one where it names none or
     /// "all". Throws naming a view that is not there. One place, because `bench` reaches it through

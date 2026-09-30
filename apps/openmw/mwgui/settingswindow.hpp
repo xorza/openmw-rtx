@@ -68,13 +68,7 @@ namespace MWGui
 
         MyGUI::Widget* mWindowModeHint;
 
-        MyGUI::Button* mRayTracingButton;
         MyGUI::ComboBox* mRayTracingUpscale;
-        MyGUI::Widget* mRayTracingUpscaleText;
-        MyGUI::Widget* mRayTracingDistantLand;
-        MyGUI::Widget* mRayTracingDistantLandText;
-        MyGUI::Widget* mRayTracingRestartHint;
-        MyGUI::Widget* mRayTracingUnavailableHint;
 
         // controls
         MyGUI::ScrollView* mControlsBox;

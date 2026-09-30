@@ -24,7 +24,7 @@ namespace RtxTool
         bool isUntilClosed() const { return mFrames == sUntilClosed; }
 
         /// How many frames this comes to at `step` seconds a frame, the run's own
-        /// (`RunSetup::getWorldStep`). At least one for a span that asked for anything at all, and
+        /// (`worldStep`). At least one for a span that asked for anything at all, and
         /// nought for one that asked for nothing.
         std::uint32_t getFrames(float step) const;
     };

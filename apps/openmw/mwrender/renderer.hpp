@@ -210,6 +210,11 @@ namespace MWRender
         /// and a world `tws` hides is still updated — and the rest are the renderer's own
         /// (`Render_Wireframe` is the rasterizer's polygon mode). The game keeps the modes that
         /// are its own nodes (paths, meshes, the pathgrid) and the water.
+        ///
+        /// **A map tile asked for under `tws` differs.** The rasterizer hides the world by a mask its
+        /// offscreen cameras do not share, so the tile is drawn. The ray tracer draws a tile against
+        /// the scene a walk hands over, and a hidden world is walked by nothing: the tile waits for
+        /// the world to come back. The doll stands on a scene of its own and is drawn by both.
         bool toggleRenderMode(RenderMode mode);
         bool isWorldToggled() const { return mWorldToggled; }
 
@@ -331,6 +336,11 @@ namespace MWRender
         /// the advance, in that order, so that the frame number is right for the frame the caller
         /// is in the middle of — see `Engine::go`, which advances first and draws after.
         void renderGuiFrame();
+
+        /// The same frame where the window is hidden: nothing drawn, a short rest in place of the
+        /// draw so the loop does not spin, and the advance a drawn one ends with, so the frame
+        /// number moves as it would.
+        void skipGuiFrame();
 
         /// A loading screen has come up, and draws frames of its own through `renderLoadingFrame`
         /// until `endLoading`. The rasterizer hands its compiler the whole of every such frame and

@@ -183,8 +183,8 @@
         <translation>16</translation>
     </message>
     <message>
-        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs an NVIDIA GPU with hardware ray tracing (Turing or later).</source>
-        <translation>Remplace le moteur de rendu OpenGL par le moteur de rendu Vulkan expérimental avec ray tracing. Nécessite un GPU NVIDIA avec ray tracing matériel (Turing ou plus récent).</translation>
+        <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs a GPU with hardware ray tracing: NVIDIA Turing or AMD RDNA 2, or later.</source>
+        <translation>Remplace le moteur de rendu OpenGL par le moteur de rendu Vulkan expérimental avec ray tracing. Nécessite un GPU avec ray tracing matériel : NVIDIA Turing ou AMD RDNA 2, ou plus récent.</translation>
     </message>
     <message>
         <source>Experimental Ray Tracing</source>
@@ -195,8 +195,8 @@
         <translation>Mise à l&apos;échelle</translation>
     </message>
     <message>
-        <source>How far below the window&apos;s size the ray tracer traces. The upscaler reconstructs the frame across frames whichever mode is chosen, and every mode but Native traces fewer pixels than it shows.</source>
-        <translation>À quelle distance sous la taille de la fenêtre le ray tracing est calculé. Le module de mise à l&apos;échelle reconstruit l&apos;image sur plusieurs images quel que soit le mode, et chaque mode sauf Native calcule moins de pixels qu&apos;il n&apos;en affiche.</translation>
+        <source>How far below the window&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
+        <translation>À quelle distance sous la taille de la fenêtre le ray tracing est calculé. Inactif calcule chaque pixel sans module de mise à l&apos;échelle ; tout autre mode utilise ce module, qui reconstruit l&apos;image sur plusieurs images, et chaque mode sauf Inactif et Native calcule moins de pixels qu&apos;il n&apos;en affiche.</translation>
     </message>
     <message>
         <source>Off</source>
