@@ -7,9 +7,11 @@
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/memorylimits.hpp>
 #include <components/rtx/common/result.hpp>
+#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/memory/structurestorage.hpp>
+#include <components/rtxvulkan/device/timeline.hpp>
 
 namespace Rtx
 {
@@ -62,9 +64,18 @@ namespace Rtx
             EXPECT_NE(storage.getBuffer(first), storage.getBuffer(fourth));
             EXPECT_EQ(storage.getBuffer(first), storage.getBuffer(third)) << "one block is one buffer";
 
-            // The eight-unit hole in the middle of the first block, taken up by the next structure
-            // of exactly that size rather than appended past everything.
-            storage.give(second);
+            // The eight-unit hole in the middle of the first block cools under the stamp it was given
+            // back with: a structure of that size asked for before the queue passes the stamp goes
+            // past the fourth, 256 bytes into the second block, because a frame in flight may still
+            // trace what stood in the hole.
+            storage.retire(second, device.getTimeline().getNext());
+            const StructureRoom early = storage.take(device, 2048, sBlock).value();
+            EXPECT_EQ(early.mBlock, 1u);
+            EXPECT_EQ(storage.getOffset(early), 256u) << "a room was handed out under the submit it was retired for";
+
+            // Once a submit carrying that stamp has run, the next of exactly that size takes the
+            // hole rather than being appended past everything.
+            getPool().submitAndWait([](VkCommandBuffer) {});
             const StructureRoom again = storage.take(device, 2048, sBlock).value();
             EXPECT_EQ(again.mBlock, 0u);
             EXPECT_EQ(storage.getOffset(again), 1024u);

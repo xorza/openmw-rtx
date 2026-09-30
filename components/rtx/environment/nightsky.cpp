@@ -251,7 +251,8 @@ namespace Rtx
     }
 
     Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
-        VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback, ContentPreprocessor& content)
+        VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback, ContentPreprocessor& content,
+        std::vector<TextureHold>& holds)
     {
         NightSky sky;
 
@@ -276,18 +277,19 @@ namespace Rtx
                 continue;
             }
 
-            const Index slot = scene.textures().take(VFS::Path::Normalized(layer.mImage->getFileName()), *layer.mImage);
+            TextureHold held = scene.takeTexture(VFS::Path::Normalized(layer.mImage->getFileName()), *layer.mImage);
+            const Index slot = held.get();
 
             if (std::min(layer.mUvSpan.x(), layer.mUvSpan.y()) > sTiledSpan)
             {
-                // The first that looks like one and no more. A file with two would otherwise
-                // leave the earlier one's hold taken and nothing holding it, which is a slot the
-                // sweep can never reclaim.
+                // The first that looks like one and no more: a second is given back at once.
                 if (sky.mField != sNoIndex)
                 {
-                    scene.textures().drop(slot);
+                    scene.drop(std::move(held));
                     continue;
                 }
+
+                holds.push_back(std::move(held));
 
                 sky.mField = slot;
                 sky.mTile = layer.mUvRate > 0.0f ? 1.0f / layer.mUvRate : 0.0f;
@@ -301,9 +303,11 @@ namespace Rtx
 
             if (next >= sky.mPatches.size())
             {
-                scene.textures().drop(slot);
+                scene.drop(std::move(held));
                 continue;
             }
+
+            holds.push_back(std::move(held));
 
             sky.mPatches[next++] = NightSky::Patch{
                 .mTexture = slot,
@@ -319,13 +323,5 @@ namespace Rtx
         }
 
         return sky;
-    }
-
-    void dropNightSky(SceneDesc& scene, const NightSky& sky)
-    {
-        // `sNoIndex` is a drop of nothing: a patch the mesh did not paint holds none.
-        scene.textures().drop(sky.mField);
-        for (const NightSky::Patch& patch : sky.mPatches)
-            scene.textures().drop(patch.mTexture);
     }
 }

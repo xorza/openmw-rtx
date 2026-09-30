@@ -31,7 +31,7 @@ namespace Rtx
 
     void Timeline::markIdle() const
     {
-        mFinished = mSubmitted;
+        mFinished = mSubmitted.load(std::memory_order_relaxed);
     }
 
     VkSemaphoreSubmitInfo Timeline::signal(const std::uint64_t value) const

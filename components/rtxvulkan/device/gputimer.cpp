@@ -39,7 +39,7 @@ namespace Rtx
             .pipelineStatistics = 0,
         };
 
-        mHandle = QueryPool::make(device.getHandle(), vkCreateQueryPool, info, "vkCreateQueryPool");
+        mHandle = QueryPool::make(device, vkCreateQueryPool, info, "vkCreateQueryPool");
         device.setName(mHandle.get(), "frame timestamps");
     }
 

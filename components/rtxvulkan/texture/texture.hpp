@@ -28,7 +28,6 @@ namespace Rtx
 {
     class Batch;
     class Device;
-    class Graveyard;
     class GroundCompositePass;
     struct TexturePasses;
 
@@ -86,10 +85,6 @@ namespace Rtx
 
         /// Whether the slot holds no texture.
         bool isEmpty() const { return mImage.isEmpty(); }
-
-        /// Hands both images to `graveyard` and leaves this empty: a frame in flight may still
-        /// sample either.
-        void buryIn(Graveyard& graveyard);
 
         /// The texture and its companion as a sampled descriptor takes them, through `sampler`, from
         /// the read-only layout an upload leaves them in.
@@ -170,7 +165,7 @@ namespace Rtx
         /// Uploads each of `arrived` into the slot it names, leaving every other texture alone —
         /// why the sets are allocated at the maximum rather than at the scene's count. By slot and
         /// not by appending, because a slot a departing cell freed is taken over wherever it sits.
-        /// What a slot held before goes to `graveyard`: a frame in flight may be reading it. The
+        /// What a slot held before buries itself: a frame in flight may be reading it. The
         /// descriptors are owed to every set and written by `sync`. The bakes go in after every
         /// file, because a bake is made from a source that may be arriving beside it, and the
         /// ground last, for the reason `chooseSide` gives.

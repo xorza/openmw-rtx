@@ -69,8 +69,9 @@ namespace Rtx
         ///        which is right for a harness where nothing else walks the same nodes.
         explicit SceneExtractor(SceneDesc& scene, Traversals* traversals = nullptr);
 
-        /// Out of line because `MirrorTraversal` and the identity maps' key types are only forward
-        /// declared here.
+        /// Gives back every hold the maps took on the scene — every placement, every row, every
+        /// texture — so a scene that outlives this holds nothing of it. The scene outlives it by
+        /// the reference this keeps.
         ~SceneExtractor();
 
         /// Which nodes the walks may descend into, as an `osg` traversal mask: what keeps the
@@ -187,10 +188,11 @@ namespace Rtx
         Retirement detach(CellRing& ring);
 
         /// Drops everything the walks since the last call did not find — placements included — and
-        /// compacts the scene. Mark and sweep, so only sound where the walks were the whole of what
-        /// the scene is of, which every caller's are: the world's frame and a picture's subject
-        /// are each re-walked whole. Also the only thing that lets go: the identity maps own their
-        /// keys, so a caller that never sweeps holds every drawable it has ever walked.
+        /// with it the holds those entries took on the scene's rows, which a row goes with the last
+        /// of. Only sound where the walks were the whole of what the scene is of, which every
+        /// caller's are: the world's frame and a picture's subject are each re-walked whole. Also
+        /// the only thing that lets go of the identity maps, which own their keys, so a caller that
+        /// never retires holds every drawable it has ever walked.
         ///
         /// **Between the last walk and the hand-over, which the scene enforces.** Handed over
         /// before this, the scene still holds what the walk stopped finding, where the last frame
@@ -357,8 +359,9 @@ namespace Rtx
         /// The particle systems the walk met, and the sprite textures they hold.
         EmitterResolver mEmitters{ mScene, mPass, mMeans };
 
-        // Refilled per sweep: the survivors, as the scene wants them.
-        std::vector<Index> mLiveMeshes;
-        std::vector<Index> mLiveMaterials;
+        /// How many meshes and materials the scene had freed at the last retire, which the next
+        /// one counts what went from.
+        std::uint64_t mMeshesFreed = mScene.meshes().getFreedCount();
+        std::uint64_t mMaterialsFreed = mScene.materials().getFreedCount();
     };
 }

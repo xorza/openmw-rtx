@@ -12,6 +12,8 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/death.hpp>
+#include <apps/components_tests/rtx/support/geometry.hpp>
+#include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/scene/deformertable.hpp>
@@ -254,6 +256,7 @@ namespace Rtx::Testing
         public:
             explicit OwnedRows(SceneDesc& scene)
                 : mScene(scene)
+                , mHolds(scene)
             {
             }
 
@@ -265,33 +268,33 @@ namespace Rtx::Testing
 
                 mMaterial = mScene.addMaterial(Material{ .mKind = MaterialKind::Terrain });
                 mMesh = mScene.addMesh(MeshArrays{ .mPositions = corners, .mIndices = triangle });
+                mHolds.mesh(mMesh);
+                mHolds.material(mMaterial);
                 mSlot = mScene.addInstance(MeshInstance{ .mMesh = mMesh, .mMaterial = mMaterial });
-                mScene.meshes().hold(mMesh);
-                mScene.materials().hold(mMaterial);
             }
 
             void letGo()
             {
-                mScene.placements().drop(mSlot, Stander::Walk);
+                mScene.dropInstance(mSlot, Stander::Walk);
                 mSlot = sNoIndex;
-                mScene.meshes().drop(mMesh);
-                mScene.materials().drop(mMaterial);
+                mHolds.dropMesh(mMesh);
+                mHolds.dropMaterial(mMaterial);
             }
 
             Index getMesh() const { return mMesh; }
 
         private:
             SceneDesc& mScene;
+            Testing::SceneHolds mHolds;
             Index mMesh = sNoIndex;
             Index mMaterial = sNoIndex;
             Index mSlot = sNoIndex;
         };
 
-        /// **A row something holds survives every sweep, and goes on the first after the hold is
-        /// given back.** The identity maps hold nothing for it, so without the hold the sweep after
-        /// the first walk would release the ground under the player's feet — and without the scene
-        /// saying a hold went, a sweep on a frame where every map stood whole would never run at
-        /// all.
+        /// **A row something holds survives every retire, and goes with the last hold given back,
+        /// which the next retire counts.** The identity maps hold nothing for it, so without the
+        /// hold a row stood outside a walk would have nothing keeping it — the ground under the
+        /// player's feet.
         TEST_F(RtxSceneExtractorTest, aRowAHoldKeepsIsKeptWhileHeldAndReleasedWhenLetGo)
         {
             OwnedRows rows(mScene);
@@ -310,10 +313,10 @@ namespace Rtx::Testing
             EXPECT_TRUE(mExtractor.retire().empty());
             EXPECT_EQ(mScene.meshes().getLiveCount(), 1u);
 
-            // Let go of between walks, as a detached world does, and gone on the sweep after the
-            // next — whose maps stand whole, so it is the dropped hold alone that runs it.
+            // Let go of between walks, as a detached world does, and gone on the spot: the retire
+            // after the next walk, whose maps stand whole, counts what went since the last.
             rows.letGo();
-            EXPECT_TRUE(mScene.hasDroppedHolds());
+            EXPECT_EQ(mScene.meshes().getLiveCount(), 0u) << "the last hold given back is where a row goes";
             mExtractor.extract(*nothing, osg::Matrixf::identity(), 0, 3);
 
             const Retirement went = mExtractor.retire();
@@ -321,19 +324,27 @@ namespace Rtx::Testing
             EXPECT_EQ(went.mMaterials, 1u);
             EXPECT_EQ(mScene.meshes().getLiveCount(), 0u) << "the row nothing holds was released";
             EXPECT_EQ(mScene.materials().getLiveCount(), 0u);
-            EXPECT_FALSE(mScene.hasDroppedHolds());
             EXPECT_TRUE(mScene.isEmpty()) << "a scene whose last rows were released still stands something";
 
-            // **A live row nothing holds is what no sweep can reach**, and the question the retire
-            // asks of the scene at its end. The texture table has no sweep at all: a slot taken and
-            // not held on the next line would carry its image for the life of the scene, and only
-            // this would say so.
+            // **A live row nothing holds is what no drop can reach**, and the question the retire
+            // asks of the scene at its end: a slot taken and not held on the next line would carry
+            // its image for the life of the scene, and only this would say so.
             EXPECT_TRUE(mScene.isConsistent());
             const Index orphan = mScene.textures().add(VFS::Path::NormalizedView("textures/forgotten.dds"));
             EXPECT_FALSE(mScene.isConsistent()) << "a live texture with no hold was not reported";
-            mScene.textures().hold(orphan);
+            TextureHold held = mScene.holdTexture(orphan);
             EXPECT_TRUE(mScene.isConsistent());
-            mScene.textures().drop(orphan);
+            mScene.drop(std::move(held));
+            EXPECT_TRUE(mScene.isEmpty());
+
+            // A mesh and a material the same, which a walk's identity holds from the moment it
+            // files them.
+            const Index mesh = Testing::addQuadMesh(mScene);
+            EXPECT_FALSE(mScene.isConsistent()) << "a live mesh with no hold was not reported";
+            Testing::letGoMesh(mScene, mesh);
+            const Index material = mScene.addMaterial(Material{});
+            EXPECT_FALSE(mScene.isConsistent()) << "a live material with no hold was not reported";
+            Testing::letGoMaterial(mScene, material);
             EXPECT_TRUE(mScene.isEmpty());
         }
 

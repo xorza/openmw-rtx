@@ -2,11 +2,13 @@
 
 #include <array>
 #include <string>
+#include <vector>
 
 #include <osg/Vec3f>
 
 #include <components/rtx/common/result.hpp>
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/shaders/sky.h>
 #include <components/vfs/pathutil.hpp>
 
@@ -60,7 +62,8 @@ namespace Rtx
         osg::Vec3f mGlow;
     };
 
-    /// Reads it, adding every texture it names to `scene` and holding them there. An error where
+    /// Reads it, adding every texture it names to `scene` and appending a hold on each to `holds`,
+    /// which the caller gives back with the rest of the sky. An error where
     /// neither file exists, having held nothing, saying why and leaving the name of `mesh` to
     /// whoever reports it: a gap in the content is refused and not read as a sky with no stars in
     /// it, and what the sky does without them is `addSkyContent`'s answer. A sheet the upload
@@ -71,8 +74,6 @@ namespace Rtx
     ///        second one and Morrowind alone does not, and the rasterizer picks by the same test.
     /// @param content what each sheet's mean is read through.
     Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
-        VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback, ContentPreprocessor& content);
-
-    /// Gives back every hold `readNightSky` took: the field's and each patch's.
-    void dropNightSky(SceneDesc& scene, const NightSky& sky);
+        VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback, ContentPreprocessor& content,
+        std::vector<TextureHold>& holds);
 }

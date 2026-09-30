@@ -44,7 +44,7 @@ namespace Rtx::Testing
 
     private:
         const Device& mDevice;
-        Semaphore mGate;
+        Immediate<VkSemaphore, vkDestroySemaphore> mGate;
         std::thread mOpener;
         bool mReleased = false;
     };

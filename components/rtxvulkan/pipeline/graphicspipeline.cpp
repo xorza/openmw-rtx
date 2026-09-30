@@ -128,8 +128,8 @@ namespace Rtx
             .layout = layout,
         };
         Owned<VkPipeline, vkDestroyPipeline> handle;
-        checkVk(vkCreateGraphicsPipelines(device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr,
-                    handle.put(device.getHandle())),
+        checkVk(vkCreateGraphicsPipelines(
+                    device.getHandle(), device.getPipelineCache(), 1, &pipeline, nullptr, handle.put(device)),
             "vkCreateGraphicsPipelines");
 
         creation.finish(handle.get());

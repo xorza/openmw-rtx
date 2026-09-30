@@ -124,7 +124,8 @@ namespace Rtx
         }
     }
 
-    MoonFaces addMoonFaces(SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes)
+    MoonFaces addMoonFaces(
+        SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes, std::vector<TextureHold>& holds)
     {
         // A moon of a size that is no size is refused and not drawn.
         const auto drawnWidth = [&](Moon moon, float size) {
@@ -145,7 +146,7 @@ namespace Rtx
             const Result<osg::ref_ptr<const osg::Image>, std::string> image = openImage(images, path);
             const Index slot
                 = scene.textures().add(path, image.isOk() ? image.value().get() : nullptr, TextureWrap::Clamp);
-            scene.textures().hold(slot);
+            holds.push_back(scene.holdTexture(slot));
             return slot;
         };
 
@@ -153,12 +154,6 @@ namespace Rtx
             .mSecunda = face(Moon::Secunda),
             .mMasserRadius = drawnWidth(Moon::Masser, sizes.mMasser),
             .mSecundaRadius = drawnWidth(Moon::Secunda, sizes.mSecunda) };
-    }
-
-    void dropMoonFaces(SceneDesc& scene, const MoonFaces& faces)
-    {
-        scene.textures().drop(faces.mMasser);
-        scene.textures().drop(faces.mSecunda);
     }
 
     Shaders::MoonDisc describeMoon(const MoonPlacement& placement, const osg::Vec3f& towardSun)

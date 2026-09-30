@@ -145,7 +145,7 @@ namespace Rtx
         };
         Owned<VkPipeline, vkDestroyPipeline> handle;
         checkVk(device.getFunctions().mCreateRayTracingPipelines(device.getHandle(), VK_NULL_HANDLE,
-                    device.getPipelineCache(), 1, &pipeline, nullptr, handle.put(device.getHandle())),
+                    device.getPipelineCache(), 1, &pipeline, nullptr, handle.put(device)),
             "vkCreateRayTracingPipelinesKHR");
 
         creation.finish(handle.get());

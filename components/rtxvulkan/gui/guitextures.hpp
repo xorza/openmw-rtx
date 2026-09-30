@@ -36,6 +36,8 @@ namespace Rtx
     {
     public:
         explicit GuiTextures(const Device& device);
+
+        /// Asserts every slot given back, for the reason `~SceneSlots` gives.
         ~GuiTextures();
 
         /// A slot holding a texture of this size, cleared to nothing.

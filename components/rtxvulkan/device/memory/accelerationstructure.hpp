@@ -1,10 +1,9 @@
 #pragma once
 
+#include <cstdint>
 #include <string_view>
 
 #include <vulkan/vulkan_core.h>
-
-#include <components/rtxvulkan/device/readstamp.hpp>
 
 #include "structurestorage.hpp"
 
@@ -17,11 +16,9 @@ namespace Rtx
     /// device handle `Owned` cannot hold, because its destroyer is a pointer the device loaded
     /// and not a function the header declares. Made once with its address asked once — a handle
     /// lasts until the mesh it belongs to is released, and the alternative was the same question
-    /// per instance per frame. Destroying one gives its room back after the handle has gone, so
-    /// two structures never stand in one place — and asserts `isIdle`, as a buffer's does. A
-    /// bottom level is read by every top-level build without being named again; the store it
-    /// stands in carries that naming for all of its rows, and a row goes through the graveyard,
-    /// which stamps after every top level made.
+    /// per instance per frame. Destroying one buries the handle and cools the room under the same
+    /// stamp, so a frame still tracing it traces it to the end, and two structures never stand
+    /// in one place.
     class AccelerationStructure
     {
     public:
@@ -44,36 +41,24 @@ namespace Rtx
         AccelerationStructure(AccelerationStructure&& other) noexcept;
         AccelerationStructure& operator=(AccelerationStructure&& other) noexcept;
 
-        /// The handle, and a hand-out: names the structure for the next submit, as a build, a
-        /// copy, a query and a launch all take it. Null for an empty slot, which nothing can hand
-        /// a submit and so names nothing.
-        VkAccelerationStructureKHR getHandle() const
-        {
-            if (!isEmpty())
-                nameForNext();
-            return mHandle;
-        }
+        /// Null for an empty slot.
+        VkAccelerationStructureKHR getHandle() const { return mHandle; }
 
         VkDeviceAddress getAddress() const { return mAddress; }
 
         bool isEmpty() const { return mHandle == VK_NULL_HANDLE; }
 
-        /// Names the structure for the next submit where a caller reaches it through a handle it
-        /// kept — a top-level build reuses the description it was made with.
-        void nameForNext() const;
-
-        /// Whether every submit that names this structure has run — what the destructor asserts,
-        /// and what the graveyard asserts as it frees.
-        bool isIdle() const;
-
     private:
         AccelerationStructure(const Device& device, VkAccelerationStructureTypeKHR type, VkBuffer buffer,
             VkDeviceSize offset, VkDeviceSize size, StructureStorage* storage, const StructureRoom& room);
 
+        /// Buries the handle and cools the room, where there is a handle.
         void reset();
 
+        /// What the graveyard ends a buried handle with: the destroyer the device loaded.
+        static void end(const Device& device, std::uint64_t handle);
+
         const Device* mDevice = nullptr;
-        ReadStamp mRead;
         VkAccelerationStructureKHR mHandle = VK_NULL_HANDLE;
         VkDeviceAddress mAddress = 0;
 

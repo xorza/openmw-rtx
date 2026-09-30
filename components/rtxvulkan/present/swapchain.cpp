@@ -168,7 +168,7 @@ namespace Rtx
             .presentMode = mPresentMode,
             .clipped = VK_TRUE,
         };
-        mHandle = Owned<VkSwapchainKHR, vkDestroySwapchainKHR>::make(
+        mHandle = Immediate<VkSwapchainKHR, vkDestroySwapchainKHR>::make(
             mDevice.getHandle(), vkCreateSwapchainKHR, create, "vkCreateSwapchainKHR");
 
         mImages = enumerateVk<VkImage>("vkGetSwapchainImagesKHR", [&](std::uint32_t* count, VkImage* into) {

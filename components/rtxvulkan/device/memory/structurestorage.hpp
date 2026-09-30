@@ -9,6 +9,7 @@
 
 #include <components/rtx/common/result.hpp>
 #include <components/rtx/common/runs.hpp>
+#include <components/rtxvulkan/device/retiring.hpp>
 
 #include "blocklist.hpp"
 #include "buffer.hpp"
@@ -24,9 +25,13 @@ namespace Rtx
 
     /// Room for bottom-level acceleration structures, as a list of buffers nothing ever moves: one
     /// buffer sized to the scene is what made a cell arriving rebuild the world. A `BlockList` over
-    /// buffers, in units of the structure alignment. A room is given back through an
-    /// `AccelerationStructure`'s end and never straight to `give`, because a frame that traced the
-    /// structure may still be on the queue.
+    /// buffers, in units of the structure alignment.
+    ///
+    /// **A room cools before it is handed out again.** A structure gives its room back as it goes,
+    /// under the stamp its handle was buried with, and the room stays taken until the timeline
+    /// passes that stamp: a frame that traced the structure may still be on the queue, and a build
+    /// into the same bytes would be written under it. The room is this storage's to hold and not the
+    /// graveyard's, so nothing outside needs this storage to outlive it.
     class StructureStorage
     {
     public:
@@ -49,10 +54,14 @@ namespace Rtx
         ///        device with no room for that much makes one only as large as the structure.
         Result<StructureRoom, std::string_view> take(const Device& device, VkDeviceSize bytes, VkDeviceSize least);
 
-        /// Gives a structure's room back, and gives the block to the device where that was the last
-        /// room in it. The structure itself is the caller's to destroy, and a `Graveyard` destroys
-        /// every structure it holds before it gives back a single room.
-        void give(const StructureRoom& room);
+        /// Takes a structure's room back once the timeline passes `until`, which is the stamp its
+        /// handle was buried with. `AccelerationStructure`'s end, and nothing else.
+        void retire(const StructureRoom& room, std::uint64_t until);
+
+        /// Hands out again every room whose stamp is at or below `finished`, and gives a block to
+        /// the device where that was the last room in it. Asked by `take`, and once a frame by the
+        /// store, so a block empties without waiting for an arrival.
+        void reclaim(std::uint64_t finished);
 
         VkBuffer getBuffer(const StructureRoom& room) const { return mBlocks.at(room.mBlock).mBuffer.getHandle(); }
         VkDeviceSize getOffset(const StructureRoom& room) const;
@@ -86,7 +95,13 @@ namespace Rtx
         /// How many places hold a block, which is what says whether this is the last one.
         std::size_t countLive() const;
 
+        /// Makes `room` free again, and gives its block to the device where it was the last.
+        void give(const StructureRoom& room);
+
         BlockList<Block> mBlocks;
+
+        /// Rooms given back and not yet out of the queue's reach, in stamp order.
+        Retiring<StructureRoom> mCooling;
 
         VkBufferUsageFlags mUsage = 0;
         std::string mName;

@@ -20,6 +20,7 @@
 
 #include "groundreader.hpp"
 #include "prepared.hpp"
+#include "readermemory.hpp"
 #include "templatewalk.hpp"
 
 namespace Rtx
@@ -57,6 +58,10 @@ namespace Rtx
         /// Takes back one cell's hold on an image its ground named. The image goes where it was the
         /// last.
         void giveBack(PreparedTexture& texture);
+
+        /// What the models this made keep, lent and spare. Walks every one, so it is asked once a
+        /// cell read, on the reader's own thread.
+        ReaderMemory measure() const;
 
     private:
         /// Reads the cell into `prepared`, which `read` has taken and lends after: the whole of a

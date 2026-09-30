@@ -13,7 +13,6 @@
 #include <components/rtxvulkan/device/memory/memory.hpp>
 
 #include "device.hpp"
-#include "graveyard.hpp"
 #include "result.hpp"
 #include "timeline.hpp"
 
@@ -28,7 +27,7 @@ namespace Rtx
             .queueFamilyIndex = device.getQueueFamily(),
         };
         mHandle = Owned<VkCommandPool, vkDestroyCommandPool>::make(
-            device.getHandle(), vkCreateCommandPool, create, "vkCreateCommandPool");
+            device, vkCreateCommandPool, create, "vkCreateCommandPool");
     }
 
     void CommandPool::defer(VkCommandBuffer commands)
@@ -308,20 +307,15 @@ namespace Rtx
 
     void Batch::release()
     {
+        // What the batch kept buries itself as the lists empty, under the submit the batch rides.
         CommandPool::BatchHold& hold = mPool.holdAt(mHold);
-        Graveyard& graveyard = getDevice().getGraveyard();
-        for (Buffer& buffer : hold.mBuffers)
-            graveyard.bury(std::move(buffer));
-        for (Image& image : hold.mImages)
-            graveyard.bury(std::move(image));
+        hold.mBuffers.clear();
+        hold.mImages.clear();
 
-        // Under the same value a burial would be, for the same reason.
+        // Under the same value a burial is, for the same reason.
         const std::uint64_t readUntil = getDevice().getTimeline().getNext();
         for (const std::size_t block : hold.mBlocks)
             mPool.giveStaging(block, readUntil);
-
-        hold.mBuffers.clear();
-        hold.mImages.clear();
         hold.mBlocks.clear();
         mFilled = 0;
     }

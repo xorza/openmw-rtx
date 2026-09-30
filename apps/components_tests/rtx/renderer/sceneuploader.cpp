@@ -34,7 +34,7 @@ namespace Rtx
             Testing::CountingRenderer renderer;
 
             const Testing::Model first = Testing::addModel(scene, VFS::Path::NormalizedView("textures/one.dds"));
-            const Testing::Model second = Testing::addModel(scene, VFS::Path::NormalizedView("textures/two.dds"));
+            Testing::addModel(scene, VFS::Path::NormalizedView("textures/two.dds"));
 
             // **First time through there is nothing to append to**, so two textures arriving is a
             // build of everything even though nothing was renumbered.
@@ -57,7 +57,7 @@ namespace Rtx
             EXPECT_EQ(renderer.mRebuilt, 1u) << "an unchanged scene must not cost a rebuild";
 
             // A ring arrives: a third model, so the tables grew and nothing moved.
-            const Testing::Model third = Testing::addModel(scene, VFS::Path::NormalizedView("textures/three.dds"));
+            Testing::addModel(scene, VFS::Path::NormalizedView("textures/three.dds"));
 
             const SceneUpload grown = uploader.hand(
                 renderer, Rtx::SceneUploader::Handing{ .mSlot = Rtx::SceneSlot::world(), .mScene = scene });
@@ -68,14 +68,11 @@ namespace Rtx
             EXPECT_EQ(renderer.mTextures, 3u);
             EXPECT_FALSE(renderer.mAppendedToWrongEnd) << "the arrivals began somewhere other than the array's end";
 
-            // The first model goes, in the order a sweep goes in: its placement first, then the
-            // tables. **Nothing is renumbered by that any more**, so it is not a rebuild — the frame
-            // after a cell leaves costs the top level and nothing else.
-            scene.placements().drop(first.mPlacement, Stander::Walk);
-
-            const Rtx::Index keptMeshes[2] = { second.mMesh, third.mMesh };
-            const Rtx::Index keptMaterials[2] = { second.mMaterial, third.mMaterial };
-            ASSERT_TRUE(scene.release(keptMeshes, keptMaterials));
+            // The first model goes: its placement, and with it the last holds on its mesh and its
+            // material. **Nothing is renumbered by that any more**, so it is not a rebuild — the
+            // frame after a cell leaves costs the top level and nothing else.
+            scene.dropInstance(first.mPlacement, Stander::Walk);
+            ASSERT_FALSE(scene.meshes().isLive(first.mMesh));
 
             const SceneUpload left = uploader.hand(
                 renderer, Rtx::SceneUploader::Handing{ .mSlot = Rtx::SceneSlot::world(), .mScene = scene });
@@ -120,12 +117,9 @@ namespace Rtx
 
             // **A crossing, which is the two at once**: one ring arrives as another goes, on one
             // frame. Both lists are applied and neither costs a rebuild.
-            const Testing::Model fifth = Testing::addModel(scene, VFS::Path::NormalizedView("textures/five.dds"));
-            scene.placements().drop(fourth.mPlacement, Stander::Walk);
-
-            const Rtx::Index stillHere[3] = { second.mMesh, third.mMesh, fifth.mMesh };
-            const Rtx::Index stillWorn[3] = { second.mMaterial, third.mMaterial, fifth.mMaterial };
-            ASSERT_TRUE(scene.release(stillHere, stillWorn));
+            Testing::addModel(scene, VFS::Path::NormalizedView("textures/five.dds"));
+            scene.dropInstance(fourth.mPlacement, Stander::Walk);
+            ASSERT_FALSE(scene.meshes().isLive(fourth.mMesh));
 
             const SceneUpload crossed = uploader.hand(
                 renderer, Rtx::SceneUploader::Handing{ .mSlot = Rtx::SceneSlot::world(), .mScene = scene });

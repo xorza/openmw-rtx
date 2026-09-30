@@ -32,8 +32,7 @@ namespace Rtx
         bool holds(VkExtent2D extent) const { return mChain.holds(extent.width, extent.height); }
 
         /// Makes the chain at least this big, and the byte image the texture is copied out of with
-        /// it. What it replaces is destroyed and not buried, so the caller has waited the device
-        /// idle.
+        /// it. What it replaces buries itself, so a picture in flight traces to the end.
         void grow(VkExtent2D extent, RadianceWidth radiance);
 
         /// Records a picture of `traced` under `camera` into `texture`, which `holds` the camera's

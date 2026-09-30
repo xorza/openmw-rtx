@@ -16,7 +16,6 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
-#include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
@@ -54,7 +53,7 @@ namespace Rtx
         }
 
         state.mTightness = Tightness::None;
-        mDevice.getGraveyard().bury(std::move(row.mStructure));
+        row.mStructure = AccelerationStructure();
     }
 
     void BottomLevelStore::release(std::span<const Index> meshes)
@@ -298,8 +297,7 @@ namespace Rtx
                 .queryType = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR,
                 .queryCount = wanted,
             };
-            mDevice.getGraveyard().replace(
-                mCompactable, QueryPool::make(mDevice.getHandle(), vkCreateQueryPool, create, "vkCreateQueryPool"));
+            mCompactable = QueryPool::make(mDevice, vkCreateQueryPool, create, "vkCreateQueryPool");
             mCompactablePool = wanted;
 
             for (Row& row : mRows)
@@ -419,6 +417,10 @@ namespace Rtx
         mCompactionCopies.clear();
         mMovedMeshes.clear();
 
+        // Once a placement, so a block whose last structure left goes back to the device without
+        // waiting for the next arrival to ask for room.
+        mStorage.reclaim(mDevice.getTimeline().getKnownFinished());
+
         readAnswers();
 
         VkDeviceSize taken = 0;
@@ -458,11 +460,11 @@ namespace Rtx
                 .mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR,
             });
 
-            // Buried and not destroyed, though the copy below reads it. The graveyard lets go
-            // once the frame this is recorded into retires, and the copy runs inside that frame —
-            // so what the fence covers is both this read and whatever earlier frame is still
-            // tracing the structure through the top level it was named in.
-            mDevice.getGraveyard().replace(row.mStructure, std::move(made));
+            // Replaced though the copy below reads it: the old structure buries itself under the
+            // frame this is recorded into, and the copy runs inside that frame — so what the stamp
+            // covers is both this read and whatever earlier frame is still tracing the structure
+            // through the top level it was named in.
+            row.mStructure = std::move(made);
 
             // The pair the report prints follows the copy, so what it says is what is left to save
             // rather than what was saved once.

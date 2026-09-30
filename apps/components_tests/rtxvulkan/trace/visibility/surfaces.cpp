@@ -18,6 +18,7 @@
 #include <apps/components_tests/rtx/support/device/memorylimits.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/layers.hpp>
+#include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/common/runs.hpp>
@@ -223,6 +224,12 @@ namespace Rtx::Testing
                 = scene.addMesh(MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
             const Index red
                 = scene.addMaterial(Material{ .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("red.dds")) });
+
+            // Held as a walk's identities hold them, so a material goes where this lets go of it
+            // and not with the placement that wore it.
+            Testing::SceneHolds holds(scene);
+            holds.mesh(mesh);
+            holds.material(red);
             scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = red });
 
             mRenderer.resize(size, size);
@@ -246,6 +253,7 @@ namespace Rtx::Testing
             // untouched, so this is the append path and not a rebuild.
             const Index blue = scene.addMaterial(
                 Material{ .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("blue.dds")) });
+            holds.material(blue);
             scene.addInstance(MeshInstance{
                 .mTransform = osg::Matrixf::translate(0.0f, -50.0f, 0.0f), .mMesh = mesh, .mMaterial = blue });
 
@@ -266,7 +274,7 @@ namespace Rtx::Testing
 
             // And the first texture is still where it was: move the near wall out of the way and the
             // one behind it has to be red again, sampled from a descriptor nothing rewrote.
-            scene.placements().drop(1, Stander::Walk);
+            scene.dropInstance(1, Stander::Walk);
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
             mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             mRenderer.readPixels(shown);
@@ -279,9 +287,7 @@ namespace Rtx::Testing
             // rather than as long as the descriptions. Stopping at the last one written also stops
             // `SceneUploader` recognising its own scene, and every frame after this would build the
             // world again from nothing.
-            const std::array<Index, 1> keptMeshes{ mesh };
-            const std::array<Index, 1> keptMaterials{ red };
-            ASSERT_TRUE(scene.release(keptMeshes, keptMaterials));
+            holds.dropMaterial(blue);
             ASSERT_TRUE(scene.textures().isFree(blueTexture));
             ASSERT_EQ(scene.textures().getRows().size(), 2u) << "the table does not shrink";
 
@@ -310,12 +316,12 @@ namespace Rtx::Testing
             const Index again = scene.addMaterial(
                 Material{ .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("blue.dds")) });
             ASSERT_EQ(scene.materials().getRows()[again].mDiffuse, blueTexture) << "the freed slot was not taken over";
+            holds.material(again);
 
-            scene.placements().drop(0, Stander::Walk);
+            scene.dropInstance(0, Stander::Walk);
             scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = again });
 
-            const std::array<Index, 1> keptAgain{ again };
-            ASSERT_TRUE(scene.release(keptMeshes, keptAgain));
+            holds.dropMaterial(red);
             ASSERT_TRUE(scene.textures().isFree(0u));
 
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, std::span(&second, 1));

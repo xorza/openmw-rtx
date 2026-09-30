@@ -524,20 +524,14 @@ namespace Rtx
         TEST(RtxSceneTexturesTest, aFreedSlotIsNotDescribedAndTheOthersKeepTheirSlots)
         {
 
-            // Two models, because a texture is only given back when the last material naming it is:
-            // `release` answers the ordinary frame by comparing the mesh and material counts and
-            // returning before it frees anything at all.
+            // Two models, because a texture is only given back when the last material naming it is.
+            // The placement's drop gives back the last holds on its mesh and its material, and the
+            // material's texture goes with it.
             Rtx::SceneDesc scene;
             const Testing::Model going = Testing::addModel(scene, VFS::Path::NormalizedView("textures/freed.dds"));
             const Testing::Model staying = Testing::addModel(scene, VFS::Path::NormalizedView("textures/named.dds"));
 
-            const std::array<Rtx::Index, 1> keptMeshes{ staying.mMesh };
-            const std::array<Rtx::Index, 1> keptMaterials{ staying.mMaterial };
-
-            // Dropped before the sweep, as the walk drops a placement before it lets go of the rows
-            // it stood on: the sweep asserts that nothing stands on what it frees.
-            scene.placements().drop(going.mPlacement, Rtx::Stander::Walk);
-            ASSERT_TRUE(scene.release(keptMeshes, keptMaterials));
+            scene.dropInstance(going.mPlacement, Rtx::Stander::Walk);
             ASSERT_EQ(going.mTexture, 0u) << "the gap has to be below something to be a gap";
             ASSERT_TRUE(scene.textures().isFree(going.mTexture));
             ASSERT_FALSE(scene.textures().isFree(staying.mTexture));

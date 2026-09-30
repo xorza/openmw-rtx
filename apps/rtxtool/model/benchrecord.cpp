@@ -260,6 +260,17 @@ namespace RtxTool
         // second is the one a card with a small host-visible heap runs out of first.
         out += Rtx::describeMemory(place.mMemory);
 
+        // **The host's side of the same question**: runs a freed mesh left as holes, which nothing
+        // moves to close, and what the cell reader keeps of models it no longer lends.
+        const Rtx::ContentMemory& content = place.mContent;
+        if (content.mVertexEnd > 0 || content.mReader.mLentModels + content.mReader.mSpareModels > 0)
+            out += std::format(
+                "  host  vertices {:.2f} M used of {:.2f} M reached   indices {:.2f} M of {:.2f} M   "
+                "reader {:.1f} MiB lent in {} models, {:.1f} MiB spare in {}\n",
+                content.mVerticesUsed / 1e6, content.mVertexEnd / 1e6, content.mIndicesUsed / 1e6,
+                content.mIndexEnd / 1e6, Rtx::megabytes(content.mReader.mLentBytes), content.mReader.mLentModels,
+                Rtx::megabytes(content.mReader.mSpareBytes), content.mReader.mSpareModels);
+
         if (place.mHitPercent > 0.0)
             out += std::format("  {:.1f}% of primary rays hit\n", place.mHitPercent);
 

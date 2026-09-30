@@ -5,6 +5,7 @@
 #include <utility>
 
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
@@ -70,7 +71,7 @@ namespace Rtx
             .usage = usage,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
         };
-        mHandle = Owned<VkBuffer, vkDestroyBuffer>::make(device.getHandle(), vkCreateBuffer, create, "vkCreateBuffer");
+        mHandle = Owned<VkBuffer, vkDestroyBuffer>::make(device, vkCreateBuffer, create, "vkCreateBuffer");
         device.setName(mHandle.get(), name);
     }
 
@@ -92,14 +93,14 @@ namespace Rtx
 
     Buffer::~Buffer()
     {
-        assert(mayDestroy() && "a buffer destroyed while a submit still reads it; bury it");
+        bury();
     }
 
     Buffer& Buffer::operator=(Buffer&& other) noexcept
     {
         if (this != &other)
         {
-            assert(mayDestroy() && "a buffer written over while a submit still reads it; replace it");
+            bury();
 
             mDevice = other.mDevice;
             mHandle = std::move(other.mHandle);
@@ -114,9 +115,10 @@ namespace Rtx
         return *this;
     }
 
-    bool Buffer::mayDestroy() const
+    void Buffer::bury()
     {
-        return isEmpty() || isIdle();
+        if (!isEmpty())
+            mDevice->getGraveyard().bury(std::move(mHandle), std::move(mMemory));
     }
 
     Buffer Buffer::make(const Device& device, const BufferKind kind, const VkDeviceSize size,

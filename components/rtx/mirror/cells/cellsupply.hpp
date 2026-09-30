@@ -12,6 +12,7 @@
 #include <components/rtx/common/worker.hpp>
 
 #include "cellworld.hpp"
+#include "readermemory.hpp"
 
 namespace Rtx
 {
@@ -104,6 +105,10 @@ namespace Rtx
         /// Hands the thread everything `giveBack` collected. Nothing where there is none.
         void publish();
 
+        /// What the reader kept of its models when it last finished a cell. Nought before the
+        /// first, and where there is no reader.
+        ReaderMemory getReaderMemory();
+
     private:
         /// The reader's loop: a list at a time, until asked to stop. `Monitor::serve` is the loop,
         /// and this is what it takes and what it does.
@@ -127,7 +132,7 @@ namespace Rtx
         CellReturns mReturning;
 
         /// The lock between the frame and the reader, and the two waits across it. It guards the
-        /// four below and nothing else.
+        /// five below and nothing else.
         Monitor mMonitor;
 
         /// What the thread is to read next, written whole under the lock and taken whole by the
@@ -144,6 +149,9 @@ namespace Rtx
 
         /// What the frame has given back, under the lock, for the thread to refill.
         CellReturns mReturned;
+
+        /// `CellReader::measure` as the thread last finished a cell, under the lock.
+        ReaderMemory mMeasured;
 
         /// The thread's own: the request it is working through, and the ask it came from.
         CellRequest mReading;

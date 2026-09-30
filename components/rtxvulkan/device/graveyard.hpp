@@ -1,95 +1,87 @@
 #pragma once
 
+#include <bit>
 #include <cstddef>
 #include <cstdint>
-#include <memory>
+#include <mutex>
 #include <utility>
 
-#include <vulkan/vulkan_core.h>
+#include <components/rtxvulkan/device/memory/memory.hpp>
 
-#include <components/rtxvulkan/device/memory/accelerationstructure.hpp>
-#include <components/rtxvulkan/device/memory/buffer.hpp>
-#include <components/rtxvulkan/device/memory/image.hpp>
-
-#include "handles.hpp"
+#include "owned.hpp"
 #include "retiring.hpp"
 
 namespace Rtx
 {
     class Device;
 
-    /// What a submit the queue may not have reached yet may still be reading, held until the
-    /// timeline says it has run: everything on the frame path buries what it is finished with here.
-    /// One for the queue, the device's own, and each burial is stamped with the value of the next
-    /// submit — which is after every submit already made and is the one a deferred batch rides —
-    /// so an object cannot be freed before its last reader, whoever buried it and whatever frame
+    /// Where every device object ends: each handle and each range of memory a submit may still
+    /// read is held here until the timeline says that submit has run. Nobody calls this to be safe —
+    /// `Owned`, `Buffer`, `Image` and `AccelerationStructure` bury themselves as they go, so an
+    /// assignment that replaces a table and a destructor that lets a scene go are both safe while
+    /// a frame in flight reads what they replace.
+    ///
+    /// **One for the queue, the device's own, and each burial is stamped with the value of the next
+    /// submit** — which is after every submit already made and is the one a deferred batch rides —
+    /// so an object cannot be freed before its last reader, whoever let go of it and whatever frame
     /// was recording. Two graveyards keyed by frame slot were the alternative, and a burial in the
     /// wrong one was a device lost with an invalid read.
+    ///
+    /// **One queue in burial order, and burial order is free order**: the stamps never fall, so a
+    /// wait lets go of a prefix, and what an owner's destructor buried first is ended first — a
+    /// structure before the storage it stands in, a view before its image, a handle before the
+    /// memory bound to it.
+    ///
+    /// **Any thread may bury**, because a pipeline a compiling thread fails to finish ends on that
+    /// thread. Only the device's own thread collects.
     class Graveyard
     {
     public:
         explicit Graveyard(const Device& device);
         ~Graveyard();
 
-        /// Each takes an empty one and does nothing with it.
-        void bury(Buffer&& buffer);
-        void bury(Image&& image);
+        /// Ends `handle` with `end`, and then gives `memory` back, once every submit made so far
+        /// and the next has run.
+        void bury(EndHandle end, std::uint64_t handle, DeviceMemory&& memory);
 
-        /// A structure and the room it stands in, given back together once nothing can be built
-        /// or traced in it.
-        void bury(AccelerationStructure&& structure);
-
-        /// A query pool a batch in flight may still be writing answers into.
-        void bury(QueryPool&& pool);
-
-        /// Anything else a submit may still read, held by ownership and let go of last — after
-        /// every structure, because what is buried this way is a scene, and a structure gives its
-        /// room back to a storage the scene owns. Type-erased, so this file names no scene.
-        void bury(std::shared_ptr<void>&& held);
-
-        /// Puts `made` where `held` stands and buries what stood there: the one way a table, an
-        /// image or a structure is replaced, so the assignment that replaces it cannot destroy
-        /// what a frame in flight reads.
-        template <class T>
-        void replace(T& held, T&& made)
+        /// The same for the handle `owned` gives up and the memory bound to it.
+        template <class Handle, auto Destroy>
+        void bury(Owned<Handle, Destroy>&& owned, DeviceMemory&& memory)
         {
-            bury(std::exchange(held, std::move(made)));
+            bury(&Owned<Handle, Destroy>::end, std::bit_cast<std::uint64_t>(owned.release()), std::move(memory));
         }
 
-        /// Destroys what the timeline has been seen to pass. Asked by the device after every
-        /// wait, which is where what the timeline knows changes, and by nothing else.
+        /// Ends what the timeline has been seen to pass. Asked by the device after every wait,
+        /// which is where what the timeline knows changes, and by nothing else.
         void collect();
 
-        /// Destroys everything held, a burial stamped for a submit nobody has made included: for
-        /// a queue nothing is on and nothing is recorded for, which a drain and the teardown are.
+        /// Ends everything held, a burial stamped for a submit nobody has made included: for a
+        /// queue nothing is on and nothing is recorded for, which a drain and the teardown are.
         /// The timeline idle is asserted rather than trusted, because the same call one wait too
         /// early is a destroyed object under a submit; that nothing is recorded is the caller's,
         /// through `Device::collectIdle`.
         void collectIdle();
 
         // Read by the tests and by nothing else.
-        std::size_t getHeldCount() const
-        {
-            return mBuffers.size() + mImages.size() + mStructures.size() + mQueryPools.size() + mOthers.size();
-        }
+        std::size_t getHeldCount() const;
 
     private:
-        std::uint64_t stamp() const;
+        /// One handle and the memory bound to it, either of which may be empty.
+        struct Burial
+        {
+            EndHandle mEnd = nullptr;
+            std::uint64_t mHandle = 0;
+            DeviceMemory mMemory;
+        };
 
-        /// Destroys everything stamped at or below `finished`, in the order the destructors need.
+        /// Ends everything stamped at or below `finished`, in the order it was buried.
         void freeThrough(std::uint64_t finished);
-
-        /// Destroys the prefix of `held` stamped at or below `finished`: written over with an
-        /// empty one, which is how every object here destroys itself.
-        template <class T>
-        static void free(Retiring<T>& held, std::uint64_t finished);
 
         const Device& mDevice;
 
-        Retiring<Buffer> mBuffers;
-        Retiring<Image> mImages;
-        Retiring<AccelerationStructure> mStructures;
-        Retiring<QueryPool> mQueryPools;
-        Retiring<std::shared_ptr<void>> mOthers;
+        /// Guards `mHeld`, for the burials a compiling thread makes.
+        mutable std::mutex mLock;
+
+        Retiring<Burial> mHeld;
     };
 }

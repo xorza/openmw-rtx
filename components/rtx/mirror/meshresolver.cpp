@@ -68,7 +68,7 @@ namespace Rtx
 
         if (const auto known = mMeshes.find(&drawable); known != mMeshes.end())
         {
-            const Index mesh = known->second.mIndex;
+            const Index mesh = known->second.mRow.get();
 
             // Refused once, and never read again: the file has not changed since.
             if (mesh == sNoIndex)
@@ -112,6 +112,9 @@ namespace Rtx
                 return mesh;
             }
 
+            // The entry's hold goes with it. The row stands while last frame's placement of it
+            // does, and is freed with the placement where nothing else holds it.
+            mScene.drop(std::move(known->second.mRow));
             mMeshes.abandon(known);
         }
 
@@ -129,7 +132,7 @@ namespace Rtx
         if (!readMesh.value())
         {
             ++stats.mSkippedEmpty;
-            mMeshes.add(&drawable, Known{ .mIndex = sNoIndex });
+            mMeshes.add(&drawable, KnownMesh{});
             return sNoIndex;
         }
 
@@ -142,7 +145,7 @@ namespace Rtx
         if (read.mRig != nullptr && read.mDeform == Deform::None)
             ++stats.mUnskinned;
 
-        mMeshes.add(&drawable, Known{ .mIndex = mesh });
+        file(drawable, mesh);
         ++stats.mMeshesAdded;
 
         // Posed on arrival as on every frame after: the bind pose the mesh holds is what a pose is
@@ -186,20 +189,19 @@ namespace Rtx
             // A template's drawable is never the walk's: the walk meets clones, and a clone of a
             // deforming drawable is a deep copy at another address. So what the map holds under
             // this key is what this class adopted, and that stands.
-            assert(!mScene.meshes().getRows()[known->second.mIndex].deforms()
+            assert(!mScene.meshes().getRows()[known->second.mRow.get()].deforms()
                 && "a reading adopted under a drawable the mirror poses");
 
             ++stats.mMeshesReused;
         }
         else
         {
-            const Index mesh = mScene.addMesh(reading.mArrays, reading.mShape);
-            known = mMeshes.add(&drawable, Known{ .mIndex = mesh });
+            known = file(drawable, mScene.addMesh(reading.mArrays, reading.mShape));
             ++stats.mMeshesAdded;
         }
 
         mMeshes.hold(known);
-        return known->second.mIndex;
+        return known->second.mRow.get();
     }
 
     void MeshResolver::release(const osg::Drawable& drawable)
@@ -212,7 +214,7 @@ namespace Rtx
     Index MeshResolver::refuse(const osg::Drawable& drawable, std::string_view why)
     {
         mScene.refusals().refuse(Refused::Mesh, drawable.getName(), why);
-        mMeshes.add(&drawable, Known{ .mIndex = sNoIndex });
+        mMeshes.add(&drawable, KnownMesh{});
         return sNoIndex;
     }
 
@@ -426,9 +428,19 @@ namespace Rtx
         return MorphSpec{ .mOffsets = mOffsetScratch, .mTargets = static_cast<Index>(targets.size()) };
     }
 
-    void MeshResolver::retire(std::vector<Index>& live)
+    void MeshResolver::retire()
     {
-        mMeshes.sweep(live);
+        mMeshes.retire([this](KnownMesh& gone) { mScene.drop(std::move(gone.mRow)); });
+    }
+
+    MeshResolver::~MeshResolver()
+    {
+        mMeshes.clear([this](KnownMesh& gone) { mScene.drop(std::move(gone.mRow)); });
+    }
+
+    MeshResolver::MeshEntry MeshResolver::file(const osg::Drawable& drawable, const Index mesh)
+    {
+        return mMeshes.add(&drawable, KnownMesh{ .mRow = mScene.holdMesh(mesh) });
     }
 
     void MeshResolver::retireDeformers()

@@ -2,17 +2,17 @@
 
 #include <cassert>
 #include <cstdint>
+#include <exception>
 #include <utility>
 
 #include <components/rtx/common/runs.hpp>
-#include <components/rtxvulkan/device/device.hpp>
-#include <components/rtxvulkan/device/graveyard.hpp>
 
 namespace Rtx
 {
-    SceneSlots::SceneSlots(const Device& device)
-        : mDevice(device)
+    SceneSlots::~SceneSlots()
     {
+        assert((std::uncaught_exceptions() > 0 || mFreeViews.size() == mViews.size())
+            && "a renderer taken apart with a picture's scene slot still out");
     }
 
     SceneSlot SceneSlots::add()
@@ -30,15 +30,13 @@ namespace Rtx
         assert(slot.getViewIndex() < mViews.size() && "a scene slot nothing handed out");
         assert(!mFreeViews.isFree(slot.getViewIndex()) && "a scene given back twice");
 
-        bury(slot);
+        clear(slot);
         mFreeViews.free(slot.getViewIndex());
     }
 
-    void SceneSlots::bury(const SceneSlot slot)
+    void SceneSlots::clear(const SceneSlot slot)
     {
-        std::unique_ptr<DeviceScene>& held = slotAt(slot);
-        if (held != nullptr)
-            mDevice.getGraveyard().bury(std::shared_ptr<void>(std::move(held)));
+        slotAt(slot).reset();
     }
 
     DeviceScene& SceneSlots::hold(const SceneSlot slot, std::unique_ptr<DeviceScene> scene)

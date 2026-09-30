@@ -1,6 +1,5 @@
 #include <cstdint>
 #include <unordered_map>
-#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -22,8 +21,6 @@ namespace Rtx
 
             /// What the extractor does between two walks: the sweep, then the epoch.
             void nextEpoch() { ++mPass.mEpoch; }
-
-            std::vector<Index> mLive;
         };
 
         /// **A held entry survives a sweep whatever its stamp, and counts as reached for `whole`.**
@@ -50,8 +47,8 @@ namespace Rtx
 
             nextEpoch();
             mKept.stamp(mKept.find(1));
-            EXPECT_EQ(mKept.sweep(mLive), 0u) << "nothing to drop: one stamped, one held";
-            EXPECT_EQ(mLive.size(), 2u) << "the held entry is a survivor the release keeps";
+            EXPECT_EQ(mKept.retire(), 0u) << "nothing to drop: one stamped, one held";
+            EXPECT_NE(mKept.find(2), mKept.end()) << "the held entry is a survivor";
         }
 
         /// **A dropped hold is a sweep owed**, even on an epoch that reached everything else: the
@@ -86,8 +83,8 @@ namespace Rtx
             mKept.hold(mKept.find(2));
             mKept.drop(mKept.find(2));
             EXPECT_TRUE(mKept.whole());
-            EXPECT_EQ(mKept.sweep(mLive), 0u);
-            EXPECT_EQ(mLive.size(), 1u);
+            EXPECT_EQ(mKept.retire(), 0u);
+            EXPECT_NE(mKept.find(2), mKept.end());
         }
 
         /// An entry abandoned mid-walk comes off the reached count and owes a sweep, or every
@@ -102,8 +99,9 @@ namespace Rtx
             mKept.abandon(mKept.find(1));
             EXPECT_FALSE(mKept.whole()) << "an abandon owes a sweep";
 
-            EXPECT_EQ(mKept.sweep(mLive), 0u) << "the abandoned entry is already gone";
-            EXPECT_EQ(mLive.size(), 1u);
+            EXPECT_EQ(mKept.retire(), 0u) << "the abandoned entry is already gone";
+            EXPECT_EQ(mKept.find(1), mKept.end());
+            EXPECT_NE(mKept.find(2), mKept.end());
             EXPECT_TRUE(mKept.whole());
 
             nextEpoch();
@@ -111,6 +109,23 @@ namespace Rtx
 
             Testing::expectAssertDies(
                 [&] { mKept.abandon(mKept.find(2)); }, "an entry abandoned while something holds it");
+        }
+
+        /// **A retire that skips because the counters say whole checks that no entry is stale.** A
+        /// stamp on an entry the map does not hold is a drift the counters cannot see: it counts one
+        /// reached while entry 1 is not, so the map reads whole with a stale entry in it.
+        TEST_F(RtxKeptTest, aSkippedRetireAssertsThatNothingWasStale)
+        {
+            mKept.add(1, Known{ .mIndex = 10 });
+            nextEpoch();
+            EXPECT_FALSE(mKept.whole());
+
+            Known outside;
+            mKept.stamp(outside);
+            ASSERT_TRUE(mKept.whole()) << "the drift this test is made of";
+
+            Testing::expectAssertDies(
+                [&] { mKept.retire(); }, "a map counted whole with an entry neither the epoch nor a hold keeps");
         }
     }
 }

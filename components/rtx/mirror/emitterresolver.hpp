@@ -12,6 +12,7 @@
 
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>
@@ -56,6 +57,13 @@ namespace Rtx
         {
         }
 
+        /// Gives back every hold an entry of the map took, so a scene that outlives this holds
+        /// nothing of it. The scene outlives it by the reference this keeps.
+        ~EmitterResolver();
+
+        EmitterResolver(const EmitterResolver&) = delete;
+        EmitterResolver& operator=(const EmitterResolver&) = delete;
+
         /// Notes one system the walk met, to be read when the walk is over.
         ///
         /// @param glow which effect the system stood under, as an index into what `flush` is
@@ -75,15 +83,18 @@ namespace Rtx
         void reserve(std::size_t emitters) { mHeld.reserve(emitters); }
 
     private:
-        /// What one particle system draws with, read off its state-set chain once and kept: its
-        /// sprite texture in `mIndex`, the bake of that texture's alpha its sprites are lit by, how
+        /// What one particle system draws with, read off its state-set chain once and kept: the
+        /// entry's hold on its sprite texture and on the bake of that texture's alpha its sprites
+        /// are lit by, how
         /// they composite, and the image itself. Read again only where a link of the chain
         /// animates, because nothing else can change what a system draws with — and describing
         /// a chain is a walk of its state sets, which hundreds of emitters a frame paid for
         /// nothing.
-        struct HeldSprite : Known
+        struct HeldSprite
         {
-            Index mLighting = sNoIndex;
+            TextureHold mSlot;
+            TextureHold mLighting;
+            Reach mReach;
 
             /// How the system's sprites composite: one that adds is light and must not be lit.
             BlendKind mBlend = BlendKind::Over;
@@ -145,7 +156,7 @@ namespace Rtx
         static constexpr std::uint16_t sSpriteTake = 1;
 
         /// Gives back the slots `held` took, where it took any.
-        void releaseSprite(const HeldSprite& held);
+        void releaseSprite(HeldSprite& held);
 
         /// Reads one noted system into the scene, and into its effect's glow where it stood under
         /// one.

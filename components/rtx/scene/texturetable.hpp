@@ -88,12 +88,6 @@ namespace Rtx
             return add(path, nullptr, wrap, encoding);
         }
 
-        /// The slot `image`, read from `path`, stands in under `wrap` and `encoding`, held for the
-        /// caller until it drops it: what a surface, a sprite, a sky layer and a moon turn their
-        /// image into. `sNoIndex`, holding nothing, where `add` refuses it.
-        Index take(VFS::Path::NormalizedView path, const osg::Image& image, TextureWrap wrap = TextureWrap::Repeat,
-            TextureEncoding encoding = TextureEncoding::Colour);
-
         /// The slot for a texture this renderer made — a composite baked for a distant chunk —
         /// keyed by `key` rather than by a file, taking one where `key` is not known. Two chunks
         /// that would bake the same image must find the same slot, so `key` has to be stable across
@@ -105,14 +99,6 @@ namespace Rtx
         /// none. What a bake made from a file's alpha finds its source by: the alpha is the same
         /// under every wrap, and the bake's key carries the file and not the wrap.
         Index findFile(VFS::Path::NormalizedView path) const;
-
-        /// Takes and gives back one name on a slot. A slot this never hands out — `sNoIndex`, and
-        /// the neutral texel a layer names where the table had no room — is "none" and costs a
-        /// compare. The slot is freed by the `drop` after which nothing names it. A particle
-        /// emitter's sprite names a texture this way: an emitter is rebuilt every frame, so
-        /// whatever recognises it between frames is what has to hold the texture.
-        void hold(Index texture);
-        void drop(Index texture);
 
         /// Whether nothing stands in `texture`. Asked of the slots and not of a count of holds,
         /// because a slot is taken before it is named.
@@ -150,6 +136,25 @@ namespace Rtx
         const FormatCensus& getFormats() const { return mFormats; }
 
     private:
+        /// What holds and takes a slot: the scene, whose `Hold` is the one way a holder outside
+        /// the tables names one, and the material table, which holds what a material names.
+        friend class SceneDesc;
+        friend class MaterialTable;
+
+        /// The slot `image`, read from `path`, stands in under `wrap` and `encoding`, held for the
+        /// caller until it drops it: what a surface, a sprite, a sky layer and a moon turn their
+        /// image into. `sNoIndex`, holding nothing, where `add` refuses it.
+        Index take(VFS::Path::NormalizedView path, const osg::Image& image, TextureWrap wrap = TextureWrap::Repeat,
+            TextureEncoding encoding = TextureEncoding::Colour);
+
+        /// Takes and gives back one name on a slot. A slot this never hands out — `sNoIndex`, and
+        /// the neutral texel a layer names where the table had no room — is "none" and costs a
+        /// compare. The slot is freed by the `drop` after which nothing names it. A particle
+        /// emitter's sprite names a texture this way: an emitter is rebuilt every frame, so
+        /// whatever recognises it between frames is what has to hold the texture.
+        void hold(Index texture);
+        void drop(Index texture);
+
         /// Whether a new slot may be taken, counting and reporting the refusal where it may not.
         bool hasRoom();
 

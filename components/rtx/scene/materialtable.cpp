@@ -83,26 +83,30 @@ namespace Rtx
         return run;
     }
 
-    std::size_t MaterialTable::sweep(TextureTable& textures)
+    void MaterialTable::drop(TextureTable& textures, const Index material)
     {
-        return mRows.sweep([&](Index, Material& going) {
-            // What it named goes with it, and before its layer run does: the run is what says
-            // which textures those were, and it is about to be handed to an allocator that will let
-            // the next chunk write over it.
-            dropTextures(textures, going);
+        if (!mRows.drop(material))
+            return;
 
-            // Its layers and the masks behind them go with it. A material that carries layers is
-            // a terrain chunk, so without this what accumulates is a blend map per chunk walked
-            // past; the runs are variable length, which is why they are given back to an allocator
-            // rather than to a list of slots.
-            for (const MaterialLayer& layer : going.mLayers.in(getLayers()))
-                mMasks.release(maskOf(layer));
+        Material& going = mRows.at(material);
 
-            if (!going.mLayers.empty())
-                mLayers.release(going.mLayers);
+        // What it named goes with it, and before its layer run does: the run is what says which
+        // textures those were, and it is about to be handed to an allocator that will let the next
+        // chunk write over it.
+        dropTextures(textures, going);
 
-            going = Material{};
-        });
+        // Its layers and the masks behind them go with it. A material that carries layers is a
+        // terrain chunk, so without this what accumulates is a blend map per chunk walked past; the
+        // runs are variable length, which is why they are given back to an allocator rather than to
+        // a list of slots.
+        for (const MaterialLayer& layer : going.mLayers.in(getLayers()))
+            mMasks.release(maskOf(layer));
+
+        if (!going.mLayers.empty())
+            mLayers.release(going.mLayers);
+
+        going = Material{};
+        mRows.free(material);
     }
 
     void MaterialTable::clearArrivals()

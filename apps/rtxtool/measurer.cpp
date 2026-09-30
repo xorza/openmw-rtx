@@ -387,6 +387,7 @@ namespace RtxTool
         place.mTravelled = travelled;
         place.mScene = renderer.getSceneStats();
         place.mMemory = renderer.getMemoryReport();
+        place.mContent = context.mRenderer.getContentMemory();
         place.mGpu.assign(zones.begin(), zones.end());
 
         return std::move(place);

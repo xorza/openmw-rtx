@@ -105,6 +105,7 @@ set(RTX_TEST_FILES
     rtxvulkan/device/physicaldevice.cpp
     rtxvulkan/device/requirements.cpp
     rtxvulkan/pipeline/dispatch.cpp
+    rtxvulkan/scene/sceneslots.cpp
     rtxvulkan/spirv/spirvdigest.cpp
     rtxvulkan/spirv/spirvfile.cpp
     rtxvulkan/spirv/spirvpin.cpp
@@ -131,6 +132,7 @@ set(RTX_TEST_SUPPORT
     rtx/support/layers.hpp
     rtx/support/lobeintegrals.hpp
     rtx/support/pngtext.hpp
+    rtx/support/sceneholds.hpp
     rtx/support/spritelightbake.cpp
     rtx/support/spritelightbake.hpp
     rtx/support/statistics.hpp

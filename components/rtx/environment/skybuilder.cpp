@@ -63,8 +63,8 @@ namespace Rtx
         return weather < mCloudCover.size() ? mCloudCover[weather] : 0.0f;
     }
 
-    SkyContent addSkyContent(
-        SceneDesc& scene, Resource::SceneManager& scenes, const SkyMeshes& meshes, ContentPreprocessor& content)
+    SkyContent addSkyContent(SceneDesc& scene, Resource::SceneManager& scenes, const SkyMeshes& meshes,
+        ContentPreprocessor& content, std::vector<TextureHold>& holds)
     {
         const VFS::Manager& vfs = *scenes.getVFS();
 
@@ -106,7 +106,9 @@ namespace Rtx
                 continue;
             }
 
-            loaded.mClouds[weather] = scene.textures().take(path, *image.value());
+            TextureHold deck = scene.takeTexture(path, *image.value());
+            loaded.mClouds[weather] = deck.get();
+            holds.push_back(std::move(deck));
 
             // Read here and not on the frame that needs it. Averaging a 512-square sheet is a
             // quarter of a million texels, and there are six of them; the image is the one the
@@ -126,22 +128,13 @@ namespace Rtx
         // The night sky is the mesh's, every number of it: which sheet the field wears, how much
         // sky a tile of it covers, where it fades out, and where the six patches sit.
         if (const Result<NightSky, std::string> night
-            = readNightSky(scene, scenes, meshes.mStars, meshes.mStarsFallback, content);
+            = readNightSky(scene, scenes, meshes.mStars, meshes.mStarsFallback, content, holds);
             night.isOk())
             loaded.mNight = night.value();
         else
             scene.refusals().refuse(Refused::SkyLayer, meshes.mStars.value(), night.error());
 
         return loaded;
-    }
-
-    void dropSkyContent(SceneDesc& scene, const SkyContent& content)
-    {
-        // `sNoIndex` is a drop of nothing: a weather the content files record no deck for holds
-        // none.
-        for (const Index deck : content.mClouds)
-            scene.textures().drop(deck);
-        dropNightSky(scene, content.mNight);
     }
 
     DeckLight deckLight(const Sun& sun, const osg::Vec3f& skyMean, std::span<const MoonPlacement, 2> moons)

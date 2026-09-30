@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 
 #include <vulkan/vulkan_core.h>
@@ -42,14 +43,14 @@ namespace Rtx
 
         /// The value the next submit will signal — what a batch recorded now and deferred rides,
         /// because the pool puts every deferred batch ahead of its next submit.
-        std::uint64_t getNext() const { return mSubmitted + 1; }
+        std::uint64_t getNext() const { return mSubmitted.load(std::memory_order_relaxed) + 1; }
 
         /// Whether the host has waited past `value`: a comparison against what a wait left behind,
         /// and never a question to the device. A value once passed stays passed.
         bool hasFinished(const std::uint64_t value) const { return value <= mFinished; }
 
         /// Whether the host has waited past every submit made: nothing is on the queue.
-        bool isIdle() const { return mFinished == mSubmitted; }
+        bool isIdle() const { return mFinished == mSubmitted.load(std::memory_order_relaxed); }
 
         /// The highest value a wait has left behind. What is retired against, once per wait rather
         /// than once per object.
@@ -64,7 +65,7 @@ namespace Rtx
 
         /// Takes the value the next submit signals, which the pool signals with `signal`. The
         /// pool's alone: a second caller would put the clock ahead of the queue.
-        std::uint64_t next() { return ++mSubmitted; }
+        std::uint64_t next() { return mSubmitted.fetch_add(1, std::memory_order_relaxed) + 1; }
 
         /// Blocks until the queue has signalled `value`. `what` names the wait in the error a
         /// device that stops answering produces. The device's alone, for the reason the class
@@ -76,8 +77,13 @@ namespace Rtx
         void markIdle() const;
 
         const Device& mDevice;
-        Semaphore mHandle;
-        std::uint64_t mSubmitted = 0;
+
+        /// Immediate, because the device takes the graveyard apart before the clock.
+        Immediate<VkSemaphore, vkDestroySemaphore> mHandle;
+
+        /// Atomic for the one reader off the device's thread: a burial a compiling thread makes,
+        /// which stamps itself with `getNext`. Relaxed, because the value alone is what is read.
+        std::atomic<std::uint64_t> mSubmitted = 0;
 
         /// The highest value a wait has left behind. Mutable because waiting is not a change to
         /// the clock, only to what is known of it.

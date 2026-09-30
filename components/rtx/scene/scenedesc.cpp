@@ -82,11 +82,6 @@ namespace Rtx
         mPlacements.rewriteWearing(material, what.getTraversed());
     }
 
-    bool SceneDesc::hasDroppedHolds() const
-    {
-        return mMeshes.hasDroppedHolds() || mMaterials.hasDroppedHolds();
-    }
-
     void SceneDesc::addLight(const Light& light)
     {
         mTurn.expect(Turn::Open, Turn::Walked);
@@ -159,30 +154,81 @@ namespace Rtx
             ? Material::Traversed{}
             : mMaterials.getRows()[instance.mMaterial].getTraversed();
 
+        mMeshes.hold(instance.mMesh);
+        if (instance.mMaterial != sNoIndex)
+            mMaterials.hold(instance.mMaterial);
+
         return mPlacements.add(instance, worn);
     }
 
-    bool SceneDesc::placementsStandOnLiveRows() const
+    void SceneDesc::dropInstance(const Index slot, const Stander by)
     {
-        for (const PlacementRow& row : mPlacements.getRows())
-        {
-            const MeshInstance& placed = row.mInstance;
-            if (!placed.isPlaced())
-                continue;
+        const MeshInstance stood = mPlacements.getRows()[slot].mInstance;
+        mPlacements.drop(slot, by);
 
-            if (!mMeshes.isLive(placed.mMesh))
-                return false;
-            if (placed.mMaterial != sNoIndex && !mMaterials.isLive(placed.mMaterial))
-                return false;
-        }
+        mMeshes.drop(mDeformers, stood.mMesh);
+        if (stood.mMaterial != sNoIndex)
+            mMaterials.drop(mTextures, stood.mMaterial);
+    }
 
-        return true;
+    MeshHold SceneDesc::holdMesh(const Index mesh)
+    {
+        mMeshes.hold(mesh);
+        return MeshHold(mesh);
+    }
+
+    MaterialHold SceneDesc::holdMaterial(const Index material)
+    {
+        mMaterials.hold(material);
+        return MaterialHold(material);
+    }
+
+    TextureHold SceneDesc::holdTexture(const Index texture)
+    {
+        mTextures.hold(texture);
+        return TextureHold(texture);
+    }
+
+    void SceneDesc::drop(MeshHold&& hold)
+    {
+        if (!hold.empty())
+            mMeshes.drop(mDeformers, hold.release());
+    }
+
+    void SceneDesc::drop(MaterialHold&& hold)
+    {
+        if (!hold.empty())
+            mMaterials.drop(mTextures, hold.release());
+    }
+
+    void SceneDesc::drop(TextureHold&& hold)
+    {
+        if (!hold.empty())
+            mTextures.drop(hold.release());
+    }
+
+    void SceneDesc::drop(std::vector<TextureHold>& holds)
+    {
+        for (TextureHold& hold : holds)
+            drop(std::move(hold));
+        holds.clear();
+    }
+
+    TextureHold SceneDesc::takeTexture(const VFS::Path::NormalizedView path, const osg::Image& image,
+        const TextureWrap wrap, const TextureEncoding encoding)
+    {
+        return TextureHold(mTextures.take(path, image, wrap, encoding));
     }
 
     bool SceneDesc::isConsistent() const
     {
-        if (!placementsStandOnLiveRows())
-            return false;
+        for (Index slot = 0; slot < mMeshes.size(); ++slot)
+            if (mMeshes.isLive(slot) && mMeshes.getHolds(slot) == 0)
+                return false;
+
+        for (Index slot = 0; slot < mMaterials.size(); ++slot)
+            if (mMaterials.isLive(slot) && mMaterials.getHolds(slot) == 0)
+                return false;
 
         for (Index slot = 0; slot < mTextures.getRows().size(); ++slot)
             if (!mTextures.isFree(slot) && mTextures.getHolds(slot) == 0)
@@ -243,33 +289,6 @@ namespace Rtx
         mSprites.clear();
         mEmitters.clear();
         mRipples.clear();
-    }
-
-    bool SceneDesc::release(std::span<const Index> meshes, std::span<const Index> materials)
-    {
-        // Only meshes and materials are asked, and that is now the whole of what this frees: a
-        // texture goes when the last material or hold naming it lets go, wherever that happens.
-        const std::size_t keptMeshes = mMeshes.mark(meshes);
-        const std::size_t keptMaterials = mMaterials.mark(materials);
-
-        // The ordinary frame leaves here. Asked of the marks and not of the span's length, which
-        // agree only while the keep set names each survivor once.
-        if (keptMeshes == mMeshes.getLiveCount() && keptMaterials == mMaterials.getLiveCount())
-            return false;
-
-        const std::size_t freedMeshes = mMeshes.sweep(mDeformers);
-        const std::size_t freedMaterials = mMaterials.sweep(mTextures);
-
-        // A sweep frees a row nothing holds and nothing named this walk; a placement still standing
-        // on it would be traced against whatever the slot is next given to.
-        assert(placementsStandOnLiveRows() && "a sweep freed a row a placement stands on");
-
-        // The per-frame lists are left as the walk left them: the walk that would refill them is
-        // the next frame's, and nothing in them can be stale after a walk of the whole world.
-        // Neither is a structure change nor a shading change: the structures still describe
-        // geometry nothing stands on, and the top level a frame rebuilds anyway stops them being
-        // traced.
-        return freedMeshes > 0 || freedMaterials > 0;
     }
 
     void SceneDesc::clearArrivals()

@@ -15,6 +15,7 @@
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
+#include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
@@ -142,6 +143,9 @@ namespace MWRender
 
         const Rtx::SceneDesc& getScene() const { return mScene; }
         Rtx::SceneDesc& getScene() { return mScene; }
+
+        /// What the content holds on the host beside the scene — `Rtx::ContentMemory`.
+        Rtx::ContentMemory getContentMemory();
 
         /// The frame thread's — `Rtx::SceneExtractor::getPreprocessor`.
         Rtx::ContentPreprocessor& getPreprocessor() { return mExtractor.getPreprocessor(); }

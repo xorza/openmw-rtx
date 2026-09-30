@@ -22,8 +22,7 @@ namespace Rtx
             .pCode = words.data(),
         };
 
-        ShaderModule handle
-            = ShaderModule::make(device.getHandle(), vkCreateShaderModule, createInfo, "vkCreateShaderModule");
+        ShaderModule handle = ShaderModule::make(device, vkCreateShaderModule, createInfo, "vkCreateShaderModule");
 
         device.setName(handle.get(), module);
 
@@ -33,10 +32,10 @@ namespace Rtx
     Semaphore makeSemaphore(const Device& device)
     {
         const VkSemaphoreCreateInfo create{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-        return Semaphore::make(device.getHandle(), vkCreateSemaphore, create, "vkCreateSemaphore");
+        return Semaphore::make(device, vkCreateSemaphore, create, "vkCreateSemaphore");
     }
 
-    Semaphore makeTimelineSemaphore(const Device& device, const std::string_view name)
+    Immediate<VkSemaphore, vkDestroySemaphore> makeTimelineSemaphore(const Device& device, const std::string_view name)
     {
         const VkSemaphoreTypeCreateInfo type{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
@@ -47,7 +46,8 @@ namespace Rtx
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
             .pNext = &type,
         };
-        Semaphore handle = Semaphore::make(device.getHandle(), vkCreateSemaphore, create, "vkCreateSemaphore");
+        Immediate<VkSemaphore, vkDestroySemaphore> handle = Immediate<VkSemaphore, vkDestroySemaphore>::make(
+            device.getHandle(), vkCreateSemaphore, create, "vkCreateSemaphore");
         device.setName(handle.get(), name);
         return handle;
     }
@@ -58,7 +58,7 @@ namespace Rtx
             .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
             .flags = VK_FENCE_CREATE_SIGNALED_BIT,
         };
-        return Fence::make(device.getHandle(), vkCreateFence, create, "vkCreateFence");
+        return Fence::make(device, vkCreateFence, create, "vkCreateFence");
     }
 
     SetLayout makeSetLayout(const Device& device, std::span<const VkDescriptorSetLayoutBinding> bindings,
@@ -72,7 +72,7 @@ namespace Rtx
             .pBindings = bindings.data(),
         };
         return SetLayout(Owned<VkDescriptorSetLayout, vkDestroyDescriptorSetLayout>::make(
-                             device.getHandle(), vkCreateDescriptorSetLayout, describe, "vkCreateDescriptorSetLayout"),
+                             device, vkCreateDescriptorSetLayout, describe, "vkCreateDescriptorSetLayout"),
             bindings);
     }
 
@@ -80,7 +80,7 @@ namespace Rtx
     {
         Sampler createSampler(const Device& device, const VkSamplerCreateInfo& describe, std::string_view name)
         {
-            Sampler handle = Sampler::make(device.getHandle(), vkCreateSampler, describe, "vkCreateSampler");
+            Sampler handle = Sampler::make(device, vkCreateSampler, describe, "vkCreateSampler");
             device.setName(handle.get(), name);
             return handle;
         }
@@ -183,6 +183,6 @@ namespace Rtx
             .pPushConstantRanges = pushes ? &push : nullptr,
         };
         mHandle = Owned<VkPipelineLayout, vkDestroyPipelineLayout>::make(
-            device.getHandle(), vkCreatePipelineLayout, pipelineLayout, "vkCreatePipelineLayout");
+            device, vkCreatePipelineLayout, pipelineLayout, "vkCreatePipelineLayout");
     }
 }

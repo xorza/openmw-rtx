@@ -23,6 +23,7 @@
 #include <osgParticle/RadialShooter>
 #include <osgParticle/range>
 
+#include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/sprite.hpp>
@@ -354,8 +355,9 @@ namespace Rtx::Testing
         TEST_F(RtxSceneExtractorTest, aRefusedSpriteDrawsOnceTheTableFreesASlot)
         {
             TextureTable& textures = mScene.textures();
+            Testing::SceneHolds holds(mScene);
             for (std::size_t at = 0; at < TextureTable::sCapacity; ++at)
-                textures.hold(textures.add(VFS::Path::Normalized("textures/tx_" + std::to_string(at) + ".dds")));
+                holds.texture(textures.add(VFS::Path::Normalized("textures/tx_" + std::to_string(at) + ".dds")));
 
             const Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
             emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
@@ -370,8 +372,8 @@ namespace Rtx::Testing
             }
 
             // Two slots, for the sprite and its bake.
-            textures.drop(9);
-            textures.drop(10);
+            holds.dropTexture(9);
+            holds.dropTexture(10);
 
             mScene.clearPlacement();
             walk(*plume.mRoot, 0, 3);

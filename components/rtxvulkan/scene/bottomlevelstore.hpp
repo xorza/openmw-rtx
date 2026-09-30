@@ -16,7 +16,6 @@
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/structurestorage.hpp>
-#include <components/rtxvulkan/device/readstamp.hpp>
 
 #include "structurebuild.hpp"
 
@@ -60,10 +59,6 @@ namespace Rtx
     public:
         explicit BottomLevelStore(const Device& device);
 
-        /// Names every structure held for the next submit — what a top-level build does, once,
-        /// for all of them.
-        void nameForNext() const { mRead.nameFor(mDevice.getTimeline().getNext()); }
-
         /// Creates and records the build of a structure for each of `meshes`, taking storage for it.
         /// A slot that already holds one has it destroyed first: a slot the scene handed out again
         /// arrives carrying different geometry. A mesh the device has no room for is left out and
@@ -79,8 +74,8 @@ namespace Rtx
             const BlockedBuffer& indices, std::uint64_t placement, std::vector<Refusal>& refused);
 
         /// Destroys the structures of `meshes` and gives their storage back. Idempotent, because
-        /// both the frame that places and the one that appends run it. The structures go to the
-        /// graveyard: the last frame's top level still names them.
+        /// both the frame that places and the one that appends run it. The last frame's top level
+        /// still names them, which their burial covers.
         void release(std::span<const Index> meshes);
 
         std::size_t size() const { return mRows.size(); }
@@ -219,11 +214,6 @@ namespace Rtx
 
         const Device& mDevice;
 
-        /// The one naming every row shares: a top-level build reads every structure here
-        /// through the instance table, and naming rows one by one would be a walk of the table
-        /// per frame. A row that goes is buried, and the graveyard's stamp is after this one.
-        ReadStamp mRead;
-
         // Before the rows, which give their rooms back to it as they go.
         StructureStorage mStorage{ sStructureStorageUsage, "bottom level structures" };
 
@@ -232,7 +222,7 @@ namespace Rtx
 
         /// What a build reads: the arrivals' positions, copied in ahead of it, and the scratch the
         /// build works in. Kept across builds rather than made per arrival, settling at the
-        /// high-water mark, and grown through the graveyard: a build in flight still reads them,
+        /// high-water mark, and grown by a replacement that buries the old: a build in flight still reads them,
         /// and the next build's copies and work are ordered after it by the barrier every command
         /// buffer opens with.
         GrowableBuffer mArrived;

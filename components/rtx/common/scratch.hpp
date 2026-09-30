@@ -101,6 +101,14 @@ namespace Rtx
         /// How many objects this has made, spare or lent.
         std::size_t size() const { return mAll.size(); }
 
+        /// `visit(object, spare)` over every object this made, lent or spare.
+        template <class Visit>
+        void forEach(Visit&& visit) const
+        {
+            for (const std::unique_ptr<T>& object : mAll)
+                visit(*object, object->mIsSpare);
+        }
+
     private:
         /// A spare off the list, or a new object where the list is empty, unfilled.
         T& takeSpare()
@@ -135,6 +143,17 @@ namespace Rtx
     {
         buffer.reuse();
     };
+
+    /// Gives `buffer`'s room back where what it holds fills less than half of it, ahead of a
+    /// `reuseKeeping` that keeps the room for the next tenant. What a pooled object keeps is then
+    /// within twice what its last tenant used, and not the most any tenant ever grew it to, which
+    /// a pool lending one object to model after model converges on in every object it holds.
+    template <class Buffer>
+    void dropSlack(Buffer& buffer)
+    {
+        if (buffer.capacity() > 2 * buffer.size())
+            Buffer().swap(buffer);
+    }
 
     /// Puts `object` back to its default while keeping the room its buffers grew. Every field not
     /// named is reset, so a new scalar is reset for free and a buffer forgotten reallocates, which

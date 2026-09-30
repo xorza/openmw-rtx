@@ -195,13 +195,12 @@ namespace Rtx
         /// The exemptions, each for a reason a match cannot see: `vkDestroyInstance` and
         /// `vkDestroyDevice` take no parent handle, so `Owned`'s shape does not fit them;
         /// `vkDestroySurfaceKHR` and the messenger take the instance rather than the device, two
-        /// sites not worth a second template parameter; `graveyard.cpp` destroys handles it was
-        /// *given*, the counterpart of `Owned::release`; `accelerationstructure.cpp` destroys
+        /// sites not worth a second template parameter; `accelerationstructure.cpp` destroys
         /// through a pointer the device loaded, which `Owned`'s template argument cannot name, so
-        /// it is the `Owned` for that handle.
+        /// it is the `Owned` for that handle and buries it the same way.
         TEST(RtxSourceTreeTest, everyDeviceParentedVulkanHandleIsHeldByOwned)
         {
-            const std::set<std::string> exemptFiles{ "owned.hpp", "graveyard.cpp", "accelerationstructure.cpp" };
+            const std::set<std::string> exemptFiles{ "owned.hpp", "accelerationstructure.cpp" };
             const std::set<std::string> allowed{ "vkDestroyInstance", "vkDestroyDevice", "vkDestroySurfaceKHR",
                 "vkDestroyDebugUtilsMessengerEXT", "mDestroyMessenger" };
 
@@ -218,23 +217,24 @@ namespace Rtx
                 << joined(found);
         }
 
-        /// A device object answers for its own readers, and the device answers for none of them.
+        /// A handle ended at once is held by `Rtx::Immediate` only where the graveyard cannot
+        /// outlive it.
         ///
-        /// **A device-wide answer is a flag set for a whole sweep**, under which no destructor can tell
-        /// a buried object from one destroyed by mistake. Every object a submit can name carries a
-        /// `ReadStamp` and asks it, so the one place the word is allowed is the object's own file.
-        TEST(RtxSourceTreeTest, onlyAnObjectAnswersWhetherItMayBeDestroyed)
+        /// **Everything else is `Owned`, which buries**, so a handle a submit may still read is never
+        /// ended under it. The three outside it say why where they are declared: the clock's
+        /// semaphore and the pipeline cache, which the device takes apart after its graveyard, and
+        /// the swapchain, whose surface goes first.
+        TEST(RtxSourceTreeTest, onlyWhatOutlivesTheGraveyardIsEndedAtOnce)
         {
-            const std::set<std::string> owners{ "buffer.hpp", "buffer.cpp", "image.hpp", "image.cpp" };
+            const std::set<std::string> allowed{ "owned.hpp", "handles.hpp", "handles.cpp", "timeline.hpp",
+                "pipelinecache.hpp", "swapchain.hpp", "swapchain.cpp" };
 
-            const std::vector<std::string> found = linesMatching({ sBackend }, owners, [](const std::string_view code) {
-                return code.find("mayDestroy") != std::string_view::npos
-                    || code.find("isReaping") != std::string_view::npos;
-            });
+            const std::vector<std::string> found = linesMatching({ sBackend }, allowed,
+                [](const std::string_view code) { return code.find("Immediate<") != std::string_view::npos; });
 
             EXPECT_TRUE(found.empty())
-                << "a device object asks something other than its own stamp whether it may be destroyed — "
-                   "give it a ReadStamp and ask that:\n"
+                << "a handle is ended at once where Rtx::Owned would bury it — hold it as Owned, or add "
+                   "the file above with the reason the graveyard cannot outlive it:\n"
                 << joined(found);
         }
 

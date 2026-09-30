@@ -9,6 +9,7 @@
 
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
+#include <components/rtxvulkan/device/timeline.hpp>
 
 #include "memory.hpp"
 
@@ -33,6 +34,8 @@ namespace Rtx
         const Device& device, VkDeviceSize bytes, VkDeviceSize least)
     {
         assert(bytes > 0);
+
+        reclaim(device.getTimeline().getKnownFinished());
 
         // Every live block may hold a structure, so the list is asked for the first that fits,
         // and a new block is as large as the caller asked or as the structure needs — as the
@@ -67,6 +70,17 @@ namespace Rtx
                 block.mBuffer = std::move(buffer.value());
                 return block;
             });
+    }
+
+    void StructureStorage::retire(const StructureRoom& room, const std::uint64_t until)
+    {
+        if (!room.empty())
+            mCooling.hold(until, StructureRoom(room));
+    }
+
+    void StructureStorage::reclaim(const std::uint64_t finished)
+    {
+        mCooling.releaseThrough(finished, [&](const StructureRoom& room) { give(room); });
     }
 
     void StructureStorage::give(const StructureRoom& room)

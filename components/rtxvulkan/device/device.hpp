@@ -313,14 +313,14 @@ namespace Rtx
         std::filesystem::path mShaderDirectory;
 
         // Last, so that they are torn down first, and in this order, because a later one dies
-        // earlier: the graveyard gives memory back to the allocator, the pool and the clock hold
-        // device objects, and saving the cache and freeing a block both call on the device that
-        // `mHandle` closes last of all.
+        // earlier: everything after the graveyard buries into it as it goes, the graveyard ends
+        // what it holds against the clock and gives memory back to the allocator, and saving the
+        // cache and freeing a block both call on the device that `mHandle` closes last of all.
         std::unique_ptr<PipelineCache> mPipelineCache;
         std::unique_ptr<MemoryAllocator> mMemory;
         std::unique_ptr<Timeline> mTimeline;
-        std::unique_ptr<CommandPool> mPool;
         std::unique_ptr<Graveyard> mGraveyard;
+        std::unique_ptr<CommandPool> mPool;
 
         /// AMD's breadcrumbs, null where the driver offers no `VK_AMD_buffer_marker`. Made on the
         /// allocator, so torn down before it. Marked from `checkpoint`, which a recording calls on

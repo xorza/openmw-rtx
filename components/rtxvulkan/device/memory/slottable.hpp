@@ -82,8 +82,8 @@ namespace Rtx
         /// because a copy can carry a debt from frames ago while the scene stands still.
         bool owes(FrameSlot slot) const { return mOwed.at(slot).owesAnything(); }
 
-        /// Writes what `slot`'s copy owes and clears the debt. A buffer a growth displaced goes to
-        /// the graveyard, because a frame in flight may still be reading it.
+        /// Writes what `slot`'s copy owes and clears the debt. A buffer a growth displaced buries
+        /// itself, because a frame in flight may still be reading it.
         void sync(FrameSlot slot)
         {
             GrowableBuffer& copy = mCopies.at(slot);

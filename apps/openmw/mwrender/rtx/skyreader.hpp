@@ -7,6 +7,7 @@
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/environment/skybuilder.hpp>
+#include <components/rtx/scene/rowhold.hpp>
 #include <components/sky/skyclock.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -93,9 +94,12 @@ namespace MWRender
         /// The sky's own meshes, as the settings name them.
         static Rtx::SkyMeshes meshes();
 
-        /// The moons' portraits and the sky's own meshes, held from `attach` to `detach`.
+        /// The moons' portraits and the sky's own meshes, named from `attach` to `detach`.
         Rtx::MoonFaces mMoonFaces;
         Rtx::SkyContent mSkyContent;
+
+        /// What names them: a hold on every sheet the two took, given back together at `detach`.
+        std::vector<Rtx::TextureHold> mHolds;
 
         /// The deck and the fog's seconds, this renderer's own: the dome keeps its own deck and
         /// neither reads the other's.

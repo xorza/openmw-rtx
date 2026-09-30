@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <apps/components_tests/rtx/support/layers.hpp>
+#include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/material.hpp>
@@ -173,7 +174,8 @@ namespace Rtx
             // The one still waiting goes away, and a wall takes its slot.
             const Index waiting = materials.back();
             materials.pop_back();
-            ASSERT_TRUE(scene.release({}, materials)) << "the material was not freed";
+            Testing::letGoMaterial(scene, waiting);
+            ASSERT_FALSE(scene.materials().isLive(waiting)) << "the material was not freed";
 
             paths.emplace_back("textures/wall.dds");
             Material wall;
@@ -185,7 +187,8 @@ namespace Rtx
             EXPECT_EQ(scene.materials().getRows()[newcomer].mDiffuse, wall.mDiffuse);
 
             // And a chunk that takes the slot after that asks for itself, off the row it wrote.
-            ASSERT_TRUE(scene.release({}, materials)) << "the wall was not freed";
+            Testing::letGoMaterial(scene, newcomer);
+            ASSERT_FALSE(scene.materials().isLive(newcomer)) << "the wall was not freed";
             paths.emplace_back("textures/newcomer-a.dds");
             paths.emplace_back("textures/newcomer-b.dds");
             const Index chunk = addChunk(scene, paths[chunks * 2 + 1], paths[chunks * 2 + 2]);

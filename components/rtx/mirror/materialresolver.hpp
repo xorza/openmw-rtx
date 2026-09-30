@@ -16,6 +16,7 @@
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/preprocess/meantexels.hpp>
 #include <components/rtx/scene/material.hpp>
+#include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/scene/surface.hpp>
@@ -92,6 +93,13 @@ namespace Rtx
         {
         }
 
+        /// Gives back every hold an entry of the maps took, so a scene that outlives this holds
+        /// nothing of it. The scene outlives it by the reference this keeps.
+        ~MaterialResolver();
+
+        MaterialResolver(const MaterialResolver&) = delete;
+        MaterialResolver& operator=(const MaterialResolver&) = delete;
+
         /// The material slot for the chain of state sets in force at a drawable.
         Resolved resolve(std::span<const Shading> shading);
 
@@ -133,14 +141,9 @@ namespace Rtx
         ///        `Shading::mAnimatedThrough`.
         const osg::StateSet* animate(osg::Node& node, osg::NodeVisitor* visitor, bool underAnimated);
 
-        /// Whether every material the map holds was met this epoch, the sea's included — see
-        /// `Kept::whole`. What the mirror asks before it sweeps, because the survivor list this
-        /// fills is read beside the mesh resolver's.
-        bool whole() const { return mMaterials.whole(); }
-
-        /// Drops every material neither this epoch nor a hold keeps, and collects the survivors
-        /// into `live`. A material that dies lets go of every texture it wore.
-        void retire(std::vector<Index>& live);
+        /// Drops every entry neither this epoch nor a hold keeps, and with it the entry's hold on
+        /// its material and on every image it wore.
+        void retire();
 
         /// Lets go of the images and the animated state sets this epoch did not meet. Asked
         /// whatever the materials did, because a cached material's images go stale on the frame
@@ -163,19 +166,9 @@ namespace Rtx
         /// unset: the slots are twelve, and the sweep reads the epoch and the holds alone.
         struct HeldTexture : Known
         {
-            using Slots = std::array<std::array<Index, sTextureWrapCount>, sTextureEncodingCount>;
-
-            /// Every slot unset, filled rather than spelled, so a wrap or an encoding added is
-            /// unset too and not slot nought.
-            static constexpr Slots noSlots()
-            {
-                Slots slots{};
-                for (std::array<Index, sTextureWrapCount>& wraps : slots)
-                    wraps.fill(sNoIndex);
-                return slots;
-            }
-
-            Slots mSlots = noSlots();
+            /// The entry's hold on each slot it took, one per wrap and encoding, and empty where it
+            /// took none.
+            std::array<std::array<TextureHold, sTextureWrapCount>, sTextureEncodingCount> mSlots;
             std::optional<bool> mSolid;
 
             /// Which of `mSlots` the table refused, a bit each. An animated material asks for its
@@ -212,9 +205,12 @@ namespace Rtx
             std::uint8_t mNext = 0;
         };
 
-        /// A material and, where a controller rewrites it, what it has worn.
-        struct HeldMaterial : Known
+        /// A material, the entry's hold on it, and, where a controller rewrites it, what it has
+        /// worn.
+        struct HeldMaterial
         {
+            MaterialHold mRow;
+            Reach mReach;
             std::optional<Worn> mWorn;
         };
 
@@ -260,6 +256,11 @@ namespace Rtx
 
         /// Gives back every hold `worn` took on the images it names.
         void releaseWorn(const Worn& worn);
+
+        /// Gives back what one entry holds on the scene: a material's row and what it wore, an
+        /// image's slots.
+        void release(HeldMaterial& held);
+        void release(HeldTexture& held);
 
         /// The scene's slot for one image under one wrap and one encoding, held for as long as this
         /// names it.
