@@ -40,8 +40,8 @@ namespace Rtx
     struct TextureRow
     {
         TextureKind mKind = TextureKind::File;
-        VFS::Path::Normalized mPath;
-        std::string mBaked;
+        VFS::Path::Normalized mPath{};
+        std::string mBaked{};
         TextureWrap mWrap = TextureWrap::Repeat;
 
         /// What the slot is read as: a file's as it was taken, a bake's as `addBaked` was told.
@@ -49,7 +49,7 @@ namespace Rtx
 
         /// A file's image, which the upload reads: the one the adder held, so the frame that
         /// uploads it opens nothing. Null for a bake, and for a file nothing reads at.
-        osg::ref_ptr<const osg::Image> mImage;
+        osg::ref_ptr<const osg::Image> mImage{};
     };
 
     /// Every texture the scene names, what still names each one, and which slots changed. A slot

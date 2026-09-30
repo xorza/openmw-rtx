@@ -46,7 +46,7 @@ namespace Rtx
     struct Preprocessed
     {
         ContentStats mOnFrame;
-        ContentStats mOffFrame;
+        ContentStats mOffFrame{};
 
         Preprocessed& operator+=(const Preprocessed& other);
     };

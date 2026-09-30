@@ -95,7 +95,7 @@ namespace Rtx
         struct KnownMesh
         {
             MeshHold mRow;
-            Reach mReach;
+            Reach mReach{};
         };
 
         using MeshEntry = Identity<const osg::Drawable, KnownMesh>::Entry;

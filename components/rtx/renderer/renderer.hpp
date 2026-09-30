@@ -91,7 +91,7 @@ namespace Rtx
         /// Where a backend keeps what it compiled, so that a later run need not compile it again.
         /// The user's cache directory (`ConfigurationManager::getCachePath`), because what goes here
         /// is regenerable and worth tens of megabytes. Empty keeps nothing.
-        std::filesystem::path mCacheDirectory;
+        std::filesystem::path mCacheDirectory{};
 
         /// The size the frame is presented at. What it is traced at follows from
         /// `mProfile.mUpscale`.
@@ -101,7 +101,7 @@ namespace Rtx
         /// Everything the run decided once about how the picture is made. The upscaling mode is
         /// fixed for the renderer's lifetime bar `Renderer::setUpscale`, and a build that has no
         /// upscaler refuses anything but `Off` at construction.
-        RenderProfile mProfile;
+        RenderProfile mProfile{};
 
         /// Where the frame is shown, or null for a renderer that only reads pixels back. A window
         /// and not a surface, because a surface is a thing an API has. A windowed renderer sizes
@@ -127,7 +127,7 @@ namespace Rtx
         /// with a place: content stops where it would stop there — textures held to a smaller side
         /// first — and what still does not fit is refused as it would be. What the frame itself
         /// holds is never refused, whatever this says.
-        std::optional<std::uint64_t> mMemoryBudget;
+        std::optional<std::uint64_t> mMemoryBudget{};
     };
 
     /// What a backend holds in one of its slots, as it says so itself. A slot and a scene are one
@@ -266,7 +266,7 @@ namespace Rtx
         /// bench's `overlap` figure is taken from, and the number a gate on two in flight asserts.
         std::uint32_t mInFlight = 0;
 
-        GpuZones mGpu;
+        GpuZones mGpu{};
 
         /// What put this frame back together, as the renderer resolved it.
         Reconstruction mReconstruction;

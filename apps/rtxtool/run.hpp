@@ -103,7 +103,7 @@ namespace RtxTool
         /// `Transition_Delta` at the clock's speed — a minute for most at the game's own — or
         /// `sTurnSeconds` under a turn, and the title is where a window shows it, because the HUD a
         /// script's message lands on is off unless `--hud` asked for it.
-        std::string_view mArriving;
+        std::string_view mArriving{};
 
         /// How far the crossing has come, nought to one.
         float mCrossed = 0.0f;
@@ -185,16 +185,16 @@ namespace RtxTool
     struct BenchSuite
     {
         std::string mName;
-        std::string mNote;
+        std::string mNote{};
 
         /// In the order they were written, which is the order they are run in.
-        std::vector<std::string> mViews;
+        std::vector<std::string> mViews{};
 
         /// Whether each hand-over waits for the distant ground it collects, or nothing to let the
         /// frame clock decide: `MWRender::RunSetup::mSettled`. A suite that times the streaming
         /// path says no, because waiting is most of what that path then measures — and a run
         /// under it may not be compared with a picture.
-        std::optional<bool> mSettled;
+        std::optional<bool> mSettled{};
     };
 
     /// Reads the suite file. Throws when it is missing or malformed, rather than quietly profiling

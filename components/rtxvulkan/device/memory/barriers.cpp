@@ -35,6 +35,8 @@ namespace Rtx
 
         const VkDependencyInfo dependency{
             .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .pNext = nullptr,
+            .dependencyFlags = 0,
             .memoryBarrierCount = static_cast<std::uint32_t>(mMemoryCount),
             .pMemoryBarriers = mMemory.data(),
             .bufferMemoryBarrierCount = static_cast<std::uint32_t>(mBufferCount),

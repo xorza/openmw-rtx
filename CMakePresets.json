@@ -39,12 +39,20 @@
             "$comment": [
                 "What Linux supplies: recastnavigation and Google Test as packages, and mold to link with.",
                 "`RelWithDebInfo` is `-O2 -g` here and not CMake's own, which carries `-DNDEBUG` and compiles",
-                "out every assert in the tree — the debug flavours are the one build anybody develops in."
+                "out every assert in the tree — the debug flavours are the one build anybody develops in.",
+                "**Static libraries are thin archives** (`ar T`), a list of the objects where they lie: the game's",
+                "is 1.3 GB of objects with their debug data, and copied whole it took six seconds of every build",
+                "that changed one of them, before any of the three programs on it could link. No library is",
+                "installed, so none has to carry its objects anywhere."
             ],
             "cacheVariables": {
                 "OPENMW_USE_SYSTEM_RECASTNAVIGATION": "ON",
                 "OPENMW_USE_SYSTEM_GOOGLETEST": "ON",
                 "CMAKE_EXE_LINKER_FLAGS_INIT": "-fuse-ld=mold",
+                "CMAKE_C_ARCHIVE_CREATE": "<CMAKE_AR> qcT <TARGET> <LINK_FLAGS> <OBJECTS>",
+                "CMAKE_C_ARCHIVE_APPEND": "<CMAKE_AR> qT <TARGET> <LINK_FLAGS> <OBJECTS>",
+                "CMAKE_CXX_ARCHIVE_CREATE": "<CMAKE_AR> qcT <TARGET> <LINK_FLAGS> <OBJECTS>",
+                "CMAKE_CXX_ARCHIVE_APPEND": "<CMAKE_AR> qT <TARGET> <LINK_FLAGS> <OBJECTS>",
                 "CMAKE_C_FLAGS_RELWITHDEBINFO": "-O2 -g",
                 "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O2 -g"
             }
@@ -196,7 +204,11 @@
         },
         {
             "name": "debug-linux",
-            "inherits": [ "debug", "linux", "rtx" ]
+            "inherits": [ "debug", "linux", "rtx" ],
+            "$comment": "The test binaries at `-Og`, which `cmake/Tests.cmake` says why of.",
+            "cacheVariables": {
+                "OPENMW_TEST_COMPILE_OPTIONS": "-Og"
+            }
         },
         {
             "name": "debug-windows",

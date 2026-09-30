@@ -16,10 +16,15 @@ and every frame to the one before.
 frames whose picture moved and the parts of the scene that did, and fails on either. One pair gates
 and ten read. Both legs' hashes are kept beside the logs of a pair that differed.
 
-**The second leg runs with the queue held behind the host**, as far as `check` holds it. Two runs of
-one binary keep the same phase between the host and the device, so a frame that read the device's
-clock could repeat exactly and still be a function of the wall; `Rtx::Timeline` says why no frame
-reads it now. Held, the device trails by half a frame, which is the other phase a run can have."""
+**Every other run holds the queue behind the host**, as far as `check` holds it. Two runs of one
+binary keep the same phase between the host and the device, so a frame that read the device's clock
+could repeat exactly and still be a function of the wall; `Rtx::Timeline` says why no frame reads it
+now. Held, the device trails by half a frame, which is the other phase a run can have.
+
+**A chain and not separate pairs**: each run is compared with the one before it, and the two always
+differ in the hold, so every comparison is a held run against a free one, as a pair was. `--pairs=N`
+is N comparisons, over N + 1 runs rather than 2N, and each run past the first is a fresh draw of
+its phase that two comparisons read."""
 
 import shutil
 import sys
@@ -67,20 +72,26 @@ def repeat(build: Build, args: list[str]) -> int:
     bench = [build.binary("openmw-rtxtool"), "bench", *place, *length, "--window=false", "--upscale=off",
              "--filter=false", "--validation=off", *extra]
 
+    def run(index: int) -> tuple[Path, int]:
+        log = out / f"{index}.log"
+        held = ["--hold=check"] if index % 2 else []
+        against = [f"--against={out / f'{index - 1}.csv'}"] if index else []
+        with open(log, "w") as written:
+            ended = build.run_here([*bench, *held, f"--hashes={out / f'{index}.csv'}", *against], stdout=written,
+                                   stderr=written)
+        return log, ended.returncode
+
+    first, code = run(0)
+    if code != 0:
+        print(f"the run itself failed, see {first}:\n{_tail(first)}", file=sys.stderr)
+        return 1
+
     status = 0
     for pair in range(1, pairs + 1):
-        first = out / f"{pair}-1.log"
-        with open(first, "w") as log:
-            if build.run_here([*bench, f"--hashes={out / f'{pair}.csv'}"], stdout=log, stderr=log).returncode != 0:
-                print(f"the run itself failed, see {first}:\n{_tail(first)}", file=sys.stderr)
-                return 1
-        second = out / f"{pair}-2.log"
-        with open(second, "w") as log:
-            ended = build.run_here([*bench, "--hold=check", f"--hashes={out / f'{pair}-2.csv'}",
-                                    f"--against={out / f'{pair}.csv'}"], stdout=log, stderr=log)
+        second, code = run(pair)
         lines = second.read_text(errors="replace").splitlines()
         against = next((i for i, line in enumerate(lines) if line.startswith("against ")), None)
-        if ended.returncode == 0:
+        if code == 0:
             print(f"pair {pair} of {pairs}: identical")
         elif against is not None and _differs(lines[against + 1:]):
             status = 1

@@ -95,6 +95,8 @@ namespace Rtx
 
         const VkBufferImageCopy copy{
             .bufferOffset = mLentRun.mOffset,
+            .bufferRowLength = 0,
+            .bufferImageHeight = 0,
             .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
             .imageOffset = { static_cast<std::int32_t>(region.mX), static_cast<std::int32_t>(region.mY), 0 },
             .imageExtent = { region.mWidth, region.mHeight, 1 },

@@ -111,10 +111,7 @@ namespace Rtx
                 Image image(getDevice(), width, height, format,
                     VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, name);
 
-                std::vector<VkBufferImageCopy> regions{ VkBufferImageCopy{
-                    .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-                    .imageExtent = { width, height, 1 },
-                } };
+                std::vector<VkBufferImageCopy> regions{ wholeLevel(0, 0, VkExtent3D{ width, height, 1 }) };
 
                 Batch batch(getPool());
                 uploadImage(batch, image, std::as_bytes(std::span(values)), regions);

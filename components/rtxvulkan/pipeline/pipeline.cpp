@@ -19,6 +19,8 @@ namespace Rtx
             .sType = VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO,
             .pNext = next,
             .pPipelineCreationFeedback = &mFeedback,
+            .pipelineStageCreationFeedbackCount = 0,
+            .pPipelineStageCreationFeedbacks = nullptr,
         };
         return &mTimed;
     }

@@ -213,7 +213,9 @@ namespace Rtx
             mRefit.mGeometries[i]
                 = describeTriangles(mesh, poses.addressOf(mesh.mBindOffset), mIndices.addressOf(mesh.mIndices.mOffset));
 
-            mRefit.mRanges[i] = VkAccelerationStructureBuildRangeInfoKHR{ .primitiveCount = mesh.getTriangleCount() };
+            mRefit.mRanges[i] = VkAccelerationStructureBuildRangeInfoKHR{
+                .primitiveCount = mesh.getTriangleCount(), .primitiveOffset = 0, .firstVertex = 0, .transformOffset = 0
+            };
             mRefit.mRangePointers.push_back(&mRefit.mRanges[i]);
         }
 
@@ -232,6 +234,7 @@ namespace Rtx
             const bool whole = index == mRebuilt;
             mRefit.mBuilds[i] = VkAccelerationStructureBuildGeometryInfoKHR{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+                .pNext = nullptr,
                 .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
                 .flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR
                     | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_BIT_KHR
@@ -242,6 +245,7 @@ namespace Rtx
                 .dstAccelerationStructure = mBottomLevel.getStructure(index),
                 .geometryCount = 1,
                 .pGeometries = &mRefit.mGeometries[i],
+                .ppGeometries = nullptr,
                 .scratchData = { .deviceAddress = scratchAddress + scratchAt },
             };
 
@@ -405,24 +409,37 @@ namespace Rtx
         // The address is the caller's to fill in, because it is a frame's and not the structure's.
         mTopLevelGeometry = VkAccelerationStructureGeometryKHR{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+            .pNext = nullptr,
             .geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR,
             .geometry = { .instances = {
                               .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR,
+                              .pNext = nullptr,
+                              .arrayOfPointers = VK_FALSE,
+                              .data = {},
                           } },
             .flags = VK_GEOMETRY_OPAQUE_BIT_KHR,
         };
 
         mTopLevelBuild = VkAccelerationStructureBuildGeometryInfoKHR{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+            .pNext = nullptr,
             .type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
             .flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
             .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+            .srcAccelerationStructure = VK_NULL_HANDLE,
+            .dstAccelerationStructure = VK_NULL_HANDLE,
             .geometryCount = 1,
             .pGeometries = &mTopLevelGeometry,
+            .ppGeometries = nullptr,
+            .scratchData = {},
         };
 
         VkAccelerationStructureBuildSizesInfoKHR sizes{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
+            .pNext = nullptr,
+            .accelerationStructureSize = 0,
+            .updateScratchSize = 0,
+            .buildScratchSize = 0,
         };
         functions.mGetAccelerationStructureBuildSizes(
             mDevice.getHandle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &mTopLevelBuild, &slots, &sizes);
@@ -452,7 +469,9 @@ namespace Rtx
         // holds the rows alone, so a count of the room reads instances past its end.
         const auto rows = static_cast<std::uint32_t>(mRowTable.size());
         assert(rows <= mTopLevelSlots && "a top level built over more rows than it was sized for");
-        const VkAccelerationStructureBuildRangeInfoKHR range{ .primitiveCount = rows };
+        const VkAccelerationStructureBuildRangeInfoKHR range{
+            .primitiveCount = rows, .primitiveOffset = 0, .firstVertex = 0, .transformOffset = 0
+        };
         const VkAccelerationStructureBuildRangeInfoKHR* ranges = &range;
 
         openZone(timer, commands, "tlas");

@@ -32,11 +32,8 @@ namespace Rtx
         std::vector<VkBufferImageCopy> regions;
         regions.reserve(Shaders::FOG_FIELD_LEVELS);
         for (std::uint32_t level = 0; level < Shaders::FOG_FIELD_LEVELS; ++level)
-            regions.push_back(VkBufferImageCopy{
-                .bufferOffset = noise.mOffsets[level],
-                .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, level, 0, 1 },
-                .imageExtent = { mField.getWidthAt(level), mField.getHeightAt(level), mField.getDepthAt(level) },
-            });
+            regions.push_back(wholeLevel(noise.mOffsets[level], level,
+                VkExtent3D{ mField.getWidthAt(level), mField.getHeightAt(level), mField.getDepthAt(level) }));
 
         Batch batch(device.getPool());
         uploadImage(batch, mField, std::as_bytes(std::span(noise.mBytes)), regions);

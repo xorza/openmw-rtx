@@ -153,7 +153,9 @@ namespace Rtx
 
         if (asked != nullptr)
         {
-            VkPhysicalDeviceFeatures2 offered{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, .pNext = asked };
+            VkPhysicalDeviceFeatures2 offered{
+                .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2, .pNext = asked, .features = {}
+            };
             vkGetPhysicalDeviceFeatures2(mPhysicalDevice.getHandle(), &offered);
 
             // The vendor binary is not asked for: nothing here could read it, and a feature enabled
@@ -182,6 +184,8 @@ namespace Rtx
         const float priority = 1.0f;
         const VkDeviceQueueCreateInfo queue{
             .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .queueFamilyIndex = mPhysicalDevice.getQueueFamily(),
             .queueCount = 1,
             .pQueuePriorities = &priority,
@@ -190,8 +194,11 @@ namespace Rtx
         const VkDeviceCreateInfo createInfo{
             .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
             .pNext = asked,
+            .flags = 0,
             .queueCreateInfoCount = 1,
             .pQueueCreateInfos = &queue,
+            .enabledLayerCount = 0,
+            .ppEnabledLayerNames = nullptr,
             .enabledExtensionCount = static_cast<std::uint32_t>(extensions.size()),
             .ppEnabledExtensionNames = extensions.data(),
             // Superseded by the VkPhysicalDeviceFeatures2 in the chain, and the two cannot both be set.
@@ -286,6 +293,7 @@ namespace Rtx
 
         const VkPipelineInfoKHR asked{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR,
+            .pNext = nullptr,
             .pipeline = pipeline,
         };
 
@@ -307,6 +315,7 @@ namespace Rtx
         {
             const VkPipelineExecutableInfoKHR which{
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INFO_KHR,
+                .pNext = nullptr,
                 .pipeline = pipeline,
                 .executableIndex = executable,
             };
@@ -317,7 +326,12 @@ namespace Rtx
                     [&](std::uint32_t* count, VkPipelineExecutableStatisticKHR* into) {
                         return mFunctions.mGetPipelineExecutableStatistics(mHandle.get(), &which, count, into);
                     },
-                    VkPipelineExecutableStatisticKHR{ .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR });
+                    VkPipelineExecutableStatisticKHR{ .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR,
+                        .pNext = nullptr,
+                        .name = {},
+                        .description = {},
+                        .format = VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_BOOL32_KHR,
+                        .value = {} });
 
             // Whatever the driver chose to say, and not a list this side picked. The names are
             // the compiler's own — NVIDIA reports registers and spills, another vendor reports
@@ -404,7 +418,10 @@ namespace Rtx
                 mGetQueueCheckpointData(mQueue, count, into);
                 return VK_SUCCESS;
             },
-            VkCheckpointDataNV{ .sType = VK_STRUCTURE_TYPE_CHECKPOINT_DATA_NV });
+            VkCheckpointDataNV{ .sType = VK_STRUCTURE_TYPE_CHECKPOINT_DATA_NV,
+                .pNext = nullptr,
+                .stage = VK_PIPELINE_STAGE_NONE,
+                .pCheckpointMarker = nullptr });
         if (passed.empty())
             return "\nthe queue passed no checkpoint";
 
@@ -428,7 +445,11 @@ namespace Rtx
 
         constexpr const char* sUnsaid = "\nthe driver would not say where the device faulted";
 
-        VkDeviceFaultCountsEXT counts{ .sType = VK_STRUCTURE_TYPE_DEVICE_FAULT_COUNTS_EXT };
+        VkDeviceFaultCountsEXT counts{ .sType = VK_STRUCTURE_TYPE_DEVICE_FAULT_COUNTS_EXT,
+            .pNext = nullptr,
+            .addressInfoCount = 0,
+            .vendorInfoCount = 0,
+            .vendorBinarySize = 0 };
         if (mGetDeviceFaultInfo(mHandle.get(), &counts, nullptr) != VK_SUCCESS)
             return sUnsaid + describeCheckpoints();
 
@@ -440,8 +461,11 @@ namespace Rtx
 
         VkDeviceFaultInfoEXT info{
             .sType = VK_STRUCTURE_TYPE_DEVICE_FAULT_INFO_EXT,
+            .pNext = nullptr,
+            .description = {},
             .pAddressInfos = addresses.data(),
             .pVendorInfos = vendor.data(),
+            .pVendorBinaryData = nullptr,
         };
 
         // `VK_INCOMPLETE` is the driver having more to say than the counts it gave a moment ago
@@ -470,6 +494,7 @@ namespace Rtx
 
         const VkDebugUtilsObjectNameInfoEXT info{
             .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+            .pNext = nullptr,
             .objectType = type,
             .objectHandle = handle,
             .pObjectName = name,

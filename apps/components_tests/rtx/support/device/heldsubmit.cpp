@@ -31,9 +31,11 @@ namespace Rtx::Testing
     {
         const VkSemaphoreSubmitInfo wait{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+            .pNext = nullptr,
             .semaphore = mGate.get(),
             .value = 1,
             .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+            .deviceIndex = 0,
         };
         return mDevice.getPool().submit(commands, std::span(&wait, 1));
     }
@@ -52,6 +54,7 @@ namespace Rtx::Testing
 
         const VkSemaphoreSignalInfo signal{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO,
+            .pNext = nullptr,
             .semaphore = mGate.get(),
             .value = 1,
         };

@@ -36,8 +36,8 @@ namespace Rtx
     struct TraceShaders
     {
         std::string_view mRaygen;
-        std::span<const std::string_view> mMiss;
-        std::span<const HitShader> mHit;
+        std::span<const std::string_view> mMiss{};
+        std::span<const HitShader> mHit{};
 
         /// How many records each closest-hit shader stands behind.
         std::uint32_t mHitRecordsPerShader = 1;
@@ -45,12 +45,12 @@ namespace Rtx
         /// What each hit record carries after its handle, one block per record in record order,
         /// every block the same size — or nothing. In the record and not in the payload, because a
         /// record is read by the shader the hit selects, and the payload is what every hit carries.
-        std::span<const std::byte> mHitRecordData;
+        std::span<const std::byte> mHitRecordData{};
 
         /// The one any-hit shader every hit group names, or nothing where traversal has no
         /// candidate to ask about. One and not one per group, because whether a candidate landed in
         /// a hole is a fact about the surface and not about what will shade it.
-        std::string_view mAnyHit;
+        std::string_view mAnyHit{};
     };
 
     /// A ray tracing pipeline's handle against `layout`: the part of `TracePipeline` its constants
@@ -110,10 +110,7 @@ namespace Rtx
             const SharedSetLayouts& shared, const TraceShaders& shaders, std::string_view name,
             std::span<const std::uint32_t> specialization = {})
             : TracePipeline(device,
-                PipelineLayout(device, bindings,
-                    VkPushConstantRange{
-                        .stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR, .size = pushBytesOf<Constants>() },
-                    shared),
+                PipelineLayout(device, bindings, pushRangeOf<Constants>(VK_SHADER_STAGE_RAYGEN_BIT_KHR), shared),
                 shaders, name, specialization)
         {
         }

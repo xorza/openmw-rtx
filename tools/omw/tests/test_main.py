@@ -55,11 +55,11 @@ class ParseTest(unittest.TestCase):
 class CtestArgumentsTest(unittest.TestCase):
     def test_the_switches_become_labels_and_the_rest_passes(self):
         cases = [
-            ("debug", [], ["-L", "fork"]),
-            ("debug", ["--all"], []),
-            ("debug", ["--without-device"], ["-LE", "device", "-L", "fork"]),
-            ("asan", ["--without-device", "--all", "-R", "crash"], ["-LE", "device", "-R", "crash"]),
-            ("plain", [], []),
+            ("debug", [], ["--parallel", "-L", "fork"]),
+            ("debug", ["--all"], ["--parallel"]),
+            ("debug", ["--without-device"], ["--parallel", "-LE", "device", "-L", "fork"]),
+            ("asan", ["--without-device", "--all", "-R", "crash"], ["--parallel", "-LE", "device", "-R", "crash"]),
+            ("plain", [], ["--parallel"]),
         ]
         for flavour, args, expected in cases:
             with self.subTest(flavour=flavour, args=args):

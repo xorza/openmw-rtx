@@ -96,9 +96,7 @@ namespace Rtx
         GraphicsPipeline(const Device& device, const GraphicsPipelineOptions& options)
             : GraphicsPipeline(device,
                 PipelineLayout(device, options.mBindings,
-                    VkPushConstantRange{ .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                        .size = pushBytesOf<Constants>() },
-                    {}),
+                    pushRangeOf<Constants>(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT), {}),
                 options)
         {
         }

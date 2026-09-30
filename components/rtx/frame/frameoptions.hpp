@@ -41,28 +41,28 @@ namespace Rtx
 
         /// The sun glare fader over the picture, which the display chain washes it with. None for a
         /// frame the world did not describe.
-        SunGlare mGlare;
+        SunGlare mGlare{};
 
         /// What the frame asks of the reconstruction in place of the profile's, before the
         /// upscaler has its say — `Reconstruction::resolve` is the rule.
-        std::optional<ReconstructionRequest> mReconstruction;
+        std::optional<ReconstructionRequest> mReconstruction{};
 
         /// How the frame is scaled before the display curve, in place of the profile's rule.
-        std::optional<ExposureRule> mExposure;
+        std::optional<ExposureRule> mExposure{};
 
         /// How much painted lighting to divide out, and what every pixel is painted with, in place of
         /// the profile's: what a test of one surface input asks for.
-        std::optional<float> mDelight;
-        std::optional<SurfaceView> mShow;
+        std::optional<float> mDelight{};
+        std::optional<SurfaceView> mShow{};
 
         /// Where in the pixel the frame samples, where the reconstruction does not jitter: a test's
         /// fixed sub-pixel offset. Nothing samples the pixel's centre. A reconstruction that jitters
         /// walks its own sequence, and a frame that asked for both is an assert.
-        std::optional<osg::Vec2f> mJitter;
+        std::optional<osg::Vec2f> mJitter{};
 
         /// What the game's debug modes drew, over the picture and under the interface. A tool and
         /// not the picture: nothing traces it, and a frame with none pays nothing for it.
-        DebugLines mDebug;
+        DebugLines mDebug{};
 
         /// Whether the frame leaves its picture in host memory for `FrameResult::mPixels`,
         /// copied by the frame's own commands after the display curve and before the interface,

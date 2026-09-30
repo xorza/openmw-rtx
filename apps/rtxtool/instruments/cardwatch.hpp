@@ -49,7 +49,7 @@ namespace RtxTool
 
         /// False where the driver keeps no such samples, with why.
         bool mViewed = false;
-        std::string_view mWhyNot;
+        std::string_view mWhyNot{};
     };
 
     /// The tally the samples go into. Apart from the watch that feeds it, so what it counts can

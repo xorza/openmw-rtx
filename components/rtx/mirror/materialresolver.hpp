@@ -51,16 +51,16 @@ namespace Rtx
         const osg::StateSet* mKey = nullptr;
 
         /// What the content said, or nothing where nothing did.
-        std::optional<SurfaceDescription> mDescribed;
+        std::optional<SurfaceDescription> mDescribed{};
 
         /// Whether the diffuse map's alpha ever reaches solid — decided by the reader for the one
         /// kind of surface the answer changes, a translucent one, and left unset for every other.
         /// The reader answers it because the walk over the texels is the reading's whole cost.
-        std::optional<bool> mDiffuseSolid;
+        std::optional<bool> mDiffuseSolid{};
 
         /// What a texel of the diffuse map adds on average, `Material::mDiffuseMean` — decided by
         /// the reader for an additive surface, for the same reason, and left unset for every other.
-        std::optional<osg::Vec3f> mDiffuseMean;
+        std::optional<osg::Vec3f> mDiffuseMean{};
     };
 
     /// Turns what the content says a surface is into the scene's materials, and keeps the textures
@@ -211,8 +211,8 @@ namespace Rtx
         struct HeldMaterial
         {
             MaterialHold mRow;
-            Reach mReach;
-            std::optional<Worn> mWorn;
+            Reach mReach{};
+            std::optional<Worn> mWorn{};
         };
 
         /// How many controllers one node's chains are applied from: an actor's root carries a glow

@@ -167,7 +167,14 @@ namespace Rtx
                 || (flags & VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD) != 0)
                 continue;
 
-            const VmaPoolCreateInfo pool{ .memoryTypeIndex = type, .blockSize = sBlockBytes };
+            const VmaPoolCreateInfo pool{ .memoryTypeIndex = type,
+                .flags = 0,
+                .blockSize = sBlockBytes,
+                .minBlockCount = 0,
+                .maxBlockCount = 0,
+                .priority = 0.0f,
+                .minAllocationAlignment = 0,
+                .pMemoryAllocateNext = nullptr };
             checkVk(vmaCreatePool(mAllocator, &pool, &mContentPools[type]), "vmaCreatePool");
         }
     }
@@ -235,10 +242,16 @@ namespace Rtx
 
         // Whether the driver binds the image to nothing but an allocation of its own, which the
         // library would otherwise find out only inside a pool that makes none.
-        VkMemoryDedicatedRequirements dedicated{ .sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS };
-        VkMemoryRequirements2 requirements{ .sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2, .pNext = &dedicated };
+        VkMemoryDedicatedRequirements dedicated{ .sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS,
+            .pNext = nullptr,
+            .prefersDedicatedAllocation = VK_FALSE,
+            .requiresDedicatedAllocation = VK_FALSE };
+        VkMemoryRequirements2 requirements{
+            .sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2, .pNext = &dedicated, .memoryRequirements = {}
+        };
         const VkImageMemoryRequirementsInfo2 info{
             .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2,
+            .pNext = nullptr,
             .image = image,
         };
         vkGetImageMemoryRequirements2(mDevice, &info, &requirements);

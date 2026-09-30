@@ -62,7 +62,7 @@ namespace Rtx::Shaders
         /// Non-zero where the shadow denoiser ran, so the sun is scaled by what it made of the rays'
         /// bits, and nought where the frame had no sky source to shadow and the pass was not
         /// recorded — where the bits themselves stand, and `sunlit` is nought under them.
-        uint mShadowed;
+        uint mShadowed RTX_ZERO;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that

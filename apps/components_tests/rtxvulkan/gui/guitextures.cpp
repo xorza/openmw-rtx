@@ -246,7 +246,7 @@ namespace Rtx
             {
                 std::uint32_t mSide;
                 std::array<std::uint8_t, 4> mColour;
-                GuiSlot mSlot;
+                GuiSlot mSlot{};
             };
 
             // A megabyte, a kilobyte and four bytes: the largest is what the staging settles at, and

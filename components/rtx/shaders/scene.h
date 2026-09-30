@@ -612,12 +612,12 @@ namespace Rtx::Shaders
 
         /// Radiant intensity, linear, with the colour folded in, scaled by the square of the
         /// recorded radius: what makes a lantern and a candle differ by their size.
-        vec3 mIntensity;
+        vec3 mIntensity RTX_ZERO;
 
         /// How far the light reaches, beyond which it contributes exactly nothing. Stretched from
         /// the recorded radius, because Morrowind's ran 64 to 256 units with an ambient filling the
         /// room, and here the lamps have to be what lights the place.
-        float mReach;
+        float mReach RTX_ZERO;
 
         /// How big the glowing part is, in world units: the flame, which a shadow ray opens to for
         /// a penumbra as wide as it is, and what stops the falloff running away at the lamp. Zero,
@@ -626,17 +626,17 @@ namespace Rtx::Shaders
         /// **And it is what makes the falloff above a sphere's rather than a point's.** An inverse
         /// square runs away at zero distance, which is where the air beside a lamp is sampled; a
         /// source with an extent flattens inside its own surface instead.
-        float mSourceRadius;
+        float mSourceRadius RTX_ZERO;
 
         /// How far short of the centre a shadow ray stops, because a lamp sits inside its own
         /// fitting and a ray that runs all the way ends among it.
-        float mClearance;
+        float mClearance RTX_ZERO;
 
         /// One where this light is a fill and nought where it is a lamp. A fill is a lamp whose
         /// flame is a ball `mSourceRadius` wide, lit from every side inside it: a magic effect's
         /// glow, which `Rtx::Glow::makeLight` builds. A word and not a bool, because the record is
         /// hashed whole and a bool leaves three bytes nothing wrote.
-        uint mFill;
+        uint mFill RTX_ZERO;
     };
 
     /// Where the lamps were binned, so a shader can find the few that reach a point.
@@ -785,30 +785,30 @@ namespace Rtx::Shaders
         /// Where this layer's weights start in the scene's mask table. The run's count is not
         /// stored: it is the grid's own area, and nought for a layer that covers everything —
         /// `Rtx::maskOf` reads the run back.
-        uint mMaskOffset;
+        uint mMaskOffset RTX_ZERO;
 
         /// The grid the weights form. Nought by nought where the layer covers everything.
-        uint mMaskWidth;
-        uint mMaskHeight;
+        uint mMaskWidth RTX_ZERO;
+        uint mMaskHeight RTX_ZERO;
 
         /// Cell texture coordinates to this layer's, as `uv * xy + zw`: the diffuse texture's, and
         /// the mask's. `Rtx::GroundReader` derives both from the tile count as
         /// `Terrain::createPasses` does, and a test holds the numbers.
-        vec4 mDiffuseTransform;
-        vec4 mMaskTransform;
+        vec4 mDiffuseTransform RTX_ZERO;
+        vec4 mMaskTransform RTX_ZERO;
 
         /// The layer's normal map, read at the diffuse's coordinates, or `NO_TEXTURE`. Its
         /// tangent is the one `terrain.vert` gives every layer: the chunk's x, which is the
         /// world's, with the bitangent `cross(N, x)`.
-        uint mNormal;
+        uint mNormal RTX_ZERO;
 
         /// `LAYER_` bits.
-        uint mFlags;
+        uint mFlags RTX_ZERO;
 
         /// To the sixty-four bytes std430 would give the row: at fifty-six, every other row's two
         /// `vec4` sit on eight and not sixteen, and every layer a hit sums is read in eight-byte
         /// loads, vanilla ground included.
-        uint mPadding[2];
+        uint mPadding[2] RTX_ZERO;
 
 #ifdef RTX_HOST
         /// Two layers are the same when every field is, which is what says a chunk still stands
@@ -841,7 +841,7 @@ namespace Rtx::Shaders
         /// The streak's own axis in the world, per unit of `mRadius`, or zero for a sprite that
         /// faces the eye. Per particle, because `Weather::RainShooter` leans each drop into the wind
         /// it was fired under. Not normalised, because its length is the shape.
-        vec3 mAxis;
+        vec3 mAxis RTX_ZERO;
 
         /// Linear, and already carrying wherever the particle's own colour ramp has reached.
         vec3 mColour;
@@ -856,13 +856,13 @@ namespace Rtx::Shaders
         /// is the emitter's and not the sprite's — its `GpuEmitterFrame` — once where it meets the
         /// emitter's run, and a list of sprites can only keep that if a sprite can say when the run
         /// it belongs to has changed.
-        uint mEmitter;
+        uint mEmitter RTX_ZERO;
 
         /// How many sprites of its own emitter stand between this one and the sun, and the sky, each
         /// counted for its fade. `spriteshade.h` counts them once a frame on the device, and
         /// `spritesAlong` thins the light by what one layer of the texture hides.
-        float mSunLayers;
-        float mSkyLayers;
+        float mSunLayers RTX_ZERO;
+        float mSkyLayers RTX_ZERO;
     };
 
     /// How many pixels a side one tile of the sprite list covers.
@@ -1093,7 +1093,7 @@ namespace Rtx::Shaders
         ///
         /// **Last.** A `vec4` is four-aligned in scalar layout like everything else here, so this
         /// costs the row four bytes and pads nothing.
-        uint mFlags;
+        uint mFlags RTX_ZERO;
     };
 
     // **The host's layout has to be the one the device reads**, because this side writes these

@@ -86,8 +86,8 @@ backend ever arrives.
   `components-tests` and `openmw-tests`, `rtx-gpu-tests`, and the crash matrix. `--all` adds
   upstream's suites. The GPU binary fails without a device rather than skipping, so a green run
   means a device ran it; `--without-device` leaves it out on a box with no driver.
-- The first run after a shader change includes the driver compiling its pipelines (`rtx.gpu` 23 s,
-  then 17 s): time a suite on a second run.
+- The first run after a shader change includes the driver compiling its pipelines: time a suite on
+  a second run.
 - `./omw gate` once at the end: format check, the driver's tests, build, the release compile,
   tests, `check`, one repeat pair, stopping at the first failure. Never a gate beside a
   build or another gate.
@@ -96,7 +96,9 @@ backend ever arrives.
   `./omw [flavour] info|scene|shot|view|bench|check|film|noise`, and `./omw exec ./openmw-rtxtool --help`
   for their options. The places are `files/rtx/views.cfg`, the suites `files/rtx/benches.cfg`.
 - `./omw shot --views=all --map --upscale=off --out=<dir>` ahead of a change and `--against=<dir>`
-  after it says which pictures the change moved. `--upscale=off`, because the harness upscales at
+  after it says which pictures the change moved: 56 s for every place, 9 s for one, so an
+  investigation narrows to its place and `all` is the last run. A baseline stays outside `/tmp`,
+  whose cleaner empties it under a long session. `--upscale=off`, because the harness upscales at
   `quality` unless told, and an upscaled picture moves with anything its history saw. `scene` reports what the renderer was handed. `check` asserts
   the tree's claims at every place of its suite. `bench` has the moving camera. `view` is for what
   only a window shows, and `film` flies through the keys `view --keys` wrote. `noise` holds the

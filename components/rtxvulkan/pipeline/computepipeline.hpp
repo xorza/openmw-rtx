@@ -41,10 +41,8 @@ namespace Rtx
             const SharedSetLayouts& shared, std::string_view module, std::string_view name,
             std::span<const std::uint32_t> specialization = {})
             : ComputePipeline(device,
-                PipelineLayout(device, bindings,
-                    VkPushConstantRange{ .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT, .size = pushBytesOf<Constants>() },
-                    shared),
-                module, name, specialization)
+                PipelineLayout(device, bindings, pushRangeOf<Constants>(VK_SHADER_STAGE_COMPUTE_BIT), shared), module,
+                name, specialization)
         {
         }
 

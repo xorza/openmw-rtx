@@ -31,8 +31,10 @@ namespace Rtx
 
         // The push range is the constants' type: its size, and nought for a pipeline pushed nothing,
         // whose layout then declares no range, since Vulkan takes no empty one.
-        static_assert(pushBytesOf<NoConstants>() == 0);
-        static_assert(pushBytesOf<float>() == sizeof(float));
+        static_assert(pushRangeOf<NoConstants>(VK_SHADER_STAGE_COMPUTE_BIT).size == 0);
+        static_assert(pushRangeOf<float>(VK_SHADER_STAGE_COMPUTE_BIT).size == sizeof(float));
+        static_assert(pushRangeOf<float>(VK_SHADER_STAGE_COMPUTE_BIT).offset == 0);
+        static_assert(pushRangeOf<float>(VK_SHADER_STAGE_RAYGEN_BIT_KHR).stageFlags == VK_SHADER_STAGE_RAYGEN_BIT_KHR);
 
         /// A pipeline whose shader cannot be opened gives back everything it had already made.
         ///
@@ -58,7 +60,8 @@ namespace Rtx
             ASSERT_NE(log, nullptr) << "the layers are what this test reads its answer from";
 
             constexpr std::array<VkDescriptorSetLayoutBinding, 1> bindings{
-                VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+                VkDescriptorSetLayoutBinding{
+                    0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
             };
             // Pushed a float, so the layout the unwind has to give back holds a push range too.
             EXPECT_THROW(ComputePipeline<float>(*device, bindings, {}, "no-such.comp.spv", "scratch"), InputError);
@@ -79,9 +82,12 @@ namespace Rtx
         TEST_F(RtxComputePipelineTest, descriptorWritesTakeTheTableTheyAreMadeAgainst)
         {
             constexpr std::array<VkDescriptorSetLayoutBinding, 3> bindings{
-                VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT },
-                VkDescriptorSetLayoutBinding{ 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
-                VkDescriptorSetLayoutBinding{ 2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 2, VK_SHADER_STAGE_COMPUTE_BIT },
+                VkDescriptorSetLayoutBinding{
+                    0, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+                VkDescriptorSetLayoutBinding{
+                    1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+                VkDescriptorSetLayoutBinding{
+                    2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 2, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
             };
             const SetLayout layout = makeSetLayout(getDevice(), bindings);
 

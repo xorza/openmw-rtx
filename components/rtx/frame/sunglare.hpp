@@ -12,7 +12,7 @@ namespace Rtx
     {
         /// `Weather_Sun_Glare_Fader_Color` doubled and clamped, in the display's own values and not
         /// in light, because that is the space the rasterizer adds it in.
-        osg::Vec3f mColour;
+        osg::Vec3f mColour{};
 
         /// `_Angle_Max` in radians, past which the wash is nothing.
         float mAngleMax = 0.0f;

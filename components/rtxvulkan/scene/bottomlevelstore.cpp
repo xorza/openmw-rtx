@@ -185,11 +185,16 @@ namespace Rtx
 
             mBuild.mBuilds[at] = VkAccelerationStructureBuildGeometryInfoKHR{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+                .pNext = nullptr,
                 .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
                 .flags = flags,
                 .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+                .srcAccelerationStructure = VK_NULL_HANDLE,
+                .dstAccelerationStructure = VK_NULL_HANDLE,
                 .geometryCount = 1,
                 .pGeometries = &mBuild.mGeometries[at],
+                .ppGeometries = nullptr,
+                .scratchData = {},
             };
 
             const std::uint32_t triangles = mesh.getTriangleCount();
@@ -206,6 +211,10 @@ namespace Rtx
 
             VkAccelerationStructureBuildSizesInfoKHR sizes{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
+                .pNext = nullptr,
+                .accelerationStructureSize = 0,
+                .updateScratchSize = 0,
+                .buildScratchSize = 0,
             };
             functions.mGetAccelerationStructureBuildSizes(mDevice.getHandle(),
                 VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &mBuild.mBuilds[at], &triangles, &sizes);
@@ -224,7 +233,9 @@ namespace Rtx
             row.mBuildScratch = sizes.buildScratchSize;
             row.mRebuiltAt = placement;
 
-            mBuild.mRanges[at] = VkAccelerationStructureBuildRangeInfoKHR{ .primitiveCount = triangles };
+            mBuild.mRanges[at] = VkAccelerationStructureBuildRangeInfoKHR{
+                .primitiveCount = triangles, .primitiveOffset = 0, .firstVertex = 0, .transformOffset = 0
+            };
         }
 
         // Before the structures below are made: a slot retired above and refitted again is then
@@ -307,8 +318,11 @@ namespace Rtx
             // through the new one, below.
             const VkQueryPoolCreateInfo create{
                 .sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
                 .queryType = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR,
                 .queryCount = wanted,
+                .pipelineStatistics = 0,
             };
             mCompactable = QueryPool::make(mDevice, vkCreateQueryPool, create, "vkCreateQueryPool");
             mCompactablePool = wanted;
@@ -474,6 +488,7 @@ namespace Rtx
 
             mCompactionCopies.push_back(VkCopyAccelerationStructureInfoKHR{
                 .sType = VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR,
+                .pNext = nullptr,
                 .src = row.mStructure.getHandle(),
                 .dst = made.getHandle(),
                 .mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR,

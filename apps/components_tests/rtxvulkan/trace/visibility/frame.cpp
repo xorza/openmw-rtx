@@ -901,14 +901,14 @@ namespace Rtx::Testing
             {
                 std::array<std::uint8_t, 3> mArm;
                 std::array<std::uint8_t, 3> mMiddle;
-                float mArmDistance;
-                float mMiddleDistance;
+                float mArmDistance = 0.0f;
+                float mMiddleDistance = 0.0f;
 
                 /// Whether the arm's pixel says the arms' eye cast its ray — `packSurfaceDistance`.
-                bool mArmOnArms;
+                bool mArmOnArms = false;
 
                 /// Two floats a pixel: the normal's code, then distance from the eye.
-                std::vector<float> mSurface;
+                std::vector<float> mSurface{};
             };
 
             const auto seenWith = [&](const Shaders::Camera& arms, float fade = 1.0f) {

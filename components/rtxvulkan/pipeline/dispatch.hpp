@@ -180,10 +180,12 @@ namespace Rtx
                 .pNext = next,
                 .dstSet = mSet,
                 .dstBinding = entry.binding,
+                .dstArrayElement = 0,
                 .descriptorCount = entry.descriptorCount,
                 .descriptorType = entry.descriptorType,
                 .pImageInfo = image,
                 .pBufferInfo = block,
+                .pTexelBufferView = nullptr,
             };
         }
 

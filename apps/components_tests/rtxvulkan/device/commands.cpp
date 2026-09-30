@@ -84,11 +84,13 @@ namespace Rtx
             {
             };
 
+            // Outside the macro, whose arguments a comma between braces would split.
+            const VkBufferCopy whole{ .srcOffset = 0, .dstOffset = 0, .size = sizeof(std::uint32_t) };
+
             EXPECT_THROW(
                 {
                     Batch batch(getPool());
 
-                    const VkBufferCopy whole{ .size = sizeof(std::uint32_t) };
                     vkCmdCopyBuffer(batch.getCommands(), source.getHandle(), target.getHandle(), 1, &whole);
 
                     throw Abandoned{};
@@ -106,7 +108,6 @@ namespace Rtx
             // what it began goes back, and nothing reaches the next submit either.
             {
                 Batch batch(getPool());
-                const VkBufferCopy whole{ .size = sizeof(std::uint32_t) };
                 vkCmdCopyBuffer(batch.getCommands(), source.getHandle(), target.getHandle(), 1, &whole);
                 batch.abandon();
             }

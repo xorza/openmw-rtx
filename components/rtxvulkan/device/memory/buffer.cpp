@@ -67,9 +67,13 @@ namespace Rtx
     {
         const VkBufferCreateInfo create{
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .size = mSize,
             .usage = usage,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices = nullptr,
         };
         mHandle = Owned<VkBuffer, vkDestroyBuffer>::make(device, vkCreateBuffer, create, "vkCreateBuffer");
         device.setName(mHandle.get(), name);
@@ -85,6 +89,7 @@ namespace Rtx
         {
             const VkBufferDeviceAddressInfo info{
                 .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+                .pNext = nullptr,
                 .buffer = mHandle.get(),
             };
             mAddress = vkGetBufferDeviceAddress(mDevice->getHandle(), &info);
@@ -197,6 +202,7 @@ namespace Rtx
     {
         return VkBufferMemoryBarrier2{
             .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+            .pNext = nullptr,
             .srcStageMask = from.mStage,
             .srcAccessMask = from.mAccess,
             .dstStageMask = to.mStage,
@@ -204,6 +210,7 @@ namespace Rtx
             .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
             .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
             .buffer = mHandle.get(),
+            .offset = 0,
             .size = VK_WHOLE_SIZE,
         };
     }
@@ -235,7 +242,7 @@ namespace Rtx
         nameForNext();
         into.nameForNext();
 
-        const VkBufferCopy region{ .size = bytes };
+        const VkBufferCopy region{ .srcOffset = 0, .dstOffset = 0, .size = bytes };
         vkCmdCopyBuffer(commands, mHandle.get(), into.mHandle.get(), 1, &region);
     }
 

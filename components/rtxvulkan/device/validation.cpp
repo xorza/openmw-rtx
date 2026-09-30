@@ -90,6 +90,8 @@ namespace Rtx
     {
         return VkDebugUtilsMessengerCreateInfoEXT{
             .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+            .pNext = nullptr,
+            .flags = 0,
             // Errors and warnings only. Info severity is where the loader narrates every manifest it
             // reads, which buries the two severities anyone acts on. VK_LOADER_DEBUG covers that case.
             .messageSeverity

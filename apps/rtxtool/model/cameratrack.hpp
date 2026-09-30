@@ -24,7 +24,7 @@ namespace RtxTool
         osg::Vec3f mEye;
 
         /// The facing, as `Stand::getRotation` gives it: `(pitch, 0, yaw)` in radians.
-        osg::Vec3f mRotation;
+        osg::Vec3f mRotation{};
 
         /// The hour of the day, from 0 up to 24.
         float mHour = 0.0f;
@@ -71,7 +71,7 @@ namespace RtxTool
 
         /// The weathers turned through, as `Rtx::weatherIndex` numbers them, or none for the
         /// crossings the keys make.
-        std::vector<std::uint32_t> mWeathers;
+        std::vector<std::uint32_t> mWeathers{};
 
         /// Frames each weather stands before the crossing into the next, and frames the crossing
         /// takes, one at least.

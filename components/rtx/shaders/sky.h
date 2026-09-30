@@ -39,14 +39,14 @@ namespace Rtx::Shaders
         /// **The sky, the moons and the sun, each spread over the underside of the layer**, and
         /// `Rtx::deckLight` is where the three are added. `CLOUD_TRANSMISSION` is what a deck keeps
         /// of them.
-        vec3 mLit;
+        vec3 mLit RTX_ZERO;
 
         /// What a cloud in its own shadow radiates: the sky alone.
         ///
         /// **The light with no direction is the light a cloud cannot shadow itself from.** A deck's
         /// own body is what keeps the sun off its base, so the sheet's paint picks between this and
         /// `mLit` — and at night, with no sun over the layer, the two differ only by the moons.
-        vec3 mShadowed;
+        vec3 mShadowed RTX_ZERO;
 
         /// The mean luminance of what the sheets being sampled paint, linear.
         ///
@@ -56,13 +56,13 @@ namespace Rtx::Shaders
         /// Nought where the sheet could not be averaged — a file a mod replaced with something
         /// nothing here decodes — which the shader reads as no ratio to take, and draws the deck
         /// flat as it did before it read the paint at all.
-        float mMean;
+        float mMean RTX_ZERO;
 
         /// The mean alpha of the sheets being sampled: how much sky the deck hides on average.
         ///
         /// **What a shadow is measured against**, so that darkening the ground states the pattern
         /// and not the weather — `CLOUD_SHADOW_DEPTH` carries the argument.
-        float mCover;
+        float mCover RTX_ZERO;
 
         /// Where the layer stands, as a world height, and how many tiles of its sheet one world unit
         /// is along each axis.
@@ -81,11 +81,11 @@ namespace Rtx::Shaders
         /// How far from `mTexture` to `mNext`. A settled sky names the same texture twice at zero,
         /// and a weather with no sheet ahead names the near one twice on its own bearing, so the
         /// shader mixes unconditionally rather than testing for a transition.
-        float mBlend;
+        float mBlend RTX_ZERO;
 
         /// The scroll along `v`, in texture widths. `SkyReader` advances it, off the clouds' own
         /// clock.
-        float mScroll;
+        float mScroll RTX_ZERO;
 
         /// Which way each of the two sheets is driven, as a unit bearing in the ground plane.
         ///
@@ -98,14 +98,14 @@ namespace Rtx::Shaders
         /// **One each, because the engine turns each mesh by its own weather's storm.** A
         /// transition into an ashstorm drives the sheet ahead off Red Mountain while the one
         /// overhead still runs due north.
-        vec2 mBearing;
-        vec2 mNextBearing;
+        vec2 mBearing RTX_ZERO;
+        vec2 mNextBearing RTX_ZERO;
 
         /// How far the layer falls away over the ground it covers, and the three crossing radii the
         /// engine's own fade turns on. `CloudShell` holds what each of them means and why neither is
         /// a constant.
-        float mCurvature;
-        vec3 mRings;
+        float mCurvature RTX_ZERO;
+        vec3 mRings RTX_ZERO;
 
         uint mTexture;
         uint mNext;
@@ -156,7 +156,7 @@ namespace Rtx::Shaders
         /// **The sheets as a source rather than as a picture**, and the two are reached differently:
         /// a ray that is looked along samples them where it points, and one gathering a hemisphere
         /// takes this instead. `NightSky::mGlow` says why a mean and not the sheets themselves.
-        vec3 mGlow;
+        vec3 mGlow RTX_ZERO;
 
         /// How far the sphere has rolled about the zenith, in radians. Once every four days.
         float mTurn;

@@ -101,7 +101,7 @@ namespace Rtx
 
         /// Nothing for a picture inside the interface, which is a diagram: measured off nothing,
         /// mapped with no glare, spread by no lens, and not timed.
-        std::optional<FrameLook> mFrame;
+        std::optional<FrameLook> mFrame{};
     };
 
     /// What comes after the trace and the upscaler: the puffs over the picture, the lens, the eye,

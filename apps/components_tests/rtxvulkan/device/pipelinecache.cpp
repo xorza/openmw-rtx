@@ -39,7 +39,11 @@ namespace Rtx
             std::vector<std::uint8_t> deviceBlob()
             {
                 const VkDevice device = getDevice().getHandle();
-                const VkPipelineCacheCreateInfo nothing{ .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO };
+                const VkPipelineCacheCreateInfo nothing{ .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
+                    .pNext = nullptr,
+                    .flags = 0,
+                    .initialDataSize = 0,
+                    .pInitialData = nullptr };
 
                 VkPipelineCache made = VK_NULL_HANDLE;
                 EXPECT_EQ(vkCreatePipelineCache(device, &nothing, nullptr, &made), VK_SUCCESS);

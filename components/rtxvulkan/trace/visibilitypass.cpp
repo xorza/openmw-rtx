@@ -99,30 +99,31 @@ namespace Rtx
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::BIND_COUNT> sBindings = [] {
             std::array<VkDescriptorSetLayoutBinding, Shaders::BIND_COUNT> declared{};
             declared[Shaders::BIND_SCENE] = VkDescriptorSetLayoutBinding{ Shaders::BIND_SCENE,
-                VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, sStages };
+                VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1, sStages, nullptr };
 
             // The two storage buffers left: every table the shader reads travels as an address in
             // the frame block, and neither the hit counter — a harness facility — nor the glare
             // fader's query has a table to ride in.
-            declared[Shaders::BIND_COUNTS] = VkDescriptorSetLayoutBinding{ Shaders::BIND_COUNTS, sStorage, 1, sStages };
+            declared[Shaders::BIND_COUNTS]
+                = VkDescriptorSetLayoutBinding{ Shaders::BIND_COUNTS, sStorage, 1, sStages, nullptr };
             declared[Shaders::BIND_SUN_GLARE]
-                = VkDescriptorSetLayoutBinding{ Shaders::BIND_SUN_GLARE, sStorage, 1, sStages };
+                = VkDescriptorSetLayoutBinding{ Shaders::BIND_SUN_GLARE, sStorage, 1, sStages, nullptr };
 
-            declared[Shaders::BIND_FRAME]
-                = VkDescriptorSetLayoutBinding{ Shaders::BIND_FRAME, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, sStages };
+            declared[Shaders::BIND_FRAME] = VkDescriptorSetLayoutBinding{ Shaders::BIND_FRAME,
+                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, sStages, nullptr };
 
             for (const std::uint32_t binding : { Shaders::BIND_WAVE_SURFACE, Shaders::BIND_WAVE_CURVATURE })
                 declared[binding] = VkDescriptorSetLayoutBinding{ binding, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    Shaders::WAVE_CASCADES, sStages };
+                    Shaders::WAVE_CASCADES, sStages, nullptr };
 
             for (const std::uint32_t binding : { Shaders::BIND_RIPPLE_SURFACE, Shaders::BIND_RIPPLE_CURVATURE })
-                declared[binding]
-                    = VkDescriptorSetLayoutBinding{ binding, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, sStages };
+                declared[binding] = VkDescriptorSetLayoutBinding{ binding, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+                    sStages, nullptr };
 
             // One volume rather than a cascade of tiles: the air has no near band and no far one, it
             // has a field read at three scales.
             declared[Shaders::BIND_FOG_FIELD] = VkDescriptorSetLayoutBinding{ Shaders::BIND_FOG_FIELD,
-                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, sStages };
+                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, sStages, nullptr };
 
             return declared;
         }();
@@ -133,8 +134,8 @@ namespace Rtx
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::BIND_COUNT + 1> sCompositeBindings = [] {
             std::array<VkDescriptorSetLayoutBinding, Shaders::BIND_COUNT + 1> declared{};
             std::ranges::copy(sBindings, declared.begin());
-            declared[Shaders::BIND_SHOWN]
-                = VkDescriptorSetLayoutBinding{ Shaders::BIND_SHOWN, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, sStages };
+            declared[Shaders::BIND_SHOWN] = VkDescriptorSetLayoutBinding{ Shaders::BIND_SHOWN,
+                VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, sStages, nullptr };
             return declared;
         }();
 
@@ -411,6 +412,7 @@ namespace Rtx
         const VkAccelerationStructureKHR scene = inputs.mSubject.mScene->getAcceleration().getTopLevel();
         const VkWriteDescriptorSetAccelerationStructureKHR sceneWrite{
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR,
+            .pNext = nullptr,
             .accelerationStructureCount = 1,
             .pAccelerationStructures = &scene,
         };

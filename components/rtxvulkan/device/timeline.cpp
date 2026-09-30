@@ -21,6 +21,8 @@ namespace Rtx
         const VkSemaphore handle = mHandle.get();
         const VkSemaphoreWaitInfo wait{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .semaphoreCount = 1,
             .pSemaphores = &handle,
             .pValues = &value,
@@ -38,9 +40,11 @@ namespace Rtx
     {
         return VkSemaphoreSubmitInfo{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+            .pNext = nullptr,
             .semaphore = mHandle.get(),
             .value = value,
             .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+            .deviceIndex = 0,
         };
     }
 }

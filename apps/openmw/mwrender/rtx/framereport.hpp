@@ -53,7 +53,7 @@ namespace MWRender
         /// of which. `Timing::Frame` is the whole frame, measured from one trace to the next:
         /// everything the game does between them, which is the number a player feels and the one
         /// `FrameResult::mWaitMs` cannot see.
-        Rtx::FrameSpend mSpend;
+        Rtx::FrameSpend mSpend{};
 
         /// Whether the hand-over rebuilt the scene from nothing, which a crossing is counted by.
         bool mRebuilt = false;
@@ -68,7 +68,7 @@ namespace MWRender
         /// What the device answered for a frame behind, or nothing where it had finished none
         /// when this frame asked — the first frames of a run, and any frame the card was still
         /// busy for. Which frame it answers for is `FrameResult::mFrame`, never this one.
-        std::optional<Rtx::FrameResult> mResult;
+        std::optional<Rtx::FrameResult> mResult{};
 
         /// What the backend numbered this frame — `Renderer::getFrameCount` as it stood before the
         /// frame was drawn — which is the number `mResult->mFrame` carries when this frame's own
@@ -76,7 +76,7 @@ namespace MWRender
         std::uint64_t mFrame = 0;
 
         /// What put this frame back together.
-        Rtx::Reconstruction mReconstruction;
+        Rtx::Reconstruction mReconstruction{};
 
         /// What the frame was traced with beside the scene — the camera, the sky, the air, the sea
         /// and the sample — for the run's hashes to name when a picture moves and the scene did not.
@@ -84,9 +84,9 @@ namespace MWRender
 
         /// Where the air's clocks stood for this frame — what the constants' drift and churn were
         /// taken off, kept whole because the constants hold them reduced against the fog's tiles.
-        Rtx::AirClock mAir;
+        Rtx::AirClock mAir{};
 
-        WalkReport mWalked;
+        WalkReport mWalked{};
     };
 
     /// What a measured stop may reach beyond the frame's own report. Borrowed and valid for one stop:

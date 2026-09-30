@@ -55,10 +55,10 @@ namespace Rtx
     /// one that does not.
     struct Skylight
     {
-        Sun mSun;
+        Sun mSun{};
 
         /// The same sun as a layer above the ground sees it, out of `SkyReading::mSunShareAloft`.
-        Sun mSunAloft;
+        Sun mSunAloft{};
 
         /// What a path is terminated with: the ambient plus whatever of the sun is not over the horizon.
         osg::Vec3f mAmbient;

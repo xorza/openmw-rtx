@@ -313,7 +313,7 @@ namespace Rtx::Testing
     {
         /// What the water is doing. A state with no height in it is a flat sea, which is what a
         /// test asserting an exact transmittance through one needs.
-        SeaState mSea;
+        SeaState mSea{};
 
         /// How many frames the run draws, each at its own sampler index counting from
         /// `mFirstFrame`, so the frames are different draws rather than one draw repeated.
@@ -351,7 +351,7 @@ namespace Rtx::Testing
 
         /// Where the trace draws from, or nothing for the reconstruction's own choice, which with
         /// no upscaler is the tile every figure over this fixture was derived against.
-        std::optional<NoiseSource> mNoise;
+        std::optional<NoiseSource> mNoise{};
 
         /// Throws the denoiser's history away before the run.
         ///
@@ -371,12 +371,12 @@ namespace Rtx::Testing
         float mWaterStep = 0.0f;
 
         /// What the debug modes drew, over the picture. Nothing, for every test not about it.
-        DebugLines mDebug;
+        DebugLines mDebug{};
 
         /// What every pixel is painted with and how much painted light is divided out, over the
         /// harness's profile — which paints the light and divides out none (`describeRenderer`).
-        std::optional<SurfaceView> mShow;
-        std::optional<float> mDelight;
+        std::optional<SurfaceView> mShow{};
+        std::optional<float> mDelight{};
 
         /// `RenderProfile::mAnisotropy` for the shot. One, so the level a cone names is the level
         /// read, which is what every test that measures a level off the mip ladder relies on.
@@ -388,14 +388,14 @@ namespace Rtx::Testing
         bool mSetScene = true;
 
         /// A fixed offset in the pixel for every frame, where the shot does not jitter.
-        std::optional<osg::Vec2f> mOffset;
+        std::optional<osg::Vec2f> mOffset{};
 
         /// The sun glare fader over the picture. None, for every test not about it.
-        SunGlare mGlare;
+        SunGlare mGlare{};
 
         /// Run once each frame of the run is finished, with that frame, for a caller measuring what
         /// moves between two frames rather than what a run of them averages to.
-        std::function<void(const Frame&)> mEachFrame;
+        std::function<void(const Frame&)> mEachFrame{};
     };
 
     /// A run of `frames` filtered frames with the history let build from nothing, each frame

@@ -138,12 +138,12 @@ namespace RtxTool
         /// anything else is an interior's name. Empty stays wherever the game already is. The
         /// spelling and not an id, because `MWBase::World::findExteriorPosition` is what turns one
         /// into the other, and a stop then stands where a player typing `coc` would.
-        std::string mCell;
+        std::string mCell{};
 
         /// Where the eye goes and what it looks at. Both left out leaves the player where the cell
         /// put them and their own camera alone.
-        std::optional<osg::Vec3f> mEye;
-        std::optional<osg::Vec3f> mLook;
+        std::optional<osg::Vec3f> mEye{};
+        std::optional<osg::Vec3f> mLook{};
 
         /// The point the eye faces: `mLook`, or due north where it names nothing or the eye itself,
         /// because a direction of no length aims nothing. One answer, because `CameraDriver`
@@ -184,15 +184,15 @@ namespace RtxTool
     /// Named for the stop, because `Sky` is a namespace `Rtx` names.
     struct StopSky
     {
-        std::optional<float> mHour;
+        std::optional<float> mHour{};
 
         /// Which day of Morrowind's calendar, counted from the one a new game begins on. Only the
         /// moons read it: a phase runs on a three-day cycle and no hour can stand for a date.
-        std::optional<int> mDay;
+        std::optional<int> mDay{};
 
         /// A weather as the content files spell it: `Clear`, `Overcast`, `Thunderstorm`. Set
         /// immediately, so a stop stands under it from its first frame.
-        std::optional<std::string> mWeather;
+        std::optional<std::string> mWeather{};
 
         /// Where the air's clocks stand at the stop's first counted frame, or nothing to leave them
         /// wherever the session's frames carried them. The fog drifts and churns on these and the
@@ -200,12 +200,12 @@ namespace RtxTool
         /// frames the run happened to have drawn: a window flown for an hour stands in one fog and
         /// a run started fresh stands in another. Held until that frame and free after it, as
         /// `MWRender::RtxRun::getHeldAir` says.
-        std::optional<Rtx::AirClock> mAir;
+        std::optional<Rtx::AirClock> mAir{};
 
         /// Weathers to turn the sky through while the stop runs, in order and round again, as
         /// transitions: what the renderer has to survive is an emitter freed on an ordinary frame.
         /// Asking for it stops the run being a benchmark.
-        std::vector<std::string> mTurnThrough;
+        std::vector<std::string> mTurnThrough{};
     };
 
     /// Where a stop flies to, and how fast. A route is what puts a cell arriving into a
@@ -214,7 +214,7 @@ namespace RtxTool
     {
         /// Where the eye ends and what it looks at there.
         osg::Vec3f mTo;
-        osg::Vec3f mLookTo;
+        osg::Vec3f mLookTo{};
 
         /// World units a second, more than nought. A Morrowind exterior cell is 8,192 across.
         float mSpeed = 0.0f;
@@ -237,14 +237,14 @@ namespace RtxTool
     struct Schedule
     {
         /// How long it runs and how much of it is thrown away first.
-        BenchSpec mSpec;
+        BenchSpec mSpec{};
 
         std::optional<Route> mRoute;
 
         /// The flight a film's take makes through its keys, frame by frame over the measured
         /// frames, with the hour and the sky it runs under: what a take has in place of a route.
         /// The warm-up stands at its first frame.
-        std::optional<CameraTrack> mTrack;
+        std::optional<CameraTrack> mTrack{};
 
         /// How many differently-seeded frames to average into one picture, or nought for none. A
         /// converged reference is the only ground truth a sampled renderer has: error falls as the
@@ -259,12 +259,12 @@ namespace RtxTool
 
         /// What every frame of the stop asks of the reconstruction and of the exposure in place of
         /// the profile's, or nothing for the profile's: `MWRender::RtxRun::getReconstruction`.
-        std::optional<Rtx::ReconstructionRequest> mReconstruction;
-        std::optional<Rtx::ExposureRule> mExposure;
+        std::optional<Rtx::ReconstructionRequest> mReconstruction{};
+        std::optional<Rtx::ExposureRule> mExposure{};
 
         /// What the stop upscales by in place of the run's mode, or nothing for the run's:
         /// `MWRender::RtxRun::getUpscale`.
-        std::optional<Rtx::Upscale> mUpscale;
+        std::optional<Rtx::Upscale> mUpscale{};
 
         /// Whether the world's clock is held still while the stop runs, so a still frame traced
         /// many times is the same frame. `DateTimeManager::setSimulationTimeScale` is where it
@@ -351,15 +351,15 @@ namespace RtxTool
     struct Stop
     {
         /// What the report and the hashes call it. A view id where the run came from a view file.
-        std::string mName;
+        std::string mName{};
 
         /// What the report prints beside the name.
-        std::string mNote;
+        std::string mNote{};
 
-        Stand mStand;
-        StopSky mSky;
-        Schedule mSchedule;
-        Actions mActions;
+        Stand mStand{};
+        StopSky mSky{};
+        Schedule mSchedule{};
+        Actions mActions{};
     };
 
     /// A whole run, as one description, filled by a launcher and read by the renderer.

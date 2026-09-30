@@ -84,9 +84,9 @@ namespace Rtx::Testing
         {
             osg::Vec2i mCell;
             const char* mModel = nullptr;
-            ESM::RefNum mRefNum;
-            osg::Vec3f mPosition;
-            osg::Vec3f mRotation;
+            ESM::RefNum mRefNum{};
+            osg::Vec3f mPosition{};
+            osg::Vec3f mRotation{};
             float mScale = 1.0f;
             std::uint32_t mGate = Terrain::sNoGate;
         };
@@ -98,7 +98,7 @@ namespace Rtx::Testing
             osg::Vec2i mCell;
             const char* mRecord = nullptr;
             ESM::RefNum mRefNum;
-            osg::Vec3f mPosition;
+            osg::Vec3f mPosition{};
             std::uint32_t mGate = Terrain::sNoGate;
         };
 

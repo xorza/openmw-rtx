@@ -205,7 +205,7 @@ namespace RtxTool
             /// **Its own vector, because the rows are pushed to independently.** A zone runs on the
             /// frames it runs on, so a flat buffer shared by all of them would have to be laid out
             /// again whenever one outgrew its share — inside a frame it is timing.
-            std::vector<double> mTimes;
+            std::vector<double> mTimes{};
 
             /// Which frame this was last given a sample on, so the spans of one frame land in one
             /// of them. Nought for a zone nothing has reported yet, which is an index no frame has.

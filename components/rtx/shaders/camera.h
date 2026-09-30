@@ -50,7 +50,7 @@ namespace Rtx::Shaders
         ///
         /// Zero is a ray through the pixel's centre, which is every frame that is not being
         /// upscaled or averaged.
-        vec2 mJitter;
+        vec2 mJitter RTX_ZERO;
 
         /// The angle one pixel subtends, in radians.
         ///

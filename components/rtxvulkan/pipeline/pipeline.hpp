@@ -27,15 +27,16 @@ namespace Rtx
     {
     };
 
-    /// The push range `Constants` needs, whole: nought for `NoConstants`, because Vulkan takes no
-    /// empty range.
+    /// The push range `Constants` needs, whole and from nought, read by `stages`: of no size for
+    /// `NoConstants`, whose layout then declares no range, because Vulkan takes no empty one.
     template <class Constants>
-    constexpr std::uint32_t pushBytesOf()
+    constexpr VkPushConstantRange pushRangeOf(const VkShaderStageFlags stages)
     {
-        if constexpr (std::is_same_v<Constants, NoConstants>)
-            return 0;
-        else
-            return sizeof(Constants);
+        return VkPushConstantRange{
+            .stageFlags = stages,
+            .offset = 0,
+            .size = std::is_same_v<Constants, NoConstants> ? 0u : static_cast<std::uint32_t>(sizeof(Constants)),
+        };
     }
 
     /// The map entries a table of specialization words needs, and the `VkSpecializationInfo` over

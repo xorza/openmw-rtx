@@ -128,7 +128,7 @@ namespace Rtx
         /// Where this material's terrain layers sit in the scene's layer table. Empty for everything
         /// that is not terrain, which is all but a handful of materials in a cell, so the layered
         /// path costs the rest of them one comparison and no indirection.
-        Run mLayers;
+        Run mLayers{};
 
         /// Whether this chunk is wide enough that its stack is worth flattening into one texture.
         /// Asked for here and answered later, because a composite costs tens of milliseconds; until

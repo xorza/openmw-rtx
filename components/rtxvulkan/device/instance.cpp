@@ -101,6 +101,7 @@ namespace Rtx
 
         const VkApplicationInfo application{
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+            .pNext = nullptr,
             .pApplicationName = "OpenMW",
             .applicationVersion = 0,
             .pEngineName = "OpenMW RTX",
@@ -174,6 +175,8 @@ namespace Rtx
                     .pNext = &messengerInfo,
                     .enabledValidationFeatureCount = static_cast<std::uint32_t>(enabled.size()),
                     .pEnabledValidationFeatures = enabled.data(),
+                    .disabledValidationFeatureCount = 0,
+                    .pDisabledValidationFeatures = nullptr,
                 };
                 next = &validationFeatures;
             }
@@ -193,6 +196,7 @@ namespace Rtx
         const VkInstanceCreateInfo createInfo{
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             .pNext = next,
+            .flags = 0,
             .pApplicationInfo = &application,
             .enabledLayerCount = static_cast<std::uint32_t>(layers.size()),
             .ppEnabledLayerNames = layers.data(),

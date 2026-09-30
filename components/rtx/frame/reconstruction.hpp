@@ -49,7 +49,7 @@ namespace Rtx
 
         /// Where the trace's draws come from, where a run names a source. Nothing hands the
         /// choice to `resolve`, which keeps the tile; naming one is the A/B.
-        std::optional<NoiseSource> mNoise;
+        std::optional<NoiseSource> mNoise{};
 
         /// What is added to the texture level bias past the ratio the upscaler sets, in levels,
         /// which a run walks on a sign and a book. Nought is the ratio alone. Without an upscaler
@@ -171,7 +171,7 @@ namespace Rtx
     /// before ended on, or neither to measure it off the frame.
     struct ExposureRule
     {
-        std::optional<float> mFixed;
+        std::optional<float> mFixed{};
 
         /// Keep what the frame before ended on, measuring nothing and resetting nothing: the frames a
         /// harness compares with a reference hold the exposure the reference measured, so the two
@@ -193,7 +193,7 @@ namespace Rtx
         /// `Reconstruction::resolve` is the rule. Jitter is off unless something puts the frames
         /// back together; the filter is off for a reference, because a thousand filtered frames
         /// converge on the filter's opinion. A frame may ask otherwise (`FrameOptions`).
-        ReconstructionRequest mReconstruction;
+        ReconstructionRequest mReconstruction{};
 
         /// How much of the painted lighting to divide out of a texture. Nought hands the trace
         /// Bethesda's textures with their lighting still in them.
@@ -211,7 +211,7 @@ namespace Rtx
 
         /// What to scale the frame by before the display curve. A picture wants it measured, and a
         /// reference wants it held still. A frame may ask otherwise, like `mReconstruction`.
-        ExposureRule mExposure;
+        ExposureRule mExposure{};
 
         /// How long to hold the queue after every frame's trace, in milliseconds, or nought to
         /// hold it not at all. A held queue keeps the device that far behind the host, so every

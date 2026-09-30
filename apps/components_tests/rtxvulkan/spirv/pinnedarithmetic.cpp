@@ -28,8 +28,10 @@ namespace Rtx
     namespace
     {
         constexpr std::array<VkDescriptorSetLayoutBinding, 2> sBindings{
-            VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
-            VkDescriptorSetLayoutBinding{ 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{
+                0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{
+                1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
         };
 
         constexpr std::uint32_t sCount = 4096;

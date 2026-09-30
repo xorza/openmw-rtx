@@ -203,7 +203,7 @@ namespace RtxTool
         /// where the run is the game measuring itself.
         std::string mSuite;
 
-        Rtx::FrameExtents mExtents;
+        Rtx::FrameExtents mExtents{};
 
         /// What upscaled the run's frames, as `Reconstruction` reports it: the mode, or `Off` where
         /// nothing did. **Read off a frame and not off the renderer**,

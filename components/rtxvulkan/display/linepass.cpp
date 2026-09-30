@@ -18,8 +18,8 @@ namespace Rtx
     {
         /// The trace's surface channel, whose distance every fragment reads.
         constexpr std::array<VkDescriptorSetLayoutBinding, 1> sBindings{
-            VkDescriptorSetLayoutBinding{
-                Shaders::LINE_BIND_SURFACE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_FRAGMENT_BIT },
+            VkDescriptorSetLayoutBinding{ Shaders::LINE_BIND_SURFACE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,
+                VK_SHADER_STAGE_FRAGMENT_BIT, nullptr },
         };
 
         constexpr std::array<VkVertexInputBindingDescription, 1> sVertexBindings{

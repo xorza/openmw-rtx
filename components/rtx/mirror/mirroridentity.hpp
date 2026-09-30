@@ -50,7 +50,7 @@ namespace Rtx
     struct Known
     {
         Index mIndex = sNoIndex;
-        Reach mReach;
+        Reach mReach{};
     };
 
     /// A map of what the mirror knows, and how much of it the walk in progress has reached. The

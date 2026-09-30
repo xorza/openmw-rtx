@@ -24,6 +24,8 @@ namespace Rtx
         const std::array<VkPipelineShaderStageCreateInfo, 2> stages{
             VkPipelineShaderStageCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
                 .stage = VK_SHADER_STAGE_VERTEX_BIT,
                 .module = vertex.get(),
                 .pName = "main",
@@ -31,6 +33,8 @@ namespace Rtx
             },
             VkPipelineShaderStageCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
                 .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
                 .module = fragment.get(),
                 .pName = "main",
@@ -40,6 +44,8 @@ namespace Rtx
 
         const VkPipelineVertexInputStateCreateInfo vertexInput{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .vertexBindingDescriptionCount = static_cast<std::uint32_t>(options.mVertexBindings.size()),
             .pVertexBindingDescriptions = options.mVertexBindings.data(),
             .vertexAttributeDescriptionCount = static_cast<std::uint32_t>(options.mVertexAttributes.size()),
@@ -48,29 +54,51 @@ namespace Rtx
 
         const VkPipelineInputAssemblyStateCreateInfo assembly{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .topology = options.mTopology,
+            .primitiveRestartEnable = VK_FALSE,
         };
 
         // Both dynamic: the target is resized more often than the pipeline is worth rebuilding.
         const VkPipelineViewportStateCreateInfo viewport{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .viewportCount = 1,
+            .pViewports = nullptr,
             .scissorCount = 1,
+            .pScissors = nullptr,
         };
 
         // No culling. What is drawn here is two-dimensional or a debug mesh, and its winding says
         // nothing; a flipped viewport would otherwise reverse the face of every triangle at once.
         const VkPipelineRasterizationStateCreateInfo raster{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .depthClampEnable = VK_FALSE,
+            .rasterizerDiscardEnable = VK_FALSE,
             .polygonMode = VK_POLYGON_MODE_FILL,
             .cullMode = VK_CULL_MODE_NONE,
             .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+            .depthBiasEnable = VK_FALSE,
+            .depthBiasConstantFactor = 0.0f,
+            .depthBiasClamp = 0.0f,
+            .depthBiasSlopeFactor = 0.0f,
             .lineWidth = 1.0f,
         };
 
         const VkPipelineMultisampleStateCreateInfo multisample{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+            .sampleShadingEnable = VK_FALSE,
+            .minSampleShading = 0.0f,
+            .pSampleMask = nullptr,
+            .alphaToCoverageEnable = VK_FALSE,
+            .alphaToOneEnable = VK_FALSE,
         };
 
         // Additive keeps what is under it whole and adds to it; `Over` takes that much of it
@@ -92,8 +120,13 @@ namespace Rtx
         };
         const VkPipelineColorBlendStateCreateInfo blend{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .logicOpEnable = VK_FALSE,
+            .logicOp = VK_LOGIC_OP_CLEAR,
             .attachmentCount = 1,
             .pAttachments = &attachment,
+            .blendConstants = {},
         };
 
         constexpr std::array<VkDynamicState, 2> dynamicStates{
@@ -102,14 +135,20 @@ namespace Rtx
         };
         const VkPipelineDynamicStateCreateInfo dynamic{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .dynamicStateCount = static_cast<std::uint32_t>(dynamicStates.size()),
             .pDynamicStates = dynamicStates.data(),
         };
 
         const VkPipelineRenderingCreateInfo rendering{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+            .pNext = nullptr,
+            .viewMask = 0,
             .colorAttachmentCount = 1,
             .pColorAttachmentFormats = &options.mColourFormat,
+            .depthAttachmentFormat = VK_FORMAT_UNDEFINED,
+            .stencilAttachmentFormat = VK_FORMAT_UNDEFINED,
         };
 
         const VkGraphicsPipelineCreateInfo pipeline{
@@ -120,12 +159,18 @@ namespace Rtx
             .pStages = stages.data(),
             .pVertexInputState = &vertexInput,
             .pInputAssemblyState = &assembly,
+            .pTessellationState = nullptr,
             .pViewportState = &viewport,
             .pRasterizationState = &raster,
             .pMultisampleState = &multisample,
+            .pDepthStencilState = nullptr,
             .pColorBlendState = &blend,
             .pDynamicState = &dynamic,
             .layout = layout,
+            .renderPass = VK_NULL_HANDLE,
+            .subpass = 0,
+            .basePipelineHandle = VK_NULL_HANDLE,
+            .basePipelineIndex = 0,
         };
         Owned<VkPipeline, vkDestroyPipeline> handle;
         checkVk(vkCreateGraphicsPipelines(
@@ -142,17 +187,27 @@ namespace Rtx
 
         const VkRenderingAttachmentInfo colour{
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .pNext = nullptr,
             .imageView = target.getView(),
             .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            .resolveMode = VK_RESOLVE_MODE_NONE,
+            .resolveImageView = VK_NULL_HANDLE,
+            .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
             .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .clearValue = {},
         };
         const VkRenderingInfo rendering{
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .renderArea = { { 0, 0 }, { target.getWidth(), target.getHeight() } },
             .layerCount = 1,
+            .viewMask = 0,
             .colorAttachmentCount = 1,
             .pColorAttachments = &colour,
+            .pDepthAttachment = nullptr,
+            .pStencilAttachment = nullptr,
         };
 
         vkCmdBeginRendering(commands, &rendering);

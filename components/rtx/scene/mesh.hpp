@@ -24,14 +24,14 @@ namespace Rtx
         std::span<const osg::Vec3f> mPositions;
 
         /// Empty where the geometry names no normal, which is read as "use the triangle's plane".
-        std::span<const osg::Vec3f> mNormals;
+        std::span<const osg::Vec3f> mNormals{};
 
-        std::span<const osg::Vec2f> mTexCoords;
+        std::span<const osg::Vec2f> mTexCoords{};
 
         /// A second set of texture coordinates, empty for nearly every mesh. The vanilla dark maps
         /// read one on fourteen of their thirty-six records, and a mesh that binds an array other
         /// than unit nought's at any unit carries it here — `mUnitStreams` says which units.
-        std::span<const osg::Vec2f> mSecondTexCoords;
+        std::span<const osg::Vec2f> mSecondTexCoords{};
 
         /// One bit per texture unit: set where that unit reads `mSecondTexCoords`, clear where it
         /// reads `mTexCoords`. What the geometry bound at each unit, which a material sharing a
@@ -41,15 +41,15 @@ namespace Rtx
         /// The per-vertex colour, in linear light. Empty is white. Decoded where it is read and not
         /// where it is used, because a blend of display-encoded bytes is not the encoding of the
         /// blend and a hit interpolates across a triangle.
-        std::span<const osg::Vec3f> mColours;
+        std::span<const osg::Vec3f> mColours{};
 
         /// The tangent a normal map is read through, with the bitangent's handedness in `w`:
         /// `osgUtil::TangentSpaceGenerator`'s, which `Shader::MapVisitor` builds under a normal map
         /// at load, as the rasterizer's shader visitor does. Empty for a mesh no normal map is read
         /// through.
-        std::span<const osg::Vec4f> mTangents;
+        std::span<const osg::Vec4f> mTangents{};
 
-        std::span<const std::uint32_t> mIndices;
+        std::span<const std::uint32_t> mIndices{};
     };
 
     /// What a camera's cull mask sorts a placement by: the rasterizer's `Mask_Actor | Mask_Player`,
@@ -99,7 +99,7 @@ namespace Rtx
     struct MeshInstance
     {
         /// Object space to world space.
-        osg::Matrixf mTransform;
+        osg::Matrixf mTransform{};
 
         Index mMesh = sNoIndex;
         Index mMaterial = sNoIndex;

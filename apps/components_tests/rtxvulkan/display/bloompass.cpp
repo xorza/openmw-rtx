@@ -36,10 +36,7 @@ namespace Rtx
             pool.submitAndWait([&](VkCommandBuffer commands) {
                 image.transition(commands, Use::sUndefined, Use::sCopyWrite);
 
-                const VkBufferImageCopy region{
-                    .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-                    .imageExtent = { image.getWidth(), image.getHeight(), 1 },
-                };
+                const VkBufferImageCopy region = wholeLevel(0, 0, VkExtent3D{ image.getWidth(), image.getHeight(), 1 });
                 vkCmdCopyBufferToImage(
                     commands, staging.getHandle(), image.getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 

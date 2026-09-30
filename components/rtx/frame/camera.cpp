@@ -40,42 +40,44 @@ namespace Rtx
         }
 
         /// A viewpoint before anything has described the world over it, one statement for the
-        /// three builders. `Shaders::VisibilityConstants` is a header `glslc` reads as well, so it
-        /// can hold no default member initialisers of its own.
+        /// three builders, with every member it does not name zero. Assigned over a zeroed record
+        /// rather than written as one initialiser, which would have to name every other member: its
+        /// arrays of `vec3` cannot take `RTX_ZERO`, for the reason `portable.h` gives.
         Shaders::VisibilityConstants beforeWorld(const osg::Vec3f& origin, float near, float far)
         {
-            return Shaders::VisibilityConstants{
-                .mOrigin = origin,
-                .mNear = near,
-                .mFar = far,
-                .mReach = sFarPlane,
+            Shaders::VisibilityConstants constants{};
+            constants.mOrigin = origin;
+            constants.mNear = near;
+            constants.mFar = far;
+            constants.mReach = sFarPlane;
 
-                // Every bounce, until a world says the reconstruction follows the frame —
-                // `VisibilityConstants::mBounceRate` says why a frame built by hand keeps them all.
-                .mBounceRate = 1.0f,
+            // Every bounce, until a world says the reconstruction follows the frame —
+            // `VisibilityConstants::mBounceRate` says why a frame built by hand keeps them all.
+            constants.mBounceRate = 1.0f;
 
-                // No day to lift, until a world says the sun is up.
-                .mDaylightGain = 1.0f,
+            // No day to lift, until a world says the sun is up.
+            constants.mDaylightGain = 1.0f;
 
-                // Not zero, which would be sea level: a world with no water has to answer "how deep
-                // is this point" with never, and only an infinity does that without a second
-                // question.
-                .mWaterLevel = -std::numeric_limits<float>::infinity(),
+            // Not zero, which would be sea level: a world with no water has to answer "how deep
+            // is this point" with never, and only an infinity does that without a second
+            // question.
+            constants.mWaterLevel = -std::numeric_limits<float>::infinity();
 
-                // A sea that runs as its tiles were drawn, until a world says which way the wind
-                // blows.
-                .mSeaHeading = osg::Vec2f(1.0f, 0.0f),
+            // A sea that runs as its tiles were drawn, until a world says which way the wind
+            // blows.
+            constants.mSeaHeading = osg::Vec2f(1.0f, 0.0f);
 
-                // The layer `FOG_HEIGHT` names, until a weather says otherwise. A camera is
-                // built before anything has described the air over it, and a lift of nothing is a
-                // layer of no height at all rather than an absence of one. `describeWorld` overwrites
-                // this with what the cell's own weather stands its fog up to.
-                .mFogLift = 1.0f,
+            // The layer `FOG_HEIGHT` names, until a weather says otherwise. A camera is
+            // built before anything has described the air over it, and a lift of nothing is a
+            // layer of no height at all rather than an absence of one. `describeWorld` overwrites
+            // this with what the cell's own weather stands its fog up to.
+            constants.mFogLift = 1.0f;
 
-                // Every class, until a camera with a cull mask of its own says which it draws. The
-                // harness's and the tests' cameras never do.
-                .mRayMask = Shaders::MASK_EVERY_CLASS,
-            };
+            // Every class, until a camera with a cull mask of its own says which it draws. The
+            // harness's and the tests' cameras never do.
+            constants.mRayMask = Shaders::MASK_EVERY_CLASS;
+
+            return constants;
         }
 
         std::optional<ViewBasis> basisOf(const osg::Matrixf& view)

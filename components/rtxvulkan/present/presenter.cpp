@@ -258,13 +258,19 @@ namespace Rtx
         // blit — and waits the acquire and signals the present beside that.
         const VkSemaphoreSubmitInfo wait{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+            .pNext = nullptr,
             .semaphore = acquisition.mSemaphore.get(),
+            .value = 0,
             .stageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
+            .deviceIndex = 0,
         };
         const VkSemaphoreSubmitInfo signal{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+            .pNext = nullptr,
             .semaphore = image.mRendered.get(),
+            .value = 0,
             .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+            .deviceIndex = 0,
         };
         const std::uint64_t blitted = mDevice.getPool().submit(commands,
             std::span<const VkSemaphoreSubmitInfo>(&wait, 1), std::span<const VkSemaphoreSubmitInfo>(&signal, 1));

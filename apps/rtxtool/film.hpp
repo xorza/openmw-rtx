@@ -35,13 +35,13 @@ namespace RtxTool
         const std::string& getWeather() const { return *mStop.mSky.mWeather; }
 
         /// How long the flight to this key takes, in place of the length its changes derive.
-        std::optional<float> mSeconds;
+        std::optional<float> mSeconds{};
 
         /// How long the camera rests here.
         float mHold = 0.0f;
 
         /// Whether a cut comes before this key: forced, forbidden, or left to the distance.
-        std::optional<bool> mCut;
+        std::optional<bool> mCut{};
 
         /// The line the key's section opens on, which a message about it names.
         std::size_t mLine = 0;
@@ -213,7 +213,7 @@ namespace RtxTool
         std::uint32_t mFirstFrame = 0;
 
         /// What the pacing's own sky writes over the keys', from `mFirstFrame` on.
-        SkyRun mSky;
+        SkyRun mSky{};
 
         std::uint32_t getFrames() const { return static_cast<std::uint32_t>(mTrack.back().mFrame) + 1; }
     };
@@ -222,7 +222,7 @@ namespace RtxTool
     struct FilmPlan
     {
         std::vector<FilmKey> mKeys;
-        std::vector<FilmTake> mTakes;
+        std::vector<FilmTake> mTakes{};
         FilmPacing mPacing;
 
         std::uint32_t getFrames() const;

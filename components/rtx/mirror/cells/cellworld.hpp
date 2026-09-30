@@ -61,7 +61,7 @@ namespace Rtx
 
         /// The worldspace's own grid, which every ring measures its cells by — the width the land
         /// is read at (`Terrain::Storage::getCellWorldSize`).
-        CellGrid mGrid;
+        CellGrid mGrid{};
 
         /// Which nodes a walk of a template may descend into — the frame walk's own.
         osg::Node::NodeMask mMask = ~0u;

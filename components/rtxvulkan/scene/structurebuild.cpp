@@ -13,15 +13,18 @@ namespace Rtx
     {
         return VkAccelerationStructureGeometryKHR{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+            .pNext = nullptr,
             .geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
             .geometry = { .triangles = {
                               .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
+                              .pNext = nullptr,
                               .vertexFormat = VK_FORMAT_R32G32B32_SFLOAT,
                               .vertexData = { .deviceAddress = positions },
                               .vertexStride = sizeof(osg::Vec3f),
                               .maxVertex = mesh.mVertices.mCount > 0 ? mesh.mVertices.mCount - 1 : 0,
                               .indexType = VK_INDEX_TYPE_UINT32,
                               .indexData = { .deviceAddress = indices },
+                              .transformData = {},
                           } },
             // **No duplicate candidate, or a see-through surface is counted twice.** The spec lets a
             // traversal report one triangle more than once unless the geometry says otherwise, and

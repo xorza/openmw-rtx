@@ -317,8 +317,8 @@ namespace Rtx
 
         /// Every level, back to back. The levels index into this. Empty under `SpriteBake`,
         /// `GroundComposite` and `GroundGloss`, whose bytes are the device's.
-        std::span<const std::byte> mBytes;
-        std::span<const MipLevel> mLevels;
+        std::span<const std::byte> mBytes{};
+        std::span<const MipLevel> mLevels{};
 
         /// Whether a backend completes the chain the file did not carry, `MipChainPass`, from the
         /// one level here down to one texel. Set by the builder where `MipChain::wantedFor` says,
@@ -328,7 +328,7 @@ namespace Rtx
         /// What to call it in a capture — the file it came from. Spans storage the description's
         /// owner holds, like everything else here. Empty is allowed and only costs a nameless object
         /// in a debugger; every backend has somewhere to put it.
-        std::string_view mName;
+        std::string_view mName{};
 
         /// What stands beside it: the neutral shading map for a composite, whose painted light came
         /// off per tile in the bake and would come off twice; a bake, which nothing divides; the

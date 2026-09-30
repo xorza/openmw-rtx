@@ -30,7 +30,8 @@ namespace Rtx
     {
         /// The line the field is read and written through, and nothing else.
         constexpr std::array<VkDescriptorSetLayoutBinding, 1> sBindings{
-            VkDescriptorSetLayoutBinding{ 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT },
+            VkDescriptorSetLayoutBinding{
+                0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
         };
 
         /// A grid small enough to compare against a hand-written transform and large enough to run
