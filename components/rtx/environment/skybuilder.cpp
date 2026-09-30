@@ -173,7 +173,6 @@ namespace Rtx
         // Cleaned where it enters, by the reader that takes it off the weather (`SkyReader::read`):
         // the builder is handed a share and never a content file's division.
         assert(blend >= 0.0f && blend <= 1.0f && "a cloud blend the reader did not clean");
-        const float mixed = blend;
 
         // The level the sheet is read against crosses with the sheet, and falls back the way it
         // does. Where the weather ahead names no deck the near sheet stands at both ends of the
@@ -182,7 +181,7 @@ namespace Rtx
         // the fallback is made.
         const std::uint32_t ahead = textures.cloudsOf(next);
         const bool crosses = ahead != Shaders::NO_TEXTURE;
-        const auto crossing = [&](float from, float to) { return crosses ? from * (1.0f - mixed) + to * mixed : from; };
+        const auto crossing = [&](float from, float to) { return crosses ? from * (1.0f - blend) + to * blend : from; };
 
         const float mean = crossing(textures.meanOf(weather), textures.meanOf(next));
         const float cover = crossing(textures.coverOf(weather), textures.coverOf(next));
@@ -204,7 +203,7 @@ namespace Rtx
             .mAltitude = sCloudAltitude,
             .mPerTile = textures.mShell.mTiles / sCloudAltitude,
 
-            .mBlend = mixed,
+            .mBlend = blend,
             .mScroll = scroll,
 
             // Turned to face where each weather is driving, which is what the engine does to

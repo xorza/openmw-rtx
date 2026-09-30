@@ -152,8 +152,8 @@ namespace Rtx
         StagingRun mLentRun;
 
         /// Last, so that it is destroyed first: what it has recorded names images that must still
-        /// exist when it goes, and its destructor asserts that nothing is recorded —
-        /// `VulkanRenderer::~VulkanRenderer` calls `finish` for that. A texture given back is kept
+        /// exist when it goes, and its destructor asserts that nothing is recorded — which is what
+        /// `VulkanRenderer::~VulkanRenderer` calls `finish` for. A texture given back is kept
         /// on it, because the copy recorded against it may not have run. Its staging is where
         /// `lend` lends from.
         Batch mBatch;

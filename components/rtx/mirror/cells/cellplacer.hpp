@@ -71,8 +71,8 @@ namespace Rtx
 
         /// What a visibility gate says of the references behind it, for the cells no one has
         /// loaded: stand, stand not, or stand by what the game says of each. Applied to the cells
-        /// `held` at once, as a script's word is, and remembered for the cells not yet held. A
-        /// gate never told keeps its references down.
+        /// held at once, as a script's word is, and remembered for the cells not yet held. A gate
+        /// never told keeps its references down.
         void setGate(std::uint32_t gate, Terrain::GateState state);
 
         /// Which child the world's day-night switches show, for the placements a switch shows in

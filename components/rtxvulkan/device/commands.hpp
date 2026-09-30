@@ -248,8 +248,9 @@ namespace Rtx
         StagingRun stage(std::span<const std::byte> bytes);
 
         /// The same room, `bytes` long, lent empty for a caller that produces the bytes where they
-        /// land — a video frame, which then crosses main memory once. Writable until the batch
-        /// ends; write it and do not read it back, because it is write-combined memory.
+        /// land — a picture the interface fills through `lock`, which then crosses main memory
+        /// once. Writable until the batch ends; write it and do not read it back, because it is
+        /// write-combined memory.
         StagingLend reserve(VkDeviceSize bytes);
 
         /// Buries what it held under the submit it is about to make, submits what has been

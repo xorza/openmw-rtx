@@ -17,10 +17,6 @@
 
 namespace Rtx
 {
-    namespace
-    {
-    }
-
     SkinTables::SkinTables(const Device& device, Batch& batch, const SceneDesc& scene, const std::uint32_t slots)
         : mBindPositions(device, BufferKind::DeviceLocal, sTableFilledUsage, "bind positions")
         , mBindNormals(device, BufferKind::DeviceLocal, sTableFilledUsage, "bind normals")

@@ -323,7 +323,7 @@ namespace MWRender
         // **Taken once, after every walk of the frame**, and not by a walk: the precipitation and
         // the sea are walks whose counts go nowhere, and the sky's sheets are read between walks,
         // so a count a walk took with it was a count the frame lost.
-        found.mPreprocessed.mOnFrame += mExtractor.getPreprocessor().takeStats();
+        found.mPreprocessed.mOnFrame += mThreadContent.mPreprocessor.takeStats();
 
         return found;
     }

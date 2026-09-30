@@ -29,15 +29,15 @@ namespace Rtx
     struct PreparedModel;
 
     /// A read-only walk over a model as the loader built it, into a `PreparedModel`, for a thread
-    /// that is not the frame's. Not `SceneExtractor::Traversal`, because that one steps sequences and runs
-    /// controllers, and a template is shared with every clone and the preloader, so a walk from
-    /// another thread may write nothing into it. `SceneUtil::CopyOp` shares the drawables, state
-    /// sets and transforms, so a mesh read here is the mesh the frame's walk finds under the clone.
-    /// A sequence is walked at the frame it stands on, an LOD at its nearest level: `descendInWorld`
-    /// is the rule both walks share. **Save a `NightDaySwitch`, whose every branch is read**, each
-    /// part marked with the modes it is shown in: the game sets a clone's switch by the hour, and
-    /// nothing sets the template's, which stays at the branch its file opens on. Not thread-safe:
-    /// one a thread.
+    /// that is not the frame's. Not `SceneExtractor::Traversal`, because that one steps sequences
+    /// and runs controllers, and a template is shared with every clone and the preloader, so a walk
+    /// from another thread may write nothing into it. `SceneUtil::CopyOp` shares the drawables,
+    /// state sets and transforms, so a mesh read here is the mesh the frame's walk finds under the
+    /// clone. A sequence is walked at the frame it stands on, an LOD at its nearest level:
+    /// `descendInWorld` is the rule both walks share. **Save a `NightDaySwitch`, whose every branch
+    /// is read**, each part marked with the modes it is shown in: the game sets a clone's switch by
+    /// the hour, and nothing sets the template's, which stays at the branch its file opens on. Not
+    /// thread-safe: one a thread.
     class TemplateWalk final : public osg::NodeVisitor
     {
     public:
