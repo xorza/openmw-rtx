@@ -79,8 +79,9 @@ namespace CSVRender
             mParentNode->removeChild(mBaseNode);
         if (getCurrentId() == "cube-centre")
         {
-            osg::Vec3d pointA(mDragStart[0] - dragDistance, mDragStart[1] - dragDistance, mDragStart[2] - dragDistance);
-            osg::Vec3d pointB(mDragStart[0] + dragDistance, mDragStart[1] + dragDistance, mDragStart[2] + dragDistance);
+            const osg::Vec3d reach(dragDistance, dragDistance, dragDistance);
+            osg::Vec3d pointA(mDragStart - reach);
+            osg::Vec3d pointB(mDragStart + reach);
             getWorldspaceWidget().selectInsideCube(pointA, pointB, dragMode);
         }
         else if (getCurrentId() == "cube-corner")
@@ -337,16 +338,20 @@ namespace CSVRender
 
             for (int j = 0; j < resolution; ++j)
             {
-                float vertexX = thisRadius * sin(j * reciprocalResolution * osg::PI * 2);
+                float vertexX = static_cast<double>(thisRadius)
+                    * sin(static_cast<double>(j * reciprocalResolution) * osg::PI * 2);
                 float vertexY = i * radiusPerResolution * 2 - radius;
-                float vertexZ = thisRadius * cos(j * reciprocalResolution * osg::PI * 2);
+                float vertexZ = static_cast<double>(thisRadius)
+                    * cos(static_cast<double>(j * reciprocalResolution) * osg::PI * 2);
                 float heightPercentage = (vertexZ + radius) / (radius * 2);
                 vertices->push_back(osg::Vec3f(vertexX, vertexY, vertexZ));
                 colours->push_back(osg::Vec4f(heightPercentage, heightPercentage, heightPercentage, 0.3f));
 
-                float vertexNextRowX = thisRadius2 * sin(j * reciprocalResolution * osg::PI * 2);
+                float vertexNextRowX = static_cast<double>(thisRadius2)
+                    * sin(static_cast<double>(j * reciprocalResolution) * osg::PI * 2);
                 float vertexNextRowY = (i + 1) * radiusPerResolution * 2 - radius;
-                float vertexNextRowZ = thisRadius2 * cos(j * reciprocalResolution * osg::PI * 2);
+                float vertexNextRowZ = static_cast<double>(thisRadius2)
+                    * cos(static_cast<double>(j * reciprocalResolution) * osg::PI * 2);
                 float heightPercentageNextRow = (vertexZ + radius) / (radius * 2);
                 vertices->push_back(osg::Vec3f(vertexNextRowX, vertexNextRowY, vertexNextRowZ));
                 colours->push_back(

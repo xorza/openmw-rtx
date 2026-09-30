@@ -213,7 +213,7 @@ namespace MWPhysics
                 continue; // velocity updated, calculate nextpos again
             }
 
-            if ((newPosition - nextpos).length2() > 0.0001)
+            if (static_cast<double>((newPosition - nextpos).length2()) > 0.0001)
             {
                 // trace to where character would go if there were no obstructions
                 tracer.doTrace(actor.mCollisionObject, newPosition, nextpos, collisionWorld, actor.mIsOnGround);
@@ -294,7 +294,7 @@ namespace MWPhysics
                     newPosition -= direction * sCollisionMargin;
                 }
 
-                osg::Vec3f newVelocity = (velocity * planeNormal <= 0.0) ? reject(velocity, planeNormal) : velocity;
+                osg::Vec3f newVelocity = (velocity * planeNormal <= 0.0f) ? reject(velocity, planeNormal) : velocity;
                 bool usedSeamLogic = false;
 
                 // check for the current and previous collision planes forming an acute angle; slide along the seam if
@@ -306,7 +306,7 @@ namespace MWPhysics
                     auto dotB = lastSlideNormalFallback * origPlaneNormal;
                     if (numTimesSlid <= 1) // ignore fallback normal if this is only the first or second slide
                         dotB = 1.0;
-                    if (dotA <= 0.0 || dotB <= 0.0)
+                    if (dotA <= 0.0f || dotB <= 0.0f)
                     {
                         osg::Vec3f bestNormal = lastSlideNormal;
                         // use previous-to-previous collision plane if it's acute with current plane but actual previous
@@ -327,7 +327,7 @@ namespace MWPhysics
                             auto averageNormal = bestNormal + origPlaneNormal;
                             averageNormal.normalize();
                             tracer.doTrace(actor.mCollisionObject, newPosition,
-                                newPosition + averageNormal * (sCollisionMargin * 2.0), collisionWorld);
+                                newPosition + averageNormal * (sCollisionMargin * 2.0f), collisionWorld);
                             newPosition = (newPosition + tracer.mEndPos) / 2.0;
 
                             usedSeamLogic = true;
@@ -343,7 +343,7 @@ namespace MWPhysics
                 if (!usedSeamLogic)
                 {
                     tracer.doTrace(actor.mCollisionObject, newPosition,
-                        newPosition + planeNormal * (sCollisionMargin * 2.0), collisionWorld);
+                        newPosition + planeNormal * (sCollisionMargin * 2.0f), collisionWorld);
                     newPosition = (newPosition + tracer.mEndPos) / 2.0;
                 }
 
@@ -533,7 +533,7 @@ namespace MWPhysics
 
         // check whether we're inside the world with our collision box with manually-derived offset
         auto contactCallback = gatherContacts({ 0.0, 0.0, 0.0 });
-        if (contactCallback.mDistance < -sAllowedPenetration)
+        if (contactCallback.mDistance < -static_cast<double>(sAllowedPenetration))
         {
             ++actor.mStuckFrames;
             actor.mLastStuckPosition = actor.mPosition;

@@ -180,7 +180,7 @@ namespace Nif
 
         std::vector<SegmentData> mSegments;
 
-        void read(NIFStream* nif);
+        void read(NIFStream* nif) override;
     };
 
     struct NiTriStrips : NiTriBasedGeom

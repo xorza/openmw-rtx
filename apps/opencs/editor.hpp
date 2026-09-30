@@ -28,6 +28,8 @@
 #include "view/prefs/dialogue.hpp"
 #include "view/tools/merge.hpp"
 
+Q_MOC_INCLUDE("apps/opencs/model/doc/document.hpp")
+
 class QLocalServer;
 class QLocalSocket;
 

@@ -524,7 +524,7 @@ namespace MWGui
             mCompass->setPosition(pos);
         }
         osg::Vec2f curPos((cellX + nx) * cellSize, (cellY + 1 - ny) * cellSize);
-        if ((curPos - mCurPos).length2() > 0.001)
+        if (static_cast<double>((curPos - mCurPos).length2()) > 0.001)
         {
             mCurPos = curPos;
             centerView();
@@ -595,7 +595,7 @@ namespace MWGui
 
         mMarkerUpdateTimer += dt;
 
-        if (mMarkerUpdateTimer >= 0.25)
+        if (mMarkerUpdateTimer >= 0.25f)
         {
             mMarkerUpdateTimer = 0;
             updateMagicMarkers();
@@ -1185,7 +1185,8 @@ namespace MWGui
     {
         float markerSize = 12.f * mGlobalMapZoom;
         if (mGlobalMapZoom < 1)
-            return static_cast<float>(markerSize * std::sqrt(agregatedWeight)); // we want to see agregated object
+            return static_cast<float>(
+                static_cast<double>(markerSize) * std::sqrt(agregatedWeight)); // we want to see agregated object
         return agregatedWeight ? 0 : markerSize; // we want to see only original markers (i.e. non agregated)
     }
 

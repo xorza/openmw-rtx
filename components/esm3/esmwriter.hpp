@@ -172,7 +172,7 @@ namespace ESM
         void writeT(const T& data, size_t size)
         {
             static_assert(!std::is_pointer_v<T>);
-            write((char*)&data, size);
+            write(reinterpret_cast<const char*>(&data), size);
         }
 
         void startRecord(NAME name, uint32_t flags = 0);

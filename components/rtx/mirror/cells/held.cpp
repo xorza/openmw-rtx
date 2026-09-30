@@ -3,7 +3,7 @@
 #include <cassert>
 #include <utility>
 
-#include <components/rtx/common/contract.hpp>
+#include <components/crashcatcher/crash.hpp>
 
 namespace Rtx
 {
@@ -25,7 +25,7 @@ namespace Rtx
     CellHolds::HeldModel& CellHolds::knownOf(const PreparedModel& model)
     {
         const auto known = mModels.find(&model);
-        contract(known != mModels.end(), "a model read that the frame does not know of");
+        Crash::contract(known != mModels.end(), "a model read that the frame does not know of");
 
         return *known;
     }
@@ -52,7 +52,7 @@ namespace Rtx
     void CellHolds::release(PreparedModel& model)
     {
         const auto known = mModels.find(&model);
-        contract(known != mModels.end(), "a model released that the frame does not know of");
+        Crash::contract(known != mModels.end(), "a model released that the frame does not know of");
 
         assert(known->mNamed > 0 && "a model released by more cells than named it");
         if (--known->mNamed > 0)

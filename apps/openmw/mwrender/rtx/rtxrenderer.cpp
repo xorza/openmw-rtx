@@ -989,9 +989,4 @@ namespace MWRender
                 mWindow.setTitle(mTimer.writeTitle(mRun.describeTitle()).data());
         }
     }
-
-    std::unique_ptr<Renderer> createRtxRenderer(const RendererSpec& spec)
-    {
-        return std::make_unique<RtxRenderer>(spec);
-    }
 }

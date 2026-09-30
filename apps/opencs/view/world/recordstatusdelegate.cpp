@@ -39,7 +39,7 @@ CSVWorld::RecordStatusDelegateFactory::RecordStatusDelegateFactory()
         = CSMWorld::Columns::getEnums(CSMWorld::Columns::ColumnId_Modification);
 
     static const char* sIcons[]
-        = { ":list-base", ":list-modified", ":list-added", ":list-removed", ":list-removed", 0 };
+        = { ":list-base", ":list-modified", ":list-added", ":list-removed", ":list-removed", nullptr };
 
     for (int i = 0; sIcons[i]; ++i)
     {

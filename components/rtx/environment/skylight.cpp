@@ -7,8 +7,8 @@
 #include <osg/Math>
 #include <osg/Vec4f>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/esm3/loadregn.hpp>
-#include <components/rtx/common/contract.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/look.h>
@@ -199,7 +199,7 @@ namespace Rtx
         // The table's own interned spelling, which outlives every caller.
         const ESM::RefId id = ESM::Weather::indexToRefId(static_cast<int>(weather));
         const ESM::StringRefId* const named = id.getIf<ESM::StringRefId>();
-        contract(named != nullptr, "a weather ESM::Weather does not name by a string");
+        Crash::contract(named != nullptr, "a weather ESM::Weather does not name by a string");
         return named->getValue();
     }
 

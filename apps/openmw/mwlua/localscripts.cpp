@@ -206,7 +206,7 @@ namespace MWLua
                                         const osg::Vec3f& dest, bool repeat, bool cancelOther) {
             const MWWorld::Ptr& ptr = self.ptr();
             MWMechanics::AiSequence& ai = ptr.getClass().getCreatureStats(ptr).getAiSequence();
-            int gameHoursDuration = static_cast<int>(std::ceil(duration / 3600.0));
+            int gameHoursDuration = static_cast<int>(std::ceil(static_cast<double>(duration) / 3600.0));
             auto* esmCell = cell.mStore->getCell();
             std::string_view cellNameId;
             if (!esmCell->isExterior())

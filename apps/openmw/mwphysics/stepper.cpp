@@ -31,7 +31,7 @@ namespace MWPhysics
     bool Stepper::step(
         osg::Vec3f& position, osg::Vec3f& velocity, float& remainingTime, const bool& onGround, bool firstIteration)
     {
-        if (velocity.x() == 0.0 && velocity.y() == 0.0)
+        if (velocity.x() == 0.0f && velocity.y() == 0.0f)
             return false;
 
         // Stairstepping algorithms work by moving up to avoid the step, moving forwards, then moving back down onto the

@@ -49,7 +49,7 @@ namespace CSVRender
     void TerrainStorage::setAlteredHeight(int inCellX, int inCellY, float height)
     {
         mAlteredHeight[inCellY * ESM::Land::LAND_SIZE + inCellX]
-            = height - fmod(height, 8); // Limit to divisible by 8 to avoid cell seam breakage
+            = static_cast<double>(height) - fmod(height, 8); // Limit to divisible by 8 to avoid cell seam breakage
     }
 
     void TerrainStorage::resetHeights()

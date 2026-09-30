@@ -41,6 +41,7 @@
 #include <iterator>
 #include <cassert>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/sceneutil/depth.hpp>
 
 // NOLINTBEGIN(readability-identifier-naming)
@@ -165,7 +166,7 @@ class CollectLowestTransformsVisitor : public BaseOptimizerVisitor
     public:
 
 
-        CollectLowestTransformsVisitor(Optimizer* optimizer=0):
+        CollectLowestTransformsVisitor(Optimizer* optimizer=nullptr):
                     BaseOptimizerVisitor(optimizer,Optimizer::FLATTEN_STATIC_TRANSFORMS),
                     _transformFunctor(osg::Matrix())
         {
@@ -305,7 +306,7 @@ class CollectLowestTransformsVisitor : public BaseOptimizerVisitor
             osg::Matrix getMatrix(osg::Transform* transform)
             {
                 osg::Matrix matrix;
-                transform->computeLocalToWorldMatrix(matrix, 0);
+                transform->computeLocalToWorldMatrix(matrix, nullptr);
                 return matrix;
             }
             
@@ -447,8 +448,9 @@ void CollectLowestTransformsVisitor::doTransform(osg::Object* obj,osg::Matrix& m
         for(unsigned int i=0;i<billboard->getNumDrawables();++i)
         {
             billboard->setPosition(i,billboard->getPosition(i)*matrix);
-            billboard->getDrawable(i)->accept(tf);
-            billboard->getDrawable(i)->dirtyBound();
+            osg::Drawable* child = Crash::notNull(billboard->getDrawable(i), "a billboard child that is not drawable");
+            child->accept(tf);
+            child->dirtyBound();
         }
 
         billboard->dirtyBound();
@@ -567,7 +569,7 @@ bool CollectLowestTransformsVisitor::removeTransforms(osg::Node* nodeWeCannotRem
         titr!=_transformMap.end();
         ++titr)
     {
-        if (titr->first!=0 && titr->second._canBeApplied)
+        if (titr->first!=nullptr && titr->second._canBeApplied)
         {
             if (titr->first!=nodeWeCannotRemove)
             {
@@ -730,11 +732,11 @@ bool Optimizer::FlattenStaticTransformsVisitor::removeTransforms(osg::Node* node
 
 void Optimizer::CombineStaticTransformsVisitor::apply(osg::MatrixTransform& transform)
 {
+    osg::Transform* child = transform.getNumChildren()==1 ? transform.getChild(0)->asTransform() : nullptr;
     if (transform.getDataVariance()==osg::Object::STATIC &&
-        transform.getNumChildren()==1 &&
-        transform.getChild(0)->asTransform()!=0 &&
-        transform.getChild(0)->asTransform()->asMatrixTransform()!=0 &&
-        transform.getChild(0)->asTransform()->getDataVariance()==osg::Object::STATIC &&
+        child!=nullptr &&
+        child->asMatrixTransform()!=nullptr &&
+        child->getDataVariance()==osg::Object::STATIC &&
         isOperationPermissibleForObject(&transform) && isOperationPermissibleForObject(transform.getChild(0)))
     {
         _transformSet.insert(&transform);
@@ -745,10 +747,11 @@ void Optimizer::CombineStaticTransformsVisitor::apply(osg::MatrixTransform& tran
 
 bool Optimizer::CombineStaticTransformsVisitor::removeTransforms(osg::Node* nodeWeCannotRemove)
 {
-    if (nodeWeCannotRemove && nodeWeCannotRemove->asTransform()!=0 && nodeWeCannotRemove->asTransform()->asMatrixTransform()!=0)
+    osg::Transform* topmost = nodeWeCannotRemove ? nodeWeCannotRemove->asTransform() : nullptr;
+    if (topmost!=nullptr && topmost->asMatrixTransform()!=nullptr)
     {
         // remove topmost node from transform set if it exists there.
-        TransformSet::iterator itr = _transformSet.find(nodeWeCannotRemove->asTransform()->asMatrixTransform());
+        TransformSet::iterator itr = _transformSet.find(topmost->asMatrixTransform());
         if (itr!=_transformSet.end()) _transformSet.erase(itr);
     }
 
@@ -760,14 +763,13 @@ bool Optimizer::CombineStaticTransformsVisitor::removeTransforms(osg::Node* node
         osg::ref_ptr<osg::MatrixTransform> transform = *_transformSet.begin();
         _transformSet.erase(_transformSet.begin());
 
-        if (transform->getNumChildren()==1 &&
-            transform->getChild(0)->asTransform()!=0 &&
-            transform->getChild(0)->asTransform()->asMatrixTransform()!=0 &&
-            (!transform->getChild(0)->getStateSet() || transform->getChild(0)->getStateSet()->referenceCount()==1) &&
-            transform->getChild(0)->getDataVariance()==osg::Object::STATIC)
+        osg::Transform* childTransform = transform->getNumChildren()==1 ? transform->getChild(0)->asTransform() : nullptr;
+        osg::MatrixTransform* child = childTransform!=nullptr ? childTransform->asMatrixTransform() : nullptr;
+        if (child!=nullptr &&
+            (!child->getStateSet() || child->getStateSet()->referenceCount()==1) &&
+            child->getDataVariance()==osg::Object::STATIC)
         {
             // now combine with its child.
-            osg::MatrixTransform* child = transform->getChild(0)->asTransform()->asMatrixTransform();
 
             osg::Matrix newMatrix = child->getMatrix()*transform->getMatrix();
             child->setMatrix(newMatrix);
@@ -1697,13 +1699,13 @@ class MergeArrayVisitor : public osg::ArrayVisitor
         osg::Array* _lhs;
     public:
         MergeArrayVisitor() :
-            _lhs(0) {}
+            _lhs(nullptr) {}
 
 
         /// try to merge the content of two arrays.
         bool merge(osg::Array* lhs,osg::Array* rhs)
         {
-            if (lhs==0 || rhs==0) return true;
+            if (lhs==nullptr || rhs==nullptr) return true;
             if (lhs->getType()!=rhs->getType()) return false;
 
             _lhs = lhs;

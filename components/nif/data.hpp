@@ -414,7 +414,7 @@ namespace Nif
         std::vector<DataStream> mBlockInfos;
         std::vector<DataBlock> mBlocks;
 
-        void read(NIFStream* nif);
+        void read(NIFStream* nif) override;
     };
 
     struct BSMultiBound : public Record

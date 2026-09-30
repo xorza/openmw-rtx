@@ -207,14 +207,14 @@ namespace Terrain
     {
         for (ViewerMap::iterator it = mViewers.begin(); it != mViewers.end();)
         {
-            if (it->second->getLastUsageTimeStamp() + mExpiryDelay < referenceTime)
+            if (it->second->getLastUsageTimeStamp() + static_cast<double>(mExpiryDelay) < referenceTime)
                 mViewers.erase(it++);
             else
                 ++it;
         }
         for (std::deque<ViewData*>::iterator it = mUsedViews.begin(); it != mUsedViews.end();)
         {
-            if ((*it)->getLastUsageTimeStamp() + mExpiryDelay < referenceTime)
+            if ((*it)->getLastUsageTimeStamp() + static_cast<double>(mExpiryDelay) < referenceTime)
             {
                 (*it)->clear();
                 mUnusedViews.push_back(*it);

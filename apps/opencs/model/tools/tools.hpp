@@ -12,6 +12,8 @@
 
 #include "../doc/operationholder.hpp"
 
+Q_MOC_INCLUDE("apps/opencs/model/doc/document.hpp")
+
 namespace CSMWorld
 {
     class Data;

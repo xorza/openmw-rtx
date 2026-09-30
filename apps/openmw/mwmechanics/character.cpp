@@ -2012,7 +2012,7 @@ namespace MWMechanics
 
             // Force Jump Logic
 
-            isMoving = (std::abs(movementSettings.mPosition[0]) > .5 || std::abs(movementSettings.mPosition[1]) > .5);
+            isMoving = (std::abs(movementSettings.mPosition[0]) > .5f || std::abs(movementSettings.mPosition[1]) > .5f);
             if (!inwater && !flying)
             {
                 // Force Jump
@@ -3158,8 +3158,8 @@ namespace MWMechanics
 
             zAngleRadians
                 = std::atan2(actorDirection.x(), actorDirection.y()) - std::atan2(direction.x(), direction.y());
-            zAngleRadians = static_cast<float>(
-                Misc::normalizeAngle(zAngleRadians - mAnimation->getHeadYaw()) + mAnimation->getHeadYaw());
+            zAngleRadians = static_cast<float>(Misc::normalizeAngle(zAngleRadians - mAnimation->getHeadYaw())
+                + static_cast<double>(mAnimation->getHeadYaw()));
             zAngleRadians *= (1 - direction.z() * direction.z());
             xAngleRadians = std::asin(direction.z());
         }

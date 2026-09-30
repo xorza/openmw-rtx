@@ -26,6 +26,7 @@
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/debug/gldebug.hpp>
 #include <components/esm3/loadcell.hpp>
@@ -557,7 +558,8 @@ namespace MWRender
 
         void operator()(osg::RenderInfo& renderInfo) const override
         {
-            const osg::Viewport* viewPort = renderInfo.getCurrentCamera()->getViewport();
+            const osg::Viewport* viewPort
+                = Crash::notNull(renderInfo.getCurrentCamera(), "a draw with no camera")->getViewport();
             int w = static_cast<int>(viewPort->width());
             int h = static_cast<int>(viewPort->height());
             mTexture->copyTexImage2D(*renderInfo.getState(), 0, 0, w, h);
@@ -698,7 +700,7 @@ namespace MWRender
     {
         if (osgUtil::IncrementalCompileOperation* ico = mViewer->getIncrementalCompileOperation())
         {
-            ico->setMinimumTimeAvailableForGLCompileAndDeletePerFrame(1.f / targetFrameRate);
+            ico->setMinimumTimeAvailableForGLCompileAndDeletePerFrame(1.0 / targetFrameRate);
             ico->setMaximumNumOfObjectsToCompilePerFrame(1000);
         }
     }

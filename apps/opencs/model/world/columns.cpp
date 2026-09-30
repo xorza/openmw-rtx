@@ -382,7 +382,7 @@ namespace CSMWorld
             { ColumnId_ProjectileSpeed, "Projectile Speed" },
 
             // end marker
-            { -1, 0 },
+            { -1, nullptr },
         };
     }
 }
@@ -407,59 +407,59 @@ int CSMWorld::Columns::getId(const std::string& name)
 
 namespace
 {
-    static const char* sSpecialisations[] = { "Combat", "Magic", "Stealth", 0 };
+    static const char* sSpecialisations[] = { "Combat", "Magic", "Stealth", nullptr };
 
     // see ESM::Attribute::AttributeID in <component/esm3/attr.hpp>
     static const char* sAttributes[]
-        = { "Strength", "Intelligence", "Willpower", "Agility", "Speed", "Endurance", "Personality", "Luck", 0 };
+        = { "Strength", "Intelligence", "Willpower", "Agility", "Speed", "Endurance", "Personality", "Luck", nullptr };
 
-    static const char* sSpellTypes[] = { "Spell", "Ability", "Blight", "Disease", "Curse", "Power", 0 };
+    static const char* sSpellTypes[] = { "Spell", "Ability", "Blight", "Disease", "Curse", "Power", nullptr };
 
-    static const char* sApparatusTypes[] = { "Mortar & Pestle", "Alembic", "Calcinator", "Retort", 0 };
+    static const char* sApparatusTypes[] = { "Mortar & Pestle", "Alembic", "Calcinator", "Retort", nullptr };
 
     static const char* sArmorTypes[] = { "Helmet", "Cuirass", "Left Pauldron", "Right Pauldron", "Greaves", "Boots",
-        "Left Gauntlet", "Right Gauntlet", "Shield", "Left Bracer", "Right Bracer", 0 };
+        "Left Gauntlet", "Right Gauntlet", "Shield", "Left Bracer", "Right Bracer", nullptr };
 
-    static const char* sClothingTypes[]
-        = { "Pants", "Shoes", "Shirt", "Belt", "Robe", "Right Glove", "Left Glove", "Skirt", "Ring", "Amulet", 0 };
+    static const char* sClothingTypes[] = { "Pants", "Shoes", "Shirt", "Belt", "Robe", "Right Glove", "Left Glove",
+        "Skirt", "Ring", "Amulet", nullptr };
 
-    static const char* sCreatureTypes[] = { "Creature", "Daedra", "Undead", "Humanoid", 0 };
+    static const char* sCreatureTypes[] = { "Creature", "Daedra", "Undead", "Humanoid", nullptr };
 
     static const char* sWeaponTypes[]
         = { "Short Blade 1H", "Long Blade 1H", "Long Blade 2H", "Blunt 1H", "Blunt 2H Close", "Blunt 2H Wide",
-              "Spear 2H", "Axe 1H", "Axe 2H", "Bow", "Crossbow", "Thrown", "Arrow", "Bolt", 0 };
+              "Spear 2H", "Axe 1H", "Axe 2H", "Bow", "Crossbow", "Thrown", "Arrow", "Bolt", nullptr };
 
-    static const char* sModificationEnums[] = { "Base", "Modified", "Added", "Deleted", "Deleted", 0 };
+    static const char* sModificationEnums[] = { "Base", "Modified", "Added", "Deleted", "Deleted", nullptr };
 
-    static const char* sVarTypeEnums[] = { "unknown", "none", "short", "integer", "long", "float", "string", 0 };
+    static const char* sVarTypeEnums[] = { "unknown", "none", "short", "integer", "long", "float", "string", nullptr };
 
-    static const char* sDialogueTypeEnums[] = { "Topic", "Voice", "Greeting", "Persuasion", 0 };
+    static const char* sDialogueTypeEnums[] = { "Topic", "Voice", "Greeting", "Persuasion", nullptr };
 
-    static const char* sQuestStatusTypes[] = { "None", "Name", "Finished", "Restart", 0 };
+    static const char* sQuestStatusTypes[] = { "None", "Name", "Finished", "Restart", nullptr };
 
-    static const char* sGenderEnums[] = { "Male", "Female", 0 };
+    static const char* sGenderEnums[] = { "Male", "Female", nullptr };
 
-    static const char* sEnchantmentTypes[] = { "Cast Once", "When Strikes", "When Used", "Constant Effect", 0 };
+    static const char* sEnchantmentTypes[] = { "Cast Once", "When Strikes", "When Used", "Constant Effect", nullptr };
 
     static const char* sBodyPartTypes[] = { "Head", "Hair", "Neck", "Chest", "Groin", "Hand", "Wrist", "Forearm",
-        "Upper Arm", "Foot", "Ankle", "Knee", "Upper Leg", "Clavicle", "Tail", 0 };
+        "Upper Arm", "Foot", "Ankle", "Knee", "Upper Leg", "Clavicle", "Tail", nullptr };
 
-    static const char* sMeshTypes[] = { "Skin", "Clothing", "Armour", 0 };
+    static const char* sMeshTypes[] = { "Skin", "Clothing", "Armour", nullptr };
 
     static const char* sSoundGeneratorType[]
-        = { "Left Foot", "Right Foot", "Swim Left", "Swim Right", "Moan", "Roar", "Scream", "Land", 0 };
+        = { "Left Foot", "Right Foot", "Swim Left", "Swim Right", "Moan", "Roar", "Scream", "Land", nullptr };
 
     static const char* sSchools[]
-        = { "Alteration", "Conjuration", "Destruction", "Illusion", "Mysticism", "Restoration", 0 };
+        = { "Alteration", "Conjuration", "Destruction", "Illusion", "Mysticism", "Restoration", nullptr };
 
     // impact from magic effects, see ESM::Skill::SkillEnum in <component/esm3/loadskil.hpp>
     static const char* sSkills[] = { "Block", "Armorer", "MediumArmor", "HeavyArmor", "BluntWeapon", "LongBlade", "Axe",
         "Spear", "Athletics", "Enchant", "Destruction", "Alteration", "Illusion", "Conjuration", "Mysticism",
         "Restoration", "Alchemy", "Unarmored", "Security", "Sneak", "Acrobatics", "LightArmor", "ShortBlade",
-        "Marksman", "Mercantile", "Speechcraft", "HandToHand", 0 };
+        "Marksman", "Mercantile", "Speechcraft", "HandToHand", nullptr };
 
     // range of magic effects, see ESM::RangeType in <component/esm3/defs.hpp>
-    static const char* sEffectRange[] = { "Self", "Touch", "Target", 0 };
+    static const char* sEffectRange[] = { "Self", "Touch", "Target", nullptr };
 
     // magic effect names, see ESM::MagicEffect::Effects in <component/esm3/loadmgef.hpp>
     static const char* sEffectId[] = { "WaterBreathing", "SwiftSwim", "WaterWalking", "Shield", "FireShield",
@@ -485,20 +485,22 @@ namespace
         "BoundMace", "BoundBattleAxe", "BoundSpear", "BoundLongbow", "ExtraSpell", "BoundCuirass", "BoundHelm",
         "BoundBoots", "BoundShield", "BoundGloves", "Corprus", "Vampirism", "SummonCenturionSphere", "SunDamage",
         "StuntedMagicka", "SummonFabricant", "SummonWolf", "SummonBear", "SummonBonewolf", "SummonCreature04",
-        "SummonCreature05", 0 };
+        "SummonCreature05", nullptr };
 
     // see ESM::PartReferenceType in <component/esm3/loadarmo.hpp>
     static const char* sPartRefType[] = { "Head", "Hair", "Neck", "Cuirass", "Groin", "Skirt", "Right Hand",
         "Left Hand", "Right Wrist", "Left Wrist", "Shield", "Right Forearm", "Left Forearm", "Right Upperarm",
         "Left Upperarm", "Right Foot", "Left Foot", "Right Ankle", "Left Ankle", "Right Knee", "Left Knee", "Right Leg",
-        "Left Leg", "Right Pauldron", "Left Pauldron", "Weapon", "Tail", 0 };
+        "Left Leg", "Right Pauldron", "Left Pauldron", "Weapon", "Tail", nullptr };
 
     // see the enums in <component/esm3/aipackage.hpp>
-    static const char* sAiPackageType[] = { "AI Wander", "AI Travel", "AI Follow", "AI Escort", "AI Activate", 0 };
+    static const char* sAiPackageType[]
+        = { "AI Wander", "AI Travel", "AI Follow", "AI Escort", "AI Activate", nullptr };
 
-    static const char* sBookType[] = { "Book", "Scroll", 0 };
+    static const char* sBookType[] = { "Book", "Scroll", nullptr };
 
-    static const char* sEmitterType[] = { "<None>", "Flickering", "Flickering (Slow)", "Pulsing", "Pulsing (Slow)", 0 };
+    static const char* sEmitterType[]
+        = { "<None>", "Flickering", "Flickering (Slow)", "Pulsing", "Pulsing (Slow)", nullptr };
 
     const char** getEnumNames(CSMWorld::Columns::ColumnId column)
     {
@@ -560,14 +562,14 @@ namespace
                 return sEmitterType;
 
             default:
-                return 0;
+                return nullptr;
         }
     }
 }
 
 bool CSMWorld::Columns::hasEnums(ColumnId column)
 {
-    return getEnumNames(column) != 0 || column == ColumnId_RecordType;
+    return getEnumNames(column) != nullptr || column == ColumnId_RecordType;
 }
 
 std::vector<std::pair<int, std::string>> CSMWorld::Columns::getEnums(ColumnId column)

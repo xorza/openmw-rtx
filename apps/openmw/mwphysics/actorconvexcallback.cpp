@@ -19,7 +19,7 @@ namespace MWPhysics
                 int /*partId0*/, int /*index0*/, const btCollisionObjectWrapper* /*colObj1Wrap*/, int /*partId1*/,
                 int /*index1*/) override
             {
-                if (cp.getDistance() <= 0.0f)
+                if (cp.getDistance() <= 0.0)
                     mOverlapping = true;
                 return 1;
             }

@@ -24,6 +24,8 @@
 #include <components/settings/values.hpp>
 #include <components/shader/automaps.hpp>
 
+#include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
+
 #include "glrenderer.hpp"
 
 namespace MWRender
@@ -221,13 +223,12 @@ namespace MWRender
             return std::make_unique<GlRenderer>(spec);
 
         if (name == "raytrace")
-            if (std::unique_ptr<Renderer> rtx = createRtxRenderer(spec))
-                return rtx;
+            return std::make_unique<RtxRenderer>(spec);
 
         // **Named rather than fallen back from.** A renderer that quietly became a different one
-        // answers "why does it look like that" with silence, and a build without the one asked for
-        // is a configuration mistake rather than a runtime condition.
-        throw std::runtime_error("this build has no renderer named \"" + std::string(name) + '"');
+        // answers "why does it look like that" with silence, and a name no renderer has is a
+        // configuration mistake rather than a runtime condition.
+        throw std::runtime_error("there is no renderer named \"" + std::string(name) + '"');
     }
 
     WindowPlacement describeWindow(const std::uint32_t surfaceFlag)

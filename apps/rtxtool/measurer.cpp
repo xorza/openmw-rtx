@@ -16,8 +16,8 @@
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/timestamp.hpp>
+#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/rtx/common/contract.hpp>
 #include <components/rtx/environment/skylight.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/png.hpp>
@@ -214,7 +214,7 @@ namespace RtxTool
         // comes back.
         if (const std::optional<Actions::Film>& film = stop.mActions.mFilm; film.has_value())
         {
-            Rtx::contract(mProgress.mFilmPending < mProgress.mFilmFrames.size(),
+            Crash::contract(mProgress.mFilmPending < mProgress.mFilmFrames.size(),
                 "more of a film's frames in flight than the ring holds");
             mProgress.mFilmFrames[mProgress.mFilmPending++]
                 = Progress::FilmFrame{ .mFrame = report.mFrame, .mNumber = film->mFirst + drawn - 1 };
@@ -262,7 +262,7 @@ namespace RtxTool
         const auto end = pending.begin() + static_cast<std::ptrdiff_t>(mProgress.mFilmPending);
         const auto found = std::find_if(
             pending.begin(), end, [&](const Progress::FilmFrame& one) { return one.mFrame == finished.mFrame; });
-        Rtx::contract(found != end, "a film's measured frame came back that `frame` never numbered");
+        Crash::contract(found != end, "a film's measured frame came back that `frame` never numbered");
 
         const std::uint32_t number = found->mNumber;
         std::copy(found + 1, end, found);

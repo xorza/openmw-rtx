@@ -141,7 +141,7 @@ namespace MWInput
 
     bool InputManager::isIdle() const
     {
-        return mActionManager->getIdleTime() > 0.5;
+        return mActionManager->getIdleTime() > 0.5f;
     }
 
     std::string_view InputManager::getActionDescription(int action) const

@@ -303,7 +303,7 @@ namespace MWRender
 
         // If we're in an empty cell, bail out
         // The operations in this function are only valid for finite bounds
-        if (!bounds.valid() || bounds.radius2() == 0.0)
+        if (!bounds.valid() || bounds.radius2() == 0.0f)
             return;
 
         mInterior = true;

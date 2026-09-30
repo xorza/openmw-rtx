@@ -56,12 +56,12 @@ namespace MWInput
             }
             case SDL_ORIENTATION_PORTRAIT:
             {
-                angle = -0.5 * osg::PIf;
+                angle = -0.5f * osg::PIf;
                 break;
             }
             case SDL_ORIENTATION_PORTRAIT_FLIPPED:
             {
-                angle = 0.5 * osg::PIf;
+                angle = 0.5f * osg::PIf;
                 break;
             }
         }

@@ -711,14 +711,14 @@ namespace Shader
         // If so, we can migrate from explicitly copying removed state to just calling osg::StateSet::merge.
         // Not everything is transferred from removedState yet - implement more when createProgram starts marking more
         // as removed.
-        if (node.getStateSet())
+        if (osg::StateSet* stateSet = node.getStateSet())
         {
-            osg::ref_ptr<osg::StateSet> removedState = getRemovedState(*node.getStateSet());
+            osg::ref_ptr<osg::StateSet> removedState = getRemovedState(*stateSet);
             if (removedState)
             {
                 osg::ref_ptr<osg::StateSet> writableStateSet;
                 if (mAllowedToModifyStateSets)
-                    writableStateSet = node.getStateSet();
+                    writableStateSet = stateSet;
                 else
                     writableStateSet = getWritableStateSet(node);
 

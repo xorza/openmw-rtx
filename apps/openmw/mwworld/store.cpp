@@ -696,13 +696,20 @@ namespace MWWorld
                         if (movedRef.mTarget[0] != itOld->mTarget[0] || movedRef.mTarget[1] != itOld->mTarget[1])
                         {
                             ESM::Cell* wipecell = const_cast<ESM::Cell*>(search(itOld->mTarget[0], itOld->mTarget[1]));
-                            auto itLease = std::find_if(wipecell->mLeasedRefs.begin(), wipecell->mLeasedRefs.end(),
-                                ESM::CellRefTrackerPredicate(movedRef.mRefNum));
-                            if (itLease != wipecell->mLeasedRefs.end())
-                                wipecell->mLeasedRefs.erase(itLease);
+                            if (wipecell == nullptr)
+                                Log(Debug::Error) << "Error: can't find cell " << itOld->mTarget[0] << " "
+                                                  << itOld->mTarget[1] << " that " << movedRef.mRefNum.mIndex << " "
+                                                  << movedRef.mRefNum.mContentFile << " moved out of";
                             else
-                                Log(Debug::Error) << "Error: can't find " << movedRef.mRefNum.mIndex << " "
-                                                  << movedRef.mRefNum.mContentFile << " in leasedRefs";
+                            {
+                                auto itLease = std::find_if(wipecell->mLeasedRefs.begin(), wipecell->mLeasedRefs.end(),
+                                    ESM::CellRefTrackerPredicate(movedRef.mRefNum));
+                                if (itLease != wipecell->mLeasedRefs.end())
+                                    wipecell->mLeasedRefs.erase(itLease);
+                                else
+                                    Log(Debug::Error) << "Error: can't find " << movedRef.mRefNum.mIndex << " "
+                                                      << movedRef.mRefNum.mContentFile << " in leasedRefs";
+                            }
                         }
                         *itOld = movedRef;
                     }
@@ -1053,7 +1060,9 @@ namespace MWWorld
     ESM4::Cell* Store<ESM4::Cell>::insert(const ESM4::Cell& item, bool overrideOnly)
     {
         auto cellPtr = TypedDynamicStore<ESM4::Cell>::insert(item, overrideOnly);
-        insertCell(cellPtr);
+        // Null where only an override was asked for and there is nothing to override.
+        if (cellPtr != nullptr)
+            insertCell(cellPtr);
         return cellPtr;
     }
 

@@ -162,8 +162,8 @@ namespace ESM
                 for (unsigned i = 0; i < LandRecordData::sLandSize; ++i)
                 {
                     float diff = (mLandData->mHeights[number] - prevY) / sHeightScale;
-                    offsets.mHeightData[number]
-                        = diff >= 0 ? static_cast<std::int8_t>(diff + 0.5) : static_cast<std::int8_t>(diff - 0.5);
+                    offsets.mHeightData[number] = diff >= 0 ? static_cast<std::int8_t>(static_cast<double>(diff) + 0.5)
+                                                            : static_cast<std::int8_t>(static_cast<double>(diff) - 0.5);
 
                     float prevX = prevY = mLandData->mHeights[number];
                     ++number;
@@ -171,8 +171,9 @@ namespace ESM
                     for (unsigned j = 1; j < LandRecordData::sLandSize; ++j)
                     {
                         diff = (mLandData->mHeights[number] - prevX) / sHeightScale;
-                        offsets.mHeightData[number]
-                            = diff >= 0 ? static_cast<std::int8_t>(diff + 0.5) : static_cast<std::int8_t>(diff - 0.5);
+                        offsets.mHeightData[number] = diff >= 0
+                            ? static_cast<std::int8_t>(static_cast<double>(diff) + 0.5)
+                            : static_cast<std::int8_t>(static_cast<double>(diff) - 0.5);
 
                         prevX = mLandData->mHeights[number];
                         ++number;

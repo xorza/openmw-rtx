@@ -939,7 +939,7 @@ namespace ESM4
         {
             case ESM4::Grp_RecordType:
             {
-                ss << ": " << std::string((char*)label.recordType, 4);
+                ss << ": " << std::string(label.recordType, 4);
                 break;
             }
             case ESM4::Grp_ExteriorCell:

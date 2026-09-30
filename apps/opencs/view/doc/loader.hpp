@@ -7,6 +7,8 @@
 #include <QObject>
 #include <QWidget>
 
+Q_MOC_INCLUDE("apps/opencs/model/doc/document.hpp")
+
 class QCloseEvent;
 class QLabel;
 class QProgressBar;

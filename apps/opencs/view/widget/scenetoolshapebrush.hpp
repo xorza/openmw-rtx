@@ -9,6 +9,8 @@
 #ifndef Q_MOC_RUN
 #include "brushshapes.hpp"
 #include "scenetool.hpp"
+
+Q_MOC_INCLUDE("apps/opencs/model/doc/document.hpp")
 #endif
 
 class QComboBox;

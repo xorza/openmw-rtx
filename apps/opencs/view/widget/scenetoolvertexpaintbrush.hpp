@@ -11,6 +11,8 @@
 #include "brushshapes.hpp"
 #include "scenetool.hpp"
 
+Q_MOC_INCLUDE("apps/opencs/model/doc/document.hpp")
+
 class QComboBox;
 class QDragEnterEvent;
 class QDropEvent;

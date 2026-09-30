@@ -168,7 +168,7 @@ void CSMWorld::CommandDispatcher::executeModify(
         // Modulate by cell size, update cell id if reference has been moved to a new cell
         if (std::abs(std::fmod(oldPosition, Constants::CellSizeInUnits))
                 - std::abs(std::fmod(newValue.toFloat(), Constants::CellSizeInUnits))
-            >= 0.5f)
+            >= 0.5)
         {
             IdTableProxyModel* proxy = dynamic_cast<IdTableProxyModel*>(model);
 

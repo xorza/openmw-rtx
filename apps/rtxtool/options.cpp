@@ -15,10 +15,10 @@
 #include <boost/program_options/value_semantic.hpp>
 #include <boost/program_options/variables_map.hpp>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/misc/constants.hpp>
-#include <components/rtx/common/contract.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -595,7 +595,7 @@ namespace RtxTool
         // because `store` writes a defaulted value for every option of its description that the line
         // left out — so a map without it was parsed against the wrong description.
         const auto found = variables.find("config");
-        Rtx::contract(found != variables.end(), "the variables were not parsed against the engine's common options");
+        Crash::contract(found != variables.end(), "the variables were not parsed against the engine's common options");
 
         found->second.as<Files::MaybeQuotedPathContainer>().push_back(Files::MaybeQuotedPath{ directory });
     }

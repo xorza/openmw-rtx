@@ -137,19 +137,6 @@ bool Launcher::GraphicsPage::loadSettings()
     rayTracingDistantLandSpinBox->setValue(static_cast<int>(std::lround(Settings::rtx().mDistantLandCells)));
     mLoadedDistantLandCells = rayTracingDistantLandSpinBox->value();
 
-    // The settings exist in every build; the controls are shown disabled with the tooltip saying why
-    if (!Settings::sRayTracingBuilt)
-    {
-        const QString why = tr("This build was made without the ray tracing renderer.");
-        for (QWidget* widget :
-            { static_cast<QWidget*>(rayTracingCheckBox), static_cast<QWidget*>(rayTracingUpscaleComboBox),
-                static_cast<QWidget*>(rayTracingDistantLandSpinBox) })
-        {
-            widget->setEnabled(false);
-            widget->setToolTip(why);
-        }
-    }
-
     // aaValue is the actual value (0, 1, 2, 4, 8, 16)
     const int aaValue = Settings::video().mAntialiasing;
     // aaIndex is the index into the allowed values in the pull down.

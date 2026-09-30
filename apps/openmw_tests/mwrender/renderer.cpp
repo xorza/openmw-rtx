@@ -25,7 +25,6 @@
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
-#include <components/settings/categories/rtx.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace MWRender
@@ -215,17 +214,10 @@ namespace MWRender
             EXPECT_EQ(asked.fittedSize(osg::Vec2i(3840, 2160), osg::Vec2i(3840, 2160)), osg::Vec2i(3840, 2160));
         }
 
-        /// A name this build has no renderer for is a configuration mistake, refused by name: one no
-        /// build has, and the ray tracer in a build without it, whose `createRtxRenderer` is the stub
-        /// that answers null. A build with it would make one, which takes a device.
+        /// A name no renderer has is a configuration mistake, refused by name.
         TEST(RendererTest, anUnknownRendererIsRefusedByName)
         {
             EXPECT_THROW(createRenderer("software", RendererSpec{}), std::runtime_error);
-            if (!Settings::sRayTracingBuilt)
-            {
-                EXPECT_EQ(createRtxRenderer(RendererSpec{}), nullptr);
-                EXPECT_THROW(createRenderer("raytrace", RendererSpec{}), std::runtime_error);
-            }
         }
     }
 }

@@ -33,7 +33,7 @@ CSVWorld::TableSubView::TableSubView(
     const CSMWorld::UniversalId& id, CSMDoc::Document& document, const CreatorFactoryBase& creatorFactory, bool sorting)
     : SubView(id)
     , mShowOptions(false)
-    , mOptions(0)
+    , mOptions(nullptr)
 {
     QVBoxLayout* layout = new QVBoxLayout;
 

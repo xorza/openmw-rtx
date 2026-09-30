@@ -142,7 +142,7 @@ bool CSVWorld::ScriptHighlighter::settingChanged(const CSMPrefs::Setting* settin
     if (setting->getParent()->getKey() == "Scripts")
     {
         static const char* const colours[Type_Id + 2] = { "colour-int", "colour-float", "colour-name", "colour-keyword",
-            "colour-special", "colour-comment", "colour-highlight", "colour-id", 0 };
+            "colour-special", "colour-comment", "colour-highlight", "colour-id", nullptr };
 
         for (int i = 0; colours[i]; ++i)
             if (setting->getKey() == colours[i])

@@ -11,6 +11,7 @@
 #include <osg/Texture2DMultisample>
 #include <osg/Texture3D>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/strings/algorithm.hpp>
@@ -336,8 +337,9 @@ namespace MWRender
 
         size_t frame = cv->getTraversalNumber();
 
-        mStateUpdater->setResolution(osg::Vec2f(
-            static_cast<float>(cv->getViewport()->width()), static_cast<float>(cv->getViewport()->height())));
+        const osg::Viewport* viewport = Crash::notNull(cv->getViewport(), "a cull with no viewport");
+        mStateUpdater->setResolution(
+            osg::Vec2f(static_cast<float>(viewport->width()), static_cast<float>(viewport->height())));
 
         // per-frame data
         if (frame != mLastFrameNumber)

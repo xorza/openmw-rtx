@@ -15,6 +15,7 @@
 #include <osgAnimation/Bone>
 #include <osgAnimation/UpdateBone>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 
 #include <components/resource/animblendrulesmanager.hpp>
@@ -1178,7 +1179,8 @@ namespace MWRender
                         }
                     }
 
-                    node->addUpdateCallback(callback);
+                    Crash::notNull(node.get(), "an animated node the node map holds empty")
+                        ->addUpdateCallback(callback);
                     mActiveControllers.emplace_back(node, callback);
 
                     if (blendMask == 0 && node == mAccumRoot)

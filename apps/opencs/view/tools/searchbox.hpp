@@ -9,6 +9,8 @@
 #include <QStackedWidget>
 #include <QWidget>
 
+Q_MOC_INCLUDE("apps/opencs/model/tools/search.hpp")
+
 class QGridLayout;
 
 namespace CSMTools

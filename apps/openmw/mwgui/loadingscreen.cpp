@@ -221,10 +221,10 @@ namespace MWGui
         {
             // bump the delay by the current progress - i.e. if during the initial delay the loading
             // has almost finished, no point showing the loading screen now
-            diff -= mProgress / static_cast<float>(mProgressBar->getScrollRange()) * 100.f;
+            diff -= static_cast<double>(mProgress / static_cast<float>(mProgressBar->getScrollRange()) * 100.f);
         }
 
-        if (!mShowWallpaper && diff < initialDelay * 1000)
+        if (!mShowWallpaper && diff < static_cast<double>(initialDelay * 1000))
             return false;
         return true;
     }

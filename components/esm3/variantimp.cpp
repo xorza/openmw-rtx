@@ -19,7 +19,7 @@ namespace ESM
             // equivalent to static_cast<T>(value) on x86 without invoking UB.
             constexpr double min = static_cast<double>(std::numeric_limits<int32_t>::lowest());
             constexpr double max = static_cast<double>(std::numeric_limits<int32_t>::max());
-            if (std::isnan(value) || value < min || value > max)
+            if (std::isnan(value) || static_cast<double>(value) < min || static_cast<double>(value) > max)
                 return static_cast<T>(std::numeric_limits<int32_t>::lowest());
             return static_cast<T>(static_cast<int32_t>(value));
         }

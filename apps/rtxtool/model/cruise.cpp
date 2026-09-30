@@ -5,7 +5,6 @@
 #include <vector>
 
 #include <components/crashcatcher/crash.hpp>
-#include <components/rtx/common/contract.hpp>
 
 namespace RtxTool
 {
@@ -27,21 +26,21 @@ namespace RtxTool
 
     double Cruise::timeFor(const CruiseLeg& leg, const double speed) const
     {
-        Rtx::contract(leg.mLength > 0.0 && speed > 0.0, "a leg timed with no length or no speed");
+        Crash::contract(leg.mLength > 0.0 && speed > 0.0, "a leg timed with no length or no speed");
         const double cruising = leg.mLength / speed;
         return cruising + std::min(static_cast<double>(leg.getRests()) * mEase / 2.0, cruising);
     }
 
     double Cruise::speedFor(const CruiseLeg& leg, const double time) const
     {
-        Rtx::contract(leg.mLength > 0.0 && time > 0.0, "a leg flown in no time or no length");
+        Crash::contract(leg.mLength > 0.0 && time > 0.0, "a leg flown in no time or no length");
         const double rests = static_cast<double>(leg.getRests());
         return time >= rests * mEase ? leg.mLength / (time - rests * mEase / 2.0) : 2.0 * leg.mLength / time;
     }
 
     double Cruise::speedFor(const std::span<const CruiseLeg> legs, const double time) const
     {
-        Rtx::contract(!legs.empty() && time > 0.0, "a flight of no legs, or in no time");
+        Crash::contract(!legs.empty() && time > 0.0, "a flight of no legs, or in no time");
 
         std::vector<double> fits;
         fits.reserve(legs.size());

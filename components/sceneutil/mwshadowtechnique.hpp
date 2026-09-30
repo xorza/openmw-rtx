@@ -63,7 +63,7 @@ namespace SceneUtil {
         /** If State is non-zero, this function releases any associated OpenGL objects for
         * the specified graphics context. Otherwise, releases OpenGL objects
         * for all graphics contexts. */
-        void releaseGLObjects(osg::State* = 0) const override;
+        void releaseGLObjects(osg::State* = nullptr) const override;
 
         /** Clean scene graph from any shadow technique specific nodes, state and drawables.*/
         void cleanSceneGraph() override;
@@ -192,7 +192,7 @@ namespace SceneUtil {
         {
             ShadowData(ViewDependentData* vdd);
 
-            virtual void releaseGLObjects(osg::State* = 0) const;
+            virtual void releaseGLObjects(osg::State* = nullptr) const;
 
             void updateTextureSize();
 
@@ -220,7 +220,7 @@ namespace SceneUtil {
 
             osg::StateSet* getStateSet(unsigned int traversalNumber) { return _stateset[traversalNumber % 2].get(); }
 
-            virtual void releaseGLObjects(osg::State* = 0) const;
+            virtual void releaseGLObjects(osg::State* = nullptr) const;
 
             unsigned int numValidShadows(void) const { return _numValidShadows; }
 
@@ -320,7 +320,7 @@ namespace SceneUtil {
 
             void draw(osg::ref_ptr<osg::Texture2D> texture, unsigned int shadowMapNumber, const osg::Matrixd &matrix, osgUtil::CullVisitor& cv);
 
-            void releaseGLObjects(osg::State* state = 0) const;
+            void releaseGLObjects(osg::State* state = nullptr) const;
 
             void setFrustumVertices(osg::ref_ptr<osg::Vec3Array> vertices, unsigned int traversalNumber);
         protected:

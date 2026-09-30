@@ -11,6 +11,8 @@
 
 #include "subviewfactory.hpp"
 
+Q_MOC_INCLUDE("apps/opencs/model/doc/document.hpp")
+
 class QAction;
 class QCloseEvent;
 class QMenu;

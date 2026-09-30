@@ -18,9 +18,9 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <components/rtx/common/contract.hpp>
 #include <components/rtx/common/result.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
@@ -307,7 +307,7 @@ namespace Rtx
 
         // Erased under the path it is still filed under, before `reuse` clears it.
         const auto filed = mTexturesByPath.find(texture.mPath.value());
-        contract(filed != mTexturesByPath.end(), "a texture given back that was never filed");
+        Crash::contract(filed != mTexturesByPath.end(), "a texture given back that was never filed");
         mTexturesByPath.erase(filed);
 
         texture.reuse();
@@ -332,7 +332,7 @@ namespace Rtx
 
         // Erased under the path it is still filed under, before `reuse` clears it.
         const auto filed = mModelsByPath.find(std::string_view(model.mPath));
-        contract(filed != mModelsByPath.end(), "a model given back that was never filed");
+        Crash::contract(filed != mModelsByPath.end(), "a model given back that was never filed");
         mModelsByPath.erase(filed);
 
         model.reuse();

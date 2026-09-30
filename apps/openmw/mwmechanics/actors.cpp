@@ -877,7 +877,8 @@ namespace MWMechanics
             const auto [health, magicka] = getRestorationPerHourOfSleep(ptr);
 
             DynamicStat<float> stat = stats.getHealth();
-            stat.setCurrent(static_cast<float>(stat.getCurrent() + health * hours));
+            stat.setCurrent(
+                static_cast<float>(static_cast<double>(stat.getCurrent()) + static_cast<double>(health) * hours));
             stats.setHealth(stat);
 
             double restoreHours = hours;
@@ -895,7 +896,7 @@ namespace MWMechanics
                     if (timeScale == 0.0)
                         timeScale = 1;
 
-                    restoreHours = std::max(0.0, hours - remainingTime * timeScale / 3600.f);
+                    restoreHours = std::max(0.0, hours - static_cast<double>(remainingTime) * timeScale / 3600.0);
                 }
                 else if (remainingTime == -1)
                     restoreHours = 0;
@@ -904,7 +905,8 @@ namespace MWMechanics
             if (restoreHours > 0)
             {
                 stat = stats.getMagicka();
-                stat.setCurrent(static_cast<float>(stat.getCurrent() + magicka * restoreHours));
+                stat.setCurrent(static_cast<float>(
+                    static_cast<double>(stat.getCurrent()) + static_cast<double>(magicka) * restoreHours));
                 stats.setMagicka(stat);
             }
         }
@@ -929,7 +931,8 @@ namespace MWMechanics
         const float x
             = (fFatigueReturnBase + fFatigueReturnMult * (1 - normalizedEncumbrance)) * (fEndFatigueMult * endurance);
 
-        fatigue.setCurrent(static_cast<float>(fatigue.getCurrent() + 3600 * x * hours));
+        fatigue.setCurrent(
+            static_cast<float>(static_cast<double>(fatigue.getCurrent()) + static_cast<double>(3600 * x) * hours));
         stats.setFatigue(fatigue);
     }
 
@@ -1384,12 +1387,12 @@ namespace MWMechanics
                 continue; // Don't interfere with player controls.
 
             const float maxSpeed = cached.mMaxSpeed;
-            if (maxSpeed == 0.0)
+            if (maxSpeed == 0.0f)
                 continue; // Can't move, so there is no sense to predict collisions.
 
             Movement& movement = cached.mMovement;
             const osg::Vec2f origMovement(movement.mPosition[0], movement.mPosition[1]);
-            const bool isMoving = origMovement.length2() > 0.01;
+            const bool isMoving = static_cast<double>(origMovement.length2()) > 0.01;
             if (movement.mPosition[1] < 0)
                 continue; // Actors can not see others when move backward.
 

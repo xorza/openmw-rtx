@@ -536,15 +536,15 @@ void CSVRender::Cell::selectInsideCube(const osg::Vec3d& pointA, const osg::Vec3
         if (dragMode == DragMode_Select_Only)
             object.second->setSelected(false);
 
-        if ((object.second->getPosition().pos[0] > pointA[0] && object.second->getPosition().pos[0] < pointB[0])
-            || (object.second->getPosition().pos[0] > pointB[0] && object.second->getPosition().pos[0] < pointA[0]))
+        const osg::Vec3d position(object.second->getPosition().asVec3());
+        if ((position[0] > pointA[0] && position[0] < pointB[0])
+            || (position[0] > pointB[0] && position[0] < pointA[0]))
         {
-            if ((object.second->getPosition().pos[1] > pointA[1] && object.second->getPosition().pos[1] < pointB[1])
-                || (object.second->getPosition().pos[1] > pointB[1] && object.second->getPosition().pos[1] < pointA[1]))
+            if ((position[1] > pointA[1] && position[1] < pointB[1])
+                || (position[1] > pointB[1] && position[1] < pointA[1]))
             {
-                if ((object.second->getPosition().pos[2] > pointA[2] && object.second->getPosition().pos[2] < pointB[2])
-                    || (object.second->getPosition().pos[2] > pointB[2]
-                        && object.second->getPosition().pos[2] < pointA[2]))
+                if ((position[2] > pointA[2] && position[2] < pointB[2])
+                    || (position[2] > pointB[2] && position[2] < pointA[2]))
                     handleSelectDrag(object.second, dragMode);
             }
         }

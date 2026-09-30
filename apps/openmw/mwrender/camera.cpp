@@ -94,15 +94,15 @@ namespace MWRender
         osg::Matrix worldMat = osg::computeLocalToWorld(nodepaths[0]);
         osg::Vec3d res = worldMat.getTrans();
         if (mMode != Mode::FirstPerson)
-            res.z() += mHeight * mHeightScale;
+            res.z() += static_cast<double>(mHeight * mHeightScale);
         return res;
     }
 
     osg::Vec3d Camera::getFocalPointOffset() const
     {
         osg::Vec3d offset;
-        offset.x() = mFocalPointCurrentOffset.x() * cos(mYaw);
-        offset.y() = mFocalPointCurrentOffset.x() * sin(mYaw);
+        offset.x() = mFocalPointCurrentOffset.x() * static_cast<double>(cos(mYaw));
+        offset.y() = mFocalPointCurrentOffset.x() * static_cast<double>(sin(mYaw));
         offset.z() = mFocalPointCurrentOffset.y();
         return offset;
     }
@@ -151,9 +151,9 @@ namespace MWRender
         osg::Vec3d res = trackedPosition;
         osg::Vec2f horizontalOffset
             = Misc::rotateVec2f(osg::Vec2f(mFirstPersonOffset.x(), mFirstPersonOffset.y()), mYaw);
-        res.x() += horizontalOffset.x();
-        res.y() += horizontalOffset.y();
-        res.z() += mFirstPersonOffset.z();
+        res.x() += static_cast<double>(horizontalOffset.x());
+        res.y() += static_cast<double>(horizontalOffset.y());
+        res.z() += static_cast<double>(mFirstPersonOffset.z());
         return res;
     }
 
@@ -177,7 +177,7 @@ namespace MWRender
         // Adjust focal point to prevent clipping.
         osg::Vec3d focalOffset = getFocalPointOffset();
         osg::Vec3d focal = mTrackedPosition + focalOffset;
-        focalOffset.z() += 10.f; // Needed to avoid camera clipping through the ceiling because
+        focalOffset.z() += 10.0; // Needed to avoid camera clipping through the ceiling because
                                  // character's head can be a bit higher than the collision area.
         double offsetLen = focalOffset.length();
         if (offsetLen > 0)
@@ -187,7 +187,8 @@ namespace MWRender
             if (result.mHit)
             {
                 double adjustmentCoef
-                    = -(result.mHitPos + result.mHitNormal * focalObstacleLimit - focal).length() / offsetLen;
+                    = -static_cast<double>((result.mHitPos + result.mHitNormal * focalObstacleLimit - focal).length())
+                    / offsetLen;
                 focal += focalOffset * std::max(-1.0, adjustmentCoef);
             }
         }
@@ -280,8 +281,9 @@ namespace MWRender
         osg::Vec2d delta = mFocalPointTargetOffset - mFocalPointCurrentOffset;
         if (delta.length2() > 0)
         {
-            double coef = duration * (1.0 + 5.0 / delta.length()) * mFocalPointTransitionSpeedCoef
-                * (1.0f - mPreviousTransitionInfluence);
+            double coef = static_cast<double>(duration) * (1.0 + 5.0 / delta.length())
+                * static_cast<double>(mFocalPointTransitionSpeedCoef)
+                * static_cast<double>(1.0f - mPreviousTransitionInfluence);
             mFocalPointCurrentOffset += delta * std::min(coef, 1.0);
         }
         else
@@ -344,7 +346,7 @@ namespace MWRender
             return;
         // Scripts read position before the first update.
         mTrackedPosition = ptr.getRefData().getPosition().asVec3();
-        mTrackedPosition.z() += mHeight;
+        mTrackedPosition.z() += static_cast<double>(mHeight);
         mPosition = mTrackedPosition;
     }
 
@@ -392,7 +394,7 @@ namespace MWRender
 
         if (mDeferredRotationDisabled)
         {
-            mDeferredRotationDisabled = delta > 0.0001;
+            mDeferredRotationDisabled = static_cast<double>(delta) > 0.0001;
             rotateCameraToTrackingPtr();
             return;
         }
@@ -401,7 +403,7 @@ namespace MWRender
         movement.mRotation[0] += rot.x();
         movement.mRotation[1] += rot.y();
         movement.mRotation[2] += rot.z();
-        if (std::abs(mDeferredRotation.z()) > 0.0001)
+        if (static_cast<double>(std::abs(mDeferredRotation.z())) > 0.0001)
         {
             float s = std::sin(mDeferredRotation.z());
             float c = std::cos(mDeferredRotation.z());

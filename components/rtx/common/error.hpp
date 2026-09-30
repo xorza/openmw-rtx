@@ -5,7 +5,7 @@
 namespace Rtx
 {
     // **Three failures and no common base**, so a catch of one never takes another. A contract this
-    // code broke is none of them: it is an assert, or `Rtx::contract` where release must not go on.
+    // code broke is none of them: it is an assert, or `Crash::contract` where release must not go on.
 
     /// What the configuration or the installation supplied, and this renderer cannot run with: a
     /// command line, a setting, a shader file, a file the harness reads. All or nothing, so it ends

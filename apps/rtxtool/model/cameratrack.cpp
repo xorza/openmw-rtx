@@ -5,7 +5,7 @@
 #include <numbers>
 #include <utility>
 
-#include <components/rtx/common/contract.hpp>
+#include <components/crashcatcher/crash.hpp>
 
 namespace RtxTool
 {
@@ -62,10 +62,10 @@ namespace RtxTool
         , mCruise(cruise)
         , mSky(std::move(sky))
     {
-        Rtx::contract(!keys.empty(), "a camera track needs a key");
-        Rtx::contract(mPath.getSegments() + 1 == keys.size(), "a camera track on another track's path");
-        Rtx::contract(mSky.mCrossingFrames > 0, "a sky that crosses in no frames");
-        Rtx::contract(keys.back().mFrame == std::floor(keys.back().mFrame), "a take that ends between two frames");
+        Crash::contract(!keys.empty(), "a camera track needs a key");
+        Crash::contract(mPath.getSegments() + 1 == keys.size(), "a camera track on another track's path");
+        Crash::contract(mSky.mCrossingFrames > 0, "a sky that crosses in no frames");
+        Crash::contract(keys.back().mFrame == std::floor(keys.back().mFrame), "a take that ends between two frames");
 
         mKnots.reserve(keys.size());
         for (std::size_t at = 0; at < keys.size(); ++at)
@@ -78,7 +78,7 @@ namespace RtxTool
             {
                 const TrackKey& before = keys[at - 1];
                 const Knot& last = mKnots.back();
-                Rtx::contract(key.mFrame > before.mFrame, "a camera track's keys go back in time");
+                Crash::contract(key.mFrame > before.mFrame, "a camera track's keys go back in time");
 
                 knot.mValue[sYaw]
                     = last.mValue[sYaw] + static_cast<double>(shortestTurn(before.mRotation.z(), key.mRotation.z()));

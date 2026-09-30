@@ -6,6 +6,7 @@
 
 #include <limits>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/esm/util.hpp>
 #include <components/loadinglistener/reporter.hpp>
 #include <components/misc/constants.hpp>
@@ -261,7 +262,7 @@ namespace Terrain
         {
         }
         osg::ref_ptr<osg::Node> getChunk(float size, const osg::Vec2f& chunkCenter, unsigned char /*lod*/,
-            unsigned int lodFlags, bool activeGrid, const osg::Vec3f& viewPoint, bool compile)
+            unsigned int lodFlags, bool activeGrid, const osg::Vec3f& viewPoint, bool compile) override
         {
             osg::Vec3f center = { chunkCenter.x(), chunkCenter.y(), 0 };
             auto chunkBorder = CellBorder::createBorderGeometry(center.x() - size / 2.f, center.y() - size / 2.f, size,
@@ -271,7 +272,7 @@ namespace Terrain
             pat->addChild(chunkBorder);
             return pat;
         }
-        unsigned int getNodeMask() { return mNodeMask; }
+        unsigned int getNodeMask() override { return mNodeMask; }
 
     private:
         Resource::SceneManager* mSceneManager;
@@ -443,8 +444,8 @@ namespace Terrain
             for (unsigned int i = 0; i < vd->getNumEntries(); ++i)
             {
                 ViewDataEntry& entry = vd->getEntry(i);
-                osg::BoundingBox bb = static_cast<TerrainDrawable*>(entry.mRenderingNode->asGroup()->getChild(0))
-                                          ->getWaterBoundingBox();
+                osg::Group* chunk = Crash::notNull(entry.mRenderingNode->asGroup(), "a terrain chunk that is no group");
+                osg::BoundingBox bb = static_cast<TerrainDrawable*>(chunk->getChild(0))->getWaterBoundingBox();
                 if (!bb.valid())
                     continue;
                 osg::Vec3f ofs(

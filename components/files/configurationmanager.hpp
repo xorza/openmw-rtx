@@ -3,7 +3,11 @@
 
 #include <optional>
 #include <stack>
+#include <string>
 #include <string_view>
+#include <vector>
+
+#include <boost/program_options/value_semantic.hpp>
 
 #include <components/files/collections.hpp>
 #include <components/files/fixedpath.hpp>
@@ -100,5 +104,15 @@ namespace Files
     PathContainer asPathContainer(const MaybeQuotedPathContainer& value);
 
 } /* namespace Files */
+
+// **Instantiated once, in `configurationmanager.cpp`.** `typed_value::notify` stores through a pointer
+// that is null unless a notifier was asked for, and GCC reports the store as a null dereference in
+// every file that inlines it. Declared here, beside what every program's options read, it is compiled
+// in that one file, which the one check is taken off.
+extern template void boost::program_options::typed_value<std::string, char>::notify(const boost::any&) const;
+extern template void boost::program_options::typed_value<std::vector<std::string>, char>::notify(
+    const boost::any&) const;
+extern template void boost::program_options::typed_value<Files::MaybeQuotedPathContainer, char>::notify(
+    const boost::any&) const;
 
 #endif /* COMPONENTS_FILES_CONFIGURATIONMANAGER_HPP */

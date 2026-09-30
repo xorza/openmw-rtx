@@ -118,7 +118,8 @@ namespace SceneUtil
             mTexUnit, mTextures[index], osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
 
         if ((mDuration >= 0)
-            && (time - mStartingTime > mDuration)) // If this is a temporary glow and it has finished its duration
+            && (time - mStartingTime
+                > static_cast<double>(mDuration))) // If this is a temporary glow and it has finished its duration
         {
             if (mOriginalDuration >= 0) // if this glowupdater was a temporary glow since its creation
             {

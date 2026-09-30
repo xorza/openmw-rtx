@@ -57,7 +57,7 @@ namespace MWRender
         }
         else
         {
-            if (fogDepth == 0.0)
+            if (fogDepth == 0.0f)
             {
                 mLandFogStart = 0.0f;
                 mLandFogEnd = std::numeric_limits<float>::max();

@@ -471,10 +471,6 @@ namespace MWRender
     /// (`OMW::EngineHost::createRenderer`).
     std::unique_ptr<Renderer> createRenderer(std::string_view name, const RendererSpec& spec);
 
-    /// The ray tracer, made from `spec`, or null where this build has none: `rtx/rtxrenderer.cpp`
-    /// defines it where the ray tracer is built and `nortxrenderer.cpp` where it is not.
-    std::unique_ptr<Renderer> createRtxRenderer(const RendererSpec& spec);
-
     /// Where a window goes and what it is, as the video settings ask for it.
     struct WindowPlacement
     {

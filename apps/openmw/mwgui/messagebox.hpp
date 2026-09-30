@@ -76,7 +76,7 @@ namespace MWGui
         const std::string& getMessage() { return mMessage; }
         int getHeight();
         void update(int height);
-        void setVisible(bool value);
+        void setVisible(bool value) override;
 
         float mCurrentTime;
         float mMaxTime;

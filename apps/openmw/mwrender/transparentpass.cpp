@@ -103,7 +103,7 @@ namespace MWRender
             {
                 const SceneUtil::Material* mat
                     = static_cast<const SceneUtil::Material*>(ss->getAttribute(osg::StateAttribute::MATERIAL));
-                if (mat->getDiffuse().a() < 0.5)
+                if (mat->getDiffuse().a() < 0.5f)
                     continue;
             }
 

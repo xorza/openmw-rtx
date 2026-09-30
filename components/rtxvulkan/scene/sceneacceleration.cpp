@@ -6,7 +6,7 @@
 #include <span>
 #include <utility>
 
-#include <components/rtx/common/contract.hpp>
+#include <components/crashcatcher/crash.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/scene/placementtable.hpp>
@@ -335,7 +335,7 @@ namespace Rtx
         // Checked here rather than left to the driver: a scene that grew a mesh since `setScene` is
         // a caller breaking `placeScene`'s contract, and the only other symptom is an invalid handle
         // inside `vkGetAccelerationStructureDeviceAddressKHR`.
-        contract(scene.meshes().getRows().size() == mBottomLevel.size(),
+        Crash::contract(scene.meshes().getRows().size() == mBottomLevel.size(),
             "the scene grew without being built again; placeScene can only move what setScene made");
 
         mRowTable.sync(slot);

@@ -1417,7 +1417,7 @@ namespace MWMechanics
             {
                 // If Alarm is 0, treat it like 100 to calculate a Fight modifier for a victim of pickpocketing.
                 // Observers which do not try to arrest player do not care about pickpocketing at all.
-                if (type == OT_Pickpocket && isActorVictim && alarmTerm == 0.0)
+                if (type == OT_Pickpocket && isActorVictim && alarmTerm == 0.0f)
                     alarmTerm = 1.0;
                 else if (type == OT_Pickpocket && !isActorVictim)
                     alarmTerm = 0.0;

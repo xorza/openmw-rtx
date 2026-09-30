@@ -33,7 +33,7 @@ namespace MWWorld
         if (hours < 0)
             throw std::runtime_error("can't move time stamp backwards in time");
 
-        const Duration duration = Duration::fromHours(mHour + hours);
+        const Duration duration = Duration::fromHours(static_cast<double>(mHour) + hours);
 
         mHour = duration.getHours();
         mDay += duration.getDays();

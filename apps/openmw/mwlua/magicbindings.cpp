@@ -2,6 +2,7 @@
 
 #include <format>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/esm3/activespells.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadarmo.hpp>
@@ -156,31 +157,39 @@ namespace sol
 
 namespace MWLua
 {
+
+    /// The id of the record `object` holds, which `is` has said it does: sol answers null only for nil.
+    template <class Record>
+    static const ESM::RefId& idOf(const sol::object& object)
+    {
+        return Crash::notNull(object.as<const Record*>(), "a record Lua holds as nil")->mId;
+    }
+
     static ESM::RefId toSpellId(const sol::object& spellOrId)
     {
         if (spellOrId.is<ESM::Spell>())
-            return spellOrId.as<const ESM::Spell*>()->mId;
+            return idOf<ESM::Spell>(spellOrId);
         else
             return ESM::RefId::deserializeText(LuaUtil::cast<std::string_view>(spellOrId));
     }
     static ESM::RefId toRecordId(const sol::object& recordOrId)
     {
         if (recordOrId.is<ESM::Spell>())
-            return recordOrId.as<const ESM::Spell*>()->mId;
+            return idOf<ESM::Spell>(recordOrId);
         else if (recordOrId.is<ESM::Potion>())
-            return recordOrId.as<const ESM::Potion*>()->mId;
+            return idOf<ESM::Potion>(recordOrId);
         else if (recordOrId.is<ESM::Ingredient>())
-            return recordOrId.as<const ESM::Ingredient*>()->mId;
+            return idOf<ESM::Ingredient>(recordOrId);
         else if (recordOrId.is<ESM::Enchantment>())
-            return recordOrId.as<const ESM::Enchantment*>()->mId;
+            return idOf<ESM::Enchantment>(recordOrId);
         else if (recordOrId.is<ESM::Armor>())
-            return recordOrId.as<const ESM::Armor*>()->mId;
+            return idOf<ESM::Armor>(recordOrId);
         else if (recordOrId.is<ESM::Book>())
-            return recordOrId.as<const ESM::Book*>()->mId;
+            return idOf<ESM::Book>(recordOrId);
         else if (recordOrId.is<ESM::Clothing>())
-            return recordOrId.as<const ESM::Clothing*>()->mId;
+            return idOf<ESM::Clothing>(recordOrId);
         else if (recordOrId.is<ESM::Weapon>())
-            return recordOrId.as<const ESM::Weapon*>()->mId;
+            return idOf<ESM::Weapon>(recordOrId);
         else
             return ESM::RefId::deserializeText(LuaUtil::cast<std::string_view>(recordOrId));
     }

@@ -85,7 +85,7 @@ void CSVRender::BrushDraw::buildPointGeometry(const osg::Vec3d& point)
     osg::ref_ptr<osg::Vec3Array> vertices(new osg::Vec3Array());
     osg::ref_ptr<osg::Vec4Array> colors(new osg::Vec4Array());
     const float brushOutlineHeight(1.0f);
-    const float crossHeadSize(8.0f);
+    const double crossHeadSize(8.0);
     osg::Vec4f lineColor(1.0f, 1.0f, 1.0f, 0.6f);
 
     vertices->push_back(osg::Vec3d(point.x() - crossHeadSize, point.y() - crossHeadSize,
@@ -118,6 +118,7 @@ void CSVRender::BrushDraw::buildSquareGeometry(const float& radius, const osg::V
     osg::ref_ptr<osg::Vec4Array> colors(new osg::Vec4Array());
 
     const float brushOutlineHeight(1.0f);
+    const double reach = radius;
     float diameter = radius * 2;
     int resolution = static_cast<int>(2.f * diameter / mLandSizeFactor); // half a vertex resolution
     float resAdjustedLandSizeFactor = mLandSizeFactor / 2; // 128
@@ -135,29 +136,29 @@ void CSVRender::BrushDraw::buildSquareGeometry(const float& radius, const osg::V
         int step = i * resAdjustedLandSizeFactor;
         int step2 = (i + 1) * resAdjustedLandSizeFactor;
 
-        osg::Vec3d upHorizontalLinePoint1(point.x() - radius + step, point.y() - radius,
-            getIntersectionHeight(osg::Vec3d(point.x() - radius + step, point.y() - radius, point.z()))
+        osg::Vec3d upHorizontalLinePoint1(point.x() - reach + step, point.y() - reach,
+            getIntersectionHeight(osg::Vec3d(point.x() - reach + step, point.y() - reach, point.z()))
                 + brushOutlineHeight);
-        osg::Vec3d upHorizontalLinePoint2(point.x() - radius + step2, point.y() - radius,
-            getIntersectionHeight(osg::Vec3d(point.x() - radius + step2, point.y() - radius, point.z()))
+        osg::Vec3d upHorizontalLinePoint2(point.x() - reach + step2, point.y() - reach,
+            getIntersectionHeight(osg::Vec3d(point.x() - reach + step2, point.y() - reach, point.z()))
                 + brushOutlineHeight);
-        osg::Vec3d upVerticalLinePoint1(point.x() - radius, point.y() - radius + step,
-            getIntersectionHeight(osg::Vec3d(point.x() - radius, point.y() - radius + step, point.z()))
+        osg::Vec3d upVerticalLinePoint1(point.x() - reach, point.y() - reach + step,
+            getIntersectionHeight(osg::Vec3d(point.x() - reach, point.y() - reach + step, point.z()))
                 + brushOutlineHeight);
-        osg::Vec3d upVerticalLinePoint2(point.x() - radius, point.y() - radius + step2,
-            getIntersectionHeight(osg::Vec3d(point.x() - radius, point.y() - radius + step2, point.z()))
+        osg::Vec3d upVerticalLinePoint2(point.x() - reach, point.y() - reach + step2,
+            getIntersectionHeight(osg::Vec3d(point.x() - reach, point.y() - reach + step2, point.z()))
                 + brushOutlineHeight);
-        osg::Vec3d downHorizontalLinePoint1(point.x() + radius - step, point.y() + radius,
-            getIntersectionHeight(osg::Vec3d(point.x() + radius - step, point.y() + radius, point.z()))
+        osg::Vec3d downHorizontalLinePoint1(point.x() + reach - step, point.y() + reach,
+            getIntersectionHeight(osg::Vec3d(point.x() + reach - step, point.y() + reach, point.z()))
                 + brushOutlineHeight);
-        osg::Vec3d downHorizontalLinePoint2(point.x() + radius - step2, point.y() + radius,
-            getIntersectionHeight(osg::Vec3d(point.x() + radius - step2, point.y() + radius, point.z()))
+        osg::Vec3d downHorizontalLinePoint2(point.x() + reach - step2, point.y() + reach,
+            getIntersectionHeight(osg::Vec3d(point.x() + reach - step2, point.y() + reach, point.z()))
                 + brushOutlineHeight);
-        osg::Vec3d downVerticalLinePoint1(point.x() + radius, point.y() + radius - step,
-            getIntersectionHeight(osg::Vec3d(point.x() + radius, point.y() + radius - step, point.z()))
+        osg::Vec3d downVerticalLinePoint1(point.x() + reach, point.y() + reach - step,
+            getIntersectionHeight(osg::Vec3d(point.x() + reach, point.y() + reach - step, point.z()))
                 + brushOutlineHeight);
-        osg::Vec3d downVerticalLinePoint2(point.x() + radius, point.y() + radius - step2,
-            getIntersectionHeight(osg::Vec3d(point.x() + radius, point.y() + radius - step2, point.z()))
+        osg::Vec3d downVerticalLinePoint2(point.x() + reach, point.y() + reach - step2,
+            getIntersectionHeight(osg::Vec3d(point.x() + reach, point.y() + reach - step2, point.z()))
                 + brushOutlineHeight);
         vertices->push_back(upHorizontalLinePoint1);
         colors->push_back(lineColor);
@@ -197,15 +198,17 @@ void CSVRender::BrushDraw::buildCircleGeometry(const float& radius, const osg::V
     for (int i = 0; i < amountOfPoints + 2; i++)
     {
         float angle(i * step);
-        vertices->push_back(osg::Vec3d(point.x() + radius * cosf(angle), point.y() + radius * sinf(angle),
-            getIntersectionHeight(
-                osg::Vec3d(point.x() + radius * cosf(angle), point.y() + radius * sinf(angle), point.z()))
+        vertices->push_back(osg::Vec3d(point.x() + static_cast<double>(radius * cosf(angle)),
+            point.y() + static_cast<double>(radius * sinf(angle)),
+            getIntersectionHeight(osg::Vec3d(point.x() + static_cast<double>(radius * cosf(angle)),
+                point.y() + static_cast<double>(radius * sinf(angle)), point.z()))
                 + brushOutlineHeight));
         colors->push_back(lineColor);
         angle = static_cast<float>(i + 1) * step;
-        vertices->push_back(osg::Vec3d(point.x() + radius * cosf(angle), point.y() + radius * sinf(angle),
-            getIntersectionHeight(
-                osg::Vec3d(point.x() + radius * cosf(angle), point.y() + radius * sinf(angle), point.z()))
+        vertices->push_back(osg::Vec3d(point.x() + static_cast<double>(radius * cosf(angle)),
+            point.y() + static_cast<double>(radius * sinf(angle)),
+            getIntersectionHeight(osg::Vec3d(point.x() + static_cast<double>(radius * cosf(angle)),
+                point.y() + static_cast<double>(radius * sinf(angle)), point.z()))
                 + brushOutlineHeight));
         colors->push_back(lineColor);
     }

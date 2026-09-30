@@ -6,7 +6,7 @@
 #include <string>
 #include <utility>
 
-#include <components/rtx/common/contract.hpp>
+#include <components/crashcatcher/crash.hpp>
 
 namespace Rtx
 {
@@ -139,7 +139,7 @@ namespace Rtx
             case TextureKind::File:
             {
                 const auto known = mPathIndex.find(row.mPath);
-                contract(known != mPathIndex.end(), "a file slot the path index does not know");
+                Crash::contract(known != mPathIndex.end(), "a file slot the path index does not know");
                 FileSlots& held = known->second;
                 held[static_cast<std::size_t>(row.mEncoding)][static_cast<std::size_t>(row.mWrap)] = sNoIndex;
                 if (std::ranges::all_of(held, [](const auto& slots) {

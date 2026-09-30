@@ -653,7 +653,7 @@ namespace CSVRender
         {
             const float size = CSMPrefs::get()["Rendering"]["camera-ortho-size"].toInt();
             const float aspect = overrideAspect >= 0.0 ? overrideAspect : (width() / static_cast<double>(height()));
-            const float halfH = size * 10.0;
+            const float halfH = size * 10.0f;
             const float halfW = halfH * aspect;
 
             mView->getCamera()->setProjectionMatrixAsOrtho(-halfW, halfW, -halfH, halfH, nearDist, farDist);
