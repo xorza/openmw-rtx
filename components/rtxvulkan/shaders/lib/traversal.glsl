@@ -90,12 +90,6 @@ bool isSeenThrough(float opacity)
     return opacity < 1.0;
 }
 
-/// How squarely a shading normal has to face the ray that found the surface before it is tilted back
-/// toward one that faces it more, `facingRay`: a mapped normal toward the interpolated one, and the
-/// lobe's normal toward the plane. Small, as the water's is — a guard against a normal leaning past
-/// the ray, and not a limit on the map.
-const float SHADING_MIN_FACING = 0.03;
-
 /// How much of a see-through surface is there, where a ray met it.
 ///
 /// **The texture's alpha over the two `surfaceOpacity` carries**, which is what a blend does: the
@@ -871,7 +865,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
         lostSlopes += normalMapSlopes(material.mNormal, point);
         const vec3 mapped = normalize(tangent * painted.x + bitangent * painted.y + normal * painted.z);
 
-        surface.mNormal = facingRay(turned ? -mapped : mapped, surface.mSmooth, direction, SHADING_MIN_FACING);
+        surface.mNormal = facingRay(turned ? -mapped : mapped, surface.mSmooth, direction);
     }
 
     // **Ground that kept its stack**, which is every chunk near enough to be worth the sharpness,
@@ -966,7 +960,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
             const vec3 mapped
                 = normalize(layerTangent * painted.x + layerBitangent * painted.y + normal * painted.z);
 
-            surface.mNormal = facingRay(turned ? -mapped : mapped, surface.mSmooth, direction, SHADING_MIN_FACING);
+            surface.mNormal = facingRay(turned ? -mapped : mapped, surface.mSmooth, direction);
         }
 
         // And what the layers' maps lost, weighted as their roughness is.
@@ -1073,10 +1067,9 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     // glass armour sees the sheet the way the reflection camera would.
     if (holdsTexture(material.mEnvironment))
     {
-        // The camera's axes are scaled by the image plane's half extents and are taken unit here;
-        // the eye space is OpenGL's, looking down its own -Z.
-        const vec3 right = normalize(frame.mCamera.mRight);
-        const vec3 up = normalize(frame.mCamera.mUp);
+        // The eye space is OpenGL's, looking down its own -Z.
+        const vec3 right = frame.mUnitRight;
+        const vec3 up = frame.mUnitUp;
         const vec3 forward = frame.mCamera.mForward;
         const vec3 viewEye = vec3(dot(direction, right), dot(direction, up), -dot(direction, forward));
         const vec3 normalEye = vec3(dot(surface.mNormal, right), dot(surface.mNormal, up), -dot(surface.mNormal, forward));

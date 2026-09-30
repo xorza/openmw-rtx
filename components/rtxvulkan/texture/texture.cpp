@@ -565,6 +565,16 @@ namespace Rtx
 
     std::uint32_t TextureArray::chooseSide(std::span<const TextureData> arrived, const VkDeviceSize room) const
     {
+        // What every `costAt` below asks of a bake's source, found once for the arrival.
+        mArrivingAt.clear();
+        for (std::size_t at = 0; at < arrived.size(); ++at)
+        {
+            const Index slot = arrived[at].mSlot;
+            if (slot >= mArrivingAt.size())
+                mArrivingAt.resize(slot + 1, sNoIndex);
+            mArrivingAt[slot] = static_cast<Index>(at);
+        }
+
         const auto largestAt = [&](const bool ground) {
             std::uint32_t side = mSideLimit;
             while (side > 1 && costAt(arrived, side, ground) > room)
@@ -592,11 +602,11 @@ namespace Rtx
         // within the side where it arrives beside the bake, as the stand-in where it arrives as one,
         // and as its image where it stands already.
         const auto bakeOf = [&](const Index slot) -> VkDeviceSize {
-            const auto arriving = std::find_if(
-                arrived.begin(), arrived.end(), [&](const TextureData& texture) { return texture.mSlot == slot; });
+            const Index arrivingAt = slot < mArrivingAt.size() ? mArrivingAt[slot] : sNoIndex;
+            const TextureData* const arriving = arrivingAt != sNoIndex ? &arrived[arrivingAt] : nullptr;
 
             const Image* standing = nullptr;
-            if (arriving != arrived.end())
+            if (arriving != nullptr)
             {
                 if (arriving->mSource == TextureSource::File && arriving->firstLevelWithin(mSideLimit).has_value())
                 {

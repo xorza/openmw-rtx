@@ -87,37 +87,6 @@ uint spriteTileOf(uvec2 pixel, uint width)
     return (pixel.y / SPRITE_TILE) * spriteTilesOver(width) + pixel.x / SPRITE_TILE;
 }
 
-/// What the trace leaves at a pixel for the puffs' composite and the curve, `CHANNEL_PUFFS`: the
-/// sprites' colour lit where they stand, what they let through, and whether the pixel is drawn on
-/// an arm — whose eye the composite marches the pixel's ray from again. Not on a see-through arm the
-/// world is seen past, whose ray is the world's.
-///
-/// **The flag rides in the sign of the transmittance**, which a transmittance never spends: a half
-/// float keeps its sign bit, nought's included, so `abs` gives the transmittance back exactly and
-/// the bit gives the flag.
-vec4 packPuffs(vec3 colour, float through, bool arms)
-{
-    return vec4(colour, arms ? -through : through);
-}
-
-float puffsThrough(vec4 packed)
-{
-    return abs(packed.a);
-}
-
-bool puffsOnArms(vec4 packed)
-{
-    return (floatBitsToUint(packed.a) & 0x80000000u) != 0u;
-}
-
-/// The eye the trace cast a pixel's ray from: the arms' where it drew the pixel on an arm, the
-/// world's everywhere else. Asked by every pass that rebuilds a pixel's ray, so no two of them can
-/// rebuild it through different eyes.
-Camera eyeOfPixel(vec4 packed, Camera world, Camera arms)
-{
-    return puffsOnArms(packed) ? arms : world;
-}
-
 /// The `PRESENCE_` kinds a ray through a traced pixel's tile can meet — every kind where the frame
 /// binned nothing, which is a camera that draws no sprites and a frame whose runs did not fit.
 ///
@@ -144,7 +113,7 @@ uint presenceAt(SpriteTileList list, SpritePresence presence, uint tracedWidth, 
 /// **Of the tile alone, and of nothing a ray through the pixel found**, so the answer is the same
 /// whichever point of the pixel the trace sampled.
 ///
-/// @param arms whether the trace drew the pixel on an arm, `puffsOnArms`.
+/// @param arms whether the trace drew the pixel on an arm, `surfaceOnArms`.
 bool puffsCoverNothing(SpriteTileList list, SpritePresence presence, uint tracedWidth, uvec2 traced, bool arms)
 {
     if (list.at[0] == SPRITE_LIST_UNBINNED || arms)

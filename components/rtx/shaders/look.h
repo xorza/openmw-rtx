@@ -1121,7 +1121,7 @@ namespace Rtx::Shaders
     /// **Relative, because a tolerance in world units means something different at every range.**
     /// Two per cent is well inside a wall's thickness at arm's length and well outside the step a
     /// grazing floor takes between neighbouring pixels at the far end of a view. The floor under it
-    /// is the one part that has to be converted, and `AccumulateConstants::mDistanceScale` is one
+    /// is the one part that has to be converted, and `HistoryConstants::mDistanceScale` is one
     /// world unit in the units the distance is stored in.
     const float ACCUMULATE_DEPTH = 0.02f;
 

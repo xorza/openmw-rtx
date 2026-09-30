@@ -30,6 +30,6 @@ namespace Rtx
             const DenoiseFrame& frame) const;
 
     private:
-        ComputePipeline<Shaders::AccumulateConstants> mPipeline;
+        ComputePipeline<Shaders::HistoryConstants> mPipeline;
     };
 }

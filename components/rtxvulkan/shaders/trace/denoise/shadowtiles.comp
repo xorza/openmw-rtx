@@ -92,13 +92,18 @@ layout(set = SET_PASS, binding = SHADOW_TILES_BIND_TILES, SHADOW_TILES) uniform 
 /// The rays' bits, a word an 8×4 tile — `shadowmask.comp`.
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MASK, SHADOW_MASK) uniform readonly uimage2D mask;
 
+/// The accumulator's own record: its reset is the SDK's `IsFirstFrame`, and its distance scale the
+/// one the accumulator's surface history, which this pass reads, was written at.
 layout(push_constant, scalar) uniform Push
 {
-    ShadowTilesConstants frame;
+    HistoryConstants frame;
 };
 
+/// The kernel's radius, and the apron the square carries past the workgroup on every side.
+const uint REACH = SHADOW_REACH;
+
 /// The side of the square of bits a workgroup reads.
-const uint SPAN = SHADOW_WORKGROUP + 2u * SHADOW_APRON;
+const uint SPAN = SHADOW_WORKGROUP + 2u * REACH;
 
 /// The square's bits, one row a word: bit `c` of row `r` is the pixel `c` columns and `r` rows from
 /// the square's corner. `open` is set where the pixel's rays got through, which the mask says only of
@@ -109,22 +114,17 @@ shared uint gInside[SPAN];
 /// How many of the workgroup's pixels receive: the SDK's all-true, by its shared-memory path.
 shared uint gReceivers;
 
-/// Each column's horizontal kernel over three rows eight apart, which the vertical half then reads:
-/// the weight of the open pixels, and the weight of the pixels inside the frame.
-shared vec2 gRows[SHADOW_WORKGROUP][3u * SHADOW_WORKGROUP];
+/// Each column's horizontal kernel over every row of the square, which the vertical half then
+/// reads: the weight of the open pixels, and the weight of the pixels inside the frame.
+shared vec2 gRows[SHADOW_WORKGROUP][SPAN];
 
-/// The SDK's local-neighbourhood kernel: a Gaussian of radius eight, `exp(-3 i² / 81)`, normalised
-/// over its seventeen taps.
-const float KERNEL_RADIUS = 8.0;
-const float KERNEL_SUM = 1.0
-    + 2.0
-        * (exp(-3.0 * 1.0 / 81.0) + exp(-3.0 * 4.0 / 81.0) + exp(-3.0 * 9.0 / 81.0) + exp(-3.0 * 16.0 / 81.0)
-            + exp(-3.0 * 25.0 / 81.0) + exp(-3.0 * 36.0 / 81.0) + exp(-3.0 * 49.0 / 81.0)
-            + exp(-3.0 * 64.0 / 81.0));
-
+/// The SDK's local-neighbourhood kernel: a Gaussian of radius `REACH`, `exp(-3 i² / (REACH + 1)²)`.
+/// **Not normalised over its taps, as the SDK's is**, because what reads it is the ratio of two
+/// sums under the same weights, and the factor falls out of it.
 float kernelWeight(float offset)
 {
-    return exp(-3.0 * offset * offset / ((KERNEL_RADIUS + 1.0) * (KERNEL_RADIUS + 1.0))) / KERNEL_SUM;
+    const float width = float(REACH + 1u);
+    return exp(-3.0 * offset * offset / (width * width));
 }
 
 /// Whether the sky's source lights the surface at `at` at all.
@@ -134,8 +134,8 @@ bool receives(ivec2 at)
         && dot(imageLoad(sunlit, at).rgb, LUMINANCE_WEIGHTS) > 0.0;
 }
 
-/// The horizontal half of the 17×17 kernel over row `row` of the square, centred on column
-/// `column + SHADOW_APRON`: the SDK's `HorizontalNeighborhood`, off the shared row rather than off
+/// The horizontal half of the kernel over row `row` of the square, centred on column
+/// `column + REACH`: the SDK's `HorizontalNeighborhood`, off the shared row rather than off
 /// three tile words — the weight of the open pixels, and beside it the weight of those inside the
 /// frame.
 ///
@@ -149,9 +149,9 @@ vec2 horizontalNeighbourhood(uint row, uint column)
     const uint inside = gInside[row] >> column;
 
     vec2 moment = vec2(0.0);
-    for (int i = 0; i <= 16; ++i)
+    for (int i = 0; i <= 2 * int(REACH); ++i)
     {
-        const float weight = kernelWeight(float(i - 8));
+        const float weight = kernelWeight(float(i - int(REACH)));
         moment += vec2(((open >> uint(i)) & 1u) != 0u ? weight : 0.0, ((inside >> uint(i)) & 1u) != 0u ? weight : 0.0);
     }
 
@@ -173,7 +173,7 @@ void main()
     const uvec2 local = gl_LocalInvocationID.xy;
     const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
     const bool inFrame = !outsideOf(uvec2(at), extent);
-    const ivec2 corner = ivec2(gl_WorkGroupID.xy * SHADOW_WORKGROUP) - int(SHADOW_APRON);
+    const ivec2 corner = ivec2(gl_WorkGroupID.xy * SHADOW_WORKGROUP) - int(REACH);
 
     if (gl_LocalInvocationIndex == 0u)
         gReceivers = 0u;
@@ -251,24 +251,22 @@ void main()
         imageStore(tiles, ivec2(gl_WorkGroupID.xy), vec4(0.0));
 
     // The local mean of the bits, which with one sample a pixel is its variance as well: the
-    // horizontal half at three rows eight apart, then the vertical half down the column.
-    gRows[local.x][local.y] = horizontalNeighbourhood(local.y, local.x);
-    gRows[local.x][local.y + SHADOW_WORKGROUP] = horizontalNeighbourhood(local.y + SHADOW_APRON, local.x);
-    gRows[local.x][local.y + 2u * SHADOW_WORKGROUP]
-        = horizontalNeighbourhood(local.y + 2u * SHADOW_APRON, local.x);
+    // horizontal half at every row of the square, a lane a row a workgroup apart, then the vertical
+    // half down the column.
+    for (uint row = local.y; row < SPAN; row += SHADOW_WORKGROUP)
+        gRows[local.x][row] = horizontalNeighbourhood(row, local.x);
 
     barrier();
 
     if (!inFrame)
         return;
 
-    vec2 kernel = gRows[local.x][local.y + SHADOW_WORKGROUP] * kernelWeight(0.0)
-        + (gRows[local.x][local.y] + gRows[local.x][local.y + 2u * SHADOW_WORKGROUP]) * kernelWeight(KERNEL_RADIUS);
-    for (uint i = 1u; i < uint(KERNEL_RADIUS); ++i)
-    {
-        const uint row = SHADOW_WORKGROUP + local.y;
-        kernel += (gRows[local.x][row - i] + gRows[local.x][row + i]) * kernelWeight(float(i));
-    }
+    // The centre and the two ends first and the taps between after, the order the SDK sums in.
+    const uint centre = local.y + REACH;
+    vec2 kernel = gRows[local.x][centre] * kernelWeight(0.0)
+        + (gRows[local.x][centre - REACH] + gRows[local.x][centre + REACH]) * kernelWeight(float(REACH));
+    for (uint i = 1u; i < REACH; ++i)
+        kernel += (gRows[local.x][centre - i] + gRows[local.x][centre + i]) * kernelWeight(float(i));
 
     // The pixel is inside the frame, so the weight of what is inside is at least its own.
     const float neighbourhood = kernel.x / kernel.y;
@@ -279,18 +277,19 @@ void main()
 
     if (receiver)
     {
-        const uvec2 square = local + SHADOW_APRON;
+        const uvec2 square = local + REACH;
         const float current = ((gOpen[square.y] >> square.x) & 1u) != 0u ? 1.0 : 0.0;
 
         const vec2 seen = imageLoad(surfaceChannel, at).rg;
         const vec3 normal = unpackSurfaceNormal(seen.x);
+        const float away = surfaceDistance(seen.y);
         const vec3 moved = imageLoad(motion, at).xyz;
         const HistoryFootprint before = historyFootprint(at, frame.mCamera.mJitter, moved);
 
         // The moments at the nearest texel, as the SDK fetches them, and none where that texel is
         // another surface: the SDK's disocclusion.
         const ivec2 nearest = before.mLow + ivec2(greaterThanEqual(before.mAcross, vec2(0.5)));
-        const bool held = frame.mReset == 0u && sameSurface(nearest, normal, seen.y, moved);
+        const bool held = frame.mReset == 0u && sameSurface(nearest, normal, away, moved);
         const vec3 previousMoments = held ? imageLoad(momentsBefore, nearest).xyz : vec3(0.0);
 
         const float samples = previousMoments.z + 1.0;
@@ -316,7 +315,7 @@ void main()
             {
                 const float share = historyShare(before, i);
                 const ivec2 tap = historyTap(before, i);
-                if (share <= 0.0 || !sameSurface(tap, normal, seen.y, moved))
+                if (share <= 0.0 || !sameSurface(tap, normal, away, moved))
                     continue;
 
                 sum += imageLoad(history, tap).x * share;

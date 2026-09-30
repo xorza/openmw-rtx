@@ -1,6 +1,7 @@
 #ifndef OPENMW_COMPONENTS_RTX_SHADERS_SHADOW_H
 #define OPENMW_COMPONENTS_RTX_SHADERS_SHADOW_H
 
+#include "accumulate.h"
 #include "camera.h"
 #include "hosttypes.h"
 #include "portable.h"
@@ -46,11 +47,12 @@ namespace Rtx::Shaders
     const uint SHADOW_MASK_WIDTH = 8;
     const uint SHADOW_MASK_HEIGHT = 4;
 
-    /// How far either way of its tile the classification reads the bits, which is how far the
-    /// three filter levels reach — one, two and four pixels, seven in all — and the eight either way
-    /// of a pixel the SDK's local neighbourhood kernel spans. A square of `SHADOW_WORKGROUP + 2 *
-    /// SHADOW_APRON` bits: three words across and six down.
-    const uint SHADOW_APRON = 8;
+    /// How far either way of a pixel the SDK's local neighbourhood kernel reaches — its radius, and
+    /// the apron the classification reads past its tile on every side, so a square of
+    /// `SHADOW_WORKGROUP + 2 * SHADOW_REACH` bits: three words across and six down. Held whole in a
+    /// word a row and started on a tile's corner, which the asserts below say of it. The three
+    /// filter levels reach one, two and four pixels, seven in all, inside it.
+    const uint SHADOW_REACH = 8;
 
     /// Where `shadowmask.comp` binds what it reads and writes in set 0, and how many there are.
     const uint SHADOW_MASK_BIND_SUNLIT = 0;
@@ -80,11 +82,10 @@ namespace Rtx::Shaders
 
     /// Where `shadowfilter.comp` binds what it reads and writes in set 0, and how many there are.
     const uint SHADOW_FILTER_BIND_SURFACE = 0;
-    const uint SHADOW_FILTER_BIND_PUFFS = 1;
-    const uint SHADOW_FILTER_BIND_TILES = 2;
-    const uint SHADOW_FILTER_BIND_SOURCE = 3;
-    const uint SHADOW_FILTER_BIND_FILTERED = 4;
-    const uint SHADOW_FILTER_BINDINGS = 5;
+    const uint SHADOW_FILTER_BIND_TILES = 1;
+    const uint SHADOW_FILTER_BIND_SOURCE = 2;
+    const uint SHADOW_FILTER_BIND_FILTERED = 3;
+    const uint SHADOW_FILTER_BINDINGS = 4;
 
     /// The variance a pixel that receives nothing is written with, by the temporal pass and by every
     /// level after it: below every variance there is, so the levels know such a pixel from its own
@@ -98,22 +99,6 @@ namespace Rtx::Shaders
         uint mHeight;
     };
 
-    /// What the temporal pass reads that is not an image.
-    struct ShadowTilesConstants
-    {
-        /// The camera the frame was traced with: its extent, and the jitter the motion vector was
-        /// written against, which the history's footprint adds back (`historyFootprint`).
-        Camera mCamera;
-
-        /// Non-zero where there is no history to reuse: the SDK's `IsFirstFrame`, and the
-        /// accumulator's reset, whose surface history this pass reads.
-        uint mReset;
-
-        /// What the accumulator's surface history scaled a distance by —
-        /// `AccumulateConstants::mDistanceScale`, the same number, because it is the same history.
-        float mDistanceScale;
-    };
-
     /// What a filter level reads that is not an image: the two eyes a pixel's ray can have left, so
     /// its position is rebuilt through the one that cast it, as the wavelet rebuilds it.
     struct ShadowFilterConstants
@@ -122,11 +107,16 @@ namespace Rtx::Shaders
         Camera mArms;
     };
 
+#ifdef RTX_HOST
+    static_assert(SHADOW_WORKGROUP + 2 * SHADOW_REACH <= 32, "a row of the classification's square past a word");
+    static_assert(SHADOW_REACH % SHADOW_MASK_WIDTH == 0 && SHADOW_WORKGROUP % SHADOW_MASK_WIDTH == 0,
+        "the classification's square not on whole tiles");
+#endif
+
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(ShadowMaskConstants) == 8, "ShadowMaskConstants must be scalar-packed on every side");
-    static_assert(sizeof(ShadowTilesConstants) == 68, "ShadowTilesConstants must be scalar-packed on every side");
     static_assert(sizeof(ShadowFilterConstants) == 120, "ShadowFilterConstants must be scalar-packed on every side");
 #endif
 

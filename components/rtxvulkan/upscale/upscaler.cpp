@@ -28,7 +28,6 @@ namespace Rtx
             Motion,
             Surface,
             Colour,
-            Puffs,
             Masks,
             DilatedMotion,
             DilatedDepth,
@@ -108,7 +107,6 @@ namespace Rtx
             Bind{ F::FSR_INPUTS_BIND_FARTHEST_DEPTH, S::Storage, R::Intermediate },
             Bind{ F::FSR_INPUTS_BIND_CURRENT_LUMA, S::Storage, R::LumaNow },
             Bind{ F::FSR_INPUTS_BIND_CONSTANTS, S::Block, R::Constants },
-            Bind{ F::FSR_INPUTS_BIND_PUFFS, S::Sampled, R::Puffs },
             Bind{ F::FSR_INPUTS_BIND_INPUTS, S::Block, R::Inputs },
             Bind{ F::FSR_BIND_SAMPLER, S::Sampler, R::Sampler },
         };
@@ -285,6 +283,7 @@ namespace Rtx
         Targets(const Device& device, const VkExtent2D render, const VkExtent2D output)
             : mRender(render)
             , mOutput(output)
+            , mPyramid(FsrFrame::pyramidFor(render))
         {
             const VkExtent2D half{ std::max(render.width / 2, 1u), std::max(render.height / 2, 1u) };
             const auto make = [&](VkExtent2D extent, VkFormat format, std::string_view name, std::uint32_t levels = 1) {
@@ -324,6 +323,9 @@ namespace Rtx
 
         VkExtent2D mRender;
         VkExtent2D mOutput;
+
+        /// How the luma pyramid is dispatched over the render extent, which is all it depends on.
+        FsrFrame::Pyramid mPyramid;
 
         std::array<Image, 2> mAccumulation;
         std::array<Image, 2> mLuma;
@@ -406,7 +408,7 @@ namespace Rtx
             .mJitterPhases = inputs.mJitterPhases,
             .mSeconds = inputs.mSeconds,
         });
-        const FsrFrame::Pyramid pyramid = FsrFrame::pyramidFor(targets.mRender);
+        const FsrFrame::Pyramid& pyramid = targets.mPyramid;
 
         const Buffer& blocks = mBlocks.at(inputs.mSlot);
         const Shaders::FsrInputConstants inputConstants{
@@ -432,8 +434,6 @@ namespace Rtx
                     return inputs.mSurface;
                 case R::Colour:
                     return inputs.mColour;
-                case R::Puffs:
-                    return inputs.mPuffs;
                 case R::Masks:
                     return inputs.mMasks;
                 case R::DilatedMotion:

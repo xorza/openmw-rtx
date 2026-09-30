@@ -35,9 +35,9 @@ namespace Rtx
         /// why this pass cannot work it out for itself.
         const Image& mBackdrop;
 
-        /// What the trace left of the puffs at the same extent, whose arms' flag
-        /// `puffsCoverNothing` reads.
-        const Image& mPuffs;
+        /// The surface the trace saw at the same extent, whose arms' flag `puffsCoverNothing`
+        /// reads — `packSurfaceDistance`.
+        const Image& mSurface;
 
         /// The pyramid's finest level, in `VK_IMAGE_LAYOUT_GENERAL`, or null where nothing built
         /// one — a doll, a map tile, a frame too small to halve.

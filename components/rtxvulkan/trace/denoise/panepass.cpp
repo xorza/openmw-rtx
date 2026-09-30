@@ -41,7 +41,7 @@ namespace Rtx
         writes.image(Shaders::PANE_BIND_MEAN_BEFORE, images.mMeanBefore.describeStorage());
         writes.image(Shaders::PANE_BIND_MEAN, images.mMean.describeStorage());
 
-        const Shaders::PaneConstants constants{
+        const Shaders::HistoryConstants constants{
             .mCamera = camera,
             .mReset = images.mFresh ? 1u : 0u,
             .mDistanceScale = frame.mDistanceScale,

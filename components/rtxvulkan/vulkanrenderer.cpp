@@ -601,7 +601,6 @@ namespace Rtx
                     .mColour = traced.mColour,
                     .mSurface = channels.get(Channel::Surface),
                     .mMotion = channels.get(Channel::Motion),
-                    .mPuffs = channels.get(Channel::Puffs),
                     .mMasks = channels.get(Channel::UpscaleMasks),
                     .mCamera = sampled.mCamera,
                     .mArms = sampled.mArms,

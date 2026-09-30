@@ -29,11 +29,11 @@ namespace Rtx::Shaders
     const uint TONE_BIND_EXPOSURE = 3;
     const uint TONE_BIND_BLOOM = 4;
     const uint TONE_BIND_SUN_GLARE = 5;
-    const uint TONE_BIND_PUFFS = 6;
+    const uint TONE_BIND_SURFACE = 6;
     const uint TONE_BINDINGS = 7;
 
-/// What the curve writes the picture as: bytes a display understands. `PresentTargets` makes its
-/// images in it.
+/// What the curve writes the picture as: bytes a display understands. `PresentTarget` makes its
+/// image in it.
 #define TONE_TARGET_FORMAT STORAGE_RGBA8
 
     /// Threads along each edge of the tone pass's workgroup.

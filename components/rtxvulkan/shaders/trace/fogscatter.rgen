@@ -178,6 +178,15 @@ void main()
     // **Over the stretch short of the surface and not over the slice**, so a froxel the ground
     // stands inside holds the mean over its air.
     uint lampState = randomSeed(froxelKey(uvec2(column), slice) + SEED_LAMPS_FOG);
+
+    // **The sky's draws first, at a fixed place in the sequence**: the ray's pair for the sun, the
+    // ray's pair for the moon, and the moon's pick. The walk below steps the same state once a lamp,
+    // so drawn after it, a lamp entering the column moved the froxel's sky shadow — the rule
+    // `gather` keeps for a surface.
+    const vec2 sunDraw = vec2(randomNext(lampState), randomNext(lampState));
+    const vec2 moonDraw = vec2(randomNext(lampState), randomNext(lampState));
+    const float moonPick = randomNext(lampState);
+
     Reservoir lamps = noLamps();
     const vec3 lampScatter
         = lampsInAir(lamps, lampState, fromMiddle, middle.mDirection, behind, clear) / (clear - behind);
@@ -192,15 +201,10 @@ void main()
     // wherever it now leaves.
     lamps.mFrom = position;
 
-    // Drawn after the lamp's own pair, so a lamp keeps the numbers it drew before the sky asked for
-    // any: the ray's pair for the sun, the ray's pair for the moon, and the moon's pick.
-    const vec2 sunDraw = vec2(randomNext(lampState), randomNext(lampState));
-    const vec2 moonDraw = vec2(randomNext(lampState), randomNext(lampState));
-
     const MoonTerms terms = MoonTerms(
         imageLoad(fogColumnMoons, ivec3(column, 0)).xyz, imageLoad(fogColumnMoons, ivec3(column, 1)).xyz);
 
-    const FogSources sources = fogSourcesFrom(terms, randomNext(lampState));
+    const FogSources sources = fogSourcesFrom(terms, moonPick);
 
     // **Nought where no lamp reaches, which is not what `lampVisible` answers there.** That function
     // returns one for an empty reservoir, and it is right to: its own caller multiplies it by a
