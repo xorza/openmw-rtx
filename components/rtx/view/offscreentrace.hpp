@@ -11,6 +11,7 @@
 #include <osg/ref_ptr>
 
 #include <components/rtx/mirror/mirrorpass.hpp>
+#include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
@@ -77,6 +78,10 @@ namespace Rtx
         /// otherwise be run by whichever got there first and frozen for the other. Left out, the
         /// walk keeps a sequence of its own.
         Traversals* mTraversals = nullptr;
+
+        /// What the subject's walk computes from the content, the frame thread's, so a doll reads
+        /// the world's caches and counts into the world's figures. Left out, the walk keeps its own.
+        ThreadContent* mContent = nullptr;
 
         /// What the subject's `_spec` maps mean — the world's, so a doll wears what the world does.
         SpecularLayout mSpecularLayout = SpecularLayout::Ignore;

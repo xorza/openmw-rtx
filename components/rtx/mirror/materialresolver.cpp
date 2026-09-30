@@ -34,7 +34,7 @@ namespace Rtx
     {
         /// What the sea's material is keyed on: the state set it has not got (`resolveWater`).
         /// Nothing else in the world can key as null, because a shading chain's entries come from
-        /// `MirrorTraversal::pushShading`, which takes a reference.
+        /// `SceneExtractor::Traversal::pushShading`, which takes a reference.
         constexpr const osg::StateSet* sSea = nullptr;
 
         /// What one texel of a sheet adds on average under `blend`: weighted by its own alpha

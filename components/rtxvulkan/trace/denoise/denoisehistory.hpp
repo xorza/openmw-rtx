@@ -42,8 +42,7 @@ namespace Rtx
     public:
         explicit DenoiseHistory(const Device& device);
 
-        /// Makes room for a frame this size, if the last one was not. A resize is a reset. The
-        /// caller has waited for anything still reading the old images.
+        /// Makes room for a frame this size, if the last one was not. A resize is a reset.
         void resize(std::uint32_t width, std::uint32_t height);
 
         /// Says every history is worthless, until each filter next runs.

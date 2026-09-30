@@ -673,6 +673,22 @@ namespace Rtx::Testing
             EXPECT_EQ(next.mSprites, 0u) << "the thrown walk's plume, placed by the walk after it";
         }
 
+        /// **Nor the class it was inside.** A walk that threw under an effect's root left the next
+        /// walk standing inside the effect, so a plain quad walked next was placed as an effect.
+        TEST_F(RtxSceneExtractorTest, aWalkThatThrewInsideAnEffectLeavesTheNextOutside)
+        {
+            constexpr osg::Node::NodeMask sEffect = 1u << 1;
+            mExtractor.setClassMask(Rtx::InstanceClass::Effect, sEffect);
+
+            osg::ref_ptr<osg::Group> effect = new osg::Group;
+            effect->setNodeMask(sEffect);
+            effect->addChild(new Throwing);
+            EXPECT_THROW(walk(*effect), std::runtime_error);
+
+            ASSERT_EQ(walk(*makeQuad()).mInstances, 1u);
+            EXPECT_EQ(mScene.placements().getRows()[0].mInstance.mClass, Rtx::InstanceClass::Static);
+        }
+
         /// **An emitter's sprites are read from its entry as the map holds it after the walk**, and
         /// not from where the entry stood when the walk met the emitter. Sprites are read once the
         /// walk is over, and the emitters met after this one grow the map, which moves every entry.

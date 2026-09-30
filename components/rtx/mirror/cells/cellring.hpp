@@ -5,15 +5,11 @@
 #include <optional>
 #include <vector>
 
-#include <boost/container/flat_set.hpp>
 #include <osg/Vec2i>
 #include <osg/Vec3f>
 
 #include <components/esm3/refnum.hpp>
-#include <components/rtx/common/scratch.hpp>
-#include <components/rtx/common/slots.hpp>
 #include <components/rtx/common/stepped.hpp>
-#include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneadopter.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 #include <components/terrain/objectstorage.hpp>
@@ -26,8 +22,6 @@
 
 namespace Rtx
 {
-    class SceneDesc;
-
     /// The world's cells as this renderer stands them: their ground off the land records, and the
     /// statics of the cells the simulation does not hold as instances of their templates. Not
     /// `Terrain::QuadTreeWorld`'s chunks nor `Terrain::ObjectPaging`'s merges, which cut and fold
@@ -47,7 +41,8 @@ namespace Rtx
     /// clone when the cell becomes active, and nothing is uploaded twice. The ground's rows are
     /// the ring's own: no drawable will ever name them, so the placer holds them on the scene. What
     /// this adopts goes through the extractor's own resolvers inside the walk (`SceneAdopter`),
-    /// and holds by `Known::mHolds` rather than being named again on every walk. Everything the
+    /// which is also the scene everything here stands in and the walk's counts it adds to, and
+    /// holds by `Known::mHolds` rather than being named again on every walk. Everything the
     /// thread reads is lent and given back — `Spares` says why an address and not a shared count,
     /// and `giveBackHolds` why a hold is a cell's.
     ///
@@ -60,7 +55,9 @@ namespace Rtx
     class CellRing
     {
     public:
-        explicit CellRing(SceneDesc& scene);
+        /// @param adopter what every row this stands is adopted through, and the scene it stands
+        ///        them in — the extractor whose world walk collects this.
+        explicit CellRing(SceneAdopter& adopter);
 
         CellRing(const CellRing&) = delete;
         CellRing& operator=(const CellRing&) = delete;
@@ -107,13 +104,13 @@ namespace Rtx
         /// `CellPlacer::setGate`, over the cells held, between frames as the three above are.
         void setGate(std::uint32_t gate, Terrain::GateState state);
 
-        /// Hands `into` everything held that the graph does not parent, and adds what it stood to
-        /// `stats` — the walk's own, because the ring is stood inside the walk.
-        void collect(SceneAdopter& into, ExtractionStats& stats);
+        /// Hands the adopter everything held that the graph does not parent, and adds what it stood
+        /// to the walk's counts, because the ring is stood inside the adopter's walk.
+        void collect();
 
-        /// Gives `into` back every hold `forget` let go of, for a ring the frame will not walk
+        /// Gives the adopter back every hold `forget` let go of, for a ring the frame will not walk
         /// again — a world detached. `collect` does the same at both ends of a walk.
-        void releaseHolds(SceneAdopter& into) { mHolds.releaseParts(into); }
+        void releaseHolds() { mHolds.releaseParts(mAdopter); }
 
         /// Appends the reference number of every static standing in the top level, for a check
         /// that asks the game whether it stands the same one.
@@ -126,18 +123,9 @@ namespace Rtx
 
         // Read by the tests and by nothing else.
         /// How many cells the prepared ring holds.
-        std::size_t getHeldCellCount() const { return mCells.size(); }
+        std::size_t getHeldCellCount() const { return mPlacer.getHeldCount(); }
 
     private:
-        /// What the cell table is ordered by, stated once so that no search can disagree with the
-        /// insertion it is looking for. `osg::Vec2i` orders lexicographically already, which is the
-        /// order a walk over the held cells wants: the same walk on every machine.
-        struct CellAt
-        {
-            const osg::Vec2i& operator()(const HeldCell& held) const { return held.mCell; }
-        };
-
-        bool holds(const osg::Vec2i& cell) const;
         bool handed(const osg::Vec2i& cell) const;
 
         /// Moves the supply's finished cells into the frame's own list, counting their models. A
@@ -159,9 +147,9 @@ namespace Rtx
         void waitForNext(const osg::Vec3f& eye, float band);
 
         /// Adopts the next cell the supply read, which is one cell and one frame's worth.
-        void adoptHanded(SceneAdopter& into, ExtractionStats& stats);
+        void adoptHanded();
 
-        void adopt(PreparedCell& cell, SceneAdopter& into, ExtractionStats& stats);
+        void adopt(PreparedCell& cell);
 
         /// Lets go of a handed cell the frame will not adopt.
         void discard(PreparedCell& cell);
@@ -172,24 +160,18 @@ namespace Rtx
         void giveBackHolds(const HeldCell& cell);
         void giveBackHolds(const PreparedCell& cell);
 
-        void dropCell(HeldCell& cell);
-        void dropPlacements();
+        /// What a held cell the ring lets go of owes: its hold on each model, and the reader's
+        /// holds on its models and its ground's images.
+        void letGo(const HeldCell& cell);
 
         /// The whole of what a walk does to the rings: what `collect` wraps in the walk it is inside.
-        void walkRings(SceneAdopter& into, ExtractionStats& stats);
-
-        /// Whether the top level holds exactly what the held cells say it should, cell by cell and
-        /// in total — `CellPlacer::standsAsHeld` and `standsNoMore`. Asserted after every walk, so
-        /// a placement that outlived its cell, or a cell whose placement went missing, is found on
-        /// the frame it happened rather than seen at the horizon.
-        bool standsAsHeld() const;
+        void walkRings(ExtractionStats& stats);
 
         /// Lets go of every cell, every model and every image the frame holds. What the supply lent
         /// dies with its reader, so this runs before the supply is pointed anywhere else.
         void forget();
 
-        /// Where what the reader refused is reported, on the frame's thread.
-        SceneDesc& mScene;
+        SceneAdopter& mAdopter;
 
         /// The cells themselves, read on a thread of its own.
         CellSupply mSupply;
@@ -197,7 +179,7 @@ namespace Rtx
         /// The models and images lent, and what they were adopted as.
         CellHolds mHolds;
 
-        /// What of the held cells stands, and by what rule.
+        /// The cells held, and what of them stands by what rule.
         CellPlacer mPlacer;
 
         /// Where the eye is and how much world there is around it, as the last `follow` said.
@@ -227,10 +209,6 @@ namespace Rtx
 
         /// The frame a cell was last adopted on, so a frame walked twice adopts once.
         std::size_t mAdoptedFrame = ~std::size_t{ 0 };
-
-        /// The cells held, in `CellAt`'s order, and the room a dropped cell's vectors grew.
-        boost::container::flat_set<HeldCell, KeyedLess<osg::Vec2i, CellAt>, std::vector<HeldCell>> mCells;
-        Recycled<HeldCell> mSpareCells;
 
         /// What the thread read and handed over, and the frame has not adopted yet, in the order it
         /// arrived.

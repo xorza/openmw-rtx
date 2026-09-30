@@ -178,6 +178,7 @@ namespace Rtx::Testing
                 const Testing::NoRoomForContent full(mRenderer.getDevice());
                 mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&second, 1));
             }
+            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
 
             // The meshes first, because the structures are stood before the textures.
             const std::span<const Refusal> refused = mRenderer.getRefusals(Rtx::SceneSlot::world());
@@ -262,6 +263,7 @@ namespace Rtx::Testing
             const Index blueTexture = scene.materials().getRows()[blue].mDiffuse;
             const TextureData second = describeTexel(blueTexel, blueTexture);
             mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&second, 1));
+            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
             EXPECT_EQ(mRenderer.describeHeld(Rtx::SceneSlot::world()).mTextureCount, 2u);
 
             mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
@@ -371,6 +373,7 @@ namespace Rtx::Testing
             holds.material(red);
             const TextureData arrived = describeTexel(redTexel, scene.materials().getRows()[red].mDiffuse);
             mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&arrived, 1));
+            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
             mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
 
             std::vector<std::uint8_t> after;
@@ -1937,8 +1940,9 @@ namespace Rtx::Testing
             };
 
             // Into the standing world: the arrival stands the composite empty, and the placement
-            // `extendScene` ends in bakes it.
+            // after it bakes it.
             mRenderer.extendScene(Rtx::SceneSlot::world(), scene, std::span(&composite, 1));
+            mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
             mRenderer.renderFrame(camera, FrameOptions{ .mShow = SurfaceView::Albedo });
             ASSERT_TRUE(mRenderer.finishFrame().has_value());
             frame = readFrame(size);

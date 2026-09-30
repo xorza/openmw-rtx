@@ -9,6 +9,7 @@
 
 namespace Rtx
 {
+    class Buffer;
     class Device;
     class Image;
 
@@ -27,8 +28,9 @@ namespace Rtx
         Shaders::LineConstants mConstants;
 
         /// The lines' vertices first and the triangles' after them, in `Rtx::DebugVertex` layout:
-        /// `mLineCount` and then `mTriangleCount` of them.
-        VkBuffer mVertices = VK_NULL_HANDLE;
+        /// `mLineCount` and then `mTriangleCount` of them. Named for the submit the draw rides,
+        /// because it is bound by handle and a host write over it asks that submit.
+        const Buffer& mVertices;
         std::uint32_t mLineCount = 0;
         std::uint32_t mTriangleCount = 0;
     };

@@ -10,13 +10,19 @@ namespace osg
 
 namespace Rtx
 {
+    struct ExtractionStats;
     struct MaterialReading;
     struct MeshReading;
+    class SceneDesc;
 
     /// What a residency may do inside the walk that asks it: adopt rows through the mirror's own
     /// resolvers, under the identity the walk would find a clone's mesh under, so that a mesh both
     /// stand is one mesh. An adoption is a hold and a release gives it back, so the sweep keeps a
     /// held entry whatever its stamp.
+    ///
+    /// **The one route a residency has to the scene**: the rows it adopts, the placements it stands
+    /// and the counts it adds all go where this says, so a residency cannot stand rows in one scene
+    /// and adopt them into another.
     class SceneAdopter
     {
     public:
@@ -37,6 +43,13 @@ namespace Rtx
 
         /// The same for `adoptMaterial`, by the state set the reading named. Nothing for null.
         virtual void releaseMaterial(const osg::StateSet* key) = 0;
+
+        /// The scene every adoption lands in.
+        virtual SceneDesc& getScene() = 0;
+
+        /// The counts of the walk in progress. Only inside a walk, which is the only time a
+        /// residency stands anything to count.
+        virtual ExtractionStats& getStats() = 0;
 
     protected:
         SceneAdopter() = default;

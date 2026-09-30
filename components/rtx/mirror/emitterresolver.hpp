@@ -48,7 +48,7 @@ namespace Rtx
         /// @param pass the walk in progress: its sweep stamp and its counts, read at every call.
         ///        Borrowed, so that the mirror and everything resolving into it cannot come to hold
         ///        two answers.
-        /// @param means the process's mean texels, shared with the materials, because a flame's
+        /// @param means the thread's mean texels, shared with the materials, because a flame's
         ///        texture is a sheet's too and one file is averaged once.
         EmitterResolver(SceneDesc& scene, const MirrorPass& pass, MeanTexels& means)
             : mScene(scene)

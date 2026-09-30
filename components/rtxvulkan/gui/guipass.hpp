@@ -10,6 +10,7 @@
 
 namespace Rtx
 {
+    class Buffer;
     class Device;
     class Image;
 
@@ -44,8 +45,8 @@ namespace Rtx
         /// @param vertices every batch's vertices in one buffer, in `Rtx::GuiVertex` layout.
         /// @param draws what to draw and what to read while drawing it, in order. Each texture must
         ///        be in `VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL`.
-        void record(
-            VkCommandBuffer commands, const Image& target, VkBuffer vertices, std::span<const GuiDraw> draws) const;
+        void record(VkCommandBuffer commands, const Image& target, const Buffer& vertices,
+            std::span<const GuiDraw> draws) const;
 
     private:
         const GraphicsPipeline<NoConstants>& pipelineFor(const GuiDraw& draw) const;

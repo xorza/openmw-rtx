@@ -44,6 +44,7 @@ namespace Rtx
         mAcceleration.build(batch, scene, mRecords, mRefusals);
         mTextures.write(batch, textures, mRefusals);
         mBuiltMeshes = scene.meshes().getRevision();
+        mReleasedFreed = scene.meshes().getFreedCount();
         mBuiltStructure = scene.getStructureRevision();
         mBuiltFrom = scene.getIdentity();
         mCounts = scene.placements().getCounts();
@@ -54,6 +55,16 @@ namespace Rtx
         // And the ground that arrived flattened, off that copy: a scene built from nothing is
         // traced before any placement, and a composite stood empty is undefined until baked.
         bakeGround(batch.getCommands(), FrameSlot{});
+    }
+
+    void DeviceScene::releaseFreed(const SceneDesc& scene)
+    {
+        const std::uint64_t freed = scene.meshes().getFreedCount();
+        if (freed == mReleasedFreed)
+            return;
+
+        mAcceleration.release(scene.meshes().getFreed());
+        mReleasedFreed = freed;
     }
 
     Skinning DeviceScene::skinning(const SceneDesc& scene, const FrameSlot slot, GpuTimer* const timer)
@@ -91,6 +102,7 @@ namespace Rtx
         assert(scene.getIdentity() == mBuiltFrom && "an extension of a scene this slot was not built from");
 
         mRefusals.clear();
+        releaseFreed(scene);
 
         if (scene.meshes().getRevision() != mBuiltMeshes)
         {
@@ -115,10 +127,10 @@ namespace Rtx
     {
         assert(scene.getIdentity() == mBuiltFrom && "a placement of a scene this slot was not built from");
 
-        // What the scene let go of, given back here: walking away from a ring frees its meshes and
-        // nothing arrives to take them over until the next ring, so a frame that only places is the
-        // one that must not hold their structures.
-        mAcceleration.release(scene.meshes().getFreed());
+        // What the scene let go of, given back here too: walking away from a ring frees its meshes
+        // and nothing arrives to take them over until the next ring, so a frame that only places
+        // is the one that must not hold their structures.
+        releaseFreed(scene);
 
         // Once, for the slots that changed, and both halves read it: a nine-by-nine exterior is
         // fifty thousand rows with a matrix inverse apiece, and a frame changes a hundred.

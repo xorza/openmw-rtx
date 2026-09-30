@@ -299,13 +299,19 @@ namespace Rtx
     class Renderer : public GuiRenderer
     {
     public:
-        /// Builds everything a scene needs, replacing whatever was there. `textures` are decoded
-        /// already and indexed by the scene's texture index, and must outlive the call.
+        /// Builds everything a scene needs, replacing whatever was there, and places it. `textures`
+        /// are decoded already, each naming the slot it stands in (`TextureData::mSlot`), and must
+        /// outlive the call.
         virtual void setScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> textures) = 0;
 
         /// The same scene with more in it: geometry and textures appended, nothing renumbered, at
         /// the cost of a cell and never of `setScene`. `arrived` is the textures the scene gained
-        /// since the last call, starting at the count this already holds.
+        /// since the last call, each naming the slot it stands in — a slot a departure freed, or
+        /// one past the count this already holds.
+        ///
+        /// **Appends and does not place**: the caller places after it (`placeScene`), as on a frame
+        /// where nothing arrived, because the top level names every instance and an arrival changed
+        /// the list.
         virtual void extendScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> arrived) = 0;
 
         /// What this slot was last built from, and how far it has been extended since.
@@ -422,8 +428,10 @@ namespace Rtx
         /// `Renderer::setScene` has been called for the world.
         virtual const SceneStats& getSceneStats() const = 0;
 
-        /// Copies the traced image into `pixels`, four bytes per pixel, tightly packed. Not on a
-        /// frame path: it submits a copy and waits for it, so it is not const.
+        /// Copies the output image into `pixels`, four bytes per pixel, tightly packed: the frame
+        /// last traced, with whatever interface was drawn over it since — so read between a trace
+        /// and its present, it is that trace's picture and not the one presented before it. Not on
+        /// a frame path: it submits a copy and waits for it, so it is not const.
         virtual void readPixels(std::vector<std::uint8_t>& pixels) = 0;
 
     protected:

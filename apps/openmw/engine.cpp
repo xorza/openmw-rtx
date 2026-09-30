@@ -194,7 +194,8 @@ bool OMW::Engine::frame(unsigned frameNumber, float frametime)
                 // What the scripts just did to the globals and the journal, told before the frame
                 // draws the distance it moves — and told at all where scripts are off, since a new
                 // game's gates have never been.
-                mScriptManager->updateVisibilityGates();
+                if (mRenderer->groundReadsGates())
+                    mScriptManager->updateVisibilityGates();
 
                 if (!paused)
                 {
@@ -604,7 +605,8 @@ void OMW::Engine::prepareEngine()
     listener->loadingOff();
 
     // Before the world stands a renderer up, whose distance reads the gates from its own threads.
-    mScriptManager->buildVisibilityGates();
+    if (mRenderer->groundReadsGates())
+        mScriptManager->buildVisibilityGates();
 
     mWorld->init(mMaxRecastLogLevel, *mRenderer, std::move(rootNode), mWorkQueue.get(), *mUnrefQueue);
     mEnvironment.setWorldScene(mWorld->getWorldScene());

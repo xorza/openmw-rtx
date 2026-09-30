@@ -5,6 +5,7 @@
 #include <cstddef>
 
 #include <components/rtx/scene/debuglines.hpp>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
@@ -57,7 +58,7 @@ namespace Rtx
         const Image& target = what.mTarget;
         const Image& surface = what.mSurface;
         const Shaders::LineConstants& constants = what.mConstants;
-        const VkBuffer vertices = what.mVertices;
+        const Buffer& vertices = what.mVertices;
         const std::uint32_t lineCount = what.mLineCount;
         const std::uint32_t triangleCount = what.mTriangleCount;
 
@@ -73,8 +74,10 @@ namespace Rtx
         // `line.vert` writes Vulkan's own clip space, `+Y` down as the picture is indexed.
         beginDrawingOver(commands, target, ClipUp::Down);
 
+        const VkBuffer bound = vertices.getHandle();
         const VkDeviceSize offset = 0;
-        vkCmdBindVertexBuffers(commands, 0, 1, &vertices, &offset);
+        vkCmdBindVertexBuffers(commands, 0, 1, &bound, &offset);
+        vertices.nameForNext();
 
         // Each pipeline is handed the set and the block again: a push is only defined against
         // the layout in force, and the two layouts are the same in everything but the handle.

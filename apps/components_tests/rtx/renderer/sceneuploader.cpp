@@ -64,6 +64,7 @@ namespace Rtx
             EXPECT_EQ(grown.mKind, SceneUpload::Kind::Extended);
             EXPECT_EQ(grown.mDescribed, std::size_t{ 1 }) << "only the arrival is described, not the table";
             EXPECT_EQ(renderer.mExtended, 1u);
+            EXPECT_EQ(renderer.mPlaced, 2u) << "an extension appends, and the uploader places after it";
             EXPECT_EQ(renderer.mRebuilt, 1u);
             EXPECT_EQ(renderer.mTextures, 3u);
             EXPECT_FALSE(renderer.mAppendedToWrongEnd) << "the arrivals began somewhere other than the array's end";

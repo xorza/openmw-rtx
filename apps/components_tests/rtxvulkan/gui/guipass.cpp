@@ -86,7 +86,7 @@ namespace Rtx
 
                     target.transition(commands, Use::sClearWrite, Use::sColourAttachment);
 
-                    mPass->record(commands, target, buffer.getHandle(), draws);
+                    mPass->record(commands, target, buffer, draws);
                 });
 
                 target.read(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, pixels);

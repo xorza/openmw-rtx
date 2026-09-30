@@ -157,6 +157,12 @@ namespace MWRender
         /// Nought where the ground reaches no further than the cells the simulation has loaded.
         virtual float getGroundReach() const = 0;
 
+        /// Whether the grounds this makes hear what a visibility gate says (`Ground::setGate`),
+        /// which is whether the game builds the gates and keeps them up to date at all: the scripts
+        /// they are compiled from and the values they watch cost a frame nothing a renderer reads
+        /// where no ground listens.
+        virtual bool groundReadsGates() const { return false; }
+
         /// The node the game hangs the world under: the rasterizer's light manager, with the
         /// lighting method it draws with, or a plain group for a renderer that gathers lights on its
         /// own walk. The game names it, masks it and builds under it; it never asks which it got.

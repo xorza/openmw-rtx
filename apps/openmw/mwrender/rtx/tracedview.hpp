@@ -62,7 +62,8 @@ namespace MWRender
         /// @param gui whose texture the trace writes into, and which draws it.
         /// @param layout what a subject's `_spec` maps mean: the world's.
         TracedView(const OffscreenViewSpec& spec, ViewKind kind, Rtx::Renderer& backend, ViewQueue& views,
-            MyGUIRtx::RenderManager& gui, Rtx::Traversals& traversals, Rtx::SpecularLayout layout);
+            MyGUIRtx::RenderManager& gui, Rtx::Traversals& traversals, Rtx::ThreadContent& content,
+            Rtx::SpecularLayout layout);
         ~TracedView() override;
 
         void setView(const osg::Matrixf& view) override { mTrace.setView(view); }

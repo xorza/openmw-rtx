@@ -483,7 +483,7 @@ namespace Rtx::Testing
 
             SceneDesc mScene;
             SceneExtractor mExtractor{ mScene };
-            CellRing mRing{ mScene };
+            CellRing mRing{ mExtractor };
         };
 
         /// A reference stands where the game would stand its clone, on the mesh every copy shares;

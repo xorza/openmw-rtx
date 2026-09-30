@@ -156,6 +156,7 @@ set(RTX_FILES
     preprocess/texture/solidreach.hpp
     preprocess/texture/texelmean.cpp
     preprocess/texture/texelmean.hpp
+    preprocess/threadcontent.hpp
     renderer/framedigest.hpp
     renderer/frameimage.cpp
     renderer/frameimage.hpp

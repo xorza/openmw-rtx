@@ -134,6 +134,7 @@ namespace Rtx
 
             mScene.placements().move(mInstance, osg::Matrixf::translate(0.0f, -1000.0f, 0.0f));
             mRenderer.extendScene(Rtx::SceneSlot::world(), mScene, {});
+            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
 
             mRenderer.renderFrame(ahead(), FrameOptions{});
 
@@ -468,6 +469,7 @@ namespace Rtx
             mScene.addInstance(MeshInstance{ .mMesh = second });
             Testing::poseByOneBone(mScene, second, osg::Matrixf::identity());
             mRenderer.extendScene(Rtx::SceneSlot::world(), mScene, {});
+            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
             mScene.clearArrivals();
             EXPECT_EQ(rebuilt(), 1u) << "an arrival is not built twice on the placement that brings it";
 

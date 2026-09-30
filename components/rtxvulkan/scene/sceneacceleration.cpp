@@ -104,12 +104,6 @@ namespace Rtx
 
     void SceneAcceleration::extend(Batch& batch, const SceneDesc& scene)
     {
-        // Departures first, and their rooms cool rather than going straight back, so an arrival
-        // this frame cannot be built into room a frame in flight is still tracing. The two
-        // lists are disjoint, so a slot handed out again appears only among the arrivals and is
-        // dealt with by `buildArrived`, which buries whatever the slot was holding.
-        release(scene.meshes().getFreed());
-
         writeGeometry(batch, scene, scene.meshes().getArrived());
     }
 

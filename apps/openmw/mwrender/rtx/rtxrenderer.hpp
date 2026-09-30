@@ -121,6 +121,7 @@ namespace MWRender
         void detachWorld() noexcept override;
 
         float getGroundReach() const noexcept override;
+        bool groundReadsGates() const override { return true; }
         SDL_Window* getWindow() const noexcept override { return mWindow.get(); }
 
         void attachWorld(RenderingManager& world, osg::Group& worldRoot) noexcept override;

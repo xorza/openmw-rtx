@@ -11,15 +11,16 @@
 #include <components/rtx/shaders/digest.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
-#include <components/rtxvulkan/display/digestpass.hpp>
 
 namespace Rtx
 {
     namespace
     {
         /// The words the pass folded, each image's four lanes read as two words.
-        void readDigest(const Buffer& lanes, FrameDigest& into)
+        void unpackDigest(const Buffer& lanes, FrameDigest& into)
         {
             const auto* const words = static_cast<const std::uint32_t*>(lanes.map());
             for (std::size_t image = 0; image < into.mImages.size(); ++image)
@@ -44,6 +45,7 @@ namespace Rtx
         : mDevice(device)
         , mReadsCounts(readsCounts)
         , mSlots([&](FrameSlot) { return FrameRecord{ device }; })
+        , mDigest(device)
     {
         for (GrowableBuffer& picture : mPictures)
             picture = GrowableBuffer(device, BufferKind::ReadBack, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "frame readback");
@@ -87,7 +89,32 @@ namespace Rtx
         frame.mReconstruction = Reconstruction{};
         frame.mReadBackBytes = 0;
         frame.mDigest = std::nullopt;
+
+        if (mReadsCounts)
+            frame.mCounts.writable<Shaders::FrameCounts>(0, 1).front() = Shaders::FrameCounts{};
+
         return frame;
+    }
+
+    void FrameRing::readPicture(FrameRecord& frame, const VkCommandBuffer commands, const Image& target)
+    {
+        frame.mState.expect(FrameState::Begun);
+
+        // Grown here and not at a resize, because most frames never ask.
+        const VkDeviceSize bytes = target.getReadBytes();
+        GrowableBuffer& picture = pictureOf(mFrame);
+        picture.growTo(bytes);
+        target.recordRead(commands, Use::sComputeWrite, Use::sComputeWrite, picture.get());
+        frame.mReadBackBytes = bytes;
+    }
+
+    void FrameRing::readDigest(FrameRecord& frame, const VkCommandBuffer commands,
+        const std::array<const Image*, Shaders::DIGEST_IMAGES>& images, const FrameDigest& facts, GpuTimer* const timer)
+    {
+        frame.mState.expect(FrameState::Begun);
+
+        mDigest.record(commands, images, frame.mDigestLanes, timer);
+        frame.mDigest = facts;
     }
 
     VkCommandBuffer FrameRing::takePlaceCommands(FrameRecord& frame)
@@ -100,6 +127,10 @@ namespace Rtx
 
     void FrameRing::submit(FrameRecord& frame)
     {
+        // A wait's access scope is the device's, so the counts need a dependency of their own.
+        if (mReadsCounts)
+            frame.mCounts.orderForHostRead(frame.mWorld.mCommands);
+
         close(frame, true);
     }
 
@@ -153,7 +184,7 @@ namespace Rtx
             : std::span<const std::uint8_t>();
 
         if (frame.mDigest.has_value())
-            readDigest(frame.mDigestLanes, *frame.mDigest);
+            unpackDigest(frame.mDigestLanes, *frame.mDigest);
 
         assert(counted.mMisses <= frame.mCountedRays && "more primary rays missed than were launched");
 

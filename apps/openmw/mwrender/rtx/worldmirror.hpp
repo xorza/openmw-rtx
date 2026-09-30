@@ -20,6 +20,7 @@
 #include <components/rtx/mirror/mirrorpass.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
+#include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
@@ -151,8 +152,10 @@ namespace MWRender
         /// What the content holds on the host beside the scene — `Rtx::ContentMemory`.
         Rtx::ContentMemory getContentMemory();
 
-        /// The frame thread's — `Rtx::SceneExtractor::getPreprocessor`.
-        Rtx::ContentPreprocessor& getPreprocessor() { return mExtractor.getPreprocessor(); }
+        /// What the frame thread computes from the content, which the world's walk, the sky and
+        /// every traced view's walk share — `Rtx::ThreadContent`.
+        Rtx::ThreadContent& getContent() { return mThreadContent; }
+        Rtx::ContentPreprocessor& getPreprocessor() { return mThreadContent.mPreprocessor; }
 
         /// Where every walk that can reach one graph takes its traversal numbers from.
         Rtx::Traversals& getTraversals() { return mTraversals; }
@@ -161,8 +164,8 @@ namespace MWRender
         /// manager, which loads them, and for the pictures inside the interface, which read them.
         Rtx::SpecularLayout getSpecularLayout() const { return mSpecularLayout; }
 
-        // Read by the tests and by nothing else.
-        osg::Node::NodeMask getTraversalMask() const { return mExtractor.getTraversalMask(); }
+        /// What the world's walk may see. Read by the tests and by nothing else.
+        osg::Node::NodeMask getTraversalMask() const;
 
         /// `Rtx::CellRing::collectStanding`: every reference the ring stands, for the harness's
         /// check that the game stands none of them.
@@ -175,6 +178,9 @@ namespace MWRender
     private:
         /// Shared by everything that can reach one graph — the world's walk and every traced view.
         Rtx::Traversals mTraversals;
+
+        /// The same, for what the walks on this thread compute from the content.
+        Rtx::ThreadContent mThreadContent;
 
         Rtx::SceneDesc mScene;
 
@@ -195,7 +201,7 @@ namespace MWRender
 
         /// The cells themselves: their ground off the land records, their statics as instances
         /// of their templates, and their lamps. After the scene, which it adopts into.
-        Rtx::CellRing mRing{ mScene };
+        Rtx::CellRing mRing{ mExtractor };
 
         Rtx::SceneUploader mUploader;
 
