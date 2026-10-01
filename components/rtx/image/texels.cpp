@@ -9,6 +9,7 @@
 
 #include <osg/GL>
 #include <osg/Image>
+#include <osg/Texture> // The S3TC and RGTC formats, which Windows's and Apple's gl.h lack.
 #include <osg/Vec3d>
 
 #include "alphaimage.hpp"
