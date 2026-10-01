@@ -160,10 +160,10 @@ def _vulkan_sdk_linux(into: Path) -> None:
 
 def _vulkan_sdk_windows(into: Path) -> None:
     """**Out of a 288 MB installer that has no tarball beside it**: run unattended into a directory of
-    its own, through PowerShell's wait, since the installer is a windowed program; then the headers,
-    the import library and the three tools are taken out of it and the rest left behind. The loader
-    comes from the runtime components, because the installer leaves it to the driver and a runner
-    has no driver."""
+    its own, through PowerShell's wait, since the installer is a windowed program; then the headers
+    and the three tools are taken out of it and the rest left behind. No import library: no program
+    links the loader, which volk loads at run time. The loader the tests load comes from the runtime
+    components, because the installer leaves it to the driver and a runner has no driver."""
     installer = DEPS / Path(pins.VULKAN_SDK_WINDOWS.url).name
     fetch.download_pin(pins.VULKAN_SDK_WINDOWS, installer)
     # What the installer put down is left behind, read-only files and all.
@@ -174,14 +174,12 @@ def _vulkan_sdk_windows(into: Path) -> None:
         run(["powershell", "-NoProfile", "-Command",
              f"Start-Process -Wait -FilePath '{installer}' -ArgumentList @({arguments})"])
         tools = ("glslc.exe", "spirv-val.exe", "spirv-opt.exe")
-        for needed in ["Include/vulkan/vulkan.h", "Include/spirv/unified1/spirv.hpp", "Lib/vulkan-1.lib",
+        for needed in ["Include/vulkan/vulkan.h", "Include/spirv/unified1/spirv.hpp",
                        *(f"Bin/{tool}" for tool in tools)]:
             if not (full / needed).is_file():
                 raise Refusal(f"the Vulkan SDK installer left no {needed}")
-        (into / "Lib").mkdir(parents=True)
-        (into / "Bin").mkdir()
+        (into / "Bin").mkdir(parents=True)
         shutil.copytree(full / "Include", into / "Include")
-        shutil.copy2(full / "Lib" / "vulkan-1.lib", into / "Lib")
         for tool in tools:
             shutil.copy2(full / "Bin" / tool, into / "Bin")
     installer.unlink()
@@ -198,8 +196,8 @@ def _vulkan_sdk_windows(into: Path) -> None:
 
 def sdk_environment(env: dict[str, str]) -> None:
     """**What `omw bootstrap` fetched, handed to every command**, the way the SDK's `setup-env.sh`
-    would: FindVulkan reads `VULKAN_SDK` for the headers and, on Linux, `CMAKE_PREFIX_PATH` for the
-    loader's prefix; the tests load the loader from `LD_LIBRARY_PATH` or from the PATH beside glslc.
+    would: FindVulkan reads `VULKAN_SDK` for the headers, through `cmake/FindVulkanHeaders.cmake`, and
+    the tests load the loader from `LD_LIBRARY_PATH` or from the PATH beside glslc.
     Nothing where nothing was fetched: a desk with the SDK installed builds against that."""
     sdk = vulkan_sdk_dir()
     if sdk.is_dir():
@@ -209,7 +207,6 @@ def sdk_environment(env: dict[str, str]) -> None:
         else:
             base = sdk / "x86_64"
             env["VULKAN_SDK"] = str(base)
-            prepend_path(env, "CMAKE_PREFIX_PATH", base / "lib" / "VulkanLoader")
             prepend_path(env, "LD_LIBRARY_PATH", base / "lib" / "VulkanLoader" / "lib")
             prepend_path(env, "PATH", base / "bin")
 
