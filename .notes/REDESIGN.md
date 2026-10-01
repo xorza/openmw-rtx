@@ -4,16 +4,24 @@ This proposal answers `.notes/REVIEW.md`. It does not repeat the findings. It na
 structural causes behind most of them, gives the target shape for each cause, and orders the work.
 A reference such as *(REVIEW: Frame-to-frame state)* points at a group heading in `REVIEW.md`.
 
-The 309 findings fall into three kinds:
+`REVIEW.md` holds 386 findings: 4 high, 68 medium, 314 low. The first review (2026-10-01) wrote 302.
+The second (2026-10-02) found none of them fixed, rewrote 22, and added 84. The 30 findings that give
+a wrong result for an input the tree can produce are also listed in `.notes/ISSUES.md`. The second
+review changed this plan in four places: two new workstreams (W12, W13), new rows in W1, W2, W3, W7,
+W9, W10 and W11, two new decisions (D6, D7), and a Phase 0 that tests the harness's own verdicts
+before anything is judged by them.
 
-1. **Structure.** About 150 findings come from eleven causes in how the code is owned and connected.
-   Sections 2 to 12 redesign those causes. A change of structure closes a whole group, and the
+The findings fall into three kinds:
+
+1. **Structure.** Most findings come from thirteen causes in how the code is owned and connected.
+   Sections 2 to 14 redesign those causes. A change of structure closes a whole group, and the
    group's items go with it.
-2. **Decisions.** Twenty findings asked what the fork accepts against upstream. Section 1 records
-   the owner's answers and the work each answer leaves.
-3. **Fixes in place.** About 140 findings are local: stale comments, includes, a constant written as
-   a rounded decimal, a test that asserts too little. They need no design. Section 14 lists the
-   groups and the rule for each.
+2. **Decisions.** Some findings ask what the fork accepts against upstream. Section 1 records the
+   owner's answers, the three questions still open (D1's contrast, D6, D7), and the work each answer
+   leaves.
+3. **Fixes in place.** The rest are local: stale comments, includes, a constant written as a rounded
+   decimal, a test that asserts too little. They need no design. Section 16 lists the groups and the
+   rule for each.
 
 ## Contents
 
@@ -29,11 +37,13 @@ The 309 findings fall into three kinds:
 9. [W8 — The denoisers share one surface test](#9-w8--the-denoisers-share-one-surface-test)
 10. [W9 — Passes run only over what is new](#10-w9--passes-run-only-over-what-is-new)
 11. [W10 — Rules the game owns are called, not copied](#11-w10--rules-the-game-owns-are-called-not-copied)
-12. [W11 — Instruments stay out of the measured frame](#12-w11--instruments-stay-out-of-the-measured-frame)
-13. [Smaller workstreams](#13-smaller-workstreams)
-14. [Fixes in place](#14-fixes-in-place)
-15. [Order of work](#15-order-of-work)
-16. [Verification for every phase](#16-verification-for-every-phase)
+12. [W11 — A measurement does not measure itself, and says what it measured](#12-w11--a-measurement-does-not-measure-itself-and-says-what-it-measured)
+13. [W12 — The picture and the interface are two images](#13-w12--the-picture-and-the-interface-are-two-images)
+14. [W13 — One rule for every number and setting the harness reads](#14-w13--one-rule-for-every-number-and-setting-the-harness-reads)
+15. [Smaller workstreams](#15-smaller-workstreams)
+16. [Fixes in place](#16-fixes-in-place)
+17. [Order of work](#17-order-of-work)
+18. [Verification for every phase](#18-verification-for-every-phase)
 
 ---
 
@@ -57,18 +67,21 @@ These come from `AGENTS.md` and the owner's posture. Each workstream below appli
 - **P6. Measure before a shader decision.** Each kernel change has a figure before and after it
   (`./omw release bench`, `./omw kernels`), and each picture change names the pictures it moves
   (`./omw shot --against`).
+- **P7. A verdict is tested before it judges.** The harness's comparisons and its measuring window
+  decide whether every later change passes. They have their own tests first.
 
 ---
 
 ## 1. Decisions the owner took
 
-The owner decided these on 2026-10-01. Each decision keeps a part of the upstream diff, and
-`AGENTS.md`, `architecture.md` §1 and `README.md` now record all four. What is left is to fix the
+The owner decided D1 to D4 on 2026-10-01. Each decision keeps a part of the upstream diff, and
+`AGENTS.md`, `architecture.md` §1 and `README.md` now record all four. D1's contrast, D6 and D7 are
+open: each gives the recommended answer, and the work waits for the owner's word. What is left is to fix the
 defects inside the kept parts, not to revert them. A daily
 agent merges upstream into the fork (`.github/workflows/upstream.yml`), so each kept hunk can
 conflict on a merge. That cost is accepted.
 
-### D1. The SDL3 port stays. Gamma is out of this plan.
+### D1. The SDL3 port stays. Gamma is back; contrast is open.
 
 The port touches about 144 upstream files. Its reason is the presentation: `SDL_GetWindowPixelDensity`
 and `SDL_GetWindowDisplayScale` give the frame-to-window mapping and the interface scale on a
@@ -83,8 +96,12 @@ The work in this plan:
   `GraphicsWindowSDL2` rename (back to upstream's name), and the truncation in
   `setWindowRectangleImplementation` (call `SDLUtil::windowPoints`).
 
-**Not in this plan:** `[Video] gamma` and `contrast`. The owner will schedule them later. Until
-then, the *(REVIEW)* item about their removal stays open.
+**Gamma** came back in `c80cd6eded`: both renderers raise the world's picture to one over
+`[Video] gamma` in their last pass over it (the tone pass, `PingPongCanvas`), and `AGENTS.md` records
+it. **Contrast** is still removed, and nothing says so *(REVIEW: The SDL3 port … contrast)*.
+Recommended: name its removal in `AGENTS.md`'s SDL3 entry. It had no menu control, upstream applied it
+only on Windows, and the tone pass has a contrast grade of its own (`TONE_CONTRAST`). The alternative
+is to apply it in the same two final draws as gamma.
 
 ### D2. The scaled presentation is the fifth accepted change to the rasterizer.
 
@@ -105,7 +122,8 @@ The work in this plan:
 
 - Change every `Crash::notNull` on a per-node or per-frame path to the debug-only form. The rules
   require this whatever the scope of the flags: `NodeCallback::run`, the light manager, the terrain
-  drawable, the MyGUI batch and the physics check that replaced upstream's `assert`.
+  drawable, the MyGUI batch, the physics check that replaced upstream's `assert`, and the terrain's
+  water culling view (`quadtreeworld.cpp:447`, once per chunk per cull).
 - The cast hunks, the sol3 patch and the Boost `extern template`s stay.
 
 ### D4. The three upstream bug fixes stay in the fork.
@@ -118,6 +136,24 @@ No work is left.
 rounds to nearest. One of the two is wrong, and three histories depend on the answer
 *(REVIEW: One fact has two names …)*. Run a probe kernel once (the place is
 `components/rtxvulkan/shaders/probes/`). §9 (W8) waits for the result.
+
+### D6. Open: the harness's hooks in upstream classes
+
+`Engine::beforeFrame`, `holdsGameClock`, `WeatherManager::holdWeather` and
+`WindowManager::scriptMessageBox` exist only for `openmw-rtxtool`, and Accepted diff lists none of
+them *(REVIEW: The layering's documents … harness hooks)*. Recommended: the engine's two frame hooks
+are the host interface (`OMW::EngineHost`) and go into Accepted diff with that reason. The weather
+hold and the script boxes leave upstream's classes: the host sets the weather through
+`World::changeWeather` with its own transition, and declines script boxes in its own window-manager
+setup.
+
+### D7. Open: does a resize keep the eye's adaptation?
+
+`createTargets` resets the camera's past, so every resize and upscale-mode change eases the exposure
+and the glare share from nothing, which is a visible snap. The comment at `vulkanrenderer.cpp:111-113`
+says a resize keeps them. Recommended: it keeps them. The exposure belongs to the eye, not to the
+extent. W1's `FramePast` then carries two facts: the reprojection is lost (resize, new world, cut),
+and the eye's history is lost (new world, cut).
 
 ---
 
@@ -139,6 +175,9 @@ effect:
 | `VulkanRenderer` | whether the past is lost | `mPreviousCamera` zeroed, or `resetHistory` | two routes reset different things |
 | `RtxRenderer` | which loss drops the ripples | every cut | a door inside one worldspace drops the wake |
 | `RipplePass` | the water's time | `joinSeconds` of a split float pair | the tick is read off a rounded number |
+| `DisplayChain` | whether the eye's history is lost | `basisLost` and `mExposureStale`, two routes | a new world or a resize spends the reset on a held exposure, and a resize snaps the exposure (D7) |
+| the seam | which jumps are cuts | `notifyCut` from a teleport or a worldspace change only | a time skip (`set gamehour`, a rest) carries the old light through every history |
+| `RippleEmitters` | which strikes happened this frame | `mStrikes`, emptied only by `update` | strikes under `tws` pile up and land in one step |
 
 ### Target shape
 
@@ -201,13 +240,21 @@ the world is a worldspace change.
   an empty list on a paused frame, so the scene's list is true for every frame and the digest
   agrees with it.
 
-- **The interface draws over the picture, never over itself.** Two options:
-  - *(recommended)* On a frame that presents without a trace, `DisplayChain` records its last
-    curve pass again from the inputs it kept, into the target. A traced frame pays nothing. Before
-    you choose this, confirm that the curve's inputs (the upscaler output or the trace colour, the
-    bloom chain, the exposure) are not written between two traces.
-  - Keep the picture in its own image, and start each GUI draw with a copy of it. This costs one
-    copy of the output extent on every frame: 66 MB at 7680×2160 RGBA8.
+- **The interface draws over the picture, never over itself.** W12 now owns this: the second
+  review found that the save thumbnails need the picture without the interface too, which only a
+  picture in its own image gives.
+
+- **`FramePast` carries two facts, per D7.** `mReprojectionLost` (resize, new world, cut) goes to
+  the trace chain and the upscaler. `mEyeLost` (new world, cut) goes to the display chain, which
+  keeps its own deferral (`mExposureStale`) and nothing else; `resetHistory`'s second pair of flags
+  goes.
+
+- **A clock jump is a cut.** `World` tells the renderer a cut where the game clock jumps by more
+  than the frame's step: `advanceTime(hours, incremental = false)` and a write of the `GameHour`
+  global, which upstream already routes through `DateTimeManager`.
+
+- **Strikes belong to the frame they happened in.** `RtxRenderer::renderFrame`'s hidden-world branch
+  discards `mStrikes`, as `update` already does where the water is hidden.
 
 ### Steps
 
@@ -217,15 +264,18 @@ the world is a worldspace change.
 2. Add `mPastLost` and `FramePast`. Move each owner to read it. Delete `joinSeconds`.
 3. Turn the denoiser on unfiltered frames. Delete the pending-reset deferral that this replaces.
 4. Make the ripple impulses a consumed list. Make `RippleEmitters` clear on a paused frame.
-5. Make the untraced frame redraw the curve (or copy the picture).
+5. Split `FramePast` per D7. Call `notifyCut` on a clock jump. Discard the strikes of a hidden
+   world.
 
 ### Tests
 
 - `RipplePass`: two records at one tick with one footfall each press one footfall. A record with
   `mSimulated = false` presses nothing.
 - `TraceChain`: filtered, unfiltered, filtered gives the same last frame as a fresh reset.
-- `VulkanRenderer`: two untraced frames with a translucent GUI batch give the same pixels as one.
 - `RtxRenderer` (openmw-tests): a cut keeps the ripple field and a worldspace change drops it.
+- `VulkanRenderer`: a resize keeps a measured exposure; `setScene` followed by a held frame and a
+  measured frame eases the measured one from nothing.
+- `World` (openmw-tests): `set gamehour` and a rest each reach `notifyCut` once.
 
 ### Risk
 
@@ -275,6 +325,15 @@ struct WalkContext
 - `ViewRequest` holds `WalkContext&`. `TracedView` takes `WorldMirror&` (or the context alone) in
   place of three parameters. `createWorldView` and `createSubjectView` share one body.
 - The test fixture owns one `WalkContext`, which is what production does.
+
+**The ring's request is a function of its inputs, not of a flag.** Today `mAskStale` is set at
+seven scattered sites, and two inputs set it nowhere: a reach that grows under a still eye asks for
+no new cell, and indoors `getCellsToStand` keeps the last exterior shortfall because `mBandCells` is
+written only in `ask` *(REVIEW: The ring's ask is refreshed by a flag …)*. Target: the ring keeps
+the last request's inputs (eye cell, band, statics, held and handed counts) beside `mLastEye`, and
+rebuilds the request when any differs. `walkRings` sets `mBandCells` to nought on both early returns.
+Tests: grow the reach between two walks at one eye and assert the outer ring arrives; walk an
+exterior band short, then an interior, and assert nought cells to stand.
 
 **One route to the ring.** `WorldMirror::getRing()` returns `Rtx::CellRing&`. The eleven forwards
 go. `TracedGround` holds `CellRing&`. `CellRing::collect(std::size_t frame)` replaces `setFrame`
@@ -340,6 +399,15 @@ states that exist. The target for each:
 | `StopSky` holds weathers as strings | `std::optional<std::uint32_t>` and `std::vector<std::uint32_t>`, filled once by the parsers; names only where text is printed |
 | `BlockFile` accepts a repeated field | refuses it, as it refuses a repeated section |
 | `GuiRenderer` holds the trace half that only `OffscreenTrace` uses, and `OffscreenTrace` holds the whole `Renderer` | `traceGuiTexture`, `takeGuiCopy`, `finishGuiTraces` and `GuiTraceOptions` move to `Renderer`; `guirenderer.hpp` drops `visibility.h` |
+| a chunk composite's source is asked of `CompositeQueue::find`, which forgets it a frame later, though the slot's key names it | the row says what it is (`TextureKind::Composite`, `Gloss`), and `SceneTextures` describes every bake from its row; `find`, `mFinished` and `releaseFinished` go |
+| `Display::mShownFrom` is the caller's guess at where the trace chain or the upscaler left the image | `TraceResult` and `Upscaler::getOutput` hand the image with its use |
+| `RenderProfile::mRadianceWidth` is fixed for the run and passed through three layers at every resize | `TraceChain` takes it at construction; `resize` and `grow` take an extent |
+| `SceneHeld::mTextureCount` filled by the backend, read only by tests | goes with `mBuilt`: `SceneHeld { mIdentity, mStructureRevision }` |
+| the 128-bit hash state spelled three ways in the core and again in the harness | one `Rtx::HashState`; `DigestWords`, `ContentKey`, `digestShaders` and the harness use it |
+| the harness's `mLeast == 2` and "the ring is sized for two" beside `sFrameSlots` | the overlap check and the film ring derive from `Rtx::sFramesInFlight` too |
+| `NightDayModes::sEvery = 0xf` and a hand list of modes | a `Count` enumerator; `sEvery = (1u << Count) - 1` |
+| `Material::mAnimated`, read only by the harness's digest | deleted |
+| `ui.screenSize()` reads the window manager's laid-out copy, the camera bindings read the presentation | `ui.screenSize()` reads `Renderer::getPresentation().mFrame`; the copy stays private to the layout's change test |
 
 **Verification.** Pure refactors except the `GuiRenderer` move, which is an interface change with
 the same calls. `./omw repeat` and `./omw shot --against` show nothing moved.
@@ -521,6 +589,11 @@ the p99 and the worst frame before and after. The worst frame must not rise.
 | probe kernels number bindings and result slots by literal | named in `probe.h` and `pinning.h` |
 | constants that are rounded decimals of closed forms | written as their derivation (`vec3(12, 30, 37) / 255.0f * 0.85f`, `vec2(5, 12) / 13`, `2.0f * PI / 180.0f`) |
 | three constants that fold a transcendental on both compilers | one rule stated in `portable.h`: literal plus a test, or allowed because no host value must match |
+| `screenOf` divides by the bases' squared lengths on every call, and five callers finish `rayAt`'s inverse their own way | the host hands each basis prescaled; one `pixelOfScreen(Screen, extent, jitter)` beside `rayAt` |
+| `starField` asks `textureSize` at every starry pixel | `StarField` carries the sheet's extent |
+| the eye pair now has a third spelling: two identical `eyeAt` wrappers | goes with `Eyes` above |
+| four padding conventions for push blocks | one rule in `hosttypes.h`: assert `offsetof(last) + sizeof(last)`, no padding members; `NormalSpreadConstants::mPadding` goes |
+| the light animation's golden-ratio constants as decimals | derived from `std::numbers::phi` |
 
 **Half-float rounding** waits for D5. The result decides between two moves: put the bounce history
 and the shadow moments in full floats, or correct `specular.h`.
@@ -589,6 +662,10 @@ not move a denoised picture beyond `sDenoiserNoiseLevels`.
 | `shadowtiles.comp` | the mask pass writes a receiver word per tile; the classification reads words | two full-frame reads off the cleared tiles |
 | skinning and morphing | measure first: one dispatch over a table of rows in place of one per mesh | hundreds of tiny dispatches become one, if the command processor shows the cost |
 | histogram on the bloom's first halving; last wavelet level into the composite | measure first | up to two frame-sized round trips |
+| `spriterects.comp` | a sprite the shelter zeroed gets `noTiles()` | sheltered rain costs nothing after the shelter launch |
+| the medium and additive walks | test the camera's class mask, as the shadow walk does; additive placements keep their class bit; the presence bin runs for every camera | a map tile stops drawing absent actors' spell sheets and stops paying three traversals a pixel (also a correctness fix, Phase 1) |
+| the upscaler's clears | one `Barriers` into `TRANSFER_DST` for all of them, one back merged into `between()` | two barrier commands a frame instead of up to eleven |
+| `barrierBeforeBuild` | deleted; its comment moves to `recordRefit`'s `barrierAfterBuild` | one drain fewer per moving frame |
 
 Each row has its own commit and its own `bench` figure. A change that shows no gain on a hot card
 does not go in.
@@ -618,16 +695,22 @@ renderers call. Extend it to every remaining copy.
 | the log stamp format | one `Debug` function | the game's log and the crash monitor |
 | the executable path, local time, the UTF-8 command line | `Platform::Process` (posix and win32 pair) | the crash catcher and `components/files` |
 | pixel-to-point conversion | `SDLUtil::windowPoints` | `sdlgraphicswindow.cpp` too |
+| the field of view while it is overridden (upstream's getter returns the flag) | `RenderingManager::getFieldOfView`, corrected, and recorded beside the other upstream fixes | `describeEye`, `updateProjectionMatrix`, the Lua camera |
+| which display the game is on | the window's display, one `SDLUtil` answer | the sensor manager and the input filter |
+| the user data folder | the configured one, handed to the crash catcher by `setupLogging` | the saves, the log and the crash reports |
+| the engine's crash-catcher setup (`setHangLimit`, the version) | inside the function lifted from `parseOptions` above | the game and the harness, whose hangs are then reported |
 
 A rule that the GLSL headers must restate (they cannot include game code) gets a test in
 `openmw-tests` that holds the two equal.
 
 ---
 
-## 12. W11 — Instruments stay out of the measured frame
+## 12. W11 — A measurement does not measure itself, and says what it measured
 
 **Closes:** *(REVIEW: Measurements and reports state something other than what was measured)*;
-the file and writer items in *(Files and folders hold what another owner owns)*.
+*(A run that stops early, or compares less than it was asked to, still reads as a pass)*; the file
+and writer items in *(Files and folders hold what another owner owns)*; the harness items in
+*(Behaviour with no test)*.
 
 ### Target shape
 
@@ -638,9 +721,25 @@ the file and writer items in *(Files and folders hold what another owner owns)*.
 - **The record carries its premise.** `asJson(GpuClock)` writes `meanMhz` and `readings`.
   `GpuClock` holds the throttle mask and the temperature as `std::optional`, and AMD's reader
   answers "unknown", which the report prints and the JSON writes as `null`.
-- **One rule for a knob with no option.** A measured run reads `shippedDefault` for every knob the
-  command line does not name (`mObjectPagingMinSize` and the view-distance fallback among them).
-  `view` reads the player's settings. A `view` keeps the player's frame-rate limit.
+- **The record states its premises.** The session builds one header at construction from the
+  request's setup and flags and a build constant (`!NDEBUG`): the flavour, the layers, the hold,
+  hashing and pictures, the reconstruction knobs, the memory budget, the reach, the gamma, the step.
+  The printed report opens with it, and the JSON writes it whole. A verb that does not measure prints
+  its frame-time table under a "not measured" label, or not at all.
+- **The card watch watches the renderer's card.** The renderer hands its device's PCI address
+  (`VK_EXT_pci_bus_info`) or UUID on the first frame, and the watch opens that device in NVML or in
+  sysfs. Where none matches, the line says "not watched". The memory clock is kept like the core
+  clock: a sum, a lowest and a highest.
+- **Window bookkeeping runs only in a played run.** `StandingNote::take` and `HomeKey::answer` run
+  where `mRequest.mPlayed`. A measured run takes the note once at each stop's end.
+- **A comparison states its coverage.** `--against` reports every reference view this run did not
+  draw. `abandon` closes the record for the stops it reached, and `compareRuns` judges only those
+  stops' pictures. The harness gives "differed" its own exit status, which `omw repeat` reads in place
+  of the report's sentences, and `repeat` refuses a pair count under one.
+- **The measuring window is a tested type.** `MeasureWindow`, in the library and free of the world,
+  takes `isWhole`, `paused`, `cellsToStand`, the frame's spans and the cell, and answers when a stop
+  measures, when its wait fails and which span a frame time closes. `Measurer` keeps the instruments
+  and calls it.
 - **Output files are written after `Engine::go` returns**, from `SessionResult`. A failure is noted
   in the report and sets the exit status, as every other writer does.
 - **One asynchronous picture writer**, owned by the session: the film, `--pictures` and Home use
@@ -651,14 +750,101 @@ the file and writer items in *(Files and folders hold what another owner owns)*.
 ### Verification
 
 A bench of one view twice, before and after, back to back, started in the background on a quiet
-desktop. The first measured frame of each stop must lose its spike. The JSON diff shows the two
-new fields.
+desktop. The first measured frame of each stop must lose its spike. The JSON diff shows the header
+and the two clock fields. `MeasureWindow`, `compareRuns` and `judgeNoise` have table tests (Phase 0).
 
 ---
 
-## 13. Smaller workstreams
+## 13. W12 — The picture and the interface are two images
 
-### 13.1 The upstream diff, as decided
+**Closes:** the untraced-frame item in *(Frame-to-frame state …)*; *(The seam promises what only one
+renderer does)*: the thumbnail and the debug-line gamma items.
+
+### What is wrong
+
+The tone pass writes the picture into the present target, and `GuiDrawer` blends the interface into
+the same image (`LOAD_OP_LOAD`). So the picture without the interface exists nowhere after the GUI
+draws:
+
+- an untraced frame, and every nested GUI frame (a blocking message box), blends the interface over
+  the last interface, and a translucent widget compounds its alpha every frame;
+- `capture` reads the interface into every save thumbnail, against the seam's "the frame without
+  the GUI", and maps the whole frame onto 518×266 by nearest sample, at the wrong aspect;
+- `freezeFrame` freezes the last interface with the picture.
+
+The debug lines are drawn after the tone pass's gamma, and the rasterizer raises them with the world.
+
+### Target shape
+
+- `DisplayChain` writes the picture into `mPicture`, an RGBA8 image at the output extent, which only
+  a new trace or picture rewrites.
+- The GUI pass starts its render pass with `LOAD_OP_DONT_CARE` and a full-screen draw that samples
+  `mPicture`, then blends the interface. The draw replaces the `LOAD` read of the target, so a frame
+  pays one image read either way. The memory is one more output-sized image: 66 MB at 7680×2160.
+- `readPixels`, `capture` and `freezeFrame` read `mPicture`. The target is the presenter's alone.
+- `capture` crops to the asked aspect and filters by area, through one function that
+  `ScreenshotManager`'s rule and the ray tracer's path both call.
+- The line pass raises its colour to the frame's `mInverseGamma`, so both renderers draw the debug
+  overlay at the world's gamma.
+
+### Tests
+
+- Two untraced frames with a translucent GUI batch give the same pixels as one.
+- `capture` of a frame with a GUI batch over it equals the frame without one, at the asked aspect.
+- A debug line at gamma 2 is the gamma-1 line raised by one half, within the store's rounding.
+
+### Verification
+
+`./omw shot --against` moves no picture (the shot reads `mPicture`, which holds what the target held
+before the GUI). `./omw release bench`: the GUI pass's zone must not rise.
+
+---
+
+## 14. W13 — One rule for every number and setting the harness reads
+
+**Closes:** *(REVIEW: The harness reads numbers and settings by rules the game states elsewhere)*;
+*(A harness option writes the world through a variable that means something else)*; the
+player-settings item in *(Measurements and reports …)*; the `toNumeric` item in *(One fact has two
+names …)*.
+
+### What is wrong
+
+The harness reads its line, its files and its defaults by three rules: Boost's `lexical_cast`
+(accepts `nan` and `inf`, stops at the first character it cannot read), `parseNumber` (whole text,
+finite) and `toNumeric` (finite, prefix). A line value goes into the run without the setting's own
+sanitizer, so `--distant-cells=40` measures a reach the game never builds. A measured run still
+reads the player's `[Shaders]` auto-map switches, `object paging min size`, `viewing distance` and
+`specular map layout`. And `toNumeric` itself reads two ways, by compiler: `"+1.5"` is a number on
+macOS and not on Linux. `--day` writes the wrong global.
+
+### Target shape
+
+- **`toNumeric` has one behaviour.** The stream branch refuses what `from_chars` refuses (a leading
+  `+` or whitespace), and a table test of spellings (`"+1.5"`, `" 1.5"`, `"1.5x"`, `"0x10"`, `"-0"`)
+  runs the same claim on every toolchain.
+- **One value semantic** for every numeric option: built on `toNumeric`, whole text, a stated range,
+  declared beside the help that states it. `parseNumber` becomes the same function, and the five
+  scattered hand checks go.
+- **A line value goes through the setting's sanitizer**, or is refused naming its range. A film is
+  paced against the field of view the camera got.
+- **A measured run reads `shippedDefault` for every knob the line does not name**, the `[Shaders]`
+  switches and the three named settings included. They reach the engine the way the window does
+  (`applyHostedSettings`). `view` keeps the player's settings and frame-rate limit.
+- **`--day` states days passed.** The stager sets `mDaysPassed` (through `Globals::sDaysPassed`, or by
+  advancing whole days from the new game's start) and leaves the calendar alone where a stop names
+  no day. The note writes back the same quantity.
+
+### Tests
+
+The value semantic's table (finite, range, whole text). Days 0 and 3 give two different moon phases.
+A measured run's `RtxSettingValues` and `[Shaders]` switches equal the shipped defaults whatever the
+registry holds.
+
+---
+
+## 15. Smaller workstreams
+
+### 15.1 The upstream diff, as decided
 
 §1 holds the work each decision leaves:
 
@@ -668,8 +854,12 @@ new fields.
    the `GraphicsWindowSDL2` rename, and the pixel-to-point truncation.
 3. **The comments and docs that the decisions make false:** the `GlRenderer` class comment, the
    upscale docs, `rtx.rst`'s "untouched" and its `-DOPENMW_RTX`.
+4. **D1's contrast and D6's hooks**, as the owner answers them.
+5. **The post-processing package tests the renderer once.** `initPostprocessingPackage` registers
+   upstream's usertype where there is a chain and an inert one where there is none, so upstream's
+   bindings come back unchanged and the nine null tests go.
 
-### 13.2 Memory and device requirements
+### 15.2 Memory and device requirements
 
 *(REVIEW: Memory requests leave the design's promise …; The device check and the enabled
 extensions differ …)*
@@ -682,8 +872,17 @@ extensions differ …)*
 - A subgroup obstacle in `profileOf`: quad operations in the compute stage.
 - `Device` enables an option's extensions only after its feature holds, in table order.
 - `rayTracingMaintenance1` leaves the requirements, or names its reader.
+- **An arrival's block covers only what is still to place.** `BottomLevelStore::build` subtracts
+  each placed structure's aligned size from `wanted` before the next `take`, and the two comments
+  that say an arrival "asks for nothing" are corrected. A test takes part of a run into a hole and
+  asserts the new block's size.
+- **The push-constant limit is a requirement.** One `sPushConstantBytes = 256` beside
+  `sApiVersion`; `profileOf` refuses a device below it by name, and `pushRangeOf` asserts every
+  constants block against it (the tone pass pushes 160 bytes, the sprite bin 144).
+- **The stress hold asks the device's clock rate.** A start-up probe reads `clockRealtimeEXT` across
+  a pair of timestamp queries, and the hold is handed in ticks.
 
-### 13.3 The crash monitor
+### 15.3 The crash monitor
 
 *(REVIEW: The crash monitor takes a report's kind from the wrong owner)*
 
@@ -693,7 +892,13 @@ are read only for a simulated dump. `terminateReason` writes into a fixed buffer
 outcomes happened. The monitor reads `noteTable().size()` bytes and the command line carries only
 the address. A crash-matrix mode faults a second thread inside a `Crash::report`.
 
-### 13.4 The visibility gates
+**One thread shows the monitor's dialogs.** `HandlerMain` runs on a worker. The main thread waits on
+one queue of requests ("ask to end" from the watch, "tell the player" once the handler returns),
+answers them in order, and stops the watch through it. This ends the deadlock on macOS, where the
+watch thread's message box waits for a main queue that Crashpad's Mach loop never drains, and a crash
+is never held behind an unanswered hang question.
+
+### 15.4 The visibility gates
 
 *(REVIEW: The visibility gates model one frame of a script)*
 
@@ -703,17 +908,19 @@ one handler and let other exceptions end the process. Keep the run's context, lo
 globals as cleared members, and key the inputs by a global's index. Move `handsOver` to
 `Terrain::RefKinds`, so `mwscript` stops depending on `mwrender`.
 
-### 13.5 Layering guards
+### 15.5 Layering guards
 
 *(REVIEW: The layering's documents and guards lag the code)*
 
 `RtxSourceTreeTest` reads the folder order from `architecture.md`'s table, so the order has one
 statement. Move `shaders/` to the top of that table. The test refuses a quoted include with a `..`
 component, and refuses `<apps/...>` under `components/rtx` and `components/rtxvulkan`. Then fix the
-49 quoted `"../"` includes in the fork's `mwrender` files, the two in test support, and the
-`#ifdef _WIN32` in `glrenderer.cpp`.
+51 quoted `"../"` includes in the fork's `mwrender` files, the two in test support, and the
+`#ifdef _WIN32` in `glrenderer.cpp`. The core's prose names no Vulkan object either (swapchains,
+descriptor sets, command buffers, `VkInstance`): it states each cost in its own terms, and the
+backend's comment carries the Vulkan reason.
 
-### 13.6 Vulkan lifetimes
+### 15.6 Vulkan lifetimes and barriers
 
 *(REVIEW: Vulkan objects are waited on or rebuilt by a side effect …)*
 
@@ -721,9 +928,14 @@ A slot waits on the timeline value its own submit returned (`Submission`), never
 object its record may not name. Staging blocks retire through `Retiring<std::size_t>` like every
 other retired object. The presenter compares against the extent it was last asked for. The two
 GUI `finish` calls before a present-mode change go, or state the reason that remains. A trace
-pipeline reads each named module once per build and chains the words (`maintenance5`).
+pipeline reads each named module once per build and chains the words (`maintenance5`), and the GUI
+pass's four pipelines load their two modules once.
 
-### 13.7 Tooling single sources
+The present target states its resting use once (`PresentTarget::sResting`), and every user
+transitions from it and back; the five literals go. `Barriers` asserts in debug that nothing is
+pending when it goes out of scope.
+
+### 15.7 Tooling single sources
 
 *(REVIEW: The driver, CI and CMake restate facts that each other hold)*
 
@@ -732,11 +944,27 @@ The presets are the one source for Qt flavours and dependency roots (`$env{OMW_V
 `kernels` reads them. The digest tool lists `SpecId`s, and the Python SPIR-V reader goes. One
 `bench_line` helper serves `repeat` and `profile`. `gate` calls the build verb's body. In CI: one
 ccache input on `openmw-deps`, one reusable `package.yml`, one format check (`omw format --check`
-in `checks`), `GTEST_FAIL_IF_NO_TEST_SELECTED` in the test preset, `.python-version`.
+in `checks`), `GTEST_FAIL_IF_NO_TEST_SELECTED` in the test preset, `.python-version`. The driver's usage formats
+the harness's verbs from `HARNESS_VERBS`. The benchmarks carry a `benchmark` label that both CI jobs
+run. One Vulkan headers pin serves all three systems. The release checks for a successful CI run on
+its commit. The harness's resources live under one directory that the install leaves out.
+
+**Systems other than Linux.** `SYSTEM` comes from `sys.platform`, and `bootstrap` and `build` refuse
+macOS in one line that names the macOS route (`CI/before_script.macos.sh`); the user folders come
+from the harness's `info`, through `Files`. `cmake/Tests.cmake` runs each test in
+`$<TARGET_FILE_DIR>`, and the crash matrix writes under the build tree. `Platform::Process::setEnvironment`
+takes a path and widens it on Windows.
+
+### 15.8 The seam answers each question once
+
+*(REVIEW: The seam promises what only one renderer does)*: W12 takes the thumbnail and the debug
+lines. The rest: the seam answers `readsSetting(category, name)`, which `processChangedSettings` and
+the settings window both ask, and the window greys out the controls the running renderer does not
+read.
 
 ---
 
-## 14. Fixes in place
+## 16. Fixes in place
 
 These groups need no design. Fix each item where it stands, in the commit that touches the file, or
 in one sweep per group.
@@ -755,7 +983,10 @@ in one sweep per group.
 | Arrival frames allocate or churn … | one refusal per model per cell; report a refusal when the count moves; one owner per path string |
 | Canaries that no report reads | the stop report prints the `NodeKinds` overflow and `mWornBeyondKept` |
 | Includes that name nothing they use | delete them |
-| Smaller defects | each as written |
+| Smaller defects | each as written; `shadow.h`'s bound becomes `< 32`, or the mask is built as `~0u >> (32u - width)` |
+| Shading math departs … (second review) | the normal map's spread is read at the level its anisotropic read resolves; the water's rays are biased once; each moves pictures, and the commit names them |
+| Where an image was left … ; Barriers that order nothing … | §15.6 |
+| Options a verb takes and does nothing with | an `sPictures` verb set owns the picture-only knobs; every contradictory pair is refused at parse time, and `--accumulate` with an upscaler is refused |
 
 **Tests** follow each workstream. The groups *(Tests that cannot fail …)*, *(Behaviour with no
 test)* and *(Test fixtures are duplicated …)* close as each owner is rewritten, with three that
@@ -764,21 +995,37 @@ stand alone and go first because they cost every run of the suite:
 - the blue-noise spectrum test: a separable transform with a twiddle table, about a thousandth of
   the work;
 - the unsettled ring test: a `ContentSource` that blocks until released, and exact counts per walk;
-- the renderer and `FrameClock` wall-clock bounds: an injected clock.
+- the renderer and `FrameClock` wall-clock bounds: an injected clock (`FrameRateLimiter::limit`
+  already takes `now`);
+- `RtxMonitorTest`'s quarter-second sleep: count the predicate's calls and release the turn after
+  the first;
+- `RtxInstanceTest`, 15.9 s under ThreadSanitizer: it moves to `rtx-gpu-tests`, or runs on the
+  harness's unvalidated instance;
+- the card watch's test: assert on the closed window's readings, not on the time between two calls.
+
+The second review adds tests where behaviour has none: `RenderManager`'s batching over a
+`CountingRenderer`; allocation legs for `drawGui`, `traceGuiTexture`, `collectDrawCalls`, the
+present, the game side's frame and a second `CellReader::read`; `HeldSubmit`'s opener thread adopted
+so its validation errors are reported. `compareRuns`, `judgeNoise` and `MeasureWindow` are Phase 0.
 
 ---
 
-## 15. Order of work
+## 17. Order of work
 
-Each phase ends green on `./omw gate`. Only W8 step 3 waits on anything outside the plan (D5).
+Each phase ends green on `./omw gate`. W8 step 3 waits on D5; §15.1's last two items and W1's
+`FramePast` split wait on D1, D6 and D7.
 
 ```
 Phase 0  baselines ─► Phase 1  correctness ─► Phase 2  ownership ─► Phase 3  frame record
     ─► Phase 4  contracts ─► Phase 5  frame cost ─► Phase 6  upstream diff ─► Phase 7  tests and docs
 ```
 
-### Phase 0 — Baselines
+### Phase 0 — The verdicts, then the baselines
 
+- **The harness's verdicts get their tests first (P7).** `compareRuns` and `judgeNoise` get table
+  tests over a directory of PNGs. `MeasureWindow` is lifted out of `Measurer` and gets a table test.
+  `omw repeat` reads a verdict status in place of the report's sentences. Every later phase is judged
+  by these three, so a defect in them would pass every later phase.
 - `./omw shot --views=all --map --upscale=off --out=<dir>`, with the directory outside `/tmp`.
 - `./omw kernels > <dir>/kernels-before.txt`.
 - `./omw release bench`, with a warm-up leg first, in the background on a quiet desktop. Keep
@@ -790,18 +1037,26 @@ Phase 0  baselines ─► Phase 1  correctness ─► Phase 2  ownership ─► 
 
 The high and medium defects that a local change fixes. One commit each, each with its test.
 
-1. The ripple burst after a pause (the consumed-list part of W1).
-2. The denoiser turn on unfiltered frames (W1).
-3. The interface drawn over itself (W1).
-4. Essential memory priority (§13.2).
-5. The contact sheet's precondition (§14).
-6. The composite queue's refusal rule (W6).
-7. The instance record written twice (W6).
-8. `SlotSet`'s third state (W6).
-9. The crash kind from the exception (§13.3).
-10. The card watch off the main thread (W11).
-11. The shading corrections: refraction cone, glow sums, puff merge weight, add-whole sprites,
-    camera in double precision (§14). These move pictures, and each commit names them.
+1. `--day` states days passed (W13). The only high defect of the second review: every staged stop
+   stands on the wrong date, and no moon moves.
+2. The ripple burst after a pause (the consumed-list part of W1).
+3. The picture in its own image: the interface over itself and the save thumbnails (W12).
+4. The ring's request from its inputs: the reach that grows, the interior shortfall (W2).
+5. The structure block sized from what is left to place (§15.2).
+6. The class mask in the medium and additive walks (W9). This moves the map tiles.
+7. The crash monitor's one dialog thread (§15.3), and the harness's hang limit (W10).
+8. The denoiser turn on unfiltered frames (W1).
+9. Essential memory priority (§15.2).
+10. A measured run reads only the shipped defaults; one rule for a number (W13).
+11. The card watch on the renderer's card and off the main thread (W11).
+12. The contact sheet's precondition (§16).
+13. The composite queue's refusal rule (W6).
+14. The instance record written twice (W6).
+15. `SlotSet`'s third state (W6).
+16. The crash kind from the exception (§15.3).
+17. The shading corrections: refraction cone, glow sums, puff merge weight, add-whole sprites,
+    camera in double precision, the normal map's spread level, one bias on the water's rays (§16).
+    These move pictures, and each commit names them.
 
 ### Phase 2 — Ownership
 
@@ -810,8 +1065,9 @@ W2, W3, W4, W5. These are refactors. Each step must show no moved picture and an
 
 ### Phase 3 — The frame record
 
-The rest of W1: `FrameStep`, `HistoryLoss`, `FramePast`, `mPastLost`. After Phase 2, because
-`FrameContext` and `RunSetup` change shape there.
+The rest of W1: `FrameStep`, `HistoryLoss`, `FramePast` split per D7, `mPastLost`, the cut on a
+clock jump, the strikes of a hidden world. After Phase 2, because `FrameContext` and `RunSetup`
+change shape there.
 
 ### Phase 4 — Device contracts
 
@@ -820,21 +1076,22 @@ corrections that move pictures.
 
 ### Phase 5 — Frame cost
 
-W6 (block-growth tables, running totals, the refit), W8 steps 1 and 2, W9. Each with a
+W6 (block-growth tables, running totals, the refit), W8 steps 1 and 2, W9, the barrier rows of
+§15.6. Each with a
 `./omw release bench` before and after. A change that does not improve the worst frame or the p99
 does not go in. W8 step 3 follows D5 and its own measurement.
 
 ### Phase 6 — The upstream diff
 
-§13.1, then §13.5 and §13.7.
+§15.1, then §15.5, §15.7 and §15.8.
 
 ### Phase 7 — Tests and docs
 
-The test groups in §14, and every doc item, `architecture.md` §1 and §13 included.
+The test groups in §16, and every doc item, `architecture.md` §1 and §13 included.
 
 ---
 
-## 16. Verification for every phase
+## 18. Verification for every phase
 
 - Build the touched targets and run the covering test binary with a filter
   (`./omw test <binary> --gtest_filter=...`).
