@@ -53,11 +53,10 @@ namespace MyGUIRtx
     }
 
     RenderManager::RenderManager(Rtx::GuiRenderer& renderer, Resource::ImageManager* imageManager, float scalingFactor)
-        : mRenderer(renderer)
+        : GuiRenderManager(scalingFactor)
+        , mRenderer(renderer)
         , mImageManager(imageManager)
     {
-        if (scalingFactor != 0.f)
-            mInvScalingFactor = 1.f / scalingFactor;
     }
 
     RenderManager::~RenderManager() = default;
@@ -249,7 +248,7 @@ namespace MyGUIRtx
         if (height < 1)
             height = 1;
 
-        mViewSize.set(static_cast<int>(width * mInvScalingFactor), static_cast<int>(height * mInvScalingFactor));
+        mViewSize = scaledView(width, height);
 
         mInfo.maximumDepth = 1;
         mInfo.hOffset = 0;

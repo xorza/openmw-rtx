@@ -203,11 +203,10 @@ namespace Rtx::Shaders
     /// **One octave of eight cells, and not a stack of them.** Three octaves over two cells is eight
     /// gradients defining the whole coarse structure — a ridge that repeats as a lattice, with its
     /// planes drawn as three families of straight lines across the valley. What makes the fog
-    /// fractal is the three scales `fogShape` reads it at,
-    /// which is what the renderer this is ported from does with a hash and nothing else; the volume
-    /// only has to be one octave of noise that does not repeat within a view. Eight cells at four
-    /// texels each is the smallest volume that is, and the beat of three scales at `FOG_LACUNARITY`
-    /// is what hides the tile past that.
+    /// fractal is the three scales `fogShape` reads it at, so the volume only has to be one octave of
+    /// noise that does not repeat within a view. Eight cells at four texels each is the smallest
+    /// volume that is, and the beat of three scales at `FOG_LACUNARITY` is what hides the tile past
+    /// that.
     ///
     /// Two channels and a chain come to 73 kilobytes, which a march reads out of cache.
     const uint FOG_FIELD_SIZE = 32u;

@@ -19,6 +19,7 @@
 
 #include <SDL3/SDL_clipboard.h>
 #include <SDL3/SDL_keyboard.h>
+#include <SDL3/SDL_video.h>
 
 #include <components/debug/debuglog.hpp>
 
@@ -26,6 +27,8 @@
 #include <components/esm3/esmwriter.hpp>
 
 #include <components/fontloader/fontloader.hpp>
+
+#include <components/misc/presentation.hpp>
 
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -126,6 +129,12 @@ namespace MWGui
 {
     namespace
     {
+        /// The desktop mode of the display `window` is on, or null where SDL has none.
+        const SDL_DisplayMode* desktopMode(SDL_Window* window)
+        {
+            return SDL_GetDesktopDisplayMode(SDL_GetDisplayForWindow(window));
+        }
+
         Settings::SettingValue<bool>* findHiddenSetting(GuiWindow window)
         {
             switch (window)
@@ -199,13 +208,10 @@ namespace MWGui
         , mWindowVisible(true)
         , mCfgMgr(cfgMgr)
     {
-        SDL_Window* const window = mRenderer.getWindow();
-
-        // The exact density, which a display at one and a half has, and not a whole-number ratio.
-        mScalingFactor = Settings::gui().mScalingFactor * SDL_GetWindowPixelDensity(window);
+        mLaidOutFrame = mRenderer.getPresentation().mFrame;
+        mScalingFactor = scaleAt(mLaidOutFrame);
         constexpr VFS::Path::NormalizedView resourcePath("mygui");
         mGuiPlatform = mRenderer.createGuiPlatform(mScalingFactor, resourcePath, logpath / "MyGUI.log");
-        mLaidOutFrame = mRenderer.getPresentation().mFrame;
 
         mGui = std::make_unique<MyGUI::Gui>();
         mGui->initialise({});
@@ -214,9 +220,12 @@ namespace MWGui
 
         MyGUI::LanguageManager::getInstance().eventRequestTag = MyGUI::newDelegate(this, &WindowManager::onRetrieveTag);
 
-        // Load fonts
-        mFontLoader
-            = std::make_unique<Gui::FontLoader>(encoding, resourceSystem->getVFS(), mScalingFactor, exportFonts);
+        // The display's own resolution, at its density, and this frame: any frame up to the larger of
+        // the two shows the fonts no softer than they were made.
+        const SDL_DisplayMode* const desktop = desktopMode(mRenderer.getWindow());
+        mRasterScale = std::max(mScalingFactor,
+            Settings::gui().mScalingFactor * std::max(1.f, desktop != nullptr ? desktop->pixel_density : 1.f));
+        mFontLoader = std::make_unique<Gui::FontLoader>(encoding, resourceSystem->getVFS(), mRasterScale, exportFonts);
 
         // Register own widgets with MyGUI
         MyGUI::FactoryManager::getInstance().registerFactory<MWGui::Widgets::MWSkill>("Widget");
@@ -1271,7 +1280,7 @@ namespace MWGui
                 setMenuTransparency(Settings::gui().mMenuTransparency);
             // The renderer has the new frame already: `World` hears of a change before this does.
             else if (setting.first == "Video" && (setting.second == "resolution x" || setting.second == "resolution y"))
-                frameResized();
+                layOut();
             else if (setting.first == "Video" && (setting.second == "window mode" || setting.second == "window border"))
                 changeRes = true;
 
@@ -1298,19 +1307,32 @@ namespace MWGui
             Settings::Manager::resetPendingChanges({ { "Video", "window width" }, { "Video", "window height" } });
         }
 
-        frameResized();
+        layOut();
     }
 
-    void WindowManager::frameResized()
+    void WindowManager::windowDisplayChanged()
+    {
+        layOut();
+    }
+
+    float WindowManager::scaleAt(const osg::Vec2i frame) const
+    {
+        const SDL_DisplayMode* const desktop = desktopMode(mRenderer.getWindow());
+        const osg::Vec2i points = desktop != nullptr ? osg::Vec2i(desktop->w, desktop->h) : osg::Vec2i();
+        return Misc::interfaceScale(Settings::gui().mScalingFactor, frame, points);
+    }
+
+    void WindowManager::layOut()
     {
         const osg::Vec2i frame = mRenderer.getPresentation().mFrame;
-        if (frame == mLaidOutFrame)
+        const float scale = scaleAt(frame);
+        if (frame == mLaidOutFrame && scale == mScalingFactor)
             return;
         mLaidOutFrame = frame;
+        mScalingFactor = scale;
 
-        mGuiPlatform->getRenderManagerPtr()->setViewSize(frame.x(), frame.y());
+        mGuiPlatform->getRenderManagerPtr()->resizeView(frame.x(), frame.y(), scale);
 
-        // scaled size
         const MyGUI::IntSize& viewSize = MyGUI::RenderManager::getInstance().getViewSize();
         const int x = viewSize.width;
         const int y = viewSize.height;
@@ -1334,7 +1356,6 @@ namespace MWGui
 
         LuaUi::updateAllElementCoords();
 
-        // Re-apply any controller-specific window changes.
         reapplyActiveControllerWindow();
 
         MWBase::Environment::get().getLuaManager()->viewportResized(x, y);

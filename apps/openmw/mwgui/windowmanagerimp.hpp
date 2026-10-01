@@ -213,6 +213,7 @@ namespace MWGui
         bool getWorldMouseOver() override;
 
         float getScalingFactor() const override;
+        float getRasterScale() const override { return mRasterScale; }
         osg::Vec2i getFrameSize() const override { return mLaidOutFrame; }
 
         bool toggleFogOfWar() override;
@@ -298,6 +299,7 @@ namespace MWGui
 
         void windowVisibilityChange(bool visible) override;
         void windowResized(int x, int y) override;
+        void windowDisplayChanged() override;
         void windowClosed() override;
         bool isWindowVisible() const override;
 
@@ -555,10 +557,11 @@ namespace MWGui
 
         std::unique_ptr<KeyboardNavigation> mKeyboardNavigation;
 
+        /// The frame the interface was laid out at, and the scale it was laid out with.
+        osg::Vec2i mLaidOutFrame;
         float mScalingFactor;
 
-        /// The frame the interface was laid out at.
-        osg::Vec2i mLaidOutFrame;
+        float mRasterScale;
 
         struct ScheduledMessageBox
         {
@@ -599,9 +602,12 @@ namespace MWGui
 
         void sizeVideo(int screenWidth, int screenHeight);
 
-        /// Lays the interface out at the renderer's frame, where that moved: a window resized at
-        /// Native, or another resolution chosen.
-        void frameResized();
+        /// The scale the interface takes at `frame` on the window's display.
+        float scaleAt(osg::Vec2i frame) const;
+
+        /// Lays the interface out at the renderer's frame and the scale it takes there, where either
+        /// moved: a window resized at Native, another resolution chosen, or another display.
+        void layOut();
 
         void onClipboardChanged(std::string_view type, std::string_view data);
         void onClipboardRequested(std::string_view type, std::string& data);

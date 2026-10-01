@@ -37,6 +37,15 @@ namespace Misc
     /// of nought is Native: the frame is the drawable. A side of `drawable` under one counts as one,
     /// because a window being minimised still has a frame to keep.
     Presentation present(osg::Vec2i asked, osg::Vec2i drawable);
+
+    /// How many frame pixels a unit of the interface takes: `setting` times the frame pixels that
+    /// would fall on one of the display's points if the frame filled the display, and never less
+    /// than `setting`. So the interface keeps its size on the display where the frame is finer than
+    /// the display's points, the way a display's own density scales it at its own resolution, and
+    /// is drawn a frame pixel a unit where the frame is coarser, the way Morrowind drew it at any
+    /// resolution. The window plays no part: the interface is part of the frame, and a window
+    /// resized scales both together. A display with no size gives `setting`.
+    float interfaceScale(float setting, osg::Vec2i frame, osg::Vec2i displayPoints);
 }
 
 #endif

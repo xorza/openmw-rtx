@@ -862,6 +862,19 @@ endif()
 
 set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CUSTOM_CPACK_OS_NAME}-${CUSTOM_CPACK_ARCHITECTURE}")
 
+# The licences of what the fork compiles into the binaries, beside the GPL's own text: each asks for
+# its notice in every copy, binaries included, but SDL's zlib, which goes in so that no licence of
+# what is compiled in is missing. `files/licenses` holds each text as its source ships it, and
+# FidelityFX's stays with its headers.
+function(install_fork_licenses destination)
+    install(FILES "${OpenMW_SOURCE_DIR}/extern/fidelityfx/LICENSE.txt" DESTINATION "${destination}" RENAME "FidelityFX-SDK.txt")
+    install(FILES "${OpenMW_SOURCE_DIR}/files/licenses/VulkanMemoryAllocator.txt"
+        "${OpenMW_SOURCE_DIR}/files/licenses/SDL3.txt" DESTINATION "${destination}")
+    if (OPENMW_CRASHPAD)
+        install(DIRECTORY "${OpenMW_SOURCE_DIR}/files/licenses/crashpad/" DESTINATION "${destination}/crashpad")
+    endif()
+endfunction()
+
 # Apple bundling
 if (APPLE)
     if(CMAKE_VERSION VERSION_LESS 3.19)
@@ -970,6 +983,7 @@ if (APPLE)
     INSTALL(FILES "${OpenMW_SOURCE_DIR}/CHANGELOG.md" DESTINATION "/${INSTALLED_OPENMW_APP}/..")
     INSTALL(FILES "${OpenMW_SOURCE_DIR}/README.md" DESTINATION "/${INSTALLED_OPENMW_APP}/..")
     INSTALL(FILES "${OpenMW_SOURCE_DIR}/LICENSE" DESTINATION "/${INSTALLED_OPENMW_APP}/..")
+    install_fork_licenses("/${INSTALLED_OPENMW_APP}/../licenses")
     INSTALL(FILES "${OpenMW_SOURCE_DIR}/AUTHORS.md" DESTINATION "/${INSTALLED_OPENMW_APP}/..")
 
     set(PLUGINS ${PLUGINS} "${INSTALLED_OPENMW_APP}/Contents/PlugIns/${QT_COCOA_PLUGIN_GROUP}/${QT_COCOA_PLUGIN_NAME}")
@@ -1035,6 +1049,7 @@ elseif(NOT APPLE)
         INSTALL(FILES "${OpenMW_SOURCE_DIR}/CHANGELOG.md" DESTINATION "." RENAME "CHANGELOG.txt")
         INSTALL(FILES "${OpenMW_SOURCE_DIR}/README.md" DESTINATION "." RENAME "README.txt")
         INSTALL(FILES "${OpenMW_SOURCE_DIR}/LICENSE" DESTINATION "." RENAME "LICENSE.txt")
+        install_fork_licenses("licenses")
         INSTALL(FILES "${OpenMW_SOURCE_DIR}/AUTHORS.md" DESTINATION "." RENAME "AUTHORS.txt")
 
         SET(CPACK_GENERATOR "NSIS")
@@ -1092,6 +1107,15 @@ elseif(NOT APPLE)
             INSTALL(FILES "${OpenMW_SOURCE_DIR}/files/opencs/openmw-cs.png" DESTINATION "${ICONDIR}" COMPONENT "opencs")
         ENDIF(BUILD_OPENCS)
 
+        # Beside the binaries in the portable layout an AppImage is made of, and where a distribution
+        # keeps a package's licences otherwise.
+        if (OPENMW_LOCAL_INSTALL)
+            install(FILES "${OpenMW_SOURCE_DIR}/LICENSE" DESTINATION ".")
+            install_fork_licenses("licenses")
+        else()
+            install(FILES "${OpenMW_SOURCE_DIR}/LICENSE" DESTINATION "${LICDIR}")
+            install_fork_licenses("${LICDIR}/third-party")
+        endif()
     endif(WIN32)
 
     install(FILES "${RUNTIME_OUTPUT_DIRECTORY}/defaults.bin"
