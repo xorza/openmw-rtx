@@ -7,8 +7,12 @@
 
 #include <components/rtx/common/runs.hpp>
 
+#include "devicescene.hpp"
+
 namespace Rtx
 {
+    SceneSlots::SceneSlots() = default;
+
     SceneSlots::~SceneSlots()
     {
         assert((std::uncaught_exceptions() > 0 || mFreeViews.size() == mViews.size())

@@ -7,7 +7,7 @@
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/mirror/cells/cellworld.hpp>
+#include <components/rtx/mirror/cells/mirrorknobs.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 namespace MWRender

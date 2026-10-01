@@ -23,6 +23,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/vulkanrenderer.hpp>
 
 namespace Rtx
 {
