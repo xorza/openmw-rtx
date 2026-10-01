@@ -13,6 +13,7 @@
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/shaders/look.h>
 #include <components/sdlutil/vsyncmode.hpp>
 
 #include "model/benchrun.hpp"
@@ -77,11 +78,18 @@ namespace RtxTool
     /// for, lands past the twenty seconds a place runs.
     inline constexpr float sTurnSeconds = 4.0f;
 
-    /// How long a place is drawn and thrown away before it is measured, or after a film's cut,
+    /// How long a bench draws and throws away once the world stands whole, before it measures,
     /// where nobody says. Two rather than three, because the GPU's clock ramp and the scene's
     /// residency are over well inside it: measured interleaved on a hot card, three seconds ran
     /// 20 s and two ran 19.
     inline constexpr float sWarmupByDefault = 2.0f;
+
+    /// How many frames a picture warms up over once the world stands whole, so it shows what a
+    /// player standing there sees and every draw of it is a frame of its own: every command but
+    /// `bench`, and a film's take after its cut. **Four times the accumulator's length**, where
+    /// its weight on the frame the cut left is `(15/16)^64`, 1.6%, and the air's `0.9^64`, a tenth
+    /// of a per cent. Derived rather than stated, so a longer accumulator lengthens it.
+    inline const std::uint32_t sHistoryFrames = 4 * static_cast<std::uint32_t>(Rtx::Shaders::ACCUMULATE_FRAMES);
 
     /// How long `check` holds the queue after every frame's trace, in milliseconds, where the line
     /// names no `--hold` of its own.

@@ -196,6 +196,7 @@ namespace RtxTool
             EXPECT_TRUE(lineFor("views").starts_with("with every command but `info`, `view` and `film`, "))
                 << lineFor("views");
             EXPECT_TRUE(lineFor("find").starts_with("with `scene`, ")) << lineFor("find");
+            EXPECT_TRUE(lineFor("warmup").starts_with("with `bench`, ")) << "the clock is a bench's to wait for";
 
             // Six of the seven read a camera, so the line names the one that does not rather than
             // the six that do.

@@ -91,6 +91,14 @@ namespace Rtx
         mSettled = settled;
     }
 
+    std::uint32_t CellRing::getCellsToStand() const
+    {
+        // **Counted against the band and not against the ask**, which names what was missing when
+        // it was made: a walk that waited for its cell adopted one of them since.
+        assert(getHeldCellCount() <= mBandCells && "a cell held outside the band the last walk asked over");
+        return mBandCells - static_cast<std::uint32_t>(getHeldCellCount());
+    }
+
     bool CellRing::handed(const osg::Vec2i& cell) const
     {
         return std::any_of(
@@ -148,7 +156,9 @@ namespace Rtx
         mAsking.mStatics = mStatics;
 
         const CellGrid& grid = mAround.mWorld.mGrid;
+        mBandCells = 0;
         grid.forEachCellWithin(eye, band, [&](const osg::Vec2i& cell) {
+            ++mBandCells;
             if (!mPlacer.holds(cell) && !handed(cell))
                 mAsking.mCells.push_back(cell);
         });

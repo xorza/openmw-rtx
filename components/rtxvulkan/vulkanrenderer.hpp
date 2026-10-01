@@ -181,10 +181,11 @@ namespace Rtx
         /// wherever nothing upscales.
         TraceChain mFrame;
 
-        /// The camera the last frame was traced with, for reprojecting this one against. Its basis
-        /// is all zero until a frame is traced, and after a resize or a new scene, which the shader
-        /// reads as "there is no previous frame" and answers with no motion at all.
-        Shaders::VisibilityConstants mPreviousCamera{};
+        /// The camera the last frame was traced with, for reprojecting this one against, or nothing
+        /// before the first frame and after a resize, a new scene or a reset. **Nothing, and not a
+        /// camera of noughts**: one read as a camera left the step from its origin in the frame's
+        /// motion, and a door 80000 units from the eye stored an infinite distance at every pixel.
+        std::optional<Shaders::VisibilityConstants> mPreviousCamera;
 
         SceneStats mStats;
 

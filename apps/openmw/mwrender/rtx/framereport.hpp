@@ -12,6 +12,7 @@
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/shaders/visibility.h>
 
 namespace Rtx
@@ -55,8 +56,12 @@ namespace MWRender
         /// `FrameResult::mWaitMs` cannot see.
         Rtx::FrameSpend mSpend{};
 
-        /// Whether the hand-over rebuilt the scene from nothing, which a crossing is counted by.
-        bool mRebuilt = false;
+        /// What the hand-over did: rebuilt the scene from nothing, which a crossing is counted by,
+        /// appended what arrived, or placed what was there.
+        Rtx::SceneUpload::Kind mUpload = Rtx::SceneUpload::Kind::Placed;
+
+        /// How many cells the walk left to stand, `WorldMirror::getCellsToStand`.
+        std::uint32_t mCellsToStand = 0;
 
         /// Whether the world stood paused for this frame: the game's own flag, as the frame was
         /// described with it, and not the one the game will have set by the time anybody asks.
@@ -87,6 +92,11 @@ namespace MWRender
         Rtx::AirClock mAir{};
 
         WalkReport mWalked{};
+
+        /// Whether this frame drew the whole world: nothing of its reach left to stand, and
+        /// nothing arrived. What a stop starts measuring after, because the frame after it draws
+        /// what this one drew.
+        bool isWhole() const { return mCellsToStand == 0 && mUpload == Rtx::SceneUpload::Kind::Placed; }
     };
 
     /// What a measured stop may reach beyond the frame's own report. Borrowed and valid for one stop:

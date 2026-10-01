@@ -1159,6 +1159,8 @@ namespace Rtx::Testing
 
             EXPECT_EQ(statics, 1u);
             EXPECT_LE(mRing.getHeldCellCount(), frame) << "one cell a frame, and a frame walked twice adopts once";
+            EXPECT_EQ(mRing.getHeldCellCount() + mRing.getCellsToStand(), sPreparedCells)
+                << "every cell of the band is held or still to stand, settled or not";
         }
 
         /// **A recycled cell whose new land stands nothing stands no ground.** An ESM4 world leaves a
@@ -1213,6 +1215,25 @@ namespace Rtx::Testing
             walk(frame);
             walk(frame);
             EXPECT_EQ(mRing.getHeldCellCount(), held + 1);
+
+            // **What is left to stand falls by the cell each walk adopts, and the band is what is
+            // held and what is left**: what a stop waits out before it measures. The first walk once
+            // nothing is left adopts nothing.
+            while (mRing.getCellsToStand() > 0 && mWalked < 1000)
+            {
+                const std::size_t before = mRing.getHeldCellCount();
+                const std::uint32_t left = mRing.getCellsToStand();
+                walk(mWalked++);
+                EXPECT_EQ(mRing.getHeldCellCount(), before + 1) << "a walk with cells to stand adopted nothing";
+                EXPECT_EQ(mRing.getCellsToStand(), left - 1);
+                EXPECT_EQ(mRing.getHeldCellCount() + mRing.getCellsToStand(), sPreparedCells);
+            }
+            ASSERT_EQ(mRing.getCellsToStand(), 0u) << "the band never stood whole";
+            EXPECT_EQ(mRing.getHeldCellCount(), sPreparedCells);
+
+            walk(mWalked++);
+            EXPECT_EQ(mRing.getHeldCellCount(), sPreparedCells) << "a walk adopted a cell after the band stood whole";
+            EXPECT_EQ(mRing.getCellsToStand(), 0u);
         }
 
         /// **A reader that throws ends the process where it threw**, and says what it threw.

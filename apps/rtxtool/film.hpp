@@ -15,7 +15,6 @@
 #include "model/camerapath.hpp"
 #include "model/cameratrack.hpp"
 #include "model/cruise.hpp"
-#include "run.hpp"
 
 namespace RtxTool
 {
@@ -110,9 +109,6 @@ namespace RtxTool
         /// How far apart two keys of one space can be and still be flown between.
         float mCutDistance = 16384.0f;
 
-        /// What is drawn and not written after a cut.
-        float mWarmupSeconds = sWarmupByDefault;
-
         /// The frame's vertical field of view, in degrees, and its width over its height: what a
         /// pan's pace is read against.
         float mFieldOfView = 60.0f;
@@ -122,7 +118,7 @@ namespace RtxTool
         int mDay = 0;
 
         /// Seconds as a whole count of frames at the step, one at least: `BenchSpan`'s count,
-        /// which is what the session turns a warm-up's seconds into.
+        /// which is what the session turns a span's seconds into.
         std::uint32_t framesOf(float seconds) const;
 
         /// Frames a second, which is what a person reads and what the encoder is told.

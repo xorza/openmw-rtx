@@ -123,16 +123,10 @@ namespace RtxTool
     /// not one of, 1.6% over — and the verdict between the two is even.
     inline constexpr std::uint32_t sNoiseMeanDraws = 32;
 
-    /// The least the frame and each draw of its mean warm up over, one length for all of them so
-    /// that every draw is the frame drawn again: far past the longest history any pass keeps, so a
-    /// draw is a frame of its own and not the last one again. The accumulator's weight on a frame
-    /// 64 back is `e^-4`, 2% of it.
-    inline constexpr std::uint32_t sNoiseMeanWarmup = 64;
-
     /// How far apart in the sampler's sequence `noise` sets the stops at one place
-    /// (`Schedule::mSampleOffset`): past the longest a stop runs, its warm-up and a paused world
-    /// included, so that no two stops draw one sample; and odd, so that a sequence walked in phases —
-    /// an upscaler's jitter — puts each stop on a phase of its own.
+    /// (`Schedule::mSampleOffset`): past the longest a stop runs, its wait for the world, its
+    /// warm-up and a paused world included, so that no two stops draw one sample; and odd, so that a
+    /// sequence walked in phases — an upscaler's jitter — puts each stop on a phase of its own.
     inline constexpr std::uint32_t sNoiseSampleStride = 1000003;
 
     /// The width of the blur `noise` measures a bias at, in pixels: wide enough that how a picture is

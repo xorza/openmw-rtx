@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -19,6 +20,7 @@
 
 #include <apps/openmw/mwrender/ground.hpp>
 #include <apps/openmw/mwrender/renderer.hpp>
+#include <apps/openmw/mwrender/rtx/framereport.hpp>
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
 #include <apps/openmw/mwrender/sceneframe.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
@@ -26,6 +28,7 @@
 #include <components/resource/objectcache.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories.hpp>
 #include <components/testing/util.hpp>
@@ -180,6 +183,21 @@ namespace MWRender
                 EXPECT_EQ(cache.getRefFromObjectCacheOrNone(std::string("model")).has_value(), delay > sLater)
                     << "at a delay of " << delay;
             }
+        }
+
+        /// **A frame drew the whole world where no cell was left to stand and nothing arrived**: of
+        /// the nine frames three hand-overs and three counts make, the one that placed what was
+        /// there and left nought.
+        TEST(RtxRendererTest, aFrameIsWholeWhereNothingStandsAndNothingArrived)
+        {
+            using Kind = Rtx::SceneUpload::Kind;
+            for (const Kind upload : { Kind::Placed, Kind::Extended, Kind::Rebuilt })
+                for (const std::uint32_t left : { 0u, 1u, 352u })
+                {
+                    const FrameReport report{ .mUpload = upload, .mCellsToStand = left };
+                    EXPECT_EQ(report.isWhole(), upload == Kind::Placed && left == 0)
+                        << "upload " << static_cast<int>(upload) << ", " << left << " cells to stand";
+                }
         }
     }
 }

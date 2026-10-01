@@ -75,10 +75,6 @@ namespace Rtx
         /// measured exposure and the display curve.
         TraceResult record(VkCommandBuffer commands, const TraceRecording& what);
 
-        /// Says every denoiser's history and the air's are worthless, each until the next trace that
-        /// reads it: the air is read by every trace, and the denoisers' only where the wavelet runs.
-        void resetHistory();
-
         /// Lets go of the running total, which a new scene or a new size has no use for: a sum over
         /// one scene means nothing over the next. The first frame that averages makes another.
         void dropSum() { mSum = Image(); }
@@ -104,9 +100,6 @@ namespace Rtx
 
         /// What the shared denoising passes keep of this camera, at the extent.
         DenoiseHistory mDenoise;
-
-        /// Set by `resetHistory` and spent by the next trace, which always integrates the air.
-        bool mAirStale = false;
 
         /// The running sum a reference is built out of, empty until a trace averages. Not a history
         /// and nothing here reprojects: a plain per-pixel total over however many frames the caller

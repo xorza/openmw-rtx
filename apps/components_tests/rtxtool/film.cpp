@@ -409,7 +409,7 @@ namespace RtxTool
             EXPECT_EQ(room.mSky.mHour, sDefaultHour);
             EXPECT_EQ(room.mSky.mDay, 5);
             EXPECT_EQ(room.mSky.mWeather, sDefaultWeather);
-            EXPECT_EQ(room.mSchedule.mSpec.getWarmup(0.1f), 20u) << "two seconds at ten frames a second";
+            EXPECT_EQ(room.mSchedule.mSpec.getWarmup(0.1f), 64u) << "four accumulators of sixteen, at any step";
             EXPECT_EQ(room.mSchedule.mSpec.getMeasured(0.1f), 41u);
             ASSERT_TRUE(room.mSchedule.mTrack.has_value());
             EXPECT_EQ(room.mSchedule.mTrack->getFrames(), 41u);

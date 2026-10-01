@@ -879,10 +879,11 @@ namespace MWRender
         const std::chrono::steady_clock::time_point handing = std::chrono::steady_clock::now();
         const Rtx::SceneUpload handed = mMirror.hand(*mRenderer, report.mSpend);
         report.mSpend.at(Rtx::Timing::Place) = Rtx::since(handing, std::chrono::steady_clock::now());
-        report.mRebuilt = handed.mKind == Rtx::SceneUpload::Kind::Rebuilt;
+        report.mUpload = handed.mKind;
         report.mArrivedMeshes = handed.mArrivedMeshes;
+        report.mCellsToStand = mMirror.getCellsToStand();
 
-        if (report.mRebuilt)
+        if (handed.mKind == Rtx::SceneUpload::Kind::Rebuilt)
             Log(Debug::Info) << "Ray tracing built " << mMirror.getScene().meshes().getRows().size() << " meshes into "
                              << mWalked.mFound.mInstances << " instances with " << mWalked.mFound.mLights << " lights, "
                              << mWalked.mFound.mDeformed << " of them deforming, and skipped "

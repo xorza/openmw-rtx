@@ -21,8 +21,9 @@ namespace Rtx
     ///
     /// @param options what the frame asked for over `profile`; a picture's asks nothing.
     /// @param counts what the traced scene holds.
-    /// @param previous the camera the last frame was traced with, to reproject against, or null for
-    ///        a picture, which has no frame before it.
+    /// @param previous the camera the last frame was traced with, to reproject against, or null
+    ///        where there is no frame before it: a picture, and a frame after a resize, a new scene
+    ///        or a reset.
     Shaders::VisibilityConstants sampleFrame(const Shaders::VisibilityConstants& stated, const FrameOptions& options,
         const RenderProfile& profile, const Reconstruction& reconstruction, const InstanceCounts& counts,
         const Shaders::VisibilityConstants* previous);

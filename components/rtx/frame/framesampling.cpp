@@ -75,7 +75,7 @@ namespace Rtx
 
         // The one subtraction of two world points, and it happens here. Two camera positions a
         // step apart subtract exactly in a float; the same difference taken on the device, between
-        // coordinates six figures long, would be rounding. A picture has no last frame.
+        // coordinates six figures long, would be rounding. Nothing moved where no frame came before.
         if (previous != nullptr)
         {
             sampled.mCameraMotion = stated.mOrigin - previous->mOrigin;

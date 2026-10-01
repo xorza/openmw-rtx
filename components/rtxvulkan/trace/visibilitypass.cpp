@@ -468,22 +468,13 @@ namespace Rtx
     }
 
     void VisibilityPass::writeFrame(VkCommandBuffer commands, const VisibilityInputs& inputs, const SpriteBin& bin,
-        const VkDeviceAddress spriteTileList, const Shaders::VisibilityConstants& constants, const bool historyLost,
-        const bool composed) const
+        const VkDeviceAddress spriteTileList, const Shaders::VisibilityConstants& constants, const bool composed) const
     {
         assert(inputs.mSubject.mScene != nullptr && inputs.mSubject.mMedia != nullptr
             && "a trace of no scene, or in no media");
 
         const WavePass& waves = inputs.mSubject.mMedia->getWaves();
         Shaders::VisibilityConstants described = constants;
-
-        // A basis of nothing is how this block already says there is no previous frame, so a
-        // door or a rebuild is told to every reprojection at once rather than to each of them
-        // separately. The frame that carries it reprojects nothing, which is what it is for.
-        if (historyLost)
-        {
-            described.mPrevious = Shaders::Basis{};
-        }
 
         described.mComposed = composed ? 1u : 0u;
 

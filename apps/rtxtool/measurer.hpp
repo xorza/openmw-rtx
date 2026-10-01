@@ -56,14 +56,15 @@ namespace RtxTool
         /// Starts counting `stop`, with the player where the stager put them.
         void begin(const Stop& stop);
 
-        /// Frames traced since the stop began, warm-up included: what the trace's sampler and the
-        /// upscaler's jitter are walked by and what the hashes number their rows by.
+        /// Frames traced since the stop began, those ahead of the measurement included: what the
+        /// trace's sampler and the upscaler's jitter are walked by and what the hashes number their
+        /// rows by.
         std::uint32_t getSeen() const { return mProgress.mSeen; }
 
         /// Which of the stop's measured frames the frame about to be drawn is, counted from nought,
-        /// or nothing while it is a frame of the warm-up — which is over once the world has run,
-        /// unpaused, through the frames the stop asked it to. What a route flies over, a take's
-        /// track is posed by and a reference is averaged over.
+        /// or nothing while it is a frame ahead of them — until a frame drew the whole world, and
+        /// the world has run, unpaused, through the warm-up the stop asked for after it. What a
+        /// route flies over, a take's track is posed by and a reference is averaged over.
         std::optional<std::uint32_t> getMeasuredIndex() const;
 
         /// Takes one traced frame of `stop`, and with it whatever the device answered for an earlier
@@ -83,7 +84,7 @@ namespace RtxTool
     private:
         /// Takes in what the device answered for one frame of `stop`, under the number of the frame
         /// it answers for: the figures a frame has only once the device is done with it, and its
-        /// picture. Nothing for a frame the warm-up drew.
+        /// picture. Nothing for a frame ahead of the measurement.
         void answered(const Stop& stop, const Rtx::FrameResult& finished, const Rtx::FrameExtents& extents);
 
         /// Hashes a frame's picture into the record, and writes it where the request asked for the
@@ -99,22 +100,29 @@ namespace RtxTool
         {
             std::uint32_t mSeen = 0;
 
-            /// The warm-up the stop asked for, in frames, and how far it has come: the frames the
-            /// world ran through and the frames it stood paused on. **A paused frame is no frame of
-            /// the warm-up**, which is the world arriving — the cell's particles filling, the air
-            /// carried on, the card off its idle clock — and a world standing still does none of
-            /// that; so a menu a script opens at load lengthens the warm-up rather than eating into
-            /// it. Every frame counts in a session somebody plays, whose pauses are theirs.
+            /// Whether a frame of the stop drew the whole world (`MWRender::FrameReport::isWhole`),
+            /// how many frames it took, that one included, the fewest cells any of them left to
+            /// stand, and the wall time since that fewest last fell: `frame` says why.
+            bool mWhole = false;
+            std::uint32_t mWaited = 0;
+            std::uint32_t mLeastToStand = 0;
+            double mStalledMs = 0.0;
+
+            /// The warm-up the stop asked for after the world stood whole, in frames — the card's
+            /// clock for a bench, the histories for a picture (`sHistoryFrames`) — and how far it
+            /// has come. Then the frames the world stood paused on before the measurement, which
+            /// count toward neither: a world standing still neither arrives nor runs, so a menu a
+            /// script opens at load lengthens the wait rather than eating into it. Every frame
+            /// counts in a session somebody plays, whose pauses are theirs.
             std::uint32_t mWarmup = 0;
             std::uint32_t mWarmedRan = 0;
             std::uint32_t mWarmedPaused = 0;
 
-            /// What `mSeen` stood at when the first measured frame came, or nothing while the stop
-            /// warms up.
+            /// What `mSeen` stood at when the first measured frame came, or nothing before it.
             std::optional<std::uint32_t> mMeasuredFrom;
 
             /// The backend's number of the first measured frame, so a result that comes back once
-            /// the warm-up is over can say whether the frame it answers for was measured.
+            /// the measurement began can say whether the frame it answers for was measured.
             std::uint64_t mFirstMeasured = 0;
 
             /// How long the measured frames took between them, and what they wrote that was not
@@ -138,9 +146,10 @@ namespace RtxTool
             std::size_t mFilmPending = 0;
 
             /// How many measured frames the world stood paused on, and what paused it: noted on the
-            /// warm-up's first paused frame for its note, and again on the first paused measured
-            /// frame for the failure, so each names its own cause — `Stager::describePause`. Twice at
-            /// most and never per frame, so a stop paused throughout allocates two strings.
+            /// first paused frame ahead of the measurement for its note, and again on the first
+            /// paused measured frame for the failure, so each names its own cause —
+            /// `Stager::describePause`. Twice at most and never per frame, so a stop paused
+            /// throughout allocates two strings.
             std::uint32_t mPausedFrames = 0;
             std::string mPausedBy;
 
