@@ -241,7 +241,33 @@ jobs:
         run: python omw full build
 
       - name: Test
-        run: python omw full test --without-device
+        # **With a watchdog for the one suite that hangs now and then** (`.notes/ISSUES.md`): an
+        # `openmw-tests` still running four minutes in, one short of CTest's limit, has every
+        # thread's stack printed, so the run that hangs is the run that says where. Six hundred
+        # rounds of the suites on this image did not hang once, so the stacks are wanted here.
+        run: |
+          python - <<'EOF'
+          import pathlib, subprocess, sys, time
+          cdb = pathlib.Path(r"C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe")
+          tests = subprocess.Popen([sys.executable, "omw", "full", "test", "--without-device"])
+          begun = time.monotonic()
+          dumped = False
+          while tests.poll() is None:
+              time.sleep(5)
+              if dumped or time.monotonic() - begun < 240:
+                  continue
+              dumped = True
+              listed = subprocess.run(["tasklist", "/FI", "IMAGENAME eq openmw-tests.exe", "/FO", "CSV", "/NH"],
+                                      capture_output=True, text=True).stdout
+              for line in listed.splitlines():
+                  fields = [field.strip('"') for field in line.split('","')]
+                  if len(fields) > 1 and fields[0].lower() == "openmw-tests.exe":
+                      print(f"::group::openmw-tests {fields[1]}, still running after 240 s", flush=True)
+                      subprocess.run([str(cdb), "-p", fields[1], "-y", "build-full;srv*", "-c", ".reload; ~*kn 60; qd"],
+                                     timeout=600)
+                      print("::endgroup::", flush=True)
+          sys.exit(tests.returncode)
+          EOF
 
       - name: Benchmarks, run once each as upstream runs them
         working-directory: build-full
