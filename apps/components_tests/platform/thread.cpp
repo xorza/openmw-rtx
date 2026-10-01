@@ -125,7 +125,7 @@ namespace Platform
             std::set_terminate(before);
 
             EXPECT_EQ(named, "cell reader");
-            EXPECT_EQ(cut, "a name of twent") << "fifteen characters";
+            EXPECT_EQ(cut, "a name of twent") << "fifteen characters on every system";
             EXPECT_EQ(seen, ours);
         }
 
