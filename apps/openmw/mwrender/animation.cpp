@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <optional>
 
 #include <osg/BlendFunc>
 #include <osg/Matrix>
@@ -108,12 +109,6 @@ namespace
     class DayNightCallback : public SceneUtil::NodeCallback<DayNightCallback, osg::Switch*>
     {
     public:
-        // No mode, so the first update sets the child: the file may open the switch on any of them.
-        DayNightCallback()
-            : mCurrentState(std::numeric_limits<unsigned int>::max())
-        {
-        }
-
         void operator()(osg::Switch* node, osg::NodeVisitor* nv)
         {
             unsigned int state = MWBase::Environment::get().getWorld()->getNightDayMode();
@@ -122,14 +117,15 @@ namespace
             if (newState != mCurrentState)
             {
                 mCurrentState = newState;
-                node->setSingleChildOn(mCurrentState);
+                node->setSingleChildOn(newState);
             }
 
             traverse(node, nv);
         }
 
     private:
-        unsigned int mCurrentState;
+        // Empty, so the first update sets the child whichever one the file opened on
+        std::optional<unsigned int> mCurrentState;
     };
 
     class AddSwitchCallbacksVisitor : public osg::NodeVisitor
