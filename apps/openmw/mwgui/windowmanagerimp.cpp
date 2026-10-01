@@ -1298,7 +1298,7 @@ namespace MWGui
     void WindowManager::windowResized(int x, int y)
     {
         // The size the player left a window at; a fullscreen window is the display's size.
-        if (Settings::video().mWindowMode == Settings::WindowMode::Windowed)
+        if (Settings::video().mWindowMode.get() == Settings::WindowMode::Windowed)
         {
             Settings::video().mWindowWidth.set(x);
             Settings::video().mWindowHeight.set(y);

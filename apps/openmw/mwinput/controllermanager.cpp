@@ -460,7 +460,7 @@ namespace MWInput
     {
         SDL_Gamepad* cntrl = mBindingsManager->getControllerOrNull();
         if (cntrl)
-            return SDL_GetGamepadButton(cntrl, button) > 0;
+            return SDL_GetGamepadButton(cntrl, button);
         else
             return false;
     }
