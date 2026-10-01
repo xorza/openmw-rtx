@@ -306,18 +306,18 @@ namespace RtxTool
                 .mUpscale = typed("upscale") ? spelled("upscale") : Settings::rtx().mUpscale.get(),
                 .mDistantLandCells = given("distant-cells") ? variables["distant-cells"].as<float>()
                     : watched                               ? Settings::rtx().mDistantLandCells.get()
-                              : std::stof(shippedDefault(command.mConfig, "RTX", "distant land cells")),
+                              : shippedDefault<float>(command.mConfig, "RTX", "distant land cells"),
                 .mViewingDistance = Settings::camera().mViewingDistance,
                 .mObjectPaging = given("distant-statics") ? variables["distant-statics"].as<bool>()
                     : watched                             ? Settings::terrain().mObjectPaging.get()
-                              : shippedDefault(command.mConfig, "Terrain", "object paging") == "true",
+                              : shippedDefault<bool>(command.mConfig, "Terrain", "object paging"),
                 .mObjectPagingMinSize = Settings::terrain().mObjectPagingMinSize,
                 .mSpecularMapLayout = Settings::rtx().mSpecularMapLayout.get(),
                 .mAnisotropy = watched ? Settings::general().mAnisotropy.get()
-                                       : std::stoi(shippedDefault(command.mConfig, "General", "anisotropy")),
+                                       : shippedDefault<int>(command.mConfig, "General", "anisotropy"),
                 .mGamma = given("gamma") ? variables["gamma"].as<float>()
                     : watched            ? Settings::video().mGamma.get()
-                                         : std::stof(shippedDefault(command.mConfig, "Video", "gamma")),
+                                         : shippedDefault<float>(command.mConfig, "Video", "gamma"),
             });
             framed.mSetup.mMirror = derived.mMirror;
 

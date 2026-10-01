@@ -27,9 +27,8 @@ namespace MWRender
 
     RtxSettings RtxSettings::derive(const RtxSettingValues& values)
     {
-        // The registry's sanitizer holds the setting over nought and lets a written `inf` or `nan`
-        // through, and a harness's line holds nothing: past either end the picture is all black,
-        // all white or no number at all.
+        // The registry holds the setting to a finite number over nought; a harness's line holds
+        // nothing, and past either end the picture is all black, all white or no number at all.
         if (!(values.mGamma > 0.0f && std::isfinite(values.mGamma)))
             throw Rtx::InputError(
                 std::format("a gamma of {} is not a finite number greater than nought", values.mGamma));

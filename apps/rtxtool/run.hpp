@@ -175,8 +175,12 @@ namespace RtxTool
     /// measured run reads these so that two runs of it are one run whatever a settings file says.
     /// Not `Settings::Manager::mDefaultSettings`, which layers every configuration directory but
     /// the last over the shipped file — and the harness's own directory is the last.
-    std::string shippedDefault(
-        const Files::ConfigurationManager& config, std::string_view category, std::string_view setting);
+    ///
+    /// Read as the game reads the setting's text: a number through `Misc::StringUtils::toNumeric`,
+    /// which refuses one that is not finite, and a switch as `true` in any case. Throws naming the
+    /// setting where the text is no number. For `float`, `int` and `bool`.
+    template <class T>
+    T shippedDefault(const Files::ConfigurationManager& config, std::string_view category, std::string_view setting);
 
     /// Runs `request` against a real game, presented as `window` asks, and gives back a process exit
     /// status. The game and not a world of this tool's own, because a staged world never pays for

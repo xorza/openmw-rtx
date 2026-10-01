@@ -5,15 +5,19 @@
 #include <cctype>
 #include <cstddef>
 #include <format>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 #include <osg/Math>
 #include <osg/Vec3f>
 
 #include <components/files/configurationmanager.hpp>
+#include <components/misc/strings/algorithm.hpp>
+#include <components/misc/strings/conversion.hpp>
 #include <components/settings/categories.hpp>
 #include <components/settings/parser.hpp>
 
@@ -50,7 +54,8 @@ namespace RtxTool
 
     }
 
-    std::string shippedDefault(
+    template <class T>
+    T shippedDefault(
         const Files::ConfigurationManager& config, const std::string_view category, const std::string_view setting)
     {
         // Parsed once per process: the file does not change under a run, and every framed verb asks
@@ -66,8 +71,22 @@ namespace RtxTool
         if (found == shipped.end())
             throw std::runtime_error(std::format("defaults.bin names no [{}] {}", category, setting));
 
-        return found->second;
+        const std::string& text = found->second;
+        if constexpr (std::is_same_v<T, bool>)
+            return Misc::StringUtils::ciEqual(text, "true");
+        else
+        {
+            if (const std::optional<T> number = Misc::StringUtils::toNumeric<T>(text))
+                return *number;
+
+            throw std::runtime_error(
+                std::format("defaults.bin's [{}] {} is not a finite number: \"{}\"", category, setting, text));
+        }
     }
+
+    template float shippedDefault<float>(const Files::ConfigurationManager&, std::string_view, std::string_view);
+    template int shippedDefault<int>(const Files::ConfigurationManager&, std::string_view, std::string_view);
+    template bool shippedDefault<bool>(const Files::ConfigurationManager&, std::string_view, std::string_view);
 
     float bearingOf(const Stand& stand)
     {

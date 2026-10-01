@@ -444,7 +444,7 @@ namespace MWRender
         mSceneRoot = nullptr;
 
         wireFrame();
-        applyGamma();
+        mWorld->getPostProcessor().setGamma(Settings::video().mGamma);
 
         // **The chain goes above the world and becomes what is traversed.**
         setTraversalRoot(mWorld->getPostProcessor());
@@ -854,22 +854,7 @@ namespace MWRender
 
         mWorld->processChangedSettings(changed);
         if (changed.contains({ "Video", "gamma" }))
-            applyGamma();
-    }
-
-    void GlRenderer::applyGamma()
-    {
-        // The setting's sanitizer holds it over nought, and lets a written `inf` or `nan` through:
-        // the first would turn the world white and the second would draw no number at all.
-        const float gamma = Settings::video().mGamma;
-        if (!std::isfinite(gamma))
-        {
-            Log(Debug::Warning) << "The rasterizer kept the gamma it had: " << gamma
-                                << " is not a gamma it can draw with";
-            return;
-        }
-
-        mWorld->getPostProcessor().setGamma(gamma);
+            mWorld->getPostProcessor().setGamma(Settings::video().mGamma);
     }
 
     void GlRenderer::addCell(const MWWorld::CellStore* cell)

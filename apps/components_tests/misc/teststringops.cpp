@@ -1,11 +1,13 @@
 #include <gtest/gtest.h>
 
 #include <components/misc/strings/algorithm.hpp>
+#include <components/misc/strings/conversion.hpp>
 #include <components/misc/strings/format.hpp>
 #include <components/misc/strings/lower.hpp>
 
 #include <components/misc/algorithm.hpp>
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -231,5 +233,27 @@ namespace
     TEST(MiscStringsCiFind, should_return_npos_for_absent_substring)
     {
         EXPECT_EQ(ciFind("foobar", "baz"), std::string_view::npos);
+    }
+
+    TEST(MiscStringsToNumeric, should_read_a_number)
+    {
+        EXPECT_EQ(toNumeric<float>("1.5"), 1.5f);
+        EXPECT_EQ(toNumeric<double>("-0.25"), -0.25);
+        EXPECT_EQ(toNumeric<int>("42"), 42);
+    }
+
+    TEST(MiscStringsToNumeric, should_refuse_what_is_not_a_finite_number)
+    {
+        for (const std::string_view spelled : { "", "abc", "inf", "-inf", "infinity", "nan", "-nan", "1e39" })
+            EXPECT_EQ(toNumeric<float>(spelled), std::nullopt) << spelled;
+
+        for (const std::string_view spelled : { "inf", "nan", "1e309" })
+            EXPECT_EQ(toNumeric<double>(spelled), std::nullopt) << spelled;
+    }
+
+    TEST(MiscStringsToNumeric, should_read_only_the_view)
+    {
+        const std::string_view first = std::string_view("25").substr(0, 1);
+        EXPECT_EQ(toNumeric<float>(first), 2.0f);
     }
 }

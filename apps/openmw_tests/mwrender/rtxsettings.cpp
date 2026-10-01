@@ -83,9 +83,8 @@ namespace MWRender
         }
 
         /// A gamma that is not a finite number over nought is refused: nought and less raise the
-        /// picture to no power or a negative one, an infinite one to the power of nought, which is
-        /// white, and neither a written
-        /// `inf` nor a harness's line has a sanitizer in front of it that stops it.
+        /// picture to no power or a negative one, and an infinite one to the power of nought, which
+        /// is white. The registry holds none of them; a harness's line holds anything.
         TEST(RtxSettingsTest, aGammaThatIsNotOverNoughtIsRefused)
         {
             for (const float gamma :
