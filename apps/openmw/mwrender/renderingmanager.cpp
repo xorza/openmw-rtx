@@ -734,8 +734,10 @@ namespace MWRender
         mIntersectionVisitor->setReferenceEyePoint(osg::Vec3f());
         mIntersectionVisitor->setReferenceEyePointCoordinateFrame(osgUtil::Intersector::VIEW);
 
+        // `Mask_GUI` is drawn over the world, not in it: the present pass's quad stands across the
+        // whole view and would be the nearest hit of every ray through it.
         unsigned int mask = ~0u;
-        mask &= ~(Mask_RenderToTexture | Mask_Sky | Mask_Debug | Mask_Effect | Mask_Water | Mask_SimpleWater
+        mask &= ~(Mask_GUI | Mask_RenderToTexture | Mask_Sky | Mask_Debug | Mask_Effect | Mask_Water | Mask_SimpleWater
             | Mask_Groundcover);
         if (ignorePlayer)
             mask &= ~(Mask_Player);

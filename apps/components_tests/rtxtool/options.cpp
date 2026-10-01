@@ -228,7 +228,7 @@ namespace RtxTool
             EXPECT_EQ(parseHold("check"), sCheckHoldMs);
             EXPECT_EQ(parseHold("0"), 0.0);
             EXPECT_EQ(parseHold("2.5"), 2.5);
-            for (const std::string_view refused : { "-1", "", "8ms", "checks", "nan" })
+            for (const std::string_view refused : { "-1", "", "8ms", "checks", "nan", "inf" })
                 EXPECT_THROW(parseHold(refused), std::runtime_error) << refused;
         }
 

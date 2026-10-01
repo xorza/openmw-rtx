@@ -1,7 +1,6 @@
 #include "options.hpp"
 
 #include <algorithm>
-#include <charconv>
 #include <cmath>
 #include <cstdint>
 #include <format>
@@ -563,12 +562,11 @@ namespace RtxTool
         if (text == "check")
             return sCheckHoldMs;
 
-        double value = 0.0;
-        const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
-        if (error != std::errc() || end != text.data() + text.size() || !(value >= 0.0))
+        const std::optional<double> value = parseDouble(text);
+        if (!value.has_value() || !(*value >= 0.0))
             throw std::runtime_error("not a hold: " + std::string(text));
 
-        return value;
+        return *value;
     }
 
     std::filesystem::path ownConfigDirectory(const Files::ConfigurationManager& config)

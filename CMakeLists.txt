@@ -226,6 +226,24 @@ if (MSVC)
     endif()
 endif()
 
+# SDL3: the system's where it has one, and the pinned release built static otherwise, as Ubuntu 24.04
+# and upstream's vcpkg set have none. Static, so a package carries it inside the binaries. Ahead of
+# the tree's own definitions, which are not SDL's: Windows's `NOGDI` and `NOMB` take out what SDL's
+# video is built on.
+include(FetchContent)
+FetchContent_Declare(SDL3
+    URL https://github.com/libsdl-org/SDL/releases/download/release-3.4.16/SDL3-3.4.16.tar.gz
+    URL_HASH SHA512=74a5ee1e5bba138a8daa710e200ac3585c60f696311c46252d86bc685c55e8271cd0d68439f8e13ca515b702d46ef58914d0f7b2352019870a5763ed79739e9a
+    SOURCE_DIR fetched/sdl3
+    SYSTEM
+    FIND_PACKAGE_ARGS 3.4 CONFIG
+)
+block(SCOPE_FOR VARIABLES)
+    set(SDL_SHARED OFF)
+    set(SDL_STATIC ON)
+    FetchContent_MakeAvailable(SDL3)
+endblock()
+
 include(GNUInstallDirs)
 # todo: force this suffix to match sApplicationName in configurationmanager.cpp
 set(CMAKE_INSTALL_SYSCONFDIR "${CMAKE_INSTALL_SYSCONFDIR}/openmw")
@@ -491,21 +509,6 @@ find_package(Boost 1.83.0 CONFIG REQUIRED COMPONENTS ${BOOST_COMPONENTS} OPTIONA
 if(OPENMW_USE_SYSTEM_MYGUI)
     find_package(MyGUI 3.4.3 REQUIRED)
 endif()
-# SDL3: the system's where it has one, and the pinned release built static otherwise, as Ubuntu 24.04
-# and upstream's vcpkg set have none. Static, so a package carries it inside the binaries.
-include(FetchContent)
-FetchContent_Declare(SDL3
-    URL https://github.com/libsdl-org/SDL/releases/download/release-3.4.16/SDL3-3.4.16.tar.gz
-    URL_HASH SHA512=74a5ee1e5bba138a8daa710e200ac3585c60f696311c46252d86bc685c55e8271cd0d68439f8e13ca515b702d46ef58914d0f7b2352019870a5763ed79739e9a
-    SOURCE_DIR fetched/sdl3
-    SYSTEM
-    FIND_PACKAGE_ARGS 3.4 CONFIG
-)
-block(SCOPE_FOR VARIABLES)
-    set(SDL_SHARED OFF)
-    set(SDL_STATIC ON)
-    FetchContent_MakeAvailable(SDL3)
-endblock()
 
 # 1.4.329 is the first SDK with `VK_KHR_shader_fma`, which every shader's fusions are
 # (`Rtx::pinFloatArithmetic`); an older one fails here rather than inside `requirements.cpp`.
