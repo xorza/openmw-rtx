@@ -104,8 +104,10 @@ jobs:
           # key, so `linux` would take `linux-clang`'s.
           key: linux-gcc
           max-size: 2000M
-          # Saved on master and only read by pull requests: ten gigabytes hold each job's cache once.
-          save: ${{ github.event_name != 'pull_request' }}
+          # Saved on master alone, and read by every other ref: the repository's ten gigabytes hold
+          # each master cache once — CI's seven, the sanitizers' two and the dependencies — and a
+          # branch's own copies would evict them.
+          save: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Build every program
         run: python omw full build
@@ -186,8 +188,10 @@ jobs:
         with:
           key: linux-clang
           max-size: 1000M
-          # Saved on master and only read by pull requests: ten gigabytes hold each job's cache once.
-          save: ${{ github.event_name != 'pull_request' }}
+          # Saved on master alone, and read by every other ref: the repository's ten gigabytes hold
+          # each master cache once — CI's seven, the sanitizers' two and the dependencies — and a
+          # branch's own copies would evict them.
+          save: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Build every program
         # Compiled and not run, for Clang's warnings.
@@ -222,9 +226,13 @@ jobs:
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
           key: windows-msvc
-          max-size: 2000M
-          # Saved on master and only read by pull requests: ten gigabytes hold each job's cache once.
-          save: ${{ github.event_name != 'pull_request' }}
+          # Three gigabytes: at two, every program's objects, SDL's own among them, filled the cache
+          # and a run hit nothing.
+          max-size: 3000M
+          # Saved on master alone, and read by every other ref: the repository's ten gigabytes hold
+          # each master cache once — CI's seven, the sanitizers' two and the dependencies — and a
+          # branch's own copies would evict them.
+          save: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Build every program
         run: python omw full build
@@ -272,8 +280,10 @@ jobs:
         with:
           key: macos
           max-size: 1000M
-          # Saved on master and only read by pull requests: ten gigabytes hold each job's cache once.
-          save: ${{ github.event_name != 'pull_request' }}
+          # Saved on master alone, and read by every other ref: the repository's ten gigabytes hold
+          # each master cache once — CI's seven, the sanitizers' two and the dependencies — and a
+          # branch's own copies would evict them.
+          save: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Configure
         run: CI/before_script.macos.sh -C
