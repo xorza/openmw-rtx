@@ -2,19 +2,15 @@
 #define COMPONENTS_MISC_STRINGS_CONVERSION_H
 
 #include <charconv>
+#include <cmath>
 #include <cstdint>
-#include <optional>
-#include <string>
-#include <system_error>
-
-#if !(defined(_MSC_VER) && (_MSC_VER >= 1924)) && !(defined(__GNUC__) && __GNUC__ >= 11) || defined(__clang__)         \
-    || defined(__apple_build_version__)
-
-#include <ios>
 #include <locale>
+#include <optional>
 #include <sstream>
-
-#endif
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <type_traits>
 
 namespace Misc::StringUtils
 {
@@ -59,18 +55,45 @@ namespace Misc::StringUtils
         return { str.begin(), str.end() }; // Undefined behavior if the contents of "char" aren't UTF8 or ASCII.
     }
 
+    // support for std::from_chars as of 2023-02-27
+    // - Visual Studio 2019 version 16.4 (1924)
+    // - GCC 11
+    // - Clang does not support floating points yet
+    // - Apples Clang does not support floating points yet
+#if !(defined(_MSC_VER) && (_MSC_VER >= 1924)) && !(defined(__GNUC__) && __GNUC__ >= 11) || defined(__clang__)         \
+    || defined(__apple_build_version__)
+    inline constexpr bool sFromCharsReadsFloats = false;
+#else
+    inline constexpr bool sFromCharsReadsFloats = true;
+#endif
+
+    /// The number `s` spells, or nothing where it spells none. A floating-point number is a finite
+    /// one: `std::from_chars` reads `inf` and `nan` as numbers, and no text this reads — a setting,
+    /// a fallback, a script's literal — means either, which every reader would then carry into its
+    /// arithmetic unseen.
     template <typename T>
     inline std::optional<T> toNumeric(std::string_view s)
     {
         T result{};
-        auto [ptr, ec]{ std::from_chars(s.data(), s.data() + s.size(), result) };
-
-        if (ec == std::errc())
+        if constexpr (std::is_floating_point_v<T> && !sFromCharsReadsFloats)
         {
-            return result;
+            std::istringstream stream{ std::string(s) };
+            stream.imbue(std::locale::classic());
+            if (s.empty() || !(stream >> result))
+                return std::nullopt;
+        }
+        else
+        {
+            const auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), result);
+            if (ec != std::errc())
+                return std::nullopt;
         }
 
-        return std::nullopt;
+        if constexpr (std::is_floating_point_v<T>)
+            if (!std::isfinite(result))
+                return std::nullopt;
+
+        return result;
     }
 
     template <typename T>
@@ -83,53 +106,6 @@ namespace Misc::StringUtils
 
         return defaultValue;
     }
-
-    // support for std::from_chars as of 2023-02-27
-    // - Visual Studio 2019 version 16.4 (1924)
-    // - GCC 11
-    // - Clang does not support floating points yet
-    // - Apples Clang does not support floating points yet
-
-#if !(defined(_MSC_VER) && (_MSC_VER >= 1924)) && !(defined(__GNUC__) && __GNUC__ >= 11) || defined(__clang__)         \
-    || defined(__apple_build_version__)
-    template <>
-    inline std::optional<float> toNumeric<float>(std::string_view s)
-    {
-        if (!s.empty())
-        {
-            std::istringstream iss(s.data());
-            iss.imbue(std::locale::classic());
-
-            float value;
-
-            if (iss >> value)
-            {
-                return value;
-            }
-        }
-
-        return std::nullopt;
-    }
-
-    template <>
-    inline std::optional<double> toNumeric<double>(std::string_view s)
-    {
-        if (!s.empty())
-        {
-            std::istringstream iss(s.data());
-            iss.imbue(std::locale::classic());
-
-            double value;
-
-            if (iss >> value)
-            {
-                return value;
-            }
-        }
-
-        return std::nullopt;
-    }
-#endif
 
     inline std::string toHex(std::string_view value)
     {

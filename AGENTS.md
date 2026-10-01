@@ -77,6 +77,9 @@ pointer and Lua read one size whichever renderer draws.
 - Three upstream bugs those checks found, fixed here: `ContentModel::dropMimeData` reading past
   the last file, `Store<ESM4::Cell>::insert` indexing a null cell, and a moved reference whose old
   cell is missing.
+- A number read from text is finite (`Misc::StringUtils::toNumeric`, which the settings read
+  through): `std::from_chars` reads `inf` and `nan`, and no sanitizer stopped either reaching
+  the picture.
 
 ## Where the code lives
 

@@ -2,19 +2,11 @@
 #include "parser.hpp"
 #include "values.hpp"
 
-#include <charconv>
 #include <filesystem>
+#include <optional>
 #include <sstream>
-#include <system_error>
-
-#if !(defined(_MSC_VER) && (_MSC_VER >= 1924)) && !(defined(__GNUC__) && __GNUC__ >= 11) || defined(__clang__)         \
-    || defined(__apple_build_version__)
-
-#include <cerrno>
-#include <ios>
-#include <locale>
-
-#endif
+#include <stdexcept>
+#include <string>
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/configurationmanager.hpp>
@@ -25,62 +17,19 @@ namespace Settings
 {
     namespace
     {
+        /// What `Misc::StringUtils::toNumeric` reads, which is a finite number for a floating-point
+        /// setting, or a throw naming the setting: a value no number stands for is refused rather
+        /// than carried into whatever reads it.
         template <class T>
         T parseNumberFromSetting(const std::string& value, std::string_view setting, std::string_view category)
         {
-            T number{};
+            if (const std::optional<T> number = Misc::StringUtils::toNumeric<T>(value))
+                return *number;
 
-            const auto result = std::from_chars(value.data(), value.data() + value.size(), number);
-            if (result.ec != std::errc())
-            {
-                throw std::system_error(std::make_error_code(result.ec),
-                    "Failed to parse number from setting [" + std::string(category) + "] " + std::string(setting)
-                        + " value \"" + value + "\"");
-            }
-
-            return number;
+            throw std::runtime_error("Failed to parse number from setting [" + std::string(category) + "] "
+                + std::string(setting) + " value \"" + value + "\"");
         }
 
-#if !(defined(_MSC_VER) && (_MSC_VER >= 1924)) && !(defined(__GNUC__) && __GNUC__ >= 11) || defined(__clang__)         \
-    || defined(__apple_build_version__)
-        template <>
-        float parseNumberFromSetting<float>(
-            const std::string& value, std::string_view setting, std::string_view category)
-        {
-            std::istringstream iss(value);
-            iss.imbue(std::locale::classic());
-
-            float floatValue = 0.0f;
-
-            if (!(iss >> floatValue))
-            {
-                throw std::system_error(errno, std::generic_category(),
-                    "Failed to parse number from setting [" + std::string(category) + "] " + std::string(setting)
-                        + " value \"" + value + "\"");
-            }
-
-            return floatValue;
-        }
-
-        template <>
-        double parseNumberFromSetting<double>(
-            const std::string& value, std::string_view setting, std::string_view category)
-        {
-            std::istringstream iss(value);
-            iss.imbue(std::locale::classic());
-
-            double doubleValue = 0.0;
-
-            if (!(iss >> doubleValue))
-            {
-                throw std::system_error(errno, std::generic_category(),
-                    "Failed to parse number from setting [" + std::string(category) + "] " + std::string(setting)
-                        + " value \"" + value + "\"");
-            }
-
-            return doubleValue;
-        }
-#endif
         template <class T>
         std::string serialize(const T& value)
         {

@@ -59,6 +59,23 @@ namespace Settings
             EXPECT_EQ(values.mCamera.mFieldOfView.get(), 1);
         }
 
+        TEST_F(SettingsValuesTest, constructorShouldThrowOnNumberThatIsNotFinite)
+        {
+            for (const char* spelled : { "inf", "-inf", "nan", "infinity" })
+            {
+                Manager::mUserSettings[std::make_pair("Video", "gamma")] = spelled;
+                Index index;
+                EXPECT_THROW([&] { Values values(index); }(), std::runtime_error) << spelled;
+            }
+        }
+
+        TEST_F(SettingsValuesTest, constructorShouldThrowOnVectorComponentThatIsNotFinite)
+        {
+            Manager::mUserSettings[std::make_pair("Fog", "sky rtt resolution")] = "512 nan";
+            Index index;
+            EXPECT_THROW([&] { Values values(index); }(), std::runtime_error);
+        }
+
         TEST_F(SettingsValuesTest, constructorWithDefaultShouldDoLookup)
         {
             Manager::mUserSettings[std::make_pair("category", "value")] = "13";
