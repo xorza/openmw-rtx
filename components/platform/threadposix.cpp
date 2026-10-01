@@ -16,7 +16,7 @@ namespace Platform
     void nameThisThread(const std::string_view name)
     {
         // Linux refuses a name of sixteen bytes or more, terminator included, rather than cutting it.
-        const std::string kept(name.substr(0, 15));
+        const std::string kept(name.substr(0, sThreadNameLength));
 #if defined(__APPLE__)
         pthread_setname_np(kept.c_str());
 #else
