@@ -6,6 +6,9 @@
 # warnings as errors, and its integration tests under Xvfb on the OpenGL renderer. No hosted runner
 # has a GPU, so `rtx-gpu-tests` is left out and the gate stays on a box with a card.
 #
+# **Each system on its newest image, Linux apart**: Ubuntu 24.04 is the base the AppImage is built on,
+# and an AppImage runs on no system older than its own, so CI tests the base the package ships from.
+#
 # **Job names are the `master` ruleset's required checks**: rename one and the ruleset waits for a
 # check that never reports. Actions are pinned to a commit, the token only reads, and a newer push
 # cancels the run it supersedes.
@@ -201,7 +204,7 @@ jobs:
 
   windows:
     name: windows
-    runs-on: windows-2022
+    runs-on: windows-2025
     permissions:
       contents: read
     timeout-minutes: 180
@@ -251,7 +254,7 @@ jobs:
 
   macos:
     name: macos
-    runs-on: macos-15
+    runs-on: macos-26
     permissions:
       contents: read
     timeout-minutes: 150
