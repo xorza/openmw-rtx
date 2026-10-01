@@ -120,9 +120,8 @@ namespace RtxTool
             if (text == "auto")
                 return std::nullopt;
 
-            float value = 0.0f;
-            const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
-            if (error != std::errc() || end != text.data() + text.size() || !(value > 0.0f))
+            const std::optional<float> value = parseFloat(text);
+            if (!value.has_value() || !(*value > 0.0f))
                 throw std::runtime_error("not an exposure: " + std::string(text));
 
             return value;

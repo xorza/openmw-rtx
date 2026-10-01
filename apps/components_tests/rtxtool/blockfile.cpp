@@ -70,6 +70,14 @@ namespace RtxTool
                 { "", "1,2", "1,2,3,", "1,,3", "1,2,3,4", "a,b,c", "1,2,3x", ",,", "inf,0,0", "0,nan,0", "0,0,1e39" })
                 EXPECT_FALSE(parseVec3(text).has_value()) << '"' << text << '"';
 
+            // Read straight to a float: 1 + 2^-24 is halfway between 1 and the float after it, and
+            // this text lies past it by less than a double's step, so read through a double it
+            // would land on the halfway point and round to even, to 1.
+            EXPECT_EQ(parseFloat("1.00000005960464477550"), 1.00000011920928955078125f);
+            EXPECT_EQ(parseFloat("1e3"), 1000.0f);
+            for (const std::string_view text : { " 1", "1 ", "+", "1e" })
+                EXPECT_FALSE(parseFloat(text).has_value()) << '"' << text << '"';
+
             // An air is four numbers in the ranges its clocks keep, the seconds and the drift read at
             // double precision: 36000.123456789 is no float, whose nearest is 36000.125.
             const std::optional<Rtx::AirClock> air = parseAir(" 36000.123456789, 1.25 ,-2041.5,5432.000001");
