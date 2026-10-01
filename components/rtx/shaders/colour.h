@@ -76,6 +76,22 @@ namespace Rtx::Shaders
         return pow((encoded + 0.055f) / 1.055f, 2.4f);
     }
 
+    /// `[Video] gamma` over a display-encoded value in [0, 1]: the value to the power of
+    /// `inverseGamma`, one over the setting, so a gamma over one lifts the darks and leaves black
+    /// and white where they are. The curve upstream's hardware ramp applied at scan-out, which SDL3
+    /// no longer offers.
+    ///
+    /// **A gamma of one is the value without the power**, for the reason `contrastScale` gives: a
+    /// device evaluates the power to a bound and not exactly, and a byte on a rounding edge would
+    /// move in a picture nobody asked to change.
+    RTX_SHADER float displayGamma(float encoded, float inverseGamma)
+    {
+        if (inverseGamma == 1.0f)
+            return encoded;
+
+        return pow(encoded, inverseGamma);
+    }
+
 #ifdef RTX_HOST
 }
 #endif
@@ -159,6 +175,12 @@ RTX_SHADER vec3 encodeSrgb(vec3 linear)
 RTX_SHADER vec3 decodeSrgb(vec3 encoded)
 {
     return vec3(decodeSrgb(encoded.x), decodeSrgb(encoded.y), decodeSrgb(encoded.z));
+}
+
+RTX_SHADER vec3 displayGamma(vec3 encoded, float inverseGamma)
+{
+    return vec3(displayGamma(encoded.x, inverseGamma), displayGamma(encoded.y, inverseGamma),
+        displayGamma(encoded.z, inverseGamma));
 }
 
 #endif

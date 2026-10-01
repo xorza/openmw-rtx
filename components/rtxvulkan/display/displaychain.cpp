@@ -32,7 +32,7 @@ namespace Rtx
         /// corner of its channels: read at the channels' size, the pass looked for a pixel's backdrop
         /// and its sprite tile under another pixel altogether.
         Shaders::ToneConstants toneFor(const Shaders::VisibilityConstants& frame, const SunGlare& fader,
-            const VkDeviceAddress spriteTileList, const VkDeviceAddress spritePresence,
+            const float inverseGamma, const VkDeviceAddress spriteTileList, const VkDeviceAddress spritePresence,
             const VkDeviceAddress textureTexels, std::uint32_t width, std::uint32_t height)
         {
             assert(spriteTileList != 0 && spritePresence != 0 && "a curve told no tiles to test the puffs by");
@@ -49,6 +49,7 @@ namespace Rtx
                 .mStars = frame.mStars,
                 .mGlareColour = fader.mColour,
                 .mGlareAmount = fader.amountFor(frame),
+                .mInverseGamma = inverseGamma,
             };
         }
     }
@@ -159,8 +160,9 @@ namespace Rtx
                 .mTextures = inputs.mSubject.mScene->getTextures(),
                 .mTarget = what.mTarget,
                 .mConstants = toneFor(what.mSampled, look != nullptr ? look->mGlare.mFader : SunGlare{},
-                    what.mTrace.mSpriteTileList, what.mTrace.mSpritePresence,
-                    inputs.mSubject.mScene->getTextureTexels(), what.mExtent.width, what.mExtent.height),
+                    look != nullptr ? look->mInverseGamma : 1.0f, what.mTrace.mSpriteTileList,
+                    what.mTrace.mSpritePresence, inputs.mSubject.mScene->getTextureTexels(), what.mExtent.width,
+                    what.mExtent.height),
             });
         closeZone(timer, commands);
 

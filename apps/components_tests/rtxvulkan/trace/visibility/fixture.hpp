@@ -368,6 +368,9 @@ namespace Rtx::Testing
         /// derived through `shoot` must not have, since those are about what the trace computed.
         std::optional<float> mExposure = 1.0f;
 
+        /// `RenderProfile::mGamma` for the shot. One, which leaves the picture as the curve wrote it.
+        float mGamma = 1.0f;
+
         /// How far the water's clock moves a frame, which is what the ripple field steps by and the
         /// waves run on. A step of nought stands the field still, which is what every test that is
         /// not about it wants. What disturbs the water is the scene's own list,
@@ -427,6 +430,7 @@ namespace Rtx::Testing
             mRenderer.resize(size, size);
             mRenderer.setSea(shot.mSea);
             mRenderer.setAnisotropy(shot.mAnisotropy);
+            mRenderer.setGamma(shot.mGamma);
             if (shot.mSetScene)
                 mRenderer.setScene(Rtx::SceneSlot::world(), scene, inSceneOrder(scene, textures));
             else

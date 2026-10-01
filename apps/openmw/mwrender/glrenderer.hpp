@@ -200,6 +200,10 @@ namespace MWRender
         /// The present pass's quad, over where the frame lands in the window.
         void placeFrame();
 
+        /// `[Video] gamma` to the shader chain's last draw, or a warning and the gamma it had where
+        /// the file holds no number.
+        void applyGamma();
+
         /// Spreads the compiling of what a loader hands over across frames.
         ///
         /// **Decided here, because whether there is anything to compile is this renderer's own

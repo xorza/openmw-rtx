@@ -16,6 +16,9 @@ namespace MWRender
         Shader::ShaderManager& shaderManager, const std::shared_ptr<LuminanceCalculator>& luminanceCalculator)
         : mFallbackStateSet(new osg::StateSet)
         , mMultiviewResolveStateSet(new osg::StateSet)
+        , mGammaStateSet(new osg::StateSet)
+        , mMultiviewGammaStateSet(new osg::StateSet)
+        , mInverseGammaUniform(new osg::Uniform("inverseGamma", 1.0f))
         , mLuminanceCalculator(luminanceCalculator)
     {
         setUseDisplayList(false);
@@ -35,15 +38,36 @@ namespace MWRender
         Shader::ShaderManager::DefineMap defines;
         Stereo::shaderStereoDefines(defines);
 
-        mFallbackProgram = shaderManager.getProgram("fullscreen_tri");
+        mFallbackProgram = shaderManager.getProgram("fullscreen_tri", { { "gamma", "0" } });
 
         mFallbackStateSet->setAttributeAndModes(mFallbackProgram);
         mFallbackStateSet->addUniform(new osg::Uniform("lastShader", 0));
         mFallbackStateSet->addUniform(new osg::Uniform("scaling", osg::Vec2f(1, 1)));
 
-        mMultiviewResolveProgram = shaderManager.getProgram("multiview_resolve");
+        mMultiviewResolveProgram = shaderManager.getProgram("multiview_resolve", { { "gamma", "0" } });
         mMultiviewResolveStateSet->setAttributeAndModes(mMultiviewResolveProgram);
         mMultiviewResolveStateSet->addUniform(new osg::Uniform("lastShader", 0));
+
+        mGammaStateSet->setAttributeAndModes(shaderManager.getProgram("fullscreen_tri", { { "gamma", "1" } }));
+        mGammaStateSet->addUniform(new osg::Uniform("lastShader", 0));
+        mGammaStateSet->addUniform(new osg::Uniform("scaling", osg::Vec2f(1, 1)));
+        mGammaStateSet->addUniform(mInverseGammaUniform);
+
+        mMultiviewGammaStateSet->setAttributeAndModes(
+            shaderManager.getProgram("multiview_resolve", { { "gamma", "1" } }));
+        mMultiviewGammaStateSet->addUniform(new osg::Uniform("lastShader", 0));
+        mMultiviewGammaStateSet->addUniform(mInverseGammaUniform);
+    }
+
+    osg::StateSet* PingPongCanvas::resolveStateSet(const bool multiview) const
+    {
+        if (mInverseGamma == 1.0f)
+            return multiview ? mMultiviewResolveStateSet.get() : mFallbackStateSet.get();
+
+        // Written by the draw that reads it, from what the cull handed this canvas: the state set is
+        // in no graph, so nothing else traverses it.
+        mInverseGammaUniform->set(mInverseGamma);
+        return multiview ? mMultiviewGammaStateSet.get() : mGammaStateSet.get();
     }
 
     void PingPongCanvas::setPasses(Fx::DispatchArray&& passes)
@@ -119,12 +143,12 @@ namespace MWRender
 
         if (filtered.empty() || !mPostprocessing)
         {
-            state.pushStateSet(mFallbackStateSet);
+            state.pushStateSet(resolveStateSet(false));
             state.apply();
 
             if (Stereo::getMultiview())
             {
-                state.pushStateSet(mMultiviewResolveStateSet);
+                state.pushStateSet(resolveStateSet(true));
                 state.apply();
             }
 
@@ -193,6 +217,14 @@ namespace MWRender
         mLuminanceCalculator->draw(*this, renderInfo, state, ext, frameId);
 
         auto buffer = buffers[0];
+
+        // **A technique's resolve is the technique's own shader**, which has no gamma in it. So
+        // where there is one to apply and nothing after this draws into the window, the resolve
+        // goes into the ping-pong buffers like any other pass and one more draw carries it to the
+        // destination: a full-screen draw that only a gamma away from one with a technique on pays.
+        // Under multiview the resolve below is the last draw and applies it itself.
+        const bool gammaResolve = mInverseGamma != 1.0f && !Stereo::getMultiview();
+        bool resolved = false;
 
         int lastDraw = 0;
         int lastShader = 0;
@@ -308,7 +340,7 @@ namespace MWRender
 
                     lastApplied = pass.mRenderTarget->getHandle(state.getContextID());
                 }
-                else if (pass.mResolve && index == filtered.back())
+                else if (pass.mResolve && index == filtered.back() && !gammaResolve)
                 {
                     bindDestinationFbo();
                     if (!Stereo::getMultiview())
@@ -318,6 +350,7 @@ namespace MWRender
                 }
                 else if (lastPass)
                 {
+                    resolved = resolved || (pass.mResolve && index == filtered.back());
                     lastDraw = buffer[0];
                     lastShader = buffer[0];
                     mFbos[buffer[0] - GL_COLOR_ATTACHMENT0_EXT]->apply(state, osg::FrameBufferObject::DRAW_FRAMEBUFFER);
@@ -327,6 +360,7 @@ namespace MWRender
                 }
                 else
                 {
+                    resolved = resolved || (pass.mResolve && index == filtered.back());
                     mFbos[buffer[0] - GL_COLOR_ATTACHMENT0_EXT]->apply(state, osg::FrameBufferObject::DRAW_FRAMEBUFFER);
                     lastDraw = buffer[0];
                     std::swap(buffer[0], buffer[1]);
@@ -358,13 +392,28 @@ namespace MWRender
             state.popStateSet();
         }
 
+        if (resolved)
+        {
+            bindDestinationFbo();
+            resolveViewport->apply(state);
+            state.pushStateSet(resolveStateSet(false));
+            state.apply();
+            state.applyTextureAttribute(
+                0, mFbos[lastDraw - GL_COLOR_ATTACHMENT0_EXT]->getAttachment(osg::Camera::COLOR_BUFFER0).getTexture());
+
+            drawGeometry(renderInfo);
+
+            state.popStateSet();
+            state.apply();
+        }
+
         if (Stereo::getMultiview())
         {
             ext->glBindFramebuffer(GL_DRAW_FRAMEBUFFER_EXT, 0);
             lastApplied = 0;
 
             resolveViewport->apply(state);
-            state.pushStateSet(mMultiviewResolveStateSet);
+            state.pushStateSet(resolveStateSet(true));
             state.apply();
 
             drawGeometry(renderInfo);

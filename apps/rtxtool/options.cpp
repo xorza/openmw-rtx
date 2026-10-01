@@ -380,6 +380,12 @@ namespace RtxTool
             "by the same ring. Not given, `settings-default.cfg`'s `[Terrain] object paging`, or "
             "the player's own under `view`");
 
+        option(sFramed, "gamma", bpo::value<float>(),
+            "the player's display gamma over the finished picture, after the display curve: each "
+            "encoded value to the power of one over this, so more than one lifts the darks and black "
+            "and white stay. Not given, `settings-default.cfg`'s `[Video] gamma`, which is one and "
+            "leaves the picture as the curve wrote it, or the player's own under `view`");
+
         option(sFramed, "distant-cells", bpo::value<float>(),
             "how far out the cell ring stands ground and statics, in cells. Outside the active grid "
             "a cell's layer stack is flattened into one baked texture, so this is also how many "

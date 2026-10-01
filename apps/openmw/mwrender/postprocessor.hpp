@@ -208,6 +208,9 @@ namespace MWRender
         /// Where the last pass draws: the frame the renderer presents scaled, or the window where null.
         void setOutput(osg::ref_ptr<osg::FrameBufferObject> output) { mOutput = std::move(output); }
 
+        /// `[Video] gamma`, which the canvas's last draw into the output applies.
+        void setGamma(float gamma) { mInverseGamma = 1.0f / gamma; }
+
         void disableDynamicShaders();
 
         int renderWidth() const;
@@ -265,6 +268,7 @@ namespace MWRender
         bool mTriggerShaderReload = false;
         bool mUsePostProcessing = false;
         osg::ref_ptr<osg::FrameBufferObject> mOutput;
+        float mInverseGamma = 1.0f;
 
         bool mUBO = false;
         bool mHDR = false;

@@ -548,6 +548,13 @@ namespace Rtx
             // alpha above would have had either way.
             EXPECT_EQ(inTexture(texture, extent, 8, 8), sheetLit()) << "the sheet, lit";
 
+            // **And at the player's gamma, as it was.** A picture inside the interface keeps the
+            // interface's values, and a gamma of two would lift 98 to 158.
+            mRenderer.setGamma(2.0f);
+            mRenderer.traceGuiTexture(texture, camera, GuiTraceOptions{});
+            EXPECT_EQ(inTexture(texture, extent, 8, 8), sheetLit()) << "the sheet, lit, under a gamma";
+            mRenderer.setGamma(1.0f);
+
             // The same picture with a sky behind it, which is what a frame filling a window has:
             // every pixel opaque, the corner included.
             //

@@ -68,7 +68,9 @@ pointer and Lua read one size whichever renderer draws.
   the distance stands scripted stages the game keeps down.
 - The port to SDL3, through the input, the GUI and the window code: the presentation reads a
   window's pixel density and display scale, which a fractionally scaled Wayland desktop sets and
-  SDL2 cannot report.
+  SDL2 cannot report. SDL3 has no gamma ramp, so `[Video] gamma` is the renderers' own: the
+  rasterizer's canvas applies it in its last draw into the frame (`PingPongCanvas`), as the tone
+  pass does in the ray tracer.
 - The five checks the top-level `CMakeLists.txt` adds to upstream's, on for the whole tree, and
   the hunks in upstream code that keep it clean under them, the patches to `extern/sol3` and
   `components/files/configurationmanager` included: one set of checks for every file.

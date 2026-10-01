@@ -315,6 +315,9 @@ namespace RtxTool
                 .mSpecularMapLayout = Settings::rtx().mSpecularMapLayout.get(),
                 .mAnisotropy = watched ? Settings::general().mAnisotropy.get()
                                        : std::stoi(shippedDefault(command.mConfig, "General", "anisotropy")),
+                .mGamma = given("gamma") ? variables["gamma"].as<float>()
+                    : watched            ? Settings::video().mGamma.get()
+                                         : std::stof(shippedDefault(command.mConfig, "Video", "gamma")),
             });
             framed.mSetup.mMirror = derived.mMirror;
 
@@ -328,6 +331,7 @@ namespace RtxTool
             Rtx::RenderProfile& profile = framed.mSetup.mProfile;
             profile.mUpscale = derived.mUpscale;
             profile.mAnisotropy = derived.mAnisotropy;
+            profile.mGamma = derived.mGamma;
             profile.mDelight = variables["delight"].as<float>();
             profile.mReconstruction.mDenoise = variables["filter"].as<bool>();
             profile.mShow = Rtx::sSurfaceViewNames.require(variables["show"].as<std::string>(), "a surface view");

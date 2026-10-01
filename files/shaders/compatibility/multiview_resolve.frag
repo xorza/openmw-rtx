@@ -4,6 +4,10 @@
 varying vec2 uv;
 uniform sampler2DArray lastShader;
 
+#if @gamma
+uniform float inverseGamma;
+#endif
+
 void main()
 {
     int view = 0;
@@ -15,4 +19,7 @@ void main()
     }
 
     gl_FragColor = texture2DArray(lastShader, uvz);
+#if @gamma
+    gl_FragColor.rgb = pow(max(gl_FragColor.rgb, vec3(0.0)), vec3(inverseGamma));
+#endif
 }

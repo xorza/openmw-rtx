@@ -296,6 +296,9 @@ namespace Rtx::Testing
         // histories, the exposure, the ripples on the water — is state a test did not draw: a
         // footfall one test presses into the water bends the next test's still sea.
         mRenderer.resetHistory();
+
+        // And no gamma a previous test asked for, which every picture after it would be raised by.
+        mRenderer.setGamma(1.0f);
     }
 
     void RendererTest::TearDown()

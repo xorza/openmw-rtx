@@ -24,9 +24,10 @@ namespace MWRender
         float mObjectPagingMinSize = 0.0f;
         std::string_view mSpecularMapLayout;
         int mAnisotropy = 0;
+        float mGamma = 1.0f;
 
-        /// `[RTX]`, `[Camera] viewing distance`, `[Terrain]`'s paging and `[General] anisotropy`:
-        /// the one place the game reads these settings.
+        /// `[RTX]`, `[Camera] viewing distance`, `[Terrain]`'s paging, `[General] anisotropy` and
+        /// `[Video] gamma`: the one place the game reads these settings.
         static RtxSettingValues fromRegistry();
     };
 
@@ -39,8 +40,12 @@ namespace MWRender
         /// `RenderProfile::mAnisotropy`: the setting, where nought means what one does.
         std::uint32_t mAnisotropy = 1;
 
-        /// Throws `Rtx::InputError` for a spelling that names no mode: a setting refused rather
-        /// than defaulted, so a typo is said at once and not traced under for a session.
+        /// `RenderProfile::mGamma`: the setting, a finite number greater than nought.
+        float mGamma = 1.0f;
+
+        /// Throws `Rtx::InputError` for a spelling that names no mode, or a gamma that is not a
+        /// finite number greater than nought: a setting refused rather than defaulted, so a typo is said at
+        /// once and not traced under for a session.
         static RtxSettings derive(const RtxSettingValues& values);
     };
 }

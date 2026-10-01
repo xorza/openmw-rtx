@@ -138,5 +138,7 @@ void main()
     const vec3 encoded = encodeSrgb(toneMap(graded(lit.rgb * exposure, TONE_CONTRAST, TONE_SATURATION)));
     const vec3 washed = min(encoded + frame.mGlareColour * (frame.mGlareAmount * sunGlareShare), vec3(1.0));
 
-    imageStore(target, at, vec4(washed, alpha));
+    // **The player's gamma over the whole of that**, for the reason `ToneConstants::mInverseGamma`
+    // gives. A push constant, so `displayGamma`'s test of one is taken alike by every lane.
+    imageStore(target, at, vec4(displayGamma(washed, frame.mInverseGamma), alpha));
 }

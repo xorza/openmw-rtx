@@ -166,3 +166,19 @@ Video Settings
    (often 60 frames per second).
    Choosing to limit the frame rate using this setting instead of vsync may reduce input lag
    due to the game not having to wait for the vertical blanking interval.
+
+
+.. omw-setting::
+   :title: gamma
+   :type: float32
+   :range: > 0.0
+   :default: 1.0
+   :location: :bdg-info:`In Game > Options > Video > Video`
+
+   This setting controls the gamma correction of the world's picture.
+   Gamma is an exponent that makes colors brighter if greater than 1.0 and darker if less than 1.0.
+   Black and white stay where they are.
+
+   Each renderer applies it to the picture it draws, so it works on every platform.
+   The interface, videos, the inventory preview and the maps keep their own colors,
+   and screenshots and saved game previews show the picture as corrected.
