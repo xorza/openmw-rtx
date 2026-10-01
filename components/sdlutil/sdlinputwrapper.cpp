@@ -196,12 +196,15 @@ namespace SDLUtil
                     if (mSensorListener && evt.display.displayID == SDL_GetDisplayForWindow(mSDLWindow))
                         mSensorListener->displayOrientationChanged();
                     break;
+                case SDL_EVENT_DISPLAY_DESKTOP_MODE_CHANGED:
+                case SDL_EVENT_DISPLAY_CONTENT_SCALE_CHANGED:
+                    if (mWindowListener && evt.display.displayID == SDL_GetDisplayForWindow(mSDLWindow))
+                        mWindowListener->windowDisplayChanged();
+                    break;
                 case SDL_EVENT_DISPLAY_ADDED:
                 case SDL_EVENT_DISPLAY_REMOVED:
                 case SDL_EVENT_DISPLAY_MOVED:
-                case SDL_EVENT_DISPLAY_DESKTOP_MODE_CHANGED:
                 case SDL_EVENT_DISPLAY_CURRENT_MODE_CHANGED:
-                case SDL_EVENT_DISPLAY_CONTENT_SCALE_CHANGED:
                 case SDL_EVENT_DISPLAY_USABLE_BOUNDS_CHANGED:
                 case SDL_EVENT_LOCALE_CHANGED:
                 case SDL_EVENT_SYSTEM_THEME_CHANGED:
@@ -301,6 +304,12 @@ namespace SDLUtil
             }
             case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
                 _setWindowScale();
+                if (mWindowListener)
+                    mWindowListener->windowDisplayChanged();
+                break;
+            case SDL_EVENT_WINDOW_DISPLAY_CHANGED:
+                if (mWindowListener)
+                    mWindowListener->windowDisplayChanged();
                 break;
 
             case SDL_EVENT_WINDOW_FOCUS_GAINED:

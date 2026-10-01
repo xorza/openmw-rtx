@@ -60,4 +60,14 @@ namespace Misc
         presentation.mShownOrigin = (presentation.mDrawable - shown) / 2;
         return presentation;
     }
+
+    float interfaceScale(const float setting, const osg::Vec2i frame, const osg::Vec2i displayPoints)
+    {
+        if (displayPoints.x() <= 0 || displayPoints.y() <= 0)
+            return setting;
+
+        const float across = std::max(static_cast<float>(frame.x()) / static_cast<float>(displayPoints.x()),
+            static_cast<float>(frame.y()) / static_cast<float>(displayPoints.y()));
+        return setting * std::max(1.f, across);
+    }
 }

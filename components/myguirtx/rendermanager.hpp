@@ -55,7 +55,7 @@ namespace MyGUIRtx
     class RenderManager final : public MyGUIPlatform::GuiRenderManager, public MyGUI::IRenderTarget
     {
     public:
-        /// @param scalingFactor how many device pixels a GUI pixel is worth. Zero means one.
+        /// @param scalingFactor how many device pixels a GUI pixel is worth.
         RenderManager(Rtx::GuiRenderer& renderer, Resource::ImageManager* imageManager, float scalingFactor);
         ~RenderManager() override;
 
@@ -148,8 +148,6 @@ namespace MyGUIRtx
         /// every frame rather than rebuilt, because this happens once a frame forever.
         std::vector<Rtx::GuiVertex> mVertices;
         std::vector<Rtx::GuiBatch> mBatches;
-
-        float mInvScalingFactor = 1.0f;
 
         /// What every batch gathered from here on is marked with. `AdditiveLayer` moves it either
         /// way around the one layer that wants it.

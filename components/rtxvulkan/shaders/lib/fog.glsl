@@ -54,12 +54,11 @@ vec2 fogFieldAt(vec3 position, float tile, float spacing, uint scale)
 ///
 /// **Fetched rather than computed.** A field hashed at every step is eight lattice corners per
 /// octave and five octaves — forty hashes at every step of a twenty-four step march, which is
-/// nearly the whole of a trace. Three fetches stand for all of it, and what they read is the same
-/// trilinear value noise the reference hashes, drawn once.
+/// nearly the whole of a trace. Three fetches stand for all of it, and what they read is that
+/// trilinear value noise, drawn once.
 ///
-/// **The three scales are the fractal**, and they are the same three the renderer this is ported
-/// from sums over a hash: amplitudes halving, frequencies stepping by `FOG_LACUNARITY`, each on
-/// its own drift. The volume under them is one octave and nothing more.
+/// **The three scales are the fractal**: amplitudes halving, frequencies stepping by
+/// `FOG_LACUNARITY`, each on its own drift. The volume under them is one octave and nothing more.
 ///
 /// Its mean is a half and its spread is `FOG_FIELD_SPREAD`, at every level and every distance,
 /// which is what the coverage band is cut against.

@@ -594,20 +594,16 @@ namespace Rtx::Shaders
     /// How large one cell of the coarsest scale is, in world units, and so how wide the whole tile is
     /// laid out at that scale.
     ///
-    /// **Eighteen hundred, twice the grain the renderer this is ported from settled at.** Its §8.40
-    /// made the grain *coarser* — 1,400 to 3,000 units — because structure finer than the march's
-    /// step aliased, and got fog whose shape was visible only from a ridge. Its §8.41 found that
-    /// diagnosis wrong, since aliasing is not the limit, and took the grain back down to 900. That
-    /// was a look and not a bound: seen from a street at nine hundred, a bank was a puff a few
-    /// metres across and the air read as clots rather than as weather. Twice that is a bank the
-    /// width of a house, and fog still has its shape where it is optically thick over a short
-    /// distance, which is §8.41's own argument.
+    /// **Eighteen hundred, a bank the width of a house.** Neither way is bounded by aliasing, because
+    /// fog keeps its shape where it is optically thick over a short distance; both are bounded by the
+    /// look. A coarser grain — 1,400 to 3,000 units — gives fog whose shape is visible only from a
+    /// ridge. A finer one reads as clots rather than as weather: seen from a street at nine hundred,
+    /// a bank is a puff a few metres across.
     ///
-    /// **The other half of that finding is free here.** Its fix was *sparse and dense rather than
-    /// uniform and thin* — a band clearing more of the volume, with the extinction doubled by hand to
-    /// pay for it. `FOG_COVERAGE` divides that back out, so a band that clears more of the ground
-    /// thickens what is left by exactly as much, and neither number has to be re-tuned against the
-    /// other.
+    /// **Sparse and dense rather than uniform and thin, with nothing tuned by hand.** A band that
+    /// clears more of the volume needs more extinction in what is left. `FOG_COVERAGE` divides that
+    /// back out, so a band that clears more of the ground thickens what is left by exactly as much,
+    /// and neither number has to be re-tuned against the other.
     ///
     /// **Aliasing is what would stop this from shrinking, and the mip chain answers it.** A field
     /// hashed at every step hands anything finer than the step between two samples over as noise, and
@@ -628,8 +624,7 @@ namespace Rtx::Shaders
     /// **Half a cell of the coarsest scale, because what a warp does is relative to what it bends.**
     /// A displacement much larger than the feature it moves is not a curl, it is a second draw of the
     /// same field at an unrelated place — so a figure fixed in world units would stop warping and
-    /// start scrambling the moment the grain moved. Half is the ratio the renderer this is ported
-    /// from settled at: 450 units over its grain of 900.
+    /// start scrambling the moment the grain moved.
     const float FOG_WARP = FOG_GRAIN * 0.5f;
 
     /// The step between them. Not two, so the tiles never realign and repeat.
@@ -671,8 +666,7 @@ namespace Rtx::Shaders
     ///
     /// **Four texels is the last level that holds, and that is level three of six.** Past it a step
     /// reads a field it cannot resolve and what comes back is noise, which the jittered step and the
-    /// temporal filter take out — and which is what the renderer this is ported from lives with at
-    /// every step, having no chain to climb at all.
+    /// temporal filter take out.
     const float FOG_FIELD_COARSEST = 3.0f;
 
     /// What a recorded `Wind Speed` of one comes to in world units a second.

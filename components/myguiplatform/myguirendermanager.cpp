@@ -349,16 +349,14 @@ namespace MyGUIPlatform
 
     RenderManager::RenderManager(
         osgViewer::Viewer* viewer, osg::Group* sceneroot, Resource::ImageManager* imageManager, float scalingFactor)
-        : mViewer(viewer)
+        : GuiRenderManager(scalingFactor)
+        , mViewer(viewer)
         , mSceneRoot(sceneroot)
         , mImageManager(imageManager)
         , mUpdate(false)
         , mIsInitialise(false)
-        , mInvScalingFactor(1.f)
         , mInjectState(nullptr)
     {
-        if (scalingFactor != 0.f)
-            mInvScalingFactor = 1.f / scalingFactor;
     }
 
     RenderManager::~RenderManager()
@@ -501,7 +499,7 @@ namespace MyGUIPlatform
 
         mGuiRoot->setViewport(0, 0, width, height);
 
-        mViewSize.set(static_cast<int>(width * mInvScalingFactor), static_cast<int>(height * mInvScalingFactor));
+        mViewSize = scaledView(width, height);
 
         mInfo.maximumDepth = 1;
         mInfo.hOffset = 0;

@@ -77,5 +77,23 @@ namespace Misc
             for (const osg::Vec2f point : { osg::Vec2f(0, 0), osg::Vec2f(100, 250), osg::Vec2f(2559, 1079) })
                 EXPECT_EQ(presentation.toFrame(presentation.toDrawable(point)), point);
         }
+
+        /// A display of 7680 × 2160 pixels at a density of 1.5 is 5120 × 1440 points. Its own
+        /// resolution puts max(7680 / 5120, 2160 / 1440) = 1.5 frame pixels on a point, and so does
+        /// 3840 × 2160 by its height; 2560 × 1440 puts one, and 800 × 600 puts max(0.16, 0.42), which
+        /// the floor of one raises. The setting multiplies whichever, and a display of no size
+        /// leaves the setting alone.
+        TEST(MiscPresentationTest, theInterfaceScaleIsTheFramePixelsOnAPointAndNeverUnderOne)
+        {
+            const osg::Vec2i display(5120, 1440);
+            EXPECT_FLOAT_EQ(interfaceScale(1.f, { 7680, 2160 }, display), 1.5f);
+            EXPECT_FLOAT_EQ(interfaceScale(1.f, { 3840, 2160 }, display), 1.5f);
+            EXPECT_FLOAT_EQ(interfaceScale(1.f, { 2560, 1440 }, display), 1.f);
+            EXPECT_FLOAT_EQ(interfaceScale(1.f, { 800, 600 }, display), 1.f);
+            EXPECT_FLOAT_EQ(interfaceScale(1.f, { 1200, 900 }, display), 1.f) << "a small window at Native";
+            EXPECT_FLOAT_EQ(interfaceScale(2.f, { 800, 600 }, display), 2.f);
+            EXPECT_FLOAT_EQ(interfaceScale(2.f, { 7680, 2160 }, display), 3.f);
+            EXPECT_FLOAT_EQ(interfaceScale(1.25f, { 7680, 2160 }, { 0, 0 }), 1.25f);
+        }
     }
 }

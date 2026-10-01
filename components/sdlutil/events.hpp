@@ -97,6 +97,9 @@ namespace SDLUtil
         virtual void windowClosed() {}
 
         virtual void windowResized(int x, int y) {}
+
+        /// The window went to another display, or its display's desktop mode or scale changed.
+        virtual void windowDisplayChanged() {}
     };
 
 }

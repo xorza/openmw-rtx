@@ -412,10 +412,7 @@ namespace Rtx
         /// half gone at `view * (1 - depth / 2)`, while an exponential is half gone at
         /// `ln(2) / sigma`. Over the game's own view range, clear weather's 0.69 is
         ///
-        ///   ln(2) / (7168 * 0.655) = 1.4763e-4 per unit,
-        ///
-        /// which is where the renderer this is ported from arrived by eye at 1.5e-4. Two routes to
-        /// one number, and the reason this one is derived rather than copied.
+        ///   ln(2) / (7168 * 0.655) = 1.4763e-4 per unit.
         TEST(RtxFogTest, aRecordedDepthBecomesTheExtinctionThatHalvesWhereTheOriginalRampDoes)
         {
             // Stated rather than read, because the figures below are only the game's if this is.

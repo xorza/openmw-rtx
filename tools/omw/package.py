@@ -59,11 +59,12 @@ def _archive_linux(build: Build, name: str) -> None:
     shell, buffer and decoration plugins a Wayland window needs, so the launcher opens on a session
     with no XWayland. The Vulkan loader goes in, the 1.4 one the binaries were linked against: the
     loader is not the driver, and Ubuntu 24.04's 1.3 loader has none of the 1.4 entry points the
-    backend calls. The update information points AppImageUpdate at this repository's releases.
-    AppStream validation is off: upstream's metainfo carries warnings appstreamcli refuses. The tools
-    are AppImages themselves and a runner has no FUSE, so they extract and run. What the image takes
-    from the host is the AppImage exclude list — glibc and libstdc++, the GL stack, X11, Wayland,
-    fontconfig, ALSA — at the versions of a bare Ubuntu 24.04."""
+    backend calls. Its Apache-2.0 text goes in beside the licences the install put there. The update
+    information points AppImageUpdate at this repository's releases. AppStream validation is off:
+    upstream's metainfo carries warnings appstreamcli refuses. The tools are AppImages themselves
+    and a runner has no FUSE, so they extract and run. What the image takes from the host is the
+    AppImage exclude list — glibc and libstdc++, the GL stack, X11, Wayland, fontconfig, ALSA — at
+    the versions of a bare Ubuntu 24.04."""
     qmake = require("qmake6", "the Qt plugin reads Qt's layout off it: qt6-base-dev-tools")
     require("pkg-config", "OSG's version and library directory come off its .pc: pkg-config")
     require("zsyncmake", "the update information wants a .zsync beside the image: zsync")
@@ -73,6 +74,7 @@ def _archive_linux(build: Build, name: str) -> None:
     shutil.rmtree(appdir, ignore_errors=True)
     run(["cmake", "--install", build.dir, "--prefix", appdir / "usr" / "bin"], env=build.env, stdout=subprocess.DEVNULL)
     (appdir / "usr" / "bin" / "share").rename(appdir / "usr" / "share")
+    shutil.copy2(ROOT / "files" / "licenses" / "Vulkan-Loader.txt", appdir / "usr" / "bin" / "licenses")
 
     osg_version = output(["pkg-config", "--modversion", "openscenegraph-osg"]).strip()
     osg_libdir = Path(output(["pkg-config", "--variable=libdir", "openscenegraph-osg"]).strip())

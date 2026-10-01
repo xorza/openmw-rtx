@@ -52,8 +52,6 @@ namespace MyGUIPlatform
 
         osg::ref_ptr<osg::Camera> mGuiRoot;
 
-        float mInvScalingFactor;
-
         osg::StateSet* mInjectState;
 
     public:

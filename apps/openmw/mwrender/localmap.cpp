@@ -73,7 +73,7 @@ namespace MWRender
         , mSceneRoot(&sceneRoot)
         , mStorage(storage)
         , mMapResolution(static_cast<int>(
-              Settings::map().mLocalMapResolution * MWBase::Environment::get().getWindowManager()->getScalingFactor()))
+              Settings::map().mLocalMapResolution * MWBase::Environment::get().getWindowManager()->getRasterScale()))
         , mMapWorldSize(Constants::CellSizeInUnits)
         , mCellDistance(Constants::CellGridRadius)
         , mAngle(0.f)
