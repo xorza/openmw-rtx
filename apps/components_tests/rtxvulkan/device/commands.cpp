@@ -49,17 +49,17 @@ namespace Rtx
             // A hundred rounded up to the sixteen a copy offset has to start on.
             EXPECT_EQ(second.mOffset, 112u);
 
-            // **Past the block rather than rounded up to it**, so an upload larger than one gets a
-            // block of its own exactly its size — which leaves the upload after it nowhere to go
-            // but a block of its own as well.
+            // **An upload larger than a block takes a block that holds it**: one of its own exactly
+            // its size, or one the pool already had and larger, which a test before this one in a
+            // shuffled order can have left free. Either way the upload after it lands clear of it.
             const std::vector<std::byte> past(sStagingBlock + 1, std::byte{ 3 });
             const StagingRun alone = batch.stage(past);
             const StagingRun after = batch.stage(fifty);
 
             EXPECT_NE(alone.mBuffer, first.mBuffer) << "an upload landed in a block with no room for it";
             EXPECT_EQ(alone.mOffset, 0u);
-            EXPECT_NE(after.mBuffer, alone.mBuffer) << "an upload landed in a block with no room for it";
-            EXPECT_EQ(after.mOffset, 0u);
+            EXPECT_TRUE(after.mBuffer != alone.mBuffer || after.mOffset >= alone.mOffset + past.size())
+                << "an upload landed over the one before it";
 
             batch.flush();
         }
