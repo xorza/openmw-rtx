@@ -26,7 +26,8 @@ namespace Rtx
 
     void StressPass::record(VkCommandBuffer commands, GpuTimer& timer, const Buffer& counts)
     {
-        timer.open(commands, RenderProfile::sHoldZone);
+        // A literal, so its view is terminated.
+        timer.open(commands, RenderProfile::sHoldZone.data());
 
         DescriptorWrites writes(mPipeline);
         writes.buffer(Shaders::STRESS_BIND_COUNTS, counts.describe());

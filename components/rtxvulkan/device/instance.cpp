@@ -56,10 +56,6 @@ namespace Rtx
         std::vector<const char*> extensions(surfaceExtensions.begin(), surfaceExtensions.end());
         std::vector<const char*> layers;
 
-        // Object names and command-buffer labels are what make a capture readable, and a capture is
-        // most wanted on a run that is not carrying the layers, so the extension is asked for
-        // whenever this build names anything.
-        const bool wantDebugUtils = sDebugNames || options.mLevel != ValidationLevel::Off;
         // What the device half of swapchain maintenance rests on: a present fence is the only
         // thing that says the presentation engine has finished with an image. Surface maintenance
         // rests in turn on the extended surface query, and both are taken where the loader has
@@ -71,7 +67,10 @@ namespace Rtx
             extensions.push_back(VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME);
         }
 
-        const bool debugUtils = wantDebugUtils && loaderOffers(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        // Asked for wherever the loader offers it, which is every build: command-buffer labels are
+        // what make a profile readable, and the release build is the one a profiler reads. Object
+        // names stay this build's own (`Device::setName`).
+        const bool debugUtils = loaderOffers(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
         // Validation reaches us only through the messenger, so without the extension it would run
         // and report nothing — worse than not running at all, because the clean output would read

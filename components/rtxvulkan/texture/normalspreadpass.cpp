@@ -7,7 +7,6 @@
 
 #include <components/rtx/shaders/normalspread.h>
 #include <components/rtxvulkan/device/memory/image.hpp>
-#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 
 namespace Rtx
@@ -28,43 +27,33 @@ namespace Rtx
     {
     }
 
-    void NormalSpreadPass::record(
-        const VkCommandBuffer commands, const Image& map, const Image& means, const Image& spread) const
+    void NormalSpreadPass::recordLevel(const VkCommandBuffer commands, const Image& map, const Image& means,
+        const Image& spread, const std::uint32_t level) const
     {
         assert(spread.getWidth() == std::max(map.getWidth() / 2, 1u)
             && spread.getHeight() == std::max(map.getHeight() / 2, 1u)
             && "a spread shaped unlike its map's second level");
         assert(means.getWidth() == spread.getWidth() && means.getHeight() == spread.getHeight()
             && means.getMipLevels() == spread.getMipLevels() && "means shaped unlike the spread they are carried for");
+        assert(level < spread.getMipLevels() && "a level past the spread");
 
-        // Read and written from the first dispatch on, for the reason `MipChainPass::record` gives:
-        // every dispatch binds the level before the one it writes, the first bound to its own.
-        means.transition(commands, Use::sUndefined, Use::sComputeReadWrite);
-        spread.transition(commands, Use::sUndefined, Use::sComputeWrite);
+        // Every dispatch binds the level before the one it writes, the first bound to its own, for
+        // the reason `MipChainPass::recordLevel` gives.
+        DescriptorWrites writes(mPipeline);
+        writes.image(Shaders::NORMALSPREAD_BIND_SOURCE,
+            map.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
+        writes.image(Shaders::NORMALSPREAD_BIND_ABOVE, means.describeStorage(level > 0 ? level - 1 : 0));
+        writes.image(Shaders::NORMALSPREAD_BIND_MEAN, means.describeStorage(level));
+        writes.image(Shaders::NORMALSPREAD_BIND_SPREAD, spread.describeStorage(level));
 
-        for (std::uint32_t level = 0; level < spread.getMipLevels(); ++level)
-        {
-            if (level > 0)
-                means.transition(commands, Use::sComputeReadWrite, Use::sComputeReadWrite);
+        const Shaders::NormalSpreadConstants constants{
+            .mLevel = level + 1,
+            .mWidth = spread.getWidthAt(level),
+            .mHeight = spread.getHeightAt(level),
+            .mPadding = 0,
+        };
 
-            DescriptorWrites writes(mPipeline);
-            writes.image(Shaders::NORMALSPREAD_BIND_SOURCE,
-                map.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
-            writes.image(Shaders::NORMALSPREAD_BIND_ABOVE, means.describeStorage(level > 0 ? level - 1 : 0));
-            writes.image(Shaders::NORMALSPREAD_BIND_MEAN, means.describeStorage(level));
-            writes.image(Shaders::NORMALSPREAD_BIND_SPREAD, spread.describeStorage(level));
-
-            const Shaders::NormalSpreadConstants constants{
-                .mLevel = level + 1,
-                .mWidth = spread.getWidthAt(level),
-                .mHeight = spread.getHeightAt(level),
-                .mPadding = 0,
-            };
-
-            dispatch(commands, mPipeline, writes, constants,
-                Groups::covering(constants.mWidth, constants.mHeight, Shaders::NORMAL_SPREAD_WORKGROUP));
-        }
-
-        spread.transition(commands, Use::sComputeWrite, Use::sTextureSample);
+        dispatch(commands, mPipeline, writes, constants,
+            Groups::covering(constants.mWidth, constants.mHeight, Shaders::NORMAL_SPREAD_WORKGROUP));
     }
 }

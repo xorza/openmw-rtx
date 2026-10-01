@@ -101,7 +101,7 @@ namespace Rtx
         // recorded.
         Barriers opened(commands);
         for (const Image& level : mLevels)
-            opened.add(level.describeTransition(Use::sUndefined, Use::sComputeWrite));
+            level.addTransition(opened, Use::sUndefined, Use::sComputeWrite);
 
         opened.flush();
 
@@ -125,9 +125,9 @@ namespace Rtx
             const Image& finer = mLevels[level - 1];
 
             Barriers between(commands);
-            between.add(finer.describeTransition(Use::sComputeWrite, Use::sComputeReadWrite));
+            finer.addTransition(between, Use::sComputeWrite, Use::sComputeReadWrite);
             if (written != nullptr)
-                between.add(written->describeTransition(Use::sComputeWrite, Use::sComputeSample));
+                written->addTransition(between, Use::sComputeWrite, Use::sComputeSample);
             between.flush();
 
             run(commands, mSpreadPipeline, mLevels[level], finer, Shaders::BLOOM_SCATTER);

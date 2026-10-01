@@ -225,12 +225,23 @@ namespace Rtx
 
     void Image::transition(VkCommandBuffer commands, const ImageUse& from, const ImageUse& to) const
     {
-        transitionLevels(commands, 0, mMipLevels, from, to);
+        Barriers barriers(commands);
+        addTransition(barriers, from, to);
+        barriers.flush();
     }
 
-    VkImageMemoryBarrier2 Image::describeTransition(const ImageUse& from, const ImageUse& to) const
+    void Image::addTransition(Barriers& barriers, const ImageUse& from, const ImageUse& to) const
     {
-        return describeLevels(0, mMipLevels, from, to);
+        if (from.mLayout != to.mLayout)
+        {
+            barriers.add(describeLevels(0, mMipLevels, from, to));
+            return;
+        }
+
+        // Named as `describeLevels` names it, because the barrier is this image's use whatever
+        // form it takes.
+        nameForNext();
+        barriers.add(memoryBarrier(BufferUse{ from.mStage, from.mAccess }, BufferUse{ to.mStage, to.mAccess }));
     }
 
     void Image::clear(
@@ -281,14 +292,6 @@ namespace Rtx
         // a description of one is where a use of the handle names the image.
         nameForNext();
         return imageBarrier(mHandle.get(), base, count, from, to);
-    }
-
-    void Image::transitionLevels(VkCommandBuffer commands, std::uint32_t base, std::uint32_t count,
-        const ImageUse& from, const ImageUse& to) const
-    {
-        Barriers barriers(commands);
-        barriers.add(describeLevels(base, count, from, to));
-        barriers.flush();
     }
 
     void Image::buildMips(VkCommandBuffer commands, const std::span<const Image* const> images)

@@ -43,7 +43,7 @@ namespace Rtx
         {
             Barriers between(commands);
             for (const Image* image : images)
-                between.add(image->describeTransition(Use::sComputeReadWrite, Use::sComputeReadWrite));
+                image->addTransition(between, Use::sComputeReadWrite, Use::sComputeReadWrite);
             between.flush();
         }
     }

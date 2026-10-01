@@ -1,12 +1,11 @@
 #include "shadingpass.hpp"
 
 #include <array>
+#include <cassert>
 
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/shadingmap.h>
-#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
-#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 
 namespace Rtx
@@ -25,46 +24,43 @@ namespace Rtx
             computeBinding(Shaders::SHADING_MAP_BIND_MAP, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
         };
 
-        constexpr VkDeviceSize sSumBytes
-            = VkDeviceSize{ Shaders::SHADING_EXTENT } * Shaders::SHADING_EXTENT * sizeof(Shaders::ShadingSum);
+        /// What both dispatches are told: the image's own size, and whether it punches through.
+        Shaders::ShadingConstants constantsOf(const Image& source, const bool punchThrough)
+        {
+            return Shaders::ShadingConstants{
+                .mWidth = source.getWidth(),
+                .mHeight = source.getHeight(),
+                .mPunchThrough = punchThrough ? 1u : 0u,
+            };
+        }
     }
 
     ShadingPass::ShadingPass(const Device& device)
         : mSum(device, sSumBindings, {}, "shadingsum.comp.spv", "shading sum")
         , mMap(device, sMapBindings, {}, "shadingmap.comp.spv", "shading map")
-        , mSums(Buffer::deviceLocal(device, sSumBytes, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shading sums"))
     {
     }
 
-    void ShadingPass::record(
-        const VkCommandBuffer commands, const Image& source, const Image& map, const bool punchThrough) const
+    void ShadingPass::recordSum(const VkCommandBuffer commands, const Image& source, const VkDescriptorBufferInfo& sums,
+        const bool punchThrough) const
     {
-        // Against the map stage of the texture before this one, which read the sums this is
-        // about to write over. An execution dependency is all a write-after-read needs.
-        mSums.transition(commands, Use::sBufferComputeRead, Use::sBufferComputeWrite);
-
-        // The image's size and not the file's: a texture held to a smaller side stands from a
-        // level further down, and the estimate reads the level the image begins at.
-        const Shaders::ShadingConstants constants{
-            .mWidth = source.getWidth(),
-            .mHeight = source.getHeight(),
-            .mPunchThrough = punchThrough ? 1u : 0u,
-        };
+        assert(sums.range == sSumBytes && "sums of another size than the card");
 
         DescriptorWrites summing(mSum);
         summing.image(Shaders::SHADING_SUM_BIND_SOURCE,
             source.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
-        summing.buffer(Shaders::SHADING_SUM_BIND_SUMS, mSums.describe());
-        dispatch(commands, mSum, summing, constants, Groups{ .mX = Shaders::SHADING_EXTENT });
+        summing.buffer(Shaders::SHADING_SUM_BIND_SUMS, sums);
+        dispatch(commands, mSum, summing, constantsOf(source, punchThrough), Groups{ .mX = Shaders::SHADING_EXTENT });
+    }
 
-        mSums.transition(commands, Use::sBufferComputeWrite, Use::sBufferComputeRead);
-        map.transition(commands, Use::sUndefined, Use::sComputeWrite);
+    void ShadingPass::recordMap(const VkCommandBuffer commands, const Image& source, const Image& map,
+        const VkDescriptorBufferInfo& sums, const bool punchThrough) const
+    {
+        assert(sums.range == sSumBytes && "sums of another size than the card");
 
         DescriptorWrites mapping(mMap);
-        mapping.buffer(Shaders::SHADING_MAP_BIND_SUMS, mSums.describe());
+        mapping.buffer(Shaders::SHADING_MAP_BIND_SUMS, sums);
         mapping.image(Shaders::SHADING_MAP_BIND_MAP, map.describeStorage());
-        dispatch(commands, mMap, mapping, constants, Groups{});
-
-        map.transition(commands, Use::sComputeWrite, Use::sTextureSample);
+        dispatch(commands, mMap, mapping, constantsOf(source, punchThrough), Groups{});
     }
 }

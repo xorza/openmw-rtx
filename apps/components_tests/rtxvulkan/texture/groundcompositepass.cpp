@@ -30,6 +30,7 @@
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/texture/groundcompositepass.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
+#include <components/rtxvulkan/texture/texturearrival.hpp>
 #include <components/rtxvulkan/texture/texturepasses.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -91,13 +92,19 @@ namespace Rtx
                 const Index material = scene.addMaterial(chunk);
 
                 Batch setup(getPool());
-                const auto made = [&](std::uint32_t output, TextureFormat format) {
-                    return (outputs & output) != 0
-                        ? std::move(Texture::composite(device, setup, format, "ground composite test").value())
-                        : Texture();
+                TextureArrival arrival(device);
+                arrival.open(2);
+                const auto stand = [&](Texture& into, std::uint32_t output, TextureFormat format) {
+                    if ((outputs & output) != 0)
+                    {
+                        EXPECT_TRUE(into.standComposite(device, arrival, format, "ground composite test").isOk());
+                    }
                 };
-                const Texture albedo = made(Shaders::GROUND_COMPOSITE_ALBEDO, TextureFormat::Rgba8Srgb);
-                const Texture gloss = made(Shaders::GROUND_COMPOSITE_GLOSS, TextureFormat::Rgba8Unorm);
+                Texture albedo;
+                Texture gloss;
+                stand(albedo, Shaders::GROUND_COMPOSITE_ALBEDO, TextureFormat::Rgba8Srgb);
+                stand(gloss, Shaders::GROUND_COMPOSITE_GLOSS, TextureFormat::Rgba8Unorm);
+                arrival.record(setup, passes);
                 TextureArray array(device, setup, layout, passes, 2);
                 std::vector<Refusal> refused;
                 array.write(setup, textures, refused);

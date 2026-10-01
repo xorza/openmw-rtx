@@ -324,6 +324,8 @@ set(RTX_VULKAN_FILES
     texture/spritelightpass.hpp
     texture/texture.cpp
     texture/texture.hpp
+    texture/texturearrival.cpp
+    texture/texturearrival.hpp
     texture/texturepasses.hpp
     trace/denoise/accumulatepass.cpp
     trace/denoise/accumulatepass.hpp

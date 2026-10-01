@@ -150,6 +150,8 @@ namespace Rtx
     {
         FaultReport,
         MemoryBudget,
+        MemoryPriority,
+        PageableMemory,
         PresentFences,
         Checkpoints,
         BufferMarkers,
@@ -168,6 +170,8 @@ namespace Rtx
         OptionalFeatures& operator=(const OptionalFeatures&) = delete;
 
         VkPhysicalDeviceFaultFeaturesEXT mFault{};
+        VkPhysicalDeviceMemoryPriorityFeaturesEXT mPriority{};
+        VkPhysicalDevicePageableDeviceLocalMemoryFeaturesEXT mPageable{};
         VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR mPresentFences{};
     };
 

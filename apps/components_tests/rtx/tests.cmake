@@ -153,6 +153,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/device/commands.cpp
     rtxvulkan/device/device.cpp
     rtxvulkan/device/gputimer.cpp
+    rtxvulkan/device/memory/barriers.cpp
     rtxvulkan/device/memory/buffer.cpp
     rtxvulkan/device/memory/memory.cpp
     rtxvulkan/device/memory/slottable.cpp
@@ -177,6 +178,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/texture/normalspreadpass.cpp
     rtxvulkan/texture/shadingpass.cpp
     rtxvulkan/texture/spritelightpass.cpp
+    rtxvulkan/texture/texturearrival.cpp
     rtxvulkan/texture/texturearray.cpp
     rtxvulkan/trace/fogvolume.cpp
     rtxvulkan/trace/ripplepass.cpp

@@ -181,9 +181,9 @@ namespace Rtx
         // the write visible to every read after it.
         Barriers barriers(commands);
         for (const Image* image : { &mScatter[written], &mSunward[written], &mLamps, &mColumnDepth, &mColumnMoons })
-            barriers.add(image->describeTransition(Use::sUndefined, Use::sTraceWrite));
+            image->addTransition(barriers, Use::sUndefined, Use::sTraceWrite);
         for (const Image* image : { &mAir, &mAirSunward, &mSlice, &mSliceSunward, &mSeeing })
-            barriers.add(image->describeTransition(Use::sUndefined, Use::sComputeWrite));
+            image->addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
 
         barriers.flush();
     }
@@ -193,8 +193,8 @@ namespace Rtx
         // The depth is loaded by the scatter launch, by the integrate dispatch and by the trace,
         // so the one hand-over names both stages; the moons by the scatter launch alone.
         Barriers barriers(commands);
-        barriers.add(mColumnDepth.describeTransition(Use::sTraceWrite, Use::sShaderStorageRead));
-        barriers.add(mColumnMoons.describeTransition(Use::sTraceWrite, Use::sTraceRead));
+        mColumnDepth.addTransition(barriers, Use::sTraceWrite, Use::sShaderStorageRead);
+        mColumnMoons.addTransition(barriers, Use::sTraceWrite, Use::sTraceRead);
         barriers.flush();
     }
 
@@ -207,7 +207,7 @@ namespace Rtx
         // the lamps deliver at a point (`puffLight`).
         Barriers barriers(commands);
         for (const Image* image : { &mScatter[written], &mSunward[written], &mLamps })
-            barriers.add(image->describeTransition(Use::sTraceWrite, Use::sShaderSample));
+            image->addTransition(barriers, Use::sTraceWrite, Use::sShaderSample);
 
         barriers.flush();
     }
@@ -216,7 +216,7 @@ namespace Rtx
     {
         Barriers barriers(commands);
         for (const Image* image : { &mAir, &mAirSunward, &mSlice, &mSliceSunward, &mSeeing })
-            barriers.add(image->describeTransition(Use::sComputeWrite, Use::sShaderSample));
+            image->addTransition(barriers, Use::sComputeWrite, Use::sShaderSample);
 
         barriers.flush();
     }

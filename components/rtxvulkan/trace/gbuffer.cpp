@@ -126,7 +126,7 @@ namespace Rtx
         // recorded is what orders this buffer after the last frame's readers.
         Barriers barriers(commands);
         for (const Image& image : mChannels)
-            barriers.add(image.describeTransition(Use::sUndefined, Use::sTraceWrite));
+            image.addTransition(barriers, Use::sUndefined, Use::sTraceWrite);
 
         barriers.flush();
     }
@@ -138,7 +138,7 @@ namespace Rtx
         // itself. Sampled as well as loaded, because an upscaler samples what it is handed.
         Barriers barriers(commands);
         for (const Image& image : mChannels)
-            barriers.add(image.describeTransition(Use::sTraceWrite, Use::sAnyShaderRead));
+            image.addTransition(barriers, Use::sTraceWrite, Use::sAnyShaderRead);
 
         barriers.flush();
     }

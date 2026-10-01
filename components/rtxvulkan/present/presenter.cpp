@@ -274,7 +274,7 @@ namespace Rtx
         handed.add(imageBarrier(presented, 0, 1, Use::sBlitWrite, Use::sPresent));
 
         // Back where the next frame's passes expect to find it.
-        handed.add(frame.describeTransition(Use::sBlitRead, Use::sAnyGeneralWrite));
+        frame.addTransition(handed, Use::sBlitRead, Use::sAnyGeneralWrite);
         handed.flush();
 
         // The pool's submit, so it signals the timeline and carries what was deferred ahead of the

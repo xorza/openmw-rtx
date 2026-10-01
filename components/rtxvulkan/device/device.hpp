@@ -219,26 +219,25 @@ namespace Rtx
                     ObjectTypeOf<Handle>::value, reinterpret_cast<std::uint64_t>(handle), std::string(name).c_str());
         }
 
-        /// Opens a named region in `commands`, so a capture shows what each stretch of the frame is.
-        /// Compiled to nothing in release.
-        void beginLabel(VkCommandBuffer commands, std::string_view name) const
+        /// Opens a named region in `commands`, so a capture or a profile shows what each stretch of
+        /// the frame is. Kept in release, which is the build a profiler reads; `name` arrives
+        /// terminated, so a label costs a call and no allocation.
+        void beginLabel(VkCommandBuffer commands, const char* name) const
         {
-            if constexpr (sDebugNames)
-                if (mBeginLabel != nullptr)
-                    beginLabelImpl(commands, std::string(name).c_str());
+            if (mBeginLabel != nullptr)
+                beginLabelImpl(commands, name);
         }
 
         void endLabel(VkCommandBuffer commands) const
         {
-            if constexpr (sDebugNames)
-                if (mEndLabel != nullptr)
-                    mEndLabel(commands);
+            if (mEndLabel != nullptr)
+                mEndLabel(commands);
         }
 
         /// Marks the queue's progress with `checkpoint`, which the queue reports as the last one
         /// each stage passed if the device is lost: NVIDIA's checkpoints, or AMD's buffer markers,
-        /// whichever the driver offers. Compiled to nothing in release, like the labels, and
-        /// nothing where the driver offers neither.
+        /// whichever the driver offers. Compiled to nothing in release, and nothing where the
+        /// driver offers neither.
         void checkpoint(VkCommandBuffer commands, const Checkpoint* checkpoint) const
         {
             if constexpr (sDebugNames)
