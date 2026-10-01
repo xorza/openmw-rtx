@@ -79,9 +79,10 @@ namespace Rtx
             EXPECT_EQ(seen.size(), getRequiredDeviceFeatures().size());
         }
 
-        /// **What each option rests on is stated**, which the registry's `depends` says: a present
-        /// fence rests on a swapchain and the instance's half of its maintenance. Taken without
-        /// them, it would go to every headless device. No option is also required.
+        /// **What each option rests on is stated**, which the registry's `depends` says: paging by
+        /// priority rests on the priority, and a present fence rests on a swapchain and the
+        /// instance's half of its maintenance. Taken without them, it would go to every headless
+        /// device. No option is also required.
         TEST(RtxRequirementsTest, theOptionsAreTheirExtensionsWholeAndStateWhatTheyRestOn)
         {
             const auto names = [](std::span<const char* const> list) {
@@ -95,8 +96,13 @@ namespace Rtx
                 (std::vector<std::string_view>{
                     VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME }));
 
+            // Paging by priority rests on the priority, which the table takes first.
+            const OptionalExtensions& pageable = options[static_cast<std::size_t>(DeviceOption::PageableMemory)];
+            EXPECT_EQ(names(pageable.mNeeds), (std::vector<std::string_view>{ VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME }));
+            EXPECT_LT(DeviceOption::MemoryPriority, DeviceOption::PageableMemory) << "a need taken after what needs it";
+
             for (const DeviceOption alone : { DeviceOption::FaultReport, DeviceOption::MemoryBudget,
-                     DeviceOption::Checkpoints, DeviceOption::BufferMarkers })
+                     DeviceOption::MemoryPriority, DeviceOption::Checkpoints, DeviceOption::BufferMarkers })
                 EXPECT_TRUE(options[static_cast<std::size_t>(alone)].mNeeds.empty())
                     << "an option core 1.4 carries alone names a need";
 
@@ -130,6 +136,10 @@ namespace Rtx
                   };
             reaches(DeviceOption::FaultReport, &features.mFault, &features.mFault.deviceFault,
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT);
+            reaches(DeviceOption::MemoryPriority, &features.mPriority, &features.mPriority.memoryPriority,
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT);
+            reaches(DeviceOption::PageableMemory, &features.mPageable, &features.mPageable.pageableDeviceLocalMemory,
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PAGEABLE_DEVICE_LOCAL_MEMORY_FEATURES_EXT);
             reaches(DeviceOption::PresentFences, &features.mPresentFences,
                 &features.mPresentFences.swapchainMaintenance1,
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR);

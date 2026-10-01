@@ -253,7 +253,8 @@ namespace Rtx
         mPipelineCache = std::make_unique<PipelineCache>(
             mHandle.get(), mPhysicalDevice.getProperties().mProperties2.properties, cache, mShaderDirectory);
         mMemory = std::make_unique<MemoryAllocator>(instance.getHandle(), mPhysicalDevice.getHandle(), mHandle.get(),
-            mPhysicalDevice.getProperties().mMemory, has(DeviceOption::MemoryBudget));
+            mPhysicalDevice.getProperties().mMemory, has(DeviceOption::MemoryBudget),
+            has(DeviceOption::MemoryPriority));
         mTimeline = std::make_unique<Timeline>(*this);
         mGraveyard = std::make_unique<Graveyard>(*this);
         // `new` and not `make_unique`, which the pool's private constructor does not admit.

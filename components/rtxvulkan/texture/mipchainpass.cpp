@@ -6,7 +6,6 @@
 
 #include <components/rtx/shaders/mipchain.h>
 #include <components/rtxvulkan/device/memory/image.hpp>
-#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 
 namespace Rtx
@@ -26,43 +25,31 @@ namespace Rtx
     {
     }
 
-    void MipChainPass::record(
-        const VkCommandBuffer commands, const Image& source, const Image& chain, const bool encoded) const
+    void MipChainPass::recordLevel(const VkCommandBuffer commands, const Image& source, const Image& chain,
+        const std::uint32_t level, const bool encoded) const
     {
         assert(source.getMipLevels() == 1 && "a chain is built for a file that carried none");
         assert(chain.getWidth() == source.getWidth() && chain.getHeight() == source.getHeight()
             && "a chain shaped unlike its source");
+        assert(level < chain.getMipLevels() && "a level past the chain");
 
-        // Read and written, from the first dispatch on: every dispatch binds the level above the one
-        // it writes, the first bound to the level it writes and reading it not at all — which the
-        // layers cannot see, so the transition makes it readable too rather than leaving a hazard
-        // on the record.
-        chain.transition(commands, Use::sUndefined, Use::sComputeReadWrite);
+        // Every dispatch binds the level above the one it writes, the first bound to the level it
+        // writes and reading it not at all: one layout for every level, so a chain is ordered a
+        // level at a time and never transitioned between two.
+        DescriptorWrites writes(mPipeline);
+        writes.image(Shaders::MIPCHAIN_BIND_SOURCE,
+            source.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
+        writes.image(Shaders::MIPCHAIN_BIND_ABOVE, chain.describeStorage(level > 0 ? level - 1 : 0));
+        writes.image(Shaders::MIPCHAIN_BIND_INTO, chain.describeStorage(level));
 
-        for (std::uint32_t level = 0; level < chain.getMipLevels(); ++level)
-        {
-            // Every level but the first reads the one written just before it: one barrier between
-            // two dispatches over one image, and the image stays where a dispatch reads and writes.
-            if (level > 0)
-                chain.transition(commands, Use::sComputeReadWrite, Use::sComputeReadWrite);
+        const Shaders::MipChainConstants constants{
+            .mLevel = level,
+            .mWidth = chain.getWidthAt(level),
+            .mHeight = chain.getHeightAt(level),
+            .mEncoded = encoded ? 1u : 0u,
+        };
 
-            DescriptorWrites writes(mPipeline);
-            writes.image(Shaders::MIPCHAIN_BIND_SOURCE,
-                source.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
-            writes.image(Shaders::MIPCHAIN_BIND_ABOVE, chain.describeStorage(level > 0 ? level - 1 : 0));
-            writes.image(Shaders::MIPCHAIN_BIND_INTO, chain.describeStorage(level));
-
-            const Shaders::MipChainConstants constants{
-                .mLevel = level,
-                .mWidth = chain.getWidthAt(level),
-                .mHeight = chain.getHeightAt(level),
-                .mEncoded = encoded ? 1u : 0u,
-            };
-
-            dispatch(commands, mPipeline, writes, constants,
-                Groups::covering(constants.mWidth, constants.mHeight, Shaders::MIP_CHAIN_WORKGROUP));
-        }
-
-        chain.transition(commands, Use::sComputeReadWrite, Use::sTextureSample);
+        dispatch(commands, mPipeline, writes, constants,
+            Groups::covering(constants.mWidth, constants.mHeight, Shaders::MIP_CHAIN_WORKGROUP));
     }
 }

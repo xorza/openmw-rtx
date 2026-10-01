@@ -31,7 +31,7 @@ namespace Rtx
 
         /// Opens a zone. `name` is stored rather than copied, so it must outlive the frame. Also
         /// names the region for a capture, where the build and the instance carry the labels.
-        void open(VkCommandBuffer commands, std::string_view name);
+        void open(VkCommandBuffer commands, const char* name);
 
         /// Closes the zone `open` started. Every open is closed before the next is opened.
         void close(VkCommandBuffer commands);
@@ -69,7 +69,7 @@ namespace Rtx
     /// Brackets a piece of work where there is a timer to bracket it with. A scene arriving and a
     /// picture inside the interface record the same commands and are not frames, so zones opened
     /// there would land in whichever frame report came next.
-    inline void openZone(GpuTimer* timer, VkCommandBuffer commands, std::string_view name)
+    inline void openZone(GpuTimer* timer, VkCommandBuffer commands, const char* name)
     {
         if (timer != nullptr)
             timer->open(commands, name);

@@ -113,8 +113,11 @@ namespace Rtx
         /// @param budget whether `VK_EXT_memory_budget` was enabled. Optional, because a driver
         ///        without it only leaves the ceilings on the library's own estimate — four fifths
         ///        of each heap, less what it holds itself — and the report without its budget.
+        /// @param priority whether `VK_EXT_memory_priority` was enabled. Content then goes below
+        ///        what the frame holds, so a driver moving video memory out under pressure moves
+        ///        structures and textures first; without it every allocation is one priority.
         MemoryAllocator(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device,
-            const VkPhysicalDeviceMemoryProperties& memory, bool budget);
+            const VkPhysicalDeviceMemoryProperties& memory, bool budget, bool priority);
         ~MemoryAllocator();
 
         MemoryAllocator(const MemoryAllocator&) = delete;

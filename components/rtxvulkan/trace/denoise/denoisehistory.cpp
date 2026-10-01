@@ -96,10 +96,10 @@ namespace Rtx
 
             if (step.mFresh[filter])
                 for (const Image* image : read)
-                    barriers.add(image->describeTransition(Use::sUndefined, Use::sComputeRead));
+                    image->addTransition(barriers, Use::sUndefined, Use::sComputeRead);
 
             for (const Image* image : written)
-                barriers.add(image->describeTransition(Use::sUndefined, Use::sComputeWrite));
+                image->addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
         };
 
         const AccumulateImages accumulated = accumulate(step);

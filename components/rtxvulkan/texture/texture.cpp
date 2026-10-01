@@ -90,14 +90,6 @@ namespace Rtx
             return texels;
         }
 
-        /// Fills `map` with the neutral factor, as the float the unorm is rounded from, and leaves
-        /// it where the array's sampler expects it.
-        void clearNeutral(Batch& batch, const Image& map)
-        {
-            const VkClearColorValue value{ .float32 = { Shaders::shadingUnit(1.0f), 0.0f, 0.0f, 0.0f } };
-            map.clear(batch.getCommands(), Use::sUndefined, value, Use::sTextureSample);
-        }
-
         /// What a map costs in the accounting `Texture::getBytes` reports.
         constexpr std::size_t sShadingBytes
             = std::size_t{ Shaders::SHADING_EXTENT } * Shaders::SHADING_EXTENT * sizeof(std::uint16_t);
@@ -264,10 +256,11 @@ namespace Rtx
         }
     }
 
-    Misc::Result<Texture, std::string_view> Texture::fromFile(const Device& device, Batch& batch,
-        const TexturePasses& passes, const TextureData& data, const std::uint32_t first, std::string_view name,
+    Misc::Result<void, std::string_view> Texture::standFile(const Device& device, Batch& batch, TextureArrival& arrival,
+        const TextureData& data, const std::uint32_t first, std::string_view name,
         std::vector<VkBufferImageCopy>& regions, const MemoryUse use)
     {
+        assert(isEmpty() && "a texture stood over one that stands");
         assert(first < data.mLevels.size() && "a texture begun past the file's last level");
         assert((first == 0 || !data.mCompleteChain) && "a chain completed from a level the file did not begin at");
 
@@ -289,9 +282,6 @@ namespace Rtx
                 wholeLevel(from.mOffset - top.mOffset, level, VkExtent3D{ from.mWidth, from.mHeight, 1 }));
         }
 
-        Texture made;
-        made.mWrap = data.mWrap;
-
         // Estimated off the texture about to be made, by a dispatch behind it, or cleared to the
         // neutral factor where nothing is to be estimated — `TextureData::getCompanion`. A normal
         // map's spread, with the means it is built through, made here with every other image.
@@ -311,16 +301,15 @@ namespace Rtx
             means = std::move(built.value());
         }
 
+        std::optional<Image> upload;
+        Image image;
         if (!data.mCompleteChain)
         {
-            Misc::Result<Image, std::string_view> image = Image::tryMake(
+            Misc::Result<Image, std::string_view> made = Image::tryMake(
                 use, device, top.mWidth, top.mHeight, toVulkanFormat(data.mFormat), sUploaded, name, levels);
-            if (!image.isOk())
-                return Misc::Err{ image.error() };
-
-            made.mImage = std::move(image.value());
-            uploadImage(batch, made.mImage, bytes, regions);
-            made.mBytes = bytes.size();
+            if (!made.isOk())
+                return Misc::Err{ made.error() };
+            image = std::move(made.value());
         }
         else
         {
@@ -329,10 +318,10 @@ namespace Rtx
             // The file's one level, uploaded as the bytes it holds, in a format with no curve under
             // it so that the chain's first dispatch fetches those bytes and not the light behind
             // them; gone with the batch, because the chain is what the trace samples.
-            Misc::Result<Image, std::string_view> upload = Image::tryMake(
+            Misc::Result<Image, std::string_view> uploaded = Image::tryMake(
                 use, device, data.mWidth, data.mHeight, withoutCurve(toVulkanFormat(data.mFormat)), sUploaded, name, 1);
-            if (!upload.isOk())
-                return Misc::Err{ upload.error() };
+            if (!uploaded.isOk())
+                return Misc::Err{ uploaded.error() };
 
             // Four bytes a texel down to one texel, with the file's own curve over the sampler's
             // read and none over the dispatch's store — `MipChain` says why the chain is loose.
@@ -343,37 +332,51 @@ namespace Rtx
             if (!chain.isOk())
                 return Misc::Err{ chain.error() };
 
-            uploadImage(batch, upload.value(), data.mBytes, regions);
-            made.mImage = std::move(chain.value());
-            passes.mChain.record(batch.getCommands(), upload.value(), made.mImage, encoded);
-            batch.keep(std::move(upload.value()));
-
-            made.mBytes = chainBytes(made.mImage);
+            upload = std::move(uploaded.value());
+            image = std::move(chain.value());
         }
 
-        made.mCompanion = std::move(shading.value());
+        // Every image is made, so nothing below can refuse: the texture stands from here, and what
+        // makes it is the arrival's to record.
+        mWrap = data.mWrap;
+        mImage = std::move(image);
+        mCompanion = std::move(shading.value());
+
+        if (upload.has_value())
+        {
+            const Image& held = arrival.hold(std::move(*upload));
+            arrival.upload(batch, held, data.mBytes, regions);
+            arrival.chain(held, mImage, isSrgb(data.mFormat));
+            mBytes = chainBytes(mImage);
+        }
+        else
+        {
+            arrival.upload(batch, mImage, bytes, regions);
+            mBytes = bytes.size();
+        }
+
         switch (companion)
         {
             case TextureCompanion::Neutral:
-                clearNeutral(batch, made.mCompanion);
-                made.mBytes += sShadingBytes;
+                arrival.clearNeutral(mCompanion);
+                mBytes += sShadingBytes;
                 break;
             case TextureCompanion::Shading:
-                passes.mShading.record(batch.getCommands(), made.mImage, made.mCompanion, isBc1(data.mFormat));
-                made.mBytes += sShadingBytes;
+                arrival.shade(mImage, mCompanion, isBc1(data.mFormat));
+                mBytes += sShadingBytes;
                 break;
             case TextureCompanion::Spread:
-                passes.mSpread.record(batch.getCommands(), made.mImage, *means, made.mCompanion);
-                batch.keep(std::move(*means));
-                made.mBytes += spreadBytes(made.mCompanion);
+                arrival.spread(mImage, arrival.hold(std::move(*means)), mCompanion);
+                mBytes += spreadBytes(mCompanion);
                 break;
         }
-        return made;
+        return {};
     }
 
-    Misc::Result<Texture, std::string_view> Texture::bakeOf(const Device& device, Batch& batch,
-        const TexturePasses& passes, const Texture& source, const TextureFormat format, std::string_view name)
+    Misc::Result<void, std::string_view> Texture::standBake(const Device& device, TextureArrival& arrival,
+        const Texture& source, const TextureFormat format, std::string_view name)
     {
+        assert(isEmpty() && "a texture stood over one that stands");
         assert(!source.isEmpty());
 
         const Image& from = source.mImage;
@@ -387,37 +390,41 @@ namespace Rtx
         if (!shading.isOk())
             return Misc::Err{ shading.error() };
 
-        Texture made;
-        made.mImage = std::move(image.value());
-        passes.mBake.record(batch.getCommands(), from, made.mImage);
+        mImage = std::move(image.value());
 
         // Clamped, because a bake is one image whose coordinates run edge to edge — what
         // `TextureTable::addBaked` says of its row.
-        made.mWrap = TextureWrap::Clamp;
+        mWrap = TextureWrap::Clamp;
 
-        made.mCompanion = std::move(shading.value());
-        clearNeutral(batch, made.mCompanion);
+        mCompanion = std::move(shading.value());
+        arrival.bake(from, mImage);
+        arrival.clearNeutral(mCompanion);
 
-        made.mBytes = chainBytes(made.mImage) + sShadingBytes;
-        return made;
+        mBytes = chainBytes(mImage) + sShadingBytes;
+        return {};
     }
 
-    Texture::Texture(const Device& device, Batch& batch, const std::string_view name, const osg::Vec4f& colour)
+    void Texture::standColour(const Device& device, Batch& batch, TextureArrival& arrival, const std::string_view name,
+        const osg::Vec4f& colour)
     {
+        assert(isEmpty() && "a texture stood over one that stands");
+
         mImage = Image(device, 1, 1, VK_FORMAT_R32G32B32A32_SFLOAT, sUploaded, name, 1);
 
         const std::array<float, 4> texel{ colour.x(), colour.y(), colour.z(), colour.w() };
-        std::array<VkBufferImageCopy, 1> regions{ wholeLevel(0, 0, VkExtent3D{ 1, 1, 1 }) };
-        uploadImage(batch, mImage, std::as_bytes(std::span<const float>(texel)), regions);
+        const std::array<VkBufferImageCopy, 1> regions{ wholeLevel(0, 0, VkExtent3D{ 1, 1, 1 }) };
+        arrival.upload(batch, mImage, std::as_bytes(std::span<const float>(texel)), regions);
 
         mCompanion = std::move(makeShadingMap(device, name, MemoryUse::Essential).value());
-        clearNeutral(batch, mCompanion);
+        arrival.clearNeutral(mCompanion);
         mBytes = sizeof(texel) + sShadingBytes;
     }
 
-    Misc::Result<Texture, std::string_view> Texture::composite(
-        const Device& device, Batch& batch, const TextureFormat format, std::string_view name)
+    Misc::Result<void, std::string_view> Texture::standComposite(
+        const Device& device, TextureArrival& arrival, const TextureFormat format, std::string_view name)
     {
+        assert(isEmpty() && "a texture stood over one that stands");
+
         // A chain to one texel, which the bake blits down from the level it writes; both transfer
         // usages for that blit, and the view without the curve for the store.
         constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
@@ -434,18 +441,17 @@ namespace Rtx
         if (!shading.isOk())
             return Misc::Err{ shading.error() };
 
-        Texture made;
-        made.mImage = std::move(image.value());
+        mImage = std::move(image.value());
 
         // Clamped, because a composite is one image whose coordinates run edge to edge — what
         // `TextureTable::addBaked` says of its row.
-        made.mWrap = TextureWrap::Clamp;
+        mWrap = TextureWrap::Clamp;
 
-        made.mCompanion = std::move(shading.value());
-        clearNeutral(batch, made.mCompanion);
+        mCompanion = std::move(shading.value());
+        arrival.clearNeutral(mCompanion);
 
-        made.mBytes = chainBytes(made.mImage) + sShadingBytes;
-        return made;
+        mBytes = chainBytes(mImage) + sShadingBytes;
+        return {};
     }
 
     SetLayout TextureArray::describeLayout(const Device& device)
@@ -472,28 +478,32 @@ namespace Rtx
         const std::uint32_t slots, const std::uint32_t anisotropy)
         : mDevice(device)
         , mPasses(passes)
+        , mArrival(device)
         , mSamplers{ makeContentSampler(device, "textures repeating", TextureWrap::Repeat),
             makeContentSampler(device, "textures clamped along s", TextureWrap::ClampS),
             makeContentSampler(device, "textures clamped along t", TextureWrap::ClampT),
             makeContentSampler(device, "textures clamped", TextureWrap::Clamp) }
         , mFootprintSamplers(makeFootprintSamplers(device, anisotropy))
+        , mSideLimit(sideLimitOf(device))
+        , mSide(mSideLimit)
+        , mSaidSide(mSideLimit)
         // Allocated at the maximum the layout declares, not at what this scene brought. Sizing the
         // set to the cell is what made a texture arriving mean a new set, a new pool and every
         // image uploaded again; four thousand descriptors is a few hundred kilobytes of pool and it
         // is paid once. `write` then only ever owes the slots that are new.
-        , mNeutral(device, batch, "neutral texel",
-              osg::Vec4f(
-                  Shaders::NO_TEXTURE_ALBEDO.x(), Shaders::NO_TEXTURE_ALBEDO.y(), Shaders::NO_TEXTURE_ALBEDO.z(), 1.0f))
-        , mSideLimit(sideLimitOf(device))
-        , mSide(mSideLimit)
-        , mSaidSide(mSideLimit)
         , mSets(device, sBindings, layout.get(), sFrameSlots, VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT)
     {
+        mArrival.open(2);
+        mNeutral.standColour(device, batch, mArrival, "neutral texel",
+            osg::Vec4f(
+                Shaders::NO_TEXTURE_ALBEDO.x(), Shaders::NO_TEXTURE_ALBEDO.y(), Shaders::NO_TEXTURE_ALBEDO.z(), 1.0f));
+
         // Essential, and the one texture made that way: it is what stands where the device had no
         // room for the texture itself.
-        mStandIn = std::move(Texture::fromFile(
-            device, batch, passes, describeStandIn(), 0, "stand-in", mRegionScratch, MemoryUse::Essential)
-                                 .value());
+        [[maybe_unused]] const Misc::Result<void, std::string_view> stood = mStandIn.standFile(
+            device, batch, mArrival, describeStandIn(), 0, "stand-in", mRegionScratch, MemoryUse::Essential);
+        assert(stood.isOk() && "essential memory refused rather than thrown");
+        mArrival.record(batch, passes);
 
         // The last slot is the neutral texel's. `TextureTable` refuses a slot past it, so a scene
         // that reaches it is a table that broke that rule.
@@ -530,6 +540,12 @@ namespace Rtx
         if (arrived.empty())
             return;
 
+        // Every slot reserved before any stands, so the array does not move a texture the arrival's
+        // work names before it records.
+        for (const TextureData& texture : arrived)
+            reserveSlot(texture.mSlot);
+        mArrival.open(arrived.size());
+
         const std::uint32_t side = chooseSide(arrived, mDevice.getMemory().getRoom(MemoryUse::Texture));
 
         // Said for a side smaller than any said before, and not per arrival: a device short of room
@@ -557,6 +573,8 @@ namespace Rtx
         for (const TextureData& texture : arrived)
             if (texture.mSource == TextureSource::GroundComposite || texture.mSource == TextureSource::GroundGloss)
                 stand(batch, texture, side, refused);
+
+        mArrival.record(batch, mPasses);
     }
 
     std::uint32_t TextureArray::chooseSide(std::span<const TextureData> arrived, const VkDeviceSize room) const
@@ -663,14 +681,14 @@ namespace Rtx
         return cost;
     }
 
-    Misc::Result<Texture, std::string_view> TextureArray::make(
-        Batch& batch, const TextureData& texture, const std::uint32_t side, std::string_view name)
+    Misc::Result<void, std::string_view> TextureArray::make(
+        Batch& batch, Texture& into, const TextureData& texture, const std::uint32_t side, std::string_view name)
     {
         switch (texture.mSource)
         {
             case TextureSource::GroundComposite:
             case TextureSource::GroundGloss:
-                return Texture::composite(mDevice, batch, texture.mFormat, name);
+                return into.standComposite(mDevice, mArrival, texture.mFormat, name);
 
             case TextureSource::SpriteBake:
             {
@@ -681,8 +699,7 @@ namespace Rtx
                 // baked as the stand-in, as it is drawn.
                 Crash::contract(texture.mFrom < mSlots.size() && !mSlots[texture.mFrom].isEmpty(),
                     "a sprite light bake names a source that does not stand");
-                return Texture::bakeOf(
-                    mDevice, batch, mPasses, standingIn(mSlots[texture.mFrom]), texture.mFormat, name);
+                return into.standBake(mDevice, mArrival, standingIn(mSlots[texture.mFrom]), texture.mFormat, name);
             }
 
             case TextureSource::File:
@@ -692,13 +709,13 @@ namespace Rtx
                 // completes has the one.
                 const auto last = static_cast<std::uint32_t>(texture.mLevels.size()) - 1;
                 std::uint32_t first = firstLevelAt(texture, side);
-                Misc::Result<Texture, std::string_view> made = Texture::fromFile(
-                    mDevice, batch, mPasses, texture, first, name, mRegionScratch, MemoryUse::Texture);
-                while (!made.isOk() && first < last)
-                    made = Texture::fromFile(
-                        mDevice, batch, mPasses, texture, ++first, name, mRegionScratch, MemoryUse::Texture);
+                Misc::Result<void, std::string_view> stood = into.standFile(
+                    mDevice, batch, mArrival, texture, first, name, mRegionScratch, MemoryUse::Texture);
+                while (!stood.isOk() && first < last)
+                    stood = into.standFile(
+                        mDevice, batch, mArrival, texture, ++first, name, mRegionScratch, MemoryUse::Texture);
 
-                return made;
+                return stood;
             }
 
             case TextureSource::StandIn:
@@ -711,7 +728,7 @@ namespace Rtx
     void TextureArray::stand(
         Batch& batch, const TextureData& texture, const std::uint32_t side, std::vector<Refusal>& refused)
     {
-        reserveSlot(texture.mSlot);
+        assert(texture.mSlot < mSlots.size() && "a texture stood in a slot `write` did not reserve");
         Slot& slot = mSlots[texture.mSlot];
 
         // Named only where a capture or a validation message could read it back. A local,
@@ -723,25 +740,26 @@ namespace Rtx
 
         // Why the slot draws the stand-in, or nothing where the texture stands. A file the device
         // takes at no level is known before anything is made; room is known by asking for it.
+        // What the slot held is the descriptor a frame in flight bound, and its images bury
+        // themselves, so it stays valid until the timeline says nothing reads it. Let go of before
+        // the new one is made, because the new one is made where it stays: the arrival's work names
+        // its images.
+        slot.mTexture = Texture();
+
         std::string why;
-        Texture made;
         if (texture.mSource == TextureSource::File && !texture.firstLevelWithin(mSideLimit).has_value())
             why = pastTheSide(texture, mSideLimit);
         else if (texture.mSource != TextureSource::StandIn)
         {
-            Misc::Result<Texture, std::string_view> tried = make(batch, texture, side, name);
-            if (tried.isOk())
-                made = std::move(tried.value());
-            else
-                why = tried.error();
+            const Misc::Result<void, std::string_view> stood = make(batch, slot.mTexture, texture, side, name);
+            if (!stood.isOk())
+                why = stood.error();
         }
 
-        // What the slot held is the descriptor a frame in flight bound, and its images bury
-        // themselves, so it stays valid until the timeline says nothing reads it.
+        const Texture& made = slot.mTexture;
         slot.mStandIn = made.isEmpty();
         slot.mReduced = texture.mSource == TextureSource::File && !made.isEmpty()
             && (made.getImage().getWidth() < texture.mWidth || made.getImage().getHeight() < texture.mHeight);
-        slot.mTexture = std::move(made);
 
         if (!why.empty())
             refused.push_back(Refusal{ .mKind = Refused::Texture, .mName = std::string(texture.mName), .mWhy = why });

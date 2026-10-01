@@ -66,6 +66,8 @@ namespace Rtx
 
         constexpr std::array sFaultReport{ VK_EXT_DEVICE_FAULT_EXTENSION_NAME };
         constexpr std::array sMemoryBudget{ VK_EXT_MEMORY_BUDGET_EXTENSION_NAME };
+        constexpr std::array sMemoryPriority{ VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME };
+        constexpr std::array sPageableMemory{ VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME };
         constexpr std::array sPresentFences{ VK_KHR_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME };
         constexpr std::array sCheckpoints{ VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME };
         constexpr std::array sBufferMarkers{ VK_AMD_BUFFER_MARKER_EXTENSION_NAME };
@@ -88,6 +90,15 @@ namespace Rtx
             .mStructure = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mFault); },
             .mField = [](OptionalFeatures& features) -> VkBool32& { return features.mFault.deviceFault; },
         };
+        constexpr OptionalFeature sPriorityFeature{
+            .mStructure = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mPriority); },
+            .mField = [](OptionalFeatures& features) -> VkBool32& { return features.mPriority.memoryPriority; },
+        };
+        constexpr OptionalFeature sPageableFeature{
+            .mStructure = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mPageable); },
+            .mField
+            = [](OptionalFeatures& features) -> VkBool32& { return features.mPageable.pageableDeviceLocalMemory; },
+        };
         constexpr OptionalFeature sPresentFencesFeature{
             .mStructure
             = [](OptionalFeatures& features) -> VkBaseOutStructure& { return asBase(features.mPresentFences); },
@@ -108,6 +119,20 @@ namespace Rtx
             // against — most of all on a card whose host-visible heap is a couple of hundred
             // megabytes. `MemoryAllocator` is what reads it.
             OptionalExtensions{ DeviceOption::MemoryBudget, sMemoryBudget, {} },
+            // A priority on each allocation, which a driver that has to move video memory out
+            // under pressure moves the lowest of first: content below what the frame holds —
+            // `MemoryAllocator` says why content as a whole and not by its use.
+            OptionalExtensions{ .mOption = DeviceOption::MemoryPriority,
+                .mExtensions = sMemoryPriority,
+                .mNeeds = {},
+                .mFeature = &sPriorityFeature },
+            // The driver told that the application knows its memory can be paged, which is where
+            // those priorities are what the operating system pages by. After the priority, which it
+            // rests on.
+            OptionalExtensions{ .mOption = DeviceOption::PageableMemory,
+                .mExtensions = sPageableMemory,
+                .mNeeds = sMemoryPriority,
+                .mFeature = &sPageableFeature },
             // A fence the presentation engine signals, which is the only thing that says it has
             // finished with an image. `Presenter` retires its semaphores and its swapchain against
             // one where the driver has it, and against a device-idle where it does not.
@@ -259,6 +284,8 @@ namespace Rtx
         // Each is chained where the device took its option, and not here: a structure in the chain
         // whose extension is not enabled is one the driver was never told to expect.
         mFault.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT;
+        mPriority.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT;
+        mPageable.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PAGEABLE_DEVICE_LOCAL_MEMORY_FEATURES_EXT;
         mPresentFences.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR;
     }
 

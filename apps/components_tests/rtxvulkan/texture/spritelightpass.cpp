@@ -18,6 +18,7 @@
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/texture/spritelightpass.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
+#include <components/rtxvulkan/texture/texturearrival.hpp>
 #include <components/rtxvulkan/texture/texturepasses.hpp>
 
 namespace Rtx
@@ -41,11 +42,15 @@ namespace Rtx
                     "sprite light test bake", levels);
 
                 Batch upload(getPool());
+                TextureArrival arrival(device);
+                arrival.open(1);
                 std::vector<VkBufferImageCopy> regions;
-                const Texture source = std::move(
-                    Texture::fromFile(device, upload, passes, sprite, 0, "sprite", regions, MemoryUse::Essential)
-                        .value());
-                passes.mBake.record(upload.getCommands(), source.getImage(), bake);
+                Texture source;
+                EXPECT_TRUE(
+                    source.standFile(device, upload, arrival, sprite, 0, "sprite", regions, MemoryUse::Essential)
+                        .isOk());
+                arrival.bake(source.getImage(), bake);
+                arrival.record(upload, passes);
                 upload.flush();
 
                 std::vector<std::vector<std::uint8_t>> read(levels);

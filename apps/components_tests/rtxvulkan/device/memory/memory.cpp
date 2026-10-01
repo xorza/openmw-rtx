@@ -102,13 +102,21 @@ namespace Rtx
                 << "a thousand small resources made more than one allocation";
 
             // And they are a thousand distinct places in it: no two ranges of one block overlap.
-            for (std::size_t at = 1; at < held.size(); ++at)
+            // Ordered by place first, because a block a test before this one left holes in is
+            // filled from its holes, wherever they are, and not in the order the ranges were asked.
+            std::vector<std::pair<VkDeviceMemory, VkDeviceSize>> places;
+            places.reserve(held.size());
+            for (const Bound& bound : held)
+                places.emplace_back(bound.mMemory.getHandle(), bound.mMemory.getOffset());
+            std::sort(places.begin(), places.end());
+
+            for (std::size_t at = 1; at < places.size(); ++at)
             {
-                if (held[at].mMemory.getHandle() != held[at - 1].mMemory.getHandle())
+                if (places[at].first != places[at - 1].first)
                     continue;
 
-                EXPECT_GE(held[at].mMemory.getOffset(), held[at - 1].mMemory.getOffset() + 2048)
-                    << "range " << at << " overlaps the one before it";
+                EXPECT_GE(places[at].second, places[at - 1].second + 2048)
+                    << "two ranges overlap at " << places[at].second;
             }
         }
 

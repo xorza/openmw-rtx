@@ -139,6 +139,10 @@ namespace Rtx
         /// The whole buffer as a descriptor, naming it for the next submit as `addressFor` does.
         VkDescriptorBufferInfo describe() const;
 
+        /// `range` bytes of it from `offset`, for a pass that hands each of several dispatches its
+        /// own part of one buffer.
+        VkDescriptorBufferInfo describe(VkDeviceSize offset, VkDeviceSize range) const;
+
         /// The dependency between one use of the whole buffer and the next, for a caller collecting
         /// a run of them into one `Barriers`.
         VkBufferMemoryBarrier2 describeBarrier(const BufferUse& from, const BufferUse& to) const;

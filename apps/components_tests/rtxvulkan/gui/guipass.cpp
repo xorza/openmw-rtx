@@ -26,6 +26,7 @@
 #include <components/rtxvulkan/gui/guipass.hpp>
 #include <components/rtxvulkan/pipeline/graphicspipeline.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
+#include <components/rtxvulkan/texture/texturearrival.hpp>
 #include <components/rtxvulkan/texture/texturepasses.hpp>
 
 namespace Rtx
@@ -107,10 +108,14 @@ namespace Rtx
                 const TexturePasses passes(getDevice());
 
                 Batch upload(getPool());
+                TextureArrival arrival(getDevice());
+                arrival.open(1);
                 std::vector<VkBufferImageCopy> regions;
-                Texture texture = std::move(
-                    Texture::fromFile(getDevice(), upload, passes, data, 0, name, regions, MemoryUse::Essential)
-                        .value());
+                Texture texture;
+                EXPECT_TRUE(
+                    texture.standFile(getDevice(), upload, arrival, data, 0, name, regions, MemoryUse::Essential)
+                        .isOk());
+                arrival.record(upload, passes);
                 upload.flush();
                 return texture;
             }

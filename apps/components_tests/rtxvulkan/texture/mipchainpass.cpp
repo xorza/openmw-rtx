@@ -1,3 +1,4 @@
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
@@ -18,6 +19,7 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
+#include <components/rtxvulkan/texture/texturearrival.hpp>
 #include <components/rtxvulkan/texture/texturepasses.hpp>
 
 namespace Rtx
@@ -53,11 +55,14 @@ namespace Rtx
                     "mip chain test chain", levels, 1, encoded ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_UNDEFINED);
 
                 Batch upload(getPool());
-                Image source(device, file.mWidth, file.mHeight, stored,
+                TextureArrival arrival(device);
+                arrival.open(1);
+                const Image source(device, file.mWidth, file.mHeight, stored,
                     VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, name, 1);
-                std::vector<VkBufferImageCopy> regions{ wholeLevel(0, 0, VkExtent3D{ file.mWidth, file.mHeight, 1 }) };
-                uploadImage(upload, source, file.mBytes, regions);
-                passes.mChain.record(upload.getCommands(), source, chain, encoded);
+                const std::array regions{ wholeLevel(0, 0, VkExtent3D{ file.mWidth, file.mHeight, 1 }) };
+                arrival.upload(upload, source, file.mBytes, regions);
+                arrival.chain(source, chain, encoded);
+                arrival.record(upload, passes);
                 upload.flush();
 
                 std::vector<std::vector<std::uint8_t>> read(levels);
@@ -75,9 +80,13 @@ namespace Rtx
                 const TexturePasses passes(device);
 
                 Batch upload(getPool());
+                TextureArrival arrival(device);
+                arrival.open(1);
                 std::vector<VkBufferImageCopy> regions;
-                const Texture stood = std::move(
-                    Texture::fromFile(device, upload, passes, file, 0, name, regions, MemoryUse::Essential).value());
+                Texture stood;
+                EXPECT_TRUE(
+                    stood.standFile(device, upload, arrival, file, 0, name, regions, MemoryUse::Essential).isOk());
+                arrival.record(upload, passes);
                 upload.flush();
 
                 return stood.getImage().getMipLevels();

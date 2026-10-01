@@ -192,10 +192,17 @@ namespace Rtx
 
     VkDescriptorBufferInfo Buffer::describe() const
     {
+        return describe(0, VK_WHOLE_SIZE);
+    }
+
+    VkDescriptorBufferInfo Buffer::describe(const VkDeviceSize offset, const VkDeviceSize range) const
+    {
         assert(!isEmpty() && "a descriptor of a buffer nobody made");
+        assert((range == VK_WHOLE_SIZE ? offset <= getSize() : offset + range <= getSize())
+            && "a descriptor past the end of the buffer");
 
         nameForNext();
-        return VkDescriptorBufferInfo{ mHandle.get(), 0, VK_WHOLE_SIZE };
+        return VkDescriptorBufferInfo{ mHandle.get(), offset, range };
     }
 
     VkBufferMemoryBarrier2 Buffer::describeBarrier(const BufferUse& from, const BufferUse& to) const

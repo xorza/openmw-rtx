@@ -42,6 +42,11 @@ namespace Rtx
         /// heap in one block.
         constexpr VkDeviceSize sBlockBytes = 64 * 1024 * 1024;
 
+        /// Content's priority, below the half the library gives every block outside a pool, which
+        /// is where what the frame holds is made. One figure for structures and textures alike,
+        /// because the two share the content pools' blocks and a priority belongs to a block.
+        constexpr float sContentPriority = 0.25f;
+
         VmaAllocationCreateInfo askingFor(const VkMemoryPropertyFlags properties)
         {
             VmaAllocationCreateInfo create{};
@@ -125,7 +130,7 @@ namespace Rtx
     }
 
     MemoryAllocator::MemoryAllocator(const VkInstance instance, const VkPhysicalDevice physicalDevice,
-        const VkDevice device, const VkPhysicalDeviceMemoryProperties& memory, const bool budget)
+        const VkDevice device, const VkPhysicalDeviceMemoryProperties& memory, const bool budget, const bool priority)
         : mDevice(device)
         , mMemory(memory)
         , mBudget(budget)
@@ -139,6 +144,8 @@ namespace Rtx
         create.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
         if (budget)
             create.flags |= VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+        if (priority)
+            create.flags |= VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT;
         create.physicalDevice = physicalDevice;
         create.device = device;
         create.instance = instance;
@@ -172,7 +179,7 @@ namespace Rtx
                 .blockSize = sBlockBytes,
                 .minBlockCount = 0,
                 .maxBlockCount = 0,
-                .priority = 0.0f,
+                .priority = sContentPriority,
                 .minAllocationAlignment = 0,
                 .pMemoryAllocateNext = nullptr };
             checkVk(vmaCreatePool(mAllocator, &pool, &mContentPools[type]), "vmaCreatePool");
@@ -269,6 +276,8 @@ namespace Rtx
         Allocate&& allocate)
     {
         VmaAllocationCreateInfo create = askingFor(properties);
+        // Read for an allocation of its own; one in a pool has the pool's.
+        create.priority = sContentPriority;
         std::uint32_t type = 0;
         checkAllocated(vmaFindMemoryTypeIndex(mAllocator, typeBits, &create, &type), properties);
         assert(mContentPools[type] != nullptr && "content asked for memory that is not video memory");

@@ -18,6 +18,7 @@
 
 namespace Rtx
 {
+    class Barriers;
     class Buffer;
     class Device;
 
@@ -112,11 +113,15 @@ namespace Rtx
         /// sampled without `VK_IMAGE_USAGE_SAMPLED_BIT` reads as zero with no validation message.
         VkImageUsageFlags getUsage() const { return mUsage; }
 
-        /// The same dependency as `transition`, for a caller collecting a run of them into one
-        /// command. Every level, as `transition` is.
-        VkImageMemoryBarrier2 describeTransition(const ImageUse& from, const ImageUse& to) const;
+        /// Adds the dependency between two uses of every level to `barriers`, for a caller
+        /// collecting a run of them into one command: an image barrier where the layout moves, and
+        /// where it does not, the two uses merged into the run's one memory barrier. An image
+        /// barrier that moves no layout says nothing a memory barrier does not, and a run of them
+        /// over the images of one pass is one memory barrier.
+        void addTransition(Barriers& barriers, const ImageUse& from, const ImageUse& to) const;
 
-        /// Moves every level of the image from one use to the next, recording into `commands`.
+        /// Moves every level of the image from one use to the next, recording into `commands`, by
+        /// `addTransition`'s rule.
         void transition(VkCommandBuffer commands, const ImageUse& from, const ImageUse& to) const;
 
         /// Clears every level to `colour`, met as `from` and left as `to`. Needs `TRANSFER_DST`.
@@ -187,10 +192,6 @@ namespace Rtx
         /// funnels through here, which is what makes `waitIdle` exact.
         void nameForNext() const;
 
-        /// The same barrier `transition` records, over `count` levels from `base`.
-        void transitionLevels(VkCommandBuffer commands, std::uint32_t base, std::uint32_t count, const ImageUse& from,
-            const ImageUse& to) const;
-
         const Device* mDevice = nullptr;
         ReadStamp mRead;
         Owned<VkImage, vkDestroyImage> mHandle;
@@ -205,8 +206,8 @@ namespace Rtx
         std::uint32_t mHeight = 0;
         std::uint32_t mDepth = 1;
         VkFormat mFormat = VK_FORMAT_UNDEFINED;
-        /// `describeTransition`'s own answer over a run of levels, which is what `transitionLevels`
-        /// emits. One statement of the barrier, because the two differ only in the range.
+        /// The image barrier between two uses over a run of levels: every level where `addTransition`
+        /// moves the layout, and a run of them in `buildMips`.
         VkImageMemoryBarrier2 describeLevels(
             std::uint32_t base, std::uint32_t count, const ImageUse& from, const ImageUse& to) const;
 

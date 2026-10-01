@@ -88,11 +88,11 @@ namespace Rtx
                 // read, which needs the stages named and nothing made visible.
                 Barriers between(commands);
                 for (const Image* image : { source, target })
-                    between.add(image->describeTransition(
+                    image->addTransition(between,
                         ImageUse{ VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                             VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | sReads },
                         ImageUse{ VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                            VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | sReads }));
+                            VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | sReads });
 
                 between.flush();
             }

@@ -19,6 +19,7 @@
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/texture/shadingpass.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
+#include <components/rtxvulkan/texture/texturearrival.hpp>
 #include <components/rtxvulkan/texture/texturepasses.hpp>
 
 namespace Rtx
@@ -41,11 +42,14 @@ namespace Rtx
                     "shading test map");
 
                 Batch upload(getPool());
+                TextureArrival arrival(device);
+                arrival.open(1);
                 std::vector<VkBufferImageCopy> regions;
-                const Texture source = std::move(
-                    Texture::fromFile(device, upload, passes, data, first, name, regions, MemoryUse::Essential)
-                        .value());
-                passes.mShading.record(upload.getCommands(), source.getImage(), map, isBc1(data.mFormat));
+                Texture source;
+                EXPECT_TRUE(
+                    source.standFile(device, upload, arrival, data, first, name, regions, MemoryUse::Essential).isOk());
+                arrival.shade(source.getImage(), map, isBc1(data.mFormat));
+                arrival.record(upload, passes);
                 upload.flush();
 
                 std::vector<std::uint8_t> bytes;

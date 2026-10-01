@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/shaders/normalspread.h>
@@ -32,12 +34,14 @@ namespace Rtx
     public:
         explicit NormalSpreadPass(const Device& device);
 
-        /// Records `spread`'s levels from `map`: `spread`'s first is what the map's second level
-        /// lost, and so on down. `map` is met as a texture the trace samples, which is how an
+        /// Records level `level` of `spread` from `map`: `spread`'s first is what the map's second
+        /// level lost, and so on down. `map` is met as a texture the trace samples, which is how an
         /// upload leaves it; `spread` and `means`, half the map's extent with a level each for
-        /// every level the map has below its first, are met undefined, and `spread` is left as a
-        /// texture the trace samples.
-        void record(VkCommandBuffer commands, const Image& map, const Image& means, const Image& spread) const;
+        /// every level the map has below its first, are met where a dispatch reads and writes them.
+        /// The means of the level before are ordered against this one by the caller, which
+        /// `TextureArrival` does for a level of every spread at once.
+        void recordLevel(VkCommandBuffer commands, const Image& map, const Image& means, const Image& spread,
+            std::uint32_t level) const;
 
     private:
         ComputePipeline<Shaders::NormalSpreadConstants> mPipeline;

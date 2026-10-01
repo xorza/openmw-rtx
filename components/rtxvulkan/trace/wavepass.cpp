@@ -142,7 +142,7 @@ namespace Rtx
 
         Barriers opened(commands);
         for (const Image* image : images)
-            opened.add(image->describeTransition(Use::sUndefined, Use::sComputeWrite));
+            image->addTransition(opened, Use::sUndefined, Use::sComputeWrite);
         opened.flush();
 
         for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)

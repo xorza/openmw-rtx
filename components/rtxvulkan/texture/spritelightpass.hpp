@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/shaders/spritelight.h>
@@ -18,11 +20,11 @@ namespace Rtx
     public:
         explicit SpriteLightPass(const Device& device);
 
-        /// Records `source`'s bake into `bake`, every level. `source` is met as a texture the trace
-        /// samples, which is how an upload leaves it; `bake` is met undefined and left the same way,
-        /// ready for the array's sampler. `bake` must hold as many levels as `source` and be
-        /// writable as storage at each.
-        void record(VkCommandBuffer commands, const Image& source, const Image& bake) const;
+        /// Records level `level` of `source`'s bake into `bake`. `source` is met as a texture the
+        /// trace samples, which is how an upload leaves it; `bake` is met where a dispatch writes
+        /// it. A level reads `source` alone, so every level of every bake runs without a barrier
+        /// between. `bake` must hold as many levels as `source` and be writable as storage at each.
+        void recordLevel(VkCommandBuffer commands, const Image& source, const Image& bake, std::uint32_t level) const;
 
     private:
         ComputePipeline<Shaders::SpriteLightConstants> mPipeline;

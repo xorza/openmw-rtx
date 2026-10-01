@@ -189,7 +189,7 @@ namespace Rtx
         // `CommandPool::begin` recorded: a reset's own frame stands at its tick and never gets here.
         Barriers opened(commands);
         for (const Image* image : { &mSurface, &mCurvature })
-            opened.add(image->describeTransition(Use::sUndefined, Use::sComputeWrite));
+            image->addTransition(opened, Use::sUndefined, Use::sComputeWrite);
         opened.flush();
 
         DescriptorWrites composes(mComposePipeline);

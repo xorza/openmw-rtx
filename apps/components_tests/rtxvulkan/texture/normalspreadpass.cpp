@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -17,6 +18,7 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/texture/texturearrival.hpp>
 #include <components/rtxvulkan/texture/texturepasses.hpp>
 
 namespace Rtx
@@ -45,11 +47,14 @@ namespace Rtx
                     "normal spread test means", levels);
 
                 Batch upload(getPool());
-                Image map(device, width, height, VK_FORMAT_R8G8B8A8_UNORM,
+                TextureArrival arrival(device);
+                arrival.open(1);
+                const Image map(device, width, height, VK_FORMAT_R8G8B8A8_UNORM,
                     VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, "normal spread test map", 1);
-                std::vector<VkBufferImageCopy> regions{ wholeLevel(0, 0, VkExtent3D{ width, height, 1 }) };
-                uploadImage(upload, map, std::as_bytes(texels), regions);
-                passes.mSpread.record(upload.getCommands(), map, means, spread);
+                const std::array regions{ wholeLevel(0, 0, VkExtent3D{ width, height, 1 }) };
+                arrival.upload(upload, map, std::as_bytes(texels), regions);
+                arrival.spread(map, means, spread);
+                arrival.record(upload, passes);
                 upload.flush();
 
                 std::vector<std::vector<std::uint8_t>> read(levels);

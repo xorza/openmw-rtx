@@ -52,7 +52,7 @@ namespace Rtx
         mFrame = frame;
     }
 
-    void GpuTimer::open(VkCommandBuffer commands, std::string_view name)
+    void GpuTimer::open(VkCommandBuffer commands, const char* name)
     {
         mDevice.beginLabel(commands, name);
 

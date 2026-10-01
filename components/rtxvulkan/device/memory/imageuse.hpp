@@ -148,7 +148,7 @@ namespace Rtx
     }
 
     /// The dependency between one use of `count` levels of `image` from `base` and the next —
-    /// `Image::describeTransition` for an image that is not an `Image`, which a swapchain's are.
+    /// `Image::addTransition`'s image barrier, for an image that is not an `Image`, which a swapchain's are.
     constexpr VkImageMemoryBarrier2 imageBarrier(const VkImage image, const std::uint32_t base,
         const std::uint32_t count, const ImageUse& from, const ImageUse& to)
     {
