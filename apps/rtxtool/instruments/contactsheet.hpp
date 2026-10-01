@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <filesystem>
 #include <span>
 #include <string_view>
 #include <vector>
@@ -38,7 +37,7 @@ namespace RtxTool
         static std::uint32_t getThumbnail();
     };
 
-    /// Writes every texture a cell uses, vanilla beside de-lit, as one image.
+    /// Draws every texture a cell uses, vanilla beside de-lit, as one image.
     ///
     /// **De-lighting is the one thing in this renderer a number cannot judge.** An estimate that
     /// removes the light painted into a texture and one that removes the *detail* painted into it
@@ -51,10 +50,6 @@ namespace RtxTool
     /// @param strength the same `--delight` the frame runs at, so the sheet shows what the frame
     ///        is actually doing rather than what it could do.
     ContactSheet drawContactSheet(std::span<const Rtx::TextureData> textures, float strength);
-
-    /// The same, written where it can be looked at. Empty where the cell used no textures.
-    ContactSheet writeContactSheet(
-        std::span<const Rtx::TextureData> textures, const std::filesystem::path& out, float strength);
 
     /// Appends what each pair of the sheet shows, in the order `drawContactSheet` draws them — the
     /// sheet's legend, which it carries no lettering for: a file's path, or a bake's key. By the

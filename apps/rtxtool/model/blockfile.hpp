@@ -11,6 +11,7 @@
 
 #include <osg/Vec3f>
 
+#include <components/misc/result.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 
 namespace RtxTool
@@ -56,16 +57,16 @@ namespace RtxTool
         std::vector<BlockField> mFields{};
     };
 
-    /// Why `hour` is no hour of the day, or nothing where it is one: the rule a view file and the
-    /// command line both refuse by, so a sky the line names is held to what a view's is.
-    std::optional<std::string_view> hourRefusal(float hour);
+    /// Whether `hour` is an hour of the day, and why not where it is not: the rule a view file and
+    /// the command line both refuse by, so a sky the line names is held to what a view's is.
+    Misc::Result<void, std::string_view> checkHour(float hour);
 
-    /// Why `day` is no day of the game, or nothing where it is one — days from the first, and
-    /// never before it: the rule a view file and the command line both refuse by.
-    std::optional<std::string_view> dayRefusal(int day);
+    /// Whether `day` is a day of the game — days from the first, and never before it — and why not
+    /// where it is not: the rule a view file and the command line both refuse by.
+    Misc::Result<void, std::string_view> checkDay(int day);
 
-    /// Why `weather` is none of the weathers the content files name, or nothing where it is one.
-    std::optional<std::string_view> weatherRefusal(std::string_view weather);
+    /// Whether `weather` is one of the weathers the content files name, and why not where it is not.
+    Misc::Result<void, std::string_view> checkWeather(std::string_view weather);
 
     /// The ten weathers, as the content files spell them, comma separated: what a refusal or a
     /// help line lists.

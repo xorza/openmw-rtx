@@ -9,7 +9,7 @@
 #include <osg/Matrixf>
 #include <osg/Vec3f>
 
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/sceneutil/lightcontroller.hpp>
 
 #include "light.hpp"
@@ -45,14 +45,14 @@ namespace Rtx
     /// and no ambient, because `SceneUtil::addLight` hands its source none. `id` is the reference
     /// number's low word for a light no node carries, where the graph's is the node's own — so a
     /// lamp's phase changes once, on the frame its cell loads and the graph's node takes over.
-    Result<std::optional<Light>, std::string_view> makeLight(
+    Misc::Result<std::optional<Light>, std::string_view> makeLight(
         const SceneUtil::LightCommon& record, const osg::Vec3f& position, double simulationTime, int id);
 
     /// The same light from a colour and a radius: one conversion, so a record read off the content
     /// files and a `SceneUtil::LightSource` read off the graph cannot disagree about how bright a
     /// candle is. Nothing where `radius` is a number no bigger than nought, and an error where a
     /// channel of `colour` is negative or a number the lamp is made of is not finite.
-    Result<std::optional<Light>, std::string_view> makeLight(
+    Misc::Result<std::optional<Light>, std::string_view> makeLight(
         const osg::Vec3f& colour, float radius, const osg::Vec3f& position);
 
     /// Whether a light in the game's scene graph is a Light spell's glow: it radiates in its
@@ -65,7 +65,7 @@ namespace Rtx
     /// bearer's body so the pool lights everything round the bearer and not the bearer, and its
     /// colour clamped at one as the rasterizer clamps its lighting — the spell's 1.5 is full light
     /// there, and decoded it would be two and a half lamps. None where `makeLight` makes none.
-    Result<std::optional<Light>, std::string_view> makeSpellLight(
+    Misc::Result<std::optional<Light>, std::string_view> makeSpellLight(
         const osg::Vec3f& colour, float radius, const osg::Vec3f& position);
 
     /// What a light in the game's scene graph radiates this frame, in the renderer's units: the
@@ -165,7 +165,7 @@ namespace Rtx
         /// not read off a record, so what a burst is worth against the lamps of the room is set by
         /// eye — `sGlowGain` and `sGlowReachScale` say how, and a burst is the one lamp in the game
         /// whose whole purpose is the room around it.
-        Result<std::optional<Light>, std::string_view> makeLight() const;
+        Misc::Result<std::optional<Light>, std::string_view> makeLight() const;
     };
 
 }

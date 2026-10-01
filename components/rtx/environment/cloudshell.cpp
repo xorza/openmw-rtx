@@ -14,8 +14,8 @@
 #include <osg/Transform>
 #include <osg/Vec3f>
 
+#include <components/misc/result.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/common/result.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/sky/vertexrules.hpp>
 #include <components/vfs/manager.hpp>
@@ -239,12 +239,12 @@ namespace Rtx
         };
     }
 
-    Result<CloudShell, std::string> readCloudShell(Resource::SceneManager& scenes, VFS::Path::NormalizedView mesh)
+    Misc::Result<CloudShell, std::string> readCloudShell(Resource::SceneManager& scenes, VFS::Path::NormalizedView mesh)
     {
         // A gap in the content is refused rather than read as a mesh that hangs no layer, as
         // `readNightSky` refuses its.
         if (!scenes.getVFS()->exists(mesh))
-            return Err{ "the archives hold no such file" };
+            return Misc::Err{ "the archives hold no such file" };
 
         return readCloudShell(const_cast<osg::Node&>(*scenes.getTemplate(mesh, false)));
     }

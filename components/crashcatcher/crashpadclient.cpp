@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <exception>
 #include <filesystem>
-#include <optional>
 #include <string>
 #include <string_view>
 
@@ -19,6 +18,7 @@
 #include <util/misc/tri_state.h>
 
 #include <components/files/conversion.hpp>
+#include <components/misc/result.hpp>
 #include <components/platform/process.hpp>
 
 #include "crashmonitorarguments.hpp"
@@ -69,16 +69,16 @@ namespace Crash
         return sInstalled.load(std::memory_order_acquire);
     }
 
-    std::optional<std::string> install(const Settings& settings)
+    Misc::Result<void, std::string_view> install(const Settings& settings)
     {
         static std::atomic<bool> tried{ false };
         if (tried.exchange(true))
-            return "install was called before, and a process installs once";
+            return Misc::Err{ "install was called before, and a process installs once" };
 
         const std::uint32_t process = Platform::Process::currentId();
         sPage = SharedPage::create(process);
         if (sPage.get() == nullptr)
-            return "the page it shares with its monitor could not be made";
+            return Misc::Err{ "the page it shares with its monitor could not be made" };
 
         // Everything the monitor needs to know of this process, on its command line: it reads the
         // notes from here at a crash, as it reads the stacks, and the page by this process's id.
@@ -105,7 +105,7 @@ namespace Crash
                 { { "product", settings.mApplication } }, monitor.write(), false, false))
         {
             sPage = SharedPage();
-            return "its monitor did not start";
+            return Misc::Err{ "its monitor did not start" };
         }
 
         Client::prepareInstallingThread();

@@ -13,6 +13,7 @@
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <components/debug/debuglog.hpp>
+#include <components/misc/result.hpp>
 
 namespace RtxTool
 {
@@ -67,9 +68,9 @@ namespace RtxTool
     {
         const Stop& stop = currentStop();
 
-        if (const std::optional<std::string> refused = mStager.stage(stop, mRequest))
+        if (const Misc::Result<void, std::string> staged = mStager.stage(stop, mRequest); !staged.isOk())
         {
-            abandon(*refused);
+            abandon(staged.error());
             return;
         }
 

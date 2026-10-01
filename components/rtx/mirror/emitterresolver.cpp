@@ -15,8 +15,8 @@
 #include <osgParticle/ParticleSystem>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/common/finite.hpp>
-#include <components/rtx/common/result.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -54,18 +54,18 @@ namespace Rtx
 
         /// The image `shading` draws a system's sprites with, described into `described`, or why
         /// it names none this can draw: a system the game draws and this renderer leaves out.
-        Result<const osg::Image*, std::string_view> readSprite(
+        Misc::Result<const osg::Image*, std::string_view> readSprite(
             std::span<const Shading> shading, SurfaceDescription& described)
         {
             if (!describeSurface(shading, described))
-                return Err{ "nothing describes its surface" };
+                return Misc::Err{ "nothing describes its surface" };
 
             const osg::Image* sprite = described.getTextureUse(SurfaceMap::Diffuse).get();
             if (sprite == nullptr)
-                return Err{ "its surface names no image to draw with" };
+                return Misc::Err{ "its surface names no image to draw with" };
 
             if (sprite->getFileName().empty())
-                return Err{ "its image was never a file" };
+                return Misc::Err{ "its image was never a file" };
 
             return sprite;
         }
@@ -78,7 +78,7 @@ namespace Rtx
         // this cannot name a sprite for draws nothing.
         SurfaceDescription described;
         const TextureUse& use = described.getTextureUse(SurfaceMap::Diffuse);
-        const Result<const osg::Image*, std::string_view> read = readSprite(shading, described);
+        const Misc::Result<const osg::Image*, std::string_view> read = readSprite(shading, described);
         if (!read.isOk())
             mScene.refusals().refuse(Refused::Emitter, particles.getName(), read.error());
         const osg::Image* sprite = read.isOk() ? read.value() : nullptr;
@@ -223,10 +223,10 @@ namespace Rtx
         // and draws nothing — no size, no alpha, an axis folded flat — draws nothing in the game
         // either.
         const auto readParticle
-            = [&](const osgParticle::Particle& particle) -> Result<std::optional<Sprite>, std::string_view> {
+            = [&](const osgParticle::Particle& particle) -> Misc::Result<std::optional<Sprite>, std::string_view> {
             const float radius = particle.getCurrentSize() * scale;
             if (!std::isfinite(radius))
-                return Err{ "a particle's size is not a finite number" };
+                return Misc::Err{ "a particle's size is not a finite number" };
             if (!(radius > 0.0f))
                 return std::nullopt;
 
@@ -242,13 +242,13 @@ namespace Rtx
             const float opacity = tinted ? vertex.a() * particle.getCurrentAlpha() : held.mOpacity;
             const float alpha = held.mBlend == BlendKind::AddWhole ? 1.0f : opacity;
             if (!std::isfinite(alpha) || !isFinite(colour))
-                return Err{ "a particle's colour is not a finite number" };
+                return Misc::Err{ "a particle's colour is not a finite number" };
             if (!(alpha > 0.0f))
                 return std::nullopt;
 
             const osg::Vec3f stood = particle.getPosition() * place;
             if (!isFinite(stood))
-                return Err{ "a particle's place is not a finite number" };
+                return Misc::Err{ "a particle's place is not a finite number" };
 
             if (particle.getAngle() != angle)
             {
@@ -258,7 +258,7 @@ namespace Rtx
 
             const float along = axis.length2();
             if (!std::isfinite(along))
-                return Err{ "a particle's axis is not a finite number" };
+                return Misc::Err{ "a particle's axis is not a finite number" };
             if (oriented && !(along > 0.0f))
                 return std::nullopt;
 
@@ -286,7 +286,7 @@ namespace Rtx
             if (!particle->isAlive())
                 continue;
 
-            const Result<std::optional<Sprite>, std::string_view> sprite = readParticle(*particle);
+            const Misc::Result<std::optional<Sprite>, std::string_view> sprite = readParticle(*particle);
             if (!sprite.isOk())
             {
                 if (refused.empty())

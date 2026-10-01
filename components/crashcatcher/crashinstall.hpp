@@ -4,6 +4,9 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <string_view>
+
+#include <components/misc/result.hpp>
 
 /// **Starting the crash catcher**, which `main` and the log's setup do once: apart from `crash.hpp`,
 /// so that the hundreds of files that only report or die through it compile none of this.
@@ -34,11 +37,11 @@ namespace Crash
     /// otherwise. Called first in `main`, before anything else starts.
     void runMonitorIfAsked(int argc, char** argv);
 
-    /// Starts the monitor and hooks every way this process can end in a crash. Nothing where it did,
-    /// and why not where it did not: a system Crashpad does not support, or a monitor that would
+    /// Starts the monitor and hooks every way this process can end in a crash. Whether it did, and
+    /// why not where it did not: a system Crashpad does not support, or a monitor that would
     /// not start. Once in a process, as early as it can be: a crash before the log is set up is a
     /// crash all the same.
-    std::optional<std::string> install(const Settings& settings);
+    Misc::Result<void, std::string_view> install(const Settings& settings);
 
     /// Where the monitor appends each summary: the game's own log, known once the configuration has
     /// been read, which is after `install`. Before this, a summary is in its dump alone. Nothing

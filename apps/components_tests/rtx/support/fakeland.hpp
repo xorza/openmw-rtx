@@ -26,7 +26,7 @@
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/misc/constants.hpp>
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/terrain/defs.hpp>
 #include <components/terrain/storage.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -178,11 +178,11 @@ namespace Rtx::Testing
     class ImagesByPath
     {
     public:
-        Result<osg::ref_ptr<const osg::Image>, std::string> get(const VFS::Path::NormalizedView path)
+        Misc::Result<osg::ref_ptr<const osg::Image>, std::string> get(const VFS::Path::NormalizedView path)
         {
             ++mOpened;
             if (mLost.contains(path.value()))
-                return Err{ "no image reads from the file" };
+                return Misc::Err{ "no image reads from the file" };
 
             const auto found = mImages.find(path.value());
             if (found != mImages.end())

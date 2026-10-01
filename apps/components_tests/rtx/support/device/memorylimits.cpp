@@ -9,7 +9,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 
 namespace Rtx::Testing
@@ -47,7 +47,7 @@ namespace Rtx::Testing
         for (VkDeviceSize size = VkDeviceSize{ 16 } << 20; size >= 256; size /= 16)
             while (true)
             {
-                Result<Buffer, std::string_view> filler = Buffer::tryMake(MemoryUse::Texture, device,
+                Misc::Result<Buffer, std::string_view> filler = Buffer::tryMake(MemoryUse::Texture, device,
                     BufferKind::DeviceLocal, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "content filler");
                 if (!filler.isOk())
                     break;

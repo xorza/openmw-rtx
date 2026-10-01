@@ -10,7 +10,7 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/scene/mesh.hpp>
 
@@ -82,12 +82,12 @@ namespace Rtx
         /// its source, a triangle naming a vertex the drawable does not have, an array of normals,
         /// coordinates or colours of another length than the vertices, or an array of a type this
         /// does not read.
-        Result<bool, std::string> read(const DrawableRead& read, MeshReading& into);
+        Misc::Result<bool, std::string> read(const DrawableRead& read, MeshReading& into);
 
     private:
         /// Collects `geometry`'s triangles into `mTriangleScratch`, degenerate ones left out, and
         /// answers whether any is left. An error where one names a vertex at or past `vertices`.
-        Result<bool, std::string> collectTriangles(const osg::Geometry& geometry, std::size_t vertices);
+        Misc::Result<bool, std::string> collectTriangles(const osg::Geometry& geometry, std::size_t vertices);
 
         ContentPreprocessor& mContent;
 

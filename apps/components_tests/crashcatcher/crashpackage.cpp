@@ -15,6 +15,7 @@
 
 #include <components/crashcatcher/crashpackage.hpp>
 #include <components/files/conversion.hpp>
+#include <components/misc/result.hpp>
 #include <components/platform/process.hpp>
 
 #include "zipreader.hpp"
@@ -88,7 +89,9 @@ namespace
             { "журнал.log", write("journal.txt", "Crash: SIGSEGV at 0x10 in thread 7\n") },
         };
         const std::filesystem::path zip = mFolder / "package.zip";
-        ASSERT_EQ(Crash::writePackage(zip, files, localOf(2026, 9, 27, 14, 30, 13)), std::nullopt);
+        const Misc::Result<void, std::string> written
+            = Crash::writePackage(zip, files, localOf(2026, 9, 27, 14, 30, 13));
+        ASSERT_TRUE(written.isOk()) << written.error();
 
         std::vector<CrashTests::ZipEntry> entries;
         ASSERT_EQ(CrashTests::readZip(zip, entries), std::nullopt);
@@ -136,7 +139,8 @@ namespace
         for (const Case& one : cases)
         {
             const std::filesystem::path zip = mFolder / "stamped.zip";
-            ASSERT_EQ(Crash::writePackage(zip, files, one.mLocal), std::nullopt);
+            const Misc::Result<void, std::string> written = Crash::writePackage(zip, files, one.mLocal);
+            ASSERT_TRUE(written.isOk()) << written.error();
             std::vector<CrashTests::ZipEntry> entries;
             ASSERT_EQ(CrashTests::readZip(zip, entries), std::nullopt);
             ASSERT_EQ(entries.size(), 1u);
@@ -177,10 +181,10 @@ namespace
         const std::vector<std::filesystem::path> before = contents();
         for (const Case& one : cases)
         {
-            const std::optional<std::string> why
+            const Misc::Result<void, std::string> written
                 = Crash::writePackage(one.mZip, one.mFiles, localOf(2026, 9, 27, 14, 30, 13));
-            ASSERT_TRUE(why.has_value()) << one.mName;
-            EXPECT_NE(why->find(one.mSays), std::string::npos) << one.mName << ": " << *why;
+            ASSERT_FALSE(written.isOk()) << one.mName;
+            EXPECT_NE(written.error().find(one.mSays), std::string::npos) << one.mName << ": " << written.error();
             EXPECT_EQ(contents(), before) << one.mName;
         }
     }

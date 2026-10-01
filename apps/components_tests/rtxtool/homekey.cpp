@@ -16,6 +16,7 @@
 #include <apps/rtxtool/homekey.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/run.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -119,8 +120,9 @@ namespace RtxTool
             EXPECT_EQ(descriptionOf(pictures / "pier-1.png"), describeStanding(noteOf(10)));
             EXPECT_EQ(descriptionOf(pictures / "pier-2.png"), describeStanding(noteOf(13)));
             EXPECT_FALSE(std::filesystem::exists(pictures / "pier-3.png"));
-            EXPECT_EQ(Rtx::readPng(pictures / "pier-1.png").mPixels,
-                std::vector<std::uint8_t>(sPixels.begin(), sPixels.end()));
+            const Misc::Result<Rtx::PngImage, std::string> first = Rtx::readPng(pictures / "pier-1.png");
+            ASSERT_TRUE(first.isOk()) << first.error();
+            EXPECT_EQ(first.value().mPixels, std::vector<std::uint8_t>(sPixels.begin(), sPixels.end()));
             EXPECT_EQ(readText(keys), "\n" + describeKey(noteOf(10)) + "\n" + describeKey(noteOf(13)));
         }
 

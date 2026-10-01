@@ -16,7 +16,6 @@
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
-#include <components/rtx/renderer/png.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 
 namespace RtxTool
@@ -136,13 +135,4 @@ namespace RtxTool
         }
     }
 
-    ContactSheet writeContactSheet(
-        std::span<const Rtx::TextureData> textures, const std::filesystem::path& out, float strength)
-    {
-        ContactSheet sheet = drawContactSheet(textures, strength);
-        if (sheet.mCount > 0)
-            Rtx::writePng(out, sheet.mWidth, sheet.mHeight, sheet.mPixels);
-
-        return sheet;
-    }
 }

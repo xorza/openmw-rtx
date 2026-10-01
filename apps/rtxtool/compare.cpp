@@ -14,6 +14,7 @@
 
 #include <components/debug/debugging.hpp>
 #include <components/files/conversion.hpp>
+#include <components/misc/result.hpp>
 
 namespace RtxTool
 {
@@ -27,7 +28,8 @@ namespace RtxTool
         /// Whether the two have a picture each, of one size, so there is something to subtract.
         bool comparable(const Rtx::PngImage& one, const Rtx::PngImage& other)
         {
-            return !one.empty() && !other.empty() && one.mWidth == other.mWidth && one.mHeight == other.mHeight;
+            return !one.mPixels.empty() && !other.mPixels.empty() && one.mWidth == other.mWidth
+                && one.mHeight == other.mHeight;
         }
 
         /// The difference of the pixel whose first byte is `at`: its worst colour channel, out of 255.
@@ -49,7 +51,7 @@ namespace RtxTool
         std::string describe(const FrameDifference& difference)
         {
             if (difference.mMismatched)
-                return "no reference, or one of a different size";
+                return "of another size than its reference";
 
             if (difference.same())
                 return "same";
@@ -211,16 +213,29 @@ namespace RtxTool
         std::uint32_t missing = 0;
         for (const std::string& place : places)
         {
-            const Rtx::PngImage reference = read(place, sNoiseReferenceSuffix);
-            const Rtx::PngImage frameMean = read(place, sNoiseMeanSuffix);
-            const Rtx::PngImage barLimit = read(place, sNoiseBarLimitSuffix);
-            const PictureError frame = measureError(read(place, ""), frameMean);
-            const PictureError bar = measureError(read(place, sNoiseBarSuffix), barLimit);
+            const std::array<Misc::Result<Rtx::PngImage, std::string>, 5> pictures{ read(place, ""),
+                read(place, sNoiseMeanSuffix), read(place, sNoiseBarSuffix), read(place, sNoiseBarLimitSuffix),
+                read(place, sNoiseReferenceSuffix) };
+            const auto unread = std::ranges::find_if(pictures, [](const auto& one) { return !one.isOk(); });
+            if (unread != pictures.end())
+            {
+                out() << std::format("  {:<28} {}\n", place, unread->error());
+                ++missing;
+                continue;
+            }
+
+            const Rtx::PngImage& single = pictures[0].value();
+            const Rtx::PngImage& frameMean = pictures[1].value();
+            const Rtx::PngImage& barMean = pictures[2].value();
+            const Rtx::PngImage& barLimit = pictures[3].value();
+            const Rtx::PngImage& reference = pictures[4].value();
+            const PictureError frame = measureError(single, frameMean);
+            const PictureError bar = measureError(barMean, barLimit);
             const std::optional<double> frameBias = blurredDifference(frameMean, reference, sNoiseBiasBlur);
             const std::optional<double> barBias = blurredDifference(barLimit, reference, sNoiseBiasBlur);
             if (frame.mMismatched || bar.mMismatched || !frameBias.has_value() || !barBias.has_value())
             {
-                out() << std::format("  {:<28} a picture is missing, or of another size\n", place);
+                out() << std::format("  {:<28} a picture is of another size than the others\n", place);
                 ++missing;
                 continue;
             }
@@ -247,14 +262,14 @@ namespace RtxTool
         return 1;
     }
 
-    std::optional<std::string> refuseAgainst(const std::filesystem::path& out, const std::filesystem::path& against)
+    Misc::Result<void, std::string> checkAgainst(const std::filesystem::path& out, const std::filesystem::path& against)
     {
         if (against.empty() || !std::filesystem::exists(against) || !std::filesystem::exists(out)
             || !std::filesystem::equivalent(out, against))
-            return std::nullopt;
+            return {};
 
-        return std::format(
-            "--against={} is where this run writes; name another --out", Files::pathToUnicodeString(against));
+        return Misc::Err{ std::format(
+            "--against={} is where this run writes; name another --out", Files::pathToUnicodeString(against)) };
     }
 
     int compareRuns(const std::filesystem::path& wrote, const std::filesystem::path& against,
@@ -273,9 +288,11 @@ namespace RtxTool
 
         for (const WrittenPicture& picture : pictures)
         {
-            const Rtx::PngImage drawn = Rtx::readPng(wrote / picture.mFile);
-            const Rtx::PngImage reference = Rtx::readPng(against / picture.mFile);
-            const FrameDifference difference = compareFrames(reference, drawn);
+            const Misc::Result<Rtx::PngImage, std::string> drawn = Rtx::readPng(wrote / picture.mFile);
+            const Misc::Result<Rtx::PngImage, std::string> reference = Rtx::readPng(against / picture.mFile);
+            const FrameDifference difference = drawn.isOk() && reference.isOk()
+                ? compareFrames(reference.value(), drawn.value())
+                : FrameDifference{ .mMismatched = true };
             const PictureVerdict verdict = judgePicture(difference, picture.mRule);
 
             std::string_view note;
@@ -284,7 +301,10 @@ namespace RtxTool
             else if (verdict == PictureVerdict::Measured && !difference.same())
                 note = ", which the hashes judge";
 
-            out() << std::format("  {:<36} {}{}\n", picture.mFile, describe(difference), note);
+            const std::string said = !reference.isOk() ? "no reference: " + reference.error()
+                : !drawn.isOk()                        ? "not read back: " + drawn.error()
+                                                       : describe(difference);
+            out() << std::format("  {:<36} {}{}\n", picture.mFile, said, note);
 
             hashed += picture.mRule == PictureRule::Hashed ? 1 : 0;
             moved += verdict == PictureVerdict::Moved ? 1 : 0;

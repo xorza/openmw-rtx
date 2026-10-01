@@ -1,8 +1,9 @@
 #pragma once
 
-#include <optional>
 #include <string>
 #include <string_view>
+
+#include <components/misc/result.hpp>
 
 namespace MWBase
 {
@@ -23,10 +24,10 @@ namespace RtxTool
     class Stager
     {
     public:
-        /// Stages `stop` of `request`, or says why it cannot be: a cell nothing is called. Ends with
+        /// Stages `stop` of `request`, and says why not where it cannot be: a cell nothing is called. Ends with
         /// the navmesh built whole and the renderer's history let go of, so the first frame drawn
         /// after this is drawn at the stop and from nothing before it.
-        std::optional<std::string> stage(const Stop& stop, const SessionRequest& request) const;
+        Misc::Result<void, std::string> stage(const Stop& stop, const SessionRequest& request) const;
 
         /// Tells the renderer that nothing before this frame describes where it now stands.
         static void forgetHistory();

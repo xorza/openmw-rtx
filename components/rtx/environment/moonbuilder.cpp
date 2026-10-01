@@ -12,7 +12,7 @@
 #include <osg/Vec2f>
 #include <osg/ref_ptr>
 
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturewrap.hpp>
@@ -39,10 +39,10 @@ namespace Rtx
         /// How wide `size` draws `moon`. `Fallback::Map` answers a key the configuration leaves out,
         /// and one that does not parse, with nought, and the game draws a quad of no extent for
         /// that; an error for a size below nought, or one that is not finite.
-        Result<float, std::string> radiusOf(Moon moon, float size)
+        Misc::Result<float, std::string> radiusOf(Moon moon, float size)
         {
             if (!(size >= 0.0f) || !std::isfinite(size))
-                return Err{ "Moons_" + std::string(nameOf(moon)) + "_Size is " + std::to_string(size)
+                return Misc::Err{ "Moons_" + std::string(nameOf(moon)) + "_Size is " + std::to_string(size)
                     + ", which is no size" };
 
             return moonAngularRadius(size);
@@ -123,7 +123,7 @@ namespace Rtx
     {
         // A moon of a size that is no size is refused and not drawn.
         const auto drawnWidth = [&](Moon moon, float size) {
-            const Result<float, std::string> radius = radiusOf(moon, size);
+            const Misc::Result<float, std::string> radius = radiusOf(moon, size);
             if (radius.isOk())
                 return radius.value();
 
@@ -142,7 +142,7 @@ namespace Rtx
         // keeps the shipped portrait's.
         const auto face = [&](const Moon moon, osg::Vec3f& mean) {
             const VFS::Path::NormalizedView path = moonFaceOf(moon);
-            const Result<osg::ref_ptr<const osg::Image>, std::string> image = openImage(images, path);
+            const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> image = openImage(images, path);
             const Index slot
                 = scene.textures().add(path, image.isOk() ? image.value().get() : nullptr, TextureWrap::Clamp);
             holds.push_back(scene.holdTexture(slot));

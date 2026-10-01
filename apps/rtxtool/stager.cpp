@@ -56,7 +56,7 @@ namespace RtxTool
         constexpr int sBoostedGold = 10'000'000;
     }
 
-    std::optional<std::string> Stager::stage(const Stop& stop, const SessionRequest& request) const
+    Misc::Result<void, std::string> Stager::stage(const Stop& stop, const SessionRequest& request) const
     {
         MWBase::World& world = *MWBase::Environment::get().getWorld();
 
@@ -74,7 +74,7 @@ namespace RtxTool
                 found = world.findInteriorPosition(stop.mStand.mCell, where);
 
             if (found.empty())
-                return "no cell is called \"" + stop.mStand.mCell + '"';
+                return Misc::Err{ "no cell is called \"" + stop.mStand.mCell + '"' };
 
             // **Where the eye goes and not where the cell centres, where the stop says.** The
             // position the world found is what stands a player in the cell; a view names the spot
@@ -180,7 +180,7 @@ namespace RtxTool
         // exterior's brightness. The warm-up absorbs the frame it costs.
         forgetHistory();
 
-        return std::nullopt;
+        return {};
     }
 
     void Stager::forgetHistory()

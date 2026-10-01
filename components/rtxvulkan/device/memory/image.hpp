@@ -9,7 +9,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
 #include <components/rtxvulkan/device/readstamp.hpp>
 
@@ -49,7 +49,7 @@ namespace Rtx
         /// The same, for an image something stands in for: why there is none where the device has
         /// no room for it as `use` — `MemoryAllocator::tryTake`. The use first, so the parameters
         /// the constructor defaults stay last.
-        static Result<Image, std::string_view> tryMake(MemoryUse use, const Device& device, std::uint32_t width,
+        static Misc::Result<Image, std::string_view> tryMake(MemoryUse use, const Device& device, std::uint32_t width,
             std::uint32_t height, VkFormat format, VkImageUsageFlags usage, std::string_view name,
             std::uint32_t mipLevels = 1, std::uint32_t depth = 1, VkFormat storageFormat = VK_FORMAT_UNDEFINED);
 

@@ -9,7 +9,7 @@
 #include <osg/Vec3f>
 
 #include <components/crashcatcher/crashnote.hpp>
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/meshtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -260,7 +260,8 @@ namespace Rtx
             // refit or a rebuild reads, and the scratch it was counted into goes unread. A load's
             // whole total is not asked for again once the device has refused it, and each structure
             // after asks for its own room.
-            const Result<StructureRoom, std::string_view> room = mStorage.take(mDevice, mBuilding[at].mSize, wanted);
+            const Misc::Result<StructureRoom, std::string_view> room
+                = mStorage.take(mDevice, mBuilding[at].mSize, wanted);
             if (!room.isOk())
             {
                 row.mUpdatable = false;
@@ -479,7 +480,8 @@ namespace Rtx
             // be asked again by a later placement, rather than a structure answered and never
             // copied.
             const VkDeviceSize tight = state.mTightSize;
-            const Result<StructureRoom, std::string_view> room = mStorage.take(mDevice, tight, sCompactionPerPlacement);
+            const Misc::Result<StructureRoom, std::string_view> room
+                = mStorage.take(mDevice, tight, sCompactionPerPlacement);
             if (!room.isOk())
                 break;
 

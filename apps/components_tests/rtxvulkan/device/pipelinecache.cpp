@@ -8,6 +8,7 @@
 #include <iterator>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -15,6 +16,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
@@ -95,7 +97,8 @@ namespace Rtx
             // Even a cache nothing was compiled into carries its header, which is all this reads.
             ASSERT_GE(blob.size(), std::size_t{ 32 }) << "a blob is at least a header";
 
-            EXPECT_TRUE(PipelineCache::accepts(blob, deviceProperties())) << "this driver's own blob";
+            const Misc::Result<void, std::string_view> accepted = PipelineCache::accepts(blob, deviceProperties());
+            EXPECT_TRUE(accepted.isOk()) << "this driver's own blob: " << accepted.error();
         }
 
         /// And it refuses what another machine wrote, what a dead process left half written, and
@@ -120,28 +123,43 @@ namespace Rtx
         {
             const std::vector<std::uint8_t> blob = deviceBlob();
             const VkPhysicalDeviceProperties& properties = deviceProperties();
-            ASSERT_TRUE(PipelineCache::accepts(blob, properties));
+            ASSERT_TRUE(PipelineCache::accepts(blob, properties).isOk());
+
+            // A header of another length, in its first word.
+            std::vector<std::uint8_t> foreign = blob;
+            foreign.at(0) ^= 0xFF;
+            EXPECT_EQ(
+                PipelineCache::accepts(foreign, properties).error(), "has no header of the one version Vulkan defines");
 
             // Another vendor's, at byte eight of the header.
             std::vector<std::uint8_t> elsewhere = blob;
             elsewhere.at(8) ^= 0xFF;
-            EXPECT_FALSE(PipelineCache::accepts(elsewhere, properties)) << "another vendor";
+            EXPECT_EQ(PipelineCache::accepts(elsewhere, properties).error(), "was written for another vendor's device");
+
+            // The other card of the vendor, at byte twelve.
+            std::vector<std::uint8_t> otherCard = blob;
+            otherCard.at(12) ^= 0xFF;
+            EXPECT_EQ(PipelineCache::accepts(otherCard, properties).error(), "was written for another device");
 
             // The same driver after an update, which is what the UUID is for.
             std::vector<std::uint8_t> updated = blob;
             updated.at(16) ^= 0xFF;
-            EXPECT_FALSE(PipelineCache::accepts(updated, properties)) << "another driver build";
+            EXPECT_EQ(PipelineCache::accepts(updated, properties).error(), "was written by another driver build");
 
             // And a write that stopped part way through the header itself.
-            EXPECT_FALSE(PipelineCache::accepts(std::span(blob).first(31), properties)) << "a torn header";
-            EXPECT_FALSE(PipelineCache::accepts({}, properties)) << "nothing at all";
+            EXPECT_EQ(
+                PipelineCache::accepts(std::span(blob).first(31), properties).error(), "is shorter than a cache header")
+                << "a torn header";
+            EXPECT_EQ(PipelineCache::accepts({}, properties).error(), "is shorter than a cache header")
+                << "nothing at all";
 
             std::vector<std::uint8_t> grown(PipelineCache::sMostBytes + 1, 0);
             std::copy(blob.begin(), blob.end(), grown.begin());
-            EXPECT_FALSE(PipelineCache::accepts(grown, properties)) << "one byte past what is kept";
+            EXPECT_EQ(PipelineCache::accepts(grown, properties).error(), "is larger than a cache is kept")
+                << "one byte past what is kept";
 
             grown.resize(PipelineCache::sMostBytes);
-            EXPECT_TRUE(PipelineCache::accepts(grown, properties)) << "exactly what is kept";
+            EXPECT_TRUE(PipelineCache::accepts(grown, properties).isOk()) << "exactly what is kept";
         }
 
         /// The name carries the shaders, and every cache that is not this run's is swept.

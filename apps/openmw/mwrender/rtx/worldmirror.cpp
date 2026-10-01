@@ -18,10 +18,10 @@
 
 #include <components/esm/refid.hpp>
 #include <components/misc/constants.hpp>
+#include <components/misc/result.hpp>
 #include <components/nifosg/nifloader.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/common/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/image/imagedescription.hpp>
@@ -66,7 +66,7 @@ namespace MWRender
                 return mScenes.getTemplate(path, false);
             }
 
-            Rtx::Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView path) override
+            Misc::Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView path) override
             {
                 return Rtx::openImage(*mScenes.getImageManager(), path);
             }

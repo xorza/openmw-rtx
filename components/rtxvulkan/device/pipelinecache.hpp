@@ -4,9 +4,12 @@
 #include <cstdint>
 #include <filesystem>
 #include <span>
+#include <string_view>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
+
+#include <components/misc/result.hpp>
 
 #include "owned.hpp"
 
@@ -59,12 +62,13 @@ namespace Rtx
         /// generation's set is tens of megabytes, about double once `shot` has added its extents.
         static constexpr std::size_t sMostBytes = std::size_t{ 256 } << 20;
 
-        /// Whether a stored blob is one this driver wrote, and one small enough to go on keeping.
-        /// Checked here as well as by the driver, because the file is untrusted data and four
+        /// Whether a stored blob is one this driver wrote, and one small enough to go on keeping, and
+        /// why not where it is not. Checked here as well as by the driver, because the file is untrusted data and four
         /// comparisons are cheaper than relying on every driver. Public because an offset off by
         /// four would reject every blob the driver ever wrote, with no symptom but a cache that
         /// never hit.
-        static bool accepts(std::span<const std::uint8_t> blob, const VkPhysicalDeviceProperties& properties);
+        static Misc::Result<void, std::string_view> accepts(
+            std::span<const std::uint8_t> blob, const VkPhysicalDeviceProperties& properties);
 
     private:
         /// Writes the driver's current blob back, through a temporary and a rename — or deletes the

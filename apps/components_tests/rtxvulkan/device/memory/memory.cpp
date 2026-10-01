@@ -13,7 +13,7 @@
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/memorylimits.hpp>
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
@@ -57,7 +57,7 @@ namespace Rtx
 
             Bound bound;
             bound.mBuffer = Owned<VkBuffer, vkDestroyBuffer>::make(device, vkCreateBuffer, create, "vkCreateBuffer");
-            Result<DeviceMemory, std::string_view> memory
+            Misc::Result<DeviceMemory, std::string_view> memory
                 = device.getMemory().tryTake(bound.mBuffer.get(), properties, 1, use);
             if (!memory.isOk())
             {

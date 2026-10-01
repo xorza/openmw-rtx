@@ -7,7 +7,7 @@
 #include <osg/Node>
 #include <osg/NodeVisitor>
 
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/mirror/nodekind.hpp>
 #include <components/rtx/mirror/shading.hpp>
@@ -50,7 +50,7 @@ namespace Rtx
         ///
         /// @param mask which nodes the walk may descend into — the same `osg` traversal mask the
         ///        frame's walk carries, so the two reach the same drawables.
-        Result<void, std::string> read(const osg::Node& root, osg::Node::NodeMask mask, PreparedModel& into);
+        Misc::Result<void, std::string> read(const osg::Node& root, osg::Node::NodeMask mask, PreparedModel& into);
 
         /// What the reads computed from the content since the last take — `ContentPreprocessor`.
         ContentStats takeStats() { return mContent.takeStats(); }

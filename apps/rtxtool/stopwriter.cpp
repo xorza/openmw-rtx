@@ -6,7 +6,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <exception>
 #include <format>
 #include <limits>
 #include <span>
@@ -41,6 +40,7 @@
 #include <components/esm3/refnum.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/constants.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -149,18 +149,17 @@ namespace RtxTool
         mMean.mean(mPixels);
         mMean.clear();
         mMeanFile.clear();
-        try
+        const Misc::Result<void, std::string> written
+            = Rtx::writePng(mean.mFile, extents.mOutputWidth, extents.mOutputHeight, mPixels);
+        if (!written.isOk())
         {
-            Rtx::writePng(mean.mFile, extents.mOutputWidth, extents.mOutputHeight, mPixels);
-            into.mRecord.note(std::format("wrote {} {}x{}, the mean of {} frames\n",
-                Files::pathToUnicodeString(mean.mFile), extents.mOutputWidth, extents.mOutputHeight, mean.mOf));
-        }
-        catch (const std::exception& failed)
-        {
-            into.mRecord.note(
-                std::format("could not write {}: {}\n", Files::pathToUnicodeString(mean.mFile), failed.what()));
+            into.mRecord.note(written.error() + "\n");
             into.mRecord.fail();
+            return;
         }
+
+        into.mRecord.note(std::format("wrote {} {}x{}, the mean of {} frames\n", Files::pathToUnicodeString(mean.mFile),
+            extents.mOutputWidth, extents.mOutputHeight, mean.mOf));
     }
 
     void StopWriter::writeCapture(const Writing& into, const std::filesystem::path& file)
@@ -169,37 +168,36 @@ namespace RtxTool
         const Rtx::FrameExtents extents = renderer.getExtents();
 
         renderer.readPixels(mPixels);
-        try
+        const Misc::Result<void, std::string> written
+            = Rtx::writePng(file, extents.mOutputWidth, extents.mOutputHeight, mPixels);
+        if (!written.isOk())
         {
-            Rtx::writePng(file, extents.mOutputWidth, extents.mOutputHeight, mPixels);
-            into.mRecord.note(std::format(
-                "wrote {} {}x{}", Files::pathToUnicodeString(file), extents.mOutputWidth, extents.mOutputHeight));
-
-            if (extents.mRenderWidth != extents.mOutputWidth || extents.mRenderHeight != extents.mOutputHeight)
-                into.mRecord.note(std::format(", traced at {}x{}", extents.mRenderWidth, extents.mRenderHeight));
-
-            into.mRecord.note("\n");
-        }
-        catch (const std::exception& failed)
-        {
-            into.mRecord.note(std::format("could not write {}: {}\n", Files::pathToUnicodeString(file), failed.what()));
+            into.mRecord.note(written.error() + "\n");
             into.mRecord.fail();
+            return;
         }
+
+        into.mRecord.note(std::format(
+            "wrote {} {}x{}", Files::pathToUnicodeString(file), extents.mOutputWidth, extents.mOutputHeight));
+
+        if (extents.mRenderWidth != extents.mOutputWidth || extents.mRenderHeight != extents.mOutputHeight)
+            into.mRecord.note(std::format(", traced at {}x{}", extents.mRenderWidth, extents.mRenderHeight));
+
+        into.mRecord.note("\n");
     }
 
     void StopWriter::writeFrameTimes(
         const Writing& into, const std::filesystem::path& file, const FrameSamples& samples)
     {
-        try
+        const Misc::Result<void, std::string> written = RtxTool::writeFrameTimes(file, samples);
+        if (!written.isOk())
         {
-            RtxTool::writeFrameTimes(file, samples);
-            into.mRecord.note(std::format("wrote {} frames to {}\n", samples.size(), Files::pathToUnicodeString(file)));
-        }
-        catch (const std::exception& failed)
-        {
-            into.mRecord.note(std::format("could not write {}: {}\n", Files::pathToUnicodeString(file), failed.what()));
+            into.mRecord.note(written.error() + "\n");
             into.mRecord.fail();
+            return;
         }
+
+        into.mRecord.note(std::format("wrote {} frames to {}\n", samples.size(), Files::pathToUnicodeString(file)));
     }
 
     void StopWriter::reportScene(const Writing& into)
@@ -362,10 +360,19 @@ namespace RtxTool
         described.describeAll(scene);
 
         const float delight = into.mContext.mRenderer.getProfile().mDelight;
-        const ContactSheet drawn = writeContactSheet(described.getDescriptions(), sheet, delight);
+        const ContactSheet drawn = drawContactSheet(described.getDescriptions(), delight);
         if (drawn.mCount == 0)
         {
             into.mRecord.note("the world uses no textures\n");
+            into.mRecord.fail();
+            return;
+        }
+
+        if (const Misc::Result<void, std::string> written
+            = Rtx::writePng(sheet, drawn.mWidth, drawn.mHeight, drawn.mPixels);
+            !written.isOk())
+        {
+            into.mRecord.note(written.error() + "\n");
             into.mRecord.fail();
             return;
         }
@@ -408,7 +415,15 @@ namespace RtxTool
             std::memcpy(
                 mPixels.data() + stride * static_cast<std::size_t>(row), drawn.data(0, height - 1 - row), stride);
 
-        Rtx::writePng(file, static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), mPixels);
+        const Misc::Result<void, std::string> written
+            = Rtx::writePng(file, static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), mPixels);
+        if (!written.isOk())
+        {
+            into.mRecord.note(written.error() + "\n");
+            into.mRecord.fail();
+            return;
+        }
+
         into.mRecord.note(std::format("wrote {} {}x{}\n", Files::pathToUnicodeString(file), width, height));
     }
 

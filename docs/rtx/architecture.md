@@ -199,7 +199,7 @@ source-tree test holds the order.
   back together: the denoiser, the jitter, the noise source, the texture level bias.
 
 Content the renderer cannot use is never an assert and never the end of a frame. Readers answer
-with a `Rtx::Result`, and every refusal is reported once to `Rtx::Refusals`. A texture that is
+with a `Misc::Result`, and every refusal is reported once to `Rtx::Refusals`. A texture that is
 refused draws as a stand-in, and anything else refused is left out.
 
 ## 8. The backend

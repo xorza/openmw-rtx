@@ -9,7 +9,7 @@
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
@@ -38,7 +38,7 @@ namespace Rtx
         /// two would be written across two allocations that are not next to each other. A vertex
         /// count comes out of a content file, so whoever reads one asks this before `add`, which
         /// asserts it.
-        static Result<void, std::string> checkFits(const MeshArrays& arrays);
+        static Misc::Result<void, std::string> checkFits(const MeshArrays& arrays);
 
         /// Copies the vertex data into the shared buffers and returns the new mesh's index. The
         /// mesh fits a block — `checkFits`. A deforming mesh is stood on `deformer` in

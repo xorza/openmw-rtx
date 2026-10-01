@@ -6,7 +6,7 @@
 #include <utility>
 #include <variant>
 
-namespace Rtx
+namespace Misc
 {
     /// The failing half of a `Result`, named where it is made — Rust's `Err`. Named rather than
     /// converted, so a `Result` whose two types convert into each other is never ambiguous.
@@ -16,12 +16,13 @@ namespace Rtx
         E mError;
     };
 
-    /// A value, or why there is none — Rust's `Result`. How every reader of content answers: what
-    /// content supplies may be refused item by item and the game goes on, so a refusal is an
-    /// answer and not an exception, and the code that decides what becomes of the content reports
-    /// it (`Refusals`).
+    /// A value, or why there is none — Rust's `Result`. For a failure the caller is expected to
+    /// meet and go on from: content refused item by item while the game goes on, a file that
+    /// would not read or write, a value a user typed. A contract the code broke is an assert, and
+    /// a failure nothing can go on from is an exception. Not to be dropped: a result nobody reads
+    /// is a failure nobody heard of.
     template <class T, class E>
-    class Result
+    class [[nodiscard]] Result
     {
     public:
         template <class U>
@@ -65,7 +66,7 @@ namespace Rtx
     /// A check's answer: nothing where it passed, and why where it did not — Rust's `Result<(), E>`.
     /// `return {};` is the pass.
     template <class E>
-    class Result<void, E>
+    class [[nodiscard]] Result<void, E>
     {
     public:
         Result() = default;

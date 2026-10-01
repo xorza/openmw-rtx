@@ -17,8 +17,8 @@
 #include <osg/TriangleIndexFunctor>
 #include <osg/Vec2f>
 
+#include <components/misc/result.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/common/result.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
@@ -252,7 +252,7 @@ namespace Rtx
         constexpr float sTiledSpan = 1.5f;
     }
 
-    Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
+    Misc::Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
         VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback, ContentPreprocessor& content,
         std::vector<TextureHold>& holds)
     {
@@ -263,7 +263,7 @@ namespace Rtx
         // A gap in the content is refused rather than read as a night with no stars in it, which
         // reads as a renderer that forgot them. Before any hold, so a refusal leaves none behind.
         if (!scenes.getVFS()->exists(chosen))
-            return Err{ "the archives hold neither it nor \"" + std::string(fallback.value()) + '"' };
+            return Misc::Err{ "the archives hold neither it nor \"" + std::string(fallback.value()) + '"' };
 
         LayerReader read;
         const_cast<osg::Node&>(*scenes.getTemplate(chosen, false)).accept(read);
@@ -273,7 +273,7 @@ namespace Rtx
         {
             // Asked before a slot is taken, as a deck's sheet is: one the upload refuses would stand
             // in as an opaque grey, and the field is laid over the whole dome.
-            if (const Result<void, std::string> uploadable = checkUploadable(*layer.mImage); !uploadable.isOk())
+            if (const Misc::Result<void, std::string> uploadable = checkUploadable(*layer.mImage); !uploadable.isOk())
             {
                 scene.refusals().refuse(Refused::SkyLayer, layer.mImage->getFileName(), uploadable.error());
                 continue;

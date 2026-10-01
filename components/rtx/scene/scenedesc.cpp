@@ -37,10 +37,10 @@ namespace Rtx
         return mMeshes.add(mDeformers, arrays, shape, deformer);
     }
 
-    Result<void, std::string> SceneDesc::checkPoses(const Index posed, const MeshArrays& arrays)
+    Misc::Result<void, std::string> SceneDesc::checkPoses(const Index posed, const MeshArrays& arrays)
     {
         if (posed != arrays.mPositions.size())
-            return Err{ "it has " + std::to_string(arrays.mPositions.size()) + " vertices on a rig or morph of "
+            return Misc::Err{ "it has " + std::to_string(arrays.mPositions.size()) + " vertices on a rig or morph of "
                 + std::to_string(posed) };
 
         return {};

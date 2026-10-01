@@ -1,8 +1,8 @@
 #include <chrono>
 #include <filesystem>
-#include <optional>
-#include <string>
 #include <string_view>
+
+#include <components/misc/result.hpp>
 
 #include "crash.hpp"
 #include "crashinstall.hpp"
@@ -15,9 +15,9 @@ namespace Crash
 {
     void runMonitorIfAsked(int, char**) {}
 
-    std::optional<std::string> install(const Settings&)
+    Misc::Result<void, std::string_view> install(const Settings&)
     {
-        return "Crashpad does not support this system";
+        return Misc::Err{ "Crashpad does not support this system" };
     }
 
     void setLogFile(const std::filesystem::path&) {}

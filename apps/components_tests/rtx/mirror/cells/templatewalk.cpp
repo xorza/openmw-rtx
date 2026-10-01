@@ -26,7 +26,7 @@
 
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <components/misc/constants.hpp>
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/mirror/cells/nightday.hpp>
@@ -101,7 +101,7 @@ namespace Rtx::Testing
 
             PreparedModel model;
             TemplateWalk walk;
-            walk.read(*root, ~hidden, model);
+            ASSERT_TRUE(walk.read(*root, ~hidden, model).isOk());
 
             ASSERT_EQ(model.mParts.size(), 3u) << "the branch that is on, the frame shown, and the near level";
             EXPECT_EQ(model.mPositions.size(), 12u) << "three quads' corners, appended in turn";
@@ -238,7 +238,7 @@ namespace Rtx::Testing
                 root->addChild(broken);
 
                 PreparedModel model;
-                const Result<void, std::string> refused = walk.read(*root, ~0u, model);
+                const Misc::Result<void, std::string> refused = walk.read(*root, ~0u, model);
                 ASSERT_FALSE(refused.isOk());
                 EXPECT_EQ(refused.error(), why);
 

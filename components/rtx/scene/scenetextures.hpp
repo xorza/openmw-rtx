@@ -9,7 +9,7 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -72,7 +72,7 @@ namespace Rtx
             std::optional<Index> mBakedFrom{};
 
             /// The file's image, or why none reads. Null for a slot that names no file.
-            Result<osg::ref_ptr<const osg::Image>, std::string> mImage = osg::ref_ptr<const osg::Image>();
+            Misc::Result<osg::ref_ptr<const osg::Image>, std::string> mImage = osg::ref_ptr<const osg::Image>();
 
             /// The image's format as `mEncoding` reads it, read once for the reserve and the
             /// description both. Unnamed where there is no image.
@@ -80,7 +80,7 @@ namespace Rtx
         };
 
         /// What `kept` is described as, or why it gets the stand-in.
-        Result<TextureData, std::string> describeKept(const Kept& kept, const CompositeQueue* composites);
+        Misc::Result<TextureData, std::string> describeKept(const Kept& kept, const CompositeQueue* composites);
 
         // Refilled by every `describe` and never freed, so each settles at the busiest arrival so
         // far — which is where the room to grow one is least.

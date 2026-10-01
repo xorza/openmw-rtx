@@ -560,16 +560,16 @@ hour = 19.25
             EXPECT_THROW(RtxTool::chooseViews(two, { "dawn", "ship", "dawn" }), std::runtime_error)
                 << "a view named twice, whose hashes the run would then refuse to read";
 
-            // **The command line refuses by the same rules**, `hourRefusal`, `dayRefusal` and
-            // `weatherRefusal`, which is what these are.
-            EXPECT_TRUE(RtxTool::hourRefusal(24.0f).has_value());
-            EXPECT_TRUE(RtxTool::hourRefusal(-0.01f).has_value());
-            EXPECT_FALSE(RtxTool::hourRefusal(0.0f).has_value());
-            EXPECT_FALSE(RtxTool::hourRefusal(23.99f).has_value());
-            EXPECT_TRUE(RtxTool::dayRefusal(-3).has_value());
-            EXPECT_FALSE(RtxTool::dayRefusal(0).has_value());
-            EXPECT_TRUE(RtxTool::weatherRefusal("Rian").has_value());
-            EXPECT_FALSE(RtxTool::weatherRefusal("Rain").has_value());
+            // **The command line refuses by the same rules**, `checkHour`, `checkDay` and
+            // `checkWeather`, which is what these are.
+            EXPECT_EQ(RtxTool::checkHour(24.0f).error(), "is not from 0 up to but not including 24");
+            EXPECT_FALSE(RtxTool::checkHour(-0.01f).isOk());
+            EXPECT_TRUE(RtxTool::checkHour(0.0f).isOk());
+            EXPECT_TRUE(RtxTool::checkHour(23.99f).isOk());
+            EXPECT_EQ(RtxTool::checkDay(-3).error(), "is before the first day");
+            EXPECT_TRUE(RtxTool::checkDay(0).isOk());
+            EXPECT_EQ(RtxTool::checkWeather("Rian").error(), "is none of the weathers the content files name");
+            EXPECT_TRUE(RtxTool::checkWeather("Rain").isOk());
             EXPECT_EQ(RtxTool::listWeathers(),
                 "Clear, Cloudy, Foggy, Overcast, Rain, Thunderstorm, Ashstorm, Blight, Snow, Blizzard");
 

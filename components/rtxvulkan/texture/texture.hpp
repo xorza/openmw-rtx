@@ -10,7 +10,7 @@
 #include <osg/Vec4f>
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -58,7 +58,7 @@ namespace Rtx
         ///        which begins at the file's one level.
         /// @param name what a capture calls it. Empty where the build names no objects.
         /// @param regions the caller's scratch, cleared and refilled here with one copy per level.
-        static Result<Texture, std::string_view> fromFile(const Device& device, Batch& batch,
+        static Misc::Result<Texture, std::string_view> fromFile(const Device& device, Batch& batch,
             const TexturePasses& passes, const TextureData& data, std::uint32_t first, std::string_view name,
             std::vector<VkBufferImageCopy>& regions, MemoryUse use);
 
@@ -67,15 +67,15 @@ namespace Rtx
         /// recorded ahead of this, in this batch or in one already submitted.
         ///
         /// @param format what the description says the bake is, which is its image's format.
-        static Result<Texture, std::string_view> bakeOf(const Device& device, Batch& batch, const TexturePasses& passes,
-            const Texture& source, TextureFormat format, std::string_view name);
+        static Misc::Result<Texture, std::string_view> bakeOf(const Device& device, Batch& batch,
+            const TexturePasses& passes, const Texture& source, TextureFormat format, std::string_view name);
 
         /// A chunk's flattened ground, stood empty under the neutral map: `GROUND_COMPOSITE_EXTENT`
         /// square, with a chain to one texel and a view without the curve a dispatch stores
         /// through. Written by `TextureArray::bakeComposites`, in the placement after it arrives.
         ///
         /// @param format what the description says the composite is, which is its image's format.
-        static Result<Texture, std::string_view> composite(
+        static Misc::Result<Texture, std::string_view> composite(
             const Device& device, Batch& batch, TextureFormat format, std::string_view name);
 
         /// One texel of `colour`, whole floats so the value is the one named, under the neutral
@@ -267,7 +267,7 @@ namespace Rtx
         VkDeviceSize costAt(std::span<const TextureData> arrived, std::uint32_t side, bool ground) const;
 
         /// What `texture` is made as, held to `side`, or why the device had no room for it.
-        Result<Texture, std::string_view> make(
+        Misc::Result<Texture, std::string_view> make(
             Batch& batch, const TextureData& texture, std::uint32_t side, std::string_view name);
 
         /// Stands one of `arrived` in its slot: a texture from its bytes, or a bake from its source,

@@ -18,6 +18,7 @@
 #include <apps/openmw/mwworld/timestamp.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/environment/skylight.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/png.hpp>
@@ -276,8 +277,11 @@ namespace RtxTool
             return;
         }
 
-        Rtx::writePng(stop.mActions.mFilm->mDirectory / frameName(number), extents.mOutputWidth, extents.mOutputHeight,
-            finished.mPixels);
+        const Misc::Result<void, std::string> written
+            = Rtx::writePng(stop.mActions.mFilm->mDirectory / frameName(number), extents.mOutputWidth,
+                extents.mOutputHeight, finished.mPixels);
+        if (!written.isOk())
+            mFailure = std::format("frame {} of the film: {}", number, written.error());
     }
 
     void Measurer::keepPicture(const Rtx::FrameResult& finished, const Rtx::FrameExtents& extents)
@@ -289,8 +293,11 @@ namespace RtxTool
         if (!row.has_value() || mRequest.mPictures.empty())
             return;
 
-        Rtx::writePng(mRequest.mPictures / std::format("{}-{}.png", row->mView, row->mFrame), extents.mOutputWidth,
-            extents.mOutputHeight, finished.mPixels);
+        const Misc::Result<void, std::string> written
+            = Rtx::writePng(mRequest.mPictures / std::format("{}-{}.png", row->mView, row->mFrame),
+                extents.mOutputWidth, extents.mOutputHeight, finished.mPixels);
+        if (!written.isOk() && mFailure.empty())
+            mFailure = written.error();
     }
 
     BenchPlace Measurer::finish(const Stop& stop, const MWRender::FrameContext& context,

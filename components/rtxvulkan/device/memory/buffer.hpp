@@ -9,7 +9,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
 #include <components/rtxvulkan/device/readstamp.hpp>
 
@@ -70,7 +70,7 @@ namespace Rtx
         /// `make`, for a buffer something stands in for: why there is none where the device has
         /// no room for it as `use` — `MemoryAllocator::tryTake`. The use first, as
         /// `Image::tryMake` takes it.
-        static Result<Buffer, std::string_view> tryMake(MemoryUse use, const Device& device, BufferKind kind,
+        static Misc::Result<Buffer, std::string_view> tryMake(MemoryUse use, const Device& device, BufferKind kind,
             VkDeviceSize size, VkBufferUsageFlags usage, std::string_view name);
 
         /// `make`, for each kind by name.

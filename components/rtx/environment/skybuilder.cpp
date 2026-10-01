@@ -14,8 +14,8 @@
 
 #include <components/fallback/fallback.hpp>
 #include <components/misc/resourcehelpers.hpp>
+#include <components/misc/result.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/common/result.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
@@ -96,14 +96,14 @@ namespace Rtx
             // Opened and asked here, where the deck's mean and cover are read off the image anyway:
             // a sheet the upload cannot take is left out here, refused as the sky layer it is, and
             // takes no slot to stand in, which the device would read as no deck.
-            const Result<osg::ref_ptr<const osg::Image>, std::string> image
+            const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> image
                 = openImage(*scenes.getImageManager(), path);
             if (!image.isOk())
             {
                 scene.refusals().refuse(Refused::SkyLayer, path.value(), image.error());
                 continue;
             }
-            if (const Result<void, std::string> uploadable = checkUploadable(*image.value()); !uploadable.isOk())
+            if (const Misc::Result<void, std::string> uploadable = checkUploadable(*image.value()); !uploadable.isOk())
             {
                 scene.refusals().refuse(Refused::SkyLayer, path.value(), uploadable.error());
                 continue;
@@ -123,14 +123,14 @@ namespace Rtx
 
         // The shape the deck hangs on is the mesh's, both of its numbers: how high the layer is
         // in tiles of its own sheet, and how far it falls away over the ground it covers.
-        if (const Result<CloudShell, std::string> shell = readCloudShell(scenes, meshes.mClouds); shell.isOk())
+        if (const Misc::Result<CloudShell, std::string> shell = readCloudShell(scenes, meshes.mClouds); shell.isOk())
             loaded.mShell = shell.value();
         else
             scene.refusals().refuse(Refused::SkyLayer, meshes.mClouds.value(), shell.error());
 
         // The night sky is the mesh's, every number of it: which sheet the field wears, how much
         // sky a tile of it covers, where it fades out, and where the six patches sit.
-        if (const Result<NightSky, std::string> night
+        if (const Misc::Result<NightSky, std::string> night
             = readNightSky(scene, scenes, meshes.mStars, meshes.mStarsFallback, content, holds);
             night.isOk())
             loaded.mNight = night.value();

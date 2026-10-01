@@ -30,7 +30,7 @@ namespace Rtx
     {
     }
 
-    Result<StructureRoom, std::string_view> StructureStorage::take(
+    Misc::Result<StructureRoom, std::string_view> StructureStorage::take(
         const Device& device, VkDeviceSize bytes, VkDeviceSize least)
     {
         assert(bytes > 0);
@@ -42,7 +42,7 @@ namespace Rtx
         // structure needs and no more, where the device has no room for what the caller asked.
         return mBlocks.take(
             unitsFor(bytes), [](const Block&) { return true; },
-            [&](const std::uint32_t units, const std::uint32_t slot) -> Result<Block, std::string_view> {
+            [&](const std::uint32_t units, const std::uint32_t slot) -> Misc::Result<Block, std::string_view> {
                 // Named only where a capture could read it: a release build names nothing, and
                 // the concatenation is a trip to the heap for a name that goes nowhere.
                 std::string name;
@@ -55,7 +55,7 @@ namespace Rtx
                 };
 
                 std::uint32_t made = std::max(unitsFor(least), units);
-                Result<Buffer, std::string_view> buffer = make(made);
+                Misc::Result<Buffer, std::string_view> buffer = make(made);
                 if (!buffer.isOk() && made > units)
                 {
                     made = units;
@@ -63,7 +63,7 @@ namespace Rtx
                 }
 
                 if (!buffer.isOk())
-                    return Err{ buffer.error() };
+                    return Misc::Err{ buffer.error() };
 
                 Block block;
                 block.mCapacity = made;

@@ -27,6 +27,7 @@
 #include <components/debug/debugging.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
+#include <components/misc/result.hpp>
 #include <components/platform/platform.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/common/error.hpp>
@@ -146,8 +147,8 @@ namespace RtxTool
                 return std::nullopt;
 
             const float hour = variables["hour"].as<float>();
-            if (const std::optional<std::string_view> why = hourRefusal(hour))
-                throw std::runtime_error(std::format("--hour={} {}", hour, *why));
+            if (const Misc::Result<void, std::string_view> checked = checkHour(hour); !checked.isOk())
+                throw std::runtime_error(std::format("--hour={} {}", hour, checked.error()));
 
             return hour;
         }
@@ -155,8 +156,9 @@ namespace RtxTool
         /// Refuses a weather the line names that is none of the ten, with the option that named it.
         void refuseUnlessWeather(const std::string_view option, const std::string_view weather)
         {
-            if (const std::optional<std::string_view> why = weatherRefusal(weather))
-                throw std::runtime_error(std::format("--{}: \"{}\" {}: {}", option, weather, *why, listWeathers()));
+            if (const Misc::Result<void, std::string_view> checked = checkWeather(weather); !checked.isOk())
+                throw std::runtime_error(
+                    std::format("--{}: \"{}\" {}: {}", option, weather, checked.error(), listWeathers()));
         }
 
         /// What `--weather` named, or nothing where it was left at its default.
@@ -287,8 +289,8 @@ namespace RtxTool
             framed.mWindow.mFieldOfView = variables["fov"].as<float>();
             framed.mWindow.mVerticalSync = watched ? Settings::video().mVsyncMode.get() : SDLUtil::VSyncMode::Disabled;
             framed.mDay = variables["day"].as<int>();
-            if (const std::optional<std::string_view> why = dayRefusal(framed.mDay))
-                throw std::runtime_error(std::format("--day={} {}", framed.mDay, *why));
+            if (const Misc::Result<void, std::string_view> checked = checkDay(framed.mDay); !checked.isOk())
+                throw std::runtime_error(std::format("--day={} {}", framed.mDay, checked.error()));
 
             const auto spelled
                 = [&](const char* name) -> std::string_view { return variables[name].as<std::string>(); };
@@ -719,8 +721,8 @@ namespace RtxTool
             const std::filesystem::path out = outOf(command);
             std::filesystem::create_directories(out);
 
-            if (const std::optional<std::string> why = refuseAgainst(out, against))
-                throw std::runtime_error(*why);
+            if (const Misc::Result<void, std::string> checked = checkAgainst(out, against); !checked.isOk())
+                throw std::runtime_error(checked.error());
 
             // **What each picture is held to is where it came from.** A frame the wavelet composed and
             // nothing upscaled is the picture the hashes cannot judge; a doll and a tile are always

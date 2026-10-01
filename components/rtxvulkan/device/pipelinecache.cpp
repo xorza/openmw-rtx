@@ -15,6 +15,7 @@
 #include <vector>
 
 #include <components/debug/debuglog.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 
 #include "result.hpp"
@@ -31,6 +32,10 @@ namespace Rtx
         constexpr std::size_t sVendorAt = 8;
         constexpr std::size_t sDeviceAt = 12;
         constexpr std::size_t sUuidAt = 16;
+
+        /// Why a blob is refused for its size alone, which the read asks before it reads as well.
+        constexpr std::string_view sTooShort = "is shorter than a cache header";
+        constexpr std::string_view sTooLong = "is larger than a cache is kept";
 
         /// What every file this renderer keeps in the cache directory is called, before its key.
         constexpr std::string_view sPrefix = "rtx-";
@@ -88,45 +93,58 @@ namespace Rtx
             return spec.mDirectory / name;
         }
 
-        /// The file's contents, where there is a file and `PipelineCache::accepts` takes it.
-        std::vector<std::uint8_t> readCache(
+        /// The file's contents, where `PipelineCache::accepts` takes them, nothing where there is no
+        /// file, and why the file was set aside where there is one it cannot seed from.
+        Misc::Result<std::vector<std::uint8_t>, std::string_view> readCache(
             const std::filesystem::path& path, const VkPhysicalDeviceProperties& properties)
         {
-            if (path.empty())
-                return {};
+            std::error_code error;
+            if (!std::filesystem::exists(path, error) && !error)
+                return std::vector<std::uint8_t>{};
 
             std::ifstream file(path, std::ios::binary | std::ios::ate);
             if (!file)
-                return {};
+                return Misc::Err{ "could not be opened" };
 
             // Both bounds before the read and not only after it, because the file this refuses
             // for its size is the one it would be most expensive to read: `PipelineCache::sMostBytes`
             // says what has been seen in a directory nothing swept.
             const std::streamoff bytes = file.tellg();
-            if (bytes < static_cast<std::streamoff>(sHeaderBytes)
-                || bytes > static_cast<std::streamoff>(PipelineCache::sMostBytes))
-                return {};
+            if (bytes < static_cast<std::streamoff>(sHeaderBytes))
+                return Misc::Err{ sTooShort };
+            if (bytes > static_cast<std::streamoff>(PipelineCache::sMostBytes))
+                return Misc::Err{ sTooLong };
 
             std::vector<std::uint8_t> data(static_cast<std::size_t>(bytes));
             file.seekg(0);
             if (!file.read(reinterpret_cast<char*>(data.data()), bytes))
-                return {};
+                return Misc::Err{ "could not be read" };
 
-            if (!PipelineCache::accepts(data, properties))
-                return {};
+            if (const Misc::Result<void, std::string_view> accepted = PipelineCache::accepts(data, properties);
+                !accepted.isOk())
+                return Misc::Err{ accepted.error() };
 
             return data;
         }
     }
 
-    bool PipelineCache::accepts(std::span<const std::uint8_t> blob, const VkPhysicalDeviceProperties& properties)
+    Misc::Result<void, std::string_view> PipelineCache::accepts(
+        std::span<const std::uint8_t> blob, const VkPhysicalDeviceProperties& properties)
     {
-        if (blob.size() < sHeaderBytes || blob.size() > sMostBytes)
-            return false;
+        if (blob.size() < sHeaderBytes)
+            return Misc::Err{ sTooShort };
+        if (blob.size() > sMostBytes)
+            return Misc::Err{ sTooLong };
+        if (readWord(blob, 0) != sHeaderBytes || readWord(blob, sVersionAt) != VK_PIPELINE_CACHE_HEADER_VERSION_ONE)
+            return Misc::Err{ "has no header of the one version Vulkan defines" };
+        if (readWord(blob, sVendorAt) != properties.vendorID)
+            return Misc::Err{ "was written for another vendor's device" };
+        if (readWord(blob, sDeviceAt) != properties.deviceID)
+            return Misc::Err{ "was written for another device" };
+        if (std::memcmp(blob.data() + sUuidAt, properties.pipelineCacheUUID, VK_UUID_SIZE) != 0)
+            return Misc::Err{ "was written by another driver build" };
 
-        return readWord(blob, 0) == sHeaderBytes && readWord(blob, sVersionAt) == VK_PIPELINE_CACHE_HEADER_VERSION_ONE
-            && readWord(blob, sVendorAt) == properties.vendorID && readWord(blob, sDeviceAt) == properties.deviceID
-            && std::memcmp(blob.data() + sUuidAt, properties.pipelineCacheUUID, VK_UUID_SIZE) == 0;
+        return {};
     }
 
     PipelineCache::PipelineCache(VkDevice device, const VkPhysicalDeviceProperties& properties,
@@ -142,7 +160,12 @@ namespace Rtx
         // Before the read and not after it, so that a run which then fails to load its own file has
         // still taken the rest away.
         sweep();
-        mLoaded = readCache(mPath, properties);
+        Misc::Result<std::vector<std::uint8_t>, std::string_view> read = readCache(mPath, properties);
+        if (read.isOk())
+            mLoaded = std::move(read.value());
+        else
+            Log(Debug::Info) << "Rtx: the pipeline cache starts empty: " << mPath.filename().string() << ' '
+                             << read.error();
 
         const VkPipelineCacheCreateInfo describe{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,

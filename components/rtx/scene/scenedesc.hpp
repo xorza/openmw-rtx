@@ -8,7 +8,7 @@
 #include <osg/BoundingBox>
 #include <osg/Image>
 
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -91,7 +91,7 @@ namespace Rtx
         /// Whether a deformer of `posed` vertices can pose `arrays`, and why not where they are
         /// of another length. Both counts come out of a content file, so whoever reads them asks
         /// this before `addMesh`, which asserts it.
-        static Result<void, std::string> checkPoses(Index posed, const MeshArrays& arrays);
+        static Misc::Result<void, std::string> checkPoses(Index posed, const MeshArrays& arrays);
 
         /// Poses one deforming mesh: its bone rows or its target weights as `packBones` or
         /// `packWeights` lays them, and the box the pose reaches — the whole of what the host says
