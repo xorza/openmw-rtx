@@ -2,6 +2,8 @@
 
 #include <string>
 
+#include <osg/Vec4f>
+
 namespace Sky
 {
     namespace

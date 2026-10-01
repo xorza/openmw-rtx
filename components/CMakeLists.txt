@@ -394,7 +394,7 @@ add_component_dir (sky
 # The ray tracer's API-neutral core. No graphics API is on this library's include path; the Vulkan
 # backend is its own library, `components/rtxvulkan`. `shaders/` holds what C++ and GLSL share.
 add_component_dir (rtx/common
-    clock error finite menu monitor namedenum parallel pointhash radicalinverse result runs scratch
+    clock error finite index menu monitor namedenum parallel pointhash radicalinverse result runs scratch
     slots stepped worker
     )
 
@@ -418,7 +418,7 @@ add_component_dir (rtx/mirror
     )
 
 add_component_dir (rtx/mirror/cells
-    cellgrid cellplacer cellreader cellring cellsupply cellworld groundreader held nightday prepared
+    cellgrid cellplacer cellreader cellring cellsupply cellworld groundreader held mirrorknobs nightday prepared
     readermemory templatewalk
     )
 

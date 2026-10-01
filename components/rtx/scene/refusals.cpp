@@ -1,5 +1,6 @@
 #include "refusals.hpp"
 
+#include <algorithm>
 #include <string>
 
 #include <components/debug/debuglog.hpp>
@@ -44,10 +45,13 @@ namespace Rtx
 
     void Refusals::refuse(Refused kind, std::string_view name, std::string_view why)
     {
-        if (mNamed.find(Key(kind, name, why)) != mNamed.end())
+        const Key key(kind, name, why);
+        constexpr KeyedLess<Key, KeyOf> less;
+        const auto at = std::lower_bound(mNamed.begin(), mNamed.end(), key, less);
+        if (at != mNamed.end() && !less(key, *at))
             return;
 
-        mNamed.insert(Refusal{ .mKind = kind, .mName = std::string(name), .mWhy = std::string(why) });
+        mNamed.insert(at, Refusal{ .mKind = kind, .mName = std::string(name), .mWhy = std::string(why) });
         ++mCounts[static_cast<std::size_t>(kind)];
 
         const Wording& wording = sWording[static_cast<std::size_t>(kind)];

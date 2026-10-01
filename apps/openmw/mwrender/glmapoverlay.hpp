@@ -92,16 +92,10 @@ namespace MWRender
 
         struct ImageDest
         {
-            ImageDest()
-                : mX(0)
-                , mY(0)
-                , mFrameDone(0)
-            {
-            }
-
             osg::ref_ptr<osg::Image> mImage;
-            int mX, mY;
-            unsigned int mFrameDone;
+            int mX = 0;
+            int mY = 0;
+            unsigned int mFrameDone = 0;
         };
 
         typedef std::map<osg::ref_ptr<osg::Camera>, ImageDest> ImageDestMap;

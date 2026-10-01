@@ -305,6 +305,11 @@ namespace Rtx::Testing
         reportErrors(mRenderer, "validation error");
     }
 
+    void RendererTest::forgetErrors(VulkanRenderer& renderer)
+    {
+        renderer.takeValidationErrors(mErrors);
+    }
+
     void RendererTest::reportErrors(VulkanRenderer& renderer, std::string_view what)
     {
         renderer.takeValidationErrors(mErrors);

@@ -23,6 +23,7 @@
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/scene/sceneacceleration.hpp>
+#include <components/rtxvulkan/vulkanrenderer.hpp>
 
 namespace Rtx
 {

@@ -6,6 +6,7 @@
 #include <string_view>
 #include <vector>
 
+#include <osg/Drawable>
 #include <osg/Referenced>
 #include <osg/Vec3f>
 
@@ -23,7 +24,6 @@
 
 namespace osg
 {
-    class Drawable;
     class Geometry;
 }
 

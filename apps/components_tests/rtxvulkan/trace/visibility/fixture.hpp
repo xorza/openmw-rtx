@@ -49,6 +49,7 @@
 #include <components/rtxvulkan/scene/sceneacceleration.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/scene/skinpass.hpp>
+#include <components/rtxvulkan/vulkanrenderer.hpp>
 
 namespace Rtx::Testing
 {
