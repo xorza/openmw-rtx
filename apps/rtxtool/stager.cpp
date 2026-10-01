@@ -177,7 +177,8 @@ namespace RtxTool
         // teleport from Balmora to Vivec stays in one worldspace, so nothing tells the renderer its
         // history describes somewhere else — and the exposure adapts toward its measurement over
         // seconds rather than taking it, so a room drawn after a noon exterior opens at the
-        // exterior's brightness. The warm-up absorbs the frame it costs.
+        // exterior's brightness. The frame it costs is never measured: a stop measures from the
+        // frame after one that drew the whole world.
         forgetHistory();
 
         return {};

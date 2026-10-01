@@ -82,8 +82,8 @@ namespace RtxTool
 
         const float step = worldStep(mRequest.mSetup);
         Log(Debug::Info) << "Ray tracing session: stop " << (mAt + 1) << " of " << mRequest.mStops.size() << ", "
-                         << (stop.mName.empty() ? "unnamed" : stop.mName) << " — "
-                         << stop.mSchedule.mSpec.getWarmup(step) << " frames warming up then "
+                         << (stop.mName.empty() ? "unnamed" : stop.mName) << " — the world standing whole, "
+                         << stop.mSchedule.mSpec.getWarmup(step) << " frames warming up, then "
                          << (stop.mSchedule.mSpec.mRun.isUntilClosed()
                                     ? std::string("a window until it is closed")
                                     : std::to_string(stop.mSchedule.mSpec.getMeasured(step)) + " measured");

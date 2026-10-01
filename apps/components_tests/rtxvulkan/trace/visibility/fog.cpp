@@ -887,6 +887,18 @@ namespace Rtx::Testing
                 << "8 by 8 columns by 64 slices, every one in air short of a wall behind the eye";
             EXPECT_EQ(frame.mNotFinite.mColour, 0u) << "the trace's own clamp takes the air's NaN to nought";
             EXPECT_EQ(frame.mNotFinite.mGuide, 0u);
+
+            // **A door: the frame before stood 80000 units off**, farther than a half float holds,
+            // and the reset says that no step from there reaches this frame's motion. The motion
+            // took the step and stored an infinite distance at every pixel of the wall.
+            const osg::Vec3f away(100.0f, -80000.0f, 0.0f);
+            const osg::Vec3f lit(1.0f, 1.0f, 1.0f);
+            const SceneDesc wall = makeWall();
+            shoot(wall, {}, wallCamera(size, lit, away, away - osg::Vec3f(0.0f, 1.0f, 0.0f)), size);
+            const Frame afterDoor
+                = shoot(wall, {}, wallCamera(size, lit), size, Shot{ .mResetHistory = true, .mSetScene = false });
+            EXPECT_GT(afterDoor.mHits, 0u);
+            EXPECT_EQ(afterDoor.mNotFinite.mGuide, 0u);
         }
 
         /// The wind carries the banks downwind, and a camera that walks with the wind sees the air

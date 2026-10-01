@@ -286,10 +286,11 @@ namespace RtxTool
                         "nobody named are {} frames either way, and two builds render the same frames",
                 sStepRate, sSecondsByDefault, sStepRate * sSecondsByDefault));
 
-        option(otherThan(Verbs::Info | Verbs::View), "warmup", bpo::value<float>()->default_value(sWarmupByDefault),
-            "how many seconds of world to draw and throw away before measuring, or after a film's "
-            "cut. This machine's GPU idles at 315 MHz and ramps under load, and a scene's first "
-            "frames pay for its residency as well");
+        option(Verbs::Bench, "warmup", bpo::value<float>()->default_value(sWarmupByDefault),
+            "how many seconds of world to draw and throw away once the world stands whole, before "
+            "measuring. This machine's GPU idles at 315 MHz and ramps under load, and a scene's first "
+            "frames pay for its residency as well. Every other command waits out its histories "
+            "instead, four of the accumulator's lengths");
 
         option(sFramed, "hud", bpo::value<bool>()->default_value(false)->implicit_value(true),
             "draw the game's HUD over the picture: the bars, the compass and the cell's name. Off "

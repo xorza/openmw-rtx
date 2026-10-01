@@ -114,6 +114,9 @@ namespace MWRender
         /// why a run would, and what waiting costs it.
         void setSettled(bool settled) { mRing.setSettled(settled); }
 
+        /// `Rtx::CellRing::getCellsToStand`.
+        std::uint32_t getCellsToStand() const { return mRing.getCellsToStand(); }
+
         /// What the game says of one reference, which the content files cannot: a script has
         /// disabled it, or enabled it again, or the game moved it and the distance must never
         /// stand it. A cleared world says it of none.

@@ -57,12 +57,6 @@ namespace Rtx
         resize(std::max(mWidth, width), std::max(mHeight, height), radiance);
     }
 
-    void TraceChain::resetHistory()
-    {
-        mDenoise.reset();
-        mAirStale = true;
-    }
-
     VkDeviceAddress TraceChain::getSpriteTileList(const VisibilityInputs& inputs) const
     {
         return inputs.mSubject.mDrawsSprites ? mBins.at(inputs.mSubject.mTraceSlot).getTileListAddress()
@@ -73,8 +67,11 @@ namespace Rtx
     {
         assert(isBuilt() && "a trace into a chain that has no extent");
 
+        // Each denoiser's history is worthless until the next trace that reads it, which is only
+        // where the wavelet runs. The air's is read by every trace, and the basis of nothing the
+        // frame carries says so to it.
         if (what.mPastLost)
-            resetHistory();
+            mDenoise.reset();
 
         mFogVolume->turn();
         const VisibilityInputs inputs{ .mSubject = what.mSubject, .mChannels = *mChannels, .mFogVolume = *mFogVolume };
@@ -122,8 +119,7 @@ namespace Rtx
         const bool denoised = what.mReconstruction.mDenoised;
         const bool composed = !denoised;
 
-        mPasses.mVisibility.writeFrame(commands, inputs, bin, tileList, what.mSampled, mAirStale, composed);
-        mAirStale = false;
+        mPasses.mVisibility.writeFrame(commands, inputs, bin, tileList, what.mSampled, composed);
 
         if (bins)
         {

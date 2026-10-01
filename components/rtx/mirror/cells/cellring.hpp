@@ -92,6 +92,11 @@ namespace Rtx
         /// either way.
         void setSettled(bool settled);
 
+        /// How many cells of its band the ring still has to stand after the last walk: asked for and
+        /// not yet read, or read and waiting for the frame that adopts them. What a harness stop
+        /// waits out before it measures, settled or not.
+        std::uint32_t getCellsToStand() const;
+
         /// `CellSupply::getReaderMemory`.
         ReaderMemory getReaderMemory() { return mSupply.getReaderMemory(); }
 
@@ -205,6 +210,11 @@ namespace Rtx
         /// the frame path is proportional to the band.
         bool mAskStale = true;
         std::optional<osg::Vec3f> mLastEye;
+
+        /// How many cells the band held when `ask` last walked it, the reach and the band past it.
+        /// Every held cell is one of them once a walk has dropped what left, so what is left to
+        /// stand is this less what is held.
+        std::uint32_t mBandCells = 0;
 
         std::size_t mFrame = 0;
 

@@ -85,12 +85,13 @@ namespace RtxTool
             return;
         }
 
-        // **The route runs over the measured frames and not the warm-up.** Warming up is the GPU
-        // coming off its idle clock; flying during it would start the measurement partway along
-        // and leave the first crossing outside the numbers. **Between them, and not into the
-        // first**: the first measured frame stands where the route starts, and each after it one
-        // step on, so a route sized for `frames - 1` steps (`Stand::approachFrom`) arrives on the
-        // last frame, which is the one `noise --strafe` judges, and not one frame early.
+        // **The route runs over the measured frames and not the frames ahead of them**, which are
+        // the world standing whole and the warm-up after it; flying during them would start the
+        // measurement partway along and leave the first crossing outside the numbers. **Between
+        // them, and not into the first**: the first measured frame stands where the route starts,
+        // and each after it one step on, so a route sized for `frames - 1` steps
+        // (`Stand::approachFrom`) arrives on the last frame, which is the one `noise --strafe`
+        // judges, and not one frame early.
         if (measured.has_value())
         {
             if (stop.mSchedule.mRoute.has_value() && *measured > 0)

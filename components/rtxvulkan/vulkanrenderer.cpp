@@ -105,9 +105,11 @@ namespace Rtx
 
     void VulkanRenderer::resetHistory()
     {
-        mFrame.resetHistory();
+        // The trace's histories and the upscaler's go with the camera, which the next frame finds
+        // missing as it would after a resize. The exposure and the ripples do not: a resize keeps
+        // the brightness and the water's wake.
+        mPreviousCamera.reset();
         mDisplay.resetHistory();
-        mUpscaler.reset();
         mMedia.resetRipples();
     }
 
@@ -164,7 +166,7 @@ namespace Rtx
         mDisplay.resize(width, height);
 
         // A frame of a different size is not one this one can be reprojected against.
-        mPreviousCamera = Shaders::VisibilityConstants{};
+        mPreviousCamera.reset();
     }
 
     std::string VulkanRenderer::describeDevice() const
@@ -218,7 +220,7 @@ namespace Rtx
             // rather than being carried empty into one it cannot describe. Neither does a motion
             // vector, which would point at where something stood in a world that is no longer there.
             mFrame.dropSum();
-            mPreviousCamera = Shaders::VisibilityConstants{};
+            mPreviousCamera.reset();
 
             // And the wake the old world's walkers left, which would ring on in the new one's
             // water wherever the two overlapped.
@@ -517,8 +519,8 @@ namespace Rtx
             mProfile.mUpscale, options.mReconstruction.value_or(mProfile.mReconstruction), getExtents());
         frame.mReconstruction = reconstruction;
 
-        Shaders::VisibilityConstants sampled
-            = sampleFrame(camera, options, mProfile, reconstruction, world.getCounts(), &mPreviousCamera);
+        Shaders::VisibilityConstants sampled = sampleFrame(camera, options, mProfile, reconstruction, world.getCounts(),
+            mPreviousCamera.has_value() ? &*mPreviousCamera : nullptr);
 
         // The launch the misses are counted against, which is the traced extent and not the shown one.
         frame.mCountedRays = mCounting ? sampled.mCamera.mWidth * sampled.mCamera.mHeight : 0u;
@@ -530,7 +532,7 @@ namespace Rtx
         // door once left the previous camera intact and a reprojection fetched one room onto
         // another. What `resetHistory` said is each history's own, spent by the frame that reads
         // that history, so a reset before an unfiltered frame waits for the frame that filters.
-        const bool basisLost = mPreviousCamera.mCamera.mForward.length2() <= 0.0f;
+        const bool basisLost = !mPreviousCamera.has_value();
         if (basisLost)
             mUpscaler.reset();
 

@@ -23,6 +23,7 @@
 #include "model/benchspec.hpp"
 #include "model/blockfile.hpp"
 #include "model/skycrossing.hpp"
+#include "run.hpp"
 
 namespace RtxTool
 {
@@ -640,7 +641,7 @@ namespace RtxTool
             stop = first.mStop;
             stop.mName = std::format("take-{}-{}", number + 1, first.mStop.mName);
             stop.mSky.mDay = first.mStop.mSky.mDay.value_or(plan.mPacing.mDay);
-            stop.mSchedule.mSpec.mWarm = BenchSpan{ .mSeconds = plan.mPacing.mWarmupSeconds };
+            stop.mSchedule.mSpec.mWarm = BenchSpan{ .mFrames = sHistoryFrames };
             stop.mSchedule.mSpec.mRun = BenchSpan{ .mFrames = take.getFrames() };
             stop.mSchedule.mTrack.emplace(take.mTrack, take.mPath, plan.mPacing.getCruise(), take.mSky);
             stop.mActions.mFilm = Actions::Film{ .mDirectory = frames, .mFirst = take.mFirstFrame };

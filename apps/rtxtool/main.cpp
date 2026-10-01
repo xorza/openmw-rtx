@@ -425,16 +425,15 @@ namespace RtxTool
             return seconds;
         }
 
-        /// Runs `stop` for `frames`: warmed as the command line asks, then that many measured. Still
-        /// where the command's row freezes the world (`VerbPolicy::mFreezes`), which `sessionFor`
-        /// applies.
+        /// Runs `stop` for `frames` once the world stood whole and its histories converged over
+        /// `sHistoryFrames`, so its pictures are the ones a player standing there sees. Still where
+        /// the command's row freezes the world (`VerbPolicy::mFreezes`), which `sessionFor` applies.
         ///
         /// @param frames how many to measure once the world has arrived. Why a command wants more
         ///        than one is that command's to say.
-        void measureFrames(Stop& stop, const bpo::variables_map& variables, const std::uint32_t frames = 1)
+        void measureFrames(Stop& stop, const std::uint32_t frames = 1)
         {
-            stop.mSchedule.mSpec.mWarm = BenchSpan{ .mSeconds = warmupGiven(variables) };
-            stop.mSchedule.mSpec.mRun = BenchSpan{ .mFrames = frames };
+            stop.mSchedule.mSpec = BenchSpec{ .mRun = { .mFrames = frames }, .mWarm = { .mFrames = sHistoryFrames } };
         }
 
         /// What `policy` does to one place: the route and the track a command does not follow go,
@@ -574,7 +573,7 @@ namespace RtxTool
             }
 
             for (Stop& stop : stops)
-                measureFrames(stop, variables, frames);
+                measureFrames(stop, frames);
 
             return stops;
         }
@@ -890,7 +889,7 @@ namespace RtxTool
             {
                 // **Two measured frames, because one of the claims is about a pair of them.** A
                 // still camera resolving to a still picture cannot be asked of one frame.
-                measureFrames(stop, variables, 2);
+                measureFrames(stop, 2);
 
                 for (const Check check : every)
                     if (canAsk(check, stop, framed.mSetup.mProfile))
@@ -966,7 +965,7 @@ namespace RtxTool
                       const std::optional<Rtx::ExposureRule>& exposure, const std::optional<Rtx::Upscale> upscale) {
                       Stop stop = place;
                       stop.mName += suffix;
-                      measureFrames(stop, variables, frames);
+                      measureFrames(stop, frames);
                       stop.mSchedule.mAccumulate = summed ? frames : 0;
                       stop.mSchedule.mReconstruction = reconstruction;
                       stop.mSchedule.mExposure = exposure;
@@ -989,17 +988,10 @@ namespace RtxTool
                 = Rtx::extentsFor(framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mProfile.mUpscale);
             const std::uint32_t barFrames = flies ? noiseBarFramesAfter(sNoiseFlightFrames, extents) : sNoiseBarFrames;
 
-            // One warm-up for the frame and every draw of its mean, so that a draw is the frame drawn
-            // again: the line's, and never shorter than every history converges over.
-            const BenchSpan warm{ .mFrames
-                = std::max(sNoiseMeanWarmup,
-                    BenchSpan{ .mSeconds = warmupGiven(variables) }.getFrames(worldStep(framed.mSetup))) };
-
             // The frame's own stop, flying in where the line asks: a route that holds the world, so
             // the frame flies through the world the reference stands in (`applyPolicy`).
             const auto frame = [&](const Stop& place) {
                 Stop stop = picture(place, "", flies ? sNoiseFlightFrames : 1, false, std::nullopt, held, std::nullopt);
-                stop.mSchedule.mSpec.mWarm = warm;
                 if (!flies)
                     return stop;
 
@@ -1102,8 +1094,7 @@ namespace RtxTool
                 throw std::runtime_error("a film needs --keys=<file>, the keys `view --keys` appends on Home");
 
             // **The step is the run's, and the film counts every length in it**: the world moves a
-            // frame of film between two frames, and a take's warm-up is seconds the session turns
-            // into frames at that same step.
+            // frame of film between two frames.
             const float framesPerSecond = variables["fps"].as<float>();
             if (!(framesPerSecond > 0.0f))
                 throw std::runtime_error(std::format("--fps is {}, which is not more than nought", framesPerSecond));
@@ -1121,7 +1112,6 @@ namespace RtxTool
             pacing.mCrossingSeconds = variables["crossing"].as<float>();
             pacing.mStillSeconds = variables["still"].as<float>();
             pacing.mCutDistance = variables["cut-distance"].as<float>();
-            pacing.mWarmupSeconds = warmupGiven(variables);
             pacing.mFieldOfView = framed.mWindow.mFieldOfView;
             pacing.mAspect = static_cast<float>(framed.mWindow.mWidth) / static_cast<float>(framed.mWindow.mHeight);
             pacing.mDay = framed.mDay;

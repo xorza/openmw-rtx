@@ -155,16 +155,11 @@ namespace Rtx
         /// @param bin where this trace's sprites and tiles are, which the chain recording the
         ///        trace owns and filled ahead of it.
         /// @param spriteTileList the tiles' list the trace reads, `TraceChain::getSpriteTileList`.
-        /// @param historyLost whether the frame before this one is worth reprojecting into. Written
-        ///        into the block as a basis of nothing, which every shader here reads as "there is
-        ///        no previous frame". The fog volume's answer and not the denoisers'
-        ///        (`TraceChain::resetHistory`).
         /// @param composed whether nothing filters this trace's bounce, so it composes the frame
         ///        itself — `VisibilityConstants::mComposed`, which the chain that knows is the one to
         ///        say.
         void writeFrame(VkCommandBuffer commands, const VisibilityInputs& inputs, const SpriteBin& bin,
-            VkDeviceAddress spriteTileList, const Shaders::VisibilityConstants& constants, bool historyLost,
-            bool composed) const;
+            VkDeviceAddress spriteTileList, const Shaders::VisibilityConstants& constants, bool composed) const;
 
         /// Zeroes, in the bin's own table, every falling sprite that stands under a roof — one ray
         /// straight up apiece, `spriteshelter.rgen`. After `writeFrame` and the bin's `take`, and

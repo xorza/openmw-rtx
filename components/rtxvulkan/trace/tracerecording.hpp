@@ -41,8 +41,8 @@ namespace Rtx
         std::uint32_t mAccumulate = 0;
 
         /// Whether the camera has no past to reproject from: a picture never has one, and a frame
-        /// after a jump no motion vector can describe has lost it. What `TraceChain::resetHistory`
-        /// said is the chain's own to add.
+        /// after a jump no motion vector can describe has lost it. Then `mSampled` carries a basis
+        /// of nothing, which is how every reprojection hears it.
         bool mPastLost;
 
         /// Null where the run is not being timed, which a picture is not.
