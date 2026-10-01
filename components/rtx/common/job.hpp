@@ -44,15 +44,22 @@ namespace Rtx
             mDone = promise.get_future().share();
             mThread = Platform::Thread(name,
                 [this, work = std::move(work), promise = std::move(promise)](const Platform::StopToken& stop) mutable {
+                    // Nothing after the work inside the `try`: for work that always throws, MSVC
+                    // calls whatever follows it unreachable, and the build treats that as an error.
+                    std::exception_ptr failed;
                     try
                     {
                         work(stop, *this);
-                        promise.set_value();
                     }
                     catch (...)
                     {
-                        promise.set_exception(std::current_exception());
+                        failed = std::current_exception();
                     }
+
+                    if (failed != nullptr)
+                        promise.set_exception(failed);
+                    else
+                        promise.set_value();
                 });
         }
 
