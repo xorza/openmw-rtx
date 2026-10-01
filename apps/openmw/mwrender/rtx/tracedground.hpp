@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/esm/refid.hpp>
 
 #include "../ground.hpp"

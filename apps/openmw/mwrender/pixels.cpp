@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstring>
 
+#include <osg/GL>
 #include <osg/Image>
 
 #include <components/crashcatcher/crash.hpp>

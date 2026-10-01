@@ -12,7 +12,7 @@
 #include <osg/Vec3ui>
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
+#include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/lightgrid.hpp>
 
 namespace Rtx

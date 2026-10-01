@@ -1,15 +1,23 @@
 #include "gloffscreenview.hpp"
 
 #include <algorithm>
-#include <variant>
+#include <ios>
 
+#include <MyGUI_ITexture.h>
 #include <osg/BlendFunc>
 #include <osg/Camera>
+#include <osg/CopyOp>
 #include <osg/FrameStamp>
+#include <osg/GL>
 #include <osg/Group>
 #include <osg/Image>
+#include <osg/Matrix>
+#include <osg/NodeVisitor>
 #include <osg/PolygonMode>
+#include <osg/StateAttribute>
 #include <osg/Texture2D>
+#include <osg/Vec2f>
+#include <osg/Vec4>
 #include <osg/Viewport>
 #include <osgUtil/IntersectionVisitor>
 #include <osgUtil/LineSegmentIntersector>
@@ -21,6 +29,7 @@
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/nodecallback.hpp>
+#include <components/sceneutil/offscreenframing.hpp>
 #include <components/sceneutil/rtt.hpp>
 #include <components/sceneutil/shadow.hpp>
 #include <components/settings/values.hpp>

@@ -10,7 +10,6 @@
 #include <string_view>
 #include <utility>
 
-#include <osg/Matrix>
 #include <osg/Matrixf>
 #include <osg/Node>
 #include <osg/Quat>
@@ -23,10 +22,12 @@
 #include <components/misc/resourcehelpers.hpp>
 #include <components/rtx/common/result.hpp>
 #include <components/rtx/image/texels.hpp>
+#include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
-#include <components/rtx/scene/refusals.hpp>
+#include <components/rtx/scene/refusal.hpp>
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/sceneutil/visitor.hpp>
+#include <components/terrain/pagedcellref.hpp>
 
 #include "cellworld.hpp"
 #include "prepared.hpp"

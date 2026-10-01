@@ -4,20 +4,22 @@
 #include <cassert>
 #include <cstddef>
 #include <span>
-#include <utility>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/slots.hpp>
+#include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/shaders/scene.h>
+#include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
+
+#include "placing.hpp"
 
 namespace Rtx
 {

@@ -20,16 +20,16 @@
 #include <apps/components_tests/rtx/support/statistics.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/rtx/common/result.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/sceneutil/lightcontroller.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/lightutil.hpp>
-#include <components/sceneutil/util.hpp>
 
 namespace Rtx
 {

@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <optional>
 #include <span>
-#include <vector>
 
 #include <osg/Node>
 #include <osg/Vec3f>
@@ -14,12 +13,12 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/textureencoding.hpp>
-#include <components/rtx/preprocess/meantexels.hpp>
+#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/rowhold.hpp>
-#include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/scene/surface.hpp>
+#include <components/rtx/scene/texturetable.hpp>
 
 #include "mirroridentity.hpp"
 #include "mirrorpass.hpp"
@@ -39,6 +38,8 @@ namespace SceneUtil
 namespace Rtx
 {
     class ContentPreprocessor;
+    class MeanTexels;
+    class SceneDesc;
     struct Shading;
 
     /// What a chain of state sets says a surface is, read where the chain is and adopted where the

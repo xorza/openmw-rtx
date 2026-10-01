@@ -15,12 +15,12 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/common/clock.hpp>
+#include <components/rtx/common/runs.hpp>
 #include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/frame/camera.hpp>
+#include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/material.hpp>
-#include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/visibility.h>
 

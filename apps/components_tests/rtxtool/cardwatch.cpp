@@ -9,6 +9,7 @@
 
 #include <apps/rtxtool/instruments/amdgpu.hpp>
 #include <apps/rtxtool/instruments/cardwatch.hpp>
+#include <apps/rtxtool/instruments/gpuclock.hpp>
 #include <apps/rtxtool/instruments/nvml.hpp>
 #include <components/platform/process.hpp>
 

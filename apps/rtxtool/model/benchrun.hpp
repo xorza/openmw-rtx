@@ -14,7 +14,6 @@
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/renderer/renderer.hpp>
 
 #include "benchrecord.hpp"
 #include "benchspec.hpp"

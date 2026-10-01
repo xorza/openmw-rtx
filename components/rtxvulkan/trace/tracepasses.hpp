@@ -1,6 +1,5 @@
 #pragma once
 
-#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/trace/denoise/compositepass.hpp>
 #include <components/rtxvulkan/trace/denoise/denoisepasses.hpp>

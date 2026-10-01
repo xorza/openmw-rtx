@@ -12,13 +12,14 @@
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/mirror/sceneadopter.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
-#include <components/terrain/objectstorage.hpp>
+#include <components/terrain/pagedcellref.hpp>
 
 #include "cellplacer.hpp"
 #include "cellsupply.hpp"
 #include "cellworld.hpp"
 #include "held.hpp"
 #include "prepared.hpp"
+#include "readermemory.hpp"
 
 namespace Rtx
 {

@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 
+#include <osg/GL>
 #include <osg/Image>
 #include <osg/Math>
 #include <osg/Vec3f>
@@ -17,6 +18,7 @@
 #include <components/fallback/fallback.hpp>
 #include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
+#include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>

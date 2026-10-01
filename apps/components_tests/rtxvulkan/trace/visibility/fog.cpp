@@ -8,12 +8,12 @@
 
 #include <gtest/gtest.h>
 
-#include <osg/Matrixf>
 #include <osg/Vec2d>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
+#include <apps/components_tests/rtx/support/displaycurve.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/halfstep.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
@@ -22,11 +22,10 @@
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
-#include <components/rtx/frame/camera.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
-#include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>

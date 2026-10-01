@@ -6,7 +6,6 @@
 
 #include <boost/container/flat_map.hpp>
 #include <boost/container/flat_set.hpp>
-#include <osg/Image>
 #include <osg/Node>
 #include <osg/Vec2i>
 #include <osg/Vec3f>
@@ -15,6 +14,7 @@
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/terrain/objectstorage.hpp>
+#include <components/terrain/pagedcellref.hpp>
 #include <components/terrain/storage.hpp>
 #include <components/vfs/pathutil.hpp>
 

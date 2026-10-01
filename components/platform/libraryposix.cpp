@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include "library.hpp"
 
 #include <dlfcn.h>

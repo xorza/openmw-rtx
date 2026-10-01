@@ -17,7 +17,6 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/renderer/framespend.hpp>
-#include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 

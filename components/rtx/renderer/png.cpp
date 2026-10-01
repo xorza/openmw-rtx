@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include <fstream>
+#include <ios>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -14,6 +15,7 @@
 #include <osg/ref_ptr>
 #include <osgDB/Options>
 #include <osgDB/ReadFile>
+#include <osgDB/ReaderWriter>
 #include <osgDB/Registry>
 #include <osgDB/WriteFile>
 #include <zlib.h>

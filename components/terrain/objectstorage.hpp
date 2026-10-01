@@ -8,7 +8,6 @@
 #include <vector>
 
 #include <osg/Vec2i>
-#include <osg/Vec3f>
 
 #include <components/esm/refid.hpp>
 #include <components/esm3/refnum.hpp>

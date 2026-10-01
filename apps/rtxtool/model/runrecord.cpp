@@ -3,13 +3,7 @@
 #include <format>
 #include <utility>
 
-#include <osg/Vec3f>
-
 #include <components/files/conversion.hpp>
-#include <components/rtx/image/colour.hpp>
-#include <components/rtx/image/shadingmap.hpp>
-#include <components/rtx/image/texels.hpp>
-#include <components/rtx/image/texturedata.hpp>
 
 namespace RtxTool
 {

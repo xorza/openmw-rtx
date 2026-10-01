@@ -10,8 +10,10 @@
 
 #include <osg/FrameStamp>
 #include <osg/Matrix>
+#include <osg/Matrixd>
 #include <osg/NodeVisitor>
 #include <osg/Sequence>
+#include <osg/Vec3d>
 #include <osg/ref_ptr>
 #include <osgParticle/Particle>
 #include <osgParticle/ParticleProcessor>
@@ -22,8 +24,9 @@
 #include <components/rtx/common/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
+#include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
-#include <components/rtx/scene/material.hpp>
+#include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/skeleton.hpp>

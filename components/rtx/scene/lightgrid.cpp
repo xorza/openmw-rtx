@@ -8,8 +8,6 @@
 #include <osg/BoundingBox>
 #include <osg/Vec3d>
 
-#include "lightbuilder.hpp"
-
 namespace
 {
     /// How many cells the grid may hold, and how many lamp entries across all of them. Two

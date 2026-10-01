@@ -1,5 +1,6 @@
 #include "spirvfile.hpp"
 
+#include <cstddef>
 #include <fstream>
 #include <ios>
 #include <string>

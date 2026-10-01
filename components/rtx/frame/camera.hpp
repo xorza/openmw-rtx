@@ -8,6 +8,7 @@
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
+#include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/visibility.h>
 
 namespace Rtx

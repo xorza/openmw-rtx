@@ -4,7 +4,13 @@
 #include <optional>
 #include <vector>
 
+#include <osg/Vec2i>
+
+#include <components/esm/refid.hpp>
+#include <components/sceneutil/lightcommon.hpp>
 #include <components/terrain/objectstorage.hpp>
+#include <components/terrain/pagedcellref.hpp>
+#include <components/vfs/pathutil.hpp>
 
 namespace MWRender
 {

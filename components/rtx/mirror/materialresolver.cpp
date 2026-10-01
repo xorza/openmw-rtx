@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <utility>
 
 #include <osg/Callback>
 #include <osg/CopyOp>
@@ -18,6 +19,7 @@
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
+#include <components/rtx/preprocess/meantexels.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>

@@ -11,6 +11,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/common/result.hpp>
+#include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/texturewrap.hpp>

@@ -1,6 +1,7 @@
 #include "spritebin.hpp"
 
 #include <cassert>
+#include <cstdint>
 
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/spritebin.h>

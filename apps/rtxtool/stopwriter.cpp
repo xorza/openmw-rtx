@@ -12,6 +12,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <osg/BoundingBox>
@@ -35,25 +36,30 @@
 #include <apps/openmw/mwworld/manualref.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/worldmodel.hpp>
+#include <apps/rtxtool/instruments/scenedigest.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/refnum.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/constants.hpp>
-#include <components/resource/resourcesystem.hpp>
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/image/formatcensus.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
+#include <components/rtx/mirror/cells/cellplacer.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/placementtable.hpp>
+#include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/scenetextures.hpp>
@@ -63,7 +69,6 @@
 
 #include "instruments/contactsheet.hpp"
 #include "instruments/digest.hpp"
-#include "instruments/framehashes.hpp"
 #include "model/benchrecord.hpp"
 #include "model/runrecord.hpp"
 

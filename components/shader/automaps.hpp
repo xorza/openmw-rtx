@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 
+#include <osg/Node>
 #include <osg/NodeVisitor>
 #include <osg/StateSet>
 

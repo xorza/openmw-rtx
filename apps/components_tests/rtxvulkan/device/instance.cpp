@@ -4,9 +4,9 @@
 #include <gtest/gtest.h>
 
 #include <apps/components_tests/rtx/support/instanceobstacle.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
-#include <components/rtxvulkan/device/validation.hpp>
 
 namespace Rtx
 {

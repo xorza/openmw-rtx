@@ -5,6 +5,8 @@
 #include <functional>
 #include <utility>
 
+#include <SDL3/SDL_stdinc.h>
+
 namespace SDLUtil
 {
     SDL_DisplayID displayAt(int index)

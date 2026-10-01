@@ -3,7 +3,6 @@
 #include <algorithm>
 
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 #include <components/settings/values.hpp>
 

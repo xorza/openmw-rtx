@@ -12,18 +12,20 @@
 #include <utility>
 
 #include <osg/Matrixf>
-#include <osg/Vec3f>
 
 #include <components/rtx/common/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
+#include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/scene.h>
+#include <components/terrain/pagedcellref.hpp>
 
 #include "cellgrid.hpp"
 #include "held.hpp"

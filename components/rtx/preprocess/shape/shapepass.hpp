@@ -6,6 +6,7 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 
 #include "creasesplit.hpp"

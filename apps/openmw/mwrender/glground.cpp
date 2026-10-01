@@ -4,6 +4,7 @@
 
 #include <osg/Vec2i>
 
+#include <apps/openmw/mwworld/cell.hpp>
 #include <components/terrain/world.hpp>
 
 #include "../mwworld/cellstore.hpp"

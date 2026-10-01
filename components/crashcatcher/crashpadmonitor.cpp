@@ -1,14 +1,17 @@
-#include "crash.hpp"
+#include "crashinstall.hpp"
+#include "crashnote.hpp"
 
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <memory>

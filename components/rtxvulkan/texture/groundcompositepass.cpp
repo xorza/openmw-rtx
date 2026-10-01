@@ -3,11 +3,11 @@
 #include <array>
 #include <cassert>
 #include <cstddef>
-#include <cstdint>
 #include <span>
 
 #include <components/rtx/shaders/ground.h>
 #include <components/rtx/shaders/scene.h>
+#include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>

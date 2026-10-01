@@ -3,8 +3,6 @@
 #include <map>
 #include <string>
 
-#include <osg/Vec4f>
-
 #include <components/fallback/fallback.hpp>
 
 namespace Sky

@@ -7,6 +7,7 @@
 
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
+#include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/view/offscreentrace.hpp>
 

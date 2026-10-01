@@ -7,13 +7,13 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/renderer/renderer.hpp>
-
 #include "device.hpp"
 #include "handles.hpp"
 
 namespace Rtx
 {
+    class GpuZones;
+
     /// Timestamps written into the command stream, so a frame can say where its device time went,
     /// where a wall clock around a submit measures one number for eight pieces of work. Both ends
     /// wait for every stage, so a zone cannot overlap its neighbours — which would distort a

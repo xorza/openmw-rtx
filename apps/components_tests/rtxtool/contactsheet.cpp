@@ -10,6 +10,7 @@
 #include <apps/rtxtool/instruments/contactsheet.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/scene/texturetable.hpp>
+#include <components/vfs/pathutil.hpp>
 
 #include "../rtx/support/testtexture.hpp"
 

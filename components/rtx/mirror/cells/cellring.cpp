@@ -10,6 +10,7 @@
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/terrain/pagedcellref.hpp>
 
 #include "cellgrid.hpp"
 #include "prepared.hpp"

@@ -3,8 +3,6 @@
 #include <algorithm>
 #include <cassert>
 
-#include <components/rtxvulkan/device/device.hpp>
-
 namespace Rtx
 {
     bool GrowableBuffer::growTo(const VkDeviceSize bytes)

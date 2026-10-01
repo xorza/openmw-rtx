@@ -5,9 +5,19 @@
 #include <memory>
 #include <vector>
 
+#include <SDL3/SDL_video.h>
+#include <osg/Timer>
+#include <osg/Vec2i>
+#include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <components/sdlutil/vsyncmode.hpp>
+#include <components/settings/categories.hpp>
+#include <components/vfs/pathutil.hpp>
+
+#include "ground.hpp"
 #include "renderer.hpp"
+#include "rendermode.hpp"
 
 namespace osgViewer
 {

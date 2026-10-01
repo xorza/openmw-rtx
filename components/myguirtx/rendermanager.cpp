@@ -14,6 +14,7 @@
 #include <MyGUI_VertexData.h>
 
 #include <components/debug/debuglog.hpp>
+#include <components/rtx/frame/frameextents.hpp>
 
 #include "additivelayer.hpp"
 #include "paintedmirror.hpp"

@@ -7,6 +7,7 @@
 #include <SDL3/SDL_error.h>
 #include <osg/Camera>
 
+#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 #include "../renderer.hpp"

@@ -1,6 +1,8 @@
 #include <cstddef>
 #include <vector>
 
+#include <gtest/gtest.h>
+
 #include <osg/BoundingBox>
 #include <osg/Callback>
 #include <osg/CopyOp>
@@ -12,10 +14,15 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
+#include <apps/components_tests/rtx/support/graph.hpp>
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/scenedesc.hpp>
 #include <components/sceneutil/morphgeometry.hpp>
+#include <components/sceneutil/riggeometry.hpp>
+#include <components/sceneutil/skeleton.hpp>
 
 #include "fixture.hpp"
 

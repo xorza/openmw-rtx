@@ -8,8 +8,7 @@
 
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/camera.h>
-#include <components/rtx/shaders/gbuffer.h>
-#include <components/rtx/shaders/line.h>
+#include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/tone.h>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>

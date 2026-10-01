@@ -10,7 +10,6 @@
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <components/rtx/common/error.hpp>
-#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/instance.hpp>

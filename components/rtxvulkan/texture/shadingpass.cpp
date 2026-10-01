@@ -2,6 +2,7 @@
 
 #include <array>
 
+#include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>

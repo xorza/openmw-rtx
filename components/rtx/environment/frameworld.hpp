@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <cstddef>
 #include <limits>
 #include <optional>
 
@@ -11,6 +10,7 @@
 
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/sunglare.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/sky/skyclock.hpp>

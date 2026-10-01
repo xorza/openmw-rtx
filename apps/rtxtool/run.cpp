@@ -14,8 +14,6 @@
 #include <osg/Vec3f>
 
 #include <components/files/configurationmanager.hpp>
-#include <components/files/conversion.hpp>
-#include <components/rtx/environment/skylight.hpp>
 #include <components/settings/categories.hpp>
 #include <components/settings/parser.hpp>
 

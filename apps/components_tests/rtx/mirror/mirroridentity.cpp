@@ -4,7 +4,6 @@
 #include <gtest/gtest.h>
 
 #include <apps/components_tests/rtx/support/death.hpp>
-#include <components/rtx/common/runs.hpp>
 #include <components/rtx/mirror/mirroridentity.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
 

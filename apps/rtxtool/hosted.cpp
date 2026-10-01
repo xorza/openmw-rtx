@@ -1,5 +1,6 @@
 #include "run.hpp"
 
+#include <filesystem>
 #include <ostream>
 #include <set>
 #include <string>
@@ -9,6 +10,7 @@
 #include <boost/program_options/variables_map.hpp>
 
 #include <apps/openmw/engine.hpp>
+#include <apps/rtxtool/model/benchrun.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/fallback/validate.hpp>

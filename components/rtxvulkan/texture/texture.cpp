@@ -18,7 +18,9 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/mipchain.hpp>
+#include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/shaders/ground.h>
+#include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/normalspread.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/shadingmap.h>

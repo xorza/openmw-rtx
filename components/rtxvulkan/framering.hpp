@@ -12,7 +12,6 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/renderer/renderer.hpp>
-#include <components/rtx/shaders/counts.h>
 #include <components/rtx/shaders/digest.h>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>

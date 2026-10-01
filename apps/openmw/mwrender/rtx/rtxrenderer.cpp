@@ -25,7 +25,11 @@
 #include <osg/Stats>
 #include <osg/Texture2D>
 #include <osg/Timer>
+#include <osg/Vec2i>
+#include <osg/Vec3f>
 
+#include <apps/openmw/mwrender/mapoverlay.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
@@ -41,6 +45,7 @@
 #include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/frameextents.hpp>
+#include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/poseupdate.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
@@ -50,7 +55,6 @@
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
-#include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/createrenderer.hpp>
 #include <components/sceneutil/screencapture.hpp>
@@ -64,7 +68,6 @@
 #include "../ground.hpp"
 #include "../offscreenview.hpp"
 #include "../renderingmanager.hpp"
-#include "../rendermode.hpp"
 #include "../sceneframe.hpp"
 #include "../skystate.hpp"
 #include "../vismask.hpp"

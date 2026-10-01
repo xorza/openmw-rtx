@@ -6,14 +6,18 @@
 #include <vector>
 
 #include <osg/BoundingBox>
+#include <osg/Image>
 
 #include <components/rtx/common/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/stepped.hpp>
+#include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
-#include <components/rtx/shaders/skinning.h>
+#include <components/vfs/pathutil.hpp>
 
 #include "deformertable.hpp"
+#include "light.hpp"
 #include "lightbuilder.hpp"
 #include "material.hpp"
 #include "materialtable.hpp"

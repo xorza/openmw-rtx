@@ -5,6 +5,8 @@
 #include <numbers>
 #include <utility>
 
+#include <osg/Vec3d>
+
 #include <components/crashcatcher/crash.hpp>
 
 namespace RtxTool

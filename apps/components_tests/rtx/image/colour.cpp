@@ -8,6 +8,7 @@
 
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/shaders/colour.h>
+#include <components/rtx/shaders/look.h>
 #include <components/sceneutil/util.hpp>
 
 namespace Rtx

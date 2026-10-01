@@ -10,6 +10,7 @@
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 #include "requirements.hpp"
 #include "result.hpp"

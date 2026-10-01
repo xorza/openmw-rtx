@@ -45,8 +45,10 @@
 #include <components/esm3/refnum.hpp>
 #include <components/misc/constants.hpp>
 #include <components/rtx/common/result.hpp>
+#include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/mirror/cells/cellplacer.hpp>
 #include <components/rtx/mirror/cells/cellreader.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
 #include <components/rtx/mirror/cells/cellsupply.hpp>
@@ -59,9 +61,12 @@
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
+#include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/placementtable.hpp>
+#include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
@@ -71,6 +76,7 @@
 #include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/terrain/objectstorage.hpp>
+#include <components/terrain/pagedcellref.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace Rtx::Testing

@@ -28,6 +28,7 @@
 #include <components/misc/constants.hpp>
 #include <components/rtx/common/result.hpp>
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/image/colour.hpp>
 #include <components/rtx/mirror/cells/nightday.hpp>
 #include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/rtx/mirror/cells/templatewalk.hpp>

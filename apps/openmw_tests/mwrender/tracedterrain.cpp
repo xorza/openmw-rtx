@@ -3,8 +3,8 @@
 #include <gtest/gtest.h>
 
 #include <osg/Group>
+#include <osg/Vec2i>
 #include <osg/Vec3d>
-#include <osg/Vec3f>
 #include <osg/ref_ptr>
 #include <osgUtil/IntersectionVisitor>
 #include <osgUtil/LineSegmentIntersector>

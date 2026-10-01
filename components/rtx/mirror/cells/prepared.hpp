@@ -26,9 +26,9 @@
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/scene/material.hpp>
-#include <components/rtx/scene/refusals.hpp>
+#include <components/rtx/scene/refusal.hpp>
 #include <components/sceneutil/lightcommon.hpp>
-#include <components/terrain/objectstorage.hpp>
+#include <components/terrain/pagedcellref.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "nightday.hpp"

@@ -4,6 +4,8 @@
 #include <utility>
 #include <vector>
 
+#include <gtest/gtest.h>
+
 #include <osg/Array>
 #include <osg/LOD>
 #include <osg/Math>
@@ -11,6 +13,7 @@
 #include <osg/MatrixTransform>
 #include <osg/Matrixd>
 #include <osg/Matrixf>
+#include <osg/Node>
 #include <osg/NodeVisitor>
 #include <osg/Sequence>
 #include <osg/Switch>
@@ -20,13 +23,18 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/graph.hpp>
 #include <components/nif/niftypes.hpp>
 #include <components/nifosg/autotransform.hpp>
 #include <components/rtx/frame/camera.hpp>
+#include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/meshtable.hpp>
+#include <components/rtx/scene/placementtable.hpp>
+#include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
+#include <components/rtx/scene/scenedesc.hpp>
 
 #include "fixture.hpp"
 

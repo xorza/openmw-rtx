@@ -33,6 +33,8 @@
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/debuglines.hpp>
+#include <components/rtx/frame/frameoptions.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -42,6 +44,7 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>
+#include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/scene/sceneacceleration.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>

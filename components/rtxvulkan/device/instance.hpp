@@ -9,12 +9,12 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/renderer/renderer.hpp>
-
 #include "validation.hpp"
 
 namespace Rtx
 {
+    struct ValidationOptions;
+
     /// A `VkInstance` and, when validation is on, the messenger and the log behind it.
     class Instance
     {

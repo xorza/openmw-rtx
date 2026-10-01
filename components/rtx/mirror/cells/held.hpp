@@ -18,7 +18,7 @@
 #include <components/rtx/mirror/sceneadopter.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/sceneutil/lightcommon.hpp>
-#include <components/terrain/objectstorage.hpp>
+#include <components/terrain/pagedcellref.hpp>
 
 #include "nightday.hpp"
 #include "prepared.hpp"

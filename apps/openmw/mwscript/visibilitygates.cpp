@@ -4,15 +4,16 @@
 #include <cstddef>
 #include <string>
 #include <string_view>
+#include <variant>
 
 #include <components/compiler/generator.hpp>
 #include <components/compiler/opcodes.hpp>
-#include <components/esm/defs.hpp>
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadcont.hpp>
 #include <components/esm3/loaddoor.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/esm3/loadscpt.hpp>
+#include <components/interpreter/types.hpp>
 #include <components/misc/strings/lower.hpp>
 
 #include "../mwrender/objectstorage.hpp"

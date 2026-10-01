@@ -11,6 +11,7 @@
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/frame/upscale.hpp>
 
 #include "cameradriver.hpp"
 #include "homekey.hpp"

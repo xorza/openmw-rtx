@@ -13,6 +13,7 @@
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
+#include <apps/components_tests/rtx/support/displaycurve.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>

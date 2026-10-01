@@ -1,7 +1,6 @@
 #include "groundreader.hpp"
 
 #include <cassert>
-#include <string>
 #include <utility>
 
 #include <osg/Array>

@@ -16,11 +16,11 @@
 #include <components/rtx/common/parallel.hpp>
 #include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/frame/bluenoise.hpp>
-#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/specularalbedo.hpp>
 #include <components/rtx/scene/lightgrid.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/shaders/bindings.h>
+#include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>

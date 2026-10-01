@@ -7,11 +7,15 @@
 #include <string>
 #include <vector>
 
+#include <gtest/gtest.h>
+
 #include <osg/Geode>
 #include <osg/Geometry>
 #include <osg/Group>
+#include <osg/Image>
 #include <osg/Math>
 #include <osg/Matrix>
+#include <osg/Matrixf>
 #include <osg/Node>
 #include <osg/NodeVisitor>
 #include <osg/StateAttribute>
@@ -31,8 +35,14 @@
 
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
+#include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/spritelight.hpp>
+#include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/mirror/sceneextractor.hpp>
+#include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
+#include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/sceneutil/material.hpp>

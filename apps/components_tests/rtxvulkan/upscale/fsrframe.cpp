@@ -1,13 +1,15 @@
 #include <cfloat>
-#include <cmath>
 #include <cstdint>
 
 #include <gtest/gtest.h>
 
 #include <osg/Vec2f>
 #include <osg/Vec3f>
+#include <vulkan/vulkan_core.h>
 
 #include <components/rtx/shaders/camera.h>
+#include <components/rtx/shaders/fsr.h>
+#include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/upscale/fsrframe.hpp>
 

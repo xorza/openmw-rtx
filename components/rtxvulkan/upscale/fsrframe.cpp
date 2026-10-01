@@ -28,6 +28,7 @@
 #include <cfloat>
 #include <cstdint>
 
+#include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 

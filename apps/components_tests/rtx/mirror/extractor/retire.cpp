@@ -1,11 +1,19 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
+#include <gtest/gtest.h>
+
 #include <osg/Array>
+#include <osg/Geometry>
+#include <osg/Group>
 #include <osg/Matrix>
 #include <osg/MatrixTransform>
+#include <osg/Matrixf>
+#include <osg/Node>
+#include <osg/StateSet>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 #include <osg/observer_ptr>
@@ -13,13 +21,18 @@
 
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
+#include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/common/runs.hpp>
-#include <components/rtx/preprocess/shape/shapefold.hpp>
+#include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/placementtable.hpp>
+#include <components/rtx/scene/rowhold.hpp>
+#include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/stableidentity.hpp>
 #include <components/vfs/pathutil.hpp>

@@ -11,6 +11,7 @@
 #include <components/rtxvulkan/device/timeline.hpp>
 
 #include "buffer.hpp"
+#include "memory.hpp"
 
 namespace Rtx
 {

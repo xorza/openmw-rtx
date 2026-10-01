@@ -16,13 +16,13 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <components/esm/refid.hpp>
 #include <components/misc/constants.hpp>
 #include <components/nifosg/nifloader.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/result.hpp>
 #include <components/rtx/common/runs.hpp>
-#include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
@@ -32,6 +32,7 @@
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/meshtable.hpp>
 #include <components/sceneutil/waterutil.hpp>
 #include <components/terrain/storage.hpp>
 #include <components/terrain/world.hpp>

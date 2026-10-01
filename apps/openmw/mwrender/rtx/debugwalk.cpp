@@ -11,6 +11,7 @@
 #include <osg/TemplatePrimitiveIndexFunctor>
 #include <osg/Transform>
 #include <osg/Vec4f>
+#include <osg/ref_ptr>
 
 #include "../vismask.hpp"
 

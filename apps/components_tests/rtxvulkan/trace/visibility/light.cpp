@@ -11,21 +11,24 @@
 #include <gtest/gtest.h>
 
 #include <osg/Matrixf>
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
+#include <apps/components_tests/rtx/support/displaycurve.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/lobeintegrals.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/common/runs.hpp>
-#include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/specularalbedo.hpp>
+#include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -35,6 +38,7 @@
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
+#include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/vfs/pathutil.hpp>
 

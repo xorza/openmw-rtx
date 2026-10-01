@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <MyGUI_ITexture.h>
+#include <SDL3/SDL_video.h>
 #include <osg/Camera>
 #include <osg/FrameStamp>
 #include <osg/Group>

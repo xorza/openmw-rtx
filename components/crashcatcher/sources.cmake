@@ -1,5 +1,6 @@
 add_component_dir (crashcatcher
     crash
+    crashinstall
     crashmonitorarguments
     crashnote
     crashpackage

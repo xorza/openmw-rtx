@@ -3,7 +3,6 @@
 #include <osg/Vec3f>
 
 #include "../mwbase/world.hpp"
-#include "../mwworld/refdata.hpp"
 
 namespace MWRender
 {

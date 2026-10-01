@@ -8,7 +8,6 @@
 #include <osg/Vec3f>
 
 #include <components/rtx/shaders/colour.h>
-#include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/shadingmap.h>
 
 #include "colour.hpp"

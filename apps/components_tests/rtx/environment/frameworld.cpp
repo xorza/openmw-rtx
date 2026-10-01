@@ -18,6 +18,8 @@
 #include <components/rtx/environment/nightsky.hpp>
 #include <components/rtx/environment/skybuilder.hpp>
 #include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/frame/frameoptions.hpp>
+#include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>

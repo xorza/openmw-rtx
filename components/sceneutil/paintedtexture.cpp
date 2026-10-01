@@ -3,6 +3,7 @@
 #include <cassert>
 
 #include <osg/GL>
+#include <osg/Texture>
 
 namespace SceneUtil
 {

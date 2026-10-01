@@ -14,7 +14,6 @@
 
 #include <components/rtx/common/namedenum.hpp>
 #include <components/rtx/common/runs.hpp>
-#include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -33,6 +32,7 @@ struct SDL_Window;
 
 namespace Rtx
 {
+    struct FrameOptions;
     class SceneDesc;
 
     /// How much of the graphics API's own checking a run loads. One level and not three switches,

@@ -13,8 +13,12 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
+#include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/scene/light.hpp>
+#include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/visibility.h>

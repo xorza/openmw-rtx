@@ -10,7 +10,6 @@
 
 #include <osg/GL>
 #include <osg/Image>
-#include <osg/Texture>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 

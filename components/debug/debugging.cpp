@@ -16,7 +16,7 @@
 #pragma warning(pop)
 #endif
 
-#include <components/crashcatcher/crash.hpp>
+#include <components/crashcatcher/crashinstall.hpp>
 #include <components/files/conversion.hpp>
 #include <components/files/fixedpath.hpp>
 #include <components/misc/strings/conversion.hpp>

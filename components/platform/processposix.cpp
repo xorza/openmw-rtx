@@ -6,7 +6,6 @@
 #include <string_view>
 
 #include <sys/resource.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 // The system calls that are each system's own: a thread's id, and Linux's way to leave no core.

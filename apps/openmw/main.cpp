@@ -1,4 +1,5 @@
 #include <components/crashcatcher/crash.hpp>
+#include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/fallback/validate.hpp>

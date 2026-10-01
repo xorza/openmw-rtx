@@ -6,16 +6,19 @@
 #include <optional>
 #include <vector>
 
+#include <SDL3/SDL_video.h>
 #include <osg/Matrixd>
 #include <osg/Node>
 #include <osg/Timer>
-#include <osg/Vec2f>
+#include <osg/Vec3f>
 #include <osg/ref_ptr>
 
 #include <components/esm3/refnum.hpp>
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/mirror/cells/cellplacer.hpp>
+#include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/sdlutil/vsyncmode.hpp>
@@ -24,7 +27,6 @@
 
 #include "../ground.hpp"
 #include "../renderer.hpp"
-#include "../rendermode.hpp"
 #include "debugwalk.hpp"
 #include "framereport.hpp"
 #include "frametimer.hpp"

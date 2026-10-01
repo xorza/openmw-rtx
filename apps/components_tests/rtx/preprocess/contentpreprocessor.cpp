@@ -16,8 +16,10 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
+#include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
+#include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texture/texturepass.hpp>
 

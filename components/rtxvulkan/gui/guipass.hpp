@@ -7,6 +7,7 @@
 
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/pipeline/graphicspipeline.hpp>
+#include <components/rtxvulkan/pipeline/pipeline.hpp>
 
 namespace Rtx
 {

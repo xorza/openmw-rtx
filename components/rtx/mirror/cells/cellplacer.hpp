@@ -15,7 +15,7 @@
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
-#include <components/terrain/objectstorage.hpp>
+#include <components/terrain/pagedcellref.hpp>
 
 #include "cellworld.hpp"
 #include "held.hpp"

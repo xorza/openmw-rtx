@@ -2,12 +2,17 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 
+#include <osg/Array>
+#include <osg/CopyOp>
 #include <osg/Drawable>
 #include <osg/Geometry>
 #include <osg/Image>
 #include <osg/Node>
+#include <osg/StateAttribute>
 #include <osg/Texture2D>
+#include <osg/ref_ptr>
 #include <osgUtil/TangentSpaceGenerator>
 
 #include <components/misc/strings/algorithm.hpp>

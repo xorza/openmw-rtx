@@ -2,6 +2,8 @@
 
 #include <memory>
 
+#include <osg/Matrixf>
+#include <osg/Node>
 #include <osg/ref_ptr>
 
 #include "offscreenview.hpp"
