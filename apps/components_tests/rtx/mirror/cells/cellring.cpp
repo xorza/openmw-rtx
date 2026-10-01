@@ -1437,6 +1437,51 @@ namespace Rtx::Testing
             EXPECT_EQ(read[1]->mCell, osg::Vec2i(5, 0));
         }
 
+        /// **A cell on its way is not read again for an ask that could not know of it.** The ring
+        /// asks for what it lacks as of its last take, so an ask made while the thread is inside a
+        /// cell names that cell again; reading it twice handed over a copy the ring turned away. An
+        /// ask made after a take that brought the cell is one the ring made knowing of it — a copy
+        /// it turned away, or a cell it let go — and is read.
+        TEST(RtxCellSupplyTest, aCellOnItsWayIsNotReadAgainForAnAskThatCouldNotKnowOfIt)
+        {
+            FakeLand land;
+            FewStatics storage;
+            HeldContent content;
+            CellSupply supply;
+            supply.follow(CellWorld{
+                .mStorage = &storage,
+                .mGround = &land,
+                .mContent = &content,
+                .mWorldspace = ESM::Cell::sDefaultWorldspaceId,
+                .mMask = ~0u,
+            });
+
+            const osg::Vec2i a(0, 0);
+            const osg::Vec2i b(1, 0);
+            const osg::Vec2i c(2, 0);
+            supply.ask(CellRequest{ .mCells = { a, b } });
+            content.mEntered.acquire();
+            supply.ask(CellRequest{ .mCells = { a, b, c } });
+            content.mLetGo.release();
+
+            std::vector<PreparedCell*> read;
+            while (supply.waitForOne())
+                supply.take(read);
+            supply.take(read);
+
+            std::vector<osg::Vec2i> cells;
+            for (const PreparedCell* cell : read)
+                cells.push_back(cell->mCell);
+            EXPECT_EQ(cells, (std::vector<osg::Vec2i>{ a, b, c })) << "each cell once, in the order asked";
+
+            read.clear();
+            supply.ask(CellRequest{ .mCells = { a } });
+            ASSERT_TRUE(supply.waitForOne()) << "an ask made after the take that brought it is read";
+            supply.take(read);
+            ASSERT_EQ(read.size(), 1u);
+            EXPECT_EQ(read[0]->mCell, a);
+        }
+
         /// **A model's room is counted where it stands: lent to a cell, then spare, never both.**
         /// `reuse` keeps the buffers, so the room the tree grew to leaves the lent figure and
         /// reappears whole in the spare one when its one holder gives it back.

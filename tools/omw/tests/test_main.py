@@ -12,6 +12,7 @@ class ParseTest(unittest.TestCase):
             (["test"], Line("debug", "test", [])),
             (["release", "bench", "--seconds=3"], Line("release", "bench", ["--seconds=3"])),
             (["asan", "test", "--all"], Line("asan", "test", ["--all"])),
+            (["tsan", "test", "--without-device"], Line("tsan", "test", ["--without-device"])),
             (["archive", "v1"], Line("package", "archive", ["v1"])),
             (["package", "archive"], Line("package", "archive", [])),
             (["profile", "--offcpu"], Line("release", "profile", ["--offcpu"])),

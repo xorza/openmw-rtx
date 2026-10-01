@@ -1,5 +1,6 @@
 #include "crashpadclientsystem.hpp"
 
+#include <cerrno>
 #include <csignal>
 #include <cstdlib>
 #include <filesystem>
@@ -23,7 +24,12 @@ namespace Crash::Client
     {
         void onHangSignal(int)
         {
+            // **The interrupted code's `errno` is put back**: the report makes system calls of its
+            // own, and a handler that returned with another left the call it interrupted reading a
+            // cause it never had. ThreadSanitizer reports a handler that spoils it.
+            const int interrupted = errno;
             reportHang();
+            errno = interrupted;
         }
     }
 

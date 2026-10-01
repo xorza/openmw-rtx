@@ -23,6 +23,13 @@ namespace Platform::Process
     /// tells this one from the rest by.
     std::uint32_t currentId();
 
+    /// Whether a process with the id `id` is running now, whoever owns it. An id the system never
+    /// hands out answers no, nought and one past `pid_t` among them, which POSIX reads as a group
+    /// or as every process. An id is used again once its process ends, and on POSIX a process that
+    /// ended is still there until its parent collects it, so a yes can be another process's or one
+    /// that is over: what this settles exactly is the no.
+    bool isRunning(std::uint32_t id);
+
     /// The system's id of the calling thread: what a crash dump and a debugger number threads by.
     /// Safe inside a signal handler.
     std::uint64_t currentThreadId();

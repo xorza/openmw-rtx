@@ -1,6 +1,5 @@
 #include "allocations.hpp"
 
-#include <atomic>
 #include <cstdlib>
 #include <new>
 
@@ -8,19 +7,19 @@
 
 namespace
 {
-    // Relaxed because nothing orders anything by it: it is read once, after the work that moved it
-    // has been waited on.
-    std::atomic<std::size_t> sAllocations{ 0 };
+    // Constant-initialised, so the thread's slot exists before any code on the thread runs and
+    // reaching it from inside `operator new` initialises nothing.
+    constinit thread_local std::size_t tAllocations = 0;
 
     void* allocate(std::size_t size, std::align_val_t alignment)
     {
-        sAllocations.fetch_add(1, std::memory_order_relaxed);
+        ++tAllocations;
         return Platform::Memory::allocateAligned(size, static_cast<std::size_t>(alignment));
     }
 
     void* allocate(std::size_t size)
     {
-        sAllocations.fetch_add(1, std::memory_order_relaxed);
+        ++tAllocations;
         return std::malloc(size == 0 ? 1 : size);
     }
 }
@@ -29,7 +28,7 @@ namespace Rtx::Testing
 {
     std::size_t getAllocationCount()
     {
-        return sAllocations.load(std::memory_order_relaxed);
+        return tAllocations;
     }
 }
 

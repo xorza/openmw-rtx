@@ -1264,9 +1264,11 @@ namespace RtxTool
             Files::ConfigurationManager config;
 
             // **Before the chain is walked, because this is the directory the engine writes into.**
-            // `adoptConfigDirectory` says why a hosted run has one of its own; the log below lands
+            // `ownConfigDirectory` says why a hosted run has one of its own; the log below lands
             // there too.
-            adoptConfigDirectory(variables, ownConfigDirectory(config));
+            const std::filesystem::path own = ownConfigDirectory(config);
+            sweepEndedRuns(own.parent_path());
+            adoptConfigDirectory(variables, own);
 
             config.processPaths(variables, std::filesystem::current_path());
             config.readConfiguration(variables, options.mDescription);

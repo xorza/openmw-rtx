@@ -108,7 +108,8 @@ backend ever arrives.
 - `./omw` at the root is the one way in, `omw [flavour] <verb>`, and `./omw help` lists both. The
   flavour is `debug` unless named: every assert and the tests. `release` is the build a number is
   quoted from, and `profile` runs in it and refuses another flavour named before it. `asan` adds
-  the sanitizers, `full` builds every program the tree has, the CS among them, and `package` is
+  the address and undefined-behaviour sanitizers and `tsan` the thread sanitizer, which the daily
+  run builds apart, `full` builds every program the tree has, the CS among them, and `package` is
   the one `archive` puts into `dist/`.
 - `./omw test <binary> --gtest_filter=...` builds and runs one test binary with a filter.
 - `./omw test` once before saying it works: every suite CTest has, `rtx-gpu-tests` and the crash

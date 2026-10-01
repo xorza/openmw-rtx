@@ -1,6 +1,8 @@
 #include "options.hpp"
 
 #include <algorithm>
+#include <charconv>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
@@ -9,6 +11,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <vector>
 
 #include <boost/program_options/option.hpp>
@@ -19,7 +22,9 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
+#include <components/files/conversion.hpp>
 #include <components/misc/constants.hpp>
+#include <components/platform/process.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -563,19 +568,42 @@ namespace RtxTool
 
     std::filesystem::path ownConfigDirectory(const Files::ConfigurationManager& config)
     {
-        return config.getCachePath() / "rtxtool";
+        static const std::string run = std::format(
+            "{}-{}", std::chrono::system_clock::now().time_since_epoch().count(), Platform::Process::currentId());
+        return config.getCachePath() / "rtxtool" / run;
+    }
+
+    void sweepEndedRuns(const std::filesystem::path& runs)
+    {
+        std::error_code failed;
+        for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(runs, failed))
+        {
+            if (!entry.is_directory(failed))
+                continue;
+
+            // `<time>-<process id>`, and the whole of it: a name that is anything else is not a run's.
+            const std::string name = Files::pathToUnicodeString(entry.path().filename());
+            const std::size_t dash = name.find('-');
+            if (dash == std::string::npos || dash == 0)
+                continue;
+
+            std::uint64_t started = 0;
+            std::uint32_t process = 0;
+            const char* const end = name.data() + name.size();
+            const std::from_chars_result timeRead = std::from_chars(name.data(), name.data() + dash, started);
+            const std::from_chars_result processRead = std::from_chars(name.data() + dash + 1, end, process);
+            if (timeRead.ptr != name.data() + dash || timeRead.ec != std::errc() || processRead.ptr != end
+                || processRead.ec != std::errc())
+                continue;
+
+            if (!Platform::Process::isRunning(process))
+                std::filesystem::remove_all(entry.path(), failed);
+        }
     }
 
     void adoptConfigDirectory(bpo::variables_map& variables, const std::filesystem::path& directory)
     {
         std::filesystem::create_directories(directory);
-
-        // **What the engine saved on its last way out is the last run's overrides, and read back
-        // it would shadow the player's file on this one.** `Settings::Manager::load` takes the last
-        // directory's file as the user layer over every other, and the engine writes that layer
-        // with everything a run set into it — so a `view` that read the player's `distant land
-        // cells` found the four a `shot` had left here, whatever the player's own file said.
-        std::filesystem::remove(directory / "settings.cfg");
 
         // **The map's own entry and not a second parse.** `config` is a composing option, so a value
         // stored from a second source would be merged by rules that are Boost's to keep; the container

@@ -1,8 +1,13 @@
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <string>
 
 #include <gtest/gtest.h>
 
+#include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
+#include <components/testing/util.hpp>
 
 namespace
 {
@@ -34,5 +39,25 @@ namespace
         EXPECT_EQ(killed.describe(), "signal 9");
 
         EXPECT_TRUE(Platform::Process::runShell("true").succeeded());
+    }
+
+    /// **A process runs until it ends, and an id no process has is no process**: this one, then a
+    /// shell that wrote its own id and exited, then nought and the id past `pid_t`, which `kill`
+    /// would read as this process group and as every process there is.
+    TEST(RtxPlatformProcessTest, aProcessIsRunningUntilItEnds)
+    {
+        EXPECT_TRUE(Platform::Process::isRunning(Platform::Process::currentId()));
+
+        const std::filesystem::path written = TestingOpenMW::outputFilePath("ended-shell-id");
+        ASSERT_TRUE(Platform::Process::runShell(
+            "echo $$ > " + Platform::Process::shellWord(Files::pathToUnicodeString(written)))
+                        .succeeded());
+        std::uint32_t ended = 0;
+        std::ifstream(written) >> ended;
+        ASSERT_NE(ended, 0u) << "the shell wrote no id";
+        EXPECT_FALSE(Platform::Process::isRunning(ended));
+
+        EXPECT_FALSE(Platform::Process::isRunning(0));
+        EXPECT_FALSE(Platform::Process::isRunning(0xFFFFFFFFu));
     }
 }

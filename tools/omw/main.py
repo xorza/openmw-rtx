@@ -44,6 +44,7 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   debug     build-debug     -O2 -g with every assert and the tests: the everyday build, and the default
   release   build-release   -O3 -DNDEBUG, line tables and frame pointers: the build a number is quoted from
   asan      build-asan      debug under AddressSanitizer and UndefinedBehaviorSanitizer; Linux only
+  tsan      build-tsan      debug under ThreadSanitizer; Linux only
   package   build-package   release with the launcher, the wizard and the importers, portable
   full      build-full      debug with every program the tree has, the CS, the launcher and the wizard among them
 """

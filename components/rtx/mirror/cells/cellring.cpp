@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <vector>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/scene/refusals.hpp>
@@ -131,10 +132,12 @@ namespace Rtx
                 ++mHolds.know(*model).mNamed;
 
             // The switch is a setting the game can move while it runs, and a cell read under the
-            // other answer is read again. A cell the reader is part-way through is neither held nor
-            // handed, so a replacing list names it again and the reader hands over two copies;
-            // `sift` turns the second away.
-            if (cell->mStatics != mStatics || handed(cell->mCell))
+            // other answer is read again. **Never a second copy under the same answer**: the supply
+            // reads a cell once while it is on its way (`CellSupply`), and a copy adopted twice
+            // would stand every reference twice.
+            Crash::contract(cell->mStatics != mStatics || (!handed(cell->mCell) && !mPlacer.holds(cell->mCell)),
+                "the supply handed over a cell the ring already had");
+            if (cell->mStatics != mStatics)
                 discard(*cell);
             else
                 mHanded.push_back(cell);
@@ -172,7 +175,7 @@ namespace Rtx
     {
         const std::size_t before = mHanded.size();
         std::erase_if(mHanded, [&](PreparedCell* cell) {
-            if (mAround.mWorld.mGrid.withinReach(cell->mCell, eye, band) && !mPlacer.holds(cell->mCell))
+            if (mAround.mWorld.mGrid.withinReach(cell->mCell, eye, band))
                 return false;
 
             discard(*cell);

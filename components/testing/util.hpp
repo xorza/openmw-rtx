@@ -3,13 +3,16 @@
 
 #include <chrono>
 #include <filesystem>
+#include <format>
 #include <initializer_list>
 #include <memory>
 #include <sstream>
+#include <string>
 
 #include <gtest/gtest.h>
 
 #include <components/misc/strings/conversion.hpp>
+#include <components/platform/process.hpp>
 #include <components/vfs/archive.hpp>
 #include <components/vfs/file.hpp>
 #include <components/vfs/manager.hpp>
@@ -17,9 +20,13 @@
 
 namespace TestingOpenMW
 {
+    /// A directory of this run's own. **The process and not only the clock**: no two processes
+    /// running at once share an id, where two copies of a binary started together could share a
+    /// tick; the clock keeps apart two runs a reused id would join.
     inline std::filesystem::path outputDir()
     {
-        static const std::string run = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+        static const std::string run = std::format(
+            "{}-{}", std::chrono::system_clock::now().time_since_epoch().count(), Platform::Process::currentId());
         std::filesystem::path dir = std::filesystem::temp_directory_path() / "openmw" / "tests" / run;
         std::filesystem::create_directories(dir);
         return dir;
@@ -39,12 +46,28 @@ namespace TestingOpenMW
         return path;
     }
 
+    /// The name of `test`'s directory under this run's own, which `currentTestDirPath` makes and
+    /// `FreshTestDirs` empties.
+    inline std::string testDirName(const ::testing::TestInfo& test)
+    {
+        return std::format("{}.{}", test.test_suite_name(), test.name());
+    }
+
     inline std::filesystem::path currentTestDirPath()
     {
-        return outputDirPath(
-            std::format("{}.{}", ::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name(),
-                ::testing::UnitTest::GetInstance()->current_test_info()->name()));
+        return outputDirPath(testDirName(*::testing::UnitTest::GetInstance()->current_test_info()));
     }
+
+    /// Empties each test's own directory as the test starts, so a test run again in one process —
+    /// `--gtest_repeat` — starts from nothing, as its first pass did, and not from what that pass
+    /// left. Appended to the listeners by a binary's `main`.
+    class FreshTestDirs : public ::testing::EmptyTestEventListener
+    {
+        void OnTestStart(const ::testing::TestInfo& test) override
+        {
+            std::filesystem::remove_all(outputDir() / testDirName(test));
+        }
+    };
 
     inline std::filesystem::path outputFilePathWithSubDir(const std::filesystem::path& subpath)
     {

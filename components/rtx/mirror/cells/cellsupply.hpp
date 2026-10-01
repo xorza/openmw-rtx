@@ -65,6 +65,12 @@ namespace Rtx
     /// newer ask replaces an older one it has not finished, because the ones the ring lacked a
     /// moment ago are not an answer to what it lacks now. Everything read is lent and given back;
     /// `Spares` says why an address and not a shared count.
+    ///
+    /// **A cell is read once for the asks that name it while it is on its way.** An ask names
+    /// what the ring lacks as of its last `take`, so the cell in hand, and every cell handed over
+    /// since that take, are in the next ask as well: read again, they were 42 of the 143 reads a
+    /// band of 101 cells took, and every copy was turned away. A take counts, so the thread knows which of what it
+    /// handed over an ask could not have known of.
     class CellSupply
     {
     public:
@@ -150,17 +156,35 @@ namespace Rtx
         /// What the thread has read, under the lock.
         std::vector<PreparedCell*> mDone;
 
+        /// How many times the frame has taken what was read, and how many it had when it made the
+        /// ask in `mWanted`, under the lock.
+        std::uint64_t mTakes = 0;
+        std::uint64_t mWantedTakes = 0;
+
         /// What the frame has given back, under the lock, for the thread to refill.
         CellReturns mReturned;
 
         /// `CellReader::measure` as the thread last finished a cell, under the lock.
         ReaderMemory mMeasured;
 
-        /// The thread's own: the request it is working through, the ask it came from, and what the
-        /// frame gave back that it is putting away.
+        /// A cell the thread handed over, read with which statics, and how many takes the frame had
+        /// made by then: it reaches the ring with the next take, so an ask made before that take
+        /// names it still.
+        struct Handed
+        {
+            osg::Vec2i mCell;
+            bool mStatics = true;
+            std::uint64_t mTakes = 0;
+        };
+
+        /// The thread's own: the request it is working through, the ask it came from and the takes
+        /// that ask knew of, what the frame gave back that it is putting away, and what it handed
+        /// over that the request cannot have known of.
         CellRequest mReading;
         std::uint64_t mReadingAsked = 0;
+        std::uint64_t mReadingTakes = 0;
         CellReturns mRecycling;
+        std::vector<Handed> mOnTheWay;
 
         /// Owned here and used by the thread alone while it runs.
         std::unique_ptr<CellReader> mReader;

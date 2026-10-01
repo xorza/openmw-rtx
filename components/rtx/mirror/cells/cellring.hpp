@@ -142,9 +142,8 @@ namespace Rtx
         /// radius in units, which is the reach and the prepared band past it.
         void ask(const osg::Vec3f& eye, float band);
 
-        /// Gives back every handed cell the ring must not adopt: one outside the band, and one it
-        /// already holds. Run after every `takeDone`, because a cell handed over during the wait
-        /// has been through neither test.
+        /// Gives back every handed cell outside the band. Run after every `takeDone`, because a cell
+        /// handed over during the wait was asked for from where the eye stood before.
         void sift(const osg::Vec3f& eye, float band);
 
         /// Blocks until the supply has read a cell this walk can adopt (`setSettled`), or until the
