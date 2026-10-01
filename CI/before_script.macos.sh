@@ -75,30 +75,21 @@ declare -a BUILD_OPTS=(
 -G"Unix Makefiles"
 )
 
-if [[ "${MACOS_AMD64}" ]]; then
-    VCPKG_TARGET_TRIPLET="x64-osx-dynamic"
-    CMAKE_CONF_OPTS+=(
-        -D CMAKE_OSX_ARCHITECTURES="x86_64"
-        -D CMAKE_OSX_DEPLOYMENT_TARGET="13.7"
-    )
-else
-    VCPKG_TARGET_TRIPLET="arm64-osx-dynamic"
-    CMAKE_CONF_OPTS+=(
-        -D CMAKE_OSX_DEPLOYMENT_TARGET="14.8"
-    )
-fi
-
+VCPKG_TARGET_TRIPLET="arm64-osx-dynamic"
 DEPENDENCIES_INSTALLED_PATH="$DEPENDENCIES_ROOT_PATH/installed/$VCPKG_TARGET_TRIPLET"
 QT_PATH=/tmp/Qt/$QT_VER/macos
 
 CMAKE_CONF_OPTS+=(
+    -D CMAKE_OSX_DEPLOYMENT_TARGET="$MACOS_DEPLOYMENT_TARGET"
     -D CMAKE_PREFIX_PATH="$DEPENDENCIES_INSTALLED_PATH;$QT_PATH"
     -DVCPKG_HOST_TRIPLET="$VCPKG_TARGET_TRIPLET"
     -DVCPKG_TARGET_TRIPLET="$VCPKG_TARGET_TRIPLET"
     -DCMAKE_TOOLCHAIN_FILE="$DEPENDENCIES_ROOT_PATH/scripts/buildsystems/vcpkg.cmake"
-    # Homebrew's Vulkan by name: its whole prefix would compete with the vcpkg set.
-    -D Vulkan_INCLUDE_DIR="$(brew --prefix)/include"
-    -D Vulkan_LIBRARY="$(brew --prefix)/lib/libvulkan.dylib"
+    # The loader and headers `before_install.macos.sh` built, and Homebrew's SPIR-V headers, each by
+    # name: Homebrew's whole prefix would compete with the vcpkg set.
+    -D Vulkan_INCLUDE_DIR="/tmp/vulkan/include"
+    -D Vulkan_LIBRARY="/tmp/vulkan/lib/libvulkan.dylib"
+    -D OPENMW_SPIRV_HEADERS="$(brew --prefix)/include"
 )
 
 if [[ "${CMAKE_BUILD_TYPE}" ]]; then
