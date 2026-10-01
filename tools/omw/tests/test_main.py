@@ -18,7 +18,7 @@ class ParseTest(unittest.TestCase):
             (["crash", "a.dmp"], Line(None, "crash", ["a.dmp"])),
             (["format"], Line(None, "format", [])),
             (["format", "--check"], Line(None, "format", ["--check"])),
-            (["plain", "exec", "ls", "-l"], Line("plain", "exec", ["ls", "-l"])),
+            (["full", "exec", "ls", "-l"], Line("full", "exec", ["ls", "-l"])),
         ]
         for argv, expected in cases:
             with self.subTest(argv=argv):
@@ -53,17 +53,15 @@ class ParseTest(unittest.TestCase):
 
 
 class CtestArgumentsTest(unittest.TestCase):
-    def test_the_switches_become_labels_and_the_rest_passes(self):
+    def test_the_device_switch_becomes_a_label_and_the_rest_passes(self):
         cases = [
-            ("debug", [], ["--parallel", "-L", "fork"]),
-            ("debug", ["--all"], ["--parallel"]),
-            ("debug", ["--without-device"], ["--parallel", "-LE", "device", "-L", "fork"]),
-            ("asan", ["--without-device", "--all", "-R", "crash"], ["--parallel", "-LE", "device", "-R", "crash"]),
-            ("plain", [], ["--parallel"]),
+            ([], ["--parallel"]),
+            (["--without-device"], ["--parallel", "-LE", "device"]),
+            (["--without-device", "-R", "crash"], ["--parallel", "-LE", "device", "-R", "crash"]),
         ]
-        for flavour, args, expected in cases:
-            with self.subTest(flavour=flavour, args=args):
-                self.assertEqual(ctest_arguments(flavour, args), expected)
+        for args, expected in cases:
+            with self.subTest(args=args):
+                self.assertEqual(ctest_arguments(args), expected)
 
 
 if __name__ == "__main__":

@@ -28,8 +28,8 @@ Vanilla content is read as it is: its textures are pre-lit, so the renderer esti
 light and divides it out. A PBR replacer's companion maps reach the trace, and a
 vanilla scene draws the same whether or not the renderer can read them.
 
-`[RTX] enabled` chooses the renderer. `-DOPENMW_RTX=OFF` builds without it. The player's settings
-are in [`rtx.rst`](../source/reference/modding/settings/rtx.rst).
+`[RTX] enabled` chooses the renderer, which every build has. The player's settings are in
+[`rtx.rst`](../source/reference/modding/settings/rtx.rst).
 
 ## 2. Layers and libraries
 
@@ -57,10 +57,12 @@ content loader whatever draws: the scene arrives as an `osg::Node` graph, and th
 
 ## 3. The build
 
-`OPENMW_RTX` (on by default) builds the renderer, its tests and the harness.
-`components/rtx/build.cmake`
-sets the fork's flags (warnings are errors) and adds its directories. Each fork directory lists
-its files by hand, and a file that no list names stops the configure.
+Every build has the renderer, built as the rest of the tree is. The core is part of `components`,
+listed with `add_component_dir`; the Vulkan backend is a library of its own, because it links
+Vulkan, and the harness stands beside the game in `apps/rtxtool`. The flags are the tree's: the
+top-level `CMakeLists.txt` adds five checks to upstream's, and the presets make every warning an
+error. `omw build` then reads the compile database against `git ls-files`, so a source no list names
+is found (`tools/omw/listing.py`).
 
 Shaders are GLSL, compiled by `glslc` and validated by `spirv-val` in one build step, so an
 invalid module fails the build. Between the two, `Rtx::pinFloatArithmetic`
@@ -394,4 +396,4 @@ Rendering changes are checked without a window. `AGENTS.md` lists the commands.
 | the GUI                                   | `components/myguirtx/rendermanager.hpp`, `components/rtx/renderer/guirenderer.hpp`     |
 | the two hosts                             | `mwrender/rtx/rtxrun.hpp`, `apps/rtxtool/session.hpp`                                  |
 | the pinned arithmetic                     | `components/rtxvulkan/spirv/spirvpin.hpp`                                              |
-| the build                                 | `components/rtx/build.cmake`, `CMakePresets.json`, `tools/omw`                         |
+| the build                                 | `CMakeLists.txt`, `CMakePresets.json`, `tools/omw`                                     |

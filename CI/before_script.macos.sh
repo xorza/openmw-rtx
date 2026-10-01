@@ -96,6 +96,9 @@ CMAKE_CONF_OPTS+=(
     -DVCPKG_HOST_TRIPLET="$VCPKG_TARGET_TRIPLET"
     -DVCPKG_TARGET_TRIPLET="$VCPKG_TARGET_TRIPLET"
     -DCMAKE_TOOLCHAIN_FILE="$DEPENDENCIES_ROOT_PATH/scripts/buildsystems/vcpkg.cmake"
+    # Homebrew's Vulkan by name: its whole prefix would compete with the vcpkg set.
+    -D Vulkan_INCLUDE_DIR="$(brew --prefix)/include"
+    -D Vulkan_LIBRARY="$(brew --prefix)/lib/libvulkan.dylib"
 )
 
 if [[ "${CMAKE_BUILD_TYPE}" ]]; then

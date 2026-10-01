@@ -64,8 +64,7 @@ Tested on one machine so far: a high-end NVIDIA laptop GPU.
 Building and running
 --------------------
 
-The renderer is built by default. `-DOPENMW_RTX=OFF` leaves it out. Turn the renderer on with
-`[RTX] enabled = true` in `settings.cfg`.
+Every build has the renderer. Turn it on with `[RTX] enabled = true` in `settings.cfg`.
 
 * [Architecture](docs/rtx/architecture.md) — the seam, the layers, who owns whom, the order a
   frame is computed in

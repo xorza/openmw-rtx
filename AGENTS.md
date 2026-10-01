@@ -73,24 +73,24 @@ backend ever arrives.
 
 ## Verification
 
-- Build the targets you touched, run the covering test binary with a filter, then `./omw format`,
-  which rewrites the tree; `./omw format --check` changes nothing and is what the gate runs.
+- Build the targets you touched and run the covering test binary with a filter. `./omw build`
+  formats the tree first, and on CI checks it instead; `./omw format` rewrites the tree alone, and
+  `./omw format --check` changes nothing and is what the gate runs.
   Compiling is not verifying.
 - `./omw` at the root is the one way in, `omw [flavour] <verb>`, and `./omw help` lists both. The
   flavour is `debug` unless named: every assert and the tests. `release` is the build a number is
   quoted from, and `profile` runs in it and refuses another flavour named before it. `asan` adds
-  the sanitizers, `plain` is upstream's tree with its suites whole, and `package` is the one
-  `archive` puts into `dist/`.
+  the sanitizers, `full` builds every program the tree has, the CS among them, and `package` is
+  the one `archive` puts into `dist/`.
 - `./omw test <binary> --gtest_filter=...` builds and runs one test binary with a filter.
-- `./omw test` once before saying it works: the `fork` label of CTest — the fork's half of
-  `components-tests` and `openmw-tests`, `rtx-gpu-tests`, and the crash matrix. `--all` adds
-  upstream's suites. The GPU binary fails without a device rather than skipping, so a green run
+- `./omw test` once before saying it works: every suite CTest has, `rtx-gpu-tests` and the crash
+  matrix among them. The GPU binary fails without a device rather than skipping, so a green run
   means a device ran it; `--without-device` leaves it out on a box with no driver.
 - The first run after a shader change includes the driver compiling its pipelines: time a suite on
   a second run.
-- `./omw gate` once at the end: format check, the driver's tests, build, the release compile,
-  tests, `check`, one repeat pair, stopping at the first failure. Never a gate beside a
-  build or another gate.
+- `./omw gate` once at the end: format check, the driver's tests, build, the listing check, the
+  release compile, tests, `check`, one repeat pair, stopping at the first failure. Never a gate
+  beside a build or another gate.
 - Do not open the game window to check a rendering change. The harness's verbs go through the
   driver, which builds `openmw-rtxtool` and runs it in the flavour's directory:
   `./omw [flavour] info|scene|shot|view|bench|check|film|noise`, and `./omw exec ./openmw-rtxtool --help`
@@ -148,8 +148,8 @@ the posture behind them does.
   in a `…posix.cpp` and `…win32.cpp` pair that CMake chooses, behind one header: a general fact in
   `components/platform` (`Platform::Process`, `Platform::SharedMemory`), the crash catcher's own
   in its `…system.hpp`. A build flag is defined in every build as `0` or `1` and read once into a
-  `constexpr bool` (`Rtx::sDebugNames`, `Settings::sRayTracingBuilt`), which code asks with
-  `if constexpr`. Code only one build has is a file CMake chooses (`nortxrenderer.cpp`), never an
+  `constexpr bool` (`Rtx::sDebugNames`, `Rtx::sValidationByDefault`), which code asks with
+  `if constexpr`. Code only one build has is a file CMake chooses (`crashunsupported.cpp`), never an
   `#ifdef` around it. A test of an `assert` calls
   `Testing::expectAssertDies`, not `#ifndef NDEBUG`. What stays: a chain inside the one file that
   owns a system's difference (Linux beside macOS in a POSIX file), an include only one system has,

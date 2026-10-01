@@ -390,6 +390,75 @@ add_component_dir (sky
     moonstate skyclock sundisc timeofday vertexrules
     )
 
+# The ray tracer's API-neutral core. No graphics API is on this library's include path; the Vulkan
+# backend is its own library, `components/rtxvulkan`. `shaders/` holds what C++ and GLSL share.
+add_component_dir (rtx/common
+    clock error finite menu monitor namedenum parallel pointhash radicalinverse result runs scratch
+    slots stepped worker
+    )
+
+add_component_dir (rtx/environment
+    cloudshell fogbuilder frameworld moonbuilder nightsky skybuilder skylight wavecascade wavespectrum
+    )
+
+add_component_dir (rtx/frame
+    bluenoise camera debuglines frameextents frameoptions framesampling reconstruction specularalbedo
+    spritelistsize sunglare surfaceview upscale
+    )
+
+add_component_dir (rtx/image
+    alphaimage colour colourblock formatcensus imagedescription mipchain ownedtexture shadingmap spritelight
+    texels texturedata textureencoding texturewrap
+    )
+
+add_component_dir (rtx/mirror
+    contentmemory emitterresolver extractionstats materialresolver meshreader meshresolver mirroridentity
+    mirrorpass nodekind poseupdate sceneadopter sceneextractor shading worlddescent
+    )
+
+add_component_dir (rtx/mirror/cells
+    cellgrid cellplacer cellreader cellring cellsupply cellworld groundreader held nightday prepared
+    readermemory templatewalk
+    )
+
+add_component_dir (rtx/preprocess
+    contentcache contentkey contentpass contentpreprocessor contentstats meantexels threadcontent
+    )
+
+add_component_dir (rtx/preprocess/shape
+    creasesplit pockettree shapefold shapepass
+    )
+
+add_component_dir (rtx/preprocess/texture
+    texturepass
+    )
+
+add_component_dir (rtx/renderer
+    channel framedigest frameimage framespend guirenderer kernelprogress memoryreport png renderer sceneuploader
+    shaderdirectory slot
+    )
+
+add_component_dir (rtx/scene
+    compositequeue deformertable instancerecord light lightbuilder lightgrid material materialtable mesh
+    meshtable placementtable refusal refusals ripple rowhold scenedesc scenetextures specularlayout sprite
+    surface texturetable
+    )
+
+add_component_dir (rtx/shaders
+    accumulate atrous bindings bloom brdf camera colour composite counts digest exposure fogvolume fsr gbuffer
+    glare ground gui hosttypes line look mipchain normalspread octahedral pane pinning portable probe ripple
+    scene sets shadingmap shadow skinning sky specular spritebin spritelight spriteshade storageformat stress
+    tangent tone visibility wave
+    )
+
+add_component_dir (rtx/view
+    offscreentrace viewscene
+    )
+
+add_component_dir (myguirtx
+    additivelayer mirrortexture paintedmirror rendermanager sharedtexture slottexture texture
+    )
+
 add_component_dir (lua_ui
     registerscriptsettings scriptsettings
     properties widget input element util layers content alignment resources
@@ -499,16 +568,18 @@ add_component_dir(platform
     process
     sharedmemory
     memory
+    fifo
+    library
     )
 
-# The process's own answers are the crash catcher's as well as the ray tracer's, and the heap's are
-# the tests' allocation counter's too, which counts in both builds.
 if (WIN32)
     add_component_dir(platform
         filewin32
         processwin32
         memorywin32
         sharedmemorywin32
+        fifowin32
+        librarywin32
         )
 elseif (UNIX)
     add_component_dir(platform
@@ -516,14 +587,14 @@ elseif (UNIX)
         processposix
         memoryposix
         sharedmemoryposix
+        fifoposix
+        libraryposix
         )
 else ()
     add_component_dir(platform
         filestdio
         )
 endif()
-
-include(platform/rtx.cmake)
 
 add_component_dir(testing
     expecterror
@@ -593,8 +664,6 @@ if (OPENMW_USE_SYSTEM_SQLITE3)
 endif()
 
 add_library(components STATIC ${COMPONENT_FILES})
-
-include(rtx/components.cmake)
 
 if (ANDROID)
     set_property(TARGET components PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -675,6 +744,15 @@ if (WIN32)
     target_link_libraries(components shlwapi)
 endif()
 
+# Boost's `typed_value::notify`, which GCC reports as a null dereference: compiled here alone, as
+# `configurationmanager.hpp` says.
+if (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
+    set_property(SOURCE files/configurationmanager.cpp APPEND PROPERTY COMPILE_OPTIONS -Wno-null-dereference)
+endif()
+
+# `dlopen` for `platform/libraryposix.cpp`, on the C libraries that keep it out of libc.
+target_link_libraries(components ${CMAKE_DL_LIBS})
+
 include(crashcatcher/link.cmake)
 
 # Fix for not visible pthreads functions for linker with glibc 2.15
@@ -695,6 +773,10 @@ target_compile_definitions(components PUBLIC
     BT_USE_DOUBLE_PRECISION
     MYGUI_DONT_USE_OBSOLETE=ON
 )
+
+# Vulkan's validation layers on unless Release, read as `Rtx::sValidationByDefault`: here, so the game
+# and the harness agree. 0 or 1, so the constant needs no `#ifdef`.
+target_compile_definitions(components PUBLIC OPENMW_RTX_VALIDATION_BY_DEFAULT=$<IF:$<CONFIG:Release>,0,1>)
 
 if(OSG_STATIC)
     unset(_osg_plugins_static_files)

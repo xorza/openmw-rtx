@@ -5,19 +5,20 @@ import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from omw import crash, deps, formatting, game, gate, kernels, package, perf, repeat, testing
+from omw import crash, deps, formatting, game, gate, kernels, listing, package, perf, repeat, testing
 from omw.build import FLAVOURS, Build
-from omw.system import Refusal
+from omw.system import CI, Refusal
 
 USAGE = """\
 omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI, on Linux and Windows.
 
-  build [targets]              configure where the presets changed, then build the harness, the game
-                               and the tests the build has, or the targets named
-  test [--without-device] [--all] [ctest args]
-                               the fork's suites through CTest, the crash matrix and the GPU binary
-                               among them; `--without-device` leaves the GPU binary out, `--all` adds
-                               upstream's, which the plain flavour always runs
+  build [targets]              format the tree, or on CI check it, configure where the presets
+                               changed, then build the harness, the game and the tests the build
+                               has, or the targets named; then check that every source the tree
+                               tracks is one the build compiles
+  test [--without-device] [ctest args]
+                               every suite through CTest, the crash matrix and the GPU binary among
+                               them; `--without-device` leaves the GPU binary out
   test <binary> [gtest args]   one test binary, built and run alone, for a filter
   game [args]                  openmw on the newest quicksave
   setup <morrowind dir>        write the openmw.cfg a fresh box has none of
@@ -25,8 +26,8 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                two runs of one binary walk one place and must agree
   kernels [--against=<file>]   one digest per shader and tuple of its constants; against an earlier
                                listing, which tuples moved
-  gate                         format check, the driver's tests, build, the release compile, test,
-                               check, repeat — stops at the first failure
+  gate                         format check, the driver's tests, build, the listing check, the
+                               release compile, test, check, repeat — stops at the first failure
   exec <command> [args]        a command in the build directory, under the flavour's environment
   archive [name]               the release archive into dist/, with its symbols: the package flavour
   profile [args]               the harness's CPU side under perf: the release flavour
@@ -44,7 +45,7 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   release   build-release   -O3 -DNDEBUG, line tables and frame pointers: the build a number is quoted from
   asan      build-asan      debug under AddressSanitizer and UndefinedBehaviorSanitizer; Linux only
   package   build-package   release with the launcher, the wizard and the importers, portable
-  plain     build-plain     the tree without the ray tracer, as upstream builds it, with its suites whole
+  full      build-full      debug with every program the tree has, the CS, the launcher and the wizard among them
 """
 
 
@@ -67,8 +68,11 @@ def _exec(build: Build, args: list[str]) -> int:
 
 
 def _build(build: Build, args: list[str]) -> int:
+    """The tree formatted first, or on CI only checked; after the build, `listing.check`."""
+    if formatting.format_tree(["--check"] if CI else []) != 0:
+        return 1
     build.build(args or build.default_targets + build.test_targets())
-    return 0
+    return listing.check(build)
 
 
 @dataclass(frozen=True)

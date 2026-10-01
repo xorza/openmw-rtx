@@ -49,7 +49,7 @@ macro (add_component_dir dir)
     set (cppfiles)
 
     foreach (u ${ARGN})
-        file (GLOB ALL "${dir}/${u}.[ch]pp")
+        file (GLOB ALL "${dir}/${u}.[ch]pp" "${dir}/${u}.h")
 
         foreach (f ${ALL})
             list (APPEND files "${f}")

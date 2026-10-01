@@ -1,15 +1,12 @@
-cmake_minimum_required(VERSION 3.16.0)
-
-#  set the timestamps of extracted contents to the time of extraction
-# remove if cmake version is >= 3.24
-if(POLICY CMP0135)
-    cmake_policy(SET CMP0135 NEW)
-endif()
+# 3.31 for `CMakePresets.json` version 10, the first that takes a `$comment`.
+cmake_minimum_required(VERSION 3.31)
 
 project(OpenMW)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# The tree has no C++20 modules, and CMP0155's scan would preprocess every file twice.
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(OPENMW_GL4ES_MANUAL_INIT "Manually initialize gl4es. This is more reliable on platforms without a windowing system. Requires gl4es to be configured with -DNOEGL=ON -DNO_LOADER=ON -DNO_INIT_CONSTRUCTOR=ON." OFF)
@@ -43,7 +40,13 @@ option(BUILD_NAVMESHTOOL        "Build navmesh tool" ON)
 option(BUILD_BULLETOBJECTTOOL   "Build Bullet object tool" ON)
 option(BUILD_OPENCS_TESTS       "Build OpenMW Construction Set tests" OFF)
 option(BUILD_OPENMW_TESTS       "Build OpenMW tests" OFF)
-include(cmake/ForkOptions.cmake)
+# Crashpad runs on every system but FreeBSD, which has no crash catcher and says so in its log.
+if (WIN32 OR APPLE OR (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT ANDROID))
+    set(OPENMW_CRASHPAD_DEFAULT ON)
+else()
+    set(OPENMW_CRASHPAD_DEFAULT OFF)
+endif()
+option(OPENMW_CRASHPAD          "Capture crashes with Crashpad" ${OPENMW_CRASHPAD_DEFAULT})
 option(PRECOMPILE_HEADERS_WITH_MSVC "Precompile most common used headers with MSVC (alternative to ccache)" ON)
 
 set(OpenGL_GL_PREFERENCE LEGACY)  # Use LEGACY as we use GL2; GLNVD is for GL3 and up.
@@ -215,16 +218,10 @@ if (MSVC)
     if (CMAKE_CXX_COMPILER_LAUNCHER OR CMAKE_C_COMPILER_LAUNCHER OR OPENMW_MSBUILD_COMPILER_OVERRIDE)
         if ((CMAKE_CXX_COMPILER_LAUNCHER OR CMAKE_C_COMPILER_LAUNCHER) AND CMAKE_GENERATOR MATCHES "Visual Studio")
             message(STATUS "A compiler launcher was specified, but will be unused by the current generator (${CMAKE_GENERATOR})")
-        else()
-            foreach (config_lower ${CMAKE_CONFIGURATION_TYPES})
-                string(TOUPPER "${config_lower}" config)
-                if (CMAKE_C_COMPILER_LAUNCHER STREQUAL "ccache" OR OPENMW_MSBUILD_COMPILER_OVERRIDE STREQUAL "ccache")
-                    string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_${config} "${CMAKE_C_FLAGS_${config}}")
-                endif()
-                if (CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache" OR OPENMW_MSBUILD_COMPILER_OVERRIDE STREQUAL "ccache")
-                    string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_${config} "${CMAKE_CXX_FLAGS_${config}}")
-                endif()
-            endforeach()
+        elseif (CMAKE_C_COMPILER_LAUNCHER STREQUAL "ccache" OR CMAKE_CXX_COMPILER_LAUNCHER STREQUAL "ccache"
+                OR OPENMW_MSBUILD_COMPILER_OVERRIDE STREQUAL "ccache")
+            # `/Z7`: ccache cannot cache a compile that writes a shared PDB.
+            set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
         endif()
     endif()
 endif()
@@ -498,6 +495,10 @@ if(OPENMW_USE_SYSTEM_MYGUI)
     find_package(MyGUI 3.4.3 REQUIRED)
 endif()
 find_package(SDL2 2.26 REQUIRED)
+
+# 1.4.329 is the first SDK with `VK_KHR_shader_fma`, which every shader's fusions are
+# (`Rtx::pinFloatArithmetic`); an older one fails here rather than inside `requirements.cpp`.
+find_package(Vulkan 1.4.329 REQUIRED)
 find_package(OpenAL REQUIRED)
 find_package(ZLIB REQUIRED)
 
@@ -649,6 +650,8 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR CMAKE_CXX_COMPILER_FRONTEND_VARIANT
         4127 # Conditional expression is constant
         4996 # Function was declared deprecated
         5054 # Deprecated operations between enumerations of different types caused by Qt headers
+        4244 # Implicit narrowing between arithmetic types (-Wconversion, which GCC's -Wall -Wextra leave out)
+        4267 # Implicit narrowing of a size_t (the same)
         )
 
     foreach(d ${WARNINGS_DISABLE})
@@ -676,9 +679,31 @@ else ()
     endif()
 
     if (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
+        # GCC's alone: Clang's check of that name takes every implicit promotion, not arithmetic's
+        # only, and fired 614 times in a tree GCC's passes.
+        add_compile_options("-Wdouble-promotion")
         add_compile_options("-Wno-unused-but-set-parameter" "-Wduplicated-branches" "-Wduplicated-cond" "-Wlogical-op")
         # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105438
         add_compile_options("-Wno-array-bounds")
+    endif()
+
+    # Beyond upstream's. Rejected: `-Wfloat-equal`, for deliberate sentinels, and `-Wold-style-cast` and
+    # `-Wuseless-cast`, which fire inside OpenSceneGraph's and MyGUI's headers.
+    add_compile_options("-Wnull-dereference" "-Wcast-qual"
+                        "$<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-override>"
+                        "$<$<COMPILE_LANGUAGE:CXX>:-Wzero-as-null-pointer-constant>")
+
+    # Wrong on GCC 13 and right from 15: `-Wmaybe-uninitialized` reports every copy of a
+    # `std::optional` (GCC bug 80635), and `-Wnull-dereference` OSG's inline `pushOntoNodePath`.
+    if (CMAKE_CXX_COMPILER_ID STREQUAL GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15)
+        add_compile_options("-Wno-maybe-uninitialized" "-Wno-null-dereference")
+    endif()
+
+    # Wrong on GCC 16: `-Wstringop-overflow` reports a byte vector's `resize(n, value)` at `-O3` as an
+    # overflow no path reaches (GCC bugs 107852, 117983, 118521), and came back after a call site was
+    # rewritten around it.
+    if (CMAKE_CXX_COMPILER_ID STREQUAL GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+        add_compile_options("-Wno-stringop-overflow")
     endif()
 endif ()
 
@@ -687,19 +712,28 @@ if (OPENMW_CXX_FLAGS)
     add_compile_options(${OPENMW_CXX_FLAGS})
 endif()
 
-# Before upstream's components, whose CMakeLists names this fork's own files there for the flags
-# this defines; the ray tracer's libraries link `components` by name and are resolved at generation.
-if (OPENMW_RTX)
-    include(components/rtx/build.cmake)
-endif()
-
 # Components
 add_subdirectory (components)
+
+# The ray tracer's resources, in the bundle's on macOS as `components` places the rest. Two shader
+# sets, because the driver keys its cache on the bytes: the renderers read modules without source,
+# which an edited comment leaves unchanged (`RtxTool::DriverCache`), and a profiler reads the same
+# modules with it (`--shader-source`).
+if (APPLE)
+    set(RTX_RESOURCES_ROOT "${APP_BUNDLE_DIR}/Contents/Resources")
+else()
+    set(RTX_RESOURCES_ROOT "${OPENMW_RESOURCES_ROOT}")
+endif()
+set(RTX_SPIRV_DIR "${RTX_RESOURCES_ROOT}/resources/rtx/shaders")
+set(RTX_SPIRV_SOURCE_DIR "${RTX_RESOURCES_ROOT}/resources/rtx/shaders-source")
+add_subdirectory (components/rtxvulkan)
 
 # Apps and tools
 if (BUILD_OPENMW OR BUILD_OPENMW_TESTS)
     add_subdirectory( apps/openmw )
 endif()
+
+add_subdirectory( apps/rtxtool )
 
 if (BUILD_BSATOOL)
     add_subdirectory( apps/bsatool )

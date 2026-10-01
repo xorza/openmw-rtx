@@ -113,10 +113,6 @@ file(GLOB UNITTEST_SRC_FILES
 
 source_group(apps\\components-tests FILES ${UNITTEST_SRC_FILES})
 
-if (OPENMW_RTX)
-    include(rtx/sources.cmake)
-endif()
-
 openmw_add_executable(components-tests ${UNITTEST_SRC_FILES})
 
 target_link_libraries(components-tests
@@ -125,7 +121,7 @@ target_link_libraries(components-tests
     components
 )
 
-include(rtx/targets.cmake)
+include(rtx/tests.cmake)
 
 if (USE_QT)
     target_sources(components-tests PRIVATE config/testlaunchersettings.cpp)
