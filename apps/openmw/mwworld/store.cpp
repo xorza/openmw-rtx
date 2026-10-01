@@ -4,6 +4,7 @@
 #include <sstream>
 #include <stdexcept>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 
 #include <components/esm/records.hpp>
@@ -695,21 +696,16 @@ namespace MWWorld
                     {
                         if (movedRef.mTarget[0] != itOld->mTarget[0] || movedRef.mTarget[1] != itOld->mTarget[1])
                         {
-                            ESM::Cell* wipecell = const_cast<ESM::Cell*>(search(itOld->mTarget[0], itOld->mTarget[1]));
-                            if (wipecell == nullptr)
-                                Log(Debug::Error) << "Error: can't find cell " << itOld->mTarget[0] << " "
-                                                  << itOld->mTarget[1] << " that " << movedRef.mRefNum.mIndex << " "
-                                                  << movedRef.mRefNum.mContentFile << " moved out of";
+                            ESM::Cell* wipecell
+                                = Crash::notNull(const_cast<ESM::Cell*>(search(itOld->mTarget[0], itOld->mTarget[1])),
+                                    "a moved reference's old cell that handleMovedCellRefs did not create");
+                            auto itLease = std::find_if(wipecell->mLeasedRefs.begin(), wipecell->mLeasedRefs.end(),
+                                ESM::CellRefTrackerPredicate(movedRef.mRefNum));
+                            if (itLease != wipecell->mLeasedRefs.end())
+                                wipecell->mLeasedRefs.erase(itLease);
                             else
-                            {
-                                auto itLease = std::find_if(wipecell->mLeasedRefs.begin(), wipecell->mLeasedRefs.end(),
-                                    ESM::CellRefTrackerPredicate(movedRef.mRefNum));
-                                if (itLease != wipecell->mLeasedRefs.end())
-                                    wipecell->mLeasedRefs.erase(itLease);
-                                else
-                                    Log(Debug::Error) << "Error: can't find " << movedRef.mRefNum.mIndex << " "
-                                                      << movedRef.mRefNum.mContentFile << " in leasedRefs";
-                            }
+                                Log(Debug::Error) << "Error: can't find " << movedRef.mRefNum.mIndex << " "
+                                                  << movedRef.mRefNum.mContentFile << " in leasedRefs";
                         }
                         *itOld = movedRef;
                     }
@@ -1060,9 +1056,7 @@ namespace MWWorld
     ESM4::Cell* Store<ESM4::Cell>::insert(const ESM4::Cell& item, bool overrideOnly)
     {
         auto cellPtr = TypedDynamicStore<ESM4::Cell>::insert(item, overrideOnly);
-        // Null where only an override was asked for and there is nothing to override.
-        if (cellPtr != nullptr)
-            insertCell(cellPtr);
+        insertCell(Crash::notNull(cellPtr, "an override-only insert of an ESM4 cell, which no caller makes"));
         return cellPtr;
     }
 
