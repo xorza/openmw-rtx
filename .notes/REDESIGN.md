@@ -17,8 +17,7 @@ The findings fall into three kinds:
    Sections 2 to 14 redesign those causes. A change of structure closes a whole group, and the
    group's items go with it.
 2. **Decisions.** Some findings ask what the fork accepts against upstream. Section 1 records the
-   owner's answers, the three questions still open (D1's contrast, D6, D7), and the work each answer
-   leaves.
+   owner's answers and the work each answer leaves.
 3. **Fixes in place.** The rest are local: stale comments, includes, a constant written as a rounded
    decimal, a test that asserts too little. They need no design. Section 16 lists the groups and the
    rule for each.
@@ -75,13 +74,13 @@ These come from `AGENTS.md` and the owner's posture. Each workstream below appli
 ## 1. Decisions the owner took
 
 The owner decided D1 to D4 on 2026-10-01. Each decision keeps a part of the upstream diff, and
-`AGENTS.md`, `architecture.md` §1 and `README.md` now record all four. D1's contrast, D6 and D7 are
-open: each gives the recommended answer, and the work waits for the owner's word. What is left is to fix the
+`AGENTS.md`, `architecture.md` §1 and `README.md` now record all four. On 2026-10-02 the owner took
+the recommended answer to D1's contrast, D6 and D7. What is left is to fix the
 defects inside the kept parts, not to revert them. A daily
 agent merges upstream into the fork (`.github/workflows/upstream.yml`), so each kept hunk can
 conflict on a merge. That cost is accepted.
 
-### D1. The SDL3 port stays. Gamma is back; contrast is open.
+### D1. The SDL3 port stays. Gamma is back; contrast stays out.
 
 The port touches about 144 upstream files. Its reason is the presentation: `SDL_GetWindowPixelDensity`
 and `SDL_GetWindowDisplayScale` give the frame-to-window mapping and the interface scale on a
@@ -99,9 +98,8 @@ The work in this plan:
 **Gamma** came back in `c80cd6eded`: both renderers raise the world's picture to one over
 `[Video] gamma` in their last pass over it (the tone pass, `PingPongCanvas`), and `AGENTS.md` records
 it. **Contrast** is still removed, and nothing says so *(REVIEW: The SDL3 port … contrast)*.
-Recommended: name its removal in `AGENTS.md`'s SDL3 entry. It had no menu control, upstream applied it
-only on Windows, and the tone pass has a contrast grade of its own (`TONE_CONTRAST`). The alternative
-is to apply it in the same two final draws as gamma.
+Decided: `AGENTS.md`'s SDL3 entry names its removal. It had no menu control, upstream applied it only
+on Windows, and the tone pass has a contrast grade of its own (`TONE_CONTRAST`).
 
 ### D2. The scaled presentation is the fifth accepted change to the rasterizer.
 
@@ -137,21 +135,21 @@ rounds to nearest. One of the two is wrong, and three histories depend on the an
 *(REVIEW: One fact has two names …)*. Run a probe kernel once (the place is
 `components/rtxvulkan/shaders/probes/`). §9 (W8) waits for the result.
 
-### D6. Open: the harness's hooks in upstream classes
+### D6. The harness's hooks in upstream classes
 
 `Engine::beforeFrame`, `holdsGameClock`, `WeatherManager::holdWeather` and
 `WindowManager::scriptMessageBox` exist only for `openmw-rtxtool`, and Accepted diff lists none of
-them *(REVIEW: The layering's documents … harness hooks)*. Recommended: the engine's two frame hooks
+them *(REVIEW: The layering's documents … harness hooks)*. Decided: the engine's two frame hooks
 are the host interface (`OMW::EngineHost`) and go into Accepted diff with that reason. The weather
 hold and the script boxes leave upstream's classes: the host sets the weather through
 `World::changeWeather` with its own transition, and declines script boxes in its own window-manager
 setup.
 
-### D7. Open: does a resize keep the eye's adaptation?
+### D7. A resize keeps the eye's adaptation
 
 `createTargets` resets the camera's past, so every resize and upscale-mode change eases the exposure
 and the glare share from nothing, which is a visible snap. The comment at `vulkanrenderer.cpp:111-113`
-says a resize keeps them. Recommended: it keeps them. The exposure belongs to the eye, not to the
+says a resize keeps them. Decided: it keeps them. The exposure belongs to the eye, not to the
 extent. W1's `FramePast` then carries two facts: the reprojection is lost (resize, new world, cut),
 and the eye's history is lost (new world, cut).
 
@@ -854,7 +852,8 @@ registry holds.
    the `GraphicsWindowSDL2` rename, and the pixel-to-point truncation.
 3. **The comments and docs that the decisions make false:** the `GlRenderer` class comment, the
    upscale docs, `rtx.rst`'s "untouched" and its `-DOPENMW_RTX`.
-4. **D1's contrast and D6's hooks**, as the owner answers them.
+4. **D1 and D6, as decided:** `AGENTS.md`'s SDL3 entry names the removal of contrast; the engine's
+   two frame hooks go into Accepted diff, and the weather hold and the script boxes move into the host.
 5. **The post-processing package tests the renderer once.** `initPostprocessingPackage` registers
    upstream's usertype where there is a chain and an inert one where there is none, so upstream's
    bindings come back unchanged and the nine null tests go.
@@ -1012,8 +1011,7 @@ so its validation errors are reported. `compareRuns`, `judgeNoise` and `MeasureW
 
 ## 17. Order of work
 
-Each phase ends green on `./omw gate`. W8 step 3 waits on D5; §15.1's last two items and W1's
-`FramePast` split wait on D1, D6 and D7.
+Each phase ends green on `./omw gate`. Only W8 step 3 waits on anything outside the plan (D5).
 
 ```
 Phase 0  baselines ─► Phase 1  correctness ─► Phase 2  ownership ─► Phase 3  frame record
