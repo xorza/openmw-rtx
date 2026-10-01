@@ -17,7 +17,7 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -126,7 +126,7 @@ namespace Rtx
         // kept under the drawable, stamped as the walk meets it, so a file the renderer cannot
         // take is read once for as long as it stands rather than once a frame.
         MeshReading reading;
-        const Result<bool, std::string> readMesh = mReader.read(read, reading);
+        const Misc::Result<bool, std::string> readMesh = mReader.read(read, reading);
         if (!readMesh.isOk())
             return refuse(drawable, readMesh.error());
 
@@ -139,7 +139,7 @@ namespace Rtx
             return sNoIndex;
         }
 
-        const Result<Index, std::string> added = addMesh(read, reading);
+        const Misc::Result<Index, std::string> added = addMesh(read, reading);
         if (!added.isOk())
             return refuse(drawable, added.error());
 
@@ -221,12 +221,12 @@ namespace Rtx
         return sNoIndex;
     }
 
-    Result<Index, std::string> MeshResolver::addMesh(const DrawableRead& read, const MeshReading& reading)
+    Misc::Result<Index, std::string> MeshResolver::addMesh(const DrawableRead& read, const MeshReading& reading)
     {
         const Crash::NoteScope noted("adding the mesh \"{}\"", read.mGeometry->getName());
 
-        if (const Result<void, std::string> fits = MeshTable::checkFits(reading.mArrays); !fits.isOk())
-            return Err{ fits.error() };
+        if (const Misc::Result<void, std::string> fits = MeshTable::checkFits(reading.mArrays); !fits.isOk())
+            return Misc::Err{ fits.error() };
 
         if (read.mDeform == Deform::None)
             return mScene.addMesh(reading.mArrays, reading.mShape);
@@ -252,23 +252,24 @@ namespace Rtx
         DeformedMesh added;
         if (read.mDeform == Deform::Rig)
         {
-            const Result<RigSpec, std::string> rig = readRig(*read.mRig);
+            const Misc::Result<RigSpec, std::string> rig = readRig(*read.mRig);
             if (!rig.isOk())
-                return Err{ rig.error() };
+                return Misc::Err{ rig.error() };
 
-            const Result<void, std::string> posed
+            const Misc::Result<void, std::string> posed
                 = SceneDesc::checkPoses(rig.value().getVertexCount(), reading.mArrays);
             if (!posed.isOk())
-                return Err{ posed.error() };
+                return Misc::Err{ posed.error() };
 
             added = mScene.addMesh(reading.mArrays, reading.mShape, rig.value());
         }
         else
         {
             const MorphSpec morph = readMorph(*read.mMorph);
-            const Result<void, std::string> posed = SceneDesc::checkPoses(morph.getVertexCount(), reading.mArrays);
+            const Misc::Result<void, std::string> posed
+                = SceneDesc::checkPoses(morph.getVertexCount(), reading.mArrays);
             if (!posed.isOk())
-                return Err{ posed.error() };
+                return Misc::Err{ posed.error() };
 
             added = mScene.addMesh(reading.mArrays, reading.mShape, morph);
         }
@@ -363,7 +364,7 @@ namespace Rtx
         ++stats.mDeformed;
     }
 
-    Result<RigSpec, std::string> MeshResolver::readRig(const SceneUtil::RigGeometry& rig)
+    Misc::Result<RigSpec, std::string> MeshResolver::readRig(const SceneUtil::RigGeometry& rig)
     {
         const SceneUtil::RigGeometry::InfluenceData* skin = rig.getInfluenceData();
         assert(skin != nullptr);
@@ -380,7 +381,7 @@ namespace Rtx
         for (const auto& [weights, group] : skin->mInfluences)
         {
             if (weights.size() > Shaders::RUN_COUNT_MASK)
-                return Err{ "a vertex of it is skinned by " + std::to_string(weights.size()) + " bones, past the "
+                return Misc::Err{ "a vertex of it is skinned by " + std::to_string(weights.size()) + " bones, past the "
                     + std::to_string(Shaders::RUN_COUNT_MASK) + " a run word holds" };
 
             const auto first = static_cast<std::uint32_t>(mInfluenceScratch.size());
@@ -394,7 +395,8 @@ namespace Rtx
             for (const unsigned short vertex : group)
             {
                 if (vertex >= vertices)
-                    return Err{ "its skin names vertex " + std::to_string(vertex) + " of " + std::to_string(vertices) };
+                    return Misc::Err{ "its skin names vertex " + std::to_string(vertex) + " of "
+                        + std::to_string(vertices) };
 
                 mRunScratch[vertex] = run;
             }

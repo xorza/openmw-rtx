@@ -6,7 +6,7 @@
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/memorylimits.hpp>
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
@@ -123,7 +123,7 @@ namespace Rtx
 
             const Testing::NoRoomForContent full(device);
 
-            const Result<StructureRoom, std::string_view> none = storage.take(device, 1024, 1024);
+            const Misc::Result<StructureRoom, std::string_view> none = storage.take(device, 1024, 1024);
             ASSERT_FALSE(none.isOk());
             EXPECT_EQ(none.error(), "no device memory is left for it");
             EXPECT_EQ(storage.getBytes(), 0u) << "a refused block joined the list";
@@ -131,7 +131,8 @@ namespace Rtx
             const Testing::BudgetLimit oneBlock(
                 memory, Testing::budgetAbove(memory, MemoryUse::Structure, VkDeviceSize{ 65 } << 20));
 
-            const Result<StructureRoom, std::string_view> room = storage.take(device, 1024, VkDeviceSize{ 200 } << 20);
+            const Misc::Result<StructureRoom, std::string_view> room
+                = storage.take(device, 1024, VkDeviceSize{ 200 } << 20);
             ASSERT_TRUE(room.isOk());
             EXPECT_EQ(storage.getOffset(room.value()), 0u);
             EXPECT_EQ(storage.getBytes(), 1024u) << "the block was not made at the structure's size";

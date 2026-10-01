@@ -19,7 +19,7 @@
 #include <apps/components_tests/rtx/support/graphlight.hpp>
 #include <apps/components_tests/rtx/support/statistics.hpp>
 #include <components/esm3/loadligh.hpp>
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
@@ -39,17 +39,17 @@ namespace Rtx
         /// light reads. The flags are `ESM::Light`'s, because that is what the file carries.
         /// The three things a light's numbers come to: a lamp, nothing where the game casts none
         /// either, or a refusal of a light the game casts and this renderer cannot.
-        bool isLamp(const Result<std::optional<Light>, std::string_view>& made)
+        bool isLamp(const Misc::Result<std::optional<Light>, std::string_view>& made)
         {
             return made.isOk() && made.value().has_value();
         }
 
-        bool isNothing(const Result<std::optional<Light>, std::string_view>& made)
+        bool isNothing(const Misc::Result<std::optional<Light>, std::string_view>& made)
         {
             return made.isOk() && !made.value().has_value();
         }
 
-        bool isRefused(const Result<std::optional<Light>, std::string_view>& made)
+        bool isRefused(const Misc::Result<std::optional<Light>, std::string_view>& made)
         {
             return !made.isOk();
         }

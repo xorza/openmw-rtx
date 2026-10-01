@@ -2,11 +2,12 @@
 
 #include <ctime>
 #include <filesystem>
-#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include <components/misc/result.hpp>
 
 namespace Crash
 {
@@ -19,11 +20,11 @@ namespace Crash
     };
 
     /// `files`, deflated into a zip at `zip` in their order, each entry stamped `local`, which a zip
-    /// keeps as local time to two seconds. Nothing where it was written, and why not where it was not: a source that
+    /// keeps as local time to two seconds. Whether it was written, and why not where it was not: a source that
     /// could not be read, a file of 4 GiB or more, which a zip without Zip64 cannot hold, or a folder
     /// that refused the write. The archive appears whole or not at all: it is written beside `zip`
     /// and renamed into place.
-    std::optional<std::string> writePackage(
+    Misc::Result<void, std::string> writePackage(
         const std::filesystem::path& zip, std::span<const PackageFile> files, const std::tm& local);
 
     /// What `writeSessionPackage` did.

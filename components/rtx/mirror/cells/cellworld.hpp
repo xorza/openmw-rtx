@@ -9,7 +9,7 @@
 #include <osg/ref_ptr>
 
 #include <components/esm/refid.hpp>
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "cellgrid.hpp"
@@ -39,7 +39,7 @@ namespace Rtx
 
         /// The image at `path`, or why none reads there — `Rtx::openImage`'s answer. Safe from any
         /// thread, as the template is.
-        virtual Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView path) = 0;
+        virtual Misc::Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView path) = 0;
     };
 
     /// Where the world's cells are read from: the content, and which worldspace of it — exactly

@@ -64,7 +64,7 @@ namespace Rtx
     {
     }
 
-    Result<void, std::string> TemplateWalk::read(
+    Misc::Result<void, std::string> TemplateWalk::read(
         const osg::Node& root, const osg::Node::NodeMask mask, PreparedModel& into)
     {
         mInto = &into;
@@ -81,7 +81,7 @@ namespace Rtx
         mInto = nullptr;
 
         if (!mRefused.empty())
-            return Err{ mRefused };
+            return Misc::Err{ mRefused };
 
         return {};
     }
@@ -142,7 +142,7 @@ namespace Rtx
             return;
 
         MeshReading reading;
-        const Result<bool, std::string> readMesh = mMeshes.read(read, reading);
+        const Misc::Result<bool, std::string> readMesh = mMeshes.read(read, reading);
         if (!readMesh.isOk())
         {
             mRefused = readMesh.error();
@@ -153,7 +153,7 @@ namespace Rtx
 
         // Here on the reader's thread, where the model is refused whole, and not at the adoption,
         // which is inside the frame's walk.
-        if (const Result<void, std::string> fits = MeshTable::checkFits(reading.mArrays); !fits.isOk())
+        if (const Misc::Result<void, std::string> fits = MeshTable::checkFits(reading.mArrays); !fits.isOk())
         {
             mRefused = fits.error();
             return;

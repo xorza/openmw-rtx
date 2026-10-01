@@ -20,7 +20,7 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/graph.hpp>
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
@@ -138,7 +138,8 @@ namespace Rtx::Testing
             // One whose triangles name a vertex it does not have is refused by name: four vertices,
             // and the second triangle ends at index four.
             osg::ref_ptr<osg::Geometry> past = makeIndexPastItsVertices();
-            const Result<bool, std::string> refused = reader.read(readDrawable(*past, NodeKinds{}.of(*past)), reading);
+            const Misc::Result<bool, std::string> refused
+                = reader.read(readDrawable(*past, NodeKinds{}.of(*past)), reading);
             ASSERT_FALSE(refused.isOk()) << "a triangle past its vertices was read";
             EXPECT_EQ(refused.error(), "its triangles name vertex 4 of 4");
         }
@@ -266,7 +267,7 @@ namespace Rtx::Testing
             MeshReading reading;
             for (const auto& [geometry, why] : broken)
             {
-                const Result<bool, std::string> refused
+                const Misc::Result<bool, std::string> refused
                     = reader.read(readDrawable(*geometry, NodeKinds{}.of(*geometry)), reading);
                 ASSERT_FALSE(refused.isOk()) << "read a face that should be refused because " << why;
                 EXPECT_EQ(refused.error(), why);

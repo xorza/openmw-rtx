@@ -1,11 +1,14 @@
 #include "homekey.hpp"
 
 #include <algorithm>
-#include <exception>
+#include <cstdint>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <ios>
 #include <ostream>
+#include <string>
+#include <system_error>
 #include <utility>
 
 #include <SDL3/SDL_keyboard.h>
@@ -16,6 +19,7 @@
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
+#include <components/misc/result.hpp>
 #include <components/platform/thread.hpp>
 #include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -156,21 +160,25 @@ namespace RtxTool
 
         // Written or said why not: a directory nobody can write to is no reason to close a window
         // somebody is looking through.
-        try
+        std::error_code error;
+        std::filesystem::create_directories(mPictures, error);
+        if (error)
         {
-            // **The next free number and never an overwrite**, so a second window writing into the
-            // same directory keeps the first one's pictures.
-            std::filesystem::create_directories(mPictures);
-            std::filesystem::path path;
-            for (std::uint32_t number = 1; path.empty() || std::filesystem::exists(path); ++number)
-                path = mPictures / std::format("{}-{}.png", room.mId, number);
+            room.mSaid = std::format("# picture not written: {} could not be made: {}\n",
+                Files::pathToUnicodeString(mPictures), error.message());
+            return;
+        }
 
-            Rtx::writePng(path, room.mWidth, room.mHeight, room.mPixels, room.mNote);
-            room.mSaid = std::format("# picture {}\n", Files::pathToUnicodeString(path));
-        }
-        catch (const std::exception& refused)
-        {
-            room.mSaid = std::format("# picture not written: {}\n", refused.what());
-        }
+        // **The next free number and never an overwrite**, so a second window writing into the same
+        // directory keeps the first one's pictures. A file whose existence cannot be asked is taken
+        // as free, and the write says what was wrong with it.
+        std::filesystem::path path;
+        for (std::uint32_t number = 1; path.empty() || std::filesystem::exists(path, error); ++number)
+            path = mPictures / std::format("{}-{}.png", room.mId, number);
+
+        const Misc::Result<void, std::string> written
+            = Rtx::writePng(path, room.mWidth, room.mHeight, room.mPixels, room.mNote);
+        room.mSaid = written.isOk() ? std::format("# picture {}\n", Files::pathToUnicodeString(path))
+                                    : std::format("# picture not written: {}\n", written.error());
     }
 }

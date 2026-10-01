@@ -8,6 +8,7 @@
 #include <string_view>
 #include <vector>
 
+#include <components/misc/result.hpp>
 #include <components/platform/file.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -116,8 +117,8 @@ namespace RtxTool
     /// Writes `samples` to `path` as text, a frame a line and a row a column, headed by the rows'
     /// names in `sTimings`' order: the series the report summarises, for a question the summary
     /// cannot answer — whether a tail is one mode or two, and how far apart the frames that make
-    /// it are. Throws where the file cannot be written.
-    void writeFrameTimes(const std::filesystem::path& path, const FrameSamples& samples);
+    /// it are. Says why where the file could not be written.
+    Misc::Result<void, std::string> writeFrameTimes(const std::filesystem::path& path, const FrameSamples& samples);
 
     /// Sorts `times` and summarises it. At least one time, which every caller has by construction.
     ///

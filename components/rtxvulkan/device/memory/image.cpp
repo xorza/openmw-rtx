@@ -56,15 +56,15 @@ namespace Rtx
         bind(device.getMemory().take(mHandle.get(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT), name);
     }
 
-    Result<Image, std::string_view> Image::tryMake(const MemoryUse use, const Device& device, std::uint32_t width,
+    Misc::Result<Image, std::string_view> Image::tryMake(const MemoryUse use, const Device& device, std::uint32_t width,
         std::uint32_t height, VkFormat format, VkImageUsageFlags usage, std::string_view name, std::uint32_t mipLevels,
         std::uint32_t depth, VkFormat storageFormat)
     {
         Image made(Unbound{}, device, width, height, format, usage, name, mipLevels, depth, storageFormat);
-        Result<DeviceMemory, std::string_view> memory
+        Misc::Result<DeviceMemory, std::string_view> memory
             = device.getMemory().tryTake(made.mHandle.get(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use);
         if (!memory.isOk())
-            return Err{ memory.error() };
+            return Misc::Err{ memory.error() };
 
         made.bind(std::move(memory.value()), name);
         return made;

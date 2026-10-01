@@ -218,7 +218,7 @@ namespace Rtx
             MemoryUse::Essential);
     }
 
-    Result<DeviceMemory, std::string_view> MemoryAllocator::tryTake(const VkBuffer buffer,
+    Misc::Result<DeviceMemory, std::string_view> MemoryAllocator::tryTake(const VkBuffer buffer,
         const VkMemoryPropertyFlags properties, const VkDeviceSize alignment, const MemoryUse use)
     {
         if (use == MemoryUse::Essential)
@@ -234,7 +234,7 @@ namespace Rtx
             });
     }
 
-    Result<DeviceMemory, std::string_view> MemoryAllocator::tryTake(
+    Misc::Result<DeviceMemory, std::string_view> MemoryAllocator::tryTake(
         const VkImage image, const VkMemoryPropertyFlags properties, const MemoryUse use)
     {
         if (use == MemoryUse::Essential)
@@ -264,7 +264,7 @@ namespace Rtx
     }
 
     template <class Allocate>
-    Result<DeviceMemory, std::string_view> MemoryAllocator::tryAllocate(const VkDeviceSize size,
+    Misc::Result<DeviceMemory, std::string_view> MemoryAllocator::tryAllocate(const VkDeviceSize size,
         const std::uint32_t typeBits, bool own, const VkMemoryPropertyFlags properties, const MemoryUse use,
         Allocate&& allocate)
     {
@@ -305,13 +305,13 @@ namespace Rtx
         const VmaBudget& budget = budgets[heap];
         if (budget.usage + (own ? size : sBlockBytes)
             > ceilingOf(heap, use, budget.budget, budget.usage, budget.statistics.blockBytes))
-            return Err{ sNoRoom };
+            return Misc::Err{ sNoRoom };
 
         // A driver refusing what its budget said it had is the same answer, and the one `tryTake`
         // exists to give.
         const VkResult result = allocate(create, &allocation, &placed);
         if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY)
-            return Err{ sNoRoom };
+            return Misc::Err{ sNoRoom };
 
         checkAllocated(result, properties);
         return hold(

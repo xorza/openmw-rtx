@@ -44,7 +44,7 @@
 #include <components/esm3/loadligh.hpp>
 #include <components/esm3/refnum.hpp>
 #include <components/misc/constants.hpp>
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
@@ -220,7 +220,8 @@ namespace Rtx::Testing
                 return nullptr;
             }
 
-            Result<osg::ref_ptr<const osg::Image>, std::string> getImage(const VFS::Path::NormalizedView path) override
+            Misc::Result<osg::ref_ptr<const osg::Image>, std::string> getImage(
+                const VFS::Path::NormalizedView path) override
             {
                 return mImages.get(path);
             }
@@ -1245,9 +1246,9 @@ namespace Rtx::Testing
         {
         public:
             osg::ref_ptr<const osg::Node> getTemplate(VFS::Path::NormalizedView) override { return mFace; }
-            Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView) override
+            Misc::Result<osg::ref_ptr<const osg::Image>, std::string> getImage(VFS::Path::NormalizedView) override
             {
-                return Err{ "no image reads from the file" };
+                return Misc::Err{ "no image reads from the file" };
             }
 
             osg::ref_ptr<osg::Group> mFace = [] {
@@ -1350,7 +1351,8 @@ namespace Rtx::Testing
         public:
             osg::ref_ptr<const osg::Node> getTemplate(VFS::Path::NormalizedView) override { return nullptr; }
 
-            Result<osg::ref_ptr<const osg::Image>, std::string> getImage(const VFS::Path::NormalizedView path) override
+            Misc::Result<osg::ref_ptr<const osg::Image>, std::string> getImage(
+                const VFS::Path::NormalizedView path) override
             {
                 if (!mHeldOnce)
                 {

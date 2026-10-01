@@ -9,7 +9,6 @@
 #include <format>
 #include <fstream>
 #include <numeric>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -71,11 +70,11 @@ namespace RtxTool
         return mP99 > 0.0 ? 1000.0 / mP99 : 0.0;
     }
 
-    void writeFrameTimes(const std::filesystem::path& path, const FrameSamples& samples)
+    Misc::Result<void, std::string> writeFrameTimes(const std::filesystem::path& path, const FrameSamples& samples)
     {
         std::ofstream file(path);
         if (!file)
-            throw std::runtime_error("could not open " + Files::pathToUnicodeString(path));
+            return Misc::Err{ "cannot open " + Files::pathToUnicodeString(path) };
 
         for (const Rtx::Timing timing : Rtx::sTimings.values())
             file << (Rtx::indexOf(timing) == 0 ? "" : " ") << Rtx::sTimings.name(timing);
@@ -87,6 +86,11 @@ namespace RtxTool
                 file << (Rtx::indexOf(timing) == 0 ? "" : " ") << std::format("{:.3f}", samples.at(timing)[frame]);
             file << '\n';
         }
+
+        file.close();
+        if (!file)
+            return Misc::Err{ "cannot write " + Files::pathToUnicodeString(path) };
+        return {};
     }
 
     FrameTimes summarise(std::vector<double>& times)

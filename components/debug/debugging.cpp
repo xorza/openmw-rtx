@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <string_view>
 
 #ifdef _MSC_VER
 // TODO: why is this necessary? this has /external:I
@@ -19,6 +20,7 @@
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/files/conversion.hpp>
 #include <components/files/fixedpath.hpp>
+#include <components/misc/result.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/misc/strings/lower.hpp>
 #include <components/platform/process.hpp>
@@ -465,8 +467,8 @@ namespace Debug
                 settings.mDialog = Misc::StringUtils::toNumeric<int>(dialog, 1) != 0;
             if (const char* const after = std::getenv("OPENMW_CRASH_END_AFTER_MS"))
                 settings.mEndAfter = std::chrono::milliseconds(Misc::StringUtils::toNumeric<int>(after, 0));
-            if (const std::optional<std::string> why = Crash::install(settings))
-                Log(Debug::Warning) << "No crash catcher: " << *why;
+            if (const Misc::Result<void, std::string_view> installed = Crash::install(settings); !installed.isOk())
+                Log(Debug::Warning) << "No crash catcher: " << installed.error();
             else
                 Log(Debug::Info) << "Crash reports go to " << settings.mReportFolder;
         }

@@ -22,11 +22,11 @@
 
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/heldimages.hpp>
+#include <components/misc/result.hpp>
 #include <components/resource/bgsmfilemanager.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/common/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/environment/cloudshell.hpp>
 #include <components/rtx/environment/moonbuilder.hpp>
@@ -489,7 +489,7 @@ namespace Rtx
             SceneDesc scene;
             ContentPreprocessor preprocessor;
             std::vector<TextureHold> holds;
-            const Result<NightSky, std::string> sky = readNightSky(
+            const Misc::Result<NightSky, std::string> sky = readNightSky(
                 scene, scenes, dome, VFS::Path::NormalizedView("meshes/sky_night_01.nif"), preprocessor, holds);
             ASSERT_TRUE(sky.isOk()) << sky.error();
 
@@ -524,7 +524,7 @@ namespace Rtx
             ContentPreprocessor preprocessor;
             std::vector<TextureHold> holds;
 
-            const Result<NightSky, std::string> night
+            const Misc::Result<NightSky, std::string> night
                 = readNightSky(scene, scenes, VFS::Path::NormalizedView("meshes/sky_night_02.nif"),
                     VFS::Path::NormalizedView("meshes/sky_night_01.nif"), preprocessor, holds);
             ASSERT_FALSE(night.isOk()) << "a missing star dome was read as no stars";

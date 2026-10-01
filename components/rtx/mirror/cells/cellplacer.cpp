@@ -13,7 +13,7 @@
 
 #include <osg/Matrixf>
 
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
@@ -589,7 +589,7 @@ namespace Rtx
             if (!standsBy(lamp.mState))
                 continue;
 
-            const Result<std::optional<Light>, std::string_view> light = makeLight(
+            const Misc::Result<std::optional<Light>, std::string_view> light = makeLight(
                 lamp.mRecord, lamp.mPosition, around.mSimulationTime, static_cast<int>(lamp.mState.mRefNum.mIndex));
             assert(light.isOk() && "a lamp the reader carried that the frame refuses");
             if (!light.value().has_value())

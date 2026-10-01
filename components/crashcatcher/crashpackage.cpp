@@ -127,7 +127,7 @@ namespace Crash
         };
 
         /// Deflates `file` into `archive` after its local header, and fills the rest of `entry`.
-        std::optional<std::string> writeData(std::ofstream& archive, const PackageFile& file, Entry& entry,
+        Misc::Result<void, std::string> writeData(std::ofstream& archive, const PackageFile& file, Entry& entry,
             std::vector<char>& in, std::vector<char>& out)
         {
             // **The size first, and every byte of it read**: a stream ends a read that failed as it ends
@@ -135,17 +135,17 @@ namespace Crash
             std::error_code error;
             const std::uintmax_t expected = std::filesystem::file_size(file.mSource, error);
             if (error)
-                return Files::pathToUnicodeString(file.mSource) + " could not be read: " + error.message();
+                return Misc::Err{ Files::pathToUnicodeString(file.mSource) + " could not be read: " + error.message() };
             if (expected > sLargest)
-                return file.mName + " is 4 GiB or more, which a zip without Zip64 cannot hold";
+                return Misc::Err{ file.mName + " is 4 GiB or more, which a zip without Zip64 cannot hold" };
 
             std::ifstream source(file.mSource, std::ios::binary);
             if (!source)
-                return Files::pathToUnicodeString(file.mSource) + " could not be read";
+                return Misc::Err{ Files::pathToUnicodeString(file.mSource) + " could not be read" };
 
             Deflater deflater;
             if (!deflater.mStarted)
-                return "zlib would not start a deflate stream";
+                return Misc::Err{ "zlib would not start a deflate stream" };
             z_stream& stream = deflater.mStream;
 
             uLong crc = crc32(0, nullptr, 0);
@@ -158,9 +158,9 @@ namespace Crash
                 const auto got = static_cast<uInt>(source.gcount());
                 size += got;
                 if (source.bad())
-                    return Files::pathToUnicodeString(file.mSource) + " could not be read to its end";
+                    return Misc::Err{ Files::pathToUnicodeString(file.mSource) + " could not be read to its end" };
                 if (size > expected)
-                    return Files::pathToUnicodeString(file.mSource) + " grew while it was read";
+                    return Misc::Err{ Files::pathToUnicodeString(file.mSource) + " grew while it was read" };
                 crc = crc32(crc, reinterpret_cast<const Bytef*>(in.data()), got);
 
                 const int flush = source.eof() ? Z_FINISH : Z_NO_FLUSH;
@@ -183,13 +183,13 @@ namespace Crash
             }
 
             if (size != expected)
-                return Files::pathToUnicodeString(file.mSource) + " could not be read to its end";
+                return Misc::Err{ Files::pathToUnicodeString(file.mSource) + " could not be read to its end" };
             if (result != Z_STREAM_END)
-                return "zlib did not end the deflate stream of " + file.mName;
+                return Misc::Err{ "zlib did not end the deflate stream of " + file.mName };
             if (!archive)
-                return "the package could not be written: the disk refused " + file.mName;
+                return Misc::Err{ "the package could not be written: the disk refused " + file.mName };
             if (compressed > sLargest)
-                return file.mName + " deflates to 4 GiB or more, which a zip without Zip64 cannot hold";
+                return Misc::Err{ file.mName + " deflates to 4 GiB or more, which a zip without Zip64 cannot hold" };
 
             entry.mCrc = static_cast<std::uint32_t>(crc);
             entry.mCompressed = static_cast<std::uint32_t>(compressed);
@@ -197,12 +197,12 @@ namespace Crash
             return {};
         }
 
-        std::optional<std::string> writeArchive(const std::filesystem::path& part, std::span<const PackageFile> files,
-            std::uint32_t stamp, std::vector<Entry>& entries)
+        Misc::Result<void, std::string> writeArchive(const std::filesystem::path& part,
+            std::span<const PackageFile> files, std::uint32_t stamp, std::vector<Entry>& entries)
         {
             std::ofstream archive(part, std::ios::binary | std::ios::trunc);
             if (!archive)
-                return Files::pathToUnicodeString(part) + " could not be made";
+                return Misc::Err{ Files::pathToUnicodeString(part) + " could not be made" };
 
             std::vector<char> in(1 << 16);
             std::vector<char> out(1 << 16);
@@ -211,7 +211,7 @@ namespace Crash
             {
                 const std::streamoff offset = archive.tellp();
                 if (offset < 0 || static_cast<std::uint64_t>(offset) > sLargest)
-                    return "the package reached 4 GiB, which a zip without Zip64 cannot hold";
+                    return Misc::Err{ "the package reached 4 GiB, which a zip without Zip64 cannot hold" };
 
                 Entry& entry = entries.emplace_back();
                 entry.mFile = &file;
@@ -233,8 +233,8 @@ namespace Crash
                 header += file.mName;
                 archive.write(header.data(), static_cast<std::streamsize>(header.size()));
 
-                if (std::optional<std::string> why = writeData(archive, file, entry, in, out))
-                    return why;
+                if (Misc::Result<void, std::string> written = writeData(archive, file, entry, in, out); !written.isOk())
+                    return written;
 
                 header.clear();
                 put32(header, entry.mCrc);
@@ -269,7 +269,7 @@ namespace Crash
                 header += entry.mFile->mName;
             }
             if (directory < 0 || static_cast<std::uint64_t>(directory) + header.size() > sLargest)
-                return "the package reached 4 GiB, which a zip without Zip64 cannot hold";
+                return Misc::Err{ "the package reached 4 GiB, which a zip without Zip64 cannot hold" };
 
             const auto directorySize = static_cast<std::uint32_t>(header.size());
             put32(header, 0x06054b50);
@@ -284,17 +284,17 @@ namespace Crash
 
             archive.close();
             if (!archive)
-                return Files::pathToUnicodeString(part) + " could not be written";
+                return Misc::Err{ Files::pathToUnicodeString(part) + " could not be written" };
             return {};
         }
     }
 
-    std::optional<std::string> writePackage(
+    Misc::Result<void, std::string> writePackage(
         const std::filesystem::path& zip, std::span<const PackageFile> files, const std::tm& local)
     {
         // A zip without Zip64 counts its entries in two bytes.
         if (files.size() > 0xFFFF)
-            return "a zip without Zip64 holds 65535 files at most";
+            return Misc::Err{ "a zip without Zip64 holds 65535 files at most" };
 
         // Named after the process too, so two monitors that chose one name never write one file.
         std::filesystem::path part = zip;
@@ -302,18 +302,18 @@ namespace Crash
 
         std::vector<Entry> entries;
         entries.reserve(files.size());
-        std::optional<std::string> why = writeArchive(part, files, dosTime(local), entries);
+        Misc::Result<void, std::string> written = writeArchive(part, files, dosTime(local), entries);
 
         std::error_code error;
-        if (!why)
+        if (written.isOk())
         {
             std::filesystem::rename(part, zip, error);
-            if (error)
-                why = Files::pathToUnicodeString(zip) + " could not be put in place: " + error.message();
+            if (!error)
+                return {};
+            written = Misc::Err{ Files::pathToUnicodeString(zip) + " could not be put in place: " + error.message() };
         }
-        if (why)
-            std::filesystem::remove(part, error);
-        return why;
+        std::filesystem::remove(part, error);
+        return written;
     }
 
     SessionPackage writeSessionPackage(const std::filesystem::path& folder, std::string_view application,
@@ -349,10 +349,10 @@ namespace Crash
             std::error_code error;
             const std::filesystem::path absolute = std::filesystem::absolute(folder, error).lexically_normal();
             const std::filesystem::path zip = freePackagePath(error ? folder : absolute, application, local);
-            if (std::optional<std::string> why = writePackage(zip, files, local))
-                package.mFailure = std::move(*why);
-            else
+            if (const Misc::Result<void, std::string> written = writePackage(zip, files, local); written.isOk())
                 package.mZip = zip;
+            else
+                package.mFailure = written.error();
         }
         catch (const std::exception& error)
         {

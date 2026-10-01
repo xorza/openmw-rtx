@@ -15,11 +15,11 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <components/misc/result.hpp>
 #include <components/resource/bgsmfilemanager.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/rtx/common/result.hpp>
 #include <components/rtx/environment/cloudshell.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/vfs/manager.hpp>
@@ -302,7 +302,7 @@ namespace Rtx
             Resource::BgsmFileManager materials(&vfs, 0);
             Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, 0);
 
-            const Result<CloudShell, std::string> shell
+            const Misc::Result<CloudShell, std::string> shell
                 = readCloudShell(scenes, VFS::Path::NormalizedView("meshes/sky_clouds_01.nif"));
             ASSERT_FALSE(shell.isOk()) << "a missing cloud mesh was read as no deck";
             EXPECT_EQ(shell.error(), "the archives hold no such file");

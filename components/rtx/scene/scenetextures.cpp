@@ -60,7 +60,7 @@ namespace Rtx
                 kept.mFormat = readFormat(*row.mImage, kept.mEncoding);
             }
             else if (row.mKind == TextureKind::File)
-                kept.mImage = Err{ std::string(sNoImage) };
+                kept.mImage = Misc::Err{ std::string(sNoImage) };
             else if (const std::optional<VFS::Path::Normalized> source = SpriteLightMap::sourceOf(row.mBaked))
             {
                 // Made on the device from the sprite texture's own slot, which the emitter holds
@@ -97,7 +97,7 @@ namespace Rtx
         {
             const TextureRow& row = scene.textures().getRows()[kept.mSlot];
 
-            const Result<TextureData, std::string> described = describeKept(kept, composites);
+            const Misc::Result<TextureData, std::string> described = describeKept(kept, composites);
             TextureData data;
             if (described.isOk())
                 data = described.value();
@@ -126,14 +126,15 @@ namespace Rtx
                 .mWhy = "past the " + std::to_string(TextureTable::sCapacity) + " textures the array holds" });
     }
 
-    Result<TextureData, std::string> SceneTextures::describeKept(const Kept& kept, const CompositeQueue* composites)
+    Misc::Result<TextureData, std::string> SceneTextures::describeKept(
+        const Kept& kept, const CompositeQueue* composites)
     {
         if (!kept.mImage.isOk())
-            return Err{ kept.mImage.error() };
+            return Misc::Err{ kept.mImage.error() };
 
         if (const osg::Image* image = kept.mImage.value().get())
         {
-            const Result<TextureData, std::string> read
+            const Misc::Result<TextureData, std::string> read
                 = describeImage(*image, kept.mFormat, kept.mEncoding, mLevels, mTexels);
             if (!read.isOk())
                 return read;
@@ -149,7 +150,7 @@ namespace Rtx
         {
             // A source the table no longer holds is a bake of nothing.
             if (*kept.mBakedFrom == sNoIndex)
-                return Err{ "the texture it bakes is no longer held" };
+                return Misc::Err{ "the texture it bakes is no longer held" };
 
             return TextureData{
                 .mSource = TextureSource::SpriteBake,
@@ -164,7 +165,7 @@ namespace Rtx
         const CompositeQueue::Baked chunk
             = composites != nullptr ? composites->find(kept.mSlot) : CompositeQueue::Baked{};
         if (chunk.mMaterial == sNoIndex)
-            return Err{ "no ground was queued to flatten into it" };
+            return Misc::Err{ "no ground was queued to flatten into it" };
 
         if (chunk.mGloss)
             return TextureData{

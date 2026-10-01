@@ -8,7 +8,7 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "texturedata.hpp"
@@ -33,7 +33,7 @@ namespace Rtx
     /// Whether this renderer uploads `image` as `encoding`, and why not where it does not: a format
     /// Morrowind does not produce, or an image of no size or no texels. The name is left to
     /// whoever reports it.
-    Result<void, std::string> checkUploadable(
+    Misc::Result<void, std::string> checkUploadable(
         const osg::Image& image, TextureEncoding encoding = TextureEncoding::Colour);
 
     /// How many bytes `describeImage` lays into its `texels` for `image`, which is what a
@@ -50,23 +50,23 @@ namespace Rtx
     /// backend completes a chain the file did not carry, on the device. An error, adding nothing,
     /// where `checkUploadable` answers one, or where the format's layout and OpenSceneGraph's
     /// count the image's bytes differently.
-    Result<TextureData, std::string> describeImage(const osg::Image& image, std::vector<MipLevel>& levels,
+    Misc::Result<TextureData, std::string> describeImage(const osg::Image& image, std::vector<MipLevel>& levels,
         std::vector<std::byte>& texels, TextureEncoding encoding = TextureEncoding::Colour);
 
     /// `describeImage` of an image whose format the caller has read already, as `encoding`
     /// (`readFormat`).
-    Result<TextureData, std::string> describeImage(const osg::Image& image, TextureFormat format,
+    Misc::Result<TextureData, std::string> describeImage(const osg::Image& image, TextureFormat format,
         TextureEncoding encoding, std::vector<MipLevel>& levels, std::vector<std::byte>& texels);
 
     /// `describeImage` of the finest level alone, as a colour, for a reader of nothing else: the
     /// coarser levels are neither held against OpenSceneGraph's count nor laid, and a volume's first
     /// slice of it is spanned where it lies.
-    Result<TextureData, std::string> describeFinestLevel(
+    Misc::Result<TextureData, std::string> describeFinestLevel(
         const osg::Image& image, std::vector<MipLevel>& levels, std::vector<std::byte>& texels);
 
     /// The image at `path`, or why nothing reads there — an error and not an exception, because a
     /// live scene graph names textures that were never files and a renderer that fell over on one
     /// would fall over on a cell. Never null.
-    Result<osg::ref_ptr<const osg::Image>, std::string> openImage(
+    Misc::Result<osg::ref_ptr<const osg::Image>, std::string> openImage(
         Resource::ImageManager& images, VFS::Path::NormalizedView path);
 }

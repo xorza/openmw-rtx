@@ -9,7 +9,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 
 struct VmaAllocation_T;
@@ -143,11 +143,12 @@ namespace Rtx
         /// block the frame's own memory opened would take room the frame had already been given,
         /// past every ceiling; in blocks of their own, what each use holds and what it may take
         /// are both exact to the block.
-        Result<DeviceMemory, std::string_view> tryTake(
+        Misc::Result<DeviceMemory, std::string_view> tryTake(
             VkBuffer buffer, VkMemoryPropertyFlags properties, VkDeviceSize alignment, MemoryUse use);
 
         /// The same for an image.
-        Result<DeviceMemory, std::string_view> tryTake(VkImage image, VkMemoryPropertyFlags properties, MemoryUse use);
+        Misc::Result<DeviceMemory, std::string_view> tryTake(
+            VkImage image, VkMemoryPropertyFlags properties, MemoryUse use);
 
         /// About how many bytes of video memory `use` may still take: what content's blocks have
         /// free, and the whole blocks its ceiling leaves room for. For a caller sizing what it asks
@@ -190,7 +191,7 @@ namespace Rtx
         /// is handed, and `size` and `typeBits` are the resource's requirements. `own` for a
         /// resource the driver will only bind to an allocation of its own.
         template <class Allocate>
-        Result<DeviceMemory, std::string_view> tryAllocate(VkDeviceSize size, std::uint32_t typeBits, bool own,
+        Misc::Result<DeviceMemory, std::string_view> tryAllocate(VkDeviceSize size, std::uint32_t typeBits, bool own,
             VkMemoryPropertyFlags properties, MemoryUse use, Allocate&& allocate);
 
         /// What the library placed, as a range counted for `use`.

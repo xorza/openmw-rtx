@@ -299,7 +299,7 @@ add_component_dir (esm4
 add_component_dir (misc
     barrier budgetmeasurement color compression constants convert coordinateconverter display endianness float16 frameclock frameratelimiter
     guarded math mathutil messageformatparser notnullptr objectpool osgpluginchecker osguservalues presentation progressreporter resourcehelpers
-    rng strongtypedef thread timeconvert timer tuplehelpers tuplemeta utf8stream weakcache windows
+    result rng strongtypedef thread timeconvert timer tuplehelpers tuplemeta utf8stream weakcache windows
     )
 
 add_component_dir (misc/strings
@@ -394,7 +394,7 @@ add_component_dir (sky
 # The ray tracer's API-neutral core. No graphics API is on this library's include path; the Vulkan
 # backend is its own library, `components/rtxvulkan`. `shaders/` holds what C++ and GLSL share.
 add_component_dir (rtx/common
-    clock error finite index job jobprogress menu monitor namedenum parallel pointhash radicalinverse result runs
+    clock error finite index job jobprogress menu monitor namedenum parallel pointhash radicalinverse runs
     scratch slots stepped worker
     )
 

@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 
+#include <components/misc/result.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/png.hpp>
 
@@ -86,7 +87,7 @@ namespace RtxTool
     /// is its worst colour channel, as `FrameDifference` counts a pixel.
     struct PictureError
     {
-        /// The two are not the same size, or either is missing.
+        /// The two are not the same size, or either is empty.
         bool mMismatched = false;
 
         double mMean = 0.0;
@@ -102,7 +103,7 @@ namespace RtxTool
 
     /// How far a picture stands from another after both are blurred by a Gaussian of `sigma`
     /// pixels, as the mean over the pixels of the worst colour channel, out of 255 — or nothing
-    /// where either is missing or they disagree on their extents. Blurred as one signed difference,
+    /// where either is empty or they disagree on their extents. Blurred as one signed difference,
     /// which is the same number, because a blur is linear; the picture's edge is held.
     std::optional<double> blurredDifference(const Rtx::PngImage& picture, const Rtx::PngImage& reference, float sigma);
 
@@ -168,7 +169,7 @@ namespace RtxTool
     /// more than the bar's from the bar's own limit, by the mean and at the 99th percentile. Beside
     /// it, **each one's bias**: how far its mean stands from the reference, blurred by
     /// `sNoiseBiasBlur`. Returns a process exit status, non-zero where any frame is noisier than its
-    /// bar or any picture is missing.
+    /// bar, or any picture is missing, does not read, or is of another size.
     ///
     /// **Noise against noise, because a frame and its bar are drawn two ways.** Held to the one
     /// reference, each carried the difference between its own reconstruction and the reference's
@@ -179,11 +180,12 @@ namespace RtxTool
     /// @param barFrames how many frames the bars averaged, which the report names.
     int judgeNoise(const std::filesystem::path& wrote, std::span<const std::string> places, std::uint32_t barFrames);
 
-    /// Why a run that writes its pictures into `out` cannot be compared against `against`, or
-    /// nothing where it can. The pictures are written over their references before the two
+    /// Whether a run that writes its pictures into `out` can be compared against `against`, and why
+    /// not where it cannot. The pictures are written over their references before the two
     /// directories are read, so one directory named twice judges every picture the same: `shot`
     /// and then `shot --against=shot` is the pair this refuses.
-    std::optional<std::string> refuseAgainst(const std::filesystem::path& out, const std::filesystem::path& against);
+    Misc::Result<void, std::string> checkAgainst(
+        const std::filesystem::path& out, const std::filesystem::path& against);
 
     /// Reads back what a run wrote and says what moved since `against`: a directory an earlier run
     /// wrote on this machine, never a corpus in the tree, because the picture is a function of the

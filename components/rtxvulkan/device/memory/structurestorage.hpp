@@ -7,7 +7,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtxvulkan/device/retiring.hpp>
 
@@ -52,7 +52,8 @@ namespace Rtx
         /// @param least how large to make a new block where none of the existing ones can hold it:
         ///        a load asks for the whole scene's total, an arrival for nothing in particular. A
         ///        device with no room for that much makes one only as large as the structure.
-        Result<StructureRoom, std::string_view> take(const Device& device, VkDeviceSize bytes, VkDeviceSize least);
+        Misc::Result<StructureRoom, std::string_view> take(
+            const Device& device, VkDeviceSize bytes, VkDeviceSize least);
 
         /// Takes a structure's room back once the timeline passes `until`, which is the stamp its
         /// handle was buried with. `AccelerationStructure`'s end, and nothing else.

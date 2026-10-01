@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cstddef>
-#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -12,6 +11,8 @@
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/instruments/frametimes.hpp>
+#include <components/files/conversion.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/testing/util.hpp>
@@ -77,18 +78,19 @@ namespace RtxTool
             EXPECT_DOUBLE_EQ(samples.at(Rtx::Timing::Frame)[1], 8.0);
 
             const std::filesystem::path file = TestingOpenMW::outputFilePath("frame-times.txt");
-            writeFrameTimes(file, samples);
+            const Misc::Result<void, std::string> written = writeFrameTimes(file, samples);
+            ASSERT_TRUE(written.isOk()) << written.error();
 
-            std::ifstream written(file);
-            std::string text((std::istreambuf_iterator<char>(written)), std::istreambuf_iterator<char>());
+            std::ifstream read(file);
+            std::string text((std::istreambuf_iterator<char>(read)), std::istreambuf_iterator<char>());
             EXPECT_EQ(text,
                 "frame finish wait walk preprocess place bake textures upload trace views present update sleep\n"
                 "10.000 4.750 4.500 0.000 0.000 0.000 0.000 0.000 0.000 1.250 0.000 0.000 0.000 0.000\n"
                 "8.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.500 0.000 0.000 2.000 0.750\n");
 
             // A directory nobody made is named rather than written past.
-            EXPECT_THROW(writeFrameTimes(TestingOpenMW::outputFilePath("no-such-dir") / "frame-times.txt", samples),
-                std::exception);
+            const std::filesystem::path nowhere = TestingOpenMW::outputFilePath("no-such-dir") / "frame-times.txt";
+            EXPECT_EQ(writeFrameTimes(nowhere, samples).error(), "cannot open " + Files::pathToUnicodeString(nowhere));
 
             samples.clear();
             EXPECT_TRUE(samples.empty());

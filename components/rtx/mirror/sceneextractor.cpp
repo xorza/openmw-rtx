@@ -20,8 +20,8 @@
 #include <osgParticle/ParticleSystem>
 #include <osgParticle/ParticleSystemUpdater>
 
+#include <components/misc/result.hpp>
 #include <components/nifosg/autotransform.hpp>
-#include <components/rtx/common/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
 #include <components/rtx/scene/light.hpp>
@@ -584,7 +584,7 @@ namespace Rtx
         // And the effects' lamps after the emitters, because a burst's flames are in them.
         for (const Glow& glow : mGlows)
         {
-            const Result<std::optional<Light>, std::string_view> made = glow.makeLight();
+            const Misc::Result<std::optional<Light>, std::string_view> made = glow.makeLight();
             if (!made.isOk())
                 mScene.refusals().refuse(Refused::Lamp, {}, made.error());
             else if (made.value().has_value())
@@ -672,7 +672,7 @@ namespace Rtx
         // The radius the content states, and not the cut-off the rasterizer widened it to: a
         // bolt's is its spell's area, which `ProjectileManager` writes there.
         const float radius = source.getSourceRadius();
-        const Result<std::optional<Light>, std::string_view> made = isSpellLight(source)
+        const Misc::Result<std::optional<Light>, std::string_view> made = isSpellLight(source)
             ? makeSpellLight(colour, radius, place.getTrans())
             : makeLight(colour, radius, place.getTrans());
         if (!made.isOk())

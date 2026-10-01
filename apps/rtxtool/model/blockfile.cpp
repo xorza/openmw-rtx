@@ -216,31 +216,31 @@ namespace RtxTool
         return value;
     }
 
-    std::optional<std::string_view> hourRefusal(const float hour)
+    Misc::Result<void, std::string_view> checkHour(const float hour)
     {
         if (!(hour >= 0.0f) || !(hour < 24.0f))
-            return "is not from 0 up to but not including 24";
+            return Misc::Err{ "is not from 0 up to but not including 24" };
 
-        return std::nullopt;
+        return {};
     }
 
-    std::optional<std::string_view> dayRefusal(const int day)
+    Misc::Result<void, std::string_view> checkDay(const int day)
     {
         if (day < 0)
-            return "is before the first day";
+            return Misc::Err{ "is before the first day" };
 
-        return std::nullopt;
+        return {};
     }
 
-    std::optional<std::string_view> weatherRefusal(const std::string_view weather)
+    Misc::Result<void, std::string_view> checkWeather(const std::string_view weather)
     {
         // **Checked where it is read rather than at the frame**, for the reason a mistyped view id
         // is: a place that quietly stood under another sky reports a number against a frame nobody
         // asked for.
         if (!Rtx::weatherIndex(weather).has_value())
-            return "is none of the weathers the content files name";
+            return Misc::Err{ "is none of the weathers the content files name" };
 
-        return std::nullopt;
+        return {};
     }
 
     std::string listWeathers()
@@ -259,8 +259,8 @@ namespace RtxTool
     float BlockFile::hour(const BlockField& field) const
     {
         const float value = number(field);
-        if (const std::optional<std::string_view> why = hourRefusal(value))
-            refuseValue(field, *why);
+        if (const Misc::Result<void, std::string_view> checked = checkHour(value); !checked.isOk())
+            refuseValue(field, checked.error());
 
         return value;
     }
@@ -269,7 +269,7 @@ namespace RtxTool
     {
         const std::optional<std::uint32_t> named = Rtx::weatherIndex(field.mValue);
         if (!named.has_value())
-            refuseValue(field, *weatherRefusal(field.mValue));
+            refuseValue(field, checkWeather(field.mValue).error());
 
         return std::string(Rtx::weatherName(*named));
     }
@@ -309,8 +309,8 @@ namespace RtxTool
         const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
         if (error != std::errc() || end != text.data() + text.size())
             refuseValue(field, "is not a whole number of days");
-        if (const std::optional<std::string_view> why = dayRefusal(value))
-            refuseValue(field, *why);
+        if (const Misc::Result<void, std::string_view> checked = checkDay(value); !checked.isOk())
+            refuseValue(field, checked.error());
 
         return value;
     }

@@ -20,7 +20,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
@@ -90,7 +90,7 @@ namespace Rtx
         // A file that does not read keeps its place and its path, for the texture table to stand
         // in and refuse: left out, the ground under it would show another layer with nothing said.
         PreparedTexture& texture = mTextures.take([&](PreparedTexture& into) {
-            const Result<osg::ref_ptr<const osg::Image>, std::string> image = mContent.getImage(path);
+            const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> image = mContent.getImage(path);
             into.mImage = image.isOk() ? image.value() : nullptr;
             into.mPath = path;
         });
@@ -123,7 +123,7 @@ namespace Rtx
 
             // What the walk had read before it met what it cannot take goes, and the reason stays.
             // The loader answers a file it cannot read with the error marker, which reads.
-            const Result<void, std::string> walked = mWalk.read(*node, mMask, into);
+            const Misc::Result<void, std::string> walked = mWalk.read(*node, mMask, into);
             if (!walked.isOk())
             {
                 into.reuse();
@@ -223,7 +223,7 @@ namespace Rtx
         // function of the hour and whether a lamp is refused is not. A record off by default
         // casts nothing wherever it is placed, so it is not carried.
         const osg::Vec3f position = anchorOf(ref.mRefId) * transformOf(ref);
-        const Result<std::optional<Light>, std::string_view> made
+        const Misc::Result<std::optional<Light>, std::string_view> made
             = makeLight(*record, position, 0.0, static_cast<int>(ref.mRefNum.mIndex));
         if (!made.isOk())
         {

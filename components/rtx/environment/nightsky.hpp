@@ -6,7 +6,7 @@
 
 #include <osg/Vec3f>
 
-#include <components/rtx/common/result.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/shaders/sky.h>
@@ -73,7 +73,7 @@ namespace Rtx
     /// @param fallback the dome to read where the archives hold no `mesh`: Tribunal ships the
     ///        second one and Morrowind alone does not, and the rasterizer picks by the same test.
     /// @param content what each sheet's mean is read through.
-    Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
+    Misc::Result<NightSky, std::string> readNightSky(SceneDesc& scene, Resource::SceneManager& scenes,
         VFS::Path::NormalizedView mesh, VFS::Path::NormalizedView fallback, ContentPreprocessor& content,
         std::vector<TextureHold>& holds);
 }

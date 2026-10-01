@@ -42,7 +42,7 @@ namespace Rtx
         /// The map beside a texture: one level and no chain, because the map is read at level
         /// nought whatever the cone and has no detail for a level to lose. Left undefined, for a
         /// dispatch to write or `clearNeutral` to fill.
-        Result<Image, std::string_view> makeShadingMap(const Device& device, std::string_view name, MemoryUse use)
+        Misc::Result<Image, std::string_view> makeShadingMap(const Device& device, std::string_view name, MemoryUse use)
         {
             // Built only where something reads it. A release build names no object, and the
             // concatenation is past what a short string holds — so building it anyway is one trip
@@ -58,7 +58,7 @@ namespace Rtx
 
         /// A normal map's spread, `NormalSpreadPass`'s: a byte a texel from half the map's `width` by
         /// `height` down to one texel, sampled and written by the pass a level at a time.
-        Result<Image, std::string_view> makeSpreadMap(
+        Misc::Result<Image, std::string_view> makeSpreadMap(
             const Device& device, std::string_view name, MemoryUse use, std::uint32_t width, std::uint32_t height)
         {
             std::string spreadName;
@@ -73,7 +73,7 @@ namespace Rtx
 
         /// The float means `spread` is built through, shaped as it is: made with the texture and let
         /// go of with the batch that builds it.
-        Result<Image, std::string_view> makeSpreadMeans(
+        Misc::Result<Image, std::string_view> makeSpreadMeans(
             const Device& device, std::string_view name, MemoryUse use, const Image& spread)
         {
             return Image::tryMake(use, device, spread.getWidth(), spread.getHeight(),
@@ -264,8 +264,8 @@ namespace Rtx
         }
     }
 
-    Result<Texture, std::string_view> Texture::fromFile(const Device& device, Batch& batch, const TexturePasses& passes,
-        const TextureData& data, const std::uint32_t first, std::string_view name,
+    Misc::Result<Texture, std::string_view> Texture::fromFile(const Device& device, Batch& batch,
+        const TexturePasses& passes, const TextureData& data, const std::uint32_t first, std::string_view name,
         std::vector<VkBufferImageCopy>& regions, const MemoryUse use)
     {
         assert(first < data.mLevels.size() && "a texture begun past the file's last level");
@@ -296,27 +296,27 @@ namespace Rtx
         // neutral factor where nothing is to be estimated — `TextureData::getCompanion`. A normal
         // map's spread, with the means it is built through, made here with every other image.
         const TextureCompanion companion = data.getCompanion();
-        Result<Image, std::string_view> shading = companion == TextureCompanion::Spread
+        Misc::Result<Image, std::string_view> shading = companion == TextureCompanion::Spread
             ? makeSpreadMap(device, name, use, top.mWidth, top.mHeight)
             : makeShadingMap(device, name, use);
         if (!shading.isOk())
-            return Err{ shading.error() };
+            return Misc::Err{ shading.error() };
 
         std::optional<Image> means;
         if (companion == TextureCompanion::Spread)
         {
-            Result<Image, std::string_view> built = makeSpreadMeans(device, name, use, shading.value());
+            Misc::Result<Image, std::string_view> built = makeSpreadMeans(device, name, use, shading.value());
             if (!built.isOk())
-                return Err{ built.error() };
+                return Misc::Err{ built.error() };
             means = std::move(built.value());
         }
 
         if (!data.mCompleteChain)
         {
-            Result<Image, std::string_view> image = Image::tryMake(
+            Misc::Result<Image, std::string_view> image = Image::tryMake(
                 use, device, top.mWidth, top.mHeight, toVulkanFormat(data.mFormat), sUploaded, name, levels);
             if (!image.isOk())
-                return Err{ image.error() };
+                return Misc::Err{ image.error() };
 
             made.mImage = std::move(image.value());
             uploadImage(batch, made.mImage, bytes, regions);
@@ -329,19 +329,19 @@ namespace Rtx
             // The file's one level, uploaded as the bytes it holds, in a format with no curve under
             // it so that the chain's first dispatch fetches those bytes and not the light behind
             // them; gone with the batch, because the chain is what the trace samples.
-            Result<Image, std::string_view> upload = Image::tryMake(
+            Misc::Result<Image, std::string_view> upload = Image::tryMake(
                 use, device, data.mWidth, data.mHeight, withoutCurve(toVulkanFormat(data.mFormat)), sUploaded, name, 1);
             if (!upload.isOk())
-                return Err{ upload.error() };
+                return Misc::Err{ upload.error() };
 
             // Four bytes a texel down to one texel, with the file's own curve over the sampler's
             // read and none over the dispatch's store — `MipChain` says why the chain is loose.
             const bool encoded = isSrgb(data.mFormat);
-            Result<Image, std::string_view> chain = Image::tryMake(use, device, data.mWidth, data.mHeight,
+            Misc::Result<Image, std::string_view> chain = Image::tryMake(use, device, data.mWidth, data.mHeight,
                 encoded ? sWrittenEncoded : sWrittenFormat, sWritten, name, levelsTo1x1(data.mWidth, data.mHeight), 1,
                 encoded ? sWrittenFormat : VK_FORMAT_UNDEFINED);
             if (!chain.isOk())
-                return Err{ chain.error() };
+                return Misc::Err{ chain.error() };
 
             uploadImage(batch, upload.value(), data.mBytes, regions);
             made.mImage = std::move(chain.value());
@@ -371,21 +371,21 @@ namespace Rtx
         return made;
     }
 
-    Result<Texture, std::string_view> Texture::bakeOf(const Device& device, Batch& batch, const TexturePasses& passes,
-        const Texture& source, const TextureFormat format, std::string_view name)
+    Misc::Result<Texture, std::string_view> Texture::bakeOf(const Device& device, Batch& batch,
+        const TexturePasses& passes, const Texture& source, const TextureFormat format, std::string_view name)
     {
         assert(!source.isEmpty());
 
         const Image& from = source.mImage;
-        Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device, from.getWidth(),
+        Misc::Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device, from.getWidth(),
             from.getHeight(), writtenAs(format), sWritten, name, from.getMipLevels(), 1, sWrittenFormat);
         if (!image.isOk())
-            return Err{ image.error() };
+            return Misc::Err{ image.error() };
 
         // Neutral, because nothing divides a bake by a map, and the array binds one at every slot.
-        Result<Image, std::string_view> shading = makeShadingMap(device, name, MemoryUse::Texture);
+        Misc::Result<Image, std::string_view> shading = makeShadingMap(device, name, MemoryUse::Texture);
         if (!shading.isOk())
-            return Err{ shading.error() };
+            return Misc::Err{ shading.error() };
 
         Texture made;
         made.mImage = std::move(image.value());
@@ -415,24 +415,24 @@ namespace Rtx
         mBytes = sizeof(texel) + sShadingBytes;
     }
 
-    Result<Texture, std::string_view> Texture::composite(
+    Misc::Result<Texture, std::string_view> Texture::composite(
         const Device& device, Batch& batch, const TextureFormat format, std::string_view name)
     {
         // A chain to one texel, which the bake blits down from the level it writes; both transfer
         // usages for that blit, and the view without the curve for the store.
         constexpr std::uint32_t extent = Shaders::GROUND_COMPOSITE_EXTENT;
-        Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device, extent, extent,
+        Misc::Result<Image, std::string_view> image = Image::tryMake(MemoryUse::Texture, device, extent, extent,
             writtenAs(format), sWritten | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, name,
             levelsTo1x1(extent, extent), 1, sWrittenFormat);
         if (!image.isOk())
-            return Err{ image.error() };
+            return Misc::Err{ image.error() };
 
         // Neutral, because the light painted into each ground texture came off per tile in the
         // bake, which is the only place the tiling is known; an estimate off the composite would
         // take it off twice.
-        Result<Image, std::string_view> shading = makeShadingMap(device, name, MemoryUse::Texture);
+        Misc::Result<Image, std::string_view> shading = makeShadingMap(device, name, MemoryUse::Texture);
         if (!shading.isOk())
-            return Err{ shading.error() };
+            return Misc::Err{ shading.error() };
 
         Texture made;
         made.mImage = std::move(image.value());
@@ -663,7 +663,7 @@ namespace Rtx
         return cost;
     }
 
-    Result<Texture, std::string_view> TextureArray::make(
+    Misc::Result<Texture, std::string_view> TextureArray::make(
         Batch& batch, const TextureData& texture, const std::uint32_t side, std::string_view name)
     {
         switch (texture.mSource)
@@ -692,7 +692,7 @@ namespace Rtx
                 // completes has the one.
                 const auto last = static_cast<std::uint32_t>(texture.mLevels.size()) - 1;
                 std::uint32_t first = firstLevelAt(texture, side);
-                Result<Texture, std::string_view> made = Texture::fromFile(
+                Misc::Result<Texture, std::string_view> made = Texture::fromFile(
                     mDevice, batch, mPasses, texture, first, name, mRegionScratch, MemoryUse::Texture);
                 while (!made.isOk() && first < last)
                     made = Texture::fromFile(
@@ -729,7 +729,7 @@ namespace Rtx
             why = pastTheSide(texture, mSideLimit);
         else if (texture.mSource != TextureSource::StandIn)
         {
-            Result<Texture, std::string_view> tried = make(batch, texture, side, name);
+            Misc::Result<Texture, std::string_view> tried = make(batch, texture, side, name);
             if (tried.isOk())
                 made = std::move(tried.value());
             else
