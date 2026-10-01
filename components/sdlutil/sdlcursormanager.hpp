@@ -3,11 +3,9 @@
 
 #include <map>
 #include <string>
-
-#include <SDL3/SDL_stdinc.h>
+#include <string_view>
 
 struct SDL_Cursor;
-struct SDL_Surface;
 
 namespace osg
 {
@@ -29,14 +27,18 @@ namespace SDLUtil
         ///        name of the cursor we changed to ("arrow", "ibeam", etc)
         virtual void cursorChanged(std::string_view name);
 
-        virtual void createCursor(std::string_view name, int rotDegrees, osg::Image* image, Uint8 hotspotX,
-            Uint8 hotspotY, int cursorWidth, int cursorHeight);
+        /// A cursor of `width` × `height` window pixels, hot at `hotspotX`, `hotspotY` in the same
+        /// pixels, which SDL shows at the display's scale `displayScale`: an image of the size
+        /// divided by it, which is what SDL scales up, and the whole size beside it, which SDL picks
+        /// instead. Shown at once where it is the current cursor.
+        void createCursor(std::string_view name, int rotDegrees, osg::Image* image, int hotspotX, int hotspotY,
+            int width, int height, float displayScale);
+
+        /// Every cursor destroyed, for `createCursor` to make anew at another size. The current
+        /// cursor's name is kept.
+        void dropCursors();
 
     private:
-        void _createCursorFromResource(std::string_view name, int rotDegrees, osg::Image* image, Uint8 hotspotX,
-            Uint8 hotspotY, int cursorWidth, int cursorHeight);
-        void _putPixel(SDL_Surface* surface, int x, int y, Uint32 pixel);
-
         void _setGUICursor(std::string_view name);
 
         typedef std::map<std::string, SDL_Cursor*, std::less<>> CursorMap;

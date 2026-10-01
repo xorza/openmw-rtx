@@ -563,6 +563,11 @@ namespace MWGui
 
         float mRasterScale;
 
+        /// The window pixels a unit of the interface covered, and the display's scale, when the
+        /// cursors were made.
+        float mCursorScale = 0.f;
+        float mCursorDisplayScale = 0.f;
+
         struct ScheduledMessageBox
         {
             std::string mMessage;
@@ -606,8 +611,14 @@ namespace MWGui
         float scaleAt(osg::Vec2i frame) const;
 
         /// Lays the interface out at the renderer's frame and the scale it takes there, where either
-        /// moved: a window resized at Native, another resolution chosen, or another display.
+        /// moved: a window resized at Native, another resolution chosen, or another display. The
+        /// cursors follow.
         void layOut();
+        void layOutInterface();
+
+        /// Makes the hardware cursors anew where the window pixels a unit of the interface covers, or
+        /// the display's scale, moved: the cursor covers what the interface it points into does.
+        void fitCursors();
 
         void onClipboardChanged(std::string_view type, std::string_view data);
         void onClipboardRequested(std::string_view type, std::string& data);

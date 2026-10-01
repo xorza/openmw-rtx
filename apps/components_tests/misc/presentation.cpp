@@ -20,33 +20,37 @@ namespace Misc
             osg::Vec2i mFrame;
             osg::Vec2i mShownOrigin;
             osg::Vec2i mShownSize;
+            float mShownScale;
         };
 
         /// Each by hand. A side fills the drawable when its ratio of drawable to frame is the
-        /// smaller, and the other is `frame × drawable / frame` to the nearest pixel, centred.
+        /// smaller, and the other is `frame × drawable / frame` to the nearest pixel, centred. The
+        /// shown scale is that smaller ratio: `taller` is min(1920 / 1024, 1080 / 768) = 1.40625, and
+        /// `odd drawable` min(1001 / 1000, 500 / 1000) = 0.5, not the rounded side's.
         const Expected sCases[] = {
             // A side of nought is Native, the drawable itself.
-            { "native", { 0, 0 }, { 1920, 1080 }, { 1920, 1080 }, { 0, 0 }, { 1920, 1080 } },
-            { "native with one side asked", { 1280, 0 }, { 1920, 1080 }, { 1920, 1080 }, { 0, 0 }, { 1920, 1080 } },
+            { "native", { 0, 0 }, { 1920, 1080 }, { 1920, 1080 }, { 0, 0 }, { 1920, 1080 }, 1.f },
+            { "native with one side asked", { 1280, 0 }, { 1920, 1080 }, { 1920, 1080 }, { 0, 0 }, { 1920, 1080 },
+                1.f },
             // The drawable's aspect: scaled up whole, no bar.
-            { "same aspect", { 1280, 720 }, { 1920, 1080 }, { 1280, 720 }, { 0, 0 }, { 1920, 1080 } },
+            { "same aspect", { 1280, 720 }, { 1920, 1080 }, { 1280, 720 }, { 0, 0 }, { 1920, 1080 }, 1.5f },
             // 1920 × 1080 = 2073600 ≤ 1080 × 2560 = 2764800: the width fills, 1080 × 1920 / 2560 = 810
             // high, and (1080 − 810) / 2 = 135 above and below.
-            { "wider", { 2560, 1080 }, { 1920, 1080 }, { 2560, 1080 }, { 0, 135 }, { 1920, 810 } },
+            { "wider", { 2560, 1080 }, { 1920, 1080 }, { 2560, 1080 }, { 0, 135 }, { 1920, 810 }, 0.75f },
             // 1920 × 768 = 1474560 > 1080 × 1024 = 1105920: the height fills, 1024 × 1080 / 768 = 1440
             // wide, and (1920 − 1440) / 2 = 240 beside.
-            { "taller", { 1024, 768 }, { 1920, 1080 }, { 1024, 768 }, { 240, 0 }, { 1440, 1080 } },
+            { "taller", { 1024, 768 }, { 1920, 1080 }, { 1024, 768 }, { 240, 0 }, { 1440, 1080 }, 1.40625f },
             // A frame larger than the window is scaled down: 1080 × 1920 / 3840 = 540.
-            { "larger", { 3840, 1080 }, { 1920, 1080 }, { 3840, 1080 }, { 0, 270 }, { 1920, 540 } },
+            { "larger", { 3840, 1080 }, { 1920, 1080 }, { 3840, 1080 }, { 0, 270 }, { 1920, 540 }, 0.5f },
             // 2 × 10 / 3 = 6.67, so 7, and (10 − 7) / 2 = 1 in whole pixels.
-            { "rounded", { 3, 2 }, { 10, 10 }, { 3, 2 }, { 0, 1 }, { 10, 7 } },
+            { "rounded", { 3, 2 }, { 10, 10 }, { 3, 2 }, { 0, 1 }, { 10, 7 }, 10.f / 3.f },
             // 1000 × 500 / 1000 = 500 wide in 1001: (1001 − 500) / 2 = 250, the odd pixel after.
-            { "odd drawable", { 1000, 1000 }, { 1001, 500 }, { 1000, 1000 }, { 250, 0 }, { 500, 500 } },
-            { "one pixel frame", { 1, 1 }, { 7, 5 }, { 1, 1 }, { 1, 0 }, { 5, 5 } },
+            { "odd drawable", { 1000, 1000 }, { 1001, 500 }, { 1000, 1000 }, { 250, 0 }, { 500, 500 }, 0.5f },
+            { "one pixel frame", { 1, 1 }, { 7, 5 }, { 1, 1 }, { 1, 0 }, { 5, 5 }, 5.f },
             // 1080 × 1 / 1920 = 0.56, which rounds to 1 and never under it.
-            { "one pixel drawable", { 1920, 1080 }, { 1, 1 }, { 1920, 1080 }, { 0, 0 }, { 1, 1 } },
+            { "one pixel drawable", { 1920, 1080 }, { 1, 1 }, { 1920, 1080 }, { 0, 0 }, { 1, 1 }, 1.f / 1920.f },
             // A minimised window reports nought, which counts as one.
-            { "minimised", { 0, 0 }, { 0, 0 }, { 1, 1 }, { 0, 0 }, { 1, 1 } },
+            { "minimised", { 0, 0 }, { 0, 0 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1.f },
         };
 
         TEST(MiscPresentationTest, aFrameIsShownAsLargeAsTheDrawableAllowsAtItsAspect)
@@ -57,6 +61,7 @@ namespace Misc
                 EXPECT_EQ(presentation.mFrame, expected.mFrame) << expected.mCase;
                 EXPECT_EQ(presentation.mShownOrigin, expected.mShownOrigin) << expected.mCase;
                 EXPECT_EQ(presentation.mShownSize, expected.mShownSize) << expected.mCase;
+                EXPECT_FLOAT_EQ(presentation.shownScale(), expected.mShownScale) << expected.mCase;
             }
         }
 

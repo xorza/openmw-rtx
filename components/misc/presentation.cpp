@@ -36,6 +36,12 @@ namespace Misc
         return drawable;
     }
 
+    float Presentation::shownScale() const
+    {
+        return std::min(static_cast<float>(mDrawable.x()) / static_cast<float>(mFrame.x()),
+            static_cast<float>(mDrawable.y()) / static_cast<float>(mFrame.y()));
+    }
+
     Presentation present(const osg::Vec2i asked, const osg::Vec2i drawable)
     {
         Presentation presentation;

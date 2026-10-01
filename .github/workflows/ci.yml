@@ -104,9 +104,10 @@ jobs:
           # key, so `linux` would take `linux-clang`'s.
           key: linux-gcc
           max-size: 2000M
-          # Saved on master alone, and read by every other ref: the repository's ten gigabytes hold
-          # each master cache once — CI's seven, the sanitizers' two and the dependencies — and a
-          # branch's own copies would evict them.
+          # Saved on master alone, and read by every other ref: a branch's own copies would evict
+          # master's. Each run saves a new entry and keeps the old ones, so the repository's ten
+          # gigabytes hold every master cache once — CI's seven, the sanitizers' two and the
+          # dependencies — only after `gh cache delete` has cleared the older copies by hand.
           save: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Build every program
@@ -188,9 +189,10 @@ jobs:
         with:
           key: linux-clang
           max-size: 1000M
-          # Saved on master alone, and read by every other ref: the repository's ten gigabytes hold
-          # each master cache once — CI's seven, the sanitizers' two and the dependencies — and a
-          # branch's own copies would evict them.
+          # Saved on master alone, and read by every other ref: a branch's own copies would evict
+          # master's. Each run saves a new entry and keeps the old ones, so the repository's ten
+          # gigabytes hold every master cache once — CI's seven, the sanitizers' two and the
+          # dependencies — only after `gh cache delete` has cleared the older copies by hand.
           save: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Build every program
@@ -229,9 +231,10 @@ jobs:
           # Three gigabytes: at two, every program's objects, SDL's own among them, filled the cache
           # and a run hit nothing.
           max-size: 3000M
-          # Saved on master alone, and read by every other ref: the repository's ten gigabytes hold
-          # each master cache once — CI's seven, the sanitizers' two and the dependencies — and a
-          # branch's own copies would evict them.
+          # Saved on master alone, and read by every other ref: a branch's own copies would evict
+          # master's. Each run saves a new entry and keeps the old ones, so the repository's ten
+          # gigabytes hold every master cache once — CI's seven, the sanitizers' two and the
+          # dependencies — only after `gh cache delete` has cleared the older copies by hand.
           save: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Build every program
@@ -280,9 +283,10 @@ jobs:
         with:
           key: macos
           max-size: 1000M
-          # Saved on master alone, and read by every other ref: the repository's ten gigabytes hold
-          # each master cache once — CI's seven, the sanitizers' two and the dependencies — and a
-          # branch's own copies would evict them.
+          # Saved on master alone, and read by every other ref: a branch's own copies would evict
+          # master's. Each run saves a new entry and keeps the old ones, so the repository's ten
+          # gigabytes hold every master cache once — CI's seven, the sanitizers' two and the
+          # dependencies — only after `gh cache delete` has cleared the older copies by hand.
           save: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Configure

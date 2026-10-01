@@ -270,8 +270,12 @@
                 "Every test run: a failing test's output shown, and a build that registers no test is a failure.",
                 "Five minutes a suite, ten times the slowest one under the sanitizers: a test that hangs, as one",
                 "of `openmw-tests` does on Windows now and then, fails with the test it was in, where a job would",
-                "wait out its three hours and say nothing."
+                "wait out its three hours and say nothing. Every suite runs in a new order each time, so a test",
+                "that leans on what an earlier one left fails at once: a test that captured stderr and never",
+                "gave it back broke every later death test in its binary, and ran in upstream's order for years.",
+                "The run prints its seed, and `GTEST_RANDOM_SEED` repeats it."
             ],
+            "environment": { "GTEST_SHUFFLE": "1" },
             "output": { "outputOnFailure": true },
             "execution": { "noTestsAction": "error", "timeout": 300 }
         },

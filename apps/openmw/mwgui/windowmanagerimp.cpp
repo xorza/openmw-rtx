@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <filesystem>
 #include <thread>
 
@@ -274,8 +275,7 @@ namespace MWGui
         MyGUI::InputManager::getInstance().eventChangeKeyFocus
             += MyGUI::newDelegate(this, &WindowManager::onKeyFocusChanged);
 
-        // Create all cursors in advance
-        createCursors();
+        fitCursors();
         onCursorChange(MyGUI::PointerManager::getInstance().getDefaultPointer());
         mCursorManager->setEnabled(true);
 
@@ -1323,6 +1323,27 @@ namespace MWGui
     }
 
     void WindowManager::layOut()
+    {
+        layOutInterface();
+        fitCursors();
+    }
+
+    void WindowManager::fitCursors()
+    {
+        const float scale = mScalingFactor * mRenderer.getPresentation().shownScale();
+        // Nought where SDL cannot say, which is one: a cursor drawn at its own pixels.
+        const float asked = SDL_GetWindowDisplayScale(mRenderer.getWindow());
+        const float displayScale = asked > 0.f ? asked : 1.f;
+        if (scale == mCursorScale && displayScale == mCursorDisplayScale)
+            return;
+
+        mCursorScale = scale;
+        mCursorDisplayScale = displayScale;
+        mCursorManager->dropCursors();
+        createCursors();
+    }
+
+    void WindowManager::layOutInterface()
     {
         const osg::Vec2i frame = mRenderer.getPresentation().mFrame;
         const float scale = scaleAt(frame);
@@ -2449,21 +2470,14 @@ namespace MWGui
 
             if (image.valid())
             {
-                // scale the cursor to the interface scaling factor
-                const float guiUiScale = Settings::gui().mScalingFactor;
-
-                // everything looks good, send it to the cursor manager
-                const Uint8 hotspotX = static_cast<Uint8>(guiUiScale * imgSetPointer->getHotSpot().left);
-                const Uint8 hotspotY = static_cast<Uint8>(guiUiScale * imgSetPointer->getHotSpot().top);
-
-                MyGUI::IntSize pointerSize = imgSetPointer->getSize();
-                const Uint8 width = static_cast<Uint8>(guiUiScale * pointerSize.width);
-                const Uint8 height = static_cast<Uint8>(guiUiScale * pointerSize.height);
-
-                int rotation = imgSetPointer->getRotation();
-
-                mCursorManager->createCursor(
-                    imgSetPointer->getResourceName(), rotation, image, hotspotX, hotspotY, width, height);
+                const auto pixels = [this](int units) {
+                    return static_cast<int>(std::lround(static_cast<float>(units) * mCursorScale));
+                };
+                const MyGUI::IntPoint hotspot = imgSetPointer->getHotSpot();
+                const MyGUI::IntSize size = imgSetPointer->getSize();
+                mCursorManager->createCursor(imgSetPointer->getResourceName(), imgSetPointer->getRotation(), image,
+                    pixels(hotspot.left), pixels(hotspot.top), std::max(1, pixels(size.width)),
+                    std::max(1, pixels(size.height)), mCursorDisplayScale);
             }
         }
     }

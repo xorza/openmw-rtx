@@ -30,6 +30,10 @@ namespace Misc
         /// A point of the frame, as a point in the drawable's pixels.
         osg::Vec2f toDrawable(osg::Vec2f frame) const;
 
+        /// The drawable's pixels a pixel of the frame covers: the ratio of the side that fills the
+        /// drawable, which is exact, where the other side's was rounded to a whole pixel.
+        float shownScale() const;
+
         bool operator==(const Presentation& other) const = default;
     };
 
