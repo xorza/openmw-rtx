@@ -3,7 +3,6 @@
 #include <deque>
 #include <functional>
 #include <stdexcept>
-#include <stop_token>
 #include <string>
 #include <thread>
 #include <vector>
@@ -11,6 +10,7 @@
 #include <gtest/gtest.h>
 
 #include <apps/components_tests/rtx/support/death.hpp>
+#include <components/platform/thread.hpp>
 #include <components/rtx/common/monitor.hpp>
 #include <components/rtx/common/worker.hpp>
 
@@ -30,14 +30,14 @@ namespace Rtx
 
             /// What a turn does with what it took, so a test can make one throw or hold on the
             /// stop. Handed the token `serve` hands the turn.
-            std::function<void(int, std::stop_token)> mTurn = [](int, std::stop_token) {};
+            std::function<void(int, Platform::StopToken)> mTurn = [](int, Platform::StopToken) {};
 
             /// **Last, for the reason `Worker` gives.**
             Worker mWorker;
 
             void start()
             {
-                mWorker.start([this](std::stop_token stop) {
+                mWorker.start([this](Platform::StopToken stop) {
                     int took = 0;
 
                     mMonitor.serve(
@@ -46,7 +46,7 @@ namespace Rtx
                             took = mPending.front();
                             mPending.pop_front();
                         },
-                        [&](std::stop_token turn) {
+                        [&](Platform::StopToken turn) {
                             mTurn(took, turn);
                             mMonitor.hand([&] { mDone.push_back(took); });
                         });
@@ -107,7 +107,7 @@ namespace Rtx
                 [] {
                     Served served;
                     served.mTurn
-                        = [](int one, std::stop_token) { throw std::runtime_error("turn " + std::to_string(one)); };
+                        = [](int one, Platform::StopToken) { throw std::runtime_error("turn " + std::to_string(one)); };
                     served.start();
                     served.give(4);
                     served.awaitDone(1);
@@ -125,9 +125,9 @@ namespace Rtx
             std::atomic<bool> running{ false };
 
             // Held until the stop is asked for, which is what puts the next two behind it.
-            served.mTurn = [&](int, std::stop_token stop) {
+            served.mTurn = [&](int, Platform::StopToken stop) {
                 running = true;
-                while (!stop.stop_requested())
+                while (!stop.stopRequested())
                     std::this_thread::yield();
             };
             served.start();

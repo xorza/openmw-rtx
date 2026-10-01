@@ -206,7 +206,7 @@ set(RTX_GPU_TEST_FILES
 if (WIN32)
     list(APPEND RTX_TEST_FILES platform/processwin32.cpp)
 else()
-    list(APPEND RTX_TEST_FILES platform/processposix.cpp rtxtool/perffifo.cpp)
+    list(APPEND RTX_TEST_FILES platform/processposix.cpp rtxtool/perffifoposix.cpp)
 endif()
 
 target_sources(components-tests PRIVATE ${RTX_TEST_FILES} ${RTX_TEST_SUPPORT})

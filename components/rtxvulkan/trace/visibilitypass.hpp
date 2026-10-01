@@ -8,10 +8,10 @@
 #include <memory>
 #include <string>
 #include <string_view>
-#include <thread>
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/platform/thread.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/kernelprogress.hpp>
 #include <components/rtx/shaders/visibility.h>
@@ -334,6 +334,6 @@ namespace Rtx
         std::shared_future<void> mKernels;
 
         /// What the hands are started from. Last, so it is joined before any table it fills goes.
-        std::jthread mCompiling;
+        Platform::Thread mCompiling;
     };
 }

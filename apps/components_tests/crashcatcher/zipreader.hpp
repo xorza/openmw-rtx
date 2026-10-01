@@ -112,7 +112,7 @@ namespace CrashTests
             inflateEnd(&stream);
             if (!whole)
                 return entry.mName + " does not inflate to its stated size from its stated length";
-            if (crc32(crc32(0, Z_NULL, 0), reinterpret_cast<const Bytef*>(entry.mContent.data()), size) != entry.mCrc)
+            if (crc32(crc32(0, nullptr, 0), reinterpret_cast<const Bytef*>(entry.mContent.data()), size) != entry.mCrc)
                 return entry.mName + " does not sum to its CRC";
 
             local = data + compressed;

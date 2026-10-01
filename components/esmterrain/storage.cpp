@@ -6,6 +6,7 @@
 
 #include <osg/Image>
 #include <osg/Plane>
+#include <osg/Vec3d>
 
 #include <components/debug/debuglog.hpp>
 #include <components/esm/esmterrain.hpp>
@@ -641,10 +642,11 @@ namespace ESMTerrain
         }
         */
 
-        // Solve plane equation for z
-        return static_cast<float>((-plane.getNormal().x() * static_cast<double>(nX)
-                                      - plane.getNormal().y() * static_cast<double>(nY) - plane[3])
-            / plane.getNormal().z() * static_cast<double>(cellSize));
+        // Solve plane equation for z, in double whatever precision the build's OSG keeps a plane in
+        const osg::Vec3d normal = plane.getNormal();
+        return static_cast<float>((-normal.x() * static_cast<double>(nX) - normal.y() * static_cast<double>(nY)
+                                      - static_cast<double>(plane[3]))
+            / normal.z() * static_cast<double>(cellSize));
     }
 
     const LandObject* Storage::getLand(ESM::ExteriorCellLocation cellLocation, LandCache& cache)

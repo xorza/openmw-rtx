@@ -15,6 +15,7 @@
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
+#include <components/platform/thread.hpp>
 #include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
@@ -108,15 +109,15 @@ namespace RtxTool
         if (mWriter.isRunning())
             return;
 
-        mWriter.start([this](std::stop_token stop) {
+        mWriter.start([this](const Platform::StopToken& stop) {
             mMonitor.serve(
-                std::move(stop), [this] { return anyIn(RoomState::Waiting); },
+                stop, [this] { return anyIn(RoomState::Waiting); },
                 [this] {
                     mDeveloping = firstIn(RoomState::Waiting);
                     Crash::contract(mDeveloping != nullptr, "the Home writer picked up a picture with none waiting");
                     mDeveloping->mState = RoomState::Developing;
                 },
-                [this](std::stop_token) {
+                [this](const Platform::StopToken&) {
                     develop(*mDeveloping);
                     mMonitor.hand([this] { mDeveloping->mState = RoomState::Developed; });
                 });

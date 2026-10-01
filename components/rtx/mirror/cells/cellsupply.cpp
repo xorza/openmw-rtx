@@ -62,7 +62,7 @@ namespace Rtx
 
         mReader = std::make_unique<CellReader>(
             *mWorld.mStorage, *mWorld.mGround, *mWorld.mContent, mWorld.mWorldspace, mWorld.mMask);
-        mWorker.start([this](std::stop_token stop) { work(stop); });
+        mWorker.start([this](const Platform::StopToken& stop) { work(stop); });
     }
 
     void CellSupply::ask(const CellRequest& request)
@@ -125,7 +125,7 @@ namespace Rtx
         mReturned.mModels.clear();
     }
 
-    void CellSupply::work(std::stop_token stop)
+    void CellSupply::work(const Platform::StopToken& stop)
     {
         mMonitor.serve(
             stop, [&] { return !mWanted.empty() || !mReturned.empty(); },
@@ -134,14 +134,14 @@ namespace Rtx
                 mReading.take(mWanted);
                 mReadingAsked = mAsked;
             },
-            [&](std::stop_token turn) { read(turn); });
+            [&](const Platform::StopToken& turn) { read(turn); });
     }
 
-    void CellSupply::read(std::stop_token stop)
+    void CellSupply::read(const Platform::StopToken& stop)
     {
         for (const osg::Vec2i& cell : mReading.mCells)
         {
-            if (stop.stop_requested())
+            if (stop.stopRequested())
                 return;
 
             // A newer ask replaces this one: the eye has moved and what it lacks has changed. An ask

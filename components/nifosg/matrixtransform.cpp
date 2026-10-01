@@ -41,7 +41,7 @@ namespace NifOsg
             {
                 // Update the current decomposed rotation and restore the known scale.
                 mRotationScale.mValues[j][i] = static_cast<float>(_matrix(i, j)); // NB: column/row major difference
-                _matrix(i, j) *= static_cast<double>(mScale);
+                _matrix(i, j) *= static_cast<osg::Matrix::value_type>(mScale);
             }
         }
 

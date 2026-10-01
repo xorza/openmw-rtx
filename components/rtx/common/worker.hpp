@@ -6,9 +6,10 @@
 #include <exception>
 #include <functional>
 #include <mutex>
-#include <stop_token>
 #include <thread>
 #include <utility>
+
+#include <components/platform/thread.hpp>
 
 namespace Rtx
 {
@@ -28,7 +29,7 @@ namespace Rtx
         /// is what started it, so a caller that clears what the last run left knows it is not
         /// clearing a run in progress. `work` must give up on the stop token it is handed, or the
         /// join hangs; `Monitor::serve` and `repeat` are the two shapes that do.
-        bool start(std::function<void(std::stop_token)> work)
+        bool start(std::function<void(Platform::StopToken)> work)
         {
             if (mThread.joinable())
                 return false;
@@ -36,10 +37,11 @@ namespace Rtx
             // **The thread ends the way the one that started it would.** MSVC keeps a terminate
             // handler per thread and starts each new one on the default, which aborts and says
             // nothing; elsewhere there is one for the process, and this changes nothing.
-            mThread = std::jthread([onTerminate = std::get_terminate(), work = std::move(work)](std::stop_token stop) {
-                std::set_terminate(onTerminate);
-                work(std::move(stop));
-            });
+            mThread = Platform::Thread(
+                [onTerminate = std::get_terminate(), work = std::move(work)](Platform::StopToken stop) {
+                    std::set_terminate(onTerminate);
+                    work(std::move(stop));
+                });
             return true;
         }
 
@@ -49,30 +51,34 @@ namespace Rtx
         template <class Tick>
         bool repeat(std::chrono::milliseconds period, Tick tick)
         {
-            return start([period, tick = std::move(tick)](std::stop_token stop) {
+            return start([period, tick = std::move(tick)](Platform::StopToken stop) {
                 std::mutex idle;
-                std::condition_variable_any wake;
+                std::condition_variable wake;
+                const Platform::StopCallback woken(stop, [&] {
+                    const std::lock_guard lock(idle);
+                    wake.notify_all();
+                });
 
                 for (;;)
                 {
                     tick();
 
                     std::unique_lock<std::mutex> lock(idle);
-                    if (wake.wait_for(lock, stop, period, [&stop] { return stop.stop_requested(); }))
+                    if (wake.wait_for(lock, period, [&stop] { return stop.stopRequested(); }))
                         return;
                 }
             });
         }
 
         /// Stops and joins. Nothing where nothing is running.
-        void stop() { mThread = {}; }
+        void stop() { mThread.stop(); }
 
         /// Whether a thread is running: what a caller with state to set before the first tick
         /// asks, where `start`'s answer would come after it.
         bool isRunning() const { return mThread.joinable(); }
 
     private:
-        std::jthread mThread;
+        Platform::Thread mThread;
     };
 
     /// Which thread a member belongs to, asserted rather than written down. The check is the
