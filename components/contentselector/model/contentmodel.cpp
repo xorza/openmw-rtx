@@ -15,6 +15,7 @@
 #include <QIODevice>
 #include <QProgressDialog>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/esm/format.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm4/reader.hpp>
@@ -332,12 +333,10 @@ bool ContentSelectorModel::ContentModel::dropMimeData(
         beginRow = parent.row();
 
     int firstModifiable = 0;
-    while (const EsmFile* file = item(firstModifiable))
-    {
-        if (!file->builtIn() && !file->fromAnotherConfigFile())
-            break;
+    // The view takes drops from itself alone (`InternalMove`), and drags only modifiable files.
+    while (Crash::notNull(item(firstModifiable), "a drop onto a list with no modifiable file")->builtIn()
+        || item(firstModifiable)->fromAnotherConfigFile())
         ++firstModifiable;
-    }
 
     if (beginRow < firstModifiable)
         return false;
