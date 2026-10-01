@@ -25,10 +25,10 @@ from omw.system import (
     run,
 )
 
-FLAVOURS = ("debug", "release", "asan", "package", "plain")
+FLAVOURS = ("debug", "release", "asan", "package", "full")
 
 # The flavours that build the programs Qt draws: the launcher and the wizard, and the CS.
-QT_FLAVOURS = ("package", "plain")
+QT_FLAVOURS = ("package", "full")
 
 # The file a directory keeps the digest it was last configured from in.
 CONFIGURED_FROM = "omw-preset.sha256"
@@ -59,7 +59,7 @@ class Build:
     @property
     def default_targets(self) -> list[str]:
         """What `build` builds when the line names nothing, beside the tests the build has."""
-        if self.flavour in ("package", "plain"):
+        if self.flavour in ("package", "full"):
             return ["all"]
         return ["openmw-rtxtool", "openmw"]
 

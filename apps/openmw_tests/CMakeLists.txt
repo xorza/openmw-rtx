@@ -26,9 +26,21 @@ file(GLOB UNITTEST_SRC_FILES
     mwsound/testheadcache.cpp
     mwsound/testwarmqueue.cpp
 
+    mwrender/debugwalk.cpp
+    mwrender/frametimer.cpp
     mwrender/localmap.cpp
     mwrender/pixels.cpp
+    mwrender/precipitation.cpp
+    mwrender/readworld.cpp
     mwrender/renderer.cpp
+    mwrender/rtxrenderer.cpp
+    mwrender/rtxsettings.cpp
+    mwrender/tracedterrain.cpp
+    mwrender/waterstate.cpp
+    mwrender/worldmirror.cpp
+
+    ${OpenMW_SOURCE_DIR}/apps/components_tests/rtx/support/allocations.cpp
+    ${OpenMW_SOURCE_DIR}/apps/components_tests/rtx/support/fallbackseed.cpp
 )
 
 if (MSVC)
@@ -42,8 +54,6 @@ if (MSVC)
         COMPILE_OPTIONS /cgthreads1
     )
 endif()
-
-include(rtx.cmake)
 
 source_group(apps\\openmw-tests FILES ${UNITTEST_SRC_FILES})
 

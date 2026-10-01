@@ -1,14 +1,10 @@
 # What every build of the tree takes from its system before `omw` configures it: the Python `omw` runs
 # on, upstream's package list on Linux with what `omw` asks for there, the cache of what `omw` fetches
-# into deps/, and, for the builds of the ray tracer, `omw bootstrap`: the Vulkan SDK, fetched the way a
-# fresh desk fetches it.
+# into deps/, and `omw bootstrap`: the Vulkan SDK, fetched the way a fresh desk fetches it.
 name: OpenMW dependencies
 description: The packages and SDKs a build of the tree needs, per system.
 
 inputs:
-  sdks:
-    description: Whether to fetch the Vulkan SDK, which only the ray tracer's builds read.
-    default: "true"
   cache:
     description: Whether to restore and save the deps/ cache; false for a release.
     default: "true"
@@ -23,20 +19,19 @@ runs:
         python-version: "3.11"
 
     - name: Linux packages
-      # Upstream's own list, plus what `omw` asks for: Ninja and the system Google Test, and for the
-      # archive, Qt's Wayland platform and zsync — a few seconds on every run, so a job that packages
-      # needs nothing of its own.
+      # Upstream's list, plus Ninja, the system Google Test, the clang-format `omw build` checks with,
+      # and Qt's Wayland platform and zsync for the archive.
       if: runner.os == 'Linux'
       shell: bash
       run: |
         sudo add-apt-repository -y ppa:openmw/openmw
         sudo apt-get update
         sudo CI/install_debian_deps.sh gcc openmw-deps openmw-deps-dynamic
-        sudo apt-get install -y ninja-build libgtest-dev libgmock-dev qt6-wayland zsync
+        sudo apt-get install -y ninja-build libgtest-dev libgmock-dev qt6-wayland zsync clang-format-14
 
     - name: Vulkan SDK cache
       # On Linux, the SDK alone: the rest of deps/ is small, or fetched by one job only.
-      if: runner.os == 'Linux' && inputs.sdks == 'true' && inputs.cache == 'true'
+      if: runner.os == 'Linux' && inputs.cache == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: deps/vulkan-sdk-*
@@ -56,6 +51,5 @@ runs:
         restore-keys: deps-${{ runner.os }}-
 
     - name: The Vulkan SDK
-      if: inputs.sdks == 'true'
       shell: bash
       run: python omw bootstrap

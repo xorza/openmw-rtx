@@ -1,25 +1,19 @@
 {
     "version": 10,
     "$comment": [
-        "How a build of the ray tracer is configured, and how its tests run, in the form CMake and every IDE",
-        "read. `omw` is the one way in on the desk and in CI: it configures through these, fetches what a",
-        "system lacks first, and knows what each flavour is for once it is built. A visible preset is a",
-        "flavour on a system, named `<flavour>-<system>`, and inherits the flavour, the system and the common",
-        "ground, in that order: the earlier preset wins a variable both name. The hidden presets are the parts",
-        "and build nothing alone, and each flavour's names its directory, `build-<flavour>`, which is where",
-        "`omw` looks for it. Version 10, because it is the first that can carry a `$comment` beside each",
-        "decision."
+        "How the tree is configured and tested, as CMake, an IDE and `omw` read it. A visible preset is",
+        "`<flavour>-<system>` and inherits the flavour, the system and `common`, in that order: the earlier one wins",
+        "a variable both set. Hidden presets are parts. Each flavour builds in `build-<flavour>`. Version 10 is the",
+        "first that takes a `$comment`."
     ],
     "configurePresets": [
         {
-            "name": "rtx",
+            "name": "common",
             "hidden": true,
             "generator": "Ninja",
             "$comment": [
-                "Common to every flavour. The content tools upstream builds by default stay off where no flavour",
-                "reads them: the CS, the wizard and the two importers are Qt and ESM code this fork does not touch.",
-                "`omw setup` turns the ini importer on for the one build that writes an openmw.cfg. ccache drives",
-                "GCC and MSVC alike, and the compile database is what an editor reads."
+                "Every flavour. The CS, the wizard and the two importers stay off outside `full`; `omw setup` turns",
+                "the ini importer on. ccache drives GCC and MSVC, and the compile database is what an editor reads."
             ],
             "cacheVariables": {
                 "CMAKE_C_COMPILER_LAUNCHER": "ccache",
@@ -37,15 +31,13 @@
             "hidden": true,
             "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
             "$comment": [
-                "What Linux supplies: recastnavigation and Google Test as packages, and mold to link with.",
-                "`RelWithDebInfo` is `-O2 -g` here and not CMake's own, which carries `-DNDEBUG` and compiles",
-                "out every assert in the tree — the debug flavours are the one build anybody develops in.",
-                "**Static libraries are thin archives** (`ar T`), a list of the objects where they lie: the game's",
-                "is 1.3 GB of objects with their debug data, and copied whole it took six seconds of every build",
-                "that changed one of them, before any of the three programs on it could link. No library is",
-                "installed, so none has to carry its objects anywhere."
+                "Linux supplies recastnavigation, Google Test and mold. `RelWithDebInfo` is `-O2 -g`, not CMake's,",
+                "whose `-DNDEBUG` drops every assert. Static libraries are thin archives (`ar T`): copying the",
+                "game's 1.3 GB of objects cost six seconds of every relink, and no library is installed. Warnings",
+                "are errors through upstream's switch, which leaves `extern/` alone."
             ],
             "cacheVariables": {
+                "OPENMW_CXX_FLAGS": "-Werror",
                 "OPENMW_USE_SYSTEM_RECASTNAVIGATION": "ON",
                 "OPENMW_USE_SYSTEM_GOOGLETEST": "ON",
                 "CMAKE_EXE_LINKER_FLAGS_INIT": "-fuse-ld=mold",
@@ -62,20 +54,17 @@
             "hidden": true,
             "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
             "$comment": [
-                "What Windows supplies: upstream's prebuilt vcpkg set, which `omw` fetches into deps/ at the tag",
-                "CI/deps_versions.msvc.sh pins and names here through VCPKG_TAG. The set carries neither",
-                "recastnavigation, Google Test, SQLite nor yaml-cpp, so CMake fetches those, and no Qt, so the",
-                "launcher stays unbuilt. Its SDL2 is built without Vulkan and refuses the renderer's window at",
-                "runtime, so SDL's own package of the same version stands in, fetched beside the set and named",
-                "through RTX_SDL2_VERSION; vcpkg's copying of DLLs beside a binary is off, since it would put its",
-                "SDL2 back over SDL's on every link, and `omw` copies the runtime once. Upstream's precompiled",
-                "headers are off because ccache cannot see through them: with them on, 593 of 623 compiles of the",
-                "backend were 'could not use precompiled header' and the cache held nothing. `RelWithDebInfo` is",
-                "`-O2 -Z7`, MSVC's `-O2 -g`: MSVC's own carries `/DNDEBUG` exactly as GCC's carries `-DNDEBUG`,",
-                "and `-Z7` writes the debug data into the object, which is the one form ccache can cache.",
-                "Alone, without `omw` exporting the two versions, the paths below name nothing."
+                "Upstream's prebuilt vcpkg set, which `omw` fetches into deps/ at the tag CI/deps_versions.msvc.sh",
+                "pins (VCPKG_TAG). It lacks recastnavigation, Google Test, SQLite and yaml-cpp, which CMake fetches,",
+                "and Qt, so no launcher. Its SDL2 has no Vulkan, so SDL's own package of the same version stands in",
+                "(RTX_SDL2_VERSION); vcpkg's DLL copying is off, since it would put its SDL2 back, and `omw` copies",
+                "the runtime. Precompiled headers are off: ccache cannot cache through them (593 of 623 backend",
+                "compiles missed). `RelWithDebInfo` is `-O2 -Z7`: CMake's carries `/DNDEBUG`, and `-Z7` is the debug",
+                "format ccache can cache. Warnings are errors through upstream's switch. The paths name nothing",
+                "unless `omw` exports the two versions."
             ],
             "cacheVariables": {
+                "OPENMW_MSVC_WERROR": "ON",
                 "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/scripts/buildsystems/vcpkg.cmake",
                 "VCPKG_APPLOCAL_DEPS": "OFF",
                 "PRECOMPILE_HEADERS_WITH_MSVC": "OFF",
@@ -95,10 +84,8 @@
             "name": "no-tools",
             "hidden": true,
             "$comment": [
-                "The content tools and the launcher, off. A flavour that never runs them leaves them out: a",
-                "sanitizer build of Qt code this fork does not touch doubles the wait for nothing, and the",
-                "measured build builds what is measured. The debug flavour keeps them, so that the launcher's",
-                "own [RTX] page can be compiled on request."
+                "The content tools and the launcher off, for flavours that never run them. Debug keeps them, so the",
+                "launcher's [RTX] page can be built."
             ],
             "cacheVariables": {
                 "BUILD_BSATOOL": "OFF",
@@ -125,9 +112,8 @@
             "hidden": true,
             "inherits": [ "no-tools" ],
             "$comment": [
-                "`-O3 -DNDEBUG`, no tests: the build a number is quoted from. Nothing measured is measured",
-                "through a test. Each system adds the light debug data and the frame pointers a profiler",
-                "needs, in its own spelling, on the visible preset."
+                "`-O3 -DNDEBUG`, no tests: the build a number is quoted from. Each system adds line tables and frame",
+                "pointers on its visible preset."
             ],
             "binaryDir": "${sourceDir}/build-release",
             "cacheVariables": {
@@ -141,32 +127,27 @@
             "hidden": true,
             "inherits": [ "debug", "no-tools" ],
             "$comment": [
-                "The debug flavour under AddressSanitizer and UndefinedBehaviorSanitizer, the two upstream runs",
-                "its tests under. Linux only: MSVC has a sanitizer, and nobody has measured this tree under it.",
-                "The ASAN_OPTIONS without which there is no device, and the UBSAN_OPTIONS that make a finding a",
-                "failure, are its test preset's."
+                "Debug under AddressSanitizer and UndefinedBehaviorSanitizer, as upstream runs its tests. Linux",
+                "only: MSVC's sanitizer is unmeasured here. The options it needs are its test preset's. `-Wmaybe-",
+                "uninitialized` is off here alone: GCC's manual says `-fsanitize` gives it false positives, and GCC",
+                "16 reported libstdc++'s `std::regex`. Debug checks the same code."
             ],
             "binaryDir": "${sourceDir}/build-asan",
             "cacheVariables": {
-                "CMAKE_C_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer",
-                "CMAKE_CXX_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer"
+                "CMAKE_C_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer -Wno-maybe-uninitialized",
+                "CMAKE_CXX_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer -Wno-maybe-uninitialized"
             }
         },
         {
-            "name": "plain",
+            "name": "full",
             "hidden": true,
             "$comment": [
-                "The tree without the ray tracer, as upstream builds it: every program, the CS and its tests",
-                "among them, the three test suites and the benchmarks. What proves that the tree still builds and",
-                "passes upstream's own suites where the fork's renderer is not built, with the stub renderer and",
-                "`OPENMW_RTX=0` in place of the ray tracer. `OPENMW_CXX_FLAGS` comes from the environment, where CI",
-                "puts upstream's `-Werror` and a desk with a newer compiler puts nothing. Listed first among what",
-                "a visible preset inherits, so what it turns on beats what `rtx` and `windows` turn off."
+                "Every program, the CS and its tests among them, every suite and the benchmarks: what CI builds.",
+                "Listed first where inherited, so what it turns on beats what `common` and `windows` turn off."
             ],
-            "binaryDir": "${sourceDir}/build-plain",
+            "binaryDir": "${sourceDir}/build-full",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-                "OPENMW_RTX": "OFF",
                 "BUILD_OPENCS": "ON",
                 "BUILD_OPENCS_TESTS": "ON",
                 "BUILD_WIZARD": "ON",
@@ -175,20 +156,16 @@
                 "BUILD_MWINIIMPORTER": "ON",
                 "BUILD_COMPONENTS_TESTS": "ON",
                 "BUILD_OPENMW_TESTS": "ON",
-                "BUILD_BENCHMARKS": "ON",
-                "OPENMW_CXX_FLAGS": "$env{OPENMW_CXX_FLAGS}"
+                "BUILD_BENCHMARKS": "ON"
             }
         },
         {
             "name": "package",
             "hidden": true,
             "$comment": [
-                "What a release archive holds: the release build with every assert out, the launcher, the wizard",
-                "and the two importers a player meets, and no tests. `OPENMW_LOCAL_INSTALL` is upstream's portable",
-                "layout, everything in one directory with relative paths, which is what the archive is; the",
-                "binaries find their openmw.cfg beside themselves wherever the directory is put. The CS stays off,",
-                "as the `rtx` preset says. Listed first among what a visible preset inherits, so what it turns",
-                "on beats what `windows` turns off."
+                "A release archive: release without tests, with the launcher, the wizard and the two importers, and",
+                "no CS. `OPENMW_LOCAL_INSTALL` is upstream's portable layout, everything in one directory. Listed",
+                "first where inherited, so what it turns on beats what `windows` turns off."
             ],
             "binaryDir": "${sourceDir}/build-package",
             "cacheVariables": {
@@ -204,25 +181,25 @@
         },
         {
             "name": "debug-linux",
-            "inherits": [ "debug", "linux", "rtx" ],
-            "$comment": "The test binaries at `-Og`, which `cmake/Tests.cmake` says why of.",
+            "inherits": [ "debug", "linux", "common" ],
+            "$comment": [
+                "The test binaries at `-Og`: `cmake/Tests.cmake` says why."
+            ],
             "cacheVariables": {
                 "OPENMW_TEST_COMPILE_OPTIONS": "-Og"
             }
         },
         {
             "name": "debug-windows",
-            "inherits": [ "debug", "windows", "rtx" ]
+            "inherits": [ "debug", "windows", "common" ]
         },
         {
             "name": "release-linux",
-            "inherits": [ "release", "linux", "rtx" ],
+            "inherits": [ "release", "linux", "common" ],
             "$comment": [
-                "`-g1` is line tables and nothing else, so it costs nothing at runtime and a profile can name a",
-                "line rather than an offset; the frame pointers cost less than the run-to-run spread and are",
-                "what let perf walk a stack for the price of reading it. Both on the measured build rather",
-                "than on a profiling build beside it, because two binaries means the profile explains a frame",
-                "the benchmark did not time."
+                "`-g1` line tables cost nothing at runtime and let a profile name a line; frame pointers cost less",
+                "than the run-to-run spread and let perf walk the stack. On the measured build, so a profile",
+                "explains the frames the benchmark timed."
             ],
             "cacheVariables": {
                 "CMAKE_C_FLAGS_INIT": "-g1 -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer",
@@ -231,13 +208,11 @@
         },
         {
             "name": "release-windows",
-            "inherits": [ "release", "windows", "rtx" ],
+            "inherits": [ "release", "windows", "common" ],
             "$comment": [
-                "`-Z7` with `-DEBUG` at link is the line table a profiler names a line from, and `-Oy-` keeps the",
-                "frame pointers a stack walk reads. Spelt with a dash, which every Microsoft tool takes, because",
-                "Git Bash turns `/O2` into `C:/Program Files/Git/O2` on its way to cmake. Through",
-                "`CMAKE_<LANG>_FLAGS_INIT`, which CMake appends its platform's own to — `/EHsc` and `/machine:x64`",
-                "among them — where `CMAKE_<LANG>_FLAGS` set outright would drop them."
+                "`-Z7` with `-DEBUG` gives a profiler line tables, and `-Oy-` keeps frame pointers. Dashes, because",
+                "Git Bash turns `/O2` into a path. In `CMAKE_<LANG>_FLAGS_INIT`, so CMake still appends its own",
+                "(`/EHsc`, `/machine:x64`)."
             ],
             "cacheVariables": {
                 "CMAKE_C_FLAGS_INIT": "-Z7 -Oy-",
@@ -247,15 +222,15 @@
         },
         {
             "name": "asan-linux",
-            "inherits": [ "asan", "linux", "rtx" ]
+            "inherits": [ "asan", "linux", "common" ]
         },
         {
-            "name": "plain-linux",
-            "inherits": [ "plain", "linux", "rtx" ]
+            "name": "full-linux",
+            "inherits": [ "full", "linux", "common" ]
         },
         {
-            "name": "plain-windows",
-            "inherits": [ "plain", "windows", "rtx" ],
+            "name": "full-windows",
+            "inherits": [ "full", "windows", "common" ],
             "$comment": "Qt for the CS, the launcher and the wizard, and the link-time optimisation upstream's Windows build takes.",
             "cacheVariables": {
                 "CMAKE_PREFIX_PATH": "${sourceDir}/deps/Qt/$env{QT_VER}/msvc2019_64",
@@ -264,11 +239,10 @@
         },
         {
             "name": "package-linux",
-            "inherits": [ "package", "linux", "rtx" ],
+            "inherits": [ "package", "linux", "common" ],
             "$comment": [
-                "`-g1`, function names and line tables and nothing else, for the symbols `omw archive`",
-                "publishes beside the AppImage: a player's crash dump then names a function and a line. It costs",
-                "nothing at runtime."
+                "`-g1` for the symbols `omw archive` publishes, so a player's crash dump names a function and a",
+                "line. No runtime cost."
             ],
             "cacheVariables": {
                 "CMAKE_C_FLAGS_INIT": "-g1",
@@ -277,12 +251,11 @@
         },
         {
             "name": "package-windows",
-            "inherits": [ "package", "windows", "rtx" ],
+            "inherits": [ "package", "windows", "common" ],
             "$comment": [
-                "Qt, which the set has none of and the launcher and the wizard are made of: the one `omw` fetches",
-                "into deps/ for this flavour, by the version CI/deps_versions.msvc.sh pins and exports as QT_VER.",
-                "`-Z7` with `-DEBUG` at link writes each executable's PDB beside it in the build, for the symbols",
-                "`omw archive` publishes beside the folder; the install rules leave the PDBs behind."
+                "Qt for the launcher and the wizard, which `omw` fetches into deps/ at QT_VER. `-Z7` with `-DEBUG`",
+                "writes each PDB beside its executable, for the symbols `omw archive` publishes; the install leaves",
+                "them out."
             ],
             "cacheVariables": {
                 "CMAKE_C_FLAGS_INIT": "-Z7",
@@ -297,8 +270,7 @@
             "name": "tests",
             "hidden": true,
             "$comment": [
-                "What every run of the suites `cmake/Tests.cmake` registers shares: a failing test's output on the",
-                "page, and a build that registers none a failure rather than a pass. `omw test` picks the labels."
+                "Every test run: a failing test's output shown, and a build that registers no test is a failure."
             ],
             "output": { "outputOnFailure": true },
             "execution": { "noTestsAction": "error" }
@@ -307,16 +279,11 @@
             "name": "sanitizers",
             "hidden": true,
             "$comment": [
-                "**`protect_shadow_gap=0` is not a preference: without it there is no device at all.** The NVIDIA",
-                "driver maps its own enormous address ranges, ASan's shadow gap is mapped `PROT_NONE` across part of",
-                "what it wants, and `vkCreateDevice` comes back `VK_ERROR_INITIALIZATION_FAILED`, which every RTX",
-                "test would read as a skip. What it costs is the guard page that catches a wild pointer landing in",
-                "the gap. **The leak check is off, since the driver's allocations are not this fork's**: the",
-                "driver, the loader, the layers and dbus keep a heap for the life of the process, and each would be",
-                "reported with a stack the fork does not appear in. A finding is a failure, with the stack that led",
-                "to it, as upstream runs its tests. What the caller's own environment names comes last and wins:",
-                "`ASAN_OPTIONS=detect_leaks=1` turns the leak check back on. `omw` runs every program of the asan",
-                "flavour under this, and not the tests alone."
+                "`protect_shadow_gap=0` is required: ASan's shadow gap covers part of what the NVIDIA driver maps,",
+                "and `vkCreateDevice` fails, which the RTX tests would read as a skip. The leak check is off,",
+                "because the driver, the loader, the layers and dbus hold heaps for the life of the process;",
+                "`ASAN_OPTIONS=detect_leaks=1` from the environment turns it back on. A finding fails the run. `omw`",
+                "runs every asan program under these."
             ],
             "environment": {
                 "ASAN_OPTIONS": "protect_shadow_gap=0:detect_leaks=0:$penv{ASAN_OPTIONS}",
@@ -326,7 +293,7 @@
         { "name": "debug-linux", "configurePreset": "debug-linux", "inherits": [ "tests" ] },
         { "name": "debug-windows", "configurePreset": "debug-windows", "inherits": [ "tests" ] },
         { "name": "asan-linux", "configurePreset": "asan-linux", "inherits": [ "tests", "sanitizers" ] },
-        { "name": "plain-linux", "configurePreset": "plain-linux", "inherits": [ "tests" ] },
-        { "name": "plain-windows", "configurePreset": "plain-windows", "inherits": [ "tests" ] }
+        { "name": "full-linux", "configurePreset": "full-linux", "inherits": [ "tests" ] },
+        { "name": "full-windows", "configurePreset": "full-windows", "inherits": [ "tests" ] }
     ]
 }

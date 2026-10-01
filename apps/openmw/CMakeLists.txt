@@ -26,7 +26,15 @@ add_openmw_dir (mwrender
     actorutil distortion animationpriority bonegroup blendmask animblendcontroller
     )
 
-include(mwrender/renderers.cmake)
+# The renderer seam, `MWRender::Renderer`, with the rasterizer beside it and the ray tracer in `rtx/`.
+add_openmw_dir (mwrender
+    renderer sceneframe framedescriber skystate ripplerules objectstorage ground glground glrenderer glworld
+    gloffscreenview glmapoverlay mapoverlay pixels
+    )
+add_openmw_dir (mwrender/rtx
+    classmasks debugwalk framereport frametimer rippleemitters rtxrenderer rtxrun rtxsettings rtxwindow skyreader
+    tracedground tracedoverlay tracedterrain tracedview viewqueue worldmirror
+    )
 
 add_openmw_dir (mwinput
     actions actionmanager bindingsmanager controllermanager controlswitch
@@ -125,8 +133,13 @@ add_library(openmw-lib STATIC
     ${OPENMW_SOURCES}
 )
 
-if (OPENMW_RTX)
-    target_link_libraries(openmw-lib openmw-rtx openmw-rtx-vulkan openmw-rtx-mygui)
+target_link_libraries(openmw-lib openmw-rtx-vulkan)
+
+# GCC reports an uninitialised value inside sol3's stack code inlined here, which no change to these
+# files removes; each loses only the check that fires.
+if (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
+    set_property(SOURCE mwlua/contentbindings.cpp APPEND PROPERTY COMPILE_OPTIONS -Wno-uninitialized)
+    set_property(SOURCE mwmechanics/character.cpp APPEND PROPERTY COMPILE_OPTIONS -Wno-maybe-uninitialized)
 endif()
 
 if (MSVC)

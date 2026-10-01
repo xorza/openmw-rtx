@@ -6,7 +6,7 @@ at the first failure — so a formatting slip is found in seconds and not after 
 
 import unittest
 
-from omw import formatting, testing
+from omw import formatting, listing, testing
 from omw.build import Build
 from omw.repeat import repeat
 from omw.system import ROOT, Refusal
@@ -22,8 +22,6 @@ def self_test() -> bool:
 def gate(build: Build, args: list[str]) -> int:
     if args:
         raise Refusal("gate takes no arguments")
-    if build.flavour == "plain":
-        raise Refusal("the gate is the ray tracer's, and the plain build has none: `omw plain test`")
     if formatting.format_tree(["--check"]) != 0:
         return 1
     if not self_test():
@@ -31,12 +29,13 @@ def gate(build: Build, args: list[str]) -> int:
 
     targets = build.test_targets()
     build.build(build.default_targets + targets)
+    if listing.check(build) != 0:
+        return 1
 
-    # **The fork's own targets, compiled the way a number is taken.** `-DNDEBUG` compiles every
-    # assert out, and a diagnostic that fires only once the assert is gone — a lookup the optimizer
-    # can now prove reaches a null — is one the debug build never sees. Every target the fork owns,
-    # since the flags that make a warning an error reach each of them.
-    Build("release").build(["openmw-rtx-all"])
+    # The release build too: without its asserts, the optimizer proves paths the debug build never
+    # shows a warning on, such as a lookup that can now reach a null.
+    release = Build("release")
+    release.build(release.default_targets)
 
     if targets:
         if testing.test(build, []) != 0:

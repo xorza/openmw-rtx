@@ -12,6 +12,8 @@ WINDOWS = os.name == "nt"
 # The system's half of a preset's name.
 SYSTEM = "windows" if WINDOWS else "linux"
 EXE = ".exe" if WINDOWS else ""
+# Set by GitHub Actions, as by every CI service: CI checks what the desk rewrites.
+CI = os.environ.get("CI", "").lower() in ("true", "1")
 
 
 class Refusal(Exception):

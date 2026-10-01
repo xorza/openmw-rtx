@@ -8,6 +8,8 @@ brew tap --repair
 brew update --quiet
 
 brew install curl p7zip
+# The Vulkan backend compiles here though no Mac traces rays: the loader, headers, glslc and SPIR-V tools.
+brew install vulkan-headers vulkan-loader shaderc spirv-tools spirv-headers
 
 if [[ "${MACOS_AMD64}" ]]; then
     VCPKG_FILE="vcpkg-x64-osx-dynamic"
