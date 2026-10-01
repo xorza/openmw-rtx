@@ -136,6 +136,22 @@
             }
         },
         {
+            "name": "tsan",
+            "hidden": true,
+            "inherits": [ "debug", "no-tools" ],
+            "$comment": [
+                "Debug under ThreadSanitizer, which cannot share a build with AddressSanitizer: the races between the",
+                "threads the ray tracer keeps, the cell reader, the workers and the harness's instruments. Linux only,",
+                "as asan is, and the same two warnings off, for the same reason. The options it needs are its test",
+                "preset's."
+            ],
+            "binaryDir": "${sourceDir}/build-tsan",
+            "cacheVariables": {
+                "CMAKE_C_FLAGS_INIT": "-fsanitize=thread -fno-omit-frame-pointer -Wno-maybe-uninitialized -Wno-stringop-overread",
+                "CMAKE_CXX_FLAGS_INIT": "-fsanitize=thread -fno-omit-frame-pointer -Wno-maybe-uninitialized -Wno-stringop-overread"
+            }
+        },
+        {
             "name": "full",
             "hidden": true,
             "$comment": [
@@ -222,6 +238,10 @@
             "inherits": [ "asan", "linux", "common" ]
         },
         {
+            "name": "tsan-linux",
+            "inherits": [ "tsan", "linux", "common" ]
+        },
+        {
             "name": "full-linux",
             "inherits": [ "full", "linux", "common" ]
         },
@@ -280,7 +300,7 @@
             "execution": { "noTestsAction": "error", "timeout": 300 }
         },
         {
-            "name": "sanitizers",
+            "name": "address-sanitizer",
             "hidden": true,
             "$comment": [
                 "`protect_shadow_gap=0` is required: ASan's shadow gap covers part of what the NVIDIA driver maps,",
@@ -294,9 +314,21 @@
                 "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1:$penv{UBSAN_OPTIONS}"
             }
         },
+        {
+            "name": "thread-sanitizer",
+            "hidden": true,
+            "$comment": [
+                "A race fails the run, as an AddressSanitizer finding does, and its report keeps the stack of the",
+                "other side's lock as well. `omw` runs every tsan program under these."
+            ],
+            "environment": {
+                "TSAN_OPTIONS": "halt_on_error=1:second_deadlock_stack=1:$penv{TSAN_OPTIONS}"
+            }
+        },
         { "name": "debug-linux", "configurePreset": "debug-linux", "inherits": [ "tests" ] },
         { "name": "debug-windows", "configurePreset": "debug-windows", "inherits": [ "tests" ] },
-        { "name": "asan-linux", "configurePreset": "asan-linux", "inherits": [ "tests", "sanitizers" ] },
+        { "name": "asan-linux", "configurePreset": "asan-linux", "inherits": [ "tests", "address-sanitizer" ] },
+        { "name": "tsan-linux", "configurePreset": "tsan-linux", "inherits": [ "tests", "thread-sanitizer" ] },
         { "name": "full-linux", "configurePreset": "full-linux", "inherits": [ "tests" ] },
         { "name": "full-windows", "configurePreset": "full-windows", "inherits": [ "tests" ] }
     ]

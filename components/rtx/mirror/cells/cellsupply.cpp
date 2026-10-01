@@ -1,5 +1,8 @@
 #include "cellsupply.hpp"
 
+#include <algorithm>
+#include <vector>
+
 #include <components/crashcatcher/crashnote.hpp>
 
 #include "cellreader.hpp"
@@ -54,6 +57,10 @@ namespace Rtx
         mReturning.clear();
         mRecycling.clear();
         mMeasured = ReaderMemory{};
+        mTakes = 0;
+        mWantedTakes = 0;
+        mReadingTakes = 0;
+        mOnTheWay.clear();
         mReader.reset();
 
         mWorld = world;
@@ -78,6 +85,7 @@ namespace Rtx
         mMonitor.give([&] {
             mWanted = request;
             ++mAsked;
+            mWantedTakes = mTakes;
         });
     }
 
@@ -88,6 +96,7 @@ namespace Rtx
         mMonitor.under([&] {
             into.insert(into.end(), mDone.begin(), mDone.end());
             mDone.clear();
+            ++mTakes;
         });
     }
 
@@ -137,6 +146,10 @@ namespace Rtx
                 mRecycling.take(mReturned);
                 mReading.take(mWanted);
                 mReadingAsked = mAsked;
+                mReadingTakes = mWantedTakes;
+
+                // What a take carried before this ask was made, the ask knew of.
+                std::erase_if(mOnTheWay, [&](const Handed& handed) { return handed.mTakes < mReadingTakes; });
             },
             [&](const Platform::StopToken& turn) {
                 recycle();
@@ -162,6 +175,10 @@ namespace Rtx
             if (newer)
                 return;
 
+            if (std::any_of(mOnTheWay.begin(), mOnTheWay.end(),
+                    [&](const Handed& handed) { return handed.mCell == cell && handed.mStatics == mReading.mStatics; }))
+                continue;
+
             const Crash::NoteScope noted("reading the cell {}, {}", cell.x(), cell.y());
             PreparedCell& made = mReader->read(cell, mReading.mStatics);
             const ReaderMemory measured = mReader->measure();
@@ -169,6 +186,7 @@ namespace Rtx
             mMonitor.hand([&] {
                 mDone.push_back(&made);
                 mMeasured = measured;
+                mOnTheWay.push_back(Handed{ .mCell = cell, .mStatics = mReading.mStatics, .mTakes = mTakes });
             });
         }
     }

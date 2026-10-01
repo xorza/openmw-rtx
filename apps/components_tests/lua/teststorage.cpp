@@ -5,6 +5,7 @@
 
 #include <components/lua/asyncpackage.hpp>
 #include <components/lua/storage.hpp>
+#include <components/testing/util.hpp>
 
 namespace
 {
@@ -100,7 +101,7 @@ namespace
             lua.safe_script("permanent:set('x', 1)");
             lua.safe_script("temporary:set('y', 2)");
 
-            const auto tmpFile = std::filesystem::temp_directory_path() / "test_storage.bin";
+            const auto tmpFile = TestingOpenMW::outputFilePath("test_storage.bin");
             storage.save(lua, tmpFile);
             EXPECT_EQ(get<int>(lua, "permanent:get('x')"), 1);
             EXPECT_EQ(get<int>(lua, "temporary:get('y')"), 2);
@@ -135,7 +136,7 @@ namespace
             auto& lua = view.sol();
             storage.setActive(true);
 
-            const auto tmpFile = std::filesystem::temp_directory_path() / "test_invalid_storage.bin";
+            const auto tmpFile = TestingOpenMW::outputFilePath("test_invalid_storage.bin");
             {
                 std::ofstream fout(tmpFile, std::ios::binary);
                 const std::string serialized = LuaUtil::serialize(sol::make_object(lua.lua_state(), 1.0));

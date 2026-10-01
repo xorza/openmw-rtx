@@ -25,7 +25,10 @@ from omw.system import (
     run,
 )
 
-FLAVOURS = ("debug", "release", "asan", "package", "full")
+FLAVOURS = ("debug", "release", "asan", "tsan", "package", "full")
+
+# The flavours under a sanitizer, which MSVC's has not been measured for on this tree.
+SANITIZED = ("asan", "tsan")
 
 # The flavours that build the programs Qt draws: the launcher and the wizard, and the CS.
 QT_FLAVOURS = ("package", "full")
@@ -48,8 +51,8 @@ class Build:
     def __init__(self, flavour: str):
         if flavour not in FLAVOURS:
             raise Refusal(f"no flavour is called {flavour!r}: {', '.join(FLAVOURS)}")
-        if flavour == "asan" and WINDOWS:
-            raise Refusal("asan is Linux's here: MSVC's sanitizer has not been measured on this tree")
+        if flavour in SANITIZED and WINDOWS:
+            raise Refusal(f"{flavour} is Linux's here: MSVC's sanitizers have not been measured on this tree")
         self.flavour = flavour
         self.dir = ROOT / f"build-{flavour}"
         self.preset = f"{flavour}-{SYSTEM}"
@@ -67,7 +70,8 @@ class Build:
     def env(self) -> dict[str, str]:
         """The environment every command of this flavour runs under: the Vulkan SDK `omw bootstrap`
         fetched, MSVC's and the versions the Windows presets read, and the test preset's own — the
-        sanitizers' options, without which the asan build has no device."""
+        sanitizers' options, without which the asan build has no device and a race in the tsan build
+        does not fail the run."""
         if self._env is None:
             env = dict(os.environ)
             deps.sdk_environment(env)

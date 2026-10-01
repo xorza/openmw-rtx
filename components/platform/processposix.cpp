@@ -1,10 +1,13 @@
 #include "process.hpp"
 
+#include <cerrno>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
 #include <string>
 #include <string_view>
 
+#include <signal.h>
 #include <sys/resource.h>
 #include <unistd.h>
 
@@ -40,6 +43,16 @@ namespace Platform::Process
     std::uint32_t currentId()
     {
         return static_cast<std::uint32_t>(getpid());
+    }
+
+    bool isRunning(const std::uint32_t id)
+    {
+        if (id == 0 || id > static_cast<std::uint32_t>(std::numeric_limits<pid_t>::max()))
+            return false;
+
+        // Signal nought checks and sends nothing; a process of another user answers "not permitted",
+        // which is an answer about a process that exists.
+        return kill(static_cast<pid_t>(id), 0) == 0 || errno == EPERM;
     }
 
     std::uint64_t currentThreadId()

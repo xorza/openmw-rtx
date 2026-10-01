@@ -1,9 +1,13 @@
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <string>
 
 #include <gtest/gtest.h>
 
+#include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
+#include <components/testing/util.hpp>
 
 namespace
 {
@@ -28,5 +32,25 @@ namespace
         EXPECT_EQ(exited.describe(), "exit code 3");
 
         EXPECT_TRUE(Platform::Process::runShell("exit 0").succeeded());
+    }
+
+    /// **A process runs until it ends, and an id no process has is no process**: this one, then a
+    /// PowerShell that wrote its own id and exited — `cmd` has no way to say its own — then nought.
+    TEST(RtxPlatformProcessTest, aProcessIsRunningUntilItEnds)
+    {
+        EXPECT_TRUE(Platform::Process::isRunning(Platform::Process::currentId()));
+
+        const std::filesystem::path written = TestingOpenMW::outputFilePath("ended-shell-id");
+        ASSERT_TRUE(
+            Platform::Process::runShell("powershell -NoProfile -NonInteractive -Command \"Set-Content "
+                                        "-Encoding ascii -LiteralPath '"
+                + Files::pathToUnicodeString(written) + "' -Value $PID\"")
+                .succeeded());
+        std::uint32_t ended = 0;
+        std::ifstream(written) >> ended;
+        ASSERT_NE(ended, 0u) << "the shell wrote no id";
+        EXPECT_FALSE(Platform::Process::isRunning(ended));
+
+        EXPECT_FALSE(Platform::Process::isRunning(0));
     }
 }

@@ -1,5 +1,7 @@
 #include <array>
 #include <filesystem>
+#include <format>
+#include <fstream>
 #include <optional>
 #include <set>
 #include <stdexcept>
@@ -18,6 +20,8 @@
 #include <apps/rtxtool/run.hpp>
 #include <apps/rtxtool/verbs.hpp>
 #include <components/files/configurationmanager.hpp>
+#include <components/files/conversion.hpp>
+#include <components/platform/process.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/testing/util.hpp>
 
@@ -320,6 +324,38 @@ namespace RtxTool
                 << "after what the command line named, so it is the one the engine saves into";
 
             std::filesystem::remove_all(own);
+        }
+
+        /// **A run's own directory is this process's, and the same one every time it is asked**:
+        /// under `rtxtool`, named `<time>-<process id>`.
+        TEST(RtxOwnConfigTest, aRunsDirectoryIsItsOwn)
+        {
+            const Files::ConfigurationManager config;
+            const std::filesystem::path own = ownConfigDirectory(config);
+            EXPECT_EQ(own, ownConfigDirectory(config)) << "one directory for the whole run";
+            EXPECT_EQ(own.parent_path(), config.getCachePath() / "rtxtool");
+            EXPECT_TRUE(Files::pathToUnicodeString(own.filename())
+                            .ends_with(std::format("-{}", Platform::Process::currentId())));
+        }
+
+        /// **Only the directory of a run whose process has ended is swept**: process nought, which no
+        /// system hands out, has ended; this one has not; and a name that is not `<time>-<process
+        /// id>`, or a file, is not a run's whatever it says.
+        TEST(RtxOwnConfigTest, onlyTheDirectoryOfARunThatEndedIsSwept)
+        {
+            const std::filesystem::path runs = TestingOpenMW::currentTestDirPath();
+            const std::string running = std::format("6-{}", Platform::Process::currentId());
+            for (const std::string& name : std::vector<std::string>{ "5-0", running, "notes", "7-12x", "-3", "8-" })
+                std::filesystem::create_directories(runs / name / "settings");
+            std::ofstream(runs / "9-0") << "a file";
+
+            sweepEndedRuns(runs);
+
+            EXPECT_FALSE(std::filesystem::exists(runs / "5-0")) << "an ended run's directory stayed";
+            for (const std::string& name : std::vector<std::string>{ running, "notes", "7-12x", "-3", "8-", "9-0" })
+                EXPECT_TRUE(std::filesystem::exists(runs / name)) << name << " was swept";
+
+            std::filesystem::remove_all(runs);
         }
     }
 }

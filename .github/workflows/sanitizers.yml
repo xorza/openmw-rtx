@@ -4,7 +4,10 @@
 # The sanitizers are upstream's, from its GitLab pipeline: AddressSanitizer and
 # UndefinedBehaviorSanitizer over its suites, with a finding a failure. Here the fork's `asan` flavour,
 # which carries both, over upstream's suites and the fork's own, without a device as every hosted run
-# is. Linux alone, because the flavour is: the Windows archive a release ships is not sanitized.
+# is. **And ThreadSanitizer beside them**, the `tsan` flavour, for the threads the fork keeps — the
+# cell reader, the workers, the harness's instruments — and a build of its own, because it cannot share
+# one with AddressSanitizer. Linux alone, because both flavours are: the Windows archive a release
+# ships is not sanitized.
 name: Sanitizers
 
 on:
@@ -28,12 +31,17 @@ permissions: {}
 
 jobs:
   sanitizers:
-    name: sanitizers
+    name: sanitizers (${{ matrix.flavour }})
     runs-on: ubuntu-24.04
     permissions:
       contents: read
     # A cold build is an hour and a half, which is what a release, with no cache, always has.
     timeout-minutes: 180
+    # Each sanitizer finds what the other cannot, so one failing says nothing about the other.
+    strategy:
+      fail-fast: false
+      matrix:
+        flavour: [asan, tsan]
     defaults:
       run:
         shell: bash
@@ -41,6 +49,8 @@ jobs:
       # A filter that matches nothing is a failure and not a pass, on a Google Test that reads this;
       # an older one ignores it. Here and not in the callers, whose `env` a called workflow does not see.
       GTEST_FAIL_IF_NO_TEST_SELECTED: "1"
+      # Read by the steps from the environment, never spliced into their scripts.
+      FLAVOUR: ${{ matrix.flavour }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -57,23 +67,23 @@ jobs:
         with:
           # Two gigabytes: at one, the sanitized objects of every suite filled the cache
           # and evicted 335 times over a run.
-          key: sanitizers
+          key: sanitizers-${{ matrix.flavour }}
           max-size: 2000M
           save: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Build
-        run: python omw asan build
+        run: python omw "$FLAVOUR" build
 
       - name: Test
         # Shuffled, as every suite is: the test preset sets `GTEST_SHUFFLE`.
-        run: python omw asan test --without-device
+        run: python omw "$FLAVOUR" test --without-device
 
       - name: Logs
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: logs-sanitizers-${{ github.sha }}
+          name: logs-sanitizers-${{ matrix.flavour }}-${{ github.sha }}
           path: |
-            build-asan/CMakeCache.txt
-            build-asan/**/*.log
-            build-asan/crash-matrix/
+            build-${{ matrix.flavour }}/CMakeCache.txt
+            build-${{ matrix.flavour }}/**/*.log
+            build-${{ matrix.flavour }}/crash-matrix/

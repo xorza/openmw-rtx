@@ -7,8 +7,10 @@
 
 #include <apps/rtxtool/compare.hpp>
 #include <components/files/conversion.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/png.hpp>
+#include <components/testing/util.hpp>
 
 namespace RtxTool
 {
@@ -30,14 +32,18 @@ namespace RtxTool
         /// **A shot is refused against the directory it writes**, however the two are spelled: the
         /// pictures land over their references before either is read, so every one would judge the
         /// same. Another directory, one that does not exist yet, and no `--against` at all are not.
+        ///
+        /// **In a directory of this run's own**, because one shared by name was removed under this
+        /// test by another copy of the binary running beside it.
         TEST(RtxCompareTest, aRunIsNotComparedAgainstWhatItWrites)
         {
-            const std::filesystem::path root = std::filesystem::temp_directory_path() / "openmw-rtxtool-check-against";
-            std::filesystem::remove_all(root);
+            const std::filesystem::path root = TestingOpenMW::currentTestDirPath();
             std::filesystem::create_directories(root / "shot");
             std::filesystem::create_directories(root / "before");
 
-            EXPECT_EQ(checkAgainst(root / "shot", root / "shot").error(),
+            const Misc::Result<void, std::string> itself = checkAgainst(root / "shot", root / "shot");
+            ASSERT_FALSE(itself.isOk()) << "a run compared against the directory it writes";
+            EXPECT_EQ(itself.error(),
                 "--against=" + Files::pathToUnicodeString(root / "shot")
                     + " is where this run writes; name another --out");
             EXPECT_FALSE(checkAgainst(root / "shot", root / "before" / ".." / "shot").isOk())
