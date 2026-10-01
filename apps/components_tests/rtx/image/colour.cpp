@@ -183,5 +183,30 @@ namespace Rtx
             EXPECT_EQ(Shaders::contrastScale(-0.01f, 0.5f), 1.0f) << "nor has less than black";
             EXPECT_EQ(Shaders::contrastScale(1.0e-39f, 0.5f), 1.0f) << "nor has a subnormal a device may flush";
         }
+
+        /// The display gamma: a gamma of one gives every stored value back to the bit, black and
+        /// white stay where they are, and a value between moves to its power of one over the gamma.
+        ///
+        /// At a gamma of two a quarter is lifted to its square root, a half; at a half a half is
+        /// lowered to its square, a quarter.
+        TEST(RtxDisplayGammaTest, oneIsTheValueTheEndsHoldAndBetweenIsThePower)
+        {
+            for (std::uint32_t stored = 0; stored < 256; ++stored)
+            {
+                const float encoded = static_cast<float>(stored) / 255.0f;
+                EXPECT_EQ(Shaders::displayGamma(encoded, 1.0f), encoded) << "at " << stored;
+            }
+
+            for (const float gamma : { 0.1f, 0.5f, 2.0f, 3.0f })
+            {
+                EXPECT_EQ(Shaders::displayGamma(0.0f, 1.0f / gamma), 0.0f) << "black moved at " << gamma;
+                EXPECT_EQ(Shaders::displayGamma(1.0f, 1.0f / gamma), 1.0f) << "white moved at " << gamma;
+            }
+
+            EXPECT_FLOAT_EQ(Shaders::displayGamma(0.25f, 1.0f / 2.0f), 0.5f);
+            EXPECT_FLOAT_EQ(Shaders::displayGamma(0.5f, 1.0f / 0.5f), 0.25f);
+            EXPECT_GT(Shaders::displayGamma(0.25f, 1.0f / 2.0f), Shaders::displayGamma(0.25f, 1.0f / 1.5f))
+                << "a greater gamma did not lift the value further";
+        }
     }
 }

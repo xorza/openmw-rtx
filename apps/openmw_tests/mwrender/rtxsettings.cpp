@@ -1,3 +1,5 @@
+#include <limits>
+
 #include <gtest/gtest.h>
 
 #include <apps/openmw/mwrender/rtx/rtxsettings.hpp>
@@ -22,6 +24,7 @@ namespace MWRender
                 .mObjectPagingMinSize = 0.025f,
                 .mSpecularMapLayout = "metal roughness",
                 .mAnisotropy = 8,
+                .mGamma = 1.5f,
             };
         }
 
@@ -52,6 +55,7 @@ namespace MWRender
             EXPECT_EQ(derived.mMirror.mMinSize, 0.025f);
             EXPECT_EQ(derived.mMirror.mSpecularLayout, Rtx::SpecularLayout::MetalRoughness);
             EXPECT_EQ(derived.mAnisotropy, 8u);
+            EXPECT_EQ(derived.mGamma, 1.5f);
 
             RtxSettingValues handedBack = valid();
             handedBack.mDistantLandCells = 0.0f;
@@ -76,6 +80,26 @@ namespace MWRender
             RtxSettingValues layout = valid();
             layout.mSpecularMapLayout = "classic";
             EXPECT_THROW(RtxSettings::derive(layout), Rtx::InputError);
+        }
+
+        /// A gamma that is not a finite number over nought is refused: nought and less raise the
+        /// picture to no power or a negative one, an infinite one to the power of nought, which is
+        /// white, and neither a written
+        /// `inf` nor a harness's line has a sanitizer in front of it that stops it.
+        TEST(RtxSettingsTest, aGammaThatIsNotOverNoughtIsRefused)
+        {
+            for (const float gamma :
+                { 0.0f, -1.0f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() })
+            {
+                RtxSettingValues values = valid();
+                values.mGamma = gamma;
+                EXPECT_THROW(RtxSettings::derive(values), Rtx::InputError) << gamma;
+            }
+
+            RtxSettingValues least = valid();
+            least.mGamma = std::numeric_limits<float>::min();
+            EXPECT_EQ(RtxSettings::derive(least).mGamma, std::numeric_limits<float>::min())
+                << "anything over nought stands";
         }
     }
 }

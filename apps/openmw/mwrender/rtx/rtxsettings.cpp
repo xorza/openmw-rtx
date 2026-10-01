@@ -1,7 +1,10 @@
 #include "rtxsettings.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <format>
 
+#include <components/rtx/common/error.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 #include <components/settings/values.hpp>
@@ -18,11 +21,19 @@ namespace MWRender
             .mObjectPagingMinSize = Settings::terrain().mObjectPagingMinSize,
             .mSpecularMapLayout = Settings::rtx().mSpecularMapLayout.get(),
             .mAnisotropy = Settings::general().mAnisotropy,
+            .mGamma = Settings::video().mGamma,
         };
     }
 
     RtxSettings RtxSettings::derive(const RtxSettingValues& values)
     {
+        // The registry's sanitizer holds the setting over nought and lets a written `inf` or `nan`
+        // through, and a harness's line holds nothing: past either end the picture is all black,
+        // all white or no number at all.
+        if (!(values.mGamma > 0.0f && std::isfinite(values.mGamma)))
+            throw Rtx::InputError(
+                std::format("a gamma of {} is not a finite number greater than nought", values.mGamma));
+
         return RtxSettings{
             .mUpscale = Rtx::sUpscaleNames.require(values.mUpscale, "an upscale mode"),
             .mMirror = {
@@ -32,6 +43,7 @@ namespace MWRender
                 .mSpecularLayout = Rtx::sSpecularLayoutNames.require(values.mSpecularMapLayout, "a specular map layout"),
             },
             .mAnisotropy = static_cast<std::uint32_t>(std::max(values.mAnisotropy, 1)),
+            .mGamma = values.mGamma,
         };
     }
 }

@@ -223,6 +223,54 @@ namespace Rtx::Testing
             }
         }
 
+        /// The player's gamma over the picture: every byte where the picture at a gamma of one says
+        /// it can be, and some byte lifted.
+        ///
+        /// **An interval and not a tolerance.** At a gamma of one the store is of a value `v`, so the
+        /// byte `b` says only that `v` was within half a step of `b / 255`; at a gamma of two the
+        /// store is of `v^(1/2)`, which over that half step is between the square roots of its ends.
+        /// Floor and ceiling of those, because a `UNORM` store may round either way. The exposures
+        /// run the wall from its darks, where a gamma does most, to its middle.
+        TEST_F(RtxVisibilityTest, theGammaRaisesEveryByteToThePowerOfOneOverIt)
+        {
+            constexpr std::uint32_t size = 16;
+            const Shaders::VisibilityConstants camera = wallCamera(size, osg::Vec3f(1.0f, 1.0f, 1.0f));
+
+            bool lifted = false;
+            for (const float exposure : { 0.01f, 0.05f, 0.25f, 1.0f })
+            {
+                std::vector<std::uint8_t> plain;
+                shoot(makeWall(), {}, camera, size, Shot{ .mExposure = exposure });
+                mRenderer.readPixels(plain);
+
+                std::vector<std::uint8_t> raised;
+                shoot(makeWall(), {}, camera, size, Shot{ .mExposure = exposure, .mGamma = 2.0f });
+                mRenderer.readPixels(raised);
+
+                ASSERT_EQ(plain.size(), std::size_t{ size } * size * 4);
+                ASSERT_EQ(raised.size(), plain.size());
+                for (std::size_t i = 0; i < plain.size(); ++i)
+                {
+                    if (i % 4 == 3)
+                    {
+                        ASSERT_EQ(raised[i], plain[i]) << "the gamma moved the alpha of pixel " << i / 4;
+                        continue;
+                    }
+
+                    const double stored = static_cast<double>(plain[i]);
+                    const double low = std::max(0.0, (stored - 0.5) / 255.0);
+                    const double high = std::min(1.0, (stored + 0.5) / 255.0);
+                    ASSERT_GE(static_cast<double>(raised[i]), std::floor(255.0 * std::sqrt(low)))
+                        << "value " << i << " was " << stored << " at an exposure of " << exposure;
+                    ASSERT_LE(static_cast<double>(raised[i]), std::ceil(255.0 * std::sqrt(high)))
+                        << "value " << i << " was " << stored << " at an exposure of " << exposure;
+                    lifted = lifted || raised[i] > plain[i];
+                }
+            }
+
+            EXPECT_TRUE(lifted) << "a gamma of two lifted nothing";
+        }
+
         /// A wall smaller than the frame leaves sky around it, and the count is the area it covers.
         ///
         /// The frame is 115.47 units tall at a hundred units, so a wall 60 units across covers

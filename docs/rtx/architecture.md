@@ -247,7 +247,8 @@ at the top, over all of them.
   volume, the sprite bins, the denoiser's history. The world has one, and `PictureTracer` has one
   for the pictures inside the interface. The passes are shared.
 - **`DisplayChain`** runs after the trace and the upscaler: bloom, exposure, glare, tone, debug
-  lines. The GUI draws after it, in display values, at the frame's size. The renderer blits the
+  lines. The tone pass applies the player's `[Video] gamma` before it stores the picture. The GUI
+  draws after it, in display values, at the frame's size, so the gamma does not reach it. The renderer blits the
   frame to the swapchain, scaled to fit the window with black beside it (`Misc::present`), and never
   draws into it.
 - **`Upscaler`** is FSR 3.1.4's seven passes, from AMD's own headers in `extern/fidelityfx/`, with

@@ -126,14 +126,20 @@ namespace Rtx::Shaders
         /// `glare.h` says whose wash this is. Nought for a picture inside the interface.
         vec3 mGlareColour;
         float mGlareAmount;
+
+        /// One over `[Video] gamma`, which `displayGamma` raises the finished picture to: after the
+        /// glare, which is the picture's as much as the light is, and before the store, so the darks
+        /// it lifts are still float and do not band. One for a picture inside the interface, which
+        /// keeps the interface's values as the interface drawn over the frame does.
+        float mInverseGamma;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    // The host rounds the block up to eight for the addresses at its head; what the shader reads
-    // ends at the last member, and the push is the shader's 156 bytes and four the shader ignores.
-    static_assert(offsetof(ToneConstants, mGlareAmount) + sizeof(float) == 156,
+    // The host rounds the block up to eight for the addresses at its head, which the last member
+    // now ends on: the push is the shader's 160 bytes and nothing the shader ignores.
+    static_assert(offsetof(ToneConstants, mInverseGamma) + sizeof(float) == 160,
         "ToneConstants must be scalar-packed on every side");
 #endif
 

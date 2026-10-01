@@ -102,6 +102,7 @@ namespace MWRender
                 .mProfile = {
                     .mUpscale = settings.mUpscale,
                     .mAnisotropy = settings.mAnisotropy,
+                    .mGamma = settings.mGamma,
                     .mExposure = Rtx::ExposureRule{},
                     .mRadianceWidth = Rtx::RadianceWidth::Shown,
                 },
@@ -612,7 +613,8 @@ namespace MWRender
         const bool reach
             = changed.contains({ "RTX", "distant land cells" }) || changed.contains({ "Camera", "viewing distance" });
         const bool anisotropy = changed.contains({ "General", "anisotropy" });
-        if (!upscale && !reach && !anisotropy)
+        const bool gamma = changed.contains({ "Video", "gamma" });
+        if (!upscale && !reach && !anisotropy && !gamma)
             return;
 
         // What asks is somebody choosing from a menu, so a spelling no mode has is reported and
@@ -639,6 +641,9 @@ namespace MWRender
 
         if (anisotropy)
             mRenderer->setAnisotropy(settings->mAnisotropy);
+
+        if (gamma)
+            mRenderer->setGamma(settings->mGamma);
     }
 
     MyGUI::ITexture& RtxRenderer::freezeFrame() noexcept

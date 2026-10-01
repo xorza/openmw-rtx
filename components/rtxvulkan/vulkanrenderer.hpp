@@ -75,6 +75,7 @@ namespace Rtx
 
         void setVerticalSync(SDLUtil::VSyncMode mode) override;
         void setAnisotropy(std::uint32_t anisotropy) override;
+        void setGamma(float gamma) override;
         void skipFrame() override;
         FrameExtents getExtents() const override;
         const RenderProfile& getProfile() const override { return mProfile; }
@@ -161,6 +162,10 @@ namespace Rtx
         /// is read off the frame's own blocks instead, which is where a frame that asks otherwise
         /// says so.
         RenderProfile mProfile;
+
+        /// One over `mProfile.mGamma`, which the display curve is handed: worked out where the
+        /// gamma is set rather than on every frame.
+        float mInverseGamma = 1.0f;
 
         /// The frames in flight and what each came to.
         FrameRing mRing;

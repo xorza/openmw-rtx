@@ -301,6 +301,7 @@ namespace MWRender
 
         mCanvases[frameId]->setPostProcessing(mUsePostProcessing);
         mCanvases[frameId]->setDestination(mOutput);
+        mCanvases[frameId]->setInverseGamma(mInverseGamma);
         mCanvases[frameId]->setTextureNormals(mNormals ? getTexture(Tex_Normal, frameId) : nullptr);
         mCanvases[frameId]->setMask(mUnderwater, mExteriorFlag);
         mCanvases[frameId]->setCalculateAvgLum(mHDR);

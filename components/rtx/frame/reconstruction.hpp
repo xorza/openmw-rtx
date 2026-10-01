@@ -205,6 +205,12 @@ namespace Rtx
         /// nothing asks — the level a cone names is then the level read, and a test can measure it.
         std::uint32_t mAnisotropy = 1;
 
+        /// The player's `[Video] gamma`, which the frame's picture is raised to one over
+        /// (`ToneConstants::mInverseGamma`). One leaves the picture as the curve wrote it, which is
+        /// what a profile that says nothing asks, and so what a measured run draws whatever the
+        /// player chose.
+        float mGamma = 1.0f;
+
         /// What every pixel is painted with: the light, or a surface input for a picture of the
         /// maps themselves.
         SurfaceView mShow = SurfaceView::Shaded;

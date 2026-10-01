@@ -367,6 +367,11 @@ namespace Rtx
         /// placement that next writes that copy.
         virtual void setAnisotropy(std::uint32_t anisotropy) = 0;
 
+        /// `RenderProfile::mGamma`, changed while the frames run: a slider moved in the menu, and
+        /// the next frame's picture has it. A finite number greater than nought: a caller that reads
+        /// it from a file or a command line refuses anything else first.
+        virtual void setGamma(float gamma) = 0;
+
         /// How many of the kernels a trace needs are made, waiting `patience` at most for the rest,
         /// and rethrowing what making one threw. The renderer starts making them as it is made, on
         /// threads of its own, and returns without them — ten seconds on a cold cache — so a host

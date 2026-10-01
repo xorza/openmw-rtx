@@ -61,6 +61,9 @@ namespace Rtx
         };
         Glare mGlare;
 
+        /// One over the player's gamma, `ToneConstants::mInverseGamma`.
+        float mInverseGamma;
+
         /// The debug modes' lines and triangles over the picture, and the slot's own buffer they
         /// are drawn from: the frame behind read its own slot's, so nothing here is written under
         /// a submit.

@@ -3,6 +3,7 @@
 #include <array>
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -71,6 +72,7 @@ namespace Rtx
               PipelineCacheSpec{ .mDirectory = options.mCacheDirectory })
         , mCounting(options.mCounting)
         , mProfile(options.mProfile)
+        , mInverseGamma(1.0f / mProfile.mGamma)
         , mRing(mDevice, mCounting || mProfile.mStressOverlapMs > 0.0)
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
@@ -394,6 +396,14 @@ namespace Rtx
         mScenes.forEach([&](DeviceScene& scene) { scene.setAnisotropy(anisotropy); });
     }
 
+    void VulkanRenderer::setGamma(const float gamma)
+    {
+        assert(gamma > 0.0f && std::isfinite(gamma) && "a gamma its reader should have refused");
+
+        mProfile.mGamma = gamma;
+        mInverseGamma = 1.0f / gamma;
+    }
+
     void VulkanRenderer::skipFrame()
     {
         if (mRing.isOpen())
@@ -630,6 +640,7 @@ namespace Rtx
                 .mFrame = FrameLook{
                     .mExposure = exposure,
                     .mGlare = FrameLook::Glare{ .mFader = options.mGlare, .mSeconds = options.mSinceLast, .mReset = basisLost },
+                    .mInverseGamma = mInverseGamma,
                     .mDebug = options.mDebug,
                     .mDebugVertices = frame.mDebugVertices,
                     .mTimer = timer,
