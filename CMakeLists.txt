@@ -524,7 +524,7 @@ endif()
 
 # 1.4.329 is the first SDK with `VK_KHR_shader_fma`, which every shader's fusions are
 # (`Rtx::pinFloatArithmetic`); an older one fails here rather than inside `requirements.cpp`.
-find_package(Vulkan 1.4.329 REQUIRED)
+find_package(VulkanHeaders 1.4.329 REQUIRED)
 find_package(OpenAL REQUIRED)
 find_package(ZLIB REQUIRED)
 
