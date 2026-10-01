@@ -76,11 +76,6 @@ namespace RtxTool
         return parseNumber<float>(text);
     }
 
-    std::optional<double> parseDouble(std::string_view text)
-    {
-        return parseNumber<double>(text);
-    }
-
     std::optional<osg::Vec3f> parseVec3(std::string_view text)
     {
         std::array<std::string_view, 3> pieces;
@@ -106,10 +101,10 @@ namespace RtxTool
         if (!splitExactly(text, pieces))
             return std::nullopt;
 
-        const std::optional<double> seconds = parseDouble(pieces[0]);
+        const std::optional<double> seconds = parseNumber<double>(pieces[0]);
         const std::optional<float> scroll = parseFloat(pieces[1]);
-        const std::optional<double> x = parseDouble(pieces[2]);
-        const std::optional<double> y = parseDouble(pieces[3]);
+        const std::optional<double> x = parseNumber<double>(pieces[2]);
+        const std::optional<double> y = parseNumber<double>(pieces[3]);
         if (!seconds.has_value() || !scroll.has_value() || !x.has_value() || !y.has_value())
             return std::nullopt;
 

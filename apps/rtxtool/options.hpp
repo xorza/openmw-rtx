@@ -53,11 +53,6 @@ namespace RtxTool
     /// command line, which only the executable has: `sync` outside a Release build, `off` in one.
     ToolOptions makeOptions(Rtx::ValidationLevel validationByDefault);
 
-    /// What `--hold` asked for, in milliseconds: a number, or `check` for the hold `check` runs under,
-    /// so `omw repeat` holds its second leg as far as `check` does without a copy of the number.
-    /// Throws `std::runtime_error` for anything else, a negative hold among it.
-    double parseHold(std::string_view text);
-
     /// How long a film is to be, or nothing where it flies at `--speed`: `--length`, or
     /// `FilmPacing::sLengthByDefault` where neither is named — a film of a set length whatever the
     /// keys add up to, and of a set pace only where somebody asked for the pace. Throws

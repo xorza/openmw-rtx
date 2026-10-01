@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <filesystem>
 #include <format>
 #include <optional>
 #include <stdexcept>
@@ -11,6 +12,7 @@
 #include <vector>
 
 #include <boost/program_options/option.hpp>
+#include <boost/program_options/parsers.hpp>
 #include <boost/program_options/value_semantic.hpp>
 #include <boost/program_options/variables_map.hpp>
 
@@ -331,12 +333,13 @@ namespace RtxTool
             "levels added to the texture level bias past the ratio the upscaler sets, negative for "
             "sharper. Nought is the ratio alone, and off the upscaler nothing is biased");
 
-        option(sFramed, "hold", bpo::value<std::string>()->default_value("0"),
-            std::format("hold the queue this many milliseconds behind the host after every frame's trace, or "
-                        "`check` for the hold `check` takes: `check` holds {} unless told otherwise. The other leg "
-                        "of `repeat` runs under it, and a `shot --against` its own unheld pictures is the same "
-                        "question of a still: a picture that is a function of the frames alone comes out the same "
-                        "however far the device trails, and one that read the clock does not",
+        option(sFramed, "hold", bpo::value<bool>()->default_value(false)->implicit_value(true),
+            std::format("hold the queue behind the host after every frame's trace, as `check` does: `check` holds "
+                        "{} milliseconds unless told --hold=false. The other leg of `repeat` runs under it, and a "
+                        "`shot --against` its own unheld pictures is the same question of a still: a picture that "
+                        "is a function of the frames alone comes out the same however far the device trails, and "
+                        "one that read the clock does not. One hold and not a number: nothing holds the card longer "
+                        "than a frame, and a hold of seconds is the desktop frozen for every one of them",
                 sCheckHoldMs));
 
         option(Verbs::Bench, "json", bpo::value<std::string>()->default_value(""),
@@ -555,18 +558,6 @@ namespace RtxTool
         if (!(length > 0.0f) || !std::isfinite(length))
             throw std::runtime_error(std::format("--length is {}, which is no length of film", length));
         return length;
-    }
-
-    double parseHold(std::string_view text)
-    {
-        if (text == "check")
-            return sCheckHoldMs;
-
-        const std::optional<double> value = parseDouble(text);
-        if (!value.has_value() || !(*value >= 0.0))
-            throw std::runtime_error("not a hold: " + std::string(text));
-
-        return *value;
     }
 
     std::filesystem::path ownConfigDirectory(const Files::ConfigurationManager& config)

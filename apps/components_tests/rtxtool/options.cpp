@@ -207,7 +207,8 @@ namespace RtxTool
             // milliseconds, four seconds, `512 × 30 / 3600` game hours, sixty frames a second for
             // twenty seconds, 800 units at 69.99 a metre, a film of twenty seconds, 16384 units of
             // 8192-unit cells, and the encoder's own three settings.
-            EXPECT_NE(lineFor("hold").find("`check` holds 8 unless"), std::string::npos) << lineFor("hold");
+            EXPECT_NE(lineFor("hold").find("`check` holds 8 milliseconds unless"), std::string::npos)
+                << lineFor("hold");
             EXPECT_NE(lineFor("turn-weather").find("each crossing takes 4 seconds"), std::string::npos);
             EXPECT_NE(lineFor("clock").find("--clock=512 is 4.27 game hours a second"), std::string::npos)
                 << lineFor("clock");
@@ -219,16 +220,6 @@ namespace RtxTool
             EXPECT_NE(lineFor("cut-distance").find(": 2 exterior cells by default"), std::string::npos);
             EXPECT_NE(lineFor("encode").find("with libx264 at CRF 18 in yuv420p"), std::string::npos);
             EXPECT_EQ(lineFor("warmup").find("forty-five"), std::string::npos) << "the settle it described is gone";
-        }
-
-        /// `check` is the hold `check` runs under, and a hold is a non-negative number of milliseconds.
-        TEST(RtxToolOptionsTest, aHoldIsMillisecondsOrCheckOwn)
-        {
-            EXPECT_EQ(parseHold("check"), sCheckHoldMs);
-            EXPECT_EQ(parseHold("0"), 0.0);
-            EXPECT_EQ(parseHold("2.5"), 2.5);
-            for (const std::string_view refused : { "-1", "", "8ms", "checks", "nan", "inf" })
-                EXPECT_THROW(parseHold(refused), std::runtime_error) << refused;
         }
 
         /// The names the two tables share: an option's owner and the dispatch's row are the same
