@@ -29,6 +29,7 @@
 #include <osgParticle/BoxPlacer>
 #include <osgParticle/ConstantRateCounter>
 #include <osgParticle/ModularProgram>
+#include <osgParticle/Operator>
 #include <osgParticle/ParticleSystem>
 #include <osgParticle/ParticleSystemUpdater>
 
@@ -251,6 +252,19 @@ namespace
                 SceneUtil::setupDistortion(*node, config);
             }
         }
+    }
+
+    /// Gives the particles a file saved what `affector` gives a particle of their age. They are
+    /// loaded at the controller's initial size and colour, and a program's first traversal only
+    /// starts its clock, so without this the first frame a system is drawn shows every saved
+    /// particle opaque, in that colour and at that size, whatever its age, until the program runs
+    /// on the second.
+    /// Only for an affector of age alone, whose `beginOperate` reads no node path.
+    void ageSavedParticles(osgParticle::ModularProgram& program, osgParticle::Operator& affector)
+    {
+        affector.beginOperate(&program);
+        affector.operateParticles(program.getParticleSystem(), 0.0);
+        affector.endOperate();
     }
 }
 
@@ -1250,7 +1264,9 @@ namespace NifOsg
                 if (modifier->mRecordType == Nif::RC_NiParticleGrowFade)
                 {
                     const Nif::NiParticleGrowFade* gf = static_cast<const Nif::NiParticleGrowFade*>(modifier.getPtr());
-                    program->addOperator(new GrowFadeAffector(gf->mGrowTime, gf->mFadeTime));
+                    osg::ref_ptr<GrowFadeAffector> affector = new GrowFadeAffector(gf->mGrowTime, gf->mFadeTime);
+                    program->addOperator(affector);
+                    ageSavedParticles(*program, *affector);
                 }
                 else if (modifier->mRecordType == Nif::RC_NiGravity)
                 {
@@ -1276,7 +1292,9 @@ namespace NifOsg
                     if (cl->mData.empty())
                         continue;
                     const Nif::NiColorData* clrdata = cl->mData.getPtr();
-                    program->addOperator(new ParticleColorAffector(clrdata));
+                    osg::ref_ptr<ParticleColorAffector> affector = new ParticleColorAffector(clrdata);
+                    program->addOperator(affector);
+                    ageSavedParticles(*program, *affector);
                 }
                 else if (modifier->mRecordType == Nif::RC_NiParticleRotation)
                 {
@@ -1512,17 +1530,17 @@ namespace NifOsg
                 {
                     partsys->setFrozen(true);
                 }
-
-                // Due to odd code in the ParticleSystemUpdater, particle systems will not be updated in the first frame
-                // So do that update manually
-                osg::NodeVisitor nv;
-                partsys->update(0.0, nv);
             }
 
             // modifiers should be attached *after* the emitter in the scene graph for correct update order
             // attach to same node as the ParticleSystem, we need osgParticle Operators to get the correct
             // localToWorldMatrix for transforming to particle space
             handleParticlePrograms(partctrl->mModifier, partctrl->mCollider, parentNode, partsys.get(), rf);
+
+            // The ParticleSystemUpdater does not update a system on its first frame, so the saved particles are
+            // updated here, after the programs aged them, emitter or not
+            osg::NodeVisitor nv;
+            partsys->update(0.0, nv);
 
             std::vector<const Nif::NiProperty*> drawableProps;
             collectDrawableProperties(nifNode, parent, drawableProps);
