@@ -249,6 +249,12 @@ jobs:
           python - <<'EOF'
           import pathlib, subprocess, sys, time
           cdb = pathlib.Path(r"C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe")
+          # What the loader finds in System32 before the PATH, where the hung run's loader came from.
+          for dll in ("vulkan-1.dll", "MSVCP140.dll"):
+              path = pathlib.Path(r"C:\Windows\System32") / dll
+              found = subprocess.run(["powershell", "-NoProfile", "-Command", f"(Get-Item '{path}').VersionInfo.FileVersion"],
+                                     capture_output=True, text=True).stdout.strip() if path.exists() else "absent"
+              print(f"System32 {dll}: {found}", flush=True)
           tests = subprocess.Popen([sys.executable, "omw", "full", "test", "--without-device"])
           begun = time.monotonic()
           dumped = False
@@ -263,7 +269,8 @@ jobs:
                   fields = [field.strip('"') for field in line.split('","')]
                   if len(fields) > 1 and fields[0].lower() == "openmw-tests.exe":
                       print(f"::group::openmw-tests {fields[1]}, still running after 240 s", flush=True)
-                      subprocess.run([str(cdb), "-p", fields[1], "-y", "build-full;srv*", "-c", ".reload; ~*kn 60; qd"],
+                      subprocess.run([str(cdb), "-p", fields[1], "-y", "build-full;srv*", "-c",
+                                      ".reload; ~*kn 60; ~0s; r; dS poi(@r9); dS poi(@r9+8); qd"],
                                      timeout=600)
                       print("::endgroup::", flush=True)
           sys.exit(tests.returncode)
