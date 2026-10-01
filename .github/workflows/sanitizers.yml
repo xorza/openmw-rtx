@@ -59,6 +59,7 @@ jobs:
           # and evicted 335 times over a run.
           key: sanitizers
           max-size: 2000M
+          save: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Build
         run: python omw asan build
