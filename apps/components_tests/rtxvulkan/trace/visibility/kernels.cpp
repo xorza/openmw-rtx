@@ -16,6 +16,7 @@
 #include <components/rtxvulkan/trace/fogvolume.hpp>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 #include <components/rtxvulkan/trace/visibilitypass.hpp>
+#include <components/rtxvulkan/vulkanrenderer.hpp>
 
 namespace Rtx
 {

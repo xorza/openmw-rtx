@@ -8,8 +8,6 @@
 #include <tuple>
 #include <vector>
 
-#include <boost/container/flat_set.hpp>
-
 #include <components/rtx/common/slots.hpp>
 
 #include "refusal.hpp"
@@ -52,8 +50,10 @@ namespace Rtx
         };
 
         /// Every distinct refusal met, sorted by its key and searched by one made of views, so a
-        /// repeat builds no string.
-        boost::container::flat_set<Refusal, KeyedLess<Key, KeyOf>, std::vector<Refusal>> mNamed;
+        /// repeat builds no string. A vector kept sorted by hand rather than a `flat_set`, which is
+        /// one, because this header reaches every file that includes the scene and Boost.Container
+        /// is the heaviest thing it would bring.
+        std::vector<Refusal> mNamed;
         std::array<std::uint32_t, sRefusedKinds> mCounts{};
     };
 }

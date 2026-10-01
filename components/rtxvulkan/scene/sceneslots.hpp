@@ -6,16 +6,16 @@
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/renderer/slot.hpp>
 
-#include "devicescene.hpp"
-
 namespace Rtx
 {
+    class DeviceScene;
+
     /// The scenes a renderer holds, by slot: the world's, and one for each picture inside the
     /// interface — null until each is given a scene — with the slots nothing holds.
     class SceneSlots
     {
     public:
-        SceneSlots() = default;
+        SceneSlots();
 
         /// Asserts every picture's slot given back: a view that outlives its renderer is a scene
         /// held for nothing, named here rather than never. Not while an exception unwinds.

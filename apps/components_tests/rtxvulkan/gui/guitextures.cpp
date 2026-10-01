@@ -34,6 +34,7 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/gui/guitextures.hpp>
+#include <components/rtxvulkan/vulkanrenderer.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace Rtx

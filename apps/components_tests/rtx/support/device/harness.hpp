@@ -14,7 +14,11 @@
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/pipelinecache.hpp>
-#include <components/rtxvulkan/vulkanrenderer.hpp>
+
+namespace Rtx
+{
+    class VulkanRenderer;
+}
 
 namespace Rtx::Testing
 {
@@ -187,7 +191,7 @@ namespace Rtx::Testing
         ///
         /// **For a fixture with a renderer of its own**, which a renderer that upscales has to be:
         /// each one owns its instance and so its own log, and `mRenderer` is already done here.
-        void forgetErrors(VulkanRenderer& renderer) { renderer.takeValidationErrors(mErrors); }
+        void forgetErrors(VulkanRenderer& renderer);
 
         /// Reports what `renderer` raised since `forgetErrors`, each failure headed by `what`.
         void reportErrors(VulkanRenderer& renderer, std::string_view what);
