@@ -2154,8 +2154,9 @@ namespace MWRender
 
     // ------------------------------
 
-    PartHolder::PartHolder(osg::ref_ptr<osg::Node> node)
+    PartHolder::PartHolder(osg::ref_ptr<osg::Node> node, VFS::Path::NormalizedView model)
         : mNode(std::move(node))
+        , mModel(model)
     {
     }
 
