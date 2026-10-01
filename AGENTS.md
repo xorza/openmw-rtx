@@ -20,11 +20,12 @@ them.
 
 ## Rules
 
-- Do not change the rasterizer, or anything the ray tracer does not need. Three changes the ray
+- Do not change the rasterizer, or anything the ray tracer does not need. Four changes the ray
   tracer needs do move the rasterizer's picture, each where upstream's was wrong: the optimizer
   merges in child order, not address order, an exterior map tile keeps its land where the
-  quad tree did not build the chunk yet, and a `NightDaySwitch` shows its mode's child from its
-  first frame, not the child its file opens on.
+  quad tree did not build the chunk yet, a `NightDaySwitch` shows its mode's child from its
+  first frame, not the child its file opens on, and the particles a NIF saves wear what their
+  age affectors give them from their first frame, not the controller's initial colour and size.
 - Both renderers stand behind one interface that exposes no implementation detail. Where the game
   would branch on which renderer it has, the seam abstracts the question instead.
 - Performance matters. Compute nothing twice; compute as early as possible.
