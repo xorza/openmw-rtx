@@ -25,7 +25,7 @@ also follow the settings window while the game runs.
    :title: distant land cells
    :type: float32
    :range: 0 to 10
-   :default: 4
+   :default: 10
 
    How far out from the eye the world is built, in cells. Rays go everywhere, so this says how much
    world exists rather than how far the camera can see, and the fog closes at the same distance —
@@ -43,7 +43,7 @@ also follow the settings window while the game runs.
    :title: upscale
    :type: string
    :range: off, ultraperformance, performance, balanced, quality, native
-   :default: native
+   :default: balanced
 
    Put the upscaler, AMD's FSR 3.1, between the trace and the screen. The window's size is what
    comes out; what gets traced is that size over the mode's ratio: 3 for :code:`ultraperformance`,
