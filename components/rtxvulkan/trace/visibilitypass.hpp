@@ -1,18 +1,16 @@
 #pragma once
 
 #include <array>
-#include <atomic>
 #include <chrono>
 #include <cstdint>
-#include <future>
 #include <memory>
 #include <string>
 #include <string_view>
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/platform/thread.hpp>
-#include <components/rtx/renderer/kernelprogress.hpp>
+#include <components/rtx/common/job.hpp>
+#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
@@ -131,7 +129,7 @@ namespace Rtx
     public:
         /// Uploads the blue-noise tile and the lobe's table, which the pass owns because they belong
         /// to the sampler and to the surface model and not to the scene or the camera, and starts
-        /// making the kernels, which it returns without: `awaitKernels`.
+        /// making the kernels, which it returns without: `kernels` waits for them.
         ///
         /// @param textureLayout the layout of the bindless array this will be handed at record
         ///        time, because a pipeline layout names every set it will ever see.
@@ -144,14 +142,10 @@ namespace Rtx
         VisibilityPass(const Device& device, const SetLayout& textureLayout, const SetLayout& channelLayout,
             const SetLayout& volumeLayout, bool counting, bool specialize);
 
-        /// Waits for every kernel, and rethrows what making one threw — every time it is asked,
-        /// so a caller that caught it once cannot go on to record with a table half empty. Ahead
-        /// of anything that records a launch of this pass, and an atomic load once they are made.
-        void awaitKernels() const;
-
-        /// The same, waiting `patience` at most, and how many are made. For a host drawing a loading
-        /// screen while it waits, which the unbounded wait would freeze.
-        KernelProgress awaitKernels(std::chrono::milliseconds patience) const;
+        /// Waits `patience` at most for every kernel, and says how many are made; throws what making
+        /// one threw. For a host drawing a loading screen while it waits. Recording needs no wait of
+        /// its own: every launch reads its kernel through `kernels`, which waits.
+        JobProgress awaitKernels(std::chrono::milliseconds patience) const;
 
         /// Writes the frame's block: `constants` with what only the passes know filled in — the
         /// tiles' widths, the lamps' grid, the froxel grid and where every table is, the bin's
@@ -294,45 +288,50 @@ namespace Rtx
         /// `mChannelLayout` is.
         VkDescriptorSetLayout mVolumeLayout = VK_NULL_HANDLE;
 
-        /// One pipeline per tuple, every one of them made by `compileEvery`.
-        std::array<std::unique_ptr<TracePipeline<NoConstants>>, VisibilityVariant::sCount> mPipelines;
+        /// Every kernel the pass launches, filled by `compileEvery`'s hands, each writing slots no
+        /// other hand does.
+        struct Kernels
+        {
+            /// One pipeline per tuple.
+            std::array<std::unique_ptr<TracePipeline<NoConstants>>, VisibilityVariant::sCount> mVisibility;
 
-        /// The same table for the launch that fills the froxels, made for the tuples without maps —
-        /// `scatterPipelineFor` says why. A launch and not a dispatch, and so is the column pass
-        /// under it: `fogscatter.rgen` says what a ray query answers inside a dispatch when another
-        /// process shares the card.
-        std::array<std::unique_ptr<TracePipeline<NoConstants>>, VisibilityVariant::sCount> mScatterPipelines;
+            /// The same table for the launch that fills the froxels, made for the tuples without
+            /// maps — `scatterPipelineFor` says why. A launch and not a dispatch, and so is the
+            /// column pass under it: `fogscatter.rgen` says what a ray query answers inside a
+            /// dispatch when another process shares the card.
+            std::array<std::unique_ptr<TracePipeline<NoConstants>>, VisibilityVariant::sCount> mScatter;
 
-        /// And one for the launch that finds where each column's ray stops, which no tuple
-        /// changes: it traces and shades nothing.
-        std::unique_ptr<TracePipeline<NoConstants>> mDepthPipeline;
+            /// The launch that finds where each column's ray stops, which no tuple changes: it traces
+            /// and shades nothing.
+            std::unique_ptr<TracePipeline<NoConstants>> mDepth;
 
-        /// And one for the launch that composites the puffs over the shown frame, which takes no
-        /// tuple either: it reads the bin and the air and traces nothing. A launch and not a
-        /// dispatch for the reason `spritecomposite.rgen` gives.
-        std::unique_ptr<TracePipeline<Shaders::PuffConstants>> mSpriteCompositePipeline;
+            /// The launch that composites the puffs over the shown frame, which takes no tuple
+            /// either: it reads the bin and the air and traces nothing. A launch and not a dispatch
+            /// for the reason `spritecomposite.rgen` gives.
+            std::unique_ptr<TracePipeline<Shaders::PuffConstants>> mSpriteComposite;
 
-        /// The launch over the sprite list that keeps the rain from under the roofs. One, like the
-        /// composite's: it reads the structure and the tables and has no opinion about the sky.
-        std::unique_ptr<TracePipeline<NoConstants>> mSpriteShelterPipeline;
+            /// The launch over the sprite list that keeps the rain from under the roofs. One, like the
+            /// composite's: it reads the structure and the tables and has no opinion about the sky.
+            std::unique_ptr<TracePipeline<NoConstants>> mSpriteShelter;
 
-        /// And the launch over the emitters that writes what each is for this camera, for the same
-        /// reason.
-        std::unique_ptr<TracePipeline<NoConstants>> mSpriteEmittersPipeline;
+            /// The launch over the emitters that writes what each is for this camera, for the same
+            /// reason.
+            std::unique_ptr<TracePipeline<NoConstants>> mSpriteEmitters;
 
-        /// And one for the pass that integrates the columns, which takes no tuple at all: every
-        /// question was answered by the pass that filled the froxels.
-        std::unique_ptr<ComputePipeline<NoConstants>> mIntegratePipeline;
+            /// The pass that integrates the columns, which takes no tuple at all: every question was
+            /// answered by the pass that filled the froxels.
+            std::unique_ptr<ComputePipeline<NoConstants>> mIntegrate;
+        };
 
-        /// How many kernels `compileEvery` makes, and how many of them the hands have made so far.
-        std::uint32_t mKernelCount = 0;
-        std::atomic<std::uint32_t> mKernelsMade{ 0 };
+        /// The kernels, once the compile is over: waits for it, and throws what it threw, every time
+        /// it is asked — the one way to them, so no launch can be recorded from a table still being
+        /// filled. A shared future's read once it is ready.
+        const Kernels& kernels() const;
 
-        /// Whether the compile is over, and what it threw. Shared, because a shared future answers
-        /// every time it is asked and a plain one answers once.
-        std::shared_future<void> mKernels;
+        Kernels mKernels;
 
-        /// What the hands are started from. Last, so it is joined before any table it fills goes.
-        Platform::Thread mCompiling;
+        /// The compile: `compileEvery`'s hands, counted as each kernel lands. Last, so it is stopped
+        /// and joined before the table it fills goes.
+        Job mCompiling;
     };
 }

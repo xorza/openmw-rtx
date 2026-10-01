@@ -142,9 +142,9 @@ namespace Rtx
         /// has been through neither test.
         void sift(const osg::Vec3f& eye, float band);
 
-        /// Blocks until the supply has read a cell this walk can adopt (`setSettled`). Only where
-        /// the last `ask` named something, because nothing is coming otherwise and the reader would
-        /// never wake this.
+        /// Blocks until the supply has read a cell this walk can adopt (`setSettled`), or until the
+        /// reader has nothing left to read, which returns with nothing handed. Only where the last
+        /// `ask` named something, because nothing is coming otherwise.
         void waitForNext(const osg::Vec3f& eye, float band);
 
         /// Adopts the next cell the supply read, which is one cell and one frame's worth.

@@ -1,6 +1,10 @@
 #include <components/platform/thread.hpp>
 
 #include <atomic>
+#include <chrono>
+#include <cstdlib>
+#include <exception>
+#include <string>
 #include <thread>
 
 #include <gtest/gtest.h>
@@ -15,7 +19,7 @@ namespace Platform
         {
             std::atomic<bool> sawStop = false;
             {
-                const Thread thread([&](StopToken stop) {
+                const Thread thread("test", [&](StopToken stop) {
                     while (!stop.stopRequested())
                         std::this_thread::yield();
                     sawStop = true;
@@ -25,7 +29,7 @@ namespace Platform
 
             std::atomic<int> runs = 0;
             {
-                const Thread thread([&] { ++runs; });
+                const Thread thread("test", [&] { ++runs; });
             }
             EXPECT_EQ(runs, 1) << "a work that takes no token runs once and is joined";
 
@@ -37,13 +41,13 @@ namespace Platform
         {
             std::atomic<bool> firstStopped = false;
             std::atomic<bool> secondStopped = false;
-            Thread thread([&](StopToken stop) {
+            Thread thread("test", [&](StopToken stop) {
                 while (!stop.stopRequested())
                     std::this_thread::yield();
                 firstStopped = true;
             });
 
-            thread = Thread([&](StopToken stop) {
+            thread = Thread("test", [&](StopToken stop) {
                 while (!stop.stopRequested())
                     std::this_thread::yield();
                 secondStopped = true;
@@ -67,7 +71,7 @@ namespace Platform
             std::atomic<int> after = 0;
             StopToken kept;
 
-            Thread thread([&](StopToken stop) {
+            Thread thread("test", [&](StopToken stop) {
                 kept = stop;
                 const StopCallback counted(stop, [&] { ++before; });
                 {
@@ -96,6 +100,69 @@ namespace Platform
             release = true;
             asker.join();
             EXPECT_EQ(before, 1);
+        }
+
+        /// A thread starts under the name it was made with, cut to the fifteen characters Linux
+        /// keeps, and under the terminate handler of the thread that made it: MSVC would otherwise
+        /// start it on the default, which aborts and says nothing.
+        TEST(PlatformThreadTest, aThreadStartsNamedAndUnderItsMakersTerminateHandler)
+        {
+            const std::terminate_handler before = std::set_terminate([] { std::abort(); });
+            const std::terminate_handler ours = std::get_terminate();
+
+            std::string named;
+            std::string cut;
+            std::terminate_handler seen = nullptr;
+            {
+                const Thread thread("cell reader", [&] {
+                    named = nameOfThisThread();
+                    seen = std::get_terminate();
+                });
+            }
+            {
+                const Thread thread("a name of twenty chars", [&] { cut = nameOfThisThread(); });
+            }
+            std::set_terminate(before);
+
+            EXPECT_EQ(named, "cell reader");
+            EXPECT_EQ(cut, "a name of twent") << "fifteen characters";
+            EXPECT_EQ(seen, ours);
+        }
+
+        /// A stop ends the sleep at once and says so; one asked before the sleep ends it before it
+        /// starts; a token made by default sleeps the period out. Bounds of a second, against a
+        /// period of a minute, so a loaded machine cannot pass the wrong answer.
+        TEST(PlatformThreadTest, aStopEndsTheSleepAndSaysSo)
+        {
+            const auto now = [] { return std::chrono::steady_clock::now(); };
+
+            EXPECT_TRUE(sleepUnlessStopped(StopToken(), std::chrono::milliseconds(1)));
+
+            std::atomic<bool> sleeping = false;
+            std::atomic<bool> slept = true;
+            const auto began = now();
+            {
+                const Thread thread("sleeper", [&](StopToken stop) {
+                    sleeping = true;
+                    slept = sleepUnlessStopped(stop, std::chrono::minutes(1));
+                });
+                while (!sleeping)
+                    std::this_thread::yield();
+            }
+            EXPECT_FALSE(slept);
+            EXPECT_LT(now() - began, std::chrono::seconds(1)) << "the stop did not end the sleep";
+
+            StopToken asked;
+            {
+                const Thread thread("stopped", [&](StopToken stop) {
+                    while (!stop.stopRequested())
+                        std::this_thread::yield();
+                    asked = stop;
+                });
+            }
+            const auto again = now();
+            EXPECT_FALSE(sleepUnlessStopped(asked, std::chrono::minutes(1)));
+            EXPECT_LT(now() - again, std::chrono::seconds(1));
         }
     }
 }

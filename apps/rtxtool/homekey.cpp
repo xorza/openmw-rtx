@@ -110,7 +110,7 @@ namespace RtxTool
         if (mWriter.isRunning())
             return;
 
-        mWriter.start([this](const Platform::StopToken& stop) {
+        mWriter.start("home key", [this](const Platform::StopToken& stop) {
             mMonitor.serve(
                 stop, [this] { return anyIn(RoomState::Waiting); },
                 [this] {

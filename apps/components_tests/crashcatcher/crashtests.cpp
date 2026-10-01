@@ -468,7 +468,7 @@ namespace CrashTests
                 std::vector<Platform::Thread> running;
                 running.reserve(modes.size());
                 for (std::size_t at = 0; at < modes.size(); ++at)
-                    running.emplace_back([&, at] { outcomes[at] = runMode(self, root, modes[at]); });
+                    running.emplace_back("crash mode", [&, at] { outcomes[at] = runMode(self, root, modes[at]); });
             }
 
             int failed = 0;

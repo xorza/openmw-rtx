@@ -178,9 +178,14 @@ namespace Rtx
         // usually a cell nothing wants any more.
         while (mHanded.empty())
         {
-            mSupply.waitForOne();
+            const bool read = mSupply.waitForOne();
             takeDone();
             sift(eye, band);
+
+            // The reader has nothing left to read: what it read was sifted away, or the ask that
+            // would have brought more equalled the one before. The walk adopts nothing this time.
+            if (!read)
+                return;
         }
     }
 

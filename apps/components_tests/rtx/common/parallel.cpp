@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <stdexcept>
 #include <thread>
@@ -6,6 +8,7 @@
 
 #include <gtest/gtest.h>
 
+#include <components/platform/thread.hpp>
 #include <components/rtx/common/parallel.hpp>
 
 namespace Rtx
@@ -19,7 +22,7 @@ namespace Rtx
             std::vector<std::atomic<int>> ran(count);
 
             runInParallel(
-                count, [] { return 0; }, [&](std::size_t at) { ++ran[at]; });
+                "parallel", count, Platform::StopToken{}, [] { return 0; }, [&](std::size_t at) { ++ran[at]; });
 
             for (std::size_t at = 0; at < count; ++at)
                 EXPECT_EQ(ran[at].load(), 1) << "index " << at;
@@ -36,7 +39,7 @@ namespace Rtx
 
             const auto run = [&] {
                 runInParallel(
-                    count, [] { return 0; },
+                    "parallel", count, Platform::StopToken{}, [] { return 0; },
                     [&](std::size_t at) {
                         if (at == 0)
                             throw std::runtime_error("nought");
@@ -95,7 +98,7 @@ namespace Rtx
             std::atomic<std::size_t> counted{ 0 };
 
             runInParallel(
-                count, [] { return 0; }, Counting(counted));
+                "parallel", count, Platform::StopToken{}, [] { return 0; }, Counting(counted));
 
             EXPECT_EQ(counted.load(), count) << "the hands shared one body and lost what it counted";
         }
@@ -106,9 +109,84 @@ namespace Rtx
             std::atomic<std::size_t> equipped{ 0 };
 
             runInParallel(
-                0, [&] { return ++equipped; }, [](std::size_t) { FAIL() << "a body ran for no index"; });
+                "parallel", 0, Platform::StopToken{}, [&] { return ++equipped; },
+                [](std::size_t) { FAIL() << "a body ran for no index"; });
 
             EXPECT_EQ(equipped.load(), 0u);
+        }
+
+        /// **A stop asked of the caller's thread ends the batch early.** A million indices of a
+        /// millisecond each would take minutes; the stop comes after the first and the batch is back
+        /// within a second, with most of it never run.
+        TEST(RtxParallelTest, aStopEndsTheBatchEarly)
+        {
+            constexpr std::size_t count = 1'000'000;
+            std::atomic<std::size_t> ran{ 0 };
+            std::atomic<bool> returned{ false };
+
+            Platform::Thread runner("runner", [&](Platform::StopToken stop) {
+                runInParallel(
+                    "parallel", count, stop, [] { return 0; },
+                    [&](std::size_t) {
+                        ++ran;
+                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    });
+                returned = true;
+            });
+            while (ran == 0)
+                std::this_thread::yield();
+
+            const auto began = std::chrono::steady_clock::now();
+            runner.stop();
+            EXPECT_TRUE(returned);
+            EXPECT_LT(std::chrono::steady_clock::now() - began, std::chrono::seconds(1));
+            EXPECT_LT(ran.load(), count);
+        }
+
+        /// **The caller is one of the hands**, so a batch never leaves the thread that asked for it
+        /// idle. Each index holds its hand a millisecond, and there are four for every hand, so
+        /// the caller cannot miss them all.
+        TEST(RtxParallelTest, theCallerIsOneOfTheHands)
+        {
+            const std::size_t count = 4 * std::max(1u, std::thread::hardware_concurrency());
+            const std::thread::id caller = std::this_thread::get_id();
+            std::atomic<std::size_t> byCaller{ 0 };
+
+            runInParallel(
+                "parallel", count, Platform::StopToken{}, [] { return 0; },
+                [&](std::size_t) {
+                    if (std::this_thread::get_id() == caller)
+                        ++byCaller;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                });
+
+            EXPECT_GT(byCaller.load(), 0u);
+        }
+
+        /// **What a hand's equipment throws comes back as a body's would**, and that hand takes no
+        /// index while the others take every one. The caller's equipment is the one that throws.
+        TEST(RtxParallelTest, aThrowFromAHandsEquipmentComesBack)
+        {
+            if (std::thread::hardware_concurrency() < 2)
+                GTEST_SKIP() << "one hand, which is the caller's";
+
+            constexpr std::size_t count = 64;
+            const std::thread::id caller = std::this_thread::get_id();
+            std::atomic<std::size_t> ran{ 0 };
+
+            const auto run = [&] {
+                runInParallel(
+                    "parallel", count, Platform::StopToken{},
+                    [caller] {
+                        if (std::this_thread::get_id() == caller)
+                            throw std::runtime_error("unequipped");
+                        return 0;
+                    },
+                    [&](std::size_t) { ++ran; });
+            };
+
+            EXPECT_THROW(run(), std::runtime_error);
+            EXPECT_EQ(ran.load(), count);
         }
     }
 }

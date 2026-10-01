@@ -5,8 +5,8 @@
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
-#include <components/rtx/renderer/kernelprogress.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
@@ -44,7 +44,7 @@ namespace Rtx
             const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, false);
             constexpr std::uint32_t expected = 1 + 1 + 5;
 
-            KernelProgress progress = pass.awaitKernels(std::chrono::milliseconds::zero());
+            JobProgress progress = pass.awaitKernels(std::chrono::milliseconds::zero());
             while (!progress.isDone())
             {
                 ASSERT_EQ(progress.mCount, expected);
@@ -57,10 +57,10 @@ namespace Rtx
 
             EXPECT_EQ(progress.mMade, expected);
             EXPECT_EQ(progress.mCount, expected);
-            EXPECT_NO_THROW(pass.awaitKernels());
+            EXPECT_NO_THROW(pass.awaitKernels(std::chrono::hours(1)));
 
             ASSERT_TRUE(Testing::getRenderer().getProfile().mSpecializeLaunches);
-            const KernelProgress table = Testing::getRenderer().awaitKernels(std::chrono::milliseconds::zero());
+            const JobProgress table = Testing::getRenderer().awaitKernels(std::chrono::milliseconds::zero());
             EXPECT_EQ(table.mMade, 16u + 8u + 5u);
             EXPECT_EQ(table.mCount, 16u + 8u + 5u);
         }
@@ -80,8 +80,8 @@ namespace Rtx
             const SetLayout volume = FogVolume::describeLayout(empty);
             const VisibilityPass pass(empty, textures, channels, volume, false, true);
 
-            EXPECT_THROW(pass.awaitKernels(), InputError);
-            EXPECT_THROW(pass.awaitKernels(), InputError);
+            EXPECT_THROW(pass.awaitKernels(std::chrono::hours(1)), InputError);
+            EXPECT_THROW(pass.awaitKernels(std::chrono::hours(1)), InputError);
             EXPECT_THROW(pass.awaitKernels(std::chrono::milliseconds::zero()), InputError);
         }
     }

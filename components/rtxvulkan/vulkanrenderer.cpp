@@ -13,6 +13,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/crashcatcher/crashnote.hpp>
+#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
@@ -23,7 +24,6 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
-#include <components/rtx/renderer/kernelprogress.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -487,15 +487,13 @@ namespace Rtx
         };
     }
 
-    KernelProgress VulkanRenderer::awaitKernels(const std::chrono::milliseconds patience)
+    JobProgress VulkanRenderer::awaitKernels(const std::chrono::milliseconds patience)
     {
         return mTracePasses.mVisibility.awaitKernels(patience);
     }
 
     Reconstruction VulkanRenderer::renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options)
     {
-        mTracePasses.mVisibility.awaitKernels();
-
         const DeviceScene* const held = mScenes.find(SceneSlot::world());
         assert(held != nullptr && "renderFrame before setScene");
         const DeviceScene& world = *held;
@@ -670,8 +668,6 @@ namespace Rtx
     void VulkanRenderer::traceGuiTexture(
         const GuiSlot texture, const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options)
     {
-        mTracePasses.mVisibility.awaitKernels();
-
         assert(mGui.getTextures().holds(texture) && "a trace into a slot nothing holds");
 
         const VkExtent2D extent{ camera.mCamera.mWidth, camera.mCamera.mHeight };

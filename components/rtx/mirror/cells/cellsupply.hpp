@@ -91,8 +91,10 @@ namespace Rtx
         void take(std::vector<PreparedCell*>& into);
 
         /// Blocks until the thread has read at least one more cell, for a settled run
-        /// (`CellRing::setSettled`).
-        void waitForOne();
+        /// (`CellRing::setSettled`), and says whether it did: false where the thread has nothing
+        /// left to read — its list finished or cancelled by a newer ask — so the wait ends rather
+        /// than waiting for a cell nobody is reading.
+        bool waitForOne();
 
         /// Where a caller puts what it has finished with. Handed over by `publish`.
         CellReturns& giveBack()
@@ -117,7 +119,9 @@ namespace Rtx
         /// one. On the thread, outside the lock but for what it hands over.
         void read(const Platform::StopToken& stop);
 
-        /// Gives the reader what the frame gave back. On the thread, under the lock.
+        /// Gives the reader what the frame gave back, taken out of `mReturned` under the lock into
+        /// `mRecycling`. On the thread, outside the lock: putting a cell's memory away is the
+        /// reader's work, and the frame takes the same lock for its own.
         void recycle();
 
         CellWorld mWorld;
@@ -152,9 +156,11 @@ namespace Rtx
         /// `CellReader::measure` as the thread last finished a cell, under the lock.
         ReaderMemory mMeasured;
 
-        /// The thread's own: the request it is working through, and the ask it came from.
+        /// The thread's own: the request it is working through, the ask it came from, and what the
+        /// frame gave back that it is putting away.
         CellRequest mReading;
         std::uint64_t mReadingAsked = 0;
+        CellReturns mRecycling;
 
         /// Owned here and used by the thread alone while it runs.
         std::unique_ptr<CellReader> mReader;

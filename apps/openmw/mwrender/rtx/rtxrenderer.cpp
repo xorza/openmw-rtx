@@ -40,6 +40,7 @@
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/namedenum.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/moonbuilder.hpp>
@@ -50,7 +51,6 @@
 #include <components/rtx/mirror/poseupdate.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/framespend.hpp>
-#include <components/rtx/renderer/kernelprogress.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
@@ -519,7 +519,7 @@ namespace MWRender
 
     void RtxRenderer::awaitShaders(Loading::Listener& listener)
     {
-        Rtx::KernelProgress progress = mRenderer->awaitKernels(std::chrono::milliseconds::zero());
+        Rtx::JobProgress progress = mRenderer->awaitKernels(std::chrono::milliseconds::zero());
         if (progress.isDone())
             return;
 

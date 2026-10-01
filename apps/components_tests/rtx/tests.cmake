@@ -4,6 +4,7 @@
 set(RTX_TEST_FILES
     rtx/scene/nifsurface.cpp
     myguirtx/sharedtexture.cpp
+    rtx/common/job.cpp
     rtx/common/monitor.cpp
     rtx/common/namedenum.cpp
     rtx/common/parallel.cpp

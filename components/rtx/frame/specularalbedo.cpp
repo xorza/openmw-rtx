@@ -48,7 +48,7 @@ namespace Rtx
         // whichever hand took which row.
         mValues.resize(std::size_t{ sSize } * sSize * 2);
         runInParallel(
-            sSize, [] { return 0; },
+            "albedo hand", sSize, Platform::StopToken{}, [] { return 0; },
             [&](const std::size_t row) {
                 const float alpha = Shaders::ggxAlpha(Shaders::specularTableRoughness(static_cast<std::uint32_t>(row)));
 

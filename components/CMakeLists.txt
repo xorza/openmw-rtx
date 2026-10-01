@@ -394,8 +394,8 @@ add_component_dir (sky
 # The ray tracer's API-neutral core. No graphics API is on this library's include path; the Vulkan
 # backend is its own library, `components/rtxvulkan`. `shaders/` holds what C++ and GLSL share.
 add_component_dir (rtx/common
-    clock error finite index menu monitor namedenum parallel pointhash radicalinverse result runs scratch
-    slots stepped worker
+    clock error finite index job jobprogress menu monitor namedenum parallel pointhash radicalinverse result runs
+    scratch slots stepped worker
     )
 
 add_component_dir (rtx/environment
@@ -435,7 +435,7 @@ add_component_dir (rtx/preprocess/texture
     )
 
 add_component_dir (rtx/renderer
-    channel framedigest frameimage framespend guirenderer kernelprogress memoryreport png renderer sceneuploader
+    channel framedigest frameimage framespend guirenderer memoryreport png renderer sceneuploader
     shaderdirectory slot
     )
 
@@ -582,6 +582,7 @@ if (WIN32)
         sharedmemorywin32
         fifowin32
         librarywin32
+        threadwin32
         )
 elseif (UNIX)
     add_component_dir(platform
@@ -591,6 +592,7 @@ elseif (UNIX)
         sharedmemoryposix
         fifoposix
         libraryposix
+        threadposix
         )
 else ()
     add_component_dir(platform

@@ -5,9 +5,9 @@
 #include <cassert>
 #include <chrono>
 #include <cstddef>
-#include <future>
 #include <memory>
 #include <span>
+#include <stdexcept>
 #include <string_view>
 #include <thread>
 #include <utility>
@@ -245,25 +245,26 @@ namespace Rtx
         for (const Kernel single : singles)
             wanted.push_back(Wanted{ .mKernel = single });
 
-        mKernelCount = static_cast<std::uint32_t>(wanted.size());
-
         // So that a hand's validation error reaches whoever asked for these pipelines. The
         // layers report on the thread that made the call, and the log files by thread because the
         // test binary runs tests in parallel against one of them — an error left filed under a
         // hand is one nobody ever collects.
         const std::thread::id caller = std::this_thread::get_id();
 
-        std::packaged_task<void()> compileAll([this, textureLayout, caller, wanted = std::move(wanted)] {
-            runInParallel(
-                wanted.size(), [caller] { return AdoptedThread(caller); },
-                [&](const std::size_t at) {
-                    compile(wanted[at], textureLayout);
-                    mKernelsMade.fetch_add(1, std::memory_order_relaxed);
-                });
-        });
+        const auto count = static_cast<std::uint32_t>(wanted.size());
+        mCompiling.start("kernel compile", count,
+            [this, textureLayout, caller, wanted = std::move(wanted)](const Platform::StopToken& stop, Job& job) {
+                runInParallel(
+                    "compile hand", wanted.size(), stop, [caller] { return AdoptedThread(caller); },
+                    [&](const std::size_t at) {
+                        compile(wanted[at], textureLayout);
+                        job.advance();
+                    });
 
-        mKernels = compileAll.get_future().share();
-        mCompiling = Platform::Thread(std::move(compileAll));
+                // A table stopped half way is not one to answer `kernels` with.
+                if (stop.stopRequested())
+                    throw std::runtime_error("the kernel compile was stopped");
+            });
     }
 
     void VisibilityPass::compile(const Wanted& wanted, const VkDescriptorSetLayout textureLayout)
@@ -305,7 +306,7 @@ namespace Rtx
                     HitShader{ .mModule = hitModule, .mSpecialization = hitWords[2] },
                 };
 
-                mPipelines[variant.index()]
+                mKernels.mVisibility[variant.index()]
                     = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
                         TraceShaders{
                             .mRaygen = "visibility.rgen.spv",
@@ -319,53 +320,45 @@ namespace Rtx
                 return;
             }
             case Kernel::Scatter:
-                mScatterPipelines[variant.index()] = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
+                mKernels.mScatter[variant.index()] = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
                     sharedSets(textureLayout), TraceShaders{ .mRaygen = "fogscatter.rgen.spv" },
                     variant.describe("fog scatter"), specialization);
                 return;
             // From here on no tuple and no specialization: each reads what a launch before it
             // wrote, or traces nothing, and has no opinion about the sky.
             case Kernel::Depth:
-                mDepthPipeline = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
+                mKernels.mDepth = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
                     sharedSets(textureLayout), TraceShaders{ .mRaygen = "fogdepth.rgen.spv" }, "fog depth");
                 return;
             case Kernel::Integrate:
-                mIntegratePipeline = std::make_unique<ComputePipeline<NoConstants>>(
+                mKernels.mIntegrate = std::make_unique<ComputePipeline<NoConstants>>(
                     mDevice, sBindings, sharedSets(textureLayout), "fogintegrate.comp.spv", "fog integrate");
                 return;
             case Kernel::SpriteComposite:
-                mSpriteCompositePipeline = std::make_unique<TracePipeline<Shaders::PuffConstants>>(mDevice,
+                mKernels.mSpriteComposite = std::make_unique<TracePipeline<Shaders::PuffConstants>>(mDevice,
                     sCompositeBindings, sharedSets(textureLayout),
                     TraceShaders{ .mRaygen = "spritecomposite.rgen.spv" }, "sprite composite");
                 return;
             case Kernel::SpriteShelter:
-                mSpriteShelterPipeline = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
+                mKernels.mSpriteShelter = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
                     sharedSets(textureLayout), TraceShaders{ .mRaygen = "spriteshelter.rgen.spv" }, "sprite shelter");
                 return;
             case Kernel::SpriteEmitters:
-                mSpriteEmittersPipeline = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
+                mKernels.mSpriteEmitters = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
                     sharedSets(textureLayout), TraceShaders{ .mRaygen = "spriteemitters.rgen.spv" }, "sprite emitters");
                 return;
         }
     }
 
-    void VisibilityPass::awaitKernels() const
+    JobProgress VisibilityPass::awaitKernels(const std::chrono::milliseconds patience) const
     {
-        mKernels.get();
+        return mCompiling.waitFor(patience);
     }
 
-    KernelProgress VisibilityPass::awaitKernels(const std::chrono::milliseconds patience) const
+    const VisibilityPass::Kernels& VisibilityPass::kernels() const
     {
-        if (mKernels.wait_for(patience) == std::future_status::ready)
-        {
-            awaitKernels();
-            return KernelProgress{ .mMade = mKernelCount, .mCount = mKernelCount };
-        }
-
-        // Short of the count until the compile has returned, whatever the hands have counted:
-        // `KernelProgress::isDone` is the promise that nothing is left to wait for.
-        const std::uint32_t made = mKernelsMade.load(std::memory_order_relaxed);
-        return KernelProgress{ .mMade = std::min(made, mKernelCount - 1), .mCount = mKernelCount };
+        mCompiling.wait();
+        return mKernels;
     }
 
     std::uint32_t VisibilityPass::slotOf(const VisibilityVariant variant) const
@@ -375,7 +368,7 @@ namespace Rtx
 
     const TracePipeline<NoConstants>& VisibilityPass::pipelineFor(const VisibilityVariant variant) const
     {
-        const std::unique_ptr<TracePipeline<NoConstants>>& held = mPipelines[slotOf(variant)];
+        const std::unique_ptr<TracePipeline<NoConstants>>& held = kernels().mVisibility[slotOf(variant)];
         assert(held != nullptr && "a tuple `compileEvery` did not make");
 
         return *held;
@@ -384,7 +377,7 @@ namespace Rtx
     const TracePipeline<NoConstants>& VisibilityPass::scatterPipelineFor(VisibilityVariant variant) const
     {
         variant.mMaps = false;
-        const std::unique_ptr<TracePipeline<NoConstants>>& held = mScatterPipelines[slotOf(variant)];
+        const std::unique_ptr<TracePipeline<NoConstants>>& held = kernels().mScatter[slotOf(variant)];
         assert(held != nullptr && "a tuple `compileEvery` made no scatter kernel for");
 
         return *held;
@@ -554,11 +547,12 @@ namespace Rtx
 
         openZone(timer, commands, "shelter");
 
-        bind(commands, *mSpriteShelterPipeline);
-        pushInputs(commands, *mSpriteShelterPipeline, inputs);
+        const auto& shelter = *kernels().mSpriteShelter;
+        bind(commands, shelter);
+        pushInputs(commands, shelter, inputs);
 
         // One invocation a sprite, over the bin's own copy of the list.
-        mSpriteShelterPipeline->traceRays(commands, count, 1);
+        shelter.traceRays(commands, count, 1);
 
         // The shade reads and writes what this zeroed, from a dispatch.
         handOver(commands, Use::sBufferShaderReadWrite, Use::sBufferComputeReadWrite);
@@ -574,9 +568,10 @@ namespace Rtx
 
         openZone(timer, commands, "emitters");
 
-        bind(commands, *mSpriteEmittersPipeline);
-        pushInputs(commands, *mSpriteEmittersPipeline, inputs);
-        mSpriteEmittersPipeline->traceRays(commands, count, 1);
+        const auto& emitters = *kernels().mSpriteEmitters;
+        bind(commands, emitters);
+        pushInputs(commands, emitters, inputs);
+        emitters.traceRays(commands, count, 1);
 
         // Read by the trace and by the puffs' composite, both launches.
         handOver(commands, Use::sBufferShaderReadWrite, Use::sBufferShaderRead);
@@ -613,10 +608,11 @@ namespace Rtx
 
         // Where each column's ray stops, before anything is drawn along it. One ray a
         // column, and the froxels of the column keep their draws short of the answer.
-        bind(commands, *mDepthPipeline);
-        pushInputs(commands, *mDepthPipeline, inputs);
+        const auto& depth = *kernels().mDepth;
+        bind(commands, depth);
+        pushInputs(commands, depth, inputs);
 
-        mDepthPipeline->traceRays(commands, columns, rows);
+        depth.traceRays(commands, columns, rows);
 
         inputs.mFogVolume.depthTaken(commands);
 
@@ -636,8 +632,9 @@ namespace Rtx
 
         // The integrate pass is a dispatch and reads what the launches wrote, so it is handed the
         // set again at its own bind point.
-        bind(commands, *mIntegratePipeline);
-        pushInputs(commands, *mIntegratePipeline, inputs);
+        const auto& integrate = *kernels().mIntegrate;
+        bind(commands, integrate);
+        pushInputs(commands, integrate, inputs);
 
         vkCmdDispatch(commands, groupsFor(columns, Shaders::FOG_COLUMN_WORKGROUP),
             groupsFor(rows, Shaders::FOG_COLUMN_WORKGROUP), 1);
@@ -672,14 +669,14 @@ namespace Rtx
         // extent costs apart from what binning the sprites over the traced one does.
         openZone(timer, commands, "puffs");
 
-        bind(commands, *mSpriteCompositePipeline);
-        pushInputs(commands, *mSpriteCompositePipeline, inputs, &shown);
-        mSpriteCompositePipeline->push(
-            commands, Shaders::PuffConstants{ .mShownWidth = extent.width, .mShownHeight = extent.height });
+        const auto& composite = *kernels().mSpriteComposite;
+        bind(commands, composite);
+        pushInputs(commands, composite, inputs, &shown);
+        composite.push(commands, Shaders::PuffConstants{ .mShownWidth = extent.width, .mShownHeight = extent.height });
 
         // One invocation a traced pixel, which composites the shown pixels over it —
         // `spritecomposite.rgen` says why.
-        mSpriteCompositePipeline->traceRays(commands, traced.width, traced.height);
+        composite.traceRays(commands, traced.width, traced.height);
 
         closeZone(timer, commands);
     }
