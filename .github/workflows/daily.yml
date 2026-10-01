@@ -54,11 +54,8 @@ jobs:
 
       - uses: $/.github/actions/openmw-deps
 
-      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
-        with:
-          key: package-${{ matrix.os }}
-          max-size: 1000M
-
+      # **No compiler cache**, as a release keeps none: nobody waits on a nightly, and the
+      # repository's ten gigabytes are CI's and the sanitizers'.
       - name: Package, as a release does
         run: python omw archive daily
 
