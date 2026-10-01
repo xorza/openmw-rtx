@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/namedenum.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -24,7 +25,6 @@
 
 #include "framedigest.hpp"
 #include "guirenderer.hpp"
-#include "kernelprogress.hpp"
 #include "memoryreport.hpp"
 #include "slot.hpp"
 
@@ -373,7 +373,7 @@ namespace Rtx
         /// shows this on a loading screen rather than a window that stopped answering. Every call
         /// that traces waits for them first, so a host that never asks is right all the same, and
         /// held on its first trace instead.
-        virtual KernelProgress awaitKernels(std::chrono::milliseconds patience) = 0;
+        virtual JobProgress awaitKernels(std::chrono::milliseconds patience) = 0;
 
         /// Traces one frame; `setScene` first, which is an assert. Returns before the device has
         /// drawn it, so the caller can place the next one meanwhile, and `finishFrame` reads back

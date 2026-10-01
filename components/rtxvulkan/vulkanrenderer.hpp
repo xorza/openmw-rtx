@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/frameextents.hpp>
@@ -17,7 +18,6 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
-#include <components/rtx/renderer/kernelprogress.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
@@ -78,7 +78,7 @@ namespace Rtx
         void skipFrame() override;
         FrameExtents getExtents() const override;
         const RenderProfile& getProfile() const override { return mProfile; }
-        KernelProgress awaitKernels(std::chrono::milliseconds patience) override;
+        JobProgress awaitKernels(std::chrono::milliseconds patience) override;
         Reconstruction renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) override;
         std::uint64_t getFrameCount() const override;
         std::optional<FrameResult> finishFrame() override;

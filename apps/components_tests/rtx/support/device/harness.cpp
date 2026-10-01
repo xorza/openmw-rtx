@@ -14,8 +14,8 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/files/configurationmanager.hpp>
+#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
-#include <components/rtx/renderer/kernelprogress.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>

@@ -1373,7 +1373,7 @@ namespace Rtx::Testing
         /// moved and nothing it lacked is lacked now. It left the list to be read to its end,
         /// because what said "newer" was a list that was not empty. The thread is held inside the
         /// first of three cells while the empty ask is made, and the next cell it reads is the one
-        /// asked after.
+        /// asked after. Between the two, a wait for a cell nobody is reading ends.
         TEST(RtxCellSupplyTest, anAskForNothingCancelsTheListInFlight)
         {
             FakeLand land;
@@ -1394,10 +1394,13 @@ namespace Rtx::Testing
             content.mLetGo.release();
 
             std::vector<PreparedCell*> read;
-            supply.waitForOne();
+            EXPECT_TRUE(supply.waitForOne());
             supply.take(read);
             ASSERT_EQ(read.size(), 1u);
             EXPECT_EQ(read[0]->mCell, osg::Vec2i(0, 0)) << "the cell in hand is finished";
+
+            // Nothing is left to read, and the wait says so rather than waiting for ever.
+            EXPECT_FALSE(supply.waitForOne());
 
             supply.ask(CellRequest{ .mCells = { osg::Vec2i(5, 0) } });
             while (std::none_of(

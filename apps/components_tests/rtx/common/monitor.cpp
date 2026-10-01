@@ -1,4 +1,5 @@
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <deque>
 #include <functional>
@@ -37,7 +38,7 @@ namespace Rtx
 
             void start()
             {
-                mWorker.start([this](Platform::StopToken stop) {
+                mWorker.start("served", [this](Platform::StopToken stop) {
                     int took = 0;
 
                     mMonitor.serve(
@@ -144,6 +145,55 @@ namespace Rtx
             // Read without the lock, because the join is what makes this the only thread left.
             EXPECT_EQ(served.mDone, (std::vector<int>{ 1 })) << "a stopped loop took work nobody was left to collect";
             EXPECT_EQ(served.mPending.size(), 2u);
+        }
+
+        /// **A wait for what nothing will hand over ends, and says so.** With no worker serving it
+        /// answers at once; with one that finished everything it was given and waits idle, as soon
+        /// as the worker has looked; with what it waited for, true.
+        TEST(RtxMonitorTest, aWaitEndsWhereNoWorkerCanHelp)
+        {
+            Served unserved;
+            EXPECT_FALSE(unserved.mMonitor.await([&] { return !unserved.mDone.empty(); })) << "nobody serves";
+
+            Served served;
+            served.start();
+            served.give(1);
+            EXPECT_TRUE(served.mMonitor.await([&] { return !served.mDone.empty(); }));
+            EXPECT_FALSE(served.mMonitor.await([&] { return served.mDone.size() >= 2; }))
+                << "the worker is idle with nothing given";
+        }
+
+        /// **A worker in a turn is not idle**, so a wait goes on while it works rather than taking
+        /// an idleness that came before the turn for its answer. The turn is held until the waiting
+        /// thread has had a quarter of a second to answer wrongly.
+        TEST(RtxMonitorTest, aWaitOutlastsAWorkersTurn)
+        {
+            Served served;
+            std::atomic<bool> turning{ false };
+            std::atomic<bool> release{ false };
+            served.mTurn = [&](int, Platform::StopToken) {
+                turning = true;
+                while (!release)
+                    std::this_thread::yield();
+            };
+            served.start();
+            served.give(1);
+            while (!turning)
+                std::this_thread::yield();
+
+            std::atomic<bool> answered{ false };
+            bool got = false;
+            std::thread waiter([&] {
+                got = served.mMonitor.await([&] { return !served.mDone.empty(); });
+                answered = true;
+            });
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            EXPECT_FALSE(answered) << "the wait ended while the worker was in its turn";
+
+            release = true;
+            waiter.join();
+            EXPECT_TRUE(got);
         }
     }
 }

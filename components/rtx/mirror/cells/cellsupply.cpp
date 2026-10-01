@@ -52,6 +52,7 @@ namespace Rtx
         mDone.clear();
         mReturned.clear();
         mReturning.clear();
+        mRecycling.clear();
         mMeasured = ReaderMemory{};
         mReader.reset();
 
@@ -62,7 +63,7 @@ namespace Rtx
 
         mReader = std::make_unique<CellReader>(
             *mWorld.mStorage, *mWorld.mGround, *mWorld.mContent, mWorld.mWorldspace, mWorld.mMask);
-        mWorker.start([this](const Platform::StopToken& stop) { work(stop); });
+        mWorker.start("cell reader", [this](const Platform::StopToken& stop) { work(stop); });
     }
 
     void CellSupply::ask(const CellRequest& request)
@@ -82,15 +83,19 @@ namespace Rtx
 
     void CellSupply::take(std::vector<PreparedCell*>& into)
     {
+        mOnFrame.check();
+
         mMonitor.under([&] {
             into.insert(into.end(), mDone.begin(), mDone.end());
             mDone.clear();
         });
     }
 
-    void CellSupply::waitForOne()
+    bool CellSupply::waitForOne()
     {
-        mMonitor.await([&] { return !mDone.empty(); });
+        mOnFrame.check();
+
+        return mMonitor.await([&] { return !mDone.empty(); });
     }
 
     void CellSupply::publish()
@@ -112,17 +117,16 @@ namespace Rtx
 
     void CellSupply::recycle()
     {
-        for (PreparedCell* cell : mReturned.mCells)
+        for (PreparedCell* cell : mRecycling.mCells)
             mReader->giveBack(*cell);
-        mReturned.mCells.clear();
 
-        for (PreparedTexture* texture : mReturned.mTextures)
+        for (PreparedTexture* texture : mRecycling.mTextures)
             mReader->giveBack(*texture);
-        mReturned.mTextures.clear();
 
-        for (PreparedModel* model : mReturned.mModels)
+        for (PreparedModel* model : mRecycling.mModels)
             mReader->giveBack(*model);
-        mReturned.mModels.clear();
+
+        mRecycling.clear();
     }
 
     void CellSupply::work(const Platform::StopToken& stop)
@@ -130,11 +134,14 @@ namespace Rtx
         mMonitor.serve(
             stop, [&] { return !mWanted.empty() || !mReturned.empty(); },
             [&] {
-                recycle();
+                mRecycling.take(mReturned);
                 mReading.take(mWanted);
                 mReadingAsked = mAsked;
             },
-            [&](const Platform::StopToken& turn) { read(turn); });
+            [&](const Platform::StopToken& turn) {
+                recycle();
+                read(turn);
+            });
     }
 
     void CellSupply::read(const Platform::StopToken& stop)
@@ -147,9 +154,10 @@ namespace Rtx
             // A newer ask replaces this one: the eye has moved and what it lacks has changed. An ask
             // for nothing too, which says the list in flight is no longer wanted.
             const bool newer = mMonitor.under([&] {
-                recycle();
+                mRecycling.take(mReturned);
                 return mAsked != mReadingAsked;
             });
+            recycle();
 
             if (newer)
                 return;

@@ -2,10 +2,7 @@
 
 #include <cassert>
 #include <chrono>
-#include <condition_variable>
-#include <exception>
-#include <functional>
-#include <mutex>
+#include <string_view>
 #include <thread>
 #include <utility>
 
@@ -25,48 +22,29 @@ namespace Rtx
         /// Stops and joins whatever is running.
         ~Worker() { stop(); }
 
-        /// Runs `work` on a thread of its own, where none is running, and says whether this call
-        /// is what started it, so a caller that clears what the last run left knows it is not
-        /// clearing a run in progress. `work` must give up on the stop token it is handed, or the
+        /// Runs `work` on a thread of its own named `name`, where none is running, and says whether
+        /// this call is what started it, so a caller that clears what the last run left knows it is
+        /// not clearing a run in progress. `work` must give up on the stop token it is handed, or the
         /// join hangs; `Monitor::serve` and `repeat` are the two shapes that do.
-        bool start(std::function<void(Platform::StopToken)> work)
+        template <class Work>
+        bool start(std::string_view name, Work work)
         {
             if (mThread.joinable())
                 return false;
 
-            // **The thread ends the way the one that started it would.** MSVC keeps a terminate
-            // handler per thread and starts each new one on the default, which aborts and says
-            // nothing; elsewhere there is one for the process, and this changes nothing.
-            mThread = Platform::Thread(
-                [onTerminate = std::get_terminate(), work = std::move(work)](Platform::StopToken stop) {
-                    std::set_terminate(onTerminate);
-                    work(std::move(stop));
-                });
+            mThread = Platform::Thread(name, std::move(work));
             return true;
         }
 
         /// Runs `tick` straight away and every `period` after it, until stopped, and answers as
-        /// `start` does. The wait is a condition variable only so the stop can break it, where
-        /// `sleep_for` would make every join wait a period out.
+        /// `start` does. A stop ends the period's wait at once rather than a period later.
         template <class Tick>
-        bool repeat(std::chrono::milliseconds period, Tick tick)
+        bool repeat(std::string_view name, std::chrono::milliseconds period, Tick tick)
         {
-            return start([period, tick = std::move(tick)](Platform::StopToken stop) {
-                std::mutex idle;
-                std::condition_variable wake;
-                const Platform::StopCallback woken(stop, [&] {
-                    const std::lock_guard lock(idle);
-                    wake.notify_all();
-                });
-
-                for (;;)
-                {
+            return start(name, [period, tick = std::move(tick)](const Platform::StopToken& stop) mutable {
+                do
                     tick();
-
-                    std::unique_lock<std::mutex> lock(idle);
-                    if (wake.wait_for(lock, period, [&stop] { return stop.stopRequested(); }))
-                        return;
-                }
+                while (Platform::sleepUnlessStopped(stop, period));
             });
         }
 

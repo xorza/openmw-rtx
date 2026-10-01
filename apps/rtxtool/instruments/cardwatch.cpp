@@ -69,7 +69,7 @@ namespace RtxTool
             return;
 
         mMonitor.under([&] { close(); });
-        mWorker.repeat(mPeriod, [this] { mMonitor.under([this] { read(); }); });
+        mWorker.repeat("card watch", mPeriod, [this] { mMonitor.under([this] { read(); }); });
     }
 
     CardShare CardWatch::start()

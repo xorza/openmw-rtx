@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
@@ -16,7 +17,6 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
-#include <components/rtx/renderer/kernelprogress.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
@@ -103,7 +103,7 @@ namespace Rtx::Testing
         void setUpscale(Upscale upscale) override { mProfile.mUpscale = upscale; }
         void setVerticalSync(SDLUtil::VSyncMode) override {}
         void setAnisotropy(std::uint32_t) override {}
-        Rtx::KernelProgress awaitKernels(std::chrono::milliseconds) override { return {}; }
+        Rtx::JobProgress awaitKernels(std::chrono::milliseconds) override { return {}; }
         Rtx::FrameExtents getExtents() const override { return {}; }
         Rtx::Reconstruction renderFrame(const Rtx::Shaders::VisibilityConstants&, const Rtx::FrameOptions&) override
         {
