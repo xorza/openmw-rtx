@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstddef>
 #include <exception>
 #include <functional>
 #include <memory>
@@ -64,8 +65,12 @@ namespace Platform
     /// A token made by default sleeps the period out.
     bool sleepUnlessStopped(const StopToken& stop, std::chrono::nanoseconds period);
 
-    /// Names the calling thread `name`, as a debugger, a profiler and a crash report show it. Linux
-    /// keeps fifteen characters of it, and a name longer is cut there.
+    /// How much of a thread's name every system keeps: Linux's limit, applied everywhere, so a thread
+    /// reads the same in a report from any system.
+    inline constexpr std::size_t sThreadNameLength = 15;
+
+    /// Names the calling thread `name`, as a debugger, a profiler and a crash report show it, cut to
+    /// `sThreadNameLength`.
     void nameThisThread(std::string_view name);
 
     /// The calling thread's name, as `nameThisThread` left it, or empty where it has none.
