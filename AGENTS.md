@@ -20,12 +20,8 @@ them.
 
 ## Rules
 
-- Do not change the rasterizer, or anything the ray tracer does not need. Four changes the ray
-  tracer needs do move the rasterizer's picture, each where upstream's was wrong: the optimizer
-  merges in child order, not address order, an exterior map tile keeps its land where the
-  quad tree did not build the chunk yet, a `NightDaySwitch` shows its mode's child from its
-  first frame, not the child its file opens on, and the particles a NIF saves wear what their
-  age affectors give them from their first frame, not the controller's initial colour and size.
+- Do not change the rasterizer, or anything the ray tracer does not need, beyond what
+  [Accepted diff](#accepted-diff) lists.
 - Both renderers stand behind one interface that exposes no implementation detail. Where the game
   would branch on which renderer it has, the seam abstracts the question instead.
 - Performance matters. Compute nothing twice; compute as early as possible.
@@ -42,12 +38,43 @@ them.
   sorting cost 17–23% of the trace, and the extension shuts out Mesa's drivers. Do not propose it
   again.
 - Keep the diff against upstream minimal, but never at the cost of reuse or of the abstraction's
-  quality. The `[RTX]` settings pages and their translations are a fine price, and so is
-  `components/crashcatcher`: upstream's crash catcher is replaced whole by the fork's own, a
-  Crashpad monitor process, and that diff is accepted rather than kept small. So are `README.md`,
-  which is the fork's own page and what a package ships, and `CI/`. So are the visibility gates
-  (`MWScript::VisibilityGates` and the calls that feed them): without them the distance stands
-  scripted stages the game keeps down.
+  quality. [Accepted diff](#accepted-diff) lists what is accepted rather than kept small.
+
+## Accepted diff
+
+The fork's changes to upstream that stay, each for the reason given. A change to upstream code
+that is not here is held to the rules above.
+
+**The rasterizer's picture.** Four changes the ray tracer needs move it, each where upstream's was
+wrong:
+
+- the optimizer merges in child order, not address order;
+- an exterior map tile keeps its land where the quad tree did not build the chunk yet;
+- a `NightDaySwitch` shows its mode's child from its first frame, not the child its file opens on;
+- the particles a NIF saves wear what their age affectors give them from their first frame, not
+  the controller's initial colour and size.
+
+A fifth is the seam's: both renderers draw their frame at `[Video] resolution x/y` and show it
+scaled into the window with black beside it (`Misc::Presentation`), so the GUI, the projection, the
+pointer and Lua read one size whichever renderer draws.
+
+**The rest of the tree.**
+
+- The `[RTX]` settings pages and their translations.
+- `components/crashcatcher`: upstream's crash catcher is replaced whole by the fork's own, a
+  Crashpad monitor process.
+- `README.md`, which is the fork's own page and what a package ships, and `CI/`.
+- The visibility gates (`MWScript::VisibilityGates` and the calls that feed them): without them
+  the distance stands scripted stages the game keeps down.
+- The port to SDL3, through the input, the GUI and the window code: the presentation reads a
+  window's pixel density and display scale, which a fractionally scaled Wayland desktop sets and
+  SDL2 cannot report.
+- The five checks the top-level `CMakeLists.txt` adds to upstream's, on for the whole tree, and
+  the hunks in upstream code that keep it clean under them, the patches to `extern/sol3` and
+  `components/files/configurationmanager` included: one set of checks for every file.
+- Three upstream bugs those checks found, fixed here: `ContentModel::dropMimeData` reading past
+  the last file, `Store<ESM4::Cell>::insert` indexing a null cell, and a moved reference whose old
+  cell is missing.
 
 ## Where the code lives
 

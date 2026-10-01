@@ -9,8 +9,8 @@ The 309 findings fall into three kinds:
 1. **Structure.** About 150 findings come from eleven causes in how the code is owned and connected.
    Sections 2 to 12 redesign those causes. A change of structure closes a whole group, and the
    group's items go with it.
-2. **Decisions.** Twenty findings ask a question that only the owner can answer: what the fork
-   accepts against upstream. Section 1 lists them. Work on the upstream diff waits for the answers.
+2. **Decisions.** Twenty findings asked what the fork accepts against upstream. Section 1 records
+   the owner's answers and the work each answer leaves.
 3. **Fixes in place.** About 140 findings are local: stale comments, includes, a constant written as
    a rounded decimal, a test that asserts too little. They need no design. Section 14 lists the
    groups and the rule for each.
@@ -18,7 +18,7 @@ The 309 findings fall into three kinds:
 ## Contents
 
 0. [Principles the redesign keeps](#0-principles-the-redesign-keeps)
-1. [Decisions for the owner](#1-decisions-for-the-owner)
+1. [Decisions the owner took](#1-decisions-the-owner-took)
 2. [W1 — The frame says what happened](#2-w1--the-frame-says-what-happened)
 3. [W2 — One walk context, one route to the ring](#3-w2--one-walk-context-one-route-to-the-ring)
 4. [W3 — A value has one owner across the layers](#4-w3--a-value-has-one-owner-across-the-layers)
@@ -60,60 +60,59 @@ These come from `AGENTS.md` and the owner's posture. Each workstream below appli
 
 ---
 
-## 1. Decisions for the owner
+## 1. Decisions the owner took
 
-The redesign cannot answer these. Each changes how much of the upstream diff stays. My
-recommendation is first in each list.
+The owner decided these on 2026-10-01. Each decision keeps a part of the upstream diff, and
+`AGENTS.md`, `architecture.md` §1 and `README.md` now record all four. What is left is to fix the
+defects inside the kept parts, not to revert them. A daily
+agent merges upstream into the fork (`.github/workflows/upstream.yml`), so each kept hunk can
+conflict on a merge. That cost is accepted.
 
-### D1. The SDL3 port *(REVIEW: The SDL3 port and the scaled presentation …)*
+### D1. The SDL3 port stays. Gamma is out of this plan.
 
-The port touches about 144 upstream files. The ray tracer calls no function that SDL 2.26 does not
-have. The port also removes `[Video] gamma` and `contrast`, because SDL3 has no gamma ramps.
+The port touches about 144 upstream files. Its reason is the presentation: `SDL_GetWindowPixelDensity`
+and `SDL_GetWindowDisplayScale` give the frame-to-window mapping and the interface scale on a
+fractionally scaled Wayland desktop, and SDL2 has no per-window display scale. Commit `37778677fe`
+does not state this reason.
 
-- **(a) Recommended: keep SDL3 and record it.** Add the port to the accepted diffs in `AGENTS.md`,
-  with its reason. Restore gamma and contrast in some other way, or name their removal as an
-  accepted change to the rasterizer's picture. Then fix the three defects the port brought in:
-  the settings migration, the launcher controls and `androidmain.cpp`.
-- **(b) Revert to SDL2 and keep only the seam.** This is the smallest diff. It is also the largest
-  piece of work, and it gives up SDL3's display scale on Wayland.
+The work in this plan:
 
-Choose (a) only if SDL3 serves a reason that the fork has, for example pixel density on Wayland. If
-no such reason exists, (b) is the answer the rules give.
+- Fix the defects the port brought in: the settings migration (an old file with `resolution x/y`
+  and no `window width` copies the values once), the launcher's custom size (say what it sets, or
+  add the window's size), `androidmain.cpp` (back to upstream's, or out of the fork), the
+  `GraphicsWindowSDL2` rename (back to upstream's name), and the truncation in
+  `setWindowRectangleImplementation` (call `SDLUtil::windowPoints`).
 
-### D2. The scaled presentation *(REVIEW: same group, and `glrenderer.hpp:83-86`)*
+**Not in this plan:** `[Video] gamma` and `contrast`. The owner will schedule them later. Until
+then, the *(REVIEW)* item about their removal stays open.
 
-The GL path now draws into a frame texture and blits it into the window. This is a fifth change to
-the rasterizer's picture. `[Video] resolution x/y` now means the frame, not the window.
+### D2. The scaled presentation is the fifth accepted change to the rasterizer.
 
-- **(a) Recommended: the GL path presents at native size always** (`presentAtNative()`, which it
-  calls under stereo already). The pingpong, postprocessor and intersector hunks go back to
-  upstream. `resolution x/y` then has a meaning for the ray tracer only, and the settings
-  migration problem goes away for the rasterizer.
-- **(b) Accept it.** Add it to `AGENTS.md` and `architecture.md` §1 as a fifth correction, with its
-  reason, and correct the `GlRenderer` class comment. Add the settings migration (an old file with
-  `resolution x/y` and no `window width` copies the values once).
+The GL path keeps its frame texture and its blit. `[Video] resolution x/y` is the frame for both
+renderers.
 
-### D3. The scope of the extra warnings *(REVIEW: The fork's extra warnings apply to the whole tree …)*
+The work in this plan:
 
-Commit `41554ed6a9` turned five extra warnings on for the whole tree. About 80 upstream files carry
-hunks only to quiet them, with a patched sol3, `extern template`s of Boost, and release-mode
-`Crash::notNull` checks on per-node hot paths.
+- Correct the `GlRenderer` class comment (`glrenderer.hpp:83-86`), which says the rasterizer is not
+  modified.
+- The pingpong, postprocessor and intersector hunks stay.
+- Correct the upscale docs (`rtx.rst`, `settings-default.cfg`, the launcher tooltip): `off` traces
+  at the frame's size, not the window's.
 
-- **(a) Recommended: scope the flags to the fork's own sources.** See §13.1 for the mechanism. Then
-  revert every hunk in an upstream `.cpp` file. Header hunks that a fork translation unit reaches
-  stay, because the warning fires in the fork's compile of that header.
-- **(b) Keep the flags tree-wide, and name it in `AGENTS.md`.** Then at least change the hot-path
-  `Crash::notNull` checks to the debug-only form, which the rules require in any case.
+### D3. The five extra warnings stay on for the whole tree.
 
-### D4. Three upstream bug fixes *(REVIEW: same group)*
+The work in this plan:
 
-`ContentModel::dropMimeData`, `Store<ESM4::Cell>::insert` and a moved reference with a missing
-source cell are real upstream bugs. The ray tracer needs none of the fixes.
+- Change every `Crash::notNull` on a per-node or per-frame path to the debug-only form. The rules
+  require this whatever the scope of the flags: `NodeCallback::run`, the light manager, the terrain
+  drawable, the MyGUI batch and the physics check that replaced upstream's `assert`.
+- The cast hunks, the sol3 patch and the Boost `extern template`s stay.
 
-- **(a) Recommended: send them upstream, and drop them here once upstream has them.**
-- **(b) Keep them, and list them in `AGENTS.md` as accepted fixes.**
+### D4. The three upstream bug fixes stay in the fork.
 
-### D5. A measurement, not a choice: how this device rounds a half-float store
+No work is left.
+
+### D5. Still open, and a measurement: how this device rounds a half-float store
 
 `specular.h` says this device rounds half-float stores toward zero. `accumulate.h` reasons as if it
 rounds to nearest. One of the two is wrong, and three histories depend on the answer
@@ -659,29 +658,16 @@ new fields.
 
 ## 13. Smaller workstreams
 
-### 13.1 Upstream diff hygiene (after D1–D4)
+### 13.1 The upstream diff, as decided
 
-The mechanism for D3 (a): one CMake function adds the five options to a list of sources.
+§1 holds the work each decision leaves:
 
-```cmake
-function(openmw_fork_warnings)
-    foreach (target IN LISTS ARGN)
-        target_compile_options(${target} PRIVATE -Wnull-dereference -Wcast-qual
-            $<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-override -Wzero-as-null-pointer-constant>
-            $<$<CXX_COMPILER_ID:GNU>:-Wdouble-promotion>)
-    endforeach ()
-endfunction ()
-```
-
-The core is part of `components`, so it needs `set_source_files_properties` on the list that
-`add_component_dir` builds for `rtx`, `myguirtx` and `crashcatcher`. The backend, `apps/rtxtool`
-and `apps/openmw/mwrender/rtx` are targets or source lists of their own. Then:
-
-1. Revert each hunk in an upstream `.cpp` file whose only fork commit is `41554ed6a9`.
-2. Build. A warning that now fires in a fork compile of an upstream header keeps that header's hunk.
-3. Revert the sol3 patch and the Boost `extern template`s, which exist only for GCC 15's
-   `-Wnull-dereference`.
-4. Any `Crash::notNull` that stays on a per-node path becomes the debug-only form.
+1. **Debug-only checks on hot paths.** Each `Crash::notNull` on a per-node or per-frame path
+   becomes the debug-only form.
+2. **The port's defects:** the settings migration, the launcher's custom size, `androidmain.cpp`,
+   the `GraphicsWindowSDL2` rename, and the pixel-to-point truncation.
+3. **The comments and docs that the decisions make false:** the `GlRenderer` class comment, the
+   upscale docs, `rtx.rst`'s "untouched" and its `-DOPENMW_RTX`.
 
 ### 13.2 Memory and device requirements
 
@@ -784,14 +770,11 @@ stand alone and go first because they cost every run of the suite:
 
 ## 15. Order of work
 
-Each phase ends green on `./omw gate`. Phases 1 and 2 do not depend on the decisions in §1.
+Each phase ends green on `./omw gate`. Only W8 step 3 waits on anything outside the plan (D5).
 
 ```
-Phase 0  baselines ──┐
-Phase 1  correctness ├─► Phase 2  ownership ─► Phase 3  frame record ─► Phase 4  contracts ─► Phase 5  frame cost
-                     │                                                                         │
-D1–D4 decisions ─────┴──────────────────────────────────────────────────────────────────────► Phase 6  upstream diff
-                                                                                                Phase 7  tests and docs
+Phase 0  baselines ─► Phase 1  correctness ─► Phase 2  ownership ─► Phase 3  frame record
+    ─► Phase 4  contracts ─► Phase 5  frame cost ─► Phase 6  upstream diff ─► Phase 7  tests and docs
 ```
 
 ### Phase 0 — Baselines
@@ -843,7 +826,7 @@ does not go in. W8 step 3 follows D5 and its own measurement.
 
 ### Phase 6 — The upstream diff
 
-§13.1 by the answers to D1–D4. Then §13.5 and §13.7.
+§13.1, then §13.5 and §13.7.
 
 ### Phase 7 — Tests and docs
 
