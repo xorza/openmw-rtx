@@ -6,7 +6,7 @@
 #include <string_view>
 #include <utility>
 
-#include <vulkan/vulkan_core.h>
+#include <volk.h>
 
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/shaders/sets.h>

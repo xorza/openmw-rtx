@@ -7,13 +7,15 @@
 #include <string_view>
 #include <utility>
 
+#include <volk.h>
+
 #include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 
 // The one translation unit that holds the library's body. Told the two entry points every other
-// function is looked up through, because the loader this links exports Vulkan 1.4 and the
-// header's static path would name every one of those by hand.
+// function is looked up through, because no program links the loader: volk loads it, and its
+// pointers are not the prototypes the header's static path would name.
 #define VMA_IMPLEMENTATION
 #define VMA_STATIC_VULKAN_FUNCTIONS 0
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1

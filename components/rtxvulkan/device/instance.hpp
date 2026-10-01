@@ -26,6 +26,11 @@ namespace Rtx
         Instance(const ValidationOptions& validation, std::span<const char* const> surfaceExtensions);
         ~Instance();
 
+        /// The version the Vulkan loader offers, loading it into the process the first time it is
+        /// asked, or nought where the system has none. Nothing loads it before: no program imports it,
+        /// so a machine without one runs the OpenGL renderer.
+        static std::uint32_t getLoaderVersion();
+
         VkInstance getHandle() const { return mHandle; }
 
         /// Null unless validation was requested and the layer was present. Mutable through a

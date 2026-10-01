@@ -5,7 +5,7 @@
 
 #include <gtest/gtest.h>
 
-#include <vulkan/vulkan_core.h>
+#include <volk.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <components/rtxvulkan/device/commands.hpp>

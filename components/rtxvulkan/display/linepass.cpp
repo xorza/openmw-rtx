@@ -4,6 +4,8 @@
 #include <cassert>
 #include <cstddef>
 
+#include <volk.h>
+
 #include <components/rtx/frame/debuglines.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>

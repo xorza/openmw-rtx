@@ -5,7 +5,7 @@
 #include <string_view>
 #include <utility>
 
-#include <vulkan/vulkan_core.h>
+#include <volk.h>
 
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/owned.hpp>

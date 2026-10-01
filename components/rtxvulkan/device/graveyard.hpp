@@ -45,7 +45,7 @@ namespace Rtx
         void bury(EndHandle end, std::uint64_t handle, DeviceMemory&& memory);
 
         /// The same for the handle `owned` gives up and the memory bound to it.
-        template <class Handle, auto Destroy>
+        template <class Handle, auto& Destroy>
         void bury(Owned<Handle, Destroy>&& owned, DeviceMemory&& memory)
         {
             bury(&Owned<Handle, Destroy>::end, std::bit_cast<std::uint64_t>(owned.release()), std::move(memory));

@@ -3,8 +3,10 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <mutex>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <components/crashcatcher/crashnote.hpp>
@@ -15,11 +17,22 @@
 #include "requirements.hpp"
 #include "result.hpp"
 
+// The one translation unit that holds volk's body: the loader is loaded here and nowhere else.
+#define VOLK_IMPLEMENTATION
+#include <volk.h>
+
 namespace Rtx
 {
     namespace
     {
         constexpr const char* sValidationLayer = "VK_LAYER_KHRONOS_validation";
+
+        /// Loads the loader into the process, once, and says whether there was one to load.
+        bool loadLoader()
+        {
+            static const bool loaded = volkInitialize() == VK_SUCCESS;
+            return loaded;
+        }
 
         bool hasLayer(const char* name)
         {
@@ -48,7 +61,9 @@ namespace Rtx
     Instance::Instance(const ValidationOptions& options, const std::span<const char* const> surfaceExtensions)
     {
         const Crash::NoteScope noted("making the Vulkan instance");
-        checkVk(vkEnumerateInstanceVersion(&mApiVersion), "vkEnumerateInstanceVersion");
+        mApiVersion = getLoaderVersion();
+        if (mApiVersion == 0)
+            throw Unsupported("there is no Vulkan loader on this system: the graphics driver installs it");
         if (mApiVersion < sApiVersion)
             throw Unsupported("the Vulkan loader offers " + versionString(mApiVersion) + ", and this renderer is written "
                 "against " + versionString(sApiVersion));
@@ -207,11 +222,32 @@ namespace Rtx
         checkVkSupport(vkCreateInstance(&createInfo, nullptr, &mHandle), "vkCreateInstance");
         mExtensions.assign(extensions.begin(), extensions.end());
 
+        // **One load serves every instance**, so a second one made beside the first, as the tests
+        // make them, rewrites nothing another thread is calling through. For a core function and a
+        // swapchain one, the loader answers with its own exported trampoline whatever the instance
+        // (Vulkan-Loader's `trampoline_get_proc_addr` and `wsi_swapchain_instance_gpa`), which is the
+        // function an import library would have bound. The surface's are not, and `Surface` asks
+        // this instance for its own.
+        static std::once_flag loaded;
+        std::call_once(loaded, [&] { volkLoadInstance(mHandle); });
+
         // A constructor that throws runs no destructor, and this throw is caught and reported
         // rather than ending the process, so anything after a successful create cleans up before it
         // rethrows.
         try
         {
+            // What the one load stands on, held of every instance rather than trusted: a loader
+            // that answered this one differently would be calling another's functions through it.
+            const std::pair<const char*, PFN_vkVoidFunction> sameForEvery[] = {
+                { "vkEnumeratePhysicalDevices", reinterpret_cast<PFN_vkVoidFunction>(vkEnumeratePhysicalDevices) },
+                { "vkQueueSubmit2", reinterpret_cast<PFN_vkVoidFunction>(vkQueueSubmit2) },
+                { "vkQueuePresentKHR", reinterpret_cast<PFN_vkVoidFunction>(vkQueuePresentKHR) },
+            };
+            for (const auto& [name, held] : sameForEvery)
+                if (vkGetInstanceProcAddr(mHandle, name) != held)
+                    throw Unsupported(std::string("the Vulkan loader answers ") + name
+                        + " differently for each instance, which this renderer does not support");
+
             if (validation)
             {
                 const auto create = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
@@ -231,6 +267,11 @@ namespace Rtx
             mHandle = VK_NULL_HANDLE;
             throw;
         }
+    }
+
+    std::uint32_t Instance::getLoaderVersion()
+    {
+        return loadLoader() ? volkGetInstanceVersion() : 0;
     }
 
     bool Instance::hasExtension(const std::string_view name) const

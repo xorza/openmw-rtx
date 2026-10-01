@@ -12,6 +12,8 @@
 #include <utility>
 #include <vector>
 
+#include <volk.h>
+
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>

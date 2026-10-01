@@ -7,6 +7,8 @@
 #include <exception>
 #include <utility>
 
+#include <volk.h>
+
 #include <components/rtx/common/runs.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>

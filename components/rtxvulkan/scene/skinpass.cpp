@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include <volk.h>
+
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/mesh.hpp>

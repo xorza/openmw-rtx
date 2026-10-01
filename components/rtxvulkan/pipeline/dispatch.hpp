@@ -7,7 +7,7 @@
 #include <span>
 #include <type_traits>
 
-#include <vulkan/vulkan_core.h>
+#include <volk.h>
 
 #include <components/rtx/shaders/sets.h>
 #include <components/rtxvulkan/device/bindingtable.hpp>

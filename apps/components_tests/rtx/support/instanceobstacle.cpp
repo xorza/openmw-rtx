@@ -1,10 +1,7 @@
 #include "instanceobstacle.hpp"
 
-#include <cstdint>
 #include <span>
 #include <string>
-
-#include <vulkan/vulkan_core.h>
 
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -15,8 +12,7 @@ namespace Rtx::Testing
 {
     std::string findInstanceObstacle()
     {
-        std::uint32_t version = 0;
-        if (vkEnumerateInstanceVersion(&version) != VK_SUCCESS || version < sApiVersion)
+        if (Instance::getLoaderVersion() < sApiVersion)
             return "the Vulkan loader is absent or older than this renderer requires";
 
         try

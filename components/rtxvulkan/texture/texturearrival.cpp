@@ -7,6 +7,8 @@
 #include <span>
 #include <utility>
 
+#include <volk.h>
+
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/memory/barriers.hpp>

@@ -7,6 +7,7 @@
 #include <utility>
 
 #include <osg/Vec3f>
+#include <volk.h>
 
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/misc/result.hpp>

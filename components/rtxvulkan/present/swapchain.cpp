@@ -12,16 +12,15 @@
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 
+#include "surface.hpp"
+
 namespace Rtx
 {
     namespace
     {
-        VkSurfaceFormatKHR chooseFormat(VkPhysicalDevice device, VkSurfaceKHR surface)
+        VkSurfaceFormatKHR chooseFormat(const Surface& surface, VkPhysicalDevice device)
         {
-            const std::vector<VkSurfaceFormatKHR> formats = enumerateVk<VkSurfaceFormatKHR>(
-                "vkGetPhysicalDeviceSurfaceFormatsKHR", [&](std::uint32_t* count, VkSurfaceFormatKHR* into) {
-                    return vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, count, into);
-                });
+            const std::vector<VkSurfaceFormatKHR> formats = surface.getFormats(device);
 
             if (formats.empty())
                 throw Unsupported("the surface offers no formats");
@@ -42,12 +41,9 @@ namespace Rtx
         /// only mode a surface must support, so it ends every list here and nothing below has to
         /// answer for a driver that offers little else.
         VkPresentModeKHR chooseFrom(
-            VkPhysicalDevice device, VkSurfaceKHR surface, std::initializer_list<VkPresentModeKHR> wanted)
+            const Surface& surface, VkPhysicalDevice device, std::initializer_list<VkPresentModeKHR> wanted)
         {
-            const std::vector<VkPresentModeKHR> modes = enumerateVk<VkPresentModeKHR>(
-                "vkGetPhysicalDeviceSurfacePresentModesKHR", [&](std::uint32_t* count, VkPresentModeKHR* into) {
-                    return vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, count, into);
-                });
+            const std::vector<VkPresentModeKHR> modes = surface.getPresentModes(device);
 
             for (const VkPresentModeKHR mode : wanted)
                 if (std::find(modes.begin(), modes.end(), mode) != modes.end())
@@ -61,14 +57,14 @@ namespace Rtx
         /// torn frame; immediate stands behind it for a surface with no mailbox. `Adaptive` is FIFO
         /// that tears when a frame misses its refresh, as the rasterizer's does through SDL.
         /// `Enabled` is FIFO: a frame that meets the refresh is the promise.
-        VkPresentModeKHR presentModeFor(VkPhysicalDevice device, VkSurfaceKHR surface, SDLUtil::VSyncMode mode)
+        VkPresentModeKHR presentModeFor(const Surface& surface, VkPhysicalDevice device, SDLUtil::VSyncMode mode)
         {
             switch (mode)
             {
                 case SDLUtil::VSyncMode::Disabled:
-                    return chooseFrom(device, surface, { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR });
+                    return chooseFrom(surface, device, { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR });
                 case SDLUtil::VSyncMode::Adaptive:
-                    return chooseFrom(device, surface, { VK_PRESENT_MODE_FIFO_RELAXED_KHR });
+                    return chooseFrom(surface, device, { VK_PRESENT_MODE_FIFO_RELAXED_KHR });
                 case SDLUtil::VSyncMode::Enabled:
                     break;
             }
@@ -93,20 +89,17 @@ namespace Rtx
     }
 
     Swapchain::Swapchain(
-        const Device& device, VkSurfaceKHR surface, VkExtent2D extent, const SDLUtil::VSyncMode verticalSync)
+        const Device& device, const Surface& surface, VkExtent2D extent, const SDLUtil::VSyncMode verticalSync)
         : mDevice(device)
         , mSurface(surface)
         , mVerticalSync(verticalSync)
     {
-        VkBool32 supported = VK_FALSE;
-        checkVk(vkGetPhysicalDeviceSurfaceSupportKHR(
-                    device.getPhysicalDevice().getHandle(), device.getQueueFamily(), surface, &supported),
-            "vkGetPhysicalDeviceSurfaceSupportKHR");
-        if (supported != VK_TRUE)
+        const VkPhysicalDevice physical = device.getPhysicalDevice().getHandle();
+        if (!surface.supports(physical, device.getQueueFamily()))
             throw Unsupported("the queue this renderer submits on cannot present to this surface");
 
-        mFormat = chooseFormat(device.getPhysicalDevice().getHandle(), surface);
-        mPresentMode = presentModeFor(device.getPhysicalDevice().getHandle(), surface, mVerticalSync);
+        mFormat = chooseFormat(surface, physical);
+        mPresentMode = presentModeFor(surface, physical, mVerticalSync);
 
         create(extent);
 
@@ -116,10 +109,7 @@ namespace Rtx
     void Swapchain::create(VkExtent2D extent)
     {
         const Crash::NoteScope noted("making the swapchain at {}x{}", extent.width, extent.height);
-        VkSurfaceCapabilitiesKHR capabilities{};
-        checkVk(
-            vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mDevice.getPhysicalDevice().getHandle(), mSurface, &capabilities),
-            "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
+        const VkSurfaceCapabilitiesKHR capabilities = mSurface.getCapabilities(mDevice.getPhysicalDevice().getHandle());
 
         // A compositor that has already decided the size says so here; otherwise the window's size
         // is the request, clamped to what the surface will accept.
@@ -157,7 +147,7 @@ namespace Rtx
             .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             .pNext = nullptr,
             .flags = 0,
-            .surface = mSurface,
+            .surface = mSurface.getHandle(),
             .minImageCount = images,
             .imageFormat = mFormat.format,
             .imageColorSpace = mFormat.colorSpace,
@@ -204,7 +194,7 @@ namespace Rtx
         // relaxed FIFO answers `Adaptive` with plain FIFO, and rebuilding the swapchain to arrive at
         // the mode it already had is a stall for nothing.
         const VkPresentModeKHR wanted
-            = presentModeFor(mDevice.getPhysicalDevice().getHandle(), mSurface, mVerticalSync);
+            = presentModeFor(mSurface, mDevice.getPhysicalDevice().getHandle(), mVerticalSync);
         if (wanted == mPresentMode)
             return false;
 
@@ -265,10 +255,7 @@ namespace Rtx
 
     bool Swapchain::surfaceIsHidden() const
     {
-        VkSurfaceCapabilitiesKHR capabilities{};
-        checkVk(
-            vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mDevice.getPhysicalDevice().getHandle(), mSurface, &capabilities),
-            "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
+        const VkSurfaceCapabilitiesKHR capabilities = mSurface.getCapabilities(mDevice.getPhysicalDevice().getHandle());
 
         return capabilities.currentExtent.width == 0 || capabilities.currentExtent.height == 0;
     }

@@ -881,7 +881,8 @@ set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CU
 function(install_fork_licenses destination)
     install(FILES "${OpenMW_SOURCE_DIR}/extern/fidelityfx/LICENSE.txt" DESTINATION "${destination}" RENAME "FidelityFX-SDK.txt")
     install(FILES "${OpenMW_SOURCE_DIR}/files/licenses/VulkanMemoryAllocator.txt"
-        "${OpenMW_SOURCE_DIR}/files/licenses/SDL3.txt" DESTINATION "${destination}")
+        "${OpenMW_SOURCE_DIR}/files/licenses/volk.txt" "${OpenMW_SOURCE_DIR}/files/licenses/SDL3.txt"
+        DESTINATION "${destination}")
     if (OPENMW_CRASHPAD)
         install(DIRECTORY "${OpenMW_SOURCE_DIR}/files/licenses/crashpad/" DESTINATION "${destination}/crashpad")
     endif()

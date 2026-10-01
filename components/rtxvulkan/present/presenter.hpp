@@ -1,13 +1,15 @@
 #pragma once
 
 #include <cstdint>
-#include <memory>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
+
+#include "surface.hpp"
+#include "swapchain.hpp"
 
 struct SDL_Window;
 
@@ -16,7 +18,6 @@ namespace Rtx
     class Device;
     class Image;
     class Instance;
-    class Swapchain;
 
     /// The surface, the swapchain, and everything that keeps a frame from overtaking the one in
     /// front of it: a semaphore per swapchain image and not per frame in flight, the timeline
@@ -28,10 +29,6 @@ namespace Rtx
     class Presenter
     {
     public:
-        /// What SDL says an instance needs before a window can have a surface. Static, because the
-        /// instance has to be created with these enabled before the surface can be made.
-        static std::vector<const char*> getInstanceExtensions();
-
         /// Throws `Unsupported` where the surface or the swapchain will not come up. The blit is a
         /// submit of the device's pool like any other, so it signals the timeline and carries what
         /// was deferred ahead of it — a submit of its own that took a timeline value would let the
@@ -78,12 +75,10 @@ namespace Rtx
         void remake(VkExtent2D extent);
 
         const Device& mDevice;
-        VkInstance mInstance = VK_NULL_HANDLE;
-        VkSurfaceKHR mSurface = VK_NULL_HANDLE;
 
-        /// By pointer because it is built from `mSurface`, which cannot exist before the
-        /// constructor's body.
-        std::unique_ptr<Swapchain> mSwapchain;
+        /// Before the swapchain, which is made on it and goes first.
+        Surface mSurface;
+        Swapchain mSwapchain;
 
         /// What an acquire signals and the blit behind it waits.
         struct Acquisition

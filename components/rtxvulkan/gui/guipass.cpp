@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <volk.h>
+
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/shaders/gui.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
