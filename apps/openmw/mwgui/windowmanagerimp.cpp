@@ -197,6 +197,7 @@ namespace MWGui
         , mHudEnabled(true)
         , mCursorVisible(true)
         , mCursorActive(true)
+        , mCursorInteractionEnabled(false)
         , mPlayerBounty(-1)
         , mGuiModes()
         , mGarbageDialogs()
@@ -635,7 +636,7 @@ namespace MWGui
 
         MWBase::Environment::get().getInputManager()->changeInputMode(!gameMode);
 
-        mInputBlocker->setVisible(gameMode);
+        mInputBlocker->setVisible(gameMode && !mCursorInteractionEnabled);
 
         if (loading)
             setCursorVisible(mMessageBoxManager && mMessageBoxManager->isInteractiveMessageBox());
@@ -1210,6 +1211,13 @@ namespace MWGui
         mCursorActive = active;
     }
 
+    void WindowManager::setCursorInteractionEnabled(bool enabled)
+    {
+        mCursorInteractionEnabled = enabled;
+        if (mInputBlocker)
+            mInputBlocker->setVisible(!isGuiMode() && !mCursorInteractionEnabled);
+    }
+
     void WindowManager::onRetrieveTag(const MyGUI::UString& tag, MyGUI::UString& result)
     {
         std::string_view tagView = tag;
@@ -1401,7 +1409,8 @@ namespace MWGui
 
     void WindowManager::onCursorChange(std::string_view name)
     {
-        mCursorManager->cursorChanged(name);
+        mMyGuiCursor = name;
+        mCursorManager->cursorChanged(mLuaCursorOverride.empty() ? name : mLuaCursorOverride);
     }
 
     void WindowManager::pushGuiMode(GuiMode mode)
@@ -1778,7 +1787,7 @@ namespace MWGui
 
     void WindowManager::allowMouse()
     {
-        mInputBlocker->setVisible(!isGuiMode());
+        mInputBlocker->setVisible(!isGuiMode() && !mCursorInteractionEnabled);
     }
 
     void WindowManager::notifyInputActionBound()
@@ -1852,6 +1861,39 @@ namespace MWGui
     {
         MyGUI::PointerManager::getInstance().setPointer(name);
         onCursorChange(name);
+    }
+
+    void WindowManager::createLuaCursor(
+        const std::string& name, const std::string& path, int width, int height, int hotspotX, int hotspotY)
+    {
+        const LuaCursor& cursor = mLuaCursors
+                                      .insert_or_assign(name,
+                                          LuaCursor{ .mPath = path,
+                                              .mSize = MyGUI::IntSize(width, height),
+                                              .mHotspot = MyGUI::IntPoint(hotspotX, hotspotY) })
+                                      .first->second;
+        if (!createScaledCursor(name, VFS::Path::Normalized(cursor.mPath), 0, cursor.mHotspot, cursor.mSize))
+            Log(Debug::Warning) << "Failed to load Lua cursor texture: " << path;
+    }
+
+    void WindowManager::removeLuaCursor(const std::string& name)
+    {
+        mLuaCursors.erase(name);
+        if (mLuaCursorOverride == name)
+            mLuaCursorOverride.clear();
+        mCursorManager->removeCursor(name);
+        mCursorManager->cursorChanged(getCurrentCursorName());
+    }
+
+    void WindowManager::setLuaCursorOverride(const std::string& name)
+    {
+        mLuaCursorOverride = name;
+        mCursorManager->cursorChanged(getCurrentCursorName());
+    }
+
+    std::string WindowManager::getCurrentCursorName() const
+    {
+        return mLuaCursorOverride.empty() ? mMyGuiCursor : mLuaCursorOverride;
     }
 
     void WindowManager::showSoulgemDialog(MWWorld::Ptr item)
@@ -2465,21 +2507,26 @@ namespace MWGui
                 continue;
 
             const VFS::Path::Normalized path(imgSetPointer->getImageSet()->getIndexInfo(0, 0).texture);
-
-            osg::ref_ptr<osg::Image> image = mResourceSystem->getImageManager()->getImage(path);
-
-            if (image.valid())
-            {
-                const auto pixels = [this](int units) {
-                    return static_cast<int>(std::lround(static_cast<float>(units) * mCursorScale));
-                };
-                const MyGUI::IntPoint hotspot = imgSetPointer->getHotSpot();
-                const MyGUI::IntSize size = imgSetPointer->getSize();
-                mCursorManager->createCursor(imgSetPointer->getResourceName(), imgSetPointer->getRotation(), image,
-                    pixels(hotspot.left), pixels(hotspot.top), std::max(1, pixels(size.width)),
-                    std::max(1, pixels(size.height)), mCursorDisplayScale);
-            }
+            createScaledCursor(imgSetPointer->getResourceName(), path, imgSetPointer->getRotation(),
+                imgSetPointer->getHotSpot(), imgSetPointer->getSize());
         }
+
+        for (const auto& [name, cursor] : mLuaCursors)
+            createScaledCursor(name, VFS::Path::Normalized(cursor.mPath), 0, cursor.mHotspot, cursor.mSize);
+    }
+
+    bool WindowManager::createScaledCursor(std::string_view name, const VFS::Path::Normalized& path, int rotation,
+        MyGUI::IntPoint hotspot, MyGUI::IntSize size)
+    {
+        osg::ref_ptr<osg::Image> image = mResourceSystem->getImageManager()->getImage(path);
+        if (!image.valid())
+            return false;
+
+        const auto pixels
+            = [this](int units) { return static_cast<int>(std::lround(static_cast<float>(units) * mCursorScale)); };
+        mCursorManager->createCursor(name, rotation, image, pixels(hotspot.left), pixels(hotspot.top),
+            std::max(1, pixels(size.width)), std::max(1, pixels(size.height)), mCursorDisplayScale);
+        return true;
     }
 
     void WindowManager::createTextures()

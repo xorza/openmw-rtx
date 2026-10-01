@@ -34,6 +34,10 @@ namespace SDLUtil
         void createCursor(std::string_view name, int rotDegrees, osg::Image* image, int hotspotX, int hotspotY,
             int width, int height, float displayScale);
 
+        /// The cursor `name` destroyed, where there is one: SDL shows its default until the next
+        /// `cursorChanged`.
+        void removeCursor(std::string_view name);
+
         /// Every cursor destroyed, for `createCursor` to make anew at another size. The current
         /// cursor's name is kept.
         void dropCursors();

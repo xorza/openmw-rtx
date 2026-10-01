@@ -7,7 +7,11 @@
    and retrieving information from the Gui.
 **/
 
+#include <functional>
+#include <map>
 #include <memory>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include <osg/Vec2i>
@@ -23,6 +27,7 @@
 #include <components/sdlutil/sdlvideowrapper.hpp>
 #include <components/settings/settings.hpp>
 #include <components/toutf8/toutf8.hpp>
+#include <components/vfs/pathutil.hpp>
 
 #include "charactercreation.hpp"
 #include "draganddrop.hpp"
@@ -321,6 +326,11 @@ namespace MWGui
         void showSoulgemDialog(MWWorld::Ptr item) override;
 
         void changePointer(const std::string& name) override;
+        void createLuaCursor(const std::string& name, const std::string& path, int width, int height, int hotspotX,
+            int hotspotY) override;
+        void removeLuaCursor(const std::string& name) override;
+        void setLuaCursorOverride(const std::string& name) override;
+        std::string getCurrentCursorName() const override;
 
         void setEnemy(const MWWorld::Ptr& enemy) override;
 
@@ -332,6 +342,7 @@ namespace MWGui
 
         /// Call when mouse cursor or buttons are used.
         void setCursorActive(bool active) override;
+        void setCursorInteractionEnabled(bool enabled) override;
 
         /// Clear all savegame-specific data
         void clear() override;
@@ -492,6 +503,7 @@ namespace MWGui
         bool mHudEnabled;
         bool mCursorVisible;
         bool mCursorActive;
+        bool mCursorInteractionEnabled;
 
         int mPlayerBounty;
 
@@ -526,6 +538,19 @@ namespace MWGui
         void reapplyActiveControllerWindow();
 
         std::unique_ptr<SDLUtil::SDLCursorManager> mCursorManager;
+        std::string mLuaCursorOverride;
+        std::string mMyGuiCursor;
+
+        /// A cursor a script registered, kept so `createCursors` makes it anew with the interface's
+        /// own: its size and hotspot are in units of the interface, as theirs are, and a cursor
+        /// made once was dropped by the first `fitCursors` and never made again.
+        struct LuaCursor
+        {
+            std::string mPath;
+            MyGUI::IntSize mSize;
+            MyGUI::IntPoint mHotspot;
+        };
+        std::map<std::string, LuaCursor, std::less<>> mLuaCursors;
 
         std::vector<std::unique_ptr<Layout>> mGarbageDialogs;
         void cleanupGarbage();
@@ -625,6 +650,11 @@ namespace MWGui
 
         void createTextures();
         void createCursors();
+
+        /// Makes the cursor `name` from the image at `path`, its size and hotspot in units of the
+        /// interface, at the scale `fitCursors` last saw. False where the image did not load.
+        bool createScaledCursor(std::string_view name, const VFS::Path::Normalized& path, int rotation,
+            MyGUI::IntPoint hotspot, MyGUI::IntSize size);
         void setMenuTransparency(float value);
 
         void updatePinnedWindows();

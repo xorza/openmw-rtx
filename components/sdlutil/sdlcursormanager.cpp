@@ -2,7 +2,11 @@
 
 #include <algorithm>
 #include <exception>
+#include <memory>
+#include <stdexcept>
+#include <string>
 
+#include <SDL3/SDL_error.h>
 #include <SDL3/SDL_hints.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_render.h>
@@ -37,6 +41,16 @@ namespace SDLUtil
     SDLCursorManager::~SDLCursorManager()
     {
         dropCursors();
+    }
+
+    void SDLCursorManager::removeCursor(std::string_view name)
+    {
+        const auto found = mCursorMap.find(name);
+        if (found == mCursorMap.end())
+            return;
+
+        SDL_DestroyCursor(found->second);
+        mCursorMap.erase(found);
     }
 
     void SDLCursorManager::dropCursors()
@@ -81,24 +95,37 @@ namespace SDLUtil
 
     namespace
     {
+        /// What SDL said of the call that failed, after `what`, as `createCursor` reports it.
+        [[noreturn]] void fail(const char* what)
+        {
+            throw std::runtime_error(std::string(what) + ": " + SDL_GetError());
+        }
+
         /// `source` drawn into `width` × `height` pixels and turned by `rotDegrees`.
         SurfaceUniquePtr draw(SDL_Surface& source, float rotDegrees, int width, int height)
         {
-            SDL_Surface* targetSurface = SDL_CreateSurface(width, height, source.format);
-            SDL_Renderer* renderer = SDL_CreateSoftwareRenderer(targetSurface);
+            SurfaceUniquePtr target(SDL_CreateSurface(width, height, source.format), SDL_DestroySurface);
+            if (target == nullptr)
+                fail("Failed to create cursor target surface");
 
-            SDL_RenderClear(renderer);
+            const std::unique_ptr<SDL_Renderer, decltype(&SDL_DestroyRenderer)> renderer(
+                SDL_CreateSoftwareRenderer(target.get()), SDL_DestroyRenderer);
+            if (renderer == nullptr)
+                fail("Failed to create cursor renderer");
+            if (!SDL_RenderClear(renderer.get()))
+                fail("Failed to clear cursor renderer");
 
-            SDL_Texture* cursorTexture = SDL_CreateTextureFromSurface(renderer, &source);
-            SDL_SetTextureScaleMode(cursorTexture, SDL_SCALEMODE_LINEAR);
+            const std::unique_ptr<SDL_Texture, decltype(&SDL_DestroyTexture)> texture(
+                SDL_CreateTextureFromSurface(renderer.get(), &source), SDL_DestroyTexture);
+            if (texture == nullptr)
+                fail("Failed to create cursor texture");
+            SDL_SetTextureScaleMode(texture.get(), SDL_SCALEMODE_LINEAR);
 
-            SDL_RenderTextureRotated(
-                renderer, cursorTexture, nullptr, nullptr, static_cast<double>(-rotDegrees), nullptr, SDL_FLIP_NONE);
+            if (!SDL_RenderTextureRotated(renderer.get(), texture.get(), nullptr, nullptr,
+                    static_cast<double>(-rotDegrees), nullptr, SDL_FLIP_NONE))
+                fail("Failed to render cursor texture");
 
-            SDL_DestroyTexture(cursorTexture);
-            SDL_DestroyRenderer(renderer);
-
-            return SurfaceUniquePtr(targetSurface, SDL_DestroySurface);
+            return target;
         }
     }
 
@@ -125,6 +152,8 @@ namespace SDLUtil
             SDL_Cursor* cursor = SDL_CreateColorCursor(surface.get(),
                 std::clamp(windowPoints(hotspotX, displayScale), 0, baseWidth - 1),
                 std::clamp(windowPoints(hotspotY, displayScale), 0, baseHeight - 1));
+            if (cursor == nullptr)
+                fail("Failed to create cursor");
             mCursorMap.emplace(name, cursor);
 
             if (mEnabled && name == mCurrentCursor)
