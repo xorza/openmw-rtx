@@ -13,6 +13,8 @@
 #include <utility>
 #include <vector>
 
+#include <volk.h>
+
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>

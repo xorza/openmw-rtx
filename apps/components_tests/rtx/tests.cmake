@@ -216,7 +216,7 @@ target_sources(components-tests PRIVATE ${RTX_TEST_FILES} ${RTX_TEST_SUPPORT})
 
 # Vulkan too, for the tests that reach into the backend's headers, and the SPIR-V headers, for the
 # tests that write a module by hand.
-target_link_libraries(components-tests openmw-rtx-vulkan openmw-rtxtool-lib openmw-rtx-spirv Vulkan::Vulkan)
+target_link_libraries(components-tests openmw-rtx-vulkan openmw-rtxtool-lib openmw-rtx-spirv openmw-rtx-vulkan-api)
 target_include_directories(components-tests SYSTEM PRIVATE "${OPENMW_SPIRV_HEADERS}")
 
 # Where the build wrote the shaders, told to the two test binaries alone: a build-tree path is no
@@ -230,7 +230,7 @@ target_link_libraries(rtx-gpu-tests
     GTest::GTest
     GMock::GMock
     components
-    openmw-rtx-vulkan openmw-rtxtool-lib Vulkan::Vulkan
+    openmw-rtx-vulkan openmw-rtxtool-lib openmw-rtx-vulkan-api
 )
 target_compile_definitions(rtx-gpu-tests
     PRIVATE OPENMW_DATA_DIR=u8"${CMAKE_CURRENT_BINARY_DIR}/data"

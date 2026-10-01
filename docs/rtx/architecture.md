@@ -53,8 +53,10 @@ Beside the stack:
 ```
 
 A Vulkan fact that reaches `components/rtx` or `apps/openmw` is a bug, and the link lines keep
-it out: the core has no Vulkan header on its include path, and the backend links Vulkan
-privately. Two places create a backend: `RtxRenderer` and the harness. OpenSceneGraph stays the
+it out: the core has no Vulkan header on its include path, and the backend reaches Vulkan
+privately, through volk, which loads the loader when the first instance is made. No program links
+the loader, so the game starts on a machine without one and draws with OpenGL there. Two places
+create a backend: `RtxRenderer` and the harness. OpenSceneGraph stays the
 content loader whatever draws: the scene arrives as an `osg::Node` graph, and the core reads it.
 
 ## 3. The build

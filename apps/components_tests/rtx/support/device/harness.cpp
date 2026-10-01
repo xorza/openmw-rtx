@@ -11,7 +11,7 @@
 
 #include <gtest/gtest.h>
 
-#include <vulkan/vulkan_core.h>
+#include <volk.h>
 
 #include <components/files/configurationmanager.hpp>
 #include <components/rtx/common/jobprogress.hpp>

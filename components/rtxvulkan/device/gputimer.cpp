@@ -3,6 +3,8 @@
 #include <array>
 #include <cassert>
 
+#include <volk.h>
+
 #include <components/rtx/renderer/renderer.hpp>
 
 #include "result.hpp"

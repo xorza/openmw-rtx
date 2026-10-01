@@ -5,7 +5,7 @@
 #include <span>
 #include <thread>
 
-#include <vulkan/vulkan_core.h>
+#include <volk.h>
 
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/result.hpp>

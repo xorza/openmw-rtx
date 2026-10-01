@@ -1,26 +1,19 @@
 #include "presenter.hpp"
 
 #include <span>
-#include <string>
 #include <vector>
 
-#include <SDL3/SDL_error.h>
-#include <SDL3/SDL_stdinc.h>
 #include <SDL3/SDL_video.h>
-#include <SDL3/SDL_vulkan.h>
 #include <osg/Vec2i>
+#include <volk.h>
 
 #include <components/misc/presentation.hpp>
-#include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
-#include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/result.hpp>
-
-#include "swapchain.hpp"
 
 namespace Rtx
 {
@@ -36,34 +29,20 @@ namespace Rtx
         }
     }
 
-    std::vector<const char*> Presenter::getInstanceExtensions()
-    {
-        Uint32 count = 0;
-        const char* const* names = SDL_Vulkan_GetInstanceExtensions(&count);
-        if (names == nullptr)
-            throw Unsupported(
-                std::string("SDL would not name the instance extensions a surface needs: ") + SDL_GetError());
-
-        return std::vector<const char*>(names, names + count);
-    }
-
     Presenter::Presenter(
         const Device& device, const Instance& instance, SDL_Window* window, const SDLUtil::VSyncMode verticalSync)
         : mDevice(device)
-        , mInstance(instance.getHandle())
+        , mSurface(instance, window)
+        , mSwapchain(device, mSurface, drawableSize(window), verticalSync)
     {
         try
         {
-            if (!SDL_Vulkan_CreateSurface(window, mInstance, nullptr, &mSurface))
-                throw Unsupported(std::string("SDL would not make a Vulkan surface: ") + SDL_GetError());
-
-            mSwapchain = std::make_unique<Swapchain>(device, mSurface, drawableSize(window), verticalSync);
             makeImageSync();
         }
         catch (...)
         {
-            // A constructor that throws gets no destructor, and the surface is the instance's to
-            // free whether or not the swapchain on it was ever built.
+            // A constructor that throws gets no destructor. The swapchain and the surface go as
+            // members do; what is left is the wait before the sync objects go.
             destroy();
             throw;
         }
@@ -80,14 +59,8 @@ namespace Rtx
         // up after a constructor that failed, and throwing out of either is `std::terminate`.
         tearDown("the device would not finish before the presenter was taken apart", [&] { mDevice.waitIdle(); });
 
+        // Before the swapchain and the surface, which go after this as members, in that order.
         releaseImageSync();
-
-        // After the swapchain, which was made from it.
-        mSwapchain.reset();
-
-        if (mSurface != VK_NULL_HANDLE)
-            vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
-        mSurface = VK_NULL_HANDLE;
     }
 
     void Presenter::releaseImageSync()
@@ -113,7 +86,7 @@ namespace Rtx
 
     void Presenter::makeImageSync()
     {
-        const std::uint32_t images = mSwapchain->getImageCount();
+        const std::uint32_t images = mSwapchain.getImageCount();
 
         // Made again rather than reused, because a slot can arrive here signalled with nothing
         // left to wait it: a suboptimal acquire hands back both an image and a signal, and it is the
@@ -148,7 +121,7 @@ namespace Rtx
         // swapchain of none is invalid usage, and rebuilding once a frame against a surface that
         // will not take one is a rebuild a minimised game would pay for as long as it stayed
         // minimised. The staleness stands, so the window coming back rebuilds then.
-        if (mSwapchain->surfaceIsHidden())
+        if (mSwapchain.surfaceIsHidden())
         {
             mStale = true;
             return false;
@@ -167,7 +140,7 @@ namespace Rtx
     {
         // A present mode is a property of the swapchain object. Not `rebuild`, because that
         // clears a staleness a window that changed size meanwhile still owes.
-        if (mSwapchain->setVerticalSync(mode))
+        if (mSwapchain.setVerticalSync(mode))
             remake(getExtent());
     }
 
@@ -178,13 +151,13 @@ namespace Rtx
         // and destroying a swapchain with a present still reading one is invalid usage.
         mDevice.waitIdle();
         releaseImageSync();
-        mSwapchain->recreate(extent);
+        mSwapchain.recreate(extent);
         makeImageSync();
     }
 
     VkExtent2D Presenter::getExtent() const
     {
-        return mSwapchain->getExtent();
+        return mSwapchain.getExtent();
     }
 
     void Presenter::present(const Image& frame)
@@ -198,7 +171,7 @@ namespace Rtx
         mDevice.waitFor(acquisition.mBlit, "the blit that last took this acquire semaphore");
 
         std::uint32_t index = 0;
-        if (!mSwapchain->acquire(acquisition.mSemaphore.get(), index))
+        if (!mSwapchain.acquire(acquisition.mSemaphore.get(), index))
         {
             mStale = true;
             return;
@@ -226,7 +199,7 @@ namespace Rtx
 
         frame.transition(commands, Use::sAnyGeneralWrite, Use::sBlitRead);
 
-        const VkExtent2D extent = mSwapchain->getExtent();
+        const VkExtent2D extent = mSwapchain.getExtent();
         const osg::Vec2i frameSize(static_cast<int>(frame.getWidth()), static_cast<int>(frame.getHeight()));
         const Misc::Presentation presentation
             = Misc::present(frameSize, osg::Vec2i(static_cast<int>(extent.width), static_cast<int>(extent.height)));
@@ -236,7 +209,7 @@ namespace Rtx
         // **Black beside a frame whose aspect is not the window's.** No clear where the frame covers
         // the whole image, because the blit writes every pixel of it.
         const bool letterboxed = shown != presentation.mDrawable;
-        const VkImage presented = mSwapchain->getImage(index);
+        const VkImage presented = mSwapchain.getImage(index);
         const ImageUse firstWrite = letterboxed ? Use::sClearWrite : Use::sBlitWrite;
         // The source scope names the stage the acquire semaphore is waited at, or the transition
         // is ordered against nothing and can run before the image is ours — which is what
@@ -301,7 +274,7 @@ namespace Rtx
         acquisition.mBlit = blitted;
         image.mBlitOn = blitted;
 
-        if (!mSwapchain->present(image.mRendered.get(), index, image.mPresented.get()))
+        if (!mSwapchain.present(image.mRendered.get(), index, image.mPresented.get()))
             mStale = true;
     }
 }

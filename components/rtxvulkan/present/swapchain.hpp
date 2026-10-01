@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <vector>
 
-#include <vulkan/vulkan_core.h>
+#include <volk.h>
 
 #include <components/rtxvulkan/device/owned.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
@@ -11,6 +11,7 @@
 namespace Rtx
 {
     class Device;
+    class Surface;
 
     /// The images the window presents, and the two calls that hand them back and forth. The
     /// renderer renders into an image of its own and blits, because the format a surface offers is
@@ -18,7 +19,8 @@ namespace Rtx
     class Swapchain
     {
     public:
-        Swapchain(const Device& device, VkSurfaceKHR surface, VkExtent2D extent, SDLUtil::VSyncMode verticalSync);
+        /// @param surface what the images are presented to, which outlives this.
+        Swapchain(const Device& device, const Surface& surface, VkExtent2D extent, SDLUtil::VSyncMode verticalSync);
 
         /// Takes the next image. False means the swapchain no longer matches the window and must be
         /// recreated — which a resize, a monitor change or a compositor restart all cause, and none
@@ -53,7 +55,7 @@ namespace Rtx
         void destroy();
 
         const Device& mDevice;
-        VkSurfaceKHR mSurface = VK_NULL_HANDLE;
+        const Surface& mSurface;
         /// Immediate, for the reason `Immediate` gives: remade only with the device idle, and its
         /// surface goes before the device's graveyard does.
         Immediate<VkSwapchainKHR, vkDestroySwapchainKHR> mHandle;

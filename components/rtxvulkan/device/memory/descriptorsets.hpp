@@ -5,7 +5,7 @@
 #include <span>
 #include <vector>
 
-#include <vulkan/vulkan_core.h>
+#include <volk.h>
 
 #include <components/rtxvulkan/device/owned.hpp>
 

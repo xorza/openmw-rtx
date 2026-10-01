@@ -13,6 +13,8 @@
 #include <utility>
 #include <vector>
 
+#include <volk.h>
+
 #include <components/rtx/common/parallel.hpp>
 #include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/frame/bluenoise.hpp>

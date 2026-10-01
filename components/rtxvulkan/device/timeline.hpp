@@ -3,7 +3,7 @@
 #include <atomic>
 #include <cstdint>
 
-#include <vulkan/vulkan_core.h>
+#include <volk.h>
 
 #include "handles.hpp"
 #include "owned.hpp"

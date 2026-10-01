@@ -40,6 +40,7 @@
 #include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/device/validation.hpp>
 #include <components/rtxvulkan/present/presenter.hpp>
+#include <components/rtxvulkan/present/surface.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/placing.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
@@ -60,7 +61,7 @@ namespace Rtx
             if (options.mWindow == nullptr)
                 return {};
 
-            return Presenter::getInstanceExtensions();
+            return Surface::getInstanceExtensions();
         }
     }
 

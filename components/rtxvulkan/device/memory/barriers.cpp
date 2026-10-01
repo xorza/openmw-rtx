@@ -3,6 +3,8 @@
 #include <cassert>
 #include <cstdint>
 
+#include <volk.h>
+
 namespace Rtx
 {
     void Barriers::add(const VkImageMemoryBarrier2& barrier)

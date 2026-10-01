@@ -7,7 +7,7 @@
 #include <string_view>
 #include <vector>
 
-#include <vulkan/vulkan_core.h>
+#include <volk.h>
 
 #include <components/misc/result.hpp>
 #include <components/rtxvulkan/device/owned.hpp>

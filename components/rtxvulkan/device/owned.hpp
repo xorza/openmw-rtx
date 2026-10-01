@@ -34,8 +34,9 @@ namespace Rtx
     /// replaced, a pipeline a failed compile leaves half made. What the device itself must outlive
     /// is `Immediate`.
     ///
-    /// @tparam Destroy the function that ends it.
-    template <class Handle, auto Destroy>
+    /// @tparam Destroy the function that ends it: a reference, because volk's entry points are
+    ///         pointers it fills when the loader is loaded, and are read at the call.
+    template <class Handle, auto& Destroy>
     class Owned
     {
     public:
@@ -117,7 +118,7 @@ namespace Rtx
     /// timeline's own semaphore and the pipeline cache, which the device takes apart after its
     /// graveyard, and the swapchain, whose surface goes before the device does and which is only
     /// ever remade with the device idle.
-    template <class Handle, auto Destroy>
+    template <class Handle, auto& Destroy>
     class Immediate
     {
     public:

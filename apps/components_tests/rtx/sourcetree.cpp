@@ -194,14 +194,15 @@ namespace Rtx
         ///
         /// The exemptions, each for a reason a match cannot see: `vkDestroyInstance` and
         /// `vkDestroyDevice` take no parent handle, so `Owned`'s shape does not fit them;
-        /// `vkDestroySurfaceKHR` and the messenger take the instance rather than the device, two
-        /// sites not worth a second template parameter; `accelerationstructure.cpp` destroys
-        /// through a pointer the device loaded, which `Owned`'s template argument cannot name, so
-        /// it is the `Owned` for that handle and buries it the same way.
+        /// the surface (`Surface`'s `mDestroySurface`) and the messenger take the instance
+        /// rather than the device, two sites not worth a second template parameter;
+        /// `accelerationstructure.cpp` destroys through a pointer the device loaded, which `Owned`'s
+        /// template argument cannot name, so it is the `Owned` for that handle and buries it the
+        /// same way.
         TEST(RtxSourceTreeTest, everyDeviceParentedVulkanHandleIsHeldByOwned)
         {
             const std::set<std::string> exemptFiles{ "owned.hpp", "accelerationstructure.cpp" };
-            const std::set<std::string> allowed{ "vkDestroyInstance", "vkDestroyDevice", "vkDestroySurfaceKHR",
+            const std::set<std::string> allowed{ "vkDestroyInstance", "vkDestroyDevice", "mDestroySurface",
                 "vkDestroyDebugUtilsMessengerEXT", "mDestroyMessenger" };
 
             const std::vector<std::string> found
@@ -327,6 +328,38 @@ namespace Rtx
                         reachedBy(named, reached);
                 }
             }
+        }
+
+        /// No program links the Vulkan loader: volk loads it where an instance is made
+        /// (`openmw-rtx-vulkan-api`).
+        ///
+        /// **A program that imports the loader does not start without it**, the OpenGL renderer
+        /// included, and on Windows one that imports a function an old loader lacks stops in a
+        /// dialog before `main`. `VK_NO_PROTOTYPES` keeps every call that bypasses volk from
+        /// compiling, so a link of the import library is the one way back, and this finds it.
+        TEST(RtxSourceTreeTest, noProgramLinksTheVulkanLoader)
+        {
+            std::vector<std::string> found;
+            const auto scan = [&](const std::filesystem::path& file) {
+                const std::vector<std::string> lines = linesOf(file);
+                for (std::size_t at = 0; at < lines.size(); ++at)
+                {
+                    const std::string_view code = std::string_view(lines[at]).substr(0, lines[at].find('#'));
+                    if (code.find("Vulkan::Vulkan") != std::string_view::npos)
+                        found.push_back(std::filesystem::relative(file, sRoot).string() + ':' + std::to_string(at + 1)
+                            + ": " + lines[at]);
+                }
+            };
+
+            scan(sRoot / "CMakeLists.txt");
+            for (const char* const place : { "apps", "cmake", "components", "extern" })
+                for (const std::filesystem::directory_entry& entry :
+                    std::filesystem::recursive_directory_iterator(sRoot / place))
+                    if (entry.path().filename() == "CMakeLists.txt" || entry.path().extension() == ".cmake")
+                        scan(entry.path());
+
+            EXPECT_TRUE(found.empty()) << "a target links the Vulkan loader; link `openmw-rtx-vulkan-api`:\n"
+                                       << joined(found);
         }
 
         /// No compute shader traces a ray.

@@ -9,6 +9,7 @@
 #include <string_view>
 
 #include <osg/Vec2f>
+#include <volk.h>
 
 #include <components/rtx/shaders/wave.h>
 #include <components/rtxvulkan/device/commands.hpp>

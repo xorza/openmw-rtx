@@ -2,6 +2,8 @@
 
 #include <string>
 
+#include <volk.h>
+
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/rtx/common/error.hpp>

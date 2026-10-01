@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-#include <vulkan/vulkan_core.h>
+#include <volk.h>
 
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/rtx/shaders/sets.h>
