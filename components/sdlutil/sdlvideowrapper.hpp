@@ -1,8 +1,6 @@
 #ifndef OPENMW_COMPONENTS_SDLUTIL_SDLVIDEOWRAPPER_H
 #define OPENMW_COMPONENTS_SDLUTIL_SDLVIDEOWRAPPER_H
 
-#include <SDL_types.h>
-
 struct SDL_Window;
 
 namespace Settings
@@ -12,30 +10,15 @@ namespace Settings
 
 namespace SDLUtil
 {
+    /// The size in the display's points that gives `pixels` pixels at `density` pixels a point, in
+    /// the exact ratio: a density of one and a half is not a whole number.
+    int windowPoints(int pixels, float density);
 
-    class VideoWrapper
-    {
-    public:
-        explicit VideoWrapper(SDL_Window* window);
-        ~VideoWrapper();
-
-        void setGammaContrast(float gamma, float contrast);
-
-        void setVideoMode(int width, int height, Settings::WindowMode windowMode, bool windowBorder);
-
-        void centerWindow();
-
-    private:
-        SDL_Window* mWindow;
-
-        float mGamma;
-        float mContrast;
-        bool mHasSetGammaContrast;
-
-        // Store system gamma ramp on window creation. Restore system gamma ramp on exit
-        Uint16 mOldSystemGammaRamp[256 * 3];
-    };
-
+    /// Puts `window` in `windowMode`: exclusive fullscreen at the display's desktop mode, borderless
+    /// fullscreen on the whole display, or a window of `width` by `height` pixels centred on its
+    /// display. Never another display mode: the frame's resolution is the renderer's, which scales
+    /// it to whatever the window is. What a new window and a changed setting both go through.
+    void setVideoMode(SDL_Window* window, int width, int height, Settings::WindowMode windowMode, bool windowBorder);
 }
 
 #endif

@@ -4,11 +4,13 @@
 #include <string>
 #include <vector>
 
-#include <SDL_error.h>
-#include <SDL_stdinc.h>
-#include <SDL_video.h>
-#include <SDL_vulkan.h>
+#include <SDL3/SDL_error.h>
+#include <SDL3/SDL_stdinc.h>
+#include <SDL3/SDL_video.h>
+#include <SDL3/SDL_vulkan.h>
+#include <osg/Vec2i>
 
+#include <components/misc/presentation.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -29,22 +31,20 @@ namespace Rtx
         {
             int width = 0;
             int height = 0;
-            SDL_Vulkan_GetDrawableSize(window, &width, &height);
+            SDL_GetWindowSizeInPixels(window, &width, &height);
             return VkExtent2D{ static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height) };
         }
     }
 
-    std::vector<const char*> Presenter::getInstanceExtensions(SDL_Window* window)
+    std::vector<const char*> Presenter::getInstanceExtensions()
     {
-        unsigned int count = 0;
-        if (SDL_Vulkan_GetInstanceExtensions(window, &count, nullptr) == SDL_FALSE)
-            throw Unsupported(std::string("SDL would not count this window's instance extensions: ") + SDL_GetError());
+        Uint32 count = 0;
+        const char* const* names = SDL_Vulkan_GetInstanceExtensions(&count);
+        if (names == nullptr)
+            throw Unsupported(
+                std::string("SDL would not name the instance extensions a surface needs: ") + SDL_GetError());
 
-        std::vector<const char*> names(count);
-        if (SDL_Vulkan_GetInstanceExtensions(window, &count, names.data()) == SDL_FALSE)
-            throw Unsupported(std::string("SDL would not name this window's instance extensions: ") + SDL_GetError());
-
-        return names;
+        return std::vector<const char*>(names, names + count);
     }
 
     Presenter::Presenter(
@@ -54,7 +54,7 @@ namespace Rtx
     {
         try
         {
-            if (SDL_Vulkan_CreateSurface(window, mInstance, &mSurface) == SDL_FALSE)
+            if (!SDL_Vulkan_CreateSurface(window, mInstance, nullptr, &mSurface))
                 throw Unsupported(std::string("SDL would not make a Vulkan surface: ") + SDL_GetError());
 
             mSwapchain = std::make_unique<Swapchain>(device, mSurface, drawableSize(window), verticalSync);
@@ -226,26 +226,49 @@ namespace Rtx
 
         frame.transition(commands, Use::sAnyGeneralWrite, Use::sBlitRead);
 
+        const VkExtent2D extent = mSwapchain->getExtent();
+        const osg::Vec2i frameSize(static_cast<int>(frame.getWidth()), static_cast<int>(frame.getHeight()));
+        const Misc::Presentation presentation
+            = Misc::present(frameSize, osg::Vec2i(static_cast<int>(extent.width), static_cast<int>(extent.height)));
+        const osg::Vec2i& origin = presentation.mShownOrigin;
+        const osg::Vec2i& shown = presentation.mShownSize;
+
+        // **Black beside a frame whose aspect is not the window's.** No clear where the frame covers
+        // the whole image, because the blit writes every pixel of it.
+        const bool letterboxed = shown != presentation.mDrawable;
+        const VkImage presented = mSwapchain->getImage(index);
+        const ImageUse firstWrite = letterboxed ? Use::sClearWrite : Use::sBlitWrite;
         // The source scope names the stage the acquire semaphore is waited at, or the transition
         // is ordered against nothing and can run before the image is ours — which is what
-        // `sUndefined`'s `NONE` says, and why it is not the discard used here.
-        const VkImage presented = mSwapchain->getImage(index);
+        // `sUndefined`'s `NONE` says, and why it is not the discard used here. Every transfer
+        // stage, because the first write is the clear or the blit.
         Barriers taken(commands);
-        taken.add(imageBarrier(
-            presented, 0, 1, ImageUse{ VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_2_BLIT_BIT, 0 }, Use::sBlitWrite));
+        taken.add(imageBarrier(presented, 0, 1,
+            ImageUse{ VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT, 0 }, firstWrite));
         taken.flush();
 
-        const VkExtent2D extent = mSwapchain->getExtent();
+        if (letterboxed)
+        {
+            const VkClearColorValue black{};
+            const VkImageSubresourceRange whole{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+            vkCmdClearColorImage(commands, presented, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &black, 1, &whole);
+
+            Barriers cleared(commands);
+            cleared.add(imageBarrier(presented, 0, 1, Use::sClearWrite, Use::sBlitWrite));
+            cleared.flush();
+        }
+
         const VkImageBlit region{
             .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-            .srcOffsets
-            = { {}, { static_cast<std::int32_t>(frame.getWidth()), static_cast<std::int32_t>(frame.getHeight()), 1 } },
+            .srcOffsets = { {}, { frameSize.x(), frameSize.y(), 1 } },
             .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-            .dstOffsets
-            = { {}, { static_cast<std::int32_t>(extent.width), static_cast<std::int32_t>(extent.height), 1 } },
+            .dstOffsets = { { origin.x(), origin.y(), 0 }, { origin.x() + shown.x(), origin.y() + shown.y(), 1 } },
         };
+        // Nearest where the frame is shown pixel for pixel, which copies it exactly; linear where it
+        // is scaled, which a nearest scale turns into uneven rows and columns.
+        const VkFilter filter = shown == frameSize ? VK_FILTER_NEAREST : VK_FILTER_LINEAR;
         vkCmdBlitImage(commands, frame.getHandle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, presented,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_NEAREST);
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, filter);
 
         Barriers handed(commands);
         handed.add(imageBarrier(presented, 0, 1, Use::sBlitWrite, Use::sPresent));
@@ -261,7 +284,7 @@ namespace Rtx
             .pNext = nullptr,
             .semaphore = acquisition.mSemaphore.get(),
             .value = 0,
-            .stageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
+            .stageMask = VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT,
             .deviceIndex = 0,
         };
         const VkSemaphoreSubmitInfo signal{

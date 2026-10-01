@@ -1,7 +1,7 @@
 #ifndef OPENMW_COMPONENTS_SDLUTIL_GL4ESINIT_H
 #define OPENMW_COMPONENTS_SDLUTIL_GL4ESINIT_H
 #ifdef OPENMW_GL4ES_MANUAL_INIT
-#include <SDL_video.h>
+#include <SDL3/SDL_video.h>
 
 // Must be called once SDL video mode has been set,
 // which creates a context.

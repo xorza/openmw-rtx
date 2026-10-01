@@ -9,6 +9,11 @@ namespace SDLUtil
     class InputWrapper;
 }
 
+namespace MWRender
+{
+    class Renderer;
+}
+
 namespace MWInput
 {
     class BindingsManager;
@@ -16,7 +21,9 @@ namespace MWInput
     class MouseManager : public SDLUtil::MouseListener
     {
     public:
-        MouseManager(BindingsManager* bindingsManager, SDLUtil::InputWrapper* inputWrapper, SDL_Window* window);
+        /// `renderer` places the frame in the window, which a point of the pointer is mapped through.
+        MouseManager(
+            BindingsManager* bindingsManager, SDLUtil::InputWrapper* inputWrapper, const MWRender::Renderer& renderer);
 
         virtual ~MouseManager() = default;
 
@@ -37,12 +44,13 @@ namespace MWInput
         void setMouseLookEnabled(bool enabled) { mMouseLookEnabled = enabled; }
         void setGuiCursorEnabled(bool enabled) { mGuiCursorEnabled = enabled; }
 
-        int getMouseMoveX() const { return mMouseMoveX; }
-        int getMouseMoveY() const { return mMouseMoveY; }
+        float getMouseMoveX() const { return mMouseMoveX; }
+        float getMouseMoveY() const { return mMouseMoveY; }
 
     private:
         BindingsManager* mBindingsManager;
         SDLUtil::InputWrapper* mInputWrapper;
+        const MWRender::Renderer& mRenderer;
 
         float mGuiCursorX;
         float mGuiCursorY;
@@ -52,8 +60,8 @@ namespace MWInput
         float mLastWarpX;
         float mLastWarpY;
 
-        int mMouseMoveX;
-        int mMouseMoveY;
+        float mMouseMoveX;
+        float mMouseMoveY;
     };
 }
 #endif

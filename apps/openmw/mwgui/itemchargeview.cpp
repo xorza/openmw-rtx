@@ -1,6 +1,6 @@
 #include "itemchargeview.hpp"
 
-#include <SDL_gamecontroller.h>
+#include <SDL3/SDL_gamepad.h>
 #include <set>
 
 #include <MyGUI_FactoryManager.h>
@@ -244,15 +244,15 @@ namespace MWGui
 
         size_t prevFocus = mControllerFocus;
 
-        if (button == SDL_CONTROLLER_BUTTON_A)
+        if (button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             // Select the focused item, if any.
             if (mControllerFocus < mLines.size())
                 onIconClicked(mLines[mControllerFocus].mIcon);
         }
-        else if (button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+        else if (button == SDL_GAMEPAD_BUTTON_DPAD_UP)
             mControllerFocus = wrap(mControllerFocus, mLines.size(), -1);
-        else if (button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+        else if (button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
             mControllerFocus = wrap(mControllerFocus, mLines.size(), 1);
 
         if (prevFocus != mControllerFocus)

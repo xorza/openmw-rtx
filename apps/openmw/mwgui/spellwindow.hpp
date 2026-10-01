@@ -41,7 +41,7 @@ namespace MWGui
         void onPinToggled() override;
         void onTitleDoubleClicked() override;
         void onOpen() override;
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
         void setActiveControllerWindow(bool active) override;
 
         SpellView* mSpellView;

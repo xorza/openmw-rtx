@@ -1,5 +1,7 @@
 #include "hud.hpp"
 
+#include <cmath>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_ImageBox.h>
 #include <MyGUI_InputManager.h>
@@ -327,7 +329,7 @@ namespace MWGui
         {
             mDrowningFlashTheta += dt * osg::PIf * 2;
 
-            float intensity = (cos(mDrowningFlashTheta) + 2.0f) / 3.0f;
+            float intensity = (std::cos(mDrowningFlashTheta) + 2.0f) / 3.0f;
 
             mDrowningFlash->setAlpha(intensity);
         }

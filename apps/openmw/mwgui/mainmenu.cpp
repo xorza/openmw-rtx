@@ -216,26 +216,26 @@ namespace MWGui
         }
     }
 
-    bool MainMenu::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool MainMenu::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             MWBase::Environment::get().getWindowManager()->injectKeyPress(MyGUI::KeyCode::Space, 0, false);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_B || arg.button == SDL_CONTROLLER_BUTTON_START)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_EAST || arg.button == SDL_GAMEPAD_BUTTON_START)
         {
             if (mButtons["return"]->getVisible())
                 onButtonClicked(mButtons["return"]);
             else
                 MWBase::Environment::get().getWindowManager()->injectKeyPress(MyGUI::KeyCode::Escape, 0, false);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
         {
             MyGUI::InputManager::getInstance().injectKeyPress(MyGUI::KeyCode::LeftShift);
             MWBase::Environment::get().getWindowManager()->injectKeyPress(MyGUI::KeyCode::Tab, 0, false);
             MyGUI::InputManager::getInstance().injectKeyRelease(MyGUI::KeyCode::LeftShift);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
         {
             MWBase::Environment::get().getWindowManager()->injectKeyPress(MyGUI::KeyCode::Tab, 0, false);
         }

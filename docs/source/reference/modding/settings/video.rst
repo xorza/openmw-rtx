@@ -4,24 +4,43 @@ Video Settings
 .. omw-setting::
    :title: resolution x
    :type: int
-   :range: > 0
-   :default: 800
+   :range: ≥ 0
+   :default: 0
    :location: :bdg-success:`Launcher > Display` :bdg-info:`In Game > Options > Video`
 
-   This setting determines the horizontal resolution of the OpenMW game window.
+   This setting determines the horizontal resolution the game renders at, the world and the interface together,
+   whatever the size of the window. The picture is scaled to fit the window, and where the window's aspect differs
+   from the resolution's, black bars fill the rest.
+   0 in either resolution setting is Native: the game renders at the window's own resolution.
    Larger values produce more detailed images within the constraints of your graphics hardware,
    but may reduce the frame rate.
 
 .. omw-setting::
    :title: resolution y
    :type: int
-   :range: > 0
-   :default: 600
+   :range: ≥ 0
+   :default: 0
    :location: :bdg-success:`Launcher > Display` :bdg-info:`In Game > Options > Video`
 
-   This setting determines the vertical resolution of the OpenMW game window.
-   Larger values produce more detailed images within the constraints of your graphics hardware,
-   but may reduce the frame rate.
+   This setting determines the vertical resolution the game renders at. See resolution x.
+
+.. omw-setting::
+   :title: window width
+   :type: int
+   :range: > 0
+   :default: 800
+
+   This setting determines the width of the OpenMW window in Windowed mode, in pixels.
+   Resizing the window changes it.
+
+.. omw-setting::
+   :title: window height
+   :type: int
+   :range: > 0
+   :default: 600
+
+   This setting determines the height of the OpenMW window in Windowed mode, in pixels.
+   Resizing the window changes it.
 
 .. omw-setting::
    :title: window mode
@@ -38,9 +57,9 @@ Video Settings
       * - Mode
         - Meaning
       * - 0
-        - Exclusive fullscreen
+        - Exclusive fullscreen, at the display's desktop mode
       * - 1
-        - Windowed fullscreen, borderless window that matches screen resolution
+        - Windowed fullscreen, borderless window that covers the display
       * - 2
         - Windowed
 
@@ -147,28 +166,3 @@ Video Settings
    (often 60 frames per second).
    Choosing to limit the frame rate using this setting instead of vsync may reduce input lag
    due to the game not having to wait for the vertical blanking interval.
-
-
-.. omw-setting::
-   :title: contrast
-   :type: float32
-   :range: > 0.0
-   :default: 1.0
-
-   This setting controls the contrast correction for all video in the game.
-   It has been reported to not work on some Linux systems.
-
-
-.. omw-setting::
-   :title: gamma
-   :type: float32
-   :range: > 0.0
-   :default: 1.0
-   :location: :bdg-success:`Launcher > Display` :bdg-info:`In Game > Options > Video > Detail Level`
-
-   This setting controls the gamma correction for all video in the game.
-   Gamma is an exponent that makes colors brighter if greater than 1.0 and darker if less than 1.0.
-
-   .. warning::
-
-      This setting is only supported on Windows platform. The setting will not be displayed in the in-game menu if not available.

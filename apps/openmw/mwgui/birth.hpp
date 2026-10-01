@@ -58,7 +58,7 @@ namespace MWGui
 
         ESM::RefId mCurrentBirthId;
 
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
     };
 }
 #endif

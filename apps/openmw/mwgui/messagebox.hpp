@@ -103,7 +103,7 @@ namespace MWGui
 
         bool mMarkedToDelete;
 
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
     private:
         void buttonActivated(MyGUI::Widget* widget);

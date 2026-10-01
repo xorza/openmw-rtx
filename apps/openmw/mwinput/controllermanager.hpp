@@ -16,7 +16,7 @@ namespace MWInput
     class ControllerManager : public SDLUtil::ControllerListener
     {
     public:
-        ControllerManager(BindingsManager* bindingsManager, MouseManager* mouseManager,
+        ControllerManager(BindingsManager* bindingsManager, MouseManager* mouseManager, SDL_Window* window,
             const std::filesystem::path& userControllerBindingsFile,
             const std::filesystem::path& controllerBindingsFile);
 
@@ -24,11 +24,11 @@ namespace MWInput
 
         void update(float dt);
 
-        void buttonPressed(int deviceID, const SDL_ControllerButtonEvent& arg) override;
-        void buttonReleased(int deviceID, const SDL_ControllerButtonEvent& arg) override;
-        void axisMoved(int deviceID, const SDL_ControllerAxisEvent& arg) override;
-        void controllerAdded(int deviceID, const SDL_ControllerDeviceEvent& arg) override;
-        void controllerRemoved(const SDL_ControllerDeviceEvent& arg) override;
+        void buttonPressed(int deviceID, const SDL_GamepadButtonEvent& arg) override;
+        void buttonReleased(int deviceID, const SDL_GamepadButtonEvent& arg) override;
+        void axisMoved(int deviceID, const SDL_GamepadAxisEvent& arg) override;
+        void controllerAdded(int deviceID, const SDL_GamepadDeviceEvent& arg) override;
+        void controllerRemoved(const SDL_GamepadDeviceEvent& arg) override;
 
         void touchpadMoved(int deviceId, const SDLUtil::TouchEvent& arg) override;
         void touchpadPressed(int deviceId, const SDLUtil::TouchEvent& arg) override;
@@ -42,8 +42,8 @@ namespace MWInput
         void setGamepadGuiCursorEnabled(bool enabled) { mGamepadGuiCursorEnabled = enabled; }
         bool gamepadGuiCursorEnabled() const { return mGamepadGuiCursorEnabled; }
 
-        float getAxisValue(SDL_GameControllerAxis axis) const; // returns value in range [-1, 1]
-        bool isButtonPressed(SDL_GameControllerButton button) const;
+        float getAxisValue(SDL_GamepadAxis axis) const; // returns value in range [-1, 1]
+        bool isButtonPressed(SDL_GamepadButton button) const;
 
         bool isGyroAvailable() const;
         std::array<float, 3> getGyroValues() const;
@@ -53,8 +53,8 @@ namespace MWInput
 
     private:
         // Return true if GUI consumes input.
-        bool gamepadToGuiControl(const SDL_ControllerButtonEvent& arg);
-        bool gamepadToGuiControl(const SDL_ControllerAxisEvent& arg);
+        bool gamepadToGuiControl(const SDL_GamepadButtonEvent& arg);
+        bool gamepadToGuiControl(const SDL_GamepadAxisEvent& arg);
 
         void enableGyroSensor();
 
@@ -62,6 +62,7 @@ namespace MWInput
 
         BindingsManager* mBindingsManager;
         MouseManager* mMouseManager;
+        SDL_Window* mWindow;
 
         bool mGyroAvailable;
         bool mGamepadGuiCursorEnabled;

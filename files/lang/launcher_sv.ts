@@ -461,40 +461,20 @@ de ordinarie fonterna i Morrowind. Bocka denna ruta om du ändå föredrar ordin
         <translation>Det gick inte att ta emot antalet skärmar</translation>
     </message>
     <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetNumVideoDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;SDL_GetNumVideoDisplays misslyckades:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
+        <source>Native</source>
+        <translation>Nativ</translation>
     </message>
     <message>
         <source>Screen </source>
         <translation>Skärm </translation>
     </message>
     <message>
-        <source>This build was made without the ray tracing renderer.</source>
-        <translation type="vanished">Det här bygget skapades utan strålspårningsrenderaren.</translation>
-    </message>
-    <message>
-        <source>Error receiving resolutions</source>
-        <translation>Det gick inte att ta emot upplösningar</translation>
-    </message>
-    <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetNumDisplayModes failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;SDL_GetNumDisplayModes misslyckades:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplayMode failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;SDL_GetDisplayMode misslyckades:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
-    </message>
-    <message>
-        <source>Custom window size is available only in Windowed mode.</source>
-        <translation>Anpassad fönsterstorlek finns endast tillgänglig i fönsterläge.</translation>
+        <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
+        <translation>&lt;br&gt;&lt;b&gt;SDL_GetDisplays misslyckades:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
     </message>
     <message>
         <source>Window border is available only in Windowed mode.</source>
         <translation>Fönsterram finns endast tillgänglig i fönsterläge</translation>
-    </message>
-    <message>
-        <source>Windowed Fullscreen mode always uses the native display resolution.</source>
-        <translation>Helskärm i fönsterläge använder alltid skärmens nativa upplösning.</translation>
     </message>
 </context>
 <context>

@@ -30,7 +30,7 @@ namespace MWGui
 
         void onResChange(int, int) override;
 
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
     protected:
         MyGUI::TabControl* mSettingsTab;
@@ -65,8 +65,6 @@ namespace MWGui
         MyGUI::ComboBox* mPrimaryLanguage;
         MyGUI::ComboBox* mSecondaryLanguage;
         MyGUI::Button* mGmstOverridesL10n;
-
-        MyGUI::Widget* mWindowModeHint;
 
         MyGUI::ComboBox* mRayTracingUpscale;
 

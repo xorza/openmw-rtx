@@ -80,7 +80,8 @@
 -- @param openmw.core#GameObject obj
 
 ---
--- Returns the size of the OpenMW window in pixels as a 2D vector.
+-- Returns the size of the frame the game renders at, in pixels, as a 2D vector: `[Video] resolution x/y`,
+-- or the window's size where the resolution is Native.
 -- @function [parent=#ui] screenSize
 -- @return openmw.util#Vector2
 

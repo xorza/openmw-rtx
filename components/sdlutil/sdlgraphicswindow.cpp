@@ -1,6 +1,6 @@
 #include "sdlgraphicswindow.hpp"
 
-#include <SDL_video.h>
+#include <SDL3/SDL_video.h>
 
 #ifdef OPENMW_GL4ES_MANUAL_INIT
 #include "gl4esinit.h"
@@ -9,12 +9,12 @@
 namespace SDLUtil
 {
 
-    GraphicsWindowSDL2::~GraphicsWindowSDL2()
+    GraphicsWindowSDL::~GraphicsWindowSDL()
     {
         close(true);
     }
 
-    GraphicsWindowSDL2::GraphicsWindowSDL2(osg::GraphicsContext::Traits* traits, VSyncMode vsyncMode)
+    GraphicsWindowSDL::GraphicsWindowSDL(osg::GraphicsContext::Traits* traits, VSyncMode vsyncMode)
         : mWindow(nullptr)
         , mContext(nullptr)
         , mValid(false)
@@ -25,7 +25,7 @@ namespace SDLUtil
         _traits = traits;
 
         init();
-        if (GraphicsWindowSDL2::valid())
+        if (GraphicsWindowSDL::valid())
         {
             setState(new osg::State);
             getState()->setGraphicsContext(this);
@@ -42,31 +42,28 @@ namespace SDLUtil
         }
     }
 
-    bool GraphicsWindowSDL2::setWindowDecorationImplementation(bool flag)
+    bool GraphicsWindowSDL::setWindowDecorationImplementation(bool flag)
     {
         if (!mWindow)
             return false;
 
-        SDL_SetWindowBordered(mWindow, flag ? SDL_TRUE : SDL_FALSE);
+        SDL_SetWindowBordered(mWindow, flag);
         return true;
     }
 
-    bool GraphicsWindowSDL2::setWindowRectangleImplementation(int x, int y, int width, int height)
+    bool GraphicsWindowSDL::setWindowRectangleImplementation(int x, int y, int width, int height)
     {
         if (!mWindow)
             return false;
 
-        int w, h;
-        SDL_GetWindowSize(mWindow, &w, &h);
-        int dw, dh;
-        SDL_GL_GetDrawableSize(mWindow, &dw, &dh);
-
+        const float density = SDL_GetWindowPixelDensity(mWindow);
         SDL_SetWindowPosition(mWindow, x, y);
-        SDL_SetWindowSize(mWindow, width / (dw / w), height / (dh / h));
+        SDL_SetWindowSize(mWindow, static_cast<int>(static_cast<float>(width) / density),
+            static_cast<int>(static_cast<float>(height) / density));
         return true;
     }
 
-    void GraphicsWindowSDL2::setWindowName(const std::string& name)
+    void GraphicsWindowSDL::setWindowName(const std::string& name)
     {
         if (!mWindow)
             return;
@@ -75,12 +72,12 @@ namespace SDLUtil
         _traits->windowName = name;
     }
 
-    void GraphicsWindowSDL2::setCursor(MouseCursor mouseCursor)
+    void GraphicsWindowSDL::setCursor(MouseCursor mouseCursor)
     {
         _traits->useCursor = false;
     }
 
-    void GraphicsWindowSDL2::init()
+    void GraphicsWindowSDL::init()
     {
         if (mValid)
             return;
@@ -181,11 +178,11 @@ namespace SDLUtil
         getEventQueue()->syncWindowRectangleWithGraphicsContext();
     }
 
-    bool GraphicsWindowSDL2::realizeImplementation()
+    bool GraphicsWindowSDL::realizeImplementation()
     {
         if (mRealized)
         {
-            OSG_NOTICE << "GraphicsWindowSDL2::realizeImplementation() Already realized" << std::endl;
+            OSG_NOTICE << "GraphicsWindowSDL::realizeImplementation() Already realized" << std::endl;
             return true;
         }
 
@@ -203,7 +200,7 @@ namespace SDLUtil
         return true;
     }
 
-    bool GraphicsWindowSDL2::makeCurrentImplementation()
+    bool GraphicsWindowSDL::makeCurrentImplementation()
     {
         if (!mRealized)
         {
@@ -211,10 +208,10 @@ namespace SDLUtil
             return false;
         }
 
-        return SDL_GL_MakeCurrent(mWindow, mContext) == 0;
+        return SDL_GL_MakeCurrent(mWindow, mContext);
     }
 
-    bool GraphicsWindowSDL2::releaseContextImplementation()
+    bool GraphicsWindowSDL::releaseContextImplementation()
     {
         if (!mRealized)
         {
@@ -222,13 +219,13 @@ namespace SDLUtil
             return false;
         }
 
-        return SDL_GL_MakeCurrent(nullptr, nullptr) == 0;
+        return SDL_GL_MakeCurrent(nullptr, nullptr);
     }
 
-    void GraphicsWindowSDL2::closeImplementation()
+    void GraphicsWindowSDL::closeImplementation()
     {
         if (mContext)
-            SDL_GL_DeleteContext(mContext);
+            SDL_GL_DestroyContext(mContext);
         mContext = nullptr;
 
         if (mWindow && mOwnsWindow)
@@ -239,7 +236,7 @@ namespace SDLUtil
         mRealized = false;
     }
 
-    void GraphicsWindowSDL2::swapBuffersImplementation()
+    void GraphicsWindowSDL::swapBuffersImplementation()
     {
         if (!mRealized)
             return;
@@ -247,13 +244,13 @@ namespace SDLUtil
         SDL_GL_SwapWindow(mWindow);
     }
 
-    void GraphicsWindowSDL2::setSyncToVBlank(bool on)
+    void GraphicsWindowSDL::setSyncToVBlank(bool on)
     {
         throw std::runtime_error(
             "setSyncToVBlank with bool argument is not supported. Use the VSyncMode argument instead.");
     }
 
-    void GraphicsWindowSDL2::setSyncToVBlank(VSyncMode mode)
+    void GraphicsWindowSDL::setSyncToVBlank(VSyncMode mode)
     {
         SDL_Window* oldWin = SDL_GL_GetCurrentWindow();
         SDL_GLContext oldCtx = SDL_GL_GetCurrentContext();
@@ -265,13 +262,13 @@ namespace SDLUtil
         SDL_GL_MakeCurrent(oldWin, oldCtx);
     }
 
-    void GraphicsWindowSDL2::setSwapInterval(VSyncMode mode)
+    void GraphicsWindowSDL::setSwapInterval(VSyncMode mode)
     {
         mVSyncMode = mode;
 
         if (mode == VSyncMode::Adaptive)
         {
-            if (SDL_GL_SetSwapInterval(-1) == -1)
+            if (!SDL_GL_SetSwapInterval(-1))
             {
                 OSG_NOTICE << "Adaptive vsync unsupported" << std::endl;
                 setSwapInterval(VSyncMode::Enabled);
@@ -279,7 +276,7 @@ namespace SDLUtil
         }
         else if (mode == VSyncMode::Enabled)
         {
-            if (SDL_GL_SetSwapInterval(1) == -1)
+            if (!SDL_GL_SetSwapInterval(1))
             {
                 OSG_NOTICE << "Vertical synchronization unsupported, disabling" << std::endl;
                 setSwapInterval(VSyncMode::Disabled);
@@ -291,7 +288,7 @@ namespace SDLUtil
         }
     }
 
-    void GraphicsWindowSDL2::raiseWindow()
+    void GraphicsWindowSDL::raiseWindow()
     {
         SDL_RaiseWindow(mWindow);
     }

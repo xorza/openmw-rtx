@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 
+#include <osg/Vec2i>
 #include <osg/ref_ptr>
 
 #include "../mwbase/windowmanager.hpp"
@@ -212,6 +213,7 @@ namespace MWGui
         bool getWorldMouseOver() override;
 
         float getScalingFactor() const override;
+        osg::Vec2i getFrameSize() const override { return mLaidOutFrame; }
 
         bool toggleFogOfWar() override;
         bool toggleFullHelp() override; ///< show extra info in item tooltips (owner, script)
@@ -553,9 +555,10 @@ namespace MWGui
 
         std::unique_ptr<KeyboardNavigation> mKeyboardNavigation;
 
-        std::unique_ptr<SDLUtil::VideoWrapper> mVideoWrapper;
-
         float mScalingFactor;
+
+        /// The frame the interface was laid out at.
+        osg::Vec2i mLaidOutFrame;
 
         struct ScheduledMessageBox
         {
@@ -595,6 +598,10 @@ namespace MWGui
         void onVideoKeyPressed(MyGUI::Widget* sender, MyGUI::KeyCode key, MyGUI::Char value);
 
         void sizeVideo(int screenWidth, int screenHeight);
+
+        /// Lays the interface out at the renderer's frame, where that moved: a window resized at
+        /// Native, or another resolution chosen.
+        void frameResized();
 
         void onClipboardChanged(std::string_view type, std::string_view data);
         void onClipboardRequested(std::string_view type, std::string& data);

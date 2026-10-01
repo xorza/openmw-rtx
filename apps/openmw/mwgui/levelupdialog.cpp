@@ -381,19 +381,19 @@ namespace MWGui
         return ret;
     }
 
-    bool LevelupDialog::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool LevelupDialog::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             if (mControllerFocus < mAttributeButtons.size())
                 onAttributeClicked(mAttributeButtons[mControllerFocus]);
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Item Gold Up"));
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_X)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_WEST)
         {
             onOkButtonClicked(mOkButton);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
         {
             setControllerFocus(mAttributeButtons, mControllerFocus, false);
             if (mControllerFocus % mPerCol == 0)
@@ -402,7 +402,7 @@ namespace MWGui
                 mControllerFocus--;
             setControllerFocus(mAttributeButtons, mControllerFocus, true);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
         {
             setControllerFocus(mAttributeButtons, mControllerFocus, false);
             if (mControllerFocus % mPerCol == mPerCol - 1)
@@ -411,7 +411,7 @@ namespace MWGui
                 mControllerFocus++;
             setControllerFocus(mAttributeButtons, mControllerFocus, true);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_LEFT || arg.button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_LEFT || arg.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
         {
             setControllerFocus(mAttributeButtons, mControllerFocus, false);
             mControllerFocus = (mControllerFocus + mPerCol) % mAttributeButtons.size();

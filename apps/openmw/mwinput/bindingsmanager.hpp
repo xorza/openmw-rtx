@@ -45,7 +45,7 @@ namespace MWInput
         bool actionIsActive(int id) const;
         float getActionValue(int id) const; // returns value in range [0, 1]
 
-        SDL_GameController* getControllerOrNull() const;
+        SDL_Gamepad* getControllerOrNull() const;
 
         void mousePressed(const SDL_MouseButtonEvent& evt, Uint8 deviceID);
         void mouseReleased(const SDL_MouseButtonEvent& arg, Uint8 deviceID);
@@ -55,11 +55,11 @@ namespace MWInput
         void keyPressed(const SDL_KeyboardEvent& arg);
         void keyReleased(const SDL_KeyboardEvent& arg);
 
-        void controllerAdded(int deviceID, const SDL_ControllerDeviceEvent& arg);
-        void controllerRemoved(const SDL_ControllerDeviceEvent& arg);
-        void controllerButtonPressed(int deviceID, const SDL_ControllerButtonEvent& arg);
-        void controllerButtonReleased(int deviceID, const SDL_ControllerButtonEvent& arg);
-        void controllerAxisMoved(int deviceID, const SDL_ControllerAxisEvent& arg);
+        void controllerAdded(int deviceID, const SDL_GamepadDeviceEvent& arg);
+        void controllerRemoved(const SDL_GamepadDeviceEvent& arg);
+        void controllerButtonPressed(int deviceID, const SDL_GamepadButtonEvent& arg);
+        void controllerButtonReleased(int deviceID, const SDL_GamepadButtonEvent& arg);
+        void controllerAxisMoved(int deviceID, const SDL_GamepadAxisEvent& arg);
 
         SDL_Scancode getKeyBinding(int actionId);
 

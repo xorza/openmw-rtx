@@ -1,9 +1,9 @@
 #include "sdlinputwrapper.hpp"
 
+#include <cmath>
 #include <ios>
 
 #include <components/debug/debuglog.hpp>
-#include <components/settings/values.hpp>
 
 #include "graphicslistener.hpp"
 
@@ -33,8 +33,9 @@ namespace SDLUtil
         , mPendingWheelY(0.0)
         , mWindowHasFocus(true)
         , mMouseInWindow(true)
+        , mPixelDensity(1.f)
     {
-        Uint32 flags = SDL_GetWindowFlags(mSDLWindow);
+        SDL_WindowFlags flags = SDL_GetWindowFlags(mSDLWindow);
         mWindowHasFocus = (flags & SDL_WINDOW_INPUT_FOCUS);
         mMouseInWindow = (flags & SDL_WINDOW_MOUSE_FOCUS);
         _setWindowScale();
@@ -44,12 +45,7 @@ namespace SDLUtil
 
     void InputWrapper::_setWindowScale()
     {
-        int w, h;
-        SDL_GetWindowSize(mSDLWindow, &w, &h);
-        int dw, dh;
-        SDL_GetWindowSizeInPixels(mSDLWindow, &dw, &dh);
-        mScaleX = static_cast<Uint16>(dw / w);
-        mScaleY = static_cast<Uint16>(dh / h);
+        mPixelDensity = SDL_GetWindowPixelDensity(mSDLWindow);
     }
 
     void InputWrapper::capture(bool windowEventsOnly)
@@ -63,35 +59,29 @@ namespace SDLUtil
         if (windowEventsOnly)
         {
             // During loading, handle window events, discard button presses and mouse movement and keep others for later
-            while (SDL_PeepEvents(&evt, 1, SDL_GETEVENT, SDL_WINDOWEVENT, SDL_WINDOWEVENT) > 0)
+            while (SDL_PeepEvents(&evt, 1, SDL_GETEVENT, SDL_EVENT_WINDOW_FIRST, SDL_EVENT_WINDOW_LAST) > 0)
                 handleWindowEvent(evt);
 
-            SDL_FlushEvent(SDL_KEYDOWN);
-            SDL_FlushEvent(SDL_CONTROLLERBUTTONDOWN);
-            SDL_FlushEvent(SDL_MOUSEBUTTONDOWN);
-            SDL_FlushEvent(SDL_MOUSEMOTION);
-            SDL_FlushEvent(SDL_MOUSEWHEEL);
+            SDL_FlushEvent(SDL_EVENT_KEY_DOWN);
+            SDL_FlushEvent(SDL_EVENT_GAMEPAD_BUTTON_DOWN);
+            SDL_FlushEvent(SDL_EVENT_MOUSE_BUTTON_DOWN);
+            SDL_FlushEvent(SDL_EVENT_MOUSE_MOTION);
+            SDL_FlushEvent(SDL_EVENT_MOUSE_WHEEL);
 
             return;
         }
 
         while (SDL_PollEvent(&evt))
         {
-#if SDL_VERSION_ATLEAST(2, 30, 50)
-            // SDL2-compat may pass us SDL3 display and window events alongside the SDL2 events for funsies
-            // Until we are ready to move to SDL3, we'll want to prevent the noise
-
-            // Silence 0x151 to 0x1FF range
-            if (evt.type > SDL_DISPLAYEVENT && evt.type < SDL_WINDOWEVENT)
+            if (evt.type >= SDL_EVENT_WINDOW_FIRST && evt.type <= SDL_EVENT_WINDOW_LAST)
+            {
+                handleWindowEvent(evt);
                 continue;
+            }
 
-            // Silence 0x202 to 0x2FF range
-            if (evt.type > SDL_SYSWMEVENT && evt.type < SDL_KEYDOWN)
-                continue;
-#endif
             switch (evt.type)
             {
-                case SDL_MOUSEMOTION:
+                case SDL_EVENT_MOUSE_MOTION:
                     // Ignore this if it happened due to a warp
                     if (!_handleWarpMotion(evt.motion))
                     {
@@ -104,133 +94,162 @@ namespace SDLUtil
                             _wrapMousePointer(evt.motion);
                     }
                     break;
-                case SDL_MOUSEWHEEL:
+                case SDL_EVENT_MOUSE_WHEEL:
                     mMouseListener->mouseMoved(_packageMouseMotion(evt));
                     mMouseListener->mouseWheelMoved(evt.wheel);
                     break;
-                case SDL_SENSORUPDATE:
+                case SDL_EVENT_SENSOR_UPDATE:
                     mSensorListener->sensorUpdated(evt.sensor);
                     break;
-                case SDL_MOUSEBUTTONDOWN:
+                case SDL_EVENT_MOUSE_BUTTON_DOWN:
                     mMouseListener->mousePressed(evt.button, evt.button.button);
                     break;
-                case SDL_MOUSEBUTTONUP:
+                case SDL_EVENT_MOUSE_BUTTON_UP:
                     mMouseListener->mouseReleased(evt.button, evt.button.button);
                     break;
-                case SDL_KEYDOWN:
+                case SDL_EVENT_KEY_DOWN:
                     mKeyboardListener->keyPressed(evt.key);
 
-                    if (!isModifierHeld(KMOD_ALT) && evt.key.keysym.sym >= SDLK_F1 && evt.key.keysym.sym <= SDLK_F12)
-                        mGraphics.functionKey(evt.key.keysym.sym - SDLK_F1, true);
+                    if (!isModifierHeld(SDL_KMOD_ALT) && evt.key.key >= SDLK_F1 && evt.key.key <= SDLK_F12)
+                        mGraphics.functionKey(static_cast<int>(evt.key.key - SDLK_F1), true);
 
                     break;
-                case SDL_KEYUP:
+                case SDL_EVENT_KEY_UP:
                     if (!evt.key.repeat)
                     {
                         mKeyboardListener->keyReleased(evt.key);
 
-                        if (!isModifierHeld(KMOD_ALT) && evt.key.keysym.sym >= SDLK_F1
-                            && evt.key.keysym.sym <= SDLK_F12)
-                            mGraphics.functionKey(evt.key.keysym.sym - SDLK_F1, false);
+                        if (!isModifierHeld(SDL_KMOD_ALT) && evt.key.key >= SDLK_F1 && evt.key.key <= SDLK_F12)
+                            mGraphics.functionKey(static_cast<int>(evt.key.key - SDLK_F1), false);
                     }
 
                     break;
-                case SDL_TEXTEDITING:
+                case SDL_EVENT_TEXT_EDITING:
+                case SDL_EVENT_TEXT_EDITING_CANDIDATES:
+                case SDL_EVENT_SCREEN_KEYBOARD_SHOWN:
+                case SDL_EVENT_SCREEN_KEYBOARD_HIDDEN:
                     break;
-                case SDL_TEXTINPUT:
+                case SDL_EVENT_TEXT_INPUT:
                     mKeyboardListener->textInput(evt.text);
                     break;
-                case SDL_KEYMAPCHANGED:
+                case SDL_EVENT_KEYMAP_CHANGED:
+                case SDL_EVENT_KEYBOARD_ADDED:
+                case SDL_EVENT_KEYBOARD_REMOVED:
+                case SDL_EVENT_MOUSE_ADDED:
+                case SDL_EVENT_MOUSE_REMOVED:
                     break;
-                case SDL_JOYHATMOTION: // As we manage everything with GameController, don't even bother with these.
-                case SDL_JOYAXISMOTION:
-                case SDL_JOYBUTTONDOWN:
-                case SDL_JOYBUTTONUP:
-                case SDL_JOYDEVICEADDED:
-                case SDL_JOYDEVICEREMOVED:
+                // Every device is read as a gamepad, never as a joystick.
+                case SDL_EVENT_JOYSTICK_AXIS_MOTION:
+                case SDL_EVENT_JOYSTICK_BALL_MOTION:
+                case SDL_EVENT_JOYSTICK_HAT_MOTION:
+                case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
+                case SDL_EVENT_JOYSTICK_BUTTON_UP:
+                case SDL_EVENT_JOYSTICK_ADDED:
+                case SDL_EVENT_JOYSTICK_REMOVED:
+                case SDL_EVENT_JOYSTICK_BATTERY_UPDATED:
+                case SDL_EVENT_JOYSTICK_UPDATE_COMPLETE:
                     break;
-                case SDL_CONTROLLERDEVICEADDED:
+                case SDL_EVENT_GAMEPAD_ADDED:
                     if (mConListener)
                         mConListener->controllerAdded(
-                            1, evt.cdevice); // We only support one joystick, so give everything a generic deviceID
+                            1, evt.gdevice); // We only support one joystick, so give everything a generic deviceID
                     break;
-                case SDL_CONTROLLERDEVICEREMOVED:
+                case SDL_EVENT_GAMEPAD_REMOVED:
                     if (mConListener)
-                        mConListener->controllerRemoved(evt.cdevice);
+                        mConListener->controllerRemoved(evt.gdevice);
                     break;
-                case SDL_CONTROLLERDEVICEREMAPPED:
+                case SDL_EVENT_GAMEPAD_REMAPPED:
                     // SDL keeps an open controller on its newest mapping itself, and every event
                     // after this one already carries it.
                     break;
-                case SDL_CONTROLLERBUTTONDOWN:
+                case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
                     if (mConListener)
-                        mConListener->buttonPressed(1, evt.cbutton);
+                        mConListener->buttonPressed(1, evt.gbutton);
                     break;
-                case SDL_CONTROLLERBUTTONUP:
+                case SDL_EVENT_GAMEPAD_BUTTON_UP:
                     if (mConListener)
-                        mConListener->buttonReleased(1, evt.cbutton);
+                        mConListener->buttonReleased(1, evt.gbutton);
                     break;
-                case SDL_CONTROLLERAXISMOTION:
+                case SDL_EVENT_GAMEPAD_AXIS_MOTION:
                     if (mConListener)
-                        mConListener->axisMoved(1, evt.caxis);
+                        mConListener->axisMoved(1, evt.gaxis);
                     break;
-                case SDL_CONTROLLERSENSORUPDATE:
+                case SDL_EVENT_GAMEPAD_SENSOR_UPDATE:
                     // controller sensor data is received on demand
+                case SDL_EVENT_GAMEPAD_UPDATE_COMPLETE:
+                case SDL_EVENT_GAMEPAD_STEAM_HANDLE_UPDATED:
                     break;
-                case SDL_CONTROLLERTOUCHPADDOWN:
-                    mConListener->touchpadPressed(1, TouchEvent(evt.ctouchpad));
+                case SDL_EVENT_GAMEPAD_TOUCHPAD_DOWN:
+                    mConListener->touchpadPressed(1, TouchEvent(evt.gtouchpad));
                     break;
-                case SDL_CONTROLLERTOUCHPADMOTION:
-                    mConListener->touchpadMoved(1, TouchEvent(evt.ctouchpad));
+                case SDL_EVENT_GAMEPAD_TOUCHPAD_MOTION:
+                    mConListener->touchpadMoved(1, TouchEvent(evt.gtouchpad));
                     break;
-                case SDL_CONTROLLERTOUCHPADUP:
-                    mConListener->touchpadReleased(1, TouchEvent(evt.ctouchpad));
+                case SDL_EVENT_GAMEPAD_TOUCHPAD_UP:
+                    mConListener->touchpadReleased(1, TouchEvent(evt.gtouchpad));
                     break;
-                case SDL_WINDOWEVENT:
-                    handleWindowEvent(evt);
-                    break;
-                case SDL_QUIT:
+                case SDL_EVENT_QUIT:
                     if (mWindowListener)
                         mWindowListener->windowClosed();
                     break;
-                case SDL_DISPLAYEVENT:
-                    switch (evt.display.event)
-                    {
-                        case SDL_DISPLAYEVENT_ORIENTATION:
-                            if (mSensorListener
-                                && evt.display.display == static_cast<Uint32>(Settings::video().mScreen))
-                            {
-                                mSensorListener->displayOrientationChanged();
-                            }
-                            break;
-                        default:
-                            break;
-                    }
+                case SDL_EVENT_DISPLAY_ORIENTATION:
+                    if (mSensorListener && evt.display.displayID == SDL_GetDisplayForWindow(mSDLWindow))
+                        mSensorListener->displayOrientationChanged();
                     break;
-                case SDL_CLIPBOARDUPDATE:
+                case SDL_EVENT_DISPLAY_ADDED:
+                case SDL_EVENT_DISPLAY_REMOVED:
+                case SDL_EVENT_DISPLAY_MOVED:
+                case SDL_EVENT_DISPLAY_DESKTOP_MODE_CHANGED:
+                case SDL_EVENT_DISPLAY_CURRENT_MODE_CHANGED:
+                case SDL_EVENT_DISPLAY_CONTENT_SCALE_CHANGED:
+                case SDL_EVENT_DISPLAY_USABLE_BOUNDS_CHANGED:
+                case SDL_EVENT_LOCALE_CHANGED:
+                case SDL_EVENT_SYSTEM_THEME_CHANGED:
+                case SDL_EVENT_AUDIO_DEVICE_ADDED:
+                case SDL_EVENT_AUDIO_DEVICE_REMOVED:
+                case SDL_EVENT_AUDIO_DEVICE_FORMAT_CHANGED:
+                case SDL_EVENT_RENDER_TARGETS_RESET:
+                case SDL_EVENT_RENDER_DEVICE_RESET:
+                case SDL_EVENT_RENDER_DEVICE_LOST:
+                    break;
+                case SDL_EVENT_CLIPBOARD_UPDATE:
                     break; // We don't need this event, clipboard is retrieved on demand
 
-                case SDL_FINGERDOWN:
-                case SDL_FINGERUP:
-                case SDL_FINGERMOTION:
-                case SDL_DOLLARGESTURE:
-                case SDL_DOLLARRECORD:
-                case SDL_MULTIGESTURE:
+                case SDL_EVENT_FINGER_DOWN:
+                case SDL_EVENT_FINGER_UP:
+                case SDL_EVENT_FINGER_MOTION:
+                case SDL_EVENT_FINGER_CANCELED:
+                case SDL_EVENT_PINCH_BEGIN:
+                case SDL_EVENT_PINCH_UPDATE:
+                case SDL_EVENT_PINCH_END:
+                case SDL_EVENT_PEN_PROXIMITY_IN:
+                case SDL_EVENT_PEN_PROXIMITY_OUT:
+                case SDL_EVENT_PEN_DOWN:
+                case SDL_EVENT_PEN_UP:
+                case SDL_EVENT_PEN_BUTTON_DOWN:
+                case SDL_EVENT_PEN_BUTTON_UP:
+                case SDL_EVENT_PEN_MOTION:
+                case SDL_EVENT_PEN_AXIS:
+                case SDL_EVENT_DROP_FILE:
+                case SDL_EVENT_DROP_TEXT:
+                case SDL_EVENT_DROP_BEGIN:
+                case SDL_EVENT_DROP_COMPLETE:
+                case SDL_EVENT_DROP_POSITION:
                     // No use for touch & gesture events
                     break;
 
-                case SDL_APP_WILLENTERBACKGROUND:
-                case SDL_APP_WILLENTERFOREGROUND:
-                case SDL_APP_DIDENTERBACKGROUND:
-                case SDL_APP_DIDENTERFOREGROUND:
+                case SDL_EVENT_WILL_ENTER_BACKGROUND:
+                case SDL_EVENT_WILL_ENTER_FOREGROUND:
+                case SDL_EVENT_DID_ENTER_BACKGROUND:
+                case SDL_EVENT_DID_ENTER_FOREGROUND:
                     // We do not need background/foreground switch event for mobile devices so far
                     break;
 
-                case SDL_APP_TERMINATING:
+                case SDL_EVENT_TERMINATING:
                     // There is nothing we can do here.
                     break;
 
-                case SDL_APP_LOWMEMORY:
+                case SDL_EVENT_LOW_MEMORY:
                     Log(Debug::Warning) << "System reports that free RAM on device is running low. You may encounter "
                                            "an unexpected behaviour.";
                     break;
@@ -246,30 +265,31 @@ namespace SDLUtil
 
     void InputWrapper::handleWindowEvent(const SDL_Event& evt)
     {
-        switch (evt.window.event)
+        switch (evt.type)
         {
-            case SDL_WINDOWEVENT_ENTER:
+            case SDL_EVENT_WINDOW_MOUSE_ENTER:
                 mMouseInWindow = true;
                 updateMouseSettings();
                 break;
-            case SDL_WINDOWEVENT_LEAVE:
+            case SDL_EVENT_WINDOW_MOUSE_LEAVE:
                 mMouseInWindow = false;
                 updateMouseSettings();
                 break;
-            case SDL_WINDOWEVENT_MOVED:
+            case SDL_EVENT_WINDOW_MOVED:
                 // I'm not sure what OSG is using the window position for, but I don't think it's needed,
                 // so we ignore window moved events (improves window movement performance)
                 break;
-            case SDL_WINDOWEVENT_SIZE_CHANGED:
-                int w, h;
-                SDL_GetWindowSizeInPixels(mSDLWindow, &w, &h);
-                int x, y;
-                SDL_GetWindowPosition(mSDLWindow, &x, &y);
+            case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+            {
+                const int w = evt.window.data1;
+                const int h = evt.window.data2;
 
                 // Happens when you Alt-Tab out of game
                 if (w == 0 && h == 0)
                     return;
 
+                int x, y;
+                SDL_GetWindowPosition(mSDLWindow, &x, &y);
                 mGraphics.windowResized(x, y, w, h);
 
                 if (mWindowListener)
@@ -278,28 +298,28 @@ namespace SDLUtil
                 _setWindowScale();
 
                 break;
-
-            case SDL_WINDOWEVENT_RESIZED:
-                // This should also fire SIZE_CHANGED, so no need to handle
+            }
+            case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
+                _setWindowScale();
                 break;
 
-            case SDL_WINDOWEVENT_FOCUS_GAINED:
+            case SDL_EVENT_WINDOW_FOCUS_GAINED:
                 mWindowHasFocus = true;
                 updateMouseSettings();
                 break;
-            case SDL_WINDOWEVENT_FOCUS_LOST:
+            case SDL_EVENT_WINDOW_FOCUS_LOST:
                 mWindowHasFocus = false;
                 updateMouseSettings();
                 break;
-            case SDL_WINDOWEVENT_CLOSE:
+            case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
                 break;
-            case SDL_WINDOWEVENT_SHOWN:
-            case SDL_WINDOWEVENT_RESTORED:
+            case SDL_EVENT_WINDOW_SHOWN:
+            case SDL_EVENT_WINDOW_RESTORED:
                 if (mWindowListener)
                     mWindowListener->windowVisibilityChange(true);
                 break;
-            case SDL_WINDOWEVENT_HIDDEN:
-            case SDL_WINDOWEVENT_MINIMIZED:
+            case SDL_EVENT_WINDOW_HIDDEN:
+            case SDL_EVENT_WINDOW_MINIMIZED:
                 if (mWindowListener)
                     mWindowListener->windowVisibilityChange(false);
                 break;
@@ -313,16 +333,20 @@ namespace SDLUtil
 
     bool InputWrapper::isKeyDown(SDL_Scancode key)
     {
-        return (SDL_GetKeyboardState(nullptr)[key]) != 0;
+        return SDL_GetKeyboardState(nullptr)[key];
     }
 
-    /// \brief Moves the mouse to the specified point within the viewport
-    void InputWrapper::warpMouse(int x, int y)
+    void InputWrapper::warpMouse(float x, float y)
+    {
+        warpInWindow(x / mPixelDensity, y / mPixelDensity);
+    }
+
+    void InputWrapper::warpInWindow(float x, float y)
     {
         SDL_WarpMouseInWindow(mSDLWindow, x, y);
         mWarpCompensate = true;
-        mWarpX = static_cast<Uint16>(x);
-        mWarpY = static_cast<Uint16>(y);
+        mWarpX = x;
+        mWarpY = y;
     }
 
     /// \brief Locks the pointer to the window
@@ -349,9 +373,12 @@ namespace SDLUtil
     void InputWrapper::updateMouseSettings()
     {
         mGrabPointer = mWantGrab && mMouseInWindow && mWindowHasFocus;
-        SDL_SetWindowGrab(mSDLWindow, mGrabPointer && mAllowGrab ? SDL_TRUE : SDL_FALSE);
+        SDL_SetWindowMouseGrab(mSDLWindow, mGrabPointer && mAllowGrab);
 
-        SDL_ShowCursor(mWantMouseVisible || !mWindowHasFocus);
+        if (mWantMouseVisible || !mWindowHasFocus)
+            SDL_ShowCursor();
+        else
+            SDL_HideCursor();
 
         bool relative = mWantRelative && mMouseInWindow && mWindowHasFocus;
         if (mMouseRelative == relative)
@@ -363,15 +390,15 @@ namespace SDLUtil
 
         // eep, wrap the pointer manually if the input driver doesn't support
         // relative positioning natively
-        // also use wrapping if no-grab was specified in options (SDL_SetRelativeMouseMode
+        // also use wrapping if no-grab was specified in options (SDL_SetWindowRelativeMouseMode
         // appears to eat the mouse cursor when pausing in a debugger)
-        bool success = mAllowGrab && SDL_SetRelativeMouseMode(relative ? SDL_TRUE : SDL_FALSE) == 0;
+        bool success = mAllowGrab && SDL_SetWindowRelativeMouseMode(mSDLWindow, relative);
         if (relative && !success)
             mWrapPointer = true;
 
         // now remove all mouse events using the old setting from the queue
         SDL_PumpEvents();
-        SDL_FlushEvent(SDL_MOUSEMOTION);
+        SDL_FlushEvent(SDL_EVENT_MOUSE_MOTION);
     }
 
     /// \brief Internal method for ignoring relative motions as a side effect
@@ -381,8 +408,9 @@ namespace SDLUtil
         if (!mWarpCompensate)
             return false;
 
-        // this was a warp event, signal the caller to eat it.
-        if (evt.x == mWarpX && evt.y == mWarpY)
+        // this was a warp event, signal the caller to eat it. Whole points, because X11 and Win32 move
+        // the pointer to a whole point whatever the warp asked for.
+        if (std::round(evt.x) == std::round(mWarpX) && std::round(evt.y) == std::round(mWarpY))
         {
             mWarpCompensate = false;
             return true;
@@ -404,14 +432,14 @@ namespace SDLUtil
 
         SDL_GetWindowSize(mSDLWindow, &width, &height);
 
-        const int fudgeFactorX = width / 4;
-        const int fudgeFactorY = height / 4;
+        const float fudgeFactorX = static_cast<float>(width) / 4;
+        const float fudgeFactorY = static_cast<float>(height) / 4;
 
         // warp the mouse if it's about to go outside the window
-        if (evt.x - fudgeFactorX < 0 || evt.x + fudgeFactorX > width || evt.y - fudgeFactorY < 0
-            || evt.y + fudgeFactorY > height)
+        if (evt.x - fudgeFactorX < 0 || evt.x + fudgeFactorX > static_cast<float>(width) || evt.y - fudgeFactorY < 0
+            || evt.y + fudgeFactorY > static_cast<float>(height))
         {
-            warpMouse(width / 2, height / 2);
+            warpInWindow(static_cast<float>(width) / 2, static_cast<float>(height) / 2);
         }
     }
 
@@ -421,13 +449,13 @@ namespace SDLUtil
         MouseMotionEvent packEvt = {};
         packEvt.z = mMouseZ;
 
-        if (evt.type == SDL_MOUSEMOTION)
+        if (evt.type == SDL_EVENT_MOUSE_MOTION)
         {
-            packEvt.x = evt.motion.x * mScaleX;
-            packEvt.y = evt.motion.y * mScaleY;
-            packEvt.xrel = evt.motion.xrel * mScaleX;
-            packEvt.yrel = evt.motion.yrel * mScaleY;
-            packEvt.type = SDL_MOUSEMOTION;
+            packEvt.x = evt.motion.x * mPixelDensity;
+            packEvt.y = evt.motion.y * mPixelDensity;
+            packEvt.xrel = evt.motion.xrel * mPixelDensity;
+            packEvt.yrel = evt.motion.yrel * mPixelDensity;
+            packEvt.type = SDL_EVENT_MOUSE_MOTION;
             if (mFirstMouseMove)
             {
                 // first event should be treated as non-relative, since there's no point of reference
@@ -436,21 +464,19 @@ namespace SDLUtil
                 mFirstMouseMove = false;
             }
         }
-        else if (evt.type == SDL_MOUSEWHEEL)
+        else if (evt.type == SDL_EVENT_MOUSE_WHEEL)
         {
-            double preciseY = evt.wheel.preciseY;
-
-            mPendingWheelY += preciseY * 120.0;
+            mPendingWheelY += static_cast<double>(evt.wheel.y) * 120.0;
             const int zrel = static_cast<int>(mPendingWheelY);
             mPendingWheelY -= zrel;
 
             mMouseZ += zrel;
             packEvt.zrel = zrel;
             packEvt.z = mMouseZ;
-            packEvt.type = SDL_MOUSEWHEEL;
+            packEvt.type = SDL_EVENT_MOUSE_WHEEL;
 
-            packEvt.x = evt.wheel.mouseX * mScaleX;
-            packEvt.y = evt.wheel.mouseY * mScaleY;
+            packEvt.x = evt.wheel.mouse_x * mPixelDensity;
+            packEvt.y = evt.wheel.mouse_y * mPixelDensity;
         }
         else
         {

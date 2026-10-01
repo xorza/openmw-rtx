@@ -343,7 +343,7 @@ namespace MWGui
         int delta = 0;
         switch (button)
         {
-            case SDL_CONTROLLER_BUTTON_A:
+            case SDL_GAMEPAD_BUTTON_SOUTH:
                 // Select the focused item, if any.
                 if (mControllerFocus < mButtons.size())
                 {
@@ -351,27 +351,27 @@ namespace MWGui
                     MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));
                 }
                 break;
-            case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
+            case SDL_GAMEPAD_BUTTON_RIGHT_STICK:
                 // Toggle info tooltip
                 winMgr->setControllerTooltipEnabled(!winMgr->getControllerTooltipEnabled());
                 break;
-            case SDL_CONTROLLER_BUTTON_DPAD_UP:
+            case SDL_GAMEPAD_BUTTON_DPAD_UP:
                 winMgr->restoreControllerTooltips();
                 delta = -1;
                 break;
-            case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+            case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
                 winMgr->restoreControllerTooltips();
                 delta = 1;
                 break;
-            case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+            case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
                 winMgr->restoreControllerTooltips();
                 delta = -10;
                 break;
-            case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+            case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
                 winMgr->restoreControllerTooltips();
                 delta = 10;
                 break;
-            case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
+            case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
             {
                 // Jump to first item in previous group
                 size_t prevGroupIndex = 0;
@@ -385,7 +385,7 @@ namespace MWGui
                 mControllerFocus = prevGroupIndex;
             }
             break;
-            case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
+            case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
             {
                 // Jump to first item in next group
                 size_t newFocus = mControllerFocus;

@@ -245,18 +245,18 @@ namespace MWGui
         return !mTimeAdvancer.isRunning();
     }
 
-    bool TrainingWindow::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool TrainingWindow::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             if (mControllerFocus < mTrainingButtons.size())
                 onTrainingSelected(mTrainingButtons[mControllerFocus]);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
         {
             onCancelButtonClicked(mCancelButton);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
         {
             if (mTrainingButtons.size() <= 1)
                 return true;
@@ -265,7 +265,7 @@ namespace MWGui
             mControllerFocus = wrap(mControllerFocus, mTrainingButtons.size(), -1);
             setControllerFocus(mTrainingButtons, mControllerFocus, true);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
         {
             if (mTrainingButtons.size() <= 1)
                 return true;

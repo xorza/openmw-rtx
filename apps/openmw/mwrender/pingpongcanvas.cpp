@@ -207,7 +207,8 @@ namespace MWRender
         auto bindDestinationFbo = [&]() {
             if (destinationFbo)
             {
-                destinationFbo->apply(state, osg::FrameBufferObject::DRAW_FRAMEBUFFER);
+                // Read as well, so a reader of what the pass drew, `ScreenshotManager`'s, reads the frame.
+                destinationFbo->apply(state, osg::FrameBufferObject::READ_DRAW_FRAMEBUFFER);
                 lastApplied = destinationHandle;
             }
             else if (Stereo::getMultiview())
@@ -310,7 +311,7 @@ namespace MWRender
                 else if (pass.mResolve && index == filtered.back())
                 {
                     bindDestinationFbo();
-                    if (!destinationFbo && !Stereo::getMultiview())
+                    if (!Stereo::getMultiview())
                     {
                         resolveViewport->apply(state);
                     }

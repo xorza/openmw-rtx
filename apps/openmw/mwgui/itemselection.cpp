@@ -73,9 +73,9 @@ namespace MWGui
         exit();
     }
 
-    bool ItemSelectionDialog::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool ItemSelectionDialog::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
             onCancelButtonClicked(nullptr);
         else
             mItemView->onControllerButton(arg.button);

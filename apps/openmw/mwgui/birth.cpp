@@ -286,23 +286,23 @@ namespace MWGui
         mSpellArea->setViewOffset(MyGUI::IntPoint(0, 0));
     }
 
-    bool BirthDialog::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool BirthDialog::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
         {
             onBackClicked(mBackButton);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_X)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_WEST)
         {
             onOkClicked(mOkButton);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
         {
             MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
             winMgr->setKeyFocusWidget(mBirthList);
             winMgr->injectKeyPress(MyGUI::KeyCode::ArrowUp, 0, false);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
         {
             MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
             winMgr->setKeyFocusWidget(mBirthList);

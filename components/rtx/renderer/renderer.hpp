@@ -93,8 +93,8 @@ namespace Rtx
         /// is regenerable and worth tens of megabytes. Empty keeps nothing.
         std::filesystem::path mCacheDirectory{};
 
-        /// The size the frame is presented at. What it is traced at follows from
-        /// `mProfile.mUpscale`.
+        /// The frame's size: what `readPixels` gives back, and what a window shows scaled to fit.
+        /// What it is traced at follows from `mProfile.mUpscale`.
         std::uint32_t mWidth = 1920;
         std::uint32_t mHeight = 1080;
 
@@ -104,8 +104,7 @@ namespace Rtx
         RenderProfile mProfile{};
 
         /// Where the frame is shown, or null for a renderer that only reads pixels back. A window
-        /// and not a surface, because a surface is a thing an API has. A windowed renderer sizes
-        /// itself to the window and ignores `mWidth` and `mHeight`.
+        /// and not a surface, because a surface is a thing an API has.
         SDL_Window* mWindow = nullptr;
 
         /// How a present paces the frame, where there is a window. Off for a window somebody
@@ -344,9 +343,15 @@ namespace Rtx
         /// because a cell load looks like a step from here. Costs one frame of reconstruction.
         virtual void resetHistory() = 0;
 
-        /// Resizes the presented image; what the trace runs at follows from the upscaler, and
-        /// `getExtents` says.
+        /// Resizes the frame; what the trace runs at follows from the upscaler, and `getExtents`
+        /// says.
         virtual void resize(std::uint32_t width, std::uint32_t height) = 0;
+
+        /// The window is `width` by `height` pixels: the surface follows it, and the frame is shown
+        /// in it as `Misc::present` places it, with black beside it. Called every frame by a host
+        /// with a window, because a surface that stopped matching the window is remade here; a
+        /// renderer with no window has nothing to show and ignores it.
+        virtual void showIn(std::uint32_t width, std::uint32_t height) = 0;
 
         /// How hard the upscaler works, which decides what the frame is traced at. Rebuilds every
         /// target, so the old extents describe a camera nothing will accept. Throws where the mode
@@ -400,7 +405,7 @@ namespace Rtx
         virtual std::optional<FrameResult> collectFrame() = 0;
 
         /// Shows the frame `renderFrame` just produced. A surface that stopped matching the window
-        /// is remade by the next `resize`, which the host calls every frame; no answer comes back
+        /// is remade by the next `showIn`, which the host calls every frame; no answer comes back
         /// here, because the renderer keeps that fact itself. No window is an assert.
         virtual void presentFrame() = 0;
 

@@ -5,21 +5,28 @@
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
+#include <mutex>
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
 #include <utility>
 #include <vector>
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 #include <osg/BoundingSphere>
 #include <osg/Camera>
 #include <osg/DisplaySettings>
+#include <osg/FrameBufferObject>
+#include <osg/GLExtensions>
+#include <osg/Geometry>
 #include <osg/GraphicsContext>
+#include <osg/Image>
 #include <osg/Node>
 #include <osg/Stats>
 #include <osg/Texture2D>
+#include <osg/Uniform>
 #include <osg/Version>
+#include <osg/Viewport>
 #include <osgGA/EventQueue>
 #include <osgUtil/IncrementalCompileOperation>
 #include <osgViewer/Renderer>
@@ -71,9 +78,9 @@ namespace
     /// What the cull and the update masks are left at while a screen covers the world.
     constexpr unsigned int sCoveredCullMask = MWRender::Mask_GUI | MWRender::Mask_PreCompile;
 
-    void checkSDLError(int ret)
+    void checkSDLError(bool succeeded)
     {
-        if (ret != 0)
+        if (!succeeded)
             Log(Debug::Error) << "SDL error: " << SDL_GetError();
     }
 
@@ -172,7 +179,7 @@ namespace MWRender
         mStereoManager.reset();
         mViewer = nullptr;
 
-        // `SDL_GL_DeleteContext` on a window that has already gone is undefined, and the graphics
+        // `SDL_GL_DestroyContext` on a window that has already gone is undefined, and the graphics
         // window would otherwise be torn down whenever the base lets the camera go.
         if (mGraphicsWindow != nullptr)
             mGraphicsWindow->close();
@@ -187,13 +194,7 @@ namespace MWRender
         const SDLUtil::VSyncMode vsync = Settings::video().mVsyncMode;
         unsigned antialiasing = static_cast<unsigned>(Settings::video().mAntialiasing);
 
-        // Everything about where the window goes and what it is; the one flag naming what will be
-        // drawn into it is this renderer's, and the GL attributes below it are too.
-        applyWindowHints();
-        const WindowPlacement placement = describeWindow(SDL_WINDOW_OPENGL);
-        const int width = placement.mWidth;
-        const int height = placement.mHeight;
-
+        // Read when `openWindow` makes the window, so set before it.
         checkSDLError(SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8));
         checkSDLError(SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8));
         checkSDLError(SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8));
@@ -208,12 +209,12 @@ namespace MWRender
             checkSDLError(SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, antialiasing));
         }
 
-        osg::ref_ptr<SDLUtil::GraphicsWindowSDL2>& graphicsWindow = mGraphicsWindow;
+        osg::ref_ptr<SDLUtil::GraphicsWindowSDL>& graphicsWindow = mGraphicsWindow;
         while (!graphicsWindow || !graphicsWindow->valid())
         {
             while (!mWindow)
             {
-                mWindow = SDL_CreateWindow("OpenMW", placement.mX, placement.mY, width, height, placement.mFlags);
+                mWindow = openWindow(SDL_WINDOW_OPENGL);
                 if (!mWindow)
                 {
                     // Try with a lower AA
@@ -235,18 +236,16 @@ namespace MWRender
                 }
             }
 
-            placement.fit(mWindow);
-
             osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
             SDL_GetWindowPosition(mWindow, &traits->x, &traits->y);
-            SDL_GL_GetDrawableSize(mWindow, &traits->width, &traits->height);
+            SDL_GetWindowSizeInPixels(mWindow, &traits->width, &traits->height);
             traits->windowName = SDL_GetWindowTitle(mWindow);
             traits->windowDecoration = !(SDL_GetWindowFlags(mWindow) & SDL_WINDOW_BORDERLESS);
-            traits->screenNum = SDL_GetWindowDisplayIndex(mWindow);
+            traits->screenNum = SDL_GetDisplayForWindow(mWindow);
             traits->vsync = 0;
-            traits->inheritedWindowData = new SDLUtil::GraphicsWindowSDL2::WindowData(mWindow);
+            traits->inheritedWindowData = new SDLUtil::GraphicsWindowSDL::WindowData(mWindow);
 
-            graphicsWindow = new SDLUtil::GraphicsWindowSDL2(traits, vsync);
+            graphicsWindow = new SDLUtil::GraphicsWindowSDL(traits, vsync);
             if (!graphicsWindow->valid())
                 throw std::runtime_error("Failed to create GraphicsContext");
 
@@ -277,7 +276,14 @@ namespace MWRender
 
         osg::Camera& camera = getCamera();
         camera.setGraphicsContext(graphicsWindow);
-        camera.setViewport(0, 0, graphicsWindow->getTraits()->width, graphicsWindow->getTraits()->height);
+
+        // The projection is `RenderingManager`'s, set from the frame's aspect, and the window being
+        // resized is no reason for OSG to stretch it.
+        camera.setProjectionResizePolicy(osg::Camera::FIXED);
+
+        if (Stereo::getStereo())
+            presentAtNative();
+        presentIn(osg::Vec2i(graphicsWindow->getTraits()->width, graphicsWindow->getTraits()->height));
 
         osg::ref_ptr<SceneUtil::OperationSequence> realizeOperations = new SceneUtil::OperationSequence(false);
         mViewer->setRealizeOperation(realizeOperations);
@@ -418,6 +424,8 @@ namespace MWRender
         mWorld = std::make_unique<GlWorld>(*mViewer, world, worldRoot, *mSceneRoot, getResources());
         mSceneRoot = nullptr;
 
+        wireFrame();
+
         // **The chain goes above the world and becomes what is traversed.**
         setTraversalRoot(mWorld->getPostProcessor());
     }
@@ -425,6 +433,7 @@ namespace MWRender
     void GlRenderer::detachWorld()
     {
         mWorld.reset();
+        wireFrame();
     }
 
     PostProcessor* GlRenderer::getPostProcessor()
@@ -547,6 +556,19 @@ namespace MWRender
         mViewer->renderingTraversals();
     }
 
+    namespace
+    {
+        /// Binds `source` to be read from, or the window where null.
+        void readFrom(osg::State& state, const osg::FrameBufferObject* source)
+        {
+            if (source != nullptr)
+                source->apply(state, osg::FrameBufferObject::READ_FRAMEBUFFER);
+            else
+                state.get<osg::GLExtensions>()->glBindFramebuffer(
+                    GL_READ_FRAMEBUFFER_EXT, state.getGraphicsContext()->getDefaultFboId());
+        }
+    }
+
     class CopyFramebufferToTextureCallback : public osg::Camera::DrawCallback
     {
     public:
@@ -562,16 +584,68 @@ namespace MWRender
                 = Crash::notNull(renderInfo.getCurrentCamera(), "a draw with no camera")->getViewport();
             int w = static_cast<int>(viewPort->width());
             int h = static_cast<int>(viewPort->height());
+            readFrom(*renderInfo.getState(), mSource.get());
             mTexture->copyTexImage2D(*renderInfo.getState(), 0, 0, w, h);
+            readFrom(*renderInfo.getState(), nullptr);
 
             mOneshot = false;
         }
 
         void reset() { mOneshot = true; }
 
+        /// What the frame was drawn into: the frame, or the window where null.
+        void setSource(osg::ref_ptr<osg::FrameBufferObject> source) { mSource = std::move(source); }
+
     private:
         mutable bool mOneshot;
         osg::ref_ptr<osg::Texture2D> mTexture;
+        osg::ref_ptr<osg::FrameBufferObject> mSource;
+    };
+
+    /// The screenshot key's reader: the finished frame, once, handed to the writer. On the main
+    /// camera's final draw, which runs after every camera the frame is drawn by, the present pass's
+    /// included.
+    class FrameCapture : public osg::Camera::DrawCallback
+    {
+    public:
+        explicit FrameCapture(SceneUtil::AsyncScreenCaptureOperation& writer)
+            : mWriter(&writer)
+        {
+        }
+
+        /// The next frame drawn is read off `source`, or off the window where null, `size` pixels.
+        void arm(osg::ref_ptr<osg::FrameBufferObject> source, const osg::Vec2i& size)
+        {
+            const std::lock_guard lock(mMutex);
+            mSource = std::move(source);
+            mSize = size;
+            mArmed = true;
+        }
+
+        void operator()(osg::RenderInfo& renderInfo) const override
+        {
+            // Under the lock throughout, because the key can be pressed again while the draw thread
+            // reads the frame the last press asked for.
+            const std::lock_guard lock(mMutex);
+            if (!mArmed)
+                return;
+            mArmed = false;
+
+            osg::State& state = *renderInfo.getState();
+            readFrom(state, mSource.get());
+            const osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->readPixels(0, 0, mSize.x(), mSize.y(), GL_RGB, GL_UNSIGNED_BYTE);
+            readFrom(state, nullptr);
+
+            (*mWriter)(*image, state.getContextID());
+        }
+
+    private:
+        osg::ref_ptr<SceneUtil::AsyncScreenCaptureOperation> mWriter;
+        mutable std::mutex mMutex;
+        osg::ref_ptr<osg::FrameBufferObject> mSource;
+        osg::Vec2i mSize;
+        mutable bool mArmed = false;
     };
 
     MyGUI::ITexture& GlRenderer::freezeFrame()
@@ -588,6 +662,7 @@ namespace MWRender
             mFrozenFrameTexture = std::make_unique<MyGUIPlatform::OSGTexture>(mFrozenFrame);
         }
 
+        mFreezeFrame->setSource(mFrameFbo);
         getCamera().removeInitialDrawCallback(mFreezeFrame);
         getCamera().addInitialDrawCallback(mFreezeFrame);
         mFreezeFrame->reset();
@@ -714,14 +789,17 @@ namespace MWRender
     {
         Renderer::setScreenshotWriter(writer);
 
-        mScreenCaptureHandler = new osgViewer::ScreenCaptureHandler(&writer);
-        mViewer->addEventHandler(mScreenCaptureHandler);
+        mScreenshot = new FrameCapture(writer);
     }
 
     void GlRenderer::saveScreenshot()
     {
-        mScreenCaptureHandler->setFramesToCapture(1);
-        mScreenCaptureHandler->captureNextFrame(*mViewer);
+        const Misc::Presentation& presentation = getPresentation();
+        mScreenshot->arm(mFrameFbo, presentation.mFrame);
+
+        // Set again for each shot, because `ScreenshotManager` takes the main camera's final draw for
+        // its own and leaves it there.
+        getCamera().setFinalDrawCallback(mScreenshot);
     }
 
     void GlRenderer::suspendDraw()
@@ -801,8 +879,8 @@ namespace MWRender
         mViewer->stopThreading();
         for (osgViewer::GraphicsWindow* window : windows)
         {
-            if (auto* sdl2Window = dynamic_cast<SDLUtil::GraphicsWindowSDL2*>(window))
-                sdl2Window->setSyncToVBlank(mode);
+            if (auto* sdlWindow = dynamic_cast<SDLUtil::GraphicsWindowSDL*>(window))
+                sdlWindow->setSyncToVBlank(mode);
             else
                 window->setSyncToVBlank(mode != SDLUtil::VSyncMode::Disabled);
         }
@@ -832,7 +910,56 @@ namespace MWRender
         // **Which program the GUI is drawn with is this renderer's business**, and it is settled
         // after the platform rather than before it: the drawable the program goes on is made by the
         // `initialise` the platform's constructor calls.
-        gui.enableShaders(getResources().getSceneManager()->getShaderManager());
+        Shader::ShaderManager& shaders = getResources().getSceneManager()->getShaderManager();
+        gui.enableShaders(shaders);
+
+        // After the post-processor's last pass, whose camera is at the order before it, and
+        // before the present pass.
+        mGuiCamera = &gui.getCamera();
+        mGuiCamera->setImplicitBufferAttachmentMask(0, 0);
+        mGuiCamera->setRenderOrder(osg::Camera::POST_RENDER, 1);
+        mGuiCamera->setClearColor(osg::Vec4f(0.f, 0.f, 0.f, 1.f));
+
+        mPresentQuad = new osg::Geometry;
+        mPresentQuad->setDataVariance(osg::Object::DYNAMIC);
+        mPresentQuad->setUseDisplayList(false);
+        mPresentQuad->setUseVertexBufferObjects(true);
+        mPresentQuad->setCullingActive(false);
+        mPresentQuad->setVertexArray(new osg::Vec3Array(4));
+        osg::ref_ptr<osg::Vec2Array> texCoords = new osg::Vec2Array;
+        texCoords->push_back(osg::Vec2f(0.f, 0.f));
+        texCoords->push_back(osg::Vec2f(1.f, 0.f));
+        texCoords->push_back(osg::Vec2f(1.f, 1.f));
+        texCoords->push_back(osg::Vec2f(0.f, 1.f));
+        mPresentQuad->setTexCoordArray(0, texCoords, osg::Array::BIND_PER_VERTEX);
+        osg::ref_ptr<osg::Vec4Array> colours = new osg::Vec4Array;
+        colours->push_back(osg::Vec4f(1.f, 1.f, 1.f, 1.f));
+        mPresentQuad->setColorArray(colours, osg::Array::BIND_OVERALL);
+        mPresentQuad->addPrimitiveSet(new osg::DrawArrays(GL_TRIANGLE_FAN, 0, 4));
+
+        osg::StateSet* stateSet = mPresentQuad->getOrCreateStateSet();
+        stateSet->setDataVariance(osg::Object::DYNAMIC);
+        stateSet->setAttributeAndModes(shaders.getProgram("gui"), osg::StateAttribute::ON);
+        stateSet->addUniform(new osg::Uniform("diffuseMap", 0));
+        stateSet->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
+        stateSet->setMode(GL_BLEND, osg::StateAttribute::OFF);
+
+        // **Last, and over the whole window**: black where the frame does not land.
+        mPresent = new osg::Camera;
+        mPresent->setName("Present");
+        mPresent->setReferenceFrame(osg::Transform::ABSOLUTE_RF);
+        mPresent->setRenderOrder(osg::Camera::POST_RENDER, 2);
+        mPresent->setProjectionResizePolicy(osg::Camera::FIXED);
+        mPresent->setProjectionMatrix(osg::Matrix::identity());
+        mPresent->setViewMatrix(osg::Matrix::identity());
+        mPresent->setClearColor(osg::Vec4f(0.f, 0.f, 0.f, 1.f));
+        mPresent->setClearMask(GL_COLOR_BUFFER_BIT);
+        mPresent->setAllowEventFocus(false);
+        mPresent->addChild(mPresentQuad);
+        getTraversalRoot().addChild(mPresent);
+
+        wireFrame();
+        placeFrame();
 
         return platform;
     }
@@ -861,6 +988,124 @@ namespace MWRender
     {
         mGraphicsWindow->resized(x, y, width, height);
         mViewer->getEventQueue()->windowResize(x, y, width, height);
+        presentIn(osg::Vec2i(width, height));
+    }
+
+    void GlRenderer::applyPresentation()
+    {
+        const osg::Vec2i& frame = getPresentation().mFrame;
+
+        // A new viewport rather than the old one changed, which a draw thread may still be reading.
+        getCamera().setViewport(new osg::Viewport(0, 0, frame.x(), frame.y()));
+
+        const bool resized = frame != mFrameSize;
+        if (resized)
+        {
+            mFrameSize = frame;
+            if (PostProcessor* postProcessor = getPostProcessor())
+            {
+                postProcessor->setRenderTargetSize(frame.x(), frame.y());
+                postProcessor->resize();
+            }
+        }
+
+        const bool framed = frame != getPresentation().mDrawable;
+        if (framed != mFramed || (framed && resized))
+        {
+            mFramed = framed;
+            makeFrame();
+        }
+
+        placeFrame();
+    }
+
+    void GlRenderer::makeFrame()
+    {
+        mFrame = nullptr;
+        mFrameFbo = nullptr;
+        if (mFramed)
+        {
+            mFrame = new osg::Texture2D;
+            mFrame->setTextureSize(mFrameSize.x(), mFrameSize.y());
+            mFrame->setInternalFormat(GL_RGB8);
+            mFrame->setSourceFormat(GL_RGB);
+            mFrame->setSourceType(GL_UNSIGNED_BYTE);
+            // Linear for a frame shown at another size, and exact for one shown at its own beside bars:
+            // each pixel then samples its texel's centre.
+            mFrame->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
+            mFrame->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
+            mFrame->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
+            mFrame->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
+            mFrame->setResizeNonPowerOfTwoHint(false);
+
+            mFrameFbo = new osg::FrameBufferObject;
+            mFrameFbo->setAttachment(osg::Camera::COLOR_BUFFER0, osg::FrameBufferAttachment(mFrame.get()));
+        }
+
+        wireFrame();
+    }
+
+    void GlRenderer::wireFrame()
+    {
+        if (mGuiCamera != nullptr)
+        {
+            mGuiCamera->detach(osg::Camera::COLOR_BUFFER0);
+            if (mFrame != nullptr)
+            {
+                mGuiCamera->setRenderTargetImplementation(osg::Camera::FRAME_BUFFER_OBJECT);
+                mGuiCamera->attach(osg::Camera::COLOR_BUFFER0, mFrame.get());
+            }
+            else
+                mGuiCamera->setRenderTargetImplementation(osg::Camera::FRAME_BUFFER);
+            // Set up anew, rather than trusting stages cached for another target to notice.
+            mGuiCamera->setRenderingCache(nullptr);
+
+            // Until a world draws the whole frame texture under it, the interface is all that does,
+            // so it clears the texture as the main camera clears the window.
+            mGuiCamera->setClearMask(mFrame != nullptr && mWorld == nullptr ? GL_COLOR_BUFFER_BIT : GL_NONE);
+        }
+        if (PostProcessor* postProcessor = getPostProcessor())
+            postProcessor->setOutput(mFrameFbo);
+        if (mFreezeFrame != nullptr)
+            mFreezeFrame->setSource(mFrameFbo);
+        if (mPresent != nullptr)
+        {
+            mPresent->setNodeMask(mFrame != nullptr ? Mask_GUI : 0u);
+            if (mFrame != nullptr)
+                mPresentQuad->getStateSet()->setTextureAttributeAndModes(0, mFrame, osg::StateAttribute::ON);
+            else
+                mPresentQuad->getStateSet()->removeTextureAttribute(0, osg::StateAttribute::TEXTURE);
+        }
+    }
+
+    void GlRenderer::placeFrame()
+    {
+        if (mPresent == nullptr || !mFramed)
+            return;
+
+        const Misc::Presentation& presentation = getPresentation();
+        const auto toFloat
+            = [](const osg::Vec2i& v) { return osg::Vec2f(static_cast<float>(v.x()), static_cast<float>(v.y())); };
+        const osg::Vec2f drawable = toFloat(presentation.mDrawable);
+        const osg::Vec2f origin = toFloat(presentation.mShownOrigin);
+        const osg::Vec2f shown = toFloat(presentation.mShownSize);
+
+        // The GUI program draws its vertices as they are, in clip space, and the window's rows run
+        // up where the presentation's run down from the top.
+        const float left = 2.f * origin.x() / drawable.x() - 1.f;
+        const float right = 2.f * (origin.x() + shown.x()) / drawable.x() - 1.f;
+        const float top = 1.f - 2.f * origin.y() / drawable.y();
+        const float bottom = 1.f - 2.f * (origin.y() + shown.y()) / drawable.y();
+
+        osg::Vec3Array& corners = static_cast<osg::Vec3Array&>(*mPresentQuad->getVertexArray());
+        corners[0].set(left, bottom, 0.f);
+        corners[1].set(right, bottom, 0.f);
+        corners[2].set(right, top, 0.f);
+        corners[3].set(left, top, 0.f);
+        corners.dirty();
+        mPresentQuad->dirtyBound();
+
+        mPresent->setViewport(new osg::Viewport(0, 0, presentation.mDrawable.x(), presentation.mDrawable.y()));
     }
 
     // Upstream's, from Engine::go.

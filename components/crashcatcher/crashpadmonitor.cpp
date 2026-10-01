@@ -20,8 +20,8 @@
 #include <utility>
 #include <vector>
 
-#include <SDL_messagebox.h>
-#include <SDL_misc.h>
+#include <SDL3/SDL_messagebox.h>
+#include <SDL3/SDL_misc.h>
 #include <handler/handler_main.h>
 #include <handler/user_stream_data_source.h>
 #include <minidump/minidump_user_extension_stream_data_source.h>
@@ -306,7 +306,7 @@ namespace Crash
                 static_cast<int>(buttons.size()), buttons.data(), nullptr };
 
             int chosen = 0;
-            return SDL_ShowMessageBox(&box, &chosen) == 0 && chosen == 1;
+            return SDL_ShowMessageBox(&box, &chosen) && chosen == 1;
         }
 
         /// Ends the game where it still stands where it stood when the player was asked: the box
@@ -452,7 +452,7 @@ namespace Crash
                 title.c_str(), message.c_str(), static_cast<int>(buttons.size()), buttons.data(), nullptr };
 
             int chosen = Close;
-            if (SDL_ShowMessageBox(&box, &chosen) != 0 || chosen != Report)
+            if (!SDL_ShowMessageBox(&box, &chosen) || chosen != Report)
                 return;
             if (issues)
                 SDL_OpenURL(newIssueUrl(monitor.mIssues, report.mTitle, report.mSummary, attach).c_str());

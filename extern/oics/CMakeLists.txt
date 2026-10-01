@@ -29,7 +29,7 @@ else()
     target_link_libraries(oics local_tinyxml)
 endif()
 
-target_link_libraries(oics SDL2::SDL2)
+target_link_libraries(oics SDL3::SDL3)
 
 if (MSVC AND PRECOMPILE_HEADERS_WITH_MSVC)
     target_precompile_headers(oics PUBLIC <algorithm> <string>)

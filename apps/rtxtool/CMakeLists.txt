@@ -83,7 +83,7 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "apps\\rtxtool" FILES ${R
 # `PUBLIC`: the interface names Boost's option maps, an `SDLUtil` mode and the ray tracer's types.
 target_link_libraries(openmw-rtxtool-lib PUBLIC
     Boost::program_options
-    SDL2::SDL2
+    SDL3::SDL3
     openmw-rtx-vulkan
     components
 )

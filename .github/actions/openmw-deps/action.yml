@@ -20,7 +20,8 @@ runs:
 
     - name: Linux packages
       # Upstream's list, plus Ninja, the system Google Test, the clang-format `omw build` checks with,
-      # and Qt's Wayland platform and zsync for the archive.
+      # Qt's Wayland platform and zsync for the archive, and the window systems and input devices of
+      # the SDL3 CMake builds, as Ubuntu 24.04 has no SDL3.
       if: runner.os == 'Linux'
       shell: bash
       run: |
@@ -28,6 +29,9 @@ runs:
         sudo apt-get update
         sudo CI/install_debian_deps.sh gcc openmw-deps openmw-deps-dynamic
         sudo apt-get install -y ninja-build libgtest-dev libgmock-dev qt6-wayland zsync clang-format-14
+        sudo apt-get install -y libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev \
+          libxss-dev libxtst-dev libxkbcommon-dev libwayland-dev libdecor-0-dev libegl-dev libgl-dev libdrm-dev \
+          libgbm-dev libdbus-1-dev libibus-1.0-dev libudev-dev
 
     - name: Vulkan SDK cache
       # On Linux, the SDK alone: the rest of deps/ is small, or fetched by one job only.
@@ -38,7 +42,7 @@ runs:
         key: vulkan-sdk-${{ runner.os }}-${{ hashFiles('tools/omw/pins.py') }}
 
     - name: Windows dependencies cache
-      # Everything `omw` fetches into deps/ on Windows — upstream's prebuilt set, SDL's own package, Qt
+      # Everything `omw` fetches into deps/ on Windows — upstream's prebuilt set, Qt
       # and the Vulkan SDK. The key names the
       # tags upstream pins and the file `omw` pins the rest in, so a bump of either saves afresh; an
       # older cache is restored all the same, because `omw` judges each thing by the directory it

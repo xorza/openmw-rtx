@@ -1,6 +1,7 @@
 #include "sensormanager.hpp"
 
 #include <components/debug/debuglog.hpp>
+#include <components/sdlutil/sdldisplay.hpp>
 #include <components/settings/values.hpp>
 
 namespace MWInput
@@ -24,7 +25,7 @@ namespace MWInput
     {
         if (mGyroscope != nullptr)
         {
-            SDL_SensorClose(mGyroscope);
+            SDL_CloseSensor(mGyroscope);
             mGyroscope = nullptr;
         }
     }
@@ -42,7 +43,8 @@ namespace MWInput
 
         float angle = 0;
 
-        SDL_DisplayOrientation currentOrientation = SDL_GetDisplayOrientation(Settings::video().mScreen);
+        SDL_DisplayOrientation currentOrientation
+            = SDL_GetCurrentDisplayOrientation(SDLUtil::displayAt(Settings::video().mScreen));
         switch (currentOrientation)
         {
             case SDL_ORIENTATION_UNKNOWN:
@@ -73,26 +75,28 @@ namespace MWInput
     {
         if (Settings::input().mEnableGyroscope)
         {
-            int numSensors = SDL_NumSensors();
+            int numSensors = 0;
+            SDL_SensorID* sensors = SDL_GetSensors(&numSensors);
             for (int i = 0; i < numSensors; ++i)
             {
-                if (SDL_SensorGetDeviceType(i) == SDL_SENSOR_GYRO)
+                const SDL_SensorID id = sensors[i];
+                if (SDL_GetSensorTypeForID(id) == SDL_SENSOR_GYRO)
                 {
                     // It is unclear how to handle several enabled gyroscopes, so use the first one.
                     // Note: Android registers some gyroscope as two separate sensors, for non-wake-up mode and for
                     // wake-up mode.
                     if (mGyroscope != nullptr)
                     {
-                        SDL_SensorClose(mGyroscope);
+                        SDL_CloseSensor(mGyroscope);
                         mGyroscope = nullptr;
                         mGyroUpdateTimer = 0.f;
                     }
 
-                    // FIXME: SDL2 does not provide a way to configure a sensor update frequency so far.
-                    SDL_Sensor* sensor = SDL_SensorOpen(i);
+                    // FIXME: SDL does not provide a way to configure a sensor update frequency so far.
+                    SDL_Sensor* sensor = SDL_OpenSensor(id);
                     if (sensor == nullptr)
                         Log(Debug::Error)
-                            << "Couldn't open sensor " << SDL_SensorGetDeviceName(i) << ": " << SDL_GetError();
+                            << "Couldn't open sensor " << SDL_GetSensorNameForID(id) << ": " << SDL_GetError();
                     else
                     {
                         mGyroscope = sensor;
@@ -100,12 +104,13 @@ namespace MWInput
                     }
                 }
             }
+            SDL_free(sensors);
         }
         else
         {
             if (mGyroscope != nullptr)
             {
-                SDL_SensorClose(mGyroscope);
+                SDL_CloseSensor(mGyroscope);
                 mGyroscope = nullptr;
                 mGyroUpdateTimer = 0.f;
             }
@@ -131,14 +136,14 @@ namespace MWInput
         if (!Settings::input().mEnableGyroscope)
             return;
 
-        SDL_Sensor* sensor = SDL_SensorFromInstanceID(arg.which);
+        SDL_Sensor* sensor = SDL_GetSensorFromID(arg.which);
         if (!sensor)
         {
             Log(Debug::Info) << "Couldn't get sensor for sensor event";
             return;
         }
 
-        switch (SDL_SensorGetType(sensor))
+        switch (SDL_GetSensorType(sensor))
         {
             case SDL_SENSOR_ACCEL:
                 break;

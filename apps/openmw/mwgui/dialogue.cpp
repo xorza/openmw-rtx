@@ -174,22 +174,22 @@ namespace MWGui
         return mAdmireButton;
     }
 
-    bool PersuasionDialog::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool PersuasionDialog::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             onPersuade(mButtons[mControllerFocus]);
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
             onCancel(mCancelButton);
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
         {
             setControllerFocus(mButtons, mControllerFocus, false);
             mControllerFocus = wrap(mControllerFocus, mButtons.size(), -1);
             setControllerFocus(mButtons, mControllerFocus, true);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
         {
             setControllerFocus(mButtons, mControllerFocus, false);
             mControllerFocus = wrap(mControllerFocus, mButtons.size(), 1);
@@ -930,9 +930,9 @@ namespace MWGui
         }
     }
 
-    bool DialogueWindow::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool DialogueWindow::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             if (mChoices.size() > 0)
             {
@@ -947,11 +947,11 @@ namespace MWGui
                 onSelectListItem(mTopicsList->getItemNameAt(mControllerFocus), static_cast<int>(mControllerFocus));
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_B && mChoices.empty())
+        else if (arg.button == SDL_GAMEPAD_BUTTON_EAST && mChoices.empty())
         {
             onGoodbyeActivated();
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
         {
             if (mChoices.size() > 0)
             {
@@ -972,7 +972,7 @@ namespace MWGui
                 setControllerFocus(mControllerFocus, true);
             }
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
         {
             if (mChoices.size() > 0)
             {
@@ -995,13 +995,13 @@ namespace MWGui
                 setControllerFocus(mControllerFocus, true);
             }
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_LEFTSHOULDER && mChoices.size() == 0)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER && mChoices.size() == 0)
         {
             setControllerFocus(mControllerFocus, false);
             mControllerFocus = mControllerFocus > 5 ? mControllerFocus - 5 : 0;
             setControllerFocus(mControllerFocus, true);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_RIGHTSHOULDER && mChoices.size() == 0)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER && mChoices.size() == 0)
         {
             setControllerFocus(mControllerFocus, false);
             mControllerFocus = std::min(mControllerFocus + 5, mTopicsList->getItemCount());

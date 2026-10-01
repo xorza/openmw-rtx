@@ -244,21 +244,21 @@ namespace MWGui
         mItemTransfer->removeTarget(*mItemView);
     }
 
-    bool CompanionWindow::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool CompanionWindow::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             int index = mItemView->getControllerFocus();
             if (index >= 0 && index < mItemView->getItemCount())
                 onItemSelected(index);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
         {
             onCloseButtonClicked(mCloseButton);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_RIGHTSTICK || arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP
-            || arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN || arg.button == SDL_CONTROLLER_BUTTON_DPAD_LEFT
-            || arg.button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_RIGHT_STICK || arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP
+            || arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN || arg.button == SDL_GAMEPAD_BUTTON_DPAD_LEFT
+            || arg.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
         {
             mItemView->onControllerButton(arg.button);
         }

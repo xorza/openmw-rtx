@@ -1,7 +1,7 @@
 #ifndef MWGUI_WINDOW_BASE_H
 #define MWGUI_WINDOW_BASE_H
 
-#include <SDL_events.h>
+#include <SDL3/SDL_events.h>
 
 #include "layout.hpp"
 
@@ -83,8 +83,8 @@ namespace MWGui
         virtual ControllerButtons* getControllerButtons() { return &mControllerButtons; }
         MyGUI::Widget* getControllerScrollWidget() { return mControllerScrollWidget; }
         bool isGamepadCursorAllowed() { return !mDisableGamepadCursor; }
-        virtual bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) { return true; }
-        virtual bool onControllerThumbstickEvent(const SDL_ControllerAxisEvent& arg) { return false; }
+        virtual bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) { return true; }
+        virtual bool onControllerThumbstickEvent(const SDL_GamepadAxisEvent& arg) { return false; }
         virtual void setActiveControllerWindow(bool active) { mActiveControllerWindow = active; }
 
     protected:

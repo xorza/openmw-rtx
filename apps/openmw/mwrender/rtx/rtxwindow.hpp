@@ -1,10 +1,12 @@
 #pragma once
 
-#include <cstdint>
 #include <limits>
 #include <memory>
 
-#include <SDL_video.h>
+#include <SDL3/SDL_video.h>
+#include <osg/Vec2i>
+
+#include <components/misc/presentation.hpp>
 
 namespace osg
 {
@@ -31,36 +33,29 @@ namespace MWRender
 
         SDL_Window* get() const { return mWindow.get(); }
 
-        /// The size the window last reported, in pixels, at least one by one.
-        std::uint32_t getWidth() const { return mAskedWidth; }
-        std::uint32_t getHeight() const { return mAskedHeight; }
+        /// The size SDL reports now, in pixels.
+        osg::Vec2i readSize() const;
 
-        /// Sizes the trace, the surface and the viewport to the window once its size has settled,
-        /// `now` being the host's clock (`Misc::FrameClock::getNow`). Asked every frame, because a
-        /// Wayland surface has no size of its own — its `currentExtent` is `0xFFFFFFFF` by
-        /// specification — so a present succeeds for ever and the compositor stretches the picture
-        /// to whatever the window became.
-        void fit(Rtx::Renderer& renderer, osg::Camera& camera, double now);
+        /// Sizes the trace, the surface and the viewport to `presentation`, `now` being the host's
+        /// clock (`Misc::FrameClock::getNow`): at once where the frame alone moved, and once the
+        /// window has kept one size for `sSettleSeconds` where the window moved. Asked every frame,
+        /// because a surface that stopped matching the window is remade by the call it makes.
+        void fit(Rtx::Renderer& renderer, osg::Camera& camera, const Misc::Presentation& presentation, double now);
 
-        /// Sizes the trace, the surface and the viewport to the size the window last reported, now:
-        /// what `fit` does once the size settles, and what a renderer just made does before any
-        /// frame has a clock.
-        void apply(Rtx::Renderer& renderer, osg::Camera& camera) const;
+        /// Sizes the trace, the surface and the viewport to `presentation`, now: what `fit` does
+        /// once the window settles, and what a renderer just made does before any frame has a
+        /// clock.
+        void apply(Rtx::Renderer& renderer, osg::Camera& camera, const Misc::Presentation& presentation);
 
         /// Writes the title, where somebody can see it: a hidden window keeps whatever it had.
         void setTitle(const char* title);
 
     private:
-        /// The size SDL reports now, at least one by one.
-        void readSize(std::uint32_t& width, std::uint32_t& height) const;
-
         std::unique_ptr<SDL_Window, void (*)(SDL_Window*)> mWindow{ nullptr, SDL_DestroyWindow };
 
-        /// The size the window last reported and when it first reported it — not the extent
-        /// anything is drawn at, which `Rtx::FrameExtents` says. Never is further back than any
-        /// moment, which is what makes the first fit act rather than wait.
-        std::uint32_t mAskedWidth = 0;
-        std::uint32_t mAskedHeight = 0;
+        /// The window size last applied or asked for, and since when it has been asked for. Never
+        /// is further back than any moment: a size applied stands settled.
+        osg::Vec2i mAskedDrawable;
         double mAskedSince = -std::numeric_limits<double>::infinity();
     };
 }

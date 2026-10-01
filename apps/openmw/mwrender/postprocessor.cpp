@@ -1,6 +1,6 @@
 #include "postprocessor.hpp"
 
-#include <SDL_opengl_glext.h>
+#include <SDL3/SDL_opengl_glext.h>
 #include <algorithm>
 #include <chrono>
 #include <thread>
@@ -36,6 +36,7 @@
 #include "opaqueblit.hpp"
 #include "pingpongcull.hpp"
 #include "renderbin.hpp"
+#include "renderer.hpp"
 #include "renderingmanager.hpp"
 #include "sky.hpp"
 #include "transparentpass.hpp"
@@ -45,24 +46,6 @@
 
 namespace
 {
-    struct ResizedCallback : osg::GraphicsContext::ResizedCallback
-    {
-        ResizedCallback(MWRender::PostProcessor* postProcessor)
-            : mPostProcessor(postProcessor)
-        {
-        }
-
-        void resizedImplementation(osg::GraphicsContext* gc, int x, int y, int width, int height) override
-        {
-            gc->resizedImplementation(x, y, width, height);
-
-            mPostProcessor->setRenderTargetSize(width, height);
-            mPostProcessor->resize();
-        }
-
-        MWRender::PostProcessor* mPostProcessor;
-    };
-
     class HUDCullCallback : public SceneUtil::NodeCallback<HUDCullCallback, osg::Camera*, osgUtil::CullVisitor*>
     {
     public:
@@ -204,8 +187,9 @@ namespace MWRender
         osg::GraphicsContext* gc = viewer->getCamera()->getGraphicsContext();
         osg::GLExtensions* ext = gc->getState()->get<osg::GLExtensions>();
 
-        mWidth = gc->getTraits()->width;
-        mHeight = gc->getTraits()->height;
+        const osg::Vec2i frame = rendering.getRenderer().getPresentation().mFrame;
+        mWidth = frame.x();
+        mHeight = frame.y();
 
         if (!ext->glDisablei && ext->glDisableIndexedEXT)
             ext->glDisablei = ext->glDisableIndexedEXT;
@@ -228,7 +212,6 @@ namespace MWRender
 
         mViewer->setSceneData(this);
         mViewer->getCamera()->setRenderTargetImplementation(osg::Camera::FRAME_BUFFER_OBJECT);
-        mViewer->getCamera()->getGraphicsContext()->setResizedCallback(new ResizedCallback(this));
         mViewer->getCamera()->setUserData(this);
 
         setCullCallback(mStateUpdater);
@@ -317,6 +300,7 @@ namespace MWRender
         }
 
         mCanvases[frameId]->setPostProcessing(mUsePostProcessing);
+        mCanvases[frameId]->setDestination(mOutput);
         mCanvases[frameId]->setTextureNormals(mNormals ? getTexture(Tex_Normal, frameId) : nullptr);
         mCanvases[frameId]->setMask(mUnderwater, mExteriorFlag);
         mCanvases[frameId]->setCalculateAvgLum(mHDR);

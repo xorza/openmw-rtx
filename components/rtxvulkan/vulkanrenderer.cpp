@@ -60,7 +60,7 @@ namespace Rtx
             if (options.mWindow == nullptr)
                 return {};
 
-            return Presenter::getInstanceExtensions(options.mWindow);
+            return Presenter::getInstanceExtensions();
         }
     }
 
@@ -85,14 +85,10 @@ namespace Rtx
         if (mProfile.mStressOverlapMs > 0.0)
             mStress = std::make_unique<StressPass>(mDevice, mProfile.mStressOverlapMs);
 
-        // Before the first targets, because a windowed renderer is sized by its surface rather
-        // than by what the caller guessed the window would come up at.
         if (options.mWindow != nullptr)
             mPresenter = std::make_unique<Presenter>(mDevice, mInstance, options.mWindow, options.mVerticalSync);
 
-        const VkExtent2D output
-            = mPresenter != nullptr ? mPresenter->getExtent() : VkExtent2D{ options.mWidth, options.mHeight };
-        createTargets(output.width, output.height);
+        createTargets(options.mWidth, options.mHeight);
     }
 
     VulkanRenderer::~VulkanRenderer()
@@ -418,30 +414,26 @@ namespace Rtx
 
     void VulkanRenderer::resize(std::uint32_t width, std::uint32_t height)
     {
-        if (mPresenter != nullptr)
-        {
-            // Asked before anything is drained, because `RtxWindow::fit` calls this every settled
-            // frame. Same reason as the destructor's: remaking a swapchain waits the device idle
-            // and frees the blit's buffers, and a batch handed over is sitting beside them waiting
-            // for a submit. What that costs where no rebuild follows is `Presenter::wantsResize`.
-            if (mPresenter->wantsResize(VkExtent2D{ width, height }))
-            {
-                mGui.getTextures().finish();
-                mPresenter->rebuild(VkExtent2D{ width, height });
-            }
-
-            // What the swapchain came back with, not what was asked for. A surface clamps to
-            // what it can do, and targets sized to the request would then be blitted through a
-            // scale nobody chose.
-            const VkExtent2D shown = mPresenter->getExtent();
-            width = shown.width;
-            height = shown.height;
-        }
-
         if (width == mTarget.getExtent().width && height == mTarget.getExtent().height)
             return;
 
         createTargets(width, height);
+    }
+
+    void VulkanRenderer::showIn(std::uint32_t width, std::uint32_t height)
+    {
+        if (mPresenter == nullptr)
+            return;
+
+        // Asked before anything is drained, because `RtxWindow::fit` calls this every settled
+        // frame. Same reason as the destructor's: remaking a swapchain waits the device idle and
+        // frees the blit's buffers, and a batch handed over is sitting beside them waiting for a
+        // submit. What that costs where no rebuild follows is `Presenter::wantsResize`.
+        if (mPresenter->wantsResize(VkExtent2D{ width, height }))
+        {
+            mGui.getTextures().finish();
+            mPresenter->rebuild(VkExtent2D{ width, height });
+        }
     }
 
     GuiSlot VulkanRenderer::addGuiTexture(std::uint32_t width, std::uint32_t height)

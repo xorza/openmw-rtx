@@ -59,7 +59,7 @@ namespace ICS
 
 		typedef NamedAxis MouseAxis; // MouseAxis is deprecated. It will be removed in future versions
 
-		typedef std::map<int, SDL_GameController*> JoystickInstanceMap;
+		typedef std::map<int, SDL_Gamepad*> JoystickInstanceMap;
 		typedef std::list<int> JoystickIDList;
 
 		typedef struct
@@ -98,8 +98,8 @@ namespace ICS
 		inline void activate(){ this->mActive = true; };
 		inline void deactivate(){ this->mActive = false; };
 
-		void controllerAdded  (int deviceID, const SDL_ControllerDeviceEvent &args);
-		void controllerRemoved(const SDL_ControllerDeviceEvent &args);
+		void controllerAdded  (int deviceID, const SDL_GamepadDeviceEvent &args);
+		void controllerRemoved(const SDL_GamepadDeviceEvent &args);
 		JoystickIDList& getJoystickIdList(){ return mJoystickIDList; };
 		JoystickInstanceMap& getJoystickInstanceMap(){ return mJoystickInstanceMap; };
 
@@ -113,9 +113,9 @@ namespace ICS
         void keyReleased(const SDL_KeyboardEvent &evt);
 
 		// ControllerListener
-        void buttonPressed(int deviceID, const SDL_ControllerButtonEvent &evt);
-        void buttonReleased(int deviceID, const SDL_ControllerButtonEvent &evt);
-        void axisMoved(int deviceID, const SDL_ControllerAxisEvent &evt);
+        void buttonPressed(int deviceID, const SDL_GamepadButtonEvent &evt);
+        void buttonReleased(int deviceID, const SDL_GamepadButtonEvent &evt);
+        void axisMoved(int deviceID, const SDL_GamepadAxisEvent &evt);
 
         void addKeyBinding(Control* control, SDL_Scancode key, Control::ControlChangingDirection direction);
         bool isKeyBound(SDL_Scancode key) const;

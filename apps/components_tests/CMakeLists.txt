@@ -27,6 +27,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     misc/compression.cpp
     misc/frameclock.cpp
+    misc/presentation.cpp
     misc/progressreporter.cpp
     misc/testendianness.cpp
     misc/testmathutil.cpp
@@ -54,6 +55,8 @@ file(GLOB UNITTEST_SRC_FILES
     settings/parser.cpp
     settings/shadermanager.cpp
     settings/testvalues.cpp
+
+    sdlutil/sdlvideowrapper.cpp
 
     shader/automaps.cpp
     shader/parsedefines.cpp

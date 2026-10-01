@@ -3,6 +3,8 @@
 
 #include <components/sdlutil/events.hpp>
 
+struct SDL_Window;
+
 namespace MWInput
 {
     class BindingsManager;
@@ -10,7 +12,7 @@ namespace MWInput
     class KeyboardManager : public SDLUtil::KeyListener
     {
     public:
-        KeyboardManager(BindingsManager* bindingsManager);
+        KeyboardManager(BindingsManager* bindingsManager, SDL_Window* window);
 
         virtual ~KeyboardManager() = default;
 
@@ -20,6 +22,7 @@ namespace MWInput
 
     private:
         BindingsManager* mBindingsManager;
+        SDL_Window* mWindow;
     };
 }
 #endif

@@ -92,7 +92,7 @@ namespace MWGui
 
         bool mConstantEffect;
 
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
         void updateControllerFocus(int prevFocus, int newFocus);
         int mControllerFocus = 0;
         std::vector<MyGUI::TextBox*> mButtons;
@@ -148,7 +148,7 @@ namespace MWGui
 
         virtual void notifyEffectsChanged() {}
 
-        virtual bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg);
+        virtual bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg);
 
     private:
         Type mType;
@@ -180,7 +180,7 @@ namespace MWGui
         void onCancelButtonClicked(MyGUI::Widget* sender);
         void onBuyButtonClicked(MyGUI::Widget* sender);
         void onAccept(MyGUI::EditBox* sender);
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
         void notifyEffectsChanged() override;
 

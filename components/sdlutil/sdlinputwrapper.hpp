@@ -1,8 +1,7 @@
 #ifndef OPENMW_COMPONENTS_SDLUTIL_SDLINPUTWRAPPER_H
 #define OPENMW_COMPONENTS_SDLUTIL_SDLINPUTWRAPPER_H
 
-#include <SDL_events.h>
-#include <SDL_version.h>
+#include <SDL3/SDL_events.h>
 
 #include "events.hpp"
 
@@ -32,12 +31,14 @@ namespace SDLUtil
         bool getMouseRelative() { return mMouseRelative; }
         void setGrabPointer(bool grab);
 
-        void warpMouse(int x, int y);
+        /// Moves the pointer to a point in the window's pixels, the space the motion events report.
+        void warpMouse(float x, float y);
 
         void updateMouseSettings();
 
     private:
         void handleWindowEvent(const SDL_Event& evt);
+        void warpInWindow(float x, float y);
 
         bool _handleWarpMotion(const SDL_MouseMotionEvent& evt);
         void _wrapMousePointer(const SDL_MouseMotionEvent& evt);
@@ -53,8 +54,8 @@ namespace SDLUtil
         WindowListener* mWindowListener;
         ControllerListener* mConListener;
 
-        Uint16 mWarpX;
-        Uint16 mWarpY;
+        float mWarpX;
+        float mWarpY;
         bool mWarpCompensate;
         bool mWrapPointer;
 
@@ -73,8 +74,7 @@ namespace SDLUtil
         bool mWindowHasFocus;
         bool mMouseInWindow;
 
-        Uint16 mScaleX;
-        Uint16 mScaleY;
+        float mPixelDensity;
     };
 
 }

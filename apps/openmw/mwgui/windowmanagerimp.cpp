@@ -17,8 +17,8 @@
 // For BT_NO_PROFILE
 #include <LinearMath/btQuickprof.h>
 
-#include <SDL_clipboard.h>
-#include <SDL_keyboard.h>
+#include <SDL3/SDL_clipboard.h>
+#include <SDL3/SDL_keyboard.h>
 
 #include <components/debug/debuglog.hpp>
 
@@ -200,14 +200,12 @@ namespace MWGui
         , mCfgMgr(cfgMgr)
     {
         SDL_Window* const window = mRenderer.getWindow();
-        int w, h;
-        SDL_GetWindowSize(window, &w, &h);
-        int dw, dh;
-        SDL_GetWindowSizeInPixels(window, &dw, &dh);
 
-        mScalingFactor = Settings::gui().mScalingFactor * (dw / w);
+        // The exact density, which a display at one and a half has, and not a whole-number ratio.
+        mScalingFactor = Settings::gui().mScalingFactor * SDL_GetWindowPixelDensity(window);
         constexpr VFS::Path::NormalizedView resourcePath("mygui");
         mGuiPlatform = mRenderer.createGuiPlatform(mScalingFactor, resourcePath, logpath / "MyGUI.log");
+        mLaidOutFrame = mRenderer.getPresentation().mFrame;
 
         mGui = std::make_unique<MyGUI::Gui>();
         mGui->initialise({});
@@ -295,9 +293,6 @@ namespace MWGui
             += MyGUI::newDelegate(this, &WindowManager::onClipboardChanged);
         MyGUI::ClipboardManager::getInstance().eventClipboardRequested
             += MyGUI::newDelegate(this, &WindowManager::onClipboardRequested);
-
-        mVideoWrapper = std::make_unique<SDLUtil::VideoWrapper>(window);
-        mVideoWrapper->setGammaContrast(Settings::video().mGamma, Settings::video().mContrast);
 
         mStatsWatcher = std::make_unique<StatsWatcher>();
     }
@@ -1274,46 +1269,51 @@ namespace MWGui
         {
             if (setting.first == "GUI" && setting.second == "menu transparency")
                 setMenuTransparency(Settings::gui().mMenuTransparency);
-            else if (setting.first == "Video"
-                && (setting.second == "resolution x" || setting.second == "resolution y"
-                    || setting.second == "window mode" || setting.second == "window border"))
+            // The renderer has the new frame already: `World` hears of a change before this does.
+            else if (setting.first == "Video" && (setting.second == "resolution x" || setting.second == "resolution y"))
+                frameResized();
+            else if (setting.first == "Video" && (setting.second == "window mode" || setting.second == "window border"))
                 changeRes = true;
 
             else if (setting.first == "Video" && setting.second == "vsync mode")
                 mRenderer.setVSync(Settings::video().mVsyncMode);
-            else if (setting.first == "Video" && (setting.second == "gamma" || setting.second == "contrast"))
-                mVideoWrapper->setGammaContrast(Settings::video().mGamma, Settings::video().mContrast);
         }
 
         if (changeRes)
         {
-            mVideoWrapper->setVideoMode(Settings::video().mResolutionX, Settings::video().mResolutionY,
-                Settings::video().mWindowMode, Settings::video().mWindowBorder);
+            SDLUtil::setVideoMode(mRenderer.getWindow(), Settings::video().mWindowWidth,
+                Settings::video().mWindowHeight, Settings::video().mWindowMode, Settings::video().mWindowBorder);
         }
     }
 
     void WindowManager::windowResized(int x, int y)
     {
-        Settings::video().mResolutionX.set(x);
-        Settings::video().mResolutionY.set(y);
-
-        // We only want to process changes to window-size related settings.
-        Settings::CategorySettingVector filter = { { "Video", "resolution x" }, { "Video", "resolution y" } };
-
-        // If the HUD has not been initialised, the World singleton will not be available.
-        if (mHud)
+        // The size the player left a window at; a fullscreen window is the display's size.
+        if (Settings::video().mWindowMode == Settings::WindowMode::Windowed)
         {
-            MWBase::Environment::get().getWorld()->processChangedSettings(Settings::Manager::getPendingChanges(filter));
+            Settings::video().mWindowWidth.set(x);
+            Settings::video().mWindowHeight.set(y);
+
+            // Said by the window rather than chosen in the menu, so nothing is to follow it.
+            Settings::Manager::resetPendingChanges({ { "Video", "window width" }, { "Video", "window height" } });
         }
 
-        Settings::Manager::resetPendingChanges(filter);
+        frameResized();
+    }
 
-        mGuiPlatform->getRenderManagerPtr()->setViewSize(x, y);
+    void WindowManager::frameResized()
+    {
+        const osg::Vec2i frame = mRenderer.getPresentation().mFrame;
+        if (frame == mLaidOutFrame)
+            return;
+        mLaidOutFrame = frame;
+
+        mGuiPlatform->getRenderManagerPtr()->setViewSize(frame.x(), frame.y());
 
         // scaled size
         const MyGUI::IntSize& viewSize = MyGUI::RenderManager::getInstance().getViewSize();
-        x = viewSize.width;
-        y = viewSize.height;
+        const int x = viewSize.width;
+        const int y = viewSize.height;
 
         sizeVideo(x, y);
 
@@ -1849,19 +1849,14 @@ namespace MWGui
                 capturesInput = widget->castType<MyGUI::EditBox>(false);
         }
 
-        // The SDL_IsTextInputActive() check helps to avoid duplicate calls in SDL2.
-        // This may no longer be required when switching to SDL3 where the function
-        // has also been renamed to SDL_TextInputActive() and returns bool instead
-        // of SDL_bool.
-
-        const bool inputActive = SDL_IsTextInputActive() == SDL_TRUE;
-        if (capturesInput == inputActive)
+        SDL_Window* window = mRenderer.getWindow();
+        if (capturesInput == SDL_TextInputActive(window))
             return;
 
         if (capturesInput)
-            SDL_StartTextInput();
+            SDL_StartTextInput(window);
         else
-            SDL_StopTextInput();
+            SDL_StopTextInput(window);
     }
 
     void WindowManager::setEnemy(const MWWorld::Ptr& enemy)

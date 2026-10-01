@@ -96,7 +96,7 @@ namespace ICS
 		{
 			if(!mDetectingBindingControl)
 			{
-                ControlsKeyBinderMapType::const_iterator it = mControlsKeyBinderMap.find(evt.keysym.scancode);
+                ControlsKeyBinderMapType::const_iterator it = mControlsKeyBinderMap.find(evt.scancode);
 				if(it != mControlsKeyBinderMap.end())
 				{
 					it->second.control->setIgnoreAutoReverse(false);
@@ -120,7 +120,7 @@ namespace ICS
 			else if(mDetectingBindingListener)
 			{
 				mDetectingBindingListener->keyBindingDetected(this,
-                    mDetectingBindingControl, evt.keysym.scancode, mDetectingBindingDirection);
+                    mDetectingBindingControl, evt.scancode, mDetectingBindingDirection);
 			}
 		}
     }
@@ -129,7 +129,7 @@ namespace ICS
 	{
 		if(mActive)
 		{
-            ControlsKeyBinderMapType::const_iterator it = mControlsKeyBinderMap.find(evt.keysym.scancode);
+            ControlsKeyBinderMapType::const_iterator it = mControlsKeyBinderMap.find(evt.scancode);
 			if(it != mControlsKeyBinderMap.end())
 			{
 				it->second.control->setChangingDirection(Control::STOP);

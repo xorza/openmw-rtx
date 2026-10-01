@@ -11,7 +11,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from omw import deps, pins, presets
+from omw import deps, presets
 from omw.system import (
     EXE,
     ROOT,
@@ -76,7 +76,6 @@ class Build:
                 versions = deps.msvc_versions()
                 env["VCPKG_TAG"] = versions["VCPKG_TAG"]
                 env["QT_VER"] = versions["QT_VER"]
-                env["RTX_SDL2_VERSION"] = pins.SDL2_VERSION
             if presets.has_test_preset(self.preset):
                 env = presets.test_environment(self.preset, env)
             self._env = env
@@ -125,28 +124,27 @@ class Build:
 
         if WINDOWS:
             windows_deps = deps.windows_set(env["VCPKG_TAG"])
-            sdl = deps.windows_sdl(windows_deps)
             qt = deps.windows_qt(env["QT_VER"]) if self.flavour in QT_FLAVOURS else None
 
         stamp.unlink(missing_ok=True)
         run(["cmake", "-S", ROOT, "--preset", self.preset, "--fresh"], env=env, stdout=stdout)
 
         if WINDOWS:
-            self._place_windows_runtime(windows_deps, sdl)
+            self._place_windows_runtime(windows_deps)
             if qt is not None:
                 self._place_windows_qt(qt)
 
         stamp.write_text(digest + "\n")
         self._configured = True
 
-    def _place_windows_runtime(self, windows_deps: Path, sdl: Path) -> None:
+    def _place_windows_runtime(self, windows_deps: Path) -> None:
         """**What vcpkg's own copy step misses, placed the way upstream's MSVC script places it.**
         The toolchain copies each DLL a binary links beside it and stops there: MyGUI's sits a
         directory deeper than it looks and needs FreeType, which needs four more, and OSG's plugins
         are loaded by name at runtime from `osgPlugins-3.6.5/`, which no link line names. The whole
         set, 84 MB, rather than a list that goes stale with the next tag."""
         bin_dir = windows_deps / "installed" / "x64-windows" / "bin"
-        for dll in [*bin_dir.glob("*.dll"), bin_dir / "Release" / "MyGUIEngine.dll", sdl / "lib" / "x64" / "SDL2.dll"]:
+        for dll in [*bin_dir.glob("*.dll"), bin_dir / "Release" / "MyGUIEngine.dll"]:
             shutil.copy2(dll, self.dir)
         plugins = self.dir / "osgPlugins-3.6.5"
         plugins.mkdir(exist_ok=True)

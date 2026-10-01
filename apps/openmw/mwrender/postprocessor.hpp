@@ -4,6 +4,7 @@
 #include <array>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <filesystem>
@@ -204,6 +205,9 @@ namespace MWRender
             mHeight = height;
         }
 
+        /// Where the last pass draws: the frame the renderer presents scaled, or the window where null.
+        void setOutput(osg::ref_ptr<osg::FrameBufferObject> output) { mOutput = std::move(output); }
+
         void disableDynamicShaders();
 
         int renderWidth() const;
@@ -260,6 +264,7 @@ namespace MWRender
         bool mReload = true;
         bool mTriggerShaderReload = false;
         bool mUsePostProcessing = false;
+        osg::ref_ptr<osg::FrameBufferObject> mOutput;
 
         bool mUBO = false;
         bool mHDR = false;

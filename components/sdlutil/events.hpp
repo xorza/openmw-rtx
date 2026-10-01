@@ -1,9 +1,8 @@
 #ifndef _SFO_EVENTS_H
 #define _SFO_EVENTS_H
 
-#include <SDL_events.h>
-#include <SDL_types.h>
-#include <SDL_version.h>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_stdinc.h>
 
 ////////////
 // Events //
@@ -28,7 +27,7 @@ namespace SDLUtil
         float mY;
         float mPressure;
 
-        explicit TouchEvent(const SDL_ControllerTouchpadEvent& arg)
+        explicit TouchEvent(const SDL_GamepadTouchpadEvent& arg)
             : mDevice(arg.touchpad)
             , mFinger(arg.finger)
             , mX(arg.x)
@@ -74,13 +73,13 @@ namespace SDLUtil
     public:
         virtual ~ControllerListener() {}
 
-        virtual void buttonPressed(int deviceID, const SDL_ControllerButtonEvent& evt) = 0;
-        virtual void buttonReleased(int deviceID, const SDL_ControllerButtonEvent& evt) = 0;
+        virtual void buttonPressed(int deviceID, const SDL_GamepadButtonEvent& evt) = 0;
+        virtual void buttonReleased(int deviceID, const SDL_GamepadButtonEvent& evt) = 0;
 
-        virtual void axisMoved(int deviceID, const SDL_ControllerAxisEvent& arg) = 0;
+        virtual void axisMoved(int deviceID, const SDL_GamepadAxisEvent& arg) = 0;
 
-        virtual void controllerAdded(int deviceID, const SDL_ControllerDeviceEvent& arg) = 0;
-        virtual void controllerRemoved(const SDL_ControllerDeviceEvent& arg) = 0;
+        virtual void controllerAdded(int deviceID, const SDL_GamepadDeviceEvent& arg) = 0;
+        virtual void controllerRemoved(const SDL_GamepadDeviceEvent& arg) = 0;
 
         virtual void touchpadMoved(int deviceId, const TouchEvent& arg) = 0;
         virtual void touchpadPressed(int deviceId, const TouchEvent& arg) = 0;

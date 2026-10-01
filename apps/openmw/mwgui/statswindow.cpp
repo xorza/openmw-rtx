@@ -733,9 +733,9 @@ namespace MWGui
             MWBase::Environment::get().getWindowManager()->toggleVisible(GW_Stats);
     }
 
-    bool StatsWindow::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool StatsWindow::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
             MWBase::Environment::get().getWindowManager()->exitCurrentGuiMode();
 
         return true;

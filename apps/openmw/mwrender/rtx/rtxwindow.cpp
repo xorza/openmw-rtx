@@ -1,11 +1,10 @@
 #include "rtxwindow.hpp"
 
-#include <algorithm>
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 
-#include <SDL_error.h>
-#include <SDL_stdinc.h>
+#include <SDL3/SDL_error.h>
 #include <osg/Camera>
 
 #include <components/rtx/renderer/renderer.hpp>
@@ -36,65 +35,50 @@ namespace MWRender
     {
         // **The backend's own flag, and no `SDL_GL_SetAttribute` anywhere near it.** No GL context is
         // ever made, which is the point of the whole path.
-        applyWindowHints();
-        const WindowPlacement placement = describeWindow(SDL_WINDOW_VULKAN);
-
-        // **Hidden and not absent.** A surface still needs a window, and a swapchain built on one
-        // nobody is looking at costs a present per frame and nothing else — so a headless run is
-        // the same renderer rather than a second path through it. `SDL_WINDOW_HIDDEN` also keeps
-        // the compositor from raising a window over whatever the person running it is doing.
-        const Uint32 flags = hidden ? (placement.mFlags | SDL_WINDOW_HIDDEN) : placement.mFlags;
-
-        mWindow.reset(
-            SDL_CreateWindow("OpenMW", placement.mX, placement.mY, placement.mWidth, placement.mHeight, flags));
+        mWindow.reset(openWindow(SDL_WINDOW_VULKAN));
         if (mWindow == nullptr)
             throw std::runtime_error(std::string("failed to create SDL window: ") + SDL_GetError());
 
-        placement.fit(mWindow.get());
-
-        // Read once here, so `apply` has a size before the first frame; `mAskedSince` is left at
-        // never, so the first `fit` does not wait the settle out.
-        std::uint32_t width = 0;
-        std::uint32_t height = 0;
-        readSize(width, height);
-        mAskedWidth = width;
-        mAskedHeight = height;
+        // **Hidden and not absent.** A surface still needs a window, and a swapchain built on one
+        // nobody is looking at costs a present per frame and nothing else — so a headless run is
+        // the same renderer rather than a second path through it. Never shown, it also keeps the
+        // compositor from raising a window over whatever the person running it is doing.
+        if (!hidden)
+            SDL_ShowWindow(mWindow.get());
     }
 
-    void RtxWindow::readSize(std::uint32_t& width, std::uint32_t& height) const
+    osg::Vec2i RtxWindow::readSize() const
     {
-        int wide = 0;
-        int high = 0;
-        SDL_GetWindowSizeInPixels(mWindow.get(), &wide, &high);
-        width = static_cast<std::uint32_t>(std::max(wide, 1));
-        height = static_cast<std::uint32_t>(std::max(high, 1));
+        osg::Vec2i size;
+        SDL_GetWindowSizeInPixels(mWindow.get(), &size.x(), &size.y());
+        return size;
     }
 
-    void RtxWindow::fit(Rtx::Renderer& renderer, osg::Camera& camera, const double now)
+    void RtxWindow::fit(
+        Rtx::Renderer& renderer, osg::Camera& camera, const Misc::Presentation& presentation, const double now)
     {
-        std::uint32_t width = 0;
-        std::uint32_t height = 0;
-        readSize(width, height);
-        if (width != mAskedWidth || height != mAskedHeight)
+        if (presentation.mDrawable != mAskedDrawable)
         {
-            mAskedWidth = width;
-            mAskedHeight = height;
+            mAskedDrawable = presentation.mDrawable;
             mAskedSince = now;
         }
 
         if (now - mAskedSince < sSettleSeconds)
             return;
 
-        apply(renderer, camera);
+        apply(renderer, camera, presentation);
     }
 
-    void RtxWindow::apply(Rtx::Renderer& renderer, osg::Camera& camera) const
+    void RtxWindow::apply(Rtx::Renderer& renderer, osg::Camera& camera, const Misc::Presentation& presentation)
     {
-        renderer.resize(mAskedWidth, mAskedHeight);
+        mAskedDrawable = presentation.mDrawable;
 
-        // **The renderer's own extent and not SDL's.** A windowed backend sizes itself to the
-        // surface, and on a scaled or tiling compositor that is not what the window was asked for.
-        // Everything above reads the viewport, so it has to be told what was actually built.
+        renderer.showIn(static_cast<std::uint32_t>(presentation.mDrawable.x()),
+            static_cast<std::uint32_t>(presentation.mDrawable.y()));
+        renderer.resize(
+            static_cast<std::uint32_t>(presentation.mFrame.x()), static_cast<std::uint32_t>(presentation.mFrame.y()));
+
+        // **The renderer's own extent**, which everything above reads through the viewport.
         const Rtx::FrameExtents extents = renderer.getExtents();
         camera.setViewport(0, 0, static_cast<int>(extents.mOutputWidth), static_cast<int>(extents.mOutputHeight));
     }

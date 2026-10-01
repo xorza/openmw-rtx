@@ -14,6 +14,7 @@
 #include <osg/Image>
 #include <osg/Stats>
 #include <osg/Timer>
+#include <osg/Vec2i>
 #include <osg/ref_ptr>
 
 #include <apps/openmw/mwrender/ground.hpp>
@@ -25,6 +26,7 @@
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
+#include <components/settings/values.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace MWRender
@@ -42,8 +44,12 @@ namespace MWRender
             std::vector<double> mAdvanced;
             std::size_t mGuiDrawn = 0;
 
+            /// How many times the presentation was applied.
+            std::size_t mPresented = 0;
+
             using Renderer::adopt;
             using Renderer::getLastHold;
+            using Renderer::presentIn;
 
             void configureResources(Resource::ResourceSystem&) override {}
             SDL_Window* getWindow() const override { return nullptr; }
@@ -74,6 +80,7 @@ namespace MWRender
             void adoptTraversalRoot(osg::Group&) override {}
             void applyViewMask() override {}
             void applyWorldShown() override { mApplied.push_back(drawsWorld()); }
+            void applyPresentation() override { ++mPresented; }
         };
 
         /// **A cover that ends while `tws` is off leaves the world hidden, and `tws` under a cover
@@ -199,19 +206,36 @@ namespace MWRender
             EXPECT_EQ(renderer.mAdvanced, (std::vector<double>{ 12.5, 12.5 }));
         }
 
-        /// **A window is sized so that its pixels are the resolution asked for, at any scale.** Asked
-        /// for 3840 by 2160 on a display at one and a half, a window made at that many points comes
-        /// out 5760 by 3240 pixels, and the size that gives the pixels asked for is 3840 × 3840 /
-        /// 5760 = 2560 by 1440 points. Upstream's `3840 / (5760 / 3840)` divided in whole numbers,
-        /// came to 3840 again, and left the window at one and a half times the resolution. At a
-        /// scale of two the two agree, and at one there is nothing to fit.
-        TEST(RendererTest, aWindowIsFittedSoItsPixelsAreTheResolutionAsked)
+        /// **The presentation is applied when it moves, and only then**: a window resized, another
+        /// resolution chosen, and nothing for either said again. 1280 × 720 in 2560 × 1080 fills the
+        /// height, 1280 × 1080 / 720 = 1920 wide, and (2560 − 1920) / 2 = 320 beside it.
+        TEST(RendererTest, thePresentationIsAppliedWhenItMovesAndOnlyThen)
         {
-            const WindowPlacement asked{ .mWidth = 3840, .mHeight = 2160 };
+            Settings::video().mResolutionX.set(0);
+            Settings::video().mResolutionY.set(0);
+            RecordingRenderer renderer;
 
-            EXPECT_EQ(asked.fittedSize(osg::Vec2i(3840, 2160), osg::Vec2i(5760, 3240)), osg::Vec2i(2560, 1440));
-            EXPECT_EQ(asked.fittedSize(osg::Vec2i(3840, 2160), osg::Vec2i(7680, 4320)), osg::Vec2i(1920, 1080));
-            EXPECT_EQ(asked.fittedSize(osg::Vec2i(3840, 2160), osg::Vec2i(3840, 2160)), osg::Vec2i(3840, 2160));
+            renderer.presentIn(osg::Vec2i(1920, 1080));
+            renderer.presentIn(osg::Vec2i(1920, 1080));
+            EXPECT_EQ(renderer.mPresented, 1u);
+            EXPECT_EQ(renderer.getPresentation().mFrame, osg::Vec2i(1920, 1080)) << "Native";
+
+            Settings::video().mResolutionX.set(1280);
+            Settings::video().mResolutionY.set(720);
+            renderer.resolutionChanged();
+            renderer.resolutionChanged();
+            EXPECT_EQ(renderer.mPresented, 2u);
+            EXPECT_EQ(renderer.getPresentation().mFrame, osg::Vec2i(1280, 720));
+            EXPECT_EQ(renderer.getPresentation().mShownSize, osg::Vec2i(1920, 1080));
+
+            renderer.presentIn(osg::Vec2i(2560, 1080));
+            EXPECT_EQ(renderer.mPresented, 3u);
+            EXPECT_EQ(renderer.getPresentation().mFrame, osg::Vec2i(1280, 720)) << "the frame kept its size";
+            EXPECT_EQ(renderer.getPresentation().mShownOrigin, osg::Vec2i(320, 0));
+            EXPECT_EQ(renderer.getPresentation().mShownSize, osg::Vec2i(1920, 1080));
+
+            Settings::video().mResolutionX.set(0);
+            Settings::video().mResolutionY.set(0);
         }
 
         /// A name no renderer has is a configuration mistake, refused by name.

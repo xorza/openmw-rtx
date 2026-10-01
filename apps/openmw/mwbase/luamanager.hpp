@@ -7,7 +7,7 @@
 #include <variant>
 #include <vector>
 
-#include <SDL_events.h>
+#include <SDL3/SDL_events.h>
 #include <osg/Quat>
 #include <osg/Vec3f>
 
@@ -143,7 +143,7 @@ namespace MWBase
                 MouseButtonReleased,
                 MouseWheel,
             } mType;
-            std::variant<SDL_Keysym, int, SDLUtil::TouchEvent, WheelChange> mValue;
+            std::variant<SDL_KeyboardEvent, int, SDLUtil::TouchEvent, WheelChange> mValue;
         };
         virtual void inputEvent(const InputEvent& event) = 0;
 

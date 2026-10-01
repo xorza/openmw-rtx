@@ -9,6 +9,7 @@
 #include "../mwbase/world.hpp"
 #include "../mwphysics/raycasting.hpp"
 #include "../mwrender/camera.hpp"
+#include "../mwrender/renderer.hpp"
 #include "../mwrender/renderingmanager.hpp"
 
 namespace MWLua
@@ -103,9 +104,8 @@ namespace MWLua
         api["getViewTransform"] = [camera]() { return LuaUtil::TransformM{ camera->getViewMatrix() }; };
 
         api["viewportToWorldVector"] = [camera, renderingManager](osg::Vec2f pos) -> osg::Vec3f {
-            const double width = Settings::video().mResolutionX;
-            const double height = Settings::video().mResolutionY;
-            double aspect = (height == 0.0) ? 1.0 : width / height;
+            const osg::Vec2i frame = renderingManager->getRenderer().getPresentation().mFrame;
+            const double aspect = static_cast<double>(frame.x()) / frame.y();
             double fovTan = std::tan(osg::DegreesToRadians(renderingManager->getFieldOfView()) / 2);
             osg::Matrixf invertedViewMatrix;
             invertedViewMatrix.invert(camera->getViewMatrix());
@@ -114,9 +114,10 @@ namespace MWLua
             return invertedViewMatrix.preMult(osg::Vec3f(x, y, -1)) - camera->getPosition();
         };
 
-        api["worldToViewportVector"] = [camera](osg::Vec3f pos) {
-            const int width = Settings::video().mResolutionX;
-            const int height = Settings::video().mResolutionY;
+        api["worldToViewportVector"] = [camera, renderingManager](osg::Vec3f pos) {
+            const osg::Vec2i frame = renderingManager->getRenderer().getPresentation().mFrame;
+            const int width = frame.x();
+            const int height = frame.y();
 
             osg::Matrix windowMatrix
                 = osg::Matrix::translate(1.0, 1.0, 1.0) * osg::Matrix::scale(0.5 * width, 0.5 * height, 0.5);

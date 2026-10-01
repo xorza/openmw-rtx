@@ -57,7 +57,7 @@ namespace MWGui
 
     private:
         static bool sortSpells(const ESM::Spell* left, const ESM::Spell* right);
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
         size_t mControllerFocus = 0;
     };
 }

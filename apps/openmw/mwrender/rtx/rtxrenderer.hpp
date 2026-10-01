@@ -124,6 +124,9 @@ namespace MWRender
         bool groundReadsGates() const override { return true; }
         SDL_Window* getWindow() const noexcept override { return mWindow.get(); }
 
+        /// Into the presentation, which the next frame's fit sizes the trace and the surface to.
+        void windowResized(int x, int y, int width, int height) noexcept override;
+
         void attachWorld(RenderingManager& world, osg::Group& worldRoot) noexcept override;
 
         void advance(double simulationTime) noexcept override;
@@ -224,6 +227,10 @@ namespace MWRender
         /// Read off the seam at the trace, so nothing to put anywhere.
         void applyViewMask() noexcept override {}
         void applyWorldShown() noexcept override {}
+
+        /// The projection follows the frame's aspect at once; the trace and the surface follow at
+        /// the next frame's fit, which waits for a window being dragged to settle.
+        void applyPresentation() noexcept override;
 
     private:
         /// Builds everything from the setup, which is spent here. Delegated to, so `mRun` can bind
@@ -381,6 +388,9 @@ namespace MWRender
         /// into the frame's lines. Borrowed: the world outlives this, and `detachWorld` lets go.
         osg::Group* mWorldRoot = nullptr;
         DebugWalk mDebugWalk;
+
+        /// The world's projection, which follows the frame's aspect. Borrowed as `mWorldRoot` is.
+        RenderingManager* mRendering = nullptr;
 
         /// What the last walk found, and what a second walk added. Kept because a report is written
         /// at the end of a stop and the walks are over by then.

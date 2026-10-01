@@ -4,8 +4,8 @@
 
 #include <MyGUI_MouseButton.h>
 
-#include <SDL_gamecontroller.h>
-#include <SDL_mouse.h>
+#include <SDL3/SDL_gamepad.h>
+#include <SDL3/SDL_mouse.h>
 
 namespace SDLUtil
 {
@@ -13,47 +13,47 @@ namespace SDLUtil
     {
         switch (button)
         {
-            case SDL_CONTROLLER_BUTTON_A:
+            case SDL_GAMEPAD_BUTTON_SOUTH:
                 return "A Button";
-            case SDL_CONTROLLER_BUTTON_B:
+            case SDL_GAMEPAD_BUTTON_EAST:
                 return "B Button";
-            case SDL_CONTROLLER_BUTTON_BACK:
+            case SDL_GAMEPAD_BUTTON_BACK:
                 return "Back Button";
-            case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+            case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
                 return "DPad Down";
-            case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+            case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
                 return "DPad Left";
-            case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+            case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
                 return "DPad Right";
-            case SDL_CONTROLLER_BUTTON_DPAD_UP:
+            case SDL_GAMEPAD_BUTTON_DPAD_UP:
                 return "DPad Up";
-            case SDL_CONTROLLER_BUTTON_GUIDE:
+            case SDL_GAMEPAD_BUTTON_GUIDE:
                 return "Guide Button";
-            case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
+            case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
                 return "Left Shoulder";
-            case SDL_CONTROLLER_BUTTON_LEFTSTICK:
+            case SDL_GAMEPAD_BUTTON_LEFT_STICK:
                 return "Left Stick Button";
-            case SDL_CONTROLLER_BUTTON_MISC1:
+            case SDL_GAMEPAD_BUTTON_MISC1:
                 return "Misc 1";
-            case SDL_CONTROLLER_BUTTON_PADDLE1:
+            case SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1:
                 return "Paddle 1";
-            case SDL_CONTROLLER_BUTTON_PADDLE2:
+            case SDL_GAMEPAD_BUTTON_LEFT_PADDLE1:
                 return "Paddle 2";
-            case SDL_CONTROLLER_BUTTON_PADDLE3:
+            case SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2:
                 return "Paddle 3";
-            case SDL_CONTROLLER_BUTTON_PADDLE4:
+            case SDL_GAMEPAD_BUTTON_LEFT_PADDLE2:
                 return "Paddle 4";
-            case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
+            case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
                 return "Right Shoulder";
-            case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
+            case SDL_GAMEPAD_BUTTON_RIGHT_STICK:
                 return "Right Stick Button";
-            case SDL_CONTROLLER_BUTTON_START:
+            case SDL_GAMEPAD_BUTTON_START:
                 return "Start Button";
-            case SDL_CONTROLLER_BUTTON_TOUCHPAD:
+            case SDL_GAMEPAD_BUTTON_TOUCHPAD:
                 return "Touchpad";
-            case SDL_CONTROLLER_BUTTON_X:
+            case SDL_GAMEPAD_BUTTON_WEST:
                 return "X Button";
-            case SDL_CONTROLLER_BUTTON_Y:
+            case SDL_GAMEPAD_BUTTON_NORTH:
                 return "Y Button";
             default:
                 return "Button " + std::to_string(button);
@@ -64,17 +64,17 @@ namespace SDLUtil
     {
         switch (axis)
         {
-            case SDL_CONTROLLER_AXIS_LEFTX:
+            case SDL_GAMEPAD_AXIS_LEFTX:
                 return "Left Stick X";
-            case SDL_CONTROLLER_AXIS_LEFTY:
+            case SDL_GAMEPAD_AXIS_LEFTY:
                 return "Left Stick Y";
-            case SDL_CONTROLLER_AXIS_RIGHTX:
+            case SDL_GAMEPAD_AXIS_RIGHTX:
                 return "Right Stick X";
-            case SDL_CONTROLLER_AXIS_RIGHTY:
+            case SDL_GAMEPAD_AXIS_RIGHTY:
                 return "Right Stick Y";
-            case SDL_CONTROLLER_AXIS_TRIGGERLEFT:
+            case SDL_GAMEPAD_AXIS_LEFT_TRIGGER:
                 return "Left Trigger";
-            case SDL_CONTROLLER_AXIS_TRIGGERRIGHT:
+            case SDL_GAMEPAD_AXIS_RIGHT_TRIGGER:
                 return "Right Trigger";
             default:
                 return "Axis " + std::to_string(axis);
@@ -124,38 +124,38 @@ namespace SDLUtil
             keyMap[SDLK_EQUALS] = MyGUI::KeyCode::Equals;
             keyMap[SDLK_BACKSPACE] = MyGUI::KeyCode::Backspace;
             keyMap[SDLK_TAB] = MyGUI::KeyCode::Tab;
-            keyMap[SDLK_q] = MyGUI::KeyCode::Q;
-            keyMap[SDLK_w] = MyGUI::KeyCode::W;
-            keyMap[SDLK_e] = MyGUI::KeyCode::E;
-            keyMap[SDLK_r] = MyGUI::KeyCode::R;
-            keyMap[SDLK_t] = MyGUI::KeyCode::T;
-            keyMap[SDLK_y] = MyGUI::KeyCode::Y;
-            keyMap[SDLK_u] = MyGUI::KeyCode::U;
-            keyMap[SDLK_i] = MyGUI::KeyCode::I;
-            keyMap[SDLK_o] = MyGUI::KeyCode::O;
-            keyMap[SDLK_p] = MyGUI::KeyCode::P;
+            keyMap[SDLK_Q] = MyGUI::KeyCode::Q;
+            keyMap[SDLK_W] = MyGUI::KeyCode::W;
+            keyMap[SDLK_E] = MyGUI::KeyCode::E;
+            keyMap[SDLK_R] = MyGUI::KeyCode::R;
+            keyMap[SDLK_T] = MyGUI::KeyCode::T;
+            keyMap[SDLK_Y] = MyGUI::KeyCode::Y;
+            keyMap[SDLK_U] = MyGUI::KeyCode::U;
+            keyMap[SDLK_I] = MyGUI::KeyCode::I;
+            keyMap[SDLK_O] = MyGUI::KeyCode::O;
+            keyMap[SDLK_P] = MyGUI::KeyCode::P;
             keyMap[SDLK_RETURN] = MyGUI::KeyCode::Return;
-            keyMap[SDLK_a] = MyGUI::KeyCode::A;
-            keyMap[SDLK_s] = MyGUI::KeyCode::S;
-            keyMap[SDLK_d] = MyGUI::KeyCode::D;
-            keyMap[SDLK_f] = MyGUI::KeyCode::F;
-            keyMap[SDLK_g] = MyGUI::KeyCode::G;
-            keyMap[SDLK_h] = MyGUI::KeyCode::H;
-            keyMap[SDLK_j] = MyGUI::KeyCode::J;
-            keyMap[SDLK_k] = MyGUI::KeyCode::K;
-            keyMap[SDLK_l] = MyGUI::KeyCode::L;
+            keyMap[SDLK_A] = MyGUI::KeyCode::A;
+            keyMap[SDLK_S] = MyGUI::KeyCode::S;
+            keyMap[SDLK_D] = MyGUI::KeyCode::D;
+            keyMap[SDLK_F] = MyGUI::KeyCode::F;
+            keyMap[SDLK_G] = MyGUI::KeyCode::G;
+            keyMap[SDLK_H] = MyGUI::KeyCode::H;
+            keyMap[SDLK_J] = MyGUI::KeyCode::J;
+            keyMap[SDLK_K] = MyGUI::KeyCode::K;
+            keyMap[SDLK_L] = MyGUI::KeyCode::L;
             keyMap[SDLK_SEMICOLON] = MyGUI::KeyCode::Semicolon;
-            keyMap[SDLK_QUOTE] = MyGUI::KeyCode::Apostrophe;
-            keyMap[SDLK_BACKQUOTE] = MyGUI::KeyCode::Grave;
+            keyMap[SDLK_APOSTROPHE] = MyGUI::KeyCode::Apostrophe;
+            keyMap[SDLK_GRAVE] = MyGUI::KeyCode::Grave;
             keyMap[SDLK_LSHIFT] = MyGUI::KeyCode::LeftShift;
             keyMap[SDLK_BACKSLASH] = MyGUI::KeyCode::Backslash;
-            keyMap[SDLK_z] = MyGUI::KeyCode::Z;
-            keyMap[SDLK_x] = MyGUI::KeyCode::X;
-            keyMap[SDLK_c] = MyGUI::KeyCode::C;
-            keyMap[SDLK_v] = MyGUI::KeyCode::V;
-            keyMap[SDLK_b] = MyGUI::KeyCode::B;
-            keyMap[SDLK_n] = MyGUI::KeyCode::N;
-            keyMap[SDLK_m] = MyGUI::KeyCode::M;
+            keyMap[SDLK_Z] = MyGUI::KeyCode::Z;
+            keyMap[SDLK_X] = MyGUI::KeyCode::X;
+            keyMap[SDLK_C] = MyGUI::KeyCode::C;
+            keyMap[SDLK_V] = MyGUI::KeyCode::V;
+            keyMap[SDLK_B] = MyGUI::KeyCode::B;
+            keyMap[SDLK_N] = MyGUI::KeyCode::N;
+            keyMap[SDLK_M] = MyGUI::KeyCode::M;
             keyMap[SDLK_COMMA] = MyGUI::KeyCode::Comma;
             keyMap[SDLK_PERIOD] = MyGUI::KeyCode::Period;
             keyMap[SDLK_SLASH] = MyGUI::KeyCode::Slash;

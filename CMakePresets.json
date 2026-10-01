@@ -32,8 +32,9 @@
             "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
             "$comment": [
                 "Linux supplies recastnavigation, Google Test and mold. `RelWithDebInfo` is `-O2 -g`, not CMake's,",
-                "whose `-DNDEBUG` drops every assert. Static libraries are thin archives (`ar T`): copying the",
-                "game's 1.3 GB of objects cost six seconds of every relink, and no library is installed. Warnings",
+                "whose `-DNDEBUG` drops every assert. C++ static libraries are thin archives (`ar T`): copying the",
+                "game's 1.3 GB of objects cost six seconds of every relink, and no library is installed. Ninja",
+                "creates an archive whole, so the append rule is unused. Warnings",
                 "are errors through upstream's switch, which leaves `extern/` alone."
             ],
             "cacheVariables": {
@@ -41,10 +42,7 @@
                 "OPENMW_USE_SYSTEM_RECASTNAVIGATION": "ON",
                 "OPENMW_USE_SYSTEM_GOOGLETEST": "ON",
                 "CMAKE_EXE_LINKER_FLAGS_INIT": "-fuse-ld=mold",
-                "CMAKE_C_ARCHIVE_CREATE": "<CMAKE_AR> qcT <TARGET> <LINK_FLAGS> <OBJECTS>",
-                "CMAKE_C_ARCHIVE_APPEND": "<CMAKE_AR> qT <TARGET> <LINK_FLAGS> <OBJECTS>",
                 "CMAKE_CXX_ARCHIVE_CREATE": "<CMAKE_AR> qcT <TARGET> <LINK_FLAGS> <OBJECTS>",
-                "CMAKE_CXX_ARCHIVE_APPEND": "<CMAKE_AR> qT <TARGET> <LINK_FLAGS> <OBJECTS>",
                 "CMAKE_C_FLAGS_RELWITHDEBINFO": "-O2 -g",
                 "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "-O2 -g"
             }
@@ -56,9 +54,8 @@
             "$comment": [
                 "Upstream's prebuilt vcpkg set, which `omw` fetches into deps/ at the tag CI/deps_versions.msvc.sh",
                 "pins (VCPKG_TAG). It lacks recastnavigation, Google Test, SQLite and yaml-cpp, which CMake fetches,",
-                "and Qt, so no launcher. Its SDL2 has no Vulkan, so SDL's own package of the same version stands in",
-                "(RTX_SDL2_VERSION); vcpkg's DLL copying is off, since it would put its SDL2 back, and `omw` copies",
-                "the runtime. Precompiled headers are off: ccache cannot cache through them (593 of 623 backend",
+                "and Qt, so no launcher, and SDL3, which CMake builds. vcpkg's DLL copying is off, since `omw` copies",
+                "the whole runtime. Precompiled headers are off: ccache cannot cache through them (593 of 623 backend",
                 "compiles missed). `RelWithDebInfo` is `-O2 -Z7`: CMake's carries `/DNDEBUG`, and `-Z7` is the debug",
                 "format ccache can cache. Warnings are errors through upstream's switch. The paths name nothing",
                 "unless `omw` exports the two versions."
@@ -68,7 +65,6 @@
                 "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/scripts/buildsystems/vcpkg.cmake",
                 "VCPKG_APPLOCAL_DEPS": "OFF",
                 "PRECOMPILE_HEADERS_WITH_MSVC": "OFF",
-                "SDL2_DIR": "${sourceDir}/deps/SDL2-$env{RTX_SDL2_VERSION}/cmake",
                 "LuaJit_INCLUDE_DIR": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/installed/x64-windows/include/luajit",
                 "LuaJit_LIBRARY": "${sourceDir}/deps/vcpkg-x64-windows-2022-$env{VCPKG_TAG}/installed/x64-windows/lib/lua51.lib",
                 "OPENMW_USE_SYSTEM_RECASTNAVIGATION": "OFF",

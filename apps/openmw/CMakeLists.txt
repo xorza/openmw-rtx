@@ -203,7 +203,7 @@ target_link_libraries(openmw-lib
     ${OPENAL_LIBRARY}
     ${FFmpeg_LIBRARIES}
     ${MyGUI_LIBRARIES}
-    SDL2::SDL2
+    SDL3::SDL3
     ${RecastNavigation_LIBRARIES}
     osg-ffmpeg-videoplayer
     oics
@@ -242,10 +242,6 @@ endif (ANDROID)
 
 if (USE_SYSTEM_TINYXML)
     target_link_libraries(openmw-lib ${TinyXML_LIBRARIES})
-endif()
-
-if (NOT UNIX)
-    target_link_libraries(openmw-lib ${SDL2MAIN_LIBRARY})
 endif()
 
 # Fix for not visible pthreads functions for linker with glibc 2.15

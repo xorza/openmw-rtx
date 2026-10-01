@@ -26,11 +26,11 @@ namespace MWGui
         MyGUI::ImageBox* image;
         getWidget(image, "BtnL2Image");
         image->setImageTexture(
-            MWBase::Environment::get().getInputManager()->getControllerAxisIcon(SDL_CONTROLLER_AXIS_TRIGGERLEFT));
+            MWBase::Environment::get().getInputManager()->getControllerAxisIcon(SDL_GAMEPAD_AXIS_LEFT_TRIGGER));
 
         getWidget(image, "BtnR2Image");
         image->setImageTexture(
-            MWBase::Environment::get().getInputManager()->getControllerAxisIcon(SDL_CONTROLLER_AXIS_TRIGGERRIGHT));
+            MWBase::Environment::get().getInputManager()->getControllerAxisIcon(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER));
     }
 
     int InventoryTabsOverlay::getHeight()
