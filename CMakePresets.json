@@ -124,15 +124,16 @@
             "inherits": [ "debug", "no-tools" ],
             "$comment": [
                 "Debug under AddressSanitizer and UndefinedBehaviorSanitizer, as upstream runs its tests. Linux",
-                "only: MSVC's sanitizer is unmeasured here. The options it needs are its test preset's. `-Wmaybe-",
-                "uninitialized` and `-Wstringop-overread` are off here alone: GCC's manual says `-fsanitize` gives",
-                "flow warnings false positives, GCC 16 reported libstdc++'s `std::regex`, and GCC 13 a one-element",
-                "vector assigned from a braced list. Debug checks the same code."
+                "only: MSVC's sanitizer is unmeasured here. The options it needs are its test preset's. Warnings",
+                "are not errors here: GCC's manual recommends against `-Werror` with a sanitizer, whose",
+                "instrumentation gives the flow warnings false positives (GCC 16 reported libstdc++'s `std::regex`,",
+                "GCC 13 a one-element vector). Debug holds the same code to every warning."
             ],
             "binaryDir": "${sourceDir}/build-asan",
             "cacheVariables": {
-                "CMAKE_C_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer -Wno-maybe-uninitialized -Wno-stringop-overread",
-                "CMAKE_CXX_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer -Wno-maybe-uninitialized -Wno-stringop-overread"
+                "OPENMW_CXX_FLAGS": "",
+                "CMAKE_C_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer",
+                "CMAKE_CXX_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer"
             }
         },
         {
@@ -142,13 +143,14 @@
             "$comment": [
                 "Debug under ThreadSanitizer, which cannot share a build with AddressSanitizer: the races between the",
                 "threads the ray tracer keeps, the cell reader, the workers and the harness's instruments. Linux only,",
-                "as asan is, and the same two warnings off, for the same reason. The options it needs are its test",
-                "preset's."
+                "as asan is, and with warnings that are not errors, for the same reason. The options it needs are its",
+                "test preset's."
             ],
             "binaryDir": "${sourceDir}/build-tsan",
             "cacheVariables": {
-                "CMAKE_C_FLAGS_INIT": "-fsanitize=thread -fno-omit-frame-pointer -Wno-maybe-uninitialized -Wno-stringop-overread",
-                "CMAKE_CXX_FLAGS_INIT": "-fsanitize=thread -fno-omit-frame-pointer -Wno-maybe-uninitialized -Wno-stringop-overread"
+                "OPENMW_CXX_FLAGS": "",
+                "CMAKE_C_FLAGS_INIT": "-fsanitize=thread -fno-omit-frame-pointer",
+                "CMAKE_CXX_FLAGS_INIT": "-fsanitize=thread -fno-omit-frame-pointer"
             }
         },
         {
