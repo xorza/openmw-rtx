@@ -914,10 +914,11 @@ namespace MWRender
         if (mViewDistance < mNearClip)
             throw std::runtime_error("Viewing distance is less than near clip");
 
-        const int width = Settings::video().mResolutionX;
-        const int height = Settings::video().mResolutionY;
+        const osg::Vec2i frame = mRenderer.getPresentation().mFrame;
+        const double width = frame.x();
+        const double height = frame.y();
 
-        const double aspect = (height == 0) ? 1.0 : static_cast<double>(width) / height;
+        const double aspect = width / height;
         const float fov = mFieldOfViewOverridden ? mFieldOfViewOverride : mFieldOfView;
 
         osg::Matrix unreversedProjectionMatrix = osg::Matrix::perspective(fov, aspect, mNearClip, mViewDistance);
@@ -926,16 +927,13 @@ namespace MWRender
             ? SceneUtil::getReversedZProjectionMatrixAsPerspective(fov, aspect, mNearClip, mViewDistance)
             : unreversedProjectionMatrix;
 
-        if (width != 0 && height != 0)
-        {
-            double offsetX = (static_cast<double>(mProjectionOffset.x()) / width) * 2.0;
-            double offsetY = (static_cast<double>(mProjectionOffset.y()) / height) * 2.0;
+        const double offsetX = (static_cast<double>(mProjectionOffset.x()) / width) * 2.0;
+        const double offsetY = (static_cast<double>(mProjectionOffset.y()) / height) * 2.0;
 
-            const osg::Matrix translation = osg::Matrix::translate(offsetX, offsetY, 0.0);
+        const osg::Matrix translation = osg::Matrix::translate(offsetX, offsetY, 0.0);
 
-            projectionMatrix.postMult(translation);
-            unreversedProjectionMatrix.postMult(translation);
-        }
+        projectionMatrix.postMult(translation);
+        unreversedProjectionMatrix.postMult(translation);
 
         // We always set the cameras projection matrix to the un-reversed variant for correct frustum culling.
         mRenderer.getCamera().setProjectionMatrix(unreversedProjectionMatrix);
@@ -1014,7 +1012,8 @@ namespace MWRender
             }
             else if (it->first == "Video" && (it->second == "resolution x" || it->second == "resolution y"))
             {
-                updateProjection = true;
+                // The renderer sizes the frame to it, and the projection follows from there.
+                mRenderer.resolutionChanged();
             }
             else if (it->first == "Camera" && it->second == "viewing distance")
             {

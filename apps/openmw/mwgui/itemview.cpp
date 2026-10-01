@@ -212,7 +212,7 @@ namespace MWGui
 
         switch (button)
         {
-            case SDL_CONTROLLER_BUTTON_A:
+            case SDL_GAMEPAD_BUTTON_SOUTH:
                 // Select the focused item, if any.
                 if (mControllerFocus >= 0 && mControllerFocus < mItemCount)
                 {
@@ -220,31 +220,31 @@ namespace MWGui
                     onSelectedItem(dragArea->getChildAt(mControllerFocus));
                 }
                 break;
-            case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
+            case SDL_GAMEPAD_BUTTON_RIGHT_STICK:
                 // Toggle info tooltip
                 winMgr->setControllerTooltipEnabled(!winMgr->getControllerTooltipEnabled());
                 updateControllerFocus(-1, mControllerFocus);
                 break;
-            case SDL_CONTROLLER_BUTTON_DPAD_UP:
+            case SDL_GAMEPAD_BUTTON_DPAD_UP:
                 winMgr->restoreControllerTooltips();
                 if (mControllerFocus % mRows == 0)
                     mControllerFocus = std::min(mControllerFocus + mRows - 1, mItemCount - 1);
                 else
                     mControllerFocus--;
                 break;
-            case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+            case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
                 winMgr->restoreControllerTooltips();
                 if (mControllerFocus % mRows == mRows - 1 || mControllerFocus == mItemCount - 1)
                     mControllerFocus -= mControllerFocus % mRows;
                 else
                     mControllerFocus++;
                 break;
-            case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+            case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
                 winMgr->restoreControllerTooltips();
                 if (mControllerFocus >= mRows)
                     mControllerFocus -= mRows;
                 break;
-            case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+            case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
                 winMgr->restoreControllerTooltips();
                 if (mControllerFocus + mRows < mItemCount)
                     mControllerFocus += mRows;

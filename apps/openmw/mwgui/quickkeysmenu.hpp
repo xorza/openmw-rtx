@@ -77,7 +77,7 @@ namespace MWGui
         void unassign(keyData* key);
         void assignItem(MWWorld::Ptr item);
 
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
         size_t mControllerFocus = 0;
     };
 
@@ -95,7 +95,7 @@ namespace MWGui
 
         QuickKeysMenu* mParent;
 
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
         size_t mControllerFocus = 0;
     };
 
@@ -118,7 +118,7 @@ namespace MWGui
         void onCancelButtonClicked(MyGUI::Widget* sender);
         void onModelIndexSelected(SpellModel::ModelIndex index);
 
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
     };
 }
 

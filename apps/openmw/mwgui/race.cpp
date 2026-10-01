@@ -466,35 +466,35 @@ namespace MWGui
         }
     }
 
-    bool RaceDialog::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool RaceDialog::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
         {
             onBackClicked(mBackButton);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_X)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_WEST)
         {
             onOkClicked(mOkButton);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_Y)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_NORTH)
         {
             onSelectNextGender(nullptr);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_LEFTSHOULDER)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)
         {
             onSelectNextHair(nullptr);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)
         {
             onSelectNextFace(nullptr);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
         {
             MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
             winMgr->setKeyFocusWidget(mRaceList);
             winMgr->injectKeyPress(MyGUI::KeyCode::ArrowUp, 0, false);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
         {
             MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
             winMgr->setKeyFocusWidget(mRaceList);
@@ -504,9 +504,9 @@ namespace MWGui
         return true;
     }
 
-    bool RaceDialog::onControllerThumbstickEvent(const SDL_ControllerAxisEvent& arg)
+    bool RaceDialog::onControllerThumbstickEvent(const SDL_GamepadAxisEvent& arg)
     {
-        if (arg.axis == SDL_CONTROLLER_AXIS_RIGHTX)
+        if (arg.axis == SDL_GAMEPAD_AXIS_RIGHTX)
         {
             onPreviewScroll(nullptr, arg.value < 0 ? 1 : -1);
             return true;

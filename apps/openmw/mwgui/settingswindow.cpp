@@ -17,8 +17,6 @@
 #include <MyGUI_UString.h>
 #include <MyGUI_Window.h>
 
-#include <SDL_video.h>
-
 #include <components/debug/debuglog.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/l10n/manager.hpp>
@@ -31,6 +29,7 @@
 #include <components/rtx/common/menu.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/sceneutil/lightmanager.hpp>
+#include <components/sdlutil/sdldisplay.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp>
@@ -66,13 +65,6 @@ namespace
 
         Log(Debug::Warning) << "Warning: Invalid texture filtering options: " << mipFilter << ", " << magFilter;
         return "#{OMWEngine:TextureFilteringOther}";
-    }
-
-    bool sortResolutions(std::pair<int, int> left, std::pair<int, int> right)
-    {
-        if (left.first == right.first)
-            return left.second > right.second;
-        return left.first > right.first;
     }
 
     const std::string_view checkButtonType = "CheckButton";
@@ -326,7 +318,6 @@ namespace MWGui
         getWidget(mPrimaryLanguage, "PrimaryLanguage");
         getWidget(mSecondaryLanguage, "SecondaryLanguage");
         getWidget(mGmstOverridesL10n, "GmstOverridesL10nButton");
-        getWidget(mWindowModeHint, "WindowModeHint");
         getWidget(mClusteredLightingButton, "ClusteredLightingButton");
         getWidget(mLightsResetButton, "LightsResetButton");
         getWidget(mMaxLights, "MaxLights");
@@ -349,20 +340,6 @@ namespace MWGui
         addMenuItems(mRayTracingUpscale, sUpscaleLabels);
         mRayTracingUpscale->eventComboChangePosition
             += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingUpscaleChanged);
-
-#ifndef WIN32
-        // hide gamma controls since it currently does not work under Linux
-        MyGUI::ScrollBar* gammaSlider;
-        getWidget(gammaSlider, "GammaSlider");
-        gammaSlider->setVisible(false);
-        MyGUI::TextBox* textBox;
-        getWidget(textBox, "GammaText");
-        textBox->setVisible(false);
-        getWidget(textBox, "GammaTextDark");
-        textBox->setVisible(false);
-        getWidget(textBox, "GammaTextLight");
-        textBox->setVisible(false);
-#endif
 
         mMainWidget->castType<MyGUI::Window>()->eventWindowChangeCoord
             += MyGUI::newDelegate(this, &SettingsWindow::onWindowResize);
@@ -416,24 +393,13 @@ namespace MWGui
         mResetControlsButton->eventMouseButtonClick
             += MyGUI::newDelegate(this, &SettingsWindow::onResetDefaultBindings);
 
-        // fill resolution list
-        const int screen = Settings::video().mScreen;
-        int numDisplayModes = SDL_GetNumDisplayModes(screen);
-        std::vector<std::pair<int, int>> resolutions;
-        for (int i = 0; i < numDisplayModes; i++)
-        {
-            SDL_DisplayMode mode;
-            SDL_GetDisplayMode(screen, i, &mode);
-            resolutions.emplace_back(mode.w, mode.h);
-        }
-        std::sort(resolutions.begin(), resolutions.end(), sortResolutions);
-        for (std::pair<int, int>& resolution : resolutions)
-        {
-            std::string str = Misc::getResolutionText(resolution.first, resolution.second);
-
-            if (mResolutionList->findItemIndexWith(str) == MyGUI::ITEM_NONE)
-                mResolutionList->addItem(str, resolution);
-        }
+        // Native, the window's own size, then the display's modes: the frame's resolution in any window
+        mResolutionList->addItem(
+            MyGUI::LanguageManager::getInstance().replaceTags("#{OMWEngine:ResolutionNative}"), std::pair(0, 0));
+        for (const SDLUtil::DisplayResolution& mode :
+            SDLUtil::displayResolutions(SDLUtil::displayAt(Settings::video().mScreen)))
+            mResolutionList->addItem(
+                Misc::getResolutionText(mode.mWidth, mode.mHeight), std::pair(mode.mWidth, mode.mHeight));
         highlightCurrentResolution();
 
         mTextureFilteringButton->setCaptionWithReplacing(
@@ -461,8 +427,6 @@ namespace MWGui
         const Settings::WindowMode windowMode = Settings::video().mWindowMode;
         mWindowBorderButton->setEnabled(
             windowMode != Settings::WindowMode::Fullscreen && windowMode != Settings::WindowMode::WindowedFullscreen);
-
-        mWindowModeHint->setVisible(windowMode == Settings::WindowMode::WindowedFullscreen);
 
         mKeyboardSwitch->setStateSelected(true);
         mControllerSwitch->setStateSelected(false);
@@ -572,8 +536,10 @@ namespace MWGui
     {
         mResolutionList->setIndexSelected(MyGUI::ITEM_NONE);
 
-        const int currentX = Settings::video().mResolutionX;
-        const int currentY = Settings::video().mResolutionY;
+        // A side of nought is Native, whatever the other
+        const bool native = Settings::video().mResolutionX == 0 || Settings::video().mResolutionY == 0;
+        const int currentX = native ? 0 : Settings::video().mResolutionX.get();
+        const int currentY = native ? 0 : Settings::video().mResolutionY.get();
 
         for (size_t i = 0; i < mResolutionList->getItemCount(); ++i)
         {
@@ -665,17 +631,6 @@ namespace MWGui
             return;
 
         const Settings::WindowMode windowMode = static_cast<Settings::WindowMode>(sender->getIndexSelected());
-        if (windowMode == Settings::WindowMode::WindowedFullscreen)
-        {
-            mResolutionList->setEnabled(false);
-            mWindowModeHint->setVisible(true);
-        }
-        else
-        {
-            mResolutionList->setEnabled(true);
-            mWindowModeHint->setVisible(false);
-        }
-
         if (windowMode == Settings::WindowMode::Windowed)
             mWindowBorderButton->setEnabled(true);
         else
@@ -987,57 +942,8 @@ namespace MWGui
     void SettingsWindow::updateWindowModeSettings()
     {
         const Settings::WindowMode windowMode = Settings::video().mWindowMode;
-        const std::size_t windowModeIndex = static_cast<std::size_t>(windowMode);
-
-        mWindowModeList->setIndexSelected(windowModeIndex);
-
-        if (windowMode != Settings::WindowMode::Windowed && windowModeIndex != MyGUI::ITEM_NONE)
-        {
-            // check if this resolution is supported in fullscreen
-            if (mResolutionList->getIndexSelected() != MyGUI::ITEM_NONE)
-            {
-                auto resolution
-                    = mResolutionList->getItemDataAt<std::pair<int, int>>(mResolutionList->getIndexSelected());
-                if (resolution)
-                {
-                    Settings::video().mResolutionX.set(resolution->first);
-                    Settings::video().mResolutionY.set(resolution->second);
-                }
-            }
-
-            bool supported = false;
-            int fallbackX = 0, fallbackY = 0;
-            for (size_t i = 0; i < mResolutionList->getItemCount(); ++i)
-            {
-                auto resolution = mResolutionList->getItemDataAt<std::pair<int, int>>(i);
-                if (!resolution)
-                    continue;
-
-                if (i == 0)
-                {
-                    fallbackX = resolution->first;
-                    fallbackY = resolution->second;
-                }
-
-                if (resolution->first == Settings::video().mResolutionX
-                    && resolution->second == Settings::video().mResolutionY)
-                    supported = true;
-            }
-
-            if (!supported && mResolutionList->getItemCount())
-            {
-                if (fallbackX != 0 && fallbackY != 0)
-                {
-                    Settings::video().mResolutionX.set(fallbackX);
-                    Settings::video().mResolutionY.set(fallbackY);
-                }
-            }
-
-            mWindowBorderButton->setEnabled(false);
-        }
-
-        if (windowMode == Settings::WindowMode::WindowedFullscreen)
-            mResolutionList->setEnabled(false);
+        mWindowModeList->setIndexSelected(static_cast<std::size_t>(windowMode));
+        mWindowBorderButton->setEnabled(windowMode == Settings::WindowMode::Windowed);
     }
 
     void SettingsWindow::updateVSyncModeSettings()
@@ -1235,14 +1141,14 @@ namespace MWGui
         mControlsBox->setViewOffset(MyGUI::IntPoint(0, 0));
     }
 
-    bool SettingsWindow::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool SettingsWindow::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
         {
             onOkButtonClicked(mOkButton);
             return true;
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_LEFTSHOULDER)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)
         {
             size_t index = mSettingsTab->getIndexSelected();
             index = wrap(index, mSettingsTab->getItemCount(), -1);
@@ -1250,7 +1156,7 @@ namespace MWGui
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));
             return true;
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)
         {
             size_t index = mSettingsTab->getIndexSelected();
             index = wrap(index, mSettingsTab->getItemCount(), 1);

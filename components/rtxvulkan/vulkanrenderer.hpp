@@ -68,6 +68,7 @@ namespace Rtx
         const SceneStats& getSceneStats() const override { return mStats; }
         MemoryReport getMemoryReport() const override;
         void resize(std::uint32_t width, std::uint32_t height) override;
+        void showIn(std::uint32_t width, std::uint32_t height) override;
         void setUpscale(Upscale upscale) override;
 
         void setVerticalSync(SDLUtil::VSyncMode mode) override;

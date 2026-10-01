@@ -40,10 +40,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "tinyxml.h"
 
-#include "SDL_keyboard.h"
-#include "SDL_mouse.h"
-#include "SDL_joystick.h"
-#include "SDL_events.h"
+#include <SDL3/SDL_keyboard.h>
+#include <SDL3/SDL_mouse.h>
+#include <SDL3/SDL_joystick.h>
+#include <SDL3/SDL_events.h>
 
 /// Define the dll export qualifier if compiling for Windows
 

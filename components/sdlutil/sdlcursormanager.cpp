@@ -2,10 +2,8 @@
 
 #include <stdexcept>
 
-#include <SDL_endian.h>
-#include <SDL_hints.h>
-#include <SDL_mouse.h>
-#include <SDL_render.h>
+#include <SDL3/SDL_mouse.h>
+#include <SDL3/SDL_render.h>
 
 #include <osg/Geometry>
 #include <osg/GraphicsContext>
@@ -38,7 +36,7 @@ namespace SDLUtil
 
         while (cursIter != mCursorMap.end())
         {
-            SDL_FreeCursor(cursIter->second);
+            SDL_DestroyCursor(cursIter->second);
             ++cursIter;
         }
 
@@ -61,7 +59,7 @@ namespace SDLUtil
         // turn off hardware cursors
         else
         {
-            SDL_ShowCursor(SDL_FALSE);
+            SDL_HideCursor();
         }
     }
 
@@ -105,26 +103,28 @@ namespace SDLUtil
         Uint32 blueMask = 0x00ff0000;
         Uint32 alphaMask = useAlpha ? 0xff000000 : 0;
 
-        SDL_Surface* cursorSurface = SDL_CreateRGBSurfaceFrom(decompressedImage->data(), width, height,
-            decompressedImage->getPixelSizeInBits(), decompressedImage->getRowSizeInBytes(), redMask, greenMask,
-            blueMask, alphaMask);
+        SDL_Surface* cursorSurface = SDL_CreateSurfaceFrom(width, height,
+            SDL_GetPixelFormatForMasks(
+                static_cast<int>(decompressedImage->getPixelSizeInBits()), redMask, greenMask, blueMask, alphaMask),
+            decompressedImage->data(), static_cast<int>(decompressedImage->getRowSizeInBytes()));
 
-        SDL_Surface* targetSurface
-            = SDL_CreateRGBSurface(0, cursorWidth, cursorHeight, 32, redMask, greenMask, blueMask, alphaMask);
+        SDL_Surface* targetSurface = SDL_CreateSurface(
+            cursorWidth, cursorHeight, SDL_GetPixelFormatForMasks(32, redMask, greenMask, blueMask, alphaMask));
         SDL_Renderer* renderer = SDL_CreateSoftwareRenderer(targetSurface);
 
         SDL_RenderClear(renderer);
 
-        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
         SDL_Texture* cursorTexture = SDL_CreateTextureFromSurface(renderer, cursorSurface);
+        SDL_SetTextureScaleMode(cursorTexture, SDL_SCALEMODE_LINEAR);
 
-        SDL_RenderCopyEx(renderer, cursorTexture, nullptr, nullptr, -rotDegrees, nullptr, SDL_FLIP_NONE);
+        SDL_RenderTextureRotated(
+            renderer, cursorTexture, nullptr, nullptr, static_cast<double>(-rotDegrees), nullptr, SDL_FLIP_NONE);
 
         SDL_DestroyTexture(cursorTexture);
-        SDL_FreeSurface(cursorSurface);
+        SDL_DestroySurface(cursorSurface);
         SDL_DestroyRenderer(renderer);
 
-        return SDLUtil::SurfaceUniquePtr(targetSurface, SDL_FreeSurface);
+        return SDLUtil::SurfaceUniquePtr(targetSurface, SDL_DestroySurface);
     }
 
     void SDLCursorManager::_createCursorFromResource(std::string_view name, int rotDegrees, osg::Image* image,

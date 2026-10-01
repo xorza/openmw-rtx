@@ -1414,27 +1414,27 @@ namespace MWGui
         mGlobalMapRender->asyncWritePng();
     }
 
-    bool MapWindow::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool MapWindow::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
             MWBase::Environment::get().getWindowManager()->exitCurrentGuiMode();
-        else if (arg.button == SDL_CONTROLLER_BUTTON_X)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_WEST)
         {
             onWorldButtonClicked(mButton);
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_Y)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_NORTH)
         {
             centerView();
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
             shiftMap(0, 100);
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
             shiftMap(0, -100);
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_LEFT)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_LEFT)
             shiftMap(100, 0);
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
             shiftMap(-100, 0);
 
         return true;
@@ -1560,9 +1560,9 @@ namespace MWGui
         return &mControllerButtons;
     }
 
-    bool EditNoteDialog::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool EditNoteDialog::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             if (getDeleteButtonShown())
             {
@@ -1581,16 +1581,16 @@ namespace MWGui
                     onCancelButtonClicked(mCancelButton);
             }
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
         {
             onCancelButtonClicked(mCancelButton);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_X)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_WEST)
         {
             if (getDeleteButtonShown())
                 onDeleteButtonClicked(mDeleteButton);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_LEFT)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_LEFT)
         {
             if (getDeleteButtonShown())
             {
@@ -1606,7 +1606,7 @@ namespace MWGui
                 mCancelButton->setStateSelected(mControllerFocus == 1);
             }
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
         {
             if (getDeleteButtonShown())
             {

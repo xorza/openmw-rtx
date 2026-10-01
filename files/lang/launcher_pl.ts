@@ -462,40 +462,20 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
         <translation>Błąd podczas odbierania liczby ekranów</translation>
     </message>
     <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetNumVideoDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;Błąd SDL_GetNumVideoDisplays:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
+        <source>Native</source>
+        <translation>Natywna</translation>
     </message>
     <message>
         <source>Screen </source>
         <translation>Ekran </translation>
     </message>
     <message>
-        <source>This build was made without the ray tracing renderer.</source>
-        <translation type="vanished">Ta wersja została zbudowana bez renderera ze śledzeniem promieni.</translation>
-    </message>
-    <message>
-        <source>Error receiving resolutions</source>
-        <translation>Błąd podczas odbierania rozdzielczości</translation>
-    </message>
-    <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetNumDisplayModes failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;Błąd SDL_GetNumDisplayModes:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplayMode failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;Błąd SDL_GetDisplayMode:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
-    </message>
-    <message>
-        <source>Custom window size is available only in Windowed mode.</source>
-        <translation>Niestandardowy rozmiar okna jest dostępny tylko w trybie okienkowym.</translation>
+        <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
+        <translation>&lt;br&gt;&lt;b&gt;Błąd SDL_GetDisplays:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
     </message>
     <message>
         <source>Window border is available only in Windowed mode.</source>
         <translation>Ramka okna jest dostępna tylko w trybie okienkowym.</translation>
-    </message>
-    <message>
-        <source>Windowed Fullscreen mode always uses the native display resolution.</source>
-        <translation>Tryb pełnoekranowy z oknem zawsze wykorzystuje natywną rozdzielczość ekranu.</translation>
     </message>
 </context>
 <context>

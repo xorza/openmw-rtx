@@ -42,7 +42,7 @@ namespace MWGui
 
     protected:
         void onButtonClicked(MyGUI::Widget* sender);
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
     private:
         void fitToText(MyGUI::TextBox* widget);
@@ -94,7 +94,7 @@ namespace MWGui
     protected:
         void onOkClicked(MyGUI::Widget* sender);
         void onBackClicked(MyGUI::Widget* sender);
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
         bool mOkButtonFocus = true;
 
     private:
@@ -154,7 +154,7 @@ namespace MWGui
 
         ESM::RefId mCurrentClassId;
 
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
     };
 
     class SelectSpecializationDialog : public WindowModal
@@ -183,7 +183,7 @@ namespace MWGui
     protected:
         void onSpecializationClicked(MyGUI::Widget* sender);
         void onCancelClicked(MyGUI::Widget* sender);
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
     private:
         MyGUI::TextBox *mSpecialization0, *mSpecialization1, *mSpecialization2;
@@ -217,7 +217,7 @@ namespace MWGui
     protected:
         void onAttributeClicked(Widgets::MWAttributePtr sender);
         void onCancelClicked(MyGUI::Widget* sender);
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
         size_t mControllerFocus = 0;
         std::vector<Widgets::MWAttribute*> mAttributeButtons;
 
@@ -251,7 +251,7 @@ namespace MWGui
     protected:
         void onSkillClicked(Widgets::MWSkillPtr sender);
         void onCancelClicked(MyGUI::Widget* sender);
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
         size_t mControllerFocus = 0;
         std::vector<Widgets::MWSkill*> mSkillButtons;
 
@@ -278,7 +278,7 @@ namespace MWGui
 
     protected:
         void onOkClicked(MyGUI::Widget* sender);
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
     private:
         MyGUI::EditBox* mTextEdit;
@@ -352,7 +352,7 @@ namespace MWGui
         Widgets::MWAttributePtr mAffectedAttribute;
         Widgets::MWSkillPtr mAffectedSkill;
 
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
         size_t mControllerFocus = 2;
     };
 }

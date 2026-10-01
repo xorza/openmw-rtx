@@ -3,13 +3,12 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
-#include <cmath>
 #include <stdexcept>
 #include <string>
 #include <thread>
 
-#include <SDL_hints.h>
-#include <SDL_video.h>
+#include <SDL3/SDL_hints.h>
+#include <SDL3/SDL_video.h>
 #include <osg/Camera>
 #include <osg/FrameStamp>
 #include <osg/Group>
@@ -21,6 +20,8 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/screencapture.hpp>
+#include <components/sdlutil/sdldisplay.hpp>
+#include <components/sdlutil/sdlvideowrapper.hpp>
 #include <components/settings/values.hpp>
 #include <components/shader/automaps.hpp>
 
@@ -185,6 +186,23 @@ namespace MWRender
         return static_cast<float>(mClock->getStep());
     }
 
+    void Renderer::resolutionChanged()
+    {
+        presentIn(mPresentation.mDrawable);
+    }
+
+    void Renderer::presentIn(const osg::Vec2i& drawable)
+    {
+        const osg::Vec2i asked
+            = mNative ? osg::Vec2i() : osg::Vec2i(Settings::video().mResolutionX, Settings::video().mResolutionY);
+        const Misc::Presentation presentation = Misc::present(asked, drawable);
+        if (presentation == mPresentation)
+            return;
+
+        mPresentation = presentation;
+        applyPresentation();
+    }
+
     void Renderer::setViewMask(const unsigned int mask)
     {
         mViewMask = mask;
@@ -231,59 +249,36 @@ namespace MWRender
         throw std::runtime_error("there is no renderer named \"" + std::string(name) + '"');
     }
 
-    WindowPlacement describeWindow(const std::uint32_t surfaceFlag)
+    SDL_Window* openWindow(const SDL_WindowFlags surfaceFlag)
     {
-        const Settings::WindowMode windowMode = Settings::video().mWindowMode;
-        const int screen = Settings::video().mScreen;
-
-        WindowPlacement placement;
-        placement.mWidth = Settings::video().mResolutionX;
-        placement.mHeight = Settings::video().mResolutionY;
-
-        // A fullscreen window is placed by the display it names rather than centred on it.
-        const bool fullscreen
-            = windowMode == Settings::WindowMode::Fullscreen || windowMode == Settings::WindowMode::WindowedFullscreen;
-        placement.mX = fullscreen ? SDL_WINDOWPOS_UNDEFINED_DISPLAY(screen) : SDL_WINDOWPOS_CENTERED_DISPLAY(screen);
-        placement.mY = placement.mX;
-
-        placement.mFlags = surfaceFlag | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
-        if (windowMode == Settings::WindowMode::Fullscreen)
-            placement.mFlags |= SDL_WINDOW_FULLSCREEN;
-        else if (windowMode == Settings::WindowMode::WindowedFullscreen)
-            placement.mFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-        if (!Settings::video().mWindowBorder)
-            placement.mFlags |= SDL_WINDOW_BORDERLESS;
-
-        return placement;
-    }
-
-    osg::Vec2i WindowPlacement::fittedSize(const osg::Vec2i& points, const osg::Vec2i& pixels) const
-    {
-        const auto along = [](int asked, int point, int pixel) {
-            return pixel > 0 ? static_cast<int>(std::lround(static_cast<double>(asked) * point / pixel)) : asked;
-        };
-        return osg::Vec2i(along(mWidth, points.x(), pixels.x()), along(mHeight, points.y(), pixels.y()));
-    }
-
-    void WindowPlacement::fit(SDL_Window* window) const
-    {
-        osg::Vec2i points;
-        osg::Vec2i pixels;
-        SDL_GetWindowSize(window, &points.x(), &points.y());
-        SDL_GetWindowSizeInPixels(window, &pixels.x(), &pixels.y());
-
-        if (pixels != points)
-        {
-            const osg::Vec2i fitted = fittedSize(points, pixels);
-            SDL_SetWindowSize(window, fitted.x(), fitted.y());
-        }
-    }
-
-    void applyWindowHints()
-    {
-        // Allows for Windows snapping features to properly work in borderless window
-        SDL_SetHint("SDL_BORDERLESS_WINDOWED_STYLE", "1");
-        SDL_SetHint("SDL_BORDERLESS_RESIZABLE_STYLE", "1");
+        // Read inside `SDL_CreateWindow`.
         SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, Settings::video().mMinimizeOnFocusLoss ? "1" : "0");
+
+        const SDL_DisplayID display = SDLUtil::displayAt(Settings::video().mScreen);
+        const int width = Settings::video().mWindowWidth;
+        const int height = Settings::video().mWindowHeight;
+        const bool border = Settings::video().mWindowBorder;
+        SDL_WindowFlags flags = surfaceFlag | SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+        if (!border)
+            flags |= SDL_WINDOW_BORDERLESS;
+
+        const SDL_PropertiesID properties = SDL_CreateProperties();
+        SDL_SetStringProperty(properties, SDL_PROP_WINDOW_CREATE_TITLE_STRING, "OpenMW");
+        SDL_SetNumberProperty(properties, SDL_PROP_WINDOW_CREATE_X_NUMBER, SDL_WINDOWPOS_CENTERED_DISPLAY(display));
+        SDL_SetNumberProperty(properties, SDL_PROP_WINDOW_CREATE_Y_NUMBER, SDL_WINDOWPOS_CENTERED_DISPLAY(display));
+        SDL_SetNumberProperty(properties, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, width);
+        SDL_SetNumberProperty(properties, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, height);
+        SDL_SetNumberProperty(properties, SDL_PROP_WINDOW_CREATE_FLAGS_NUMBER, static_cast<Sint64>(flags));
+        SDL_Window* window = SDL_CreateWindowWithProperties(properties);
+        SDL_DestroyProperties(properties);
+
+        if (window != nullptr)
+        {
+            SDLUtil::setVideoMode(window, width, height, Settings::video().mWindowMode, border);
+            // So the size a renderer reads next is the one just asked for: a window system applies a
+            // size or a mode when it gets round to it.
+            SDL_SyncWindow(window);
+        }
+        return window;
     }
 }

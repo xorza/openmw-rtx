@@ -458,40 +458,20 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
         <translation>Erreur lors de l&apos;obtention du nombre d&apos;écrans</translation>
     </message>
     <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetNumVideoDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;SDL_GetNumVideoDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
+        <source>Native</source>
+        <translation>Native</translation>
     </message>
     <message>
         <source>Screen </source>
         <translation>Écran </translation>
     </message>
     <message>
-        <source>This build was made without the ray tracing renderer.</source>
-        <translation type="vanished">Cette version a été compilée sans le moteur de rendu par ray tracing.</translation>
-    </message>
-    <message>
-        <source>Error receiving resolutions</source>
-        <translation>Erreur lors de l&apos;obtention des résolutions</translation>
-    </message>
-    <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetNumDisplayModes failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;SDL_GetNumDisplayModes failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplayMode failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;SDL_GetDisplayMode failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
-    </message>
-    <message>
-        <source>Custom window size is available only in Windowed mode.</source>
-        <translation>La taille personalisée de fenêtre n&apos;est disponible qu&apos;en mode fenêtré.</translation>
+        <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
+        <translation>&lt;br&gt;&lt;b&gt;SDL_GetDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
     </message>
     <message>
         <source>Window border is available only in Windowed mode.</source>
         <translation>Les bordures de fenêtres ne sont disponibles qu&apos;en mode fenêtré.</translation>
-    </message>
-    <message>
-        <source>Windowed Fullscreen mode always uses the native display resolution.</source>
-        <translation>Le mode &quot;Fenêtré plein écran&quot; utilise toujours la résolution native de l&apos;écran.</translation>
     </message>
 </context>
 <context>

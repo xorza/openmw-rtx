@@ -87,9 +87,9 @@ namespace MWGui
         mTextEdit->setCaption(text);
     }
 
-    bool TextInputDialog::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool TextInputDialog::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             onOkClicked(nullptr);
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));

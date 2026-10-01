@@ -383,7 +383,7 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "components\\rtxvulkan"
 
 # Vulkan is private: a host reaches the backend through `createrenderer.hpp`, which names no Vulkan
 # type. The tests link Vulkan themselves. Windows is where a breach fails; Linux's headers hide it.
-target_link_libraries(openmw-rtx-vulkan PUBLIC components PRIVATE openmw-rtx-spirv Vulkan::Vulkan SDL2::SDL2)
+target_link_libraries(openmw-rtx-vulkan PUBLIC components PRIVATE openmw-rtx-spirv Vulkan::Vulkan SDL3::SDL3)
 
 add_dependencies(openmw-rtx-vulkan openmw-rtx-vulkan-shaders)
 

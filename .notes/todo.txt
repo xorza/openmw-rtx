@@ -5,3 +5,5 @@
 - Result<>
 - threading consolidation
 - gamma
+- gui scale
+- change window size on resolution change

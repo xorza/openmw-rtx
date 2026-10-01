@@ -1,7 +1,7 @@
 #ifndef MWLUA_INPUTPROCESSOR_H
 #define MWLUA_INPUTPROCESSOR_H
 
-#include <SDL_events.h>
+#include <SDL3/SDL_events.h>
 
 #include <components/sdlutil/events.hpp>
 
@@ -27,10 +27,11 @@ namespace MWLua
             switch (event.mType)
             {
                 case InputEvent::KeyPressed:
-                    mScriptsContainer->callEngineHandlers(mKeyPressHandlers, std::get<SDL_Keysym>(event.mValue));
+                    mScriptsContainer->callEngineHandlers(mKeyPressHandlers, std::get<SDL_KeyboardEvent>(event.mValue));
                     break;
                 case InputEvent::KeyReleased:
-                    mScriptsContainer->callEngineHandlers(mKeyReleaseHandlers, std::get<SDL_Keysym>(event.mValue));
+                    mScriptsContainer->callEngineHandlers(
+                        mKeyReleaseHandlers, std::get<SDL_KeyboardEvent>(event.mValue));
                     break;
                 case InputEvent::ControllerPressed:
                     mScriptsContainer->callEngineHandlers(mControllerButtonPressHandlers, std::get<int>(event.mValue));

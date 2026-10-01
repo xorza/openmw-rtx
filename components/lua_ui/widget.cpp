@@ -3,7 +3,7 @@
 #include "components/lua_ui/util.hpp"
 #include "element.hpp"
 
-#include <SDL_events.h>
+#include <SDL3/SDL_events.h>
 #include <components/sdlutil/sdlmappings.hpp>
 #include <ranges>
 
@@ -190,11 +190,11 @@ namespace LuaUi
 
     sol::object WidgetExtension::keyEvent(LuaUtil::LuaView& view, MyGUI::KeyCode code) const
     {
-        auto keySym = SDL_Keysym();
-        keySym.sym = SDLUtil::myGuiKeyToSdl(code);
-        keySym.scancode = SDL_GetScancodeFromKey(keySym.sym);
-        keySym.mod = static_cast<Uint16>(SDL_GetModState());
-        return sol::make_object(view.sol(), keySym);
+        SDL_KeyboardEvent event{};
+        event.key = SDLUtil::myGuiKeyToSdl(code);
+        event.scancode = SDL_GetScancodeFromKey(event.key, nullptr);
+        event.mod = SDL_GetModState();
+        return sol::make_object(view.sol(), event);
     }
 
     sol::object WidgetExtension::mouseEvent(

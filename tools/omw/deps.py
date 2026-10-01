@@ -2,7 +2,6 @@
 names. Each thing is judged by the directory it leaves, named after its version, so a bump fetches
 anew and an unchanged pin fetches nothing."""
 
-import glob
 import os
 import re
 import shutil
@@ -54,32 +53,6 @@ def windows_set(tag: str) -> Path:
     partial.rename(deps)
     archive.unlink()
     return deps
-
-
-def windows_sdl(deps: Path) -> Path:
-    """**SDL2 with Vulkan, from SDL's own release.** Upstream's prebuilt SDL2 is built without
-    `SDL_VIDEO_VULKAN`, since the rasterizer never asks for a Vulkan surface, and the renderer's
-    window is one: the symbols link and refuse at runtime. SDL's own package of the same version
-    carries it — the same version, because vcpkg's SDL2_image loads `SDL2.dll` by name and was
-    built against that one. So the set's version has to be the one `pins.py` pins beside the
-    package's checksum, which SDL does not publish: a bump upstream is a bump there."""
-    version = pins.SDL2_VERSION
-    sdl = DEPS / f"SDL2-{version}"
-    stamps = [Path(p).name for p in glob.glob(str(deps / "installed" / "vcpkg" / "info" / "sdl2_*_x64-windows.list"))]
-    if stamps != [f"sdl2_{version}_x64-windows.list"]:
-        raise Refusal(f"the dependency set carries {stamps} and pins.py pins SDL2 {version}")
-    if sdl.is_dir():
-        return sdl
-
-    package = DEPS / Path(pins.SDL2.url).name
-    fetch.download_pin(pins.SDL2, package)
-    partial = fetch.partial_of(sdl)
-    shutil.rmtree(partial, ignore_errors=True)
-    shutil.unpack_archive(package, partial)
-    (partial / f"SDL2-{version}").rename(sdl)
-    shutil.rmtree(partial)
-    package.unlink()
-    return sdl
 
 
 def windows_qt(version: str) -> Path:

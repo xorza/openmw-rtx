@@ -33,7 +33,7 @@ namespace MWGui
         void onMouseWheel(MyGUI::Widget* sender, int rel);
         void onRepairButtonClick(MyGUI::Widget* sender);
         void onOkButtonClick(MyGUI::Widget* sender);
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
     };
 
 }

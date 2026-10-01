@@ -50,7 +50,7 @@ namespace MWGui
         MyGUI::Widget* getDefaultKeyFocus() override;
 
     protected:
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
     private:
         std::unique_ptr<ResponseCallback> mCallback;
@@ -183,7 +183,7 @@ namespace MWGui
 
         void onReferenceUnavailable() override;
 
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
     private:
         void updateDisposition();

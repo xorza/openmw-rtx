@@ -137,16 +137,16 @@ namespace MWGui
         return &mControllerButtons;
     }
 
-    bool ScrollWindow::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool ScrollWindow::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             if (mTakeButton->getVisible())
                 onTakeButtonClicked(mTakeButton);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
             onCloseButtonClicked(mCloseButton);
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP || arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP || arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
             return false; // Fall through to keyboard
 
         return true;

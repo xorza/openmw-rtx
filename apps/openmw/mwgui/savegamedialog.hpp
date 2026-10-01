@@ -70,7 +70,7 @@ namespace MWGui
         const MWState::Character* mCurrentCharacter;
         const MWState::Slot* mCurrentSlot;
 
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
         bool mOkButtonFocus = true;
     };
 

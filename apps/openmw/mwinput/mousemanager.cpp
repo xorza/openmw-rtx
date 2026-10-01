@@ -17,6 +17,8 @@
 
 #include "../mwgui/settingswindow.hpp"
 
+#include "../mwrender/renderer.hpp"
+
 #include "../mwworld/player.hpp"
 
 #include "actions.hpp"
@@ -25,9 +27,10 @@
 namespace MWInput
 {
     MouseManager::MouseManager(
-        BindingsManager* bindingsManager, SDLUtil::InputWrapper* inputWrapper, SDL_Window* window)
+        BindingsManager* bindingsManager, SDLUtil::InputWrapper* inputWrapper, const MWRender::Renderer& renderer)
         : mBindingsManager(bindingsManager)
         , mInputWrapper(inputWrapper)
+        , mRenderer(renderer)
         , mGuiCursorX(0)
         , mGuiCursorY(0)
         , mMouseWheel(0)
@@ -38,12 +41,10 @@ namespace MWInput
         , mMouseMoveX(0)
         , mMouseMoveY(0)
     {
-        int w, h;
-        SDL_GetWindowSize(window, &w, &h);
-
-        float uiScale = MWBase::Environment::get().getWindowManager()->getScalingFactor();
-        mGuiCursorX = w / (2.f * uiScale);
-        mGuiCursorY = h / (2.f * uiScale);
+        const osg::Vec2i& frame = mRenderer.getPresentation().mFrame;
+        const float uiScale = MWBase::Environment::get().getWindowManager()->getScalingFactor();
+        mGuiCursorX = static_cast<float>(frame.x()) / (2.f * uiScale);
+        mGuiCursorY = static_cast<float>(frame.y()) / (2.f * uiScale);
     }
 
     void MouseManager::mouseMoved(const SDLUtil::MouseMotionEvent& arg)
@@ -62,8 +63,9 @@ namespace MWInput
             // game mode does not move the position of the GUI cursor
             MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
             float uiScale = winMgr->getScalingFactor();
-            mGuiCursorX = static_cast<float>(arg.x) / uiScale;
-            mGuiCursorY = static_cast<float>(arg.y) / uiScale;
+            const osg::Vec2f inFrame = mRenderer.getPresentation().toFrame(osg::Vec2f(arg.x, arg.y));
+            mGuiCursorX = inFrame.x() / uiScale;
+            mGuiCursorY = inFrame.y() / uiScale;
 
             if (arg.zrel != 0)
                 mMouseWheel = static_cast<int>(arg.z);
@@ -152,12 +154,12 @@ namespace MWInput
 
         input->setJoystickLastUsed(false);
         MWBase::Environment::get().getLuaManager()->inputEvent({ MWBase::LuaManager::InputEvent::MouseWheel,
-            MWBase::LuaManager::InputEvent::WheelChange{ arg.x, arg.y } });
+            MWBase::LuaManager::InputEvent::WheelChange{ arg.integer_x, arg.integer_y } });
 
         if (mGuiCursorEnabled)
         {
             if (MyGUI::Widget* widget = MyGUI::InputManager::getInstance().getMouseFocusWidget())
-                LuaUi::dispatchMouseWheel(widget, mGuiCursorX, mGuiCursorY, arg.preciseX, arg.preciseY);
+                LuaUi::dispatchMouseWheel(widget, mGuiCursorX, mGuiCursorY, arg.x, arg.y);
         }
     }
 
@@ -282,9 +284,11 @@ namespace MWInput
 
     void MouseManager::warpMouse()
     {
-        float guiUiScale = Settings::gui().mScalingFactor;
-        mInputWrapper->warpMouse(
-            static_cast<int>(mGuiCursorX * guiUiScale), static_cast<int>(mGuiCursorY * guiUiScale));
+        // The scale `mouseMoved` divided by, so the pointer lands where the cursor is drawn.
+        const float uiScale = MWBase::Environment::get().getWindowManager()->getScalingFactor();
+        const osg::Vec2f window
+            = mRenderer.getPresentation().toDrawable(osg::Vec2f(mGuiCursorX * uiScale, mGuiCursorY * uiScale));
+        mInputWrapper->warpMouse(window.x(), window.y());
     }
 
     void MouseManager::warpMouseToWidget(MyGUI::Widget* widget)

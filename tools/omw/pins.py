@@ -12,14 +12,6 @@ class Pin:
     sha256: str
 
 
-# SDL's own Windows package. Its version is also the one upstream's set carries, and the Windows
-# preset names the package's directory by it through `RTX_SDL2_VERSION`.
-SDL2_VERSION = "2.32.10"
-SDL2 = Pin(
-    f"https://github.com/libsdl-org/SDL/releases/download/release-{SDL2_VERSION}/SDL2-devel-{SDL2_VERSION}-VC.zip",
-    "af347939395a58b365846aaea27391e69f9ec9d4dd650d6ac40802159b418a6e",
-)
-
 # aqt, which installs Qt on Windows for the flavours that build the Qt programs.
 AQT = Pin(
     "https://github.com/miurahr/aqtinstall/releases/download/v3.1.15/aqt_x64.exe",

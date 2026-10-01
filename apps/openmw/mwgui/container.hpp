@@ -46,7 +46,7 @@ namespace MWGui
         std::string_view getWindowIdForLua() const override { return "Container"; }
 
         ControllerButtons* getControllerButtons() override;
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
         void setActiveControllerWindow(bool active) override;
 
         MWGui::ItemView* getItemView() { return mItemView; }

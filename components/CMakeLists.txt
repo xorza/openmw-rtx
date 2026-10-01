@@ -298,7 +298,7 @@ add_component_dir (esm4
 
 add_component_dir (misc
     barrier budgetmeasurement color compression constants convert coordinateconverter display endianness float16 frameclock frameratelimiter
-    guarded math mathutil messageformatparser notnullptr objectpool osgpluginchecker osguservalues progressreporter resourcehelpers
+    guarded math mathutil messageformatparser notnullptr objectpool osgpluginchecker osguservalues presentation progressreporter resourcehelpers
     rng strongtypedef thread timeconvert timer tuplehelpers tuplemeta utf8stream weakcache windows
     )
 
@@ -371,6 +371,7 @@ add_component_dir (sdlutil
     gl4esinit
     imagetosurface
     sdlcursormanager
+    sdldisplay
     sdlgraphicswindow
     sdlinputwrapper
     sdlmappings
@@ -693,7 +694,7 @@ target_link_libraries(components
     Boost::program_options
     Boost::iostreams
 
-    SDL2::SDL2
+    SDL3::SDL3
     ${OPENGL_gl_LIBRARY}
     ${MyGUI_LIBRARIES}
     ${LUA_LIBRARIES}

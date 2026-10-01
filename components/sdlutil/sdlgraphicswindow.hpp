@@ -1,7 +1,7 @@
 #ifndef OPENMW_COMPONENTS_SDLUTIL_SDLGRAPHICSWINDOW_H
 #define OPENMW_COMPONENTS_SDLUTIL_SDLGRAPHICSWINDOW_H
 
-#include <SDL_video.h>
+#include <SDL3/SDL_video.h>
 
 #include <osgViewer/GraphicsWindow>
 
@@ -10,7 +10,7 @@
 namespace SDLUtil
 {
 
-    class GraphicsWindowSDL2 : public osgViewer::GraphicsWindow
+    class GraphicsWindowSDL : public osgViewer::GraphicsWindow
     {
         SDL_Window* mWindow;
         SDL_GLContext mContext;
@@ -22,17 +22,17 @@ namespace SDLUtil
 
         void init();
 
-        virtual ~GraphicsWindowSDL2();
+        virtual ~GraphicsWindowSDL();
 
     public:
-        GraphicsWindowSDL2(osg::GraphicsContext::Traits* traits, VSyncMode vsyncMode);
+        GraphicsWindowSDL(osg::GraphicsContext::Traits* traits, VSyncMode vsyncMode);
 
         bool isSameKindAs(const Object* object) const override
         {
-            return dynamic_cast<const GraphicsWindowSDL2*>(object) != nullptr;
+            return dynamic_cast<const GraphicsWindowSDL*>(object) != nullptr;
         }
         const char* libraryName() const override { return "osgViewer"; }
-        const char* className() const override { return "GraphicsWindowSDL2"; }
+        const char* className() const override { return "GraphicsWindowSDL"; }
 
         bool valid() const override { return mValid; }
 
@@ -79,7 +79,7 @@ namespace SDLUtil
         /** Get focus on if the pointer is in this window.*/
         void grabFocusIfPointerInWindow() override {}
 
-        /** WindowData is used to pass in the SDL2 window handle attached to the GraphicsContext::Traits structure. */
+        /** WindowData is used to pass in the SDL window handle attached to the GraphicsContext::Traits structure. */
         struct WindowData : public osg::Referenced
         {
             WindowData(SDL_Window* window)

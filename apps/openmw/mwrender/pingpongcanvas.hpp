@@ -3,6 +3,7 @@
 
 #include <array>
 #include <optional>
+#include <utility>
 
 #include <osg/FrameBufferObject>
 #include <osg/Geometry>
@@ -57,6 +58,9 @@ namespace MWRender
         void setCalculateAvgLum(bool enabled) { mAvgLum = enabled; }
 
         void setPostProcessing(bool enabled) { mPostprocessing = enabled; }
+
+        /// Where the last pass draws: the frame a renderer presents scaled, or the window where null.
+        void setDestination(osg::ref_ptr<osg::FrameBufferObject> fbo) { mDestinationFBO = std::move(fbo); }
 
         const osg::ref_ptr<osg::Texture>& getSceneTexture(size_t frameId) const { return mTextureScene; }
 

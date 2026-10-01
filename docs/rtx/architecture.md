@@ -86,7 +86,11 @@ The one interface the game talks to. Read its header first.
   that cannot change, and they get null under the ray tracer.
 - `createRenderer` throws for a renderer the build lacks. There is no fallback.
 - The base keeps what both renderers share: the resource system, the frame clock, the
-  screenshot writer, the camera, the traversal root and the view mask.
+  screenshot writer, the camera, the traversal root, the view mask and the presentation.
+- The presentation (`Misc::Presentation`) is the one answer to the screen's size. Each renderer
+  draws the world and the interface at its frame, `[Video] resolution x/y` or the window's size at
+  Native, and shows the frame scaled into the window with black beside it. The GUI, the
+  projection, the pointer and Lua read the frame from it.
 
 The game describes each frame as a `SceneFrame` (`sceneframe.hpp`): the scene root, the sky and
 weather state, the eye, the water, the ground, in the content's own numbers and undecoded.
@@ -239,7 +243,8 @@ at the top, over all of them.
   volume, the sprite bins, the denoiser's history. The world has one, and `PictureTracer` has one
   for the pictures inside the interface. The passes are shared.
 - **`DisplayChain`** runs after the trace and the upscaler: bloom, exposure, glare, tone, debug
-  lines. The GUI draws after it, in display values. The renderer blits to the swapchain and never
+  lines. The GUI draws after it, in display values, at the frame's size. The renderer blits the
+  frame to the swapchain, scaled to fit the window with black beside it (`Misc::present`), and never
   draws into it.
 - **`Upscaler`** is FSR 3.1.4's seven passes, from AMD's own headers in `extern/fidelityfx/`, with
   the renderer's callbacks (`shaders/upscale/fsrcallbacks.glsl`). It needs no extension, so it

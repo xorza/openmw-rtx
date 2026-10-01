@@ -1,7 +1,7 @@
 #ifndef MWLUA_MENUSCRIPTS_H
 #define MWLUA_MENUSCRIPTS_H
 
-#include <SDL_events.h>
+#include <SDL3/SDL_events.h>
 
 #include <components/lua/luastate.hpp>
 #include <components/lua/scriptscontainer.hpp>

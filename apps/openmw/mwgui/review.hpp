@@ -72,7 +72,7 @@ namespace MWGui
         void onBirthSignClicked(MyGUI::Widget* sender);
 
         void onMouseWheel(MyGUI::Widget* sender, int rel);
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
     private:
         void addSkills(const std::vector<ESM::RefId>& skills, const std::string& titleId,

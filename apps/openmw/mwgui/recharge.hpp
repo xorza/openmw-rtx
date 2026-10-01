@@ -52,7 +52,7 @@ namespace MWGui
         void onCancel(MyGUI::Widget* sender);
         void onMouseWheel(MyGUI::Widget* sender, int rel);
 
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
     };
 
 }

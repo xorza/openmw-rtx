@@ -37,8 +37,11 @@ namespace RtxTool
         /// never through the registry, which is the player's.
         void applyHostedSettings(const WindowRequest& window)
         {
+            // The window at the frame's size, so the frame is shown pixel for pixel.
             Settings::video().mResolutionX.set(static_cast<int>(window.mWidth));
             Settings::video().mResolutionY.set(static_cast<int>(window.mHeight));
+            Settings::video().mWindowWidth.set(static_cast<int>(window.mWidth));
+            Settings::video().mWindowHeight.set(static_cast<int>(window.mHeight));
             Settings::video().mWindowMode.set(Settings::WindowMode::Windowed);
             Settings::video().mVsyncMode.set(window.mVerticalSync);
             Settings::camera().mFieldOfView.set(window.mFieldOfView);

@@ -449,9 +449,9 @@ namespace MWGui
         return mButtonPressed;
     }
 
-    bool InteractiveMessageBox::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool InteractiveMessageBox::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             if (!mButtons.empty())
             {
@@ -460,12 +460,12 @@ namespace MWGui
                 buttonActivated(mButtons[mControllerFocus]);
             }
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
         {
             if (mButtons.size() == 1)
                 buttonActivated(mButtons[0]);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP || arg.button == SDL_CONTROLLER_BUTTON_DPAD_LEFT)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP || arg.button == SDL_GAMEPAD_BUTTON_DPAD_LEFT)
         {
             if (mButtons.size() <= 1)
                 return true;
@@ -476,7 +476,7 @@ namespace MWGui
             mControllerFocus = wrap(mControllerFocus, mButtons.size(), -1);
             setControllerFocus(mButtons, mControllerFocus, true);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN || arg.button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN || arg.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
         {
             if (mButtons.size() <= 1)
                 return true;

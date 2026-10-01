@@ -140,14 +140,15 @@ namespace MWGui
         updateView();
     }
 
-    bool Recharge::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool Recharge::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if ((arg.button == SDL_CONTROLLER_BUTTON_A && !mGemBox->getVisible()) || arg.button == SDL_CONTROLLER_BUTTON_Y)
+        if ((arg.button == SDL_GAMEPAD_BUTTON_SOUTH && !mGemBox->getVisible())
+            || arg.button == SDL_GAMEPAD_BUTTON_NORTH)
         {
             onSelectItem(mGemIcon);
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
             onCancel(mCancelButton);
         else
             mBox->onControllerButton(arg.button);

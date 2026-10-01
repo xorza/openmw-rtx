@@ -54,8 +54,8 @@ namespace MWGui
             InputType mInputType;
             union
             {
-                SDL_GameControllerButton mButton;
-                SDL_GameControllerAxis mAxis;
+                SDL_GamepadButton mButton;
+                SDL_GamepadAxis mAxis;
             } mId;
             std::string MWGui::ControllerButtons::*mField;
         };

@@ -138,7 +138,7 @@ namespace MWInput
             ICS::Control::ControlChangingDirection direction) override
         {
             // only allow binding to the trigers
-            if (axis != SDL_CONTROLLER_AXIS_TRIGGERLEFT && axis != SDL_CONTROLLER_AXIS_TRIGGERRIGHT)
+            if (axis != SDL_GAMEPAD_AXIS_LEFT_TRIGGER && axis != SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
                 return;
             if (mDetectingKeyboard)
                 return;
@@ -365,26 +365,26 @@ namespace MWInput
         // across different versions of OpenMW (in the case where another input action is added)
         std::map<int, int> defaultButtonBindings;
 
-        defaultButtonBindings[A_Activate] = SDL_CONTROLLER_BUTTON_A;
-        defaultButtonBindings[A_ToggleWeapon] = SDL_CONTROLLER_BUTTON_X;
-        defaultButtonBindings[A_ToggleSpell] = SDL_CONTROLLER_BUTTON_Y;
+        defaultButtonBindings[A_Activate] = SDL_GAMEPAD_BUTTON_SOUTH;
+        defaultButtonBindings[A_ToggleWeapon] = SDL_GAMEPAD_BUTTON_WEST;
+        defaultButtonBindings[A_ToggleSpell] = SDL_GAMEPAD_BUTTON_NORTH;
         // defaultButtonBindings[A_QuickButtonsMenu] = SDL_GetButtonFromScancode(SDL_SCANCODE_F1); // Need to implement,
         // should be ToggleSpell(5) AND Wait(9)
-        defaultButtonBindings[A_Sneak] = SDL_CONTROLLER_BUTTON_LEFTSTICK;
-        defaultButtonBindings[A_Journal] = SDL_CONTROLLER_BUTTON_LEFTSHOULDER;
-        defaultButtonBindings[A_Rest] = SDL_CONTROLLER_BUTTON_RIGHTSHOULDER;
-        defaultButtonBindings[A_TogglePOV] = SDL_CONTROLLER_BUTTON_RIGHTSTICK;
-        defaultButtonBindings[A_Inventory] = SDL_CONTROLLER_BUTTON_B;
-        defaultButtonBindings[A_GameMenu] = SDL_CONTROLLER_BUTTON_START;
-        defaultButtonBindings[A_QuickSave] = SDL_CONTROLLER_BUTTON_GUIDE;
+        defaultButtonBindings[A_Sneak] = SDL_GAMEPAD_BUTTON_LEFT_STICK;
+        defaultButtonBindings[A_Journal] = SDL_GAMEPAD_BUTTON_LEFT_SHOULDER;
+        defaultButtonBindings[A_Rest] = SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER;
+        defaultButtonBindings[A_TogglePOV] = SDL_GAMEPAD_BUTTON_RIGHT_STICK;
+        defaultButtonBindings[A_Inventory] = SDL_GAMEPAD_BUTTON_EAST;
+        defaultButtonBindings[A_GameMenu] = SDL_GAMEPAD_BUTTON_START;
+        defaultButtonBindings[A_QuickSave] = SDL_GAMEPAD_BUTTON_GUIDE;
 
         std::map<int, int> defaultAxisBindings;
-        defaultAxisBindings[A_MoveForwardBackward] = SDL_CONTROLLER_AXIS_LEFTY;
-        defaultAxisBindings[A_MoveLeftRight] = SDL_CONTROLLER_AXIS_LEFTX;
-        defaultAxisBindings[A_LookUpDown] = SDL_CONTROLLER_AXIS_RIGHTY;
-        defaultAxisBindings[A_LookLeftRight] = SDL_CONTROLLER_AXIS_RIGHTX;
-        defaultAxisBindings[A_Use] = SDL_CONTROLLER_AXIS_TRIGGERRIGHT;
-        defaultAxisBindings[A_Jump] = SDL_CONTROLLER_AXIS_TRIGGERLEFT;
+        defaultAxisBindings[A_MoveForwardBackward] = SDL_GAMEPAD_AXIS_LEFTY;
+        defaultAxisBindings[A_MoveLeftRight] = SDL_GAMEPAD_AXIS_LEFTX;
+        defaultAxisBindings[A_LookUpDown] = SDL_GAMEPAD_AXIS_RIGHTY;
+        defaultAxisBindings[A_LookLeftRight] = SDL_GAMEPAD_AXIS_RIGHTX;
+        defaultAxisBindings[A_Use] = SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
+        defaultAxisBindings[A_Jump] = SDL_GAMEPAD_AXIS_LEFT_TRIGGER;
 
         for (int i = 0; i < A_Last; i++)
         {
@@ -645,27 +645,27 @@ namespace MWInput
         mInputBinder->keyReleased(arg);
     }
 
-    void BindingsManager::controllerAdded(int deviceID, const SDL_ControllerDeviceEvent& arg)
+    void BindingsManager::controllerAdded(int deviceID, const SDL_GamepadDeviceEvent& arg)
     {
         mInputBinder->controllerAdded(deviceID, arg);
     }
 
-    void BindingsManager::controllerRemoved(const SDL_ControllerDeviceEvent& arg)
+    void BindingsManager::controllerRemoved(const SDL_GamepadDeviceEvent& arg)
     {
         mInputBinder->controllerRemoved(arg);
     }
 
-    void BindingsManager::controllerButtonPressed(int deviceID, const SDL_ControllerButtonEvent& arg)
+    void BindingsManager::controllerButtonPressed(int deviceID, const SDL_GamepadButtonEvent& arg)
     {
         mInputBinder->buttonPressed(deviceID, arg);
     }
 
-    void BindingsManager::controllerButtonReleased(int deviceID, const SDL_ControllerButtonEvent& arg)
+    void BindingsManager::controllerButtonReleased(int deviceID, const SDL_GamepadButtonEvent& arg)
     {
         mInputBinder->buttonReleased(deviceID, arg);
     }
 
-    void BindingsManager::controllerAxisMoved(int deviceID, const SDL_ControllerAxisEvent& arg)
+    void BindingsManager::controllerAxisMoved(int deviceID, const SDL_GamepadAxisEvent& arg)
     {
         mInputBinder->axisMoved(deviceID, arg);
     }
@@ -675,7 +675,7 @@ namespace MWInput
         return mInputBinder->getKeyBinding(mInputBinder->getControl(actionId), ICS::Control::INCREASE);
     }
 
-    SDL_GameController* BindingsManager::getControllerOrNull() const
+    SDL_Gamepad* BindingsManager::getControllerOrNull() const
     {
         const auto& controllers = mInputBinder->getJoystickInstanceMap();
         if (controllers.empty())

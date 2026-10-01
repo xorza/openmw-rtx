@@ -36,7 +36,7 @@ namespace MWGui
         void clear() override;
 
         void onFrame(float dt) override;
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
         bool getSleeping() { return mTimeAdvancer.isRunning() && mSleeping; }
         void wakeUp();

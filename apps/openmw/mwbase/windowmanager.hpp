@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <MyGUI_KeyCode.h>
+#include <osg/Vec2i>
 
 #include "../mwgui/mode.hpp"
 
@@ -198,6 +199,9 @@ namespace MWBase
         virtual bool getWorldMouseOver() = 0;
 
         virtual float getScalingFactor() const = 0;
+
+        /// The frame the interface is laid out at, in pixels: the screen's size to the interface.
+        virtual osg::Vec2i getFrameSize() const = 0;
 
         virtual bool toggleFogOfWar() = 0;
 

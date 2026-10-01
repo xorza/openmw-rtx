@@ -1,121 +1,76 @@
 #include "sdlvideowrapper.hpp"
 
-#include <components/debug/debuglog.hpp>
-#include <components/settings/settings.hpp>
+#include <cmath>
 
-#include <SDL_video.h>
+#include <SDL3/SDL_video.h>
+
+#include <components/debug/debuglog.hpp>
+#include <components/settings/windowmode.hpp>
 
 namespace SDLUtil
 {
-
-    VideoWrapper::VideoWrapper(SDL_Window* window)
-        : mWindow(window)
-        , mGamma(1.f)
-        , mContrast(1.f)
-        , mHasSetGammaContrast(false)
+    namespace
     {
-        SDL_GetWindowGammaRamp(mWindow, mOldSystemGammaRamp, &mOldSystemGammaRamp[256], &mOldSystemGammaRamp[512]);
-    }
-
-    VideoWrapper::~VideoWrapper()
-    {
-        // Only exclusive fullscreen needs an early display-mode reset. Leaving desktop fullscreen here
-        // can bring a background window to the foreground on macOS; let window destruction handle it.
-        const Uint32 fullscreenFlags = SDL_GetWindowFlags(mWindow) & SDL_WINDOW_FULLSCREEN_DESKTOP;
-        if (fullscreenFlags == SDL_WINDOW_FULLSCREEN)
-            SDL_SetWindowFullscreen(mWindow, 0);
-
-        // If user hasn't touched the defaults no need to restore
-        if (mHasSetGammaContrast)
-            SDL_SetWindowGammaRamp(mWindow, mOldSystemGammaRamp, &mOldSystemGammaRamp[256], &mOldSystemGammaRamp[512]);
-    }
-
-    void VideoWrapper::setGammaContrast(float gamma, float contrast)
-    {
-        if (gamma == mGamma && contrast == mContrast)
-            return;
-
-        mGamma = gamma;
-        mContrast = contrast;
-
-        mHasSetGammaContrast = true;
-
-        Uint16 red[256], green[256], blue[256];
-        for (int i = 0; i < 256; i++)
+        void centerWindow(SDL_Window* window)
         {
-            float k = i / 256.0f;
-            k = (k - 0.5f) * contrast + 0.5f;
-            k = pow(k, 1.f / gamma);
-            k *= 256;
-            float value = k * 256;
-            if (value > 65535)
-                value = 65535;
-            else if (value < 0)
-                value = 0;
+            // Resize breaks the sdl window in some cases; see issue: #5539
+            SDL_Rect rect{};
+            int w = 0;
+            int h = 0;
+            SDL_GetDisplayBounds(SDL_GetDisplayForWindow(window), &rect);
+            SDL_GetWindowSize(window, &w, &h);
 
-            red[i] = green[i] = blue[i] = static_cast<Uint16>(value);
+            int x = rect.x;
+            int y = rect.y;
+
+            // Center dimensions that do not fill the screen
+            if (w < rect.w)
+                x = rect.x + rect.w / 2 - w / 2;
+            if (h < rect.h)
+                y = rect.y + rect.h / 2 - h / 2;
+
+            SDL_SetWindowPosition(window, x, y);
         }
-        if (SDL_SetWindowGammaRamp(mWindow, red, green, blue) < 0)
-            Log(Debug::Warning) << "Couldn't set gamma: " << SDL_GetError();
     }
 
-    void VideoWrapper::setVideoMode(int width, int height, Settings::WindowMode windowMode, bool windowBorder)
+    int windowPoints(int pixels, float density)
     {
-        SDL_SetWindowFullscreen(mWindow, 0);
+        return static_cast<int>(std::lround(static_cast<double>(pixels) / static_cast<double>(density)));
+    }
 
-        if (SDL_GetWindowFlags(mWindow) & SDL_WINDOW_MAXIMIZED)
-            SDL_RestoreWindow(mWindow);
+    void setVideoMode(SDL_Window* window, int width, int height, Settings::WindowMode windowMode, bool windowBorder)
+    {
+        SDL_SetWindowFullscreen(window, false);
 
-        int w, h;
-        SDL_GetWindowSize(mWindow, &w, &h);
-        int dw, dh;
-        SDL_GetWindowSizeInPixels(mWindow, &dw, &dh);
+        if (SDL_GetWindowFlags(window) & SDL_WINDOW_MAXIMIZED)
+            SDL_RestoreWindow(window);
 
-        if (windowMode == Settings::WindowMode::Fullscreen || windowMode == Settings::WindowMode::WindowedFullscreen)
+        if (windowMode == Settings::WindowMode::Fullscreen)
         {
+            // The listed mode nearest the desktop's, which is the desktop's own where the list has it:
+            // SDL refuses a mode its list does not hold.
+            const SDL_DisplayID display = SDL_GetDisplayForWindow(window);
+            const SDL_DisplayMode* desktop = SDL_GetDesktopDisplayMode(display);
             SDL_DisplayMode mode;
-            SDL_GetWindowDisplayMode(mWindow, &mode);
-            mode.w = width / (dw / w);
-            mode.h = height / (dh / h);
-            SDL_SetWindowDisplayMode(mWindow, &mode);
-            SDL_SetWindowFullscreen(mWindow,
-                windowMode == Settings::WindowMode::Fullscreen ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_FULLSCREEN_DESKTOP);
+            if (desktop == nullptr
+                || !SDL_GetClosestFullscreenDisplayMode(
+                    display, desktop->w, desktop->h, desktop->refresh_rate, true, &mode)
+                || !SDL_SetWindowFullscreenMode(window, &mode))
+                Log(Debug::Warning) << "No exclusive fullscreen mode at the desktop's: " << SDL_GetError();
+            SDL_SetWindowFullscreen(window, true);
+        }
+        else if (windowMode == Settings::WindowMode::WindowedFullscreen)
+        {
+            SDL_SetWindowFullscreenMode(window, nullptr);
+            SDL_SetWindowFullscreen(window, true);
         }
         else
         {
-            SDL_SetWindowSize(mWindow, width / (dw / w), height / (dh / h));
-            SDL_SetWindowBordered(mWindow, windowBorder ? SDL_TRUE : SDL_FALSE);
+            const float density = SDL_GetWindowPixelDensity(window);
+            SDL_SetWindowSize(window, windowPoints(width, density), windowPoints(height, density));
+            SDL_SetWindowBordered(window, windowBorder);
 
-            centerWindow();
+            centerWindow(window);
         }
     }
-
-    void VideoWrapper::centerWindow()
-    {
-        // Resize breaks the sdl window in some cases; see issue: #5539
-        SDL_Rect rect{};
-        int x = 0;
-        int y = 0;
-        int w = 0;
-        int h = 0;
-        auto index = SDL_GetWindowDisplayIndex(mWindow);
-        SDL_GetDisplayBounds(index, &rect);
-        SDL_GetWindowSize(mWindow, &w, &h);
-
-        x = rect.x;
-        y = rect.y;
-
-        // Center dimensions that do not fill the screen
-        if (w < rect.w)
-        {
-            x = rect.x + rect.w / 2 - w / 2;
-        }
-        if (h < rect.h)
-        {
-            y = rect.y + rect.h / 2 - h / 2;
-        }
-
-        SDL_SetWindowPosition(mWindow, x, y);
-    }
-
 }

@@ -69,6 +69,10 @@ namespace MyGUIPlatform
 
         void enableShaders(Shader::ShaderManager& shaderManager);
 
+        /// The camera the interface is drawn by, for a renderer that draws it somewhere other than
+        /// the window.
+        osg::Camera& getCamera() { return *mGuiRoot; }
+
         static RenderManager& getInstance() { return *getInstancePtr(); }
         static RenderManager* getInstancePtr()
         {

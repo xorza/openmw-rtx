@@ -174,18 +174,18 @@ namespace MWGui
         MWBase::Environment::get().getWindowManager()->removeGuiMode(GM_MerchantRepair);
     }
 
-    bool MerchantRepair::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool MerchantRepair::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             if (mControllerFocus < mButtons.size())
                 onRepairButtonClick(mButtons[mControllerFocus].first);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
         {
             onOkButtonClick(mOkButton);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
         {
             if (mButtons.size() <= 1)
                 return true;
@@ -194,7 +194,7 @@ namespace MWGui
             mControllerFocus = wrap(mControllerFocus, mButtons.size(), -1);
             mButtons[mControllerFocus].first->setStateSelected(true);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
         {
             if (mButtons.size() <= 1)
                 return true;

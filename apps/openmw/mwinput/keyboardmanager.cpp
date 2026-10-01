@@ -16,8 +16,9 @@
 
 namespace MWInput
 {
-    KeyboardManager::KeyboardManager(BindingsManager* bindingsManager)
+    KeyboardManager::KeyboardManager(BindingsManager* bindingsManager, SDL_Window* window)
         : mBindingsManager(bindingsManager)
+        , mWindow(window)
     {
     }
 
@@ -34,17 +35,17 @@ namespace MWInput
         // HACK: to make default keybinding for the console work without printing an extra "^" upon closing
         // This assumes that SDL_TextInput events always come *after* the key event
         // (which is somewhat reasonable, and hopefully true for all SDL platforms)
-        auto kc = SDLUtil::sdlKeyToMyGUI(arg.keysym.sym);
-        if (mBindingsManager->getKeyBinding(A_Console) == arg.keysym.scancode
+        auto kc = SDLUtil::sdlKeyToMyGUI(arg.key);
+        if (mBindingsManager->getKeyBinding(A_Console) == arg.scancode
             // HACK: allow upper case variant of console keybinding.
-            && (arg.keysym.mod & KMOD_SHIFT) == 0 && MWBase::Environment::get().getWindowManager()->isConsoleMode())
-            SDL_StopTextInput();
+            && (arg.mod & SDL_KMOD_SHIFT) == 0 && MWBase::Environment::get().getWindowManager()->isConsoleMode())
+            SDL_StopTextInput(mWindow);
 
-        bool consumed = SDL_IsTextInputActive() && // Little trick to check if key is printable
-            (!(SDLK_SCANCODE_MASK & arg.keysym.sym) &&
+        bool consumed = SDL_TextInputActive(mWindow) && // Little trick to check if key is printable
+            (!(SDLK_SCANCODE_MASK & arg.key) &&
                 // Don't trust isprint for symbols outside the extended ASCII range
-                ((kc == MyGUI::KeyCode::None && arg.keysym.sym > 0xff)
-                    || (arg.keysym.sym >= 0 && arg.keysym.sym <= 255 && std::isprint(arg.keysym.sym))));
+                ((kc == MyGUI::KeyCode::None && arg.key > 0xff)
+                    || (arg.key <= 255 && std::isprint(static_cast<int>(arg.key)))));
         if (kc != MyGUI::KeyCode::None && !mBindingsManager->isDetectingBindingState())
         {
             if (MWBase::Environment::get().getWindowManager()->injectKeyPress(kc, 0, arg.repeat))
@@ -61,8 +62,7 @@ namespace MWInput
 
         if (!consumed)
         {
-            MWBase::Environment::get().getLuaManager()->inputEvent(
-                { MWBase::LuaManager::InputEvent::KeyPressed, arg.keysym });
+            MWBase::Environment::get().getLuaManager()->inputEvent({ MWBase::LuaManager::InputEvent::KeyPressed, arg });
         }
 
         input->setJoystickLastUsed(false);
@@ -71,12 +71,11 @@ namespace MWInput
     void KeyboardManager::keyReleased(const SDL_KeyboardEvent& arg)
     {
         MWBase::Environment::get().getInputManager()->setJoystickLastUsed(false);
-        auto kc = SDLUtil::sdlKeyToMyGUI(arg.keysym.sym);
+        auto kc = SDLUtil::sdlKeyToMyGUI(arg.key);
 
         if (!mBindingsManager->isDetectingBindingState())
             mBindingsManager->setPlayerControlsEnabled(!MyGUI::InputManager::getInstance().injectKeyRelease(kc));
         mBindingsManager->keyReleased(arg);
-        MWBase::Environment::get().getLuaManager()->inputEvent(
-            { MWBase::LuaManager::InputEvent::KeyReleased, arg.keysym });
+        MWBase::Environment::get().getLuaManager()->inputEvent({ MWBase::LuaManager::InputEvent::KeyReleased, arg });
     }
 }

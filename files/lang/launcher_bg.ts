@@ -460,40 +460,20 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
         <translation>Грешка при получаване броя на екраните</translation>
     </message>
     <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetNumVideoDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;SDL_GetNumVideoDisplays се провали:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
+        <source>Native</source>
+        <translation>Естествена</translation>
     </message>
     <message>
         <source>Screen </source>
         <translation>Екран </translation>
     </message>
     <message>
-        <source>This build was made without the ray tracing renderer.</source>
-        <translation type="vanished">Тази компилация е направена без визуализатора с трасиране на лъчи.</translation>
-    </message>
-    <message>
-        <source>Error receiving resolutions</source>
-        <translation>Грешка при получаване на резолюциите</translation>
-    </message>
-    <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetNumDisplayModes failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;SDL_GetNumDisplayModes се провали:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
-    </message>
-    <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplayMode failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;SDL_GetDisplayMode се провали:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
-    </message>
-    <message>
-        <source>Custom window size is available only in Windowed mode.</source>
-        <translation>Потребителският размер на прозореца е наличен само в режим прозорец.</translation>
+        <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
+        <translation>&lt;br&gt;&lt;b&gt;SDL_GetDisplays се провали:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
     </message>
     <message>
         <source>Window border is available only in Windowed mode.</source>
         <translation>Рамката на прозореца е налична само в режим прозорец.</translation>
-    </message>
-    <message>
-        <source>Windowed Fullscreen mode always uses the native display resolution.</source>
-        <translation>Режимът цял екран в прозорец винаги използва естествената резолюция.</translation>
     </message>
 </context>
 <context>

@@ -382,13 +382,13 @@ namespace MWGui
         eventEffectModified(mEffect);
     }
 
-    bool EditEffectDialog::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool EditEffectDialog::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
         int prevFocus = mControllerFocus;
         mControllerFocus = std::clamp(mControllerFocus, 0, static_cast<int>(mButtons.size()) - 1);
         MyGUI::TextBox* button = mButtons[mControllerFocus];
 
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             if (button == mRangeButton)
                 onRangeButtonClicked(mRangeButton);
@@ -400,14 +400,14 @@ namespace MWGui
                 onDeleteButtonClicked(mDeleteButton);
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
             onCancelButtonClicked(mCancelButton);
-        else if (arg.button == SDL_CONTROLLER_BUTTON_X)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_WEST)
         {
             onOkButtonClicked(mOkButton);
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
         {
             if (mControllerFocus == 0)
                 mControllerFocus = static_cast<int>(mButtons.size()) - 2;
@@ -418,14 +418,14 @@ namespace MWGui
             else
                 mControllerFocus = std::max(mControllerFocus - 1, 0);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
         {
             if (button == mDeleteButton || button == mOkButton || button == mCancelButton)
                 mControllerFocus = 0;
             else
                 mControllerFocus++;
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_LEFTSHOULDER)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)
         {
             if (button == mMagnitudeMinValue)
             {
@@ -448,7 +448,7 @@ namespace MWGui
                 onAreaChanged(nullptr, mAreaSlider->getScrollPosition());
             }
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_RIGHTSHOULDER)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)
         {
             if (button == mMagnitudeMinValue)
             {
@@ -471,7 +471,7 @@ namespace MWGui
                 onAreaChanged(nullptr, mAreaSlider->getScrollPosition());
             }
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_LEFT)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_LEFT)
         {
             if (button == mRangeButton)
                 onRangeButtonClicked(mRangeButton);
@@ -501,7 +501,7 @@ namespace MWGui
                 onAreaChanged(nullptr, mAreaSlider->getScrollPosition());
             }
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
         {
             if (button == mRangeButton)
                 onRangeButtonClicked(mRangeButton);
@@ -734,14 +734,14 @@ namespace MWGui
         mSuccessChance->setCaption(MyGUI::utility::toString(intChance));
     }
 
-    bool SpellCreationDialog::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool SpellCreationDialog::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
         {
             onCancelButtonClicked(mCancelButton);
             return true;
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_X)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_WEST)
         {
             onBuyButtonClicked(mBuyButton);
             return true;
@@ -1025,11 +1025,11 @@ namespace MWGui
         mConstantEffect = constant;
     }
 
-    bool EffectEditorBase::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool EffectEditorBase::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
         MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
 
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             if (!mRightColumn && mAvailableFocus < mAvailableButtons.size())
             {
@@ -1042,12 +1042,12 @@ namespace MWGui
                 winMgr->playSound(ESM::RefId::stringRefId("Menu Click"));
             }
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_RIGHTSTICK)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_RIGHT_STICK)
         {
             // Toggle info tooltip
             winMgr->setControllerTooltipEnabled(!winMgr->getControllerTooltipEnabled());
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
         {
             if (mRightColumn && !mEffectButtons.empty())
             {
@@ -1064,7 +1064,7 @@ namespace MWGui
                 mAvailableButtons[mAvailableFocus]->setStateSelected(true);
             }
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
         {
             if (mRightColumn && !mEffectButtons.empty())
             {
@@ -1081,7 +1081,7 @@ namespace MWGui
                 mAvailableButtons[mAvailableFocus]->setStateSelected(true);
             }
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_LEFT && mRightColumn)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_LEFT && mRightColumn)
         {
             mRightColumn = false;
             if (mEffectFocus < mEffectButtons.size())
@@ -1091,7 +1091,7 @@ namespace MWGui
 
             winMgr->setControllerTooltipVisible(Settings::gui().mControllerTooltips);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT && !mRightColumn && mEffectButtons.size() > 0)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT && !mRightColumn && mEffectButtons.size() > 0)
         {
             mRightColumn = true;
             if (mAvailableFocus < mAvailableButtons.size())

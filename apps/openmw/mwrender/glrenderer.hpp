@@ -11,7 +11,6 @@
 
 namespace osgViewer
 {
-    class ScreenCaptureHandler;
     class Viewer;
 }
 
@@ -27,12 +26,15 @@ namespace MyGUIPlatform
 
 namespace osg
 {
+    class Camera;
+    class Geometry;
+    class FrameBufferObject;
     class Texture2D;
 }
 
 namespace SDLUtil
 {
-    class GraphicsWindowSDL2;
+    class GraphicsWindowSDL;
 }
 
 namespace VFS
@@ -60,6 +62,7 @@ namespace Stereo
 namespace MWRender
 {
     class CopyFramebufferToTextureCallback;
+    class FrameCapture;
     class GlWorld;
     class PostProcessor;
     class ScreenshotManager;
@@ -159,6 +162,10 @@ namespace MWRender
         bool toggleOwnRenderMode(RenderMode mode) override;
         void applyLoadingBudget(double targetFrameRate) override;
 
+        /// The post-processor at the frame's size, the frame remade where its size moved, and the
+        /// present pass told where the frame lands.
+        void applyPresentation() override;
+
     private:
         /// The overlay the debug keys toggle, and the per-frame dump `OPENMW_OSG_STATS_FILE` asks
         /// for. Both are OSG's, so both are this renderer's to install and to write.
@@ -170,6 +177,18 @@ namespace MWRender
         /// Makes the SDL window and the OpenGL context in it, retrying at half the antialiasing
         /// each time the driver refuses. Upstream's loop, unchanged.
         void createWindow();
+
+        /// The frame texture at `mFrameSize` where `mFramed`, and none otherwise; then `wireFrame`. A
+        /// texture and a framebuffer of their own rather than the old ones resized, because a draw
+        /// thread still drawing the frame before may hold the old ones.
+        void makeFrame();
+
+        /// Points what draws the frame and what reads it at the frame texture, or at the window
+        /// where there is none.
+        void wireFrame();
+
+        /// The present pass's quad, over where the frame lands in the window.
+        void placeFrame();
 
         /// Spreads the compiling of what a loader hands over across frames.
         ///
@@ -191,7 +210,7 @@ namespace MWRender
         /// Held so the destructor can let the GL context go while the window it is bound to still
         /// exists. The base holds the camera and is destroyed last, so releasing the viewer does
         /// not on its own release what the camera points at.
-        osg::ref_ptr<SDLUtil::GraphicsWindowSDL2> mGraphicsWindow;
+        osg::ref_ptr<SDLUtil::GraphicsWindowSDL> mGraphicsWindow;
 
         osg::ref_ptr<osgViewer::Viewer> mViewer;
 
@@ -214,7 +233,6 @@ namespace MWRender
 
         std::unique_ptr<Stereo::Manager> mStereoManager;
 
-        osg::ref_ptr<osgViewer::ScreenCaptureHandler> mScreenCaptureHandler;
         std::unique_ptr<ScreenshotManager> mScreenshotManager;
 
         /// The scene root this renderer made for the game, held from `createSceneRoot` until
@@ -232,5 +250,24 @@ namespace MWRender
         osg::ref_ptr<osg::Texture2D> mFrozenFrame;
         osg::ref_ptr<CopyFramebufferToTextureCallback> mFreezeFrame;
         std::unique_ptr<MyGUIPlatform::OSGTexture> mFrozenFrameTexture;
+
+        /// **The frame texture**: what the post-processor's last pass and the interface draw into
+        /// where the frame is shown scaled, and what `mPresent` draws into the window. A frame that
+        /// fills the window pixel for pixel — Native, stereo's included — is drawn straight into it
+        /// as upstream's was, with no pass to copy it there, and these are null.
+        bool mFramed = false;
+        osg::Vec2i mFrameSize;
+        osg::ref_ptr<osg::Texture2D> mFrame;
+        osg::ref_ptr<osg::FrameBufferObject> mFrameFbo;
+
+        /// Clears the window and draws `mFrame` over where it lands, last of the frame's cameras.
+        osg::ref_ptr<osg::Camera> mPresent;
+        osg::ref_ptr<osg::Geometry> mPresentQuad;
+
+        /// The interface's camera. Null until the interface exists.
+        osg::ref_ptr<osg::Camera> mGuiCamera;
+
+        /// The screenshot key's reader of the finished frame, made once the writer is handed over.
+        osg::ref_ptr<FrameCapture> mScreenshot;
     };
 }

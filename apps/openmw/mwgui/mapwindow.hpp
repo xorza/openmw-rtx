@@ -226,7 +226,7 @@ namespace MWGui
         MyGUI::Button* mCancelButton;
         MyGUI::Button* mDeleteButton;
 
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
         size_t mControllerFocus = 0;
     };
 
@@ -273,7 +273,7 @@ namespace MWGui
         std::string_view getWindowIdForLua() const override { return "Map"; }
 
     protected:
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
         void setActiveControllerWindow(bool active) override;
 
     private:

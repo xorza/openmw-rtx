@@ -41,7 +41,7 @@ namespace MWGui
         void onSelectedItem(int index);
 
         void onCancelButtonClicked(MyGUI::Widget* sender);
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
     };
 
 }

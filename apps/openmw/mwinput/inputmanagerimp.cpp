@@ -32,11 +32,10 @@ namespace MWInput
         , mBindingsManager(std::make_unique<BindingsManager>(userFile, userFileExists))
         , mControlSwitch(std::make_unique<ControlSwitch>())
         , mActionManager(std::make_unique<ActionManager>(mBindingsManager.get(), renderer))
-        , mKeyboardManager(std::make_unique<KeyboardManager>(mBindingsManager.get()))
-        , mMouseManager(
-              std::make_unique<MouseManager>(mBindingsManager.get(), mInputWrapper.get(), renderer.getWindow()))
-        , mControllerManager(std::make_unique<ControllerManager>(
-              mBindingsManager.get(), mMouseManager.get(), userControllerBindingsFile, controllerBindingsFile))
+        , mKeyboardManager(std::make_unique<KeyboardManager>(mBindingsManager.get(), renderer.getWindow()))
+        , mMouseManager(std::make_unique<MouseManager>(mBindingsManager.get(), mInputWrapper.get(), renderer))
+        , mControllerManager(std::make_unique<ControllerManager>(mBindingsManager.get(), mMouseManager.get(),
+              renderer.getWindow(), userControllerBindingsFile, controllerBindingsFile))
         , mSensorManager(std::make_unique<SensorManager>())
         , mGyroManager(std::make_unique<GyroManager>())
     {
@@ -169,22 +168,22 @@ namespace MWInput
         return mBindingsManager->getActionValue(action);
     }
 
-    bool InputManager::isControllerButtonPressed(SDL_GameControllerButton button) const
+    bool InputManager::isControllerButtonPressed(SDL_GamepadButton button) const
     {
         return mControllerManager->isButtonPressed(button);
     }
 
-    float InputManager::getControllerAxisValue(SDL_GameControllerAxis axis) const
+    float InputManager::getControllerAxisValue(SDL_GamepadAxis axis) const
     {
         return mControllerManager->getAxisValue(axis);
     }
 
-    int InputManager::getMouseMoveX() const
+    float InputManager::getMouseMoveX() const
     {
         return mMouseManager->getMouseMoveX();
     }
 
-    int InputManager::getMouseMoveY() const
+    float InputManager::getMouseMoveY() const
     {
         return mMouseManager->getMouseMoveY();
     }
@@ -205,7 +204,7 @@ namespace MWInput
             return;
 
         // Don't warp if an emulated mouse press is occurring.
-        if (isGamepadGuiCursorEnabled() && isControllerButtonPressed(SDL_CONTROLLER_BUTTON_A))
+        if (isGamepadGuiCursorEnabled() && isControllerButtonPressed(SDL_GAMEPAD_BUTTON_SOUTH))
             return;
 
         MWBase::Environment::get().getWindowManager()->setCursorVisible(false);

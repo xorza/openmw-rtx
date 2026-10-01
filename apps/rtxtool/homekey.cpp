@@ -7,8 +7,8 @@
 #include <ostream>
 #include <utility>
 
-#include <SDL_keyboard.h>
-#include <SDL_scancode.h>
+#include <SDL3/SDL_keyboard.h>
+#include <SDL3/SDL_scancode.h>
 
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
 #include <components/crashcatcher/crash.hpp>
@@ -42,7 +42,7 @@ namespace RtxTool
         // `keys.lua`, because what they do is turn the world, which only a script may; what this
         // one does is keep the session's own note of the frame, which no script can reach. The
         // state array is the engine's, pumped once a frame on this thread before the host's turn.
-        const bool down = SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_HOME] != 0;
+        const bool down = SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_HOME];
         if (down && !mHeld)
             press();
         mHeld = down;

@@ -28,9 +28,9 @@ namespace Rtx
     class Presenter
     {
     public:
-        /// What SDL says an instance needs before this window can have a surface. Static, because
-        /// the instance has to be created with these enabled before the surface can be made.
-        static std::vector<const char*> getInstanceExtensions(SDL_Window* window);
+        /// What SDL says an instance needs before a window can have a surface. Static, because the
+        /// instance has to be created with these enabled before the surface can be made.
+        static std::vector<const char*> getInstanceExtensions();
 
         /// Throws `Unsupported` where the surface or the swapchain will not come up. The blit is a
         /// submit of the device's pool like any other, so it signals the timeline and carries what
@@ -40,8 +40,9 @@ namespace Rtx
         ~Presenter();
 
         /// Blits `frame`, in `VK_IMAGE_LAYOUT_GENERAL` and left there, onto the next swapchain
-        /// image and queues it. A surface that no longer matches the window is not an error: the
-        /// swapchain is marked stale, the one record of it, and `wantsResize` answers yes.
+        /// image where `Misc::present` places it, black beside it, and queues it. A surface that no
+        /// longer matches the window is not an error: the swapchain is marked stale, the one record
+        /// of it, and `wantsResize` answers yes.
         void present(const Image& frame);
 
         /// Whether the swapchain has to be remade to show `extent`. Split from `rebuild` because a

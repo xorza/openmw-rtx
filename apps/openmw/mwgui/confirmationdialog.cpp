@@ -73,21 +73,21 @@ namespace MWGui
         eventOkClicked();
     }
 
-    bool ConfirmationDialog::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool ConfirmationDialog::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             if (mOkButtonFocus)
                 onOkButtonClicked(mOkButton);
             else
                 onCancelButtonClicked(mCancelButton);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
         {
             onCancelButtonClicked(mCancelButton);
         }
-        else if ((arg.button == SDL_CONTROLLER_BUTTON_DPAD_LEFT && !mOkButtonFocus)
-            || (arg.button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT && mOkButtonFocus))
+        else if ((arg.button == SDL_GAMEPAD_BUTTON_DPAD_LEFT && !mOkButtonFocus)
+            || (arg.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT && mOkButtonFocus))
         {
             mOkButtonFocus = !mOkButtonFocus;
             mOkButton->setStateSelected(mOkButtonFocus);

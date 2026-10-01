@@ -540,9 +540,9 @@ namespace MWGui
                 MyGUI::IntPoint(0, static_cast<int>(mSkillView->getViewOffset().top + rel * 0.3)));
     }
 
-    bool ReviewDialog::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool ReviewDialog::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             switch (mControllerFocus)
             {
@@ -567,21 +567,21 @@ namespace MWGui
             }
             return true;
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
         {
             onBackClicked(mButtons[4]);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_X)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_WEST)
         {
             onOkClicked(mButtons[5]);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP || arg.button == SDL_CONTROLLER_BUTTON_DPAD_LEFT)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP || arg.button == SDL_GAMEPAD_BUTTON_DPAD_LEFT)
         {
             setControllerFocus(mButtons, mControllerFocus, false);
             mControllerFocus = wrap(mControllerFocus, mButtons.size(), -1);
             setControllerFocus(mButtons, mControllerFocus, true);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN || arg.button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN || arg.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
         {
             setControllerFocus(mButtons, mControllerFocus, false);
             mControllerFocus = wrap(mControllerFocus, mButtons.size(), 1);

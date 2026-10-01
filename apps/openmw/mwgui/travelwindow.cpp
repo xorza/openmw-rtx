@@ -258,9 +258,9 @@ namespace MWGui
                 MyGUI::IntPoint(0, static_cast<int>(mDestinationsView->getViewOffset().top + rel * 0.3f)));
     }
 
-    bool TravelWindow::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool TravelWindow::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             if (mControllerFocus < mDestinationButtons.size())
             {
@@ -268,11 +268,11 @@ namespace MWGui
                 MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));
             }
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
         {
             onCancelButtonClicked(mCancelButton);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
         {
             if (mDestinationButtons.size() <= 1)
                 return true;
@@ -281,7 +281,7 @@ namespace MWGui
             mControllerFocus = wrap(mControllerFocus, mDestinationButtons.size(), -1);
             setControllerFocus(mDestinationButtons, mControllerFocus, true);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
         {
             if (mDestinationButtons.size() <= 1)
                 return true;

@@ -14,7 +14,7 @@
 #include <utility>
 
 #include <MyGUI_ITexture.h>
-#include <SDL_video.h>
+#include <SDL3/SDL_video.h>
 #include <osg/Camera>
 #include <osg/FrameStamp>
 #include <osg/GL>
@@ -159,8 +159,9 @@ namespace MWRender
         // itself, and the seconds it saves at start are the player's.
         if (run == nullptr)
             options.mCacheDirectory = spec.mCachePath;
-        options.mWidth = mWindow.getWidth();
-        options.mHeight = mWindow.getHeight();
+        presentIn(mWindow.readSize());
+        options.mWidth = static_cast<std::uint32_t>(getPresentation().mFrame.x());
+        options.mHeight = static_cast<std::uint32_t>(getPresentation().mFrame.y());
         options.mWindow = mWindow.get();
         options.mVerticalSync = Settings::video().mVsyncMode;
         // **The run's answer.** A launcher making a measurement says on its command line whether
@@ -218,7 +219,7 @@ namespace MWRender
 
         Log(Debug::Info) << "Ray tracing on " << mRenderer->describeDevice();
 
-        mWindow.apply(*mRenderer, getCamera());
+        mWindow.apply(*mRenderer, getCamera(), getPresentation());
 
         // **The negative test, and it is the whole claim of this path in one line.** Nothing above
         // here may have made a GL context: not the window, not a realize operation, not an
@@ -256,6 +257,7 @@ namespace MWRender
         mMirror.detach();
         mRipples.clear();
         mWorldRoot = nullptr;
+        mRendering = nullptr;
     }
 
     float RtxRenderer::getGroundReach() const noexcept
@@ -344,8 +346,20 @@ namespace MWRender
         SkyReader::listAssets(*getResources().getVFS(), models, textures);
     }
 
-    void RtxRenderer::attachWorld(RenderingManager&, osg::Group& worldRoot) noexcept
+    void RtxRenderer::windowResized(int, int, const int width, const int height) noexcept
     {
+        presentIn(osg::Vec2i(width, height));
+    }
+
+    void RtxRenderer::applyPresentation() noexcept
+    {
+        if (mRendering != nullptr)
+            mRendering->updateProjectionMatrix();
+    }
+
+    void RtxRenderer::attachWorld(RenderingManager& world, osg::Group& worldRoot) noexcept
+    {
+        mRendering = &world;
         mPhase.expect(Phase::Between);
         mAttachment.step(Attachment::Attached, Attachment::Detached);
         // Straight under the root: the rasterizer hangs its shadowed scene between the two, and
@@ -711,7 +725,7 @@ namespace MWRender
 
         // **Ahead of the trace and not after the present**, so the frame this draws is the one the
         // window's own extent asked for rather than the one behind it.
-        mWindow.fit(*mRenderer, getCamera(), getFrameClock().getNow());
+        mWindow.fit(*mRenderer, getCamera(), getPresentation(), getFrameClock().getNow());
 
         // **The stop's upscaling, where it asks for one, and the run's otherwise** — beside the fit,
         // because both rebuild the targets, and the camera below is built for the extent they leave.

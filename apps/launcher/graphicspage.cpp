@@ -5,6 +5,7 @@
 #include <components/misc/display.hpp>
 #include <components/rtx/common/menu.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/sdlutil/sdldisplay.hpp>
 #include <components/settings/values.hpp>
 
 #include <QCoreApplication>
@@ -18,7 +19,7 @@
 #define MAC_OS_X_VERSION_MIN_REQUIRED __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__
 #endif // MAC_OS_X_VERSION_MIN_REQUIRED
 
-#include <SDL_video.h>
+#include <SDL3/SDL_video.h>
 
 #include <array>
 #include <cmath>
@@ -77,16 +78,16 @@ bool Launcher::GraphicsPage::setupSDL()
         return false;
     }
 
-    int displays = SDL_GetNumVideoDisplays();
+    int displays = 0;
+    SDL_free(SDL_GetDisplays(&displays));
 
-    if (displays < 0)
+    if (displays == 0)
     {
         QMessageBox msgBox;
         msgBox.setWindowTitle(tr("Error receiving number of screens"));
         msgBox.setIcon(QMessageBox::Critical);
         msgBox.setStandardButtons(QMessageBox::Ok);
-        msgBox.setText(
-            tr("<br><b>SDL_GetNumVideoDisplays failed:</b><br><br>") + QString::fromUtf8(SDL_GetError()) + "<br>");
+        msgBox.setText(tr("<br><b>SDL_GetDisplays failed:</b><br><br>") + QString::fromUtf8(SDL_GetError()) + "<br>");
         msgBox.exec();
         return false;
     }
@@ -149,7 +150,8 @@ bool Launcher::GraphicsPage::loadSettings()
     QString resolution = QString::number(width) + QString(" × ") + QString::number(height);
     screenComboBox->setCurrentIndex(Settings::video().mScreen);
 
-    int resIndex = resolutionComboBox->findText(resolution, Qt::MatchStartsWith);
+    // Native is the list's first item, and a side of nought in the settings
+    int resIndex = width == 0 || height == 0 ? 0 : resolutionComboBox->findText(resolution, Qt::MatchStartsWith);
 
     if (resIndex != -1)
     {
@@ -194,7 +196,7 @@ void Launcher::GraphicsPage::saveSettings()
 
     int cWidth = 0;
     int cHeight = 0;
-    if (standardRadioButton->isChecked())
+    if (standardRadioButton->isChecked() && resolutionComboBox->currentIndex() > 0)
     {
         QRegularExpression resolutionRe("^(\\d+) × (\\d+)");
         QRegularExpressionMatch match = resolutionRe.match(resolutionComboBox->currentText().simplified());
@@ -227,40 +229,8 @@ void Launcher::GraphicsPage::saveSettings()
 QStringList Launcher::GraphicsPage::getAvailableResolutions(int screen)
 {
     QStringList result;
-    SDL_DisplayMode mode;
-    int modeIndex, modes = SDL_GetNumDisplayModes(screen);
-
-    if (modes < 0)
-    {
-        QMessageBox msgBox;
-        msgBox.setWindowTitle(tr("Error receiving resolutions"));
-        msgBox.setIcon(QMessageBox::Critical);
-        msgBox.setStandardButtons(QMessageBox::Ok);
-        msgBox.setText(
-            tr("<br><b>SDL_GetNumDisplayModes failed:</b><br><br>") + QString::fromUtf8(SDL_GetError()) + "<br>");
-        msgBox.exec();
-        return result;
-    }
-
-    for (modeIndex = 0; modeIndex < modes; modeIndex++)
-    {
-        if (SDL_GetDisplayMode(screen, modeIndex, &mode) < 0)
-        {
-            QMessageBox msgBox;
-            msgBox.setWindowTitle(tr("Error receiving resolutions"));
-            msgBox.setIcon(QMessageBox::Critical);
-            msgBox.setStandardButtons(QMessageBox::Ok);
-            msgBox.setText(
-                tr("<br><b>SDL_GetDisplayMode failed:</b><br><br>") + QString::fromUtf8(SDL_GetError()) + "<br>");
-            msgBox.exec();
-            return result;
-        }
-
-        auto str = Misc::getResolutionText(mode.w, mode.h);
-        result.append(QString(str.c_str()));
-    }
-
-    result.removeDuplicates();
+    for (const SDLUtil::DisplayResolution& mode : SDLUtil::displayResolutions(SDLUtil::displayAt(screen)))
+        result.append(QString::fromStdString(Misc::getResolutionText(mode.mWidth, mode.mHeight)));
     return result;
 }
 
@@ -284,6 +254,7 @@ void Launcher::GraphicsPage::screenChanged(int screen)
     if (screen >= 0)
     {
         resolutionComboBox->clear();
+        resolutionComboBox->addItem(tr("Native"));
         resolutionComboBox->addItems(mResolutionsPerScreen[screen]);
     }
 }
@@ -295,53 +266,10 @@ void Launcher::GraphicsPage::slotFullScreenChanged(int mode)
 
 void Launcher::GraphicsPage::handleWindowModeChange(Settings::WindowMode mode)
 {
-    if (mode == Settings::WindowMode::Fullscreen || mode == Settings::WindowMode::WindowedFullscreen)
-    {
-        QString customSizeMessage = tr("Custom window size is available only in Windowed mode.");
-        QString windowBorderMessage = tr("Window border is available only in Windowed mode.");
-
-        standardRadioButton->toggle();
-        customRadioButton->setEnabled(false);
-        customWidthSpinBox->setEnabled(false);
-        customHeightSpinBox->setEnabled(false);
-        windowBorderCheckBox->setEnabled(false);
-        windowBorderCheckBox->setToolTip(windowBorderMessage);
-        customWidthSpinBox->setToolTip(customSizeMessage);
-        customHeightSpinBox->setToolTip(customSizeMessage);
-        customRadioButton->setToolTip(customSizeMessage);
-    }
-
-    if (mode == Settings::WindowMode::Fullscreen)
-    {
-        resolutionComboBox->setEnabled(true);
-        resolutionComboBox->setToolTip("");
-        standardRadioButton->setToolTip("");
-    }
-    else if (mode == Settings::WindowMode::WindowedFullscreen)
-    {
-        QString fullScreenMessage = tr("Windowed Fullscreen mode always uses the native display resolution.");
-
-        resolutionComboBox->setEnabled(false);
-        resolutionComboBox->setToolTip(fullScreenMessage);
-        standardRadioButton->setToolTip(fullScreenMessage);
-
-        // Assume that a first item is a native screen resolution
-        resolutionComboBox->setCurrentIndex(0);
-    }
-    else
-    {
-        customRadioButton->setEnabled(true);
-        customWidthSpinBox->setEnabled(true);
-        customHeightSpinBox->setEnabled(true);
-        windowBorderCheckBox->setEnabled(true);
-        resolutionComboBox->setEnabled(true);
-        resolutionComboBox->setToolTip("");
-        standardRadioButton->setToolTip("");
-        windowBorderCheckBox->setToolTip("");
-        customWidthSpinBox->setToolTip("");
-        customHeightSpinBox->setToolTip("");
-        customRadioButton->setToolTip("");
-    }
+    // The resolution is the frame's in every mode, so the border alone depends on it
+    const bool windowed = mode == Settings::WindowMode::Windowed;
+    windowBorderCheckBox->setEnabled(windowed);
+    windowBorderCheckBox->setToolTip(windowed ? QString() : tr("Window border is available only in Windowed mode."));
 }
 
 void Launcher::GraphicsPage::slotStandardToggled(bool checked)

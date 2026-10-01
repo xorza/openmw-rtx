@@ -6,7 +6,7 @@
 #include <osgDB/ReaderWriter>
 #include <osgDB/Registry>
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
@@ -320,14 +320,11 @@ OMW::Engine::Engine(Files::ConfigurationManager& configurationManager)
     , mCfgMgr(configurationManager)
 {
     SDL_SetHint(SDL_HINT_MAC_OPENGL_ASYNC_DISPATCH, "1");
-    SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0"); // We use only gamepads
 
-    Uint32 flags
-        = SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE | SDL_INIT_GAMECONTROLLER | SDL_INIT_JOYSTICK | SDL_INIT_SENSOR;
+    const SDL_InitFlags flags = SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_JOYSTICK | SDL_INIT_SENSOR;
     if (SDL_WasInit(flags) == 0)
     {
-        SDL_SetMainReady();
-        if (SDL_Init(flags) != 0)
+        if (!SDL_Init(flags))
         {
             throw std::runtime_error("Could not initialize SDL! " + std::string(SDL_GetError()));
         }
@@ -643,10 +640,9 @@ void OMW::Engine::go()
     assert(!mContentFiles.empty());
 
     Log(Debug::Info) << "OSG version: " << osgGetVersion();
-    SDL_version sdlVersion;
-    SDL_GetVersion(&sdlVersion);
-    Log(Debug::Info) << "SDL version: " << (int)sdlVersion.major << "." << (int)sdlVersion.minor << "."
-                     << (int)sdlVersion.patch;
+    const int sdlVersion = SDL_GetVersion();
+    Log(Debug::Info) << "SDL version: " << SDL_VERSIONNUM_MAJOR(sdlVersion) << "." << SDL_VERSIONNUM_MINOR(sdlVersion)
+                     << "." << SDL_VERSIONNUM_MICRO(sdlVersion);
 
     Misc::Rng::init(mRandomSeed);
 

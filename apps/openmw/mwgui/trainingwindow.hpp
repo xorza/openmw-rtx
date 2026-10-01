@@ -54,7 +54,7 @@ namespace MWGui
         WaitDialogProgressBar mProgressBar;
         TimeAdvancer mTimeAdvancer;
 
-        bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
+        bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
         size_t mControllerFocus = 0;
     };
 

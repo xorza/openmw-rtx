@@ -458,39 +458,19 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetNumVideoDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Screen </source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>This build was made without the ray tracing renderer.</source>
-        <translation type="vanished">Diese Version wurde ohne den Raytracing-Renderer kompiliert.</translation>
+        <source>Native</source>
+        <translation>Nativ</translation>
     </message>
     <message>
-        <source>Error receiving resolutions</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetNumDisplayModes failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplayMode failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Custom window size is available only in Windowed mode.</source>
+        <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Window border is available only in Windowed mode.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Windowed Fullscreen mode always uses the native display resolution.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

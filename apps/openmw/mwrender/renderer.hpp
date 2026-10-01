@@ -7,12 +7,14 @@
 #include <string_view>
 #include <vector>
 
+#include <SDL3/SDL_video.h>
 #include <osg/Timer>
 #include <osg/Vec2i>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
 #include <components/misc/frameratelimiter.hpp>
+#include <components/misc/presentation.hpp>
 #include <components/sdlutil/graphicslistener.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories.hpp>
@@ -20,8 +22,6 @@
 
 #include "ground.hpp"
 #include "rendermode.hpp"
-
-struct SDL_Window;
 
 namespace osg
 {
@@ -121,8 +121,16 @@ namespace MWRender
         /// outlives the renderer and never changes, so the base keeps it for both.
         void prepareResources(Resource::ResourceSystem& resources);
 
-        /// The window the renderer made, for input, the GUI's scale and the gamma ramp.
+        /// The window the renderer made, for input and the GUI's scale.
         virtual SDL_Window* getWindow() const = 0;
+
+        /// Where the frame lands in the window: the frame's size, which is the screen's size to
+        /// everything that asks — the GUI, the projection, input, Lua — and the rectangle it is
+        /// shown in.
+        const Misc::Presentation& getPresentation() const { return mPresentation; }
+
+        /// `[Video] resolution x/y` changed: the frame is the size they name from now on.
+        void resolutionChanged();
 
         /// The ground of one worldspace and the distance over it, as this renderer draws them. The
         /// rasterizer builds upstream's chunked world with its paging and groundcover; a renderer
@@ -430,6 +438,17 @@ namespace MWRender
         /// The view mask has changed; put `getViewMask()` where this renderer reads it from.
         virtual void applyViewMask() = 0;
 
+        /// The window is `drawable` pixels: said once the window exists, and again each time its
+        /// size changes.
+        void presentIn(const osg::Vec2i& drawable);
+
+        /// `getPresentation()` has changed; size what draws the frame and what shows it.
+        virtual void applyPresentation() = 0;
+
+        /// The frame stays the window's size whatever the settings ask: for a renderer that cannot
+        /// show its frame scaled, the rasterizer under stereo, whose eyes split the window.
+        void presentAtNative() { mNative = true; }
+
         /// `isWorldShown` or `isWorldToggled` has changed; put both where this renderer reads
         /// them from.
         virtual void applyWorldShown() = 0;
@@ -457,6 +476,8 @@ namespace MWRender
         osg::ref_ptr<osg::Stats> mStats;
         osg::ref_ptr<osg::Group> mTraversalRoot;
         unsigned int mViewMask = ~0u;
+        Misc::Presentation mPresentation;
+        bool mNative = false;
 
         /// False behind a loading screen and the main menu's cover, where nothing updates.
         bool mWorldShown = true;
@@ -471,35 +492,11 @@ namespace MWRender
     /// (`OMW::EngineHost::createRenderer`).
     std::unique_ptr<Renderer> createRenderer(std::string_view name, const RendererSpec& spec);
 
-    /// Where a window goes and what it is, as the video settings ask for it.
-    struct WindowPlacement
-    {
-        int mX = 0;
-        int mY = 0;
-
-        /// The window's size in pixels, which is what `[Video]`'s resolution means.
-        int mWidth = 0;
-        int mHeight = 0;
-        std::uint32_t mFlags = 0;
-
-        /// The size in the display's points that gives a window `mWidth` by `mHeight` pixels, for a
-        /// window made at `points` that came out `pixels` wide: a display that scales takes a size
-        /// in points, and its scale is only known once there is a window. In the exact ratio, which
-        /// a scale of one and a half needs: upstream's `width / (pixels / points)` divided in whole
-        /// numbers and left such a window at one and a half times the resolution asked for.
-        osg::Vec2i fittedSize(const osg::Vec2i& points, const osg::Vec2i& pixels) const;
-
-        /// Resizes `window`, made at this placement, to `fittedSize`, where that differs. What both
-        /// renderers' windows go through the moment they exist.
-        void fit(SDL_Window* window) const;
-    };
-
-    /// What every renderer asks SDL for, out of the video settings. `surfaceFlag` names what is
-    /// drawn into the surface: `SDL_WINDOW_OPENGL` for the rasterizer.
-    WindowPlacement describeWindow(std::uint32_t surfaceFlag);
-
-    /// The hints SDL reads inside `SDL_CreateWindow`, out of the same settings, so a renderer
-    /// gives them before it creates its window.
-    void applyWindowHints();
+    /// The window a renderer draws into, as the video settings ask for it: hidden, on the display
+    /// `[Video] screen` names and in its window mode, or null with SDL's error to read. Hidden,
+    /// because a mode is applied once a window exists: the display's scale, which a size in pixels
+    /// needs, is only known then. `surfaceFlag` names what is drawn into the surface:
+    /// `SDL_WINDOW_OPENGL` for the rasterizer.
+    SDL_Window* openWindow(SDL_WindowFlags surfaceFlag);
 
 }

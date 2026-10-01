@@ -3,8 +3,8 @@
 namespace SDLUtil
 {
     /// What whoever draws into the window hears from `InputWrapper`: the moments and the keys
-    /// that are its own rather than the game's. Every answer is empty by default, for a renderer
-    /// that reads the window's size itself and keeps no handlers of its own.
+    /// that are its own rather than the game's. Every answer is empty by default, for a listener
+    /// with no use for one.
     class GraphicsListener
     {
     public:

@@ -531,9 +531,9 @@ namespace MWGui
         return &mControllerButtons;
     }
 
-    bool SaveGameDialog::onControllerButtonEvent(const SDL_ControllerButtonEvent& arg)
+    bool SaveGameDialog::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)
     {
-        if (arg.button == SDL_CONTROLLER_BUTTON_A)
+        if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
             if (mOkButtonFocus)
                 onOkButtonClicked(mOkButton);
@@ -541,11 +541,11 @@ namespace MWGui
                 onCancelButtonClicked(mCancelButton);
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_B)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_EAST)
         {
             onCancelButtonClicked(mCancelButton);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_Y)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_NORTH)
         {
             size_t index = mCharacterSelection->getIndexSelected();
             index = wrap(index, mCharacterSelection->getItemCount(), 1);
@@ -553,20 +553,20 @@ namespace MWGui
             onCharacterSelected(mCharacterSelection, index);
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_UP)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
         {
             MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
             winMgr->setKeyFocusWidget(mSaveList);
             winMgr->injectKeyPress(MyGUI::KeyCode::ArrowUp, 0, false);
         }
-        else if (arg.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
         {
             MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
             winMgr->setKeyFocusWidget(mSaveList);
             winMgr->injectKeyPress(MyGUI::KeyCode::ArrowDown, 0, false);
         }
-        else if ((arg.button == SDL_CONTROLLER_BUTTON_DPAD_LEFT && !mOkButtonFocus)
-            || (arg.button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT && mOkButtonFocus))
+        else if ((arg.button == SDL_GAMEPAD_BUTTON_DPAD_LEFT && !mOkButtonFocus)
+            || (arg.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT && mOkButtonFocus))
         {
             mOkButtonFocus = !mOkButtonFocus;
             mOkButton->setStateSelected(mOkButtonFocus);
