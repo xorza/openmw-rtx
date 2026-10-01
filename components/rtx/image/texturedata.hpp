@@ -11,7 +11,7 @@
 #include <vector>
 
 #include <components/crashcatcher/crash.hpp>
-#include <components/rtx/common/runs.hpp>
+#include <components/rtx/common/index.hpp>
 
 #include "textureencoding.hpp"
 #include "texturewrap.hpp"

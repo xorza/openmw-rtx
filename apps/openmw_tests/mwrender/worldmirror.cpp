@@ -30,6 +30,7 @@
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
+#include <components/rtx/mirror/cells/mirrorknobs.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>

@@ -11,13 +11,10 @@
 #include <type_traits>
 #include <vector>
 
+#include "index.hpp"
+
 namespace Rtx
 {
-    /// An index into one of `SceneDesc`'s tables, or `sNoIndex` for "none".
-    using Index = std::uint32_t;
-
-    inline constexpr Index sNoIndex = ~Index{ 0 };
-
     /// `into`, refilled with every index below `count`: a whole table walked through the path a list
     /// of arrivals takes.
     inline std::span<const Index> everyIndexBelow(std::size_t count, std::vector<Index>& into)

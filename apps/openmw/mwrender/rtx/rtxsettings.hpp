@@ -4,7 +4,7 @@
 #include <string_view>
 
 #include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/mirror/cells/cellworld.hpp>
+#include <components/rtx/mirror/cells/mirrorknobs.hpp>
 
 namespace MWRender
 {
