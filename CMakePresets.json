@@ -125,13 +125,14 @@
             "$comment": [
                 "Debug under AddressSanitizer and UndefinedBehaviorSanitizer, as upstream runs its tests. Linux",
                 "only: MSVC's sanitizer is unmeasured here. The options it needs are its test preset's. `-Wmaybe-",
-                "uninitialized` is off here alone: GCC's manual says `-fsanitize` gives it false positives, and GCC",
-                "16 reported libstdc++'s `std::regex`. Debug checks the same code."
+                "uninitialized` and `-Wstringop-overread` are off here alone: GCC's manual says `-fsanitize` gives",
+                "flow warnings false positives, GCC 16 reported libstdc++'s `std::regex`, and GCC 13 a one-element",
+                "vector assigned from a braced list. Debug checks the same code."
             ],
             "binaryDir": "${sourceDir}/build-asan",
             "cacheVariables": {
-                "CMAKE_C_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer -Wno-maybe-uninitialized",
-                "CMAKE_CXX_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer -Wno-maybe-uninitialized"
+                "CMAKE_C_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer -Wno-maybe-uninitialized -Wno-stringop-overread",
+                "CMAKE_CXX_FLAGS_INIT": "-fsanitize=address,undefined -fno-omit-frame-pointer -Wno-maybe-uninitialized -Wno-stringop-overread"
             }
         },
         {

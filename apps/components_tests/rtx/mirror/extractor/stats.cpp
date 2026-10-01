@@ -8,6 +8,7 @@
 #include <osg/Geometry>
 #include <osg/Group>
 #include <osg/StateAttribute>
+#include <osg/Texture> // The S3TC and RGTC formats, which Windows's and Apple's gl.h lack.
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/graph.hpp>
