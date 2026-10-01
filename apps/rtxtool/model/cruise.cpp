@@ -1,6 +1,7 @@
 #include "cruise.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <limits>
 #include <vector>
 

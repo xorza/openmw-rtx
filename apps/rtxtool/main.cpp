@@ -25,7 +25,6 @@
 
 #include <apps/openmw/mwrender/rtx/rtxsettings.hpp>
 #include <components/debug/debugging.hpp>
-#include <components/debug/debuglog.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/platform.hpp>

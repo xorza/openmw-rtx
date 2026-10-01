@@ -1,13 +1,14 @@
 #include "skylight.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 
 #include <osg/Math>
 #include <osg/Vec4f>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/esm/refid.hpp>
+#include <components/esm/stringrefid.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/shaders/colour.h>

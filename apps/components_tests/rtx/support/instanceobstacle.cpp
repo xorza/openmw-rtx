@@ -7,9 +7,9 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
-#include <components/rtxvulkan/device/validation.hpp>
 
 namespace Rtx::Testing
 {

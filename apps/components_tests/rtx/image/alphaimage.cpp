@@ -10,7 +10,6 @@
 
 #include <osg/GL>
 #include <osg/Image>
-#include <osg/Texture>
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/allocations.hpp>

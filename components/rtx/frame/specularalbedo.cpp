@@ -10,6 +10,7 @@
 #include <components/rtx/common/parallel.hpp>
 #include <components/rtx/common/radicalinverse.hpp>
 #include <components/rtx/shaders/brdf.h>
+#include <components/rtx/shaders/scene.h>
 
 namespace Rtx
 {

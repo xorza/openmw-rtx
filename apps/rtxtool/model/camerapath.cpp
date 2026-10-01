@@ -1,6 +1,5 @@
 #include "camerapath.hpp"
 
-#include <algorithm>
 #include <cmath>
 
 #include <components/crashcatcher/crash.hpp>

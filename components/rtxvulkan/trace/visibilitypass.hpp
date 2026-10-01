@@ -12,7 +12,6 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/platform/thread.hpp>
-#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/kernelprogress.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/handles.hpp>

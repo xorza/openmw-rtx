@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <bit>
 #include <cmath>
+#include <cstddef>
 
 #include <components/rtx/common/pointhash.hpp>
 

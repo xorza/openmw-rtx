@@ -6,15 +6,15 @@
 #include <gtest/gtest.h>
 
 #include <osg/Matrixf>
-#include <osg/Vec2f>
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/common/runs.hpp>
-#include <components/rtx/frame/camera.hpp>
+#include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/mesh.hpp>

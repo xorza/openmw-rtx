@@ -12,6 +12,7 @@
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/frame/camera.hpp>
+#include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/visibility.h>
 
 namespace Rtx

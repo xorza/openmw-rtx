@@ -14,6 +14,7 @@
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
+#include <components/rtx/common/runs.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/scenedesc.hpp>

@@ -9,6 +9,7 @@
 
 #include <gtest/gtest.h>
 
+#include <osg/Math>
 #include <osg/Matrixf>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
@@ -16,13 +17,15 @@
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/memorylimits.hpp>
+#include <apps/components_tests/rtx/support/displaycurve.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/layers.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/common/runs.hpp>
-#include <components/rtx/frame/camera.hpp>
+#include <components/rtx/frame/frameoptions.hpp>
+#include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/image/shadingmap.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>

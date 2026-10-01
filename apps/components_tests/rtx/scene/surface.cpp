@@ -19,6 +19,7 @@
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 
+#include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/sceneutil/material.hpp>

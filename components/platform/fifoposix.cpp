@@ -1,6 +1,9 @@
 #include "fifo.hpp"
+#include "file.hpp"
 
 #include <cerrno>
+#include <cstddef>
+#include <filesystem>
 #include <string>
 #include <system_error>
 

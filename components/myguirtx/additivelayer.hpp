@@ -1,6 +1,8 @@
 #pragma once
 
+#include <MyGUI_IRenderTarget.h>
 #include <MyGUI_OverlappedLayer.h>
+#include <MyGUI_RTTI.h>
 
 namespace MyGUIRtx
 {

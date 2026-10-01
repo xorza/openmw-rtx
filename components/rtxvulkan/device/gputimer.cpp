@@ -3,6 +3,8 @@
 #include <array>
 #include <cassert>
 
+#include <components/rtx/renderer/renderer.hpp>
+
 #include "result.hpp"
 
 namespace Rtx

@@ -2,7 +2,6 @@
 
 #include <cassert>
 #include <cstdint>
-#include <typeinfo>
 
 #include <osg/CopyOp>
 #include <osg/Node>

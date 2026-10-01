@@ -4,6 +4,7 @@
 #include <exception>
 #include <format>
 #include <fstream>
+#include <ios>
 #include <ostream>
 #include <utility>
 

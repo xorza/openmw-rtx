@@ -10,6 +10,8 @@
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/shaders/scene.h>
 
+#include "material.hpp"
+
 namespace Rtx
 {
     namespace

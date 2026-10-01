@@ -7,6 +7,7 @@
 #include <osg/Vec3f>
 
 #include <components/rtx/shaders/brdf.h>
+#include <components/rtx/shaders/scene.h>
 
 namespace Rtx::Testing
 {

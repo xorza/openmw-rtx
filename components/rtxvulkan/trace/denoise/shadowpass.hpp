@@ -4,6 +4,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/shaders/accumulate.h>
 #include <components/rtx/shaders/shadow.h>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 

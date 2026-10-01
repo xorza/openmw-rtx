@@ -6,6 +6,7 @@
 
 #include <components/rtx/shaders/accumulate.h>
 #include <components/rtx/shaders/atrous.h>
+#include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/pane.h>
 #include <components/rtx/shaders/shadow.h>
 #include <components/rtx/shaders/specular.h>

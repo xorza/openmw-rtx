@@ -13,17 +13,24 @@
 #include <osg/Group>
 #include <osg/Node>
 #include <osg/NodeVisitor>
+#include <osg/Vec3f>
 #include <osg/ref_ptr>
 #include <osgUtil/UpdateVisitor>
 
+#include <apps/openmw/mwrender/ground.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
-#include <apps/openmw/mwrender/rtx/rtxrun.hpp>
+#include <apps/openmw/mwrender/sceneframe.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/objectcache.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/sdlutil/vsyncmode.hpp>
+#include <components/settings/categories.hpp>
 #include <components/testing/util.hpp>
 #include <components/vfs/manager.hpp>
+#include <components/vfs/pathutil.hpp>
 
 namespace MWRender
 {

@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <span>
 
+#include <gtest/gtest.h>
+
 #include <osg/BlendFunc>
 #include <osg/GL>
 #include <osg/Geometry>
@@ -10,6 +12,8 @@
 #include <osg/Image>
 #include <osg/Matrix>
 #include <osg/MatrixTransform>
+#include <osg/Matrixf>
+#include <osg/Node>
 #include <osg/StateAttribute>
 #include <osg/StateSet>
 #include <osg/Uniform>
@@ -17,15 +21,23 @@
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/graphlight.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/misc/constants.hpp>
+#include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/mirror/sceneextractor.hpp>
+#include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
+#include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/sceneutil/lightcontroller.hpp>
 #include <components/sceneutil/lightmanager.hpp>
+#include <components/sceneutil/lightutil.hpp>
+#include <components/sceneutil/material.hpp>
 
 #include "fixture.hpp"
 

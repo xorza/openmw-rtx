@@ -5,6 +5,7 @@
 #include <cstring>
 #include <utility>
 
+#include <osg/GL>
 #include <osg/Image>
 
 #include <components/myguirtx/rendermanager.hpp>

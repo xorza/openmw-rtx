@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <components/rtxvulkan/device/buffermarkers.hpp>
+#include <components/rtxvulkan/device/device.hpp>
 
 namespace Rtx
 {

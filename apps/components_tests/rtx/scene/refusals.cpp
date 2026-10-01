@@ -8,6 +8,7 @@
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <components/rtx/common/result.hpp>
+#include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 
 namespace Rtx

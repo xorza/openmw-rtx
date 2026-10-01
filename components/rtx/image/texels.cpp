@@ -9,9 +9,7 @@
 
 #include <osg/GL>
 #include <osg/Image>
-#include <osg/Texture>
 #include <osg/Vec3d>
-#include <osg/ref_ptr>
 
 #include "alphaimage.hpp"
 #include "colour.hpp"

@@ -1,16 +1,22 @@
 #include "crash.hpp"
+#include "crashinstall.hpp"
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <exception>
 #include <filesystem>
+#include <optional>
 #include <string>
+#include <string_view>
 
+#include <base/files/file_path.h>
 #include <client/crashpad_client.h>
 #include <client/crashpad_info.h>
 #include <client/simple_string_dictionary.h>
 #include <client/simulate_crash.h>
+#include <util/misc/tri_state.h>
 
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>

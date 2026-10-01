@@ -15,6 +15,7 @@
 
 #include <apps/components_tests/rtx/mirror/extractor/fixture.hpp>
 #include <apps/components_tests/rtx/support/fakeland.hpp>
+#include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/openmw/mwrender/objectstorage.hpp>
 #include <apps/openmw/mwrender/rtx/tracedterrain.hpp>
 #include <apps/openmw/mwrender/rtx/worldmirror.hpp>

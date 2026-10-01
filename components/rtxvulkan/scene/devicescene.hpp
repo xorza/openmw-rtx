@@ -7,9 +7,9 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/renderer.hpp>
-#include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>

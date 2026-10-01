@@ -4,10 +4,15 @@
 
 #include <gtest/gtest.h>
 
+#include <osg/Array>
+#include <osg/GL>
 #include <osg/Geode>
 #include <osg/Geometry>
 #include <osg/Group>
 #include <osg/Image>
+#include <osg/PrimitiveSet>
+#include <osg/StateAttribute>
+#include <osg/StateSet>
 #include <osg/Texture2D>
 #include <osg/Vec2f>
 #include <osg/Vec3f>

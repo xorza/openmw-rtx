@@ -34,6 +34,7 @@
 #include <components/rtx/environment/skybuilder.hpp>
 #include <components/rtx/environment/skylight.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
+#include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>

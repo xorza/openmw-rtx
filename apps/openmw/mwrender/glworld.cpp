@@ -5,9 +5,12 @@
 
 #include <osg/Camera>
 #include <osg/ClipControl>
+#include <osg/GL>
 #include <osg/Group>
 #include <osg/NodeVisitor>
+#include <osg/StateAttribute>
 #include <osg/Uniform>
+#include <osg/Vec4f>
 #include <osgViewer/Viewer>
 
 #include <components/debug/debugdraw.hpp>
@@ -33,6 +36,7 @@
 #include "postprocessor.hpp"
 #include "precipitationocclusion.hpp"
 #include "renderingmanager.hpp"
+#include "sceneframe.hpp"
 #include "sky.hpp"
 #include "skystate.hpp"
 #include "vismask.hpp"

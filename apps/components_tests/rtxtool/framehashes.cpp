@@ -11,6 +11,7 @@
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/instruments/framehashes.hpp>
+#include <apps/rtxtool/instruments/scenedigest.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/channel.hpp>

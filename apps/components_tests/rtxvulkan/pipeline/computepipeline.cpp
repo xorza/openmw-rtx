@@ -1,6 +1,8 @@
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -18,6 +20,7 @@
 #include <components/rtxvulkan/device/validation.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/pipeline/pipeline.hpp>
 
 #include "../../rtx/support/death.hpp"
 

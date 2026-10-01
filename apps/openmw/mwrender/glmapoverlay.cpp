@@ -5,22 +5,37 @@
 #include <cstring>
 #include <utility>
 
+#include <MyGUI_ITexture.h>
+#include <osg/Array>
 #include <osg/Camera>
+#include <osg/Depth>
+#include <osg/DisplaySettings>
+#include <osg/GL>
 #include <osg/Geometry>
 #include <osg/Group>
 #include <osg/Image>
+#include <osg/Matrix>
+#include <osg/PrimitiveSet>
+#include <osg/StateAttribute>
 #include <osg/Texture2D>
+#include <osg/Texture>
+#include <osg/Uniform>
+#include <osg/Vec2f>
+#include <osg/Vec3f>
+#include <osg/Vec4>
 
 #include <components/debug/debuglog.hpp>
 #include <components/myguiplatform/myguitexture.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/depth.hpp>
+#include <components/sceneutil/imageregion.hpp>
 #include <components/sceneutil/nodecallback.hpp>
 #include <components/shader/shadermanager.hpp>
 
 #include "gloffscreenview.hpp"
 #include "glrenderer.hpp"
+#include "offscreenview.hpp"
 #include "vismask.hpp"
 
 namespace

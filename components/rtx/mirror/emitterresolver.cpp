@@ -7,6 +7,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <utility>
 
 #include <osg/Vec3f>
 #include <osg/Vec4f>
@@ -21,6 +22,8 @@
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/preprocess/meantexels.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
+#include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>

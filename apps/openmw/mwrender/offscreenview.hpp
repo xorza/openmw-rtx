@@ -2,7 +2,6 @@
 
 #include <osg/Matrixf>
 #include <osg/Node>
-#include <osg/Vec3f>
 #include <osg/Vec4f>
 
 #include <components/sceneutil/offscreenframing.hpp>

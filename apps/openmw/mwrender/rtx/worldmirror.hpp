@@ -1,18 +1,20 @@
 #pragma once
 
-#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <span>
 #include <vector>
 
 #include <osg/Matrixd>
+#include <osg/Node>
 #include <osg/PositionAttitudeTransform>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
 #include <components/esm3/refnum.hpp>
-#include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/mirror/cells/cellgrid.hpp>
+#include <components/rtx/mirror/cells/cellplacer.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
@@ -27,6 +29,7 @@
 #include <components/rtx/scene/ripple.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
+#include <components/terrain/pagedcellref.hpp>
 
 namespace Resource
 {

@@ -8,16 +8,17 @@
 #include <gtest/gtest.h>
 
 #include <osg/Math>
-#include <osg/Matrixf>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
+#include <apps/components_tests/rtx/support/displaycurve.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/frame/camera.hpp>
+#include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/scene/mesh.hpp>

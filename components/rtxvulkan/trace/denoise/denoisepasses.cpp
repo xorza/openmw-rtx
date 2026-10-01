@@ -4,6 +4,7 @@
 
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
+#include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 

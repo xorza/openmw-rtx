@@ -8,6 +8,8 @@
 #include <thread>
 
 #include <SDL3/SDL_hints.h>
+#include <SDL3/SDL_properties.h>
+#include <SDL3/SDL_stdinc.h>
 #include <SDL3/SDL_video.h>
 #include <osg/Camera>
 #include <osg/FrameStamp>
@@ -22,6 +24,7 @@
 #include <components/sceneutil/screencapture.hpp>
 #include <components/sdlutil/sdldisplay.hpp>
 #include <components/sdlutil/sdlvideowrapper.hpp>
+#include <components/settings/categories/shaders.hpp>
 #include <components/settings/values.hpp>
 #include <components/shader/automaps.hpp>
 

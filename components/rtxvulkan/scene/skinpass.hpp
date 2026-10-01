@@ -10,6 +10,7 @@
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/slottable.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
+#include <components/rtxvulkan/pipeline/pipeline.hpp>
 
 #include "skintables.hpp"
 

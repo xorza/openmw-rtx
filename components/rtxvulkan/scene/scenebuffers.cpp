@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <osg/Vec4f>
+
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/light.hpp>

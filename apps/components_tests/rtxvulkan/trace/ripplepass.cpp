@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <osg/Vec2f>
+#include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/readback.hpp>
@@ -15,7 +16,6 @@
 #include <components/rtx/shaders/ripple.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
-#include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/trace/ripplepass.hpp>
 
 namespace Rtx

@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <osg/Array>
+#include <osg/GL>
 #include <osg/Geometry>
 #include <osg/Group>
 #include <osg/Matrix>

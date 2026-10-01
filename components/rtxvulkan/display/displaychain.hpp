@@ -9,7 +9,6 @@
 #include <components/rtx/frame/debuglines.hpp>
 #include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/shaders/visibility.h>
-#include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/trace/sunglarepass.hpp>

@@ -1,7 +1,10 @@
 #include "crashtestssystem.hpp"
 
 #include <csignal>
+#include <optional>
+#include <string_view>
 #include <thread>
+#include <vector>
 
 #include <pthread.h>
 

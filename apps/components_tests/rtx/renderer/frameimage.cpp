@@ -10,6 +10,7 @@
 
 #include <osg/GL>
 #include <osg/Image>
+#include <osg/Vec3f>
 #include <osg/ref_ptr>
 
 #include <components/rtx/renderer/frameimage.hpp>

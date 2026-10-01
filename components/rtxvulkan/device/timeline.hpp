@@ -6,6 +6,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "handles.hpp"
+#include "owned.hpp"
 
 namespace Rtx
 {

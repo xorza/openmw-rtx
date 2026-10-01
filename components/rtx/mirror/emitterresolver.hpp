@@ -10,7 +10,6 @@
 #include <osg/Matrixf>
 #include <osg/Vec3f>
 
-#include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>

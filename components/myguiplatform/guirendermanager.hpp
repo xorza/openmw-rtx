@@ -3,7 +3,9 @@
 #include <cassert>
 #include <memory>
 
+#include <MyGUI_ITexture.h>
 #include <MyGUI_RenderManager.h>
+#include <MyGUI_Types.h>
 
 namespace osg
 {

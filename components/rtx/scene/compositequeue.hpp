@@ -6,7 +6,6 @@
 
 #include <components/rtx/common/runs.hpp>
 
-#include "material.hpp"
 #include "scenedesc.hpp"
 
 namespace Rtx

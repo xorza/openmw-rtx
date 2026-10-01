@@ -25,6 +25,7 @@
 #include <vector>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/crashcatcher/crashinstall.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/crashcatcher/crashsummary.hpp>
 #include <components/debug/debugging.hpp>

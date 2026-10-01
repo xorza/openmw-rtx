@@ -8,6 +8,7 @@
 
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/device/owned.hpp>
 
 namespace Rtx::Testing
 {

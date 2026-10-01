@@ -8,6 +8,7 @@
 
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
+#include <components/rtx/shaders/counts.h>
 #include <components/rtx/shaders/digest.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>

@@ -1,14 +1,20 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <gtest/gtest.h>
+
 #include <osg/CullFace>
 #include <osg/GL>
+#include <osg/Geometry>
+#include <osg/Group>
 #include <osg/StateAttribute>
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/graph.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/formatcensus.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/scene/texturetable.hpp>

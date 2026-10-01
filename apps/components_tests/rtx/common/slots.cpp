@@ -1,4 +1,3 @@
-#include <array>
 #include <stdexcept>
 #include <vector>
 

@@ -9,7 +9,6 @@
 
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
-#include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/memory/accelerationstructure.hpp>
@@ -20,7 +19,6 @@
 #include <components/rtxvulkan/device/memory/slottable.hpp>
 
 #include "bottomlevelstore.hpp"
-#include "placing.hpp"
 #include "structurebuild.hpp"
 
 namespace Rtx
@@ -29,6 +27,7 @@ namespace Rtx
     class GpuTimer;
     class Device;
     class SceneDesc;
+    struct Placing;
 
     /// The neutral transform in Vulkan's storage: three rows of four, which is exactly what
     /// `Transform3x4` holds. The transposition that matters happened in `toTransform3x4`, once.

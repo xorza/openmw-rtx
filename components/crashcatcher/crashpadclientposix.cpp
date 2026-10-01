@@ -5,8 +5,6 @@
 #include <filesystem>
 #include <string_view>
 
-#include <pthread.h>
-
 #include "crashnote.hpp"
 
 // Each system's answer to where the running file is, and Linux's alternate signal stack.

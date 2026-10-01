@@ -4,11 +4,19 @@
 #include <atomic>
 #include <cassert>
 #include <cmath>
-#include <cstddef>
 #include <string>
 #include <tuple>
+#include <utility>
 
+#include <osg/Image>
 #include <osg/Vec3f>
+
+#include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/shaders/scene.h>
+#include <components/vfs/pathutil.hpp>
+
+#include "light.hpp"
 
 namespace Rtx
 {

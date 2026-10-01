@@ -1,5 +1,7 @@
 #include "tracedground.hpp"
 
+#include <components/terrain/pagedcellref.hpp>
+
 #include "../../mwworld/ptr.hpp"
 #include "worldmirror.hpp"
 

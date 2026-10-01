@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <components/crashcatcher/crashnote.hpp>
 #include <components/crashcatcher/crashsummary.hpp>
 
 namespace

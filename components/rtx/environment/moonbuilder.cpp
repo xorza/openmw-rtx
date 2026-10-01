@@ -17,6 +17,7 @@
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
+#include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/colour.h>

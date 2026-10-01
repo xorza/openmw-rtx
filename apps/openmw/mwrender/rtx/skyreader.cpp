@@ -10,12 +10,15 @@
 
 #include <osg/Math>
 #include <osg/Vec3f>
+#include <osg/Vec4f>
 
+#include <apps/openmw/mwrender/skyutil.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/misc/constants.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/environment/fogbuilder.hpp>
 #include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/settings/values.hpp>

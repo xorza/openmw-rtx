@@ -10,6 +10,8 @@
 
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
+#include <components/rtx/frame/frameextents.hpp>
+#include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>

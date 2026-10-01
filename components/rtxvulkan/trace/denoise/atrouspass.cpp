@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cassert>
+#include <cstdint>
 
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/atrous.h>

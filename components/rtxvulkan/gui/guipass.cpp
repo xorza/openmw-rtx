@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/shaders/gui.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>

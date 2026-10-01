@@ -13,7 +13,6 @@
 #include <osg/NodeVisitor>
 #include <osg/StateSet>
 #include <osg/Vec2f>
-#include <osg/Vec3f>
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/countingrenderer.hpp>

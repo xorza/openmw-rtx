@@ -11,14 +11,10 @@
 
 #include <osg/GL>
 #include <osg/Image>
-#include <osg/Texture>
-#include <osg/Vec2f>
-#include <osg/Vec3f>
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
-#include <components/rtx/common/error.hpp>
 #include <components/rtx/common/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/imagedescription.hpp>
@@ -29,7 +25,7 @@
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
-#include <components/rtx/scene/refusals.hpp>
+#include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/scenetextures.hpp>
 #include <components/vfs/pathutil.hpp>

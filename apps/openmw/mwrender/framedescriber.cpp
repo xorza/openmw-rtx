@@ -4,7 +4,6 @@
 #include <optional>
 
 #include <osg/Camera>
-#include <osg/FrameStamp>
 
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/settings/values.hpp>
@@ -21,7 +20,6 @@
 #include "renderer.hpp"
 #include "renderingmanager.hpp"
 #include "sky.hpp"
-#include "skystate.hpp"
 
 namespace MWRender
 {

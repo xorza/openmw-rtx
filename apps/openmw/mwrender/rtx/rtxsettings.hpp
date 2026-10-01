@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string_view>
 
-#include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
 
 namespace MWRender

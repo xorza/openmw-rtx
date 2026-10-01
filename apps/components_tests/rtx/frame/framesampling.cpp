@@ -9,6 +9,7 @@
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/framesampling.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>

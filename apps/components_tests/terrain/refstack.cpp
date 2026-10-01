@@ -9,6 +9,7 @@
 #include <components/esm/refid.hpp>
 #include <components/esm3/refnum.hpp>
 #include <components/terrain/objectstorage.hpp>
+#include <components/terrain/pagedcellref.hpp>
 
 #include "../rtx/support/allocations.hpp"
 

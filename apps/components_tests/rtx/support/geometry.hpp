@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <osg/BoundingBox>
+#include <osg/Image>
 #include <osg/Math>
 #include <osg/Matrixf>
 #include <osg/Vec2f>

@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <ratio>
 #include <span>
 #include <string>
 
@@ -30,6 +29,7 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/digest.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>

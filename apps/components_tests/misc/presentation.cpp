@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include <osg/Vec2f>
+#include <osg/Vec2i>
 #include <osg/io_utils>
 
 namespace Misc

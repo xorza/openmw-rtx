@@ -16,6 +16,7 @@
 
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
+#include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/riggeometry.hpp>
 #include <components/shader/automaps.hpp>

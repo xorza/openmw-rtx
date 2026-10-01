@@ -6,11 +6,13 @@
 #include <osg/Vec4f>
 
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/skinning.h>
 
 #include "material.hpp"
 #include "mesh.hpp"
+#include "placementtable.hpp"
 
 namespace Rtx
 {

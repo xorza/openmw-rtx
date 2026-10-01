@@ -5,9 +5,10 @@
 #include <cstdint>
 #include <optional>
 #include <string>
-#include <vector>
 
 #include <components/rtx/common/scratch.hpp>
+#include <components/rtx/frame/frameextents.hpp>
+#include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 #include "instruments/cardwatch.hpp"

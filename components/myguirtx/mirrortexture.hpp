@@ -5,6 +5,8 @@
 
 #include <MyGUI_RenderFormat.h>
 
+#include <components/rtx/renderer/guirenderer.hpp>
+
 #include "slottexture.hpp"
 
 namespace MyGUIRtx

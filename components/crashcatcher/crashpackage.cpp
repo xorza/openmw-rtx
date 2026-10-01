@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <exception>
 #include <fstream>
+#include <ios>
 #include <system_error>
 #include <utility>
 #include <vector>
