@@ -267,10 +267,13 @@
             "name": "tests",
             "hidden": true,
             "$comment": [
-                "Every test run: a failing test's output shown, and a build that registers no test is a failure."
+                "Every test run: a failing test's output shown, and a build that registers no test is a failure.",
+                "Five minutes a suite, ten times the slowest one under the sanitizers: a test that hangs, as one",
+                "of `openmw-tests` does on Windows now and then, fails with the test it was in, where a job would",
+                "wait out its three hours and say nothing."
             ],
             "output": { "outputOnFailure": true },
-            "execution": { "noTestsAction": "error" }
+            "execution": { "noTestsAction": "error", "timeout": 300 }
         },
         {
             "name": "sanitizers",
