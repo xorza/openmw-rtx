@@ -8,8 +8,9 @@
 
 namespace Platform
 {
-    void nameThisThread(const std::string_view name)
+    void nameThisThread(std::string_view name)
     {
+        name = name.substr(0, sThreadNameLength);
         const int length = MultiByteToWideChar(CP_UTF8, 0, name.data(), static_cast<int>(name.size()), nullptr, 0);
         std::wstring wide(static_cast<std::size_t>(length), L'\0');
         MultiByteToWideChar(CP_UTF8, 0, name.data(), static_cast<int>(name.size()), wide.data(), length);
