@@ -74,8 +74,6 @@ pointer and Lua read one size whichever renderer draws.
 - The five checks the top-level `CMakeLists.txt` adds to upstream's, on for the whole tree, and
   the hunks in upstream code that keep it clean under them, the patches to `extern/sol3` and
   `components/files/configurationmanager` included: one set of checks for every file.
-- An upstream bug those checks found, fixed here: `ContentModel::dropMimeData` reading past the
-  last file, which a drop from another process onto a list with nothing modifiable reaches.
 - A number read from text is finite (`Misc::StringUtils::toNumeric`, which the settings read
   through): `std::from_chars` reads `inf` and `nan`, and no sanitizer stopped either reaching
   the picture.
