@@ -9,6 +9,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Every preset names ccache, and a box without it compiles without it rather than failing every
+# compile: a release's runner keeps no cache and has none installed.
+foreach (language C CXX)
+    if (CMAKE_${language}_COMPILER_LAUNCHER STREQUAL "ccache")
+        find_program(OPENMW_CCACHE ccache)
+        if (NOT OPENMW_CCACHE)
+            message(STATUS "No ccache: ${language} compiles without a launcher")
+            set(CMAKE_${language}_COMPILER_LAUNCHER "" CACHE STRING "" FORCE)
+        endif()
+    endif()
+endforeach()
+
 option(OPENMW_GL4ES_MANUAL_INIT "Manually initialize gl4es. This is more reliable on platforms without a windowing system. Requires gl4es to be configured with -DNOEGL=ON -DNO_LOADER=ON -DNO_INIT_CONSTRUCTOR=ON." OFF)
 if(OPENMW_GL4ES_MANUAL_INIT)
     add_compile_definitions(OPENMW_GL4ES_MANUAL_INIT)
