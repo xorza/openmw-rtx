@@ -64,13 +64,8 @@ jobs:
       - name: Build
         run: python omw asan build
 
-      - name: Test, in a shuffled order
-        # Shuffled, so a test that leans on what an earlier one left behind fails here: the seed is in
-        # a failing test's log, and `--gtest_random_seed` takes it back. A test that captured stderr
-        # and never gave it back broke every later death test in its binary, and ran in upstream's
-        # order for years. Google Test reads its flags from the environment as well as the line.
-        env:
-          GTEST_SHUFFLE: "1"
+      - name: Test
+        # Shuffled, as every suite is: the test preset sets `GTEST_SHUFFLE`.
         run: python omw asan test --without-device
 
       - name: Logs

@@ -17,12 +17,14 @@
 #include <components/compiler/extensions0.hpp>
 #include <components/compiler/fileparser.hpp>
 #include <components/compiler/scanner.hpp>
+#include <components/esm/refid.hpp>
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadcont.hpp>
 #include <components/esm3/loaddoor.hpp>
 #include <components/esm3/loadscpt.hpp>
 #include <components/esm3/loadstat.hpp>
 #include <components/interpreter/program.hpp>
+#include <components/misc/strings/algorithm.hpp>
 #include <components/terrain/pagedcellref.hpp>
 
 #include "apps/openmw/mwscript/visibilitygates.hpp"
@@ -88,7 +90,8 @@ End
     public:
         char getGlobalType(const std::string& name) const override
         {
-            return name == "stronghold" || name == "flag" ? 's' : ' ';
+            using Misc::StringUtils::ciEqual;
+            return ciEqual(name, "stronghold") || ciEqual(name, "flag") ? 's' : ' ';
         }
 
         bool isId(const ESM::RefId& name) const override
@@ -100,14 +103,11 @@ End
     class FakeReads final : public MWScript::VisibilityReads
     {
     public:
-        char getGlobalType(std::string_view name) const override
-        {
-            return mGlobals.contains(std::string(name)) ? 's' : ' ';
-        }
+        char getGlobalType(std::string_view name) const override { return mGlobals.contains(name) ? 's' : ' '; }
 
         int getGlobalInt(std::string_view name) const override
         {
-            const auto found = mGlobals.find(std::string(name));
+            const auto found = mGlobals.find(name);
             return found != mGlobals.end() ? found->second : 0;
         }
 
@@ -115,12 +115,14 @@ End
 
         int getJournalIndex(const ESM::RefId& quest) const override
         {
-            const auto found = mJournal.find(quest.getRefIdString());
+            const auto found = mJournal.find(quest);
             return found != mJournal.end() ? found->second : 0;
         }
 
-        std::map<std::string, int> mGlobals;
-        std::map<std::string, int> mJournal;
+        /// Both as the game compares them, without regard to case: a name a script spells in its own
+        /// case reads the entry a test wrote in lower case, whatever spelling the process interned first.
+        std::map<std::string, int, Misc::StringUtils::CiComp> mGlobals;
+        std::map<ESM::RefId, int> mJournal;
     };
 
     struct Compiled
@@ -199,14 +201,14 @@ End
             EXPECT_EQ(inputs[0].mValue, row.mStronghold);
         }
 
-        mReads.mJournal["c3_destroydagoth"] = 10;
+        mReads.mJournal[ESM::RefId::stringRefId("c3_destroydagoth")] = 10;
         EXPECT_EQ(run(sFenceScript, inputs), GateState::Open) << "the heart is not struck";
         ASSERT_EQ(inputs.size(), 1u) << "read under every answer to the cell change and the sound, and kept once";
         EXPECT_EQ(
             inputs[0].mRead, (std::variant<std::string, ESM::RefId>(ESM::RefId::stringRefId("c3_destroydagoth"))));
         EXPECT_EQ(inputs[0].mValue, 10);
 
-        mReads.mJournal["c3_destroydagoth"] = 20;
+        mReads.mJournal[ESM::RefId::stringRefId("c3_destroydagoth")] = 20;
         EXPECT_EQ(run(sFenceScript, inputs), GateState::Closed) << "struck: down, whatever the sound";
     }
 
@@ -402,7 +404,7 @@ End
 
         std::vector<MWScript::GateChange> changes;
         mReads.mGlobals["stronghold"] = 0;
-        mReads.mJournal["c3_destroydagoth"] = 0;
+        mReads.mJournal[ESM::RefId::stringRefId("c3_destroydagoth")] = 0;
         gates.update(mReads, changes);
         ASSERT_EQ(changes.size(), 5u) << "every gate, once";
 
@@ -426,14 +428,14 @@ End
         EXPECT_EQ(changes[1].mState, GateState::Open);
 
         changes.clear();
-        mReads.mJournal["c3_destroydagoth"] = 20;
+        mReads.mJournal[ESM::RefId::stringRefId("c3_destroydagoth")] = 20;
         gates.update(mReads, changes);
         ASSERT_EQ(changes.size(), 1u);
         EXPECT_EQ(changes[0].mGate, ghost);
         EXPECT_EQ(changes[0].mState, GateState::Closed);
 
         changes.clear();
-        mReads.mJournal["bm_meadhall"] = 50;
+        mReads.mJournal[ESM::RefId::stringRefId("bm_meadhall")] = 50;
         gates.update(mReads, changes);
         ASSERT_EQ(changes.size(), 2u) << "the planks";
         EXPECT_EQ(changes[0].mGate, plank);

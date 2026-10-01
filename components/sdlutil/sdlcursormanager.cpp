@@ -1,19 +1,20 @@
 #include "sdlcursormanager.hpp"
 
-#include <stdexcept>
+#include <algorithm>
+#include <exception>
 
+#include <SDL3/SDL_hints.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_render.h>
+#include <SDL3/SDL_surface.h>
 
-#include <osg/Geometry>
-#include <osg/GraphicsContext>
-#include <osg/Texture2D>
 #include <osg/Version>
 #include <osgViewer/GraphicsWindow>
 
 #include <components/debug/debuglog.hpp>
 
 #include "imagetosurface.hpp"
+#include "sdlvideowrapper.hpp"
 
 #if defined(OSG_LIBRARY_STATIC) && (!defined(ANDROID) || OSG_VERSION_GREATER_THAN(3, 6, 5))
 // Sets the default windowing system interface according to the OS.
@@ -28,18 +29,20 @@ namespace SDLUtil
         : mEnabled(false)
         , mInitialized(false)
     {
+        // So SDL draws a cursor at the display's scale and picks the image `createCursor` made for
+        // it, rather than showing its pixels one to one on every display.
+        SDL_SetHint(SDL_HINT_MOUSE_DPI_SCALE_CURSORS, "1");
     }
 
     SDLCursorManager::~SDLCursorManager()
     {
-        CursorMap::const_iterator cursIter = mCursorMap.begin();
+        dropCursors();
+    }
 
-        while (cursIter != mCursorMap.end())
-        {
-            SDL_DestroyCursor(cursIter->second);
-            ++cursIter;
-        }
-
+    void SDLCursorManager::dropCursors()
+    {
+        for (const auto& [name, cursor] : mCursorMap)
+            SDL_DestroyCursor(cursor);
         mCursorMap.clear();
     }
 
@@ -76,78 +79,62 @@ namespace SDLUtil
             SDL_SetCursor(it->second);
     }
 
-    void SDLCursorManager::createCursor(std::string_view name, int rotDegrees, osg::Image* image, Uint8 hotspotX,
-        Uint8 hotspotY, int cursorWidth, int cursorHeight)
+    namespace
+    {
+        /// `source` drawn into `width` × `height` pixels and turned by `rotDegrees`.
+        SurfaceUniquePtr draw(SDL_Surface& source, float rotDegrees, int width, int height)
+        {
+            SDL_Surface* targetSurface = SDL_CreateSurface(width, height, source.format);
+            SDL_Renderer* renderer = SDL_CreateSoftwareRenderer(targetSurface);
+
+            SDL_RenderClear(renderer);
+
+            SDL_Texture* cursorTexture = SDL_CreateTextureFromSurface(renderer, &source);
+            SDL_SetTextureScaleMode(cursorTexture, SDL_SCALEMODE_LINEAR);
+
+            SDL_RenderTextureRotated(
+                renderer, cursorTexture, nullptr, nullptr, static_cast<double>(-rotDegrees), nullptr, SDL_FLIP_NONE);
+
+            SDL_DestroyTexture(cursorTexture);
+            SDL_DestroyRenderer(renderer);
+
+            return SurfaceUniquePtr(targetSurface, SDL_DestroySurface);
+        }
+    }
+
+    void SDLCursorManager::createCursor(std::string_view name, int rotDegrees, osg::Image* image, int hotspotX,
+        int hotspotY, int width, int height, float displayScale)
     {
 #ifndef ANDROID
-        _createCursorFromResource(name, rotDegrees, image, hotspotX, hotspotY, cursorWidth, cursorHeight);
-#endif
-    }
-
-    SDLUtil::SurfaceUniquePtr decompress(
-        osg::ref_ptr<osg::Image> source, float rotDegrees, int cursorWidth, int cursorHeight)
-    {
-        int width = source->s();
-        int height = source->t();
-        bool useAlpha = source->isImageTranslucent();
-
-        osg::ref_ptr<osg::Image> decompressedImage = new osg::Image;
-        decompressedImage->setFileName(source->getFileName());
-        decompressedImage->allocateImage(width, height, 1, useAlpha ? GL_RGBA : GL_RGB, GL_UNSIGNED_BYTE);
-        for (int s = 0; s < width; ++s)
-            for (int t = 0; t < height; ++t)
-                decompressedImage->setColor(source->getColor(s, t, 0), s, t, 0);
-
-        Uint32 redMask = 0x000000ff;
-        Uint32 greenMask = 0x0000ff00;
-        Uint32 blueMask = 0x00ff0000;
-        Uint32 alphaMask = useAlpha ? 0xff000000 : 0;
-
-        SDL_Surface* cursorSurface = SDL_CreateSurfaceFrom(width, height,
-            SDL_GetPixelFormatForMasks(
-                static_cast<int>(decompressedImage->getPixelSizeInBits()), redMask, greenMask, blueMask, alphaMask),
-            decompressedImage->data(), static_cast<int>(decompressedImage->getRowSizeInBytes()));
-
-        SDL_Surface* targetSurface = SDL_CreateSurface(
-            cursorWidth, cursorHeight, SDL_GetPixelFormatForMasks(32, redMask, greenMask, blueMask, alphaMask));
-        SDL_Renderer* renderer = SDL_CreateSoftwareRenderer(targetSurface);
-
-        SDL_RenderClear(renderer);
-
-        SDL_Texture* cursorTexture = SDL_CreateTextureFromSurface(renderer, cursorSurface);
-        SDL_SetTextureScaleMode(cursorTexture, SDL_SCALEMODE_LINEAR);
-
-        SDL_RenderTextureRotated(
-            renderer, cursorTexture, nullptr, nullptr, static_cast<double>(-rotDegrees), nullptr, SDL_FLIP_NONE);
-
-        SDL_DestroyTexture(cursorTexture);
-        SDL_DestroySurface(cursorSurface);
-        SDL_DestroyRenderer(renderer);
-
-        return SDLUtil::SurfaceUniquePtr(targetSurface, SDL_DestroySurface);
-    }
-
-    void SDLCursorManager::_createCursorFromResource(std::string_view name, int rotDegrees, osg::Image* image,
-        Uint8 hotspotX, Uint8 hotspotY, int cursorWidth, int cursorHeight)
-    {
         if (mCursorMap.find(name) != mCursorMap.end())
             return;
 
+        const int baseWidth = std::max(1, windowPoints(width, displayScale));
+        const int baseHeight = std::max(1, windowPoints(height, displayScale));
+
         try
         {
-            auto surface = decompress(image, static_cast<float>(rotDegrees), cursorWidth, cursorHeight);
+            const SurfaceUniquePtr decoded = imageToSurface(image);
+            SurfaceUniquePtr surface = draw(*decoded, static_cast<float>(rotDegrees), baseWidth, baseHeight);
+            if (displayScale > 1.f)
+            {
+                const SurfaceUniquePtr whole = draw(*decoded, static_cast<float>(rotDegrees), width, height);
+                SDL_AddSurfaceAlternateImage(surface.get(), whole.get());
+            }
 
-            // set the cursor and store it for later
-            SDL_Cursor* curs = SDL_CreateColorCursor(surface.get(), hotspotX, hotspotY);
+            SDL_Cursor* cursor = SDL_CreateColorCursor(surface.get(),
+                std::clamp(windowPoints(hotspotX, displayScale), 0, baseWidth - 1),
+                std::clamp(windowPoints(hotspotY, displayScale), 0, baseHeight - 1));
+            mCursorMap.emplace(name, cursor);
 
-            mCursorMap.emplace(name, curs);
+            if (mEnabled && name == mCurrentCursor)
+                SDL_SetCursor(cursor);
         }
         catch (std::exception& e)
         {
             Log(Debug::Warning) << e.what();
             Log(Debug::Warning) << "Using default cursor.";
-            return;
         }
+#endif
     }
-
 }
