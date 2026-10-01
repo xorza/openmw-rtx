@@ -331,7 +331,7 @@ namespace RtxTool
             profile.mShow = Rtx::sSurfaceViewNames.require(variables["show"].as<std::string>(), "a surface view");
             profile.mReconstruction.mJitter = variables["jitter"].as<bool>();
             profile.mExposure = Rtx::ExposureRule{ .mFixed = parseExposure(variables["exposure"].as<std::string>()) };
-            profile.mStressOverlapMs = parseHold(variables["hold"].as<std::string>());
+            profile.mStressOverlapMs = variables["hold"].as<bool>() ? sCheckHoldMs : 0.0;
             profile.mSpecializeLaunches = variables["variants"].as<bool>();
             if (const std::string& noise = variables["noise"].as<std::string>(); noise != "auto")
                 profile.mReconstruction.mNoise = Rtx::sNoiseSourceNames.require(noise, "a noise source");

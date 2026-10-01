@@ -74,7 +74,7 @@ def repeat(build: Build, args: list[str]) -> int:
 
     def run(index: int) -> tuple[Path, int]:
         log = out / f"{index}.log"
-        held = ["--hold=check"] if index % 2 else []
+        held = ["--hold"] if index % 2 else []
         against = [f"--against={out / f'{index - 1}.csv'}"] if index else []
         with open(log, "w") as written:
             ended = build.run_here([*bench, *held, f"--hashes={out / f'{index}.csv'}", *against], stdout=written,
