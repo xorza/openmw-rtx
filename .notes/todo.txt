@@ -1,7 +1,6 @@
 - audit includes
 - audit #pragmas
 
-- fix rendering resolution and allow to resize window
 - Result<>
 - threading consolidation
 - gamma
