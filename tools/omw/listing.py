@@ -3,7 +3,7 @@
 A `CMakeLists.txt` lists files by base name, and a source no list names is never compiled, which
 nothing else reports. So the compile database is read against `git ls-files`. Excused by rule: a
 program this flavour does not build, a file for another system (named `win32` or `posix` for the
-other one, `stdio`, or `android…`), and `ELSEWHERE`."""
+other one, `stdio`, or `android…`, and `NOT_ON_WINDOWS` on Windows), and `ELSEWHERE`."""
 
 import json
 import os
@@ -19,6 +19,14 @@ ELSEWHERE = {
     "components/crashcatcher/crashunsupported.cpp",
 }
 
+# Upstream's wizard unpacks the installer's archives with libunshield on every system but Windows,
+# whose players run the installer itself, and the files keep upstream's names.
+NOT_ON_WINDOWS = {
+    "apps/wizard/installationpage.cpp",
+    "apps/wizard/unshield/inisettings.cpp",
+    "apps/wizard/unshield/unshieldworker.cpp",
+}
+
 
 def _program(name: str) -> str:
     return "/".join(name.split("/")[:2])
@@ -26,7 +34,8 @@ def _program(name: str) -> str:
 
 def _other_system(name: str, windows: bool) -> bool:
     stem = PurePosixPath(name).stem
-    return stem.endswith(("posix" if windows else "win32", "stdio")) or stem.startswith("android")
+    return (stem.endswith(("posix" if windows else "win32", "stdio")) or stem.startswith("android")
+            or (windows and name in NOT_ON_WINDOWS))
 
 
 def unlisted(tracked: list[str], compiled: set[str], windows: bool) -> list[str]:

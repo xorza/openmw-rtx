@@ -26,6 +26,7 @@
 #include <osg/Depth>
 #include <osg/ClipControl>
 
+#include <cmath>
 #include <sstream>
 #include <vector>
 
@@ -311,8 +312,9 @@ void VDSMCameraCullCallback::operator()(osg::Node* node, osg::NodeVisitor* nv)
         OSG_INFO<<"RTT Projection matrix "<<projection<<std::endl;
 
         osg::Matrix::value_type left, right, bottom, top, zNear, zFar;
-        osg::Matrix::value_type epsilon = 1e-6;
-        if (fabs(projection(0,3))<epsilon  && fabs(projection(1,3))<epsilon  && fabs(projection(2,3))<epsilon )
+        // The projection's own type, which is double whatever precision the build's OSG keeps an osg::Matrix in.
+        osg::Matrixd::value_type epsilon = 1e-6;
+        if (std::abs(projection(0,3))<epsilon  && std::abs(projection(1,3))<epsilon  && std::abs(projection(2,3))<epsilon )
         {
             projection.getOrtho(left, right,
                                 bottom, top,
@@ -1122,9 +1124,9 @@ void MWShadowTechnique::cull(osgUtil::CullVisitor& cv)
     osg::RefMatrix& viewProjectionMatrix = *cv.getProjectionMatrix();
 
     // check whether this main views projection is perspective or orthographic
-    bool orthographicViewFrustum = viewProjectionMatrix(0,3)==0.0 &&
-                                   viewProjectionMatrix(1,3)==0.0 &&
-                                   viewProjectionMatrix(2,3)==0.0;
+    bool orthographicViewFrustum = viewProjectionMatrix(0,3)==0 &&
+                                   viewProjectionMatrix(1,3)==0 &&
+                                   viewProjectionMatrix(2,3)==0;
 
     double minZNear = 0.0;
     double maxZFar = dbl_max;

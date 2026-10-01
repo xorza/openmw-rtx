@@ -15,7 +15,7 @@ namespace Rtx
             OwnedBy owner;
             owner.check();
 
-            std::jthread other([&] {
+            std::thread other([&] {
                 owner.adopt();
                 owner.check();
             });

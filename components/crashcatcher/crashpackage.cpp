@@ -147,7 +147,7 @@ namespace Crash
                 return "zlib would not start a deflate stream";
             z_stream& stream = deflater.mStream;
 
-            uLong crc = crc32(0, Z_NULL, 0);
+            uLong crc = crc32(0, nullptr, 0);
             std::uint64_t size = 0;
             std::uint64_t compressed = 0;
             int result = Z_OK;

@@ -118,8 +118,8 @@ namespace MWRender
                 const float fov = Settings::camera().mFieldOfView;
                 constexpr double clipFudgeMin = 2.5; // minimum offset of clip plane
                 constexpr double clipFudgeScale = -15000.0;
-                double clipFudge
-                    = std::abs(std::abs((*mCullPlane)[3]) - eyePoint.z()) * static_cast<double>(fov) / clipFudgeScale
+                double clipFudge = std::abs(std::abs(static_cast<double>((*mCullPlane)[3])) - eyePoint.z())
+                        * static_cast<double>(fov) / clipFudgeScale
                     - clipFudgeMin;
                 modelViewMatrix->preMultTranslate(mCullPlane->getNormal() * clipFudge);
 

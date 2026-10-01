@@ -8,6 +8,8 @@
 #include <thread>
 #include <vector>
 
+#include <components/platform/thread.hpp>
+
 namespace Rtx
 {
     /// Runs `body(index)` for every index below `count`, over as many threads as there is work for,
@@ -34,7 +36,7 @@ namespace Rtx
         {
             const auto hands = std::clamp<std::size_t>(std::thread::hardware_concurrency(), 1, count);
 
-            std::vector<std::jthread> running;
+            std::vector<Platform::Thread> running;
             running.reserve(hands);
             for (std::size_t at = 0; at < hands; ++at)
                 running.emplace_back([&next, &kept, &failed, count, equip, body]() mutable {

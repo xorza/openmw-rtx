@@ -571,6 +571,7 @@ add_component_dir(platform
     memory
     fifo
     library
+    thread
     )
 
 if (WIN32)

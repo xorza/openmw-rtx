@@ -31,6 +31,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
+#include <components/platform/thread.hpp>
 
 #include "zipreader.hpp"
 
@@ -463,7 +464,7 @@ namespace CrashTests
             const std::vector<Mode> modes = modesOfThisSystem();
             std::vector<Outcome> outcomes(modes.size());
             {
-                std::vector<std::jthread> running;
+                std::vector<Platform::Thread> running;
                 running.reserve(modes.size());
                 for (std::size_t at = 0; at < modes.size(); ++at)
                     running.emplace_back([&, at] { outcomes[at] = runMode(self, root, modes[at]); });

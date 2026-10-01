@@ -36,6 +36,8 @@ file(GLOB UNITTEST_SRC_FILES
 
     nifloader/testbulletnifloader.cpp
 
+    platform/thread.cpp
+
     detournavigator/navigator.cpp
     detournavigator/settingsutils.cpp
     detournavigator/recastmeshbuilder.cpp

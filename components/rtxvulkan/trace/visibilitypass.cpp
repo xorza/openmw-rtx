@@ -263,7 +263,7 @@ namespace Rtx
         });
 
         mKernels = compileAll.get_future().share();
-        mCompiling = std::jthread(std::move(compileAll));
+        mCompiling = Platform::Thread(std::move(compileAll));
     }
 
     void VisibilityPass::compile(const Wanted& wanted, const VkDescriptorSetLayout textureLayout)

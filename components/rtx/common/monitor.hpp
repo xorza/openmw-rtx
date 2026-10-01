@@ -2,8 +2,9 @@
 
 #include <condition_variable>
 #include <mutex>
-#include <stop_token>
 #include <utility>
+
+#include <components/platform/thread.hpp>
 
 namespace Rtx
 {
@@ -65,13 +66,20 @@ namespace Rtx
         /// @param turn what to do about it, handed the stop token so a long turn can give up part
         ///        way. Outside the lock, and it reaches this monitor again for what it hands back.
         template <class Ready, class Take, class Turn>
-        void serve(std::stop_token stop, Ready ready, Take take, Turn turn)
+        void serve(const Platform::StopToken& stop, Ready ready, Take take, Turn turn)
         {
+            // Under the lock, or the wake could land between a worker's check and its wait.
+            const Platform::StopCallback woken(stop, [this] {
+                const std::lock_guard<std::mutex> lock(mMutex);
+                mToWorker.notify_all();
+            });
+
             for (;;)
             {
                 {
                     std::unique_lock<std::mutex> lock(mMutex);
-                    if (!mToWorker.wait(lock, stop, ready) || stop.stop_requested())
+                    mToWorker.wait(lock, [&] { return stop.stopRequested() || ready(); });
+                    if (stop.stopRequested())
                         return;
 
                     take();
@@ -84,10 +92,7 @@ namespace Rtx
     private:
         std::mutex mMutex;
 
-        /// `condition_variable_any` on the worker's side and the plain one on the frame's,
-        /// because only a worker waits on a stop token — and the any-form carries a second lock of
-        /// its own that the frame has no use for.
-        std::condition_variable_any mToWorker;
+        std::condition_variable mToWorker;
         std::condition_variable mToFrame;
     };
 }

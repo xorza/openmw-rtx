@@ -2,12 +2,11 @@
 
 #include <cstdint>
 #include <memory>
-#include <stop_token>
-#include <thread>
 #include <vector>
 
 #include <osg/Vec2i>
 
+#include <components/platform/thread.hpp>
 #include <components/rtx/common/monitor.hpp>
 #include <components/rtx/common/worker.hpp>
 
@@ -112,11 +111,11 @@ namespace Rtx
     private:
         /// The reader's loop: a list at a time, until asked to stop. `Monitor::serve` is the loop,
         /// and this is what it takes and what it does.
-        void work(std::stop_token stop);
+        void work(const Platform::StopToken& stop);
 
         /// Reads the list `work` took, a cell at a time, and stops at the first sign of a newer
         /// one. On the thread, outside the lock but for what it hands over.
-        void read(std::stop_token stop);
+        void read(const Platform::StopToken& stop);
 
         /// Gives the reader what the frame gave back. On the thread, under the lock.
         void recycle();
