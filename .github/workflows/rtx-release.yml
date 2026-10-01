@@ -41,7 +41,7 @@ jobs:
           - os: ubuntu-24.04
             # An AppImage is compressed already; the Windows folder is not.
             compression: 0
-          - os: windows-2022
+          - os: windows-2025
             compression: 6
     defaults:
       run:
