@@ -4,6 +4,7 @@
 
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>

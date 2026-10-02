@@ -307,6 +307,25 @@ namespace Rtx
         std::optional<FrameDigest> mDigest;
     };
 
+    /// What a picture inside the interface is asked for, beyond where its camera stands. How much
+    /// of the texture the picture fills, from its top-left corner, is the camera's own extent; the
+    /// rest is left at `mClear`. The inventory doll's window resizes and the texture behind it
+    /// does not.
+    struct GuiTraceOptions
+    {
+        /// What the rest of the texture holds, red first: transparent black for a picture the GUI
+        /// composites over what is behind it.
+        std::array<float, 4> mClear{};
+
+        /// What to trace against: a slot `Renderer::addViewScene` gave out, or the world's for the
+        /// one the frame is drawn from. A map tile is a picture of the world; a doll is not.
+        SceneSlot mScene = SceneSlot::world();
+
+        /// Whether to leave a copy of the whole texture where `takeGuiCopy` can hand it to the host,
+        /// which is the one time a picture inside the interface comes back to main memory.
+        bool mReadBack = false;
+    };
+
     /// One traced image, whichever API produced it: what a scene is handed to, what the interface
     /// is drawn on, what produces a frame, and what a test or a harness reads back. Nothing below
     /// this line is abstracted — buffers, memory, command buffers and pipelines belong to a backend
@@ -360,6 +379,24 @@ namespace Rtx
         virtual SceneSlot addViewScene() = 0;
 
         virtual void dropViewScene(SceneSlot slot) = 0;
+
+        /// Traces the scene from `camera` into a GUI texture rather than into the frame: a map
+        /// tile, the inventory doll. Not the frame's chain — nothing upscales or averages and the
+        /// exposure is one, because a still has no previous frame. Recorded and not run: the picture
+        /// rides the next submit, reads the copy of the scene its last placement wrote, and the next
+        /// placement of that scene waits for the frame it rode.
+        virtual void traceGuiTexture(
+            GuiSlot texture, const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options)
+            = 0;
+
+        /// The copy the last `traceGuiTexture` with `mReadBack` left of `texture`, four bytes a
+        /// pixel, tightly packed, row zero first, into `into` as far as it reaches. False until the
+        /// copy arrived, which is two frames on, and never a wait.
+        virtual bool takeGuiCopy(GuiSlot texture, std::span<std::uint8_t> into) = 0;
+
+        /// Submits every picture recorded and not yet carried and waits for them, for a harness or a
+        /// test standing outside any frame. A game never calls it.
+        virtual void finishGuiTraces() = 0;
 
         /// The next frame has no usable past: a door, a teleport, a cut. Only the simulation knows,
         /// because a cell load looks like a step from here. Costs one frame of reconstruction. The
