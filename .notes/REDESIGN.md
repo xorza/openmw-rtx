@@ -34,11 +34,31 @@ The findings fall into three kinds:
 
 Implemented on the branch `refactor`, one commit per item. This section says where the work stands.
 
-- **Now:** Phase 0.
+- **Phase 0:** the verdict tests (`compareRuns`, `judgeNoise`, `MeasureWindow`, `repeat`'s status)
+  are in. The baselines are in `~/.cache/omw-refactor/` (pictures from `1e4c4cd92a`, the kernel
+  listing, a release build of the base in `~/.cache/omw-refactor/base`). The bench baseline is taken
+  back to back with the branch at the end of Phase 1, because a bench beside a build reads wrong.
+  The D5 probe is still to run.
+- **Phase 1, high:** 1 to 4 are done. Step 0 is done without the binary fact, which nothing reads
+  (see below). 5 is done by another rule than the plan's (see below).
+- **Now:** Phase 1, high item 6, picking on the posed body.
 
 ### Waiting for you
 
-Nothing yet.
+- **Coverage (high 5, W14.1): the plan's rule was measured and not taken.** The plan said a blend
+  is a pane wherever one texel of its finest level is soft. Every DXT3 leaf, banner, rope and sail
+  the game ships is soft at its anti-aliased edge (4-bit alpha, steps of 17), so the rule made them
+  all panes: at `seyda-neen-pier` the panes went from 3 to 91, and the sun and sky rays through them
+  turned every surface in the picture to grain (52 of 60 pictures moved). The branch takes a rule
+  with no threshold that is exact where it acts: a blend with no test whose texture never reaches
+  solid is a pane, because such a texture is no mask and a cut drops all of it or keeps all of it.
+  That fixes the lantern glass, the glass pots, interior lava and the waterfalls; a mask's soft
+  fringe stays a cut. Webs and crystals are panes only if their texture never reaches 255. To make a
+  mask's fringe soft as well, the pane path needs to be cheap and clean for foliage first. Your call
+  whether that is wanted.
+- **Someone ran `git pull --rebase origin` on `refactor`** while the work ran, after two early
+  commits (`a297255ebe`, `3de0c852f7`) reached `origin/refactor`. I left them and worked forward:
+  `da36abeaa0` moves the test the first one put in the wrong binary.
 
 ## Contents
 
