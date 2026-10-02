@@ -178,7 +178,7 @@ namespace MWRender
             // The glare is applied here, where the rasterizer applies it too
             // (`SkyManager::setWeather` calls `Moon::adjustTransparency` after the hand-over).
             moons[moon] = Rtx::placeMoon(mMoonFaces, static_cast<Rtx::Moon>(moon), state.mRotationFromHorizon,
-                state.mRotationFromNorth, state.mPhase, state.mDaylightFade * weather.mGlareView);
+                state.mRotationFromNorth, state.mPhaseEighths, state.mDaylightFade * weather.mGlareView);
         }
 
         // Secunda alone, as `SkyManager::setMoonColour` paints it.

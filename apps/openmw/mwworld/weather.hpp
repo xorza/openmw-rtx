@@ -234,6 +234,7 @@ namespace MWWorld
         float moonRiseHour(int gameDay) const;
         float rotation(float hours) const;
         MWRender::MoonState::Phase phase(const TimeStamp& gameTime) const;
+        float phaseEighths(const TimeStamp& gameTime) const;
         bool isVisible(int gameDay, float gameHour) const;
         float shadowBlend(float angle) const;
         float hourlyAlpha(float gameHour) const;

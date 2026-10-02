@@ -183,7 +183,7 @@ namespace Rtx
     }
 
     MoonPlacement placeMoon(const MoonFaces& faces, Moon moon, float alongArcDegrees, float axisOffsetDegrees,
-        Sky::MoonPhase phase, float alpha)
+        float phaseEighths, float alpha)
     {
         const float angularRadius = faces.radiusOf(moon);
 
@@ -208,8 +208,8 @@ namespace Rtx
             .mAngularRadius = angularRadius,
 
             // Eight painted phases are eight steps of a half turn each way, counted from full — so
-            // the index is the angle, and the sign of its sine is the limb the light is on.
-            .mPhaseAngle = static_cast<float>(phase) * 0.25f * osg::PIf,
+            // the count is the angle, and the sign of its sine is the limb the light is on.
+            .mPhaseAngle = phaseEighths * 0.25f * osg::PIf,
 
             // Nought until it is on its arc, which the engine states by leaving the angle there
             // until a moon rises and returning it there once it sets. Without this a moon that is

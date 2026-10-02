@@ -77,6 +77,9 @@ pointer and Lua read one size whichever renderer draws.
 - `SceneUtil::StateSetUpdater::getGeneration`, which `reset` bumps: the mirror applies an updater to
   a state set of its own after the node's update did, and a glow that ended or changed colour by
   `reset` left the mirror's copy with its last sheet.
+- `MWWorld::MoonModel::phaseEighths`, the phase continuous in game time beside the engine's
+  discrete one: the ray tracer draws the moon to the horizon, where the engine changes a phase, and
+  its terminator follows this one rather than jumping a quarter phase in plain view.
 - `SceneUtil::LightController`'s band and speeds, named as constants: the ray tracer's lamp
   animation keeps the game's statistics by reading them there, not by restating them.
 - The port to SDL3, through the input, the GUI and the window code: the presentation reads a
