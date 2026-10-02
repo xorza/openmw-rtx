@@ -183,10 +183,6 @@ namespace MWRender
         /// The one the player's own arms are drawn through, `first person field of view`, which
         /// `NpcAnimation` swaps the projection to under `Mask_FirstPerson`.
         float mArmsFieldOfView = 0.0f;
-
-        /// Whether the eye is the player's, as against a camera a script or a harness parked
-        /// somewhere: what decides whether the player's own body is in the picture.
-        bool mPlayersEye = true;
     };
 
     /// What there is to draw, and what the world is doing while it is drawn. Handed down rather
