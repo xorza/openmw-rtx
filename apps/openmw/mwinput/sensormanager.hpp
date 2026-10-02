@@ -4,7 +4,6 @@
 #include <array>
 
 #include <SDL3/SDL_sensor.h>
-#include <SDL3/SDL_video.h>
 
 #include <osg/Matrixf>
 #include <osg/Vec3f>
@@ -27,8 +26,7 @@ namespace MWInput
     class SensorManager : public SDLUtil::SensorListener
     {
     public:
-        /// @param window whose display the orientation is read off, as the input filter hears it.
-        explicit SensorManager(SDL_Window* window);
+        SensorManager();
 
         virtual ~SensorManager();
 
@@ -47,7 +45,6 @@ namespace MWInput
         void updateSensors();
         void correctGyroscopeAxes();
 
-        SDL_Window* mWindow;
         osg::Matrixf mRotation;
         osg::Vec3f mGyroValues;
         float mGyroUpdateTimer;
