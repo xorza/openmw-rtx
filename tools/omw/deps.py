@@ -47,10 +47,7 @@ def windows_set(tag: str) -> Path:
     archive = DEPS / name.lstrip("*").strip()
     fetch.download(url, archive, sha512=sha512)
 
-    partial = fetch.partial_of(deps)
-    shutil.rmtree(partial, ignore_errors=True)
-    fetch.unpack_7z(archive, partial)
-    partial.rename(deps)
+    fetch.build_beside(deps, lambda partial: fetch.unpack_7z(archive, partial))
     archive.unlink()
     return deps
 
@@ -58,14 +55,17 @@ def windows_set(tag: str) -> Path:
 def windows_qt(version: str) -> Path:
     """**Qt, for the flavours that build the launcher, the wizard and the CS.** The dependency set
     carries none, so it comes the way upstream's Windows workflow takes it: aqt, pinned by release
-    and checksum, installs the version upstream pins into deps/Qt."""
+    and checksum, installs the version upstream pins into deps/Qt — beside its version's directory,
+    which takes its name once aqt has finished, so a run stopped halfway is installed again."""
     qt = DEPS / "Qt" / version / "msvc2019_64"
     if qt.is_dir():
         return qt
 
     aqt = DEPS / "Qt" / "aqt_x64.exe"
     fetch.download_pin(pins.AQT, aqt)
-    run([aqt, "install-qt", "windows", "desktop", version, "win64_msvc2019_64"], cwd=aqt.parent)
+    fetch.build_beside(qt.parent, lambda partial: run(
+        [aqt, "install-qt", "windows", "desktop", version, "win64_msvc2019_64", "--outputdir", partial],
+        cwd=aqt.parent), within=version)
     aqt.unlink()
     return qt
 
@@ -82,7 +82,8 @@ def windows_clang_format() -> Path:
 
     package = DEPS / Path(pins.LLVM.url).name
     fetch.download_pin(pins.LLVM, package)
-    fetch.unpack_7z(package, found.parent, "bin/clang-format.exe", flat=True)
+    fetch.build_beside(found.parent, lambda partial: fetch.unpack_7z(package, partial, "bin/clang-format.exe",
+                                                                     flat=True))
     package.unlink()
     return found
 
@@ -127,14 +128,7 @@ def vulkan_sdk() -> Path:
     sdk = vulkan_sdk_dir()
     if sdk.is_dir():
         return sdk
-    partial = fetch.partial_of(sdk)
-    shutil.rmtree(partial, ignore_errors=True)
-    if WINDOWS:
-        _vulkan_sdk_windows(partial)
-    else:
-        _vulkan_sdk_linux(partial)
-    partial.rename(sdk)
-    return sdk
+    return fetch.build_beside(sdk, _vulkan_sdk_windows if WINDOWS else _vulkan_sdk_linux)
 
 
 def _vulkan_sdk_linux(into: Path) -> None:

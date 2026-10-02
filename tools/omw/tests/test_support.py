@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from omw.build import CONFIGURED_FROM, configured_from
-from omw.fetch import download, settle
+from omw.fetch import build_beside, download, partial_of, settle
 from omw.package import used_osg_plugins
 from omw.system import Refusal, environment_key, parse_set_output
 
@@ -37,6 +37,33 @@ class ConfiguredFromTest(unittest.TestCase):
                 (folder / missing).unlink()
                 self.assertFalse(configured_from(folder, "abc"))
                 (folder / missing).write_text(content)
+
+
+class BuildBesideTest(unittest.TestCase):
+    def test_a_tree_takes_its_name_only_once_it_is_whole(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        final = folder / "Qt" / "6.8.3"
+
+        def stopped(partial: Path) -> None:
+            (partial / "6.8.3" / "msvc2019_64").mkdir(parents=True)
+            raise KeyboardInterrupt
+
+        with self.assertRaises(KeyboardInterrupt):
+            build_beside(final, stopped, within="6.8.3")
+        self.assertFalse(final.exists(), "a tree cut off halfway took the final name")
+        self.assertTrue(partial_of(final).exists(), "what the stopped run left is beside the name")
+
+        def whole(partial: Path) -> None:
+            (partial / "6.8.3" / "msvc2019_64" / "bin").mkdir(parents=True)
+
+        self.assertEqual(build_beside(final, whole, within="6.8.3"), final)
+        self.assertTrue((final / "msvc2019_64" / "bin").is_dir(), "the inner path took the name")
+        self.assertFalse(partial_of(final).exists(), "the partial was left behind")
+
+        flat = folder / "clang-format-14"
+        build_beside(flat, lambda partial: (partial.mkdir(), (partial / "clang-format.exe").write_text("x")))
+        self.assertEqual((flat / "clang-format.exe").read_text(), "x")
 
 
 class SettleTest(unittest.TestCase):
