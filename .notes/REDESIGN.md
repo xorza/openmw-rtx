@@ -28,6 +28,10 @@ Implemented on the branch `refactor`, one commit per item, each with its test.
 
 - **Phases 0 to 4 are done**, each ended on a clean `./omw gate`. Phase 5 is next. The work stopped
   after Phase 4 at the owner's word.
+- **After Phase 4, the owner's rule for upstream code:** a change to an upstream file stays only
+  where it fixes a bug or the ray tracer needs it; a change that only makes upstream code tidier is
+  reverted, and the copy it removed stands again in fork code. Fourteen such changes went, W10's
+  shared rules among them, and `AGENTS.md`'s Accepted diff lists each upstream change that stays.
 - **Baselines** are in `~/.cache/omw-refactor/`: the pictures `after-screen` (since the prescaled
   screen basis, see Phase 4), the kernel listing `kernels-phase4.txt`, and the release benches
   `bench-2` to `bench-7`.
