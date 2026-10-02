@@ -128,11 +128,10 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
   - **In game:** a modern replacer's BC7 `.dds`, which draws as flat mid-grey under the ray tracer.
   - **Better shape:** BC7 is an uploadable format, a core Vulkan block format on every device the renderer targets. What the host reads of a colour texture's texels — the facts, the mean and the solid reach — then needs a BC7 decoder, as BC1 to BC3 have. BC4 has no slot that would read it: the normal map is two channels and the specular map three.
   - *(kind: missing; severity: medium; benefit: mod textures stop drawing as grey)*
-- [ ] **A particle system without a file-backed texture is left out entirely** — `components/rtx/mirror/emitterresolver.cpp:53-70`, `:76-84`.
-  - **Rasterizer:** draws an `osgParticle::ParticleSystem` whose state names no texture as untextured, vertex-coloured sprites. It draws one whose image was made in memory with that image.
-  - **Ray tracer:** `readSprite` refuses both ("nothing describes its surface", "its surface names no image to draw with", "its image was never a file"). The whole system is dropped, and the doc at `:50-51` admits it is "a system the game draws and this renderer leaves out".
-  - **In game:** a mod NIF with an `NiParticles` node and no texturing property.
-  - **Better shape:** an emitter with no image draws with the neutral white texel the texture table already holds (`TEXTURE_NEUTRAL`, `scene.h:64`), coloured by its vertices as the rasterizer draws it. A generated image is taken into the table under a key made from its address, as the composites are.
+- [ ] **A particle system whose image was made in memory is left out entirely** — `components/rtx/mirror/emitterresolver.cpp` `readSprite`.
+  - **Rasterizer:** draws an `osgParticle::ParticleSystem` whose image was made in memory with that image.
+  - **Ray tracer:** `readSprite` refuses it ("its image was never a file"), and the whole system is dropped. A system with no image at all draws untextured, with the white texel.
+  - **Better shape:** a generated image is taken into the table under a key made from its address, as the composites are.
   - *(kind: missing; severity: low; benefit: no particle system the game draws vanishes)*
 - [ ] **The cell ring refuses a whole model for one drawable it cannot read, where the walk refuses only that drawable** — `components/rtx/mirror/cells/templatewalk.cpp:134-160`, `components/rtx/mirror/cells/cellreader.cpp:126-132`, `:262-268`, against `components/rtx/mirror/meshresolver.cpp:217-222` and `apps/openmw/mwrender/objectpaging.cpp:806-857`.
   - **Walk vs ring:** in the active grid, a model with one malformed or oversized drawable stands without that drawable. In the ring the same model stands not at all ("a model is refused whole").

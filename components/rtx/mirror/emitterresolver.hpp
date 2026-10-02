@@ -114,9 +114,14 @@ namespace Rtx
             float mOpacity = 1.0f;
 
             /// The image the sprites are drawn with, or null for a system nothing described a
-            /// sprite for, which draws nothing and is refused. What a rewrite is told apart by,
-            /// and what the census names once per emitter.
+            /// sprite for, which draws nothing and is refused, and for one whose surface names no
+            /// image (`mUntextured`). What a rewrite is told apart by, and what the census names
+            /// once per emitter.
             const osg::Image* mSprite = nullptr;
+
+            /// Whether the system's surface names no image: drawn with the white texel, coloured
+            /// by its particles, as the rasterizer draws an untextured particle system.
+            bool mUntextured = false;
 
             /// How the image is addressed past its edges, which is part of the slot it takes.
             TextureWrap mWrap = TextureWrap::Repeat;

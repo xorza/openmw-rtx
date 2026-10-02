@@ -28,6 +28,8 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>
+#include <components/rtx/shaders/look.h>
+#include <components/rtx/shaders/scene.h>
 #include <components/vfs/pathutil.hpp>
 
 #include "extractionstats.hpp"
@@ -52,17 +54,23 @@ namespace Rtx
             return axis * turn;
         }
 
-        /// The image `shading` draws a system's sprites with, described into `described`, or why
-        /// it names none this can draw: a system the game draws and this renderer leaves out.
+        /// The image `shading` draws a system's sprites with, described into `described`: null for
+        /// a surface that names none, which draws untextured, or why it names one this cannot draw —
+        /// a system the game draws and this renderer leaves out.
         Misc::Result<const osg::Image*, std::string_view> readSprite(
             std::span<const Shading> shading, SurfaceDescription& described)
         {
+            // **Nothing describing the surface is OpenGL's own state**: no texture and no material,
+            // so each particle is drawn in its own colour.
             if (!describeSurface(shading, described))
-                return Misc::Err{ "nothing describes its surface" };
+            {
+                described.mVertexColour = VertexColour::Tint;
+                return nullptr;
+            }
 
             const osg::Image* sprite = described.getTextureUse(SurfaceMap::Diffuse).get();
             if (sprite == nullptr)
-                return Misc::Err{ "its surface names no image to draw with" };
+                return sprite;
 
             if (sprite->getFileName().empty())
                 return Misc::Err{ "its image was never a file" };
@@ -83,6 +91,7 @@ namespace Rtx
             mScene.refusals().refuse(Refused::Emitter, particles.getName(), read.error());
         const osg::Image* sprite = read.isOk() ? read.value() : nullptr;
 
+        held.mUntextured = read.isOk() && sprite == nullptr;
         held.mBlend = described.mBlend;
         held.mVertexColour = described.mVertexColour;
         held.mDiffuseColour = decodeColour(described.mDiffuseColour);
@@ -151,10 +160,10 @@ namespace Rtx
         else if (held.mSprite != nullptr && held.mSlot.empty())
             takeSprite(particles, held);
 
-        // No image, or an image the texture table had no room for: a slot the shader reads the
-        // sprite out of is what an emitter is drawn with, and it has none. `describeSprite` said
-        // which.
-        if (held.mSprite == nullptr || held.mSlot.empty())
+        // No image it can draw, or an image the texture table had no room for: a slot the shader
+        // reads the sprite out of is what an emitter is drawn with, and it has none.
+        // `describeSprite` said which. A surface that names no image draws with the white texel.
+        if (!held.mUntextured && (held.mSprite == nullptr || held.mSlot.empty()))
             return;
 
         // Noted now and read when the walk is over. Whether this system has been integrated
@@ -307,7 +316,10 @@ namespace Rtx
         if (mSpriteScratch.empty())
             return;
 
-        mScene.addEmitter(mSpriteScratch, held.mSlot.get(), held.mBlend, width, held.mLighting.get(), pending.mFalls);
+        // An untextured system is the white texel coloured by its particles, as the rasterizer
+        // draws one, and lit as a flat card, having no alpha to bake.
+        const Index texture = held.mUntextured ? Shaders::TEXTURE_NEUTRAL : held.mSlot.get();
+        mScene.addEmitter(mSpriteScratch, texture, held.mBlend, width, held.mLighting.get(), pending.mFalls);
 
         ++stats.mEmitters;
         stats.mSprites += static_cast<std::uint32_t>(mSpriteScratch.size());
@@ -317,11 +329,16 @@ namespace Rtx
         const SpriteEmitter& emitter = mScene.emitters().back();
         if (pending.mGlow.has_value() && emitter.isAdditive())
         {
-            if (held.mFacts == nullptr)
-                held.mFacts = &mFacts.of(*held.mSprite);
+            if (held.mUntextured)
+                glows[*pending.mGlow].addSprites(emitter, mSpriteScratch, Shaders::UNTEXTURED_ALBEDO);
+            else
+            {
+                if (held.mFacts == nullptr)
+                    held.mFacts = &mFacts.of(*held.mSprite);
 
-            glows[*pending.mGlow].addSprites(
-                emitter, mSpriteScratch, meanUnder(mFacts.meanOf(*held.mFacts, *held.mSprite), held.mBlend));
+                glows[*pending.mGlow].addSprites(
+                    emitter, mSpriteScratch, meanUnder(mFacts.meanOf(*held.mFacts, *held.mSprite), held.mBlend));
+            }
         }
     }
 
