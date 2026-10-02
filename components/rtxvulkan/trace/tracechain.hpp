@@ -80,11 +80,6 @@ namespace Rtx
         void dropSum() { mSum = Image(); }
 
     private:
-        /// The sprite tile list the trace of `inputs` reads: the media's list of nothing for a camera
-        /// that draws no sprites, and the slot's bin otherwise. Asked once, after the bin's `take`,
-        /// which may have grown the table.
-        VkDeviceAddress getSpriteTileList(const VisibilityInputs& inputs) const;
-
         const Device& mDevice;
         const TracePasses& mPasses;
 
