@@ -83,6 +83,12 @@ namespace MWRender
         /// the sky's own and the fog's carry together, because they are one moment.
         void holdAir(const Rtx::AirClock& air);
 
+        /// Opens a sheet the weather names that the sky does not hold yet, once — a script's
+        /// `weather.cloudTexture` — as the rasterizer loads one when the name changes. Every frame,
+        /// before `read`, between `attach` and `detach`.
+        void follow(
+            const SkyState& sky, Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ImageFactCache& facts);
+
         /// @param falling what the weather drops, for how much of it rings the water and how high
         ///        a roof shelters from it.
         /// @param seconds the world's clock, which the sea is animated by.

@@ -3,6 +3,8 @@
 #include <array>
 #include <cstdint>
 #include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include <osg/Vec3f>
@@ -38,40 +40,45 @@ namespace Rtx
         VFS::Path::Normalized mStarsFallback;
     };
 
-    /// Everything the sky was read from the content files: its sheets, what each of them averages,
-    /// and the surfaces they are laid on. The textures are held, through the list `addSkyContent`
-    /// fills, rather than named by a material: they are found by rays that reached nothing, and a
-    /// slot nothing holds is freed. All ten weathers at once, under a megabyte, so a storm arriving
-    /// costs no upload.
+    /// One cloud sheet the sky holds, found by the name a weather gives it.
+    struct CloudSheet
+    {
+        /// What `WeatherResult` names it by: the fallback's or a script's bare file name, as the
+        /// rasterizer is handed it, so a frame finds the sheet by comparing names and resolves no
+        /// path. A name that did not open is kept too, with no texture, so it is asked once.
+        std::string mName;
+
+        /// What the shader takes, or `sNoIndex` where the name did not open.
+        Index mTexture = sNoIndex;
+
+        /// The mean luminance of what the sheet paints, linear: what a texel is read as a ratio to,
+        /// so the painting gives shape and not a level. Each sheet is a photograph of a 2002 sky with
+        /// that day's light in it, and for half the decks it is the only shape there is —
+        /// `tx_sky_overcast`, `_rainy` and `_thunder` carry an alpha of 255 in every texel; their
+        /// means are 0.268, 0.283 and 0.357, against clear 0.435, cloudy 0.552, foggy 0.639.
+        /// Measured over the alpha, because clear weather's cirrus covers a quarter of its sheet.
+        float mMean = 0.0f;
+
+        /// The mean alpha: how much sky the deck hides on average, which a cloud's shadow is measured
+        /// against because the content's own `Sun_*_Color` has already dimmed the sun for that
+        /// weather (`Shaders::CLOUD_SHADOW_DEPTH`). A quarter for clear weather's cirrus, three
+        /// quarters for cloudy, all of it for the three opaque sheets.
+        float mCover = 0.0f;
+    };
+
+    /// No sheet: a weather that names none, which the shipped fallbacks do for ash and blight.
+    inline constexpr std::uint32_t sNoSheet = ~std::uint32_t{ 0 };
+
+    /// Everything the sky was read from the content files: its sheets, the night sky and the
+    /// surfaces they are laid on. The textures are held, through the list `addSkyContent` fills,
+    /// rather than named by a material: they are found by rays that reached nothing, and a slot
+    /// nothing holds is freed.
     struct SkyContent
     {
-        /// Every weather's deck unset — what a content that has not been read holds, and what
-        /// `std::array`'s own default is not, since `sNoIndex` is not nought.
-        static constexpr std::array<Index, sWeatherCount> noDecks()
-        {
-            std::array<Index, sWeatherCount> none{};
-            none.fill(sNoIndex);
-            return none;
-        }
-
-        /// One per weather, in `sWeather*` order. `sNoIndex` where the content files record no
-        /// cloud texture for that weather, which the shipped fallbacks do for ash and blight.
-        std::array<Index, sWeatherCount> mClouds = noDecks();
-
-        /// The mean luminance of what each weather's sheet paints, linear. Nought where no sheet
-        /// was read. What a texel is read as a ratio to, so the painting gives shape and not a
-        /// level: each sheet is a photograph of a 2002 sky with that day's light already in it. For
-        /// half the decks it is the only shape there is — `tx_sky_overcast`, `_rainy` and
-        /// `_thunder` carry an alpha of 255 in every texel; their means are 0.268, 0.283 and 0.357,
-        /// against clear 0.435, cloudy 0.552, foggy 0.639. Measured over the alpha, because clear
-        /// weather's cirrus covers a quarter of its own sheet.
-        std::array<float, sWeatherCount> mCloudMean{};
-
-        /// The mean alpha of each weather's sheet: how much sky its deck hides on average, which a
-        /// cloud's shadow is measured against because the content's own `Sun_*_Color` has already
-        /// dimmed the sun for that weather (`Shaders::CLOUD_SHADOW_DEPTH`). A quarter for clear
-        /// weather's cirrus, three quarters for cloudy, all of it for the three opaque sheets.
-        std::array<float, sWeatherCount> mCloudCover{};
+        /// Every sheet held, by name: the ten weathers' from the fallbacks at attach, under a
+        /// megabyte, so a storm arriving costs no upload, and whatever a script named since —
+        /// `SkyReader::follow`.
+        std::vector<CloudSheet> mSheets;
 
         /// The night sky, read off the mesh the rasterizer draws it with: the star field, the scale
         /// its sheet is laid at, where it fades, and the six patches painted across it.
@@ -85,29 +92,34 @@ namespace Rtx
         /// every weather, as the engine draws every weather's on the one mesh.
         Atmosphere mAtmosphere;
 
-        /// What the shader takes for a weather, or `NO_TEXTURE`.
-        std::uint32_t cloudsOf(std::uint32_t weather) const;
+        /// The sheet named `name`, or `sNoSheet` where none is held by it. An empty name is none.
+        std::uint32_t sheetNamed(std::string_view name) const;
 
-        /// What that weather's sheet averages, or nothing where none was read or none could be.
-        float meanOf(std::uint32_t weather) const;
-
-        /// How much sky that weather's deck hides on average, or nothing where none was read.
-        float coverOf(std::uint32_t weather) const;
+        /// The sheet at `sheet` where it is one a deck can draw, or null.
+        const CloudSheet* drawable(std::uint32_t sheet) const;
     };
+
+    /// Opens the sheet a weather names `name`, once: loads its texture into `scene`, reads its mean
+    /// and cover, and appends it to `content`, with no texture where it does not open, refused to
+    /// `scene` as the sky layer it is. A deck's sheet is left out rather than stood in for, because
+    /// the stand-in is an opaque grey, which over a cloud deck is the entire sky.
+    ///
+    /// @return its index in `content.mSheets`.
+    std::uint32_t addCloudSheet(SceneDesc& scene, Resource::SceneManager& scenes, ImageFactCache& facts,
+        std::vector<TextureHold>& holds, std::string_view name, SkyContent& content);
 
     /// Reads all of it, loading the textures into `scene` and appending a hold on each to `holds`,
     /// which the caller gives back when the world goes, so a scene the world has left holds nothing
     /// of its sky. A file this cannot take is refused to `scene` and its layer left out: content
     /// short of a file is content the game still runs, and the shipped fallbacks name Solstheim's
-    /// two skies without Bloodmoon. A deck's sheet is left out rather than stood in for, because
-    /// the stand-in is an opaque grey, which over a cloud deck is the entire sky.
+    /// two skies without Bloodmoon.
     ///
     /// @param facts what each sheet's mean is read through: the frame thread's.
     SkyContent addSkyContent(SceneDesc& scene, Resource::SceneManager& scenes, const SkyMeshes& meshes,
         ImageFactCache& facts, std::vector<TextureHold>& holds);
 
     /// What a cloud deck radiates from below, where its own body shadows it and where it does not.
-    /// The deck takes only the *shape* out of a sheet (`SkyContent::mCloudMean`) and the colour
+    /// The deck takes only the *shape* out of a sheet (`CloudSheet::mMean`) and the colour
     /// comes from here.
     struct DeckLight
     {
@@ -126,11 +138,12 @@ namespace Rtx
     ///        and needs no test of its own.
     DeckLight deckLight(const Sun& sun, const osg::Vec3f& skyMean, std::span<const MoonPlacement, 2> moons);
 
-    /// Which weather's deck is over the eye, which one is arriving, and how the two sheets stand.
+    /// Which sheet the deck over the eye wears, which one is arriving, and how the two stand: the
+    /// sheets the weather names, `SkyContent::sheetNamed`.
     struct CloudCrossing
     {
-        std::uint32_t mWeather = sWeatherClear;
-        std::uint32_t mNext = sWeatherClear;
+        std::uint32_t mSheet = sNoSheet;
+        std::uint32_t mNext = sNoSheet;
 
         /// How far the deck has crossed from this weather's sheet to the next one's.
         float mBlend = 0.0f;

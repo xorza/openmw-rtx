@@ -955,6 +955,7 @@ namespace MWRender
     void RtxRenderer::trace(const SceneFrame& frame, Rtx::Shaders::VisibilityConstants constants, FrameReport& report,
         const std::optional<double> since)
     {
+        mSky.follow(frame.mSky, mMirror.getScene(), *getResources().getSceneManager(), mMirror.getContent().mFacts);
         const Rtx::WorldReading read = mSky.read(frame.mSky, frame.mWorld, frame.mPrecipitation,
             frame.mWhen.getSimulationTime(), frame.mEye.closesAirAt(mMirror.getReach()));
 

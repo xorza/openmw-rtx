@@ -51,7 +51,7 @@ namespace Rtx::Shaders
         /// The mean luminance of what the sheets being sampled paint, linear.
         ///
         /// **What a texel is read as a ratio to, so the sheet gives shape and `mColour` gives the
-        /// level.** `SkyContent::mCloudMean` carries the argument and the measurements.
+        /// level.** `CloudSheet::mMean` carries the argument and the measurements.
         ///
         /// Nought where the sheet could not be averaged — a file a mod replaced with something
         /// nothing here decodes — which the shader reads as no ratio to take, and draws the deck
