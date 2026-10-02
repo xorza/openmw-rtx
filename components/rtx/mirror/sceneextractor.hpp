@@ -151,11 +151,10 @@ namespace Rtx
         /// can be the one that forgets it and has the distant ground swept on every frame after the
         /// first, and the extractor holds nothing of the ring between two walks.
         ///
-        /// **`ring` is told `frame` here**, because this is the call that holds both: a ring told
-        /// one frame and walked for another adopts twice on a frame walked twice, and a caller
-        /// that has to remember two calls is a caller that can forget one.
+        /// **`ring` is collected for `frame`**, the walk's own: a ring told one frame and walked for
+        /// another adopts twice on a frame walked twice.
         ///
-        /// @param ring one made on this extractor, which is what it adopts through.
+        /// @param ring one made on this extractor, which is what it adopts through; asserted.
         ExtractionStats extractWorld(const osg::Node& root, const osg::Matrixf& transform, std::size_t anchor,
             std::size_t frame, CellRing& ring);
 

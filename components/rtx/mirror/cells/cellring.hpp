@@ -79,11 +79,6 @@ namespace Rtx
 
         void setMinSize(float minSize) { mPlacer.setMinSize(minSize); }
 
-        /// The frame the next walk is for, so a frame walked twice adopts one cell and not two.
-        /// Told by `SceneExtractor::extractWorld`, which is the call that has the ring and the
-        /// frame both; a caller that drives a ring outside a walk says it itself.
-        void setFrame(std::size_t frame);
-
         /// Whether a walk waits for the cell it is about to adopt, so which frame a cell is adopted
         /// on is the schedule's answer and not the thread's. The order is what makes it so: one
         /// reader takes the cells `ask` sorted and hands them back in that order. One cell a frame
@@ -114,8 +109,12 @@ namespace Rtx
         void setGate(std::uint32_t gate, Terrain::GateState state);
 
         /// Hands the adopter everything held that the graph does not parent, and adds what it stood
-        /// to the walk's counts, because the ring is stood inside the adopter's walk.
-        void collect();
+        /// to the walk's counts, because the ring is stood inside the adopter's walk — the one of
+        /// `frame`, so a frame walked twice adopts one cell and not two.
+        void collect(std::size_t frame);
+
+        /// Whether this ring adopts through `adopter`, which is what a walk that collects it is.
+        bool adoptsThrough(const SceneAdopter& adopter) const { return &mAdopter == &adopter; }
 
         /// Gives the adopter back every hold `forget` let go of, for a ring the frame will not walk
         /// again — a world detached. `collect` does the same at both ends of a walk.
@@ -158,8 +157,8 @@ namespace Rtx
         /// `ask` named something, because nothing is coming otherwise.
         void waitForNext(const osg::Vec3f& eye, float band);
 
-        /// Adopts the next cell the supply read, which is one cell and one frame's worth.
-        void adoptHanded();
+        /// Adopts the next cell the supply read, which is one cell and `frame`'s worth.
+        void adoptHanded(std::size_t frame);
 
         void adopt(PreparedCell& cell);
 
@@ -177,7 +176,7 @@ namespace Rtx
         void letGo(const HeldCell& cell);
 
         /// The whole of what a walk does to the rings: what `collect` wraps in the walk it is inside.
-        void walkRings(ExtractionStats& stats);
+        void walkRings(ExtractionStats& stats, std::size_t frame);
 
         /// Lets go of every cell, every model and every image the frame holds. What the supply lent
         /// dies with its reader, so this runs before the supply is pointed anywhere else.
@@ -240,8 +239,6 @@ namespace Rtx
         /// of an exterior walk is one of them once it has dropped what left, so what is left to stand
         /// is this less what is held.
         std::uint32_t mBandCells = 0;
-
-        std::size_t mFrame = 0;
 
         /// The frame a cell was last adopted on, so a frame walked twice adopts once.
         std::size_t mAdoptedFrame = ~std::size_t{ 0 };
