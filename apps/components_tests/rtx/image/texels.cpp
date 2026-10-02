@@ -14,6 +14,7 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -192,7 +193,7 @@ namespace Rtx
 
         /// A file is read once for the process and found by its name after: two images of one
         /// file, in two spellings of it, are one entry and one reference, and a second ask reads
-        /// nothing — the entry stands where it stood. **Each fact is read at its own first ask**,
+        /// nothing and allocates nothing — the entry stands where it stood. **Each fact is read at its own first ask**,
         /// because the two are different walks: an entry asked its mean has read no solid reach.
         TEST(RtxImageFactCacheTest, aFileIsReadOnceAndFoundByItsName)
         {
@@ -212,6 +213,12 @@ namespace Rtx
             osg::ref_ptr<osg::Image> again = makeSheetImage({ 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0 });
             again->setFileName("textures/vfx_fire.dds");
             EXPECT_EQ(&facts.of(*again), &facts.of(*red)) << "a second spelling of one file made a second entry";
+
+            // Found without an allocation, because the ring's reader asks for every material it
+            // reads.
+            const std::size_t allocated = Testing::getAllocationCount();
+            facts.of(*again);
+            EXPECT_EQ(Testing::getAllocationCount(), allocated) << "a file already met was found through a new string";
             EXPECT_EQ(&facts.meanOf(*again), &first);
             EXPECT_NEAR(facts.meanOf(*again).mColour.x(), 1.0f, 1e-5f) << "the second image was read";
             EXPECT_EQ(facts.size(), 1u);
