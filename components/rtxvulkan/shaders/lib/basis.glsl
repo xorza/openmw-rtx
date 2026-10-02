@@ -20,6 +20,24 @@ vec3 tangentTo(vec3 axis)
     return normalize(cross(aside, axis));
 }
 
+/// The two unit vectors square to `axis` and to each other, `tangentTo` and the one across both:
+/// the frame every direction drawn about an axis is laid in.
+///
+/// **This frame and not Duff et al.'s branchless one**, whose seam is the plane of `z = 0` — the
+/// plane every vertical wall's normal lies in, and an interior is walls. Any continuous choice of
+/// frame has a seam somewhere; this one's is a floor tilted 2.6 degrees.
+struct TangentFrame
+{
+    vec3 mTangent;
+    vec3 mBitangent;
+};
+
+TangentFrame frameAbout(vec3 axis)
+{
+    const vec3 tangent = tangentTo(axis);
+    return TangentFrame(tangent, cross(axis, tangent));
+}
+
 /// How squarely a shading normal has to face the ray that found its surface before `facingRay`
 /// tilts it back: a wave facet toward the water's plane, a mapped normal toward the interpolated
 /// one, a lobe's normal toward the plane. Small — a guard against a normal leaning past the ray,
