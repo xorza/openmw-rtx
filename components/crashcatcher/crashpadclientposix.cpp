@@ -3,18 +3,12 @@
 #include <cerrno>
 #include <csignal>
 #include <cstdlib>
-#include <filesystem>
 #include <string_view>
 
 #include "crashnote.hpp"
 
-// Each system's answer to where the running file is, and Linux's alternate signal stack.
-#if defined(__APPLE__)
-#include <cstdint>
-#include <string>
-
-#include <mach-o/dyld.h>
-#else
+// Linux's alternate signal stack, which macOS has no call for.
+#if !defined(__APPLE__)
 #include <client/crashpad_client.h>
 #endif
 
@@ -31,19 +25,6 @@ namespace Crash::Client
             reportHang();
             errno = interrupted;
         }
-    }
-
-    std::filesystem::path executable()
-    {
-#if defined(__APPLE__)
-        std::uint32_t size = 0;
-        _NSGetExecutablePath(nullptr, &size);
-        std::string path(size, '\0');
-        _NSGetExecutablePath(path.data(), &size);
-        return std::filesystem::canonical(path.c_str());
-#else
-        return std::filesystem::read_symlink("/proc/self/exe");
-#endif
     }
 
     void prepareInstallingThread()

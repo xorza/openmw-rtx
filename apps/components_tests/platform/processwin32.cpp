@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -11,6 +12,17 @@
 
 namespace
 {
+    /// **The running file, and not a name a shell was given**: this binary itself, which stands on
+    /// the disk where the system says.
+    TEST(RtxPlatformProcessTest, theExecutableIsTheRunningFile)
+    {
+        const std::optional<std::filesystem::path> self = Platform::Process::executable();
+        ASSERT_TRUE(self.has_value());
+        EXPECT_EQ(self->filename(), "components-tests.exe");
+        EXPECT_TRUE(self->is_absolute());
+        EXPECT_TRUE(std::filesystem::is_regular_file(*self));
+    }
+
     /// **A word is one word to `cmd`, a space and a quote in it included**: in double quotes, which
     /// are the only quotes it has. Spelt as `cmd` reads it, and read by `cmd`, which compares the word
     /// with the text written again.

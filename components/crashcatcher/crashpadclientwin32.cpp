@@ -5,8 +5,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
-#include <filesystem>
-#include <string>
 #include <string_view>
 
 #include <client/simulate_crash.h>
@@ -78,21 +76,6 @@ namespace Crash::Client
                 std::set_terminate(onTerminate);
                 guaranteeStack();
             }
-        }
-    }
-
-    std::filesystem::path executable()
-    {
-        std::wstring path(MAX_PATH, L'\0');
-        for (;;)
-        {
-            const DWORD length = GetModuleFileNameW(nullptr, path.data(), static_cast<DWORD>(path.size()));
-            if (length < path.size())
-            {
-                path.resize(length);
-                return path;
-            }
-            path.resize(path.size() * 2);
         }
     }
 
