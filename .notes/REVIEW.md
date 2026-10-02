@@ -44,17 +44,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
 
 ## The traced sky reads the weather by rules of its own, not by the content's
 
-- [ ] **On some nights the trace shows Masser or Secunda switch phase in mid-sky** — `apps/openmw/mwworld/weather.cpp:397-412`, `:449-455`, `:458-461`; `components/sky/moonstate.hpp:58-65`; `apps/openmw/mwrender/rtx/skyreader.cpp:176-179`; `components/rtx/environment/moonbuilder.cpp:212`, `:218`.
-
-  **Rasterizer.** `MoonModel::moonPhaseHour` delays a phase change until the moon is invisible by `isVisible`, which includes `earlyMoonShadowAlpha`, the `Fade_End_Angle` fade. That is either midnight, if the moon is hidden then, or one `Daily_Increment` after it passes `180 − Fade_End_Angle + Early_Fade`.
-
-  **Ray tracer.** It drops that fade on purpose and draws the moon down to the horizon, dimmed by air. At the change the moon is therefore often in plain view:
-  - Masser, with the cfg's `Speed .5` (raised to the 0.5217 floor), `Fade_End_Angle 40` and `Daily_Increment 1`, changes at 148.3° on its arc, 31.7° above the setting horizon.
-  - Secunda, with `Speed .6`, `Fade_End_Angle 30` and `Daily_Increment 1.2`, changes at 161.3°, 18.7° up.
-
-  `placeMoon` steps `mPhaseAngle` by whole eighths, so the terminator jumps a quarter of a phase in one frame. `moonstate.hpp:60-64` gives the fade's only purpose as keeping a lit quad off the fogged horizon. `sky.glsl:272-273` promises a terminator that "moves continuously".
-
-  **Better shape.** `MoonModel` reports the phase as an angle continuous in game time: the current index plus how far it has run toward the next `moonPhaseHour`. `placeMoon` takes that angle. The terminator then reaches the new phase exactly when the engine switches, with no step, and `GetMasserPhase` keeps the engine's discrete answer. *(kind: bug; severity: medium; benefit: no phase pop on a visible moon)*
 - [ ] **A Lua `weather.cloudTexture` changes the rasterizer's sky and never the trace's** — `apps/openmw/mwlua/weatherbindings.cpp:148-152`; `apps/openmw/mwworld/weather.cpp:1236`, `:1314-1315`; `apps/openmw/mwrender/sky.cpp:765-803`; `components/rtx/environment/skybuilder.cpp:76-121`, `:51-57`; `apps/openmw/mwrender/rtx/skyreader.cpp:82-86`, `:213-218`.
 
   **Rasterizer.** It loads whatever `WeatherResult::mCloudTexture` and `mNextCloudTexture` name, whenever they change.

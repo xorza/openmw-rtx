@@ -340,7 +340,7 @@ namespace MWWorld
         MWRender::MoonState state = { rotationFromHorizon,
             mAxisOffset, // Reverse engineered from Morrowind's scene graph rotation matrices.
             phase(gameTime), shadowBlend(rotationFromHorizon), earlyMoonShadowAlpha(rotationFromHorizon) * daylightFade,
-            daylightFade };
+            daylightFade, phaseEighths(gameTime) };
 
         return state;
     }
@@ -452,6 +452,27 @@ namespace MWWorld
             return static_cast<MWRender::MoonState::Phase>((gameTime.getDay() / 3) % 8);
         else
             return static_cast<MWRender::MoonState::Phase>(((gameTime.getDay() + 1) / 3) % 8);
+    }
+
+    float MoonModel::phaseEighths(const TimeStamp& gameTime) const
+    {
+        // `phase` moves on by one on each day `d` with `(d + 1) / 3` past `d / 3` — every third
+        // day, `d % 3 == 2` — once the hour reaches `moonPhaseHour(d)`, and on the next day where
+        // that hour is 24 or later. Counted in days from the last such change to the next.
+        const int day = gameTime.getDay();
+        const float now = static_cast<float>(day) + gameTime.getHour() / 24.0f;
+        const auto changeAt = [this](int changeDay) {
+            return static_cast<float>(changeDay) + std::min(moonPhaseHour(changeDay), 24.0f) / 24.0f;
+        };
+
+        int last = day - (day + 1) % 3;
+        if (changeAt(last) > now)
+            last -= 3;
+
+        const float from = changeAt(last);
+        const float run = (now - from) / (changeAt(last + 3) - from);
+        const int index = (((last + 1) / 3) % 8 + 8) % 8;
+        return std::fmod(static_cast<float>(index) + std::clamp(run, 0.0f, 1.0f), 8.0f);
     }
 
     inline bool MoonModel::isVisible(int gameDay, float gameHour) const

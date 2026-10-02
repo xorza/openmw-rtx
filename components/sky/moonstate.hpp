@@ -63,6 +63,12 @@ namespace Sky
         /// `Moons_<name>_Fade_End_Angle`, which is the engine keeping a lit quad off its own fogged
         /// horizon. A renderer with air in it wants the first without the second.
         float mDaylightFade;
+
+        /// The phase as a continuous count of eighths from full, nought to eight: `mPhase` and how
+        /// far the moon has run toward its next change, which reaches the next phase exactly when
+        /// `mPhase` does. What a terminator drawn at any angle follows, where `mPhase` is the
+        /// eight painted faces and a script's answer.
+        float mPhaseEighths = 0.0f;
     };
 
     using MoonPhase = MoonState::Phase;

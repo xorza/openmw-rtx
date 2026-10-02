@@ -143,11 +143,12 @@ namespace Rtx
     ///        drawn.
     /// @param alongArc degrees travelled from the horizon it rose at, zero to 180.
     /// @param axisOffset degrees the whole arc is swung about the zenith.
-    /// @param phase which of the eight painted phases, counted from full.
+    /// @param phaseEighths how far round its cycle the moon is, in eighths from full —
+    ///        `Sky::MoonState::mPhaseEighths`, continuous, so the terminator never steps.
     /// @param alpha the daylight fade, with the weather's `Glare_View` on it —
     ///        `Sky::MoonState::mDaylightFade`. Whether the moon is up at all is `alongArc`.
     MoonPlacement placeMoon(
-        const MoonFaces& faces, Moon moon, float alongArc, float axisOffset, Sky::MoonPhase phase, float alpha);
+        const MoonFaces& faces, Moon moon, float alongArc, float axisOffset, float phaseEighths, float alpha);
 
     /// A placement as the shader takes it — one conversion, so a moon read off the weather system
     /// and one worked out from a date reach the shader the same way. What the phase and the sun
