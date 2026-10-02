@@ -120,7 +120,7 @@ namespace Rtx
 
         /// Stands the world's clock at `seconds` and moves the emitter clock on by the gap since
         /// the last call. See `SceneExtractor::setSimulationTime`.
-        void setSimulationTime(double seconds);
+        void setSimulationTime(double seconds, double step);
 
         void apply(osg::Node& node) override;
         void apply(osg::Transform& node) override;
@@ -168,17 +168,18 @@ namespace Rtx
         /// A member for the reason the walk is: made once, and a frame allocates none of it.
         SequenceClock mSequenceClock;
 
-        /// The emitters' own clock, and it is not the world's: `osgParticle` integrates the
-        /// difference between one frame stamp and the last, and the world's clock jumps across a
-        /// loading screen. Its frame number is the sequence `ParticleProcessor` keeps its
+        /// The emitters' own stamp, stepped by the world's step: `osgParticle` integrates the
+        /// difference between one frame stamp and the last. Its own and not the world's for that
+        /// reason, and for its frame number, the sequence `ParticleProcessor` keeps its
         /// once-per-frame guard against, which is why nothing else in this renderer may drive a
         /// particle system.
         osg::ref_ptr<osg::FrameStamp> mEmitterStamp = new osg::FrameStamp;
         double mEmitterSeconds = 0.0;
         unsigned int mEmitterFrame = 0;
 
-        /// Where the world's clock stood at the last `setSimulationTime`, nothing before the first.
-        std::optional<double> mWorldSeconds;
+        /// Whether a `setSimulationTime` started the emitters' clock, which the first one does
+        /// rather than step it.
+        bool mStarted = false;
 
         /// The class the innermost root over the node being walked stated, or the arms' where a
         /// first-person root stands over it: everything under an actor's root is the actor. Carried down the subtree
@@ -401,18 +402,14 @@ namespace Rtx
         return true;
     }
 
-    void SceneExtractor::Traversal::setSimulationTime(const double seconds)
+    void SceneExtractor::Traversal::setSimulationTime(const double seconds, const double step)
     {
         mStamp->setSimulationTime(seconds);
         mStamp->setReferenceTime(seconds);
 
-        // The cap the game's own frame loop uses, and `MWRender::RainCounter` after it.
-        constexpr double longest = 0.2;
-
-        const double elapsed = mWorldSeconds.has_value() ? seconds - *mWorldSeconds : 0.0;
-        mWorldSeconds = seconds;
-
-        mEmitterSeconds += std::clamp(elapsed, 0.0, longest);
+        if (mStarted)
+            mEmitterSeconds += std::max(step, 0.0);
+        mStarted = true;
         mEmitterStamp->setSimulationTime(mEmitterSeconds);
         mEmitterStamp->setReferenceTime(mEmitterSeconds);
         mEmitterStamp->setFrameNumber(++mEmitterFrame);
@@ -520,9 +517,9 @@ namespace Rtx
         mPlacements.clear([this](const Known& stood) { mScene.dropInstance(stood.mIndex, Stander::Walk); });
     }
 
-    void SceneExtractor::setSimulationTime(double seconds)
+    void SceneExtractor::setSimulationTime(double seconds, double step)
     {
-        mWalk->setSimulationTime(seconds);
+        mWalk->setSimulationTime(seconds, step);
     }
 
     ExtractionStats SceneExtractor::extract(

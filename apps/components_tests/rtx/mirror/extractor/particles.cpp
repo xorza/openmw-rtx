@@ -661,7 +661,7 @@ namespace Rtx::Testing
                 for (int turn = 0; turn < 2; ++turn)
                 {
                     scene.clearPlacement();
-                    extractor.setSimulationTime(0.1 * (turn + 1));
+                    extractor.setSimulationTime(0.1 * (turn + 1), 0.1);
                     extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
                 }
 
@@ -678,6 +678,32 @@ namespace Rtx::Testing
             // rather than two stale ones. A particle shot straight up at a hundred units a second
             // is at least a whole tenth-second step off the placer's origin, which is ten.
             EXPECT_GE(above.front(), 10.0f);
+        }
+
+        /// **A long step of the world is the emitters' whole step**, as the rasterizer's cull hands
+        /// `osgParticle` the world's step however a script scales it: a second's step emits a
+        /// hundred particles shot straight up at a hundred units a second, and integrates each a
+        /// hundred units up, where a step held to a fifth of a second emitted twenty and moved them
+        /// twenty.
+        TEST_F(RtxSceneExtractorTest, aLongStepOfTheWorldIsTheEmittersWholeStep)
+        {
+            resetRandom();
+            Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
+            drive(plume, 100.0, true);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene);
+            for (const double seconds : { 0.1, 1.1 })
+            {
+                scene.clearPlacement();
+                extractor.setSimulationTime(seconds, 1.0);
+                extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
+            }
+
+            const std::vector<float> heights = spriteHeights(scene);
+            ASSERT_FALSE(heights.empty());
+            EXPECT_EQ(heights.size(), 100u) << "a second's hundred particles";
+            EXPECT_NEAR(heights.front(), 100.0f, 1e-4f) << "the emitters stepped less than the world";
         }
 
         /// An emitter runs, and it runs once per turn of the emitter clock however often it is walked.
@@ -716,12 +742,11 @@ namespace Rtx::Testing
             EXPECT_EQ(walk(*plume.mRoot).mSprites, 20u);
         }
 
-        /// A gap in the world's clock is clamped rather than emitted.
-        ///
-        /// A loading screen, a paused window or a harness holding the world still are each a gap an
-        /// emitter would take literally, and a literal hour at a hundred a second is three hundred
-        /// and sixty thousand particles in one frame.
-        TEST_F(RtxSceneExtractorTest, aJumpInTheWorldsClockIsClampedRatherThanEmitted)
+        /// **A jump in the world's clock is no step of the emitters**: they move by the step the
+        /// frame stands for, and a clock set an hour on — a harness standing a world at a moment —
+        /// emits a tenth of a second's ten particles and not an hour's 360,000. A step backward is
+        /// none at all.
+        TEST_F(RtxSceneExtractorTest, aJumpInTheWorldsClockIsNoStepOfTheEmitters)
         {
             Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
             drive(plume, 100.0);
@@ -729,14 +754,12 @@ namespace Rtx::Testing
             runWorld(0.1);
             walk(*plume.mRoot);
 
-            // Clamped to the two tenths the game's own frame loop caps a step at: twenty, not
-            // 360,000.
-            runWorld(3600.0);
-            EXPECT_EQ(walk(*plume.mRoot).mSprites, 20u);
+            mWorldSeconds += 3600.0;
+            runWorld(0.1);
+            EXPECT_EQ(walk(*plume.mRoot).mSprites, 10u);
 
-            // And a step backwards is not a step backwards, it is no step at all.
-            runWorld(-10.0);
-            EXPECT_EQ(walk(*plume.mRoot).mSprites, 20u);
+            mExtractor.setSimulationTime(mWorldSeconds + 0.1, -10.0);
+            EXPECT_EQ(walk(*plume.mRoot).mSprites, 10u);
         }
 
         /// A warm-up is frames drawn: every walk steps the emitters it meets on the clock above,

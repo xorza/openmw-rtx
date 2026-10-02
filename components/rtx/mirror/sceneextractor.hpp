@@ -131,13 +131,15 @@ namespace Rtx
         /// stamp, so a mirror with a clock of its own would run the game's fires while the game is
         /// paused.
         ///
-        /// **And the emitters' clock, moved on by the gap since the last call**, clamped to the two
-        /// tenths the game's own frame loop caps a step at, and never backwards: `osgParticle`
-        /// integrates the gap between one frame stamp and the last, so a loading screen or frames
-        /// nobody walked would put every plume in the cell on its own ceiling at once. The first
-        /// call only starts it. Also the sequence every emitter's once-per-frame guard is kept
-        /// against, so however many walks reach one, exactly one of them steps it.
-        void setSimulationTime(double seconds);
+        /// **And the emitters' clock, moved on by `step`**: the world's step this frame stands for,
+        /// however a script scales it, and nought where the game stood paused, as the rasterizer's
+        /// cull hands `osgParticle` the world's step. A step and not the gap since the last call,
+        /// because the clock may be set as well as stepped — a harness standing a world at a
+        /// moment — and a gap of an hour is three hundred and sixty thousand particles of a plume
+        /// in one frame. The first call only starts it, and a step backward is none. Also the
+        /// sequence every emitter's once-per-frame guard is kept against, so however many walks
+        /// reach one, exactly one of them steps it.
+        void setSimulationTime(double seconds, double step);
 
         /// Walks `node` and places what it finds by `transform`, under `anchor`. A subtree, and it
         /// never reaches the ring: the precipitation node would otherwise place the ground a

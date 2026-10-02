@@ -205,6 +205,10 @@ namespace Rtx
             /// The traversal number the subject's update last ran at, which `rebuildSubject` hands
             /// the update traversal and the walk after it. A pick's own cull is dated after it.
             unsigned int mPosedFrame = 0;
+
+            /// The world's clock at the last redraw, nothing before the first: what the subject's
+            /// emitters are stepped by the gap from.
+            std::optional<double> mPosedAt;
         };
 
         /// Null for a picture of the world, which traces against the scene the frame's own walk

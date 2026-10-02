@@ -252,7 +252,8 @@ namespace MWRender
 
         // The world's clock and not this renderer's, or the controllers would run while the game
         // was paused.
-        mExtractor.setSimulationTime(frame.mWhen.getSimulationTime());
+        mExtractor.setSimulationTime(
+            frame.mWhen.getSimulationTime(), frame.mPaused ? 0.0 : static_cast<double>(frame.mDeltaTime));
 
         // What goes is the lists a walk refills wholesale; the meshes, materials and textures stay
         // because the structures were built from them, and the placements because they are
