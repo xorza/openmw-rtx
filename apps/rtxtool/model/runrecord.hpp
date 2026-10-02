@@ -50,6 +50,9 @@ namespace RtxTool
         /// says so and does not.
         void fail() { mExitStatus = 1; }
 
+        /// Says a hashed frame differed from its reference: the run's status unless it failed.
+        void differ() { mDiffered = true; }
+
         /// Counts one check and whether it held.
         void checked(bool held);
 
@@ -87,6 +90,7 @@ namespace RtxTool
         std::string mReport;
 
         int mExitStatus = 0;
+        bool mDiffered = false;
 
         /// How many checks the run asked and how many of them failed.
         std::uint32_t mChecked = 0;

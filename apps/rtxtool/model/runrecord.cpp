@@ -24,7 +24,7 @@ namespace RtxTool
     SessionResult RunRecord::describe(const Stop* const left) const
     {
         SessionResult result;
-        result.mExitStatus = mExitStatus;
+        result.mExitStatus = mExitStatus != 0 ? mExitStatus : mDiffered ? sDifferedStatus : 0;
         result.mPlaces = mPlaces;
         result.mReport = mReport;
         if (left != nullptr)
@@ -56,7 +56,7 @@ namespace RtxTool
             {
                 mReport += std::format("  {:<28} {}\n", difference.mView, describeDifference(difference));
                 if (!difference.same())
-                    fail();
+                    differ();
             }
         }
 
