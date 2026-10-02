@@ -38,7 +38,7 @@ namespace Settings
         SettingValue<std::string> mUpscale{ mIndex, "RTX", "upscale" };
 
         /// What the content's `_spec` maps mean, as `Rtx::sSpecularLayoutNames` spells the layouts:
-        /// `ignore` or `metal roughness`. Read where the renderer is made, because the maps are
+        /// `ignore`, `classic` or `metal roughness`. Read where the renderer is made, because the maps are
         /// loaded with the models.
         SettingValue<std::string> mSpecularMapLayout{ mIndex, "RTX", "specular map layout" };
     };

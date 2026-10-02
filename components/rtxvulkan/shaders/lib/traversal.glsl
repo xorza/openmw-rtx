@@ -1045,7 +1045,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
         // And what the layers' maps lost, weighted as their roughness is.
         lostSlopes += weights > 0.0 ? spread / weights : 0.0;
     }
-    else if (HAS_MAPS && holdsTexture(material.mSpecular))
+    else if (HAS_MAPS && holdsTexture(material.mSpecular) && (material.mFlags & MATERIAL_SPECULAR_CLASSIC) == 0u)
         albedo = sampleDiffuse(material.mDiffuse, point).rgb;
     else
         albedo = sampleAlbedo(material.mDiffuse, point);
@@ -1085,10 +1085,16 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     }
     else if (HAS_MAPS && holdsTexture(material.mSpecular))
     {
-        const vec2 painted = sampleSpecularMap(material.mSpecular, point);
-        surface.mSpecular = mix(vec3(DIELECTRIC_F0), albedo, painted.x) * tint;
-        surface.mRoughness = painted.y;
-        surface.mAlbedo *= 1.0 - painted.x;
+        // **A classic map is a reflectance and an exponent** over a diffuse that is no base
+        // colour: no metal splits it, the highlight colour is the lobe's whole, and the exponent
+        // over 255 is a roughness by `roughnessOfExponent`'s match. Selected, so the two layouts
+        // take one path.
+        const vec4 painted = sampleDiffuse(material.mSpecular, point);
+        const bool classic = (material.mFlags & MATERIAL_SPECULAR_CLASSIC) != 0u;
+        const float metal = classic ? 0.0 : painted.x;
+        surface.mSpecular = (classic ? painted.rgb : mix(vec3(DIELECTRIC_F0), albedo, metal)) * tint;
+        surface.mRoughness = classic ? roughnessOfExponent(painted.a * 255.0) : painted.y;
+        surface.mAlbedo *= 1.0 - metal;
     }
 
     // **Widened by what the footprint averages away**, before anything reads the roughness: the

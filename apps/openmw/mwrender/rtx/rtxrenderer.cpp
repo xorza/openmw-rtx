@@ -303,10 +303,10 @@ namespace MWRender
         Resource::SceneManager& scene = *resources.getSceneManager();
         scene.setShadersEnabled(false);
 
-        // A `_spec` map this renderer does not read is not loaded either: a classic one is refused
-        // by the layout, and a pack of three thousand would sit in memory for nothing.
+        // A `_spec` map this renderer does not read is not loaded either: under `ignore` a pack of
+        // three thousand would sit in memory for nothing.
         Shader::AutoMapRules maps = scene.getAutoMaps();
-        maps.mSpecularMaps = maps.mSpecularMaps && mMirror.getSpecularLayout() == Rtx::SpecularLayout::MetalRoughness;
+        maps.mSpecularMaps = maps.mSpecularMaps && mMirror.getSpecularLayout() != Rtx::SpecularLayout::Ignore;
         scene.setAutoMaps(maps);
     }
 

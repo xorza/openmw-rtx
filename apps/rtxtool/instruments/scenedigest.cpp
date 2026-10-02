@@ -88,8 +88,9 @@ namespace RtxTool
         void forEachMaterialField(const Rtx::Material& material, Texture texture, Layers layers, Value value)
         {
             const auto& [kind, diffuse, emissive, emissiveUnit, environment, environmentColour, dark, darkUnit, normal,
-                specular, parallax, diffuseColour, emissiveColour, opacity, alphaRef, alphaMode, blend, vertexColour,
-                twoSided, textureTransform, run, flatten, layersMapped, animated, neverSolid, diffuseMean]
+                specular, specularClassic, parallax, diffuseColour, emissiveColour, opacity, alphaTest, alphaMode,
+                blend, vertexColour, twoSided, textureTransform, run, flatten, layersMapped, animated, neverSolid,
+                diffuseMean]
                 = material;
 
             texture(diffuse);
@@ -118,6 +119,8 @@ namespace RtxTool
                 value(std::uint8_t{ 5 });
                 value(emissiveUnit);
             }
+            if (specularClassic)
+                value(std::uint8_t{ 6 });
 
             layers(run);
 
@@ -127,7 +130,7 @@ namespace RtxTool
             value(diffuseColour);
             value(emissiveColour);
             value(opacity);
-            value(alphaRef);
+            value(alphaTest);
             value(alphaMode);
             value(blend);
             value(vertexColour);

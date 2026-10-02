@@ -498,6 +498,11 @@ namespace Rtx::Shaders
     /// opacity of one: a lantern's glass is all there, and its texture says how much glass.
     const uint MATERIAL_TRANSLUCENT = 0x40u;
 
+    /// The specular map is a classic one — `Rtx::SpecularLayout::Classic`: a reflectance in RGB and
+    /// an exponent in A, beside a diffuse that is delit as a vanilla one is. Without it a specular
+    /// map is a metalness and a roughness over an authored base colour.
+    const uint MATERIAL_SPECULAR_CLASSIC = 0x80u;
+
     /// Which texture unit the dark map and the glow map are bound at, each in these bits of
     /// `mFlags` — `GpuMesh::mUnitStreams` says which stream that unit reads.
     const uint MATERIAL_DARK_UNIT_SHIFT = 8u;

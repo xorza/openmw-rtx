@@ -793,42 +793,43 @@ namespace Rtx::Testing
             const std::array<osg::Vec4f, 4> tangents{ osg::Vec4f(tangent, 1.0f), osg::Vec4f(tangent, 1.0f),
                 osg::Vec4f(tangent, 1.0f), osg::Vec4f(tangent, 1.0f) };
 
-            const auto litAbout
-                = [&](const osg::Vec3f& vertexNormal, std::uint8_t metal, bool leaning, SurfaceView show, float tint) {
-                      const std::array<osg::Vec3f, 4> normals{ vertexNormal, vertexNormal, vertexNormal, vertexNormal };
-                      const std::array<std::uint8_t, 4> mapTexel{ metal, 128, 255, 255 };
-                      const std::array<TextureData, 3> textures{ describeTexel(sBaseTexel, 0),
-                          describeTexel(mapTexel, 1), describeTexel(sLeaningTexel, 2) };
-                      const osg::Vec3f colour(tint, tint, tint);
-                      const std::array<osg::Vec3f, 4> colours{ colour, colour, colour, colour };
+            const auto litAbout = [&](const osg::Vec3f& vertexNormal, std::uint8_t metal, bool leaning,
+                                      SurfaceView show, float tint, bool classic = false) {
+                const std::array<osg::Vec3f, 4> normals{ vertexNormal, vertexNormal, vertexNormal, vertexNormal };
+                const std::array<std::uint8_t, 4> mapTexel{ metal, 128, 255, 255 };
+                const std::array<TextureData, 3> textures{ describeTexel(sBaseTexel, 0), describeTexel(mapTexel, 1),
+                    describeTexel(sLeaningTexel, 2) };
+                const osg::Vec3f colour(tint, tint, tint);
+                const std::array<osg::Vec3f, 4> colours{ colour, colour, colour, colour };
 
-                      SceneDesc scene;
-                      const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
-                          .mNormals = normals,
-                          .mTexCoords = sQuadUv,
-                          .mColours = colours,
-                          .mTangents = tangents,
-                          .mIndices = sQuadIndices });
-                      const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
-                      const Index map = scene.textures().add(
-                          VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
-                      const Index normalMap = scene.textures().add(
-                          VFS::Path::NormalizedView("base_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
-                      scene.addInstance(MeshInstance{ .mMesh = mesh,
-                          .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse,
-                              .mNormal = leaning ? normalMap : sNoIndex,
-                              .mSpecular = map,
-                              .mVertexColour = VertexColour::Tint }) });
-                      scene.addLight(Light{
-                          .mPosition = osg::Vec3f(0.0f, -50.0f, 0.0f),
-                          .mIntensity = osg::Vec3f(4000.0f, 4000.0f, 4000.0f),
-                          .mReach = 500.0f,
-                      });
+                SceneDesc scene;
+                const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
+                    .mNormals = normals,
+                    .mTexCoords = sQuadUv,
+                    .mColours = colours,
+                    .mTangents = tangents,
+                    .mIndices = sQuadIndices });
+                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+                const Index map = scene.textures().add(VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat,
+                    classic ? TextureEncoding::Colour : TextureEncoding::Data);
+                const Index normalMap = scene.textures().add(
+                    VFS::Path::NormalizedView("base_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
+                scene.addInstance(MeshInstance{ .mMesh = mesh,
+                    .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse,
+                        .mNormal = leaning ? normalMap : sNoIndex,
+                        .mSpecular = map,
+                        .mSpecularClassic = classic,
+                        .mVertexColour = VertexColour::Tint }) });
+                scene.addLight(Light{
+                    .mPosition = osg::Vec3f(0.0f, -50.0f, 0.0f),
+                    .mIntensity = osg::Vec3f(4000.0f, 4000.0f, 4000.0f),
+                    .mReach = 500.0f,
+                });
 
-                      const Frame frame = shoot(scene, textures, camera, size, Shot{ .mShow = show });
-                      EXPECT_GT(frame.mHits, 0u);
-                      return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2));
-                  };
+                const Frame frame = shoot(scene, textures, camera, size, Shot{ .mShow = show });
+                EXPECT_GT(frame.mHits, 0u);
+                return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2));
+            };
             const auto lit = [&](std::uint8_t metal, bool leaning, SurfaceView show = SurfaceView::Shaded,
                                  float tint = 1.0f) { return litAbout(normal, metal, leaning, show, tint); };
 
@@ -904,6 +905,16 @@ namespace Rtx::Testing
                 EXPECT_NEAR(shownNormal[axis], wantedNormal[axis], 1e-5f) << axis;
             EXPECT_EQ(lit(0, false, SurfaceView::Roughness), osg::Vec3f(roughness, roughness, roughness));
             EXPECT_EQ(lit(255, false, SurfaceView::Specular), osg::Vec3f(base, base, base));
+
+            // **A classic map is a reflectance and an exponent**: the same texel, `(64, 128, 255,
+            // 255)`, is the lobe's colour whole — no metal splits the base, so the red is a quarter
+            // and not a dielectric's 4% — and an alpha of 255 is an exponent of 255, a roughness of
+            // `(2 / 257)^(1/4) = 0.2970`, where the metal layout read the green's half.
+            const osg::Vec3f classicF0 = litAbout(normal, 64, false, SurfaceView::Specular, 1.0f, true);
+            EXPECT_EQ(classicF0, osg::Vec3f(64.0f / 255.0f, 128.0f / 255.0f, 1.0f));
+            const float classicRoughness = litAbout(normal, 64, false, SurfaceView::Roughness, 1.0f, true).x();
+            EXPECT_NEAR(classicRoughness, Shaders::roughnessOfExponent(255.0f), 1e-6f);
+            EXPECT_NEAR(classicRoughness, std::pow(2.0f / 257.0f, 0.25f), 1e-6f);
         }
 
         /// **A glossy surface that turns under a pixel is as rough as the turns it averages.** The
