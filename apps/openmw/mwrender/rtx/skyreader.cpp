@@ -63,8 +63,7 @@ namespace MWRender
         , mGlareColour(glareFaderColour())
         , mGlareMax(Fallback::Map::getFloat("Weather_Sun_Glare_Fader_Max"))
         , mGlareAngleMax(osg::DegreesToRadians(Fallback::Map::getFloat("Weather_Sun_Glare_Fader_Angle_Max")))
-        , mMoonSizes{ .mMasser = Fallback::Map::getFloat("Moons_Masser_Size"),
-            .mSecunda = Fallback::Map::getFloat("Moons_Secunda_Size") }
+        , mMoonSizes{ Fallback::Map::getFloat("Moons_Masser_Size"), Fallback::Map::getFloat("Moons_Secunda_Size") }
         , mWaterScatter(waterScatter())
     {
     }

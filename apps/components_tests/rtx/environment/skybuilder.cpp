@@ -405,10 +405,10 @@ namespace Rtx
 
             std::vector<TextureHold> moonHolds;
             ThreadContent thread;
-            const Rtx::MoonFaces moons = Rtx::addMoonFaces(
-                scene, images, Rtx::MoonSizes{ .mMasser = 94.0f, .mSecunda = 40.0f }, moonHolds, thread.mFacts);
-            EXPECT_EQ(scene.textures().getHolds(moons.mMasser), 1u);
-            EXPECT_EQ(scene.textures().getHolds(moons.mSecunda), 1u);
+            const Rtx::MoonFaces moons
+                = Rtx::addMoonFaces(scene, images, Rtx::MoonSizes{ 94.0f, 40.0f }, moonHolds, thread.mFacts);
+            EXPECT_EQ(scene.textures().getHolds(moons.of(Rtx::Moon::Masser).mSlot), 1u);
+            EXPECT_EQ(scene.textures().getHolds(moons.of(Rtx::Moon::Secunda).mSlot), 1u);
 
             // The content as `addSkyContent` would leave it, built by hand: two decks and a night
             // sky of a field and one patch, held once each, and the rest unset.
