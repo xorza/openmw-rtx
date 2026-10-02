@@ -121,15 +121,13 @@ namespace Rtx
             // load for every template the game hands out, so this is a read.
             into.mRadius = node->getBound().radius();
 
-            // What the walk had read before it met what it cannot take goes, and the reason stays.
             // The loader answers a file it cannot read with the error marker, which reads.
-            const Misc::Result<void, std::string> walked = mWalk.read(*node, mMask, into);
-            if (!walked.isOk())
-            {
-                into.reuse();
-                into.mPath.assign(path.value());
-                into.mRefused.assign(walked.error());
-            }
+            mWalk.read(*node, mMask, into);
+
+            // A model with nothing left to stand holds no template: it is filed by its path so that
+            // the next reference to it is not walked again, and nothing reads the graph of it.
+            if (into.mParts.empty())
+                into.mTemplate = nullptr;
         });
 
         [[maybe_unused]] const bool fresh = mModelsByPath.insert(&model).second;
@@ -262,11 +260,8 @@ namespace Rtx
             return;
 
         if (!read->mRefused.empty())
-        {
             prepared.mRefusals.push_back(
                 Refusal{ .mKind = Refused::Model, .mName = read->mPath, .mWhy = read->mRefused });
-            return;
-        }
 
         if (read->mParts.empty())
             return;

@@ -199,8 +199,8 @@ namespace Rtx
         std::vector<osg::Vec4f> mTangents;
         std::vector<std::uint32_t> mIndices;
 
-        /// Why its walk refused the template, or empty. A refused model holds no part and is filed
-        /// under its path like any other, so the next reference to it is not walked again.
+        /// Why its walk left a drawable of it out — the first one — or empty. The model stands
+        /// without it, as the frame's walk stands one without a drawable it refuses.
         std::string mRefused;
 
         /// What one of its parts comes to, as the frame adopts it. The spans are into this model's

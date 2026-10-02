@@ -289,7 +289,7 @@ namespace Rtx::Testing
             paint(*quad->getOrCreateStateSet(), *glass);
             quad->getOrCreateStateSet()->setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON);
             TemplateWalk walk;
-            ASSERT_TRUE(walk.read(*quad, ~0u, model).isOk());
+            walk.read(*quad, ~0u, model);
             ASSERT_EQ(model.mParts.size(), 1u);
             ASSERT_TRUE(model.mParts[0].mMaterial.mDiffuseFacts.has_value());
             EXPECT_EQ(model.mParts[0].mMaterial.mDiffuseFacts->mReachesSolid, std::optional<bool>(false));

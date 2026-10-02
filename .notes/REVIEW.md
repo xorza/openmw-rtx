@@ -133,12 +133,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
   - **Ray tracer:** `readSprite` refuses it ("its image was never a file"), and the whole system is dropped. A system with no image at all draws untextured, with the white texel.
   - **Better shape:** a generated image is taken into the table under a key made from its address, as the composites are.
   - *(kind: missing; severity: low; benefit: no particle system the game draws vanishes)*
-- [ ] **The cell ring refuses a whole model for one drawable it cannot read, where the walk refuses only that drawable** — `components/rtx/mirror/cells/templatewalk.cpp:134-160`, `components/rtx/mirror/cells/cellreader.cpp:126-132`, `:262-268`, against `components/rtx/mirror/meshresolver.cpp:217-222` and `apps/openmw/mwrender/objectpaging.cpp:806-857`.
-  - **Walk vs ring:** in the active grid, a model with one malformed or oversized drawable stands without that drawable. In the ring the same model stands not at all ("a model is refused whole").
-  - **Rasterizer:** the paging merges every drawable the model has, at every distance.
-  - **In game:** a mod's building with one drawable past `VERTEX_BLOCK`, or with a mismatched colour array. Seen from the next cell over it vanishes, and it appears whole except one part when the player walks in.
-  - **Better shape:** `TemplateWalk::take` drops only the drawable it cannot read, recording the refusal once per model, as `MeshResolver::refuse` does per drawable. One rule for both walks, which the ring's own doc already wants ("what the frame's walk hands itself over").
-  - *(kind: missing; severity: low; benefit: a model stands the same in the ring as in the active grid)*
 - [ ] **A distant static's texture animation stands still under the ray tracer, where the rasterizer's paging runs it** — `components/rtx/mirror/cells/templatewalk.hpp:31-41`, against `apps/openmw/mwrender/objectpaging.cpp:293-307`.
 
   Object paging clones a paged static's cull callbacks onto the chunk (`objectpaging.cpp:288`, `:293-307`). These are the AutoPlay `CompositeStateSetUpdater` (`components/nifosg/nifloader.cpp:902-903`). So a waterfall's `NiUVController`, a lava `NiFlipController` and an `NiAlphaController` or `NiMaterialColorController` keep animating past the active grid.
