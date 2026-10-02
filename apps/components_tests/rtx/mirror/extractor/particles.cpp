@@ -38,6 +38,7 @@
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
@@ -354,7 +355,10 @@ namespace Rtx::Testing
         /// A dead slot keeps the position its last particle expired at, and an emitter with nothing
         /// alive places nothing at all — not a sphere with an empty run behind it, which every ray
         /// crossing that part of the cell would then be rejected by one test later than it needs.
-        TEST_F(RtxSceneExtractorTest, deadParticlesAndUntexturedEmittersPlaceNothing)
+        ///
+        /// **And a system with no texture draws untextured**, as the rasterizer draws it: the white
+        /// texel, each particle in its own colour, lit as a flat card, and no texture of its own.
+        TEST_F(RtxSceneExtractorTest, deadParticlesPlaceNothingAndAnUntexturedSystemDrawsWhite)
         {
             const Plume spent = makePlume(osg::Matrix::identity(), true);
             osgParticle::Particle* particle
@@ -374,22 +378,26 @@ namespace Rtx::Testing
             // The bake of its alpha arrives with it, for the same reason.
             EXPECT_EQ(mScene.textures().getRows().size(), 2u);
 
-            // A particle's whole silhouette is that texture's alpha, so an emitter with none draws
-            // nothing rather than a white disc.
             osg::ref_ptr<osg::Group> bare = new osg::Group;
             osg::ref_ptr<osgParticle::ParticleSystem> particles = new osgParticle::ParticleSystem;
             bare->addChild(particles);
-            emit(*particles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+            emit(*particles, osg::Vec3f(), 1.0f, osg::Vec4f(0.25f, 0.5f, 1.0f, 1.0f));
 
             Rtx::SceneDesc bareScene;
             SceneExtractor bareExtractor(bareScene);
-            EXPECT_EQ(bareExtractor.extract(*bare, osg::Matrixf::identity(), 0).mEmitters, 0u);
-            EXPECT_TRUE(bareScene.textures().getRows().empty());
+            EXPECT_EQ(bareExtractor.extract(*bare, osg::Matrixf::identity(), 0).mEmitters, 1u);
+            EXPECT_TRUE(bareScene.textures().getRows().empty()) << "a slot taken for no image";
+            ASSERT_EQ(bareScene.emitters().size(), 1u);
+            EXPECT_EQ(bareScene.emitters().front().mTexture, Shaders::TEXTURE_NEUTRAL);
+            EXPECT_EQ(bareScene.emitters().front().mLighting, Shaders::NO_TEXTURE) << "a bake of no alpha";
+            ASSERT_EQ(bareScene.sprites().size(), 1u);
+            EXPECT_EQ(bareScene.sprites().front().mColour, Rtx::decodeColour(osg::Vec4f(0.25f, 0.5f, 1.0f, 1.0f)))
+                << "the particle's own colour";
 
-            // The first is no refusal, because a particle that died draws nothing in the game
-            // either; the second is one, because the game draws a system with no texture.
+            // Neither is a refusal: a particle that died draws nothing in the game either, and a
+            // system with no texture draws.
             EXPECT_EQ(mScene.refusals().count(Refused::Emitter), 0u);
-            EXPECT_EQ(bareScene.refusals().count(Refused::Emitter), 1u);
+            EXPECT_EQ(bareScene.refusals().count(Refused::Emitter), 0u);
         }
 
         /// An emitter's sprite is on no material, so the sweep has to speak for it itself.
