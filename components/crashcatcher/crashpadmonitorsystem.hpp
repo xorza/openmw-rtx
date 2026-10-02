@@ -1,13 +1,8 @@
 #pragma once
 
-#include <algorithm>
 #include <cstdint>
-#include <cstdio>
-#include <span>
 #include <string>
 #include <string_view>
-#include <utility>
-#include <vector>
 
 #include "crashpage.hpp"
 
@@ -65,20 +60,4 @@ namespace Crash::Monitor
 
     /// The folder in Crashpad's database that each system's handler leaves a finished dump in.
     std::string_view dumpFolder();
-
-    inline std::string hex(std::uint64_t value)
-    {
-        char text[20];
-        std::snprintf(text, sizeof(text), "0x%llx", static_cast<unsigned long long>(value));
-        return text;
-    }
-
-    using Names = std::span<const std::pair<std::uint32_t, std::string_view>>;
-
-    /// `code`'s name in `names`, or `otherwise` where it has none.
-    inline std::string nameOf(Names names, std::uint32_t code, std::string otherwise)
-    {
-        const auto named = std::find_if(names.begin(), names.end(), [&](const auto& one) { return one.first == code; });
-        return named != names.end() ? std::string(named->second) : std::move(otherwise);
-    }
 }

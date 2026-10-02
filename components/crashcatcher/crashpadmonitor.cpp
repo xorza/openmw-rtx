@@ -190,7 +190,7 @@ namespace Crash
                     const std::string path = module->Name();
                     const std::size_t slash = path.find_last_of("/\\");
                     return (slash == std::string::npos ? path : path.substr(slash + 1)) + "+"
-                        + Monitor::hex(address - module->Address());
+                        + hex(address - module->Address());
                 }
 
             return {};

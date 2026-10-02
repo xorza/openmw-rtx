@@ -288,7 +288,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
 
 ## Platform facts live in the crash catcher, beside copies elsewhere in the tree
 
-- [ ] **`hex` and `nameOf` are not system facts and sit in the system header** — `components/crashcatcher/crashpadmonitorsystem.hpp:64-78`. Both are plain formatting, used by the shared `crashpadmonitor.cpp` as well. Better: move them into `crashpadmonitor.cpp` or `crashsummary`, and keep the system header to what each system spells differently. *(severity: low; benefit: the header says what it is)*
 - [ ] **The monitor's log stamp is a copy of the log's format** — `components/crashcatcher/crashpadmonitor.cpp:101-111`, against `components/debug/debugging.cpp:118-134`. The monitor writes `"[%02d:%02d:%02d.%03d E] "` by hand so that its lines read as the game's. The game writes `"[%T.%03u %c] "` with its level letter from `" EWIVD*"`. A change to one breaks the other, and `apps/components_tests/crashcatcher/crashtests.cpp:342-348` reads the stamp by its `] `. Better: `Debug` exposes the one function that writes a stamp for a level, and the monitor calls it. *(severity: low; benefit: one stamp format)*
 
 ## The driver, CI and CMake restate facts that each other hold
