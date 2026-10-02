@@ -75,6 +75,7 @@ namespace SceneUtil
         mStateSetsUpdate[0] = nullptr;
         mStateSetsUpdate[1] = nullptr;
         mStateSetsCull.clear();
+        ++mGeneration;
     }
 
     StateSetUpdater::StateSetUpdater() {}
