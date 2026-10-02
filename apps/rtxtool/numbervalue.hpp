@@ -12,6 +12,8 @@
 
 #include <components/misc/strings/conversion.hpp>
 
+#include "model/wholenumber.hpp"
+
 namespace RtxTool
 {
     /// Where a number given on the line may lie, either end open or closed.
@@ -66,7 +68,7 @@ namespace RtxTool
     }
 
     /// **The one rule for a number the line gives**: the whole text, read as
-    /// `Misc::StringUtils::toNumericWhole` reads every number this tool takes — finite, nothing after
+    /// `wholeNumber` reads every number this tool takes — finite, nothing after
     /// it — and inside the range the option states, which the help prints where Boost prints `arg`.
     /// Boost's own reader takes `nan` and `inf`, and a range stated only in the help held nothing.
     template <class T>
@@ -84,7 +86,7 @@ namespace RtxTool
         {
             namespace bpo = boost::program_options;
             const std::string& text = bpo::validators::get_single_string(tokens);
-            const std::optional<T> read = Misc::StringUtils::toNumericWhole<T>(text);
+            const std::optional<T> read = wholeNumber<T>(text);
             if (!read.has_value() || !mRange.holds(*read))
             {
                 bpo::validation_error error(bpo::validation_error::invalid_option_value);

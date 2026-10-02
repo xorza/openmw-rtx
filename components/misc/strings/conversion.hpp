@@ -68,10 +68,6 @@ namespace Misc::StringUtils
     inline constexpr bool sFromCharsReadsFloats = true;
 #endif
 
-    /// The number `s` spells, or nothing where it spells none. A floating-point number is a finite
-    /// one: `std::from_chars` reads `inf` and `nan` as numbers, and no text this reads — a setting,
-    /// a fallback, a script's literal — means either, which every reader would then carry into its
-    /// arithmetic unseen.
     /// How much of `s` the floating-point number it begins with takes, by `std::from_chars`'s
     /// grammar: an optional minus, digits with an optional fraction, and an exponent where it is
     /// complete. Nought where `s` begins with no number.
@@ -131,6 +127,10 @@ namespace Misc::StringUtils
         return result;
     }
 
+    /// The number `s` spells, or nothing where it spells none. A floating-point number is a finite
+    /// one: `std::from_chars` reads `inf` and `nan` as numbers, and no text this reads — a setting,
+    /// a fallback, a script's literal — means either, which every reader would then carry into its
+    /// arithmetic unseen.
     template <typename T>
     inline std::optional<T> toNumeric(std::string_view s)
     {
@@ -154,27 +154,6 @@ namespace Misc::StringUtils
                 return std::nullopt;
 
         return result;
-    }
-
-    /// `toNumeric` of the whole of `s`: nothing where anything but the number is in it, as a value
-    /// somebody typed for one field is read.
-    template <typename T>
-    inline std::optional<T> toNumericWhole(std::string_view s)
-    {
-        if constexpr (std::is_floating_point_v<T> && !sFromCharsReadsFloats)
-        {
-            if (floatPrefix(s) != s.size())
-                return std::nullopt;
-        }
-        else
-        {
-            T result{};
-            const auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), result);
-            if (ec != std::errc() || ptr != s.data() + s.size())
-                return std::nullopt;
-        }
-
-        return toNumeric<T>(s);
     }
 
     template <typename T>
