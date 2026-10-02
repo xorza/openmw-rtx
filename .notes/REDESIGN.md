@@ -78,7 +78,14 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
 - **Phase 1, medium 24:** done, seven commits — the refracted cone, the walks' glow per crossing, the
   merge by the sum of alphas, a `ONE, ONE` flame, the camera in double, the normal map's loss at the
   level its read resolves, and the water's rays biased once. Each names the pictures it moved.
-- **Now:** Phase 1, the lows, W14.0 first.
+- **Phase 1, low, W14.0:** done, four commits — `Renderer::support()` with a table per renderer and
+  a parity test against the render files and the settings window; the changed settings filtered by
+  it; the console and Lua answering a declined mode or request with its reason; the settings window
+  greying a declined control with the reason as its tooltip; `rtx.rst` listing the declined set,
+  held by a test. The window's greying has no test: it is widget state no test here can open. The
+  post-processing package's nine null tests stay with the lows: the player packages are built before
+  the world, so deciding once needs the renderer handed to the Lua context.
+- **Now:** Phase 1, the lows of each workstream, by section.
 
 ### Waiting for you
 
