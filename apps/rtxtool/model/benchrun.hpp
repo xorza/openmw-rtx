@@ -420,11 +420,18 @@ namespace RtxTool
         std::string mSuite;
     };
 
+    /// The exit status of a run whose one fault is a hashed frame that differed from its reference.
+    ///
+    /// **Apart from a run that failed**, which is 1: `omw repeat` tells "not repeatable" from "the
+    /// run itself broke" by this number, where it once read the report's wording, and a reworded
+    /// sentence swapped the two verdicts.
+    inline constexpr int sDifferedStatus = 3;
+
     /// What a launcher reads back once `Engine::go` has returned.
     struct SessionResult
     {
-        /// Non-zero where a hashed run differed from its reference, or where a stop could not be
-        /// reached at all.
+        /// 1 where a stop could not be reached or something else failed the run; else
+        /// `sDifferedStatus` where a hashed frame differed from its reference; else nought.
         int mExitStatus = 0;
 
         std::vector<BenchPlace> mPlaces;

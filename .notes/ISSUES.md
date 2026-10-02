@@ -94,8 +94,6 @@ first review.
   `apps/rtxtool/instruments/framehashes.cpp:345-354`.
 - An abandoned run never closes its record, and `shot` then judges pictures in its output folder that
   this run never wrote. `apps/rtxtool/session.cpp:50-56`, `apps/rtxtool/main.cpp:764-769`.
-- `omw repeat --pairs=0` prints "identical over every one" having compared nothing, and the verdict is
-  read off the harness's wording. `tools/omw/repeat.py:54-60`, `:89-106`.
 - The driver takes macOS for Linux: `bootstrap` downloads the Linux SDK, `build` asks for a disabled
   preset, and `setup` writes `openmw.cfg` to a folder the game never reads.
   `tools/omw/system.py:10-13`, `:125-137`.

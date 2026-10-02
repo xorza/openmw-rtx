@@ -85,16 +85,17 @@ set(RTX_TEST_FILES
     rtxtool/compare.cpp
     rtxtool/contactsheet.cpp
     rtxtool/cruise.cpp
-    rtxtool/measurewindow.cpp
     rtxtool/drivercache.cpp
     rtxtool/film.cpp
     rtxtool/framehashes.cpp
     rtxtool/frametimes.cpp
     rtxtool/gpuclock.cpp
     rtxtool/homekey.cpp
+    rtxtool/measurewindow.cpp
     rtxtool/options.cpp
     rtxtool/picturemean.cpp
     rtxtool/run.cpp
+    rtxtool/runrecord.cpp
     rtxtool/scenedigest.cpp
     rtxtool/skycrossing.cpp
     rtxvulkan/device/buffermarkers.cpp
