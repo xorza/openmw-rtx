@@ -344,6 +344,11 @@ namespace MWRender
         mRipples.splash(position);
     }
 
+    void RtxRenderer::poseForIntersection(osg::Drawable& drawable)
+    {
+        mPoser.pose(drawable, getFrameStamp());
+    }
+
     void RtxRenderer::listAssetsToPreload(
         std::vector<VFS::Path::Normalized>& models, std::vector<VFS::Path::Normalized>& textures) noexcept
     {

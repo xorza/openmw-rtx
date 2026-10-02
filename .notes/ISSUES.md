@@ -9,10 +9,6 @@ first review.
   banner, rope and sail has a hard edge where the rasterizer's is soft, and a cobweb, a Telvanni
   crystal or Bloodmoon ice whose texture reaches 255 anywhere loses the coverage under the cut.
   `components/rtx/scene/material.hpp` (`Material::isTranslucent`).
-- The crosshair, activation and Lua's `castRenderingRay` meet skinned actors in their bind pose:
-  `RigGeometry` poses its CPU copy only in a cull, and the ray tracer never culls the world. A corpse
-  on the floor is hard to focus or loot. `components/sceneutil/riggeometry.cpp:137-157`,
-  `apps/openmw/mwrender/rtx/rtxrenderer.cpp:404-440`.
 - A spell-cast glow never ends: `GlowUpdater` runs on the node and then on the mirror's state set,
   and its end on the first run leaves the mirror's copy with the last sheet. Open, Lock, a trapped
   container and Telekinesis leave a lasting glow. `components/rtx/mirror/materialresolver.cpp:121-148`,

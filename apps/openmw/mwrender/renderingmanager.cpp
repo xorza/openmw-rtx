@@ -666,6 +666,11 @@ namespace MWRender
     class IntersectionVisitorWithIgnoreList : public osgUtil::IntersectionVisitor
     {
     public:
+        explicit IntersectionVisitorWithIgnoreList(Renderer& renderer)
+            : mRenderer(renderer)
+        {
+        }
+
         bool skipTransform(osg::Transform& transform)
         {
             if (mContainsPagedRefs)
@@ -698,10 +703,19 @@ namespace MWRender
             osgUtil::IntersectionVisitor::apply(transform);
         }
 
+        // A skinned or morphed drawable answers with the copy its last cull posed, and a renderer
+        // that does not cull the world poses it here.
+        void apply(osg::Drawable& drawable) override
+        {
+            mRenderer.poseForIntersection(drawable);
+            osgUtil::IntersectionVisitor::apply(drawable);
+        }
+
         void setIgnoreList(std::span<const MWWorld::Ptr> ignoreList) { mIgnoreList = ignoreList; }
         void setContainsPagedRefs(bool contains) { mContainsPagedRefs = contains; }
 
     private:
+        Renderer& mRenderer;
         std::span<const MWWorld::Ptr> mIgnoreList;
         bool mContainsPagedRefs = false;
     };
@@ -711,7 +725,7 @@ namespace MWRender
         std::span<const MWWorld::Ptr> ignoreList)
     {
         if (!mIntersectionVisitor)
-            mIntersectionVisitor = new IntersectionVisitorWithIgnoreList;
+            mIntersectionVisitor = new IntersectionVisitorWithIgnoreList(mRenderer);
 
         mIntersectionVisitor->setIgnoreList(ignoreList);
         mIntersectionVisitor->setContainsPagedRefs(false);

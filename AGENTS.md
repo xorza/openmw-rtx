@@ -66,6 +66,9 @@ pointer and Lua read one size whichever renderer draws.
 - `README.md`, which is the fork's own page and what a package ships, and `CI/`.
 - The visibility gates (`MWScript::VisibilityGates` and the calls that feed them): without them
   the distance stands scripted stages the game keeps down.
+- The pose hook in `RenderingManager`'s intersection visitor (`Renderer::poseForIntersection`): a
+  skinned body answers a CPU ray with the copy its last cull posed, and the ray tracer culls no
+  world, so the crosshair met every actor in its bind pose.
 - The port to SDL3, through the input, the GUI and the window code: the presentation reads a
   window's pixel density and display scale, which a fractionally scaled Wayland desktop sets and
   SDL2 cannot report. SDL3 has no gamma ramp, so `[Video] gamma` is the renderers' own: the

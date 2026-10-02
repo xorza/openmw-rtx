@@ -413,8 +413,8 @@ add_component_dir (rtx/image
     )
 
 add_component_dir (rtx/mirror
-    contentmemory emitterresolver extractionstats materialresolver meshreader meshresolver mirroridentity
-    mirrorpass nodekind poseupdate sceneadopter sceneextractor shading worlddescent
+    contentmemory drawableposer emitterresolver extractionstats materialresolver meshreader meshresolver
+    mirroridentity mirrorpass nodekind posecull poseupdate sceneadopter sceneextractor shading worlddescent
     )
 
 add_component_dir (rtx/mirror/cells

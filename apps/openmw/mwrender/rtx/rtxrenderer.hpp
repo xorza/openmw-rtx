@@ -19,6 +19,7 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/cells/cellplacer.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
+#include <components/rtx/mirror/drawableposer.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/sdlutil/vsyncmode.hpp>
@@ -116,6 +117,7 @@ namespace MWRender
         void addWaterRippleEmitter(const MWWorld::Ptr& ptr) noexcept override;
         void removeWaterRippleEmitter(const MWWorld::Ptr& ptr) noexcept override;
         void emitWaterRipple(const osg::Vec3f& position) noexcept override;
+        void poseForIntersection(osg::Drawable& drawable) override;
 
         /// A `TracedGround`: the storage, the worldspace and the active grid, and no chunks.
         std::unique_ptr<Ground> createGround(const GroundSpec& spec) noexcept override;
@@ -373,6 +375,9 @@ namespace MWRender
         /// The engine's scene graph mirrored into what a ray can meet, and the hand-over that
         /// puts it on the device.
         WorldMirror mMirror;
+
+        /// What poses a deforming drawable a ray cast on the CPU reaches, at the mirror's numbers.
+        Rtx::DrawablePoser mPoser{ mMirror.getTraversals() };
 
         /// What the game says about the sky, turned into what the trace is handed. Attached where
         /// the mirror is, because the sheets it holds are the mirror's scene's.
