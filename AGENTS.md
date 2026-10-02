@@ -20,8 +20,11 @@ them.
 
 ## Rules
 
-- Do not change the rasterizer, or anything the ray tracer does not need, beyond what
-  [Accepted diff](#accepted-diff) lists.
+- **Upstream code changes for three reasons only**: a change [Accepted diff](#accepted-diff)
+  lists, an improvement to the ray tracer's integration — the seam and the hooks it needs — or a
+  bug fix the user approved, which is proposed and waits for a yes. A cleanup or a quality change
+  is not made, and one already made is reverted. The diff stays small, but never at the cost of
+  reuse or of the abstraction's quality.
 - Both renderers stand behind one interface that exposes no implementation detail. Where the game
   would branch on which renderer it has, the seam abstracts the question instead.
 - Performance matters. Compute nothing twice; compute as early as possible.
@@ -29,16 +32,12 @@ them.
   here runs anything; an AMD device is stood up under Mesa's drm-shim (`~/Projects/mesa/build-shim`),
   which compiles every kernel and executes none.
 - One binary ships both renderers, and the one not chosen never starts.
-- Opacity micromaps (`VK_EXT_opacity_micromap`) for the cutouts were tried and declined: the
-  trace did not get faster, and building the maps only added loading time. Do not propose them again.
-- Async compute (a second queue, the next trace beside this frame's reconstruction) was tried and
-  declined: the overlap gained 0.1–0.2 ms. The branch `async` has the record. Do not propose it
-  again.
-- Shader Execution Reordering (`VK_EXT_ray_tracing_invocation_reorder`) was tried and declined:
-  sorting cost 17–23% of the trace, and the extension shuts out Mesa's drivers. Do not propose it
-  again.
-- Keep the diff against upstream minimal, but never at the cost of reuse or of the abstraction's
-  quality. [Accepted diff](#accepted-diff) lists what is accepted rather than kept small.
+- Tried, declined, and not to be proposed again: opacity micromaps (`VK_EXT_opacity_micromap`)
+  for the cutouts, which made the trace no faster and only added loading time; async compute (a
+  second queue, the next trace beside this frame's reconstruction), whose overlap gained 0.1–0.2 ms
+  (the branch `async` has the record); and Shader Execution Reordering
+  (`VK_EXT_ray_tracing_invocation_reorder`), whose sorting cost 17–23% of the trace and which
+  shuts out Mesa's drivers.
 
 ## Accepted diff
 
