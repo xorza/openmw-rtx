@@ -203,6 +203,25 @@ namespace MWRender
             EXPECT_DOUBLE_EQ(indoors.mSkySeconds, static_cast<double>(step));
         }
 
+        /// A script's view distance closes the air nearer than the world reaches and never further:
+        /// the world stands to the setting's reach, and the eye sees `min(reach, d)` of it.
+        TEST(RtxReadWorldTest, aScriptsViewDistanceClosesTheAirAndNeverOpensIt)
+        {
+            const Standing standing = standingIn(Location::Exterior);
+            const Falling falling;
+            const SkyReader reader;
+
+            const auto edgeFor = [&](const EyeState& eye) {
+                return reader.read(standing.mSky, standing.mWorld, falling.mPrecipitation, 0.0, eye.closesAirAt(sReach))
+                    .mDaylight.mFog.mEdge;
+            };
+
+            EXPECT_EQ(edgeFor(EyeState{}), sReach) << "no script, the world's reach";
+            EXPECT_EQ(edgeFor(EyeState{ .mScriptViewDistance = 2000.0f }), 2000.0f) << "a sandstorm's";
+            EXPECT_EQ(edgeFor(EyeState{ .mScriptViewDistance = 4.0f * sReach }), sReach)
+                << "past the world there is no world to see";
+        }
+
         /// A room is lit by its own record, and the record is the only thing that decides it.
         ///
         /// **The alternative the two above are not.** A cell that is a room carries an `AMBI`, has

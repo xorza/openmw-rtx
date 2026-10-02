@@ -122,6 +122,8 @@ namespace MWRender
         return EyeState{
             .mNearClip = mNearClip,
             .mViewDistance = mViewDistance,
+            .mScriptViewDistance
+            = mViewDistance != Settings::camera().mViewingDistance ? std::optional<float>(mViewDistance) : std::nullopt,
             .mFieldOfView = mFieldOfViewOverridden ? mFieldOfViewOverride : mFieldOfView,
             .mArmsFieldOfView = mFirstPersonFieldOfView,
         };
