@@ -44,8 +44,10 @@ namespace Rtx
         /// `addMoonFaces` makes of the configured sizes, with no scene to hold the faces in.
         MoonFaces configured()
         {
-            return MoonFaces{ .mMasserRadius = moonAngularRadius(Fallback::Map::getFloat("Moons_Masser_Size")),
-                .mSecundaRadius = moonAngularRadius(Fallback::Map::getFloat("Moons_Secunda_Size")) };
+            MoonFaces faces;
+            faces.of(Moon::Masser).mRadius = moonAngularRadius(Fallback::Map::getFloat("Moons_Masser_Size"));
+            faces.of(Moon::Secunda).mRadius = moonAngularRadius(Fallback::Map::getFloat("Moons_Secunda_Size"));
+            return faces;
         }
 
         /// What a moon sent, with the air it was seen through taken back off.
@@ -97,20 +99,21 @@ namespace Rtx
             SceneDesc scene;
             ThreadContent content;
             std::vector<TextureHold> holds;
-            const MoonFaces faces = addMoonFaces(
-                scene, images, MoonSizes{ .mMasser = masser, .mSecunda = secunda }, holds, content.mFacts);
+            const MoonFaces faces = addMoonFaces(scene, images, MoonSizes{ masser, secunda }, holds, content.mFacts);
 
             // **A face that opens is lit as it is painted, and one that does not as the shipped
             // portrait**: an opaque red face averages red, and Secunda's keeps the shipped mean.
-            EXPECT_EQ(faces.meanOf(Moon::Masser), osg::Vec3f(1.0f, 0.0f, 0.0f)) << "a replaced portrait's own colour";
-            EXPECT_EQ(faces.meanOf(Moon::Secunda), sShippedSecundaFace);
+            EXPECT_EQ(faces.of(Moon::Masser).mMean, osg::Vec3f(1.0f, 0.0f, 0.0f)) << "a replaced portrait's own colour";
+            EXPECT_EQ(faces.of(Moon::Secunda).mMean, sShippedSecundaFace);
             EXPECT_EQ(placeMoon(faces, Moon::Masser, 47.0f, 35.0f, 0.0f, 1.0f).mColour, osg::Vec3f(1.0f, 0.0f, 0.0f));
             EXPECT_EQ(holds.size(), 2u) << "a hold on each face";
-            EXPECT_EQ(faces.radiusOf(Moon::Masser), moonAngularRadius(masser)) << "the size it was handed";
-            EXPECT_EQ(faces.radiusOf(Moon::Secunda), moonAngularRadius(secunda));
-            EXPECT_EQ(scene.textures().getRows()[faces.mMasser].mImage, portrait) << "the portrait was not kept";
-            EXPECT_EQ(scene.textures().getRows()[faces.mSecunda].mImage, nullptr);
-            EXPECT_EQ(scene.textures().getRows()[faces.mSecunda].mPath, moonFaceOf(Moon::Secunda).value());
+            EXPECT_EQ(faces.of(Moon::Masser).mRadius, moonAngularRadius(masser)) << "the size it was handed";
+            EXPECT_EQ(faces.of(Moon::Secunda).mRadius, moonAngularRadius(secunda));
+            EXPECT_EQ(scene.textures().getRows()[faces.of(Moon::Masser).mSlot].mImage, portrait)
+                << "the portrait was not kept";
+            EXPECT_EQ(scene.textures().getRows()[faces.of(Moon::Secunda).mSlot].mImage, nullptr);
+            EXPECT_EQ(
+                scene.textures().getRows()[faces.of(Moon::Secunda).mSlot].mPath, moonFaceOf(Moon::Secunda).value());
             scene.drop(holds);
             EXPECT_TRUE(scene.isEmpty());
             EXPECT_EQ(scene.refusals().count(Refused::Moon), 0u);
@@ -119,24 +122,24 @@ namespace Rtx
             // nought, or not a number, is a size the game draws and this does not.
             SceneDesc broken;
             std::vector<TextureHold> brokenHolds;
-            const MoonFaces unsized = addMoonFaces(
-                broken, images, MoonSizes{ .mMasser = -3.0f, .mSecunda = 0.0f }, brokenHolds, content.mFacts);
-            EXPECT_EQ(unsized.radiusOf(Moon::Masser), 0.0f);
-            EXPECT_EQ(unsized.radiusOf(Moon::Secunda), 0.0f);
+            const MoonFaces unsized
+                = addMoonFaces(broken, images, MoonSizes{ -3.0f, 0.0f }, brokenHolds, content.mFacts);
+            EXPECT_EQ(unsized.of(Moon::Masser).mRadius, 0.0f);
+            EXPECT_EQ(unsized.of(Moon::Secunda).mRadius, 0.0f);
             EXPECT_EQ(broken.refusals().count(Refused::Moon), 1u) << "Masser, and not Secunda";
             broken.drop(brokenHolds);
 
-            EXPECT_NEAR(configured().mMasserRadius, std::atan(1.8f * masser / 1000.0f), 1e-6f);
-            EXPECT_NEAR(configured().mSecundaRadius, std::atan(1.8f * secunda / 1000.0f), 1e-6f);
+            EXPECT_NEAR(configured().of(Moon::Masser).mRadius, std::atan(1.8f * masser / 1000.0f), 1e-6f);
+            EXPECT_NEAR(configured().of(Moon::Secunda).mRadius, std::atan(1.8f * secunda / 1000.0f), 1e-6f);
 
             // **Enormous either way**, which is the sky Morrowind is remembered for: the smaller of
             // the two pairs still puts Masser at twelve times the real moon's quarter degree.
-            EXPECT_GT(osg::RadiansToDegrees(configured().mMasserRadius), 3.0f);
+            EXPECT_GT(osg::RadiansToDegrees(configured().of(Moon::Masser).mRadius), 3.0f);
 
             // Masser is the larger, and the angles are closer together than the sizes are: the
             // arctangent is already bending at a disc this wide.
-            EXPECT_GT(configured().mMasserRadius, configured().mSecundaRadius);
-            EXPECT_LT(configured().mMasserRadius / configured().mSecundaRadius, masser / secunda);
+            EXPECT_GT(configured().of(Moon::Masser).mRadius, configured().of(Moon::Secunda).mRadius);
+            EXPECT_LT(configured().of(Moon::Masser).mRadius / configured().of(Moon::Secunda).mRadius, masser / secunda);
         }
 
         /// The direction is the arc tipped up from the horizon and swung about the zenith.
@@ -365,7 +368,7 @@ namespace Rtx
         TEST(RtxMoonBuilderTest, aFullMasserDeliversWhatALitDiscOfItsSizeDoes)
         {
             const float radiance = Shaders::DAYLIGHT * Shaders::MOON_ALBEDO * Shaders::INV_PI;
-            const float sine = std::sin(configured().mMasserRadius);
+            const float sine = std::sin(configured().of(Moon::Masser).mRadius);
             const float facing = radiance * osg::PIf * sine * sine;
 
             const MoonPlacement full = placeMoon(configured(), Moon::Masser, 90.0f, 35.0f, 0.0f, /*alpha=*/1.0f);
@@ -397,7 +400,7 @@ namespace Rtx
 
             EXPECT_NEAR(share(osg::DegreesToRadians(0.2593f)), 1.0f / 407000.0f, 1e-8f);
 
-            const float masser = share(configured().mMasserRadius);
+            const float masser = share(configured().of(Moon::Masser).mRadius);
             EXPECT_LT(masser, 1.0f / 250.0f) << "a moon brighter than a sunrise";
             EXPECT_GT(masser, 1.0f / 1000.0f) << "a moon that lights nothing";
             EXPECT_GT(masser / share(osg::DegreesToRadians(0.2593f)), 400.0f) << "the size the game gives it got lost";
@@ -419,8 +422,8 @@ namespace Rtx
             const MoonPlacement masser = placeMoon(configured(), Moon::Masser, 90.0f, 35.0f, 0.0f, /*alpha=*/1.0f);
             const MoonPlacement secunda = placeMoon(configured(), Moon::Secunda, 90.0f, -50.0f, 0.0f, /*alpha=*/1.0f);
 
-            const float wide = std::sin(configured().mMasserRadius);
-            const float narrow = std::sin(configured().mSecundaRadius);
+            const float wide = std::sin(configured().of(Moon::Masser).mRadius);
+            const float narrow = std::sin(configured().of(Moon::Secunda).mRadius);
             const float covered = (narrow * narrow) / (wide * wide);
             EXPECT_LT(covered, 1.0f) << "Secunda is the smaller of the two, whatever the sizes say";
 
