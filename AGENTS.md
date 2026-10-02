@@ -69,6 +69,8 @@ pointer and Lua read one size whichever renderer draws.
 - The pose hook in `RenderingManager`'s intersection visitor (`Renderer::poseForIntersection`): a
   skinned body answers a CPU ray with the copy its last cull posed, and the ray tracer culls no
   world, so the crosshair met every actor in its bind pose.
+- `ScreenshotManager`'s thumbnail crop, through `Misc::cropToAspect`, which the ray tracer's
+  `capture` calls as well: one rule for where a save's thumbnail is cut from.
 - The sky meshes' vertex rules, `components/sky/vertexrules.hpp`, which `ModVertexAlphaVisitor`
   reads: the rasterizer and the ray tracer fade the cloud shell, the atmosphere and the star dome by
   one rule each.

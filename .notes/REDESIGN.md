@@ -43,7 +43,9 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   (see below). 5 is done by another rule than the plan's (see below). A release bench against the
   base after the eight (`~/.cache/omw-refactor/bench-2/`) matches it within noise at the median,
   the p99 and the worst frame of all three places.
-- **Now:** Phase 1, medium item 9, the picture and the interface as two images (W12).
+- **Phase 1, medium:** 9 is done; its thumbnail traces no fresh frame where the world is hidden,
+  which stays in `REVIEW.md` as a low item.
+- **Now:** Phase 1, medium item 10, the ring's request from its inputs (W2).
 
 ### Waiting for you
 
