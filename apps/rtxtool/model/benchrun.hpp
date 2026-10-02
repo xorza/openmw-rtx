@@ -24,7 +24,7 @@ namespace RtxTool
     /// How fast a measured run steps the world unless it states otherwise, in frames a second: world
     /// time and not wall time, so ten seconds is the same six hundred frames on a build that draws
     /// them in four seconds and on one that takes twenty. Sixty because that is what the frame
-    /// budget is written against. A default a run states (`RunSetup::mStep`), and never read in
+    /// budget is written against. A default a run states (`SessionRequest::mStep`), and never read in
     /// place of the step a run stated.
     inline constexpr float sStepRate = 60.0f;
 
@@ -34,9 +34,9 @@ namespace RtxTool
     /// What one frame of world counts for where a run turns seconds into frames — a span, a flight,
     /// a turning sky: the stated step, or where the wall decides, the step a measured run states by
     /// default.
-    inline float worldStep(const MWRender::RunSetup& setup)
+    inline float worldStep(const std::optional<float>& step)
     {
-        return setup.mStep.value_or(sStepSeconds);
+        return step.value_or(sStepSeconds);
     }
 
     /// One thing a run asserts about what the renderer was handed or what it drew, of the running
@@ -370,6 +370,15 @@ namespace RtxTool
         /// What the renderer is made with: the command's (`Framed::mSetup`), hidden and stepped unless
         /// it says otherwise.
         MWRender::RunSetup mSetup;
+
+        /// How long every frame stands for, in seconds, or nothing to time each one off the wall:
+        /// what the run hands the engine's frame clock (`OMW::EngineHost::getFrameStep`), which is the one
+        /// source the renderer reads it from. Everything the world animates steps by it, so ten
+        /// seconds of world is six hundred frames on every machine, and two runs of one build are
+        /// the same run. A window somebody watches wants the wall, as the played game has it. A
+        /// run's and never a setting's: a file that could state a step once turned a played game
+        /// into a fixed-step run for good.
+        std::optional<float> mStep;
 
         /// Whether the command measures (`VerbPolicy::mMeasures`), which the report's header says.
         bool mMeasures = false;

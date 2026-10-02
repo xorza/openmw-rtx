@@ -59,7 +59,7 @@ namespace RtxTool
     /// What paces a film: the command line's, each a default `film --help` states.
     struct FilmPacing
     {
-        /// How long one frame of the film stands for: the run's own step (`RunSetup::mStep`), which
+        /// How long one frame of the film stands for: the run's own step (`SessionRequest::mStep`), which
         /// every length below is counted in frames by, and `--fps` is one over.
         float mStep = sStepSeconds;
 

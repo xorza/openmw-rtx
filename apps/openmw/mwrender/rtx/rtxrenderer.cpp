@@ -113,7 +113,6 @@ namespace MWRender
                 = { .mLevel = Rtx::sValidationByDefault ? Rtx::ValidationLevel::On : Rtx::ValidationLevel::Off },
                 .mMirror = settings.mMirror,
                 .mHeadless = false,
-                .mStep = std::nullopt,
                 .mSettled = std::nullopt,
             };
         }

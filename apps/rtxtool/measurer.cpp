@@ -56,7 +56,7 @@ namespace RtxTool
         std::uint32_t longest = 0;
         for (const Stop& stop : request.mStops)
             if (!stop.mSchedule.mSpec.mRun.isUntilClosed())
-                longest = std::max(longest, stop.mSchedule.mSpec.getMeasured(worldStep(request.mSetup)));
+                longest = std::max(longest, stop.mSchedule.mSpec.getMeasured(worldStep(request.mStep)));
 
         mProgress.mSamples.reserve(longest);
         mProgress.mGpu.reserve(longest);
@@ -68,7 +68,7 @@ namespace RtxTool
         // that a field added to it is reset here whether or not its author remembered to.
         mProgress.restart();
 
-        const float step = worldStep(mRequest.mSetup);
+        const float step = worldStep(mRequest.mStep);
         mProgress.mWindow = MeasureWindow(stop.mSchedule.mSpec.getWarmup(step),
             BenchSpan{ .mSeconds = sPauseSeconds }.getFrames(step), mRequest.mPlayed);
         mProgress.mCell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell();
@@ -85,7 +85,7 @@ namespace RtxTool
     {
         Rtx::Renderer& renderer = context.mBackend;
         const double frameMs = report.mSpend.at(Rtx::Timing::Frame);
-        const float step = worldStep(mRequest.mSetup);
+        const float step = worldStep(mRequest.mStep);
         const std::uint32_t measured = stop.mSchedule.mSpec.getMeasured(step);
 
         // **Counted at the frame the run traced, and never at the frame the device answered for
@@ -285,7 +285,7 @@ namespace RtxTool
         const MWRender::FrameReport& report, const float travelled, StopWriter& writer)
     {
         Rtx::Renderer& renderer = context.mBackend;
-        const float step = worldStep(mRequest.mSetup);
+        const float step = worldStep(mRequest.mStep);
 
         mProfiling.disable();
 

@@ -45,7 +45,7 @@ namespace RtxTool
 
     std::optional<float> Session::getFrameStep() const
     {
-        return mRequest.mSetup.mStep;
+        return mRequest.mStep;
     }
 
     SessionResult Session::describe() const
@@ -86,7 +86,7 @@ namespace RtxTool
 
         mStarted = true;
 
-        const float step = worldStep(mRequest.mSetup);
+        const float step = worldStep(mRequest.mStep);
         Log(Debug::Info) << "Ray tracing session: stop " << (mAt + 1) << " of " << mRequest.mStops.size() << ", "
                          << (stop.mName.empty() ? "unnamed" : stop.mName) << " — the world standing whole, "
                          << stop.mSchedule.mSpec.getWarmup(step) << " frames warming up, then "
@@ -219,7 +219,7 @@ namespace RtxTool
             if (const SkyPress press = mSkyKeys.listen(); press.mSteps != 0)
                 mCamera.turnSkyBy(currentStop(), press.mSteps, press.mAtOnce);
         }
-        mCamera.step(currentStop(), mMeasurer.getMeasuredIndex(), worldStep(mRequest.mSetup));
+        mCamera.step(currentStop(), mMeasurer.getMeasuredIndex(), worldStep(mRequest.mStep));
 
         // **After the camera has stepped and on every frame, warm-up included.** `CameraDriver::aim`
         // says why once is not enough; the warm-up frames stand at the route's start.
