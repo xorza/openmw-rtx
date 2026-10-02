@@ -59,7 +59,10 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   wind, the moon's phase runs continuously, and the sky's sheets are keyed by name.
 - **Phase 1, medium 19:** done — the actor's alpha and fade resolved apart, sprites included, and an
   effect on the hands kept in the arms' class.
-- **Now:** Phase 1, medium item 20, W14.2.
+- **Phase 1, medium 20:** the byte formats are widened; BC7 and groundcover wait (see below). The
+  rest of W14.2 (the untextured emitter, the template walk's per-drawable refusal, AutoPlay parts,
+  the distortion node) stays with the lows of its section.
+- **Now:** Phase 1, medium item 21, W13 and W11.
 
 ### Waiting for you
 
@@ -106,6 +109,13 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   tables are spec data I did not want to write from memory; Mesa's
   `src/mesa/main/texcompress_bptc_tmp.h` (MIT) holds a decoder. Your call whether to take its
   tables (a licence note in `files/licenses/`) or have the facts of a BC7 texture be "unknown".
+- **Item 20: groundcover waits for content to check it against.** This install has no groundcover
+  plugin (`openmw.cfg` names none), and the design is a new reference kind from
+  `GroundcoverStore`, the game's density rule shared, and one merged mesh per cell and plant model
+  held by the ring as its ground is — an instance per plant would add about a hundred thousand rows
+  to the top level. Built against synthetic tests alone it could be quietly wrong where it matters.
+  If you put a groundcover mod (Aesthesia, Remiros') in `~/.config/openmw/openmw.cfg`, I build it
+  next and measure it.
 - **Someone ran `git pull --rebase origin` on `refactor`** while the work ran, after two early
   commits (`a297255ebe`, `3de0c852f7`) reached `origin/refactor`. I left them and worked forward:
   `da36abeaa0` moves the test the first one put in the wrong binary.
