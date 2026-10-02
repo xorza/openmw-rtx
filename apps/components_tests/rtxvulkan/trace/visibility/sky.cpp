@@ -634,9 +634,12 @@ namespace Rtx::Testing
                 if (armsDegrees > 0.0f)
                     camera.mEyes.mArms = cameraAtFieldOfView(camera.mEyes.mWorld, armsDegrees);
 
-                const SunGlare fader{ .mColour = osg::Vec3f(1.0f, 0.0f, 0.0f),
-                    .mAngleMax = osg::DegreesToRadians(90.0f),
-                    .mStrength = strength };
+                const SunGlare fader{
+                    .mFader = Sky::SunGlareFader{ .mColour = osg::Vec3f(1.0f, 0.0f, 0.0f),
+                        .mMax = 1.0f,
+                        .mAngleMax = osg::DegreesToRadians(90.0f) },
+                    .mFade = strength,
+                };
                 shoot(scene, sheet, camera, size, Shot{ .mLoss = HistoryLoss::Cut, .mGlare = fader });
 
                 std::vector<std::uint8_t> pixels;

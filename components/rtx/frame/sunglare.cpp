@@ -7,7 +7,7 @@ namespace Rtx
 {
     float SunGlare::amountFor(const Shaders::VisibilityConstants& frame) const
     {
-        if (mStrength <= 0.0f || mAngleMax <= 0.0f)
+        if (mFade <= 0.0f || mFader.mAngleMax <= 0.0f)
             return 0.0f;
 
         // `getAngleToSunInRadians`: the eye's own forward against the sun's, both unit. Clamped
@@ -18,6 +18,6 @@ namespace Rtx
             = std::clamp((forward * sun) / std::max(forward.length() * sun.length(), 1.0e-6f), -1.0f, 1.0f);
         const float angle = std::acos(cosine);
 
-        return mStrength * (1.0f - std::min(1.0f, angle / mAngleMax));
+        return mFader.mMax * mFade * mFader.atAngle(angle);
     }
 }

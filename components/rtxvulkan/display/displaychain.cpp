@@ -48,7 +48,7 @@ namespace Rtx
                 .mBackdrop = frame.mTransparentBackground == 0 ? Shaders::BACKDROP_STARS : Shaders::BACKDROP_INTERFACE,
                 .mCamera = Shaders::cameraOnGrid(frame.mEyes.mWorld, width, height),
                 .mStars = frame.mStars,
-                .mGlareColour = fader.mColour,
+                .mGlareColour = fader.mFader.mColour,
                 .mGlareAmount = fader.amountFor(frame),
                 .mInverseGamma = inverseGamma,
             };

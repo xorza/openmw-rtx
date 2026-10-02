@@ -5,6 +5,7 @@
 
 #include <osg/Camera>
 #include <osg/Group>
+#include <osg/Math>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
@@ -28,6 +29,7 @@
 #include <components/rtx/shaders/look.h>
 #include <components/settings/values.hpp>
 #include <components/sky/skyclock.hpp>
+#include <components/sky/sunglarefader.hpp>
 #include <components/vfs/manager.hpp>
 
 namespace MWRender
@@ -269,7 +271,7 @@ namespace MWRender
             EXPECT_EQ(hidden.mDaylight.mSkyHorizon, shown.mDaylight.mSkyHorizon);
             EXPECT_EQ(hidden.mDaylight.mLight.mSun.mIrradiance, shown.mDaylight.mLight.mSun.mIrradiance);
             EXPECT_EQ(hidden.mDaylight.mLight.mSun.mDiscColour, shown.mDaylight.mLight.mSun.mDiscColour);
-            EXPECT_EQ(hidden.mSunGlare.mStrength, 0.0f) << "a glare on a hidden sun";
+            EXPECT_EQ(hidden.mSunGlare.mFade, 0.0f) << "a glare on a hidden sun";
         }
 
         /// **The water scatters back the colour the content settles its murk at**:
@@ -303,6 +305,10 @@ namespace MWRender
         /// **The glare fades with the disc through sunrise and sunset**, as `SkyManager::setWeather`
         /// hands the sun `Glare_View` times the disc's alpha: at 06:15 of the shipped day the disc
         /// stands at a quarter, and so does the glare against a whole disc's.
+        ///
+        /// **And the fader is the content's, as `SunGlareCallback` reads it**: the seed's colour
+        /// `222,095,039` doubled and clamped, 2 * 222 / 255 past one, 190 / 255 and 78 / 255; its most
+        /// of 0.5; and thirty degrees in radians.
         TEST(RtxReadWorldTest, theGlareFadesWithTheDisc)
         {
             const Rtx::WorldReading whole = readFrom(standingIn(Location::Exterior));
@@ -310,8 +316,15 @@ namespace MWRender
             dawn.mSky.mWeather.mSunDiscColor.a() = 0.25f;
             const Rtx::WorldReading faded = readFrom(dawn);
 
-            ASSERT_GT(whole.mSunGlare.mStrength, 0.0f) << "no glare at noon to compare against";
-            EXPECT_FLOAT_EQ(faded.mSunGlare.mStrength, 0.25f * whole.mSunGlare.mStrength);
+            ASSERT_GT(whole.mSunGlare.mFade, 0.0f) << "no glare at noon to compare against";
+            EXPECT_FLOAT_EQ(faded.mSunGlare.mFade, 0.25f * whole.mSunGlare.mFade);
+
+            const Sky::SunGlareFader& fader = whole.mSunGlare.mFader;
+            EXPECT_EQ(fader.mColour.x(), 1.0f);
+            EXPECT_FLOAT_EQ(fader.mColour.y(), 190.0f / 255.0f);
+            EXPECT_FLOAT_EQ(fader.mColour.z(), 78.0f / 255.0f);
+            EXPECT_EQ(fader.mMax, 0.5f);
+            EXPECT_FLOAT_EQ(fader.mAngleMax, osg::DegreesToRadians(30.0f));
         }
 
         /// A script paints Secunda `Moons_Script_Color`, and Secunda alone, as

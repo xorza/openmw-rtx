@@ -50,7 +50,8 @@ namespace TestingOpenMW
                 { "Water_UnderwaterColor", "012,030,037" },
                 { "Water_UnderwaterColorWeight", "0.85" },
 
-                // The glare's fader, which a reading of the sky multiplies its strength up from.
+                // The glare's fader, the colour and the strength a reading of the sky takes.
+                { "Weather_Sun_Glare_Fader_Color", "222,095,039" },
                 { "Weather_Sun_Glare_Fader_Max", "0.5" },
                 { "Weather_Sun_Glare_Fader_Angle_Max", "30.0" },
 
