@@ -101,6 +101,7 @@ set(RTX_TEST_FILES
     rtxvulkan/device/buffermarkers.cpp
     rtxvulkan/device/instance.cpp
     rtxvulkan/device/memory/formats.cpp
+    rtxvulkan/device/memory/memorypriority.cpp
     rtxvulkan/device/physicaldevice.cpp
     rtxvulkan/device/requirements.cpp
     rtxvulkan/pipeline/dispatch.cpp
