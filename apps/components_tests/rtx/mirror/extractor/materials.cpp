@@ -1484,6 +1484,26 @@ namespace Rtx::Testing
 
             ASSERT_EQ(mScene.materials().getRows().size(), 1u);
             expectRed(mScene.materials().getRows()[0].mDiffuseColour, 0.5225216f);
+
+            // **A controller moved from one chain to the other is a chain changed**, though the
+            // same callbacks stand in the same order read cull first: a cull chain `first→second`
+            // applies `second` last, and `second` on the update chain beside `first` on the cull
+            // chain applies `first` last, as the rasterizer runs them.
+            first->mRed = 0.25f;
+            node->removeUpdateCallback(second);
+            node->addCullCallback(first);
+            node->addCullCallback(second);
+            mScene.clearPlacement();
+            walk(*node, 0, 4);
+            ASSERT_EQ(mScene.materials().getRows().size(), 1u);
+            expectRed(mScene.materials().getRows()[0].mDiffuseColour, 0.5225216f);
+
+            node->removeCullCallback(second);
+            node->addUpdateCallback(second);
+            mScene.clearPlacement();
+            walk(*node, 0, 5);
+            ASSERT_EQ(mScene.materials().getRows().size(), 1u);
+            expectRed(mScene.materials().getRows()[0].mDiffuseColour, 0.0508761f);
         }
     }
 }

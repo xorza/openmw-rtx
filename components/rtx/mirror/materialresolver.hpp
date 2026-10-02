@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -211,6 +212,33 @@ namespace Rtx
         /// and a fade at the most, and a controller past these is left unapplied.
         static constexpr std::size_t sMostUpdaters = 4;
 
+        /// What hangs on a node's two chains, exactly: each chain's callbacks in order, and how many
+        /// are the update chain's. A callback moved from one chain to the other, added, removed or
+        /// swapped makes another shape, where a mix of the pointers into one number could not tell
+        /// a cull chain `A→B` from a cull chain `A` beside an update chain `B`.
+        struct ChainShape
+        {
+            /// The callbacks a shape holds; a node whose chains hold more is read again every frame.
+            static constexpr std::size_t sMostCallbacks = 8;
+
+            std::array<const osg::Callback*, sMostCallbacks> mCallbacks{};
+            std::uint8_t mCount = 0;
+            std::uint8_t mUpdates = 0;
+
+            /// False where the chains held more than the shape has room for.
+            bool mWhole = true;
+
+            /// The shape of `node`'s chains now.
+            static ChainShape of(const osg::Node& node);
+
+            /// Whether the chains are as they were: never where either shape was cut short.
+            bool operator==(const ChainShape& other) const
+            {
+                return mWhole && other.mWhole && mCount == other.mCount && mUpdates == other.mUpdates
+                    && std::equal(mCallbacks.begin(), mCallbacks.begin() + mCount, other.mCallbacks.begin());
+            }
+        };
+
         /// The state set a node's controllers write into, kept so that the address a material is
         /// keyed on is the same one next frame. See `animate`. An entry like any other, so the map
         /// sweeps it by the reach every entry carries.
@@ -232,7 +260,7 @@ namespace Rtx
             /// update consumes that before the walk applies it here, so the state set held here
             /// hears it by the number alone.
             std::array<unsigned int, sMostUpdaters> mGenerations{};
-            std::uintptr_t mChains = 0;
+            ChainShape mChains;
         };
 
         /// Reads a whole material off the chain, which is what an arrival and a rewrite both want.
