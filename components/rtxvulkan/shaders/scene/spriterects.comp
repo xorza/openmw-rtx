@@ -50,11 +50,11 @@ struct Frame
 Frame frameOf(Camera camera)
 {
     Frame frame;
-    frame.mForward = camera.mForward;
-    frame.mHalfWidth = length(camera.mRight);
-    frame.mHalfHeight = length(camera.mUp);
-    frame.mRight = camera.mRight / frame.mHalfWidth;
-    frame.mUp = camera.mUp / frame.mHalfHeight;
+    frame.mForward = camera.mBasis.mForward;
+    frame.mHalfWidth = length(camera.mBasis.mRight);
+    frame.mHalfHeight = length(camera.mBasis.mUp);
+    frame.mRight = camera.mBasis.mRight / frame.mHalfWidth;
+    frame.mUp = camera.mBasis.mUp / frame.mHalfHeight;
 
     return frame;
 }
@@ -91,7 +91,7 @@ ivec4 orthographicPixels(vec3 centre, float radius, Frame frame)
     const float lowV = (-dot(toward, frame.mUp) - radius) / frame.mHalfHeight;
     const float highV = (-dot(toward, frame.mUp) + radius) / frame.mHalfHeight;
 
-    const vec2 axis = bin.mCamera.mCentre;
+    const vec2 axis = bin.mCamera.mBasis.mCentre;
     return ivec4(toPixel(lowU, axis.x, bin.mCamera.mWidth, -1.0), toPixel(lowV, axis.y, bin.mCamera.mHeight, -1.0),
         toPixel(highU, axis.x, bin.mCamera.mWidth, 1.0), toPixel(highV, axis.y, bin.mCamera.mHeight, 1.0));
 }
@@ -274,7 +274,7 @@ TileRect capsuleTiles(Bound bound, Frame frame)
     const vec2 upright = capsuleSpan(vec2(-dot(from, frame.mUp), fromDepth), vec2(-dot(to, frame.mUp), toDepth),
         bound.mRadius, frame.mHalfHeight);
 
-    const vec2 axis = bin.mCamera.mCentre;
+    const vec2 axis = bin.mCamera.mBasis.mCentre;
     return tilesOf(ivec4(toPixel(sideways.x, axis.x, bin.mCamera.mWidth, -1.0),
         toPixel(upright.x, axis.y, bin.mCamera.mHeight, -1.0), toPixel(sideways.y, axis.x, bin.mCamera.mWidth, 1.0),
         toPixel(upright.y, axis.y, bin.mCamera.mHeight, 1.0)));

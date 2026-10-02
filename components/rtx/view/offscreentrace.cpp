@@ -93,7 +93,7 @@ namespace Rtx
 
         // `ViewRequest::mRowOrder` says why the GUI's copy comes out the other way up.
         if (mRequest.mRowOrder == RowOrder::BottomFirst)
-            camera->mCamera.mUp = -camera->mCamera.mUp;
+            camera->mCamera.mBasis.mUp = -camera->mCamera.mBasis.mUp;
 
         // Where the light stands, unit, in the sense `ViewRequest::mLight` states it and the
         // trace takes it.
@@ -214,7 +214,7 @@ namespace Rtx
         // reaches at the distance its slant from the forward stretches it to.
         const Shaders::Ray ray = Shaders::rayAcross(camera->mCamera, osg::Vec2f(x, y));
         const osg::Vec3f from = camera->mOrigin + ray.mOffset;
-        osg::Vec3f forward = camera->mCamera.mForward;
+        osg::Vec3f forward = camera->mCamera.mBasis.mForward;
         forward.normalize();
         const float slant = ray.mDirection * forward;
 

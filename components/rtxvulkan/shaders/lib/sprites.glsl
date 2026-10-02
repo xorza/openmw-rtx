@@ -433,7 +433,7 @@ SpriteCrossing ballCrossing(
 uvec2 binnedPixel(uvec2 pixel, vec3 direction, bool arms)
 {
     const Camera world = frame.mCamera;
-    const Screen screen = screenOf(basisOf(world), direction, vec2(1.0));
+    const Screen screen = screenOf(world.mBasis, direction, vec2(1.0));
 
     // `rayAt`'s generation undone: the pixel whose area the ray crosses the plane in.
     const vec2 across = (screen.mAt / screen.mAhead + 1.0) * 0.5 * vec2(world.mWidth, world.mHeight) - world.mJitter;
@@ -511,7 +511,7 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
     // is not the screen's up, which no pinhole's ray inside its own field of view is. Not
     // `tangentTo`, whose tangent is whichever world axis the ray lies least along: that flips
     // between two rays a pixel apart and would turn every puff's texture with it.
-    const vec3 across = normalize(cross(direction, frame.mCamera.mUp));
+    const vec3 across = normalize(cross(direction, frame.mCamera.mBasis.mUp));
     const vec3 upward = cross(across, direction);
 
     // The air along this one ray, built before the walk: every sprite below asks the same column

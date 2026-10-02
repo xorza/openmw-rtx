@@ -22,10 +22,10 @@ namespace Rtx
         Shaders::VisibilityConstants stated()
         {
             Shaders::VisibilityConstants frame{};
-            frame.mCamera.mRight = osg::Vec3f(2.0f, 0.0f, 0.0f);
-            frame.mCamera.mUp = osg::Vec3f(0.0f, 0.0f, 1.0f);
+            frame.mCamera.mBasis.mRight = osg::Vec3f(2.0f, 0.0f, 0.0f);
+            frame.mCamera.mBasis.mUp = osg::Vec3f(0.0f, 0.0f, 1.0f);
             frame.mArms = frame.mCamera;
-            frame.mArms.mRight = osg::Vec3f(3.0f, 0.0f, 0.0f);
+            frame.mArms.mBasis.mRight = osg::Vec3f(3.0f, 0.0f, 0.0f);
             frame.mOrigin = osg::Vec3f(10.0f, 20.0f, 30.0f);
             frame.mFrame = 4;
             frame.mRayMask = Shaders::MASK_FIRST_PERSON;
@@ -71,7 +71,7 @@ namespace Rtx
             const InstanceCounts counts{ .mFirstPerson = 1 };
             Shaders::VisibilityConstants previous = stated();
             previous.mOrigin = osg::Vec3f(7.0f, 20.0f, 30.0f);
-            previous.mCamera.mForward = osg::Vec3f(0.0f, 1.0f, 0.0f);
+            previous.mCamera.mBasis.mForward = osg::Vec3f(0.0f, 1.0f, 0.0f);
 
             const Shaders::VisibilityConstants sampled
                 = sampleFrame(stated(), FrameOptions{}, RenderProfile{}, jittering, counts, &previous);

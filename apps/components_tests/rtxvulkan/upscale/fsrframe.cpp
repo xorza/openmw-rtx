@@ -22,9 +22,9 @@ namespace Rtx
         Shaders::Camera eyeWithJitter(const osg::Vec2f& jitter)
         {
             Shaders::Camera camera{};
-            camera.mForward = osg::Vec3f(0.0f, 1.0f, 0.0f);
-            camera.mRight = osg::Vec3f(0.75f, 0.0f, 0.0f);
-            camera.mUp = osg::Vec3f(0.0f, 0.0f, 0.5f);
+            camera.mBasis.mForward = osg::Vec3f(0.0f, 1.0f, 0.0f);
+            camera.mBasis.mRight = osg::Vec3f(0.75f, 0.0f, 0.0f);
+            camera.mBasis.mUp = osg::Vec3f(0.0f, 0.0f, 0.5f);
             camera.mJitter = jitter;
             return camera;
         }
