@@ -495,6 +495,26 @@ namespace Rtx::Testing
             CellRing mRing{ mExtractor };
         };
 
+        /// **A `_diffusespec` is what the layout says it is**: authored under the metal layout, as the
+        /// test below reads, classic under the classic one, and a plain diffuse under `ignore`.
+        TEST_F(RtxCellRingTest, aDiffusespecIsWhatTheLayoutSaysItIs)
+        {
+            const auto rockLayerUnder = [&](SpecularLayout layout) {
+                mRing.setSpecularLayout(layout);
+                start();
+                fill();
+                const std::optional<MeshInstance> far = groundOf(osg::Vec2i(3, 0));
+                EXPECT_TRUE(far.has_value());
+                const Material& material = mScene.materials().getRows()[far->mMaterial];
+                const std::uint32_t flags = material.mLayers.in(mScene.materials().getLayers())[1].mFlags;
+                mRing.follow(WorldAround{});
+                return flags;
+            };
+
+            EXPECT_EQ(rockLayerUnder(SpecularLayout::Classic), Shaders::LAYER_CLASSIC | Shaders::LAYER_PARALLAX);
+            EXPECT_EQ(rockLayerUnder(SpecularLayout::Ignore), Shaders::LAYER_PARALLAX);
+        }
+
         /// A reference stands where the game would stand its clone, on the mesh every copy shares;
         /// what the active grid holds is left to the game; every cell of the reach stands its
         /// ground on a row of the ring's own; and a second walk adds nothing.

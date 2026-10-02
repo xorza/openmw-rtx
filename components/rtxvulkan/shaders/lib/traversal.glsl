@@ -962,6 +962,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     // `groundcomposite.comp` sums the first two the same way into a distant chunk's gloss.
     float weights = 0.0;
     float reflecting = 0.0;
+    float shining = 0.0;
     float roughness = 0.0;
     float spread = 0.0;
     vec3 painted = vec3(0.0);
@@ -1012,8 +1013,9 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
                 at.mAt += parallaxShift(layerEye, sampleDiffuse(layer.mNormal, at).a);
 
             const bool authored = HAS_MAPS && layerAuthored(layer, sceneTexels());
-            const vec4 shown
-                = layerTexel(layer, at.mAt, sampleDiffuse(layer.mDiffuse, at), frame.mDelight, authored);
+            const bool classic = HAS_MAPS && layerClassic(layer, sceneTexels());
+            const vec4 read = sampleDiffuse(layer.mDiffuse, at);
+            const vec4 shown = layerTexel(layer, at.mAt, read, frame.mDelight, authored, classic);
             albedo += showing * shown.rgb;
 
             if (HAS_MAPS)
@@ -1022,6 +1024,8 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
                 roughness += showing * shown.a;
                 if (authored)
                     reflecting += showing;
+                if (classic)
+                    shining += showing * read.a;
 
                 const bool mapped = detailed && holdsTexture(layer.mNormal);
                 painted += showing * (mapped ? sampleNormalMap(layer.mNormal, at) : vec3(0.0, 0.0, 1.0));
@@ -1072,15 +1076,15 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     // its layers, a distant chunk from the gloss baked beside its composite — and the tint darkens
     // it for the same reason. A stack with no layer that reflects keeps the Lambert surface's
     // numbers exactly, since no division is taken for it.
-    if (HAS_MAPS && reflecting > 0.0)
+    if (HAS_MAPS && (reflecting > 0.0 || shining > 0.0))
     {
-        surface.mSpecular = vec3(DIELECTRIC_F0 * (reflecting / weights)) * tint;
+        surface.mSpecular = vec3(DIELECTRIC_F0 * (reflecting / weights) + shining / weights) * tint;
         surface.mRoughness = roughness / weights;
     }
     else if (HAS_MAPS && holdsTexture(material.mSpecular) && surface.mGround)
     {
-        const vec2 gloss = sampleSpecularMap(material.mSpecular, point);
-        surface.mSpecular = vec3(DIELECTRIC_F0 * gloss.x) * tint;
+        const vec3 gloss = sampleDiffuse(material.mSpecular, point).rgb;
+        surface.mSpecular = vec3(DIELECTRIC_F0 * gloss.x + gloss.z) * tint;
         surface.mRoughness = gloss.y;
     }
     else if (HAS_MAPS && holdsTexture(material.mSpecular))

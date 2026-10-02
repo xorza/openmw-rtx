@@ -65,7 +65,9 @@ also follow the settings window while the game runs.
    with none. :code:`classic` reads the first as a reflectance and a roughness: the highlight colour
    is the reflectance at normal incidence, and the glossiness — a Blinn-Phong exponent over 255 — is
    matched to a roughness by :math:`\alpha = \sqrt{2 / (n + 2)}`, which is an approximation and not
-   the rasterizer's highlight. :code:`metal roughness` reads the second.
+   the rasterizer's highlight; a terrain :code:`_diffusespec` is read the same way, its alpha the
+   grey reflectance at the exponent of 128 the rasterizer's terrain uses. :code:`metal roughness`
+   reads the second.
 
    The maps are found by name as :ref:`auto use object specular maps` finds them, and loaded with
    the models, so a change requires a restart. A name this does not know is refused rather than

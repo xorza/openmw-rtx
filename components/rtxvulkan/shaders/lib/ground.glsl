@@ -14,6 +14,7 @@
 // **The three tables it reads are declared here** and reached through `bindings.glsl` by the
 // trace, so that a table is declared once whichever side constructs the reference.
 
+#include "brdf.h"
 #include "colour.h"
 #include "look.h"
 #include "scene.h"
@@ -85,19 +86,30 @@ bool layerAuthored(GpuLayer layer, TexelTable texels)
     return (layer.mFlags & LAYER_AUTHORED) != 0u && holdsTexture(texels, layer.mDiffuse);
 }
 
+/// Whether `layer` is a classic `_diffusespec` (`LAYER_CLASSIC`) and its texture holds what it was,
+/// as `layerAuthored` asks it of an authored one.
+bool layerClassic(GpuLayer layer, TexelTable texels)
+{
+    return (layer.mFlags & LAYER_CLASSIC) != 0u && holdsTexture(texels, layer.mDiffuse);
+}
+
 /// What one layer shows where `texel` was read from it, at `at`: its albedo in rgb and its
-/// perceptual roughness in alpha. **An authored layer** is read as it stands, its alpha its roughness; **any other** has
-/// `delight` of its painted light divided out and is a Lambert layer, as rough as a surface is. The
-/// two readers of a stack call this and nothing else for a layer, so a flattened chunk is the stack
-/// it replaces.
+/// perceptual roughness in alpha. **An authored layer** is read as it stands, its alpha its
+/// roughness; **any other** has `delight` of its painted light divided out, and is as rough as a
+/// surface is, or as `CLASSIC_GROUND_EXPONENT` where it is classic. What a layer reflects at normal
+/// incidence is the caller's to sum beside this: `DIELECTRIC_F0` an authored one, its alpha a classic
+/// one. The two readers of a stack call this and nothing else for a layer, so a flattened chunk is
+/// the stack it replaces.
 ///
-/// @param authored `layerAuthored`, which the trace asks only where `HAS_MAPS` says a layer can be.
-vec4 layerTexel(GpuLayer layer, vec2 at, vec4 texel, float delight, bool authored)
+/// @param authored,classic `layerAuthored` and `layerClassic`, which the trace asks only where
+///        `HAS_MAPS` says a layer can be.
+vec4 layerTexel(GpuLayer layer, vec2 at, vec4 texel, float delight, bool authored, bool classic)
 {
     if (authored)
         return texel;
 
-    return vec4(delitTexel(layer.mDiffuse, at, texel.rgb, delight), 1.0);
+    const float rough = classic ? roughnessOfExponent(CLASSIC_GROUND_EXPONENT) : 1.0;
+    return vec4(delitTexel(layer.mDiffuse, at, texel.rgb, delight), rough);
 }
 
 /// Where `chunkUv` of a chunk lands on one of its layers, which tiles across it.

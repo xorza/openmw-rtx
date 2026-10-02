@@ -35,8 +35,9 @@ namespace Rtx
         /// Whether any layer of `layers` reflects, which is whether a gloss says anything.
         bool reflects(const SceneDesc& scene, const Run& layers)
         {
-            return std::ranges::any_of(layers.in(scene.materials().getLayers()),
-                [](const MaterialLayer& layer) { return (layer.mFlags & Shaders::LAYER_AUTHORED) != 0u; });
+            return std::ranges::any_of(layers.in(scene.materials().getLayers()), [](const MaterialLayer& layer) {
+                return (layer.mFlags & (Shaders::LAYER_AUTHORED | Shaders::LAYER_CLASSIC)) != 0u;
+            });
         }
 
         /// Whether `material` still wants the ground it asked for as `asked`: the same kind, still
