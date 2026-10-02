@@ -82,7 +82,7 @@ namespace Rtx
         FrameExtents getExtents() const override;
         const RenderProfile& getProfile() const override { return mProfile; }
         JobProgress awaitKernels(std::chrono::milliseconds patience) override;
-        Reconstruction renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) override;
+        void renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) override;
         std::uint64_t getFrameCount() const override;
         std::optional<FrameResult> finishFrame() override;
         std::optional<FrameResult> collectFrame() override;

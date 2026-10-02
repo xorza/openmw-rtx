@@ -218,6 +218,7 @@ namespace RtxTool
             || finished.mFrame < mProgress.mFirstMeasured)
             return;
 
+        mProgress.mReconstruction = finished.mReconstruction;
         mProgress.mPlace.mOverlap.add(finished.mInFlight);
         mProgress.mGpu.add(finished.mGpu.spans());
         mProgress.mNotFinite.add(finished.mNotFinite);
@@ -332,7 +333,7 @@ namespace RtxTool
         // computing one of the operations left to the device — a division, a root, a
         // transcendental — otherwise, and the stop's frames are then two codes' and no reference.
         if (stop.mSchedule.mFrozen && !stop.mSchedule.mRoute.has_value() && stop.mActions.mHash
-            && !report.mReconstruction.mJitter)
+            && !mProgress.mReconstruction.mJitter)
             if (const std::optional<std::uint32_t> moved = mRecord.getHashes().findStillMoved(stop.mName))
             {
                 const std::string why = std::format(
@@ -347,13 +348,11 @@ namespace RtxTool
             // **What only a frame says, taken at the first stop**; `RunRecord::begin` took the rest.
             // A bench's stops override none of the upscaling, the reconstruction and the exposure,
             // so the first stop's are the run's; another command's stops may, and its header says
-            // the first stop's. The upscaling is the frame's own answer — the pair the renderer
-            // resolved this frame — and not the renderer's mode alone.
+            // the first stop's. The upscaling is the last measured frame's own answer, off its
+            // result — the pair the renderer resolved for it — and not the renderer's mode alone.
             BenchHeader& header = mRecord.getHeader();
             header.mExtents = extents;
-            header.mUpscale = report.mReconstruction.mUpscale;
-            header.mNoise = report.mReconstruction.mNoise;
-            header.mLevelBias = report.mReconstruction.mLevelBias;
+            header.mReconstruction = mProgress.mReconstruction;
             header.mValidating = renderer.isValidating();
             header.mMeasured = stop.mSchedule.mSpec.getMeasured(step);
             header.mWarmup = stop.mSchedule.mSpec.getWarmup(step);

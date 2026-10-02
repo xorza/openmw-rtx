@@ -60,7 +60,7 @@ namespace RtxTool
             request.mJson = TestingOpenMW::outputFilePath("premises.json");
             Rtx::RenderProfile& profile = request.mSetup.mRun.mProfile;
             profile.mReconstruction.mDenoise = false;
-            profile.mReconstruction.mJitter = true;
+            profile.mReconstruction.mJitter = false;
             profile.mDelight = 0.5f;
             profile.mGamma = 2.2f;
             profile.mShow = Rtx::SurfaceView::Albedo;
@@ -79,9 +79,13 @@ namespace RtxTool
             header.mExtents = Rtx::FrameExtents{
                 .mRenderWidth = 960, .mRenderHeight = 540, .mOutputWidth = 1920, .mOutputHeight = 1080
             };
-            header.mUpscale = Rtx::Upscale::Performance;
-            header.mNoise = Rtx::NoiseSource::WhiteHash;
-            header.mLevelBias = -1.0f;
+            // **What a frame resolved, not what the line asked**: the line asked no jitter, and an
+            // upscaler jitters the ray whatever it is asked.
+            header.mReconstruction = Rtx::Reconstruction{ .mDenoised = false,
+                .mUpscale = Rtx::Upscale::Performance,
+                .mJitter = true,
+                .mNoise = Rtx::NoiseSource::WhiteHash,
+                .mLevelBias = -1.0f };
             header.mValidating = true;
 
             BenchPlace place;
@@ -109,7 +113,7 @@ namespace RtxTool
             const std::string json = read.str();
             constexpr std::string_view premises = R"("measures": false, "hashed": true, "turnsWeather": true,)";
             constexpr std::string_view setup
-                = R"(  "filter": false, "jitter": true, "delight": 0.500, "gamma": 2.200, "show": "albedo", )"
+                = R"(  "filter": false, "jitter": false, "delight": 0.500, "gamma": 2.200, "show": "albedo", )"
                   R"("exposure": 1.5, "exposureHeld": false, "variants": false, "holdMs": 8.000,)";
             constexpr std::string_view mirror = R"(  "landCells": 4.0, "viewingDistance": 7168.0, )"
                                                 R"("distantStatics": false, "step": 0.0625, "settled": false, )"

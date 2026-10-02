@@ -120,6 +120,10 @@ namespace RtxTool
             double mWallMs = 0.0;
             Rtx::NotFinite mNotFinite;
 
+            /// What put the last measured frame back together, off its own result: the frame the
+            /// stop's checks and the record's header describe.
+            Rtx::Reconstruction mReconstruction{};
+
             /// Which frame of the film each frame in flight is, by the backend's number: a picture
             /// comes back a frame or two after the frame it was traced as, and is numbered by that.
             /// Room for one on the device in each slot and one finished in each that the ring has
