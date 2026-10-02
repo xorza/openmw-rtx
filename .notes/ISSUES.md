@@ -71,8 +71,6 @@ first review.
   `components/rtxvulkan/shaders/display/tone.comp:141-143`, `components/rtx/shaders/line.h:15-16`.
 - The seam and `architecture.md` §10 call a time skip a cut, and nothing calls `notifyCut` for one
   (`set gamehour`, a rest), so the histories carry the old light. `apps/openmw/mwrender/renderer.hpp:305-309`.
-- Water strikes under `tws` pile up in `mStrikes` on the frame path and land in one step when the
-  world comes back. `apps/openmw/mwrender/rtx/rtxrenderer.cpp:342-345`, `:776-777`.
 - `RenderingManager::getFieldOfView` returns the override flag (1°) while the field of view is
   overridden, so in werewolf form Lua's `camera.getFieldOfView()` and `viewportToWorldVector` use 1°.
   `apps/openmw/mwrender/renderingmanager.cpp:1087-1090`.
