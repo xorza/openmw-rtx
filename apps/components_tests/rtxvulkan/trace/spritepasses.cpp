@@ -266,6 +266,7 @@ namespace Rtx
                             .mPresence = presence.getDeviceAddress(),
                             .mOrigin = constants.mOrigin,
                             .mCamera = constants.mEyes.mWorld,
+                            .mFrame = SpriteBinPass::frameOf(constants.mEyes.mWorld),
                             .mCount = count,
                             .mCapacity = capacity,
                             .mPresenceCount = static_cast<std::uint32_t>(layer.mPresences.size()),

@@ -31,6 +31,10 @@ namespace Rtx
         void record(VkCommandBuffer commands, const Shaders::SpriteBinConstants& bin, const Buffer& list,
             const Buffer& presence, GpuTimer* timer) const;
 
+        /// `camera`'s image-plane axes as the binning reads them, `SpriteBinConstants::mFrame`: unit,
+        /// and the half-extents its basis scaled them by.
+        static Shaders::SpriteBinFrame frameOf(const Shaders::Camera& camera);
+
     private:
         ComputePipeline<Shaders::SpriteBinConstants> mRects;
         ComputePipeline<Shaders::SpriteBinConstants> mStarts;
