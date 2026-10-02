@@ -18,12 +18,11 @@ namespace Rtx::Shaders
     /// for a direction of no length, or of none a number can hold.
     RTX_SHADER uint packTangent(vec3 direction, bool flipped)
     {
-        if (!(abs(direction[0]) + abs(direction[1]) + abs(direction[2]) > 0.0f))
+        if (!octahedralDirected(direction))
             return 0u;
 
-        const vec2 square = octahedralSquare(direction);
-        return TANGENT_PRESENT | (flipped ? TANGENT_FLIPPED : 0u) | octahedralStep(square[0], TANGENT_STEPS)
-            | (octahedralStep(square[1], TANGENT_STEPS) << TANGENT_COORDINATE_BITS);
+        const uvec2 code = octahedralCode(direction, TANGENT_STEPS);
+        return TANGENT_PRESENT | (flipped ? TANGENT_FLIPPED : 0u) | code[0] | (code[1] << TANGENT_COORDINATE_BITS);
     }
 
     /// The unit direction and the handedness `packed` holds, or nought where it holds none.
@@ -32,9 +31,9 @@ namespace Rtx::Shaders
         if ((packed & TANGENT_PRESENT) == 0u)
             return vec4(0.0f, 0.0f, 0.0f, 0.0f);
 
-        const vec2 square = vec2(octahedralCoordinate(packed & TANGENT_COORDINATE_MASK, TANGENT_STEPS),
-            octahedralCoordinate((packed >> TANGENT_COORDINATE_BITS) & TANGENT_COORDINATE_MASK, TANGENT_STEPS));
-        return vec4(octahedralUnit(square), (packed & TANGENT_FLIPPED) != 0u ? -1.0f : 1.0f);
+        const vec3 unit = octahedralFromCode(packed & TANGENT_COORDINATE_MASK,
+            (packed >> TANGENT_COORDINATE_BITS) & TANGENT_COORDINATE_MASK, TANGENT_STEPS);
+        return vec4(unit, (packed & TANGENT_FLIPPED) != 0u ? -1.0f : 1.0f);
     }
 
 #ifdef RTX_HOST
