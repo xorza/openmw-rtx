@@ -157,6 +157,15 @@ namespace Rtx
         return true;
     }
 
+    bool PlacementTable::jump(const Index slot, const osg::Matrixf& transform)
+    {
+        if (!move(slot, transform))
+            return false;
+
+        mRows.at(slot).mPrevious = transform;
+        return true;
+    }
+
     void PlacementTable::drop(const Index slot, const Stander by)
     {
         PlacementRow& row = mRows.at(slot);

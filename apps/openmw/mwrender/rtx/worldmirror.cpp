@@ -303,9 +303,12 @@ namespace MWRender
         // ring and the number both.
         mRing.follow(around);
 
-        // One walk over the whole graph, where every path is already distinct.
+        // One walk over the whole graph, where every path is already distinct, and the one that
+        // stands the references the game said jumped: the other walks stand nothing of theirs.
+        mExtractor.setJumped(frame.mJumped);
         Rtx::ExtractionStats found
             = mExtractor.extractWorld(frame.mScene, osg::Matrixf::identity(), Anchor::World, frameNumber, mRing);
+        mExtractor.setJumped({});
 
         // What the walks did not find has gone. The graph is the whole world every frame, which is
         // what makes mark and sweep sound; the identity maps hold their keys alive until it runs.

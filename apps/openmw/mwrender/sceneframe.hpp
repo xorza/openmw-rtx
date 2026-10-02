@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <optional>
+#include <span>
 
 #include <osg/Matrixf>
 #include <osg/Vec2f>
@@ -243,5 +244,10 @@ namespace MWRender
         /// it: what `RenderingManager::update` was handed, for the objects that step by it.
         float mDeltaTime = 0.0f;
         bool mPaused = false;
+
+        /// The base nodes of the references the game put somewhere else in one step since the
+        /// last frame — a door, a teleport, a script's `Position` — whose history from where they
+        /// stood is no history of where they stand. Compared by address and never read.
+        std::span<const osg::Node* const> mJumped{};
     };
 }

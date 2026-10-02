@@ -6,6 +6,7 @@
 #include <osg/Camera>
 
 #include <components/sceneutil/lightmanager.hpp>
+#include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -103,6 +104,7 @@ namespace MWRender
             .mObjectStorage = sources.mObjectStorage,
             .mDeltaTime = mDeltaTime,
             .mPaused = mPaused,
+            .mJumped = mJumped,
         });
 
         return *mFrame;
@@ -156,5 +158,12 @@ namespace MWRender
         mPrecipitation->setViewPoint(camera.getInverseViewMatrix().getTrans());
 
         mRenderer.renderFrame(mFrame.get());
+        mFrame.clearJumped();
+    }
+
+    void RenderingManager::notifyJumped(const MWWorld::Ptr& ptr)
+    {
+        if (const osg::Node* node = ptr.getRefData().getBaseNode())
+            mFrame.noteJumped(*node);
     }
 }

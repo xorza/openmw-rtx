@@ -24,16 +24,6 @@ parity findings name what the rasterizer does beside what the ray tracer does.
 cause. The groups are sorted by severity and benefit, and the items in each group by severity.
 An item that carries `kind: bug` gives a wrong result for an input the tree can produce.
 
-## Frame-to-frame state is not told which frames really happened
-
-- [ ] **A single object that teleports carries the light of where it stood into the history** — `components/rtx/scene/instancerecord.cpp:109-140`, `components/rtxvulkan/shaders/lib/surfacematch.glsl:64-72`, `apps/openmw/mwrender/renderer.hpp:305-309`.
-
-  `notifyCut` resets every history, and is told only for the eye. A reference the game puts somewhere else in one step gets the full jump as its motion (`instancerecord.cpp:139`), and its skin gets an exact object-space pose delta. Examples: `SetPos` or `PositionCell` on an NPC in view, a Lua `teleport`, a summon placed beside the caster.
-
-  The history test compares only facing and distance from the previous eye (`surfacematch.glsl:64-72`). It accepts the reprojected pixels wherever the object's old place was on screen. The accumulator and the glossy filter then blend the old place's lighting into the new one for their history length: an NPC moved from a dark corner to under a lamp brightens over several frames. The rasterizer has no history, so it shows the new light at once.
-
-  Better shape: the game says which reference jumped, as it says a cut for the eye. `World::moveObject`'s teleporting paths (as opposed to physics stepping) call a seam member, `Renderer::notifyMoved(const osg::Node&)`. The ray tracer turns it into a still placement: `PlacementTable::place(slot, transform)` sets `mPrevious` to the new transform and the pose blocks of both copies to the new pose. The motion is then nought, and the surface test rejects the old place's history at the new pixels. *(kind: design; severity: low; benefit: a teleported object is lit where it stands from its first frame)*
-
 ## The seam promises what only one renderer does
 
 - [ ] **The Lua post-processing package asks "which renderer" in nine places, where the seam allows one null test** — `apps/openmw/mwrender/renderer.hpp:232-238`, `apps/openmw/mwlua/postprocessingbindings.cpp:44-56`, `:79-80`, `:94-95`, `:140-141`, `:156-157`, `:171-172`, `:180-191`, `:208-216`, `:228-229`. The seam documents the post-processing package as an upstream caller "that tests null once". Under upstream, `load` throws on a missing technique, so `Shader::mShader` is never null. The fork adds a `mRequested` constructor for "a renderer with no chain". Every method (`setBool`… through `getSetter`/`getArraySetter`, `enable`, `disable`, `isEnabled`, `name`, `author`, `description`, `version`) now tests `mShader` for null, which is the renderer question in disguise. `load` and `getChain` test `getPostProcessor() == nullptr` again, and `load` keeps a function-local `static` to log once. Better shape: decide once, where the package is built. `initPostprocessingPackage` registers either upstream's usertype or an inert one whose methods are no-ops and whose `name` is the requested name. The upstream usertype then returns to upstream's code, and item 448 disappears with it. *(kind: design; severity: low; benefit: one branch instead of nine, and upstream's bindings back unchanged)*

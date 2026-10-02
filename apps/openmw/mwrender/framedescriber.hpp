@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <vector>
 
 #include <osg/Matrixf>
 #include <osg/Vec2f>
@@ -92,6 +93,13 @@ namespace MWRender
             mPaused = paused;
         }
 
+        /// Says `node` was put somewhere else in one step, for the next frame described:
+        /// `SceneFrame::mJumped`.
+        void noteJumped(const osg::Node& node) { mJumped.push_back(&node); }
+
+        /// Lets go of the jumps a drawn frame carried.
+        void clearJumped() { mJumped.clear(); }
+
         /// Describes this frame off `sources` and the facts kept here, and keeps it until the next.
         const SceneFrame& describe(const FrameSources& sources);
 
@@ -116,5 +124,9 @@ namespace MWRender
         WorldState mWorld;
         EyeState mEye;
         std::optional<SceneFrame> mFrame;
+
+        /// Kept across frames and cleared, so a frame allocates none of it once the most jumps any
+        /// frame held have been held.
+        std::vector<const osg::Node*> mJumped;
     };
 }
