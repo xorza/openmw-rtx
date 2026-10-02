@@ -237,6 +237,11 @@ namespace Rtx
         /// also where the hand-over of a scene a walk left unswept is refused (`Turn`).
         void orderLights();
 
+        /// Settles every list the tables took a slot out of, once in a hand-over and before anything
+        /// reads them: a sweep gives back thousands of slots, and a pass over a list for each was
+        /// what settling at every drop cost.
+        void compact();
+
         /// Forgets what arrived and what was freed, which a hand-over does once it has read both.
         void clearArrivals();
 

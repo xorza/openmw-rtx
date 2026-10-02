@@ -81,6 +81,9 @@ namespace Rtx
         std::uint32_t getTriangleCount() const { return mTriangles; }
         std::size_t getGeometryBytes() const;
 
+        /// Settles what a drop took out of the posed and the arrived meshes, so they can be read.
+        void compact();
+
         void clearArrivals();
 
     private:

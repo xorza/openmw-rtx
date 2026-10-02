@@ -54,10 +54,7 @@ namespace Rtx
         mCounts.mMapped -= share.mMapped;
 
         if (share.mMedium + share.mAdditive > 0)
-        {
             mPresent.remove(slot);
-            mPresent.compact();
-        }
     }
 
     Index PlacementTable::add(const MeshInstance& instance, const Material::Traversed& worn)

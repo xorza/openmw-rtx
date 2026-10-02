@@ -109,6 +109,9 @@ namespace Rtx
         /// has to read as a change.
         std::uint64_t getRevision() const { return mRevision; }
 
+        /// Settles what a drop took out of the arrivals, so they can be read.
+        void compact() { mChanges.compact(); }
+
         void clearArrivals() { mChanges.clearArrivals(); }
 
         /// How many new textures were refused because `sCapacity` slots stood, ever. Drawn neutral,

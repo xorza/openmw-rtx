@@ -299,6 +299,14 @@ namespace Rtx
         mRipples.clear();
     }
 
+    void SceneDesc::compact()
+    {
+        mMeshes.compact();
+        mTextures.compact();
+        mDeformers.compact();
+        mPlacements.compact();
+    }
+
     void SceneDesc::clearArrivals()
     {
         mMeshes.clearArrivals();

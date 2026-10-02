@@ -71,12 +71,23 @@ namespace Rtx
         std::vector<std::uint8_t> mIsFree;
     };
 
-    /// The slots of one table that something is true of, in the order they were named, each once.
-    /// The list is what a frame walks and the byte is what keeps a slot named twice from appearing
-    /// twice without searching the list — N²/2 comparisons for the N movers of a crowded cell.
-    /// Kept together, because apart they fall out of step in the one direction nothing catches.
+    /// The slots of one table that something is true of, in the order they were first named, each
+    /// once. The list is what a frame walks and the byte is what keeps a slot named twice from
+    /// appearing twice without searching the list — N²/2 comparisons for the N movers of a crowded
+    /// cell. Kept together, because apart they fall out of step in the one direction nothing
+    /// catches.
     class SlotSet
     {
+        /// What the byte says of a slot. A slot taken out stays on the list as `Removed` until
+        /// `compact`, so an `add` before then puts it back where it stood rather than listing it a
+        /// second time, and a table may take a slot out and name it again inside one sweep.
+        enum State : std::uint8_t
+        {
+            Absent,
+            Listed,
+            Removed,
+        };
+
     public:
         /// Makes room for at least `count` slots, which a table does as it takes one. Never shrinks
         /// the bytes: a table emptied is exactly when the next is about to be filled.
@@ -90,11 +101,14 @@ namespace Rtx
         void add(Index slot)
         {
             assert(slot < mFlags.size() && "a slot the table has not grown to");
-            if (mFlags[slot] != 0)
+            if (mFlags[slot] == Listed)
                 return;
 
-            mFlags[slot] = 1;
-            mSlots.push_back(slot);
+            if (mFlags[slot] == Absent)
+                mSlots.push_back(slot);
+            else
+                --mRemoved;
+            mFlags[slot] = Listed;
         }
 
         /// The same, for a caller that is told one slot at a time and never sees the table.
@@ -110,23 +124,24 @@ namespace Rtx
         void remove(Index slot)
         {
             assert(slot < mFlags.size() && "a slot the table has not grown to");
-            if (mFlags[slot] == 0)
+            if (mFlags[slot] != Listed)
                 return;
 
-            mFlags[slot] = 0;
-            mStale = true;
+            mFlags[slot] = Removed;
+            ++mRemoved;
         }
 
-        /// Drops what `remove` took, in one pass over the list rather than one per slot.
+        /// Drops what `remove` took, in one pass over the list rather than one per slot. A table
+        /// calls it once its sweep ends, before anything reads the list.
         void compact();
 
         /// Whether `slot` is in the set. Answers while a `remove` is outstanding, where `getSlots`
         /// will not: the flags are exact from the moment a slot is taken out.
-        bool has(Index slot) const { return slot < mFlags.size() && mFlags[slot] != 0; }
+        bool has(Index slot) const { return slot < mFlags.size() && mFlags[slot] == Listed; }
 
         std::span<const Index> getSlots() const
         {
-            assert(!mStale && "the list was read between a remove and the compact that settles it");
+            assert(mRemoved == 0 && "the list was read between a remove and the compact that settles it");
             return mSlots;
         }
 
@@ -139,11 +154,12 @@ namespace Rtx
     private:
         std::vector<Index> mSlots;
 
-        /// A byte per slot of the table beside it, set for exactly the slots `mSlots` names —
-        /// except between a `remove` and the `compact` that settles it.
+        /// A `State` per slot of the table beside it: `Absent` for exactly the slots `mSlots` does
+        /// not name.
         std::vector<std::uint8_t> mFlags;
 
-        bool mStale = false;
+        /// How many of `mSlots` are `Removed`.
+        std::size_t mRemoved = 0;
     };
 
     /// What has happened to one slot of a table since the last `clearArrivals`.
@@ -174,6 +190,9 @@ namespace Rtx
         /// taken back, because what a reader has to know is where the slot stands at the end of the
         /// frame.
         void note(Index slot, SlotNews what);
+
+        /// Settles what `note` took back, once the table's sweep ends and before the lists are read.
+        void compact();
 
         std::span<const Index> getArrived() const { return mArrived.getSlots(); }
         std::span<const Index> getFreed() const { return mFreed.getSlots(); }

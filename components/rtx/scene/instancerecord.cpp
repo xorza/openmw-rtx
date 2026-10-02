@@ -164,10 +164,13 @@ namespace Rtx
         changed.clear();
         changed.reserve(scene.placements().getSettled().size() + scene.placements().getMoved().size());
 
-        // The settled first: a slot that moved again since it settled is in both lists, and the
-        // pass that gives it its motion has to be the one that wins.
+        // A slot that moved again since it settled is in both lists, and is the moved list's: the
+        // pass that gives it its motion is the one that writes it, once.
         for (const Index slot : scene.placements().getSettled())
         {
+            if (scene.placements().isMoved(slot))
+                continue;
+
             records[slot] = recordOf(scene, slot);
             changed.push_back(slot);
         }
