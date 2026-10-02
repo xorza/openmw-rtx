@@ -43,9 +43,11 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   (see below). 5 is done by another rule than the plan's (see below). A release bench against the
   base after the eight (`~/.cache/omw-refactor/bench-2/`) matches it within noise at the median,
   the p99 and the worst frame of all three places.
-- **Phase 1, medium:** 9 is done; its thumbnail traces no fresh frame where the world is hidden,
-  which stays in `REVIEW.md` as a low item.
-- **Now:** Phase 1, medium item 10, the ring's request from its inputs (W2).
+- **Phase 1, medium:** 9 to 13 are done. 9's thumbnail traces no fresh frame where the world is
+  hidden, which stays in `REVIEW.md` as a low item. 13's hang limit came with the start function
+  both binaries call (`OpenMW::startLogAndSettings`); the rest of W10's lift from `parseOptions`
+  stays in Phase 4.
+- **Now:** Phase 1, medium item 14, the denoiser's turn on unfiltered frames (W1).
 
 ### Waiting for you
 
@@ -67,6 +69,10 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   one per-file cache per thread (`ImageFactCache`), whose entry reads each fact at its first ask:
   the reach by the walk that stops at the first solid texel, the mean only for an additive sheet.
   The worst frame is back at 0.07 ms.
+- **The harness's hang report needs the catcher on.** `openmw-rtxtool` defaults
+  `OPENMW_DISABLE_CRASH_CATCHER` to `1`, so item 13 reports a hang only where a shell sets it to
+  `0` (checked: a run stopped for 30 s wrote a dump and a summary with the version and the
+  renderer). Whether the harness keeps the catcher off is in `ISSUES.md`, not decided here.
 - **Someone ran `git pull --rebase origin` on `refactor`** while the work ran, after two early
   commits (`a297255ebe`, `3de0c852f7`) reached `origin/refactor`. I left them and worked forward:
   `da36abeaa0` moves the test the first one put in the wrong binary.
