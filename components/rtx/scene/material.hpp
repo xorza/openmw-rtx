@@ -157,9 +157,9 @@ namespace Rtx
         /// What one texel of the diffuse map adds on average under this material's blend, in
         /// linear light: weighted by its own alpha where the blend reads one and whole where it
         /// does not — `ImageFacts::mMean`. Read for an additive material and nothing else, because what
-        /// asks is a magic effect's glow, and left at the untextured grey for one with no map,
+        /// asks is a magic effect's glow, and left at the untextured white for one with no map,
         /// which is what its sheets are drawn with. Nought for a map nothing here can decode.
-        osg::Vec3f mDiffuseMean = Shaders::NO_TEXTURE_ALBEDO;
+        osg::Vec3f mDiffuseMean = Shaders::UNTEXTURED_ALBEDO;
 
         /// For telling a rewrite from a no-op: a state set with a controller on it is re-read every
         /// frame and usually says exactly what it said last time.

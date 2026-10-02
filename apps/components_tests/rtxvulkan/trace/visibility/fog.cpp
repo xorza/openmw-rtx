@@ -122,7 +122,7 @@ namespace Rtx::Testing
                 return std::array<int, 3>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2) };
             };
 
-            // The wall is untextured, so its albedo is 0.5 and the cell's ambient is all that is on
+            // The wall is the tests' grey, an albedo of 0.5, and the cell's ambient is all that is on
             // it: 0.5 * 0.6 = 0.3. Over that sits `exp(-3.5e-4 * 2000)` = 0.4966 of transmittance,
             // with the rest of the path's worth of the fog's own colour in front of it.
             const float transmittance = std::exp(-extinction * distance);

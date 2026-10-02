@@ -143,19 +143,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
 
 ## The material reader keeps a subset of what the loader states, by rules other than the rasterizer's
 
-- [ ] **An untextured surface is drawn at half its material colour** —
-  `components/rtxvulkan/scene/scenebuffers.cpp:56`, `components/rtx/shaders/look.h:345-347`,
-  `components/rtxvulkan/texture/texture.cpp:501`, `traversal.glsl:970-972`, `:977`, against
-  `objects.frag:152-157` (`vec4(1.0)` times the diffuse colour). The tracer gives a material with
-  no diffuse map the neutral slot, whose texel is `NO_TEXTURE_ALBEDO`, 0.5 grey, and multiplies the
-  tint into it. The doc's reason is a texture that failed to load ("so a missing texture reads as
-  missing"), and the same slot then serves a shape the content made untextured on purpose, whose
-  colour *is* its material colour. Vanilla: 417 visible untextured shapes in 157 files, most of
-  them menu and marker meshes, and among the world's: `Tri Creature_Guar 7` of `r/guar.nif`
-  (diffuse 0.84, 0.9, 0.65), the bonemold Armun-An helm's `… helm 0`, `ex_ar_01`, `in_ar_s4`,
-  `byagram`'s steam pipe. Better shape: two slots, a white neutral texel that a material with no
-  map reads, and the grey stand-in a refused texture reads. *(kind: bug; severity: medium;
-  benefit: untextured parts at their authored colour)*
 - [ ] **A glow map bound to the second UV set is read through the first** —
   `components/rtxvulkan/shaders/lib/traversal.glsl:1058-1059` (`point`, the diffuse's set and
   transform), `components/rtx/mirror/materialresolver.cpp:424`, `:427-428` (a unit is carried for

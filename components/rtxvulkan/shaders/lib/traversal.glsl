@@ -880,7 +880,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
 
     // **Ground that kept its stack**, which is every chunk near enough to be worth the sharpness,
     // and one fetch for everything else, an untextured surface included: its diffuse is
-    // `TEXTURE_NEUTRAL`, which reads as the grey it always read as. A chunk outside the active grid
+    // `TEXTURE_NEUTRAL`, whose one texel is white. A chunk outside the active grid
     // had the whole stack flattened into one texture in its own coordinates instead, by
     // `groundcomposite.comp` over the same sum as this, and is that one fetch too.
     // `CellPlacer::wantsFlattening` is where the two swap over, and `MATERIAL_STACKED` is what the

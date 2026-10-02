@@ -50,7 +50,7 @@ namespace Rtx::Shaders
     /// the scene's table are both bounded by.
     const uint TEXTURE_SLOTS = 4096u;
 
-    /// The one slot the scene never hands out: one texel of `NO_TEXTURE_ALBEDO` with an alpha of
+    /// The one slot the scene never hands out: one texel of `UNTEXTURED_ALBEDO` with an alpha of
     /// one, stood by the backend when the array is made, under the neutral shading map.
     ///
     /// **A texture and not a sentinel, so no reader tests for it.** A material with no diffuse

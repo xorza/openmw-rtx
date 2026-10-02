@@ -83,7 +83,7 @@ Crossing crossingOf(
     const TexturePoint point
         = candidatePoint(crossing.mCorner, crossing.mMaterial, crossing.mBary, edges, direction, coneWidth, false);
 
-    // One path: an untextured shell names `TEXTURE_NEUTRAL`, which reads as the grey it stood for.
+    // One path: an untextured shell names `TEXTURE_NEUTRAL`, whose one texel is white.
     crossing.mTexel = sampleDiffuse(crossing.mMaterial.mDiffuse, point);
     return crossing;
 }

@@ -38,7 +38,7 @@ namespace Rtx::Testing
     {
         /// What the centre pixel must read over `depth` units of flat water with a bed under it.
         ///
-        /// The bed is untextured, so its albedo is 0.5, and **the water is crossed twice**: the sun
+        /// The bed is the tests' grey, an albedo of 0.5, and **the water is crossed twice**: the sun
         /// is attenuated on its way down and again on the way back up to the eye, so what arrives is
         /// the product of two paths and not one of them. Lighting the bottom as though the water
         /// over it were not there is what makes the same column read differently from above and
@@ -460,7 +460,7 @@ namespace Rtx::Testing
             constexpr float stretch = 200.0f;
 
             // No sun and a black sky, so the ambient is the only light and the answer is the two
-            // exponentials. The bed is untextured, which is an albedo of a half.
+            // exponentials. The bed is the tests' grey, an albedo of a half.
             const auto look = [&](float eye) {
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -0.05f, -eye), osg::Vec3f(0.0f, 0.0f, -eye - 10.0f), 60.0f, size, size, 10000.0f);

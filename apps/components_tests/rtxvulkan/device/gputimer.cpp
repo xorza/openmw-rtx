@@ -188,7 +188,7 @@ namespace Rtx
             // structures its meshes bring are recorded ahead of the placement and ride its submit,
             // so without a bracket of their own they are device time the frame's fence carries and
             // no zone accounts for — which is exactly the frame a player feels.
-            Testing::addQuad(scene, sWallCorners, sNoIndex, osg::Matrixf::translate(0.0f, -50.0f, 0.0f));
+            Testing::addQuad(scene, sWallCorners, std::nullopt, osg::Matrixf::translate(0.0f, -50.0f, 0.0f));
 
             mRenderer.extendScene(Rtx::SceneSlot::world(), scene, {});
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);

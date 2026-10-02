@@ -342,9 +342,9 @@ namespace Rtx::Shaders
     const float SHADING_FLOOR = 0.5f;
     const float SHADING_CEILING = 2.0f;
 
-    /// Untextured surfaces are mid-grey rather than black, so a missing texture reads as missing rather
-    /// than as shadow.
-    const vec3 NO_TEXTURE_ALBEDO = vec3(0.5f, 0.5f, 0.5f);
+    /// What a surface with no diffuse map reads: white, the rasterizer's `vec4(1.0)`, so its colour
+    /// is its material's. A map that did not load reads the backend's grey stand-in instead.
+    const vec3 UNTEXTURED_ALBEDO = vec3(1.0f, 1.0f, 1.0f);
 
     /// The radiance a fully lit white card leaves, which is what the original's one meant.
     ///

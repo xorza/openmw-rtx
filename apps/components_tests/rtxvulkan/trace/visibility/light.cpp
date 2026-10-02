@@ -67,7 +67,8 @@ namespace Rtx::Testing
             scene.addInstance(MeshInstance{
                 .mMesh = scene.addMesh(
                     MeshArrays{ .mPositions = sheetAt(4000.0f, 0.0f), .mNormals = normals, .mIndices = sQuadIndices },
-                    shape) });
+                    shape),
+                .mMaterial = addGrey(scene) });
 
             return scene;
         }
@@ -569,7 +570,7 @@ namespace Rtx::Testing
             };
 
             // Red where the mask survived and grey where the wall shows through: the mask is pure
-            // red, so its green is zero, and the untextured wall's albedo of 0.5 encodes to
+            // red, so its green is zero, and the grey wall's albedo of 0.5 encodes to
             // 1.055 * 0.5^(1/2.4) - 0.055 = 0.73536, or 187.5 of 255 — which is why the grey is the
             // one value here given a byte of room.
             constexpr int wallGrey = 188;
@@ -611,7 +612,7 @@ namespace Rtx::Testing
         ///
         /// The centre pixel looks straight at the origin, where the wall's normal is (0, -1, 0) and
         /// the light sits fifty units along it, so the cosine is exactly one and the whole answer is
-        /// the falloff. Written out, with a reach of 500 and the untextured albedo of 0.5:
+        /// the falloff. Written out, with a reach of 500 and the tests' grey of 0.5:
         ///
         ///   window    = 1 - (50 / 500)^4              = 0.99990
         ///   falloff   = window^2 / (50^2 + 1)         = 0.99980 / 2501 = 3.99760e-4
@@ -1334,7 +1335,8 @@ namespace Rtx::Testing
                 SceneDesc scene;
                 scene.addInstance(
                     MeshInstance{ .mMesh = scene.addMesh(MeshArrays{
-                                      .mPositions = sWallQuad, .mNormals = normals, .mIndices = sQuadIndices }) });
+                                      .mPositions = sWallQuad, .mNormals = normals, .mIndices = sQuadIndices }),
+                        .mMaterial = addGrey(scene) });
                 scene.addLight(lamp);
 
                 const Frame frame = shoot(scene, {}, camera, size);
@@ -1933,8 +1935,9 @@ namespace Rtx::Testing
                 13, 14, 15, 16, 17 };
 
             SceneDesc scene;
-            scene.addInstance(MeshInstance{ .mMesh
-                = scene.addMesh(MeshArrays{ .mPositions = positions, .mNormals = normals, .mIndices = indices }) });
+            scene.addInstance(MeshInstance{
+                .mMesh = scene.addMesh(MeshArrays{ .mPositions = positions, .mNormals = normals, .mIndices = indices }),
+                .mMaterial = addGrey(scene) });
 
             osg::Vec3f normal = up * 0.9f + nearSide * 0.1f;
             normal.normalize();
@@ -1979,8 +1982,8 @@ namespace Rtx::Testing
         /// scene. Above, the floor gathers `(1 + cos 70) / 2` of it, which is the form factor of a
         /// half-space seen at that tilt. Below, it gathers none.
         ///
-        /// The sheet's own radiance is `0.5 * 0.25 * EMISSIVE_INTENSITY`, which is one, so the floor
-        /// above comes to `0.5 * 0.67101`.
+        /// The sheet's own radiance is `1 * 0.125 * EMISSIVE_INTENSITY` (its untextured texel is
+        /// white), which is one, so the grey floor above comes to `0.5 * 0.67101`.
         TEST_F(RtxVisibilityTest, aBounceDoesNotGatherThroughTheTriangleItLeft)
         {
             constexpr std::uint32_t size = 32;
@@ -1989,7 +1992,7 @@ namespace Rtx::Testing
                 SceneDesc scene = leaningFloor();
 
                 Material glowing;
-                glowing.mEmissiveColour = osg::Vec3f(0.25f, 0.25f, 0.25f);
+                glowing.mEmissiveColour = osg::Vec3f(0.125f, 0.125f, 0.125f);
 
                 // Wide enough that every direction off the floor which is on its side meets it, so
                 // the share below is the geometry's and not the sheet's edge.
