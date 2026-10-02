@@ -74,7 +74,7 @@ namespace Rtx
         }
 
         /// Every texel of `from`, little-endian sixteen-bit words of `format`, into `into` as RGBA8.
-        void widen(TextureFormat format, std::span<const std::byte> from, std::span<std::byte> into)
+        void widenWords(TextureFormat format, std::span<const std::byte> from, std::span<std::byte> into)
         {
             const ChannelBits bits = channelBitsOf(format);
             const std::uint32_t greenAt = bits.mBlue;
@@ -95,6 +95,48 @@ namespace Rtx
                 out[2] = widenChannel(field(word, 0, bits.mBlue), bits.mBlue);
                 out[3] = bits.mAlpha > 0 ? widenChannel(field(word, alphaAt, bits.mAlpha), bits.mAlpha)
                                          : std::byte{ 0xFF };
+            }
+        }
+
+        /// Every texel of `from`, laid out as `format`, into `into` as RGBA8: the missing channels
+        /// filled as a device samples a format that lacks them, an alpha of one and a luminance
+        /// read in all three colours.
+        void widen(TextureFormat format, std::span<const std::byte> from, std::span<std::byte> into)
+        {
+            const std::size_t bytes = layoutOf(format).mBytes;
+            assert(into.size() == from.size() / bytes * 4 && "RGBA8 is four bytes a texel");
+
+            const std::size_t texels = from.size() / bytes;
+            switch (format)
+            {
+                case TextureFormat::Rgb8:
+                case TextureFormat::Bgr8:
+                {
+                    const std::size_t red = format == TextureFormat::Bgr8 ? 2 : 0;
+                    for (std::size_t texel = 0; texel < texels; ++texel)
+                    {
+                        const std::byte* in = &from[texel * 3];
+                        std::byte* out = &into[texel * 4];
+                        out[0] = in[red];
+                        out[1] = in[1];
+                        out[2] = in[2 - red];
+                        out[3] = std::byte{ 0xFF };
+                    }
+                    return;
+                }
+                case TextureFormat::Luminance:
+                case TextureFormat::LuminanceAlpha:
+                    for (std::size_t texel = 0; texel < texels; ++texel)
+                    {
+                        const std::byte* in = &from[texel * bytes];
+                        std::byte* out = &into[texel * 4];
+                        out[0] = out[1] = out[2] = in[0];
+                        out[3] = bytes == 2 ? in[1] : std::byte{ 0xFF };
+                    }
+                    return;
+                default:
+                    widenWords(format, from, into);
+                    return;
             }
         }
 
@@ -271,30 +313,39 @@ namespace Rtx
 
             // **Laid into `texels`, which the caller holds**, so the description spans storage that
             // outlives this call as the image's own does: level by level from where each lies in the
-            // image, widened where the format is sixteen bits a texel. Widened is twice the bytes,
-            // because RGBA8 is four bytes a texel, and so every level begins at twice the offset.
-            const std::size_t scale = widened ? 2 : 1;
+            // image, widened to RGBA8 where the format is one this widens. A widened level is four
+            // bytes a texel, so every level begins where the texels before it end, four bytes each.
+            const auto outBytes = [&](const MipLevel& level) {
+                return widened ? std::size_t{ level.mWidth } * level.mHeight * 4
+                               : layout.levelBytes(level.mWidth, level.mHeight);
+            };
+            std::size_t total = 0;
+            for (std::uint32_t level = 0; level < count; ++level)
+                total += outBytes(levels[first + level]);
+
             const std::size_t from = texels.size();
-            texels.resize(from + kept * scale);
+            texels.resize(from + total);
             const std::span<std::byte> into = std::span(texels).subspan(from);
+            std::size_t at = 0;
             for (std::uint32_t level = 0; level < count; ++level)
             {
                 MipLevel& laidOut = levels[first + level];
                 const std::size_t bytes = layout.levelBytes(laidOut.mWidth, laidOut.mHeight);
                 const std::span<const std::byte> source(data + image.getMipmapOffset(level), bytes);
-                const std::span<std::byte> target = into.subspan(laidOut.mOffset * scale, bytes * scale);
+                const std::span<std::byte> target = into.subspan(at, outBytes(laidOut));
                 if (widened)
                     widen(format, source, target);
                 else
                     std::copy(source.begin(), source.end(), target.begin());
 
-                laidOut.mOffset *= static_cast<std::uint32_t>(scale);
+                laidOut.mOffset = static_cast<std::uint32_t>(at);
+                at += target.size();
             }
 
             if (widened)
                 described.mFormat
                     = encoding == TextureEncoding::Colour ? TextureFormat::Rgba8Srgb : TextureFormat::Rgba8Unorm;
-            described.mBytes = std::span<const std::byte>(texels).subspan(from, kept * scale);
+            described.mBytes = std::span<const std::byte>(texels).subspan(from, total);
             return described;
         }
     }

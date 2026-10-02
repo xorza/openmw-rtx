@@ -215,9 +215,11 @@ namespace Rtx
         {
             std::vector<Rtx::MipLevel> levels;
             std::vector<std::byte> texels;
-            const Misc::Result<Rtx::TextureData, std::string> rgb = describeImage(*makeBlock(GL_RGB), levels, texels);
-            ASSERT_FALSE(rgb.isOk());
-            EXPECT_EQ(rgb.error(), "its format is RGB8 (6407), which this renderer does not upload");
+            const Misc::Result<Rtx::TextureData, std::string> alpha
+                = describeImage(*makeBlock(GL_ALPHA), levels, texels);
+            ASSERT_FALSE(alpha.isOk());
+            EXPECT_EQ(
+                alpha.error(), "its format is an unnamed pixel format (6406), which this renderer does not upload");
 
             // A format that uploads, so what is refused is the size alone.
             osg::ref_ptr<osg::Image> empty = new osg::Image;
@@ -423,6 +425,54 @@ namespace Rtx
             std::vector<std::byte> texels;
             EXPECT_EQ(describeImage(*image, levels, texels, Rtx::TextureEncoding::Data).value().mFormat,
                 Rtx::TextureFormat::Rgba8Unorm);
+        }
+
+        /// A file a byte a channel with channels missing is widened to RGBA8 too: an alpha of one
+        /// where it has none, blue and red put back in their places for BGR, and a luminance read in
+        /// all three colours. A two-by-two image and its one-texel level, packed tight; the widened
+        /// levels begin at nought and sixteen bytes, four a texel.
+        TEST(RtxSceneTexturesTest, aFileOfMissingChannelsIsWidenedToRgba8)
+        {
+            struct Case
+            {
+                GLenum mPixelFormat;
+                std::size_t mBytes;
+                std::vector<std::uint8_t> mFile;
+                std::array<std::uint8_t, 20> mTexels;
+            };
+            const std::array<Case, 4> cases{ {
+                { GL_RGB, 3, { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 1, 2, 3 },
+                    { 10, 20, 30, 255, 40, 50, 60, 255, 70, 80, 90, 255, 100, 110, 120, 255, 1, 2, 3, 255 } },
+                { GL_BGR, 3, { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 1, 2, 3 },
+                    { 30, 20, 10, 255, 60, 50, 40, 255, 90, 80, 70, 255, 120, 110, 100, 255, 3, 2, 1, 255 } },
+                { GL_LUMINANCE, 1, { 0, 64, 128, 255, 7 },
+                    { 0, 0, 0, 255, 64, 64, 64, 255, 128, 128, 128, 255, 255, 255, 255, 255, 7, 7, 7, 255 } },
+                { GL_LUMINANCE_ALPHA, 2, { 0, 1, 64, 2, 128, 3, 255, 4, 7, 5 },
+                    { 0, 0, 0, 1, 64, 64, 64, 2, 128, 128, 128, 3, 255, 255, 255, 4, 7, 7, 7, 5 } },
+            } };
+
+            for (const Case& one : cases)
+            {
+                auto* bytes = new unsigned char[one.mFile.size()];
+                std::copy(one.mFile.begin(), one.mFile.end(), bytes);
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                image->setFileName("textures/tx_bytes.tga");
+                image->setImage(2, 2, 1, static_cast<GLint>(one.mPixelFormat), one.mPixelFormat, GL_UNSIGNED_BYTE,
+                    bytes, osg::Image::USE_NEW_DELETE, 1);
+                image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<unsigned int>(4 * one.mBytes) });
+
+                std::vector<Rtx::MipLevel> levels;
+                std::vector<std::byte> texels;
+                const Rtx::TextureData described = describeImage(*image, levels, texels).value();
+                EXPECT_EQ(described.mFormat, Rtx::TextureFormat::Rgba8Srgb) << "format " << one.mPixelFormat;
+                ASSERT_EQ(described.mBytes.size(), one.mTexels.size()) << "format " << one.mPixelFormat;
+                for (std::size_t at = 0; at < one.mTexels.size(); ++at)
+                    EXPECT_EQ(std::to_integer<std::uint32_t>(described.mBytes[at]), one.mTexels[at])
+                        << "format " << one.mPixelFormat << ", byte " << at;
+
+                ASSERT_EQ(described.mLevels.size(), 2u);
+                EXPECT_EQ(described.mLevels[1].mOffset, 16u);
+            }
         }
 
         /// An image whose levels its format and OpenSceneGraph count differently is refused by

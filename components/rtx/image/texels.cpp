@@ -202,6 +202,8 @@ namespace Rtx
                 if (!bytes)
                     return TextureFormat::Unnamed;
                 return colour ? TextureFormat::Bgra8Srgb : TextureFormat::Bgra8Unorm;
+            case GL_BGR:
+                return bytes ? TextureFormat::Bgr8 : TextureFormat::Unnamed;
             case GL_LUMINANCE:
                 return bytes ? TextureFormat::Luminance : TextureFormat::Unnamed;
             case GL_LUMINANCE_ALPHA:
@@ -230,6 +232,8 @@ namespace Rtx
                 return "RGBA8 (linear)";
             case TextureFormat::Rgb8:
                 return "RGB8";
+            case TextureFormat::Bgr8:
+                return "BGR8";
             case TextureFormat::Rgba8Srgb:
                 return "RGBA8";
             case TextureFormat::Bgra8Srgb:

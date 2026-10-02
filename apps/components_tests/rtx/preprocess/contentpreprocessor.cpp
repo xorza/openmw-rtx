@@ -105,7 +105,7 @@ namespace Rtx
         }
 
         /// The texture passes through the preprocessor answer what the readings of the described
-        /// level do, for an image they read and for one they cannot: a luminance file, which is
+        /// level do, for an image they read and for one they cannot: an alpha-only file, which is
         /// solid by the rule that changes nothing, and worth nothing.
         TEST(RtxContentPreprocessorTest, theTexturePassesAnswerWhatTheDirectReadingsDo)
         {
@@ -124,11 +124,11 @@ namespace Rtx
             EXPECT_EQ(asked.mWhole, direct.mWhole);
             EXPECT_EQ(asked.mAlpha, direct.mAlpha);
 
-            osg::ref_ptr<osg::Image> luminance = new osg::Image;
-            luminance->setFileName("odd.dds");
-            luminance->allocateImage(2, 2, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE);
-            EXPECT_TRUE(content.reachesSolid(*luminance));
-            EXPECT_EQ(content.meanTexel(*luminance).mColour, osg::Vec3f());
+            osg::ref_ptr<osg::Image> alphaOnly = new osg::Image;
+            alphaOnly->setFileName("odd.dds");
+            alphaOnly->allocateImage(2, 2, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
+            EXPECT_TRUE(content.reachesSolid(*alphaOnly));
+            EXPECT_EQ(content.meanTexel(*alphaOnly).mColour, osg::Vec3f());
 
             const ContentStats stats = content.takeStats();
             EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 3u);
@@ -163,9 +163,9 @@ namespace Rtx
             EXPECT_EQ(digest.getBytes(),
                 sizeof(bool) + sizeof(TextureFormat) + sizeof(TextureEncoding) + 2 * sizeof(std::uint32_t) + 16);
 
-            osg::ref_ptr<osg::Image> luminance = new osg::Image;
-            luminance->allocateImage(2, 2, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE);
-            finestKeyOf(*luminance, finest);
+            osg::ref_ptr<osg::Image> alphaOnly = new osg::Image;
+            alphaOnly->allocateImage(2, 2, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
+            finestKeyOf(*alphaOnly, finest);
             EXPECT_FALSE(finest.get().has_value()) << "an image no reader decodes is described as none";
         }
 
