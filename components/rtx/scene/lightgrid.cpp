@@ -8,6 +8,8 @@
 #include <osg/BoundingBox>
 #include <osg/Vec3d>
 
+#include <components/rtx/shaders/scene.h>
+
 namespace
 {
     /// How many cells the grid may hold, and how many lamp entries across all of them. Two
@@ -33,10 +35,9 @@ namespace
         return osg::Vec4f(light.mPosition, takes ? -light.mReach : light.mReach);
     }
 
-    /// The flat index of a cell, which is the one arithmetic the shader has to agree with.
     std::size_t cellAt(std::uint32_t x, std::uint32_t y, std::uint32_t z, const osg::Vec3ui& size)
     {
-        return (std::size_t{ z } * size.y() + y) * size.x() + x;
+        return Rtx::Shaders::lightGridCell(x, y, z, size.x(), size.y());
     }
 
     /// Hands `visit` the flat index of every cell in `box`.

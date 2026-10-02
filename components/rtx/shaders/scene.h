@@ -706,6 +706,14 @@ namespace Rtx::Shaders
         uvec3 mSize;
     };
 
+    /// The flat index of the grid's cell `x`, `y`, `z` in a grid `width` by `height` across: the
+    /// one arithmetic the host's binning and the shader's lookup have to agree on. Scalars, because
+    /// a vector's members are spelled apart in the two languages.
+    RTX_SHADER uint lightGridCell(uint x, uint y, uint z, uint width, uint height)
+    {
+        return (z * height + y) * width + x;
+    }
+
     /// Where every table a hit reads is, as one address apiece.
     ///
     /// **In the frame block rather than in a descriptor each**, for the reason the light grid's

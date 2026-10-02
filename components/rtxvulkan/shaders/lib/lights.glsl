@@ -90,7 +90,7 @@ uvec2 lampsInCell(vec3 cell)
 
     const uvec3 at = uvec3(cell);
     // `flat` is what this wants to be called, and GLSL reserves it for interpolation.
-    const uint index = 2u * ((at.z * frame.mLightGrid.mSize.y + at.y) * frame.mLightGrid.mSize.x + at.x);
+    const uint index = 2u * lightGridCell(at.x, at.y, at.z, frame.mLightGrid.mSize.x, frame.mLightGrid.mSize.y);
 
     return uvec2(lightListAt(index), lightListAt(index + 1u));
 }
@@ -137,23 +137,30 @@ uvec2 lampsReaching(vec3 position)
     return lampsInCell(floor((position - frame.mLightGrid.mOrigin) * frame.mLightGrid.mInverseCell));
 }
 
+/// The size a lamp's singularity is softened by: its own extent, and one unit where it carries less.
+///
+/// **The lamp's own extent, because that is what a lamp is.** An inverse square is the field of a
+/// point, and a point has no field at itself: within a flame's own radius the arithmetic runs away,
+/// and what it drew was a hard bright bead hanging in the air wherever the fog sampled beside a
+/// lamp — a firefly, and not the glow of the thing it belongs to. A sphere's irradiance flattens
+/// inside its own surface instead. One unit is the floor, which is what a lamp carrying no size
+/// behaves as. One function, because `falloffAlong` is exact only while it integrates the same
+/// guard `falloff` samples.
+float lampSoftening(float source)
+{
+    return max(source, 1.0);
+}
+
 /// How much of a light `distance` away arrives, per unit intensity.
 ///
 /// An inverse square windowed to arrive at exactly zero where the light's reach ends. Morrowind's
 /// reach is a hard cutoff, and merely clipping an inverse square leaves a visible ring on the floor
-/// where it stops. What keeps the singularity at zero distance finite is `source`, below.
+/// where it stops. What keeps the singularity at zero distance finite is `lampSoftening`.
 float falloff(float distance, float reach, float source)
 {
     const float ratio = distance / reach;
     const float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
-
-    // **The lamp's own extent is what the singularity is softened by, because that is what a lamp
-    // is.** An inverse square is the field of a point, and a point has no field at itself: within a
-    // flame's own radius the arithmetic runs away, and what it drew was a hard bright bead hanging
-    // in the air wherever the fog sampled beside a lamp — a firefly, and not the glow of the thing
-    // it belongs to. A sphere's irradiance flattens inside its own surface instead. One unit is the
-    // floor, which is what a lamp carrying no size behaves as and what this read before.
-    const float held = max(source, 1.0);
+    const float held = lampSoftening(source);
 
     return window * window / (distance * distance + held * held);
 }
@@ -190,7 +197,7 @@ float falloffAlong(float perpendicular, float from, float to, float reach, float
     // In units of the reach, where the chord runs from `bump` to one and the guard `falloff` keeps
     // against the singularity is this much of it.
     const float bump = perpendicular * perpendicular / (reach * reach);
-    const float held = max(source, 1.0);
+    const float held = lampSoftening(source);
     const float guard = held * held / (reach * reach);
 
     const float c2 = -guard;
