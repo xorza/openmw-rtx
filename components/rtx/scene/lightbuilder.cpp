@@ -89,21 +89,27 @@ namespace Rtx
         /// whole of what a flame does: the puffing at the top, and a draught wandering under it.
         constexpr int sFlameBands = 4;
 
-        using Animation = SceneUtil::LightController;
+        /// `SceneUtil::LightController`'s own numbers, which it spells as literals: the band an
+        /// animated light's brightness walks within, as a share of its recorded colour; how far it
+        /// moves in one tick, fast and slow; and its fifteen ticks a second.
+        constexpr float sDimmest = 0.25f;
+        constexpr float sBrightest = 1.0f;
+        constexpr float sFastSpeed = 0.1f;
+        constexpr float sSlowSpeed = 0.05f;
+        constexpr float sTicksPerSecond = 15.0f;
 
         /// The middle of the game's band, which a flicker and a pulse average — the game walks
         /// between targets drawn evenly across the band, or between its two ends — and how far
         /// either side of it they reach.
-        constexpr float sMiddle = (Animation::sBrightest + Animation::sDimmest) / 2.0f;
-        constexpr float sSwing = (Animation::sBrightest - Animation::sDimmest) / 2.0f;
+        constexpr float sMiddle = (sBrightest + sDimmest) / 2.0f;
+        constexpr float sSwing = (sBrightest - sDimmest) / 2.0f;
 
         /// How much slower the game's slow animations walk than its fast ones.
-        constexpr float sSlowShare = Animation::sSlowSpeed / Animation::sFastSpeed;
+        constexpr float sSlowShare = sSlowSpeed / sFastSpeed;
 
         /// The game's pulse walks the band one way and back at its speed: a second at the fast
         /// speed, two at the slow.
-        constexpr float sPulsePeriod = 2.0f * (Animation::sBrightest - Animation::sDimmest)
-            / (Animation::sFastSpeed * Animation::sTicksPerSecond);
+        constexpr float sPulsePeriod = 2.0f * (sBrightest - sDimmest) / (sFastSpeed * sTicksPerSecond);
 
         /// How far apart one light's bands are set, in turns. The golden ratio's conjugate spreads any
         /// number of them around the circle without two landing together.

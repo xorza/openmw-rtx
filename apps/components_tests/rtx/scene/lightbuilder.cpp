@@ -105,8 +105,8 @@ namespace Rtx
                 const Lamp lamp{ type };
                 const std::vector<float> run = lamp.run(60000, 0.01);
 
-                EXPECT_GE(*std::min_element(run.begin(), run.end()), SceneUtil::LightController::sDimmest);
-                EXPECT_LE(*std::max_element(run.begin(), run.end()), SceneUtil::LightController::sBrightest);
+                EXPECT_GE(*std::min_element(run.begin(), run.end()), 0.25f);
+                EXPECT_LE(*std::max_element(run.begin(), run.end()), 1.0f);
 
                 // Ten minutes is at least three hundred turns of the slowest band any of them
                 // carries, so what is left of it here is a thousandth.
