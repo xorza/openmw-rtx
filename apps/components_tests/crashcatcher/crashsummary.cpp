@@ -1,8 +1,10 @@
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -51,6 +53,17 @@ namespace
         };
         EXPECT_EQ(lines, expected);
         EXPECT_EQ(Crash::title(facts), "Crash: EXCEPTION_ACCESS_VIOLATION reading 0x12204cfe000");
+
+        // The words a system's facts are spelt in: an address in hexadecimal, nought included, and a
+        // code by its name, or by what the system half says where it has none.
+        EXPECT_EQ(Crash::hex(0x12204cfe000), "0x12204cfe000");
+        EXPECT_EQ(Crash::hex(0), "0x0");
+        constexpr std::array<std::pair<std::uint32_t, std::string_view>, 2> names{ {
+            { 11, "SIGSEGV" },
+            { 6, "SIGABRT" },
+        } };
+        EXPECT_EQ(Crash::nameOf(names, 6, "signal 6"), "SIGABRT");
+        EXPECT_EQ(Crash::nameOf(names, 7, "signal 7"), "signal 7");
     }
 
     /// A reason given by the code that asked leads, and the exception it was raised as follows

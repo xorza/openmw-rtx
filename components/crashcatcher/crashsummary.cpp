@@ -1,8 +1,11 @@
 #include "crashsummary.hpp"
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <format>
+#include <string>
 #include <string_view>
 #include <utility>
 
@@ -144,5 +147,16 @@ namespace Crash
             lines.push_back(kind + key + ": " + value);
 
         lines.push_back(kind + (facts.mDump.empty() ? "no dump was written" : "dump " + facts.mDump));
+    }
+
+    std::string hex(const std::uint64_t value)
+    {
+        return std::format("{:#x}", value);
+    }
+
+    std::string nameOf(const CodeNames names, const std::uint32_t code, std::string otherwise)
+    {
+        const auto named = std::ranges::find(names, code, &std::pair<std::uint32_t, std::string_view>::first);
+        return named != names.end() ? std::string(named->second) : std::move(otherwise);
     }
 }

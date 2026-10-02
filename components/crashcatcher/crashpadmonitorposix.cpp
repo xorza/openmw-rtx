@@ -12,6 +12,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "crashsummary.hpp"
+
 // Linux holds the game by a pidfd, which the C library has no wrapper for everywhere.
 #if defined(__linux__)
 #include <sys/syscall.h>

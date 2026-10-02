@@ -11,6 +11,8 @@
 
 #include <components/misc/windows.hpp>
 
+#include "crashsummary.hpp"
+
 namespace Crash::Monitor
 {
     namespace

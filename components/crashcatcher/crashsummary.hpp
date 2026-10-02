@@ -57,4 +57,13 @@ namespace Crash
     /// The summary of `facts`, a line each into `lines`, each without the log's time stamp or a
     /// line end. The same lines on every system, whichever of them wrote the report.
     void summarise(const CrashFacts& facts, std::vector<std::string>& lines);
+
+    /// `value` in hexadecimal, as the facts write an address or a code: `0x10`.
+    std::string hex(std::uint64_t value);
+
+    /// The names a system gives its codes, as an exception's facts spell them.
+    using CodeNames = std::span<const std::pair<std::uint32_t, std::string_view>>;
+
+    /// `code`'s name in `names`, or `otherwise` where it has none.
+    std::string nameOf(CodeNames names, std::uint32_t code, std::string otherwise);
 }
