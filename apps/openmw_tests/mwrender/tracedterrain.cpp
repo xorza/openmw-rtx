@@ -5,14 +5,25 @@
 #include <osg/Group>
 #include <osg/Vec2i>
 #include <osg/Vec3d>
+#include <osg/Vec3f>
+#include <osg/Vec4f>
 #include <osg/ref_ptr>
 #include <osgUtil/IntersectionVisitor>
 #include <osgUtil/LineSegmentIntersector>
 
 #include <apps/components_tests/rtx/support/fakeland.hpp>
+#include <apps/openmw/mwrender/rtx/debugwalk.hpp>
 #include <apps/openmw/mwrender/rtx/tracedterrain.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
 #include <components/esm3/loadcell.hpp>
+#include <components/esm3/loadland.hpp>
+#include <components/resource/bgsmfilemanager.hpp>
+#include <components/resource/imagemanager.hpp>
+#include <components/resource/niffilemanager.hpp>
+#include <components/resource/scenemanager.hpp>
+#include <components/rtx/frame/debuglines.hpp>
 #include <components/terrain/view.hpp>
+#include <components/vfs/manager.hpp>
 
 namespace MWRender
 {
@@ -36,23 +47,77 @@ namespace MWRender
             return intersector->getFirstIntersection().getWorldIntersectPoint();
         }
 
-        /// **The ground answers upstream's callers as a world with no chunks.** The preloader asks
-        /// for a view and resets it on a worker thread; `tb` toggles borders and reports what it
-        /// got. Both get an answer rather than a null and a guard in an upstream file.
-        TEST(RtxTracedTerrainTest, aViewIsHandedOutAndBordersStayOff)
+        /// What a `TracedTerrain` is made with, over an empty archive.
+        struct Making
         {
-            Rtx::Testing::FakeLand land;
-            osg::ref_ptr<osg::Group> sceneRoot = new osg::Group;
-            TracedTerrain ground(*sceneRoot, land, sTerrainMask, ESM::Cell::sDefaultWorldspaceId);
+            VFS::Manager mVfs;
+            Resource::ImageManager mImages{ &mVfs, 0 };
+            Resource::NifFileManager mNifs{ &mVfs, nullptr };
+            Resource::BgsmFileManager mMaterials{ &mVfs, 0 };
+            Resource::SceneManager mScenes{ &mVfs, &mImages, &mNifs, &mMaterials, 0 };
+            Rtx::Testing::FakeLand mLand;
+            osg::ref_ptr<osg::Group> mSceneRoot = new osg::Group;
+            osg::ref_ptr<osg::Group> mWorldRoot = new osg::Group;
 
-            EXPECT_EQ(sceneRoot->getNumChildren(), 1u) << "the terrain root the game masks and finds";
+            // The borders' shaders are the rasterizer's, and an empty archive holds none of them.
+            Making() { mScenes.setShadersEnabled(false); }
+
+            TracedTerrain make()
+            {
+                return TracedTerrain(
+                    *mSceneRoot, *mWorldRoot, mLand, mScenes, sTerrainMask, ESM::Cell::sDefaultWorldspaceId);
+            }
+        };
+
+        /// **The ground answers upstream's callers as a world with no chunks**, and draws
+        /// upstream's cell borders. The preloader asks for a view and resets it on a worker thread.
+        /// `tb` stands a line strip over each loaded cell's south and east edges, ten units over the
+        /// storage's height, straight under the world root and under `Mask_Debug`, where
+        /// `DebugWalk` reads it: forty segments a side, so eighty lines of two vertices.
+        TEST(RtxTracedTerrainTest, aViewIsHandedOutAndTheBordersStandOverEachLoadedCell)
+        {
+            Making making;
+            making.mLand.mWithData.push_back(osg::Vec2i(0, 0));
+            making.mLand.mWithData.push_back(osg::Vec2i(1, 0));
+            TracedTerrain ground = making.make();
+
+            EXPECT_EQ(making.mSceneRoot->getNumChildren(), 1u) << "the terrain root the game masks and finds";
 
             const osg::ref_ptr<Terrain::View> view = ground.createView();
             ASSERT_NE(view, nullptr);
             view->reset();
 
+            ground.loadCell(0, 0);
+            EXPECT_EQ(making.mWorldRoot->getNumChildren(), 0u) << "a border before `tb`";
             ground.setBordersVisible(true);
+            EXPECT_TRUE(ground.getBordersVisible());
+            ASSERT_EQ(making.mWorldRoot->getNumChildren(), 1u);
+            EXPECT_EQ(making.mWorldRoot->getChild(0)->getNodeMask(), static_cast<unsigned int>(Mask_Debug));
+
+            DebugWalk walk;
+            const Rtx::DebugLines lines = walk.walk(*making.mWorldRoot);
+            ASSERT_EQ(lines.mLines.size(), 160u);
+            EXPECT_TRUE(lines.mTriangles.empty());
+
+            // The fake land answers every height with the default, -2048, and the border stands ten
+            // over it. A side is 8192 in forty steps of 204.8, black and yellow by turns, and the
+            // yellow's alpha of nought is not read where nothing blends.
+            constexpr float z = static_cast<float>(ESM::Land::DEFAULT_HEIGHT) + 10.0f;
+            EXPECT_EQ(lines.mLines[0].mPosition, osg::Vec3f(0.0f, 0.0f, z));
+            EXPECT_EQ(lines.mLines[0].mColour, osg::Vec4f(0.0f, 0.0f, 0.0f, 1.0f));
+            EXPECT_EQ(lines.mLines[1].mPosition, osg::Vec3f(204.8f, 0.0f, z));
+            EXPECT_EQ(lines.mLines[1].mColour, osg::Vec4f(1.0f, 1.0f, 0.0f, 1.0f));
+            EXPECT_EQ(lines.mLines[159].mPosition, osg::Vec3f(8192.0f, 8192.0f, z));
+
+            // A cell that arrives under `tb` brings its border, and one that leaves takes its own.
+            ground.loadCell(1, 0);
+            EXPECT_EQ(making.mWorldRoot->getNumChildren(), 2u);
+            ground.unloadCell(0, 0);
+            EXPECT_EQ(making.mWorldRoot->getNumChildren(), 1u);
+
+            ground.setBordersVisible(false);
             EXPECT_FALSE(ground.getBordersVisible());
+            EXPECT_EQ(making.mWorldRoot->getNumChildren(), 0u);
         }
 
         /// A loaded cell stands ground for the intersector at the storage's own height, and an
@@ -66,12 +131,11 @@ namespace MWRender
         /// grid the first gave back.
         TEST(RtxTracedTerrainTest, aLoadedCellAnswersADownwardRayAtTheLandsHeight)
         {
-            Rtx::Testing::FakeLand land;
-            land.mWithData.push_back(osg::Vec2i(0, 0));
-            land.mWithData.push_back(osg::Vec2i(1, 0));
-
-            osg::ref_ptr<osg::Group> sceneRoot = new osg::Group;
-            TracedTerrain ground(*sceneRoot, land, sTerrainMask, ESM::Cell::sDefaultWorldspaceId);
+            Making making;
+            making.mLand.mWithData.push_back(osg::Vec2i(0, 0));
+            making.mLand.mWithData.push_back(osg::Vec2i(1, 0));
+            TracedTerrain ground = making.make();
+            osg::Group* const sceneRoot = making.mSceneRoot.get();
 
             constexpr double cell = static_cast<double>(Rtx::Testing::FakeLand::sCellSize);
             constexpr double middle = 0.5 * cell;

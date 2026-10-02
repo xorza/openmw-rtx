@@ -29,9 +29,6 @@ namespace MWRender
     /// A request a script makes of the picture that is no render mode and no setting.
     enum class ScriptRequest
     {
-        /// The console's `ToggleBorders`.
-        Borders,
-
         /// Lua's `debug.triggerShaderReload`.
         ShaderReload,
 

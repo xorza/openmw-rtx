@@ -4,6 +4,7 @@
 
 #include <osg/Array>
 #include <osg/Drawable>
+#include <osg/GL>
 #include <osg/Geometry>
 #include <osg/Matrix>
 #include <osg/Matrixf>
@@ -63,14 +64,17 @@ namespace MWRender
             std::vector<Rtx::DebugVertex>* mLines = nullptr;
             std::vector<Rtx::DebugVertex>* mTriangles = nullptr;
 
-            /// Whether a polygon is drawn as its edges, `PolygonMode::LINE`.
-            bool mEdges = false;
+            DebugWalk::Drawn mDrawn;
 
             Rtx::DebugVertex vertexAt(const unsigned int index) const
             {
+                osg::Vec4f colour = mPainted->at(index);
+                if (!mDrawn.mBlends)
+                    colour.a() = 1.0f;
+
                 return Rtx::DebugVertex{
                     .mPosition = (*mPositions)[index] * *mHere,
-                    .mColour = mPainted->at(index),
+                    .mColour = colour,
                 };
             }
 
@@ -84,7 +88,7 @@ namespace MWRender
 
             void operator()(const unsigned int a, const unsigned int b, const unsigned int c) const
             {
-                if (mEdges)
+                if (mDrawn.mEdges)
                 {
                     (*this)(a, b);
                     (*this)(b, c);
@@ -101,7 +105,7 @@ namespace MWRender
             void operator()(
                 const unsigned int a, const unsigned int b, const unsigned int c, const unsigned int d) const
             {
-                if (mEdges)
+                if (mDrawn.mEdges)
                 {
                     (*this)(a, b);
                     (*this)(b, c);
@@ -127,14 +131,14 @@ namespace MWRender
         mLines.clear();
         mTriangles.clear();
         mHere.makeIdentity();
-        mEdges = false;
+        mDrawn = {};
 
         root.accept(*this);
 
         return Rtx::DebugLines{ .mLines = mLines, .mTriangles = mTriangles };
     }
 
-    void DebugWalk::takeMode(const osg::StateSet* stateSet)
+    void DebugWalk::take(const osg::StateSet* stateSet)
     {
         if (stateSet == nullptr)
             return;
@@ -142,22 +146,26 @@ namespace MWRender
         const auto* mode
             = dynamic_cast<const osg::PolygonMode*>(stateSet->getAttribute(osg::StateAttribute::POLYGONMODE));
         if (mode != nullptr)
-            mEdges = mode->getMode(osg::PolygonMode::FRONT) == osg::PolygonMode::LINE;
+            mDrawn.mEdges = mode->getMode(osg::PolygonMode::FRONT) == osg::PolygonMode::LINE;
+
+        const osg::StateAttribute::GLModeValue blend = stateSet->getMode(GL_BLEND);
+        if (blend != osg::StateAttribute::INHERIT)
+            mDrawn.mBlends = (blend & osg::StateAttribute::ON) != 0;
     }
 
     void DebugWalk::apply(osg::Node& node)
     {
-        const bool above = mEdges;
-        takeMode(node.getStateSet());
+        const Drawn above = mDrawn;
+        take(node.getStateSet());
         traverse(node);
-        mEdges = above;
+        mDrawn = above;
     }
 
     void DebugWalk::apply(osg::Transform& transform)
     {
         const osg::Matrixf above = mHere;
-        const bool edgesAbove = mEdges;
-        takeMode(transform.getStateSet());
+        const Drawn drawnAbove = mDrawn;
+        take(transform.getStateSet());
 
         // In the graph's own precision, as `computeLocalToWorldMatrix` takes it — `osg::Matrix`
         // is double on this box and single on a distribution's OSG — and back to the single the
@@ -168,7 +176,7 @@ namespace MWRender
 
         traverse(transform);
         mHere = above;
-        mEdges = edgesAbove;
+        mDrawn = drawnAbove;
     }
 
     void DebugWalk::apply(osg::Drawable& drawable)
@@ -181,12 +189,12 @@ namespace MWRender
         if (positions == nullptr)
             return;
 
-        const bool above = mEdges;
-        takeMode(drawable.getStateSet());
+        const Drawn above = mDrawn;
+        take(drawable.getStateSet());
 
         const Painted painted(*geometry);
         osg::TemplatePrimitiveIndexFunctor<Taker> taker;
-        taker.mEdges = mEdges;
+        taker.mDrawn = mDrawn;
         taker.mPositions = positions;
         taker.mPainted = &painted;
         taker.mHere = &mHere;
@@ -196,6 +204,6 @@ namespace MWRender
         for (const osg::ref_ptr<osg::PrimitiveSet>& primitives : geometry->getPrimitiveSetList())
             primitives->accept(taker);
 
-        mEdges = above;
+        mDrawn = above;
     }
 }

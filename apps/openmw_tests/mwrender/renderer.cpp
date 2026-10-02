@@ -46,7 +46,7 @@ namespace MWRender
             { "RTX", "upscale", "no upscaler here" },
         });
         constexpr std::array sDeclaredModes{ ModeSupport{ Render_Wireframe, "no wireframe here" } };
-        constexpr std::array sDeclaredRequests{ RequestSupport{ ScriptRequest::Borders, "no borders here" } };
+        constexpr std::array sDeclaredRequests{ RequestSupport{ ScriptRequest::ShaderReload, "no shaders here" } };
         constexpr RenderSupport sSupport(sDeclared, sDeclaredModes, sDeclaredRequests);
 
         /// A renderer that draws nothing and records what the seam tells it about the world.
@@ -122,8 +122,8 @@ namespace MWRender
             EXPECT_FALSE(sSupport.namesSetting("RTX", "enabled"));
             EXPECT_EQ(sSupport.declinedMode(Render_Wireframe), "no wireframe here");
             EXPECT_EQ(sSupport.declinedMode(Render_Pathgrid), "");
-            EXPECT_EQ(sSupport.declinedRequest(ScriptRequest::Borders), "no borders here");
-            EXPECT_EQ(sSupport.declinedRequest(ScriptRequest::ShaderReload), "");
+            EXPECT_EQ(sSupport.declinedRequest(ScriptRequest::ShaderReload), "no shaders here");
+            EXPECT_EQ(sSupport.declinedRequest(ScriptRequest::LiveShaderReload), "");
             EXPECT_EQ(notAvailable("Wireframe Rendering", sSupport.declinedMode(Render_Wireframe)),
                 "Wireframe Rendering -> not available under this renderer: no wireframe here")
                 << "what the console says in place of a state";

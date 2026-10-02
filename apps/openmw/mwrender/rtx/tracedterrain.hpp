@@ -17,6 +17,11 @@ namespace osg
     class PositionAttitudeTransform;
 }
 
+namespace Resource
+{
+    class SceneManager;
+}
+
 namespace Terrain
 {
     class Storage;
@@ -30,8 +35,12 @@ namespace MWRender
     /// records itself, and a chunk the game built beside it would be one nothing traces.
     ///
     /// **A world that says it has no chunks**, rather than one the game finds out about: the
-    /// preloader asks every world for a view to fill, and the borders a console command toggles
-    /// are chunk geometry. Both are answered here, so upstream's callers run unchanged.
+    /// preloader asks every world for a view to fill, and is answered here, so upstream's callers
+    /// run unchanged.
+    ///
+    /// **And upstream's cell borders**, which need no chunk: `ToggleBorders` stands a line strip
+    /// over each loaded cell's edge from the storage's heights, straight under the world root and
+    /// under `Mask_Debug`, where `DebugWalk` reads the debug modes' lines.
     ///
     /// **And a grid per loaded cell for the intersector**, under `Mask_Terrain` and nothing else.
     /// `RenderingManager::castRay` walks the scene graph, so `terrain obstructs focus`, dropping
@@ -42,7 +51,8 @@ namespace MWRender
     class TracedTerrain final : public Terrain::World
     {
     public:
-        TracedTerrain(osg::Group& sceneRoot, Terrain::Storage& storage, unsigned int nodeMask, ESM::RefId worldspace);
+        TracedTerrain(osg::Group& sceneRoot, osg::Group& worldRoot, Terrain::Storage& storage,
+            Resource::SceneManager& scenes, unsigned int nodeMask, ESM::RefId worldspace);
 
         /// Out of line, where the grids' types are whole.
         ~TracedTerrain() override;
@@ -58,10 +68,6 @@ namespace MWRender
 
         /// Takes the cell's grid down and keeps it for the next cell to arrive.
         void unloadCell(int x, int y) override;
-
-        /// No chunks, so no borders: the command that toggles them is told they stayed off.
-        void setBordersVisible(bool visible) override {}
-        bool getBordersVisible() override { return false; }
 
     private:
         /// One cell's grid: which cell it stands, the transform at the cell's middle, and the

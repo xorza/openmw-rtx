@@ -10,6 +10,8 @@
 #include <osg/MatrixTransform>
 #include <osg/PolygonMode>
 #include <osg/PrimitiveSet>
+#include <osg/StateAttribute>
+#include <osg/StateSet>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
@@ -37,7 +39,9 @@ namespace MWRender
 
         /// The walk reads every debug geometry under the root by the transform in force at it,
         /// takes a strip and a quad apart into lines and triangles, keeps each vertex's own colour
-        /// or the one over the whole, and enters nothing that is not a debug node.
+        /// or the one over the whole, and enters nothing that is not a debug node. A colour's alpha
+        /// is read only under `GL_BLEND`, as the rasterizer reads it: the cell borders paint at an
+        /// alpha of nought and draw opaque, and the navmesh blends.
         ///
         /// **`Mask_Debug` and no other**, which is what the rasterizer's cull draws them by: a
         /// scene root beside the debug nodes holds the world, and a walk that entered it would read
@@ -52,7 +56,7 @@ namespace MWRender
             moved->setNodeMask(Mask_Debug);
             moved->addChild(
                 drawn({ osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 10.0f, 0.0f), osg::Vec3f(0.0f, 20.0f, 0.0f) },
-                    { osg::Vec4f(1.0f, 0.0f, 0.0f, 1.0f), osg::Vec4f(0.0f, 1.0f, 0.0f, 1.0f),
+                    { osg::Vec4f(1.0f, 0.0f, 0.0f, 1.0f), osg::Vec4f(0.0f, 1.0f, 0.0f, 0.0f),
                         osg::Vec4f(0.0f, 0.0f, 1.0f, 1.0f) },
                     GL_LINE_STRIP));
             root->addChild(moved);
@@ -62,6 +66,7 @@ namespace MWRender
                                                          osg::Vec3f(1.0f, 1.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f) },
                 { osg::Vec4f(0.5f, 0.5f, 0.5f, 0.25f) }, GL_QUADS);
             quad->setNodeMask(Mask_Debug);
+            quad->getOrCreateStateSet()->setMode(GL_BLEND, osg::StateAttribute::ON);
             root->addChild(quad);
 
             // The scene, which is not a debug node and is not read.
@@ -74,7 +79,7 @@ namespace MWRender
             const Rtx::DebugLines lines = walk.walk(*root);
 
             // A strip of three is two lines of two vertices, each where the transform put it and
-            // each its own colour.
+            // each its own colour, opaque where nothing blends.
             ASSERT_EQ(lines.mLines.size(), 4u);
             EXPECT_EQ(lines.mLines[0].mPosition, osg::Vec3f(100.0f, 0.0f, 0.0f));
             EXPECT_EQ(lines.mLines[1].mPosition, osg::Vec3f(100.0f, 10.0f, 0.0f));
@@ -84,7 +89,8 @@ namespace MWRender
             EXPECT_EQ(lines.mLines[1].mColour, osg::Vec4f(0.0f, 1.0f, 0.0f, 1.0f));
             EXPECT_EQ(lines.mLines[3].mColour, osg::Vec4f(0.0f, 0.0f, 1.0f, 1.0f));
 
-            // A quad is two triangles, and the scene's triangle is not among them.
+            // A quad is two triangles, and the scene's triangle is not among them. It blends, so its
+            // alpha stands.
             ASSERT_EQ(lines.mTriangles.size(), 6u);
             EXPECT_EQ(lines.mTriangles[0].mPosition, osg::Vec3f(0.0f, 0.0f, 0.0f));
             EXPECT_EQ(lines.mTriangles[2].mPosition, osg::Vec3f(1.0f, 1.0f, 0.0f));

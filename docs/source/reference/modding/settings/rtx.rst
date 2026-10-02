@@ -128,6 +128,5 @@ Render modes and requests
 =========================
 
 * Wireframe (``tww``, ``debug.toggleRenderMode``): The ray tracer draws no wireframe.
-* Cell borders (``ToggleBorders``): The ray tracer draws no cell borders yet.
 * Shader reload (``debug.triggerShaderReload``): The ray tracer's kernels are compiled into the build, and a rebuild changes them.
 * Live shader reload (``debug.setShaderHotReloadEnabled``): The ray tracer's kernels are compiled into the build, and a rebuild changes them.

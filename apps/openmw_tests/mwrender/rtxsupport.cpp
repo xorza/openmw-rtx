@@ -195,9 +195,9 @@ namespace MWRender
             }
             for (const RequestSupport& request : support.getRequests())
             {
-                const std::string_view command = request.mRequest == ScriptRequest::Borders ? "``ToggleBorders``"
-                    : request.mRequest == ScriptRequest::ShaderReload ? "``debug.triggerShaderReload``"
-                                                                      : "``debug.setShaderHotReloadEnabled``";
+                const std::string_view command = request.mRequest == ScriptRequest::ShaderReload
+                    ? "``debug.triggerShaderReload``"
+                    : "``debug.setShaderHotReloadEnabled``";
                 EXPECT_TRUE(statedFor(command, request.mDeclined)) << command;
             }
         }
