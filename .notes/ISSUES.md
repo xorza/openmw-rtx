@@ -1,13 +1,31 @@
 # Open issues
 
-Defects the review of 2026-10-02 found or rewrote. `.notes/REVIEW.md` holds each one's evidence under
-the same title, beside the defects of the first review.
+Defects the reviews of 2026-10-02 found or rewrote, the parity review against the rasterizer
+included. `.notes/REVIEW.md` holds each one's evidence under its title, beside the defects of the
+first review.
 
 - `--day` writes the calendar's day of the month (the `day` global, clamped to at least 1), and the
   moons read days passed (`TimeStamp(mGameHour, mDaysPassed)`), so no value of `--day` moves a moon.
   Every staged stop stands on 1 Last Seed, and a window's note prints days passed back as `--day=N`.
   `apps/rtxtool/stager.cpp:110-111`, `apps/openmw/mwworld/datetimemanager.cpp:79-82`,
   `apps/openmw/mwworld/weather.cpp:336-342`.
+- An alpha-blended surface whose material alpha is one is cut at alpha 0.5, where the rasterizer
+  blends it by the texture's alpha. 781 vanilla shapes carry soft alpha: the Imperial lantern's glass
+  disappears, interior lava comes out speckled, and waterfalls, cobwebs, Telvanni crystals and
+  Bloodmoon ice lose most of their coverage. `components/rtx/scene/material.hpp:167-187`,
+  `components/rtxvulkan/shaders/lib/traversal.glsl:268`.
+- The crosshair, activation and Lua's `castRenderingRay` meet skinned actors in their bind pose:
+  `RigGeometry` poses its CPU copy only in a cull, and the ray tracer never culls the world. A corpse
+  on the floor is hard to focus or loot. `components/sceneutil/riggeometry.cpp:137-157`,
+  `apps/openmw/mwrender/rtx/rtxrenderer.cpp:404-440`.
+- A spell-cast glow never ends: `GlowUpdater` runs on the node and then on the mirror's state set,
+  and its end on the first run leaves the mirror's copy with the last sheet. Open, Lock, a trapped
+  container and Telekinesis leave a lasting glow. `components/rtx/mirror/materialresolver.cpp:121-148`,
+  `components/sceneutil/util.cpp:100-143`.
+- The traced sky fades from fog colour to sky colour linearly in the sine of the elevation, where
+  `sky_atmosphere.nif` fades between 3.6° and 28.6° and is all sky colour above. The sky is too near
+  the fog colour in every exterior frame, and the ambient, fog and deck light read a wrong mean.
+  `components/rtx/shaders/sky.h:319-330`, `components/rtx/environment/skylight.cpp:97-109`.
 - Under the ray tracer, `capture` reads the presented target with the interface blended in, so every
   save thumbnail shows the HUD or the save dialog. It maps the whole frame onto 518×266 by nearest
   sample, about 9.5% too wide at 16:9. The seam promises "the frame without the GUI".
@@ -90,3 +108,63 @@ the same title, beside the defects of the first review.
 - Every install ships the harness's `views.cfg`, `benches.cfg` and `rtx/vfs/` scripts, under a
   comment that says no install carries the harness. `CMakeLists.txt:1143-1149`,
   `apps/rtxtool/CMakeLists.txt:91-98`.
+- Under the vertex-colour tint the material's alpha still sets the opacity, where the rasterizer
+  reads the vertex alpha: Dunmer candles and lanterns draw at 40% of their coverage.
+  `components/rtx/scene/surface.cpp:115`, `components/rtxvulkan/scene/scenebuffers.cpp:68`.
+- An untextured surface reads the grey stand-in meant for a missing texture, so it draws at half its
+  material colour (part of the guar mesh). `components/rtxvulkan/scene/scenebuffers.cpp:56`.
+- A glow map on UV set 1 is read through set 0, so the draugrs' eye glow lands off their eyes; the
+  mesh reader tells UV sets apart by array address, which the loader makes distinct per unit.
+  `components/rtxvulkan/shaders/lib/traversal.glsl:1058-1059`, `components/rtx/mirror/meshreader.cpp:330-352`.
+- The additive and medium walks read the diffuse map alone: spell shields and area effects lose their
+  dark maps and environment sheets, and the rockslide draws as a flat grey sheet.
+  `components/rtxvulkan/shaders/lib/medium.glsl:75-90`.
+- Negative lights are refused, so the 334 darkening lamps vanilla places in 147 interiors (Telvanni
+  towers, the Gateway Inn) are left out and those rooms come out lit.
+  `components/rtx/scene/lightbuilder.cpp:173-177`.
+- Flickering and pulsing lamps average their whole colour and swing about 2:1, where the game's
+  average 0.625 of it and swing 4:1, so 421 of 574 vanilla light records burn 1.6 times too bright
+  against steady lamps. `components/rtx/scene/lightbuilder.cpp:208-232`.
+- Night-Eye's lift goes into the ambient, which geometry occludes and the exposure meter adapts to, so
+  a cave lifted 133 times shows about 3.4 times brighter. `components/rtx/environment/skylight.cpp:210`.
+- A magic bolt in flight carries a light sized by the spell's area: a 20 ft fireball flies with a lamp
+  reaching 981 units, about 42 times brighter than the game's, and the impact's glow lights the area
+  again. `apps/openmw/mwworld/projectilemanager.cpp:157-168`.
+- Groundcover is never drawn under the ray tracer; only a log line says so.
+  `apps/openmw/mwrender/rtx/rtxrenderer.cpp:214-219`.
+- Textures in RGB8, L8, LA8, BC4, BC6H, BC7 and other formats outside the list draw as the grey
+  stand-in, and a sky deck in one is left out. `components/rtx/image/texels.cpp:145-204`.
+- A Lua static camera removes the player's body, torch, Light-spell glow and shadow from the traced
+  world: `Mode::Static` is read as the harness's parked camera. `apps/openmw/mwrender/framedescriber.cpp:127`.
+- Lua's `camera.setViewDistance` changes nothing in the traced picture, and `getViewDistance`
+  reports it back. `apps/openmw/mwrender/sceneframe.hpp:176`.
+- Sprites ignore an actor's fade (an invisible actor's torch flame burns whole), and a node's own
+  `alpha` under a faded actor keeps the actor's alpha too. `components/rtx/mirror/sceneextractor.cpp:711-716`,
+  `components/rtx/mirror/shading.cpp:22-49`.
+- After a teleport, a fast travel or a load, local map tiles are traced before the ring stands their
+  ground, and nothing asks for them again; the world map keeps the hole.
+  `apps/openmw/mwrender/rtx/viewqueue.cpp:32-58`, `components/rtx/mirror/cells/cellring.cpp:205-217`.
+- In an ash or blight storm the cloud deck and the sea turn about the world origin by a bearing that
+  follows the player, so they slide as the player walks, and the sea swings when the weather flips.
+  `components/rtxvulkan/shaders/lib/sky.glsl:40-50`, `components/rtxvulkan/shaders/lib/sea.glsl:100-108`.
+- Masser or Secunda can change phase in mid-sky: the trace drops the fade the engine hides the change
+  behind, and steps the phase by whole eighths. `components/rtx/environment/moonbuilder.cpp:212`.
+- A Lua `weather.cloudTexture` change never reaches the trace, which reads the sheets once from the
+  fallbacks. `components/rtx/environment/skybuilder.cpp:76-121`.
+- The sun glare is up to four times the rasterizer's at sunrise and sunset: the disc's alpha is left
+  out of its strength. `apps/openmw/mwrender/rtx/skyreader.cpp:245-253`.
+- `tsky` outdoors changes the trace's lighting: the sky's light, the moons, the deck's shadow and the
+  fog colour go with the dome. `apps/openmw/mwrender/rtx/skyreader.cpp:130-142`.
+- A local map tile is lit by the world's lamps and shadowed by its sun, where the rasterizer's map
+  has neither. `apps/openmw/mwrender/rtx/classmasks.cpp:7-22`.
+- Effects on the first-person model are traced through the world's eye, at the wrong field of view
+  and behind near walls, and a non-additive shell casts a shadow.
+  `components/rtx/mirror/sceneextractor.cpp:318-322`.
+- `tcb` and `tcg` draw collision triangles as solid white faces, where the rasterizer draws wireframe.
+  `apps/openmw/mwrender/rtx/debugwalk.cpp:129-141`.
+- Particles integrate at most 0.2 s a frame, so under a simulation-time scale they fall behind the
+  world. `components/rtx/mirror/sceneextractor.cpp:390-405`.
+- A node with `distortion` extra data is traced as an ordinary textured surface, where the rasterizer
+  draws it only into its distortion buffer. `apps/openmw/mwrender/distortion.cpp:11-38`.
+- With `distant land cells = 0` the reach takes `viewing distance` unclamped, past the documented
+  ten-cell bound and the trace's 200 000-unit far plane. `components/rtx/mirror/cells/cellgrid.cpp:38-44`.
