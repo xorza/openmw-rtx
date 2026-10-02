@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <optional>
 
 #include <osg/Matrixf>
@@ -174,6 +175,17 @@ namespace MWRender
     {
         float mNearClip = 0.0f;
         float mViewDistance = 0.0f;
+
+        /// How far a script asked the player to see, `camera.setViewDistance`, where that is not
+        /// the setting. The rasterizer's far clip is `mViewDistance` either way; the ray tracer
+        /// closes its air here and keeps the world standing to the setting's reach, so a script
+        /// never rebuilds the world.
+        std::optional<float> mScriptViewDistance;
+
+        /// Where the air closes for a world that stands to `reach`: there, or nearer where a script
+        /// asked the eye to see less.
+        float closesAirAt(float reach) const { return std::min(reach, mScriptViewDistance.value_or(reach)); }
+
         osg::Matrixf mProjectionMatrix{};
 
         /// The one the world settled on: the override wherever something asked for one, and the

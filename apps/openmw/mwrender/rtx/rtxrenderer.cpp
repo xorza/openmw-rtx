@@ -955,8 +955,8 @@ namespace MWRender
     void RtxRenderer::trace(const SceneFrame& frame, Rtx::Shaders::VisibilityConstants constants, FrameReport& report,
         const std::optional<double> since)
     {
-        const Rtx::WorldReading read = mSky.read(
-            frame.mSky, frame.mWorld, frame.mPrecipitation, frame.mWhen.getSimulationTime(), mMirror.getReach());
+        const Rtx::WorldReading read = mSky.read(frame.mSky, frame.mWorld, frame.mPrecipitation,
+            frame.mWhen.getSimulationTime(), frame.mEye.closesAirAt(mMirror.getReach()));
 
         const double now = getFrameClock().getNow();
         const float sinceLast = mTracedAt.has_value() ? static_cast<float>(now - *mTracedAt) : 0.0f;
