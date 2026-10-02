@@ -13,7 +13,8 @@ namespace Rtx
         /// A drawable's geometry, met by the walk.
         Mesh,
 
-        /// A template the cell ring stands for the cells the game has not loaded.
+        /// A drawable of a template the cell ring stands for the cells the game has not loaded,
+        /// named by the model, which stands without it.
         Model,
 
         Texture,

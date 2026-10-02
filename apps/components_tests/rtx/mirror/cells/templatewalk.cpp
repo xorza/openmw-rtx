@@ -109,7 +109,7 @@ namespace Rtx::Testing
 
             PreparedModel model;
             TemplateWalk walk;
-            ASSERT_TRUE(walk.read(*root, ~hidden, model).isOk());
+            walk.read(*root, ~hidden, model);
 
             ASSERT_EQ(model.mParts.size(), 3u) << "the branch that is on, the frame shown, and the near level";
             EXPECT_EQ(model.mPositions.size(), 12u) << "three quads' corners, appended in turn";
@@ -215,7 +215,7 @@ namespace Rtx::Testing
                 root->addChild(branches);
 
                 PreparedModel model;
-                ASSERT_TRUE(walk.read(*root, ~0u, model).isOk()) << at;
+                walk.read(*root, ~0u, model);
                 ASSERT_EQ(model.mParts.size(), 1 + read.size()) << at;
                 EXPECT_EQ(model.mParts[0].mDrawable, plain.get()) << at;
                 EXPECT_TRUE(model.mParts[0].mModes.isEvery()) << at << ": outside the switch";
@@ -227,12 +227,12 @@ namespace Rtx::Testing
             }
         }
 
-        /// **A mesh this cannot build refuses its model on the reader's thread**, where the reader
-        /// leaves the model out of its cell. Left to the adoption, the same check refused inside
-        /// the frame's walk. A mesh past one block is one, and a triangle naming a vertex its
-        /// drawable does not have is another, and the walk says which. The walk after it is the
-        /// next model's, whole.
-        TEST(RtxTemplateWalkTest, aMeshThisCannotBuildRefusesTheModelWhereItIsRead)
+        /// **A mesh this cannot build is left out on the reader's thread, and its model stands
+        /// without it**, as the frame's walk stands a model without a drawable it refuses: the quad
+        /// beside it is the model's one part, and the model says why the other went. A mesh past one
+        /// block is one, and a triangle naming a vertex its drawable does not have is another. The
+        /// walk after it is the next model's, with no reason carried into it.
+        TEST(RtxTemplateWalkTest, aMeshThisCannotBuildIsLeftOutAndItsModelStands)
         {
             const std::string pastABlock = "its " + std::to_string(MeshTable::sVertexBlock + 1)
                 + " vertices and 3 indices are past the " + std::to_string(MeshTable::sVertexBlock) + " and "
@@ -243,17 +243,21 @@ namespace Rtx::Testing
                      std::pair{ makeIndexPastItsVertices(), std::string("its triangles name vertex 4 of 4") } })
             {
                 osg::ref_ptr<osg::Group> root = new osg::Group;
-                root->addChild(makeQuad());
+                const osg::ref_ptr<osg::Geometry> kept = makeQuad();
                 root->addChild(broken);
+                root->addChild(kept);
 
                 PreparedModel model;
-                const Misc::Result<void, std::string> refused = walk.read(*root, ~0u, model);
-                ASSERT_FALSE(refused.isOk());
-                EXPECT_EQ(refused.error(), why);
+                walk.read(*root, ~0u, model);
+                EXPECT_EQ(model.mRefused, why);
+                ASSERT_EQ(model.mParts.size(), 1u) << "the model was refused whole";
+                EXPECT_EQ(model.mParts[0].mDrawable, kept.get());
+                EXPECT_EQ(model.mPositions.size(), 4u) << "the refused mesh left arrays behind";
 
                 const osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 PreparedModel next;
-                EXPECT_TRUE(walk.read(*quad, ~0u, next).isOk()) << "a refusal carried into the next model";
+                walk.read(*quad, ~0u, next);
+                EXPECT_TRUE(next.mRefused.empty()) << "a refusal carried into the next model";
                 EXPECT_EQ(next.mParts.size(), 1u);
             }
         }
