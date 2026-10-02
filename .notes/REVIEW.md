@@ -44,17 +44,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
 
 ## The traced sky reads the weather by rules of its own, not by the content's
 
-- [ ] **During an ash or blight storm the deck and the sea slide as the player walks, and the sea's whole wave field swings in one frame when the weather flips into or out of either** — `apps/openmw/mwworld/weather.cpp:47-58`, `:1299`, `:1311-1312`; `apps/openmw/mwrender/rtx/skyreader.cpp:222-223`; `components/rtx/environment/skybuilder.cpp:214-215`; `components/rtxvulkan/shaders/lib/sky.glsl:40-50`; `components/rtx/environment/frameworld.cpp:189-199`; `components/rtxvulkan/shaders/lib/sea.glsl:100-108`.
-
-  **The input.** `calculateStormDirection` points ash and blight away from Red Mountain at (25000, 70000), measured at the player, so the bearing changes as the player moves.
-
-  **Rasterizer.** It turns its camera-relative cloud mesh about the eye (`apps/openmw/mwrender/sky.cpp:560-569`), so the texel overhead stays put. Its water has a constant `WIND_DIR` (`files/shaders/compatibility/water.frag:41`).
-
-  **Ray tracer.** `cloudUvAt` turns the *world* position about (0, 0). `seaLocal` does the same to the sea with `mSeaHeading`, which is the near deck's bearing. A step `d` across the line to Red Mountain turns the bearing by `d / |P - RM|`, which moves the pattern under the player by `|P| · d / |P - RM|`. Around Ald'ruhn (cell (-2, 6)) that is about 1.3 units per unit walked. Near the mountain it is many times the walk. `mBearing` is the near weather's, so the frame `WeatherManager` makes ash current turns the whole sea about the origin at once, by up to 180°, tens of thousands of units at the player.
-
-  **Where it shows.** The sea shows it under every config. The decks show it on every played install, because ash and blight have decks there (see "Extends"). `sky.glsl:41-43` dismisses the origin on the false premise that no storm weather has a sheet.
-
-  **Better shape.** The deck turns about the eye, `R·(x − eye) + eye` with the frame's eye, which keeps one answer for an eye ray and a shadow ray in a frame. The sea takes a fixed heading, as the rasterizer's water does, rather than the storm's. *(kind: bug; severity: medium; benefit: no sliding sky or sea in the Ashlands)*
 - [ ] **On some nights the trace shows Masser or Secunda switch phase in mid-sky** — `apps/openmw/mwworld/weather.cpp:397-412`, `:449-455`, `:458-461`; `components/sky/moonstate.hpp:58-65`; `apps/openmw/mwrender/rtx/skyreader.cpp:176-179`; `components/rtx/environment/moonbuilder.cpp:212`, `:218`.
 
   **Rasterizer.** `MoonModel::moonPhaseHour` delays a phase change until the moon is invisible by `isVisible`, which includes `earlyMoonShadowAlpha`, the `Fade_End_Angle` fade. That is either midnight, if the moon is hidden then, or one `Daily_Increment` after it passes `180 − Fade_End_Angle + Early_Fade`.

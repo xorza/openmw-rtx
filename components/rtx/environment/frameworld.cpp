@@ -197,8 +197,7 @@ namespace Rtx
         const std::array<osg::Vec3f, Shaders::FOG_SCALES> offsets = fogOffsets(drift.get(), reading.mSkySeconds);
         std::copy(offsets.begin(), offsets.end(), constants.mFogOffsets);
 
-        // The sea runs the way the deck does, and as its tiles were drawn where nothing blows.
-        constants.mSeaHeading = heading.length2() > 0.0f ? heading / heading.length() : osg::Vec2f(1.0f, 0.0f);
+        constants.mSeaHeading = Shaders::seaHeading();
 
         constants.mFogEdge = air.mEdge;
 
