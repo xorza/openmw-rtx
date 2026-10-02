@@ -112,11 +112,15 @@ namespace Rtx
         if (updaters.empty() && !inherits)
             return nullptr;
 
-        // **Set up again whenever the controllers that apply to it change**, so none applies to a
-        // state set it did not set up: a fade that came after a glow read the uniforms the glow's
-        // defaults never made, and a fade that went left its blend and its alpha behind. Reset in
-        // place rather than made anew, because the address is what the material table keys the
-        // surface by, and a new one would be a second material for the same surface.
+        for (std::size_t at = 0; at < updaters.size(); ++at)
+            held.mSetUp = held.mSetUp && updaters[at]->getGeneration() == held.mGenerations[at];
+
+        // **Set up again whenever the controllers that apply to it change, or one asks to be**, so
+        // none applies to a state set it did not set up: a fade that came after a glow read the
+        // uniforms the glow's defaults never made, a fade that went left its blend and its alpha
+        // behind, and a glow that ended kept its last sheet. Reset in place rather than made anew,
+        // because the address is what the material table keys the surface by, and a new one would
+        // be a second material for the same surface.
         if (!held.mSetUp)
         {
             held.mSetUp = true;
@@ -143,8 +147,11 @@ namespace Rtx
                 updater->setDefaults(held.mStateSet);
         }
 
-        for (SceneUtil::StateSetUpdater* updater : updaters)
-            updater->apply(held.mStateSet, visitor);
+        for (std::size_t at = 0; at < updaters.size(); ++at)
+        {
+            updaters[at]->apply(held.mStateSet, visitor);
+            held.mGenerations[at] = updaters[at]->getGeneration();
+        }
         return held.mStateSet;
     }
 

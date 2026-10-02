@@ -12,6 +12,7 @@
 
 #include <osg/AlphaFunc>
 #include <osg/BlendFunc>
+#include <osg/FrameStamp>
 #include <osg/GL>
 #include <osg/Geometry>
 #include <osg/Group>
@@ -34,6 +35,8 @@
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/graphlight.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
+#include <components/resource/resourcesystem.hpp>
+#include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
@@ -54,6 +57,8 @@
 #include <components/sceneutil/statesetupdater.hpp>
 #include <components/sceneutil/texmat.hpp>
 #include <components/sceneutil/texturetype.hpp>
+#include <components/sceneutil/util.hpp>
+#include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"
@@ -652,6 +657,64 @@ namespace Rtx::Testing
 
             root->removeCullCallback(fade);
             EXPECT_EQ(frame(4), 1.0f) << "a fade that went, still applied";
+        }
+
+        /// **A spell's glow ends when the game says, and a glow given a new colour wears it.** Open
+        /// and Lock put `SceneUtil::addEnchantedGlow` on a door for a second; an enchantment's glow
+        /// is recoloured by the next spell. Both change the glow's defaults by
+        /// `StateSetUpdater::reset`, which the node's own update consumes before the walk applies
+        /// the same updater to its own copy, so the copy hears it by the updater's generation. A
+        /// copy that never heard it kept the last sheet for as long as the door stood.
+        TEST_F(RtxSceneExtractorTest, aSpellCastGlowEndsWhenTheGameSaysAndARecolouredGlowWearsItsColour)
+        {
+            const VFS::Manager vfs;
+            Resource::ResourceSystem resources(&vfs, 1.0, nullptr);
+
+            // The ray tracer compiles none of the rasterizer's shaders, and neither does this.
+            resources.getSceneManager()->setShadersEnabled(false);
+
+            const auto frame = [&](osg::Group& root, unsigned int number, double seconds) {
+                osg::ref_ptr<osg::FrameStamp> stamp = new osg::FrameStamp;
+                stamp->setFrameNumber(number);
+                stamp->setSimulationTime(seconds);
+                osgUtil::UpdateVisitor update;
+                update.setTraversalNumber(number);
+                update.setFrameStamp(stamp);
+                root.accept(update);
+
+                runWorld(seconds - mWorldSeconds);
+                mScene.clearPlacement();
+                walk(root, 0, number);
+                mExtractor.retire();
+                mScene.clearArrivals();
+                return mScene.materials().getRows()[mScene.placements().getRows().front().mInstance.mMaterial];
+            };
+
+            // A glow of a second, from ten seconds in: the node's update starts its clock at ten
+            // and ends it on the first frame past eleven.
+            osg::ref_ptr<osg::Group> door = makeShape(shapeState());
+            SceneUtil::addEnchantedGlow(door, &resources, osg::Vec4f(1.0f, 0.0f, 0.0f, 1.0f), 1.0f);
+
+            // The archives here are empty, so every sheet is the image manager's one stand-in,
+            // which has no name the texture table would take. Named, it stands in for all of them.
+            const auto* sheet = static_cast<const osg::Texture2D*>(
+                door->getStateSet()->getTextureAttribute(1, osg::StateAttribute::TEXTURE));
+            ASSERT_NE(sheet, nullptr) << "the glow's unit is the one after the diffuse";
+            const_cast<osg::Image*>(sheet->getImage())->setFileName("textures/magicitem/caust00.dds");
+            EXPECT_NE(frame(*door, 1, 10.0).mEnvironment, sNoIndex) << "the glow the spell put on";
+            EXPECT_NE(frame(*door, 2, 10.5).mEnvironment, sNoIndex) << "half way through";
+            EXPECT_EQ(frame(*door, 3, 11.5).mEnvironment, sNoIndex) << "ended on the frame the game ended it";
+            EXPECT_EQ(frame(*door, 4, 12.0).mEnvironment, sNoIndex) << "and it stays ended";
+
+            // A permanent glow recoloured: one and nought decode to themselves, so the colours are
+            // exact.
+            osg::ref_ptr<osg::Group> sword = makeShape(shapeState());
+            osg::ref_ptr<SceneUtil::GlowUpdater> glow
+                = SceneUtil::addEnchantedGlow(sword, &resources, osg::Vec4f(1.0f, 0.0f, 0.0f, 1.0f), -1.0f);
+            EXPECT_EQ(frame(*sword, 5, 13.0).mEnvironmentColour, osg::Vec3f(1.0f, 0.0f, 0.0f));
+            glow->setColor(osg::Vec4f(0.0f, 0.0f, 1.0f, 1.0f));
+            EXPECT_EQ(frame(*sword, 6, 13.5).mEnvironmentColour, osg::Vec3f(0.0f, 0.0f, 1.0f))
+                << "the new colour on the frame it was given";
         }
 
         /// A material read once keeps every map it names for as long as it stands. The walk's own

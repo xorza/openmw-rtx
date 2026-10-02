@@ -225,6 +225,12 @@ namespace Rtx
             std::array<SceneUtil::StateSetUpdater*, sMostUpdaters> mUpdaters{};
             std::size_t mUpdaterCount = 0;
             bool mSetUp = false;
+
+            /// Each updater's `getGeneration` when this last applied it. An updater resets itself
+            /// to change its defaults — a glow's end, a glow's new colour — and the node's own
+            /// update consumes that before the walk applies it here, so the state set held here
+            /// hears it by the number alone.
+            std::array<unsigned int, sMostUpdaters> mGenerations{};
             std::uintptr_t mChains = 0;
         };
 

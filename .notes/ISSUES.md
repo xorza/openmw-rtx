@@ -9,10 +9,6 @@ first review.
   banner, rope and sail has a hard edge where the rasterizer's is soft, and a cobweb, a Telvanni
   crystal or Bloodmoon ice whose texture reaches 255 anywhere loses the coverage under the cut.
   `components/rtx/scene/material.hpp` (`Material::isTranslucent`).
-- A spell-cast glow never ends: `GlowUpdater` runs on the node and then on the mirror's state set,
-  and its end on the first run leaves the mirror's copy with the last sheet. Open, Lock, a trapped
-  container and Telekinesis leave a lasting glow. `components/rtx/mirror/materialresolver.cpp:121-148`,
-  `components/sceneutil/util.cpp:100-143`.
 - The traced sky fades from fog colour to sky colour linearly in the sine of the elevation, where
   `sky_atmosphere.nif` fades between 3.6° and 28.6° and is all sky colour above. The sky is too near
   the fog colour in every exterior frame, and the ambient, fog and deck light read a wrong mean.
