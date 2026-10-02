@@ -83,7 +83,7 @@ namespace RtxTool
     Measurer::Verdict Measurer::frame(const Stop& stop, const MWRender::FrameContext& context,
         const MWRender::FrameReport& report, const bool arrived)
     {
-        Rtx::Renderer& renderer = context.mRenderer.getBackend();
+        Rtx::Renderer& renderer = context.mBackend;
         const double frameMs = report.mSpend.at(Rtx::Timing::Frame);
         const float step = worldStep(mRequest.mSetup);
         const std::uint32_t measured = stop.mSchedule.mSpec.getMeasured(step);
@@ -206,7 +206,7 @@ namespace RtxTool
         // picture finds its row by when it comes back. A frame ahead of the measurement has no row.
         if (stop.mActions.mHash)
             mRecord.getHashes().note(
-                stop.mName, drawn, report.mFrame, mDigester.digest(context.mScene, &report.mConstants));
+                stop.mName, drawn, report.mFrame, mDigester.digest(context.mMirror.getScene(), &report.mConstants));
 
         return drawn < measured && !arrived ? Verdict::Going : Verdict::Ended;
     }
@@ -284,7 +284,7 @@ namespace RtxTool
     BenchPlace Measurer::finish(const Stop& stop, const MWRender::FrameContext& context,
         const MWRender::FrameReport& report, const float travelled, StopWriter& writer)
     {
-        Rtx::Renderer& renderer = context.mRenderer.getBackend();
+        Rtx::Renderer& renderer = context.mBackend;
         const float step = worldStep(mRequest.mSetup);
 
         mProfiling.disable();
@@ -388,7 +388,7 @@ namespace RtxTool
         place.mTravelled = travelled;
         place.mScene = renderer.getSceneStats();
         place.mMemory = renderer.getMemoryReport();
-        place.mContent = context.mRenderer.getContentMemory();
+        place.mContent = context.mMirror.getContentMemory();
         place.mGpu.assign(zones.begin(), zones.end());
 
         return std::move(place);

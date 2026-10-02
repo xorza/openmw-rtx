@@ -299,7 +299,7 @@ namespace MWRender
         // **And a run that means to time the streaming path overrides it**, because waiting is
         // most of what that path then measures. `RunSetup::mSettled` says what the override costs
         // and what it buys.
-        mMirror.setSettled(mSettled.value_or(stated.has_value()));
+        mMirror.getRing().setSettled(mSettled.value_or(stated.has_value()));
 
         Resource::SceneManager& scene = *resources.getSceneManager();
         scene.setShadersEnabled(false);
@@ -469,11 +469,9 @@ namespace MWRender
     {
         return FrameContext{
             .mRenderer = *this,
-            .mResources = &getResources(),
-            .mScene = mMirror.getScene(),
-            .mReach = mMirror.getReach(),
-            .mEye = mMirror.getEye(),
-            .mGrid = mMirror.getGrid(),
+            .mMirror = mMirror,
+            .mBackend = *mRenderer,
+            .mResources = getResources(),
         };
     }
 
@@ -911,7 +909,7 @@ namespace MWRender
         report.mSpend.at(Rtx::Timing::Place) = Rtx::since(handing, std::chrono::steady_clock::now());
         report.mUpload = handed.mKind;
         report.mArrivedMeshes = handed.mArrivedMeshes;
-        report.mCellsToStand = mMirror.getCellsToStand();
+        report.mCellsToStand = mMirror.getRing().getCellsToStand();
 
         if (handed.mKind == Rtx::SceneUpload::Kind::Rebuilt)
             Log(Debug::Info) << "Ray tracing built " << mMirror.getScene().meshes().getRows().size() << " meshes into "

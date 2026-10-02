@@ -110,23 +110,6 @@ namespace MWRender
         /// and the change lists the backend just took start again.
         Rtx::SceneUpload hand(Rtx::Renderer& renderer, Rtx::FrameSpend& spend);
 
-        /// Whether each walk waits for the one cell it adopts. `Rtx::CellRing::setSettled` says
-        /// why a run would, and what waiting costs it.
-        void setSettled(bool settled) { mRing.setSettled(settled); }
-
-        /// `Rtx::CellRing::getCellsToStand`.
-        std::uint32_t getCellsToStand() const { return mRing.getCellsToStand(); }
-
-        /// What the game says of one reference, which the content files cannot: a script has
-        /// disabled it, or enabled it again, or the game moved it and the distance must never
-        /// stand it. A cleared world says it of none.
-        void setReferenceEnabled(ESM::RefNum refnum, bool enabled) { mRing.setReferenceEnabled(refnum, enabled); }
-
-        /// What a visibility gate says of the references behind it — `CellRing::setGate`.
-        void setGate(std::uint32_t gate, Terrain::GateState state) { mRing.setGate(gate, state); }
-        void blacklistReference(ESM::RefNum refnum) { mRing.blacklistReference(refnum); }
-        void forgetReferences() { mRing.forgetReferences(); }
-
         /// How much world this renderer builds, in units: the ground, the air and the distant
         /// lights are all measured over it. The settings' count of cells, as they stood when the
         /// mirror was made or when the menu last moved them, in the cells of the worldspace the
@@ -136,7 +119,10 @@ namespace MWRender
         /// The worldspace's grid, as the last walk read it off the land.
         const Rtx::CellGrid& getGrid() const { return mGrid; }
 
-        /// The ring, for a picture that asks whether its ground stands yet.
+        /// The distant cells: the one route to them, for the ground that tells them what the game
+        /// says of a reference, the frame that asks how much is left to stand, a picture that asks
+        /// whether its ground stands yet, and the harness's checks.
+        Rtx::CellRing& getRing() { return mRing; }
         const Rtx::CellRing& getRing() const { return mRing; }
 
         /// The menu moved the reach, or the view distance it falls back to. Told rather than read
@@ -165,14 +151,6 @@ namespace MWRender
 
         /// What the world's walk may see. Read by the tests and by nothing else.
         osg::Node::NodeMask getTraversalMask() const { return mTraversal; }
-
-        /// `Rtx::CellRing::collectStanding`: every reference the ring stands, for the harness's
-        /// check that the game stands none of them.
-        void collectStanding(std::vector<ESM::RefNum>& into) const { mRing.collectStanding(into); }
-
-        /// `Rtx::CellRing::collectGateVerdicts`, for the harness's check that the gates agree with
-        /// the game.
-        void collectGateVerdicts(std::vector<Rtx::GateVerdict>& into) const { mRing.collectGateVerdicts(into); }
 
     private:
         /// Shared by every walk on the frame thread: the world's and every traced view's.
