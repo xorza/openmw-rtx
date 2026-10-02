@@ -13,6 +13,7 @@
 #include "wave.h"
 
 #include "lib/pixels.glsl"
+#include "lib/wavetile.glsl"
 
 layout(local_size_x = WAVE_TILE_WORKGROUP, local_size_y = WAVE_TILE_WORKGROUP) in;
 
@@ -70,6 +71,6 @@ void main()
     const vec3 curve = shift * vec3(second.y, third.x, third.y);
 
     const ivec2 texel = ivec2(cell);
-    imageStore(surface, texel, vec4(slope, dot(slope, slope), height * height));
-    imageStore(curvature, texel, vec4(curve, 0.0));
+    imageStore(surface, texel, waveSurfaceTexel(height, slope));
+    imageStore(curvature, texel, waveCurvatureTexel(curve));
 }
