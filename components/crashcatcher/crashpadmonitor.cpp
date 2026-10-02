@@ -8,6 +8,7 @@
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
@@ -37,7 +38,6 @@
 #include <util/misc/uuid.h>
 #include <util/process/process_memory.h>
 
-#include <components/debug/debugging.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/localtime.hpp>
 #include <components/platform/process.hpp>
@@ -155,8 +155,14 @@ namespace Crash
 
         std::string stamp()
         {
-            char text[Debug::sStampCapacity];
-            return std::string(text, Debug::writeStamp(text, Debug::Error, std::chrono::system_clock::now()));
+            const auto now = std::chrono::system_clock::now();
+            const std::tm local = Platform::localTime(std::chrono::system_clock::to_time_t(now)).value_or(std::tm{});
+            const auto milliseconds
+                = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000;
+            char text[32];
+            std::snprintf(text, sizeof(text), "[%02d:%02d:%02d.%03d E] ", local.tm_hour, local.tm_min, local.tm_sec,
+                static_cast<int>(milliseconds));
+            return text;
         }
 
         /// Appends `lines` to the game's log, stamped as the log stamps its own. The game holds the
