@@ -767,10 +767,6 @@ namespace MWRender
             return;
         }
 
-        // **Off the frame and not off the session**, because what settles it is whether the eye
-        // is the player's, and a session is only the thing that usually makes it not.
-        mMirror.setShowsPlayer(frame.mEye.mPlayersEye);
-
         // Where the eye stands, as the update traversal settled it on the camera this renderer
         // adopted: read here, at the one moment it is this frame's.
         const osg::Matrixd view = getCamera().getViewMatrix();

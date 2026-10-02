@@ -229,7 +229,7 @@ namespace MWRender
         void adoptTraversalRoot(osg::Group& root) noexcept override;
 
         /// Read off the seam at the trace, so nothing to put anywhere.
-        void applyViewMask() noexcept override {}
+        void applyViewMask() noexcept override { mMirror.setViewMask(getViewMask()); }
         void applyWorldShown() noexcept override {}
 
         /// The projection follows the frame's aspect at once; the trace and the surface follow at

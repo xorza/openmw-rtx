@@ -122,9 +122,8 @@ namespace MWRender
             Effect = 3,
         };
 
-        /// What the world walk may see: `sWorldTraversal` without the player bit, which is stamped
-        /// on nothing a content file holds. `WorldMirror::setShowsPlayer` says why the player is a
-        /// question.
+        /// What the world walk may see: `sWorldTraversal`, without the player bit where the eye's view
+        /// mask leaves the player out — `WorldMirror::setViewMask`.
         constexpr osg::Node::NodeMask worldTraversal(const bool showsPlayer)
         {
             const osg::Node::NodeMask player = showsPlayer ? 0 : static_cast<osg::Node::NodeMask>(Mask_Player);
@@ -224,8 +223,9 @@ namespace MWRender
         mSeaCentre = osg::Vec2f(static_cast<float>(x), static_cast<float>(y));
     }
 
-    void WorldMirror::setShowsPlayer(const bool shows)
+    void WorldMirror::setViewMask(const unsigned int view)
     {
+        const bool shows = (view & Mask_Player) != 0;
         if (shows == mShowsPlayer)
             return;
 

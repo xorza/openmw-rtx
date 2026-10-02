@@ -13,7 +13,9 @@
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwrender/camera.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
 #include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
 #include <apps/openmw/mwworld/cell.hpp>
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/datetimemanager.hpp>
@@ -273,8 +275,16 @@ namespace RtxTool
 
     void CameraDriver::aim(const Stop& stop)
     {
+        // **The body is hidden from a camera this stands inside it**, through the seam's view mask
+        // that both renderers read: a stop flies the player to its route's point so that cells load
+        // around it and stands the camera on the same coordinates, and what that traced was a boot
+        // thirteen units from the eye. A free camera is the player's own again.
+        if (stop.mSchedule.mFreeCamera)
+            showPlayer(true);
         if (stop.mSchedule.mFreeCamera || !stop.mStand.mEye.has_value())
             return;
+
+        showPlayer(false);
 
         if (stop.mSchedule.mTrack.has_value())
         {
@@ -343,6 +353,15 @@ namespace RtxTool
         // position lives in the physics world as well, and a move that writes only the world's
         // copy is written back over it on the next step.
         world.moveObjectBy(player, eye - osg::Vec3f(stood.pos[0], stood.pos[1], stood.pos[2]), true);
+    }
+
+    void CameraDriver::showPlayer(const bool shown)
+    {
+        MWRender::Renderer& renderer = MWBase::Environment::get().getWorld()->getRenderingManager()->getRenderer();
+        const unsigned int mask = renderer.getViewMask();
+        const unsigned int wanted = shown ? mask | MWRender::Mask_Player : mask & ~MWRender::Mask_Player;
+        if (wanted != mask)
+            renderer.setViewMask(wanted);
     }
 
     void CameraDriver::aimCamera(const osg::Vec3f& eye, const osg::Vec3f& rotation)

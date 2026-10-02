@@ -124,7 +124,6 @@ namespace MWRender
             .mViewDistance = mViewDistance,
             .mFieldOfView = mFieldOfViewOverridden ? mFieldOfViewOverride : mFieldOfView,
             .mArmsFieldOfView = mFirstPersonFieldOfView,
-            .mPlayersEye = mCamera->getMode() != Camera::Mode::Static,
         };
     }
 

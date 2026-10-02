@@ -142,15 +142,11 @@ namespace MWRender
         /// Where the last walk stood the rings: the camera's eye, which is not the player's feet.
         const osg::Vec3f& getEye() const { return mEye; }
 
-        /// Whether the world walk includes the player's own model. True for a game somebody is
-        /// playing.
-        ///
-        /// **A camera that is not the player's eye stands inside the player.** `MWRender::Camera` in
-        /// `Mode::Static` takes the `VM_Normal` branch of `processViewChange`, so the game dresses
-        /// the whole third-person body — and a session flies the player to its route's point so that
-        /// cells load around it, then stands the camera on the same coordinates. What that traced
-        /// was a boot and a trouser leg thirteen units from the eye, filling a third of the frame.
-        void setShowsPlayer(bool shows);
+        /// What the eye sees, as the seam's view mask: the world walk leaves the player's own model
+        /// out where the mask does, as the rasterizer culls it. The game keeps `Mask_Player` in,
+        /// a static camera a script parks included; a host whose camera stands inside the player
+        /// takes it out.
+        void setViewMask(unsigned int view);
 
         const Rtx::SceneDesc& getScene() const { return mScene; }
         Rtx::SceneDesc& getScene() { return mScene; }

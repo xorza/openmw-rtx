@@ -121,6 +121,9 @@ namespace RtxTool
         /// as long as nothing else moves it.
         static void aimCamera(const osg::Vec3f& eye, const osg::Vec3f& rotation);
 
+        /// Whether the eye's view mask keeps the player's own body in the picture.
+        static void showPlayer(bool shown);
+
         /// Where the eye stood when the stop began, which a route flies from.
         osg::Vec3f mFrom;
         osg::Vec3f mFromLook;
