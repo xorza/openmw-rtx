@@ -60,8 +60,8 @@ namespace Rtx::Shaders
 
     /// The springs `lib/water/ripples.glsl` states, tuned there by eye to look like water: the
     /// neighbour coupling (`a`), and the two dampings on the height (`udamp`) and its velocity
-    /// (`vdamp`). The grid, the texel, the rate and these are the rasterizer's, and a GLSL header
-    /// can include none of them: `RtxRipplesTest` holds each equal to its source.
+    /// (`vdamp`). The grid, the texel and these are the rasterizer's, and a GLSL header can
+    /// include none of them: `RtxRipplesTest` holds each equal to its source.
     const float RIPPLE_STIFFNESS = 0.28f;
     const float RIPPLE_HEIGHT_DAMPING = 0.04f;
     const float RIPPLE_VELOCITY_DAMPING = 0.04f;

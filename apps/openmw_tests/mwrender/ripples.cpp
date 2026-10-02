@@ -38,15 +38,14 @@ namespace MWRender
 
         /// **The trace's ripple field is the rasterizer's, number for number.** `ripple.h` is read
         /// by GLSL and can include neither `RipplesSurface` nor the rasterizer's shader, so each
-        /// figure it restates is held here to its source: the grid, the texel and the step rate to
-        /// the surface's constants, and the springs to `applySprings` as the shader file spells
-        /// them. A retune upstream fails this, where it would have left the trace's water a
-        /// different simulation with no message.
+        /// figure it restates is held here to its source: the grid and the texel to the surface's
+        /// constants, and the springs to `applySprings` as the shader file spells them. A retune
+        /// upstream fails this, where it would have left the trace's water a different simulation
+        /// with no message.
         TEST(RtxRipplesTest, theTracesFieldIsTheRasterizersOwn)
         {
             EXPECT_EQ(Rtx::Shaders::RIPPLE_GRID, RipplesSurface::sRTTSize);
             EXPECT_EQ(Rtx::Shaders::RIPPLE_TEXEL, RipplesSurface::sWorldScaleFactor);
-            EXPECT_EQ(static_cast<double>(Rtx::Shaders::RIPPLE_STEP_RATE), RipplesSurface::sUpdateFrequency);
 
             std::ifstream file(std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "shaders" / "lib"
                 / "water" / "ripples.glsl");

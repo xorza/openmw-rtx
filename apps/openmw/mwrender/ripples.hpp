@@ -49,8 +49,6 @@ namespace MWRender
         static constexpr size_t sRTTSize = 1024;
         // e.g. texel to cell unit ratio
         static constexpr float sWorldScaleFactor = 2.5;
-        // Simulation steps per second
-        static constexpr double sUpdateFrequency = 60.0;
 
     private:
         struct State
