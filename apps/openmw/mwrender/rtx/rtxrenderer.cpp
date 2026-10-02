@@ -755,6 +755,7 @@ namespace MWRender
         // feeds. A picture of the world waits for the world, and none of its budget is spent.
         if (!drawsWorld())
         {
+            mRipples.dropStrikes();
             mPhase.step(Phase::Views, Phase::Walking);
             mViews.draw(0, getFrameStamp());
             renderGui();
@@ -770,11 +771,8 @@ namespace MWRender
         const osg::Matrixd view = getCamera().getViewMatrix();
 
         // What disturbs the water this frame, decided before the walk and handed to the scene
-        // beside the sprites, which is where the trace and the digest both read it. Not on a
-        // paused frame: the actors have not moved, and a wake pressed on a frame the simulation
-        // stood still on is a ring on a frame the game did not have.
-        if (!frame.mPaused)
-            mRipples.update(frame.mWorld.mWater);
+        // beside the sprites, which is where the trace and the digest both read it.
+        mRipples.update(frame.mWorld.mWater, !frame.mPaused);
 
         // **Where the benchmark's `walk ms` starts**, because that row means the whole mirror: the
         // walk and the sweep behind it.

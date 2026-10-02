@@ -13,10 +13,12 @@
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/readback.hpp>
 #include <components/rtx/scene/ripple.hpp>
+#include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/ripple.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/trace/ripplepass.hpp>
+#include <components/rtxvulkan/trace/tracemedia.hpp>
 
 namespace Rtx
 {
@@ -159,6 +161,34 @@ namespace Rtx
             for (int away = -5; away <= 5; ++away)
                 atEye = std::max(atEye, std::abs(after[texelOf(centre + away, centre)]));
             EXPECT_EQ(atEye, 0.0f) << "still water where the eye went";
+        }
+
+        /// **A placement's footfalls are pressed once, however many traces read it.** One placement
+        /// that stands a footfall, traced twice before a step is due and then stepped thirty times,
+        /// leaves the field one press leaves: `TraceMedia::stepRipples` spends what it kept. Without
+        /// that, every trace of a frame the game paused on handed the pass the last footfalls again.
+        TEST_F(RtxRipplePassTest, aPlacementsFootfallIsPressedOnceHoweverOftenItIsTraced)
+        {
+            const double sixtieth = 1.0 / static_cast<double>(Shaders::RIPPLE_STEP_RATE);
+            SceneDesc scene;
+            scene.addRipple(RippleImpulse{ .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f });
+
+            const auto field = [&](const int traces) {
+                TraceMedia media(getDevice());
+                media.keepRipples(scene);
+                getPool().submitAndWait([&](VkCommandBuffer commands) {
+                    for (int trace = 0; trace < traces; ++trace)
+                        media.stepRipples(commands, FrameSlot{ 0 }, osg::Vec2f(0.0f, 0.0f), 0.0, nullptr);
+                    for (int step = 1; step <= 30; ++step)
+                        media.stepRipples(commands, FrameSlot{ 0 }, osg::Vec2f(0.0f, 0.0f), step * sixtieth, nullptr);
+                });
+                return Testing::readHalves(media.getRipples().getSurface(), 0);
+            };
+
+            const std::vector<float> once = field(1);
+            const std::vector<float> twice = field(2);
+            EXPECT_TRUE(std::ranges::any_of(once, [](float value) { return value != 0.0f; })) << "nothing was pressed";
+            EXPECT_EQ(once, twice) << "a second trace of one placement pressed its footfall again";
         }
     }
 }

@@ -46,6 +46,10 @@ namespace Rtx
         const double waterSeconds, GpuTimer* const timer)
     {
         mRipples.record(commands, slot, mImpulses, eye, waterSeconds, timer);
+
+        // Spent: what a placement kept is pressed once. A second trace of the same placement would
+        // otherwise hand the pass the same footfalls again.
+        mImpulses.clear();
     }
 
     void TraceMedia::placeRipples(Shaders::VisibilityConstants& sampled) const

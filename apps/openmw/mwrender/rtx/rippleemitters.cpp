@@ -35,9 +35,14 @@ namespace MWRender
         mStrikes.push_back(at);
     }
 
-    void RippleEmitters::update(const WaterState& water)
+    void RippleEmitters::update(const WaterState& water, const bool simulated)
     {
         mImpulses.clear();
+
+        // A wake pressed on a frame the simulation stood still on is a ring on a frame the game did
+        // not have.
+        if (!simulated)
+            return;
 
         if (!water.isShown())
         {
