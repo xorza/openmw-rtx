@@ -17,7 +17,7 @@
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
-#include <components/rtx/preprocess/meantexels.hpp>
+#include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -378,10 +378,10 @@ namespace Rtx
         MeshResolver mMeshes{ mScene, mPass, mContent.mPreprocessor };
 
         /// What the content says each surface is, and the textures those name.
-        MaterialResolver mMaterials{ mScene, mPass, mContent.mMeans, mContent.mPreprocessor };
+        MaterialResolver mMaterials{ mScene, mPass, mContent.mFacts };
 
         /// The particle systems the walk met, and the sprite textures they hold.
-        EmitterResolver mEmitters{ mScene, mPass, mContent.mMeans };
+        EmitterResolver mEmitters{ mScene, mPass, mContent.mFacts };
 
         /// How many meshes and materials the scene had freed at the last retire, which the next
         /// one counts what went from.

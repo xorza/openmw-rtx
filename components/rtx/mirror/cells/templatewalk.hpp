@@ -13,7 +13,7 @@
 #include <components/rtx/mirror/shading.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
-#include <components/rtx/preprocess/meantexels.hpp>
+#include <components/rtx/preprocess/imagefactcache.hpp>
 
 #include "nightday.hpp"
 
@@ -75,7 +75,7 @@ namespace Rtx
 
         ContentPreprocessor mContent;
         MeshReader mMeshes{ mContent };
-        MeanTexels mMeans{ mContent };
+        ImageFactCache mFacts{ mContent };
 
         /// This thread's own classifier: `NodeKinds` is written on a miss.
         NodeKinds mKinds;

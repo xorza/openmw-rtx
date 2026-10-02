@@ -139,7 +139,7 @@ namespace Rtx::Testing
             stats.mWornBeyondKept = from + 21;
             stats.mRestood = from + 22;
             stats.mPreprocessed.mOnFrame.at(ContentPassId::Shape).mAsked = from + 23;
-            stats.mPreprocessed.mOffFrame.at(ContentPassId::TexelMean).mAsked = from + 24;
+            stats.mPreprocessed.mOffFrame.at(ContentPassId::ImageFacts).mAsked = from + 24;
             return stats;
         }
 
@@ -171,7 +171,7 @@ namespace Rtx::Testing
             EXPECT_EQ(sum.mWornBeyondKept, 142u);
             EXPECT_EQ(sum.mRestood, 144u);
             EXPECT_EQ(sum.mPreprocessed.mOnFrame.at(ContentPassId::Shape).mAsked, 146u);
-            EXPECT_EQ(sum.mPreprocessed.mOffFrame.at(ContentPassId::TexelMean).mAsked, 148u);
+            EXPECT_EQ(sum.mPreprocessed.mOffFrame.at(ContentPassId::ImageFacts).mAsked, 148u);
         }
     }
 }

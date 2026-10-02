@@ -25,7 +25,7 @@ namespace VFS
 
 namespace Rtx
 {
-    class ContentPreprocessor;
+    class ImageFactCache;
     class SceneDesc;
 }
 
@@ -64,8 +64,8 @@ namespace MWRender
         /// material speaks for the slots and the sweep would take them on the first frame a cell
         /// died. Once, where the world is attached.
         ///
-        /// @param content what the sheets' means are read through: the frame thread's.
-        void attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ContentPreprocessor& content);
+        /// @param facts what the sheets' means are read through: the frame thread's.
+        void attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ImageFactCache& facts);
 
         /// Gives every hold `attach` took back to `scene`, so a scene the world has left holds
         /// nothing of the sky: `attach`'s pair, where the world is detached.

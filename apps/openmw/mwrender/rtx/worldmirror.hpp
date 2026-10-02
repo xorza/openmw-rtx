@@ -22,7 +22,6 @@
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
-#include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
@@ -162,7 +161,6 @@ namespace MWRender
         /// What the frame thread computes from the content, which the world's walk, the sky and
         /// every traced view's walk share — `Rtx::ThreadContent`.
         Rtx::ThreadContent& getContent() { return mThreadContent; }
-        Rtx::ContentPreprocessor& getPreprocessor() { return mThreadContent.mPreprocessor; }
 
         /// Where every walk that can reach one graph takes its traversal numbers from.
         Rtx::Traversals& getTraversals() { return mTraversals; }

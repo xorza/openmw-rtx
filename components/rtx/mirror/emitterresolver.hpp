@@ -33,8 +33,8 @@ namespace osgParticle
 namespace Rtx
 {
     struct Glow;
-    struct MeanTexel;
-    class MeanTexels;
+    class ImageFactCache;
+    struct ImageFacts;
     struct Shading;
 
     /// Turns the particle systems a walk met into the scene's sprites: a run of discs the trace
@@ -47,12 +47,12 @@ namespace Rtx
         /// @param pass the walk in progress: its sweep stamp and its counts, read at every call.
         ///        Borrowed, so that the mirror and everything resolving into it cannot come to hold
         ///        two answers.
-        /// @param means the thread's mean texels, shared with the materials, because a flame's
-        ///        texture is a sheet's too and one file is averaged once.
-        EmitterResolver(SceneDesc& scene, const MirrorPass& pass, MeanTexels& means)
+        /// @param facts the thread's image facts, shared with the materials, because a flame's
+        ///        texture is a sheet's too and one file is read once.
+        EmitterResolver(SceneDesc& scene, const MirrorPass& pass, ImageFactCache& facts)
             : mScene(scene)
             , mPass(pass)
-            , mMeans(means)
+            , mFacts(facts)
         {
         }
 
@@ -124,10 +124,10 @@ namespace Rtx
             /// Whether the table refused the image a slot, which is asked again once it frees one.
             RefusedTakes mRefused;
 
-            /// That image's mean texel, or null until an effect's glow asks for it: read then and
-            /// kept, because `MeanTexels` keeps a named file's mean for as long as its thread runs,
-            /// and every image here is a named file. Nulled with `mSprite`.
-            const MeanTexel* mMean = nullptr;
+            /// That image's facts, or null until an effect's glow asks for its mean: read then and
+            /// kept, because `ImageFactCache` keeps a named file's facts for as long as its thread
+            /// runs, and every image here is a named file. Nulled with `mSprite`.
+            const ImageFacts* mFacts = nullptr;
         };
 
         /// An emitter the walk met, waiting for the walk to finish before its particles are read.
@@ -165,7 +165,7 @@ namespace Rtx
 
         SceneDesc& mScene;
         const MirrorPass& mPass;
-        MeanTexels& mMeans;
+        ImageFactCache& mFacts;
 
         /// Which textures each particle system draws with. This entry is the reference: a sprite's
         /// texture hangs off no material, so the scene holds it from first meeting until the sweep

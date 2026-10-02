@@ -108,7 +108,7 @@ namespace Rtx
         return mColour / mAlpha;
     }
 
-    MeanTexel meanTexel(const TextureData& finest, AlphaScratch& scratch)
+    ImageFacts imageFactsOf(const TextureData& finest, AlphaScratch& scratch)
     {
         const MipLevel& level = finest.mLevels.front();
 
@@ -124,6 +124,7 @@ namespace Rtx
         osg::Vec3d total;
         osg::Vec3d whole;
         double covered = 0.0;
+        bool solid = false;
         for (std::uint32_t first = 0; first < level.mHeight; first += 4)
         {
             readTexelBand(finest, level, first / 4, band);
@@ -131,7 +132,9 @@ namespace Rtx
                 for (std::uint32_t x = 0; x < level.mWidth; ++x)
                 {
                     const osg::Vec3d light(toLinear(band[std::size_t{ y - first } * level.mWidth + x]));
-                    const double opacity = alpha.at(0, x, y) / 255.0;
+                    const std::uint8_t painted = alpha.at(0, x, y);
+                    const double opacity = painted / 255.0;
+                    solid = solid || painted == 255;
 
                     total += light * opacity;
                     whole += light;
@@ -143,10 +146,13 @@ namespace Rtx
         total /= texels;
         whole /= texels;
 
-        return MeanTexel{
-            .mColour = osg::Vec3f(float(total.x()), float(total.y()), float(total.z())),
-            .mWhole = osg::Vec3f(float(whole.x()), float(whole.y()), float(whole.z())),
-            .mAlpha = float(covered / texels),
+        return ImageFacts{
+            .mMean = MeanTexel{
+                .mColour = osg::Vec3f(float(total.x()), float(total.y()), float(total.z())),
+                .mWhole = osg::Vec3f(float(whole.x()), float(whole.y()), float(whole.z())),
+                .mAlpha = float(covered / texels),
+            },
+            .mReachesSolid = solid,
         };
     }
 

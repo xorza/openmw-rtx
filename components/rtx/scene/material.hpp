@@ -148,14 +148,14 @@ namespace Rtx
         /// what it read last frame.
         bool mAnimated = false;
 
-        /// Whether the diffuse map's alpha never reaches solid anywhere on it — `reachesSolid` —
+        /// Whether the diffuse map's alpha never reaches solid anywhere on it — `ImageFacts` —
         /// which is what separates a cloud from a pane among surfaces with the same alpha mode.
         /// False for a material with no diffuse map at all, which is an untextured pane.
         bool mDiffuseNeverSolid = false;
 
         /// What one texel of the diffuse map adds on average under this material's blend, in
         /// linear light: weighted by its own alpha where the blend reads one and whole where it
-        /// does not — `meanTexel`. Read for an additive material and nothing else, because what
+        /// does not — `ImageFacts::mMean`. Read for an additive material and nothing else, because what
         /// asks is a magic effect's glow, and left at the untextured grey for one with no map,
         /// which is what its sheets are drawn with. Nought for a map nothing here can decode.
         osg::Vec3f mDiffuseMean = Shaders::NO_TEXTURE_ALBEDO;

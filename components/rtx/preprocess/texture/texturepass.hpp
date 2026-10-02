@@ -78,19 +78,12 @@ namespace Rtx
         FinestTexels mFinest;
     };
 
-    /// Whether a texture's alpha ever reaches solid — `reachesSolid`. True for an image no reader
-    /// here decodes, which is the answer that changes nothing about how the surface is traced.
-    bool solidReachOf(const std::optional<TextureData>& finest, AlphaScratch& scratch);
+    /// What a texture's texels say — `imageFactsOf`. For an image no reader here decodes, the
+    /// default facts: a mean of nothing, and an alpha that reaches solid, which is the answer that
+    /// changes nothing about how the surface is traced.
+    ImageFacts factsOfFinest(const std::optional<TextureData>& finest, AlphaScratch& scratch);
 
-    /// What a texel of a texture is worth on average — `meanTexel`. Nothing for an image no reader
-    /// here decodes.
-    MeanTexel texelMeanOf(const std::optional<TextureData>& finest, AlphaScratch& scratch);
-
-    /// Asked of a translucent material's own diffuse map, whose texels it walks up to the first
-    /// solid one.
-    using SolidReach = TexturePass<ContentPassId::SolidReach, 1, bool, solidReachOf>;
-
-    /// Asked of an additive material's own diffuse map, a sprite's and the sky's sheets, whose every
+    /// Asked of a blended material's own diffuse map, a sprite's and the sky's sheets, whose every
     /// texel it walks.
-    using TexelMean = TexturePass<ContentPassId::TexelMean, 1, MeanTexel, texelMeanOf>;
+    using ImageFactPass = TexturePass<ContentPassId::ImageFacts, 1, ImageFacts, factsOfFinest>;
 }

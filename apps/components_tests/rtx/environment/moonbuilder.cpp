@@ -17,7 +17,7 @@
 #include <apps/components_tests/rtx/support/heldimages.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/rtx/environment/moonbuilder.hpp>
-#include <components/rtx/preprocess/contentpreprocessor.hpp>
+#include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/rowhold.hpp>
@@ -95,10 +95,10 @@ namespace Rtx
             images.hold(moonFaceOf(Moon::Masser), portrait);
 
             SceneDesc scene;
-            ContentPreprocessor content;
+            ThreadContent content;
             std::vector<TextureHold> holds;
-            const MoonFaces faces
-                = addMoonFaces(scene, images, MoonSizes{ .mMasser = masser, .mSecunda = secunda }, holds, content);
+            const MoonFaces faces = addMoonFaces(
+                scene, images, MoonSizes{ .mMasser = masser, .mSecunda = secunda }, holds, content.mFacts);
 
             // **A face that opens is lit as it is painted, and one that does not as the shipped
             // portrait**: an opaque red face averages red, and Secunda's keeps the shipped mean.
@@ -120,8 +120,8 @@ namespace Rtx
             // nought, or not a number, is a size the game draws and this does not.
             SceneDesc broken;
             std::vector<TextureHold> brokenHolds;
-            const MoonFaces unsized
-                = addMoonFaces(broken, images, MoonSizes{ .mMasser = -3.0f, .mSecunda = 0.0f }, brokenHolds, content);
+            const MoonFaces unsized = addMoonFaces(
+                broken, images, MoonSizes{ .mMasser = -3.0f, .mSecunda = 0.0f }, brokenHolds, content.mFacts);
             EXPECT_EQ(unsized.radiusOf(Moon::Masser), 0.0f);
             EXPECT_EQ(unsized.radiusOf(Moon::Secunda), 0.0f);
             EXPECT_EQ(broken.refusals().count(Refused::Moon), 1u) << "Masser, and not Secunda";

@@ -79,10 +79,10 @@ namespace MWRender
             textures.emplace_back(Rtx::moonFaceOf(moon));
     }
 
-    void SkyReader::attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ContentPreprocessor& content)
+    void SkyReader::attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ImageFactCache& facts)
     {
-        mMoonFaces = Rtx::addMoonFaces(scene, *scenes.getImageManager(), mMoonSizes, mHolds, content);
-        mSkyContent = Rtx::addSkyContent(scene, scenes, meshes(), content, mHolds);
+        mMoonFaces = Rtx::addMoonFaces(scene, *scenes.getImageManager(), mMoonSizes, mHolds, facts);
+        mSkyContent = Rtx::addSkyContent(scene, scenes, meshes(), facts, mHolds);
         mTimescaleClouds = Fallback::Map::getBool("Weather_Timescale_Clouds");
     }
 
