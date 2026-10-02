@@ -1,12 +1,13 @@
 #include "options.hpp"
 
+#include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
-#include <components/files/installationoptions.hpp>
 #include <components/misc/rng.hpp>
 
 namespace
 {
     namespace bpo = boost::program_options;
+    typedef std::vector<std::string> StringsVector;
 }
 
 namespace OpenMW
@@ -15,13 +16,33 @@ namespace OpenMW
     {
         bpo::options_description desc("Syntax: openmw <options>\nAllowed options");
         Files::ConfigurationManager::addCommonOptions(desc);
-        Files::addInstallationOptions(desc);
 
         auto addOption = desc.add_options();
         addOption("help", "print help message");
         addOption("version", "print version information and quit");
 
+        addOption("data",
+            bpo::value<Files::MaybeQuotedPathContainer>()
+                ->default_value(Files::MaybeQuotedPathContainer(), "data")
+                ->multitoken()
+                ->composing(),
+            "set data directories (later directories have higher priority)");
+
+        addOption("data-local", bpo::value<Files::MaybeQuotedPath>()->default_value(Files::MaybeQuotedPath(), ""),
+            "set local data directory (highest priority)");
+
+        addOption("fallback-archive",
+            bpo::value<StringsVector>()->default_value(StringsVector(), "fallback-archive")->multitoken()->composing(),
+            "set fallback BSA archives (later archives have higher priority)");
+
         addOption("start", bpo::value<std::string>()->default_value(""), "set initial cell");
+
+        addOption("content", bpo::value<StringsVector>()->default_value(StringsVector(), "")->multitoken()->composing(),
+            "content file(s): esm/esp, or omwgame/omwaddon/omwscripts");
+
+        addOption("groundcover",
+            bpo::value<StringsVector>()->default_value(StringsVector(), "")->multitoken()->composing(),
+            "groundcover content file(s): esm/esp, or omwgame/omwaddon");
 
         addOption("no-sound", bpo::value<bool>()->implicit_value(true)->default_value(false), "disable all sounds");
 
@@ -52,6 +73,17 @@ namespace OpenMW
 
         addOption("new-game", bpo::value<bool>()->implicit_value(true)->default_value(false),
             "run new game sequence (ignored if skip-menu=0)");
+
+        addOption("encoding", bpo::value<std::string>()->default_value("win1252"),
+            "Character encoding used in OpenMW game messages:\n"
+            "\n\twin1250 - Central and Eastern European such as Polish, Czech, Slovak, Hungarian, Slovene, Bosnian, "
+            "Croatian, Serbian (Latin script), Romanian and Albanian languages\n"
+            "\n\twin1251 - Cyrillic alphabet such as Russian, Bulgarian, Serbian Cyrillic and other languages\n"
+            "\n\twin1252 - Western European (Latin) alphabet, used by default");
+
+        addOption("fallback",
+            bpo::value<Fallback::FallbackMap>()->default_value(Fallback::FallbackMap(), "")->multitoken()->composing(),
+            "fallback values");
 
         addOption("no-grab", bpo::value<bool>()->implicit_value(true)->default_value(false), "Don't grab mouse cursor");
 
