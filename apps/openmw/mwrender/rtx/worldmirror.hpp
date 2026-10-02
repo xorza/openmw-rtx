@@ -145,10 +145,10 @@ namespace MWRender
         /// Where the last walk stood the rings: the camera's eye, which is not the player's feet.
         const osg::Vec3f& getEye() const { return mEye; }
 
-        /// What the eye sees, as the seam's view mask: the world walk leaves the player's own model
-        /// out where the mask does, as the rasterizer culls it. The game keeps `Mask_Player` in,
-        /// a static camera a script parks included; a host whose camera stands inside the player
-        /// takes it out.
+        /// What the eye sees of the world, `Renderer::worldViewMask`: the world walk leaves the
+        /// player's own model and the actors out where the mask does, as the rasterizer culls
+        /// them. The game keeps `Mask_Player` in, a static camera a script parks included; a host
+        /// whose camera stands inside the player takes it out, and `tws` takes the actors out.
         void setViewMask(unsigned int view);
 
         const Rtx::SceneDesc& getScene() const { return mScene; }
@@ -169,7 +169,7 @@ namespace MWRender
         Rtx::SpecularLayout getSpecularLayout() const { return mSpecularLayout; }
 
         /// What the world's walk may see. Read by the tests and by nothing else.
-        osg::Node::NodeMask getTraversalMask() const;
+        osg::Node::NodeMask getTraversalMask() const { return mTraversal; }
 
         /// `Rtx::CellRing::collectStanding`: every reference the ring stands, for the harness's
         /// check that the game stands none of them.
@@ -195,7 +195,9 @@ namespace MWRender
 
         Rtx::SceneExtractor mExtractor;
 
-        bool mShowsPlayer = true;
+        /// What `setViewMask` last let the walk see: every class until then, as a fresh seam's view
+        /// mask has it.
+        osg::Node::NodeMask mTraversal;
 
         /// The sea: upstream's water geometry under `Mask_Water`, which is how the extractor
         /// knows a sea from a floor, stood at the frame's water height and hidden where the frame

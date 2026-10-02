@@ -171,7 +171,7 @@ namespace MWRender
         /// water is a duplicate — and this one is what the eye's view mask keeps, as the rasterizer
         /// culls by it: the game keeps the player in, a script's static camera included, and a host
         /// whose camera stands inside the body takes them out.
-        TEST(RtxWorldMirrorTest, thePlayerIsWalkedWhereTheViewMaskKeepsThem)
+        TEST(RtxWorldMirrorTest, thePlayerAndTheActorsAreWalkedWhereTheViewMaskKeepsThem)
         {
             WorldMirror mirror(Rtx::MirrorKnobs{});
 
@@ -188,6 +188,13 @@ namespace MWRender
             // water and whatever the content hid, and a recompute that dropped one of those would
             // trace a world with no ground or draw the sea twice.
             EXPECT_EQ(watching, playing & ~static_cast<osg::Node::NodeMask>(Mask_Player));
+
+            // **`tws` takes the actors out of the walk and leaves the player in it**, because the
+            // two share a class: the ray mask still meets the player, and would meet every actor a
+            // walk went on placing.
+            mirror.setViewMask(~sToggleWorldMask);
+            const osg::Node::NodeMask hidden = mirror.getTraversalMask();
+            EXPECT_EQ(hidden, playing & ~static_cast<osg::Node::NodeMask>(Mask_Actor));
 
             mirror.setViewMask(~0u);
             EXPECT_EQ(mirror.getTraversalMask(), playing) << "and it comes back";

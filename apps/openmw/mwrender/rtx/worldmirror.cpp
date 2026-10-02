@@ -122,18 +122,21 @@ namespace MWRender
             Effect = 3,
         };
 
-        /// What the world walk may see: `sWorldTraversal`, without the player bit where the eye's view
-        /// mask leaves the player out — `WorldMirror::setViewMask`.
-        constexpr osg::Node::NodeMask worldTraversal(const bool showsPlayer)
+        /// What the world walk may see: `sWorldTraversal`, without the player or the actors where the
+        /// eye's view mask leaves them out — `WorldMirror::setViewMask`. Those two only, because they
+        /// share one class: the trace's ray mask hides every other class the view leaves out, and
+        /// a walk that went on past an actor would stand it in the class the player keeps on.
+        constexpr osg::Node::NodeMask worldTraversal(const unsigned int view)
         {
-            const osg::Node::NodeMask player = showsPlayer ? 0 : static_cast<osg::Node::NodeMask>(Mask_Player);
+            constexpr osg::Node::NodeMask walkedByView = Mask_Player | Mask_Actor;
 
-            return sWorldTraversal & ~player;
+            return sWorldTraversal & ~(walkedByView & ~view);
         }
     }
 
     WorldMirror::WorldMirror(const Rtx::MirrorKnobs& knobs)
         : mExtractor(mScene, &mTraversals, &mThreadContent)
+        , mTraversal(worldTraversal(~0u))
         , mReach(knobs.mReach)
         , mSpecularLayout(knobs.mSpecularLayout)
     {
@@ -146,7 +149,7 @@ namespace MWRender
         // sea, which a mirror walking both would place twice. What the content hides is the one bit
         // `sWorldTraversal` names, rather than none, so the update traversal still reaches a hidden
         // bone.
-        mExtractor.setTraversalMask(worldTraversal(mShowsPlayer));
+        mExtractor.setTraversalMask(mTraversal);
 
         // Where the engine stamps its identities: the cell roots under the scene root and the
         // reference roots under those, and the player beside the cells (`MWRender::Objects`).
@@ -225,17 +228,8 @@ namespace MWRender
 
     void WorldMirror::setViewMask(const unsigned int view)
     {
-        const bool shows = (view & Mask_Player) != 0;
-        if (shows == mShowsPlayer)
-            return;
-
-        mShowsPlayer = shows;
-        mExtractor.setTraversalMask(worldTraversal(mShowsPlayer));
-    }
-
-    osg::Node::NodeMask WorldMirror::getTraversalMask() const
-    {
-        return worldTraversal(mShowsPlayer);
+        mTraversal = worldTraversal(view);
+        mExtractor.setTraversalMask(mTraversal);
     }
 
     Rtx::ExtractionStats WorldMirror::mirror(const SceneFrame& frame, const osg::Matrixd& view)

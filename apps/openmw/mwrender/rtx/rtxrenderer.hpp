@@ -228,9 +228,10 @@ namespace MWRender
 
         void adoptTraversalRoot(osg::Group& root) noexcept override;
 
-        /// Read off the seam at the trace, so nothing to put anywhere.
-        void applyViewMask() noexcept override { mMirror.setViewMask(getViewMask()); }
-        void applyWorldShown() noexcept override {}
+        /// The walk is told the world's view mask, and the trace reads it off the seam. A cover is
+        /// asked at the frame, which neither walks nor traces under one.
+        void applyViewMask() noexcept override { mMirror.setViewMask(worldViewMask()); }
+        void applyWorldShown() noexcept override { mMirror.setViewMask(worldViewMask()); }
 
         /// The projection follows the frame's aspect at once; the trace and the surface follow at
         /// the next frame's fit, which waits for a window being dragged to settle.

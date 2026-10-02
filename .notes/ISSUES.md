@@ -83,3 +83,6 @@ first review.
   (`extern/fetched/crashpad/client/crashpad_client_linux.cc:170-180`), so the report's dump reads
   "Crash: SIGSEGV at 0x10 in thread <the reporting thread>, which crashed". Seen in 8 of 8 runs of a
   thread that faults once `Crash::isReporting()` holds. `components/crashcatcher/crashpadclient.cpp:47-54`.
+- Under `tws` the ray tracer still lights the sea and the player from the lamps of the statics and the
+  objects it hides. The rasterizer's light manager collects no light from a culled node, so under the
+  rasterizer those lamps go dark.
