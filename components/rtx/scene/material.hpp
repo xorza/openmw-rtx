@@ -104,7 +104,7 @@ namespace Rtx
         /// read. One for everything that is all there, which is nearly everything.
         float mOpacity = 1.0f;
 
-        float mAlphaRef = 0.0f;
+        AlphaTest mAlphaTest{};
 
         AlphaMode mAlphaMode = AlphaMode::Opaque;
 
@@ -181,21 +181,22 @@ namespace Rtx
         /// bounce stopped on.
         static constexpr float sPaneCutoff = 0.5f / 255.0f;
 
-        /// The alpha below which a texel is a hole, or zero where the surface has none. A blended
-        /// material that never asked for a test gets `sBlendCutoff`, because that is where the game
-        /// keeps its foliage, or `sPaneCutoff` where it is a pane.
-        float getAlphaCutoff() const
+        /// The test a texel is a hole by, or one that passes every alpha where the surface has
+        /// none. A blended material that never asked for a test is cut at least `sBlendCutoff`,
+        /// because that is where the game keeps its foliage, or `sPaneCutoff` where it is a pane.
+        AlphaTest getAlphaTest() const
         {
             switch (mAlphaMode)
             {
                 case AlphaMode::Opaque:
-                    return 0.0f;
+                    return AlphaTest{ .mPasses = Shaders::ALPHA_PASSES_ALL };
                 case AlphaMode::Cutout:
-                    return mAlphaRef;
+                    return mAlphaTest;
                 case AlphaMode::Blend:
-                    return mAlphaRef > 0.0f ? mAlphaRef : isTranslucent() ? sPaneCutoff : sBlendCutoff;
+                    return mAlphaTest.cuts() ? mAlphaTest
+                                             : AlphaTest{ .mReference = isTranslucent() ? sPaneCutoff : sBlendCutoff };
             }
-            return 0.0f;
+            return AlphaTest{ .mPasses = Shaders::ALPHA_PASSES_ALL };
         }
 
         /// Every texture slot this material names in its own right, each once, whichever of them
@@ -222,7 +223,7 @@ namespace Rtx
         /// predicate the build marks an instance non-opaque by and the shader tests against. A
         /// cutoff with no texture to sample is not one, and neither is an additive surface, whose
         /// alpha weights what it adds rather than deciding whether it is there.
-        bool isCutout() const { return getAlphaCutoff() > 0.0f && mDiffuse != sNoIndex && !isAdditive(); }
+        bool isCutout() const { return getAlphaTest().cuts() && mDiffuse != sNoIndex && !isAdditive(); }
 
         /// Whether this surface adds to what is behind it and covers nothing — `BlendKind::Add`
         /// or `AddWhole` under a blend. Such a surface is no pane and no mask: it is gathered by
@@ -259,7 +260,7 @@ namespace Rtx
         bool isTranslucent() const
         {
             return mAlphaMode == AlphaMode::Blend && mBlend == BlendKind::Over
-                && (mOpacity < 1.0f || (!(mAlphaRef > 0.0f) && mDiffuseNeverSolid));
+                && (mOpacity < 1.0f || (!mAlphaTest.cuts() && mDiffuseNeverSolid));
         }
 
         /// Whether the eye passes through this rather than meeting it: a medium, not a surface.

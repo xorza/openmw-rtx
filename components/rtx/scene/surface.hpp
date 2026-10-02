@@ -17,6 +17,7 @@
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/shaders/scene.h>
 
 namespace osg
 {
@@ -38,8 +39,22 @@ namespace Rtx
 
         /// Blend. This is where the foliage is: a canopy or a banner is an `NiAlphaProperty` over a
         /// texture whose alpha is all but binary, which the original renderer sorted rather than
-        /// tested. `Rtx::Material::getAlphaCutoff` says what a renderer with no sort does.
+        /// tested. `Rtx::Material::getAlphaTest` says what a renderer with no sort does.
         Blend,
+    };
+
+    /// An alpha test as OpenGL states one: a reference, and the sides of it a texel passes on
+    /// (`Shaders::ALPHA_PASSES_BELOW` and its two siblings). At least the reference until the content
+    /// says otherwise, which is the cut a blend with no test of its own is traced with.
+    struct AlphaTest
+    {
+        float mReference = 0.0f;
+        std::uint32_t mPasses = Shaders::ALPHA_PASSES_AT | Shaders::ALPHA_PASSES_ABOVE;
+
+        /// Whether some alpha from nought to one fails it — `Shaders::alphaTestCuts`.
+        bool cuts() const { return Shaders::alphaTestCuts(mPasses, mReference); }
+
+        bool operator==(const AlphaTest& other) const = default;
     };
 
     /// What a surface's per-vertex colour is for: `NiVertexColorProperty`'s three vertex modes,
@@ -277,9 +292,9 @@ namespace Rtx
         /// controllers rewrite the colours beside it.
         VertexColour mVertexColour = VertexColour::None;
 
-        /// What `Cutout` cuts at, from nought to one. Meaningful whenever the content asked for
-        /// alpha testing, which includes surfaces that also blend.
-        float mAlphaRef = 0.0f;
+        /// What `Cutout` cuts by. Meaningful whenever the content asked for alpha testing, which
+        /// includes surfaces that also blend; `ALWAYS` passes on every side.
+        AlphaTest mAlphaTest{};
 
         /// Whether both faces of this surface are drawn and lit. False unless the content says
         /// otherwise, because the scene root turns `GL_CULL_FACE` on for everything under it, and

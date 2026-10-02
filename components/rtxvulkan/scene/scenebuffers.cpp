@@ -44,17 +44,18 @@ namespace Rtx
 
         Shaders::GpuMaterial toGpu(const Material& material)
         {
-            // Zero where the material has no texture to read a mask out of, so that the shader's
-            // comparison agrees with `Material::isCutout`, which is what decided whether traversal
-            // would ever make it.
-            // A material with no diffuse names the neutral slot, so the shader reads one path —
+            // Every side passes where the material is no cutout, so that the shader's comparison
+            // agrees with `Material::isCutout`, which is what decided whether traversal would ever
+            // make it. A material with no diffuse names the neutral slot, so the shader reads one path —
             // `TEXTURE_NEUTRAL` — and ground that kept its stack says so with a bit, which is the
             // one fact the sentinel was carrying.
             const bool untextured = material.mDiffuse == sNoIndex;
+            const AlphaTest test
+                = material.isCutout() ? material.getAlphaTest() : AlphaTest{ .mPasses = Shaders::ALPHA_PASSES_ALL };
 
             return Shaders::GpuMaterial{
                 .mDiffuse = untextured ? Shaders::TEXTURE_NEUTRAL : material.mDiffuse,
-                .mAlphaCutoff = material.isCutout() ? material.getAlphaCutoff() : 0.0f,
+                .mAlphaReference = test.mReference,
 
                 // One where the surface is all there, so traversal branches on a number rather than
                 // on a mode it was never sent.
@@ -84,7 +85,8 @@ namespace Rtx
                     | (material.isAdditive() && material.mBlend == BlendKind::AddWhole ? Shaders::MATERIAL_ADD_WHOLE
                                                                                        : 0u)
                     | ((material.mDarkUnit & Shaders::MATERIAL_UNIT_MASK) << Shaders::MATERIAL_DARK_UNIT_SHIFT)
-                    | ((material.mEmissiveUnit & Shaders::MATERIAL_UNIT_MASK) << Shaders::MATERIAL_EMISSIVE_UNIT_SHIFT),
+                    | ((material.mEmissiveUnit & Shaders::MATERIAL_UNIT_MASK) << Shaders::MATERIAL_EMISSIVE_UNIT_SHIFT)
+                    | (test.mPasses << Shaders::MATERIAL_ALPHA_PASSES_SHIFT),
             };
         }
 
@@ -95,7 +97,7 @@ namespace Rtx
         {
             return Shaders::GpuMaterial{
                 .mDiffuse = Shaders::TEXTURE_NEUTRAL,
-                .mAlphaCutoff = 0.0f,
+                .mAlphaReference = 0.0f,
                 .mOpacity = 1.0f,
                 .mLayerOffset = 0,
                 .mLayerCount = 0,
@@ -108,6 +110,7 @@ namespace Rtx
                 .mDark = Shaders::NO_TEXTURE,
                 .mNormal = Shaders::NO_TEXTURE,
                 .mSpecular = Shaders::NO_TEXTURE,
+                .mFlags = Shaders::ALPHA_PASSES_ALL << Shaders::MATERIAL_ALPHA_PASSES_SHIFT,
             };
         }
     }

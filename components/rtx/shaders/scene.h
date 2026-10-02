@@ -504,6 +504,36 @@ namespace Rtx::Shaders
     const uint MATERIAL_EMISSIVE_UNIT_SHIFT = 12u;
     const uint MATERIAL_UNIT_MASK = 0x0Fu;
 
+    /// Which sides of the alpha test's reference a texel passes on, one bit each: OpenGL's own
+    /// comparison functions, which are `GL_NEVER` plus exactly this set — `GL_LESS` is below,
+    /// `GL_GREATER` above, `GL_GEQUAL` at and above, `GL_ALWAYS` all three. In these bits of
+    /// `mFlags`, all three where the surface has no mask, so a texel tested against it passes.
+    const uint ALPHA_PASSES_BELOW = 0x1u;
+    const uint ALPHA_PASSES_AT = 0x2u;
+    const uint ALPHA_PASSES_ABOVE = 0x4u;
+    const uint ALPHA_PASSES_ALL = 0x7u;
+    const uint MATERIAL_ALPHA_PASSES_SHIFT = 16u;
+
+    /// Whether `alpha` passes a test at `reference` that passes on the sides `passes` names: the
+    /// side selected, and no branch on the function.
+    RTX_SHADER bool alphaPasses(uint passes, float alpha, float reference)
+    {
+        const uint side = alpha < reference ? ALPHA_PASSES_BELOW
+            : alpha == reference            ? ALPHA_PASSES_AT
+                                            : ALPHA_PASSES_ABOVE;
+        return (passes & side) != 0u;
+    }
+
+    /// Whether the test fails some alpha from nought to one: whether it cuts anything at all. A
+    /// test at least nought passes everything, and one above nought cuts every bare texel.
+    RTX_SHADER bool alphaTestCuts(uint passes, float reference)
+    {
+        const bool below = (passes & ALPHA_PASSES_BELOW) == 0u && reference > 0.0f;
+        const bool at = (passes & ALPHA_PASSES_AT) == 0u && reference >= 0.0f && reference <= 1.0f;
+        const bool above = (passes & ALPHA_PASSES_ABOVE) == 0u && reference < 1.0f;
+        return below || at || above;
+    }
+
     /// A sprite emitter that adds — `Rtx::BlendKind::Add` or `AddWhole` — and one whose sprites
     /// fall from the sky: `spriteshelter.rgen` drops those that stand under cover.
     const uint EMITTER_ADDITIVE = 0x01u;
@@ -1038,13 +1068,13 @@ namespace Rtx::Shaders
     {
         uint mDiffuse;
 
-        /// The alpha below which a texel is a hole, or zero where the surface has none.
+        /// The alpha test's reference, which the sides in `mFlags` (`MATERIAL_ALPHA_PASSES_SHIFT`)
+        /// pass on.
         ///
         /// The mode it came from does not survive the trip: what a cutout costs traversal is one
-        /// comparison, and a material that wants none stores a threshold nothing can fail. Which
-        /// instances stop to make that comparison at all is settled by the build, from the same
-        /// number.
-        float mAlphaCutoff;
+        /// comparison, and a material that wants none passes on every side. Which instances stop
+        /// to make that comparison at all is settled by the build, from the same test.
+        float mAlphaReference;
 
         /// How much of the surface is there, or one for a surface that is all there.
         ///

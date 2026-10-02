@@ -416,7 +416,7 @@ namespace Rtx::Testing
                 SceneDesc scene = makeWall();
                 const Index material = scene.addMaterial(Material{
                     .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("cutout.dds")),
-                    .mAlphaRef = 0.5f,
+                    .mAlphaTest = { .mReference = 0.5f },
                     .mAlphaMode = AlphaMode::Cutout,
                 });
                 scene.addInstance(
@@ -553,13 +553,14 @@ namespace Rtx::Testing
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -150.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
-            const auto render = [&](AlphaMode mode, float alphaRef) {
+            const auto render = [&](AlphaMode mode, float alphaRef,
+                                    std::uint32_t passes = Shaders::ALPHA_PASSES_AT | Shaders::ALPHA_PASSES_ABOVE) {
                 SceneDesc scene = makeWall();
                 const Index mesh = scene.addMesh(
                     MeshArrays{ .mPositions = masked, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 const Index material = scene.addMaterial(Material{
                     .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("mask.dds")),
-                    .mAlphaRef = alphaRef,
+                    .mAlphaTest = { .mReference = alphaRef, .mPasses = passes },
                     .mAlphaMode = mode,
                 });
                 scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
@@ -593,6 +594,17 @@ namespace Rtx::Testing
                         ASSERT_NEAR(pixel[1], wallGrey, 1) << "green at " << column << ", " << row;
                     }
                 }
+
+            // **The test's sides, and not "at least"**: `LESS` at the same half keeps the bare
+            // texels and cuts the painted ones, which is the complement of the cut above to the
+            // pixel, filtered texels included — a sample below a half passes one and fails the other.
+            const std::vector<std::uint8_t> below = render(AlphaMode::Cutout, 0.5f, Shaders::ALPHA_PASSES_BELOW);
+            ASSERT_EQ(below.size(), cutout.size());
+            for (std::size_t i = 0; i < below.size(); i += 4)
+            {
+                const bool kept = cutout[i + 1] == 0;
+                ASSERT_EQ(below[i + 1] == 0, !kept) << "pixel " << i / 4;
+            }
 
             // A blend that named no threshold of its own is traced against the stand-in, and the
             // stand-in is the same half. Same bytes, or Morrowind's foliage — which is blended and
@@ -1499,7 +1511,7 @@ namespace Rtx::Testing
                 {
                     material.mDiffuse = scene.textures().add(VFS::Path::NormalizedView("sheet.dds"));
                     material.mAlphaMode = AlphaMode::Cutout;
-                    material.mAlphaRef = 0.5f;
+                    material.mAlphaTest.mReference = 0.5f;
                 }
 
                 scene.addInstance(MeshInstance{

@@ -415,7 +415,7 @@ namespace Rtx
             material.mSpecular
                 = takeTexture(described->getTextureUse(SurfaceMap::Specular), worn, TextureEncoding::Data);
 
-        material.mAlphaRef = described->mAlphaRef;
+        material.mAlphaTest = described->mAlphaTest;
         material.mAlphaMode = described->mAlphaMode;
         material.mBlend = described->mBlend;
         material.mVertexColour = described->mVertexColour;

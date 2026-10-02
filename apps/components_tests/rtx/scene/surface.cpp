@@ -211,10 +211,11 @@ namespace Rtx
             EXPECT_FLOAT_EQ(material.mOpacity, 1.0f);
         }
 
-        /// A test is a cutout at its reference, a blend function wins over it, and the visitor's
-        /// rewrite — a `RemovedAlphaFunc` at a default threshold beside an `alphaRef` uniform —
-        /// reads the same as the attribute it replaced. `ALWAYS` is no test, which is what the
-        /// scene root wears.
+        /// A test is a cutout at its reference on the sides its function passes, a blend function
+        /// wins over it, and the visitor's rewrite — a `RemovedAlphaFunc` at a default threshold
+        /// beside an `alphaRef` uniform — reads the same as the attribute it replaced. `ALWAYS` is
+        /// no test, which is what the scene root wears. A test is a cutout wherever it fails some
+        /// alpha: `GREATER` at nought cuts the bare texels, and `GEQUAL` at nought cuts nothing.
         TEST(RtxSurfaceTest, alphaTestingAndBlendingReadAsTheLoaderWroteThem)
         {
             osg::ref_ptr<osg::StateSet> tested = new osg::StateSet;
@@ -223,7 +224,8 @@ namespace Rtx
             SurfaceDescription material;
             describeStateSet(*tested, material);
             EXPECT_EQ(material.mAlphaMode, AlphaMode::Cutout);
-            EXPECT_FLOAT_EQ(material.mAlphaRef, 128.0f / 255.0f);
+            EXPECT_FLOAT_EQ(material.mAlphaTest.mReference, 128.0f / 255.0f);
+            EXPECT_EQ(material.mAlphaTest.mPasses, Shaders::ALPHA_PASSES_ABOVE);
 
             osg::ref_ptr<osg::StateSet> visited = new osg::StateSet;
             visited->setAttribute(Shader::RemovedAlphaFunc::getInstance(osg::AlphaFunc::GREATER),
@@ -233,26 +235,56 @@ namespace Rtx
             material = SurfaceDescription{};
             describeStateSet(*visited, material);
             EXPECT_EQ(material.mAlphaMode, AlphaMode::Cutout);
-            EXPECT_FLOAT_EQ(material.mAlphaRef, 64.0f / 255.0f);
+            EXPECT_FLOAT_EQ(material.mAlphaTest.mReference, 64.0f / 255.0f);
+            EXPECT_EQ(material.mAlphaTest.mPasses, Shaders::ALPHA_PASSES_ABOVE);
 
             // Blending on top of the test: the mode says blend and the threshold survives.
             osg::ref_ptr<osg::StateSet> blended = new osg::StateSet;
             blended->setAttributeAndModes(new osg::BlendFunc);
             describeStateSet(*blended, material);
             EXPECT_EQ(material.mAlphaMode, AlphaMode::Blend);
-            EXPECT_FLOAT_EQ(material.mAlphaRef, 64.0f / 255.0f);
+            EXPECT_FLOAT_EQ(material.mAlphaTest.mReference, 64.0f / 255.0f);
 
             // And a test folded in after the blend keeps the blend.
             describeStateSet(*tested, material);
             EXPECT_EQ(material.mAlphaMode, AlphaMode::Blend);
-            EXPECT_FLOAT_EQ(material.mAlphaRef, 128.0f / 255.0f);
+            EXPECT_FLOAT_EQ(material.mAlphaTest.mReference, 128.0f / 255.0f);
 
             osg::ref_ptr<osg::StateSet> root = new osg::StateSet;
             root->setAttribute(Shader::RemovedAlphaFunc::getInstance(GL_ALWAYS));
             material = SurfaceDescription{};
             describeStateSet(*root, material);
             EXPECT_EQ(material.mAlphaMode, AlphaMode::Opaque);
-            EXPECT_FLOAT_EQ(material.mAlphaRef, 0.0f);
+            EXPECT_EQ(material.mAlphaTest, AlphaTest{}) << "a test that cuts nothing is no test";
+
+            // Each function as the sides it passes on, and whether it cuts anything at its
+            // reference: one row per function a NIF can state.
+            // The two that cut nothing at their reference read as no test.
+            const struct
+            {
+                osg::AlphaFunc::ComparisonFunction mFunction;
+                float mReference;
+                AlphaTest mRead;
+                AlphaMode mMode;
+            } functions[] = {
+                { osg::AlphaFunc::NEVER, 0.5f, { 0.5f, 0u }, AlphaMode::Cutout },
+                { osg::AlphaFunc::LESS, 0.5f, { 0.5f, Shaders::ALPHA_PASSES_BELOW }, AlphaMode::Cutout },
+                { osg::AlphaFunc::EQUAL, 0.5f, { 0.5f, Shaders::ALPHA_PASSES_AT }, AlphaMode::Cutout },
+                { osg::AlphaFunc::LEQUAL, 1.0f, AlphaTest{}, AlphaMode::Opaque },
+                { osg::AlphaFunc::GREATER, 0.0f, { 0.0f, Shaders::ALPHA_PASSES_ABOVE }, AlphaMode::Cutout },
+                { osg::AlphaFunc::NOTEQUAL, 0.5f, { 0.5f, Shaders::ALPHA_PASSES_BELOW | Shaders::ALPHA_PASSES_ABOVE },
+                    AlphaMode::Cutout },
+                { osg::AlphaFunc::GEQUAL, 0.0f, AlphaTest{}, AlphaMode::Opaque },
+            };
+            for (const auto& row : functions)
+            {
+                osg::ref_ptr<osg::StateSet> stated = new osg::StateSet;
+                stated->setAttributeAndModes(new osg::AlphaFunc(row.mFunction, row.mReference));
+                material = SurfaceDescription{};
+                describeStateSet(*stated, material);
+                EXPECT_EQ(material.mAlphaTest, row.mRead) << row.mFunction;
+                EXPECT_EQ(material.mAlphaMode, row.mMode) << row.mFunction;
+            }
         }
 
         /// A parent that set a texture `OVERRIDE` keeps it against a child that did not set its own

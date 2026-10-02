@@ -49,26 +49,19 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
 
 ## The material reader keeps a subset of what the loader states, by rules other than the rasterizer's
 
-- [ ] **Detail, decal, gloss and bump maps, blend pairs other than the vanilla four, alpha-test
-  functions other than "at least", a zero test reference, a clockwise front face, wireframe,
-  `NiFogProperty` and `NiLines` are dropped or misread with no refusal** —
+- [ ] **Detail, decal, gloss and bump maps, blend pairs other than the vanilla four, a clockwise
+  front face, wireframe, `NiFogProperty` and `NiLines` are dropped or misread with no refusal** —
   `components/rtx/scene/surface.hpp:123-148` (`mapOf` declines four roles),
   `components/rtx/scene/surface.cpp:97-107` (every destination but `ONE` and `DST_ALPHA` reads as
-  `Over`, so `DST_COLOR, ZERO` multiply draws as a cover), `:256-258` (any function but `ALWAYS`
-  becomes `alpha >= ref`, and a reference of nought makes the surface opaque),
-  `traversal.glsl:268`, `meshresolver.cpp:133-139` (a line drawable is filed as empty); against
+  `Over`, so `DST_COLOR, ZERO` multiply draws as a cover), `meshresolver.cpp:133-139` (a line drawable is filed as empty); against
   `objects.frag:179-186`, `:200-210`, `nifloader.cpp:2361`, `:1949-1971` with `alpha.glsl`,
   `nifloader.cpp:2515-2518`, `:2550-2558`, `:2696-2712`, `:1642-1650`. No vanilla file states any
   of these (scan), and the tree says so for the four roles and the three blend pairs. But a mod NIF
   that does is drawn differently with nothing in the log. `docs/rtx/architecture.md:205-207` says
-  content the renderer cannot use is reported once to `Rtx::Refusals`. A `GREATER 0` test-only
-  surface (alpha-tested at zero) is drawn opaque, holes and all. A `LESS` test is drawn
-  inverted. A clockwise `NiStencilProperty` shows the face the rasterizer culls. Better shape:
-  `describeStateSet` reports each fact it does not carry (a declined role, an unread blend pair or
-  test function, a front face, a polygon mode, a fog override) through the refusals once per state
-  set, as `MeshResolver::refuse` does for geometry. Where it is cheap, it carries the fact instead:
-  a test function as a comparison selected without a branch, and a zero reference as "greater
-  than nought". *(kind: missing; severity: low; benefit: mod content that differs says so)*
+  content the renderer cannot use is reported once to `Rtx::Refusals`. A clockwise `NiStencilProperty` shows the face the rasterizer culls. Better shape:
+  `describeStateSet` reports each fact it does not carry (a declined role, an unread blend pair, a
+  front face, a polygon mode, a fog override) through the refusals once per state set, as
+  `MeshResolver::refuse` does for geometry. *(kind: missing; severity: low; benefit: mod content that differs says so)*
 - [ ] **`[RTX] specular map layout = ignore` drops OpenMW's classic `_spec` maps, on the claim that
   no physical reading of them exists** — `components/rtx/scene/specularlayout.hpp:17-19`,
   `components/rtx/mirror/materialresolver.cpp:430-435`,
