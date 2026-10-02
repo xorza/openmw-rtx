@@ -1,16 +1,33 @@
 #include "runrecord.hpp"
 
+#include <algorithm>
 #include <format>
 #include <utility>
 
 #include <components/files/conversion.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 namespace RtxTool
 {
+    void RunRecord::begin(const SessionRequest& request)
+    {
+        mHeader.mSuite = request.mSuite;
+        mHeader.mAsserts = Rtx::sAssertsOn;
+        mHeader.mMeasures = request.mMeasures;
+        mHeader.mHashed = !request.mHashes.empty() || !request.mAgainst.empty() || !request.mPictures.empty()
+            || std::any_of(
+                request.mStops.begin(), request.mStops.end(), [](const Stop& stop) { return stop.mActions.mHash; });
+        mHeader.mTurnsWeather = std::any_of(request.mStops.begin(), request.mStops.end(),
+            [](const Stop& stop) { return !stop.mSky.mTurnThrough.empty(); });
+        mHeader.mSetup = request.mSetup;
+    }
+
     void RunRecord::add(BenchPlace place)
     {
+        if (mPlaces.empty())
+            mReport += describeHeader(mHeader);
         mPlaces.push_back(std::move(place));
-        mReport += describePlace(mPlaces.back());
+        mReport += describePlace(mPlaces.back(), mHeader.mMeasures);
     }
 
     void RunRecord::checked(const bool held)
@@ -59,7 +76,6 @@ namespace RtxTool
 
         if (!request.mJson.empty())
         {
-            mHeader.mSuite = request.mSuite;
             if (wrote(writeJson(request.mJson, mHeader, mPlaces)))
                 mReport += "wrote " + Files::pathToUnicodeString(request.mJson) + '\n';
         }

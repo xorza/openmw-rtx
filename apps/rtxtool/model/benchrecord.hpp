@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 #include <apps/rtxtool/instruments/cardwatch.hpp>
 #include <apps/rtxtool/instruments/frametimes.hpp>
 #include <apps/rtxtool/instruments/gpuclock.hpp>
@@ -196,12 +197,32 @@ namespace RtxTool
         Rtx::ContentMemory mContent;
     };
 
-    /// What every place of a run stood under, for the record's own header.
+    /// What every place of a run stood under: the premises every figure rests on, so two records
+    /// that are not one run twice cannot be read as an A/B. The report opens with it, and the record
+    /// writes it whole.
     struct BenchHeader
     {
         /// Which suite this came from. Empty where the places were named on the command line, and
         /// where the run is the game measuring itself.
         std::string mSuite;
+
+        /// Whether the build keeps its asserts: a debug build's figure is not one to quote.
+        bool mAsserts = false;
+
+        /// Whether the command measures at all: `bench` and `film` do; `shot`, `check`, `scene`
+        /// and `noise` draw their frames to look at them, and their tables say so.
+        bool mMeasures = false;
+
+        /// Whether a frame is hashed or kept as a picture, which a frame time then carries.
+        bool mHashed = false;
+
+        /// Whether a stop turns the weather through its frames.
+        bool mTurnsWeather = false;
+
+        /// Everything the renderer was made with, as the command stated it: the profile — the hold,
+        /// the filter, the jitter, the delight, the gamma, what is shown, the exposure and the
+        /// variants — the mirror's reach, the step, whether the walks settle, and the budget.
+        MWRender::RunSetup mSetup{};
 
         Rtx::FrameExtents mExtents{};
 
@@ -237,8 +258,12 @@ namespace RtxTool
     /// distributions, the device's own account, the clock and the frame rate.
     ///
     /// **Built whole and returned rather than streamed**, because the game logs its report and a
-    /// table split across log lines by a timestamp apiece is not one.
-    std::string describePlace(const BenchPlace& place);
+    /// table split across log lines by a timestamp apiece is not one. `measured` false is a command
+    /// that draws its frames to look at them, whose table says so above it.
+    std::string describePlace(const BenchPlace& place, bool measured = true);
+
+    /// The header as the lines the report opens with.
+    std::string describeHeader(const BenchHeader& header);
 
     /// What a whole run came to, under the places. Empty for a run of one place, which has already
     /// said everything this would.

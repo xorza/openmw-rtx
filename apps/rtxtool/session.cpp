@@ -28,6 +28,7 @@ namespace RtxTool
             mRecord.readReference(mRequest.mAgainst);
 
         mRecord.reserve(mRequest.mStops.size());
+        mRecord.begin(mRequest);
 
         if (mRequest.mStops.empty())
             mDone = true;

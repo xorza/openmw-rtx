@@ -370,6 +370,9 @@ namespace RtxTool
         /// it says otherwise.
         MWRender::RunSetup mSetup;
 
+        /// Whether the command measures (`VerbPolicy::mMeasures`), which the report's header says.
+        bool mMeasures = false;
+
         /// Whether somebody plays the session (`VerbPolicy::mPlayed`): the menus are theirs to open
         /// and close. Otherwise the run closes any a script opens, and draws the interface only
         /// where `mHud` asks.
