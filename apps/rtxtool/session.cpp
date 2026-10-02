@@ -237,8 +237,15 @@ namespace RtxTool
         // during the frame's own update, the eye the route flew and the sky the turn crossed, and
         // the air the renderer stepped. Taken before the frame, the note would be a camera one update
         // behind the picture. The last one taken is what `RunRecord::describe` publishes.
-        mNote.take(report.mAir);
-        mHome.answer(mNote.getLeft(), report, context.mRenderer.getBackend().getExtents());
+        //
+        // **Every frame only where somebody plays the run**, which is where the window's title
+        // shows the note and the Home key reads it. Work here lands in the next frame's time, so a
+        // measured run takes the note once, at each stop's end.
+        if (mRequest.mPlayed)
+        {
+            mNote.take(report.mAir);
+            mHome.answer(mNote.getLeft(), report, context.mRenderer.getBackend().getExtents());
+        }
 
         switch (mMeasurer.frame(currentStop(), context, report, mCamera.hasArrived()))
         {
@@ -257,6 +264,9 @@ namespace RtxTool
     {
         const Stop& stop = currentStop();
         const std::optional<Route>& route = stop.mSchedule.mRoute;
+
+        if (!mRequest.mPlayed)
+            mNote.take(report.mAir);
 
         mRecord.add(
             mMeasurer.finish(stop, context, report, route.has_value() ? mCamera.getTravelled(*route) : 1.0f, mWriter));
