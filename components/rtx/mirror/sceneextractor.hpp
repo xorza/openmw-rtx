@@ -174,16 +174,15 @@ namespace Rtx
         ///
         /// **Stood at `eye`**: the drops hang under the sky's camera-relative transform, so their
         /// particles are placed about the origin, and the eye they were driven with is the one place
-        /// the box travels nowhere — a sprite's travel between two frames is then its fall. **Not
-        /// walked where the eye is under water**: the sky manager freezes the drops where they stand,
-        /// and walked anyway they hang in the air.
+        /// the box travels nowhere — a sprite's travel between two frames is then its fall.
         ///
         /// @param fall the sky manager's rain box or its driven effect, or null for a world with
-        ///        nothing of that kind over it.
+        ///        nothing of that kind over it or a fall the game hides — under water it freezes the
+        ///        drops where they stand, and walked anyway they hang in the air.
         /// @param anchor as `extract` takes it: the rain and the driven effect are two roots the walk
         ///        cannot tell apart by structure.
         ExtractionStats extractPrecipitation(
-            const osg::Node* fall, const osg::Vec3f& eye, bool underwater, std::size_t anchor, std::size_t frame = 0);
+            const osg::Node* fall, const osg::Vec3f& eye, std::size_t anchor, std::size_t frame = 0);
 
         /// Where this walk's traversal numbers come from — the one handed in, or its own.
         Traversals& getTraversals() { return mTraversals; }

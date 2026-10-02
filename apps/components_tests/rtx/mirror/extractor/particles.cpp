@@ -275,9 +275,8 @@ namespace Rtx::Testing
 
         /// A rain box with one quad of our own under it, which is all the walk can tell from a storm.
         ///
-        /// **What `extractPrecipitation` is handed is a node, an eye and whether it is submerged**, so
-        /// a group that drops nothing is enough to ask both of its questions, and needs no content
-        /// files to build.
+        /// **What `extractPrecipitation` is handed is a node and an eye**, so a group that drops
+        /// nothing is enough to ask its question, and needs no content files to build.
         osg::ref_ptr<osg::Group> makeFalling()
         {
             osg::ref_ptr<osg::Geometry> drop = new osg::Geometry;
@@ -293,40 +292,29 @@ namespace Rtx::Testing
             return falling;
         }
 
-        /// A drop's own travel is its fall, and nothing falls where the eye is under water.
+        /// A drop's own travel is its fall.
         ///
         /// **The box of drops carries no translation of its own**, so its particles are placed about
         /// the origin and the eye is what stands them in the world. Anchoring the walk anywhere else
         /// makes every sprite's motion between two frames the eye's step as well as its fall, which
         /// is a reprojection of the wrong thing — and the drops would slide with the camera.
-        ///
-        /// **And the walk stops entirely under water.** The sky manager freezes the drops where
-        /// they stand and leaves what to draw to whoever is drawing; walked anyway, the ones the
-        /// surface was crossed with hang in the air for as long as the eye stays under it.
-        TEST(RtxSceneExtractorPrecipitationTest, dropsAreStoodAtTheEyeAndNoneIsWalkedUnderWater)
+        TEST(RtxSceneExtractorPrecipitationTest, dropsAreStoodAtTheEye)
         {
             const osg::ref_ptr<osg::Group> falling = makeFalling();
             const osg::Vec3f eye(1000.0f, -2000.0f, 300.0f);
 
             SceneDesc scene;
             SceneExtractor extractor(scene);
-            extractor.extractPrecipitation(falling, eye, false, 0);
+            extractor.extractPrecipitation(falling, eye, 0);
 
             ASSERT_EQ(scene.placements().getCounts().mPlaced, 1u) << "the drop was not walked at all";
             EXPECT_EQ(placedAt(scene, 0), eye) << "the drops were stood somewhere other than the eye";
 
-            // Held still where the eye is submerged, which is a walk that does not happen rather
-            // than geometry that is hidden.
-            SceneDesc under;
-            SceneExtractor beneath(under);
-            beneath.extractPrecipitation(falling, eye, true, 0);
-
-            EXPECT_EQ(under.placements().getCounts().mPlaced, 0u);
-
-            // And a world with no weather over it at all is the third case the one call answers.
+            // And a world with no weather over it, or a fall the game hides, is the other case the
+            // one call answers.
             SceneDesc dry;
             SceneExtractor none(dry);
-            none.extractPrecipitation(nullptr, eye, false, 0);
+            none.extractPrecipitation(nullptr, eye, 0);
 
             EXPECT_EQ(dry.placements().getCounts().mPlaced, 0u);
         }
@@ -342,7 +330,7 @@ namespace Rtx::Testing
             Rtx::SceneDesc scene;
             SceneExtractor extractor(scene);
 
-            extractor.extractPrecipitation(plume.mRoot.get(), osg::Vec3f(), false, 0);
+            extractor.extractPrecipitation(plume.mRoot.get(), osg::Vec3f(), 0);
             ASSERT_EQ(scene.emitters().size(), 1u);
             EXPECT_TRUE(scene.emitters().front().falls());
 

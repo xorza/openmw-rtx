@@ -538,10 +538,10 @@ namespace Rtx
         return walk(root, transform, anchor, frame, &ring, false);
     }
 
-    ExtractionStats SceneExtractor::extractPrecipitation(const osg::Node* fall, const osg::Vec3f& eye,
-        const bool underwater, const std::size_t anchor, const std::size_t frame)
+    ExtractionStats SceneExtractor::extractPrecipitation(
+        const osg::Node* fall, const osg::Vec3f& eye, const std::size_t anchor, const std::size_t frame)
     {
-        if (fall == nullptr || underwater)
+        if (fall == nullptr)
             return {};
 
         return walk(*fall, osg::Matrixf::translate(eye), anchor, frame, nullptr, true);
