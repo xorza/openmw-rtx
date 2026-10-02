@@ -72,4 +72,30 @@ namespace Rtx
 
         Crash::fatal("a storage format with no Vulkan format");
     }
+
+    /// How many bytes a texel of `format` takes, which is what an image made from it is priced at.
+    constexpr std::uint32_t texelBytes(const Shaders::StorageFormat format)
+    {
+        switch (format)
+        {
+            case Shaders::StorageFormat::R8:
+                return 1;
+            case Shaders::StorageFormat::Rg8:
+            case Shaders::StorageFormat::R16:
+            case Shaders::StorageFormat::R16f:
+                return 2;
+            case Shaders::StorageFormat::Rgba8:
+            case Shaders::StorageFormat::R32f:
+            case Shaders::StorageFormat::R32ui:
+            case Shaders::StorageFormat::Rg16f:
+                return 4;
+            case Shaders::StorageFormat::Rg32f:
+            case Shaders::StorageFormat::Rgba16f:
+                return 8;
+            case Shaders::StorageFormat::Rgba32f:
+                return 16;
+        }
+
+        Crash::fatal("a storage format with no texel size");
+    }
 }

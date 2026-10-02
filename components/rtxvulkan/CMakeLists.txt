@@ -328,6 +328,8 @@ set(RTX_VULKAN_FILES
     texture/texture.hpp
     texture/texturearrival.cpp
     texture/texturearrival.hpp
+    texture/texturecost.cpp
+    texture/texturecost.hpp
     texture/texturepasses.hpp
     trace/denoise/accumulatepass.cpp
     trace/denoise/accumulatepass.hpp

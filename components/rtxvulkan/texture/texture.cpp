@@ -35,6 +35,7 @@
 #include <components/rtxvulkan/device/result.hpp>
 
 #include "groundcompositepass.hpp"
+#include "texturecost.hpp"
 #include "texturepasses.hpp"
 
 namespace Rtx
@@ -82,34 +83,11 @@ namespace Rtx
                 toVulkanFormat(NORMAL_SPREAD_MEAN_FORMAT), VK_IMAGE_USAGE_STORAGE_BIT, name, spread.getMipLevels());
         }
 
-        /// What a spread costs in the accounting `Texture::getBytes` reports: a byte a texel over its
-        /// levels.
-        std::size_t spreadBytes(const Image& spread)
+        ImageShape shapeOf(const Image& image)
         {
-            std::size_t texels = 0;
-            for (std::uint32_t level = 0; level < spread.getMipLevels(); ++level)
-                texels += std::size_t{ spread.getWidthAt(level) } * spread.getHeightAt(level);
-            return texels;
-        }
-
-        /// What a map costs in the accounting `Texture::getBytes` reports.
-        constexpr std::size_t sShadingBytes
-            = std::size_t{ Shaders::SHADING_EXTENT } * Shaders::SHADING_EXTENT * sizeof(std::uint16_t);
-
-        /// Four bytes a texel over `levels` levels of a loose chain from `width` by `height` down —
-        /// a third again over the finest, where it goes to one texel.
-        std::size_t chainBytes(std::uint32_t width, std::uint32_t height, std::uint32_t levels)
-        {
-            std::size_t texels = 0;
-            for (std::uint32_t level = 0; level < levels; ++level)
-                texels += std::size_t{ std::max(width >> level, 1u) } * std::max(height >> level, 1u);
-            return texels * 4;
-        }
-
-        /// The same over the levels `chain` holds.
-        std::size_t chainBytes(const Image& chain)
-        {
-            return chainBytes(chain.getWidth(), chain.getHeight(), chain.getMipLevels());
+            return ImageShape{
+                .mWidth = image.getWidth(), .mHeight = image.getHeight(), .mLevels = image.getMipLevels()
+            };
         }
 
         /// A format with a transfer curve and its twin without one: the same bytes in the same
@@ -349,29 +327,24 @@ namespace Rtx
             const Image& held = arrival.hold(std::move(*upload));
             arrival.upload(batch, held, data.mBytes, regions);
             arrival.chain(held, mImage, isSrgb(data.mFormat));
-            mBytes = chainBytes(mImage);
         }
         else
-        {
             arrival.upload(batch, mImage, bytes, regions);
-            mBytes = bytes.size();
-        }
 
         switch (companion)
         {
             case TextureCompanion::Neutral:
                 arrival.clearNeutral(mCompanion);
-                mBytes += sShadingBytes;
                 break;
             case TextureCompanion::Shading:
                 arrival.shade(mImage, mCompanion, isBc1(data.mFormat));
-                mBytes += sShadingBytes;
                 break;
             case TextureCompanion::Spread:
                 arrival.spread(mImage, arrival.hold(std::move(*means)), mCompanion);
-                mBytes += spreadBytes(mCompanion);
                 break;
         }
+
+        mBytes = priceFile(data, first).standing();
         return {};
     }
 
@@ -402,7 +375,7 @@ namespace Rtx
         arrival.bake(from, mImage);
         arrival.clearNeutral(mCompanion);
 
-        mBytes = chainBytes(mImage) + sShadingBytes;
+        mBytes = priceBake(shapeOf(mImage)).standing();
         return {};
     }
 
@@ -419,7 +392,7 @@ namespace Rtx
 
         mCompanion = std::move(makeShadingMap(device, name, MemoryUse::Essential).value());
         arrival.clearNeutral(mCompanion);
-        mBytes = sizeof(texel) + sShadingBytes;
+        mBytes = priceColour().standing();
     }
 
     Misc::Result<void, std::string_view> Texture::standComposite(
@@ -452,7 +425,7 @@ namespace Rtx
         mCompanion = std::move(shading.value());
         arrival.clearNeutral(mCompanion);
 
-        mBytes = chainBytes(mImage) + sShadingBytes;
+        mBytes = priceComposite().standing();
         return {};
     }
 
@@ -625,13 +598,7 @@ namespace Rtx
             if (arriving != nullptr)
             {
                 if (arriving->mSource == TextureSource::File && arriving->firstLevelWithin(mSideLimit).has_value())
-                {
-                    const std::uint32_t first = firstLevelAt(*arriving, side);
-                    const MipLevel& top = arriving->mLevels[first];
-                    return chainBytes(
-                               top.mWidth, top.mHeight, static_cast<std::uint32_t>(arriving->mLevels.size()) - first)
-                        + sShadingBytes;
-                }
+                    return priceBake(shapeOf(*arriving, firstLevelAt(*arriving, side))).total();
 
                 standing = &mStandIn.getImage();
             }
@@ -641,7 +608,7 @@ namespace Rtx
             if (standing == nullptr || standing->isEmpty())
                 return 0;
 
-            return chainBytes(*standing) + sShadingBytes;
+            return priceBake(shapeOf(*standing)).total();
         };
 
         VkDeviceSize cost = 0;
@@ -650,18 +617,9 @@ namespace Rtx
             switch (texture.mSource)
             {
                 case TextureSource::File:
-                {
-                    if (!texture.firstLevelWithin(mSideLimit).has_value())
-                        break;
-
-                    if (texture.mCompleteChain)
-                        cost += texture.mBytes.size()
-                            + chainBytes(texture.mWidth, texture.mHeight, levelsTo1x1(texture.mWidth, texture.mHeight))
-                            + sShadingBytes;
-                    else
-                        cost += texture.bytesFrom(firstLevelAt(texture, side)) + sShadingBytes;
+                    if (texture.firstLevelWithin(mSideLimit).has_value())
+                        cost += priceFile(texture, firstLevelAt(texture, side)).total();
                     break;
-                }
 
                 case TextureSource::SpriteBake:
                     cost += bakeOf(texture.mFrom);
@@ -670,9 +628,7 @@ namespace Rtx
                 case TextureSource::GroundComposite:
                 case TextureSource::GroundGloss:
                     if (ground)
-                        cost += chainBytes(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT,
-                                    levelsTo1x1(Shaders::GROUND_COMPOSITE_EXTENT, Shaders::GROUND_COMPOSITE_EXTENT))
-                            + sShadingBytes;
+                        cost += priceComposite().total();
                     break;
 
                 case TextureSource::StandIn:

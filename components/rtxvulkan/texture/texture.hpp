@@ -114,8 +114,8 @@ namespace Rtx
         /// binds it through.
         TextureWrap getWrap() const { return mWrap; }
 
-        /// The size of the data uploaded, the companion's included, which for a block-compressed image
-        /// is what it occupies.
+        /// What the texture keeps on the device, its companion included: `TextureCost::standing`
+        /// of what it was made as.
         VkDeviceSize getBytes() const { return mBytes; }
 
     private:
@@ -266,10 +266,10 @@ namespace Rtx
         /// What `slot` is sampled through: its texture, or the stand-in.
         const Texture& standingIn(const Slot& slot) const { return slot.mStandIn ? mStandIn : slot.mTexture; }
 
-        /// What `arrived` would take of the device held to `side`: the bytes uploaded and the
-        /// chains and maps the device makes beside them, the ground's composites only where
-        /// `ground` says. The resources' own bytes, which the allocator rounds up a little, and the
-        /// reason `write` still comes down level by level.
+        /// What `arrived` would take of the device held to `side`, at the most while it is made:
+        /// each texture's `TextureCost::total`, the ground's composites only where `ground` says.
+        /// The resources' own bytes, which the allocator rounds up a little, and the reason
+        /// `write` still comes down level by level.
         VkDeviceSize costAt(std::span<const TextureData> arrived, std::uint32_t side, bool ground) const;
 
         /// Stands what `texture` is made as in `into`, held to `side`, or says why the device had no
