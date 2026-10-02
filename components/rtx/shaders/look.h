@@ -204,17 +204,7 @@ namespace Rtx::Shaders
     /// those are the sun seen and a sun seen wider is a different sun. A sun seen through haze does
     /// widen its own shadows — the aureole a hazy sky throws round it is a few degrees across — and
     /// if this ever wants to follow the weather, that is the model to follow it with.
-    const float SUN_SHADOW_RADIUS = 0.034907f;
-
-    /// Its sine, which is what a cone is drawn from: `SkySource::mLimb` for the sun.
-    ///
-    /// **A literal and not `sin(SUN_SHADOW_RADIUS)`**, because the host writes the frame's sun and
-    /// the shader used to fold the sine with its own library — and the two libraries need not
-    /// round alike in the last place, which is a penumbra a step wide differing between the two
-    /// sides. The literal is the float the shader's fold gave, to the bit, which is one step
-    /// above what this box's `sinf` gives; `RtxSkylightTest` holds it to within that step of the
-    /// angle.
-    const float SUN_SHADOW_SINE = 0.034899913f;
+    const float SUN_SHADOW_RADIUS = 2.0f * PI / 180.0f;
 
     /// What a moon's own texels are worth as radiance.
     ///

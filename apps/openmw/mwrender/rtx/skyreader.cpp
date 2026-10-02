@@ -53,7 +53,8 @@ namespace MWRender
             // own albedo it turned a clear noon's sea a muddy grey and undid the pairing `look.h` states
             // with `WATER_EXTINCTION`.
             const osg::Vec4f colour = Fallback::Map::getColour("Water_UnderwaterColor");
-            return osg::Vec3f(colour.r(), colour.g(), colour.b()) * Fallback::Map::getFloat("Water_UnderwaterColorWeight");
+            return osg::Vec3f(colour.r(), colour.g(), colour.b())
+                * Fallback::Map::getFloat("Water_UnderwaterColorWeight");
         }
     }
 
