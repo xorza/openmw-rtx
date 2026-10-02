@@ -34,6 +34,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/pixels.cpp
     mwrender/precipitation.cpp
     mwrender/readworld.cpp
+    mwrender/ripples.cpp
     mwrender/renderer.cpp
     mwrender/rtxrenderer.cpp
     mwrender/rtxsettings.cpp
