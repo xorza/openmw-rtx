@@ -53,6 +53,10 @@ namespace Rtx
     /// `camera.setProjectionOffset`. `Shaders::Camera::mCentre` holds it in the picture's own axes.
     void shiftPicture(Shaders::Camera& camera, const osg::Vec2f& shift);
 
+    /// `basis` read the other way, `Shaders::ScreenBasis`: what a block a projection reads is
+    /// handed beside the basis it was worked out from. Nought for a basis of nought.
+    Shaders::ScreenBasis screenBasisOf(const Shaders::Basis& basis);
+
     /// A camera from a view matrix in OpenSceneGraph's convention: row vectors, and an eye space
     /// looking down its own -Z. The basis comes out of the matrix rather than from the world's up,
     /// which is what lets a map look straight down. Nothing for a matrix that cannot be inverted

@@ -168,6 +168,21 @@ namespace Rtx
         camera.mBasis.mCentre = osg::Vec2f(shift.x(), -shift.y());
     }
 
+    Shaders::ScreenBasis screenBasisOf(const Shaders::Basis& basis)
+    {
+        // Nought where the division would be nought by nought: a frame with no eye before it
+        // carries a basis of nought, and the shader reads its forward of nought as no answer.
+        const float right = basis.mRight * basis.mRight;
+        const float up = basis.mUp * basis.mUp;
+
+        return Shaders::ScreenBasis{
+            .mForward = basis.mForward,
+            .mAcross = right > 0.0f ? basis.mRight / right : osg::Vec3f(),
+            .mDown = up > 0.0f ? -basis.mUp / up : osg::Vec3f(),
+            .mCentre = basis.mCentre,
+        };
+    }
+
     std::optional<Shaders::VisibilityConstants> makeCameraFromView(const osg::Matrixd& view, float verticalFovDegrees,
         std::uint32_t width, std::uint32_t height, float near, float far)
     {

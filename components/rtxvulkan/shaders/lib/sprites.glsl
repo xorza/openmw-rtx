@@ -433,10 +433,10 @@ SpriteCrossing ballCrossing(
 uvec2 binnedPixel(uvec2 pixel, vec3 direction, bool arms)
 {
     const Camera world = frame.mEyes.mWorld;
-    const Screen screen = screenOf(world.mBasis, direction, vec2(1.0));
+    const Screen screen = screenOf(frame.mScreen, direction, vec2(1.0));
 
-    // `rayAt`'s generation undone: the pixel whose area the ray crosses the plane in.
-    const vec2 across = (screen.mAt / screen.mAhead + 1.0) * 0.5 * vec2(world.mWidth, world.mHeight) - world.mJitter;
+    // The pixel whose area the ray crosses the plane in.
+    const vec2 across = pixelOfScreen(screen, vec2(world.mWidth, world.mHeight)) - world.mJitter;
     const uvec2 through
         = uvec2(clamp(floor(across), vec2(0.0), vec2(float(world.mWidth - 1u), float(world.mHeight - 1u))));
 

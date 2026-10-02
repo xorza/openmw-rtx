@@ -18,6 +18,7 @@
 #include <components/rtx/common/parallel.hpp>
 #include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/frame/bluenoise.hpp>
+#include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/specularalbedo.hpp>
 #include <components/rtx/scene/lightgrid.hpp>
 #include <components/rtx/scene/material.hpp>
@@ -479,6 +480,9 @@ namespace Rtx
         Shaders::VisibilityConstants described = constants;
 
         described.mComposed = composed ? 1u : 0u;
+
+        described.mScreen = screenBasisOf(described.mEyes.mWorld.mBasis);
+        described.mPreviousScreen = screenBasisOf(described.mPrevious);
 
         // The tiles' widths come off the pass that built them, so what the shader divides by is
         // what is actually bound rather than a second statement of the same table.

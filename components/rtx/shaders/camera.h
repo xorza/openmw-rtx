@@ -103,9 +103,24 @@ namespace Rtx::Shaders
         Camera mArms;
     };
 
+    /// A basis read the other way, which is what `screenOf` projects a point through: the forward
+    /// and the centre as the basis has them, the right over its own squared length and the up over
+    /// its own, turned to point down the image as `rayAt`'s `y` runs. **Worked out once where a
+    /// block is written** (`Rtx::screenBasisOf`), where every projection took four dot products
+    /// and two divisions of what is a constant of the frame. Nought where the basis is, which is
+    /// what a frame with no eye before it carries.
+    struct ScreenBasis
+    {
+        vec3 mForward;
+        vec3 mAcross;
+        vec3 mDown;
+        vec2 mCentre RTX_ZERO;
+    };
+
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
+    static_assert(sizeof(ScreenBasis) == 44, "ScreenBasis must be scalar-packed on every side");
     static_assert(sizeof(Camera) == 68, "Camera must be scalar-packed on every side");
     static_assert(sizeof(Eyes) == 136, "Eyes must be scalar-packed on every side");
     static_assert(sizeof(Basis) == 44, "Basis must be scalar-packed on every side");
@@ -261,22 +276,27 @@ struct Screen
 /// The inverse of the generation in `rayAt`, for one basis and one point `offset` from its eye.
 ///
 /// **Over a basis and not a `Camera`**, so the previous frame's eye passes through it as this
-/// frame's does. The basis carries the image plane's half extents, so dividing by each vector's own
-/// square undoes the direction and the scale together; a plane `spread` times wider puts the same
-/// point that much nearer its middle, and the centre moves it with the picture, scaled by the
+/// frame's does. The basis carries the image plane's half extents over their own squares, so one
+/// dot product undoes the direction and the scale together; a plane `spread` times wider puts the
+/// same point that much nearer its middle, and the centre moves it with the picture, scaled by the
 /// distance ahead because the caller divides by that. **The association is the reprojection's**,
 /// because a motion vector is what the answer is judged by: every caller lands on the same bits.
-RTX_SHADER Screen screenOf(Basis basis, vec3 offset, vec2 spread)
+RTX_SHADER Screen screenOf(ScreenBasis basis, vec3 offset, vec2 spread)
 {
-    const vec3 right = basis.mRight;
-    const vec3 up = basis.mUp;
-
     Screen screen;
     screen.mAhead = dot(offset, basis.mForward);
-    screen.mAt = vec2(dot(offset, right) / dot(right, right) / spread.x, -dot(offset, up) / dot(up, up) / spread.y)
+    screen.mAt = vec2(dot(offset, basis.mAcross) / spread.x, dot(offset, basis.mDown) / spread.y)
         + basis.mCentre * screen.mAhead;
 
     return screen;
+}
+
+/// Where `screen` lands on a grid `extent` pixels wide and high, in the units `rayAt` reads a pixel
+/// in — its index, plus the half, plus the jitter it was sent with. The one way back from the plane
+/// to the grid, for a point in front of the eye: `screen.mAhead` must be positive.
+vec2 pixelOfScreen(Screen screen, vec2 extent)
+{
+    return (screen.mAt / screen.mAhead * 0.5 + 0.5) * extent;
 }
 
 /// How wide a pixel's cone is where the ray starts, and how much wider it gets per unit travelled.

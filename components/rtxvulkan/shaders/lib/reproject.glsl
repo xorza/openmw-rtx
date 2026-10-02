@@ -48,8 +48,9 @@ const float PREVIOUS_SCREEN_REACH = 1.0;
 /// fired along the leading edge of every horizontal pan.
 struct PreviousScreen
 {
-    /// Nought to one across the previous frame, and outside that where the point left it, bounded
-    /// by `PREVIOUS_SCREEN_REACH`.
+    /// On this frame's grid in the units `rayAt` reads a pixel in (`pixelOfScreen`): nought to the
+    /// extent across the previous frame, and outside that where the point left it, bounded by
+    /// `PREVIOUS_SCREEN_REACH` screens.
     vec2 mAt;
 
     /// False where there is no previous frame, and where the point stood behind that eye.
@@ -72,13 +73,16 @@ PreviousScreen previousScreenThrough(vec3 was, vec2 spread)
     // first, a resize, a new scene, and any jump a motion vector could not describe. Behind the
     // previous eye there is no answer either, and the divide below would fold such a point back
     // into the frame as a plausible coordinate.
-    const Screen screen = screenOf(frame.mPrevious, was, spread);
-    if (!(dot(frame.mPrevious.mForward, frame.mPrevious.mForward) > 0.0) || !(screen.mAhead > 0.0))
+    const ScreenBasis previous = frame.mPreviousScreen;
+    const Screen screen = screenOf(previous, was, spread);
+    if (!(dot(previous.mForward, previous.mForward) > 0.0) || !(screen.mAhead > 0.0))
         return PreviousScreen(vec2(0.0), false);
 
-    const vec2 at = (screen.mAt / screen.mAhead) * 0.5 + 0.5;
+    // On this frame's grid, which the previous frame's channels were written at.
+    const vec2 extent = vec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight);
+    const vec2 at = pixelOfScreen(screen, extent);
 
-    return PreviousScreen(clamp(at, vec2(-PREVIOUS_SCREEN_REACH), vec2(1.0 + PREVIOUS_SCREEN_REACH)), true);
+    return PreviousScreen(clamp(at, -PREVIOUS_SCREEN_REACH * extent, (1.0 + PREVIOUS_SCREEN_REACH) * extent), true);
 }
 
 PreviousScreen previousScreen(vec3 was)
@@ -112,8 +116,7 @@ vec2 reprojected(uvec2 pixel, vec3 was, vec2 spread)
     if (!screen.mFound)
         return vec2(0.0);
 
-    const vec2 before = screen.mAt * vec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight);
-    return before - (vec2(pixel) + 0.5 + frame.mEyes.mWorld.mJitter);
+    return screen.mAt - (vec2(pixel) + 0.5 + frame.mEyes.mWorld.mJitter);
 }
 
 /// How far a point of a deforming mesh moved between the last frame and this one, in world
