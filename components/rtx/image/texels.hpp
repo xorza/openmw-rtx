@@ -18,16 +18,22 @@ namespace Rtx
 {
     struct AlphaScratch;
 
+    /// Whether `texelAt` and `readTexelBand` can read `texture`'s colour: a description that carries
+    /// its own bytes, in a BC1, BC2 or BC3 block or four loose bytes. A bake and a composite carry no
+    /// bytes, since the device makes them, and BC5 holds two data channels and no colour.
+    bool readsColour(const TextureData& texture);
+
     /// The colour of one texel of one level, as it is stored — display-encoded; `Rtx::toLinear`
     /// turns it into light. For a reader of a scattered few: a texel of a block decodes the whole
-    /// block, and a reader of every texel takes `readTexelBand`. `x` and `y` must lie inside
-    /// `level`.
+    /// block, and a reader of every texel takes `readTexelBand`. `texture` is one `readsColour`
+    /// answers yes for, and `x` and `y` lie inside `level`.
     osg::Vec3f texelAt(const TextureData& texture, const MipLevel& level, std::uint32_t x, std::uint32_t y);
 
     /// Rows `4 × band` to `4 × band + 3` of `level` — fewer at its bottom edge — as they are
     /// stored, row after row, with every block of them decoded once where `texelAt` decodes one
     /// for each texel it hands out: sixteen times over for a reader of every texel. A band is a
-    /// row of blocks, and every texel a band holds is `texelAt`'s to the bit.
+    /// row of blocks, and every texel a band holds is `texelAt`'s to the bit. `texture` is one
+    /// `readsColour` answers yes for.
     ///
     /// @param into refilled with `level.mWidth` texels a row.
     void readTexelBand(

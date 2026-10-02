@@ -28,6 +28,9 @@ namespace RtxTool
 
         /// How many pairs stand across the sheet.
         constexpr std::uint32_t sColumns = 6;
+
+        /// The side of a square of the checker a texture with no colour to read is drawn as.
+        constexpr std::uint32_t sCheckerSide = 8;
     }
 
     std::uint32_t ContactSheet::getStride()
@@ -73,6 +76,24 @@ namespace RtxTool
             const Rtx::TextureData& texture = textures[index];
             const std::uint32_t left = drawn.getLeftOf(index);
             const std::uint32_t top = drawn.getTopOf(index);
+
+            // **What has no colour to read is drawn as a checker**, both halves of its pair: a bake
+            // and a composite carry no bytes, since the device makes them, and BC5 is two data
+            // channels. Read, a bake would index a level it does not have and BC5's second block
+            // would show as colour. The legend still names the pair.
+            if (!Rtx::readsColour(texture))
+            {
+                for (const std::uint32_t offset : { 0u, ContactSheet::getStride() })
+                    for (std::uint32_t y = 0; y < sThumbnail; ++y)
+                        for (std::uint32_t x = 0; x < sThumbnail; ++x)
+                        {
+                            const std::uint8_t shade = (x / sCheckerSide + y / sCheckerSide) % 2 == 0 ? 32 : 96;
+                            const std::size_t at = (std::size_t{ top + y } * width + left + offset + x) * 4;
+                            for (int channel = 0; channel < 3; ++channel)
+                                drawn.mPixels[at + channel] = shade;
+                        }
+                continue;
+            }
 
             // The estimate the device makes as the texture arrives, made here for the sheet: the
             // host's `ShadingMap` is the reference that dispatch is held to, and neutral where the
