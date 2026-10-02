@@ -73,4 +73,10 @@ namespace Rtx
     /// uniforms `MWRender::TransparencyUpdater` writes sets both, and an `alpha` alone replaces the
     /// actor's, which the material then reads (`describeStateSet`), and keeps its `actorFade`.
     Fade fadeThrough(const osg::StateSet& stateSet, const Fade& inherited);
+
+    /// Whether `stateSet` sends everything under it into the rasterizer's distortion buffer alone
+    /// (`SceneUtil::setupDistortion`): a heat haze or a portal, which bends the picture behind it
+    /// and whose own colour never reaches the frame, and with the shader chain off draws nothing at
+    /// all. Neither walk traces it.
+    bool drawsIntoDistortion(const osg::StateSet& stateSet);
 }

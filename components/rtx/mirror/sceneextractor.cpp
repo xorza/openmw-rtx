@@ -41,6 +41,10 @@ namespace Rtx
 {
     namespace
     {
+        /// Why a distortion node is left out: `drawsIntoDistortion`.
+        constexpr std::string_view sDistortion
+            = "it bends the rasterizer's picture behind it and draws nothing of its own";
+
         /// Clears the one gate a renderer with no draw can only ever answer wrongly:
         /// `osgParticle` stops a system whose draw has not touched it for two frames, and
         /// `ParticleSystem::_last_frame` moves in `drawImplementation` and nowhere else.
@@ -301,6 +305,12 @@ namespace Rtx
             return;
         }
 
+        if (const osg::StateSet* own = node.getStateSet(); own != nullptr && drawsIntoDistortion(*own))
+        {
+            mExtractor.mScene.refusals().refuse(Refused::Mesh, node.getName(), sDistortion);
+            return;
+        }
+
         const std::size_t held = mShading.size();
         const std::size_t above = mPathHash;
         mPathHash = identity;
@@ -460,6 +470,12 @@ namespace Rtx
 
     void SceneExtractor::Traversal::apply(osg::Drawable& drawable)
     {
+        if (const osg::StateSet* own = drawable.getStateSet(); own != nullptr && drawsIntoDistortion(*own))
+        {
+            mExtractor.mScene.refusals().refuse(Refused::Mesh, drawable.getName(), sDistortion);
+            return;
+        }
+
         const std::size_t held = mShading.size();
         if (const osg::StateSet* own = drawable.getStateSet())
         {

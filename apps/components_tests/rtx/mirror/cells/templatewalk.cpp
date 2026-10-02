@@ -35,6 +35,7 @@
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/scene/meshtable.hpp>
 #include <components/rtx/scene/surface.hpp>
+#include <components/sceneutil/extradata.hpp>
 #include <components/shader/automaps.hpp>
 
 namespace Rtx::Testing
@@ -99,6 +100,13 @@ namespace Rtx::Testing
             collision->setNodeMask(hidden);
             root->addChild(collision);
 
+            // A heat haze, which draws into the rasterizer's distortion buffer alone.
+            osg::ref_ptr<osg::Group> haze = new osg::Group;
+            SceneUtil::setupDistortion(*haze, SceneUtil::DistortionConfig{});
+            osg::ref_ptr<osg::Geometry> hazed = makeQuad();
+            haze->addChild(hazed);
+            root->addChild(haze);
+
             PreparedModel model;
             TemplateWalk walk;
             ASSERT_TRUE(walk.read(*root, ~hidden, model).isOk());
@@ -134,6 +142,7 @@ namespace Rtx::Testing
                 EXPECT_NE(part.mDrawable, first.get()) << "a frame the flipbook is not on is not shown";
                 EXPECT_NE(part.mDrawable, far.get()) << "a level for a farther eye is not the finest";
                 EXPECT_NE(part.mDrawable, collision.get()) << "what the loader hid is not walked";
+                EXPECT_NE(part.mDrawable, hazed.get()) << "a heat haze is traced";
             }
 
             // **Nothing was stepped.** A frame's walk moves a flipbook's clock; this one may not,

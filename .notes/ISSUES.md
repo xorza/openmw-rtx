@@ -65,8 +65,6 @@ first review.
   `apps/openmw/mwrender/rtx/debugwalk.cpp:129-141`.
 - Particles integrate at most 0.2 s a frame, so under a simulation-time scale they fall behind the
   world. `components/rtx/mirror/sceneextractor.cpp:390-405`.
-- A node with `distortion` extra data is traced as an ordinary textured surface, where the rasterizer
-  draws it only into its distortion buffer. `apps/openmw/mwrender/distortion.cpp:11-38`.
 - With `distant land cells = 0` the reach takes `viewing distance` unclamped, past the documented
   ten-cell bound and the trace's 200 000-unit far plane. `components/rtx/mirror/cells/cellgrid.cpp:38-44`.
 - The harness starts with the crash catcher off (`OPENMW_DISABLE_CRASH_CATCHER` defaulted to `1` in

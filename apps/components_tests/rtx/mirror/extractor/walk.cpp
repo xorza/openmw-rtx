@@ -35,6 +35,7 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/sceneutil/extradata.hpp>
 
 #include "fixture.hpp"
 
@@ -62,21 +63,30 @@ namespace Rtx::Testing
         /// more. A mesh past one block is one such, and a triangle naming a vertex its drawable does
         /// not have is another, which read on would have been a read past the positions and a
         /// fault on the device.
+        ///
+        /// **And a heat haze is left out whole, and says so**: a branch `SceneUtil::setupDistortion`
+        /// set up draws into the rasterizer's distortion buffer alone, so its quad is no instance.
         TEST_F(RtxSceneExtractorTest, aMeshThisCannotBuildIsRefusedOnceAndTheWalkGoesOn)
         {
+            osg::ref_ptr<osg::Group> haze = new osg::Group;
+            haze->setName("heat haze");
+            SceneUtil::setupDistortion(*haze, SceneUtil::DistortionConfig{ .mStrength = 0.1f });
+            haze->addChild(makeQuad());
+
             osg::ref_ptr<osg::Group> root = new osg::Group;
             root->addChild(makePastOneBlock());
             root->addChild(makeIndexPastItsVertices());
             root->addChild(makeQuad());
+            root->addChild(haze);
 
             const ExtractionStats first = walk(*root);
-            EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 2u);
+            EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 3u);
             EXPECT_EQ(first.mMeshesAdded, 1u);
             EXPECT_EQ(first.mInstances, 1u);
             mExtractor.retire();
 
             const ExtractionStats second = walk(*root);
-            EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 2u) << "a refused drawable is refused once";
+            EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 3u) << "a refused drawable is refused once";
             EXPECT_EQ(second.mMeshesAdded, 0u);
             EXPECT_EQ(second.mMeshesReused, 1u);
             EXPECT_EQ(second.mInstances, 1u);

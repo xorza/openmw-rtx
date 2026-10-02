@@ -94,6 +94,10 @@ namespace Rtx
 
     void TemplateWalk::apply(osg::Node& node)
     {
+        // Left out as the frame's walk leaves it out, which says so where it is met.
+        if (const osg::StateSet* own = node.getStateSet(); own != nullptr && drawsIntoDistortion(*own))
+            return;
+
         const std::size_t held = mShading.size();
 
         if (const osg::StateSet* own = node.getStateSet())
@@ -121,6 +125,9 @@ namespace Rtx
 
     void TemplateWalk::apply(osg::Drawable& drawable)
     {
+        if (const osg::StateSet* own = drawable.getStateSet(); own != nullptr && drawsIntoDistortion(*own))
+            return;
+
         const std::size_t held = mShading.size();
 
         if (const osg::StateSet* own = drawable.getStateSet())

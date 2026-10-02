@@ -48,4 +48,12 @@ namespace Rtx
 
         return Fade{ .mPlacement = actorFade * alpha, .mActor = actorFade };
     }
+
+    bool drawsIntoDistortion(const osg::StateSet& stateSet)
+    {
+        // The mode first, because nearly every state set inherits its bin and a name compared per
+        // node a walk enters would be paid by all of them.
+        return stateSet.getRenderBinMode() != osg::StateSet::INHERIT_RENDERBIN_DETAILS
+            && stateSet.getBinName() == "Distortion";
+    }
 }
