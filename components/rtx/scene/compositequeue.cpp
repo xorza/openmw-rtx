@@ -4,6 +4,7 @@
 #include <array>
 #include <charconv>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 #include <string_view>
 
@@ -16,6 +17,9 @@ namespace Rtx
 {
     namespace
     {
+        /// The one take `mRefused` records.
+        constexpr std::uint16_t sCompositeTake = 1;
+
         /// The key a chunk's composite is found under — `chunk/` — or its gloss — `gloss/`: the
         /// material's own slot, because one material is one chunk, and one that takes the slot over
         /// is a different chunk that wants the slot overwritten.
@@ -46,9 +50,7 @@ namespace Rtx
             if (material >= materials.size())
                 return false;
 
-            const Material& row = materials[material];
-            return row.mKind == MaterialKind::Terrain && row.mFlatten && row.mDiffuse == sNoIndex
-                && row.mLayers == layers;
+            return materials[material].wantsFlattening() && materials[material].mLayers == layers;
         }
     }
 
@@ -61,28 +63,28 @@ namespace Rtx
     void CompositeQueue::gather(const SceneDesc& scene)
     {
         const std::span<const Material> materials = scene.materials().getRows();
+        if (mPositions.size() < materials.size())
+            mPositions.resize(materials.size(), sNoIndex);
+
         for (const Index at : scene.materials().getWritten())
         {
             const Material& material = materials[at];
-            if (material.mKind != MaterialKind::Terrain || !material.mFlatten || material.mDiffuse != sNoIndex)
+            if (!material.wantsFlattening())
                 continue;
 
             const Asked wanted{ .mMaterial = at, .mLayers = material.mLayers };
+            if (const Index position = mPositions[at]; position != sNoIndex)
+            {
+                Asked& waiting = mWaiting[position];
+                if (waiting == wanted)
+                    continue;
 
-            Asked* waiting = nullptr;
-            for (std::size_t age = 0; age < mCount && waiting == nullptr; ++age)
-                if (Asked& one = waitingAt(age); one.mMaterial == at)
-                    waiting = &one;
-
-            if (waiting != nullptr && *waiting == wanted)
-                continue;
-
-            // A slot taken over by another chunk while its predecessor waited: what was asked is
-            // ground that has gone, and the new chunk goes to the back of the schedule. The old ask
-            // stays where it stands, naming no material, for `take` to pass over — closing the gap
-            // would move every ask behind it.
-            if (waiting != nullptr)
-                waiting->mMaterial = sNoIndex;
+                // A slot taken over by another chunk while its predecessor waited: what was asked is
+                // ground that has gone, and the new chunk goes to the back of the schedule. The old
+                // ask stays where it stands, naming no material, for `take` to pass over — closing
+                // the gap would move every ask behind it.
+                waiting.mMaterial = sNoIndex;
+            }
 
             wait(wanted);
         }
@@ -96,24 +98,44 @@ namespace Rtx
         {
             std::vector<Asked> grown(std::max<std::size_t>(mWaiting.size() * 2, 8));
             for (std::size_t age = 0; age < mCount; ++age)
+            {
                 grown[age] = waitingAt(age);
+                if (grown[age].mMaterial != sNoIndex)
+                    mPositions[grown[age].mMaterial] = static_cast<Index>(age);
+            }
 
             mWaiting.swap(grown);
             mFront = 0;
         }
 
-        mWaiting[(mFront + mCount) % mWaiting.size()] = asked;
+        const std::size_t position = (mFront + mCount) % mWaiting.size();
+        mWaiting[position] = asked;
+        mPositions[asked.mMaterial] = static_cast<Index>(position);
+        ++mCount;
+    }
+
+    void CompositeQueue::putBack(const Asked& asked)
+    {
+        mFront = (mFront + mWaiting.size() - 1) % mWaiting.size();
+        mWaiting[mFront] = asked;
+        mPositions[asked.mMaterial] = static_cast<Index>(mFront);
         ++mCount;
     }
 
     std::size_t CompositeQueue::take(SceneDesc& scene, const std::size_t limit)
     {
+        const std::uint64_t freed = scene.textures().getFreedCount();
+        if (mRefused.stands(sCompositeTake, freed))
+            return 0;
+
         std::size_t finished = 0;
         while (finished < limit && mCount > 0)
         {
             const Asked asked = mWaiting[mFront];
             mFront = (mFront + 1) % mWaiting.size();
             --mCount;
+            if (asked.mMaterial != sNoIndex)
+                mPositions[asked.mMaterial] = sNoIndex;
 
             // What it asked for has to still be what stands there, or one hillside's ground lands
             // on another's.
@@ -123,10 +145,15 @@ namespace Rtx
             nameComposite(mKey, "chunk/", asked.mMaterial);
 
             // A table with no room left keeps the chunk on its stack, which the shader sums at the
-            // hit as it does for every chunk still waiting.
+            // hit as it does for every chunk still waiting, and keeps its place in line: dropped, it
+            // would never ask again, because its material is not written again.
             const Index slot = scene.textures().addBaked(mKey, TextureEncoding::Colour);
             if (slot == sNoIndex)
-                continue;
+            {
+                putBack(asked);
+                mRefused.refuse(sCompositeTake, freed);
+                break;
+            }
 
             Material given = scene.materials().getRows()[asked.mMaterial];
             given.mDiffuse = slot;

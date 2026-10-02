@@ -188,9 +188,9 @@ namespace Rtx
             expectSame(kept, scene, "moved");
             EXPECT_FALSE(kept[leaf].mMotion == still) << "a mover carried no motion";
             EXPECT_TRUE(kept[water].mMotion == still) << "the sea stood a cell over moved its surface";
-            // The six the build placed, settling for the first time, and then the two that moved: a
-            // slot in both lists is a row written twice, which costs one row twice.
-            EXPECT_EQ(changed, (std::vector<Index>{ leaf, pane, water, chunk, cloud, glow, leaf, water }))
+            // The four the build placed that settle for the first time, and then the two that moved:
+            // a slot in both lists is written once, by the pass that gives it its motion.
+            EXPECT_EQ(changed, (std::vector<Index>{ pane, chunk, cloud, glow, leaf, water }))
                 << "the slots written, in order";
 
             scene.placements().advance();
@@ -232,9 +232,10 @@ namespace Rtx
             scene.placements().advance();
 
             // A drop empties the row; the slot taken over is a new row, and the table grows past it.
-            // The sheet goes too, and out of the present set.
+            // The sheet goes too, and out of the present set once the hand-over settles the lists.
             scene.dropInstance(pane, Stander::Walk);
             scene.dropInstance(glow, Stander::Walk);
+            scene.compact();
             updateInstanceRecords(scene, kept, changed);
             expectSame(kept, scene, "dropped");
             EXPECT_FALSE(kept[pane].mPlaced);

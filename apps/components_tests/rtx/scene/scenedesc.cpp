@@ -562,6 +562,7 @@ namespace Rtx
             mScene.clearArrivals();
 
             Testing::letGoMesh(mScene, mMoving);
+            mScene.compact();
             EXPECT_EQ(mScene.deformers().getHolds(mRig), 1u);
             EXPECT_EQ(mScene.deformers().getRows()[mRig].getVertexCount(), 4u) << "a rig with a mesh on it stays";
             EXPECT_EQ(std::vector<Index>(mScene.meshes().getDeformed().begin(), mScene.meshes().getDeformed().end()),
@@ -569,6 +570,7 @@ namespace Rtx
                 << "the freed slot left the list and the survivor stayed where it was named";
 
             Testing::letGoMesh(mScene, mOther);
+            mScene.compact();
             EXPECT_EQ(mScene.deformers().getHolds(mRig), 0u);
             EXPECT_EQ(mScene.deformers().getRows()[mRig].getVertexCount(), 0u) << "a rig nothing stands on is free";
             EXPECT_TRUE(mScene.deformers().getArrived().empty());
@@ -624,8 +626,9 @@ namespace Rtx
             ASSERT_EQ(scene.deformers().getHolds(first.mDeformer), 0u);
             ASSERT_EQ(scene.deformers().getHolds(second.mDeformer), 0u);
 
-            // **Read after two removals**, each settled as it was made: a set with a removal
+            // **Read after two removals**, settled by the hand-over's compact: a set with a removal
             // outstanding refuses to answer at all.
+            scene.compact();
             EXPECT_TRUE(scene.deformers().getArrived().empty()) << "both arrivals left with their rigs";
 
             EXPECT_EQ(Testing::addOneBoneBody(scene, quad).mDeformer, first.mDeformer)
@@ -1245,6 +1248,7 @@ namespace Rtx
             // **The drop names the slot it gave up, and it stops being an arrival by naming it.**
             // Nothing has been handed over, so all three are still spoken for — two as arrivals and
             // the third as a departure, never as both.
+            scene.compact();
             EXPECT_EQ(sorted(scene.meshes().getFreed()), (std::vector<Index>{ middle }));
             EXPECT_EQ(sorted(scene.meshes().getArrived()), (std::vector<Index>{ first, last }));
 
@@ -1264,6 +1268,7 @@ namespace Rtx
             // **Taking the slot back moves it the other way**, which is what lets a backend apply
             // the two lists in either order: this slot is built and not then destroyed, whichever
             // half it does first.
+            scene.compact();
             EXPECT_EQ(sorted(scene.meshes().getArrived()), (std::vector<Index>{ first, moved, last }));
             EXPECT_TRUE(scene.meshes().getFreed().empty()) << "a slot taken back was still reported as gone";
 
@@ -1309,12 +1314,14 @@ namespace Rtx
             // arrival and not a departure; arrived and then freed inside one frame, it is a
             // departure the backend is told of a slot it never built — `BottomLevelStore::release`
             // takes that as nothing, and the hand-over relies on it.
+            scene.compact();
             EXPECT_EQ(sorted(scene.meshes().getArrived()), (std::vector<Index>{ slot }));
             EXPECT_TRUE(scene.meshes().getFreed().empty()) << "a slot taken over was still reported gone";
 
             scene.clearArrivals();
             const Index brief = Testing::addQuadMesh(scene);
             Testing::letGoMesh(scene, brief);
+            scene.compact();
             EXPECT_TRUE(scene.meshes().getArrived().empty())
                 << "a slot that went inside the frame was still an arrival";
             EXPECT_EQ(sorted(scene.meshes().getFreed()), (std::vector<Index>{ brief }));
@@ -1549,6 +1556,7 @@ namespace Rtx
             ASSERT_TRUE(terrain.mReleased);
 
             // One texture went with the material that wore it, and it stopped being an arrival.
+            scene.compact();
             EXPECT_EQ(sorted(scene.textures().getFreed()), (std::vector<Index>{ terrain.mGround }));
             EXPECT_EQ(sorted(scene.textures().getArrived()),
                 (std::vector<Index>{ terrain.mStone, terrain.mSand, terrain.mMoss }));
@@ -1569,6 +1577,7 @@ namespace Rtx
             // for `tx_ground` again is a new arrival rather than a hit on a slot nothing stands in.
             EXPECT_EQ(scene.textures().add(VFS::Path::NormalizedView("textures/tx_ground.dds")), terrain.mGround);
             EXPECT_EQ(scene.textures().getRows().size(), 4u) << "the table grew past a free slot";
+            scene.compact();
             EXPECT_EQ(scene.textures().getArrived().back(), terrain.mGround)
                 << "a slot taken over was not reported as arriving";
             EXPECT_TRUE(scene.textures().getFreed().empty()) << "a slot taken back was still reported as gone";

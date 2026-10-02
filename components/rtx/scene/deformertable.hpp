@@ -158,9 +158,8 @@ namespace Rtx
         /// The pose a mesh holds, in words.
         std::span<const PoseWord> getMeshPose(const MeshRange& range) const;
 
-        /// Settles what `release` took out of the arrivals, so they can be read again. Called by
-        /// `MeshTable::drop` after every release of a deformer, which is the only thing that
-        /// releases one.
+        /// Settles what `release` took out of the arrivals, so they can be read again.
+        /// `SceneDesc::compact` calls it once a sweep's releases are done.
         void compact();
 
         void clearArrivals();

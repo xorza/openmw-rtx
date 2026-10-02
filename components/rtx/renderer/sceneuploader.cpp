@@ -64,6 +64,7 @@ namespace Rtx
         timed.at(Timing::Bake) = since(began, gathered);
 
         // After the two calls above, because both rewrite what the spans reach.
+        scene.compact();
         const SceneDesc& tables = scene;
 
         // Geometry the walk has not met before has no bottom-level structure and no uploaded

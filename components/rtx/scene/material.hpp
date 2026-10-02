@@ -229,6 +229,9 @@ namespace Rtx
         /// `additiveAlong` on a mask of its own and met by no other ray.
         bool isAdditive() const { return additiveSurface(mAlphaMode, mBlend); }
 
+        /// Whether this is a terrain chunk that asked to be flattened and has no composite yet.
+        bool wantsFlattening() const { return mKind == MaterialKind::Terrain && mFlatten && mDiffuse == sNoIndex; }
+
         /// Whether `mOpacity` is a number the trace reads at all: what the content asked a blend to
         /// weigh by, which is coverage where the surface covers and strength where it adds. An
         /// opaque or cutout surface is all there, and what its alpha holds is not a coverage.

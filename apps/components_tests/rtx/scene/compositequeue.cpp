@@ -13,6 +13,7 @@
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/vfs/pathutil.hpp>
 
@@ -205,6 +206,59 @@ namespace Rtx
             const Index baked = scene.materials().getRows()[chunk].mDiffuse;
             ASSERT_NE(baked, sNoIndex);
             EXPECT_EQ(queue.find(baked).mMaterial, chunk);
+        }
+
+        /// **A chunk the texture table refuses keeps its place, and the queue asks again only once
+        /// the table frees a slot.** Dropped, the chunk never asked again — its material is not
+        /// written again — and the ground stayed a stack for good; asked every frame, each frame
+        /// paid a refusal for nothing.
+        ///
+        /// Counted by the table's refusals: the first frame tries the first chunk and stops, one;
+        /// the second tries nothing, still one. A freed slot goes to the first chunk, and the same
+        /// frame tries the second and stops, two; then nothing again until the next freed slot,
+        /// which the second takes.
+        TEST(RtxCompositeQueueTest, aRefusedChunkKeepsItsPlaceUntilTheTableFreesASlot)
+        {
+            SceneDesc scene;
+            const std::array<Index, 2> chunks{
+                addChunk(scene, VFS::Path::NormalizedView("textures/one-a.dds"),
+                    VFS::Path::NormalizedView("textures/one-b.dds")),
+                addChunk(scene, VFS::Path::NormalizedView("textures/two-a.dds"),
+                    VFS::Path::NormalizedView("textures/two-b.dds")),
+            };
+
+            TextureTable& textures = scene.textures();
+            std::vector<VFS::Path::Normalized> fillers;
+            fillers.reserve(TextureTable::sCapacity);
+            while (textures.getLiveCount() < TextureTable::sCapacity)
+            {
+                fillers.emplace_back("textures/fill" + std::to_string(fillers.size()) + ".dds");
+                ASSERT_NE(textures.add(fillers.back()), sNoIndex);
+            }
+
+            const auto diffuse
+                = [&](const std::size_t chunk) { return scene.materials().getRows()[chunks[chunk]].mDiffuse; };
+
+            CompositeQueue queue;
+            EXPECT_EQ(frame(queue, scene), 0u);
+            EXPECT_EQ(textures.getRefused(), 1u) << "the take went on past a refusal";
+            EXPECT_EQ(frame(queue, scene), 0u);
+            EXPECT_EQ(textures.getRefused(), 1u) << "a refused take was asked again before anything was freed";
+
+            const Index first = textures.add(fillers[0]);
+            scene.drop(scene.holdTexture(first));
+            EXPECT_EQ(frame(queue, scene), 1u);
+            EXPECT_EQ(diffuse(0), first) << "the chunk refused first was not first in line";
+            EXPECT_EQ(diffuse(1), sNoIndex);
+            EXPECT_EQ(textures.getRefused(), 2u);
+            EXPECT_EQ(frame(queue, scene), 0u);
+            EXPECT_EQ(textures.getRefused(), 2u);
+
+            const Index second = textures.add(fillers[1]);
+            scene.drop(scene.holdTexture(second));
+            EXPECT_EQ(frame(queue, scene), 1u);
+            EXPECT_EQ(diffuse(1), second) << "the second chunk was dropped at its refusal";
+            EXPECT_EQ(frame(queue, scene), 0u);
         }
     }
 }

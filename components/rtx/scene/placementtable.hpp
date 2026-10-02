@@ -110,6 +110,9 @@ namespace Rtx
         /// wearing a material that changed what traversal is told. Each slot once.
         std::span<const Index> getMoved() const { return mMoved.getSlots(); }
 
+        /// Whether `slot` is in `getMoved`.
+        bool isMoved(Index slot) const { return mMoved.has(slot); }
+
         /// The slots the last `advance` caught up, whose motion is now still — the other half of
         /// what a backend rewrites, or last frame's motion would stay in the row for ever.
         std::span<const Index> getSettled() const { return mSettled.getSlots(); }
@@ -126,6 +129,9 @@ namespace Rtx
         ///
         /// @param meshes the scene's, whose boxes a placement names.
         void describePresences(std::span<const MeshRange> meshes, std::vector<Shaders::GpuPresence>& into) const;
+
+        /// Settles what a drop took out of `getPresent`, so it can be read.
+        void compact() { mPresent.compact(); }
 
     private:
         /// The two ways in and out, `SceneDesc::addInstance` and `SceneDesc::dropInstance`, which
@@ -173,9 +179,6 @@ namespace Rtx
 
         InstanceCounts mCounts;
 
-        /// Never stale: a slot taken out is compacted away at once, because one that leaves and
-        /// comes back — a fade counts a row out and in — would otherwise stand in the list twice.
-        /// A handful of slots, so the pass costs nothing.
         SlotSet mPresent;
     };
 }
