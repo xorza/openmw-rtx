@@ -296,22 +296,25 @@ namespace RtxTool
 
             // **The settings the ray tracer reads, from the harness's own sources and through the
             // game's one derivation.** Given on the line, the line's; a window's, the player's; a
-            // measured run's, the file's default — but for the upscaler, whose default for a run is
-            // the harness's own (`sUpscaleByDefault`). The size rule's constant is the player's own, since no
-            // option names it, and the viewing distance only decides where the cells say nought. The
-            // specular map layout is the player's in every run: it says what the content's files mean,
-            // as the `[Shaders]` switches beside it say whether to look for them.
+            // measured run's, the file's default, every one of them — but for the upscaler, whose
+            // default for a run is the harness's own (`sUpscaleByDefault`). So two machines that
+            // differ only in their `settings.cfg` measure one scene under one line.
             const MWRender::RtxSettings derived = MWRender::RtxSettings::derive(MWRender::RtxSettingValues{
                 .mUpscale = typed("upscale") ? spelled("upscale") : Settings::rtx().mUpscale.get(),
                 .mDistantLandCells = given("distant-cells") ? variables["distant-cells"].as<float>()
                     : watched                               ? Settings::rtx().mDistantLandCells.get()
                               : shippedDefault<float>(command.mConfig, "RTX", "distant land cells"),
-                .mViewingDistance = Settings::camera().mViewingDistance,
+                .mViewingDistance = watched ? Settings::camera().mViewingDistance.get()
+                                            : shippedDefault<float>(command.mConfig, "Camera", "viewing distance"),
                 .mObjectPaging = given("distant-statics") ? variables["distant-statics"].as<bool>()
                     : watched                             ? Settings::terrain().mObjectPaging.get()
                               : shippedDefault<bool>(command.mConfig, "Terrain", "object paging"),
-                .mObjectPagingMinSize = Settings::terrain().mObjectPagingMinSize,
-                .mSpecularMapLayout = Settings::rtx().mSpecularMapLayout.get(),
+                .mObjectPagingMinSize = watched
+                    ? Settings::terrain().mObjectPagingMinSize.get()
+                    : shippedDefault<float>(command.mConfig, "Terrain", "object paging min size"),
+                .mSpecularMapLayout = watched
+                    ? Settings::rtx().mSpecularMapLayout.get()
+                    : shippedDefault<std::string>(command.mConfig, "RTX", "specular map layout"),
                 .mAnisotropy = watched ? Settings::general().mAnisotropy.get()
                                        : shippedDefault<int>(command.mConfig, "General", "anisotropy"),
                 .mGamma = given("gamma") ? variables["gamma"].as<float>()
