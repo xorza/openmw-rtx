@@ -7,6 +7,7 @@
 #include <type_traits>
 
 #include <components/rtx/common/digestwords.hpp>
+#include <components/rtx/common/hashstate.hpp>
 
 namespace Rtx
 {
@@ -24,8 +25,7 @@ namespace Rtx
     ///
     /// **Each run goes in behind its length**, so that where one run ends and the next begins is
     /// part of the key: `[a b][c]` and `[a][b c]` are two inputs, and without the lengths they are
-    /// one stream of bytes. Chained through the whole 128-bit state — the seed this hash takes is
-    /// the state itself — so nothing added early is narrowed on the way to the key.
+    /// one stream of bytes.
     class ContentDigest
     {
     public:
@@ -45,7 +45,7 @@ namespace Rtx
         requires std::is_trivially_copyable_v<T>
         void addValue(const T& value) { add(std::span<const T>(&value, 1)); }
 
-        ContentKey getKey() const { return ContentKey{ mState }; }
+        ContentKey getKey() const { return ContentKey{ mState.getWords() }; }
 
         /// How many bytes of input went into the key, lengths left out: what a report weighs the
         /// time the key took against.
@@ -54,10 +54,7 @@ namespace Rtx
     private:
         void addBytes(std::span<const std::byte> bytes);
 
-        /// Steps the hash over `bytes` from where it stands.
-        void step(std::span<const std::byte> bytes);
-
-        DigestWords mState{};
+        HashState mState;
         std::uint64_t mBytes = 0;
     };
 }

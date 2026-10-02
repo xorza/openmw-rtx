@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -14,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-#include <smhasher/MurmurHash3.h>
+#include <components/rtx/common/hashstate.hpp>
 
 namespace Rtx
 {
@@ -148,10 +149,9 @@ namespace Rtx
 
             DigestWords hash() const
             {
-                constexpr DigestWords seed{};
-                DigestWords out{};
-                MurmurHash3_x64_128(mBytes.data(), static_cast<int>(mBytes.size()), seed.data(), out.data());
-                return out;
+                HashState state;
+                state.add(std::span<const char>(mBytes));
+                return state.getWords();
             }
 
         private:
