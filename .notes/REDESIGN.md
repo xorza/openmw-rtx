@@ -57,7 +57,9 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   and map tiles that wait for their ground.
 - **Phase 1, medium 18:** done — the deck turns about the eye and the sea runs on the rasterizer's
   wind, the moon's phase runs continuously, and the sky's sheets are keyed by name.
-- **Now:** Phase 1, medium item 19, W14.6's rest.
+- **Phase 1, medium 19:** done — the actor's alpha and fade resolved apart, sprites included, and an
+  effect on the hands kept in the arms' class.
+- **Now:** Phase 1, medium item 20, W14.2.
 
 ### Waiting for you
 
