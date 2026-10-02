@@ -52,7 +52,9 @@ namespace Rtx::Testing
             {
                 Platform::Process::disableCoreDump();
                 std::set_terminate([] {
-                    std::fprintf(stderr, "%s\n", Crash::terminateReason().c_str());
+                    char reason[Crash::sNoteCapacity];
+                    const std::string_view said = Crash::terminateReason(reason);
+                    std::fprintf(stderr, "%.*s\n", static_cast<int>(said.size()), said.data());
                     std::abort();
                 });
                 statement();

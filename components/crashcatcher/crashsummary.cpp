@@ -2,7 +2,11 @@
 
 #include <cstddef>
 #include <exception>
+#include <format>
 #include <string_view>
+#include <utility>
+
+#include "crash.hpp"
 
 namespace Crash
 {
@@ -20,7 +24,7 @@ namespace Crash
                     return "Report";
             }
 
-            return "Crash";
+            fatal("a report kind the summary does not name");
         }
 
         /// What the thread that raised the report did, as its note says: the one that faulted, or
@@ -38,7 +42,7 @@ namespace Crash
                     return ", which asked";
             }
 
-            return "";
+            fatal("a report kind the summary does not mark");
         }
 
         std::string kindPrefix(const CrashFacts& facts)
@@ -69,26 +73,31 @@ namespace Crash
         }
     }
 
-    std::string terminateReason()
+    std::string_view terminateReason(const std::span<char, sNoteCapacity> into)
     {
-        std::string reason = "std::terminate";
-        if (const std::exception_ptr current = std::current_exception())
+        const auto written
+            = [&]<class... Arguments>(std::format_string<Arguments...> format, Arguments&&... arguments) {
+                  const auto end
+                      = std::format_to_n(into.data(), into.size() - 1, format, std::forward<Arguments>(arguments)...);
+                  return std::string_view(into.data(), end.out);
+              };
+
+        const std::exception_ptr current = std::current_exception();
+        if (!current)
+            return written("std::terminate");
+
+        try
         {
-            try
-            {
-                std::rethrow_exception(current);
-            }
-            catch (const std::exception& error)
-            {
-                reason += " on an uncaught exception: ";
-                reason += error.what();
-            }
-            catch (...)
-            {
-                reason += " on an uncaught exception that is no std::exception";
-            }
+            std::rethrow_exception(current);
         }
-        return reason;
+        catch (const std::exception& error)
+        {
+            return written("std::terminate on an uncaught exception: {}", error.what());
+        }
+        catch (...)
+        {
+            return written("std::terminate on an uncaught exception that is no std::exception");
+        }
     }
 
     std::string title(const CrashFacts& facts)

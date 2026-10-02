@@ -34,9 +34,8 @@ namespace Crash
 
     std::vector<std::string> MonitorArguments::write() const
     {
-        char notes[48];
-        std::snprintf(notes, sizeof(notes), "0x%llx:%llu", static_cast<unsigned long long>(mNotes),
-            static_cast<unsigned long long>(mNotesSize));
+        char notes[24];
+        std::snprintf(notes, sizeof(notes), "0x%llx", static_cast<unsigned long long>(mNotes));
 
         std::vector<std::string> written{
             std::string(sMonitorSwitch),
@@ -65,12 +64,11 @@ namespace Crash
                 read.mClient = static_cast<std::uint32_t>(std::strtoul(std::string(*client).c_str(), nullptr, 10));
             else if (const auto notes = valueOf(argument, sNotes))
             {
-                // An address and a length that do not both read as numbers are no table at all.
+                // An address that does not read as a number to its end is no table at all.
                 const std::string text(*notes);
                 char* end = nullptr;
                 read.mNotes = std::strtoull(text.c_str(), &end, 16);
-                read.mNotesSize = end != nullptr && *end == ':' ? std::strtoull(end + 1, nullptr, 10) : 0;
-                if (read.mNotesSize == 0)
+                if (end == text.c_str() || *end != '\0')
                     read.mNotes = 0;
             }
             else if (const auto application = valueOf(argument, sApplication))

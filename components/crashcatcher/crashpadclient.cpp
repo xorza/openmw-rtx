@@ -61,7 +61,8 @@ namespace Crash
 
     void Client::onTerminate()
     {
-        endAsCrash(terminateReason());
+        char reason[sNoteCapacity];
+        endAsCrash(terminateReason(reason));
     }
 
     bool Client::isInstalled()
@@ -85,7 +86,6 @@ namespace Crash
         MonitorArguments monitor;
         monitor.mClient = process;
         monitor.mNotes = reinterpret_cast<std::uint64_t>(noteTable().data());
-        monitor.mNotesSize = noteTable().size();
         monitor.mApplication = settings.mApplication;
         monitor.mDialog = settings.mDialog;
         monitor.mEndAfter = settings.mEndAfter;

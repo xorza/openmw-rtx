@@ -54,12 +54,14 @@ namespace Crash::Monitor
             CloseHandle(thread);
     }
 
-    bool GameProcess::end() const
+    Ending GameProcess::end() const
     {
         const HANDLE handle = handleOf(mHold);
-        if (handle == nullptr || WaitForSingleObject(handle, 0) == WAIT_OBJECT_0)
-            return false;
-        return TerminateProcess(handle, 3) != FALSE;
+        if (handle == nullptr)
+            return Ending::Failed;
+        if (WaitForSingleObject(handle, 0) == WAIT_OBJECT_0)
+            return Ending::Gone;
+        return TerminateProcess(handle, 3) != FALSE ? Ending::Ended : Ending::Failed;
     }
 
     std::string describeException(const crashpad::ExceptionSnapshot& exception, std::uint32_t)
