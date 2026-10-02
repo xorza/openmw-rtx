@@ -137,7 +137,7 @@ namespace Rtx::Testing
         void runWorld(double seconds)
         {
             mWorldSeconds += seconds;
-            mExtractor.setSimulationTime(mWorldSeconds);
+            mExtractor.setSimulationTime(mWorldSeconds, seconds);
         }
 
         Rtx::SceneDesc mScene;

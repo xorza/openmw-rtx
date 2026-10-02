@@ -374,7 +374,7 @@ namespace Rtx::Testing
             const auto litAt = [&lamp](double seconds) {
                 Rtx::SceneDesc scene;
                 SceneExtractor extractor(scene);
-                extractor.setSimulationTime(seconds);
+                extractor.setSimulationTime(seconds, 0.0);
                 extractor.extract(*lamp, osg::Matrixf::identity(), 0);
 
                 const std::span<const Rtx::Light> lights = scene.lights();

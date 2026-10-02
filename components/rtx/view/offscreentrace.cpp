@@ -153,7 +153,12 @@ namespace Rtx
 
         // The world's clock, which the update above posed by: an enchanted glow on the doll and a
         // flame in its hand run at the hour the world has, as the rasterizer's preview runs them.
-        subject.mExtractor->setSimulationTime(posing.getSimulationTime());
+        // Redrawn on a change and not every frame, so its emitters step by the gap since the last
+        // redraw, which is what the rasterizer's cull of the preview hands `osgParticle`.
+        const double posedAt = posing.getSimulationTime();
+        const double step = subject.mPosedAt.has_value() ? posedAt - *subject.mPosedAt : 0.0;
+        subject.mPosedAt = posedAt;
+        subject.mExtractor->setSimulationTime(posedAt, step);
 
         // The picture's own eye, for whatever in the subject turns to face one.
         subject.mExtractor->setEye(viewBasisOf(osg::Matrixd::inverse(mView)));

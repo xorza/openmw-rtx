@@ -129,7 +129,7 @@ namespace Rtx::Testing
             const auto shownAt = [&frames](double seconds) {
                 Rtx::SceneDesc scene;
                 SceneExtractor extractor(scene);
-                extractor.setSimulationTime(seconds);
+                extractor.setSimulationTime(seconds, 0.0);
                 extractor.extract(*frames, osg::Matrixf::identity(), 0);
 
                 std::vector<osg::Vec3f> placed;
