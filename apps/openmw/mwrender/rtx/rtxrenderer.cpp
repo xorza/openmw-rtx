@@ -377,7 +377,7 @@ namespace MWRender
 
         // The sky's sheets into the mirror's scene, once: they are drawn by rays that reach
         // nothing, so nothing the walk finds would keep their slots.
-        mSky.attach(mMirror.getScene(), *getResources().getSceneManager(), mMirror.getPreprocessor());
+        mSky.attach(mMirror.getScene(), *getResources().getSceneManager(), mMirror.getContent().mFacts);
     }
 
     void RtxRenderer::adoptTraversalRoot(osg::Group& root) noexcept

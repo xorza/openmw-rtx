@@ -60,10 +60,23 @@ namespace Rtx
         osg::Vec3f opaque() const;
     };
 
-    /// Averages a finest level `describeFinest` gave, every texel and not a sample, because a mean
-    /// of a sheet that is mostly empty cannot be sampled. The alpha and the colours are read into
-    /// `scratch`.
-    MeanTexel meanTexel(const TextureData& finest, AlphaScratch& scratch);
+    /// What a file's texels say, read in one walk over its finest level. The finest level alone,
+    /// because a mask's average stops reaching solid a level or two down. A file's texels never
+    /// change, so `ImageFactCache` keeps the answer for its thread's life.
+    struct ImageFacts
+    {
+        MeanTexel mMean;
+
+        /// Whether any texel is fully opaque — what tells a wisp from a mask, since Morrowind keeps
+        /// its foliage and its clouds under one alpha mode: a leaf card is solid wherever its paint
+        /// is, and `Tx_Dagoth_Cloud`'s alpha peaks at seven fifteenths.
+        bool mReachesSolid = true;
+    };
+
+    /// The facts of a finest level `describeFinest` gave, from every texel and not a sample: a mean
+    /// of a sheet that is mostly empty cannot be sampled, and one solid texel makes a mask.
+    /// The alpha and the colours are read into `scratch`.
+    ImageFacts imageFactsOf(const TextureData& finest, AlphaScratch& scratch);
 
     /// Which format `image` arrived in, read as `encoding` — the one place a texture's `GLenum`
     /// decides its format, so the uploader and the report cannot disagree. A blend map is weights

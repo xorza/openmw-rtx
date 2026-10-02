@@ -20,7 +20,7 @@
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/image/textureencoding.hpp>
-#include <components/rtx/preprocess/meantexels.hpp>
+#include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
@@ -96,7 +96,7 @@ namespace Rtx
         releaseSprite(held);
         held.mSprite = sprite;
         held.mWrap = use.mWrap;
-        held.mMean = nullptr;
+        held.mFacts = nullptr;
         held.mRefused = RefusedTakes();
         if (sprite != nullptr)
             takeSprite(particles, held);
@@ -313,10 +313,10 @@ namespace Rtx
         const SpriteEmitter& emitter = mScene.emitters().back();
         if (pending.mGlow.has_value() && emitter.isAdditive())
         {
-            if (held.mMean == nullptr)
-                held.mMean = &mMeans.of(*held.mSprite);
+            if (held.mFacts == nullptr)
+                held.mFacts = &mFacts.of(*held.mSprite);
 
-            glows[*pending.mGlow].addSprites(emitter, mSpriteScratch, held.mMean->mColour);
+            glows[*pending.mGlow].addSprites(emitter, mSpriteScratch, held.mFacts->mMean.mColour);
         }
     }
 

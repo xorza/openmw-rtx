@@ -37,8 +37,7 @@ namespace SceneUtil
 
 namespace Rtx
 {
-    class ContentPreprocessor;
-    class MeanTexels;
+    class ImageFactCache;
     class SceneDesc;
     struct Shading;
 
@@ -54,14 +53,10 @@ namespace Rtx
         /// What the content said, or nothing where nothing did.
         std::optional<SurfaceDescription> mDescribed{};
 
-        /// Whether the diffuse map's alpha ever reaches solid — decided by the reader for the one
-        /// kind of surface the answer changes, a translucent one, and left unset for every other.
-        /// The reader answers it because the walk over the texels is the reading's whole cost.
-        std::optional<bool> mDiffuseSolid{};
-
-        /// What a texel of the diffuse map adds on average, `Material::mDiffuseMean` — decided by
-        /// the reader for an additive surface, for the same reason, and left unset for every other.
-        std::optional<osg::Vec3f> mDiffuseMean{};
+        /// What the diffuse map's texels say — read by the reader for the surfaces the answer
+        /// changes, a translucent or an additive one, and left unset for every other. The reader
+        /// answers it because the walk over the texels is the reading's whole cost.
+        std::optional<ImageFacts> mDiffuseFacts{};
     };
 
     /// Turns what the content says a surface is into the scene's materials, and keeps the textures
@@ -83,14 +78,12 @@ namespace Rtx
         /// @param pass the walk in progress: its sweep stamp and its counts, read at every call.
         ///        Borrowed, so that the mirror and everything resolving into it cannot come to hold
         ///        two answers.
-        /// @param means the thread's mean texels, shared with the emitters for the reason
+        /// @param facts the thread's image facts, shared with the emitters for the reason
         ///        `EmitterResolver` gives.
-        /// @param content the walk's thread's, which reads a translucent map's alpha.
-        MaterialResolver(SceneDesc& scene, const MirrorPass& pass, MeanTexels& means, ContentPreprocessor& content)
+        MaterialResolver(SceneDesc& scene, const MirrorPass& pass, ImageFactCache& facts)
             : mScene(scene)
             , mPass(pass)
-            , mMeans(means)
-            , mContent(content)
+            , mFacts(facts)
         {
         }
 
@@ -107,9 +100,8 @@ namespace Rtx
         /// Reads the chain of state sets in force at a drawable, for a thread that has no scene to
         /// resolve into. `resolve` is the same reading followed by `adopt`.
         ///
-        /// @param content that thread's own, which reads a translucent diffuse map's alpha.
-        /// @param means that thread's own cache of additive maps' means.
-        static MaterialReading read(std::span<const Shading> shading, ContentPreprocessor& content, MeanTexels& means);
+        /// @param facts that thread's own cache of image facts.
+        static MaterialReading read(std::span<const Shading> shading, ImageFactCache& facts);
 
         /// The material slot for a reading, adding it where the mirror holds none under its key,
         /// with one hold taken on the entry — `MeshResolver::adopt` says why a hold. Standing only:
@@ -161,10 +153,10 @@ namespace Rtx
         }
 
     private:
-        /// What the scene knows one image as under each encoding and wrap, and whether its alpha
-        /// ever reaches solid, unset until something asks, because the walk over its texels is only
-        /// worth doing for a material that has to tell a wisp from a mask. No one index: the slots
-        /// are twelve, and the sweep reads the reach alone.
+        /// What the scene knows one image as under each encoding and wrap, and what its texels say,
+        /// unset until something asks, because the walk over its texels is only worth doing for a
+        /// material the answer changes. No one index: the slots are twelve, and the sweep reads the
+        /// reach alone.
         struct HeldTexture
         {
             Reach mReach;
@@ -172,7 +164,6 @@ namespace Rtx
             /// The entry's hold on each slot it took, one per wrap and encoding, and empty where it
             /// took none.
             std::array<std::array<TextureHold, sTextureWrapCount>, sTextureEncodingCount> mSlots;
-            std::optional<bool> mSolid;
 
             /// Which of `mSlots` the table refused, a bit each. An animated material asks for its
             /// images every frame, and a full table refused each of them every frame, building the
@@ -181,9 +172,8 @@ namespace Rtx
             RefusedTakes mRefused;
             static_assert(sTextureEncodingCount * sTextureWrapCount <= 16, "a refusal bit per slot");
 
-            /// Its mean texel in the thread's cache, `MeanTexels`, or null until an additive
-            /// material asks.
-            const MeanTexel* mMean = nullptr;
+            /// Its facts in the thread's cache, `ImageFactCache`, or null until a material asks.
+            const ImageFacts* mFacts = nullptr;
         };
 
         /// Every image an animated material has worn, each held in `mTextureOf` for as long as the
@@ -273,15 +263,10 @@ namespace Rtx
         ///        which keeps the texture through the frames the controller shows another one.
         Index takeTexture(const TextureUse& use, Worn* worn, TextureEncoding encoding = TextureEncoding::Colour);
 
-        /// Whether `image`'s alpha ever reaches solid — `reachesSolid`, read at the first material
-        /// that asks and kept. Asked only for a translucent material's own diffuse map, because it
-        /// walks every texel of the finest level.
-        bool diffuseReachesSolid(const osg::Image* image);
-
-        /// What a texel of `image` adds on average under `blend` — `MeanTexels::of`, found by the
-        /// slot after the first ask. Asked only for an additive material's own diffuse map, because
-        /// the first ask for a file walks its texels. The untextured grey for no image.
-        osg::Vec3f diffuseMeanOf(const osg::Image* image, BlendKind blend);
+        /// What `image`'s texels say — `ImageFactCache::of`, found by the slot after the first ask.
+        /// Asked only for a material the answer changes, because the first ask for a file walks its
+        /// texels. Null for no image and for one `takeTexture` did not meet.
+        const ImageFacts* diffuseFacts(const osg::Image* image);
 
         SceneDesc& mScene;
         const MirrorPass& mPass;
@@ -301,10 +286,8 @@ namespace Rtx
         /// address would otherwise be handed the state set the first one's controllers were writing.
         Identity<const osg::Node, Animated> mAnimated{ mPass };
 
-        /// The extractor's, both. The ring's reader has its own and hands its answers over in the
-        /// reading.
-        MeanTexels& mMeans;
-        ContentPreprocessor& mContent;
+        /// The extractor's. The ring's reader has its own and hands its answers over in the reading.
+        ImageFactCache& mFacts;
 
         SpecularLayout mSpecularLayout = SpecularLayout::Ignore;
     };

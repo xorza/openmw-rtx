@@ -18,8 +18,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texels.hpp>
-#include <components/rtx/preprocess/contentpreprocessor.hpp>
-#include <components/rtx/preprocess/meantexels.hpp>
+#include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>
@@ -195,8 +194,7 @@ namespace Rtx
             .mKey = sSea };
     }
 
-    MaterialReading MaterialResolver::read(
-        std::span<const Shading> shading, ContentPreprocessor& content, MeanTexels& means)
+    MaterialReading MaterialResolver::read(std::span<const Shading> shading, ImageFactCache& facts)
     {
         if (shading.empty())
             return MaterialReading{};
@@ -215,13 +213,8 @@ namespace Rtx
         const bool additive = additiveSurface(described.mAlphaMode, described.mBlend);
         const osg::Image* const diffuse = described.getTexture(SurfaceMap::Diffuse);
 
-        if (diffuse != nullptr && !diffuse->getFileName().empty())
-        {
-            if (translucent)
-                reading.mDiffuseSolid = content.reachesSolid(*diffuse);
-            if (additive)
-                reading.mDiffuseMean = meanUnder(means.of(*diffuse), described.mBlend);
-        }
+        if ((translucent || additive) && diffuse != nullptr && !diffuse->getFileName().empty())
+            reading.mDiffuseFacts = facts.of(*diffuse);
 
         return reading;
     }
@@ -346,43 +339,24 @@ namespace Rtx
         return slot.get();
     }
 
-    osg::Vec3f MaterialResolver::diffuseMeanOf(const osg::Image* const image, const BlendKind blend)
+    const ImageFacts* MaterialResolver::diffuseFacts(const osg::Image* const image)
     {
         if (image == nullptr)
-            return Shaders::NO_TEXTURE_ALBEDO;
+            return nullptr;
 
-        // Asked only of an image `takeTexture` already met, as `diffuseReachesSolid` is; anything
-        // else is a sheet whose glow nothing can read, which is drawn as untextured and so lights
-        // as untextured.
+        // Asked only of an image `takeTexture` already met, which is the only way a material can
+        // come to name one. Anything else is a texture this cannot answer for, and a material
+        // keeps the answers that leave it traced as an untextured one would be.
         const auto known = mTextureOf.find(image);
         if (known == mTextureOf.end())
-            return Shaders::NO_TEXTURE_ALBEDO;
+            return nullptr;
 
         // Kept by the slot, so the frames after the first find it without the name.
-        const MeanTexel*& mean = known->second.mMean;
-        if (mean == nullptr)
-            mean = &mMeans.of(*image);
+        const ImageFacts*& facts = known->second.mFacts;
+        if (facts == nullptr)
+            facts = &mFacts.of(*image);
 
-        return meanUnder(*mean, blend);
-    }
-
-    bool MaterialResolver::diffuseReachesSolid(const osg::Image* const image)
-    {
-        if (image == nullptr)
-            return true;
-
-        // Asked only of an image `takeTexture` already met, which is the only way a material
-        // can come to name one. Anything else is a texture this cannot answer for, and the answer
-        // that leaves the surface traced exactly as it was is that it reaches solid.
-        const auto known = mTextureOf.find(image);
-        if (known == mTextureOf.end())
-            return true;
-
-        std::optional<bool>& solid = known->second.mSolid;
-        if (!solid.has_value())
-            solid = mContent.reachesSolid(*image);
-
-        return *solid;
+        return facts;
     }
 
     Material MaterialResolver::readMaterial(std::span<const Shading> shading, Worn* const worn)
@@ -477,15 +451,16 @@ namespace Rtx
         // filled above, and the walk over a texture's texels is worth nothing to a material that is
         // opaque, masked, or has no diffuse map to read — `Material::isMedium` is the other half,
         // and a glow is asked of an additive sheet alone. The reading's answer where one was made,
-        // and the walk over the texels only where none was: `value_or` would take the walk whatever
-        // the reading said.
-        if (material.isTranslucent() && material.mDiffuse != sNoIndex)
-            material.mDiffuseNeverSolid
-                = !(reading.mDiffuseSolid.has_value() ? *reading.mDiffuseSolid : diffuseReachesSolid(diffuse));
-
-        if (material.isAdditive() && material.mDiffuse != sNoIndex)
-            material.mDiffuseMean
-                = reading.mDiffuseMean.has_value() ? *reading.mDiffuseMean : diffuseMeanOf(diffuse, material.mBlend);
+        // and the walk over the texels only where none was.
+        if ((material.isTranslucent() || material.isAdditive()) && material.mDiffuse != sNoIndex)
+        {
+            const ImageFacts* const facts
+                = reading.mDiffuseFacts.has_value() ? &*reading.mDiffuseFacts : diffuseFacts(diffuse);
+            if (facts != nullptr && material.isTranslucent())
+                material.mDiffuseNeverSolid = !facts->mReachesSolid;
+            if (facts != nullptr && material.isAdditive())
+                material.mDiffuseMean = meanUnder(facts->mMean, material.mBlend);
+        }
 
         return material;
     }

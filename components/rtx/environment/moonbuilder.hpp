@@ -17,7 +17,7 @@ namespace Resource
 
 namespace Rtx
 {
-    class ContentPreprocessor;
+    class ImageFactCache;
     class SceneDesc;
 
     /// Which of the two moons over Vvardenfell.
@@ -129,11 +129,11 @@ namespace Rtx
 
     /// Adds each moon's face, `moonFaceOf`, opened from `images`, to `scene`, appending a hold on
     /// each to `holds`, which the caller gives back when the world goes, how wide `sizes` draws each
-    /// moon, and what each face averages, measured through `content`. A moon drawn from the mean of
+    /// moon, and what each face averages, read through `facts`. A moon drawn from the mean of
     /// its portrait is a coloured circle. A moon of size nought is not drawn, as the game draws
     /// none; one whose size is below nought or not finite is refused to `scene`.
     MoonFaces addMoonFaces(SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes,
-        std::vector<TextureHold>& holds, ContentPreprocessor& content);
+        std::vector<TextureHold>& holds, ImageFactCache& facts);
 
     /// A moon placed from angles `MWWorld::MoonModel` worked out. What a moon *is* once those
     /// angles are known — where its face points, how wide it is, which way its terminator falls —

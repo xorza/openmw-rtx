@@ -23,11 +23,8 @@ namespace Rtx
         /// smoothed them across a hard edge — `ShapePass`.
         Shape,
 
-        /// Whether a texture's alpha ever reaches solid — `SolidReach`.
-        SolidReach,
-
-        /// What a texel of a texture is worth on average — `TexelMean`.
-        TexelMean,
+        /// What a texture's texels say — `ImageFactPass`.
+        ImageFacts,
 
         Count,
     };
@@ -36,8 +33,7 @@ namespace Rtx
     /// files every output of the pass under a new key.
     inline constexpr NamedEnum sContentPasses{ std::array{
         std::pair{ ContentPassId::Shape, std::string_view("shape") },
-        std::pair{ ContentPassId::SolidReach, std::string_view("solid reach") },
-        std::pair{ ContentPassId::TexelMean, std::string_view("texel mean") },
+        std::pair{ ContentPassId::ImageFacts, std::string_view("image facts") },
     } };
 
     inline constexpr std::size_t sContentPassCount = sContentPasses.mNames.size();

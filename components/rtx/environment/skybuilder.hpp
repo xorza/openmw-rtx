@@ -19,7 +19,7 @@
 
 namespace Rtx
 {
-    class ContentPreprocessor;
+    class ImageFactCache;
     class SceneDesc;
 
     /// Which meshes the sky's two surfaces are read off — `Models/skyclouds` and the two star
@@ -94,9 +94,9 @@ namespace Rtx
     /// two skies without Bloodmoon. A deck's sheet is left out rather than stood in for, because
     /// the stand-in is an opaque grey, which over a cloud deck is the entire sky.
     ///
-    /// @param content what each sheet's mean is read through: the frame thread's.
+    /// @param facts what each sheet's mean is read through: the frame thread's.
     SkyContent addSkyContent(SceneDesc& scene, Resource::SceneManager& scenes, const SkyMeshes& meshes,
-        ContentPreprocessor& content, std::vector<TextureHold>& holds);
+        ImageFactCache& facts, std::vector<TextureHold>& holds);
 
     /// What a cloud deck radiates from below, where its own body shadows it and where it does not.
     /// The deck takes only the *shape* out of a sheet (`SkyContent::mCloudMean`) and the colour
