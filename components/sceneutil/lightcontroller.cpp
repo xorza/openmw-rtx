@@ -13,7 +13,7 @@ namespace SceneUtil
 
     LightController::LightController()
         : mType(LT_Normal)
-        , mPhase(0.25f + Misc::Rng::rollClosedProbability() * 0.75f)
+        , mPhase(sDimmest + Misc::Rng::rollClosedProbability() * (sBrightest - sDimmest))
         , mBrightness(0.675f)
         , mStartTime(0.0)
         , mLastTime(0.0)
@@ -47,12 +47,11 @@ namespace SceneUtil
         }
 
         // Updating flickering at 15 FPS like vanilla.
-        constexpr float updateRate = 15.f;
         mTicksToAdvance
-            = static_cast<float>(time - mStartTime - mLastTime) * updateRate * 0.25f + mTicksToAdvance * 0.75f;
+            = static_cast<float>(time - mStartTime - mLastTime) * sTicksPerSecond * 0.25f + mTicksToAdvance * 0.75f;
         mLastTime = time - mStartTime;
 
-        float speed = (mType == LT_Flicker || mType == LT_Pulse) ? 0.1f : 0.05f;
+        float speed = (mType == LT_Flicker || mType == LT_Pulse) ? sFastSpeed : sSlowSpeed;
         if (mBrightness >= mPhase)
             mBrightness -= mTicksToAdvance * speed;
         else
@@ -61,9 +60,9 @@ namespace SceneUtil
         if (std::abs(mBrightness - mPhase) < speed)
         {
             if (mType == LT_Flicker || mType == LT_FlickerSlow)
-                mPhase = 0.25f + Misc::Rng::rollClosedProbability() * 0.75f;
+                mPhase = sDimmest + Misc::Rng::rollClosedProbability() * (sBrightest - sDimmest);
             else // if (mType == LT_Pulse || mType == LT_PulseSlow)
-                mPhase = mPhase <= 0.5f ? 1.f : 0.25f;
+                mPhase = mPhase <= 0.5f ? sBrightest : sDimmest;
         }
 
         const float result = mBrightness * node->getActorFade();

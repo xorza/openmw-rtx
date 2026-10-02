@@ -22,6 +22,16 @@ namespace SceneUtil
             LT_PulseSlow
         };
 
+        /// The band an animated light's brightness walks within, as a share of its recorded colour.
+        static constexpr float sDimmest = 0.25f;
+        static constexpr float sBrightest = 1.f;
+
+        /// How far the brightness moves in one tick, fast and slow, at vanilla's fifteen ticks a
+        /// second.
+        static constexpr float sFastSpeed = 0.1f;
+        static constexpr float sSlowSpeed = 0.05f;
+        static constexpr float sTicksPerSecond = 15.f;
+
         LightController();
 
         void setType(LightType type);

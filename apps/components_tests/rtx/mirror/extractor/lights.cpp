@@ -348,22 +348,20 @@ namespace Rtx::Testing
 
             float deepest = 0.0f;
 
-            // A pulse turns once in three seconds. Eight samples across it put one within an eighth
-            // of a turn of the peak, so the deepest is at least `0.35 * cos(pi / 8)` from rest.
+            // A slow pulse turns once in two seconds. Eight samples across it put one within an
+            // eighth of a turn of an end, so the deepest is at least `0.75 * 0.375` from the middle.
             for (int i = 0; i < 8; ++i)
             {
-                const float lit = litAt(static_cast<double>(i) * 0.375);
+                const float lit = litAt(static_cast<double>(i) * 0.25);
 
-                // A pulse swings 0.35 either way about what the lamp radiates at rest. The bounds
-                // are formed the way `lightBrightness` forms them, so the trough and the peak sit
-                // on them to the bit.
-                EXPECT_GE(lit, sWhiteLampAtHundred * (1.0f - 0.35f));
-                EXPECT_LE(lit, sWhiteLampAtHundred * (1.0f + 0.35f));
+                // The game's band, a quarter to one of what the lamp radiates at full.
+                EXPECT_GE(lit, sWhiteLampAtHundred * 0.25f);
+                EXPECT_LE(lit, sWhiteLampAtHundred);
 
-                deepest = std::max(deepest, std::abs(lit - sWhiteLampAtHundred));
+                deepest = std::max(deepest, std::abs(lit - sWhiteLampAtHundred * 0.625f));
             }
 
-            EXPECT_GT(deepest, sWhiteLampAtHundred * 0.32f) << "the walk mirrored the lamp at rest";
+            EXPECT_GE(deepest, sWhiteLampAtHundred * 0.28f) << "the walk mirrored the lamp at rest";
 
             // And the instant is the whole of what decides it, so two walks over one clock agree.
             EXPECT_EQ(litAt(1.25), litAt(1.25));

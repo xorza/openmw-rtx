@@ -76,9 +76,9 @@ namespace Rtx
 
     /// How much of what a light radiates is arriving at `simulationTime`, as a multiplier on its
     /// recorded colour. This renderer's own animation and not `SceneUtil::LightController`'s, which
-    /// keeps a random walk's state: a function of the clock and of `id` and of nothing else, in
-    /// `1 +- depth`, averaging one over time, the same at a given instant however many times a
-    /// frame asks.
+    /// keeps a random walk's state: a function of the clock and of `id` and of nothing else, the same
+    /// at a given instant however many times a frame asks. Its statistics are the game's: within the
+    /// controller's band, averaging its middle, at its speeds; a pulse is the game's own triangle.
     float lightBrightness(SceneUtil::LightController::LightType type, int id, double simulationTime);
 
     /// What a magic effect's glowing sheets and flames add up to: the one lamp they make together.

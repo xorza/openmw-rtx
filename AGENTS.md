@@ -77,6 +77,8 @@ pointer and Lua read one size whichever renderer draws.
 - `SceneUtil::StateSetUpdater::getGeneration`, which `reset` bumps: the mirror applies an updater to
   a state set of its own after the node's update did, and a glow that ended or changed colour by
   `reset` left the mirror's copy with its last sheet.
+- `SceneUtil::LightController`'s band and speeds, named as constants: the ray tracer's lamp
+  animation keeps the game's statistics by reading them there, not by restating them.
 - The port to SDL3, through the input, the GUI and the window code: the presentation reads a
   window's pixel density and display scale, which a fractionally scaled Wayland desktop sets and
   SDL2 cannot report. SDL3 has no gamma ramp, so `[Video] gamma` is the renderers' own: the
