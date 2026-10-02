@@ -97,7 +97,7 @@ namespace RtxTool
         /// What the renderer was made with, as the report's header has it, one key a premise.
         std::string asJson(const MWRender::RunSetup& setup, const std::optional<float>& step)
         {
-            const Rtx::RenderProfile& profile = setup.mProfile;
+            const Rtx::RenderProfile& profile = setup.mRun.mProfile;
             const Rtx::MirrorKnobs& mirror = setup.mMirror;
             return std::format(R"(  "filter": {}, "jitter": {}, "delight": {:.3f}, "gamma": {:.3f}, "show": "{}", )"
                                R"("exposure": {}, "exposureHeld": {}, "variants": {}, "holdMs": {:.3f},)"
@@ -108,7 +108,7 @@ namespace RtxTool
                 Rtx::sSurfaceViewNames.name(profile.mShow), asJson(fixedScaleOf(profile.mExposure)),
                 std::holds_alternative<Rtx::HeldExposure>(profile.mExposure), profile.mSpecializeLaunches,
                 profile.mStressOverlapMs, mirror.mReach.mCells, mirror.mReach.mViewingDistance, mirror.mDistantStatics,
-                asJson(step), asJson(setup.mSettled), asJson(setup.mMemoryBudget));
+                asJson(step), asJson(setup.mSettled), asJson(setup.mRun.mMemoryBudget));
         }
 
         /// Null where nothing looked, for the same reason; and in the record at all because a
@@ -303,7 +303,7 @@ namespace RtxTool
     {
         // **The build and the layers first, because either makes every figure below one not to
         // quote**, and the command's own word on whether it measures beside them.
-        const Rtx::RenderProfile& profile = header.mSetup.mProfile;
+        const Rtx::RenderProfile& profile = header.mSetup.mRun.mProfile;
         const Rtx::MirrorKnobs& mirror = header.mSetup.mMirror;
         std::string out = std::format("\nrun  {}, layers {}, {}{}{}\n",
             header.mAsserts ? "a build with asserts, not one to quote" : "a release build",
@@ -323,7 +323,7 @@ namespace RtxTool
             "memory budget {}\n",
             mirror.mReach.mCells, mirror.mReach.mViewingDistance, mirror.mDistantStatics ? "on" : "off",
             describeStep(header.mStep), describeSettled(header.mSetup.mSettled),
-            describeBudget(header.mSetup.mMemoryBudget));
+            describeBudget(header.mSetup.mRun.mMemoryBudget));
         return out;
     }
 

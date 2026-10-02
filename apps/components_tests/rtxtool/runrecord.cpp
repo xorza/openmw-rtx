@@ -58,7 +58,7 @@ namespace RtxTool
             request.mStops = { turning };
             request.mHashes = TestingOpenMW::outputFilePath("premises-hashes.csv");
             request.mJson = TestingOpenMW::outputFilePath("premises.json");
-            Rtx::RenderProfile& profile = request.mSetup.mProfile;
+            Rtx::RenderProfile& profile = request.mSetup.mRun.mProfile;
             profile.mReconstruction.mDenoise = false;
             profile.mReconstruction.mJitter = true;
             profile.mDelight = 0.5f;
@@ -71,7 +71,7 @@ namespace RtxTool
             request.mSetup.mMirror.mDistantStatics = false;
             request.mStep = 0.0625f;
             request.mSetup.mSettled = false;
-            request.mSetup.mMemoryBudget = 512ull * 1024 * 1024;
+            request.mSetup.mRun.mMemoryBudget = 512ull * 1024 * 1024;
 
             RunRecord record;
             record.begin(request);

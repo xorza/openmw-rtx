@@ -101,16 +101,18 @@ namespace MWRender
             const RtxSettings settings = RtxSettings::derive(RtxSettingValues::fromRegistry());
 
             return RunSetup{
-                .mProfile = {
-                    .mUpscale = settings.mUpscale,
-                    .mAnisotropy = settings.mAnisotropy,
-                    .mGamma = settings.mGamma,
-                    .mLitEnvironmentMaps = settings.mLitEnvironmentMaps,
-                    .mExposure = Rtx::ExposureRule{},
-                    .mRadianceWidth = Rtx::RadianceWidth::Shown,
+                .mRun = {
+                    .mProfile = {
+                        .mUpscale = settings.mUpscale,
+                        .mAnisotropy = settings.mAnisotropy,
+                        .mGamma = settings.mGamma,
+                        .mLitEnvironmentMaps = settings.mLitEnvironmentMaps,
+                        .mExposure = Rtx::ExposureRule{},
+                        .mRadianceWidth = Rtx::RadianceWidth::Shown,
+                    },
+                    .mValidation
+                    = { .mLevel = Rtx::sValidationByDefault ? Rtx::ValidationLevel::On : Rtx::ValidationLevel::Off },
                 },
-                .mValidation
-                = { .mLevel = Rtx::sValidationByDefault ? Rtx::ValidationLevel::On : Rtx::ValidationLevel::Off },
                 .mMirror = settings.mMirror,
                 .mHeadless = false,
                 .mSettled = std::nullopt,
@@ -170,11 +172,12 @@ namespace MWRender
         options.mHeight = static_cast<std::uint32_t>(getPresentation().mFrame.y());
         options.mWindow = mWindow.get();
         options.mVerticalSync = Settings::video().mVsyncMode;
-        // **The run's answer.** A launcher making a measurement says on its command line whether
-        // the layers load, because a figure taken under them is not one to compare against
-        // anything; `playedRunSetup` says what a session with no command line answers.
-        options.mValidation = setup.mValidation;
-        options.mMemoryBudget = setup.mMemoryBudget;
+        // **The run's answer, handed over whole**: the profile a measurement turns, so a picture
+        // taken by the harness and a frame drawn by the game come from one configuration, the
+        // layers — a launcher making a measurement says on its command line whether they load,
+        // because a figure taken under them is not one to compare against anything — and the
+        // budget. `playedRunSetup` says what a session with no command line answers.
+        options.mRun = setup.mRun;
 
         // **The two finer levels, asked for by name and never on by themselves.** The build decides
         // whether the layers load; these decide what they check, and each costs far more than the
@@ -193,9 +196,9 @@ namespace MWRender
         // Either raises the level whatever the build said, which is what lets a Release build be
         // asked one question without being rebuilt.
         if (askedFor("OPENMW_RTX_SYNC_VALIDATION"))
-            options.mValidation.mLevel = std::max(options.mValidation.mLevel, Rtx::ValidationLevel::Sync);
+            options.mRun.mValidation.mLevel = std::max(options.mRun.mValidation.mLevel, Rtx::ValidationLevel::Sync);
         if (askedFor("OPENMW_RTX_GPU_VALIDATION"))
-            options.mValidation.mLevel = Rtx::ValidationLevel::Gpu;
+            options.mRun.mValidation.mLevel = Rtx::ValidationLevel::Gpu;
 
         // **Counted exactly where a run is installed.** The counts are a report's figures — what
         // tells "the cell rendered" from "the camera faced away from it", and what `check` asserts
@@ -204,15 +207,11 @@ namespace MWRender
         // pixel that hit anything.
         options.mCounting = run != nullptr;
 
-        // **The knobs a measurement turns, handed over whole where the renderer is built**, so a
-        // picture taken by the harness and a frame drawn by the game come from one configuration.
-        options.mProfile = setup.mProfile;
-
         // **Said once, where it is decided.** What reconstructs the frame does not change while the
         // session runs, so it does not belong in the periodic line; what that line carries is the
         // one word a reader of any single line needs, and the rest — at what pair of sizes — is here,
         // where it was chosen.
-        Log(Debug::Info) << "Ray tracing: upscale " << Rtx::sUpscaleNames.name(setup.mProfile.mUpscale);
+        Log(Debug::Info) << "Ray tracing: upscale " << Rtx::sUpscaleNames.name(setup.mRun.mProfile.mUpscale);
 
         // **A switch the player turned on for what this renderer declines is said once, with the
         // declaration's reason**: grass, a second eye, a shader chain. Said and not refused, because
@@ -229,7 +228,7 @@ namespace MWRender
                 Log(Debug::Warning) << "[" << setting.first << "] " << setting.second << " is on: " << declined;
 
         mRenderer = Rtx::createVulkanRenderer(options);
-        mUpscale = setup.mProfile.mUpscale;
+        mUpscale = setup.mRun.mProfile.mUpscale;
 
         Log(Debug::Info) << "Ray tracing on " << mRenderer->describeDevice();
 

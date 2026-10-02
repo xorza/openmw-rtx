@@ -338,13 +338,13 @@ namespace RtxTool
             framed.mSetup.mMirror = derived.mMirror;
 
             // **The layers the command's row says, unless the line names some**: `VerbPolicy`.
-            framed.mSetup.mValidation
+            framed.mSetup.mRun.mValidation
                 = policyOf(command.mVerb).mMeasures ? validationForMeasuring(variables) : validationFrom(variables);
             framed.mSetup.mShaderSource = variables["shader-source"].as<bool>();
             if (variables.count("memory-budget") != 0)
-                framed.mSetup.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
+                framed.mSetup.mRun.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
 
-            Rtx::RenderProfile& profile = framed.mSetup.mProfile;
+            Rtx::RenderProfile& profile = framed.mSetup.mRun.mProfile;
             profile.mUpscale = derived.mUpscale;
             profile.mAnisotropy = derived.mAnisotropy;
             profile.mGamma = derived.mGamma;
@@ -380,7 +380,7 @@ namespace RtxTool
                     .mShaderDirectory = command.mShaders,
                     .mWidth = 1,
                     .mHeight = 1,
-                    .mValidation = validation,
+                    .mRun = { .mValidation = validation },
                 });
                 out() << renderer->describeDevice();
                 return 0;
@@ -727,7 +727,7 @@ namespace RtxTool
             // **What each picture is held to is where it came from.** A frame the wavelet composed and
             // nothing upscaled is the picture the hashes cannot judge; a doll and a tile are always
             // denoised (`Reconstruction::forPicture`); the sheet is the textures and nothing traced.
-            const Rtx::RenderProfile& profile = framed.mSetup.mProfile;
+            const Rtx::RenderProfile& profile = framed.mSetup.mRun.mProfile;
             const PictureRule frameRule = profile.mReconstruction.mDenoise && !Rtx::upscales(profile.mUpscale)
                 ? PictureRule::Denoised
                 : PictureRule::Hashed;
@@ -775,7 +775,7 @@ namespace RtxTool
 
             // A bench draws frames the way a player sees them and sums none of them, so it is
             // measured at the width the game runs at. Every other verb keeps the reference's.
-            framed.mSetup.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
+            framed.mSetup.mRun.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
             framed.mSetup.mHeadless = !variables["window"].as<bool>();
 
             const SuiteRun run = chooseBenchViews(variables, command.mResources, "default");
@@ -831,7 +831,7 @@ namespace RtxTool
             Framed framed = frameFrom(command);
 
             // Watched and never summed, like a bench.
-            framed.mSetup.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
+            framed.mSetup.mRun.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
 
             // **On the wall, because somebody is watching.** A stepped world runs as fast as the
             // card draws it, which at two hundred frames a second is three times over; a window
@@ -869,7 +869,7 @@ namespace RtxTool
             const bpo::variables_map& variables = command.mVariables;
             Framed framed = frameFrom(command);
             if (variables["hold"].defaulted())
-                framed.mSetup.mProfile.mStressOverlapMs = sCheckHoldMs;
+                framed.mSetup.mRun.mProfile.mStressOverlapMs = sCheckHoldMs;
 
             const SuiteRun run = chooseBenchViews(variables, command.mResources, "check");
             std::vector<Stop> stops = stopsFrom(run.mViews, variables, framed);
@@ -893,7 +893,7 @@ namespace RtxTool
                 measureFrames(stop, 2);
 
                 for (const Check check : every)
-                    if (canAsk(check, stop, framed.mSetup.mProfile))
+                    if (canAsk(check, stop, framed.mSetup.mRun.mProfile))
                         stop.mActions.mChecks.push_back(check);
 
                 // A route runs for as long as the line says, and ends where it arrives.
@@ -945,7 +945,7 @@ namespace RtxTool
             const std::filesystem::path out = outOf(command);
             std::filesystem::create_directories(out);
 
-            const Rtx::ReconstructionRequest& played = framed.mSetup.mProfile.mReconstruction;
+            const Rtx::ReconstructionRequest& played = framed.mSetup.mRun.mProfile.mReconstruction;
             Rtx::ReconstructionRequest reference = played;
             reference.mDenoise = false;
             reference.mJitter = true;
@@ -982,7 +982,7 @@ namespace RtxTool
             // A frame taken standing still has a history as long as the warm-up, which is more than
             // any mode needs to hold sixteen samples a shown pixel.
             const Rtx::FrameExtents extents
-                = Rtx::extentsFor(framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mProfile.mUpscale);
+                = Rtx::extentsFor(framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mRun.mProfile.mUpscale);
             const std::uint32_t barFrames = flies ? noiseBarFramesAfter(sNoiseFlightFrames, extents) : sNoiseBarFrames;
 
             // The frame's own stop, flying in where the line asks: a route that holds the world, so
@@ -1083,7 +1083,7 @@ namespace RtxTool
             Framed framed = frameFrom(command);
 
             // Watched and never summed, like a bench.
-            framed.mSetup.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
+            framed.mSetup.mRun.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
 
             const std::filesystem::path keys = variables["keys"].as<std::string>();
             if (keys.empty())
@@ -1093,7 +1093,7 @@ namespace RtxTool
             // frame of film between two frames.
             framed.mStep = 1.0f / variables["fps"].as<float>();
             framed.mSetup.mSettled = true;
-            framed.mSetup.mProfile.mUpscale = sFilmUpscale;
+            framed.mSetup.mRun.mProfile.mUpscale = sFilmUpscale;
 
             FilmPacing pacing;
             pacing.mStep = *framed.mStep;
