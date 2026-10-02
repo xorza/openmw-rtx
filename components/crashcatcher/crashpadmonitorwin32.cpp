@@ -1,11 +1,8 @@
 #include "crashpadmonitorsystem.hpp"
 
-#include <algorithm>
 #include <array>
 #include <atomic>
-#include <cstddef>
 #include <cstdint>
-#include <ctime>
 #include <string>
 #include <utility>
 #include <vector>
@@ -13,8 +10,6 @@
 #include <snapshot/exception_snapshot.h>
 
 #include <components/misc/windows.hpp>
-
-#include <shellapi.h>
 
 namespace Crash::Monitor
 {
@@ -93,29 +88,6 @@ namespace Crash::Monitor
                                               : " executing ")
                 + hex(codes[1]);
         return text;
-    }
-
-    std::vector<std::string> commandLine(int, char**)
-    {
-        std::vector<std::string> arguments;
-        int count = 0;
-        wchar_t** const wide = CommandLineToArgvW(GetCommandLineW(), &count);
-        for (int i = 0; i < count; ++i)
-        {
-            const int size = WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, nullptr, 0, nullptr, nullptr);
-            std::string one(static_cast<std::size_t>(std::max(size, 1)) - 1, '\0');
-            WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, one.data(), size, nullptr, nullptr);
-            arguments.push_back(std::move(one));
-        }
-        LocalFree(wide);
-        return arguments;
-    }
-
-    std::tm localTime(std::time_t seconds)
-    {
-        std::tm local{};
-        localtime_s(&local, &seconds);
-        return local;
     }
 
     std::string_view dumpFolder()

@@ -39,6 +39,8 @@
 #include <util/process/process_memory.h>
 
 #include <components/files/conversion.hpp>
+#include <components/platform/localtime.hpp>
+#include <components/platform/process.hpp>
 
 #include "crashmonitorarguments.hpp"
 #include "crashpackage.hpp"
@@ -154,7 +156,7 @@ namespace Crash
         std::string stamp()
         {
             const auto now = std::chrono::system_clock::now();
-            const std::tm local = Monitor::localTime(std::chrono::system_clock::to_time_t(now));
+            const std::tm local = Platform::localTime(std::chrono::system_clock::to_time_t(now)).value_or(std::tm{});
             const auto milliseconds
                 = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000;
             char text[32];
@@ -459,8 +461,8 @@ namespace Crash
             const std::filesystem::path folder = monitor.getReportFolder();
             std::error_code made;
             std::filesystem::create_directories(folder, made);
-            const SessionPackage package = writeSessionPackage(
-                folder, monitor.mApplication, monitor.getLog(), dumps, Monitor::localTime(std::time(nullptr)));
+            const SessionPackage package = writeSessionPackage(folder, monitor.mApplication, monitor.getLog(), dumps,
+                Platform::localTime(std::time(nullptr)).value_or(std::tm{}));
 
             std::vector<std::string> lines;
             for (const std::filesystem::path& missing : package.mMissing)
@@ -539,7 +541,7 @@ namespace Crash
             return;
 
         std::vector<std::string> handler;
-        MonitorState monitor(MonitorArguments::read(Monitor::commandLine(argc, argv), handler));
+        MonitorState monitor(MonitorArguments::read(Platform::Process::commandLine(argc, argv), handler));
 
         crashpad::UserStreamDataSources sources;
         sources.push_back(std::make_unique<SummarySource>(monitor));

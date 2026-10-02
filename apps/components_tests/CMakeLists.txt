@@ -36,6 +36,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     nifloader/testbulletnifloader.cpp
 
+    platform/localtime.cpp
     platform/thread.cpp
 
     detournavigator/navigator.cpp

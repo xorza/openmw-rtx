@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <signal.h>
 #include <sys/resource.h>
@@ -68,6 +69,11 @@ namespace Platform::Process
         }
         return std::nullopt;
 #endif
+    }
+
+    std::vector<std::string> commandLine(const int argc, char** const argv)
+    {
+        return std::vector<std::string>(argv, argv + argc);
     }
 
     std::uint32_t currentId()
