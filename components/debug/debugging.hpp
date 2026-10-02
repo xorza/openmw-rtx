@@ -1,11 +1,8 @@
 #ifndef DEBUG_DEBUGGING_H
 #define DEBUG_DEBUGGING_H
 
-#include <chrono>
-#include <cstddef>
 #include <filesystem>
 #include <functional>
-#include <span>
 #include <string_view>
 
 #include <components/misc/guarded.hpp>
@@ -26,14 +23,6 @@ namespace Debug
 #ifdef _WIN32
     bool attachParentConsole();
 #endif
-
-    // Room for the stamp a log line starts with
-    constexpr std::size_t sStampCapacity = 32;
-
-    // Writes the stamp a log line starts with, "[13:04:05.123 E] ", for `level` at `now` into `into`,
-    // and returns how much it wrote
-    std::size_t writeStamp(
-        std::span<char, sStampCapacity> into, Level level, std::chrono::system_clock::time_point now);
 
     using LogListener = std::function<void(Debug::Level, std::string_view prefix, std::string_view msg)>;
     void setLogListener(LogListener);

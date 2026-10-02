@@ -36,8 +36,6 @@ file(GLOB UNITTEST_SRC_FILES
 
     nifloader/testbulletnifloader.cpp
 
-    debug/stamp.cpp
-
     platform/localtime.cpp
     platform/thread.cpp
 

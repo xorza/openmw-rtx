@@ -1,14 +1,10 @@
 #include "debugging.hpp"
 
 #include <chrono>
-#include <cstddef>
-#include <cstdio>
-#include <ctime>
 #include <deque>
 #include <fstream>
 #include <iostream>
 #include <memory>
-#include <span>
 #include <string_view>
 
 #ifdef _MSC_VER
@@ -27,7 +23,6 @@
 #include <components/misc/result.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/misc/strings/lower.hpp>
-#include <components/platform/localtime.hpp>
 #include <components/platform/process.hpp>
 
 #ifdef _WIN32
@@ -100,18 +95,6 @@ namespace Debug
         logListener = std::move(listener);
     }
 
-    std::size_t writeStamp(std::span<char, sStampCapacity> into, Level level, std::chrono::system_clock::time_point now)
-    {
-        into[0] = '[';
-        const std::tm local = Platform::localTime(std::chrono::system_clock::to_time_t(now)).value_or(std::tm{});
-        std::size_t size = std::strftime(into.data() + 1, into.size() - 1, "%T", &local) + 1;
-        const char levelLetter = " EWIVD*"[int(level)];
-        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-        size += snprintf(
-            into.data() + size, into.size() - size, ".%03u %c] ", static_cast<unsigned>(ms % 1000), levelLetter);
-        return size;
-    }
-
     namespace
     {
         /// Whether `OPENMW_CRASH_REPORTS` named the reports' folder, which then stands over the
@@ -135,8 +118,25 @@ namespace Debug
                     msg = msg.substr(1);
                 }
 
-                char prefix[sStampCapacity];
-                const std::size_t prefixSize = writeStamp(prefix, level, std::chrono::system_clock::now());
+                char prefix[32];
+                std::size_t prefixSize;
+                {
+                    prefix[0] = '[';
+                    const auto now = std::chrono::system_clock::now();
+                    const auto time = std::chrono::system_clock::to_time_t(now);
+                    tm timeInfo{};
+#ifdef _WIN32
+                    (void)localtime_s(&timeInfo, &time);
+#else
+                    (void)localtime_r(&time, &timeInfo);
+#endif
+                    prefixSize = std::strftime(prefix + 1, sizeof(prefix) - 1, "%T", &timeInfo) + 1;
+                    char levelLetter = " EWIVD*"[int(level)];
+                    const auto ms
+                        = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+                    prefixSize += snprintf(prefix + prefixSize, sizeof(prefix) - prefixSize, ".%03u %c] ",
+                        static_cast<unsigned>(ms % 1000), levelLetter);
+                }
 
                 while (!msg.empty())
                 {
@@ -166,7 +166,10 @@ namespace Debug
                 return All;
             }
 
-            virtual std::streamsize writeImpl(const char* str, std::streamsize size, Level debugLevel) { return size; }
+            virtual std::streamsize writeImpl(const char* str, std::streamsize size, Level debugLevel)
+            {
+                return size;
+            }
         };
 
 #if defined _WIN32 && defined _DEBUG
