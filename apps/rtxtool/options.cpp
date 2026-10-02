@@ -178,11 +178,13 @@ namespace RtxTool
 
         option(Verbs::Every, "list-views", bpo::bool_switch(), "print the named viewpoints and quit");
 
-        option(sFramed, "delight", number(between(0.0f, 1.0f))->default_value(byDefault.mSetup.mProfile.mDelight),
+        option(sFramed, "delight", number(between(0.0f, 1.0f))->default_value(byDefault.mSetup.mRun.mProfile.mDelight),
             "how much of the lighting painted into each texture to divide back out, from 0 to 1. "
             "Zero is the A/B that says what it did");
         option(sFramed, "filter",
-            bpo::value<bool>()->default_value(byDefault.mSetup.mProfile.mReconstruction.mDenoise)->implicit_value(true),
+            bpo::value<bool>()
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mDenoise)
+                ->implicit_value(true),
             "run the denoisers over the light. Off shows the raw light, and is what a reference is "
             "made with");
         option(Verbs::Shot, "doll", bpo::value<std::string>()->default_value(""),
@@ -199,7 +201,7 @@ namespace RtxTool
 
         option(otherThan(Verbs::Info | Verbs::Film), "upscale",
             bpo::value<std::string>()->default_value(
-                std::string(Rtx::sUpscaleNames.name(byDefault.mSetup.mProfile.mUpscale))),
+                std::string(Rtx::sUpscaleNames.name(byDefault.mSetup.mRun.mProfile.mUpscale))),
             std::format("put the upscaler, FSR 3.1, between the trace and the picture: {}. --size is "
                         "what comes out, and what gets traced is --size over the mode's ratio. `{}` "
                         "by default. `film` is always `{}`",
@@ -514,7 +516,9 @@ namespace RtxTool
             "than towards the integral");
 
         option(sFramed, "jitter",
-            bpo::value<bool>()->default_value(byDefault.mSetup.mProfile.mReconstruction.mJitter)->implicit_value(true),
+            bpo::value<bool>()
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mJitter)
+                ->implicit_value(true),
             "sample a different point inside each pixel every frame. Only worth anything to "
             "something putting several frames together, and forced on whenever anything upscales");
 

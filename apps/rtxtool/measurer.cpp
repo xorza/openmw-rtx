@@ -370,7 +370,7 @@ namespace RtxTool
                 .mOverlap = place.mOverlap,
                 .mZones = zones,
                 .mHold = mProgress.mHold,
-                .mHoldAskedMs = mRequest.mSetup.mProfile.mStressOverlapMs,
+                .mHoldAskedMs = mRequest.mSetup.mRun.mProfile.mStressOverlapMs,
                 .mNotFinite = mProgress.mNotFinite,
             },
             mRecord);

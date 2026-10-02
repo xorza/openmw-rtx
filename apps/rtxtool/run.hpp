@@ -169,7 +169,7 @@ namespace RtxTool
         /// shaders and budget, hidden until a command says otherwise. The request `sessionFor`
         /// builds carries it as it is, so a knob `RunSetup` gains reaches every command by being
         /// read here.
-        MWRender::RunSetup mSetup{ .mProfile = { .mUpscale = sUpscaleByDefault }, .mHeadless = true };
+        MWRender::RunSetup mSetup{ .mRun = { .mProfile = { .mUpscale = sUpscaleByDefault } }, .mHeadless = true };
 
         /// The step every frame stands for — `SessionRequest::mStep` — the harness's own rate until
         /// a command says otherwise.

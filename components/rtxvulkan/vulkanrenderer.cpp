@@ -67,11 +67,11 @@ namespace Rtx
     }
 
     VulkanRenderer::VulkanRenderer(const RendererOptions& options)
-        : mInstance(options.mValidation, surfaceExtensionsFor(options))
+        : mInstance(options.mRun.mValidation, surfaceExtensionsFor(options))
         , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle()), options.mShaderDirectory,
               PipelineCacheSpec{ .mDirectory = options.mCacheDirectory })
         , mCounting(options.mCounting)
-        , mProfile(options.mProfile)
+        , mProfile(options.mRun.mProfile)
         , mInverseGamma(1.0f / mProfile.mGamma)
         , mStress(mProfile.mStressOverlapMs > 0.0 ? std::make_unique<StressPass>(mDevice, mProfile.mStressOverlapMs)
                                                   : nullptr)
@@ -85,7 +85,7 @@ namespace Rtx
         , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures())
         , mUpscaler(mDevice)
     {
-        mDevice.getMemory().limitBudget(options.mMemoryBudget);
+        mDevice.getMemory().limitBudget(options.mRun.mMemoryBudget);
 
         if (options.mWindow != nullptr)
             mPresenter = std::make_unique<Presenter>(mDevice, mInstance, options.mWindow, options.mVerticalSync);

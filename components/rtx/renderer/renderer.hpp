@@ -93,6 +93,29 @@ namespace Rtx
     inline constexpr bool sAssertsOn = true;
 #endif
 
+    /// What a run decides once of how the renderer works: the knobs the frames are traced under,
+    /// which layers watch, and how much video memory it may take. One record, held whole by the
+    /// backend's options and by each host's run and assigned whole, so a knob of the run is declared
+    /// once.
+    struct RunProfile
+    {
+        /// Everything the run decided once about how the picture is made. The upscaling mode is
+        /// fixed for the renderer's lifetime bar `Renderer::setUpscale`, and a build that has no
+        /// upscaler refuses anything but `Off` at construction.
+        RenderProfile mProfile{};
+
+        /// Which validation layers watch. Carried by the run and never in a settings file, for the
+        /// reason `sValidationByDefault` gives.
+        ValidationOptions mValidation{};
+
+        /// The video memory the renderer takes its budget to be, in bytes, where the device states
+        /// more; nothing to take the device's word. For a run that asks what a smaller card does
+        /// with a place: content stops where it would stop there — textures held to a smaller side
+        /// first — and what still does not fit is refused as it would be. What the frame itself
+        /// holds is never refused, whatever this says. The harness's, and never a played session's.
+        std::optional<std::uint64_t> mMemoryBudget{};
+    };
+
     struct RendererOptions
     {
         /// Where the build wrote the compiled shaders for whichever backend this is.
@@ -104,14 +127,12 @@ namespace Rtx
         std::filesystem::path mCacheDirectory{};
 
         /// The frame's size: what `readPixels` gives back, and what a window shows scaled to fit.
-        /// What it is traced at follows from `mProfile.mUpscale`.
+        /// What it is traced at follows from `mRun.mProfile.mUpscale`.
         std::uint32_t mWidth = 1920;
         std::uint32_t mHeight = 1080;
 
-        /// Everything the run decided once about how the picture is made. The upscaling mode is
-        /// fixed for the renderer's lifetime bar `Renderer::setUpscale`, and a build that has no
-        /// upscaler refuses anything but `Off` at construction.
-        RenderProfile mProfile{};
+        /// What the run decided once: the profile, the layers and the budget.
+        RunProfile mRun{};
 
         /// Where the frame is shown, or null for a renderer that only reads pixels back. A window
         /// and not a surface, because a surface is a thing an API has.
@@ -122,21 +143,12 @@ namespace Rtx
         /// its own setting over, and `Renderer::setVerticalSync` follows a change to it.
         SDLUtil::VSyncMode mVerticalSync = SDLUtil::VSyncMode::Disabled;
 
-        ValidationOptions mValidation;
-
         /// Whether the frame counts for the host: the primary rays that hit anything, and the
         /// values that were not finite at each boundary they crossed — `FrameResult::mHits` and
         /// `mNotFinite`. On by default, so a reader who forgets it gets a number rather than a
         /// silent nought; the game clears it. Not a knob of the run's picture, which is why it is
         /// not in the profile.
         bool mCounting = true;
-
-        /// The video memory the renderer takes its budget to be, in bytes, where the device states
-        /// more; nothing to take the device's word. For a run that asks what a smaller card does
-        /// with a place: content stops where it would stop there — textures held to a smaller side
-        /// first — and what still does not fit is refused as it would be. What the frame itself
-        /// holds is never refused, whatever this says.
-        std::optional<std::uint64_t> mMemoryBudget{};
     };
 
     /// What a backend holds in one of its slots, as it says so itself. A slot and a scene are one
