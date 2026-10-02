@@ -32,6 +32,7 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>
+#include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/gui/guitextures.hpp>
@@ -768,7 +769,7 @@ namespace Rtx
                 .mRadius = 30.0f,
                 .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                 .mAlpha = 1.0f } };
-            scene.addEmitter(sprites, cut, false);
+            scene.addEmitter(sprites, cut, BlendKind::Over);
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, puff);
 
             const GuiSlot texture = mRenderer.addGuiTexture(extent, extent);
@@ -830,7 +831,7 @@ namespace Rtx
                     .mRadius = 60.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                     .mAlpha = 1.0f } };
-                scene.addEmitter(sprites, cut, additive);
+                scene.addEmitter(sprites, cut, additive ? BlendKind::Add : BlendKind::Over);
                 mRenderer.setScene(Rtx::SceneSlot::world(), scene, puff);
 
                 Shaders::VisibilityConstants camera = makeMapCamera(extent);

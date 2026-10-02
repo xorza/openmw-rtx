@@ -15,6 +15,7 @@
 
 #include <components/rtx/common/namedenum.hpp>
 #include <components/rtx/image/colour.hpp>
+#include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 
 namespace osg
@@ -180,6 +181,14 @@ namespace Rtx
         /// Adds whole, its alpha unread.
         AddWhole,
     };
+
+    /// What one texel of a sheet adds on average under `blend`: weighted by its own alpha where the
+    /// blend reads one, and whole where `AddWhole` reads none. One rule for whatever draws the
+    /// sheet, a material's surface or an emitter's sprites.
+    inline osg::Vec3f meanUnder(const MeanTexel& mean, const BlendKind blend)
+    {
+        return blend == BlendKind::AddWhole ? mean.mWhole : mean.mColour;
+    }
 
     /// Whether a surface adds to what is behind it and covers nothing — `BlendKind::Add` or
     /// `AddWhole` under a blend. The one rule over the two facts as the content states them, so a

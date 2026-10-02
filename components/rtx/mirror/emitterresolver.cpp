@@ -236,7 +236,8 @@ namespace Rtx
             // multiplying both keeps that a fact about the data. Both are the vertex's, and the
             // material's mode says whether the vertex is read at all — `HeldSprite::mVertexColour`.
             // A blend that adds whole reads no alpha at all, so its sprite is all there whatever
-            // its ramps say — one file in the game, and its silhouette is still its texture's.
+            // its ramps say — one file in the game — and what it adds is its texture's colour,
+            // with the texture's alpha unread too (`EMITTER_ADD_WHOLE`).
             const bool tinted = held.mVertexColour == VertexColour::Tint;
             const osg::Vec4f vertex = particle.getCurrentColor();
             const osg::Vec3f colour = tinted ? decodeColour(vertex) : held.mDiffuseColour;
@@ -306,8 +307,7 @@ namespace Rtx
         if (mSpriteScratch.empty())
             return;
 
-        mScene.addEmitter(mSpriteScratch, held.mSlot.get(), held.mBlend != BlendKind::Over, width, held.mLighting.get(),
-            pending.mFalls);
+        mScene.addEmitter(mSpriteScratch, held.mSlot.get(), held.mBlend, width, held.mLighting.get(), pending.mFalls);
 
         ++stats.mEmitters;
         stats.mSprites += static_cast<std::uint32_t>(mSpriteScratch.size());
@@ -321,7 +321,7 @@ namespace Rtx
                 held.mFacts = &mFacts.of(*held.mSprite);
 
             glows[*pending.mGlow].addSprites(
-                emitter, mSpriteScratch, mFacts.meanOf(*held.mFacts, *held.mSprite).mColour);
+                emitter, mSpriteScratch, meanUnder(mFacts.meanOf(*held.mFacts, *held.mSprite), held.mBlend));
         }
     }
 

@@ -39,13 +39,6 @@ namespace Rtx
         /// `SceneExtractor::Traversal::pushShading`, which takes a reference.
         constexpr const osg::StateSet* sSea = nullptr;
 
-        /// What one texel of a sheet adds on average under `blend`: weighted by its own alpha
-        /// where the blend reads one, and whole where `AddWhole` reads none.
-        osg::Vec3f meanUnder(const MeanTexel& mean, const BlendKind blend)
-        {
-            return blend == BlendKind::AddWhole ? mean.mWhole : mean.mColour;
-        }
-
         /// Every state-set controller on `node`'s two chains, into `into`, in the order the
         /// rasterizer runs them: the update traversal's chain before the cull traversal's, so a fade
         /// applied at cull lands over a glow applied at update. `NifOsg` hangs anything marked

@@ -28,6 +28,7 @@
 #include "ripple.hpp"
 #include "rowhold.hpp"
 #include "sprite.hpp"
+#include "surface.hpp"
 #include "texturetable.hpp"
 
 namespace Rtx
@@ -172,7 +173,7 @@ namespace Rtx
         ///        an axis where this is set and none where it is not — `SpriteEmitter::mWidth`.
         /// @param lighting the bake of `texture`'s alpha, or `sNoIndex`. `SpriteEmitter::mLighting`.
         /// @param falls whether the sprites fall from the sky. `SpriteEmitter::mFalls`.
-        void addEmitter(std::span<const Sprite> sprites, Index texture, bool additive, float width = 0.0f,
+        void addEmitter(std::span<const Sprite> sprites, Index texture, BlendKind blend, float width = 0.0f,
             Index lighting = sNoIndex, bool falls = false);
 
         /// Empties the per-frame lists a walk rebuilds wholesale: lights, deformed meshes, sprites

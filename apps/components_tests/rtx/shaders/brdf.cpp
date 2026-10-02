@@ -210,7 +210,7 @@ namespace Rtx
 
             // Snell's law in vector form, for a unit `incident` against a unit `normal` facing it:
             // the turn of the refracted ray off the incident.
-            const auto turned = [&](const double (&incident)[3], const double eta) {
+            const auto turned = [&](const double(&incident)[3], const double eta) {
                 const double facing = -(incident[0] * normal[0] + incident[1] * normal[1] + incident[2] * normal[2]);
                 const double sign = facing < 0.0 ? -1.0 : 1.0;
                 const double cosine = facing * sign;
@@ -232,7 +232,8 @@ namespace Rtx
             EXPECT_NEAR(Shaders::refractedConeWidth(1.0f, 1.333f, true), leaving, 1e-4);
             EXPECT_NEAR(Shaders::refractedConeWidth(0.4f, 1.333f, false), 0.0499625f, 1e-6f);
             EXPECT_NEAR(Shaders::refractedConeWidth(0.4f, 1.333f, true), 0.0666f, 1e-6f);
-            EXPECT_NE(Shaders::refractedConeWidth(0.4f, 1.333f, false), Shaders::refractedConeWidth(0.4f, 1.333f, true));
+            EXPECT_NE(
+                Shaders::refractedConeWidth(0.4f, 1.333f, false), Shaders::refractedConeWidth(0.4f, 1.333f, true));
         }
 
         /// **A field of slopes is the roughness a painted map would state for it**, so water's guide
