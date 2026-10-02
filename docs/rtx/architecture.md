@@ -130,8 +130,10 @@ MyGUI draws the whole interface, as upstream. Only its backend changes.
 `MyGUIPlatform::GuiRenderManager` is the seam into MyGUI, implemented by upstream's OSG manager
 and by `MyGUIRtx::RenderManager`, so `WindowManager` never asks which backend it got.
 
-`MyGUIRtx::RenderManager` is written once for every backend. It needs a table of textures and
-one call that draws a list of triangles, and that is all it uses of `Rtx::GuiRenderer`. Pictures
+`MyGUIRtx::RenderManager` is written once for every backend. It needs the extent, a table of
+textures and one call that draws a list of triangles, which is the whole of `Rtx::GuiRenderer`; a
+picture traced into one of those textures is the renderer's (`Rtx::Renderer::traceGuiTexture`),
+because it is a picture of a scene. Pictures
 the game writes in main memory (the fog of war, the world map, save thumbnails, video frames)
 reach the interface through `shareTexture`: the game marks the image dirty, and the backend
 sends what changed.
