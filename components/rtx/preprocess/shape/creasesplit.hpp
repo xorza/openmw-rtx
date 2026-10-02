@@ -6,6 +6,8 @@
 
 #include <osg/Vec3f>
 
+#include "probetable.hpp"
+
 namespace Rtx
 {
     /// Splits the normals the content smoothed across a hard edge, as a modelling tool's auto-smooth
@@ -80,10 +82,9 @@ namespace Rtx
         /// Each triangle's unit normal, nought for one with no area.
         std::vector<osg::Vec3f> mFaces;
 
-        /// Each vertex's position number, and the table that numbers them: open addressed, a power
-        /// of two long and never more than half full.
+        /// Each vertex's position number, and the table that numbers them.
         std::vector<std::uint32_t> mPositionOf;
-        std::vector<std::uint32_t> mTable;
+        ProbeTable mTable;
 
         /// Every corner of every triangle, as its index into the triangle list, sorted by position:
         /// one run a position, with a trailing end, and where the sort writes each run's next.

@@ -429,7 +429,7 @@ add_component_dir (rtx/preprocess
     )
 
 add_component_dir (rtx/preprocess/shape
-    creasesplit pockettree shapefold shapepass
+    creasesplit facecross pockettree probetable shapefold shapepass
     )
 
 add_component_dir (rtx/preprocess/texture
