@@ -4,22 +4,30 @@ This proposal answers `.notes/REVIEW.md`. It does not repeat the findings. It na
 structural causes behind most of them, gives the target shape for each cause, and orders the work.
 A reference such as *(REVIEW: Frame-to-frame state)* points at a group heading in `REVIEW.md`.
 
-`REVIEW.md` holds 386 findings: 4 high, 68 medium, 314 low. The first review (2026-10-01) wrote 302.
-The second (2026-10-02) found none of them fixed, rewrote 22, and added 84. The 30 findings that give
-a wrong result for an input the tree can produce are also listed in `.notes/ISSUES.md`. The second
-review changed this plan in four places: two new workstreams (W12, W13), new rows in W1, W2, W3, W7,
-W9, W10 and W11, two new decisions (D6, D7), and a Phase 0 that tests the harness's own verdicts
-before anything is judged by them.
+`REVIEW.md` holds 432 findings: 8 high, 85 medium, 339 low. The first review (2026-10-01) wrote 302.
+The second (2026-10-02) found none of them fixed, rewrote 22, and added 84. The third (2026-10-02)
+compared the ray tracer with the rasterizer over 352 capabilities and added 46 (W14). The 59
+findings that give a wrong or missing picture, or a wrong result, for an input the tree can produce
+are also listed in `.notes/ISSUES.md`.
+
+The second review changed this plan in four places: two new workstreams (W12, W13), new rows in W1,
+W2, W3, W7, W9, W10 and W11, two new decisions (D6, D7), and a Phase 0 that tests the harness's own
+verdicts before anything is judged by them. The third review added W14, its principle (P8), and
+its defects to Phase 1. A re-review of the plan then took out what it planned twice or decided by a
+guess: W1's losses are one table carried in the frame's record, coverage follows the content's own
+flags with no threshold, the settings and modes a renderer declines are one declaration with a
+parity test, a view's mask is translated in one place, Night-Eye waits on a probe (D8), and Phase 1
+is one list ordered by severity.
 
 The findings fall into three kinds:
 
-1. **Structure.** Most findings come from thirteen causes in how the code is owned and connected.
-   Sections 2 to 14 redesign those causes. A change of structure closes a whole group, and the
+1. **Structure.** Most findings come from fourteen causes in how the code is owned and connected.
+   Sections 2 to 15 redesign those causes. A change of structure closes a whole group, and the
    group's items go with it.
 2. **Decisions.** Some findings ask what the fork accepts against upstream. Section 1 records the
-   owner's answers and the work each answer leaves.
+   owner's answers and the work each answer leaves, and the two questions a probe answers (D5, D8).
 3. **Fixes in place.** The rest are local: stale comments, includes, a constant written as a rounded
-   decimal, a test that asserts too little. They need no design. Section 16 lists the groups and the
+   decimal, a test that asserts too little. They need no design. Section 17 lists the groups and the
    rule for each.
 
 ## Contents
@@ -39,10 +47,35 @@ The findings fall into three kinds:
 12. [W11 — A measurement does not measure itself, and says what it measured](#12-w11--a-measurement-does-not-measure-itself-and-says-what-it-measured)
 13. [W12 — The picture and the interface are two images](#13-w12--the-picture-and-the-interface-are-two-images)
 14. [W13 — One rule for every number and setting the harness reads](#14-w13--one-rule-for-every-number-and-setting-the-harness-reads)
-15. [Smaller workstreams](#15-smaller-workstreams)
-16. [Fixes in place](#16-fixes-in-place)
-17. [Order of work](#17-order-of-work)
-18. [Verification for every phase](#18-verification-for-every-phase)
+15. [W14 — The ray tracer shows what the rasterizer shows](#15-w14--the-ray-tracer-shows-what-the-rasterizer-shows)
+16. [Smaller workstreams](#16-smaller-workstreams)
+17. [Fixes in place](#17-fixes-in-place)
+18. [Order of work](#18-order-of-work)
+19. [Verification for every phase](#19-verification-for-every-phase)
+
+### The plan at a glance
+
+| Workstream | Closes in `REVIEW.md` (items) | High items | Kind | Phase |
+|---|---|---|---|---|
+| W1 The frame says what happened | *Frame-to-frame state …* (8, less the one W12 takes), two more | the ripple burst | correction | 1, 3 |
+| W2 One walk context, one route to the ring | *The game side reaches its owners …* (10), *The ring's ask …* (2) | — | refactor, correction | 1, 2 |
+| W3 A value has one owner | *A value crosses a layer …* (15), *Types allow states …* (7) | — | refactor | 2 |
+| W4 One cache of image facts | *Facts about one image …* (6) | — | refactor | 1 (step 0), 2 |
+| W5 One price for an arriving texture | *The price of an arriving texture …* (3) | — | correction | 2 |
+| W6 Scene tables change by the row | *Scene tables …* (6), *Work is batched …* (2) | — | cost | 1, 5 |
+| W7 Device contracts in one function | *One fact has two names …* (12), *Shared structs …* (8), *Shared code …* (20) | — | refactor, correction | 4 |
+| W8 The denoisers share one surface test | *The denoisers repeat …* (4) | — | cost | 5 |
+| W9 Passes run only over what is new | *Passes run over memory …* (6) | — | cost | 5 |
+| W10 Rules the game owns are called | *Rules that the game or upstream owns …* (10), *Platform facts …* (5) | — | refactor | 4 |
+| W11 A measurement says what it measured | *Measurements and reports …* (15), *A run that stops early …* (3) | — | correction | 0, 1 |
+| W12 The picture and the interface, two images | three items | — | correction | 1 |
+| W13 One rule for the harness's numbers | *The harness reads numbers …* (2), *A harness option …* (1) | `--day` | correction | 1 |
+| W14 The ray tracer shows what the rasterizer shows | eleven parity groups (44), two more | coverage, picking, the glow, the sky's ramp | correction | 1 |
+| §16 Smaller workstreams | the upstream diff, memory, the crash monitor, the gates, layering, Vulkan, tooling | essential memory priority | mixed | 1, 6 |
+| §17 Fixes in place | the local groups | the contact sheet | local | with their files, 7 |
+
+A group that a workstream closes only in part is named in its section. The eight high items order
+the head of Phase 1.
 
 ---
 
@@ -68,6 +101,10 @@ These come from `AGENTS.md` and the owner's posture. Each workstream below appli
   (`./omw shot --against`).
 - **P7. A verdict is tested before it judges.** The harness's comparisons and its measuring window
   decide whether every later change passes. They have their own tests first.
+- **P8. The rasterizer is the reference for what is drawn and when.** The ray tracer may light a
+  thing differently, which is its purpose. It does not drop, freeze, misplace or misread what the game
+  asks for. Every fact the loader states is carried or refused by name. Every setting, script call and
+  console command the rasterizer honours is honoured, or the seam says it is not.
 
 ---
 
@@ -153,6 +190,21 @@ says a resize keeps them. Decided: it keeps them. The exposure belongs to the ey
 extent. W1's `FramePast` then carries two facts: the reprojection is lost (resize, new world, cut),
 and the eye's history is lost (new world, cut).
 
+### D8. Open, and a measurement: how Night-Eye reaches the trace
+
+The rasterizer adds Night-Eye's lift to the ambient of every lit fragment: nothing occludes it and
+nothing adapts to it. The trace adds it to the fill, which geometry occludes and the exposure meter
+mostly cancels *(REVIEW: The trace's light rules …)*. Two shapes keep the effect:
+- **A.** Exempt the lift from adaptation, as `DAYLIGHT_GAIN` is: `mExposureBias` takes the ratio of
+  the fill with and without the lift, to the power `EXPOSURE_ADAPTATION`. Cheap, exact where the fill
+  is the frame's light (a cave), and over-strong where the sun dominates.
+- **B.** Add the lift after the meter, in the tone pass, as `nightEye × albedo`, unoccluded and
+  unadapted, which is the rasterizer's rule. Exact, and it needs the albedo at the output extent.
+
+Recommended: B where an albedo at the output extent exists, else A. A probe decides: hold the
+picture of `seyda-neen-ship` at night and of a cave, at magnitudes 0, 25 and 100, against the
+rasterizer's ratio of lifted to unlifted brightness.
+
 ---
 
 ## 2. W1 — The frame says what happened
@@ -179,91 +231,77 @@ effect:
 
 ### Target shape
 
-The host says two facts about each frame. The backend turns them into one record and hands that
-record to every owner of a history.
+**The frame record says what happened, once.** The game tells the renderer an event through the
+seam as it does today (`notifyCut`, `notifyWorldspaceChanged`). `RtxRenderer` keeps it as a pending
+loss and hands it to the next frame inside the frame's record, so the backend learns every loss by
+one route: the record of the frame it is about to trace. Nothing resets a history out of band, and
+the backend's `resetHistory` goes; a test states a loss in the record it traces with.
 
 **In the core** (`components/rtx/frame/`, beside `FrameOptions`):
 
 ```cpp
-/// What happened between the last traced frame and this one, as the host knows it.
+/// What the host knows happened between the last traced frame and this one.
 struct FrameStep
 {
     /// The simulation advanced. False on a paused frame: nothing moved and nothing was pressed.
     bool mSimulated = true;
 
-    /// The host's water clock, in seconds, as a double. The constants keep their split pair for
-    /// the shaders; the backend steps the ripples on this value.
+    /// The host's water clock, in seconds, as a double. The shaders keep their split pair; the
+    /// backend steps the ripples on this value.
     double mWaterSeconds = 0.0;
+
+    /// What the eye's past is worth: `None`, `Cut` (a teleport inside one worldspace, a clock jump)
+    /// or `Worldspace` (another worldspace).
+    HistoryLoss mLoss = HistoryLoss::None;
+
+    /// The references the game put somewhere else in one step this frame (`World::moveObject`'s
+    /// teleporting paths), each placed still: no motion, so its old place's history is refused.
+    std::span<const ObjectJump> mJumped;
 };
 ```
 
-`FrameOptions` gains `FrameStep mStep`. `Renderer::resetHistory()` takes the kind of loss:
+**One table decides what each event costs each history.** It lives beside `FramePast` in the
+backend, and each owner reads its own column:
 
-```cpp
-enum class HistoryLoss { Cut, Worldspace };
-virtual void resetHistory(HistoryLoss loss) = 0;
-```
+| Event | Told by | Reprojection (trace, upscaler, denoiser) | The eye (exposure, glare) | The water's ripples |
+|---|---|---|---|---|
+| a frame the denoiser does not run | the backend | the denoiser turns with no filter, so every filter is fresh at its next run | kept | kept |
+| a resize, an upscale-mode change | the backend (`createTargets`) | lost | kept (D7) | kept |
+| a teleport inside a worldspace, a clock jump | `FrameStep::mLoss = Cut` | lost | lost | kept |
+| another worldspace | `FrameStep::mLoss = Worldspace` | lost | lost | lost |
+| a new world handed over | the backend (`setScene` of the world) | lost | lost | lost |
+| one object's jump | `FrameStep::mJumped` | that object's pixels (a still placement) | kept | kept |
+| a paused frame | `FrameStep::mSimulated = false` | kept | kept | not stepped, no impulse pressed |
 
-A cut drops every history but the water. A worldspace change also drops the water. `setScene` of
-the world is a worldspace change.
+**In the backend** (`VulkanRenderer`), `renderFrame` folds the record and its own events into one
+`FramePast { mReprojectionLost; mEyeLost; mWaterLost; mSimulated; mWaterSeconds; }` and hands it to
+`TraceChain::record`, `Upscaler::record`, `DisplayChain::record` and `TraceMedia::stepRipples`. The
+zeroed `mPreviousCamera`, `basisLost`, `mAirStale` and `resetHistory`'s second pair of flags go.
+`DisplayChain` keeps only its deferral (`mExposureStale`: a reset spent by the next frame that
+measures).
 
-**In the backend** (`VulkanRenderer`):
-
-- One member `bool mPastLost` replaces "zero `mPreviousCamera`". `resetHistory`, `setScene` of the
-  world and `createTargets` set it. `renderFrame` reads it once, clears it, and hands it on.
-- One record goes to every owner of a history, in `renderFrame`:
-
-  ```cpp
-  struct FramePast
-  {
-      bool mLost = false;      // no reprojection is valid
-      bool mSimulated = true;  // FrameStep::mSimulated
-      double mWaterSeconds = 0.0;
-  };
-  ```
-
-  `TraceChain::record`, `Upscaler::record`, `DisplayChain::record` and `TraceMedia::stepRipples`
-  take it. `DisplayChain::mExposureStale` and `mGlareStale`, `TraceChain::mAirStale` and the
-  `basisLost` local go. Each owner keeps
-  only its own rule for what a lost past means to it, written beside the owner.
-
-- **The denoiser turns on every frame.** On a frame with no denoiser, `TraceChain::record` calls
-  `mDenoise.turn(TemporalFlags{})`. `TemporalTurns::next` with no filter that runs makes every
-  filter fresh at its next run, which is the rule its own comment states. This also replaces the
-  "a reset waits for the frame that filters" deferral: a filter that did not run reads no history.
-
-- **The ripples consume their impulses.** `TraceMedia::stepRipples` moves the kept impulses into
-  `RipplePass`'s pending list and clears its own copy. `RipplePass::record` appends nothing when
-  `mSimulated` is false. On the game side, `RippleEmitters::update` runs on every frame and yields
-  an empty list on a paused frame, so the scene's list is true for every frame and the digest
-  agrees with it.
-
-- **The interface draws over the picture, never over itself.** W12 now owns this: the second
-  review found that the save thumbnails need the picture without the interface too, which only a
-  picture in its own image gives.
-
-- **`FramePast` carries two facts, per D7.** `mReprojectionLost` (resize, new world, cut) goes to
-  the trace chain and the upscaler. `mEyeLost` (new world, cut) goes to the display chain, which
-  keeps its own deferral (`mExposureStale`) and nothing else; `resetHistory`'s second pair of flags
-  goes.
-
-- **A clock jump is a cut.** `World` tells the renderer a cut where the game clock jumps by more
-  than the frame's step: `advanceTime(hours, incremental = false)` and a write of the `GameHour`
-  global, which upstream already routes through `DateTimeManager`.
-
-- **Strikes belong to the frame they happened in.** `RtxRenderer::renderFrame`'s hidden-world branch
-  discards `mStrikes`, as `update` already does where the water is hidden.
+**Four game-side rules feed the record:**
+- An object's jump is listed where the game makes it: `World::moveObject`'s teleporting paths (as
+  opposed to physics stepping) add the reference to the `SceneFrame` the world describes, beside the
+  eye, and `RtxRenderer` hands the list on as `mJumped`. A new seam member is not needed.
+- A clock jump is a cut: `advanceTime(hours, incremental = false)` and a write of the `GameHour`
+  global, which upstream already routes through `DateTimeManager`, call `notifyCut`.
+- The ripples consume their impulses: `TraceMedia::stepRipples` moves the kept impulses into
+  `RipplePass`'s pending list and clears its own copy. `RippleEmitters::update` runs on every frame
+  and yields an empty list on a paused frame, and its hidden-world branch discards `mStrikes`.
+- The interface never draws over itself: W12 owns this, because the save thumbnails need the
+  picture without the interface too.
 
 ### Steps
 
-1. Add `FrameStep` and `HistoryLoss`. Change the seam's `notifyCut` and `notifyWorldspaceChanged`
-   in `RtxRenderer` to call `resetHistory` with the kind. Delete the ripple reset from the
-   cut path.
-2. Add `mPastLost` and `FramePast`. Move each owner to read it. Delete `joinSeconds`.
+1. Add `FrameStep` with `HistoryLoss`, and the table's `FramePast`. `RtxRenderer` turns
+   `notifyCut` and `notifyWorldspaceChanged` into the pending loss. Delete `resetHistory`'s backend
+   member, the ripple reset on the cut path, and `joinSeconds`.
+2. Move each owner to its column of `FramePast`.
 3. Turn the denoiser on unfiltered frames. Delete the pending-reset deferral that this replaces.
-4. Make the ripple impulses a consumed list. Make `RippleEmitters` clear on a paused frame.
-5. Split `FramePast` per D7. Call `notifyCut` on a clock jump. Discard the strikes of a hidden
-   world.
+4. Make the ripple impulses a consumed list; discard the strikes of a hidden world.
+5. Call `notifyCut` on a clock jump. Add `ObjectJump` and the still placement
+   (`PlacementTable::place` sets `mPrevious` and both pose copies to the new pose).
 
 ### Tests
 
@@ -273,7 +311,9 @@ the world is a worldspace change.
 - `RtxRenderer` (openmw-tests): a cut keeps the ripple field and a worldspace change drops it.
 - `VulkanRenderer`: a resize keeps a measured exposure; `setScene` followed by a held frame and a
   measured frame eases the measured one from nothing.
-- `World` (openmw-tests): `set gamehour` and a rest each reach `notifyCut` once.
+- `World` (openmw-tests): `set gamehour` and a rest each reach `notifyCut` once; `SetPos` on an
+  actor in view lists one jump.
+- The table itself: one test per row, which asserts the three columns.
 
 ### Risk
 
@@ -585,7 +625,7 @@ the p99 and the worst frame before and after. The worst frame must not rise.
 | padding by three conventions; three structs with no size check | one rule (assert the end offset); every shared struct has its `static_assert` |
 | `HIT_RECORD_LAYERS` in `scene.h` with the old offset rule | in `visibility.h` beside `HIT_RECORD_EYES` |
 | probe kernels number bindings and result slots by literal | named in `probe.h` and `pinning.h` |
-| constants that are rounded decimals of closed forms | written as their derivation (`vec3(12, 30, 37) / 255.0f * 0.85f`, `vec2(5, 12) / 13`, `2.0f * PI / 180.0f`) |
+| constants that are rounded decimals of closed forms | written as their derivation (`vec2(5, 12) / 13`, `2.0f * PI / 180.0f`); the water's colour is not a constant at all but the content's (W14.4) |
 | three constants that fold a transcendental on both compilers | one rule stated in `portable.h`: literal plus a test, or allowed because no host value must match |
 | `screenOf` divides by the bases' squared lengths on every call, and five callers finish `rayAt`'s inverse their own way | the host hands each basis prescaled; one `pixelOfScreen(Screen, extent, jitter)` beside `rayAt` |
 | `starField` asks `textureSize` at every starry pixel | `StarField` carries the sheet's extent |
@@ -661,7 +701,7 @@ not move a denoised picture beyond `sDenoiserNoiseLevels`.
 | skinning and morphing | measure first: one dispatch over a table of rows in place of one per mesh | hundreds of tiny dispatches become one, if the command processor shows the cost |
 | histogram on the bloom's first halving; last wavelet level into the composite | measure first | up to two frame-sized round trips |
 | `spriterects.comp` | a sprite the shelter zeroed gets `noTiles()` | sheltered rain costs nothing after the shelter launch |
-| the medium and additive walks | test the camera's class mask, as the shadow walk does; additive placements keep their class bit; the presence bin runs for every camera | a map tile stops drawing absent actors' spell sheets and stops paying three traversals a pixel (also a correctness fix, Phase 1) |
+| the medium and additive walks | built by W14.5's `describeView`: they run only where the view casts against their classes; additive placements keep their class bit | a map tile stops paying three traversals a pixel (and stops drawing absent actors' spell sheets) |
 | the upscaler's clears | one `Barriers` into `TRANSFER_DST` for all of them, one back merged into `between()` | two barrier commands a frame instead of up to eleven |
 | `barrierBeforeBuild` | deleted; its comment moves to `recordRefit`'s `barrierAfterBuild` | one drain fewer per moving frame |
 
@@ -687,7 +727,7 @@ renderers call. Extend it to every remaining copy.
 | which child a day-night mode shows | one function beside `Constants::NightDayLabel` | `DayNightCallback` and `TemplateWalk` |
 | a reference's rotation | `makeOsgQuat(const osg::Vec3f&)` in `misc/convert.hpp` | `cellreader` and `objectpaging` |
 | the sea's centre and geometry | one small header | `Water` and `WorldMirror::standSea` |
-| the sun-glare fader colour | `Sky::SunGlareFader` in `components/sky` | `SunGlareCallback` and `SkyReader` |
+| the sun-glare fader's colour and strength, the disc's sunrise and sunset alpha included | `Sky::SunGlareFader` in `components/sky` | `SunGlareCallback` and `SkyReader` |
 | `sWeatherCount` | `= ESM::Weather::Length` | — |
 | the game's starting `timescale` | read from the world's globals at session start | the harness and its Lua |
 | the log stamp format | one `Debug` function | the game's log and the crash monitor |
@@ -781,7 +821,8 @@ The debug lines are drawn after the tone pass's gamma, and the rasterizer raises
   pays one image read either way. The memory is one more output-sized image: 66 MB at 7680×2160.
 - `readPixels`, `capture` and `freezeFrame` read `mPicture`. The target is the presenter's alone.
 - `capture` crops to the asked aspect and filters by area, through one function that
-  `ScreenshotManager`'s rule and the ray tracer's path both call.
+  `ScreenshotManager`'s rule and the ray tracer's path both call. Where the last picture is older
+  than the request (the world was hidden), it traces one frame first, as the seam promises.
 - The line pass raises its colour to the frame's `mInverseGamma`, so both renderers draw the debug
   overlay at the world's gamma.
 
@@ -840,9 +881,175 @@ registry holds.
 
 ---
 
-## 15. Smaller workstreams
+## 15. W14 — The ray tracer shows what the rasterizer shows
 
-### 15.1 The upstream diff, as decided
+**Closes:** the eleven groups the parity review added to `REVIEW.md`, from *(A blended surface's
+coverage is decided by the material's alpha alone)* to *(A picture is traced the first frame it can
+be, whatever ground has stood)*, and its items in *(Frame-to-frame state …)* and *(The trace drops
+part of what the game asks of the picture)*.
+
+### What is wrong
+
+The parity review checked 352 capabilities: 172 the same, 107 approximated for a reason the tree
+states, 36 missing, 34 wrong, 3 stale. Nothing arrives a frame late: the walk reads every change on
+the frame the rasterizer draws it. The defects are in **what** the ray tracer reads, and they have six
+causes:
+
+| Cause | What it does | Worst case |
+|---|---|---|
+| The material reader keeps a subset of the loader's facts, by its own rules | coverage from the material's alpha alone, the material's alpha under a vertex tint, a grey slot for "no map", one UV set for every map, a medium walk that reads the diffuse map alone, unread facts dropped with no refusal | the Imperial lantern's glass vanishes; lava, waterfalls and webs lose their coverage (781 vanilla shapes) |
+| Content the rasterizer draws has no reader | groundcover, six texture formats, untextured particles, a ring model with one bad drawable, distant animated statics, distortion nodes | every groundcover mod draws bare ground; a BC7 or 24-bit mod texture draws grey |
+| The trace's light rules are its own | negative lamps refused, flicker centred on 1, Night-Eye metered away, a bolt lit by its area | Telvanni towers come out lit; torches burn 1.6 times too bright |
+| The sky reads the weather by its own rules | a linear sky ramp, decks and sea turned about the origin, a stepped moon phase, decks fixed at attach, glare without the disc's alpha, sprites dropped, typed-in water colour, `tsky` as "indoors" | every exterior frame's sky is too near the fog colour |
+| The seam does not answer what the game asks | bind-pose picking, a static camera that drops the player, a script's view distance, `tws`, `tww`, `ToggleBorders`, shader reload, texture filters, rain under roofs, stereo, the reach's bound | a corpse cannot be focused or looted |
+| The walk resolves state its own way | one fade number for two uniforms, the innermost class mark wins, `PolygonMode` dropped, a 0.2 s emitter cap, one cut for every object, map tiles before their ground, a glow updater's reset never heard | a spell-cast glow on a door never ends |
+
+### Target shape
+
+**W14.0 — One declaration says what each renderer honours.** The seam gains
+`Renderer::support() const`, a table made once per renderer: for each setting the game's renderers
+read, each render mode, and each script request (`reloadShaders`, `setViewDistance`, stereo), the
+answer `Honoured` or `Declined` with its reason. Its readers:
+- the settings window greys out a declined control and shows the reason as its tooltip;
+- the console and Lua answer "not available under this renderer" for a declined mode, where today
+  `tww` and `ToggleBorders` report "Off";
+- `processChangedSettings` hands a renderer only the keys it honours;
+- `rtx.rst` lists the declined set, and a test holds the page to the table.
+
+**A parity test guards it:** every key `GlRenderer` and the shared `mwrender` files read through
+`Settings::` appears in the ray tracer's table, honoured or declined with a reason, so a setting
+upstream adds fails the test until someone decides it. This replaces §16.8's `readsSetting`, the
+separate "or logs once" answers below, and the groundcover log line.
+
+**W14.1 — The material reader carries the loader's facts by the rasterizer's rules.**
+- **Coverage follows the content's own flags, as the rasterizer's does.** A blend with no alpha
+  test is translucent; a test cuts at its reference. The one shortcut is exact: where every texel of
+  the finest level is 0 or 255, a cut at any reference covers what the blend covers, so such a blend
+  may be cut. "Binary alpha" is one more fact in W4's `ImageFacts`, computed in the same walk as the
+  mean. No share of texels and no threshold decides it. The cost of the soft blends this makes
+  translucent (781 vanilla shapes) is measured before it lands.
+- Under `ColorMaterial::Tint` the opacity is the vertex alpha, as on the sprite path.
+- Two neutral slots: a white texel for a surface with no map, the grey stand-in for a refused map.
+- Each map carries its UV unit (`mEmissiveUnit` beside `mDarkUnit`). The mesh reader tells the sets
+  apart by the index the loader knows (a user value on the geometry), not by the array's address.
+- One per-crossing material read (`texel × dark`, and the sheet where `mEnvironment` is set), shared
+  by `crossingOf`, `candidateStops` and `resolveFor`.
+- **`describeStateSet` is exhaustive.** It switches over `osg::StateAttribute::Type` with no
+  default, so a type upstream adds stops the build (`-Wswitch` under `-Werror`) until someone decides
+  it; each case carries the fact or files a refusal once per state set. The GL modes, which are not
+  an enum, are checked against the list of modes `NifOsg` sets, and a mode off the list is refused.
+  The alpha-test function is carried as a comparison selected without a branch.
+- A `classic` specular layout: `F0 = rgb`, `α = sqrt(2 / (n + 2))` with `n = a × 255`, stated as the
+  approximation it is. `apply lighting to environment maps` moves the sheet into the lit term.
+
+**W14.2 — Content the rasterizer draws reaches the trace.**
+- **Groundcover is one merged mesh per cell**, as the rasterizer's chunks merge it: the ring's
+  reader builds it from `GroundcoverStore` with `Groundcover`'s own `DensityCalculator` (moved to be
+  shared), under `rendering distance` and `density`. One instance per cell keeps the top-level
+  structure's row count what it is today, where an instance per plant would multiply it. Stomp is a
+  later deformer.
+- **One rule for image formats:** a format the device samples natively is uploaded as it is (every
+  BC format is core on the target cards); every other layout `OSG` decodes is widened to RGBA8 on the
+  way in, as the sixteen-bit formats already are. A refusal is left only for what cannot be decoded.
+- An emitter with no image draws with the white texel, coloured by its vertices; a generated image
+  enters the table under a key made from its address, as the composites do.
+- The ring's template walk refuses a drawable, not the whole model, as the frame's walk does.
+- A prepared part whose chain carries an AutoPlay state-set updater gets one animated material per
+  model, applied once a frame through `MaterialResolver::animate`.
+- A `distortion` node is left out of the trace and filed as a refusal; a refracting pane of its
+  strength is a later step.
+
+**W14.3 — The trace's light rules are the game's.**
+- `Light` carries its sign. Subtracting lamps are a run of their own in `LightGrid`; `gather` takes
+  their unshadowed term off the direct lamp term, floored at nought, as the rasterizer clamps. They
+  cast no shadow and no bounce, and that is stated.
+- `lightcontroller.hpp` names the band (0.25, 1) and the speeds. `lightBrightness` keeps its
+  deterministic ladder and spans the band around 0.625; the periods derive from the speeds.
+- Night-Eye follows D8.
+- `getMagicBoltLightReach` and the `lightReach` parameter go: the bolt's lamp is the game's 66 units,
+  and one upstream hunk leaves the diff.
+
+**W14.4 — The sky reads the content's sky.**
+- The atmosphere mesh is read in `addSkyContent`, its `i % 2` alpha rule moves to
+  `components/sky/vertexrules.hpp`, and the two ring sines reach the frame. `skyGradient` ramps between
+  them, and `skyBudget` integrates that ramp in closed form. A sky mod's mesh is then read too.
+- The deck turns about the eye; the sea keeps a fixed heading.
+- `MoonModel` reports a phase angle continuous in game time, which `placeMoon` takes; `GetMasserPhase`
+  keeps the engine's discrete answer.
+- `SkyContent` is keyed by texture path; `SkyReader` takes the two names off `WeatherResult` each
+  frame and opens a new path once. Both crossing directions of a deck fade as the rasterizer's.
+- The glare's strength takes the disc's alpha, through W10's shared fader.
+- The sun's flash is an additive sprite in the display chain, scaled by the seen share
+  `SunGlarePass` eases; or `look.h` states that bloom stands in for both sprites.
+- The water's scattering colour and the weather fog's share come from the fallbacks through
+  `SkyReader`, and `WATER_EXTINCTION` gets a test of its stated pairing.
+- `WorldReading` carries "open to the sky" and "the sky is drawn" apart, so `tsky` blanks only the dome.
+
+**W14.5 — The seam answers what the game asks.**
+- **Picking poses on demand.** `Renderer::poseForIntersection(osg::Drawable&)`: nothing for the
+  rasterizer, whose cull posed it; for the ray tracer, `OffscreenTrace`'s `PoseCull`, moved to
+  `components/sceneutil`, run once per frame number on each skinned drawable a segment enters.
+  `IntersectionVisitorWithIgnoreList` calls it. That visitor is upstream code, so the hook joins
+  Accepted diff with the reason. A pose per ray that reaches an actor costs less than the rasterizer's
+  pose per actor per frame.
+- `TracedTerrain` answers a terrain hit past the active grid from the storage's heights.
+- **One translation of what a view shows.** `rayMaskOf` becomes `describeView(spec)`, which answers
+  every question a view's mask asks: the classes the eye casts against, whether the medium and
+  additive walks run (W9's class-mask row), whether lamps light it (`Mask_Lighting`), and whether its
+  sun casts. A map tile then shows what the rasterizer's map shows, and stops paying three traversals
+  a pixel.
+- The harness hides the player through the seam's view mask for the stops it stages there.
+  `EyeState::mPlayersEye` and `WorldMirror::setShowsPlayer` go.
+- `EyeState` carries a script's view distance as an override; the trace closes the air at
+  `min(reach, d)`, and the ring keeps the setting's reach, so a script never rebuilds the world.
+- Under `tws` the ray tracer keeps tracing with the world's masks left out. `TracedTerrain` makes a
+  `CellBorder` with `Mask_Debug`, which `DebugWalk` draws. `tww`, the shader reload and stereo are
+  answered by W14.0's table until each is built.
+- `RtxSettings` carries the texture filter and mipmap keys, and the content sampler is made from them.
+- `WorldState` carries `weather particle occlusion && isOccluded()`, which both renderers read.
+- `reachOf` clamps both of its sources to one bound under `sFarPlane`.
+- `ViewQueue::draw` defers a world view while a cell under its box is in the ring's disc and not yet
+  placed (`CellRing::isStood`).
+- `setProjectionOffset` is a principal-point shift in `Camera`, applied to both eyes, as the
+  rasterizer shifts the arms' projection too.
+
+**W14.6 — The walk resolves state as the rasterizer's stack does.**
+- `SceneUtil::StateSetUpdater` keeps a generation that `reset()` bumps, and `MaterialResolver::animate`
+  sets the mirror's state set up again when it moves. A spell-cast glow then ends, and a recolour holds.
+- `Shading` carries `mAlpha` and `mActorFade` apart, each replaced by the nearest state set that
+  states it. The opacity is their product at the drawable, and sprites take it too.
+- A `FirstPerson` ancestor wins over an inner `Effect` mark.
+- `DebugWalk` keeps the `PolygonMode` along the path and emits edges where it is `LINE`.
+- The emitter clock advances by the world's step on every walked frame; the 0.2 s constant goes.
+- A single object's jump is W1's `FrameStep::mJumped`.
+
+### Tests
+
+Each fix carries a test with hand-computed values, on the GPU where the fact is a picture: a soft
+pane keeps its coverage and a foliage mask keeps its cut; a tinted candle's opacity is its vertex
+alpha; an untextured part draws at its material colour; a glow on UV set 1 lands on its set; a
+subtracting lamp darkens a lit wall by its unshadowed term; the flicker's mean is 0.625 and its
+extremes 0.25 and 1; the sky's share is 0 at 3.6° and 1 at 28.6°; a moon's phase is continuous across
+`moonPhaseHour`; a ray through a posed bone hits it; a `GlowUpdater` run through its end leaves no
+sheet; a sprite under a faded actor is faded; W14.0's parity test; a binary-alpha blend cut at half
+covers the texels the blend covers, and a soft blend stays translucent. The vanilla scans the parity
+review ran (blend pairs,
+texturing slots, UV sets, alpha histograms, negative and animated light records) become a
+`scene --census` count, so a later change to a material rule says how many shapes it moves.
+
+### Verification
+
+`./omw shot --views=all --map --upscale=off --against=<baseline>` after each step: a correction moves
+the pictures of its own content and nothing else, and the commit names them. `./omw repeat --pairs=10`
+for the walk's changes. `./omw release bench` for groundcover and the new formats: arrival frames'
+worst case and the p99 must not rise beyond what the new content costs, and the report says what that
+is.
+
+---
+
+## 16. Smaller workstreams
+
+### 16.1 The upstream diff, as decided
 
 §1 holds the work each decision leaves:
 
@@ -858,7 +1065,7 @@ registry holds.
    upstream's usertype where there is a chain and an inert one where there is none, so upstream's
    bindings come back unchanged and the nine null tests go.
 
-### 15.2 Memory and device requirements
+### 16.2 Memory and device requirements
 
 *(REVIEW: Memory requests leave the design's promise …; The device check and the enabled
 extensions differ …)*
@@ -881,7 +1088,7 @@ extensions differ …)*
 - **The stress hold asks the device's clock rate.** A start-up probe reads `clockRealtimeEXT` across
   a pair of timestamp queries, and the hold is handed in ticks.
 
-### 15.3 The crash monitor
+### 16.3 The crash monitor
 
 *(REVIEW: The crash monitor takes a report's kind from the wrong owner)*
 
@@ -897,7 +1104,7 @@ answers them in order, and stops the watch through it. This ends the deadlock on
 watch thread's message box waits for a main queue that Crashpad's Mach loop never drains, and a crash
 is never held behind an unanswered hang question.
 
-### 15.4 The visibility gates
+### 16.4 The visibility gates
 
 *(REVIEW: The visibility gates model one frame of a script)*
 
@@ -907,7 +1114,7 @@ one handler and let other exceptions end the process. Keep the run's context, lo
 globals as cleared members, and key the inputs by a global's index. Move `handsOver` to
 `Terrain::RefKinds`, so `mwscript` stops depending on `mwrender`.
 
-### 15.5 Layering guards
+### 16.5 Layering guards
 
 *(REVIEW: The layering's documents and guards lag the code)*
 
@@ -919,7 +1126,7 @@ component, and refuses `<apps/...>` under `components/rtx` and `components/rtxvu
 descriptor sets, command buffers, `VkInstance`): it states each cost in its own terms, and the
 backend's comment carries the Vulkan reason.
 
-### 15.6 Vulkan lifetimes and barriers
+### 16.6 Vulkan lifetimes and barriers
 
 *(REVIEW: Vulkan objects are waited on or rebuilt by a side effect …)*
 
@@ -934,7 +1141,7 @@ The present target states its resting use once (`PresentTarget::sResting`), and 
 transitions from it and back; the five literals go. `Barriers` asserts in debug that nothing is
 pending when it goes out of scope.
 
-### 15.7 Tooling single sources
+### 16.7 Tooling single sources
 
 *(REVIEW: The driver, CI and CMake restate facts that each other hold)*
 
@@ -954,16 +1161,15 @@ from the harness's `info`, through `Files`. `cmake/Tests.cmake` runs each test i
 `$<TARGET_FILE_DIR>`, and the crash matrix writes under the build tree. `Platform::Process::setEnvironment`
 takes a path and widens it on Windows.
 
-### 15.8 The seam answers each question once
+### 16.8 The seam answers each question once
 
 *(REVIEW: The seam promises what only one renderer does)*: W12 takes the thumbnail and the debug
-lines. The rest: the seam answers `readsSetting(category, name)`, which `processChangedSettings` and
-the settings window both ask, and the window greys out the controls the running renderer does not
-read.
+lines, W14.0's declaration takes the settings window and the post-processing package's question,
+and W1 takes the time-skip cut and the strikes.
 
 ---
 
-## 16. Fixes in place
+## 17. Fixes in place
 
 These groups need no design. Fix each item where it stands, in the commit that touches the file, or
 in one sweep per group.
@@ -971,7 +1177,7 @@ in one sweep per group.
 | REVIEW group | Rule |
 |---|---|
 | Shading math departs from the exact form it claims | each is a correction with a hand-computed test; each moves pictures, and the commit names them |
-| The trace drops part of what the game asks of the picture | projection offset as a principal-point shift in `Camera`; `Precipitation::isFrozen()` as the one underwater answer for the rain; the cloud deck named as both sheets when only the next weather has one |
+| The trace drops part of what the game asks of the picture | the projection offset and the view mask are W14.5's; `Precipitation::isFrozen()` as the one underwater answer for the rain; the cloud deck named as both sheets when only the next weather has one |
 | A reader decodes data that it never checks it can decode | assert the precondition in `texelAt` and `readTexelBand`; the contact sheet draws a bake, a composite and BC5 as a labelled blank |
 | A queue or cache loses what it must keep … | `chainSignature` compares exactly; pipeline-cache partials get a name the sweep ages out; Qt installs beside its final name and renames |
 | Test-only code ships in the game | `MipChain`'s builder and `OwnedTexture` move to test support beside `SpriteLightBake`; `SpecularAlbedo::at` and the `describeImage` overload go |
@@ -984,7 +1190,7 @@ in one sweep per group.
 | Includes that name nothing they use | delete them |
 | Smaller defects | each as written; `shadow.h`'s bound becomes `< 32`, or the mask is built as `~0u >> (32u - width)` |
 | Shading math departs … (second review) | the normal map's spread is read at the level its anisotropic read resolves; the water's rays are biased once; each moves pictures, and the commit names them |
-| Where an image was left … ; Barriers that order nothing … | §15.6 |
+| Where an image was left … ; Barriers that order nothing … | §16.6 |
 | Options a verb takes and does nothing with | an `sPictures` verb set owns the picture-only knobs; every contradictory pair is refused at parse time, and `--accumulate` with an upscaler is refused |
 
 **Tests** follow each workstream. The groups *(Tests that cannot fail …)*, *(Behaviour with no
@@ -1009,13 +1215,15 @@ so its validation errors are reported. `compareRuns`, `judgeNoise` and `MeasureW
 
 ---
 
-## 17. Order of work
+## 18. Order of work
 
-Each phase ends green on `./omw gate`. Only W8 step 3 waits on anything outside the plan (D5).
+Each phase ends green on `./omw gate`. Two steps wait on a measurement: W8 step 3 on D5, and
+Night-Eye on D8.
 
 ```
-Phase 0  baselines ─► Phase 1  correctness ─► Phase 2  ownership ─► Phase 3  frame record
-    ─► Phase 4  contracts ─► Phase 5  frame cost ─► Phase 6  upstream diff ─► Phase 7  tests and docs
+Phase 0  verdicts, baselines ─► Phase 1  defects, by severity ─► Phase 2  ownership
+    ─► Phase 3  frame record ─► Phase 4  contracts ─► Phase 5  frame cost
+    ─► Phase 6  upstream diff ─► Phase 7  tests and docs
 ```
 
 ### Phase 0 — The verdicts, then the baselines
@@ -1031,30 +1239,48 @@ Phase 0  baselines ─► Phase 1  correctness ─► Phase 2  ownership ─► 
 - `./omw repeat --pairs=10` to confirm the tree is deterministic before any change.
 - D5: the half-float store probe.
 
-### Phase 1 — Correctness with no change of structure
+### Phase 1 — Defects, by severity
 
-The high and medium defects that a local change fixes. One commit each, each with its test.
+Every defect a local change fixes, in one list, highest first; within a severity, the ones that
+share a workstream sit together. One commit each, each with its test. A correction that moves
+pictures names them.
 
-1. `--day` states days passed (W13). The only high defect of the second review: every staged stop
-   stands on the wrong date, and no moon moves.
-2. The ripple burst after a pause (the consumed-list part of W1).
-3. The picture in its own image: the interface over itself and the save thumbnails (W12).
-4. The ring's request from its inputs: the reach that grows, the interior shortfall (W2).
-5. The structure block sized from what is left to place (§15.2).
-6. The class mask in the medium and additive walks (W9). This moves the map tiles.
-7. The crash monitor's one dialog thread (§15.3), and the harness's hang limit (W10).
-8. The denoiser turn on unfiltered frames (W1).
-9. Essential memory priority (§15.2).
-10. A measured run reads only the shipped defaults; one rule for a number (W13).
-11. The card watch on the renderer's card and off the main thread (W11).
-12. The contact sheet's precondition (§16).
-13. The composite queue's refusal rule (W6).
-14. The instance record written twice (W6).
-15. `SlotSet`'s third state (W6).
-16. The crash kind from the exception (§15.3).
-17. The shading corrections: refraction cone, glow sums, puff merge weight, add-whole sprites,
-    camera in double precision, the normal map's spread level, one bias on the water's rays (§16).
-    These move pictures, and each commit names them.
+**Step 0.** W4's `ImageFacts` record lands first, with `binaryAlpha` beside the mean, because the
+coverage rule (5) reads it. The rest of W4 stays in Phase 2.
+
+**High:**
+
+1. `--day` states days passed (W13).
+2. The ripple burst after a pause (W1's consumed list).
+3. Essential memory priority (§16.2).
+4. The contact sheet's precondition (§17).
+5. Blended coverage from the content's flags (W14.1).
+6. Picking on the posed body (W14.5).
+7. The glow updater's reset heard by the mirror (W14.6).
+8. The sky's ramp from the atmosphere mesh (W14.4).
+
+**Medium:**
+
+9. The picture and the interface as two images (W12).
+10. The ring's request from its inputs (W2).
+11. The structure block sized from what is left to place (§16.2).
+12. `describeView` (W14.5): the class mask, the lamps and the sun of a view.
+13. The crash monitor's dialog thread (§16.3), and the harness's hang limit (W10).
+14. The denoiser turn on unfiltered frames (W1).
+15. W14.1's rest: vertex alpha under a tint, the white neutral slot, the glow's UV unit, the medium
+    walks' dark map and sheet.
+16. W14.3: negative lamps, the calibrated flicker, the bolt's lamp. Night-Eye after D8.
+17. W14.5: the static camera, the script's view distance, map tiles that wait for their ground.
+18. W14.4: the storm heading, the continuous moon phase, decks keyed by path.
+19. W14.6: the two fade uniforms, the first-person class.
+20. W14.2: the image-format rule, then groundcover.
+21. W13 and W11: the shipped defaults, one rule for a number, the card watch.
+22. W6: the composite queue, the instance record written twice, `SlotSet`'s third state.
+23. The crash kind from the exception (§16.3).
+24. The shading corrections of §17.
+
+**Low:** W14.0's declaration and its parity test first, because it answers most of the low parity
+items at once; then the low items of each workstream, by section.
 
 ### Phase 2 — Ownership
 
@@ -1063,9 +1289,8 @@ W2, W3, W4, W5. These are refactors. Each step must show no moved picture and an
 
 ### Phase 3 — The frame record
 
-The rest of W1: `FrameStep`, `HistoryLoss`, `FramePast` split per D7, `mPastLost`, the cut on a
-clock jump, the strikes of a hidden world. After Phase 2, because `FrameContext` and `RunSetup`
-change shape there.
+The rest of W1: `FrameStep` with its loss and its jumps, the table's `FramePast`, the cut on a clock
+jump. After Phase 2, because `FrameContext` and `RunSetup` change shape there.
 
 ### Phase 4 — Device contracts
 
@@ -1075,21 +1300,21 @@ corrections that move pictures.
 ### Phase 5 — Frame cost
 
 W6 (block-growth tables, running totals, the refit), W8 steps 1 and 2, W9, the barrier rows of
-§15.6. Each with a
+§16.6. Each with a
 `./omw release bench` before and after. A change that does not improve the worst frame or the p99
 does not go in. W8 step 3 follows D5 and its own measurement.
 
 ### Phase 6 — The upstream diff
 
-§15.1, then §15.5, §15.7 and §15.8.
+§16.1, then §16.5, §16.7 and §16.8.
 
 ### Phase 7 — Tests and docs
 
-The test groups in §16, and every doc item, `architecture.md` §1 and §13 included.
+The test groups in §17, and every doc item, `architecture.md` §1 and §13 included.
 
 ---
 
-## 18. Verification for every phase
+## 19. Verification for every phase
 
 - Build the touched targets and run the covering test binary with a filter
   (`./omw test <binary> --gtest_filter=...`).
