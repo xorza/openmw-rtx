@@ -44,6 +44,32 @@ namespace MWScript
             Count,
         };
 
+        /// How many frames a way runs for before a script that has not settled is undecided: one
+        /// that sets a local and returns, then acts on it, settles in two or three.
+        constexpr std::size_t sFramesTried = 16;
+
+        /// A global the run wrote, and the value it wrote: the run's own from then on.
+        struct Written
+        {
+            std::string mName;
+            double mValue;
+
+            bool operator==(const Written&) const = default;
+        };
+
+        /// What a frame left the run as: what the next frame starts from, and all it starts from.
+        struct RunState
+        {
+            std::vector<int> mShorts;
+            std::vector<int> mLongs;
+            std::vector<float> mFloats;
+            std::vector<Written> mWritten;
+            bool mEnabled = true;
+            std::vector<VisibilityNamed> mNamed;
+
+            bool operator==(const RunState&) const = default;
+        };
+
         /// The run's world: the reference's answer, its locals, and the globals it set, none of
         /// which reach the game.
         class RunContext final : public Interpreter::Context
@@ -63,6 +89,24 @@ namespace MWScript
             }
 
             bool isEnabled() const { return mEnabled; }
+
+            /// Copies what this frame left into `state`, whose room is kept from frame to frame.
+            void saveInto(RunState& state) const
+            {
+                state.mShorts = mShorts;
+                state.mLongs = mLongs;
+                state.mFloats = mFloats;
+                state.mWritten = mWritten;
+                state.mEnabled = mEnabled;
+                state.mNamed = mNamed;
+            }
+
+            /// Whether the run stands as `state` has it.
+            bool isAt(const RunState& state) const
+            {
+                return mShorts == state.mShorts && mLongs == state.mLongs && mFloats == state.mFloats
+                    && mWritten == state.mWritten && mEnabled == state.mEnabled && mNamed == state.mNamed;
+            }
             void setEnabled(bool enabled) { mEnabled = enabled; }
 
             void setNamed(const ESM::RefId& name, bool enabled)
@@ -145,12 +189,6 @@ namespace MWScript
             void setMemberFloat(ESM::RefId, std::string_view, float, bool) override { throw Undecided(); }
 
         private:
-            struct Written
-            {
-                std::string mName;
-                double mValue;
-            };
-
             double readGlobal(std::string_view name) const
             {
                 const auto written = std::find_if(
@@ -329,15 +367,28 @@ namespace MWScript
 
                 mWay.clear();
                 RunContext context(locals, reads, inputs, mWay, events);
+                RunState found;
+                bool settled = false;
                 try
                 {
-                    mInterpreter.run(program, context);
+                    for (std::size_t frame = 0; frame < sFramesTried && !settled; ++frame)
+                    {
+                        context.saveInto(found);
+                        mInterpreter.run(program, context);
+                        settled = context.isAt(found);
+                    }
                 }
                 // **An instruction nobody installed, or a question only an active cell answers**:
                 // the one kind of answer a run cannot give is a wrong one. Nothing else is caught:
                 // a program whose locals are not the ones it was compiled with is a broken
                 // contract, which ends the run rather than reading as an answer.
                 catch (const std::runtime_error&)
+                {
+                    named.clear();
+                    return Terrain::GateState::Undecided;
+                }
+
+                if (!settled)
                 {
                     named.clear();
                     return Terrain::GateState::Undecided;
