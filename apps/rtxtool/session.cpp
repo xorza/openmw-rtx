@@ -53,7 +53,7 @@ namespace RtxTool
     void Session::abandon(const std::string_view why)
     {
         Log(Debug::Error) << "Ray tracing session: " << why;
-        mRecord.fail();
+        mRecord.abandon(mRequest);
         mDone = true;
         MWBase::Environment::get().getStateManager()->requestQuit();
     }

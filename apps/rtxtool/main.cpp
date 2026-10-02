@@ -741,6 +741,8 @@ namespace RtxTool
                     stop.mActions.mSheet = file("-textures", PictureRule::Exact);
             }
 
+            clearPictures(out, written);
+
             SessionRequest request = sessionFor(command, framed, std::move(stops));
             request.mHashes = out / sShotHashes;
             if (!against.empty())

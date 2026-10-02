@@ -65,6 +65,13 @@ namespace RtxTool
         }
     }
 
+    void RunRecord::abandon(const SessionRequest& request)
+    {
+        fail();
+        mHashes.dropUnpictured();
+        finish(request);
+    }
+
     bool RunRecord::wrote(const Misc::Result<void, std::string>& written)
     {
         if (written.isOk())

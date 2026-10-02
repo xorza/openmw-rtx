@@ -293,6 +293,16 @@ namespace RtxTool
             const std::vector<WrittenPicture> moving = { { "moved.png", PictureRule::Exact } };
             EXPECT_EQ(compareRuns(wrote, {}, moving), 0) << "no reference directory asks for no comparison";
 
+            // **What a run will write is cleared ahead of it**, so a stop the run never reached
+            // fails as a picture not drawn, where the last run's file at that name compared as the
+            // same. Nothing else under the folder is touched.
+            const std::vector<WrittenPicture> same = { { "same.png", PictureRule::Exact } };
+            clearPictures(wrote, same);
+            EXPECT_FALSE(std::filesystem::exists(wrote / "same.png"));
+            EXPECT_TRUE(std::filesystem::exists(wrote / "moved.png"));
+            EXPECT_EQ(compareRuns(wrote, against, same), 1) << "a picture this run did not draw";
+            clearPictures(wrote, same);
+
             std::filesystem::remove_all(root);
         }
 
