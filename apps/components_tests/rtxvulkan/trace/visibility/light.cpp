@@ -2012,25 +2012,28 @@ namespace Rtx::Testing
             EXPECT_LT(floorUnder(glowingAt(-100.0f)), 0.005f) << "and it stops at the triangle";
         }
 
-        /// A bounce is drawn by the cosine, and two thirds is the number that says so.
+        /// A bounce is drawn by the cosine, and a half is the number that says so.
         ///
         /// **The one property of the estimator a uniform sky cannot show.** Every other test here
         /// fills the sky with one radiance so that a single sample carries no variance — which is
         /// what makes them exact, and what leaves `cosineDirection` unmeasured. A sky that runs from
         /// horizon to zenith turns the direction itself into the answer.
         ///
-        /// Malley's method draws `d.z = sqrt(1 - u)` for uniform `u`, so
+        /// The camera's sky fades by `t = sin e / (sin e + cos e)` (`Testing::sHemisphereRamp`), and
+        /// Malley's method draws the elevation with the density `sin 2e`, so
         ///
-        ///   E[d.z]   = integral of sqrt(t) over [0, 1]  = 2/3
-        ///   Var[d.z] = E[1 - u] - (2/3)^2 = 1/2 - 4/9   = 1/18,  sd = 0.235702
+        ///   E[t]   = 1/2, because t(e) + t(90° - e) = 1 and sin 2e is the same at both
+        ///   E[t²]  = integral of 2 s c · s² / (s + c)² over [0, 90°] = (pi - 2) / 4
+        ///   Var[t] = (pi - 2) / 4 - 1/4 = (pi - 3) / 4,  sd = 0.188144
         ///
-        /// A floor of albedo 0.5 under `mix(horizon, zenith, d.z)` therefore has to come back at
-        /// `0.5 * (horizon + 2/3 * range)` per channel, spread by `0.5 * |range| * 0.235702`.
+        /// A floor of albedo 0.5 under that sky therefore has to come back at
+        /// `0.5 * (horizon + range / 2)` per channel, spread by `0.5 * |range| * 0.188144`.
         ///
         /// **The mean is also what tells this estimator from the wrong one.** Drawing uniformly over
         /// the hemisphere and carrying the cosine as a weight is unbiased as well, but its
-        /// directions average `E[d.z] = 1/2` — a picture a sixth of the sky's range away, which is
-        /// ten times the tolerance below and cannot be mistaken for it.
+        /// directions average `E[t] = integral of t cos e = 1 - ln(1 + sqrt 2) / sqrt 2 = 0.376775`
+        /// — a picture an eighth of the sky's range away, seven times the tolerance below at the
+        /// narrowest range here, and not to be mistaken for it.
         TEST_F(RtxVisibilityTest, aBounceDrawsItsDirectionByTheCosineAndNotUniformly)
         {
             constexpr std::uint32_t size = 64;
@@ -2083,18 +2086,18 @@ namespace Rtx::Testing
             {
                 const auto [mean, spread] = measure(first, channel);
                 const float range = zenith[channel] - horizon[channel];
-                const float byTheCosine = 0.5f * (horizon[channel] + range * 2.0f / 3.0f);
-                const float ifDrawnEvenly = 0.5f * (horizon[channel] + range * 0.5f);
+                const float byTheCosine = 0.5f * (horizon[channel] + range * 0.5f);
+                const float ifDrawnEvenly = 0.5f * (horizon[channel] + range * 0.376775f);
 
                 // One sRGB step at a quarter brightness is 0.004 of linear — a 255th divided by the
                 // curve's slope there — and it swamps the sampling standard error, which over 4096
-                // samples is `0.5 * |range| * 0.235702 / 64`, at most 0.0011.
-                EXPECT_NEAR(mean, byTheCosine, 0.004f) << "channel " << channel << " averages two thirds up";
+                // samples is `0.5 * |range| * 0.188144 / 64`, at most 0.0009.
+                EXPECT_NEAR(mean, byTheCosine, 0.004f) << "channel " << channel << " averages half way up";
                 EXPECT_GT(std::abs(mean - ifDrawnEvenly), 0.02f)
-                    << "channel " << channel << " is nowhere near the half an even draw would give";
+                    << "channel " << channel << " is nowhere near the 0.377 an even draw would give";
 
-                EXPECT_NEAR(spread, 0.5f * std::abs(range) * 0.235702f, 0.003f)
-                    << "channel " << channel << " is spread by the square root's own variance";
+                EXPECT_NEAR(spread, 0.5f * std::abs(range) * 0.188144f, 0.003f)
+                    << "channel " << channel << " is spread by the sky's own variance";
             }
 
             // The frame index has to move every pixel's draw, or a bounce would be a fixed pattern
@@ -2137,15 +2140,15 @@ namespace Rtx::Testing
             // to upload reads as zero everywhere, every pixel draws the same direction as every
             // other, and the spread collapses to nothing while the mean stays right.
             //
-            // Measured, the reduction is 17, 27 and 21 — comfortably past what independence gives,
+            // Measured, the reduction is 19 in each channel — comfortably past what independence gives,
             // because the frames are a golden-ratio sweep of the interval rather than sixty-four
             // guesses at it.
             //
             // **The mean's tolerance is twenty times tighter than the single-frame one above**, and
             // has to be: at sixty-four samples a pixel's values cluster inside a few bytes, so the
             // sRGB step that dominated there is no longer what limits this. A divisor off by one
-            // moves the mean by 0.0046 — the whole point of the assertion, and something a tolerance
-            // sized for one noisy frame would wave through.
+            // moves the mean by a sixty-fourth of it, 0.0029 at the least — the whole point of the
+            // assertion, and something a tolerance sized for one noisy frame would wave through.
             constexpr std::uint32_t averaged = 64;
             const Frame converged = shade(0, averaged);
 
@@ -2154,10 +2157,10 @@ namespace Rtx::Testing
                 const auto [mean, spread] = measure(converged, channel);
                 const float range = zenith[channel] - horizon[channel];
 
-                EXPECT_NEAR(mean, 0.5f * (horizon[channel] + range * 2.0f / 3.0f), 0.0002f)
+                EXPECT_NEAR(mean, 0.5f * (horizon[channel] + range * 0.5f), 0.0002f)
                     << "channel " << channel << " keeps its mean when averaged";
 
-                const float alone = 0.5f * std::abs(range) * 0.235702f;
+                const float alone = 0.5f * std::abs(range) * 0.188144f;
                 EXPECT_GT(alone / spread, std::sqrt(float{ averaged }))
                     << "channel " << channel << " converges at least as fast as independent draws";
                 EXPECT_LT(alone / spread, float{ averaged })

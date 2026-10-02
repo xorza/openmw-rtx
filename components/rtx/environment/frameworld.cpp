@@ -139,8 +139,9 @@ namespace Rtx
         stars.mFade *= gain;
         stars.mGlow *= gain;
 
-        const SkyBudget budget
-            = reading.mOutdoors ? skyBudget(horizon, zenith, stars.mGlow, light.mAmbient) : SkyBudget{};
+        const SkyBudget budget = reading.mOutdoors
+            ? skyBudget(horizon, zenith, reading.mSky.mAtmosphere.mZenithShare, stars.mGlow, light.mAmbient)
+            : SkyBudget{};
 
         Fog air = day.mFog;
         air.mColour *= gain;
@@ -156,6 +157,7 @@ namespace Rtx
 
         constants.mSkyHorizon = horizon;
         constants.mSkyZenith = zenith;
+        constants.mSkyRamp = reading.mSky.mAtmosphere.mRamp;
         constants.mSkyFill = budget.mFill;
 
         constants.mStars = stars;

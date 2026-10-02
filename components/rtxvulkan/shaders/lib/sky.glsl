@@ -28,7 +28,7 @@
 /// hemisphere and a ray is a direction — `NightSky::mGlow` carries that argument.
 vec3 skyGlow(vec3 direction)
 {
-    return skyGradient(frame.mSkyHorizon, frame.mSkyZenith, direction) + frame.mStars.mGlow + frame.mSkyFill;
+    return skyGradient(frame.mSkyHorizon, frame.mSkyZenith, frame.mSkyRamp, direction) + frame.mStars.mGlow + frame.mSkyFill;
 }
 
 /// Where a point on the layer sits on the sheet, in texture coordinates.
@@ -433,7 +433,7 @@ vec3 skyRadiance(vec3 origin, vec3 direction, float blur, bool discs, out float 
     //
     // **The gradient and not `skyGlow`**, which is the one place the two part company: the fill is
     // light the weather says a night has and Morrowind draws nowhere, so an eye must not find it.
-    colour += skyGradient(frame.mSkyHorizon, frame.mSkyZenith, direction);
+    colour += skyGradient(frame.mSkyHorizon, frame.mSkyZenith, frame.mSkyRamp, direction);
 
     // Last, and over everything: the deck is nearer than any of it.
     float covered;

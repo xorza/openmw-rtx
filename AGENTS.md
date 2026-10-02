@@ -69,6 +69,9 @@ pointer and Lua read one size whichever renderer draws.
 - The pose hook in `RenderingManager`'s intersection visitor (`Renderer::poseForIntersection`): a
   skinned body answers a CPU ray with the copy its last cull posed, and the ray tracer culls no
   world, so the crosshair met every actor in its bind pose.
+- The sky meshes' vertex rules, `components/sky/vertexrules.hpp`, which `ModVertexAlphaVisitor`
+  reads: the rasterizer and the ray tracer fade the cloud shell, the atmosphere and the star dome by
+  one rule each.
 - `SceneUtil::StateSetUpdater::getGeneration`, which `reset` bumps: the mirror applies an updater to
   a state set of its own after the node's update did, and a glow that ended or changed colour by
   `reset` left the mirror's copy with its last sheet.

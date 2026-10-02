@@ -120,16 +120,18 @@ namespace Rtx
 
         /// What the sky delivers as light over and above the colour it is drawn with. The engine
         /// puts `Ambient_<weather>_Night_Color` on every surface, while a bounce ray at the dome
-        /// reads `Sky_<weather>_Night_Color`, a tenth of it; a gradient linear in `sin(elevation)`
-        /// delivers `horizon / 3 + 2 * zenith / 3`, the sheets add their mean, and whatever the
-        /// ambient asks for beyond the two is this. Nought by day.
+        /// reads `Sky_<weather>_Night_Color`, a tenth of it; the gradient delivers its two colours
+        /// weighed by the atmosphere's `Atmosphere::mZenithShare`, the sheets add their mean, and
+        /// whatever the ambient asks for beyond the two is this. Nought by day.
         osg::Vec3f mFill;
     };
 
     /// Reads both off one weather, so nothing can hold two ideas of what a sky is worth.
-    /// `sheets` is what the night sky's own layers add: `Shaders::StarField::mGlow`.
-    SkyBudget skyBudget(
-        const osg::Vec3f& horizon, const osg::Vec3f& zenith, const osg::Vec3f& sheets, const osg::Vec3f& ambient);
+    /// `zenithShare` is how much of the zenith colour the atmosphere shows a surface facing the sky,
+    /// `Atmosphere::mZenithShare`, and `sheets` is what the night sky's own layers add:
+    /// `Shaders::StarField::mGlow`.
+    SkyBudget skyBudget(const osg::Vec3f& horizon, const osg::Vec3f& zenith, float zenithShare,
+        const osg::Vec3f& sheets, const osg::Vec3f& ambient);
 
     /// The sun, the sky and the air of one cell, in the renderer's own units, so nothing downstream
     /// reads a content file again.

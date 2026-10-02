@@ -128,6 +128,13 @@ namespace Rtx
         else
             scene.refusals().refuse(Refused::SkyLayer, meshes.mClouds.value(), shell.error());
 
+        // Where the fog colour fades to the sky colour is the atmosphere mesh's.
+        if (const Misc::Result<Atmosphere, std::string> atmosphere = readAtmosphere(scenes, meshes.mAtmosphere);
+            atmosphere.isOk())
+            loaded.mAtmosphere = atmosphere.value();
+        else
+            scene.refusals().refuse(Refused::SkyLayer, meshes.mAtmosphere.value(), atmosphere.error());
+
         // The night sky is the mesh's, every number of it: which sheet the field wears, how much
         // sky a tile of it covers, where it fades out, and where the six patches sit.
         if (const Misc::Result<NightSky, std::string> night

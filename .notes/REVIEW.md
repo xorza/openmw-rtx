@@ -46,22 +46,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
 
 ## The traced sky reads the weather by rules of its own, not by the content's
 
-- [ ] **The sky fades from fog to sky colour linearly in sin(elevation), where `sky_atmosphere.nif` puts the whole fade between 3.6° and 28.6° and full sky colour above it** — `apps/openmw/mwrender/sky.cpp:284-289`, `apps/openmw/mwrender/skyutil.cpp:1017-1021`; `components/rtx/shaders/sky.h:319-330`, `components/rtx/environment/skylight.cpp:97-109`, `apps/openmw/mwrender/rtx/skyreader.cpp:128-142`.
-
-  **Rasterizer.** It draws the atmosphere mesh in `Sky_*_Color`, with alpha 1 on the even vertices and 0 on the odd ones, over a clear colour of `Fog_*_Color`. Read off `Morrowind.bsa`, the mesh holds 16 vertices at z = -800 (radius 1466) and 16 at z = -100 (radius 1587), under a root rotation of diag(1, -1, -1). The alpha-1 ring therefore stands at +28.6° and the alpha-0 ring at +3.6°. Fourteen of the mesh's 46 triangles fan the alpha-1 ring shut, so everything above 28.6° is the sky colour.
-
-  **Ray tracer.** `skyGradient` returns `mix(horizon, zenith, z)`. The two compare as follows:
-
-  | Elevation | Sky-colour share, rasterizer | Sky-colour share, trace |
-  |---|---|---|
-  | 10° | 0.25 | 0.17 |
-  | 16.4° | 0.50 | 0.28 |
-  | 28.6° | 1.00 | 0.48 |
-  | 45° | 1.00 | 0.71 |
-
-  So every exterior frame, by day and by night, shows a sky much nearer the fog colour across the part a player looks at. `skyBudget`'s `horizon/3 + 2·zenith/3` encodes the same profile. Under the mesh's profile the cosine-weighted share of the zenith colour is about 0.88, not 0.67, so the ambient fill, the fog's brightness and the deck's light are all read off the wrong mean. `sky.h:324-326` says Morrowind records one colour "for the fog and for the sky's lower half". The mesh gives the fog colour only to the bottom 3.6°.
-
-  **Better shape.** Read the atmosphere mesh where the cloud shell and the star dome are read (`addSkyContent`). Move the rasterizer's `i % 2` rule into `components/sky/vertexrules.hpp` beside `cloudRowOf`, so both renderers ask it. Hand the two ring sines to the frame. `skyGradient` ramps between them, and `skyBudget` integrates that ramp in closed form. *(kind: bug; severity: high; benefit: the content's sky in every exterior frame)*
 - [ ] **During an ash or blight storm the deck and the sea slide as the player walks, and the sea's whole wave field swings in one frame when the weather flips into or out of either** — `apps/openmw/mwworld/weather.cpp:47-58`, `:1299`, `:1311-1312`; `apps/openmw/mwrender/rtx/skyreader.cpp:222-223`; `components/rtx/environment/skybuilder.cpp:214-215`; `components/rtxvulkan/shaders/lib/sky.glsl:40-50`; `components/rtx/environment/frameworld.cpp:189-199`; `components/rtxvulkan/shaders/lib/sea.glsl:100-108`.
 
   **The input.** `calculateStormDirection` points ash and blight away from Red Mountain at (25000, 70000), measured at the player, so the bearing changes as the player moves.
