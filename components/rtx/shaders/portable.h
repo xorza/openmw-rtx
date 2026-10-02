@@ -29,6 +29,13 @@
 #define RTX_SHADER
 #endif
 
+// A constant both sides read is written as a literal where its derivation calls a transcendental —
+// `log2`, `sin`, `atan`. glslang folds such a call on the device side and the C++ library computes it
+// on the host, and the two need not round alike in the last place; on the host it is also not a
+// constant expression, and every file that includes the header runs its initialiser at start. So
+// the literal is the correctly rounded value, its comment states the derivation, and
+// `RtxSharedConstantTest` holds the one to the other.
+//
 // A value whose rounding is load-bearing: GLSL's `precise` forbids fusing its multiplies and adds,
 // so every compile of the shader agrees on it. `rayAt` says what that is for. Nothing on the host,
 // where the arithmetic is written as it is read.

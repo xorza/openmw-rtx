@@ -54,8 +54,9 @@ namespace Rtx::Shaders
     const float MIN_LOG_LUMINANCE = -10.0f;
 
     /// Brightest, as a power of two. Sixty-four times mid grey covers a flame seen directly, and the
-    /// day's gain lifts every sunlit pixel past that by `DAYLIGHT_GAIN`.
-    const float MAX_LOG_LUMINANCE = 6.0f + log2(DAYLIGHT_GAIN);
+    /// day's gain lifts every sunlit pixel past that by `DAYLIGHT_GAIN`: `6 + log2(DAYLIGHT_GAIN)`,
+    /// written as a literal for the reason `portable.h` gives.
+    const float MAX_LOG_LUMINANCE = 9.32192802f;
 
     /// Where a pixel stops being binned and starts being counted as black.
     ///
@@ -776,7 +777,9 @@ namespace Rtx::Shaders
     /// **A climb alone, and a descent is never masked.** An eye that is high enough looks down on
     /// the ring where the loaded cells stop, so the steeper the view the more of the cut it can see
     /// — and reading this either way would take the air off precisely there.
-    const float FOG_EDGE_RISE = sin(25.0f * PI / 180.0f);
+    ///
+    /// `sin(25°)`, written as a literal for the reason `portable.h` gives.
+    const float FOG_EDGE_RISE = 0.42261827f;
 
     /// Water's index of refraction, and the reflectance it gives head-on: `((n - 1) / (n + 1))^2`,
     /// 0.02037, which is why water is a window seen from above and a mirror seen along it.
