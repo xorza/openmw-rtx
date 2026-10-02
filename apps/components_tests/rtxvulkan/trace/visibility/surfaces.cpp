@@ -1318,6 +1318,34 @@ namespace Rtx::Testing
             const osg::Vec3f withSheet = sheetAdds(sheeted);
             EXPECT_NEAR(withSheet.x() - plain.x(), 0.5f * Shaders::SUNLIT_WHITE, 1e-5f) << "the sheet was not added";
             EXPECT_EQ(withSheet.y(), plain.y()) << "and nothing but its red";
+
+            // **Each sheet glows by its own texture**, as the rasterizer sums `texel * alpha * (light +
+            // glow)` per crossing: a red sheet that glows white, laid on a grey one that does not,
+            // adds what each adds alone. Laid on one plane, so both stand where the one light is
+            // read. The red texel has no green, so the pair adds the grey sheet's green and no more;
+            // a mean glow over both spread `0.25 * EMISSIVE_INTENSITY` of green onto the grey.
+            const auto pairAdds = [&](const std::vector<Material>& worn) {
+                SceneDesc scene = build(std::nullopt);
+                const Index sheet
+                    = scene.addMesh(MeshArrays{ .mPositions = held, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                for (const Material& one : worn)
+                    scene.addInstance(MeshInstance{ .mMesh = sheet, .mMaterial = scene.addMaterial(one) });
+                const Frame frame = shoot(scene, textures, camera, size);
+                return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2)) - wall;
+            };
+            Material glowing = greySheet;
+            glowing.mDiffuse = 1;
+            glowing.mEmissiveColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
+
+            const osg::Vec3f redAlone = pairAdds({ glowing });
+            const osg::Vec3f greyAlone = pairAdds({ greySheet });
+            const osg::Vec3f both = pairAdds({ glowing, greySheet });
+            ASSERT_GT(redAlone.x(), 0.5f * Shaders::EMISSIVE_INTENSITY * 0.99f) << "the red sheet did not glow";
+            EXPECT_NEAR(redAlone.y(), 0.0f, 1e-5f) << "a red texel glowed green";
+            EXPECT_NEAR(both.y(), greyAlone.y(), 1e-4f) << "the red sheet's glow lit the grey one's texels";
+            for (int channel = 0; channel < 3; ++channel)
+                EXPECT_NEAR(both[channel], redAlone[channel] + greyAlone[channel], 1e-3f * both[channel] + 1e-5f)
+                    << "two sheets on one plane add other than each alone, channel " << channel;
         }
 
         /// **An additive sheet is drawn from the face the content draws, and not from its back.**
