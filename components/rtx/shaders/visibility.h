@@ -18,6 +18,7 @@
 #ifdef RTX_HOST
 
 #include <array>
+#include <cmath>
 #include <cstddef>
 
 namespace Rtx::Shaders
@@ -212,7 +213,7 @@ namespace Rtx::Shaders
 
         /// The sun as a light: where it stands, unit; how much of its light arrives on a surface
         /// square to it; and the sine of the cone its shadow rays are drawn from, which is
-        /// `SUN_SHADOW_SINE` and not the disc's own half degree — `SUN_SHADOW_RADIUS` says why.
+        /// `SUN_SHADOW_RADIUS`'s and not the disc's own half degree — `SUN_SHADOW_RADIUS` says why.
         ///
         /// One directional light, handled apart from the point lights because it has no position and
         /// no falloff: it is the same everywhere and its shadow ray runs to the end of the world.
@@ -582,12 +583,13 @@ namespace Rtx::Shaders
     };
 
 #ifdef RTX_HOST
-    /// The sun as the frame carries it, with the one limb every sun is drawn from. The host's one
-    /// spelling of `mSun`, so a frame assembled by hand cannot leave the cone at nought and cast a
-    /// hard edge.
+    /// The sun as the frame carries it, with the one limb every sun is drawn from, by the rule
+    /// `moonSource` draws a moon's: the sine of its angle, on the host, which alone writes it. The
+    /// host's one spelling of `mSun`, so a frame assembled by hand cannot leave the cone at nought and
+    /// cast a hard edge.
     inline SkySource sunSource(const vec3& direction, const vec3& irradiance)
     {
-        return SkySource{ direction, irradiance, SUN_SHADOW_SINE };
+        return SkySource{ direction, irradiance, std::sin(SUN_SHADOW_RADIUS) };
     }
 
     /// Whether a source in the sky lights anything this frame: the sun, or a moon. A moon that is

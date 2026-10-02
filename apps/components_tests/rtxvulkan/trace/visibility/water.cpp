@@ -813,7 +813,7 @@ namespace Rtx::Testing
 
                 camera.mWaterLevel = 0.0f;
                 camera.mSun.mDirection = sunStandingAt(osg::DegreesToRadians(70.0f));
-                camera.mSun.mLimb = Shaders::SUN_SHADOW_SINE;
+                camera.mSun.mLimb = std::sin(Shaders::SUN_SHADOW_RADIUS);
 
                 // A hundred times the sun the other water tests use. What the water scatters
                 // sideways out of a beam is a fraction of a per cent of it, and at the usual
@@ -865,7 +865,7 @@ namespace Rtx::Testing
             constexpr std::uint32_t column = size / 2;
             constexpr float over = 100.0f;
             const float away = over / std::cos(osg::DegreesToRadians(70.0f));
-            const float radius = away * std::tan(std::asin(Shaders::SUN_SHADOW_SINE));
+            const float radius = away * std::tan(Shaders::SUN_SHADOW_RADIUS);
             const float edge = -0.5f * radius;
             const double hidden = (std::acos(0.5) - 0.5 * std::sqrt(0.75)) / osg::PI;
 
@@ -880,7 +880,7 @@ namespace Rtx::Testing
                     osg::Vec3f(0.0f, -1000.0f, -1000.0f), 60.0f, size, size, 100000.0f);
                 camera.mWaterLevel = 0.0f;
                 camera.mSun.mDirection = sunStandingAt(osg::DegreesToRadians(70.0f));
-                camera.mSun.mLimb = Shaders::SUN_SHADOW_SINE;
+                camera.mSun.mLimb = std::sin(Shaders::SUN_SHADOW_RADIUS);
                 constexpr float blazing = 100.0f * sSunOverWater;
                 camera.mSun.mIrradiance = osg::Vec3f(blazing, blazing, blazing);
 
