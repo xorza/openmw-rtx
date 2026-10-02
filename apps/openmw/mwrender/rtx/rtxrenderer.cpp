@@ -368,8 +368,6 @@ namespace MWRender
         presentIn(osg::Vec2i(width, height));
     }
 
-    void RtxRenderer::applyPresentation() noexcept {}
-
     void RtxRenderer::attachWorld(RenderingManager&, osg::Group& worldRoot) noexcept
     {
         mPhase.expect(Phase::Between);

@@ -207,8 +207,8 @@ namespace Rtx
 
         /// The camera the last frame was traced with, for reprojecting this one against, or nothing
         /// before the first frame. **Nothing, and not a camera of noughts**: one read as a camera
-        /// left the step from its origin in the frame's motion, and a door 80000 units from the eye
-        /// stored an infinite distance at every pixel.
+        /// would leave the step from its origin in the frame's motion, and a door 80000 units from
+        /// the eye would store an infinite distance at every pixel.
         std::optional<Shaders::VisibilityConstants> mPreviousCamera;
 
         /// What this renderer's own events cost the next traced frame — a new extent, a new world,

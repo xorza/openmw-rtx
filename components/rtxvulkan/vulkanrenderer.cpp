@@ -526,9 +526,9 @@ namespace Rtx
             mProfile.mUpscale, options.mReconstruction.value_or(mProfile.mReconstruction), getExtents());
         frame.mReconstruction = reconstruction;
 
-        // Every history is worthless after a jump no motion vector can describe: walking through a
-        // door once left the previous camera intact and a reprojection fetched one room onto
-        // another. Spent here, by the frame it describes, whatever made it.
+        // Every history is worthless after a jump no motion vector can describe: through a door,
+        // with the previous camera kept, a reprojection would fetch one room onto another. Spent
+        // here, by the frame it describes, whatever made it.
         FramePast past = std::exchange(mPast, FramePast{});
         past |= FramePast::of(options.mLoss);
         assert((past.mReprojectionLost || mPreviousCamera.has_value()) && "a past with no camera to reproject");

@@ -106,8 +106,8 @@ namespace Rtx::Shaders
     /// A basis read the other way, which is what `screenOf` projects a point through: the forward
     /// and the centre as the basis has them, the right over its own squared length and the up over
     /// its own, turned to point down the image as `rayAt`'s `y` runs. **Worked out once where a
-    /// block is written** (`Rtx::screenBasisOf`), where every projection took four dot products
-    /// and two divisions of what is a constant of the frame. Nought where the basis is, which is
+    /// block is written** (`Rtx::screenBasisOf`), where every projection would take four dot
+    /// products and two divisions of what is a constant of the frame. Nought where the basis is, which is
     /// what a frame with no eye before it carries.
     struct ScreenBasis
     {

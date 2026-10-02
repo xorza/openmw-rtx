@@ -310,8 +310,9 @@ namespace MWRender
         /// travel, training and jail make. What the last frame showed is not what this one is a
         /// step from, which a renderer reconstructing across frames needs telling and a rasterizer
         /// does not. Only the simulation knows, because a cell load looks like a step from below
-        /// the seam. A script's write to the clock (`set GameHour`) is no skip, as the weather does
-        /// not fast-forward for one either: the histories wash it out over their own frames.
+        /// the seam. A script's write to the clock (`set GameHour`) is a skip where it moves the hour
+        /// by more than the frame's step (`MWWorld::DateTimeManager::jumps`); one that holds the
+        /// hour, as a clock script does on every frame, is not.
         virtual void notifyCut() {}
 
         /// The worldspace changed, which is one kind of cut and the one kind that ends what a

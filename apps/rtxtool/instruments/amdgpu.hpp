@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
-#include <string>
 #include <string_view>
 
 #include <components/rtx/renderer/pciaddress.hpp>
@@ -28,9 +27,6 @@ namespace RtxTool
         /// AMD's. Nothing is read until `readClock`.
         static std::optional<AmdGpu> find(
             const Rtx::PciAddress& address, const std::filesystem::path& devices = "/sys/bus/pci/devices");
-
-        /// `address` as sysfs names a PCI device's directory: `0000:03:00.0`.
-        static std::string sysfsNameOf(const Rtx::PciAddress& address);
 
         /// Why the report names no holder of an AMD card.
         static std::string_view describeUnsampled() { return "amdgpu keeps no process samples for a card"; }

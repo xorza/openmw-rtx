@@ -27,8 +27,8 @@ namespace Rtx
     /// is waited for — `FrameResult::mHeldMs`.
     ///
     /// **The clock's tick is the queue's timestamp period.** `GL_EXT_shader_realtime_clock` names
-    /// no unit, and a hold asked in nanoseconds ran ten times as long on the AMD target and
-    /// reported a tenth of it. Both target vendors read one counter for the two: NVIDIA's
+    /// no unit, and a hold asked in nanoseconds would run ten times as long on RDNA and report a
+    /// tenth of it. Both target vendors read one counter for the two: NVIDIA's
     /// `%globaltimer` counts nanoseconds and its period is one; RDNA's `s_memrealtime` is the
     /// 100 MHz reference clock, which RADV states as a period of `1e6 / clock_crystal_freq`
     /// nanoseconds. Timing the loop against the queue's timestamps instead read stalls of up to

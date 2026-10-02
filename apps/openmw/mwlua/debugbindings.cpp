@@ -19,6 +19,25 @@
 
 namespace MWLua
 {
+    namespace
+    {
+        MWRender::Renderer& renderer()
+        {
+            return MWBase::Environment::get().getWorld()->getRenderingManager()->getRenderer();
+        }
+
+        /// Whether the renderer declines what a script asked of it as `what`, for the reason
+        /// `declined` names, which is logged where it does.
+        bool refuses(std::string_view what, std::string_view declined)
+        {
+            if (declined.empty())
+                return false;
+
+            Log(Debug::Warning) << MWRender::notAvailable(what, declined);
+            return true;
+        }
+    }
+
     sol::table initDebugPackage(const Context& context)
     {
         auto view = context.sol();
@@ -39,13 +58,8 @@ namespace MWLua
 
         api["toggleRenderMode"] = [context](MWRender::RenderMode value) {
             context.mLuaManager->addAction([value] {
-                MWBase::World& world = *MWBase::Environment::get().getWorld();
-                const std::string_view declined
-                    = world.getRenderingManager()->getRenderer().support().declinedMode(value);
-                if (!declined.empty())
-                    Log(Debug::Warning) << MWRender::notAvailable("debug.toggleRenderMode", declined);
-                else
-                    world.toggleRenderMode(value);
+                if (!refuses("debug.toggleRenderMode", renderer().support().declinedMode(value)))
+                    MWBase::Environment::get().getWorld()->toggleRenderMode(value);
             });
         };
 
@@ -87,27 +101,17 @@ namespace MWLua
 
         api["triggerShaderReload"] = [context]() {
             context.mLuaManager->addAction([] {
-                MWRender::Renderer& renderer
-                    = MWBase::Environment::get().getWorld()->getRenderingManager()->getRenderer();
-                const std::string_view declined
-                    = renderer.support().declinedRequest(MWRender::ScriptRequest::ShaderReload);
-                if (!declined.empty())
-                    Log(Debug::Warning) << MWRender::notAvailable("debug.triggerShaderReload", declined);
-                else
-                    renderer.reloadShaders();
+                if (!refuses("debug.triggerShaderReload",
+                        renderer().support().declinedRequest(MWRender::ScriptRequest::ShaderReload)))
+                    renderer().reloadShaders();
             });
         };
 
         api["setShaderHotReloadEnabled"] = [context](bool value) {
             context.mLuaManager->addAction([value] {
-                MWRender::Renderer& renderer
-                    = MWBase::Environment::get().getWorld()->getRenderingManager()->getRenderer();
-                const std::string_view declined
-                    = renderer.support().declinedRequest(MWRender::ScriptRequest::LiveShaderReload);
-                if (!declined.empty())
-                    Log(Debug::Warning) << MWRender::notAvailable("debug.setShaderHotReloadEnabled", declined);
-                else
-                    renderer.setLiveShaderReload(value);
+                if (!refuses("debug.setShaderHotReloadEnabled",
+                        renderer().support().declinedRequest(MWRender::ScriptRequest::LiveShaderReload)))
+                    renderer().setLiveShaderReload(value);
             });
         };
 

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <format>
+#include <string>
 
 namespace Rtx
 {
@@ -13,6 +15,13 @@ namespace Rtx
         std::uint32_t mBus = 0;
         std::uint32_t mDevice = 0;
         std::uint32_t mFunction = 0;
+
+        /// The address as Linux names a PCI device's directory and `lspci` prints it, in hex:
+        /// `0000:03:00.0`.
+        std::string describe() const
+        {
+            return std::format("{:04x}:{:02x}:{:02x}.{:x}", mDomain, mBus, mDevice, mFunction);
+        }
 
         bool operator==(const PciAddress&) const = default;
     };

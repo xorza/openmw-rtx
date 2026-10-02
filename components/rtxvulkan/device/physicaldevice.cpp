@@ -317,10 +317,7 @@ namespace Rtx
             << "driver:            " << mProperties->mVulkan12.driverName << ' ' << mProperties->mVulkan12.driverInfo
             << '\n'
             << "Vulkan:            " << versionString(base.apiVersion) << '\n'
-            << "PCI bus:           "
-            << (mPciAddress.has_value() ? std::format("{:04x}:{:02x}:{:02x}.{:x}", mPciAddress->mDomain,
-                    mPciAddress->mBus, mPciAddress->mDevice, mPciAddress->mFunction)
-                                        : std::string("not stated"))
+            << "PCI bus:           " << (mPciAddress.has_value() ? mPciAddress->describe() : std::string("not stated"))
             << '\n'
             << "device-local heap: " << sumDeviceLocalHeaps(mProperties->mMemory) / (1024 * 1024)
             << " MiB\n"

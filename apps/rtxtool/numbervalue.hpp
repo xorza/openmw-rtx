@@ -10,8 +10,6 @@
 #include <boost/program_options/errors.hpp>
 #include <boost/program_options/value_semantic.hpp>
 
-#include <components/misc/strings/conversion.hpp>
-
 #include "model/wholenumber.hpp"
 
 namespace RtxTool
@@ -70,7 +68,7 @@ namespace RtxTool
     /// **The one rule for a number the line gives**: the whole text, read as
     /// `wholeNumber` reads every number this tool takes — finite, nothing after
     /// it — and inside the range the option states, which the help prints where Boost prints `arg`.
-    /// Boost's own reader takes `nan` and `inf`, and a range stated only in the help held nothing.
+    /// Boost's own reader takes `nan` and `inf`, and a range stated only in the help holds nothing.
     template <class T>
     class NumberValue final : public boost::program_options::typed_value<T>
     {

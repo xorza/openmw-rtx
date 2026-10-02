@@ -450,8 +450,8 @@ namespace RtxTool
         }
 
         // **And a view the reference drew and this run did not draw at all**, which no frame of
-        // this run names: without its own entry a comparison covered fewer views than it was asked
-        // to and said nothing of the rest.
+        // this run names: without its own entry a comparison would cover fewer views than it was
+        // asked to and say nothing of the rest.
         const std::size_t drawn = differences.size();
         for (const Stretch& was : stretches)
         {

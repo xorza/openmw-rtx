@@ -274,7 +274,7 @@ namespace Rtx
         //
         // **Named to end as a cache does**, `rtx-<key>.<n>.partial.pipelinecache`, so a partial
         // that a process killed between its write and its rename left behind is one the sweep
-        // counts and ages out; under any other suffix it stayed for good, up to `sMostBytes` of it.
+        // counts and ages out; under any other suffix it would stay for good, up to `sMostBytes` of it.
         std::filesystem::path partial = mPath;
         partial.replace_extension("." + std::to_string(std::random_device{}()) + ".partial" + std::string(sSuffix));
 

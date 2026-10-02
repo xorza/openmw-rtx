@@ -8,8 +8,8 @@ namespace Rtx
     {
         /// **Under pressure the frame's own memory goes last**: every use of content stands below
         /// essential memory, and essential memory stands at the half the library gives every block
-        /// outside a pool, so a target with an allocation of its own is not below a table in a block.
-        /// A dedicated essential allocation once took the request's nought.
+        /// outside a pool, so a target with an allocation of its own is not below a table in a block,
+        /// and does not take the nought a request with no priority states.
         TEST(RtxMemoryPriorityTest, essentialMemoryStandsAboveEveryUseOfContent)
         {
             EXPECT_EQ(memoryPriorityOf(MemoryUse::Essential), 0.5f);

@@ -376,8 +376,8 @@ namespace RtxTool
         /// source the renderer reads it from. Everything the world animates steps by it, so ten
         /// seconds of world is six hundred frames on every machine, and two runs of one build are
         /// the same run. A window somebody watches wants the wall, as the played game has it. A
-        /// run's and never a setting's: a file that could state a step once turned a played game
-        /// into a fixed-step run for good.
+        /// run's and never a setting's: a file that could state a step once would turn a played
+        /// game into a fixed-step run for good.
         std::optional<float> mStep;
 
         /// Whether the command measures (`VerbPolicy::mMeasures`), which the report's header says.
@@ -436,8 +436,8 @@ namespace RtxTool
     /// The exit status of a run whose one fault is a hashed frame that differed from its reference.
     ///
     /// **Apart from a run that failed**, which is 1: `omw repeat` tells "not repeatable" from "the
-    /// run itself broke" by this number, where it once read the report's wording, and a reworded
-    /// sentence swapped the two verdicts.
+    /// run itself broke" by this number and not by the report's wording, which a reworded sentence
+    /// would swap.
     inline constexpr int sDifferedStatus = 3;
 
     /// What a launcher reads back once `Engine::go` has returned.

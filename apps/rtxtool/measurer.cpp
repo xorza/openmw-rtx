@@ -73,11 +73,11 @@ namespace RtxTool
             BenchSpan{ .mSeconds = sPauseSeconds }.getFrames(step), mRequest.mPlayed);
         mProgress.mCell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell();
         mProgress.mPlace.mView = stop.mName;
+        mProgress.mPlace.mCell = stop.mStand.mCell;
+        mProgress.mPlace.mNote = stop.mNote;
 
         // Before the place's frames, so the first measured one pays no open.
         mProfiling.open();
-        mProgress.mPlace.mCell = stop.mStand.mCell;
-        mProgress.mPlace.mNote = stop.mNote;
     }
 
     Measurer::Verdict Measurer::frame(const Stop& stop, const MWRender::FrameContext& context,
@@ -92,8 +92,8 @@ namespace RtxTool
         // it.** The count is what the trace's sampler and the upscaler's jitter are walked by, what
         // the hashes table numbers its rows by and what ends the stop; and a result comes back one
         // frame later or two, by whether the card had finished when the frame after asked — so a
-        // count of results put two runs of one build at different points of the sequence, and
-        // paired the scene of one frame with the picture of another. What the device answered is
+        // count of results would put two runs of one build at different points of the sequence,
+        // and pair the scene of one frame with the picture of another. What the device answered is
         // taken in below, under the number of the frame it answers for.
         const MeasureWindow::Taken taken = mProgress.mWindow.take(WindowFrame{
             .mWhole = report.isWhole(),

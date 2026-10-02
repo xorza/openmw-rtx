@@ -75,7 +75,7 @@ namespace RtxTool
         /// Closes the run: the total under the places, the check tally, the hashes and the record.
         ///
         /// **A file it cannot write is a line of the report and a failed run, never a throw.** It
-        /// runs inside the engine's frame, and a throw from there lost every measured place's
+        /// runs inside the engine's frame, and a throw from there would lose every measured place's
         /// figures with the report they were in.
         ///
         /// **Takes the request rather than four paths**, because what it writes and what it compares

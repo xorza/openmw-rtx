@@ -40,9 +40,10 @@ namespace MWRender
         /// **Culling off and no bound**, so an intersection visitor enters it and every node above
         /// it whatever their bounds say — OpenSceneGraph turns culling off up the chain for a child
         /// that has it off — and the scene's bound stays what is drawn under it. Bound by the land,
-        /// as upstream's quad tree is, the scene's sphere took the whole island in, and the traced
-        /// map, which stands its eye at the top of that sphere, met its ground from 200,000 units
-        /// up, where a hit's position has a sixty-fourth of a unit to say where a road's edge is.
+        /// as upstream's quad tree is, the scene's sphere would take the whole island in, and the
+        /// traced map, which stands its eye at the top of that sphere, would meet its ground from
+        /// 200,000 units up, where a hit's position has a sixty-fourth of a unit to say where a
+        /// road's edge is.
         class DistantAnswer final : public osg::Node
         {
         public:
@@ -189,6 +190,7 @@ namespace MWRender
             *found = std::move(mCells.back());
         mCells.pop_back();
     }
+
     void TracedTerrain::meet(osgUtil::IntersectionVisitor& visitor)
     {
         osgUtil::Intersector* const asked = visitor.getIntersector();

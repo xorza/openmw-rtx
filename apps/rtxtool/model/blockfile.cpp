@@ -11,7 +11,6 @@
 #include <utility>
 
 #include <components/files/conversion.hpp>
-#include <components/misc/strings/conversion.hpp>
 #include <components/rtx/environment/skylight.hpp>
 
 #include "benchrun.hpp"
@@ -123,8 +122,9 @@ namespace RtxTool
             if (mBlocks.empty())
                 refuse(number, "a field comes before the first [section]");
 
-            // **One value a field, in every schema**: a second `pos` won and a second `speed` lost,
-            // each by the reader that happened to read it, and a typo was a quiet choice.
+            // **One value a field, in every schema**: else a second `pos` would win and a second
+            // `speed` lose, each by the reader that happened to read it, and a typo would be a quiet
+            // choice.
             Block& block = mBlocks.back();
             const std::string_view name = trimmed(text.substr(0, equals));
             const auto set = std::find_if(block.mFields.begin(), block.mFields.end(),

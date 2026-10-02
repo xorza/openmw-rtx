@@ -148,8 +148,7 @@ namespace Rtx
             ASSERT_TRUE(physical.getPciAddress().has_value()) << "every target driver offers VK_EXT_pci_bus_info";
             const PciAddress& address = *physical.getPciAddress();
 
-            const std::string spelt = std::format(
-                "{:04x}:{:02x}:{:02x}.{:x}", address.mDomain, address.mBus, address.mDevice, address.mFunction);
+            const std::string spelt = address.describe();
             EXPECT_NE(physical.describe().find("PCI bus:           " + spelt), std::string::npos);
 
             const std::filesystem::path device = std::filesystem::path("/sys/bus/pci/devices") / spelt;

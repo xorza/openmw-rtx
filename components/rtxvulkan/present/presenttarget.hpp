@@ -12,9 +12,9 @@ namespace Rtx
 
     /// The frame at the output extent, as two images: the picture, which the curve writes and
     /// only the next trace rewrites, and what is shown, which the interface draws over a copy of
-    /// the picture and a present blits from. Two, because a frame that blended the interface into
-    /// the picture left no picture without it: a frame with no trace blended the interface over the
-    /// last interface, and a save's thumbnail held the menu it was saved from.
+    /// the picture and a present blits from. Two, because a frame that blends the interface into the
+    /// picture leaves no picture without it: a frame with no trace would blend the interface over the
+    /// last interface, and a save's thumbnail would hold the menu it was saved from.
     ///
     /// **A present's blit reads what is shown long after the call returned** — it waits the acquire
     /// semaphore — and the next draw writes it: every command buffer opens with a full barrier on

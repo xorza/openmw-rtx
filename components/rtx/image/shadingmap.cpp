@@ -77,7 +77,7 @@ namespace Rtx
                         // The block's own centre decides where it lands, so a block straddling a
                         // boundary is not split between two.
                         const std::span<const std::byte, 8> colour
-                            = colourHalfAt(texture.mBytes, blockOffset(level, layout, column, row), layout);
+                            = colourHalfAt(texture.mBytes, level.blockOffset(column, row, layout.mBytes), layout);
                         sink(column * 4 + 2, row * 4 + 2, blockSum(colour, isBc1(texture.mFormat), srgb));
                     }
                 return;
@@ -85,7 +85,8 @@ namespace Rtx
 
             for (std::uint32_t y = 0; y < height; ++y)
                 for (std::uint32_t x = 0; x < width; ++x)
-                    sink(x, y, TexelSum{ linearOf(looseColourAt(texture, looseOffset(level, layout, x, y)), srgb), 1 });
+                    sink(x, y,
+                        TexelSum{ linearOf(looseColourAt(texture, level.texelOffset(x, y, layout.mBytes)), srgb), 1 });
         }
     }
 

@@ -39,8 +39,8 @@ namespace Rtx
     /// request here asks for.
     ///
     /// **Stated in the request rather than left to the order the driver lists its types in**: the
-    /// library takes the first type that has what is asked, so staging memory was write-combined
-    /// system memory only because the drivers in hand list that type before their window, and a
+    /// library takes the first type that has what is asked, so staging memory would be
+    /// write-combined system memory only where a driver lists that type before its window, and a
     /// driver that listed the window first would put every staging block in the 246 MiB the
     /// host-written tables need. Nought where no type has what is asked.
     std::uint32_t memoryTypesFor(const VkPhysicalDeviceMemoryProperties& memory, VkMemoryPropertyFlags required);

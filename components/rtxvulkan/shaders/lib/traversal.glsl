@@ -209,8 +209,8 @@ TexturePoint candidatePoint(
 
 /// Where a map bound at `unit` reads the hit: at the diffuse's own `point`, or on the second set,
 /// untransformed, where the mesh says that unit reads it — `GpuMesh::mUnitStreams`.
-TexturePoint pointAtUnit(
-    uint unit, TexturePoint point, GpuMesh mesh, uvec3 corner, vec2 bary, SurfaceCone cone, float coneWidth, bool detailed)
+TexturePoint pointAtUnit(uint unit, TexturePoint point, GpuMesh mesh, uvec3 corner, vec2 bary, SurfaceCone cone,
+    float coneWidth, bool detailed)
 {
     if (!readsSecondUvs(mesh, unit))
         return point;
@@ -280,7 +280,7 @@ struct Candidate
 
 /// Reads the candidate `query` stands at into a new `candidate`: the one statement of the read,
 /// and a macro because a `rayQueryEXT` cannot be a parameter.
-#define RTX_READ_CANDIDATE(query, candidate)                                                                 \
+#define RTX_READ_CANDIDATE(query, candidate)                                                                \
     Candidate candidate;                                                                                    \
     candidate.mInstance = rayQueryGetIntersectionInstanceCustomIndexEXT(query, false);                      \
     candidate.mPrimitive = rayQueryGetIntersectionPrimitiveIndexEXT(query, false);                          \
@@ -289,7 +289,8 @@ struct Candidate
     {                                                                                                       \
         vec3 candidateCorners[3];                                                                           \
         rayQueryGetIntersectionTriangleVertexPositionsEXT(query, false, candidateCorners);                  \
-        candidate.mEdges = triangleEdges(candidateCorners, rayQueryGetIntersectionObjectToWorldEXT(query, false)); \
+        candidate.mEdges                                                                                    \
+            = triangleEdges(candidateCorners, rayQueryGetIntersectionObjectToWorldEXT(query, false));       \
     }
 
 /// Whether a candidate hit stops the ray, and what it lets past where it does not.
@@ -1102,6 +1103,11 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     }
     else if (specularMap)
     {
+        // **A `_spec` map is a metalness and a perceptual roughness.** The occlusion in its blue is
+        // not read, because the traced bounce and `ambientReaching` already find what real geometry
+        // occludes and the map would count it twice; nor the scattering in its alpha, which the BC1
+        // maps most of the content ships cannot carry.
+        //
         // **A classic map is a reflectance and an exponent** over a diffuse that is no base
         // colour: no metal splits it, the highlight colour is the lobe's whole, and the exponent
         // over 255 is a roughness by `roughnessOfExponent`'s match. Selected, so the two layouts

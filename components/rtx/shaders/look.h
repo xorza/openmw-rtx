@@ -61,9 +61,9 @@ namespace Rtx::Shaders
 
     /// Where a pixel stops being binned and starts being counted as black: the bottom of the scale,
     /// `2^MIN_LOG_LUMINANCE`, written as the fraction it is exactly. **One edge and one number**:
-    /// a black threshold of 10^-4 under a scale that began at 2^-10 sent the band between them to
-    /// the lowest bin, metered at that bin's middle, up to ten times brighter than it was. The
-    /// scale reaches down to where black was, so that band is metered as what it is.
+    /// a black threshold above the bottom of the scale sends the band between them to the lowest
+    /// bin, metered at that bin's middle and so brighter than it is — up to ten times for a
+    /// threshold of 10^-4 over a scale from 2^-10.
     ///
     /// Without it the dark areas of an interior pile into the lowest bin and drag the average down
     /// to meet them, and the exposure opens until the few lit surfaces are white.
@@ -786,8 +786,6 @@ namespace Rtx::Shaders
     /// `sin(25°)`, written as a literal for the reason `portable.h` gives.
     const float FOG_EDGE_RISE = 0.42261827f;
 
-    /// Water's index of refraction, and the reflectance it gives head-on: `((n - 1) / (n + 1))^2`,
-    /// 0.02037, which is why water is a window seen from above and a mirror seen along it.
     /// Which way the sea's waves run, in the world's plane: the rasterizer's water shader's own
     /// `WIND_DIR`, a constant there, and so not the weather's wind, which an ash storm turns as the
     /// player walks. Restated, because a header the GLSL reads cannot include the game's shader.
@@ -799,6 +797,8 @@ namespace Rtx::Shaders
         return normalize(SEA_WIND);
     }
 
+    /// Water's index of refraction, and the reflectance it gives head-on: `((n - 1) / (n + 1))^2`,
+    /// 0.02037, which is why water is a window seen from above and a mirror seen along it.
     const float WATER_IOR = 1.333f;
     const float WATER_F0 = ((WATER_IOR - 1.0f) / (WATER_IOR + 1.0f)) * ((WATER_IOR - 1.0f) / (WATER_IOR + 1.0f));
 
@@ -829,8 +829,8 @@ namespace Rtx::Shaders
     /// **Absorption, and not a diffuse attenuation coefficient.** `Kd` is what oceanography usually
     /// quotes and it is the wrong number here twice over: it counts scattering as a loss, and it
     /// counts the lengthening of a path that has been scattered about. This renderer already puts
-    /// the scattering back with `WATER_SCATTER`, so charging the beam for it as well is charging it
-    /// twice. What is left of a beam is what was absorbed out of it, which is `a`.
+    /// the scattering back with `VisibilityConstants::mWaterScatter`, so charging the beam for it as
+    /// well is charging it twice. What is left of a beam is what was absorbed out of it, which is `a`.
     ///
     /// **And scattering takes almost nothing out of a beam here.** The reduced coefficient is
     /// `a + b (1 - g)`, and with `WATER_ASYMMETRY` at 0.92 and the albedo below, `b (1 - g)` comes
