@@ -71,16 +71,63 @@ namespace Misc::StringUtils
     /// one: `std::from_chars` reads `inf` and `nan` as numbers, and no text this reads — a setting,
     /// a fallback, a script's literal — means either, which every reader would then carry into its
     /// arithmetic unseen.
+    /// The floating-point number `s` begins with, read by a classic-locale stream: what `toNumeric`
+    /// reads with where `std::from_chars` has no floating point. **Held to the prefix `from_chars`
+    /// reads**, an optional minus, digits with an optional fraction and a complete exponent, so a
+    /// spelling is the same number on every toolchain or none on any: a stream on its own skips
+    /// leading whitespace, reads a leading `+`, and on libc++ reads `0x10` as sixteen.
+    template <typename T>
+    inline std::optional<T> toFloatByStream(std::string_view s)
+    {
+        const auto digitAt = [&](std::size_t at) { return at < s.size() && s[at] >= '0' && s[at] <= '9'; };
+
+        std::size_t at = s.starts_with('-') ? 1 : 0;
+        const std::size_t whole = at;
+        while (digitAt(at))
+            ++at;
+        bool read = at > whole;
+        if (at < s.size() && s[at] == '.' && (read || digitAt(at + 1)))
+        {
+            ++at;
+            read = read || digitAt(at);
+            while (digitAt(at))
+                ++at;
+        }
+        if (!read)
+            return std::nullopt;
+
+        if (at < s.size() && (s[at] == 'e' || s[at] == 'E'))
+        {
+            std::size_t exponent = at + 1;
+            if (exponent < s.size() && (s[exponent] == '+' || s[exponent] == '-'))
+                ++exponent;
+            if (digitAt(exponent))
+            {
+                at = exponent;
+                while (digitAt(at))
+                    ++at;
+            }
+        }
+
+        T result{};
+        std::istringstream stream{ std::string(s.substr(0, at)) };
+        stream.imbue(std::locale::classic());
+        if (!(stream >> result))
+            return std::nullopt;
+
+        return result;
+    }
+
     template <typename T>
     inline std::optional<T> toNumeric(std::string_view s)
     {
         T result{};
         if constexpr (std::is_floating_point_v<T> && !sFromCharsReadsFloats)
         {
-            std::istringstream stream{ std::string(s) };
-            stream.imbue(std::locale::classic());
-            if (s.empty() || !(stream >> result))
+            const std::optional<T> read = toFloatByStream<T>(s);
+            if (!read.has_value())
                 return std::nullopt;
+            result = *read;
         }
         else
         {
