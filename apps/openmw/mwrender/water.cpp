@@ -25,7 +25,6 @@
 #include <components/sceneutil/shadow.hpp>
 #include <components/sceneutil/waterutil.hpp>
 
-#include <components/misc/constants.hpp>
 #include <components/stereo/stereomanager.hpp>
 
 #include <components/nifosg/controller.hpp>
@@ -43,6 +42,7 @@
 #include "renderbin.hpp"
 #include "ripples.hpp"
 #include "ripplesimulation.hpp"
+#include "searules.hpp"
 #include "util.hpp"
 #include "vismask.hpp"
 
@@ -367,7 +367,7 @@ namespace MWRender
     {
         mSimulation = std::make_unique<RippleSimulation>(mSceneRoot, resourceSystem);
 
-        mWaterGeom = SceneUtil::createWaterGeometry(Constants::CellSizeInUnits * 150, 40, 900);
+        mWaterGeom = createSeaGeometry();
         mWaterGeom->setDrawCallback(new DepthClampCallback);
         mWaterGeom->setNodeMask(Mask_Water);
         mWaterGeom->setDataVariance(osg::Object::STATIC);
@@ -735,8 +735,7 @@ namespace MWRender
 
     osg::Vec3f Water::getSceneNodeCoordinates(int gridX, int gridY)
     {
-        return osg::Vec3f(static_cast<float>(gridX * Constants::CellSizeInUnits + (Constants::CellSizeInUnits / 2)),
-            static_cast<float>(gridY * Constants::CellSizeInUnits + (Constants::CellSizeInUnits / 2)), mTop);
+        return osg::Vec3f(seaCentre(gridX, gridY), mTop);
     }
 
     void Water::addEmitter(const MWWorld::Ptr& ptr, float scale, float force)

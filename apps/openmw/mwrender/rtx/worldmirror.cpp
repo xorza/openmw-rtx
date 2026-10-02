@@ -17,7 +17,6 @@
 #include <osg/ref_ptr>
 
 #include <components/esm/refid.hpp>
-#include <components/misc/constants.hpp>
 #include <components/misc/result.hpp>
 #include <components/nifosg/nifloader.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -34,14 +33,15 @@
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/meshtable.hpp>
-#include <components/sceneutil/waterutil.hpp>
 #include <components/terrain/storage.hpp>
 #include <components/terrain/world.hpp>
 #include <components/vfs/pathutil.hpp>
 
+#include "../../mwworld/cell.hpp"
 #include "../../mwworld/cellstore.hpp"
 #include "../../mwworld/weather.hpp"
 #include "../sceneframe.hpp"
+#include "../searules.hpp"
 #include "../sky.hpp"
 #include "../vismask.hpp"
 #include "classmasks.hpp"
@@ -158,7 +158,7 @@ namespace MWRender
         // `MWRender::Water` makes it, on a transform a frame moves.
         mExtractor.setWaterMask(Mask_Water);
 
-        osg::ref_ptr<osg::Geometry> sea = SceneUtil::createWaterGeometry(Constants::CellSizeInUnits * 150, 40, 900);
+        osg::ref_ptr<osg::Geometry> sea = createSeaGeometry();
         sea->setNodeMask(Mask_Water);
         sea->setName("Sea Geometry");
         mSea = new osg::PositionAttitudeTransform;
@@ -212,16 +212,8 @@ namespace MWRender
 
     void WorldMirror::standSea(const MWWorld::CellStore& cell)
     {
-        if (!cell.getCell()->isExterior())
-        {
-            mSeaCentre = osg::Vec2f(0.f, 0.f);
-            return;
-        }
-
-        constexpr int half = Constants::CellSizeInUnits / 2;
-        const int x = cell.getCell()->getGridX() * Constants::CellSizeInUnits + half;
-        const int y = cell.getCell()->getGridY() * Constants::CellSizeInUnits + half;
-        mSeaCentre = osg::Vec2f(static_cast<float>(x), static_cast<float>(y));
+        const MWWorld::Cell& stood = *cell.getCell();
+        mSeaCentre = stood.isExterior() ? seaCentre(stood.getGridX(), stood.getGridY()) : osg::Vec2f(0.f, 0.f);
     }
 
     void WorldMirror::setViewMask(const unsigned int view)
