@@ -783,6 +783,17 @@ namespace Rtx::Shaders
 
     /// Water's index of refraction, and the reflectance it gives head-on: `((n - 1) / (n + 1))^2`,
     /// 0.02037, which is why water is a window seen from above and a mirror seen along it.
+    /// Which way the sea's waves run, in the world's plane: the rasterizer's water shader's own
+    /// `WIND_DIR`, a constant there, and so not the weather's wind, which an ash storm turns as the
+    /// player walks. Restated, because a header the GLSL reads cannot include the game's shader.
+    const vec2 SEA_WIND = vec2(0.5f, -0.8f);
+
+    /// `SEA_WIND` as the unit heading `VisibilityConstants::mSeaHeading` takes.
+    RTX_SHADER vec2 seaHeading()
+    {
+        return normalize(SEA_WIND);
+    }
+
     const float WATER_IOR = 1.333f;
     const float WATER_F0 = ((WATER_IOR - 1.0f) / (WATER_IOR + 1.0f)) * ((WATER_IOR - 1.0f) / (WATER_IOR + 1.0f));
 

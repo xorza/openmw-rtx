@@ -63,6 +63,11 @@ namespace Rtx::Shaders
     {
         return v * (1.0f / std::sqrt(v * v));
     }
+
+    inline vec2 normalize(const vec2& v)
+    {
+        return v * (1.0f / std::sqrt(v * v));
+    }
 }
 
 #else

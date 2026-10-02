@@ -37,14 +37,16 @@ vec3 skyGlow(vec3 direction)
 /// a sheet laid out from where a ray happened to be looking travels with the camera, and a shadow
 /// off one would travel with it too rather than lie under the cloud that made it.
 ///
-/// The turn is about the world's own origin, so that a ray from an eye and a ray from a shading
-/// point reach one answer. Nothing this renderer draws can see where that centre is: the four
-/// weathers that drive a storm are ash, blight, snow and blizzard, and not one of them reaches a
-/// cloud sheet the archives hold.
+/// **The turn is about the frame's eye**, as the rasterizer turns its cloud mesh about the
+/// camera, and one point for every ray of a frame, so a ray from the eye and a ray from a shading
+/// point reach one answer. An ash or blight storm blows off Red Mountain at the player, so its
+/// bearing changes as the player walks; turned about the world's origin, the deck overhead slid
+/// by the walk times the player's distance from the origin over their distance from the mountain.
 vec2 cloudUvAt(vec2 crossing, vec2 bearing)
 {
-    const vec2 along
-        = vec2(crossing.x * bearing.x - crossing.y * bearing.y, crossing.x * bearing.y + crossing.y * bearing.x);
+    const vec2 from = crossing - frame.mOrigin.xy;
+    const vec2 along = vec2(from.x * bearing.x - from.y * bearing.y, from.x * bearing.y + from.y * bearing.x)
+        + frame.mOrigin.xy;
 
     return along * frame.mClouds.mPerTile + vec2(0.0, frame.mClouds.mScroll);
 }

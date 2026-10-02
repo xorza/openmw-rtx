@@ -11,6 +11,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/common/radicalinverse.hpp>
 #include <components/rtx/shaders/camera.h>
+#include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 
 namespace Rtx
@@ -63,9 +64,7 @@ namespace Rtx
             // question.
             constants.mWaterLevel = -std::numeric_limits<float>::infinity();
 
-            // A sea that runs as its tiles were drawn, until a world says which way the wind
-            // blows.
-            constants.mSeaHeading = osg::Vec2f(1.0f, 0.0f);
+            constants.mSeaHeading = Shaders::seaHeading();
 
             // The layer `FOG_HEIGHT` names, until a weather says otherwise. A camera is
             // built before anything has described the air over it, and a lift of nothing is a

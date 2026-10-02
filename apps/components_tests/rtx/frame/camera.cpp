@@ -13,6 +13,7 @@
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/shaders/camera.h>
+#include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/visibility.h>
 
 namespace Rtx
@@ -128,7 +129,7 @@ namespace Rtx
             for (const Shaders::VisibilityConstants& camera : cameras)
             {
                 EXPECT_EQ(camera.mWaterLevel, -std::numeric_limits<float>::infinity());
-                EXPECT_EQ(camera.mSeaHeading, osg::Vec2f(1.0f, 0.0f));
+                EXPECT_EQ(camera.mSeaHeading, Shaders::seaHeading());
                 EXPECT_EQ(camera.mFogLift, 1.0f);
                 EXPECT_EQ(camera.mFar, 400.0f);
                 EXPECT_EQ(camera.mReach, sFarPlane);

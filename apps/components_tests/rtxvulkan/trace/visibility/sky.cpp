@@ -416,6 +416,69 @@ namespace Rtx::Testing
             EXPECT_EQ(deck(1.0f), 0.0f) << "a deck whose sheet stands in was drawn";
         }
 
+        /// **The deck turns about the eye**, as the rasterizer turns its cloud mesh about the camera,
+        /// so the sheet overhead stays where it is whichever way a storm drives it.
+        ///
+        /// A sheet of red, green, blue and white quadrants, at a hundredth of a tile a unit. The eye stands at `(10025,
+        /// 25)`, so overhead is `(100.25, 0.25)` on the sheet: the middle of the red texel. Turned a quarter about the
+        /// world's origin instead, overhead would be `(-0.25, 100.25)`, the middle of the green one.
+        TEST_F(RtxVisibilityTest, theDeckTurnsAboutTheEyeAndOverheadStaysPut)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+
+            SceneDesc scene;
+            scene.textures().add(VFS::Path::NormalizedView("cloud.dds"));
+            addQuad(scene, sheetAt(100.0f, -2000.0f));
+
+            // Two texels a quadrant, so the filter about a quadrant's middle reads its own colour
+            // alone: the centre ray is a unit off overhead, and a turn moves that unit.
+            constexpr std::array<std::array<std::uint8_t, 4>, 4> colours{ { { 255, 0, 0, 255 }, { 0, 255, 0, 255 },
+                { 0, 0, 255, 255 }, { 255, 255, 255, 255 } } };
+            std::array<std::uint8_t, 64> quadrants{};
+            for (std::size_t y = 0; y < 4; ++y)
+                for (std::size_t x = 0; x < 4; ++x)
+                    std::copy_n(colours[(y / 2) * 2 + x / 2].begin(), 4, quadrants.begin() + (y * 4 + x) * 4);
+            const MipLevel level{ 0, 4, 4 };
+            const std::array<TextureData, 1> sheets{ TextureData{
+                .mFormat = TextureFormat::Rgba8Unorm,
+                .mWidth = 4,
+                .mHeight = 4,
+                .mBytes = std::as_bytes(std::span(quadrants)),
+                .mLevels = std::span(&level, 1),
+            } };
+
+            const auto overhead = [&](const osg::Vec3f& eye, const osg::Vec2f& bearing) {
+                Shaders::VisibilityConstants camera
+                    = Testing::makeCamera(eye, eye + osg::Vec3f(0.0f, 1.0f, 1000.0f), 10.0f, size, size, 100000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mClouds = Shaders::CloudDeck{
+                    .mOpacity = 1.0f,
+                    .mLit = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                    .mShadowed = osg::Vec3f(),
+                    .mMean = 1.0f,
+                    .mAltitude = 1000.0f,
+                    .mPerTile = osg::Vec2f(0.01f, 0.01f),
+                    .mBearing = bearing,
+                    .mNextBearing = bearing,
+                    .mRings = osg::Vec3f(1.0e5f, 2.0e5f, 3.0e5f),
+                    .mTexture = 0u,
+                    .mNext = 0u,
+                };
+
+                const Frame frame = shoot(scene, sheets, camera, size);
+                return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2));
+            };
+
+            const osg::Vec3f eye(10025.0f, 25.0f, 0.0f);
+            const osg::Vec3f north = overhead(eye, osg::Vec2f(1.0f, 0.0f));
+            EXPECT_EQ(overhead(eye, osg::Vec2f(0.0f, 1.0f)), north) << "a quarter turn moved the sheet overhead";
+            EXPECT_NE(overhead(osg::Vec3f(10075.0f, 25.0f, 0.0f), osg::Vec2f(1.0f, 0.0f)), north)
+                << "the sheet's texel is not what this reads";
+        }
+
         /// The display pass draws the star field, and draws it only where a ray reached the sky.
         ///
         /// **It is drawn there because a point source is what an upscaler removes.** The trace no
