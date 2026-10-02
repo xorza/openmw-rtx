@@ -436,8 +436,8 @@ add_component_dir (rtx/preprocess/texture
     )
 
 add_component_dir (rtx/renderer
-    channel framedigest frameimage framespend guirenderer memoryreport png renderer sceneuploader
-    shaderdirectory slot
+    channel framedigest frameimage framespend guirenderer memoryreport pciaddress png renderer
+    sceneuploader shaderdirectory slot
     )
 
 add_component_dir (rtx/scene

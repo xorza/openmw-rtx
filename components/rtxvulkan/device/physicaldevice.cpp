@@ -135,7 +135,27 @@ namespace Rtx
         {
             std::unique_ptr<DeviceProperties> mProperties;
             PhysicalDevice::Profile mProfile;
+            std::optional<PciAddress> mPciAddress;
         };
+
+        /// Asked apart from the properties every device answers, because a structure in that chain
+        /// is valid only where the device offers its extension.
+        std::optional<PciAddress> readPciAddress(VkPhysicalDevice handle, std::span<const std::string> extensions)
+        {
+            if (!has(extensions, VK_EXT_PCI_BUS_INFO_EXTENSION_NAME))
+                return std::nullopt;
+
+            VkPhysicalDevicePCIBusInfoPropertiesEXT bus{};
+            bus.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT;
+            VkPhysicalDeviceProperties2 properties{};
+            properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+            properties.pNext = &bus;
+            vkGetPhysicalDeviceProperties2(handle, &properties);
+
+            return PciAddress{
+                .mDomain = bus.pciDomain, .mBus = bus.pciBus, .mDevice = bus.pciDevice, .mFunction = bus.pciFunction
+            };
+        }
 
         Candidate examine(VkPhysicalDevice handle)
         {
@@ -159,8 +179,9 @@ namespace Rtx
             for (const RequiredFormat& required : getRequiredFormats())
                 vkGetPhysicalDeviceFormatProperties(handle, required.mFormat, &formats.emplace_back());
 
-            found.mProfile = PhysicalDevice::profileOf(
-                *found.mProperties, supported, getDeviceExtensions(handle), queues, formats);
+            const std::vector<std::string> extensions = getDeviceExtensions(handle);
+            found.mProfile = PhysicalDevice::profileOf(*found.mProperties, supported, extensions, queues, formats);
+            found.mPciAddress = readPciAddress(handle, extensions);
 
             return found;
         }
@@ -270,6 +291,7 @@ namespace Rtx
             best.mHandle = handle;
             best.mProperties = std::move(found.mProperties);
             best.mProfile = std::move(found.mProfile);
+            best.mPciAddress = found.mPciAddress;
             bestIsDiscrete = discrete;
         }
 
@@ -295,6 +317,11 @@ namespace Rtx
             << "driver:            " << mProperties->mVulkan12.driverName << ' ' << mProperties->mVulkan12.driverInfo
             << '\n'
             << "Vulkan:            " << versionString(base.apiVersion) << '\n'
+            << "PCI bus:           "
+            << (mPciAddress.has_value() ? std::format("{:04x}:{:02x}:{:02x}.{:x}", mPciAddress->mDomain,
+                    mPciAddress->mBus, mPciAddress->mDevice, mPciAddress->mFunction)
+                                        : std::string("not stated"))
+            << '\n'
             << "device-local heap: " << sumDeviceLocalHeaps(mProperties->mMemory) / (1024 * 1024)
             << " MiB\n"
             // The heap a table the frame rewrites has to fit in, which on a card without

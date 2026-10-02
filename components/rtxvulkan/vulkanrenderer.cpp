@@ -175,6 +175,11 @@ namespace Rtx
         mPreviousCamera.reset();
     }
 
+    std::optional<PciAddress> VulkanRenderer::getPciAddress() const
+    {
+        return mDevice.getPhysicalDevice().getPciAddress();
+    }
+
     std::string VulkanRenderer::describeDevice() const
     {
         std::string report = "loader:            Vulkan " + versionString(mInstance.getApiVersion()) + '\n'

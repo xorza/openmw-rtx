@@ -1,5 +1,8 @@
+#include <charconv>
 #include <chrono>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <optional>
 #include <string>
 #include <thread>
@@ -12,11 +15,42 @@
 #include <apps/rtxtool/instruments/gpuclock.hpp>
 #include <apps/rtxtool/instruments/nvml.hpp>
 #include <components/platform/process.hpp>
+#include <components/rtx/renderer/pciaddress.hpp>
+#include <components/testing/util.hpp>
 
 namespace RtxTool
 {
     namespace
     {
+        /// The first NVIDIA display controller sysfs lists, by its place on the bus: the card a test
+        /// of NVML asks the library for, as the harness asks for the renderer's. Nothing on a box
+        /// without one, or without sysfs.
+        std::optional<Rtx::PciAddress> nvidiaCard()
+        {
+            std::error_code error;
+            for (const std::filesystem::directory_entry& device :
+                std::filesystem::directory_iterator("/sys/bus/pci/devices", error))
+            {
+                std::string vendor;
+                std::string kind;
+                std::ifstream(device.path() / "vendor") >> vendor;
+                std::ifstream(device.path() / "class") >> kind;
+                if (vendor != "0x10de" || !kind.starts_with("0x03"))
+                    continue;
+
+                // `dddd:bb:dd.f`, in hexadecimal.
+                const std::string name = device.path().filename().string();
+                std::uint32_t fields[4]{};
+                const char* at = name.data();
+                for (std::uint32_t& field : fields)
+                    at = std::from_chars(at, name.data() + name.size(), field, 16).ptr + 1;
+                return Rtx::PciAddress{
+                    .mDomain = fields[0], .mBus = fields[1], .mDevice = fields[2], .mFunction = fields[3]
+                };
+            }
+            return std::nullopt;
+        }
+
         /// A tally counts every sample, tells its own process's from the rest, keeps a process's
         /// first name, and orders the others so two runs print the same line.
         TEST(RtxCardTallyTest, theOthersAreCountedByProcessAndOrderedMostFirst)
@@ -101,6 +135,43 @@ namespace RtxTool
             EXPECT_EQ(AmdGpu::wholeDegrees("hot"), std::nullopt);
         }
 
+        /// **The AMD card the renderer draws on, by its place on the bus**, and not the first
+        /// `card*` the kernel lists, which on an APU beside a discrete Radeon is the integrated one.
+        /// Read from a tree laid out as sysfs lays it out: an AMD device with its hwmon, another
+        /// vendor's device, and an address where nothing stands.
+        TEST(RtxAmdGpuTest, theCardIsTheOneAtTheRenderersAddress)
+        {
+            EXPECT_EQ(
+                AmdGpu::sysfsNameOf(Rtx::PciAddress{ .mDomain = 0x10, .mBus = 0x3, .mDevice = 0x1f, .mFunction = 1 }),
+                "0010:03:1f.1");
+
+            const std::filesystem::path devices = TestingOpenMW::outputFilePath("amdgpu-devices");
+            std::filesystem::remove_all(devices);
+            const auto write = [](const std::filesystem::path& file, const std::string& text) {
+                std::filesystem::create_directories(file.parent_path());
+                std::ofstream(file) << text;
+            };
+            write(devices / "0000:01:00.0" / "vendor", "0x10de\n");
+            write(devices / "0000:03:00.0" / "vendor", "0x1002\n");
+            write(devices / "0000:03:00.0" / "pp_dpm_sclk", "0: 500Mhz \n1: 2482Mhz *\n");
+            write(devices / "0000:03:00.0" / "hwmon" / "hwmon4" / "temp1_input", "61500\n");
+
+            const Rtx::PciAddress radeon{ .mBus = 3 };
+            const std::optional<AmdGpu> found = AmdGpu::find(radeon, devices);
+            ASSERT_TRUE(found.has_value());
+            const GpuClock clock = found->readClock();
+            ASSERT_TRUE(clock.mRead);
+            EXPECT_EQ(clock.mCore.mLowestMhz, 2482u);
+            EXPECT_EQ(clock.mMemory.mReadings, 0u) << "no pp_dpm_mclk, so no memory clock";
+            EXPECT_EQ(clock.mTemperatureC, std::optional<std::uint32_t>(62u)) << "61.5 rounds to 62";
+            EXPECT_EQ(clock.mThrottleMask, std::nullopt);
+
+            EXPECT_FALSE(AmdGpu::find(Rtx::PciAddress{ .mBus = 1 }, devices).has_value()) << "another vendor's";
+            EXPECT_FALSE(AmdGpu::find(Rtx::PciAddress{ .mBus = 9 }, devices).has_value()) << "nothing there";
+
+            std::filesystem::remove_all(devices);
+        }
+
         /// A process is named by its executable alone, whatever else the driver hands back.
         TEST(RtxNvmlTest, aProcessIsNamedByItsExecutable)
         {
@@ -123,10 +194,25 @@ namespace RtxTool
         /// an NVIDIA driver, and the card's clock is instrumentation rather than a renderer.
         TEST(RtxNvmlTest, theLibraryAnswersAClockAndNamesThisProcess)
         {
-            Nvml nvml;
-            if (!nvml.isOpen())
-                GTEST_SKIP() << "no driver library on this machine: " << nvml.describeAbsence();
+            EXPECT_EQ(Nvml::busIdOf(Rtx::PciAddress{ .mDomain = 0x10, .mBus = 0x3, .mDevice = 0x1f, .mFunction = 1 }),
+                "00000010:03:1F.1");
 
+            Nvml nvml;
+            if (!nvml.hasStarted())
+                GTEST_SKIP() << "no driver library on this machine: " << nvml.describeAbsence();
+            const std::optional<Rtx::PciAddress> card = nvidiaCard();
+            if (!card.has_value())
+                GTEST_SKIP() << "no NVIDIA card listed under /sys/bus/pci/devices";
+
+            // **Nothing is open until a device is chosen, and an address with no card is named.**
+            EXPECT_FALSE(nvml.isOpen());
+            nvml.choose(Rtx::PciAddress{ .mDomain = 0xffff, .mBus = 0xff, .mDevice = 0x1f, .mFunction = 7 });
+            EXPECT_FALSE(nvml.isOpen());
+            EXPECT_NE(nvml.describeAbsence().find("0000FFFF:FF:1F.7"), std::string_view::npos)
+                << nvml.describeAbsence();
+
+            nvml.choose(*card);
+            ASSERT_TRUE(nvml.isOpen()) << nvml.describeAbsence();
             EXPECT_TRUE(nvml.describeAbsence().empty());
 
             // A graphics clock and a memory clock a card of the last decade could hold, which is
@@ -172,14 +258,18 @@ namespace RtxTool
         /// took more than two.
         TEST(RtxCardWatchTest, aWatchSamplesAcrossTheWindowAndEveryWindowStartsFromNothing)
         {
-            const bool sampled = Nvml().hasSamples();
-            if (!Nvml().isOpen())
-                GTEST_SKIP() << "no driver library on this machine";
+            const std::optional<Rtx::PciAddress> card = nvidiaCard();
+            Nvml probe;
+            if (card.has_value())
+                probe.choose(*card);
+            if (!probe.isOpen())
+                GTEST_SKIP() << "no NVIDIA card with its driver library on this machine";
+            const bool sampled = probe.hasSamples();
 
             // A twentieth of the harness's period: what is claimed is a few turns of the loop, and
             // not how often it turns.
             CardWatch watch(std::chrono::milliseconds(5));
-            watch.watch();
+            watch.watch(card);
 
             // **Waited for and not slept out.** What the claim needs is a few turns of the watch's
             // own loop, and how long those take is the machine's to say.
@@ -193,7 +283,7 @@ namespace RtxTool
             ASSERT_GE(watch.getReadings(), 2u) << "the watch's loop never came round";
 
             // A second `watch` is nothing at all: the window goes on counting.
-            watch.watch();
+            watch.watch(card);
             EXPECT_GE(watch.getReadings(), 2u);
 
             // **Starting a place's window asks and waits on nothing**: the watch's next turn closes
@@ -223,6 +313,22 @@ namespace RtxTool
             const CardWindows hurried = watch.stop();
             EXPECT_TRUE(hurried.mPlace.mClock.mRead) << "the place's own last reading";
             EXPECT_TRUE(watch.hasBegun());
+        }
+
+        /// **A renderer that cannot say which card it draws on has no card watched**, and the
+        /// report says why, rather than describing whichever card a library lists first.
+        TEST(RtxCardWatchTest, aRendererWithNoAddressHasNoCardWatched)
+        {
+            CardWatch watch(std::chrono::milliseconds(5));
+            watch.watch(std::nullopt);
+            watch.start();
+            const CardWindows windows = watch.stop();
+
+            EXPECT_FALSE(windows.mPlace.mClock.mRead);
+            EXPECT_EQ(describeClock(windows.mPlace.mClock), "");
+            EXPECT_FALSE(windows.mPlace.mShare.mViewed);
+            EXPECT_EQ(describeCard(windows.mPlace.mShare),
+                "card not watched: the renderer's device does not say where it stands on the bus");
         }
     }
 }

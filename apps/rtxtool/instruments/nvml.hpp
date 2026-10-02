@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <components/platform/library.hpp>
+#include <components/rtx/renderer/pciaddress.hpp>
 
 #include "gpuclock.hpp"
 
@@ -28,8 +29,9 @@ namespace RtxTool
     /// four a second was as often as that could be afforded — the driver's process samples come
     /// five times a second and are lost between polls slower than that.
     ///
-    /// Device nought, which is the line `nvidia-smi` prints first and the card this fork has run
-    /// on; a box with two cards is one this has not met.
+    /// **The device the renderer chose, by its place on the bus**, and not the library's device
+    /// nought: the library numbers its cards in an order of its own, and on a box with two of
+    /// them, or with the renderer on another vendor's card, nought is a card that drew nothing.
     class Nvml
     {
     public:
@@ -38,7 +40,15 @@ namespace RtxTool
         Nvml(const Nvml&) = delete;
         Nvml& operator=(const Nvml&) = delete;
 
+        /// Opens the device at `address`, where the library started and no device is open yet.
+        /// Where the library knows none there, `isOpen` stays false and the absence says so.
+        void choose(const Rtx::PciAddress& address);
+
         bool isOpen() const { return mDevice != nullptr; }
+
+        // Read by the tests and by nothing else.
+        /// Whether the library loaded and started, so a device can be chosen.
+        bool hasStarted() const { return mStarted; }
 
         /// Why the card cannot be asked, or empty where it can.
         std::string_view describeAbsence() const { return mAbsence; }
@@ -71,6 +81,9 @@ namespace RtxTool
         /// hold a space and an option begins with a dash.
         static std::string_view executableOf(std::string_view called);
 
+        /// `address` as the library spells a bus id: `00000000:01:00.0`.
+        static std::string busIdOf(const Rtx::PciAddress& address);
+
     private:
         /// `nvmlProcessUtilizationSample_t`, laid out as the driver writes it.
         struct RawSample
@@ -91,13 +104,15 @@ namespace RtxTool
         Return fetch(unsigned& count);
 
         Platform::Library::ScopedHandle mLibrary;
+        /// Whether the library started, which is what owes it a shutdown.
+        bool mStarted = false;
         Device mDevice = nullptr;
         std::string mAbsence;
         std::string_view mUnsampled;
 
         Return (*mInit)() = nullptr;
         Return (*mShutdown)() = nullptr;
-        Return (*mHandleByIndex)(unsigned, Device*) = nullptr;
+        Return (*mHandleByBusId)(const char*, Device*) = nullptr;
         Return (*mClockInfo)(Device, int, unsigned*) = nullptr;
         Return (*mTemperature)(Device, int, unsigned*) = nullptr;
         Return (*mEventReasons)(Device, unsigned long long*) = nullptr;

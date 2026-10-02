@@ -10,6 +10,7 @@
 
 #include <components/rtx/common/monitor.hpp>
 #include <components/rtx/common/worker.hpp>
+#include <components/rtx/renderer/pciaddress.hpp>
 
 #include "amdgpu.hpp"
 #include "gpuclock.hpp"
@@ -122,8 +123,10 @@ namespace RtxTool
         explicit CardWatch(std::chrono::milliseconds period = sPeriod);
         ~CardWatch();
 
-        /// Starts sampling. Nothing where it already is.
-        void watch();
+        /// Starts sampling `device`, the card the renderer draws on: nothing of another card is
+        /// read, and nothing at all where the renderer could not say which card it is. Nothing
+        /// where the watch already samples.
+        void watch(const std::optional<Rtx::PciAddress>& device);
 
         /// Asks for a place's window to begin, and does nothing else: one store, so the measured
         /// frame it is called on waits on no lock and no driver call. The worker closes the window
@@ -154,11 +157,14 @@ namespace RtxTool
         /// Closes the window between places where `start` asked and no turn has yet. Under the lock.
         void beginAsked();
 
-        /// Where the clock is read: NVML where it opens, and amdgpu's sysfs files where it does not
-        /// and the box has an AMD card — chosen once, since which card a box has does not change
-        /// under a run. The holders are NVML's alone, `AmdGpu` says why.
+        /// Where the clock is read: NVML where it knows the renderer's device, and amdgpu's sysfs
+        /// files where it does not and the device is AMD's — chosen once, by `watch`. The holders
+        /// are NVML's alone, `AmdGpu` says why.
         Nvml mNvml;
         std::optional<AmdGpu> mAmdGpu;
+
+        /// Whether the renderer could not say where its device stands, so nothing was watched.
+        bool mUnaddressed = false;
 
         /// The lock over everything below but the worker.
         Rtx::Monitor mMonitor;

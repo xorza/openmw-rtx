@@ -58,6 +58,7 @@ namespace Rtx
         ~VulkanRenderer() override;
 
         std::string describeDevice() const override;
+        std::optional<PciAddress> getPciAddress() const override;
         bool isValidating() const override;
         void resetHistory() override;
         void dropRipples() override;

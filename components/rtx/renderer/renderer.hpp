@@ -26,6 +26,7 @@
 #include "framedigest.hpp"
 #include "guirenderer.hpp"
 #include "memoryreport.hpp"
+#include "pciaddress.hpp"
 #include "slot.hpp"
 
 struct SDL_Window;
@@ -420,6 +421,10 @@ namespace Rtx
 
         /// Multi-line report: the device and what it can trace with.
         virtual std::string describeDevice() const = 0;
+
+        /// Where the device that draws stands on the PCI bus, for an instrument that asks another
+        /// interface about this card and no other; nothing where the driver does not say.
+        virtual std::optional<PciAddress> getPciAddress() const = 0;
 
         /// The knobs the frames are traced under now: what the renderer was made with, and then
         /// whatever a setting moved since. The one copy, so a stop that writes a picture by the
