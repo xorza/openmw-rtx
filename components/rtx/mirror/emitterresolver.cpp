@@ -166,6 +166,7 @@ namespace Rtx
             .mPlace = place,
             .mFalls = mPass.mFalls,
             .mGlow = glow,
+            .mFade = shading.empty() ? 1.0f : shading.back().mFade.mPlacement,
         });
     }
 
@@ -239,8 +240,11 @@ namespace Rtx
             const bool tinted = held.mVertexColour == VertexColour::Tint;
             const osg::Vec4f vertex = particle.getCurrentColor();
             const osg::Vec3f colour = tinted ? decodeColour(vertex) : held.mDiffuseColour;
-            const float opacity = tinted ? vertex.a() * particle.getCurrentAlpha() : held.mOpacity;
-            const float alpha = held.mBlend == BlendKind::AddWhole ? 1.0f : opacity;
+            // The material's own opacity under a tint as well: the vertex replaces its diffuse,
+            // and the `alpha` uniform it carried stands. And the fade, as every fragment the
+            // rasterizer draws is multiplied by `alpha * actorFade`.
+            const float opacity = tinted ? vertex.a() * particle.getCurrentAlpha() * held.mOpacity : held.mOpacity;
+            const float alpha = held.mBlend == BlendKind::AddWhole ? 1.0f : opacity * pending.mFade;
             if (!std::isfinite(alpha) || !isFinite(colour))
                 return Misc::Err{ "a particle's colour is not a finite number" };
             if (!(alpha > 0.0f))

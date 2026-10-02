@@ -141,6 +141,9 @@ namespace Rtx
 
             /// The effect it stood under, or nothing.
             std::optional<std::size_t> mGlow;
+
+            /// What its sprites are faded by, as a placement there is — `Fade::mPlacement`.
+            float mFade = 1.0f;
         };
 
         /// Reads what `particles` draws with off its chain into `held`, taking the scene's slots for

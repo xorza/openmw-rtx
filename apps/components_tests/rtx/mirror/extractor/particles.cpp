@@ -114,6 +114,18 @@ namespace Rtx::Testing
                 SpriteLightMap::keyFor(VFS::Path::NormalizedView("textures/tx_fire_00.dds")));
             EXPECT_EQ(mScene.emitters().front().mTexture, 0u);
             EXPECT_EQ(mScene.emitters().front().mLighting, 1u);
+
+            // **Under an actor the game is fading the sprites fade with it**, as every fragment the
+            // rasterizer draws is multiplied by `alpha * actorFade`: a torch's flame on an invisible
+            // player. A half of each over the quarter above is a sixteenth.
+            osg::ref_ptr<osg::Group> actor = new osg::Group;
+            actor->getOrCreateStateSet()->addUniform(new osg::Uniform("actorFade", 0.5f));
+            actor->getOrCreateStateSet()->addUniform(new osg::Uniform("alpha", 0.5f));
+            actor->addChild(plume.mRoot);
+            mScene.clearPlacement();
+            walk(*actor, 0, 1);
+            ASSERT_EQ(mScene.sprites().size(), 2u);
+            EXPECT_FLOAT_EQ(mScene.sprites()[0].mAlpha, 0.0625f);
         }
 
         /// A material that ignores the vertex is read for the colour and the alpha instead, and
