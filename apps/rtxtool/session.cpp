@@ -12,6 +12,7 @@
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
+#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/result.hpp>
 
@@ -34,6 +35,8 @@ namespace RtxTool
 
     std::unique_ptr<MWRender::Renderer> Session::createRenderer(const MWRender::RendererSpec& spec)
     {
+        // The engine names the renderer it chose itself, and it chose none here.
+        Crash::annotate("renderer", "raytrace");
         return std::make_unique<MWRender::RtxRenderer>(spec, &mInstalled);
     }
 

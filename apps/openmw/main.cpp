@@ -1,5 +1,3 @@
-#include <components/crashcatcher/crash.hpp>
-#include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/fallback/validate.hpp>
@@ -7,13 +5,13 @@
 #include <components/misc/osgpluginchecker.hpp>
 #include <components/misc/rng.hpp>
 #include <components/platform/platform.hpp>
-#include <components/settings/values.hpp>
 #include <components/version/version.hpp>
 
 #include "mwgui/debugwindow.hpp"
 
 #include "engine.hpp"
 #include "options.hpp"
+#include "startup.hpp"
 
 #include <boost/program_options/variables_map.hpp>
 #include <osg/Notify>
@@ -26,7 +24,6 @@
 extern "C" __declspec(dllexport) DWORD AmdPowerXpressRequestHighPerformance = 0x00000001;
 #endif
 
-#include <chrono>
 #include <filesystem>
 
 #if (defined(__APPLE__) || defined(__linux) || defined(__unix) || defined(__posix))
@@ -70,12 +67,7 @@ bool parseOptions(int argc, char** argv, OMW::Engine& engine, Files::Configurati
 
     cfgMgr.readConfiguration(variables, desc);
 
-    Debug::setupLogging(cfgMgr.getLogPath(), "OpenMW");
-    Log(Debug::Info) << Version::getOpenmwVersionDescription();
-    Crash::annotate("version", Version::getOpenmwVersionDescription());
-
-    Settings::Manager::load(cfgMgr);
-    Crash::setHangLimit(std::chrono::seconds(Settings::general().mCrashHangSeconds));
+    OpenMW::startLogAndSettings(cfgMgr, "OpenMW");
 
     MWGui::DebugWindow::startLogRecording();
 
