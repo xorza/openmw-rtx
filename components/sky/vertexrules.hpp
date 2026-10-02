@@ -28,6 +28,15 @@ namespace Sky
         return CloudRow::Upper;
     }
 
+    /// The alpha Morrowind's atmosphere paints vertex `index` with: the mesh is a cylinder that lists
+    /// its two rings alternately, and every second vertex stands in the bottom ring, which the sky
+    /// colour fades out to. The file records none of it. Both renderers read it here, the
+    /// rasterizer's `ModVertexAlphaVisitor::Atmosphere` and the ray tracer's `readAtmosphere`.
+    inline float atmosphereAlphaOf(const std::size_t index)
+    {
+        return index % 2 != 0 ? 0.f : 1.f;
+    }
+
     /// Whether the star dome draws a vertex authored in `colour`: exactly white, and nothing else,
     /// which leaves its bottom ring out. `ModVertexAlphaVisitor::Stars` and the ray tracer's night
     /// sky both read it here.

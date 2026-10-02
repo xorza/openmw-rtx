@@ -618,9 +618,10 @@ namespace Rtx
 
             EXPECT_NE(outside.mFogColour, inside.mFogColour) << "one flag, and it decided nothing";
 
-            const SkyBudget budget = skyBudget(open.mDaylight.mSkyHorizon, open.mDaylight.mSkyZenith,
-                describeStars(open.mDaylight.mStarFade, open.mGlare, open.mStarRoll, open.mSky).mGlow,
-                open.mDaylight.mLight.mAmbient);
+            const SkyBudget budget
+                = skyBudget(open.mDaylight.mSkyHorizon, open.mDaylight.mSkyZenith, open.mSky.mAtmosphere.mZenithShare,
+                    describeStars(open.mDaylight.mStarFade, open.mGlare, open.mStarRoll, open.mSky).mGlow,
+                    open.mDaylight.mLight.mAmbient);
             EXPECT_EQ(outside.mFogColour, fogColour(budget.mMean, open.mDaylight.mFog.mColour));
         }
 

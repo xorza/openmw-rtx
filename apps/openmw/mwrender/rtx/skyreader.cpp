@@ -61,6 +61,7 @@ namespace MWRender
     {
         return Rtx::SkyMeshes{
             .mClouds = Settings::models().mSkyclouds,
+            .mAtmosphere = Settings::models().mSkyatmosphere,
             .mStars = Settings::models().mSkynight02,
             .mStarsFallback = Settings::models().mSkynight01,
         };
@@ -71,6 +72,7 @@ namespace MWRender
     {
         const Rtx::SkyMeshes sky = meshes();
         models.push_back(sky.mClouds);
+        models.push_back(sky.mAtmosphere);
         if (vfs.exists(sky.mStars))
             models.push_back(sky.mStars);
         models.push_back(sky.mStarsFallback);

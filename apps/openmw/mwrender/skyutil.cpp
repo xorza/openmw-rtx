@@ -1016,8 +1016,7 @@ namespace MWRender
             {
                 case ModVertexAlphaVisitor::Atmosphere:
                 {
-                    // this is a cylinder, so every second vertex belongs to the bottom-most row
-                    alpha = (i % 2) ? 0.f : 1.f;
+                    alpha = Sky::atmosphereAlphaOf(i);
                     break;
                 }
                 case ModVertexAlphaVisitor::Clouds:

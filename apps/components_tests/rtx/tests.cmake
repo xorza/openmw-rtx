@@ -13,6 +13,7 @@ set(RTX_TEST_FILES
     rtx/common/slots.cpp
     rtx/common/stepped.cpp
     rtx/common/worker.cpp
+    rtx/environment/atmosphere.cpp
     rtx/environment/cloudshell.cpp
     rtx/environment/fogbuilder.cpp
     rtx/environment/frameworld.cpp

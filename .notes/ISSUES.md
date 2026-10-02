@@ -9,10 +9,6 @@ first review.
   banner, rope and sail has a hard edge where the rasterizer's is soft, and a cobweb, a Telvanni
   crystal or Bloodmoon ice whose texture reaches 255 anywhere loses the coverage under the cut.
   `components/rtx/scene/material.hpp` (`Material::isTranslucent`).
-- The traced sky fades from fog colour to sky colour linearly in the sine of the elevation, where
-  `sky_atmosphere.nif` fades between 3.6° and 28.6° and is all sky colour above. The sky is too near
-  the fog colour in every exterior frame, and the ambient, fog and deck light read a wrong mean.
-  `components/rtx/shaders/sky.h:319-330`, `components/rtx/environment/skylight.cpp:97-109`.
 - Under the ray tracer, `capture` reads the presented target with the interface blended in, so every
   save thumbnail shows the HUD or the save dialog. It maps the whole frame onto 518×266 by nearest
   sample, about 9.5% too wide at 16:9. The seam promises "the frame without the GUI".

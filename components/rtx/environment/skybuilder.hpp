@@ -12,6 +12,7 @@
 #include <components/rtx/shaders/sky.h>
 #include <components/vfs/pathutil.hpp>
 
+#include "atmosphere.hpp"
 #include "cloudshell.hpp"
 #include "moonbuilder.hpp"
 #include "nightsky.hpp"
@@ -28,6 +29,9 @@ namespace Rtx
     {
         /// The cap the cloud deck is painted on.
         VFS::Path::Normalized mClouds;
+
+        /// The cylinder the fog colour fades to the sky colour on.
+        VFS::Path::Normalized mAtmosphere;
 
         /// The star dome, and the one to fall back to where the archives hold no `mStars`.
         VFS::Path::Normalized mStars;
@@ -76,6 +80,10 @@ namespace Rtx
         /// The surface every weather's deck hangs on, read off the cloud mesh. One shell for all
         /// ten, because the engine draws all ten on the one mesh.
         CloudShell mShell;
+
+        /// Where the fog colour fades to the sky colour, read off the atmosphere mesh. One for
+        /// every weather, as the engine draws every weather's on the one mesh.
+        Atmosphere mAtmosphere;
 
         /// What the shader takes for a weather, or `NO_TEXTURE`.
         std::uint32_t cloudsOf(std::uint32_t weather) const;

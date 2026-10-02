@@ -751,7 +751,7 @@ vec4 fogEdgeOver(vec3 direction, float from, float to)
     const float crossed = fogEdgeCrossed(to) - fogEdgeCrossed(from);
 
     const float transmittance = pow(FOG_EDGE_TRANSMITTANCE, rise * crossed);
-    const vec3 haze = skyGradient(frame.mSkyHorizon, frame.mSkyZenith, direction);
+    const vec3 haze = skyGradient(frame.mSkyHorizon, frame.mSkyZenith, frame.mSkyRamp, direction);
 
     return vec4(haze * (1.0 - transmittance), transmittance);
 }

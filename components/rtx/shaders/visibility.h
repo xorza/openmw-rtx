@@ -242,12 +242,14 @@ namespace Rtx::Shaders
         StarField mStars;
         SkyPatch mSkyPatches[SKY_PATCH_COUNT];
 
-        /// What a ray that hits nothing comes back with, at the horizon and overhead.
+        /// What a ray that hits nothing comes back with, at the horizon and overhead, and where the
+        /// one fades to the other.
         ///
         /// The game's own two colours: its atmosphere is the one overhead and its fog is what that
         /// fades to at the horizon, which is most of what a Morrowind sky is.
         vec3 mSkyHorizon;
         vec3 mSkyZenith;
+        SkyRamp mSkyRamp;
 
         /// How much of `mAmbient` arrives from the sky, from none of it to all.
         ///
@@ -576,8 +578,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1224, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1408, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1248, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1432, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(HitRecord) == 8, "HitRecord must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 8, "PuffConstants must be scalar-packed on every side");
 #endif

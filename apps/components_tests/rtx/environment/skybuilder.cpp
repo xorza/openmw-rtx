@@ -416,6 +416,7 @@ namespace Rtx
             std::vector<TextureHold> holds;
             const SkyContent content = addSkyContent(scene, scenes,
                 SkyMeshes{ .mClouds = VFS::Path::Normalized("meshes/sky_clouds_01.nif"),
+                    .mAtmosphere = VFS::Path::Normalized("meshes/sky_atmosphere.nif"),
                     .mStars = VFS::Path::Normalized("meshes/sky_night_02.nif"),
                     .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif") },
                 thread.mFacts, holds);
@@ -424,7 +425,8 @@ namespace Rtx
             EXPECT_EQ(content.cloudsOf(sWeatherOvercast), Shaders::NO_TEXTURE);
             EXPECT_EQ(scene.textures().findFile(VFS::Path::NormalizedView("textures/tx_sky_clear.dds")), sNoIndex)
                 << "a slot the upload would stand in for";
-            EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 4u) << "both decks, the cloud cap and the star dome";
+            EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 5u)
+                << "both decks, the cloud cap, the atmosphere and the star dome";
 
             scene.drop(holds);
             EXPECT_TRUE(scene.isEmpty());
@@ -532,12 +534,14 @@ namespace Rtx
 
             const SkyContent content = addSkyContent(scene, scenes,
                 SkyMeshes{ .mClouds = VFS::Path::Normalized("meshes/sky_clouds_01.nif"),
+                    .mAtmosphere = VFS::Path::Normalized("meshes/sky_atmosphere.nif"),
                     .mStars = VFS::Path::Normalized("meshes/sky_night_02.nif"),
                     .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif") },
                 thread.mFacts, holds);
 
-            EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 4u)
-                << "the cloud cap, the star dome, and the Clear and Overcast decks the seed names";
+            EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 5u)
+                << "the cloud cap, the atmosphere, the star dome, and the Clear and Overcast decks the seed names";
+            EXPECT_EQ(content.mAtmosphere.mZenithShare, 0.0f) << "no atmosphere: the fog colour everywhere";
             EXPECT_EQ(content.mShell.mTiles, osg::Vec2f()) << "no layer to hang a deck on";
             EXPECT_EQ(content.mNight.mField, sNoIndex) << "and no stars";
             for (const NightSky::Patch& patch : content.mNight.mPatches)

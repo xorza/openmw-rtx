@@ -734,10 +734,13 @@ namespace Rtx::Testing
                 ASSERT_NEAR(edged[at], open[at], 1.0e-5f) << "at " << at;
 
             // **And there was a gradient to leave alone.** Ninety degrees of frame reaches forty-five
-            // either side of the horizon, so the top row is most of the way to the zenith and the
-            // bottom row is under it — a flat sky would pass the loop above without saying anything.
+            // either side of the horizon, so the bottom row is under it and the top row's middle looks
+            // up at `tan e = 47/48`, where the camera's sky (`Testing::sHemisphereRamp`) has faded
+            // `tan e / (1 + tan e)` = 0.494737 of the way: 0.148421 of red's range of 0.3. A flat sky
+            // would pass the loop above without saying anything.
             const std::size_t bottom = (std::size_t{ size - 1 } * size + size / 2) * 4;
-            EXPECT_GT(edged[size / 2 * 4] - edged[bottom], 0.15f) << "the sky's own gradient, still in it";
+            EXPECT_NEAR(edged[size / 2 * 4] - edged[bottom], 0.148421f, 1.0e-4f)
+                << "the sky's own gradient, still in it";
         }
     }
 }
