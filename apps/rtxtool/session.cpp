@@ -37,7 +37,7 @@ namespace RtxTool
     std::unique_ptr<MWRender::Renderer> Session::createRenderer(const MWRender::RendererSpec& spec)
     {
         // The engine names the renderer it chose itself, and it chose none here.
-        Crash::annotate("renderer", "raytrace");
+        Crash::annotate("renderer", MWRender::nameOf(MWRender::RendererKind::RayTraced));
         auto renderer = std::make_unique<MWRender::RtxRenderer>(spec, &mInstalled);
         mMeasurer.watchCard(renderer->getBackend().getPciAddress());
         return renderer;

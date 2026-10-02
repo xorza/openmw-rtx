@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
-#include <stdexcept>
 #include <string>
 #include <thread>
 
@@ -257,18 +256,28 @@ namespace MWRender
         adoptTraversalRoot(root);
     }
 
-    std::unique_ptr<Renderer> createRenderer(std::string_view name, const RendererSpec& spec)
+    std::string_view nameOf(const RendererKind kind)
     {
-        if (name == "opengl")
-            return std::make_unique<GlRenderer>(spec);
+        switch (kind)
+        {
+            case RendererKind::OpenGl:
+                return "opengl";
+            case RendererKind::RayTraced:
+                return "raytrace";
+        }
+        Crash::fatal("a renderer kind past the two");
+    }
 
-        if (name == "raytrace")
-            return std::make_unique<RtxRenderer>(spec);
-
-        // **Named rather than fallen back from.** A renderer that quietly became a different one
-        // answers "why does it look like that" with silence, and a name no renderer has is a
-        // configuration mistake rather than a runtime condition.
-        throw std::runtime_error("there is no renderer named \"" + std::string(name) + '"');
+    std::unique_ptr<Renderer> createRenderer(const RendererKind kind, const RendererSpec& spec)
+    {
+        switch (kind)
+        {
+            case RendererKind::OpenGl:
+                return std::make_unique<GlRenderer>(spec);
+            case RendererKind::RayTraced:
+                return std::make_unique<RtxRenderer>(spec);
+        }
+        Crash::fatal("a renderer kind past the two");
     }
 
     SDL_Window* openWindow(const SDL_WindowFlags surfaceFlag)

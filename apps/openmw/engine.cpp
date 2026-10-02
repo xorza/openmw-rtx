@@ -659,9 +659,10 @@ void OMW::Engine::go()
         mRenderer = mHost->createRenderer(spec);
     else
     {
-        const std::string_view wanted = Settings::rtx().mEnabled ? "raytrace" : "opengl";
-        Log(Debug::Info) << "Renderer: " << wanted;
-        Crash::annotate("renderer", wanted);
+        const MWRender::RendererKind wanted
+            = Settings::rtx().mEnabled ? MWRender::RendererKind::RayTraced : MWRender::RendererKind::OpenGl;
+        Log(Debug::Info) << "Renderer: " << MWRender::nameOf(wanted);
+        Crash::annotate("renderer", MWRender::nameOf(wanted));
         mRenderer = MWRender::createRenderer(wanted, spec);
     }
 

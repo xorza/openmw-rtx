@@ -500,11 +500,20 @@ namespace MWRender
         bool mWorldToggled = true;
     };
 
-    /// The game's own choice, by name. Throws naming the name where there is no such renderer,
-    /// because a fallback would answer "why does it look like that" with silence. A host with a
-    /// renderer of its own — the harness, with its run — makes it itself, as the engine's host
-    /// (`OMW::EngineHost::createRenderer`).
-    std::unique_ptr<Renderer> createRenderer(std::string_view name, const RendererSpec& spec);
+    /// Which of the two renderers a build ships draws the game: both are in every build, and the
+    /// one not chosen never starts.
+    enum class RendererKind
+    {
+        OpenGl,
+        RayTraced,
+    };
+
+    /// The kind as the log and a crash report name it.
+    std::string_view nameOf(RendererKind kind);
+
+    /// The game's own choice. A host with a renderer of its own — the harness, with its run —
+    /// makes it itself, as the engine's host (`OMW::EngineHost::createRenderer`).
+    std::unique_ptr<Renderer> createRenderer(RendererKind kind, const RendererSpec& spec);
 
     /// The window a renderer draws into, as the video settings ask for it: hidden, on the display
     /// `[Video] screen` names and in its window mode, or null with SDL's error to read. Hidden,

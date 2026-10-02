@@ -88,7 +88,8 @@ The one interface the game talks to. Read its header first.
   structures belong to one renderer outright.
 - The game is never handed one renderer's mechanism. The exceptions are the upstream callers
   that cannot change, and they get null under the ray tracer.
-- `createRenderer` throws for a renderer the build lacks. There is no fallback.
+- `createRenderer` takes a `RendererKind`, and every build has both: the one not chosen never
+  starts. There is no fallback.
 - The base keeps what both renderers share: the resource system, the frame clock, the
   screenshot writer, the camera, the traversal root, the view mask and the presentation.
 - The presentation (`Misc::Presentation`) is the one answer to the screen's size. Each renderer
