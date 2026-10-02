@@ -108,6 +108,10 @@ namespace Rtx
         /// The device the renderer made, for a test that holds its memory to a budget of its own.
         const Device& getDevice() const { return mDevice; }
 
+        /// The passes every trace runs, for a test that stands a chain up beside the frame's on
+        /// pipelines already made.
+        const TracePasses& getTracePasses() const { return mTracePasses; }
+
         /// The sea every scene is traced with, `SeaState{}` until told. Uploads a spectrum and
         /// waits the frames in flight out first.
         void setSea(const SeaState& sea);

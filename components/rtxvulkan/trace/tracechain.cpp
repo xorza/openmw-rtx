@@ -38,8 +38,15 @@ namespace Rtx
     {
         assert(width > 0 && height > 0);
 
+        // **The one owner of "is this a new extent"**: an upscaling mode changed between two that
+        // trace at one size asks this again, and fourteen channels and twelve fog images made anew
+        // for it would be made for nothing.
+        if (isBuilt() && width == mWidth && height == mHeight && radiance == mRadiance)
+            return;
+
         mWidth = width;
         mHeight = height;
+        mRadiance = radiance;
 
         mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, radiance);
         mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight);
