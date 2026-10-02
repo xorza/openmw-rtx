@@ -225,8 +225,8 @@ namespace MWRender
         void applyViewMask() noexcept override { mMirror.setViewMask(worldViewMask()); }
         void applyWorldShown() noexcept override { mMirror.setViewMask(worldViewMask()); }
 
-        /// The projection follows the frame's aspect at once; the trace and the surface follow at
-        /// the next frame's fit, which waits for a window being dragged to settle.
+        /// Nothing here: the trace and the surface follow at the next frame's fit, which waits for a
+        /// window being dragged to settle, and the projection is `RenderingManager`'s to follow.
         void applyPresentation() noexcept override;
 
         void applyChangedSettings(const Settings::CategorySettingVector& changed) noexcept override;
@@ -394,9 +394,6 @@ namespace MWRender
         /// into the frame's lines. Borrowed: the world outlives this, and `detachWorld` lets go.
         osg::Group* mWorldRoot = nullptr;
         DebugWalk mDebugWalk;
-
-        /// The world's projection, which follows the frame's aspect. Borrowed as `mWorldRoot` is.
-        RenderingManager* mRendering = nullptr;
 
         /// What the last walk found, and what a second walk added. Kept because a report is written
         /// at the end of a stop and the walks are over by then.

@@ -478,7 +478,7 @@ namespace MWRender
         updateNavMesh();
         updateRecastMesh();
 
-        if (mUpdateProjectionMatrix)
+        if (mUpdateProjectionMatrix || mRenderer.getPresentation().mFrame != mProjectedFrame)
         {
             mUpdateProjectionMatrix = false;
             updateProjectionMatrix();
@@ -931,6 +931,7 @@ namespace MWRender
             throw std::runtime_error("Viewing distance is less than near clip");
 
         const osg::Vec2i frame = mRenderer.getPresentation().mFrame;
+        mProjectedFrame = frame;
         const double width = frame.x();
         const double height = frame.y();
 
