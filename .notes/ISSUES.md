@@ -9,10 +9,6 @@ first review.
   banner, rope and sail has a hard edge where the rasterizer's is soft, and a cobweb, a Telvanni
   crystal or Bloodmoon ice whose texture reaches 255 anywhere loses the coverage under the cut.
   `components/rtx/scene/material.hpp` (`Material::isTranslucent`).
-- An arrival that partly fits the holes of old structure blocks makes a new block the size of the
-  whole arrival: `BottomLevelStore::build` passes the full `wanted` to every `take`. The empty part
-  counts against video memory and the texture ceiling.
-  `components/rtxvulkan/scene/bottomlevelstore.cpp:98-101`, `:224`, `:264-265`.
 - The display chain hears a lost past two ways. `setScene` and `createTargets` do not set
   `mExposureStale`, so a first frame with a held or fixed exposure spends the reset. Every `resize`
   and upscale-mode change resets the measured exposure and the glare share from nothing, against the
