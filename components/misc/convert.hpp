@@ -47,15 +47,10 @@ namespace Misc::Convert
         return osg::Quat(quat.x(), quat.y(), quat.z(), quat.w());
     }
 
-    inline osg::Quat makeOsgQuat(const osg::Vec3f& rotation)
-    {
-        return osg::Quat(rotation.z(), osg::Vec3f(0, 0, -1)) * osg::Quat(rotation.y(), osg::Vec3f(0, -1, 0))
-            * osg::Quat(rotation.x(), osg::Vec3f(-1, 0, 0));
-    }
-
     inline osg::Quat makeOsgQuat(const float (&rotation)[3])
     {
-        return makeOsgQuat(osg::Vec3f(rotation[0], rotation[1], rotation[2]));
+        return osg::Quat(rotation[2], osg::Vec3f(0, 0, -1)) * osg::Quat(rotation[1], osg::Vec3f(0, -1, 0))
+            * osg::Quat(rotation[0], osg::Vec3f(-1, 0, 0));
     }
 
     inline osg::Quat makeOsgQuat(const ESM::Position& position)
