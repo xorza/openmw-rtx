@@ -47,6 +47,7 @@ set(RTXTOOL_FILES
     model/runrecord.hpp
     model/skycrossing.cpp
     model/skycrossing.hpp
+    numbervalue.hpp
     options.cpp
     options.hpp
     picturemean.cpp

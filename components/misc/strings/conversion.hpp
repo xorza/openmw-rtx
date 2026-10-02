@@ -3,6 +3,7 @@
 
 #include <charconv>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <locale>
 #include <optional>
@@ -71,13 +72,10 @@ namespace Misc::StringUtils
     /// one: `std::from_chars` reads `inf` and `nan` as numbers, and no text this reads — a setting,
     /// a fallback, a script's literal — means either, which every reader would then carry into its
     /// arithmetic unseen.
-    /// The floating-point number `s` begins with, read by a classic-locale stream: what `toNumeric`
-    /// reads with where `std::from_chars` has no floating point. **Held to the prefix `from_chars`
-    /// reads**, an optional minus, digits with an optional fraction and a complete exponent, so a
-    /// spelling is the same number on every toolchain or none on any: a stream on its own skips
-    /// leading whitespace, reads a leading `+`, and on libc++ reads `0x10` as sixteen.
-    template <typename T>
-    inline std::optional<T> toFloatByStream(std::string_view s)
+    /// How much of `s` the floating-point number it begins with takes, by `std::from_chars`'s
+    /// grammar: an optional minus, digits with an optional fraction, and an exponent where it is
+    /// complete. Nought where `s` begins with no number.
+    inline std::size_t floatPrefix(std::string_view s)
     {
         const auto digitAt = [&](std::size_t at) { return at < s.size() && s[at] >= '0' && s[at] <= '9'; };
 
@@ -94,7 +92,7 @@ namespace Misc::StringUtils
                 ++at;
         }
         if (!read)
-            return std::nullopt;
+            return 0;
 
         if (at < s.size() && (s[at] == 'e' || s[at] == 'E'))
         {
@@ -109,8 +107,23 @@ namespace Misc::StringUtils
             }
         }
 
+        return at;
+    }
+
+    /// The floating-point number `s` begins with, read by a classic-locale stream: what `toNumeric`
+    /// reads with where `std::from_chars` has no floating point. **Held to the prefix `from_chars`
+    /// reads** (`floatPrefix`), so a spelling is the same number on every toolchain or none on any:
+    /// a stream on its own skips leading whitespace, reads a leading `+`, and on libc++ reads `0x10`
+    /// as sixteen.
+    template <typename T>
+    inline std::optional<T> toFloatByStream(std::string_view s)
+    {
+        const std::size_t length = floatPrefix(s);
+        if (length == 0)
+            return std::nullopt;
+
         T result{};
-        std::istringstream stream{ std::string(s.substr(0, at)) };
+        std::istringstream stream{ std::string(s.substr(0, length)) };
         stream.imbue(std::locale::classic());
         if (!(stream >> result))
             return std::nullopt;
@@ -141,6 +154,27 @@ namespace Misc::StringUtils
                 return std::nullopt;
 
         return result;
+    }
+
+    /// `toNumeric` of the whole of `s`: nothing where anything but the number is in it, as a value
+    /// somebody typed for one field is read.
+    template <typename T>
+    inline std::optional<T> toNumericWhole(std::string_view s)
+    {
+        if constexpr (std::is_floating_point_v<T> && !sFromCharsReadsFloats)
+        {
+            if (floatPrefix(s) != s.size())
+                return std::nullopt;
+        }
+        else
+        {
+            T result{};
+            const auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), result);
+            if (ec != std::errc() || ptr != s.data() + s.size())
+                return std::nullopt;
+        }
+
+        return toNumeric<T>(s);
     }
 
     template <typename T>

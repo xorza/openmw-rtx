@@ -1,8 +1,6 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <charconv>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
@@ -29,6 +27,7 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
+#include <components/misc/strings/conversion.hpp>
 #include <components/platform/platform.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/common/error.hpp>
@@ -101,17 +100,17 @@ namespace RtxTool
         Size parseSize(std::string_view text)
         {
             const std::size_t cross = text.find('x');
-            std::uint32_t width = 0;
-            std::uint32_t height = 0;
+            const std::optional<std::uint32_t> width = cross != std::string_view::npos
+                ? Misc::StringUtils::toNumericWhole<std::uint32_t>(text.substr(0, cross))
+                : std::nullopt;
+            const std::optional<std::uint32_t> height = cross != std::string_view::npos
+                ? Misc::StringUtils::toNumericWhole<std::uint32_t>(text.substr(cross + 1))
+                : std::nullopt;
 
-            const bool ok = cross != std::string_view::npos
-                && std::from_chars(text.data(), text.data() + cross, width).ec == std::errc()
-                && std::from_chars(text.data() + cross + 1, text.data() + text.size(), height).ec == std::errc();
-
-            if (!ok || width == 0 || height == 0)
+            if (!width.has_value() || !height.has_value() || *width == 0 || *height == 0)
                 throw std::runtime_error("not a size: " + std::string(text));
 
-            return Size{ .mWidth = width, .mHeight = height };
+            return Size{ .mWidth = *width, .mHeight = *height };
         }
 
         /// What `--exposure` asked for: a number to hold it at, or nothing to measure it.
@@ -407,28 +406,6 @@ namespace RtxTool
         /// from.
         constexpr std::string_view sShotHashes = "hashes.csv";
 
-        /// `--warmup`, refused where it is less than nought: a negative warm-up warmed up over
-        /// nothing, and said nothing.
-        float warmupGiven(const bpo::variables_map& variables)
-        {
-            const float seconds = variables["warmup"].as<float>();
-            if (!(seconds >= 0.0f) || !std::isfinite(seconds))
-                throw std::runtime_error(std::format("--warmup is {}, which is no length", seconds));
-
-            return seconds;
-        }
-
-        /// `--seconds`, refused where it is not more than nought: such a run measured one frame,
-        /// and said nothing.
-        float secondsGiven(const bpo::variables_map& variables)
-        {
-            const float seconds = variables["seconds"].as<float>();
-            if (!(seconds > 0.0f) || !std::isfinite(seconds))
-                throw std::runtime_error(std::format("--seconds is {}, which is not more than nought", seconds));
-
-            return seconds;
-        }
-
         /// Runs `stop` for `frames` once the world stood whole and its histories converged over
         /// `sHistoryFrames`, so its pictures are the ones a player standing there sees. Still where
         /// the command's row freezes the world (`VerbPolicy::mFreezes`), which `sessionFor` applies.
@@ -504,8 +481,8 @@ namespace RtxTool
             BenchSpec spec;
             spec.mRun = variables["frames"].as<std::uint32_t>() > 0
                 ? BenchSpan{ .mFrames = variables["frames"].as<std::uint32_t>() }
-                : BenchSpan{ .mSeconds = secondsGiven(variables) };
-            spec.mWarm = BenchSpan{ .mSeconds = warmupGiven(variables) };
+                : BenchSpan{ .mSeconds = variables["seconds"].as<float>() };
+            spec.mWarm = BenchSpan{ .mSeconds = variables["warmup"].as<float>() };
 
             return spec;
         }
@@ -901,7 +878,7 @@ namespace RtxTool
 
                 // A route runs for as long as the line says, and ends where it arrives.
                 if (stop.mSchedule.mRoute.has_value())
-                    stop.mSchedule.mSpec.mRun = BenchSpan{ .mSeconds = secondsGiven(variables) };
+                    stop.mSchedule.mSpec.mRun = BenchSpan{ .mSeconds = variables["seconds"].as<float>() };
             }
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));
@@ -979,11 +956,7 @@ namespace RtxTool
                   };
 
             const float strafe = variables["strafe"].as<float>();
-            if (!(strafe >= 0.0f) || !std::isfinite(strafe))
-                throw std::runtime_error(std::format("--strafe is {}, which is no distance", strafe));
             const float walk = variables["walk"].as<float>();
-            if (!std::isfinite(walk))
-                throw std::runtime_error(std::format("--walk is {}, which is no distance", walk));
             const bool flies = strafe > 0.0f || walk != 0.0f;
 
             // A frame taken standing still has a history as long as the warm-up, which is more than
@@ -1099,10 +1072,7 @@ namespace RtxTool
 
             // **The step is the run's, and the film counts every length in it**: the world moves a
             // frame of film between two frames.
-            const float framesPerSecond = variables["fps"].as<float>();
-            if (!(framesPerSecond > 0.0f))
-                throw std::runtime_error(std::format("--fps is {}, which is not more than nought", framesPerSecond));
-            framed.mSetup.mStep = 1.0f / framesPerSecond;
+            framed.mSetup.mStep = 1.0f / variables["fps"].as<float>();
             framed.mSetup.mSettled = true;
             framed.mSetup.mProfile.mUpscale = sFilmUpscale;
 
@@ -1121,25 +1091,12 @@ namespace RtxTool
             pacing.mDay = framed.mDay;
             pacing.mWeatherHold = variables["weather-hold"].as<float>();
             if (variables.count("clock") > 0)
-            {
                 pacing.mClock = variables["clock"].as<float>();
-                if (!(*pacing.mClock >= 0.0f) || !std::isfinite(*pacing.mClock))
-                    throw std::runtime_error(std::format("--clock is {}, which is no speed", *pacing.mClock));
-            }
             for (const std::string& weather : splitNames(variables["turn-weather"].as<std::string>()))
             {
                 refuseUnlessWeather("turn-weather", weather);
                 pacing.mTurn.push_back(*Rtx::weatherIndex(weather));
             }
-
-            for (const auto& [name, value] : { std::pair{ "speed", pacing.mSpeed },
-                     std::pair{ "pan-seconds", pacing.mPanSeconds }, std::pair{ "hour-seconds", pacing.mHourSeconds },
-                     std::pair{ "crossing", pacing.mCrossingSeconds }, std::pair{ "still", pacing.mStillSeconds } })
-                if (!(value > 0.0f))
-                    throw std::runtime_error(std::format("--{} is {}, which is not more than nought", name, value));
-            if (!(pacing.mCutDistance >= 0.0f) || !(pacing.mWeatherHold >= 0.0f) || !(pacing.mEase >= 0.0f)
-                || !std::isfinite(pacing.mEase))
-                throw std::runtime_error("--cut-distance, --weather-hold and --ease cannot be less than nought");
 
             const FilmPlan plan = planFilm(loadKeys(keys), pacing);
             out() << describePlan(plan) << std::flush;

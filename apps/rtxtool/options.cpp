@@ -1,17 +1,15 @@
 #include "options.hpp"
 
 #include <algorithm>
-#include <charconv>
 #include <chrono>
-#include <cmath>
 #include <cstdint>
 #include <filesystem>
 #include <format>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <vector>
 
 #include <boost/program_options/option.hpp>
@@ -24,6 +22,7 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/constants.hpp>
+#include <components/misc/strings/conversion.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
@@ -34,6 +33,7 @@
 #include "film.hpp"
 #include "model/benchrun.hpp"
 #include "model/blockfile.hpp"
+#include "numbervalue.hpp"
 #include "run.hpp"
 #include "verbs.hpp"
 
@@ -178,7 +178,7 @@ namespace RtxTool
 
         option(Verbs::Every, "list-views", bpo::bool_switch(), "print the named viewpoints and quit");
 
-        option(sFramed, "delight", bpo::value<float>()->default_value(byDefault.mSetup.mProfile.mDelight),
+        option(sFramed, "delight", number(between(0.0f, 1.0f))->default_value(byDefault.mSetup.mProfile.mDelight),
             "how much of the lighting painted into each texture to divide back out, from 0 to 1. "
             "Zero is the A/B that says what it did");
         option(sFramed, "filter",
@@ -241,7 +241,7 @@ namespace RtxTool
                         "keys at its own pace",
                 sTurnSeconds));
 
-        option(sOneSky, "hour", bpo::value<float>()->default_value(sDefaultHour),
+        option(sOneSky, "hour", number(between(0.0f, 24.0f, true))->default_value(sDefaultHour),
             "what time an exterior's sun is at, on a twenty-four hour clock. An interior is lit "
             "by its own lamps and does not care. Given, it beats an hour a view fixes for itself");
 
@@ -252,13 +252,13 @@ namespace RtxTool
             "wherever the run's own frames carried it, and a run started fresh stands in one fog "
             "whatever the window saw. Given, it beats an air a view fixes for itself");
 
-        option(sFramed, "day", bpo::value<int>()->default_value(byDefault.mDay),
+        option(sFramed, "day", number(atLeast(0))->default_value(byDefault.mDay),
             "which day the world stands on, counted from the one a new game starts — 16 Last Seed, "
             "where both moons are full. It is the moons this decides and nothing else: their phase "
             "runs on a three-day cycle and the hour they rise on a twenty-four day one. A film's key "
             "that names a day of its own keeps it");
 
-        option(Verbs::View | Verbs::Bench, "frames", bpo::value<std::uint32_t>()->default_value(0),
+        option(Verbs::View | Verbs::Bench, "frames", number(anyNumber<std::uint32_t>())->default_value(0),
             "how many frames to run: `view` closes after this many instead of waiting to be "
             "closed, and `bench` measures this many at each place instead of deriving them from "
             "--seconds");
@@ -267,7 +267,7 @@ namespace RtxTool
             "which list of places in resources/rtx/benches.cfg to visit: [default] for `bench`, "
             "[check] for `check` and [noise] for `noise` unless named. Overridden by --views");
 
-        option(Verbs::Noise, "strafe", bpo::value<float>()->default_value(0.0f),
+        option(Verbs::Noise, "strafe", number(atLeast(0.0f))->default_value(0.0f),
             std::format("with `noise`, how many world units to the side the frame starts: it flies into "
                         "the place over the last {} frames, facing it, through a world as still as the "
                         "reference's, so the frame is taken after a history the eye moved through, and held "
@@ -275,7 +275,7 @@ namespace RtxTool
                         "Nought takes it standing still",
                 sNoiseFlightFrames));
 
-        option(Verbs::Noise, "walk", bpo::value<float>()->default_value(0.0f),
+        option(Verbs::Noise, "walk", number(anyNumber<float>())->default_value(0.0f),
             "with `noise`, how many world units behind the place the frame starts, as --strafe does to "
             "the side: it walks in along the level of its facing, and a negative distance starts in "
             "front and walks back. Adds to --strafe, which it flies in beside");
@@ -285,13 +285,13 @@ namespace RtxTool
             "--views=all runs every view there is, which with `shot --against` is what says what "
             "a change moved");
 
-        option(Verbs::Bench | Verbs::Check, "seconds", bpo::value<float>()->default_value(sSecondsByDefault),
+        option(Verbs::Bench | Verbs::Check, "seconds", number(atLeast(0.0f, true))->default_value(sSecondsByDefault),
             std::format("how many seconds of world to run at each place. World and not wall: the world "
                         "steps 1/{} of a second per frame however long the frame took, so the {} seconds "
                         "nobody named are {} frames either way, and two builds render the same frames",
                 sStepRate, sSecondsByDefault, sStepRate * sSecondsByDefault));
 
-        option(Verbs::Bench, "warmup", bpo::value<float>()->default_value(sWarmupByDefault),
+        option(Verbs::Bench, "warmup", number(atLeast(0.0f))->default_value(sWarmupByDefault),
             "how many seconds of world to draw and throw away once the world stands whole, before "
             "measuring. This machine's GPU idles at 315 MHz and ramps under load, and a scene's first "
             "frames pay for its residency as well. Every other command waits out its histories "
@@ -307,7 +307,8 @@ namespace RtxTool
             "let the game's vanity camera orbit the player after thirty idle seconds, as the played "
             "game does. Off unless asked for: a run is idle by nature");
 
-        option(sFramed, "memory-budget", bpo::value<std::uint64_t>(),
+        option(sFramed, "memory-budget",
+            number(between<std::uint64_t>(1, std::numeric_limits<std::uint64_t>::max() >> 20)),
             "run as though the card's video memory budget were this many MiB, where it is more: "
             "what a smaller card does with the place. Textures and structures stop where they "
             "would stop there, textures coming down to a smaller side first, and what still does "
@@ -335,7 +336,7 @@ namespace RtxTool
                 Rtx::sNoiseSourceNames.list())
                 .c_str());
 
-        option(sFramed, "level-epsilon", bpo::value<float>()->default_value(0.0f),
+        option(sFramed, "level-epsilon", number(anyNumber<float>())->default_value(0.0f),
             "levels added to the texture level bias past the ratio the upscaler sets, negative for "
             "sharper. Nought is the ratio alone, and off the upscaler nothing is biased");
 
@@ -362,7 +363,7 @@ namespace RtxTool
             "place's measured frames, so the profile holds those frames and not the cell being "
             "loaded either side of them. `omw profile` passes this");
 
-        option(Verbs::Shot, "repeat", bpo::value<std::uint32_t>()->default_value(8),
+        option(Verbs::Shot, "repeat", number(atLeast<std::uint32_t>(1))->default_value(8),
             "trace the frame this many times and report the best. One submit times "
             "the GPU's clock rather than the shader; a comparison worth making wants hundreds");
 
@@ -380,13 +381,13 @@ namespace RtxTool
             "by the same ring. Not given, `settings-default.cfg`'s `[Terrain] object paging`, or "
             "the player's own under `view`");
 
-        option(sFramed, "gamma", bpo::value<float>(),
+        option(sFramed, "gamma", number(atLeast(0.0f, true)),
             "the player's display gamma over the finished picture, after the display curve: each "
             "encoded value to the power of one over this, so more than one lifts the darks and black "
             "and white stay. Not given, `settings-default.cfg`'s `[Video] gamma`, which is one and "
             "leaves the picture as the curve wrote it, or the player's own under `view`");
 
-        option(sFramed, "distant-cells", bpo::value<float>(),
+        option(sFramed, "distant-cells", number(between(0.0f, 10.0f)),
             "how far out the cell ring stands ground and statics, in cells. Outside the active grid "
             "a cell's layer stack is flattened into one baked texture, so this is also how many "
             "cells that path is reached for. Zero hands `viewing distance` back the decision, which "
@@ -441,35 +442,35 @@ namespace RtxTool
             "fly to it however far)");
         option(Verbs::Film, "plan", bpo::bool_switch(),
             "print the takes and the length of every segment, and why, then stop without drawing");
-        option(Verbs::Film, "fps", bpo::value<float>()->default_value(sStepRate),
+        option(Verbs::Film, "fps", number(atLeast(0.0f, true))->default_value(sStepRate),
             "frames a second of film, which is also what the world steps by");
-        option(Verbs::Film, "speed", bpo::value<float>()->default_value(pacing.mSpeed),
+        option(Verbs::Film, "speed", number(atLeast(0.0f, true))->default_value(pacing.mSpeed),
             std::format("world units a second the camera flies along its path through the keys, one speed "
                         "from the first key to the last, in place of --length: {:.0f} metres a second is a "
                         "drone and not a run. A turn, the clock or a crossing on a flight takes the flight's "
                         "time, and --plan says where one asks for longer",
                 pacing.mSpeed / Constants::UnitsPerMeter));
-        option(Verbs::Film, "length", bpo::value<float>(),
+        option(Verbs::Film, "length", number(atLeast(0.0f, true)),
             std::format("the film's length in seconds, {:g} where neither this nor --speed is named: every "
                         "flight at the one speed that fills it, which is the path's whole length over what "
                         "is left once the holds, the stills, what stands on the spot and the keys' own "
                         "seconds are taken out",
                 FilmPacing::sLengthByDefault)
                 .c_str());
-        option(Verbs::Film, "ease", bpo::value<float>()->default_value(pacing.mEase),
+        option(Verbs::Film, "ease", number(atLeast(0.0f))->default_value(pacing.mEase),
             "seconds the camera takes to reach its speed from a rest and to come back to one: at a "
             "take's ends, at a hold, and beside a turn on the spot. Nought flies at full speed from "
             "the first frame to the last");
-        option(Verbs::Film, "pan-seconds", bpo::value<float>()->default_value(pacing.mPanSeconds),
+        option(Verbs::Film, "pan-seconds", number(atLeast(0.0f, true))->default_value(pacing.mPanSeconds),
             "how long a pan takes to sweep one image width, or a tilt one image height: the "
             "established limit before judder, which a frame with no motion blur shows sooner");
-        option(Verbs::Film, "hour-seconds", bpo::value<float>()->default_value(pacing.mHourSeconds),
+        option(Verbs::Film, "hour-seconds", number(atLeast(0.0f, true))->default_value(pacing.mHourSeconds),
             "seconds of film a game hour takes where two keys' hours differ: the time-lapse's pace. "
             "The clock runs forward only, so a key at an earlier hour is reached the next day");
-        option(Verbs::Film, "crossing", bpo::value<float>()->default_value(pacing.mCrossingSeconds),
+        option(Verbs::Film, "crossing", number(atLeast(0.0f, true))->default_value(pacing.mCrossingSeconds),
             "the least a crossing into another weather takes. The sky crosses over the whole of the "
             "segment between two keys whatever it takes; under --turn-weather, each crossing takes this");
-        option(Verbs::Film, "clock", bpo::value<float>(),
+        option(Verbs::Film, "clock", number(atLeast(0.0f)),
             std::format("run the game clock at this many times the game's own speed over the whole film — the ×N "
                         "the clock keys set in a window, so --clock=512 is {:.2f} game hours a second — whatever "
                         "hours the keys after the first name: a time-lapse the camera flies through at its own "
@@ -477,11 +478,11 @@ namespace RtxTool
                         "first key's hour",
                 clockHoursPerSecond(512.0f))
                 .c_str());
-        option(Verbs::Film, "weather-hold", bpo::value<float>()->default_value(pacing.mWeatherHold),
+        option(Verbs::Film, "weather-hold", number(atLeast(0.0f))->default_value(pacing.mWeatherHold),
             "how long each weather of --turn-weather stands before it crosses into the next");
-        option(Verbs::Film, "still", bpo::value<float>()->default_value(pacing.mStillSeconds),
+        option(Verbs::Film, "still", number(atLeast(0.0f, true))->default_value(pacing.mStillSeconds),
             "how long a key with no key either side of it stands, and a segment where nothing changes");
-        option(Verbs::Film, "cut-distance", bpo::value<float>()->default_value(pacing.mCutDistance),
+        option(Verbs::Film, "cut-distance", number(atLeast(0.0f))->default_value(pacing.mCutDistance),
             std::format("how far apart two keys can be and still be flown between rather than cut: {:g} "
                         "exterior cells by default. A key in another interior, or inside where the last "
                         "was out, is always a cut",
@@ -494,7 +495,7 @@ namespace RtxTool
             bpo::value<std::string>()->default_value(
                 std::format("{}x{}", byDefault.mWindow.mWidth, byDefault.mWindow.mHeight)),
             "image size, as WIDTHxHEIGHT");
-        option(sFramed, "fov", bpo::value<float>()->default_value(byDefault.mWindow.mFieldOfView),
+        option(sFramed, "fov", number(between(1.0f, 179.0f))->default_value(byDefault.mWindow.mFieldOfView),
             "vertical field of view, in degrees");
         option(sPlaces, "pos", bpo::value<std::string>()->default_value(""),
             "where to put the camera, as x,y,z. Defaults to the view's, and without a view to where the "
@@ -504,7 +505,7 @@ namespace RtxTool
             "what the camera looks at, as x,y,z, from --pos or the view's eye, and refused without "
             "either. Defaults to the view's, and without one to due north.");
 
-        option(Verbs::Shot, "accumulate", bpo::value<std::uint32_t>()->default_value(0),
+        option(Verbs::Shot, "accumulate", number(anyNumber<std::uint32_t>())->default_value(0),
             "average this many differently-seeded frames into one picture. A converged reference, "
             "which is the only ground truth a sampled renderer has: error falls as the square root "
             "of this, so a hundred is a clean picture and a thousand is a reference. Wants "
@@ -551,7 +552,7 @@ namespace RtxTool
             bpo::value<Files::MaybeQuotedPath>()->default_value(Files::MaybeQuotedPath(), ""),
             "start from this savegame rather than from a new game");
 
-        option(sFramed, "random-seed", bpo::value<unsigned int>()->default_value(42),
+        option(sFramed, "random-seed", number(anyNumber<unsigned int>())->default_value(42),
             "seed the world's random draws, so two runs of one build draw the same world");
 
         Files::ConfigurationManager::addCommonOptions(result.mDescription);
@@ -566,10 +567,7 @@ namespace RtxTool
 
         if (!variables["speed"].defaulted())
             throw std::runtime_error("--length sets the speed, so --speed cannot be named beside it");
-        const float length = variables["length"].as<float>();
-        if (!(length > 0.0f) || !std::isfinite(length))
-            throw std::runtime_error(std::format("--length is {}, which is no length of film", length));
-        return length;
+        return variables["length"].as<float>();
     }
 
     std::filesystem::path ownConfigDirectory(const Files::ConfigurationManager& config)
@@ -593,16 +591,15 @@ namespace RtxTool
             if (dash == std::string::npos || dash == 0)
                 continue;
 
-            std::uint64_t started = 0;
-            std::uint32_t process = 0;
-            const char* const end = name.data() + name.size();
-            const std::from_chars_result timeRead = std::from_chars(name.data(), name.data() + dash, started);
-            const std::from_chars_result processRead = std::from_chars(name.data() + dash + 1, end, process);
-            if (timeRead.ptr != name.data() + dash || timeRead.ec != std::errc() || processRead.ptr != end
-                || processRead.ec != std::errc())
+            const std::string_view spelled = name;
+            const std::optional<std::uint64_t> started
+                = Misc::StringUtils::toNumericWhole<std::uint64_t>(spelled.substr(0, dash));
+            const std::optional<std::uint32_t> process
+                = Misc::StringUtils::toNumericWhole<std::uint32_t>(spelled.substr(dash + 1));
+            if (!started.has_value() || !process.has_value())
                 continue;
 
-            if (!Platform::Process::isRunning(process))
+            if (!Platform::Process::isRunning(*process))
                 std::filesystem::remove_all(entry.path(), failed);
         }
     }

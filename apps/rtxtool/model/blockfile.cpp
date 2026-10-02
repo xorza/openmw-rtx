@@ -1,20 +1,16 @@
 #include "blockfile.hpp"
 
 #include <array>
-#include <charconv>
-#include <cmath>
 #include <cstdint>
 #include <format>
 #include <fstream>
 #include <ios>
-#include <locale>
-#include <sstream>
 #include <stdexcept>
 #include <string>
-#include <system_error>
 #include <utility>
 
 #include <components/files/conversion.hpp>
+#include <components/misc/strings/conversion.hpp>
 #include <components/rtx/environment/skylight.hpp>
 
 #include "benchrun.hpp"
@@ -23,34 +19,6 @@ namespace RtxTool
 {
     namespace
     {
-        template <class Number>
-        std::optional<Number> parseNumber(std::string_view text)
-        {
-            Number value = 0;
-            const char* const end = text.data() + text.size();
-            bool whole = false;
-            if constexpr (requires { std::from_chars(text.data(), end, value); })
-            {
-                const auto [stop, error] = std::from_chars(text.data(), end, value);
-                whole = error == std::errc() && stop == end;
-            }
-            else
-            {
-                // Apple's libc++ has `from_chars` for whole numbers alone, and its stream reads
-                // through `strtod`, to the nearest. The end of the stream is where a whole number
-                // stops.
-                std::istringstream stream{ std::string(text) };
-                stream.imbue(std::locale::classic());
-                whole = static_cast<bool>(stream >> std::noskipws >> value) && stream.eof();
-            }
-
-            // Both read "inf" and "nan", which no field of a view or a bench stands for.
-            if (!whole || !std::isfinite(value))
-                return std::nullopt;
-
-            return value;
-        }
-
         /// `text` cut at its commas into exactly `into.size()` pieces, each trimmed, or false where
         /// it has any other number of them.
         bool splitExactly(std::string_view text, std::span<std::string_view> into)
@@ -73,7 +41,7 @@ namespace RtxTool
 
     std::optional<float> parseFloat(std::string_view text)
     {
-        return parseNumber<float>(text);
+        return Misc::StringUtils::toNumericWhole<float>(text);
     }
 
     std::optional<osg::Vec3f> parseVec3(std::string_view text)
@@ -101,10 +69,10 @@ namespace RtxTool
         if (!splitExactly(text, pieces))
             return std::nullopt;
 
-        const std::optional<double> seconds = parseNumber<double>(pieces[0]);
+        const std::optional<double> seconds = Misc::StringUtils::toNumericWhole<double>(pieces[0]);
         const std::optional<float> scroll = parseFloat(pieces[1]);
-        const std::optional<double> x = parseNumber<double>(pieces[2]);
-        const std::optional<double> y = parseNumber<double>(pieces[3]);
+        const std::optional<double> x = Misc::StringUtils::toNumericWhole<double>(pieces[2]);
+        const std::optional<double> y = Misc::StringUtils::toNumericWhole<double>(pieces[3]);
         if (!seconds.has_value() || !scroll.has_value() || !x.has_value() || !y.has_value())
             return std::nullopt;
 
@@ -304,15 +272,13 @@ namespace RtxTool
 
     int BlockFile::day(const BlockField& field) const
     {
-        const std::string& text = field.mValue;
-        int value = 0;
-        const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
-        if (error != std::errc() || end != text.data() + text.size())
+        const std::optional<int> value = Misc::StringUtils::toNumericWhole<int>(field.mValue);
+        if (!value.has_value())
             refuseValue(field, "is not a whole number of days");
-        if (const Misc::Result<void, std::string_view> checked = checkDay(value); !checked.isOk())
+        if (const Misc::Result<void, std::string_view> checked = checkDay(*value); !checked.isOk())
             refuseValue(field, checked.error());
 
-        return value;
+        return *value;
     }
 
     bool BlockFile::readPlace(const BlockField& field, Stop& stop) const

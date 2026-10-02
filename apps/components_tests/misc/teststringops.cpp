@@ -284,6 +284,20 @@ namespace
         EXPECT_TRUE(std::signbit(*toFloatByStream<double>("-0")));
     }
 
+    /// The whole text or nothing: a value somebody typed for one field is the number and nothing
+    /// after it, and still a finite one.
+    TEST(MiscStringsToNumeric, should_read_the_whole_text_or_nothing)
+    {
+        EXPECT_EQ(toNumericWhole<double>("1.5"), 1.5);
+        EXPECT_EQ(toNumericWhole<double>("-2e3"), -2000.0);
+        for (const std::string_view spelled : { "1.5x", "1e", "0x10", " 1", "1 ", "inf", "nan", "" })
+            EXPECT_EQ(toNumericWhole<double>(spelled), std::nullopt) << spelled;
+
+        EXPECT_EQ(toNumericWhole<int>("42"), 42);
+        EXPECT_EQ(toNumericWhole<int>("42px"), std::nullopt);
+        EXPECT_EQ(toNumericWhole<unsigned int>("-1"), std::nullopt);
+    }
+
     TEST(MiscStringsToNumeric, should_read_only_the_view)
     {
         const std::string_view first = std::string_view("25").substr(0, 1);
