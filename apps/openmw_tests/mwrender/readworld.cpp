@@ -269,6 +269,20 @@ namespace MWRender
             EXPECT_NE(shown.mDaylight.mLight.mSun.mDiscColour, osg::Vec3f());
         }
 
+        /// **The glare fades with the disc through sunrise and sunset**, as `SkyManager::setWeather`
+        /// hands the sun `Glare_View` times the disc's alpha: at 06:15 of the shipped day the disc
+        /// stands at a quarter, and so does the glare against a whole disc's.
+        TEST(RtxReadWorldTest, theGlareFadesWithTheDisc)
+        {
+            const Rtx::WorldReading whole = readFrom(standingIn(Location::Exterior));
+            Standing dawn = standingIn(Location::Exterior);
+            dawn.mSky.mWeather.mSunDiscColor.a() = 0.25f;
+            const Rtx::WorldReading faded = readFrom(dawn);
+
+            ASSERT_GT(whole.mSunGlare.mStrength, 0.0f) << "no glare at noon to compare against";
+            EXPECT_FLOAT_EQ(faded.mSunGlare.mStrength, 0.25f * whole.mSunGlare.mStrength);
+        }
+
         /// A script paints Secunda `Moons_Script_Color`, and Secunda alone, as
         /// `SkyManager::setMoonColour` paints it — read off the fallback map the mirror read once,
         /// which is what stands in for the game's own record here.

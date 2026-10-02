@@ -64,21 +64,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
   `skyreader.cpp:134` itself says "the sun and the weather go on lighting".
 
   **Better shape.** Two fields: whether the cell is open to the sky (`WorldState::isOutdoors`), which decides the light, and whether the sky is drawn (`mSkyShown`), which only blanks the dome, decks, discs and patches the eye and the mirrors see. *(kind: bug; severity: low; benefit: a debug toggle that changes only what it says)*
-- [ ] **The sun glare is up to four times the rasterizer's through sunrise and sunset** — `apps/openmw/mwrender/sky.cpp:845`, `apps/openmw/mwrender/skyutil.cpp:680-687`, `:252`; `apps/openmw/mwrender/rtx/skyreader.cpp:245-253`.
-
-  **Rasterizer.** `SkyManager::setWeather` calls `mSun->adjustTransparency(mGlareView * mSunDiscColor.a())`, and `Sun::adjustTransparency` hands that product to `SunGlareCallback::setGlareView`. The fader's "glare view" is therefore `Glare_View` times the disc's sunrise/sunset alpha.
-
-  **Ray tracer.** `SkyReader` multiplies `_Max × mGlareFade × Glare_View` and drops the disc alpha. With the cfg's 6/18/2/2 times:
-
-  | Time | Disc alpha | Trace's glare against the rasterizer's |
-  |---|---|---|
-  | 06:15 | 0.25 | 4× |
-  | 06:30 | 0.5 | 2× |
-  | 19:00 | 0.75 | 1.33× |
-
-  The comment at `skyreader.cpp:245-248` states the product without the factor.
-
-  **Better shape.** Multiply by `weather.mSunDiscColor.a()`, inside the shared fader the "Extends" item proposes. Add a test that holds the strength at the hours where the disc fades. *(kind: bug; severity: low; benefit: dawn and dusk glare as the game sets it)*
 - [ ] **`tx_sun_05` and `tx_sun_flash_grey_05` are never read, and nothing says the bloom stands in for the flash** — `apps/openmw/mwrender/skyutil.cpp:625-642`, `:146-215`, `:764-792`; `components/rtx/shaders/look.h:177-183`; `components/rtx/shaders/glare.h:31-38`.
 
   **Rasterizer.** It draws the sun as a textured quad. Over that it draws an additive flash sprite 2.6 times wider, scaled by the occlusion query's seen share and faded out under a tenth of it.

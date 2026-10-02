@@ -252,13 +252,16 @@ namespace MWRender
             = falling.isOccluded() ? falling.getOcclusionRange().z() + Constants::CellSizeInUnits : 0.0f,
 
             // The fader's strength as `SunGlareCallback` multiplies it up: `_Max` by the
-            // time-of-day fade by the weather's `Glare_View`. The glare node hangs under the sun's
-            // own transform, so a sun the weather manager has hidden for the night or a sky `tsky`
-            // turned off draws none.
+            // time-of-day fade by the glare view `SkyManager::setWeather` hands the sun, which is
+            // the weather's `Glare_View` by the disc's own sunrise and sunset alpha. The glare node
+            // hangs under the sun's own transform, so a sun the weather manager has hidden for the
+            // night or a sky `tsky` turned off draws none.
             .mSunGlare = Rtx::SunGlare{
                 .mColour = mGlareColour,
                 .mAngleMax = mGlareAngleMax,
-                .mStrength = skyShown && sky.mSunUp ? mGlareMax * sky.mGlareFade * weather.mGlareView : 0.0f,
+                .mStrength = skyShown && sky.mSunUp
+                    ? mGlareMax * sky.mGlareFade * weather.mGlareView * weather.mSunDiscColor.a()
+                    : 0.0f,
             },
         };
     }
