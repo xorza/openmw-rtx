@@ -28,6 +28,7 @@ namespace Resource
 namespace MWRender
 {
     class RtxRenderer;
+    class WorldMirror;
 
     /// What a frame's walk found, and what a second walk over the same graph added where a run
     /// asked for one.
@@ -60,7 +61,7 @@ namespace MWRender
         /// appended what arrived, or placed what was there.
         Rtx::SceneUpload::Kind mUpload = Rtx::SceneUpload::Kind::Placed;
 
-        /// How many cells the walk left to stand, `WorldMirror::getCellsToStand`.
+        /// How many cells the walk left to stand, `Rtx::CellRing::getCellsToStand`.
         std::uint32_t mCellsToStand = 0;
 
         /// Whether the world stood paused for this frame: the game's own flag, as the frame was
@@ -103,24 +104,19 @@ namespace MWRender
     /// everything here is the renderer's own.
     struct FrameContext
     {
-        /// The renderer, which is the backend a stop reads through `getBackend`, the seam a picture
-        /// inside the interface is made through, and what draws those pictures for a stop that
-        /// wants one before the next frame.
+        /// The seam a picture inside the interface is made through, and what draws those pictures
+        /// for a stop that wants one before the next frame: its phase machine is the renderer's.
         RtxRenderer& mRenderer;
 
-        /// The world's. A pointer because upstream's `CharacterPreview` takes one; never null,
-        /// because a frame is reported only while there is a world.
-        Resource::ResourceSystem* mResources = nullptr;
+        /// The world as the last walk left it: the scene it handed over, the reach and the eye it
+        /// stood, the grid that disc is counted in, the ring, and what the content holds on the
+        /// host. Not const, because the ring's reader is asked under its lock.
+        WorldMirror& mMirror;
 
-        /// The scene the last walk handed over.
-        const Rtx::SceneDesc& mScene;
+        /// The backend the frames and the pictures are traced into: the profile, and the reads.
+        Rtx::Renderer& mBackend;
 
-        /// How much world the mirror builds, in units, and the eye it builds it around: the disc
-        /// a check counts the ground in is the one the last walk stood.
-        float mReach = 0.0f;
-        osg::Vec3f mEye;
-
-        /// The grid that disc is counted in: the worldspace's own cells.
-        Rtx::CellGrid mGrid;
+        /// The world's, because a frame is reported only while there is a world.
+        Resource::ResourceSystem& mResources;
     };
 }

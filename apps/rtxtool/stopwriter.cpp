@@ -92,7 +92,7 @@ namespace RtxTool
         void drawPicturesNow(const MWRender::FrameContext& context)
         {
             context.mRenderer.drawViews();
-            context.mRenderer.getBackend().finishGuiTraces();
+            context.mBackend.finishGuiTraces();
         }
     }
 
@@ -139,7 +139,7 @@ namespace RtxTool
             mMeanFile = mean.mFile;
         }
 
-        Rtx::Renderer& renderer = into.mContext.mRenderer.getBackend();
+        Rtx::Renderer& renderer = into.mContext.mBackend;
         const Rtx::FrameExtents extents = renderer.getExtents();
         renderer.readPixels(mPixels);
         mMean.add(mPixels, extents.mOutputWidth, extents.mOutputHeight);
@@ -164,7 +164,7 @@ namespace RtxTool
 
     void StopWriter::writeCapture(const Writing& into, const std::filesystem::path& file)
     {
-        Rtx::Renderer& renderer = into.mContext.mRenderer.getBackend();
+        Rtx::Renderer& renderer = into.mContext.mBackend;
         const Rtx::FrameExtents extents = renderer.getExtents();
 
         renderer.readPixels(mPixels);
@@ -202,7 +202,7 @@ namespace RtxTool
 
     void StopWriter::reportScene(const Writing& into)
     {
-        const Rtx::SceneDesc& scene = into.mContext.mScene;
+        const Rtx::SceneDesc& scene = into.mContext.mMirror.getScene();
         const Rtx::ExtractionStats& stats = into.mReport.mWalked.mFound;
 
         into.mRecord.note(
@@ -356,12 +356,12 @@ namespace RtxTool
 
     void StopWriter::writeSheet(const Writing& into, const std::filesystem::path& sheet)
     {
-        const Rtx::SceneDesc& scene = into.mContext.mScene;
+        const Rtx::SceneDesc& scene = into.mContext.mMirror.getScene();
 
         Rtx::SceneTextures described;
         described.describeAll(scene);
 
-        const float delight = into.mContext.mRenderer.getProfile().mDelight;
+        const float delight = into.mContext.mBackend.getProfile().mDelight;
         const ContactSheet drawn = drawContactSheet(described.getDescriptions(), delight);
         if (drawn.mCount == 0)
         {
@@ -484,7 +484,7 @@ namespace RtxTool
         }
 
         {
-            MWRender::InventoryPreview preview(into.mContext.mRenderer, into.mContext.mResources, subject);
+            MWRender::InventoryPreview preview(into.mContext.mRenderer, &into.mContext.mResources, subject);
             preview.rebuild();
 
             // **Through the view and not through the texture the GUI draws from**, which is the one
@@ -499,7 +499,7 @@ namespace RtxTool
 
     void StopWriter::reportFound(const Writing& into, const std::string& needle)
     {
-        const Rtx::SceneDesc& scene = into.mContext.mScene;
+        const Rtx::SceneDesc& scene = into.mContext.mMirror.getScene();
         const std::span<const Rtx::TextureRow> rows = scene.textures().getRows();
 
         // **Found by texture and reported by placement**, because a mesh carries no name of its own
@@ -546,7 +546,7 @@ namespace RtxTool
     bool StopWriter::checkHolds(const MWRender::FrameContext& context, const MWRender::FrameReport& report,
         const Check check, const StopFacts& facts, std::string& found)
     {
-        const Rtx::SceneDesc& scene = context.mScene;
+        const Rtx::SceneDesc& scene = context.mMirror.getScene();
         const Rtx::ExtractionStats& stats = report.mWalked.mFound;
 
         switch (check)
@@ -595,7 +595,7 @@ namespace RtxTool
                 // a backdrop out and clips what it meets, which is exactly the ground this is about.
                 const osg::Vec3f eye
                     = MWBase::Environment::get().getWorld()->getPlayerPtr().getRefData().getPosition().asVec3();
-                const float reach = context.mReach;
+                const float reach = context.mMirror.getReach();
                 const float sky = std::numeric_limits<float>::max();
                 const osg::BoundingBoxf region(
                     eye.x() - reach, eye.y() - reach, -sky, eye.x() + reach, eye.y() + reach, sky);
@@ -617,7 +617,8 @@ namespace RtxTool
                 // stood, counted by the same rule.
                 const bool outdoors = MWBase::Environment::get().getWorld()->isCellExterior();
                 std::uint32_t expected = 0;
-                context.mGrid.forEachCellWithin(context.mEye, context.mReach, [&](const osg::Vec2i&) { ++expected; });
+                context.mMirror.getGrid().forEachCellWithin(
+                    context.mMirror.getEye(), context.mMirror.getReach(), [&](const osg::Vec2i&) { ++expected; });
 
                 found = std::format(
                     "{} cells of ground stand against {} in the reach", stats.mGroundCells, outdoors ? expected : 0);
@@ -650,7 +651,7 @@ namespace RtxTool
                 // in the graph the walk mirrors.
                 const MWWorld::WorldModel& model = *MWBase::Environment::get().getWorldModel();
                 std::vector<ESM::RefNum> standing;
-                context.mRenderer.collectStanding(standing);
+                context.mMirror.getRing().collectStanding(standing);
 
                 std::size_t doubled = 0;
                 std::string first;
@@ -676,7 +677,7 @@ namespace RtxTool
                 // the cell's scripts left them.
                 const MWWorld::WorldModel& model = *MWBase::Environment::get().getWorldModel();
                 std::vector<Rtx::GateVerdict> verdicts;
-                context.mRenderer.collectGateVerdicts(verdicts);
+                context.mMirror.getRing().collectGateVerdicts(verdicts);
 
                 std::size_t disagree = 0;
                 std::string first;

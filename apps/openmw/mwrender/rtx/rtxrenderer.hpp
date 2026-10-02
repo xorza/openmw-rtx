@@ -199,27 +199,14 @@ namespace MWRender
         /// against 6.8.
         static void setResourceExpiry(Resource::ResourceSystem& resources, const std::optional<float>& step);
 
-        /// The backend the frames and the pictures are traced into, for the harness's own reads.
+        /// The backend the frames and the pictures are traced into, for the host that made this
+        /// renderer and asks of the device before the first frame; a frame's reads go through
+        /// `FrameContext::mBackend`.
         Rtx::Renderer& getBackend() { return *mRenderer; }
-
-        /// `WorldMirror::getContentMemory`, for a measured run's report.
-        Rtx::ContentMemory getContentMemory() { return mMirror.getContentMemory(); }
-
-        /// `WorldMirror::collectStanding`, for the harness's check that no static stands twice.
-        void collectStanding(std::vector<ESM::RefNum>& into) const { mMirror.collectStanding(into); }
-
-        /// `WorldMirror::collectGateVerdicts`, for the harness's check that the gates agree with
-        /// the game.
-        void collectGateVerdicts(std::vector<Rtx::GateVerdict>& into) const { mMirror.collectGateVerdicts(into); }
 
         /// The pictures inside the interface this renderer holds, for the harness to find the
         /// game's own map tile in.
         ViewQueue& getViews() { return mViews; }
-
-        /// `Rtx::Renderer::getProfile`: the knobs the frames are traced under now — what the
-        /// backend was made with, and then whatever a setting moved. The one copy, which the
-        /// frame path reads as a stop that writes a picture by the same rules does.
-        const Rtx::RenderProfile& getProfile() const { return mRenderer->getProfile(); }
 
         /// Draws the pictures asked for since the last frame — `ViewQueue::draw` with this
         /// renderer's budget of world views — and answers how long that took. From the frame's

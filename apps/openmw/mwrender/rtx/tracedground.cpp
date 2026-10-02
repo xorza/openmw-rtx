@@ -21,22 +21,22 @@ namespace MWRender
 
     bool TracedGround::enableReference(int type, const MWWorld::ConstPtr& ptr, const bool enabled)
     {
-        mMirror.setReferenceEnabled(ptr.getCellRef().getRefNum(), enabled);
+        mMirror.getRing().setReferenceEnabled(ptr.getCellRef().getRefNum(), enabled);
         return false;
     }
 
     void TracedGround::blacklistReference(int type, const MWWorld::ConstPtr& ptr)
     {
-        mMirror.blacklistReference(ptr.getCellRef().getRefNum());
+        mMirror.getRing().blacklistReference(ptr.getCellRef().getRefNum());
     }
 
     void TracedGround::setGate(const std::uint32_t gate, const Terrain::GateState state)
     {
-        mMirror.setGate(gate, state);
+        mMirror.getRing().setGate(gate, state);
     }
 
     void TracedGround::clear()
     {
-        mMirror.forgetReferences();
+        mMirror.getRing().forgetReferences();
     }
 }

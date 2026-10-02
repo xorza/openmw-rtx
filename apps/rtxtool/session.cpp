@@ -247,7 +247,7 @@ namespace RtxTool
         if (mRequest.mPlayed)
         {
             mNote.take(report.mAir);
-            mHome.answer(mNote.getLeft(), report, context.mRenderer.getBackend().getExtents());
+            mHome.answer(mNote.getLeft(), report, context.mBackend.getExtents());
         }
 
         switch (mMeasurer.frame(currentStop(), context, report, mCamera.hasArrived()))
