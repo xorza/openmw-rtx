@@ -371,6 +371,7 @@ namespace MWRender
         , mEnabled(true)
         , mPrecipitationAlpha(0.f)
         , mDirtyParticlesEffect(false)
+        , mShelters(Settings::shaders().mWeatherParticleOcclusion)
     {
         mRoot = new CameraRelativeTransform;
         mRoot->setName("Precipitation Root");

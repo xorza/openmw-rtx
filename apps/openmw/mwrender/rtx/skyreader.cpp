@@ -260,8 +260,8 @@ namespace MWRender
 
             // The top of the box the rasterizer's `PrecipitationOccluder::update` draws its depth
             // map from: the precipitation's own range and a cell over it, above the eye. Nought
-            // where the game says what is falling is not the kind a roof stops — ash and blight
-            // blow under one, and rain and snow do not.
+            // where `weather particle occlusion` is off, or where the game says what is falling is
+            // not the kind a roof stops — ash and blight blow under one, and rain and snow do not.
             .mShelterHeight
             = falling.isOccluded() ? falling.getOcclusionRange().z() + Constants::CellSizeInUnits : 0.0f,
 

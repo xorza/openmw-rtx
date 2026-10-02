@@ -30,7 +30,6 @@ namespace MWRender
         constexpr std::string_view sSunAtDisc = "The ray tracer's sun stands where the sun's disc is.";
         constexpr std::string_view sRoomAmbient = "The ray tracer lights a room by the ambient its record states.";
         constexpr std::string_view sSoftParticles = "The trace meets a particle as a volume, which a wall cuts softly.";
-        constexpr std::string_view sShelter = "The ray tracer always keeps rain and snow off what stands under a roof.";
         constexpr std::string_view sShadows = "Each surface casts a traced shadow.";
         constexpr std::string_view sOneEye = "The ray tracer draws one eye.";
         constexpr std::string_view sTerrainChunks
@@ -119,8 +118,8 @@ namespace MWRender
             { "Shaders", "particle point lighting", sLamps },
             { "Shaders", "soft particles", sSoftParticles },
             { "Shaders", "terrain specular map pattern", {} },
-            { "Shaders", "weather particle occlusion", sShelter },
-            { "Shaders", "weather particle occlusion small feature culling pixel size", sShelter },
+            { "Shaders", "weather particle occlusion", {} },
+            { "Shaders", "weather particle occlusion small feature culling pixel size", sNoCulling },
             { "Shadows", "", sShadows },
             { "Stereo", "", sOneEye },
             { "Stereo View", "", sOneEye },

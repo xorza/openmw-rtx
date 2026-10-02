@@ -176,12 +176,13 @@ namespace MWRender
         void listAssetsToPreload(
             std::vector<VFS::Path::Normalized>& models, std::vector<VFS::Path::Normalized>& textures);
 
-        /// Whether the rasterizer's occluder keeps what is falling out from under roofs, and over
-        /// what range. The state upstream's calls on the occluder left it in — enabled where the
-        /// rain was made, disabled where it was destroyed or the effect went, the range whichever
-        /// was set last — and not a function of what is falling, because those calls were not one:
-        /// rain that stops under snow leaves the snow unoccluded until the effect changes.
-        bool isOccluded() const { return mOccluded; }
+        /// Whether a roof keeps what is falling off, and over what range: never where
+        /// `weather particle occlusion` is off, which both renderers obey through this. Otherwise
+        /// the state upstream's calls on the occluder left it in — enabled where the rain was made,
+        /// disabled where it was destroyed or the effect went, the range whichever was set last —
+        /// and not a function of what is falling, because those calls were not one: rain that
+        /// stops under snow leaves the snow unoccluded until the effect changes.
+        bool isOccluded() const { return mShelters && mOccluded; }
         const osg::Vec3f& getOcclusionRange() const { return mOcclusionRange; }
 
     private:
@@ -231,6 +232,8 @@ namespace MWRender
         float mPrecipitationAlpha;
         bool mDirtyParticlesEffect;
 
+        /// `weather particle occlusion`, read once: the rasterizer compiles the rain's shaders by it.
+        bool mShelters;
         bool mOccluded = false;
         osg::Vec3f mOcclusionRange;
     };
