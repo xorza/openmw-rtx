@@ -306,9 +306,12 @@ namespace MWRender
         virtual void renderFrame(const SceneFrame& frame) = 0;
 
         /// The eye did not travel here: a change of worldspace, a teleport inside one, a time
-        /// skip. What the last frame showed is not what this one is a step from, which a renderer
-        /// reconstructing across frames needs telling and a rasterizer does not. Only the
-        /// simulation knows, because a cell load looks like a step from below the seam.
+        /// skip — the game's own, `World::advanceTime` past its frame's step, which a rest, a wait,
+        /// travel, training and jail make. What the last frame showed is not what this one is a
+        /// step from, which a renderer reconstructing across frames needs telling and a rasterizer
+        /// does not. Only the simulation knows, because a cell load looks like a step from below
+        /// the seam. A script's write to the clock (`set GameHour`) is no skip, as the weather does
+        /// not fast-forward for one either: the histories wash it out over their own frames.
         virtual void notifyCut() {}
 
         /// The worldspace changed, which is one kind of cut and the one kind that ends what a
