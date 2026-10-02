@@ -5,7 +5,6 @@ file(GLOB UNITTEST_SRC_FILES
     main.cpp
 
     options.cpp
-    startup.cpp
 
     mwworld/teststore.cpp
     mwworld/testduration.cpp

@@ -1,16 +1,19 @@
+#include <components/crashcatcher/crash.hpp>
+#include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
+#include <components/fallback/fallback.hpp>
+#include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/misc/osgpluginchecker.hpp>
-#include <components/misc/result.hpp>
 #include <components/misc/rng.hpp>
 #include <components/platform/platform.hpp>
+#include <components/settings/values.hpp>
 #include <components/version/version.hpp>
 
 #include "mwgui/debugwindow.hpp"
 
 #include "engine.hpp"
 #include "options.hpp"
-#include "startup.hpp"
 
 #include <boost/program_options/variables_map.hpp>
 #include <osg/Notify>
@@ -23,6 +26,7 @@
 extern "C" __declspec(dllexport) DWORD AmdPowerXpressRequestHighPerformance = 0x00000001;
 #endif
 
+#include <chrono>
 #include <filesystem>
 
 #if (defined(__APPLE__) || defined(__linux) || defined(__unix) || defined(__posix))
@@ -42,6 +46,7 @@ bool parseOptions(int argc, char** argv, OMW::Engine& engine, Files::Configurati
 {
     // Create a local alias for brevity
     namespace bpo = boost::program_options;
+    typedef std::vector<std::string> StringsVector;
 
     bpo::options_description desc = OpenMW::makeOptionsDescription();
     bpo::variables_map variables;
@@ -65,25 +70,74 @@ bool parseOptions(int argc, char** argv, OMW::Engine& engine, Files::Configurati
 
     cfgMgr.readConfiguration(variables, desc);
 
-    OpenMW::startLogAndSettings(cfgMgr, "OpenMW");
+    Debug::setupLogging(cfgMgr.getLogPath(), "OpenMW");
+    Debug::setCrashReports(cfgMgr.getUserDataPath());
+    Log(Debug::Info) << Version::getOpenmwVersionDescription();
+    Crash::annotate("version", Version::getOpenmwVersionDescription());
+
+    Settings::Manager::load(cfgMgr);
+    Crash::setHangLimit(std::chrono::seconds(Settings::general().mCrashHangSeconds));
 
     MWGui::DebugWindow::startLogRecording();
 
     engine.setGrabMouse(!variables["no-grab"].as<bool>());
 
+    // Font encoding settings
+    std::string encoding(variables["encoding"].as<std::string>());
+    Log(Debug::Info) << ToUTF8::encodingUsingMessage(encoding);
+    engine.setEncoding(ToUTF8::calculateEncoding(encoding));
+
+    Files::PathContainer dataDirs(asPathContainer(variables["data"].as<Files::MaybeQuotedPathContainer>()));
+
+    Files::PathContainer::value_type local(variables["data-local"]
+                                               .as<Files::MaybeQuotedPathContainer::value_type>()
+                                               .u8string()); // This call to u8string is redundant, but required to
+                                                             // build on MSVC 14.26 due to implementation bugs.
+    if (!local.empty())
+        dataDirs.push_back(std::move(local));
+
+    cfgMgr.filterOutNonExistingPaths(dataDirs);
+
     engine.setResourceDir(variables["resources"]
                               .as<Files::MaybeQuotedPath>()
                               .u8string()); // This call to u8string is redundant, but required to build on MSVC 14.26
                                             // due to implementation bugs.
+    engine.setDataDirs(dataDirs);
 
-    const Misc::Result<OpenMW::Installation, std::string> installation
-        = OpenMW::readInstallation(variables, cfgMgr, {});
-    if (!installation.isOk())
+    // fallback archives
+    StringsVector archives = variables["fallback-archive"].as<StringsVector>();
+    for (StringsVector::const_iterator it = archives.begin(); it != archives.end(); ++it)
     {
-        Log(Debug::Error) << installation.error() << ". Aborting...";
+        engine.addArchive(*it);
+    }
+
+    StringsVector content = variables["content"].as<StringsVector>();
+    if (content.empty())
+    {
+        Log(Debug::Error) << "No content file given (esm/esp, nor omwgame/omwaddon). Aborting...";
         return false;
     }
-    installation.value().handTo(engine);
+    engine.addContentFile("builtin.omwscripts");
+    std::set<std::string> contentDedupe{ "builtin.omwscripts" };
+    for (const auto& contentFile : content)
+    {
+        if (!contentDedupe.insert(contentFile).second)
+        {
+            Log(Debug::Error) << "Content file specified more than once: " << contentFile << ". Aborting...";
+            return false;
+        }
+    }
+
+    for (auto& file : content)
+    {
+        engine.addContentFile(file);
+    }
+
+    StringsVector groundcover = variables["groundcover"].as<StringsVector>();
+    for (auto& file : groundcover)
+    {
+        engine.addGroundcoverFile(file);
+    }
 
     if (variables.count("lua-scripts"))
     {
@@ -106,6 +160,7 @@ bool parseOptions(int argc, char** argv, OMW::Engine& engine, Files::Configurati
     engine.setSaveGameFile(variables["load-savegame"].as<Files::MaybeQuotedPath>().u8string());
 
     // other settings
+    Fallback::Map::init(variables["fallback"].as<Fallback::FallbackMap>().mMap);
     engine.setSoundUsage(!variables["no-sound"].as<bool>());
     engine.setActivationDistanceOverride(variables["activate-dist"].as<int>());
     engine.enableFontExport(variables["export-fonts"].as<bool>());

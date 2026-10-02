@@ -21,7 +21,6 @@
 #include <apps/rtxtool/verbs.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
-#include <components/files/installationoptions.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/testing/util.hpp>
@@ -150,13 +149,11 @@ namespace RtxTool
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
 
-            // The engine's own — `--config` and its three siblings, and the installation's
-            // (`Files::addInstallationOptions`), which the game declares by the same call — reach
-            // the same description and are every command's by nature. They are the only names
-            // `readsOption` is allowed to answer by falling through.
+            // Upstream's own — `--config` and its three siblings — reach the same description
+            // through `Files::ConfigurationManager` and are every command's by nature. They are the
+            // only names `readsOption` is allowed to answer by falling through.
             bpo::options_description upstream("");
             Files::ConfigurationManager::addCommonOptions(upstream);
-            Files::addInstallationOptions(upstream);
 
             std::set<std::string> owned;
             for (const OptionOwner& owner : options.mOwners)
