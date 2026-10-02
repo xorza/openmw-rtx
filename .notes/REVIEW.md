@@ -143,23 +143,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
 
 ## The material reader keeps a subset of what the loader states, by rules other than the rasterizer's
 
-- [ ] **Under the vertex-colour tint the material's alpha still sets the opacity, where the
-  rasterizer reads the vertex's** — `components/rtx/scene/surface.cpp:115`,
-  `components/rtxvulkan/scene/scenebuffers.cpp:68`, against
-  `files/shaders/lib/material/vertexcolors.glsl:20-25` and `objects.frag:156-157`. With
-  `AmbientAndDiffuse` (what `NifOsg` gives every shape that has colours and no
-  `NiVertexColorProperty`, `nifloader.cpp:2754-2756`), the rasterizer's `getDiffuseColor` returns
-  the vertex colour *with its alpha*, so the material's alpha is not read. The tracer replaces the
-  tint (`traversal.glsl:974-977`, which cites `glColorMaterial(GL_AMBIENT_AND_DIFFUSE)`) and keeps
-  the material's alpha as the opacity. Its own emitter path follows the rasterizer
-  (`emitterresolver.cpp:237-242`). Vanilla: 21 shapes in 16 files, among them shape `… 4` of
-  `light_de_candle_04/08/11/17/21/24` and `light_de_lantern_05/10/14` (blend `Over`, material
-  alpha 0.4, vertex alpha 1): the rasterizer draws them at the texture's alpha, the tracer at 40%
-  of it. Also `ex_s_forge`, `ex_s_icicle02`, `furn_basket_01`, `contain_cavern_spore00`. Better
-  shape: `readColours` sets the opacity to the vertex alpha the reader assumes (one, which
-  `meshreader.cpp:195-197` already holds exact for all but three shapes) whenever the mode is
-  `Tint`, so material and sprite read one rule. *(kind: bug; severity: medium; benefit: Dunmer
-  candles and lanterns as the game draws them)*
 - [ ] **An untextured surface is drawn at half its material colour** —
   `components/rtxvulkan/scene/scenebuffers.cpp:56`, `components/rtx/shaders/look.h:345-347`,
   `components/rtxvulkan/texture/texture.cpp:501`, `traversal.glsl:970-972`, `:977`, against

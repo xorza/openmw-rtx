@@ -73,6 +73,15 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   `OPENMW_DISABLE_CRASH_CATCHER` to `1`, so item 13 reports a hang only where a shell sets it to
   `0` (checked: a run stopped for 30 s wrote a dump and a summary with the version and the
   renderer). Whether the harness keeps the catcher off is in `ISSUES.md`, not decided here.
+- **Item 15's vertex alpha darkens the tables under Dunmer candles.** The candles' wax and iron
+  cups carry a material alpha of 0.4 under a vertex tint, which the rasterizer does not read: it
+  draws them opaque, and so does the trace now. Before, the trace drew them as 40% panes, and the
+  candle's lamp shone through its own cup. In `Light_De_Candle_14` the lamp stands 4.3 units over
+  the wax, and the cup rises to 4.5 units under the flame with a half-width of 6, so the cup's
+  shadow covers the table for about 26 units round the candle's foot. `balmora-mages-guild` moved
+  on 2.2% of its pixels, all in that light. The shadow follows from the geometry and the lamp's
+  anchor. If the warmer table is wanted back, the lamp's anchor or its clearance is the place to
+  change, not the material.
 - **Someone ran `git pull --rebase origin` on `refactor`** while the work ran, after two early
   commits (`a297255ebe`, `3de0c852f7`) reached `origin/refactor`. I left them and worked forward:
   `da36abeaa0` moves the test the first one put in the wrong binary.

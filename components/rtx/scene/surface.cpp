@@ -111,12 +111,19 @@ namespace Rtx
             if (const auto* own = dynamic_cast<const SceneUtil::Material*>(&attribute))
             {
                 const osg::Vec4f diffuse = own->getDiffuse();
+                const SceneUtil::VertexColorModes mode = own->getVertexColorMode();
+
+                // Under these two the rasterizer's diffuse is the vertex colour whole, its alpha
+                // with it (`getDiffuseColor`), and the mesh reader reads every vertex alpha as one.
+                const bool vertexDiffuse = mode == SceneUtil::VertexColorModes::AmbientAndDiffuse
+                    || mode == SceneUtil::VertexColorModes::Diffuse;
+
                 material.mDiffuseColour = stated(diffuse);
-                material.mOpacity = diffuse.a();
+                material.mOpacity = vertexDiffuse ? 1.0f : diffuse.a();
                 material.mAmbientColour = stated(own->getAmbient());
                 material.mEmissiveColour = stated(own->getEmission());
                 material.mEmissiveMult = own->getEmissiveMultiplier();
-                material.mVertexColour = vertexColourOf(own->getVertexColorMode());
+                material.mVertexColour = vertexColourOf(mode);
                 return;
             }
 

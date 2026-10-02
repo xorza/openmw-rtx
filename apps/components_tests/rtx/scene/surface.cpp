@@ -179,6 +179,22 @@ namespace Rtx
             EXPECT_FLOAT_EQ(material.mEmissiveMult, 2.0f);
             EXPECT_EQ(material.mVertexColour, VertexColour::Glow);
 
+            // Where the vertex colour is the diffuse, its alpha is the opacity, and every vertex
+            // alpha reads as one. A vertex ambient leaves the material's diffuse, alpha and all.
+            constexpr std::array<std::pair<SceneUtil::VertexColorModes, float>, 3> opacities{ {
+                { SceneUtil::VertexColorModes::AmbientAndDiffuse, 1.0f },
+                { SceneUtil::VertexColorModes::Diffuse, 1.0f },
+                { SceneUtil::VertexColorModes::Ambient, 0.5f },
+            } };
+            for (const auto& [mode, opacity] : opacities)
+            {
+                colours->setVertexColorMode(mode);
+                SurfaceDescription tinted;
+                describeStateSet(*state, tinted);
+                EXPECT_FLOAT_EQ(tinted.mOpacity, opacity) << static_cast<int>(mode);
+            }
+            colours->setVertexColorMode(SceneUtil::VertexColorModes::Emission);
+
             // What `NifOsg::AlphaController` writes, on a state set of the traversal's own.
             osg::ref_ptr<osg::StateSet> animated = new osg::StateSet(*state, osg::CopyOp::SHALLOW_COPY);
             animated->addUniform(new osg::Uniform("alpha", 0.125f));
