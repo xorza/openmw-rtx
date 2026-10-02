@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <format>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -55,17 +56,35 @@ namespace RtxTool
             return quoted + '"';
         }
 
+        /// Null where no reading read it.
+        std::string asJson(const ClockRange& range)
+        {
+            if (range.mReadings == 0)
+                return "null";
+
+            return std::format(R"({{"meanMhz": {}, "lowestMhz": {}, "highestMhz": {}, "readings": {}}})",
+                range.getMeanMhz(), range.mLowestMhz, range.mHighestMhz, range.mReadings);
+        }
+
+        template <class T>
+        std::string asJson(const std::optional<T>& value)
+        {
+            return value.has_value() ? std::format("{}", *value) : "null";
+        }
+
         /// Null where nothing answered, so a record taken on a machine with no driver library says
-        /// it carries no clock rather than claiming one of zero.
+        /// it carries no clock rather than claiming one of zero; and null for each part the
+        /// instrument cannot read, for the same reason. The mean and the count are in it because
+        /// they say whether two records ran at one clock.
         std::string asJson(const GpuClock& clock)
         {
             if (!clock.mRead)
                 return "null";
 
-            return std::format(
-                R"({{"lowestMhz": {}, "highestMhz": {}, "memoryMhz": {}, "temperatureC": {}, "throttle": {}}})",
-                clock.mLowestMhz, clock.mHighestMhz, clock.mMemoryMhz, clock.mTemperatureC,
-                asJson(describeThrottle(clock.mThrottleMask)));
+            const std::string throttle
+                = clock.mThrottleMask.has_value() ? asJson(describeThrottle(*clock.mThrottleMask)) : "null";
+            return std::format(R"({{"core": {}, "memory": {}, "temperatureC": {}, "throttle": {}}})",
+                asJson(clock.mCore), asJson(clock.mMemory), asJson(clock.mTemperatureC), throttle);
         }
 
         /// Null where nothing looked, for the same reason; and in the record at all because a

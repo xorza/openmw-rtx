@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdint>
 #include <format>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -56,6 +57,23 @@ namespace RtxTool
         return named;
     }
 
+    void ClockRange::add(const ClockRange& other)
+    {
+        if (other.mReadings == 0)
+            return;
+
+        if (mReadings == 0)
+        {
+            *this = other;
+            return;
+        }
+
+        mLowestMhz = std::min(mLowestMhz, other.mLowestMhz);
+        mHighestMhz = std::max(mHighestMhz, other.mHighestMhz);
+        mSumMhz += other.mSumMhz;
+        mReadings += other.mReadings;
+    }
+
     void GpuClock::add(const GpuClock& other)
     {
         if (!other.mRead)
@@ -67,28 +85,40 @@ namespace RtxTool
             return;
         }
 
-        mLowestMhz = std::min(mLowestMhz, other.mLowestMhz);
-        mHighestMhz = std::max(mHighestMhz, other.mHighestMhz);
-        mSumMhz += other.mSumMhz;
-        mReadings += other.mReadings;
-        mMemoryMhz = std::max(mMemoryMhz, other.mMemoryMhz);
-        mTemperatureC = std::max(mTemperatureC, other.mTemperatureC);
-        mThrottleMask |= other.mThrottleMask;
+        mCore.add(other.mCore);
+        mMemory.add(other.mMemory);
+        if (other.mTemperatureC.has_value())
+            mTemperatureC = std::max(mTemperatureC.value_or(0), *other.mTemperatureC);
+        if (other.mThrottleMask.has_value())
+            mThrottleMask = mThrottleMask.value_or(0) | *other.mThrottleMask;
     }
 
-    GpuClock GpuClock::reading(const std::uint32_t coreMhz, const std::uint32_t memoryMhz,
-        const std::uint32_t temperatureC, const std::uint64_t throttle)
+    GpuClock GpuClock::reading(const std::uint32_t coreMhz, const std::optional<std::uint32_t> memoryMhz,
+        const std::optional<std::uint32_t> temperatureC, const std::optional<std::uint64_t> throttle)
     {
         return GpuClock{
-            .mLowestMhz = coreMhz,
-            .mHighestMhz = coreMhz,
-            .mSumMhz = coreMhz,
-            .mReadings = 1,
-            .mMemoryMhz = memoryMhz,
+            .mCore = ClockRange::of(coreMhz),
+            .mMemory = memoryMhz.has_value() ? ClockRange::of(*memoryMhz) : ClockRange{},
             .mTemperatureC = temperatureC,
             .mThrottleMask = throttle,
             .mRead = true,
         };
+    }
+
+    namespace
+    {
+        /// The ends, where the clock moved between them.
+        std::string spreadOf(const ClockRange& range)
+        {
+            if (range.mLowestMhz == range.mHighestMhz)
+                return {};
+            return std::format(", {}–{}", range.mLowestMhz, range.mHighestMhz);
+        }
+
+        std::string_view plural(std::uint32_t count)
+        {
+            return count == 1 ? "" : "s";
+        }
     }
 
     std::string describeClock(const GpuClock& clock)
@@ -102,16 +132,26 @@ namespace RtxTool
         // **The count is printed whether or not the clock moved.** A card that held still over
         // twenty-nine readings and one asked once say the same number otherwise, and only the first
         // of them is a reading to hold a frame time against.
-        const std::string spread = clock.mLowestMhz == clock.mHighestMhz
-            ? std::string()
-            : std::format(", {}–{}", clock.mLowestMhz, clock.mHighestMhz);
+        const std::uint32_t readings = clock.getReadings();
+        std::string line = std::format("  clock {} MHz core over {} reading{}{}", clock.mCore.getMeanMhz(), readings,
+            plural(readings), spreadOf(clock.mCore));
 
-        const std::string core = std::format("{} MHz core over {} reading{}{}", clock.getMeanMhz(), clock.mReadings,
-            clock.mReadings == 1 ? "" : "s", spread);
+        // The memory's count only where it is not the core's, which is where a reading read the one
+        // and not the other.
+        const ClockRange& memory = clock.mMemory;
+        if (memory.mReadings > 0)
+            line += std::format(", {} MHz memory{}{}", memory.getMeanMhz(),
+                memory.mReadings == readings
+                    ? std::string()
+                    : std::format(" over {} reading{}", memory.mReadings, plural(memory.mReadings)),
+                spreadOf(memory));
+        if (clock.mTemperatureC.has_value())
+            line += std::format(", {} °C", *clock.mTemperatureC);
 
-        const std::string throttle = describeThrottle(clock.mThrottleMask);
+        if (!clock.mThrottleMask.has_value())
+            return line + " — what holds it back is not read\n";
 
-        return std::format("  clock {}, {} MHz memory, {} °C — {}\n", core, clock.mMemoryMhz, clock.mTemperatureC,
-            throttle.empty() ? "nothing holding it back" : throttle);
+        const std::string throttle = describeThrottle(*clock.mThrottleMask);
+        return line + " — " + (throttle.empty() ? "nothing holding it back" : throttle) + "\n";
     }
 }
