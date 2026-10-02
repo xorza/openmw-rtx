@@ -1,5 +1,6 @@
 #include "blockfile.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <format>
@@ -121,9 +122,18 @@ namespace RtxTool
             if (mBlocks.empty())
                 refuse(number, "a field comes before the first [section]");
 
-            mBlocks.back().mFields.push_back(BlockField{ .mName = std::string(trimmed(text.substr(0, equals))),
-                .mValue = std::string(trimmed(text.substr(equals + 1))),
-                .mLine = number });
+            // **One value a field, in every schema**: a second `pos` won and a second `speed` lost,
+            // each by the reader that happened to read it, and a typo was a quiet choice.
+            Block& block = mBlocks.back();
+            const std::string_view name = trimmed(text.substr(0, equals));
+            const auto set = std::find_if(block.mFields.begin(), block.mFields.end(),
+                [&](const BlockField& field) { return field.mName == name; });
+            if (set != block.mFields.end())
+                refuse(number,
+                    std::format("a second \"{}\" in [{}], which line {} already sets", name, block.mName, set->mLine));
+
+            block.mFields.push_back(BlockField{
+                .mName = std::string(name), .mValue = std::string(trimmed(text.substr(equals + 1))), .mLine = number });
         }
     }
 

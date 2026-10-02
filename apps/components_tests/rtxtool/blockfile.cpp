@@ -119,6 +119,12 @@ namespace RtxTool
             EXPECT_EQ(refusal("[a]\n[b\n"), "places.cfg:2: a section's name is not closed by ]");
             EXPECT_EQ(refusal("[a]\ncell\n"),
                 "places.cfg:2: \"cell\" is neither a [section], a field = value, nor a # comment");
+
+            // **One value a field**: a second `speed` lost and a second `pos` won, each by whichever
+            // reader read it. A field of one name in two sections is two fields.
+            EXPECT_EQ(refusal("[a]\nspeed = 1\nnote = x\nspeed = 2\n"),
+                "places.cfg:4: a second \"speed\" in [a], which line 2 already sets");
+            EXPECT_EQ(readBlocks("[a]\nspeed = 1\n[b]\nspeed = 2\n").getBlocks().size(), 2u);
         }
 
         /// The views keep the file's order, which is what `--list-views` prints, and a view file
@@ -149,7 +155,7 @@ namespace RtxTool
         TEST(RtxBlockFileTest, theFieldParsersRefuseWhatTheyAreNot)
         {
             const BlockFile file = readBlocks(
-                "[a]\nhour = 24\nweather = Drizzle\npos = 1,2\nsettled = yes\nday = -1\nspeed = 0\nhour = 6.5\n");
+                "[a]\nhour = 24\nweather = Drizzle\npos = 1,2\nsettled = yes\nday = -1\nspeed = 0\nwhen = 6.5\n");
             const std::vector<BlockField>& fields = file.getBlocks()[0].mFields;
 
             const auto refused = [](const auto& read) {
