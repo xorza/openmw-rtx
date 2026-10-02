@@ -14,13 +14,15 @@ namespace Rtx
         ExteriorNight,
         InteriorDay,
         Authored,
+
+        Count,
     };
 
     /// The modes a part of a model is shown in, one bit each: the intersection of what every
     /// `NightDaySwitch` above it shows it in, and every mode where no switch is above it.
     struct NightDayModes
     {
-        static constexpr std::uint8_t sEvery = 0xf;
+        static constexpr std::uint8_t sEvery = (1u << static_cast<unsigned>(NightDayMode::Count)) - 1;
 
         std::uint8_t mBits = sEvery;
 

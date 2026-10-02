@@ -171,9 +171,11 @@ namespace Rtx
 
         /// A specular map, whose channels `Rtx::SpecularLayout` says the meaning of.
         Specular,
+
+        Count,
     };
 
-    inline constexpr std::size_t sSurfaceMapCount = static_cast<std::size_t>(SurfaceMap::Specular) + 1;
+    inline constexpr std::size_t sSurfaceMapCount = static_cast<std::size_t>(SurfaceMap::Count);
 
     /// The map a role is kept as, or nothing for a role the trace declines to read.
     constexpr std::optional<SurfaceMap> mapOf(const TextureRole role)
