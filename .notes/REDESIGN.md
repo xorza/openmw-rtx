@@ -72,7 +72,13 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   level at `one-cell-walk`, `balmora` and `island-crossing`. The host rows move between legs of one
   build by up to 40% (in `ISSUES.md`); every build reaches the same low walk median, 0.92–0.97 ms.
   W6's block growth, the refit, the running totals and the presence rows stay in Phase 5.
-- **Now:** Phase 1, medium item 23, the crash kind from the exception.
+- **Phase 1, medium 23:** done — the exception decides a report's kind, the terminate reason in a
+  fixed buffer, the summary's switches ending in `Crash::fatal`, `end()` saying which outcome
+  happened, and the note table read at its known size. The matrix mode was not added (see below).
+- **Phase 1, medium 24:** done, seven commits — the refracted cone, the walks' glow per crossing, the
+  merge by the sum of alphas, a `ONE, ONE` flame, the camera in double, the normal map's loss at the
+  level its read resolves, and the water's rays biased once. Each names the pictures it moved.
+- **Now:** Phase 1, the lows, W14.0 first.
 
 ### Waiting for you
 
@@ -126,6 +132,14 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   to the top level. Built against synthetic tests alone it could be quietly wrong where it matters.
   If you put a groundcover mod (Aesthesia, Remiros') in `~/.config/openmw/openmw.cfg`, I build it
   next and measure it.
+- **Item 23: no crash-matrix mode for a fault inside a report.** The plan asked for one. Built, it
+  left two dumps in 8 of 8 runs on Linux, and the report's dump was summarised as the fault on the
+  reporting thread: Crashpad's Linux client keeps one exception record, which `DumpWithoutCrash` and
+  the crash handler both write. A matrix check that passes there would make that defect an
+  expectation, and Windows and macOS answer differently, so the rule is held by `readNotes`'s unit
+  test instead, and the record in `ISSUES.md`. Serialising a fault behind a report in progress on
+  another thread (a first-chance handler that waits on the gate) would give one clean dump each,
+  per system; that is a design of its own, not built.
 - **Someone ran `git pull --rebase origin` on `refactor`** while the work ran, after two early
   commits (`a297255ebe`, `3de0c852f7`) reached `origin/refactor`. I left them and worked forward:
   `da36abeaa0` moves the test the first one put in the wrong binary.
