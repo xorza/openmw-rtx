@@ -46,6 +46,18 @@ namespace Rtx
         }
     };
 
+    /// Where one trace's sprite tables are, read once off its bin after `take`, which may have grown
+    /// them: what the frame block binds, and what the display reads of the same trace after it. A
+    /// camera that draws no sprites binds its slot's bin all the same; the bin took no sprite, so its
+    /// list holds none.
+    struct SpriteTables
+    {
+        VkDeviceAddress mSprites = 0;
+        VkDeviceAddress mEmitterFrames = 0;
+        VkDeviceAddress mTileList = 0;
+        VkDeviceAddress mPresence = 0;
+    };
+
     /// What one bin is of: the sprites, and where they are seen from.
     struct Binning
     {
@@ -76,10 +88,9 @@ namespace Rtx
         /// what the last bin here reported it needed, where the timeline says that report has
         /// landed — and copies `source`'s sprites into this bin's own, on the queue, left where a
         /// launch or a dispatch may read and write them. First, and apart from `record`, because
-        /// what stands between the two is the frame block: `getSpritesAddress` and
-        /// `getTileListAddress` are only the addresses once the tables are grown, the block carries
-        /// both, and the shelter launch that zeroes the sheltered sprites reads the block before
-        /// the shade reads the sprites.
+        /// what stands between the two is the frame block: `getTables` names them only once they
+        /// are grown, the block carries them, and the shelter launch that zeroes the sheltered sprites reads the block
+        /// before the shade reads the sprites.
         void take(const SpriteSource& source, const Shaders::Camera& camera, VkCommandBuffer commands);
 
         /// Shades the sprites `take` copied against the sun in place, and records the bin of them
@@ -87,10 +98,14 @@ namespace Rtx
         /// commands. `commands` first, as every other `record` in this backend takes it.
         void record(VkCommandBuffer commands, const Binning& what);
 
-        VkDeviceAddress getSpritesAddress() const { return mSprites.get().addressFor(); }
-        VkDeviceAddress getEmitterFramesAddress() const { return mEmitterFrames.get().addressFor(); }
-        VkDeviceAddress getTileListAddress() const { return mTileList.get().addressFor(); }
-        VkDeviceAddress getPresenceAddress() const { return mPresence.get().addressFor(); }
+        /// Where the tables stand now: after `take`, which is what grows them.
+        SpriteTables getTables() const
+        {
+            return SpriteTables{ .mSprites = mSprites.get().addressFor(),
+                .mEmitterFrames = mEmitterFrames.get().addressFor(),
+                .mTileList = mTileList.get().addressFor(),
+                .mPresence = mPresence.get().addressFor() };
+        }
 
         VkDeviceSize getBytes() const;
 

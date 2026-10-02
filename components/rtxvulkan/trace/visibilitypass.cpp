@@ -469,8 +469,8 @@ namespace Rtx
                 .mVolume = inputs.mFogVolume.getSet() });
     }
 
-    void VisibilityPass::writeFrame(VkCommandBuffer commands, const VisibilityInputs& inputs, const SpriteBin& bin,
-        const VkDeviceAddress spriteTileList, const Shaders::VisibilityConstants& constants, const bool composed) const
+    void VisibilityPass::writeFrame(VkCommandBuffer commands, const VisibilityInputs& inputs,
+        const SpriteTables& sprites, const Shaders::VisibilityConstants& constants, const bool composed) const
     {
         assert(inputs.mSubject.mScene != nullptr && inputs.mSubject.mMedia != nullptr
             && "a trace of no scene, or in no media");
@@ -513,12 +513,11 @@ namespace Rtx
         described.mTables.mBlueNoise = mBlueNoise.addressFor();
         described.mTables.mSpecularAlbedo = mSpecularAlbedo.addressFor();
 
-        // The trace's own, shaded and binned for this camera ahead of it, or the list of nothing
-        // for a camera that draws no sprites and binned none.
-        described.mTables.mSprites = bin.getSpritesAddress();
-        described.mTables.mEmitterFrames = bin.getEmitterFramesAddress();
-        described.mTables.mSpriteTileList = spriteTileList;
-        described.mTables.mSpritePresence = bin.getPresenceAddress();
+        // The trace's own, shaded and binned for this camera ahead of it (`SpriteTables`).
+        described.mTables.mSprites = sprites.mSprites;
+        described.mTables.mEmitterFrames = sprites.mEmitterFrames;
+        described.mTables.mSpriteTileList = sprites.mTileList;
+        described.mTables.mSpritePresence = sprites.mPresence;
 
         // Nothing addressed here may be nothing, and every address must be what its reference
         // claims. A descriptor bound as a null handle cost this renderer a device with no message;

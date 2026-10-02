@@ -98,8 +98,8 @@ namespace Rtx::Testing
             const SpriteShadePass shading(device);
             const SpriteBinPass binning(device);
             const SpriteBin bin(device, shading, binning);
-            addressed.mSprites = bin.getSpritesAddress();
-            addressed.mSpriteTileList = bin.getTileListAddress();
+            addressed.mSprites = bin.getTables().mSprites;
+            addressed.mSpriteTileList = bin.getTables().mTileList;
 
             struct Named
             {

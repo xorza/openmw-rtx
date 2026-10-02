@@ -57,11 +57,6 @@ namespace Rtx
         resize(std::max(mWidth, width), std::max(mHeight, height), radiance);
     }
 
-    VkDeviceAddress TraceChain::getSpriteTileList(const VisibilityInputs& inputs) const
-    {
-        return mBins.at(inputs.mSubject.mTraceSlot).getTileListAddress();
-    }
-
     TraceResult TraceChain::record(const VkCommandBuffer commands, const TraceRecording& what)
     {
         assert(isBuilt() && "a trace into a chain that has no extent");
@@ -116,15 +111,15 @@ namespace Rtx
         }
         bin.take(sprites, what.mAsked.mCamera, commands);
 
-        // After the take, which may have grown the table, and once: the frame block and the
-        // display's `puffsCoverNothing` read the one list.
-        const VkDeviceAddress tileList = getSpriteTileList(inputs);
+        // After the take, which may have grown the tables, and once: the frame block and the
+        // display's `puffsCoverNothing` read the one set.
+        const SpriteTables tables = bin.getTables();
 
         // Composed by the trace where nothing filters the bounce: `VisibilityConstants::mComposed`.
         const bool denoised = what.mDenoised;
         const bool composed = !denoised;
 
-        mPasses.mVisibility.writeFrame(commands, inputs, bin, tileList, what.mSampled, composed);
+        mPasses.mVisibility.writeFrame(commands, inputs, tables, what.mSampled, composed);
 
         if (drawsSprites)
         {
@@ -178,9 +173,6 @@ namespace Rtx
             frame.transition(commands, Use::sComputeReadWrite, Use::sAnyGeneralRead);
         }
 
-        return TraceResult{ .mInputs = inputs,
-            .mColour = frame,
-            .mSpriteTileList = tileList,
-            .mSpritePresence = bin.getPresenceAddress() };
+        return TraceResult{ .mInputs = inputs, .mColour = frame, .mSprites = tables };
     }
 }

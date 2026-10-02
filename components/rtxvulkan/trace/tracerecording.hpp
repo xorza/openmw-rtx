@@ -56,7 +56,6 @@ namespace Rtx
     {
         VisibilityInputs mInputs;
         const Image& mColour;
-        VkDeviceAddress mSpriteTileList = 0;
-        VkDeviceAddress mSpritePresence = 0;
+        SpriteTables mSprites{};
     };
 }

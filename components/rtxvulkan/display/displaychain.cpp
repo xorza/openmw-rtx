@@ -160,8 +160,8 @@ namespace Rtx
                 .mTextures = inputs.mSubject.mScene->getTextures(),
                 .mTarget = what.mTarget,
                 .mConstants = toneFor(what.mSampled, look != nullptr ? look->mGlare.mFader : SunGlare{},
-                    look != nullptr ? look->mInverseGamma : 1.0f, what.mTrace.mSpriteTileList,
-                    what.mTrace.mSpritePresence, inputs.mSubject.mScene->getTextureTexels(), what.mExtent.width,
+                    look != nullptr ? look->mInverseGamma : 1.0f, what.mTrace.mSprites.mTileList,
+                    what.mTrace.mSprites.mPresence, inputs.mSubject.mScene->getTextureTexels(), what.mExtent.width,
                     what.mExtent.height),
             });
         closeZone(timer, commands);
