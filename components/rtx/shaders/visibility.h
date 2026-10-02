@@ -191,6 +191,16 @@ namespace Rtx::Shaders
         /// three.
         uint mTransparentBackground;
 
+        /// Non-zero where no lamp lights the picture: a view whose mask leaves out `Mask_Lighting`,
+        /// as the local map's does, which the rasterizer's light manager hands no lamp. Zero for a
+        /// frame, and for a frame built by hand.
+        uint mNoLamps;
+
+        /// Non-zero where the sky's lights cast no shadow: every picture inside the interface, which
+        /// the rasterizer draws with shadows off (`disableShadowsForStateSet`) under its own flat
+        /// sun. Zero for a frame, and for a frame built by hand.
+        uint mNoSkyShadows;
+
         /// Non-zero where nothing filters the bounce between the trace and the picture: the trace
         /// then composes the frame into `CHANNEL_DIRECT` itself, `composedLight` of the two
         /// channels, and no composite reads them back only to add them.
@@ -578,8 +588,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1248, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1432, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1256, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1440, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(HitRecord) == 8, "HitRecord must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 8, "PuffConstants must be scalar-packed on every side");
 #endif

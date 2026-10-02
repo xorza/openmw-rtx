@@ -78,12 +78,7 @@ namespace Rtx
             const osg::Matrixf placement
                 = water ? loweredBy(instance.mTransform, Shaders::WATER_TIE_BREAK) : instance.mTransform;
 
-            // **An additive surface carries its own bit and no other.** Nothing that shades,
-            // shadows or bounces casts with it, so such a surface is met by the one query that
-            // gathers what adds and by nothing else — which is what the rasterizer's
-            // shadow-casting masks say of a magic effect too.
-            const std::uint32_t kind = traversed.mAdditive ? Shaders::MASK_ADDITIVE
-                                                           : (water ? Shaders::MASK_WATER : classBit(instance.mClass));
+            const std::uint32_t kind = water ? Shaders::MASK_WATER : classBit(instance.mClass);
 
             return InstanceRecord{
                 .mTransform = toTransform3x4(placement),
@@ -95,8 +90,14 @@ namespace Rtx
                 .mClass = kind,
                 // **A medium carries the medium bit alone**, so traversal hands it to the two rays
                 // that sum it and to none of the rays that walked past it. `InstanceRecord::mMask`
-                // says why.
-                .mMask = traversed.mMedium && !traversed.mAdditive ? Shaders::MASK_MEDIUM : kind,
+                // says why. **And an additive surface its own bit and no other**: nothing that
+                // shades, shadows or bounces casts with it, so such a surface is met by the one
+                // query that gathers what adds and by nothing else — which is what the rasterizer's
+                // shadow-casting masks say of a magic effect too. Both keep their class in `mClass`,
+                // which the walks that gather them test against the camera's.
+                .mMask = traversed.mAdditive ? Shaders::MASK_ADDITIVE
+                    : traversed.mMedium      ? Shaders::MASK_MEDIUM
+                                             : kind,
 
                 .mCutout = traversed.mCutout,
                 .mTranslucent = traversed.mTranslucent,

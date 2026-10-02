@@ -48,6 +48,10 @@ SkySource skySourceAt(uint source)
 /// @param draw one pair in `[0, 1)`, which aims the ray inside the disc's cone.
 Passage skyPassage(SkySource sky, vec3 position, vec2 draw)
 {
+    // A picture with shadows off is open to the sky everywhere: one answer for the whole frame.
+    if (frame.mNoSkyShadows != 0u)
+        return Passage(1.0, 1.0);
+
     const Passage passage = lightPassage(position, coneDirection(sky.mDirection, sky.mLimb, draw), frame.mReach);
     return Passage(passage.mOpen, passage.mThrough * cloudShadow(position, sky.mDirection));
 }
@@ -513,7 +517,8 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
 {
     const bool sided = dot(facing.mNormal, facing.mNormal) > 0.0;
 
-    const uvec2 near = lampsWithin(lampsReaching(from));
+    // None, for a picture no lamp lights: an empty run, selected, and the loop is over.
+    const uvec2 near = frame.mNoLamps != 0u ? uvec2(0u) : lampsWithin(lampsReaching(from));
     for (uint i = near.x; i < near.y; ++i)
     {
         const uint row = lightListAt(i);

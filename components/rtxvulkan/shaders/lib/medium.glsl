@@ -184,6 +184,12 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
             continue;
 
         const uint instanceIndex = rayQueryGetIntersectionInstanceCustomIndexEXT(query, false);
+
+        // **A class the camera does not draw is not there**, as `candidateStops` says of a medium
+        // the shadow ray walks past: the walk's own mask says only medium or additive.
+        if ((instanceAt(instanceIndex).mClass & frame.mRayMask) == 0u)
+            continue;
+
         const uint primitive = rayQueryGetIntersectionPrimitiveIndexEXT(query, false);
         const vec2 bary = rayQueryGetIntersectionBarycentricsEXT(query, false);
         const float at = rayQueryGetIntersectionTEXT(query, false);

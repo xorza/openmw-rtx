@@ -938,7 +938,9 @@ namespace MWRender
         constants->mArms = Rtx::cameraAtFieldOfView(constants->mCamera, frame.mEye.mArmsFieldOfView);
 
         // What the game decided the eye sees, read where the rasterizer reads it.
-        constants->mRayMask = rayMaskOf(getViewMask());
+        const ViewDescription described = describeView(getViewMask());
+        constants->mRayMask = described.mRayMask;
+        constants->mNoLamps = described.mLamps ? 0 : 1;
 
         // **What the sampler and the jitter are walked by, and leaving it at zero is a bug with two
         // faces.** The bounce samples the same point every frame, so nothing ever converges; and the

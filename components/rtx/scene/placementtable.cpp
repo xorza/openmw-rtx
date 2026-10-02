@@ -200,6 +200,7 @@ namespace Rtx
                 .mKinds = (share.mAdditive > 0 ? Shaders::PRESENCE_ADDITIVE : 0u)
                     | (share.mMedium > 0 ? Shaders::PRESENCE_MEDIUM : 0u)
                     | (share.mFirstPerson > 0 ? Shaders::PRESENCE_EVERYWHERE : 0u),
+                .mClass = classBit(placed.mClass),
             });
         }
     }

@@ -1156,7 +1156,7 @@ namespace Rtx::Testing
             // through and a corner pixel does not.
             const std::array<osg::Vec3f, 4> held = uprightQuadAt(20.0f, -50.0f);
 
-            const auto build = [&](std::optional<float> alpha) {
+            const auto build = [&](std::optional<float> alpha, InstanceClass sheetClass = InstanceClass::Static) {
                 SceneDesc scene;
                 const Index wall = scene.addMesh(
                     MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
@@ -1175,7 +1175,7 @@ namespace Rtx::Testing
                         .mAlphaMode = AlphaMode::Blend,
                         .mBlend = BlendKind::Add,
                     });
-                    scene.addInstance(MeshInstance{ .mMesh = sheet, .mMaterial = additive });
+                    scene.addInstance(MeshInstance{ .mMesh = sheet, .mMaterial = additive, .mClass = sheetClass });
                 }
 
                 return scene;
@@ -1235,6 +1235,20 @@ namespace Rtx::Testing
             EXPECT_GT(quarter, 0.0f) << "a quarter of the sheet is some of it";
             EXPECT_NEAR(half, 2.0f * quarter, 1.0e-3f) << "and twice as much alpha adds twice as much";
             EXPECT_NEAR(addedRedAt(0.0f), bare, 1.0e-4f) << "a sheet faded to nothing adds nothing";
+
+            // **A camera that does not draw the sheet's class adds nothing of it**, as a map tile
+            // draws no effect: the same sheet as an effect's, under a camera of the statics alone,
+            // and under one that draws effects too.
+            Shaders::VisibilityConstants statics = camera;
+            statics.mRayMask = classBit(InstanceClass::Static);
+            const Frame left = shoot(build(0.5f, InstanceClass::Effect), textures, statics, size);
+            const Frame none = shoot(build(std::nullopt), textures, statics, size);
+            EXPECT_EQ(left.at(centre), none.at(centre)) << "an effect the camera leaves out added its red";
+
+            Shaders::VisibilityConstants effects = statics;
+            effects.mRayMask |= classBit(InstanceClass::Effect);
+            EXPECT_GT(shoot(build(0.5f, InstanceClass::Effect), textures, effects, size).at(centre), none.at(centre))
+                << "and one it draws added none";
         }
 
         /// **An additive sheet is drawn from the face the content draws, and not from its back.**

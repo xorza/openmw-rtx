@@ -106,6 +106,11 @@ namespace Rtx
         camera->mAmbient = irradianceOf(mRequest.mLight.mAmbient);
         camera->mTransparentBackground = mRequest.mClear.a() < 1.f ? 1 : 0;
         camera->mRayMask = mRequest.mRayMask;
+        camera->mNoLamps = mRequest.mLamps ? 0 : 1;
+
+        // A picture inside the interface is lit by its own flat sun, which the rasterizer draws
+        // with shadows off, the doll's and the map's alike.
+        camera->mNoSkyShadows = 1;
 
         return camera;
     }

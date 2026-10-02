@@ -13,9 +13,6 @@ first review.
   `mExposureStale`, so a first frame with a held or fixed exposure spends the reset. Every `resize`
   and upscale-mode change resets the measured exposure and the glare share from nothing, against the
   comment at `components/rtxvulkan/vulkanrenderer.cpp:111-113`.
-- The medium and additive walks ignore the camera's class mask, so a local map tile draws an actor's
-  additive spell sheet with no actor under it, and every map pixel pays three traversals.
-  `components/rtxvulkan/shaders/lib/medium.glsl:165-252`, `components/rtx/scene/instancerecord.cpp:84-85`.
 - `normalMapSlopes` reads the normal map's spread at the footprint's long-axis level while the map is
   read anisotropically, so a glossy normal-mapped surface goes 1.3 levels too rough at 80° off the
   normal. `components/rtxvulkan/shaders/lib/texturing.glsl:322-329`.
@@ -119,8 +116,6 @@ first review.
   out of its strength. `apps/openmw/mwrender/rtx/skyreader.cpp:245-253`.
 - `tsky` outdoors changes the trace's lighting: the sky's light, the moons, the deck's shadow and the
   fog colour go with the dome. `apps/openmw/mwrender/rtx/skyreader.cpp:130-142`.
-- A local map tile is lit by the world's lamps and shadowed by its sun, where the rasterizer's map
-  has neither. `apps/openmw/mwrender/rtx/classmasks.cpp:7-22`.
 - Effects on the first-person model are traced through the world's eye, at the wrong field of view
   and behind near walls, and a non-additive shell casts a shadow.
   `components/rtx/mirror/sceneextractor.cpp:318-322`.

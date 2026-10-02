@@ -40,7 +40,7 @@ namespace MWRender
         /// Only the nodes these bits select (`MWRender::VisMask`): an inclusion mask AND-ed at
         /// every node, so a category left out is dropped wherever it appears below. The rasterizer
         /// puts it on the camera's cull mask; a ray tracer masks the walk of a subject with it and
-        /// hands every picture the classes its rays meet (`rayMaskOf`).
+        /// hands every picture the classes its rays meet (`describeView`).
         unsigned int mMask = ~0u;
 
         SceneUtil::Framing mFraming{};

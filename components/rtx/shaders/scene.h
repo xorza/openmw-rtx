@@ -357,7 +357,7 @@ namespace Rtx::Shaders
     /// node mask on a path intersects the camera's cull mask; the local map's has no actors, no
     /// effects and no particles in it, and the eye's has everything. Here a placement carries the
     /// class the innermost node on its path stated — `Rtx::InstanceClass` — and a trace carries
-    /// which classes its camera draws. `MWRender::rayMaskOf` is where the one becomes the other.
+    /// which classes its camera draws. `MWRender::describeView` is where the one becomes the other.
     ///
     /// **Water must not cast a shadow, and the mask is how traversal is told so at no cost.** The
     /// alternative — building water non-opaque so the candidate loop can wave shadow rays past —
@@ -1018,6 +1018,10 @@ namespace Rtx::Shaders
         vec3 mCentre;
         float mRadius;
         uint mKinds;
+
+        /// The class bit of the placement, `GpuInstance::mClass`: a camera that does not draw the
+        /// class is told nothing of it.
+        uint mClass;
     };
 
     struct GpuMaterial
@@ -1117,7 +1121,7 @@ namespace Rtx::Shaders
     static_assert(sizeof(GpuSprite) == 56, "GpuSprite must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitter) == 40, "GpuEmitter must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitterFrame) == 16, "GpuEmitterFrame must be scalar-packed on every side");
-    static_assert(sizeof(GpuPresence) == 20, "GpuPresence must be scalar-packed on every side");
+    static_assert(sizeof(GpuPresence) == 24, "GpuPresence must be scalar-packed on every side");
     static_assert(sizeof(GpuTables) == 184, "GpuTables must be scalar-packed on every side");
 
 #endif
