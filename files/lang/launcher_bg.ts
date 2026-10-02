@@ -263,8 +263,8 @@
         <translation>Мащабиране</translation>
     </message>
     <message>
-        <source>How far below the window&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
-        <translation>Колко под размера на прозореца трасира трасирането на лъчи. Изключено трасира всеки пиксел без мащабиращ; всеки друг режим пуска мащабиращия, който реконструира кадъра от няколко кадъра, и всеки режим освен Изключено и Естествена трасира по-малко пиксели, отколкото показва.</translation>
+        <source>How far below the frame&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
+        <translation>Колко под разделителната способност на кадъра трасира трасирането на лъчи. Изключено трасира всеки пиксел без мащабиращ; всеки друг режим пуска мащабиращия, който реконструира кадъра от няколко кадъра, и всеки режим освен Изключено и Естествена трасира по-малко пиксели, отколкото показва.</translation>
     </message>
     <message>
         <source>Off</source>

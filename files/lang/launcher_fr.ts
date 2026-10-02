@@ -195,8 +195,8 @@
         <translation>Mise à l&apos;échelle</translation>
     </message>
     <message>
-        <source>How far below the window&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
-        <translation>À quelle distance sous la taille de la fenêtre le ray tracing est calculé. Inactif calcule chaque pixel sans module de mise à l&apos;échelle ; tout autre mode utilise ce module, qui reconstruit l&apos;image sur plusieurs images, et chaque mode sauf Inactif et Native calcule moins de pixels qu&apos;il n&apos;en affiche.</translation>
+        <source>How far below the frame&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
+        <translation>À quelle distance sous la résolution de l&apos;image le ray tracing est calculé. Inactif calcule chaque pixel sans module de mise à l&apos;échelle ; tout autre mode utilise ce module, qui reconstruit l&apos;image sur plusieurs images, et chaque mode sauf Inactif et Native calcule moins de pixels qu&apos;il n&apos;en affiche.</translation>
     </message>
     <message>
         <source>Off</source>
