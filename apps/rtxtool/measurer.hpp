@@ -156,6 +156,9 @@ namespace RtxTool
         /// perf's control fifo, held for the whole run so every stop brackets its own frames.
         PerfControl mProfiling;
 
+        /// Whether the window before the first place was said, which is said once.
+        bool mBeforeSaid = false;
+
         /// The card, watched from the session's start: its clock across each stop's measured
         /// frames, and who held it through every window of the run. Held rather than made per
         /// stop, because what it owns is a thread.

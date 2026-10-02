@@ -78,6 +78,9 @@ namespace RtxTool
             BenchSpan{ .mSeconds = sPauseSeconds }.getFrames(step), mRequest.mPlayed);
         mProgress.mCell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell();
         mProgress.mPlace.mView = stop.mName;
+
+        // Before the place's frames, so the first measured one pays no open.
+        mProfiling.open();
         mProgress.mPlace.mCell = stop.mStand.mCell;
         mProgress.mPlace.mNote = stop.mNote;
     }
@@ -123,13 +126,9 @@ namespace RtxTool
             // moves a fifth of its clock between them, and a leg that lost its clock then reads
             // like a leg that lost its speed.
             //
-            // **What the window before answered is said once, ahead of the first place.** A
-            // desktop that was drawing while the run loaded was caught in nearly every sample,
-            // and every place's own line then reads against it.
-            const CardShare before = mCardWatch.start();
-            if (mRecord.empty() && before.mViewed)
-                mRecord.note(std::format("before the first stop, {}\n", describeCard(before)));
-
+            // **Asked for and not opened here**: the worker begins the window on its next turn, so
+            // this frame pays one store and no driver call (`CardWatch::start`).
+            mCardWatch.start();
             mProfiling.enable();
 
             // The backend's number of the first measured frame: what says of a result that comes
@@ -295,10 +294,17 @@ namespace RtxTool
 
         mProfiling.disable();
 
-        const CardReading card = mCardWatch.stop();
+        const CardWindows card = mCardWatch.stop();
         BenchPlace& place = mProgress.mPlace;
-        place.mClock = card.mClock;
-        place.mCard = card.mShare;
+        place.mClock = card.mPlace.mClock;
+        place.mCard = card.mPlace.mShare;
+
+        // **What the window before answered is said once, for the first place.** A desktop that
+        // was drawing while the run loaded was caught in nearly every sample, and every place's own
+        // line then reads against it.
+        if (!mBeforeSaid && card.mBefore.mViewed)
+            mRecord.note(std::format("before the first stop, {}\n", describeCard(card.mBefore)));
+        mBeforeSaid = true;
 
         const Rtx::FrameExtents extents = renderer.getExtents();
 
