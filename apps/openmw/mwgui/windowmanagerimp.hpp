@@ -219,7 +219,6 @@ namespace MWGui
 
         float getScalingFactor() const override;
         float getRasterScale() const override { return mRasterScale; }
-        osg::Vec2i getFrameSize() const override { return mLaidOutFrame; }
 
         bool toggleFogOfWar() override;
         bool toggleFullHelp() override; ///< show extra info in item tooltips (owner, script)
