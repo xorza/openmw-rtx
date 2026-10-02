@@ -147,7 +147,7 @@ namespace MWRender
         if (mPaused)
             return;
 
-        constexpr double updateFrequency = 60.0;
+        constexpr double updateFrequency = sUpdateFrequency;
         constexpr double updatePeriod = 1.0 / updateFrequency;
 
         const double simulationTime = frameStamp.getSimulationTime();
