@@ -5,7 +5,7 @@
 #include <optional>
 #include <span>
 
-#include <osg/Matrixf>
+#include <osg/Matrixd>
 #include <osg/Node>
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
@@ -108,7 +108,7 @@ namespace Rtx
         ~OffscreenTrace();
 
         /// Where the picture is taken from. Takes effect on the next trace.
-        void setView(const osg::Matrixf& view);
+        void setView(const osg::Matrixd& view);
 
         /// Fill only this much of the picture, from its top-left corner, and leave the rest at the
         /// clear colour. Clamped to the size this was made at. For the inventory doll, whose window
@@ -123,7 +123,7 @@ namespace Rtx
         /// How the picture is projected, as it was asked for, and where it is taken from, as
         /// `setView` last said: what says which piece of the world a tile is a picture of.
         const SceneUtil::Framing& getFraming() const { return mRequest.mFraming; }
-        const osg::Matrixf& getView() const { return mView; }
+        const osg::Matrixd& getView() const { return mView; }
         std::uint32_t getHeight() const { return mRequest.mHeight; }
 
         /// The mirror of the subject, or null for a picture of the world — which has no scene of its
@@ -215,7 +215,7 @@ namespace Rtx
         /// clamped against, and the camera is built from the rest at every trace.
         ViewRequest mRequest;
 
-        osg::Matrixf mView;
+        osg::Matrixd mView;
 
         /// How much of the picture is filled, from its top-left corner.
         std::uint32_t mExtentWidth = 0;

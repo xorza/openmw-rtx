@@ -4,7 +4,6 @@
 #include <optional>
 
 #include <osg/Matrixd>
-#include <osg/Matrixf>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
@@ -53,14 +52,14 @@ namespace Rtx
     /// looking down its own -Z. The basis comes out of the matrix rather than from the world's up,
     /// which is what lets a map look straight down. Nothing for a matrix that cannot be inverted
     /// or whose basis collapsed, as `viewBasisOf` says.
-    std::optional<Shaders::VisibilityConstants> makeCameraFromView(const osg::Matrixf& view, float verticalFovDegrees,
+    std::optional<Shaders::VisibilityConstants> makeCameraFromView(const osg::Matrixd& view, float verticalFovDegrees,
         std::uint32_t width, std::uint32_t height, float near, float far);
 
     /// The same viewpoint with no perspective in it: every ray travels the view direction, and
     /// which one a pixel sends comes from where it sits on a box `worldWidth` by `worldHeight`
     /// centred on the eye. A box with no extent is a caller's contract and not a matrix's, and
     /// `Crash::contract` holds it.
-    std::optional<Shaders::VisibilityConstants> makeOrthographicCameraFromView(const osg::Matrixf& view,
+    std::optional<Shaders::VisibilityConstants> makeOrthographicCameraFromView(const osg::Matrixd& view,
         float worldWidth, float worldHeight, std::uint32_t width, std::uint32_t height, float near, float far);
 
     /// Where inside its pixel frame `index` should sample, in pixels and centred on zero, in the

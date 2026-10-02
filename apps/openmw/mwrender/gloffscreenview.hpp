@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include <osg/Matrixf>
+#include <osg/Matrixd>
 #include <osg/Node>
 #include <osg/ref_ptr>
 
@@ -92,7 +92,7 @@ namespace MWRender
             Resource::ResourceSystem& resources);
         ~GlDollView() override;
 
-        void setView(const osg::Matrixf& view) override;
+        void setView(const osg::Matrixd& view) override;
         void setExtent(int width, int height) override;
         void sceneChanged() override;
         void redraw() override;
@@ -119,7 +119,7 @@ namespace MWRender
     public:
         GlTileView(const OffscreenViewSpec& spec, osg::Group& parent, const osg::FrameStamp& frameStamp);
 
-        void setView(const osg::Matrixf& view) override;
+        void setView(const osg::Matrixd& view) override;
         void redraw() override;
 
     protected:

@@ -5,8 +5,10 @@
 
 #include <gtest/gtest.h>
 
+#include <osg/Matrixd>
 #include <osg/Matrixf>
 #include <osg/Vec2f>
+#include <osg/Vec3d>
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/death.hpp>
@@ -39,6 +41,37 @@ namespace Rtx
 
             EXPECT_NEAR(wide.mCamera.mRight.x(), 2.0f, 1e-5f);
             EXPECT_NEAR(wide.mCamera.mUp.z(), 1.0f, 1e-5f);
+        }
+
+        /// **A turn of the head moves no camera**, however far out the eye stands. A view matrix's
+        /// translation is `-R t`, and at `|t|` near 10^5 a float ulp is about 0.008: an inverse
+        /// taken in float puts the eye back with an error that changes with `R` alone, which the
+        /// motion between two frames reads as a step. Taken in double, every turn of one eye
+        /// stands the camera at the float nearest that eye — and the float inverse of the same
+        /// views does not, which is what makes this a test of the precision and not of the turns.
+        TEST(RtxCameraTest, aTurnOfTheHeadMovesNoCamera)
+        {
+            const osg::Vec3d eye(98765.4321, -87654.321, 1234.5);
+            const osg::Vec3f nearest(eye);
+
+            bool floatMoved = false;
+            for (int step = 0; step < 16; ++step)
+            {
+                const double heading = step * 0.37;
+                const double pitch = (step % 5 - 2) * 0.3;
+                const osg::Vec3d look(std::cos(pitch) * std::sin(heading), std::cos(pitch) * std::cos(heading),
+                    std::sin(pitch));
+                const osg::Matrixd view = osg::Matrixd::lookAt(eye, eye + look, osg::Vec3d(0.0, 0.0, 1.0));
+
+                const Shaders::VisibilityConstants camera
+                    = makeCameraFromView(view, 60.0f, 64, 64, sNearPlane, 1000.0f).value();
+                EXPECT_EQ(camera.mOrigin, nearest) << "the eye moved at turn " << step;
+                EXPECT_EQ(makeOrthographicCameraFromView(view, 200.0f, 200.0f, 64, 64, 1.0f, 1000.0f)->mOrigin, nearest)
+                    << "the box's eye moved at turn " << step;
+
+                floatMoved = floatMoved || osg::Vec3f(osg::Matrixf::inverse(osg::Matrixf(view)).getTrans()) != nearest;
+            }
+            EXPECT_TRUE(floatMoved) << "no turn moved a float inverse, so nothing here tests the precision";
         }
 
         /// A view with no basis is nothing rather than a camera of NaN: a camera nobody filled in

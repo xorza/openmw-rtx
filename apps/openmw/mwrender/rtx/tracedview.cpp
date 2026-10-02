@@ -103,7 +103,7 @@ namespace MWRender
             return false;
 
         // Where the eye stands is the inverse view's translation; the box is centred on it.
-        const osg::Vec3f eye = osg::Matrixf::inverse(mTrace.getView()).getTrans();
+        const osg::Vec3f eye = osg::Matrixd::inverse(mTrace.getView()).getTrans();
         return std::abs(eye.x() - over.x()) <= box->mWidth * 0.5f
             && std::abs(eye.y() - over.y()) <= box->mHeight * 0.5f;
     }
@@ -114,7 +114,7 @@ namespace MWRender
         if (!isOfWorld() || box == nullptr)
             return false;
 
-        const osg::Vec3f eye = osg::Matrixf::inverse(mTrace.getView()).getTrans();
+        const osg::Vec3f eye = osg::Matrixd::inverse(mTrace.getView()).getTrans();
         const osg::Vec2f half(box->mWidth * 0.5f, box->mHeight * 0.5f);
         const osg::Vec2f centre(eye.x(), eye.y());
         return ring.waitsUnder(centre - half, centre + half);

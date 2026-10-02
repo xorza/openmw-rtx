@@ -243,20 +243,21 @@ namespace Rtx::Testing
         /// their ramps say — a particle whose two ramps stand at a quarter is a whole one.
         TEST_F(RtxSceneExtractorTest, theBlendTellsAFlameFromSmoke)
         {
-            const auto extractOne = [](osg::BlendFunc::BlendFuncMode source, osg::BlendFunc::BlendFuncMode destination) {
-                const Plume plume = makePlume(osg::Matrix::identity(), false);
-                plume.mRoot->getOrCreateStateSet()->setAttributeAndModes(
-                    new osg::BlendFunc(source, destination), osg::StateAttribute::ON);
-                emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 0.25f));
+            const auto extractOne
+                = [](osg::BlendFunc::BlendFuncMode source, osg::BlendFunc::BlendFuncMode destination) {
+                      const Plume plume = makePlume(osg::Matrix::identity(), false);
+                      plume.mRoot->getOrCreateStateSet()->setAttributeAndModes(
+                          new osg::BlendFunc(source, destination), osg::StateAttribute::ON);
+                      emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 0.25f));
 
-                Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
-                extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
+                      Rtx::SceneDesc scene;
+                      SceneExtractor extractor(scene);
+                      extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
 
-                EXPECT_EQ(scene.emitters().size(), 1u);
-                EXPECT_EQ(scene.sprites().size(), 1u);
-                return std::pair(scene.emitters().front().mFlags, scene.sprites().front().mAlpha);
-            };
+                      EXPECT_EQ(scene.emitters().size(), 1u);
+                      EXPECT_EQ(scene.sprites().size(), 1u);
+                      return std::pair(scene.emitters().front().mFlags, scene.sprites().front().mAlpha);
+                  };
 
             const auto [flame, flameAlpha] = extractOne(osg::BlendFunc::SRC_ALPHA, osg::BlendFunc::ONE);
             EXPECT_EQ(flame, Shaders::EMITTER_ADDITIVE);
