@@ -170,9 +170,12 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
         // Split, the rays' own bit is handed back and the rest of the estimate is made as though
         // they got through: the product of the two is the estimate unsplit, and the bit is what a
         // denoiser filters in its place.
-        const Passage passage = skyPassageThrough(picked.mSky, leaving, sunDraw);
+        // The shadow rays leave from where every ray off the surface leaves, and the light arrives
+        // where the surface is: one refraction, a bent path to each.
+        const SunUnderWater bent = sunUnderWater(picked.mSky.mDirection);
+        const Passage passage = skyPassageThrough(picked.mSky, leaving, bentPathAt(leaving, bent), sunDraw);
         const float skySeen = split ? passage.mThrough : passage.mOpen * passage.mThrough;
-        const vec3 water = lightThroughWater(position, picked.mSky.mDirection, surface.mFootprint);
+        const vec3 water = lightThroughWater(bentPathAt(position, bent), surface.mFootprint);
         const vec3 skyArriving = picked.mSky.mIrradiance * water;
         const float skyLit = picked.mCosine * INV_PI * skySeen;
         const vec3 skyDiffuse = skyArriving * (pick.mWhole ? skyLit : skyLit / pick.mChance);

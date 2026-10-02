@@ -70,6 +70,26 @@ SunUnderWater sunUnderWater(vec3 toward)
     return SunUnderWater(travelling, 1.0 / max(-travelling.z, 0.05));
 }
 
+/// A light's path to a point under the water, bent at the surface: how deep the point is, how far
+/// the light travelled under the surface to reach it, and where it met the surface — up-sun of the
+/// point, by that path along the way it travels. Worked out once a point and read by both of what
+/// the water does to the light there, the absorption and the lens, and by the shadow rays along it.
+/// Not to be read where the point is not under the water, which `mDepth` says.
+struct BentPath
+{
+    float mDepth;
+    vec3 mTravelling;
+    float mPath;
+    vec2 mMet;
+};
+
+BentPath bentPathAt(vec3 position, SunUnderWater bent)
+{
+    const float depth = waterOver(position);
+    const float path = depth * bent.mSlant;
+    return BentPath(depth, bent.mTravelling, path, position.xy - bent.mTravelling.xy * path);
+}
+
 /// What a light in the sky has left, and how it has been gathered, by the time it reaches a point.
 ///
 /// Two things happen to it on the way down. The water absorbs along the path — the *slant* path,
@@ -84,21 +104,16 @@ SunUnderWater sunUnderWater(vec3 toward)
 ///
 /// White above the surface, and for a cell with no water at all.
 ///
-/// @param toward unit, from the point to the light.
-vec3 lightThroughWater(vec3 position, vec3 toward, float footprint)
+/// @param bent the light's path to the point.
+vec3 lightThroughWater(BentPath bent, float footprint)
 {
-    const float depth = waterOver(position);
-    if (!(depth > 0.0))
+    if (!(bent.mDepth > 0.0))
         return vec3(1.0);
 
-    const SunUnderWater sun = sunUnderWater(toward);
-    const float path = depth * sun.mSlant;
-
-    // **Where the light met the surface, which is up-sun of where it landed.** `path` is how far it
-    // came along `mTravelling` to get here, so walking that back along the same line is the point
-    // whose curvature focused it — and the whole of what makes a caustic move with the depth and
-    // with the light rather than sitting still under the bed.
-    return waterTransmittance(path) * caustic(position.xy - sun.mTravelling.xy * path, depth, footprint);
+    // **Read for the lens where the light met the surface, which is up-sun of where it landed**:
+    // the point whose curvature focused it — and the whole of what makes a caustic move with the
+    // depth and with the light rather than sitting still under the bed.
+    return waterTransmittance(bent.mPath) * caustic(bent.mMet, bent.mDepth, footprint);
 }
 
 /// What the world leaves of a light in the sky at a point, asked along the path the light took:
@@ -114,18 +129,15 @@ vec3 lightThroughWater(vec3 position, vec3 toward, float footprint)
 /// neighbouring lanes, and a ray of no length is a traversal all the same.
 ///
 /// **In `Passage`'s two halves**: stopped where either ray was, and what both let through otherwise.
-Passage skyPassageThrough(SkySource sky, vec3 position, vec2 draw)
+///
+/// @param bent `sky`'s path to `position`.
+Passage skyPassageThrough(SkySource sky, vec3 position, BentPath bent, vec2 draw)
 {
-    const float depth = waterOver(position);
-    if (!(depth > 0.0))
+    if (!(bent.mDepth > 0.0))
         return skyPassage(sky, position, draw);
 
-    const SunUnderWater bent = sunUnderWater(sky.mDirection);
-    const float path = depth * bent.mSlant;
-    const vec3 met = vec3(position.xy - bent.mTravelling.xy * path, frame.mWaterLevel);
-
-    const Passage under = lightPassage(position, -bent.mTravelling, path);
-    const Passage over = skyPassage(sky, met, draw);
+    const Passage under = lightPassage(position, -bent.mTravelling, bent.mPath);
+    const Passage over = skyPassage(sky, vec3(bent.mMet, frame.mWaterLevel), draw);
     return Passage(under.mOpen * over.mOpen, under.mThrough * over.mThrough);
 }
 
@@ -258,14 +270,9 @@ WaterColumn waterColumn(vec3 from, vec3 direction, float path, float footprint, 
         const float along = behind + offset * (ahead - behind);
 
         const vec3 at = from + direction * along;
-        const float under = waterOver(at);
-        const float reach = under * sun.mSlant;
+        const BentPath bent = bentPathAt(at, sun);
 
-        const vec3 weight = waterTransmittance(reach + along) * (ahead - behind);
-
-        // Where the light met the surface, up-sun of where it is scattering, read for the lens that
-        // focused it.
-        const vec2 met = at.xy - sun.mTravelling.xy * reach;
+        const vec3 weight = waterTransmittance(bent.mPath + along) * (ahead - behind);
 
         // **Outside the fade, because a shadow is not fine detail.** `show` brings the *pattern* in
         // across the gate, and a rock's edge has to be there whether or not the filaments are. The
@@ -277,10 +284,10 @@ WaterColumn waterColumn(vec3 from, vec3 direction, float path, float footprint, 
         // in front of it as it shadows the bed. One short ray more a step, and only where a shaft
         // shows.
         const vec2 draw = fract(aimed + float(step) * R2_STEPS);
-        const Passage passage = skyPassageThrough(skySourceAt(SKY_SOURCE_SUN), at, draw);
+        const Passage passage = skyPassageThrough(skySourceAt(SKY_SOURCE_SUN), at, bent, draw);
         const float visible = passage.mOpen * passage.mThrough;
 
-        lit += weight * mix(1.0, caustic(met, under, footprint), show) * visible;
+        lit += weight * mix(1.0, caustic(bent.mMet, bent.mDepth, footprint), show) * visible;
         plain += weight;
         behind = ahead;
     }
