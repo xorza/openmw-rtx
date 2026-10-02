@@ -629,6 +629,61 @@ namespace Rtx::Testing
             EXPECT_LT(step / mean, 0.03) << "how far a settled pixel of lit air moves between frames";
         }
 
+        /// **The air's history turns once a trace, and a frame closed untraced turns nothing.** A
+        /// trace writes one half of the air and reads the other as its history, so the trace after
+        /// a frame the ring closed with no trace reads what the trace before it wrote: forty frames
+        /// with one such frame in the middle end on the air forty frames end on without it, to the
+        /// bit. The pair followed the ring's frame slot before, which the untraced frame advances,
+        /// and the trace after it read the air of the trace two before. And the history matters: the
+        /// same forty with the past lost at that frame end elsewhere.
+        TEST_F(RtxVisibilityTest, aFrameClosedUntracedLeavesTheAirsHistoryWhereTheLastTraceLeftIt)
+        {
+            using Fixture = LampInTheAir;
+
+            constexpr std::uint32_t size = 17;
+            SceneDesc scene = makeWall();
+            scene.addLight(Light{
+                .mPosition = Fixture::sLamp,
+                .mIntensity = Fixture::sIntensity,
+                .mReach = Fixture::sReach,
+            });
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(osg::Vec3f(0.0f, -Fixture::sDistance, 0.0f),
+                osg::Vec3f(0.0f, 0.0f, 0.0f), 10.0f, size, size, 100000.0f);
+            litThroughFog(camera, Fixture::sExtinction);
+            camera.mFogUniform = sVolumeOverEvenAir;
+
+            enum class Between
+            {
+                Nothing,
+                Untraced,
+                Lost,
+            };
+            const auto lastFrame = [&](const Between between) {
+                return shoot(scene, {}, camera, size,
+                    Shot{ .mFrames = 40,
+                        .mAverage = false,
+                        .mResetHistory = true,
+                        .mEachFrame =
+                            [&, at = 0](const Frame&) mutable {
+                                if (++at != 20)
+                                    return;
+                                if (between == Between::Untraced)
+                                {
+                                    mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                                    mRenderer.skipFrame();
+                                }
+                                if (between == Between::Lost)
+                                    mRenderer.resetHistory();
+                            } })
+                    .mRadiance;
+            };
+
+            const std::vector<float> straight = lastFrame(Between::Nothing);
+            EXPECT_EQ(lastFrame(Between::Untraced), straight) << "the untraced frame turned the air";
+            EXPECT_NE(lastFrame(Between::Lost), straight) << "a history that changes nothing";
+        }
+
         /// The volume lights the air up to a surface, wherever inside a slice the surface stands.
         ///
         /// **Two ways a froxel grid gets the last slice wrong, and one measurement for both.** The
