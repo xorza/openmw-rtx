@@ -34,12 +34,6 @@ namespace Constants
     // A label to mark night/day visual switches
     const std::string NightDayLabel = "NightDaySwitch";
 
-    // The child a night/day switch with `children` children shows in night/day mode `mode`
-    constexpr unsigned int nightDayChild(unsigned int mode, unsigned int children)
-    {
-        return children > mode ? mode : 0;
-    }
-
     // A label to mark visual switches for herbalism feature
     const std::string HerbalismLabel = "HerbalismSwitch";
 

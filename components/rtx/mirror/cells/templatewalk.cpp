@@ -50,7 +50,8 @@ namespace Rtx
             for (const NightDayMode mode :
                 { NightDayMode::Default, NightDayMode::ExteriorNight, NightDayMode::InteriorDay })
             {
-                if (Constants::nightDayChild(static_cast<unsigned int>(mode), branches.getNumChildren()) == at)
+                const auto index = static_cast<unsigned int>(mode);
+                if ((branches.getNumChildren() > index ? index : 0u) == at)
                     shown = shown | NightDayModes::only(mode);
             }
 
