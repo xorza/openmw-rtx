@@ -1,7 +1,6 @@
 #pragma once
 
 #include <chrono>
-#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
@@ -22,9 +21,9 @@ namespace Crash
         /// The game's process id, which names the page they share.
         std::uint32_t mClient = 0;
 
-        /// Where the note table lies in the game, and how long it is.
+        /// Where the note table lies in the game. Its length is `noteTable().size()`: the monitor
+        /// is this same executable.
         std::uint64_t mNotes = 0;
-        std::size_t mNotesSize = 0;
 
         std::string mApplication;
         bool mDialog = true;

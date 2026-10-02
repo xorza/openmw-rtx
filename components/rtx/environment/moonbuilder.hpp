@@ -1,9 +1,14 @@
 #pragma once
 
+#include <array>
+#include <cstddef>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include <osg/Vec3f>
 
+#include <components/rtx/common/namedenum.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/shaders/sky.h>
@@ -17,7 +22,7 @@ namespace Resource
 
 namespace Rtx
 {
-    class ContentPreprocessor;
+    class ImageFactCache;
     class SceneDesc;
 
     /// Which of the two moons over Vvardenfell.
@@ -25,7 +30,22 @@ namespace Rtx
     {
         Masser,
         Secunda,
+
+        Count,
     };
+
+    /// Each moon by the name the configuration spells its keys with, `Moons_<name>_Size`.
+    inline constexpr NamedEnum sMoonNames{ std::array{
+        std::pair{ Moon::Masser, std::string_view("Masser") },
+        std::pair{ Moon::Secunda, std::string_view("Secunda") },
+    } };
+
+    constexpr std::size_t indexOf(Moon moon)
+    {
+        return static_cast<std::size_t>(moon);
+    }
+
+    inline constexpr std::size_t sMoonCount = indexOf(Moon::Count);
 
     /// Where a moon stands, how big it is, and how much of it the sun has — a disc rather than a
     /// body, found by a ray that reaches nothing: a direction, an angular size, and the two axes
@@ -89,51 +109,54 @@ namespace Rtx
     inline const osg::Vec3f sShippedMasserFace(0.03282f, 0.00981f, 0.01213f);
     inline const osg::Vec3f sShippedSecundaFace(0.04356f, 0.03686f, 0.02912f);
 
-    /// The two painted faces, in a scene's texture table, held through the list `addMoonFaces`
-    /// fills rather than named by a material: the disc is drawn by a ray that reached nothing, and
-    /// a slot nothing holds is freed. And how wide each is drawn and what each averages, which are
-    /// fixed for the run and read with them.
+    /// One painted face, in a scene's texture table, held through the list `addMoonFaces` fills
+    /// rather than named by a material: the disc is drawn by a ray that reached nothing, and a slot
+    /// nothing holds is freed. And how wide it is drawn and what it averages, which are fixed for the
+    /// run and read with it.
+    struct MoonFace
+    {
+        Index mSlot = sNoIndex;
+
+        /// `moonAngularRadius` of the moon's `Moons_<name>_Size`, in radians.
+        float mRadius = 0.0f;
+
+        /// The face's mean opaque texel, linear: the moon's colour, and the ratio between the two
+        /// that tells them apart at a glance.
+        osg::Vec3f mMean;
+    };
+
+    /// Both moons' faces, indexed by `Moon`.
     struct MoonFaces
     {
-        Index mMasser = sNoIndex;
-        Index mSecunda = sNoIndex;
+        std::array<MoonFace, sMoonCount> mFaces{ MoonFace{ .mMean = sShippedMasserFace },
+            MoonFace{ .mMean = sShippedSecundaFace } };
 
-        /// `moonAngularRadius` of each moon's `Moons_<name>_Size`, in radians.
-        float mMasserRadius = 0.0f;
-        float mSecundaRadius = 0.0f;
-
-        /// Each face's mean opaque texel, linear: the moon's colour, and the ratio between the two
-        /// that tells them apart at a glance.
-        osg::Vec3f mMasserMean = sShippedMasserFace;
-        osg::Vec3f mSecundaMean = sShippedSecundaFace;
-
-        Index of(Moon moon) const { return moon == Moon::Masser ? mMasser : mSecunda; }
-        float radiusOf(Moon moon) const { return moon == Moon::Masser ? mMasserRadius : mSecundaRadius; }
-        const osg::Vec3f& meanOf(Moon moon) const { return moon == Moon::Masser ? mMasserMean : mSecundaMean; }
+        const MoonFace& of(Moon moon) const { return mFaces[indexOf(moon)]; }
+        MoonFace& of(Moon moon) { return mFaces[indexOf(moon)]; }
     };
 
-    /// Each moon's `Moons_<name>_Size`, as the configuration states it, which the host passes in.
-    struct MoonSizes
-    {
-        float mMasser = 0.0f;
-        float mSecunda = 0.0f;
-    };
+    /// Each moon's `Moons_<name>_Size`, as the configuration states it, which the host passes in,
+    /// indexed by `Moon`.
+    using MoonSizes = std::array<float, sMoonCount>;
 
     /// The painted face of `moon`, as the content files name it: what `addMoonFaces` reads and what
     /// the game preloads, from this one answer.
     constexpr VFS::Path::NormalizedView moonFaceOf(const Moon moon)
     {
-        return moon == Moon::Masser ? VFS::Path::NormalizedView("textures/tx_masser_full.dds")
-                                    : VFS::Path::NormalizedView("textures/tx_secunda_full.dds");
+        constexpr std::array<VFS::Path::NormalizedView, sMoonCount> faces{
+            VFS::Path::NormalizedView("textures/tx_masser_full.dds"),
+            VFS::Path::NormalizedView("textures/tx_secunda_full.dds"),
+        };
+        return faces[indexOf(moon)];
     }
 
     /// Adds each moon's face, `moonFaceOf`, opened from `images`, to `scene`, appending a hold on
     /// each to `holds`, which the caller gives back when the world goes, how wide `sizes` draws each
-    /// moon, and what each face averages, measured through `content`. A moon drawn from the mean of
+    /// moon, and what each face averages, read through `facts`. A moon drawn from the mean of
     /// its portrait is a coloured circle. A moon of size nought is not drawn, as the game draws
     /// none; one whose size is below nought or not finite is refused to `scene`.
     MoonFaces addMoonFaces(SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes,
-        std::vector<TextureHold>& holds, ContentPreprocessor& content);
+        std::vector<TextureHold>& holds, ImageFactCache& facts);
 
     /// A moon placed from angles `MWWorld::MoonModel` worked out. What a moon *is* once those
     /// angles are known — where its face points, how wide it is, which way its terminator falls —
@@ -143,11 +166,12 @@ namespace Rtx
     ///        drawn.
     /// @param alongArc degrees travelled from the horizon it rose at, zero to 180.
     /// @param axisOffset degrees the whole arc is swung about the zenith.
-    /// @param phase which of the eight painted phases, counted from full.
+    /// @param phaseEighths how far round its cycle the moon is, in eighths from full —
+    ///        `Sky::MoonState::mPhaseEighths`, continuous, so the terminator never steps.
     /// @param alpha the daylight fade, with the weather's `Glare_View` on it —
     ///        `Sky::MoonState::mDaylightFade`. Whether the moon is up at all is `alongArc`.
     MoonPlacement placeMoon(
-        const MoonFaces& faces, Moon moon, float alongArc, float axisOffset, Sky::MoonPhase phase, float alpha);
+        const MoonFaces& faces, Moon moon, float alongArc, float axisOffset, float phaseEighths, float alpha);
 
     /// A placement as the shader takes it — one conversion, so a moon read off the weather system
     /// and one worked out from a date reach the shader the same way. What the phase and the sun

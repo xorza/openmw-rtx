@@ -66,14 +66,15 @@ namespace Rtx
             case TextureFormat::Bc5Unorm:
                 return VK_FORMAT_BC5_UNORM_BLOCK;
 
-            // Never uploaded: `describeImage` widens the first five to RGBA8 and refuses the rest, so
-            // one arriving here is a contract broken and not a file.
+            // Never uploaded: `describeImage` widens these to RGBA8 and refuses the rest, so one
+            // arriving here is a contract broken and not a file.
             case TextureFormat::Rgb565:
             case TextureFormat::Argb1555:
             case TextureFormat::Xrgb1555:
             case TextureFormat::Argb4444:
             case TextureFormat::Xrgb4444:
             case TextureFormat::Rgb8:
+            case TextureFormat::Bgr8:
             case TextureFormat::Luminance:
             case TextureFormat::LuminanceAlpha:
             case TextureFormat::Unnamed:

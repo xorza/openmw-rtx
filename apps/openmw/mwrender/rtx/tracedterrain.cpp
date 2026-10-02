@@ -1,15 +1,28 @@
 #include "tracedterrain.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <limits>
+#include <memory>
 #include <utility>
 
 #include <osg/Geometry>
+#include <osg/Node>
+#include <osg/NodeVisitor>
 #include <osg/PositionAttitudeTransform>
+#include <osg/Vec2d>
 #include <osg/Vec2f>
+#include <osg/Vec3d>
 #include <osg/Vec3f>
+#include <osgUtil/IntersectionVisitor>
+#include <osgUtil/LineSegmentIntersector>
 
+#include <components/terrain/cellborder.hpp>
 #include <components/terrain/storage.hpp>
 #include <components/terrain/view.hpp>
+
+#include "../vismask.hpp"
 
 namespace MWRender
 {
@@ -20,14 +33,77 @@ namespace MWRender
         public:
             void reset() override {}
         };
+
+        /// Hands an intersection visitor to `TracedTerrain::meet` and answers every other visitor
+        /// with nothing.
+        ///
+        /// **Culling off and no bound**, so an intersection visitor enters it and every node above
+        /// it whatever their bounds say — OpenSceneGraph turns culling off up the chain for a child
+        /// that has it off — and the scene's bound stays what is drawn under it. Bound by the land,
+        /// as upstream's quad tree is, the scene's sphere would take the whole island in, and the
+        /// traced map, which stands its eye at the top of that sphere, would meet its ground from
+        /// 200,000 units up, where a hit's position has a sixty-fourth of a unit to say where a
+        /// road's edge is.
+        class DistantAnswer final : public osg::Node
+        {
+        public:
+            explicit DistantAnswer(TracedTerrain& terrain)
+                : mTerrain(terrain)
+            {
+                setCullingActive(false);
+            }
+
+            void traverse(osg::NodeVisitor& visitor) override
+            {
+                if (visitor.getVisitorType() == osg::NodeVisitor::INTERSECTION_VISITOR)
+                    mTerrain.meet(static_cast<osgUtil::IntersectionVisitor&>(visitor));
+            }
+
+        private:
+            TracedTerrain& mTerrain;
+        };
+
+        /// The part of the segment from `from` to `to` over the box from `low` to `high`, as the
+        /// two parameters along it, or nothing where it misses: the slab rule on two axes.
+        std::optional<osg::Vec2d> clipToBox(
+            const osg::Vec2d& from, const osg::Vec2d& to, const osg::Vec2d& low, const osg::Vec2d& high)
+        {
+            double enter = 0.0;
+            double leave = 1.0;
+            for (int axis = 0; axis < 2; ++axis)
+            {
+                const double along = to[axis] - from[axis];
+                if (along == 0.0)
+                {
+                    if (from[axis] < low[axis] || from[axis] > high[axis])
+                        return std::nullopt;
+                    continue;
+                }
+
+                const double a = (low[axis] - from[axis]) / along;
+                const double b = (high[axis] - from[axis]) / along;
+                enter = std::max(enter, std::min(a, b));
+                leave = std::min(leave, std::max(a, b));
+            }
+
+            if (enter > leave)
+                return std::nullopt;
+            return osg::Vec2d(enter, leave);
+        }
     }
 
-    TracedTerrain::TracedTerrain(
-        osg::Group& sceneRoot, Terrain::Storage& storage, const unsigned int nodeMask, const ESM::RefId worldspace)
+    TracedTerrain::TracedTerrain(osg::Group& sceneRoot, osg::Group& worldRoot, Terrain::Storage& storage,
+        Resource::SceneManager& scenes, const StandingGround& distance, const unsigned int nodeMask,
+        const ESM::RefId worldspace)
         : Terrain::World(&sceneRoot, &storage, nodeMask, worldspace)
         , mNormals(new osg::Vec3Array)
         , mColours(new osg::Vec4ubArray)
+        , mDistance(distance)
     {
+        mCellBorder = std::make_unique<Terrain::CellBorder>(this, &worldRoot, Mask_Debug, &scenes);
+        mFar = takeGrid();
+        mAnswer = new DistantAnswer(*this);
+        mTerrainRoot->addChild(mAnswer);
     }
 
     TracedTerrain::~TracedTerrain() = default;
@@ -71,6 +147,21 @@ namespace MWRender
         return found == mCells.end() ? nullptr : &*found;
     }
 
+    void TracedTerrain::fill(CellGrid& grid, const osg::Vec2i& cell)
+    {
+        // The whole cell at full detail, as the ring reads it: positions about the cell's middle,
+        // which is where the transform stands them. A cell with no land record is the default
+        // plane, which is the ground the rasterizer's chunk stands there too.
+        grid.mCell = cell;
+        const osg::Vec2f centre(static_cast<float>(cell.x()) + 0.5f, static_cast<float>(cell.y()) + 0.5f);
+        mStorage->fillVertexBuffers(0, 1.0f, centre, mWorldspace, *grid.mPositions, *mNormals, *mColours);
+        grid.mPositions->dirty();
+        grid.mGeometry->dirtyBound();
+
+        const float cellSize = mStorage->getCellWorldSize(mWorldspace);
+        grid.mRoot->setPosition(osg::Vec3f(centre.x() * cellSize, centre.y() * cellSize, 0.0f));
+    }
+
     void TracedTerrain::loadCell(const int x, const int y)
     {
         const osg::Vec2i cell(x, y);
@@ -79,19 +170,8 @@ namespace MWRender
 
         Terrain::World::loadCell(x, y);
 
-        // The whole cell at full detail, as the ring reads it: positions about the cell's middle,
-        // which is where the transform stands them. A cell with no land record is the default
-        // plane, which is the ground the rasterizer's chunk stands there too.
         CellGrid grid = takeGrid();
-        grid.mCell = cell;
-        const osg::Vec2f centre(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f);
-        mStorage->fillVertexBuffers(0, 1.0f, centre, mWorldspace, *grid.mPositions, *mNormals, *mColours);
-        grid.mPositions->dirty();
-        grid.mGeometry->dirtyBound();
-
-        const float cellSize = mStorage->getCellWorldSize(mWorldspace);
-        grid.mRoot->setPosition(osg::Vec3f(centre.x() * cellSize, centre.y() * cellSize, 0.0f));
-
+        fill(grid, cell);
         mTerrainRoot->addChild(grid.mRoot);
         mCells.push_back(std::move(grid));
     }
@@ -109,5 +189,77 @@ namespace MWRender
         if (found != &mCells.back())
             *found = std::move(mCells.back());
         mCells.pop_back();
+    }
+
+    void TracedTerrain::meet(osgUtil::IntersectionVisitor& visitor)
+    {
+        osgUtil::Intersector* const asked = visitor.getIntersector();
+        if (asked == nullptr)
+            return;
+
+        // In this node's frame, which the visitor clones its intersector into for every frame it
+        // enters: a ray cast from the camera starts in its projection.
+        const osg::ref_ptr<osgUtil::Intersector> here = asked->clone(visitor);
+        auto* const segment = dynamic_cast<osgUtil::LineSegmentIntersector*>(here.get());
+        if (segment == nullptr)
+            return;
+
+        // The segment on the plane in cells, clipped to the land the storage has, so a segment
+        // of any length crosses no more cells than the land holds.
+        const double cellSize = mStorage->getCellWorldSize(mWorldspace);
+        const osg::Vec2d from(segment->getStart().x() / cellSize, segment->getStart().y() / cellSize);
+        const osg::Vec2d to(segment->getEnd().x() / cellSize, segment->getEnd().y() / cellSize);
+        float minX = 0.0f;
+        float maxX = 0.0f;
+        float minY = 0.0f;
+        float maxY = 0.0f;
+        mStorage->getBounds(minX, maxX, minY, maxY, mWorldspace);
+        const std::optional<osg::Vec2d> over = clipToBox(from, to, osg::Vec2d(minX, minY), osg::Vec2d(maxX, maxY));
+        if (!over.has_value())
+            return;
+
+        // The cells it crosses in the order it crosses them, Amanatides and Woo's walk: each step
+        // takes the nearer of the next column and the next row. Exactly as many cells as the two
+        // ends are apart in columns and rows, plus the first.
+        const osg::Vec2d d = to - from;
+        const osg::Vec2d first = from + d * over->x();
+        const osg::Vec2d last = from + d * over->y();
+        osg::Vec2i cell(static_cast<int>(std::floor(first.x())), static_cast<int>(std::floor(first.y())));
+        const osg::Vec2i end(static_cast<int>(std::floor(last.x())), static_cast<int>(std::floor(last.y())));
+        const osg::Vec2i step(d.x() < 0.0 ? -1 : 1, d.y() < 0.0 ? -1 : 1);
+        constexpr double never = std::numeric_limits<double>::infinity();
+        const auto firstCrossing = [&](const int axis) {
+            if (d[axis] == 0.0)
+                return never;
+            const double boundary = step[axis] > 0 ? cell[axis] + 1.0 : static_cast<double>(cell[axis]);
+            return (boundary - from[axis]) / d[axis];
+        };
+        osg::Vec2d crossing(firstCrossing(0), firstCrossing(1));
+        const osg::Vec2d across(
+            d.x() == 0.0 ? never : 1.0 / std::abs(d.x()), d.y() == 0.0 ? never : 1.0 / std::abs(d.y()));
+
+        const int cells = std::abs(end.x() - cell.x()) + std::abs(end.y() - cell.y()) + 1;
+        const bool nearestOnly = segment->getIntersectionLimit() != osgUtil::Intersector::NO_LIMIT;
+        for (int crossed = 0; crossed < cells; ++crossed)
+        {
+            if (findGrid(cell) == nullptr && mDistance.standsGround(cell))
+            {
+                if (mFarCell != cell)
+                {
+                    fill(mFar, cell);
+                    mFarCell = cell;
+                }
+
+                // A hit in a nearer cell is nearer than any in a cell after it.
+                const std::size_t before = segment->getIntersections().size();
+                mFar.mRoot->accept(visitor);
+                if (nearestOnly && segment->getIntersections().size() > before)
+                    return;
+            }
+
+            const int axis = crossing.x() < crossing.y() ? 0 : 1;
+            cell[axis] += step[axis];
+            crossing[axis] += across[axis];
+        }
     }
 }

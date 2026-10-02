@@ -8,10 +8,17 @@
 #include <string_view>
 
 #include <osg/AlphaFunc>
+#include <osg/BlendEquation>
 #include <osg/BlendFunc>
+#include <osg/ColorMask>
+#include <osg/CullFace>
+#include <osg/FrontFace>
 #include <osg/GL>
 #include <osg/Material>
 #include <osg/Matrixf>
+#include <osg/Multisample>
+#include <osg/PolygonMode>
+#include <osg/ShadeModel>
 #include <osg/StateAttribute>
 #include <osg/StateSet>
 #include <osg/Texture>
@@ -20,6 +27,7 @@
 
 #include <components/rtx/image/texels.hpp>
 #include <components/sceneutil/material.hpp>
+#include <components/sceneutil/texturetype.hpp>
 #include <components/sceneutil/util.hpp>
 
 namespace Rtx
@@ -106,17 +114,198 @@ namespace Rtx
             return blend.getSource() == osg::BlendFunc::ONE ? BlendKind::AddWhole : BlendKind::Add;
         }
 
+        /// Whether a `BlendFunc` is one of the four blends `blendKindOf` reads: the four the
+        /// shipped files state. Any other — a multiply, `DST_COLOR, ZERO` — composites otherwise.
+        bool readsBlend(const osg::BlendFunc& blend)
+        {
+            const GLenum source = blend.getSource();
+            const GLenum destination = blend.getDestination();
+            return (source == osg::BlendFunc::SRC_ALPHA
+                       && (destination == osg::BlendFunc::ONE_MINUS_SRC_ALPHA || destination == osg::BlendFunc::ONE
+                           || destination == osg::BlendFunc::DST_ALPHA))
+                || (source == osg::BlendFunc::ONE && destination == osg::BlendFunc::ONE);
+        }
+
+        /// What one attribute of a state set says that this reader does not carry. **Every type
+        /// OpenSceneGraph has is named**, so a type it adds stops the build until someone decides
+        /// it. Three answers: carried by the reader above; of the raster pipeline and not of a
+        /// surface, which a ray has no use for; or unread, which the material reports.
+        void readAttribute(const osg::StateAttribute& attribute, SurfaceDescription& material)
+        {
+            // The loader's own type, past OpenSceneGraph's: the role a unit is bound as, which the
+            // texture loop reads.
+            const osg::StateAttribute::Type type = attribute.getType();
+            if (type == SceneUtil::TextureType::AttributeType)
+                return;
+
+            switch (type)
+            {
+                case osg::StateAttribute::TEXTURE:
+                case osg::StateAttribute::MATERIAL:
+                case osg::StateAttribute::ALPHAFUNC:
+                    return;
+
+                case osg::StateAttribute::BLENDFUNC:
+                    material.markUnread(
+                        UnreadState::BlendPair, !readsBlend(static_cast<const osg::BlendFunc&>(attribute)));
+                    return;
+                case osg::StateAttribute::BLENDEQUATION:
+                    material.markUnread(UnreadState::BlendEquation,
+                        static_cast<const osg::BlendEquation&>(attribute).getEquationRGB()
+                            != osg::BlendEquation::FUNC_ADD);
+                    return;
+                case osg::StateAttribute::CULLFACE:
+                    material.markUnread(UnreadState::CulledFront,
+                        static_cast<const osg::CullFace&>(attribute).getMode() != osg::CullFace::BACK);
+                    return;
+                // **The winding a mirror turns round**: `SceneUtil::attach` states a clockwise front
+                // over a left body part it builds under a scale of minus one, which traversal,
+                // reading the winding in the mesh, already shows the right face of. A content
+                // file's own clockwise front looks the same from here.
+                case osg::StateAttribute::FRONTFACE:
+                    return;
+                case osg::StateAttribute::POLYGONMODE:
+                    material.markUnread(UnreadState::PolygonMode,
+                        static_cast<const osg::PolygonMode&>(attribute).getMode(osg::PolygonMode::FRONT)
+                            != osg::PolygonMode::FILL);
+                    return;
+                case osg::StateAttribute::COLORMASK:
+                {
+                    const auto& mask = static_cast<const osg::ColorMask&>(attribute);
+                    material.markUnread(
+                        UnreadState::ColourMask, !mask.getRedMask() || !mask.getGreenMask() || !mask.getBlueMask());
+                    return;
+                }
+                case osg::StateAttribute::SHADEMODEL:
+                    material.markUnread(UnreadState::FlatShading,
+                        static_cast<const osg::ShadeModel&>(attribute).getMode() == osg::ShadeModel::FLAT);
+                    return;
+                case osg::StateAttribute::FOG:
+                    material.markUnread(UnreadState::Fog, true);
+                    return;
+                case osg::StateAttribute::STENCIL:
+                    material.markUnread(UnreadState::Stencil, true);
+                    return;
+                case osg::StateAttribute::TEXENV:
+                case osg::StateAttribute::TEXGEN:
+                case osg::StateAttribute::TEXMAT:
+                    material.markUnread(UnreadState::TextureState, true);
+                    return;
+
+                // Of the raster pipeline: what is written where, in what order, through what
+                // program, at what precision. A ray meets the surface whatever these say.
+                case osg::StateAttribute::DEPTH:
+                case osg::StateAttribute::POLYGONOFFSET:
+                case osg::StateAttribute::PROGRAM:
+                case osg::StateAttribute::LIGHTMODEL:
+                case osg::StateAttribute::TEXENVFILTER:
+                case osg::StateAttribute::MULTISAMPLE:
+                case osg::StateAttribute::ANTIALIAS:
+                case osg::StateAttribute::HINT:
+                case osg::StateAttribute::VIEWPORT:
+                case osg::StateAttribute::SCISSOR:
+                case osg::StateAttribute::VIEWPORTINDEXED:
+                case osg::StateAttribute::SCISSORINDEXED:
+                case osg::StateAttribute::DEPTHRANGEINDEXED:
+                case osg::StateAttribute::CLIPCONTROL:
+                case osg::StateAttribute::CLAMPCOLOR:
+                case osg::StateAttribute::SAMPLEMASKI:
+                case osg::StateAttribute::PRIMITIVERESTARTINDEX:
+                case osg::StateAttribute::FRAME_BUFFER_OBJECT:
+                case osg::StateAttribute::UNIFORMBUFFERBINDING:
+                case osg::StateAttribute::TRANSFORMFEEDBACKBUFFERBINDING:
+                case osg::StateAttribute::ATOMICCOUNTERBUFFERBINDING:
+                case osg::StateAttribute::SHADERSTORAGEBUFFERBINDING:
+                case osg::StateAttribute::INDIRECTDRAWBUFFERBINDING:
+                case osg::StateAttribute::BINDIMAGETEXTURE:
+                case osg::StateAttribute::SAMPLER:
+                case osg::StateAttribute::PATCH_PARAMETER:
+                case osg::StateAttribute::VERTEX_ATTRIB_DIVISOR:
+                case osg::StateAttribute::VALIDATOR:
+                case osg::StateAttribute::VIEWMATRIXEXTRACTOR:
+                case osg::StateAttribute::CAPABILITY:
+                    return;
+
+                // Facts of a surface the trace has no rule for: lights bound by hand, line and
+                // point sizes, stipples, logic operations, colour tables and matrices, clip planes,
+                // the fixed-function programs and the vendors' extensions.
+                case osg::StateAttribute::LIGHT:
+                case osg::StateAttribute::POINT:
+                case osg::StateAttribute::POINTSPRITE:
+                case osg::StateAttribute::LINEWIDTH:
+                case osg::StateAttribute::LINESTIPPLE:
+                case osg::StateAttribute::POLYGONSTIPPLE:
+                case osg::StateAttribute::LOGICOP:
+                case osg::StateAttribute::COLORTABLE:
+                case osg::StateAttribute::COLORMATRIX:
+                case osg::StateAttribute::BLENDCOLOR:
+                case osg::StateAttribute::CLIPPLANE:
+                case osg::StateAttribute::VERTEXPROGRAM:
+                case osg::StateAttribute::FRAGMENTPROGRAM:
+                case osg::StateAttribute::OSGNV_PARAMETER_BLOCK:
+                case osg::StateAttribute::OSGNVEXT_TEXTURE_SHADER:
+                case osg::StateAttribute::OSGNVEXT_VERTEX_PROGRAM:
+                case osg::StateAttribute::OSGNVEXT_REGISTER_COMBINERS:
+                case osg::StateAttribute::OSGNVCG_PROGRAM:
+                case osg::StateAttribute::OSGNVSLANG_PROGRAM:
+                case osg::StateAttribute::OSGNVPARSE_PROGRAM_PARSER:
+                    material.markUnread(UnreadState::Unknown, true);
+                    return;
+            }
+
+            // A type past OpenSceneGraph's own that is not the loader's either.
+            material.markUnread(UnreadState::Unknown, true);
+        }
+
+        /// The same for a mode: the ones the reader carries, the ones the loader and the scene set
+        /// for the raster pipeline alone, and every other unread.
+        void readMode(const osg::StateAttribute::GLMode mode, SurfaceDescription& material)
+        {
+            switch (mode)
+            {
+                case GL_BLEND:
+                case GL_CULL_FACE:
+                case GL_ALPHA_TEST:
+                case GL_DEPTH_TEST:
+                case GL_POLYGON_OFFSET_FILL:
+                case GL_POLYGON_OFFSET_LINE:
+                case GL_POLYGON_OFFSET_POINT:
+                case GL_LIGHTING:
+                case GL_NORMALIZE:
+                case GL_RESCALE_NORMAL:
+                case GL_MULTISAMPLE_ARB:
+                case GL_SAMPLE_ALPHA_TO_COVERAGE_ARB:
+                    return;
+                case GL_FOG:
+                    material.markUnread(UnreadState::Fog, true);
+                    return;
+                case GL_STENCIL_TEST:
+                    material.markUnread(UnreadState::Stencil, true);
+                    return;
+                default:
+                    material.markUnread(UnreadState::Unknown, true);
+                    return;
+            }
+        }
+
         void readColours(const osg::StateAttribute& attribute, SurfaceDescription& material)
         {
             if (const auto* own = dynamic_cast<const SceneUtil::Material*>(&attribute))
             {
                 const osg::Vec4f diffuse = own->getDiffuse();
+                const SceneUtil::VertexColorModes mode = own->getVertexColorMode();
+
+                // Under these two the rasterizer's diffuse is the vertex colour whole, its alpha
+                // with it (`getDiffuseColor`), and the mesh reader reads every vertex alpha as one.
+                const bool vertexDiffuse = mode == SceneUtil::VertexColorModes::AmbientAndDiffuse
+                    || mode == SceneUtil::VertexColorModes::Diffuse;
+
                 material.mDiffuseColour = stated(diffuse);
-                material.mOpacity = diffuse.a();
+                material.mOpacity = vertexDiffuse ? 1.0f : diffuse.a();
                 material.mAmbientColour = stated(own->getAmbient());
                 material.mEmissiveColour = stated(own->getEmission());
                 material.mEmissiveMult = own->getEmissiveMultiplier();
-                material.mVertexColour = vertexColourOf(own->getVertexColorMode());
+                material.mVertexColour = vertexColourOf(mode);
                 return;
             }
 
@@ -228,6 +417,8 @@ namespace Rtx
             // A role the trace declines is still a role — it said the surface is one — and is
             // kept nowhere, so no lock is worth taking for it.
             const std::optional<SurfaceMap> map = mapOf(*role);
+            if (!map.has_value())
+                material.markUnread(UnreadState::Role, true);
             if (!map.has_value() || !locks.takesTexture(*role, pair->second))
                 continue;
 
@@ -239,12 +430,16 @@ namespace Rtx
                     && carriesHeight(*texture->getImage(0));
             if (*map == SurfaceMap::Dark)
                 material.mDarkUnit = static_cast<std::uint8_t>(unit);
+            if (*map == SurfaceMap::Emissive)
+                material.mEmissiveUnit = static_cast<std::uint8_t>(unit);
         }
 
-        // **The alpha test's reference, from wherever the visitor left it.** `Shader::ShaderVisitor`
-        // replaces the attribute with a `RemovedAlphaFunc` at a default threshold and carries the
-        // real one in a uniform, so the uniform is asked first and the attribute answers where no
-        // visitor has run. `ALWAYS` is no test at all, which is what the scene root wears.
+        // **The alpha test, its reference from wherever the visitor left it.** `Shader::ShaderVisitor`
+        // replaces the attribute with a `RemovedAlphaFunc` of the same function at a default
+        // threshold and carries the real one in a uniform, so the uniform is asked first and the
+        // attribute answers where no visitor has run. The function is OpenGL's set of sides past
+        // `GL_NEVER`: `ALWAYS` is no test at all, which is what the scene root wears, and Morrowind's
+        // own is `GREATER`.
         if (const osg::StateSet::RefAttributePair* tested = stateSet.getAttributePair(osg::StateAttribute::ALPHAFUNC);
             tested != nullptr && SurfaceLocks::takes(locks.mAlphaFunc, tested->second))
         {
@@ -253,9 +448,16 @@ namespace Rtx
             if (const osg::StateSet::RefUniformPair* carried = uniformNamed(stateSet, "alphaRef"))
                 carried->first->get(reference);
 
-            material.mAlphaRef = alpha->getFunction() != osg::AlphaFunc::ALWAYS ? reference : 0.0f;
+            // A test that cuts nothing is no test, and is one value whatever its reference: two
+            // surfaces that differ in nothing else are one material.
+            static_assert(osg::AlphaFunc::ALWAYS - osg::AlphaFunc::NEVER == Shaders::ALPHA_PASSES_ALL);
+            const AlphaTest stated{
+                .mReference = reference,
+                .mPasses = static_cast<std::uint32_t>(alpha->getFunction() - osg::AlphaFunc::NEVER),
+            };
+            material.mAlphaTest = stated.cuts() ? stated : AlphaTest{};
             if (material.mAlphaMode != AlphaMode::Blend)
-                material.mAlphaMode = material.mAlphaRef > 0.0f ? AlphaMode::Cutout : AlphaMode::Opaque;
+                material.mAlphaMode = material.mAlphaTest.cuts() ? AlphaMode::Cutout : AlphaMode::Opaque;
         }
 
         // Blending wins over testing, and the threshold survives for a renderer that would rather cut.
@@ -271,7 +473,7 @@ namespace Rtx
         else if (const osg::StateAttribute::GLModeValue blend = stateSet.getMode(GL_BLEND);
                  blend != osg::StateAttribute::INHERIT && SurfaceLocks::takes(locks.mBlend, blend))
             material.mAlphaMode = (blend & osg::StateAttribute::ON) ? AlphaMode::Blend
-                : material.mAlphaRef > 0.0f                         ? AlphaMode::Cutout
+                : material.mAlphaTest.cuts()                        ? AlphaMode::Cutout
                                                                     : AlphaMode::Opaque;
 
         // Only ever off by the content: a stencil property drawing both faces, or a material file's
@@ -309,6 +511,46 @@ namespace Rtx
 
         readTransform(stateSet, diffuseUnit.value_or(0), material, locks);
 
+        // **Whatever else the state set states**, every attribute and mode, each carried, of the
+        // raster pipeline, or unread.
+        for (const auto& [type, attribute] : stateSet.getAttributeList())
+            readAttribute(*attribute.first, material);
+        for (const osg::StateSet::AttributeList& unit : units)
+            for (const auto& [type, attribute] : unit)
+                readAttribute(*attribute.first, material);
+        for (const auto& [mode, value] : stateSet.getModeList())
+            readMode(mode, material);
+
         return said;
+    }
+
+    std::string_view whyUnread(const UnreadState state)
+    {
+        switch (state)
+        {
+            case UnreadState::Role:
+                return "a detail, decal, gloss or bump map is not read";
+            case UnreadState::BlendPair:
+                return "a blend other than the shipped four is drawn as the nearest of them";
+            case UnreadState::BlendEquation:
+                return "a blend equation other than addition is drawn as addition";
+            case UnreadState::CulledFront:
+                return "a cull of the front faces is drawn as a cull of the back";
+            case UnreadState::PolygonMode:
+                return "lines or points are drawn as faces";
+            case UnreadState::Fog:
+                return "a fog of its own is not read; the air along the ray is";
+            case UnreadState::Stencil:
+                return "a stencil test is not read";
+            case UnreadState::ColourMask:
+                return "a colour mask is not read, so a surface that writes no colour is drawn";
+            case UnreadState::FlatShading:
+                return "flat shading is drawn smooth";
+            case UnreadState::TextureState:
+                return "a texture unit's environment mode, coordinate generator or matrix is not read";
+            case UnreadState::Unknown:
+                return "an attribute or mode the material reader has no rule for is not read";
+        }
+        return {};
     }
 }

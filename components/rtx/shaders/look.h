@@ -49,19 +49,25 @@ namespace Rtx::Shaders
     /// disc no longer fits the half floats a shown frame is stored in.
     const float DAYLIGHT_GAIN = 10.0f;
 
-    /// Darkest luminance the histogram resolves, as a power of two. About a thousandth of mid grey,
-    /// which is below anything a lit surface reaches and well under an unlit interior.
-    const float MIN_LOG_LUMINANCE = -10.0f;
+    /// Darkest luminance the histogram resolves, as a power of two: about an eight-thousandth of
+    /// white, which is below anything a lit surface reaches and under the darkest corner of an
+    /// unlit interior that is still a picture.
+    const float MIN_LOG_LUMINANCE = -13.0f;
 
-    /// Brightest, as a power of two. Sixty-four times mid grey covers a flame seen directly, and the
-    /// day's gain lifts every sunlit pixel past that by `DAYLIGHT_GAIN`.
-    const float MAX_LOG_LUMINANCE = 6.0f + log2(DAYLIGHT_GAIN);
+    /// Brightest, as a power of two. Sixty-four times white covers a flame seen directly, and the
+    /// day's gain lifts every sunlit pixel past that by `DAYLIGHT_GAIN`: `6 + log2(DAYLIGHT_GAIN)`,
+    /// written as a literal for the reason `portable.h` gives.
+    const float MAX_LOG_LUMINANCE = 9.32192802f;
 
-    /// Where a pixel stops being binned and starts being counted as black.
+    /// Where a pixel stops being binned and starts being counted as black: the bottom of the scale,
+    /// `2^MIN_LOG_LUMINANCE`, written as the fraction it is exactly. **One edge and one number**:
+    /// a black threshold above the bottom of the scale sends the band between them to the lowest
+    /// bin, metered at that bin's middle and so brighter than it is — up to ten times for a
+    /// threshold of 10^-4 over a scale from 2^-10.
     ///
     /// Without it the dark areas of an interior pile into the lowest bin and drag the average down
     /// to meet them, and the exposure opens until the few lit surfaces are white.
-    const float EXPOSURE_BLACK = 0.0001f;
+    const float EXPOSURE_BLACK = 1.0f / 8192.0f;
 
     /// The luminance a correctly exposed mid grey sits at. Eighteen per cent is the photographic
     /// convention, and it is what puts an average scene in the middle of the curve rather than at
@@ -180,6 +186,13 @@ namespace Rtx::Shaders
     /// a different sun. It decides how wide the disc in the sky is drawn, and with it how wide the
     /// glitter path on water is: the two are the same number seen twice, one directly and one in a
     /// mirror, and they cannot be allowed to disagree.
+    ///
+    /// **The sun the content paints is not read, and bloom stands in for it.** The rasterizer draws
+    /// `tx_sun_05` on a quad three and a half degrees across and, over it, the additive flash
+    /// `tx_sun_flash_grey_05` 2.6 times wider, scaled by the seen share its occlusion query eases.
+    /// The trace draws this disc, uniform, and its bloom spreads it into the halo both sprites
+    /// paint, eased by the same seen share through the glare (`SunGlarePass`). So a sun-texture
+    /// replacer does not reach the trace, and a sunrise past a roof edge does not shrink a flash.
     const float SUN_ANGULAR_RADIUS = 0.004654f;
 
     /// Angular radius of the cone a sun shadow ray is drawn from, in radians: two degrees.
@@ -197,17 +210,7 @@ namespace Rtx::Shaders
     /// those are the sun seen and a sun seen wider is a different sun. A sun seen through haze does
     /// widen its own shadows — the aureole a hazy sky throws round it is a few degrees across — and
     /// if this ever wants to follow the weather, that is the model to follow it with.
-    const float SUN_SHADOW_RADIUS = 0.034907f;
-
-    /// Its sine, which is what a cone is drawn from: `SkySource::mLimb` for the sun.
-    ///
-    /// **A literal and not `sin(SUN_SHADOW_RADIUS)`**, because the host writes the frame's sun and
-    /// the shader used to fold the sine with its own library — and the two libraries need not
-    /// round alike in the last place, which is a penumbra a step wide differing between the two
-    /// sides. The literal is the float the shader's fold gave, to the bit, which is one step
-    /// above what this box's `sinf` gives; `RtxSkylightTest` holds it to within that step of the
-    /// angle.
-    const float SUN_SHADOW_SINE = 0.034899913f;
+    const float SUN_SHADOW_RADIUS = 2.0f * PI / 180.0f;
 
     /// What a moon's own texels are worth as radiance.
     ///
@@ -342,9 +345,9 @@ namespace Rtx::Shaders
     const float SHADING_FLOOR = 0.5f;
     const float SHADING_CEILING = 2.0f;
 
-    /// Untextured surfaces are mid-grey rather than black, so a missing texture reads as missing rather
-    /// than as shadow.
-    const vec3 NO_TEXTURE_ALBEDO = vec3(0.5f, 0.5f, 0.5f);
+    /// What a surface with no diffuse map reads: white, the rasterizer's `vec4(1.0)`, so its colour
+    /// is its material's. A map that did not load reads the backend's grey stand-in instead.
+    const vec3 UNTEXTURED_ALBEDO = vec3(1.0f, 1.0f, 1.0f);
 
     /// The radiance a fully lit white card leaves, which is what the original's one meant.
     ///
@@ -653,7 +656,7 @@ namespace Rtx::Shaders
     /// Pythagorean triangles, so neither is near a quarter turn of the other: 3-4-5 is thirty-seven
     /// degrees and 5-12-13 is sixty-seven.
     const vec2 FOG_TURN_MIDDLE = vec2(0.8f, 0.6f);
-    const vec2 FOG_TURN_FINE = vec2(0.3846154f, 0.9230769f);
+    const vec2 FOG_TURN_FINE = vec2(5.0f, 12.0f) / 13.0f;
 
     /// The coarsest level of that chain a march is allowed to read.
     ///
@@ -779,7 +782,20 @@ namespace Rtx::Shaders
     /// **A climb alone, and a descent is never masked.** An eye that is high enough looks down on
     /// the ring where the loaded cells stop, so the steeper the view the more of the cut it can see
     /// — and reading this either way would take the air off precisely there.
-    const float FOG_EDGE_RISE = sin(25.0f * PI / 180.0f);
+    ///
+    /// `sin(25°)`, written as a literal for the reason `portable.h` gives.
+    const float FOG_EDGE_RISE = 0.42261827f;
+
+    /// Which way the sea's waves run, in the world's plane: the rasterizer's water shader's own
+    /// `WIND_DIR`, a constant there, and so not the weather's wind, which an ash storm turns as the
+    /// player walks. Restated, because a header the GLSL reads cannot include the game's shader.
+    const vec2 SEA_WIND = vec2(0.5f, -0.8f);
+
+    /// `SEA_WIND` as the unit heading `VisibilityConstants::mSeaHeading` takes.
+    RTX_SHADER vec2 seaHeading()
+    {
+        return normalize(SEA_WIND);
+    }
 
     /// Water's index of refraction, and the reflectance it gives head-on: `((n - 1) / (n + 1))^2`,
     /// 0.02037, which is why water is a window seen from above and a mirror seen along it.
@@ -813,8 +829,8 @@ namespace Rtx::Shaders
     /// **Absorption, and not a diffuse attenuation coefficient.** `Kd` is what oceanography usually
     /// quotes and it is the wrong number here twice over: it counts scattering as a loss, and it
     /// counts the lengthening of a path that has been scattered about. This renderer already puts
-    /// the scattering back with `WATER_SCATTER`, so charging the beam for it as well is charging it
-    /// twice. What is left of a beam is what was absorbed out of it, which is `a`.
+    /// the scattering back with `VisibilityConstants::mWaterScatter`, so charging the beam for it as
+    /// well is charging it twice. What is left of a beam is what was absorbed out of it, which is `a`.
     ///
     /// **And scattering takes almost nothing out of a beam here.** The reduced coefficient is
     /// `a + b (1 - g)`, and with `WATER_ASYMMETRY` at 0.92 and the albedo below, `b (1 - g)` comes
@@ -847,12 +863,15 @@ namespace Rtx::Shaders
     /// tropical water really does behave that way, because molecular scattering dominates its blue;
     /// a tannin-stained coastal swamp does not, and this game's water is the second.
     ///
-    /// **Morrowind's own, which it states as a colour rather than as an albedo.**
-    /// `Water_UnderwaterColor` is `012,030,037` and `Water_UnderwaterColorWeight` is 0.85, and
-    /// `MWRender::FogManager::getFogColor` mixes them into the weather's fog at exactly that
-    /// weight — so `(12, 30, 37) / 255 * 0.85` is the colour the game settles its own murk at.
-    /// Read straight across, because the two quantities are the same one: a share of what arrives
-    /// that comes back rather than being swallowed.
+    /// **The content's own, which it states as a colour rather than as an albedo.**
+    /// `MWRender::FogManager::getFogColor` mixes `Water_UnderwaterColor` into the weather's fog at
+    /// `Water_UnderwaterColorWeight`, and the water's share of that is the colour the game settles
+    /// its own murk at. The trace reads the two fallbacks (`VisibilityConstants::mWaterScatter`), so
+    /// a water mod's colour reaches it, and not the air's share, which tints the rasterizer's
+    /// picture under water and is no property of the water. Read straight across, because the two
+    /// quantities are the same one: a share of what arrives that comes back rather than being
+    /// swallowed. This is what Morrowind's own `012,030,037` at 0.85 come to, and what a frame built
+    /// by hand carries.
     ///
     /// **What the game states and this cannot use is the density.** `Water_UnderwaterDayFog` is
     /// 2.5, and `FogManager` runs its ramp from `min(view, 7168) * (1 - depth)` — which for any
@@ -871,7 +890,7 @@ namespace Rtx::Shaders
     /// falls toward blue where every real water's rises — molecular scattering goes as the fourth
     /// power of the wavenumber. What that costs is confined to the colour a very deep column
     /// settles at, which is the one thing the game states outright and this defers to.
-    const vec3 WATER_SCATTER = vec3(0.04f, 0.1f, 0.1233f);
+    const vec3 WATER_SCATTER_SHIPPED = vec3(12.0f, 30.0f, 37.0f) / 255.0f * 0.85f;
 
     /// How far forward water throws what it scatters.
     ///
@@ -1074,6 +1093,15 @@ namespace Rtx::Shaders
     /// stays the card's worth; the sky and the lamps arrive from everywhere and keep the even share.
     /// Six tenths is the cloud recipe's figure.
     const float SMOKE_ANISOTROPY = 0.6f;
+
+    /// How much brighter the lit side of a puff is than its mean, and the far side darker.
+    ///
+    /// **A puff has no dark side and still has a lit one.** A cloud of droplets scatters the sun
+    /// through the whole of itself, which is why `puffLight` gives a puff a card's worth of the sun
+    /// rather than a sphere's quarter; but the side the sun is on is brighter than the side it is
+    /// not, and that is what makes a ball read as a ball. `1 + SPRITE_WRAP * dot(normal, toward)`
+    /// keeps the mean over the sphere where it was and puts three to one between front and back.
+    const float SPRITE_WRAP = 0.5f;
 
     /// The most a shell of medium may be thickened by the angle the ray crosses it at.
     ///

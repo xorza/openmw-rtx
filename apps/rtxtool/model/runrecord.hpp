@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <apps/rtxtool/instruments/framehashes.hpp>
+#include <components/misc/result.hpp>
 
 #include "benchrecord.hpp"
 #include "benchrun.hpp"
@@ -29,6 +30,11 @@ namespace RtxTool
     public:
         void reserve(std::size_t places) { mPlaces.reserve(places); }
 
+        /// Takes the premises the run states before its first frame into the header: the build,
+        /// what the command measures and hashes, and what the renderer is made with. What only a
+        /// frame says — the extents, the reconstruction resolved — the first stop adds.
+        void begin(const SessionRequest& request);
+
         /// Whether no place has been measured yet, which is what says the header is still to be
         /// taken.
         bool empty() const { return mPlaces.empty(); }
@@ -37,7 +43,7 @@ namespace RtxTool
         /// at the first place, because every place of a run is traced by one renderer.
         BenchHeader& getHeader() { return mHeader; }
 
-        /// Takes one measured place, and prints it into the report.
+        /// Takes one measured place, and prints it into the report: under the header, for the first.
         void add(BenchPlace place);
 
         /// Adds to the report.
@@ -49,6 +55,9 @@ namespace RtxTool
         /// could not be written says so in the report and fails the run; a picture that was written
         /// says so and does not.
         void fail() { mExitStatus = 1; }
+
+        /// Says a hashed frame differed from its reference: the run's status unless it failed.
+        void differ() { mDiffered = true; }
 
         /// Counts one check and whether it held.
         void checked(bool held);
@@ -65,9 +74,20 @@ namespace RtxTool
 
         /// Closes the run: the total under the places, the check tally, the hashes and the record.
         ///
+        /// **A file it cannot write is a line of the report and a failed run, never a throw.** It
+        /// runs inside the engine's frame, and a throw from there would lose every measured place's
+        /// figures with the report they were in.
+        ///
         /// **Takes the request rather than four paths**, because what it writes and what it compares
         /// against is what the run was asked for — and the request is this component's own.
         void finish(const SessionRequest& request);
+
+        /// Closes a run that failed before its last stop, for the stops it reached: the frames
+        /// whose pictures will not come are dropped, and the rest is closed as `finish` closes it.
+        ///
+        /// **Closed and not left open**, because a record that was not written leaves the last
+        /// run's at its path, to be compared as this one's.
+        void abandon(const SessionRequest& request);
 
         /// Everything a launcher reads back, with `left` where the eye was, or null where the run
         /// reached no place.
@@ -79,6 +99,9 @@ namespace RtxTool
         SessionResult describe(const Stop* left) const;
 
     private:
+        /// Whether `written` holds; where not, says why in the report and fails the run.
+        bool wrote(const Misc::Result<void, std::string>& written);
+
         std::vector<BenchPlace> mPlaces;
         BenchHeader mHeader;
 
@@ -87,6 +110,7 @@ namespace RtxTool
         std::string mReport;
 
         int mExitStatus = 0;
+        bool mDiffered = false;
 
         /// How many checks the run asked and how many of them failed.
         std::uint32_t mChecked = 0;

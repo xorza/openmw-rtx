@@ -183,6 +183,10 @@
         <translation>16</translation>
     </message>
     <message>
+        <source>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window&apos;s own size. In Windowed mode the window keeps the size you last dragged it to.</source>
+        <translation>La résolution à laquelle le jeu effectue le rendu, monde et interface ensemble, mise à l&apos;échelle pour remplir la fenêtre. Native effectue le rendu à la taille propre de la fenêtre. En mode fenêtré, la fenêtre garde la taille à laquelle vous l&apos;avez redimensionnée en dernier.</translation>
+    </message>
+    <message>
         <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs a GPU with hardware ray tracing: NVIDIA Turing or AMD RDNA 2, or later.</source>
         <translation>Remplace le moteur de rendu OpenGL par le moteur de rendu Vulkan expérimental avec ray tracing. Nécessite un GPU avec ray tracing matériel : NVIDIA Turing ou AMD RDNA 2, ou plus récent.</translation>
     </message>
@@ -195,8 +199,8 @@
         <translation>Mise à l&apos;échelle</translation>
     </message>
     <message>
-        <source>How far below the window&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
-        <translation>À quelle distance sous la taille de la fenêtre le ray tracing est calculé. Inactif calcule chaque pixel sans module de mise à l&apos;échelle ; tout autre mode utilise ce module, qui reconstruit l&apos;image sur plusieurs images, et chaque mode sauf Inactif et Native calcule moins de pixels qu&apos;il n&apos;en affiche.</translation>
+        <source>How far below the frame&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
+        <translation>À quelle distance sous la résolution de l&apos;image le ray tracing est calculé. Inactif calcule chaque pixel sans module de mise à l&apos;échelle ; tout autre mode utilise ce module, qui reconstruit l&apos;image sur plusieurs images, et chaque mode sauf Inactif et Native calcule moins de pixels qu&apos;il n&apos;en affiche.</translation>
     </message>
     <message>
         <source>Off</source>

@@ -1,7 +1,7 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
-#include <string_view>
 
 #include <components/misc/result.hpp>
 
@@ -29,6 +29,10 @@ namespace RtxTool
         /// after this is drawn at the stop and from nothing before it.
         Misc::Result<void, std::string> stage(const Stop& stop, const SessionRequest& request) const;
 
+        /// The days passed a new game starts on: the content's own `DaysPassed` global, from which a
+        /// stop's day is counted, 16 Last Seed in Morrowind.
+        static int newGameDaysPassed();
+
         /// Tells the renderer that nothing before this frame describes where it now stands.
         static void forgetHistory();
 
@@ -44,9 +48,9 @@ namespace RtxTool
         static std::string describePause();
 
     private:
-        /// Puts the sky under the weather called `name` over the player's region, as `changeweather`
-        /// would, and warns for a name that is none of the ten.
-        static void setWeather(MWBase::World& world, std::string_view name);
+        /// Puts the sky under `weather`, as `Rtx::weatherIndex` numbers it, over the player's region,
+        /// as `changeweather` would.
+        static void setWeather(MWBase::World& world, std::uint32_t weather);
 
         /// Gives the player every attribute and skill at 255, a Speed of 2000, level 255 and ten
         /// million gold, through the calls the console's `setspeed`, `setlevel` and `additem` make.

@@ -1,3 +1,4 @@
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <filesystem>
@@ -23,10 +24,13 @@
 #include <apps/openmw/mwrender/offscreenview.hpp>
 #include <apps/openmw/mwrender/renderer.hpp>
 #include <apps/openmw/mwrender/rendermode.hpp>
+#include <apps/openmw/mwrender/rendersupport.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
 #include <components/misc/frameclock.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
+#include <components/settings/categories.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -34,12 +38,25 @@ namespace MWRender
 {
     namespace
     {
+        /// Water declined whole and one of its keys honoured by name, which beats the category, and
+        /// one key of another category declined.
+        constexpr auto sDeclared = std::to_array<SettingSupport>({
+            { "Water", "", "no water here" },
+            { "Water", "shader", {} },
+            { "RTX", "upscale", "no upscaler here" },
+        });
+        constexpr std::array sDeclaredModes{ ModeSupport{ Render_Wireframe, "no wireframe here" } };
+        constexpr std::array sDeclaredRequests{ RequestSupport{ ScriptRequest::ShaderReload, "no shaders here" } };
+        constexpr RenderSupport sSupport(sDeclared, sDeclaredModes, sDeclaredRequests);
+
         /// A renderer that draws nothing and records what the seam tells it about the world.
         class RecordingRenderer final : public Renderer
         {
         public:
             /// Whether the world was to be drawn, at each `applyWorldShown`.
-            std::vector<bool> mApplied;
+            /// What each `applyWorldShown` left a frame to draw: the world's view mask, or nothing under
+            /// a cover.
+            std::vector<unsigned int> mApplied;
 
             /// The simulation time of each `advance`, and how many times the interface was drawn.
             std::vector<double> mAdvanced;
@@ -47,6 +64,9 @@ namespace MWRender
 
             /// How many times the presentation was applied.
             std::size_t mPresented = 0;
+
+            /// What each settings change handed over.
+            std::vector<Settings::CategorySettingVector> mHonoured;
 
             using Renderer::adopt;
             using Renderer::getLastHold;
@@ -71,6 +91,7 @@ namespace MWRender
             void saveScreenshot() override {}
             void setVSync(SDLUtil::VSyncMode) override {}
             osg::Timer_t getStartTick() const override { return 0; }
+            const RenderSupport& support() const override { return sSupport; }
             std::unique_ptr<MyGUIPlatform::Platform> createGuiPlatform(
                 float, VFS::Path::NormalizedView, const std::filesystem::path&) override
             {
@@ -80,36 +101,76 @@ namespace MWRender
         protected:
             void adoptTraversalRoot(osg::Group&) override {}
             void applyViewMask() override {}
-            void applyWorldShown() override { mApplied.push_back(drawsWorld()); }
+            void applyWorldShown() override { mApplied.push_back(isWorldShown() ? worldViewMask() : 0u); }
             void applyPresentation() override { ++mPresented; }
+            void applyChangedSettings(const Settings::CategorySettingVector& honoured) override
+            {
+                mHonoured.push_back(honoured);
+            }
         };
 
-        /// **A cover that ends while `tws` is off leaves the world hidden, and `tws` under a cover
-        /// brings nothing back.** The two are one answer to a frame and two to the game, and the
-        /// renderer hears about each change once: the window manager asks every frame.
-        TEST(RendererTest, aCoverAndTwsAreTwoReasonsAndOneAnswer)
+        /// **A declaration answers by the key, then by its category, and honours what it does not
+        /// name**, and a renderer is handed only the changed settings it honours, and nothing at all
+        /// for a change it declines whole.
+        TEST(RendererTest, aRendererIsHandedTheChangedSettingsItsDeclarationHonours)
         {
+            EXPECT_EQ(sSupport.declinedSetting("Water", "refraction"), "no water here") << "by the category";
+            EXPECT_EQ(sSupport.declinedSetting("Water", "shader"), "") << "the key beats its category";
+            EXPECT_EQ(sSupport.declinedSetting("RTX", "upscale"), "no upscaler here");
+            EXPECT_EQ(sSupport.declinedSetting("RTX", "enabled"), "") << "a key the declaration does not name";
+            EXPECT_TRUE(sSupport.namesSetting("Water", "refraction"));
+            EXPECT_FALSE(sSupport.namesSetting("RTX", "enabled"));
+            EXPECT_EQ(sSupport.declinedMode(Render_Wireframe), "no wireframe here");
+            EXPECT_EQ(sSupport.declinedMode(Render_Pathgrid), "");
+            EXPECT_EQ(sSupport.declinedRequest(ScriptRequest::ShaderReload), "no shaders here");
+            EXPECT_EQ(sSupport.declinedRequest(ScriptRequest::LiveShaderReload), "");
+            EXPECT_EQ(notAvailable("Wireframe Rendering", sSupport.declinedMode(Render_Wireframe)),
+                "Wireframe Rendering -> not available under this renderer: no wireframe here")
+                << "what the console says in place of a state";
+
             RecordingRenderer renderer;
-            EXPECT_TRUE(renderer.drawsWorld());
+            renderer.processChangedSettings({ { "Water", "refraction" }, { "Water", "shader" }, { "RTX", "upscale" },
+                { "Camera", "field of view" } });
+            renderer.processChangedSettings({ { "Water", "refraction" }, { "RTX", "upscale" } });
+
+            ASSERT_EQ(renderer.mHonoured.size(), 1u) << "a change of declined settings alone was handed over";
+            EXPECT_EQ(renderer.mHonoured[0],
+                (Settings::CategorySettingVector{ { "Water", "shader" }, { "Camera", "field of view" } }));
+        }
+
+        /// **A cover that ends while `tws` is off leaves the world hidden, and `tws` under a cover
+        /// brings nothing back.** The two are two reasons to the game and two answers to a frame:
+        /// a cover draws nothing, and `tws` draws the view less the world's own bits — the sky, the
+        /// water, the player and the effects stay. The renderer hears about each change once: the
+        /// window manager asks every frame.
+        TEST(RendererTest, aCoverAndTwsAreTwoReasonsAndTwoAnswers)
+        {
+            constexpr unsigned int hidden = ~sToggleWorldMask;
+
+            RecordingRenderer renderer;
+            EXPECT_EQ(renderer.worldViewMask(), ~0u);
 
             renderer.showWorld(false);
             renderer.showWorld(false);
             EXPECT_FALSE(renderer.isWorldShown());
             EXPECT_TRUE(renderer.isWorldToggled());
-            EXPECT_EQ(renderer.mApplied, (std::vector<bool>{ false }));
+            EXPECT_EQ(renderer.mApplied, (std::vector<unsigned int>{ 0u }));
 
             EXPECT_FALSE(renderer.toggleRenderMode(Render_Scene));
             EXPECT_FALSE(renderer.isWorldToggled());
-            EXPECT_EQ(renderer.mApplied, (std::vector<bool>{ false, false }));
+            EXPECT_EQ(renderer.mApplied, (std::vector<unsigned int>{ 0u, 0u }));
 
             renderer.showWorld(true);
             EXPECT_TRUE(renderer.isWorldShown());
-            EXPECT_FALSE(renderer.drawsWorld());
-            EXPECT_EQ(renderer.mApplied, (std::vector<bool>{ false, false, false }));
+            EXPECT_EQ(renderer.mApplied, (std::vector<unsigned int>{ 0u, 0u, hidden }));
+
+            // The view mask's own word survives `tws`: the host's camera inside the player.
+            renderer.setViewMask(~static_cast<unsigned int>(Mask_Player));
+            EXPECT_EQ(renderer.worldViewMask(), hidden & ~static_cast<unsigned int>(Mask_Player));
+            renderer.setViewMask(~0u);
 
             EXPECT_TRUE(renderer.toggleRenderMode(Render_Scene));
-            EXPECT_TRUE(renderer.drawsWorld());
-            EXPECT_EQ(renderer.mApplied, (std::vector<bool>{ false, false, false, true }));
+            EXPECT_EQ(renderer.mApplied, (std::vector<unsigned int>{ 0u, 0u, hidden, ~0u }));
 
             // The rest are the game's own nodes, and a renderer that has none says so.
             EXPECT_FALSE(renderer.toggleRenderMode(Render_Wireframe));
@@ -239,10 +300,11 @@ namespace MWRender
             Settings::video().mResolutionY.set(0);
         }
 
-        /// A name no renderer has is a configuration mistake, refused by name.
-        TEST(RendererTest, anUnknownRendererIsRefusedByName)
+        /// The two kinds by the words the log and a crash report have always named them by.
+        TEST(RendererTest, eachKindIsNamedByTheWordTheLogPrints)
         {
-            EXPECT_THROW(createRenderer("software", RendererSpec{}), std::runtime_error);
+            EXPECT_EQ(nameOf(RendererKind::OpenGl), "opengl");
+            EXPECT_EQ(nameOf(RendererKind::RayTraced), "raytrace");
         }
     }
 }

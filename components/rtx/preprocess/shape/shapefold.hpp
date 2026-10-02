@@ -8,6 +8,7 @@
 #include <osg/Vec3f>
 
 #include "pockettree.hpp"
+#include "probetable.hpp"
 
 namespace Rtx
 {
@@ -96,7 +97,7 @@ namespace Rtx
         };
 
         /// An empty table slot, and the end of a chain.
-        static constexpr std::uint32_t sNoEntry = ~std::uint32_t{ 0 };
+        static constexpr std::uint32_t sNoEntry = ProbeTable::sEmpty;
 
         static Corners canonical(const osg::Vec3f& a, const osg::Vec3f& b, const osg::Vec3f& c);
 
@@ -104,11 +105,9 @@ namespace Rtx
         /// whether any went. See the class's own doc.
         bool dropPockets(std::span<const osg::Vec3f> positions, std::vector<std::uint32_t>& indices);
 
-        /// The triangle a spelling is held under, or `sNoEntry`. Open addressed with linear
-        /// probing, a power of two long and never more than half full, so a probe always ends. The
-        /// slot holds the chain's head, because a chunk with four copies of a card pairs them two
-        /// by two.
-        std::vector<std::uint32_t> mTable;
+        /// The triangle a spelling is held under, or `sNoEntry`. The slot holds the chain's head,
+        /// because a chunk with four copies of a card pairs them two by two.
+        ProbeTable mTable;
 
         /// Each triangle's spelling and its hash, so a probe compares an index rather than
         /// recomputing corners it has already rotated once.

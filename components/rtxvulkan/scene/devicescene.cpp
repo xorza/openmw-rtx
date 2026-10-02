@@ -168,6 +168,12 @@ namespace Rtx
         return posed || built || baked;
     }
 
+    void DeviceScene::measureStars(Shaders::StarField& stars) const
+    {
+        stars.mExtent
+            = stars.mTexture == Shaders::NO_TEXTURE ? Shaders::uvec2(0, 0) : mTextures.getExtent(stars.mTexture);
+    }
+
     void DeviceScene::finishReads(const FrameSlot slot) const
     {
         mBuffers.finishReads(slot);
@@ -179,7 +185,6 @@ namespace Rtx
     SceneHeld DeviceScene::describe() const
     {
         return SceneHeld{
-            .mBuilt = true,
             .mIdentity = mBuiltFrom,
             .mStructureRevision = mBuiltStructure,
             .mTextureCount = mTextures.getCount(),

@@ -71,8 +71,7 @@ namespace MWRender
         static_assert(noexcept(std::declval<RtxRenderer&>().capture(std::declval<osg::Image&>(), 0, 0)));
         static_assert(noexcept(std::declval<RtxRenderer&>().saveScreenshot()));
         static_assert(noexcept(std::declval<RtxRenderer&>().setVSync(std::declval<SDLUtil::VSyncMode>())));
-        static_assert(noexcept(std::declval<RtxRenderer&>().processChangedSettings(
-            std::declval<const Settings::CategorySettingVector&>())));
+        static_assert(noexcept(std::declval<const RtxRenderer&>().support()));
         static_assert(noexcept(std::declval<RtxRenderer&>().getStartTick()));
 
         static_assert(!noexcept(std::declval<RtxRenderer&>().renderFrame(std::declval<const SceneFrame&>())));
@@ -194,7 +193,7 @@ namespace MWRender
             for (const Kind upload : { Kind::Placed, Kind::Extended, Kind::Rebuilt })
                 for (const std::uint32_t left : { 0u, 1u, 352u })
                 {
-                    const FrameReport report{ .mUpload = upload, .mCellsToStand = left };
+                    const FrameReport report{ .mUpload = Rtx::SceneUpload{ .mKind = upload }, .mCellsToStand = left };
                     EXPECT_EQ(report.isWhole(), upload == Kind::Placed && left == 0)
                         << "upload " << static_cast<int>(upload) << ", " << left << " cells to stand";
                 }

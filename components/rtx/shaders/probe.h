@@ -20,6 +20,17 @@ namespace Rtx::Shaders
     /// Threads in the probe's workgroup.
     const uint PROBE_WORKGROUP = 64;
 
+    /// `probe.comp`'s bindings: the pattern in, every reading out, the addresses of its blocks, the
+    /// two addresses a uniform block carries, and the rows out.
+    const uint PROBE_BIND_SOURCE = 0;
+    const uint PROBE_BIND_READINGS = 1;
+    const uint PROBE_BIND_BLOCKS = 2;
+    const uint PROBE_BIND_ADDRESSES = 3;
+    const uint PROBE_BIND_ROW_READINGS = 4;
+
+    /// `traceprobe.rgen`'s one binding: the index each invocation ran at.
+    const uint PROBE_BIND_LAUNCHED = 0;
+
     /// How many ways the probe reads one pattern, and so how many `mCount`-long runs its readings
     /// buffer holds: through a descriptor, through a pointer the host handed over as a push
     /// constant, through a pointer read out of a table and indexed by block, and through a pointer
@@ -71,6 +82,7 @@ namespace Rtx::Shaders
 
 #ifdef RTX_HOST
 
+    static_assert(sizeof(ProbeConstants) == 16, "ProbeConstants must be scalar-packed on every side");
     static_assert(sizeof(ProbeAddresses) == 16, "ProbeAddresses must be scalar-packed on every side");
     static_assert(sizeof(ProbeRow) == 48, "ProbeRow must be scalar-packed on every side");
 }

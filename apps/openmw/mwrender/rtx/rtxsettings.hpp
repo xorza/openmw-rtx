@@ -25,9 +25,11 @@ namespace MWRender
         std::string_view mSpecularMapLayout;
         int mAnisotropy = 0;
         float mGamma = 1.0f;
+        bool mLitEnvironmentMaps = false;
 
-        /// `[RTX]`, `[Camera] viewing distance`, `[Terrain]`'s paging, `[General] anisotropy` and
-        /// `[Video] gamma`: the one place the game reads these settings.
+        /// `[RTX]`, `[Camera] viewing distance`, `[Terrain]`'s paging, `[General] anisotropy`,
+        /// `[Video] gamma` and `[Shaders] apply lighting to environment maps`: the one place the
+        /// game reads these settings.
         static RtxSettingValues fromRegistry();
     };
 
@@ -42,6 +44,9 @@ namespace MWRender
 
         /// `RenderProfile::mGamma`: the setting, a finite number greater than nought.
         float mGamma = 1.0f;
+
+        /// `RenderProfile::mLitEnvironmentMaps`: the setting.
+        bool mLitEnvironmentMaps = false;
 
         /// Throws `Rtx::InputError` for a spelling that names no mode, or a gamma that is not a
         /// finite number greater than nought: a setting refused rather than defaulted, so a typo is said at

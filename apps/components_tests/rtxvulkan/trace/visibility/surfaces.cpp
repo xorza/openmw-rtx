@@ -38,6 +38,8 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>
+#include <components/rtx/scene/texturetable.hpp>
+#include <components/rtx/shaders/brdf.h>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
@@ -97,8 +99,8 @@ namespace Rtx::Testing
             const SpriteShadePass shading(device);
             const SpriteBinPass binning(device);
             const SpriteBin bin(device, shading, binning);
-            addressed.mSprites = bin.getSpritesAddress();
-            addressed.mSpriteTileList = bin.getTileListAddress();
+            addressed.mSprites = bin.getTables().mSprites;
+            addressed.mSpriteTileList = bin.getTables().mTileList;
 
             struct Named
             {
@@ -403,8 +405,8 @@ namespace Rtx::Testing
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
-            // No textures at all, so the array is allocated with nothing in it. The untextured
-            // material's 0.5 encoded: `1.055 * 0.5^(1/2.4) - 0.055` is 0.735, or 187 of 255.
+            // No textures at all, so the array is allocated with nothing in it. The tests'
+            // grey of 0.5 encoded: `1.055 * 0.5^(1/2.4) - 0.055` is 0.735, or 187 of 255.
             const Frame plain = shoot(makeWall(), {}, camera, size, Shot{ .mShow = SurfaceView::Albedo });
             EXPECT_EQ(plain.mHits, size * size);
             EXPECT_NEAR(plain.byte(centre), 187, 1);
@@ -861,7 +863,8 @@ namespace Rtx::Testing
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
-            const auto render = [&](bool sheeted, std::vector<float>& radiance) {
+            const auto render = [&](bool sheeted, std::vector<float>& radiance, bool lit = false,
+                                    SurfaceView show = SurfaceView::Shaded) {
                 SceneDesc scene;
                 const Index mesh = scene.addMesh(
                     MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
@@ -874,7 +877,8 @@ namespace Rtx::Testing
                 });
                 scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
 
-                const Frame frame = shoot(scene, textures, camera, size);
+                const Frame frame
+                    = shoot(scene, textures, camera, size, Shot{ .mShow = show, .mLitEnvironmentMaps = lit });
                 EXPECT_EQ(frame.mHits, size * size);
                 radiance = frame.mRadiance;
             };
@@ -899,6 +903,27 @@ namespace Rtx::Testing
             const osg::Vec3f downLeft = addedAt(std::size_t{ 29 } * size + 3);
             EXPECT_GT(upRight.y(), upLeft.y()) << "a reflection to the right reads the sheet's second column";
             EXPECT_GT(upLeft.z(), downLeft.z()) << "a reflection upward reads the sheet's second row";
+
+            // **Lit, the sheet is colour the light falls on**, as `apply lighting to environment
+            // maps` makes it under the rasterizer: the albedo is the wall's and the sheet's own
+            // colour, the light it added above over `SUNLIT_WHITE`, held at one; and it adds no
+            // light of its own.
+            std::vector<float> litAlbedo;
+            std::vector<float> plainAlbedo;
+            render(true, litAlbedo, true, SurfaceView::Albedo);
+            render(false, plainAlbedo, true, SurfaceView::Albedo);
+            for (const std::size_t pixel : { centre / 4, std::size_t{ 3 } * size + 29, std::size_t{ 29 } * size + 3 })
+                for (std::size_t channel = 0; channel < 3; ++channel)
+                {
+                    const float added = addedAt(pixel)[static_cast<int>(channel)] / Shaders::SUNLIT_WHITE;
+                    const float plain = plainAlbedo[pixel * 4 + channel];
+                    EXPECT_NEAR(litAlbedo[pixel * 4 + channel], std::min(plain + added, 1.0f), 1e-5f)
+                        << "pixel " << pixel << " channel " << channel;
+                }
+
+            std::vector<float> litShaded;
+            render(true, litShaded, true);
+            EXPECT_NE(litShaded, with) << "the sheet lit and not glowing";
         }
 
         /// A sphere-mapped sheet is read at the level its own coordinates ask for, and the mesh's
@@ -1046,7 +1071,7 @@ namespace Rtx::Testing
                 return ladderLevel(frame.at(centre) / Shaders::EMISSIVE_INTENSITY);
             };
 
-            const float headOn = std::log2(camera.mCamera.mSpreadAngle * away);
+            const float headOn = std::log2(camera.mEyes.mWorld.mSpreadAngle * away);
             EXPECT_NEAR(headOn, 2.762f, 0.001f) << "the cone the form above names";
 
             EXPECT_NEAR(levelOf(1.0f, 1.0f), headOn, 0.02f) << "head on, the cone's own width";
@@ -1124,6 +1149,44 @@ namespace Rtx::Testing
 
             // And at a unit the mesh says reads the first set, the second set is not read.
             EXPECT_EQ(albedoUnder(2, 1, 0), (std::array<int, 3>{ 137, 137, 137 }));
+
+            // **A glow map reads the set its own unit reads too**, as the draugrs' eyes do. With no
+            // light, what the wall shows is its glow alone, `EMISSIVE_INTENSITY` times the texel:
+            // the red quadrant whole on the second set, and the middle of all four on the first.
+            Shaders::VisibilityConstants unlit = camera;
+            unlit.mSkyHorizon = osg::Vec3f();
+            unlit.mSkyZenith = osg::Vec3f();
+            unlit.mAmbient = osg::Vec3f();
+            unlit.mSun.mIrradiance = osg::Vec3f();
+            const auto glowUnder = [&](std::uint8_t unit, std::uint32_t unitStreams) {
+                SceneDesc scene;
+                const Index mesh = scene.addMesh(MeshArrays{
+                    .mPositions = sWallQuad,
+                    .mTexCoords = sQuadUv,
+                    .mSecondTexCoords = onRed,
+                    .mUnitStreams = unitStreams,
+                    .mIndices = sQuadIndices,
+                });
+                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
+                scene.textures().add(VFS::Path::NormalizedView("dark.dds"));
+                const Index glow = scene.textures().add(VFS::Path::NormalizedView("sheet.dds"));
+                const Index material
+                    = scene.addMaterial(Material{ .mDiffuse = diffuse, .mEmissive = glow, .mEmissiveUnit = unit });
+                scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
+
+                const Frame frame = shoot(scene, textures, unlit, size);
+                return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2));
+            };
+
+            const osg::Vec3f onSecond = glowUnder(1, 1u << 1);
+            EXPECT_EQ(onSecond, osg::Vec3f(Shaders::EMISSIVE_INTENSITY, 0.0f, 0.0f)) << "the glow read the first set";
+
+            // The sampler weighs the four texels in fixed point, which moves the middle by parts in a
+            // hundred thousand.
+            const osg::Vec3f onFirst = glowUnder(1, 0);
+            const float middle = 0.5f * Shaders::EMISSIVE_INTENSITY;
+            for (int channel = 0; channel < 3; ++channel)
+                EXPECT_NEAR(onFirst[channel], middle, 1e-4f * middle) << "channel " << channel;
         }
 
         /// A surface that adds is met by no ray that shades, adds at the picture's own extent, and
@@ -1156,7 +1219,7 @@ namespace Rtx::Testing
             // through and a corner pixel does not.
             const std::array<osg::Vec3f, 4> held = uprightQuadAt(20.0f, -50.0f);
 
-            const auto build = [&](std::optional<float> alpha) {
+            const auto build = [&](std::optional<float> alpha, InstanceClass sheetClass = InstanceClass::Static) {
                 SceneDesc scene;
                 const Index wall = scene.addMesh(
                     MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
@@ -1175,7 +1238,7 @@ namespace Rtx::Testing
                         .mAlphaMode = AlphaMode::Blend,
                         .mBlend = BlendKind::Add,
                     });
-                    scene.addInstance(MeshInstance{ .mMesh = sheet, .mMaterial = additive });
+                    scene.addInstance(MeshInstance{ .mMesh = sheet, .mMaterial = additive, .mClass = sheetClass });
                 }
 
                 return scene;
@@ -1235,6 +1298,79 @@ namespace Rtx::Testing
             EXPECT_GT(quarter, 0.0f) << "a quarter of the sheet is some of it";
             EXPECT_NEAR(half, 2.0f * quarter, 1.0e-3f) << "and twice as much alpha adds twice as much";
             EXPECT_NEAR(addedRedAt(0.0f), bare, 1.0e-4f) << "a sheet faded to nothing adds nothing";
+
+            // **A camera that does not draw the sheet's class adds nothing of it**, as a map tile
+            // draws no effect: the same sheet as an effect's, under a camera of the statics alone,
+            // and under one that draws effects too.
+            Shaders::VisibilityConstants statics = camera;
+            statics.mRayMask = classBit(InstanceClass::Static);
+            const Frame left = shoot(build(0.5f, InstanceClass::Effect), textures, statics, size);
+            const Frame none = shoot(build(std::nullopt), textures, statics, size);
+            EXPECT_EQ(left.at(centre), none.at(centre)) << "an effect the camera leaves out added its red";
+
+            Shaders::VisibilityConstants effects = statics;
+            effects.mRayMask |= classBit(InstanceClass::Effect);
+            EXPECT_GT(shoot(build(0.5f, InstanceClass::Effect), textures, effects, size).at(centre), none.at(centre))
+                << "and one it draws added none";
+
+            // **A sheet wears its dark map and its sphere-mapped sheet**, as `objects.frag` draws a
+            // shield spell's: the grey texel under a red dark map adds red alone, and a red sheet
+            // adds `SUNLIT_WHITE` times its alpha past the lit grey, with no light in it.
+            const auto sheetAdds = [&](const Material& worn) {
+                SceneDesc scene = build(std::nullopt);
+                const Index sheet
+                    = scene.addMesh(MeshArrays{ .mPositions = held, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                scene.addInstance(MeshInstance{ .mMesh = sheet, .mMaterial = scene.addMaterial(worn) });
+                const Frame frame = shoot(scene, textures, camera, size);
+                return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2));
+            };
+            const Material greySheet{
+                .mDiffuse = 0, .mOpacity = 0.5f, .mAlphaMode = AlphaMode::Blend, .mBlend = BlendKind::Add
+            };
+            Material darkened = greySheet;
+            darkened.mDark = 1;
+            Material sheeted = greySheet;
+            sheeted.mEnvironment = 1;
+
+            const Frame alone = shoot(build(std::nullopt), textures, camera, size);
+            const osg::Vec3f wall(alone.at(centre), alone.at(centre + 1), alone.at(centre + 2));
+            const osg::Vec3f plain = sheetAdds(greySheet);
+            const osg::Vec3f dark = sheetAdds(darkened);
+            ASSERT_GT(plain.y(), wall.y()) << "a grey sheet adds green";
+            EXPECT_GT(dark.x(), wall.x()) << "the dark map took the red";
+            EXPECT_EQ(dark.y(), wall.y()) << "the dark map was not read";
+
+            const osg::Vec3f withSheet = sheetAdds(sheeted);
+            EXPECT_NEAR(withSheet.x() - plain.x(), 0.5f * Shaders::SUNLIT_WHITE, 1e-5f) << "the sheet was not added";
+            EXPECT_EQ(withSheet.y(), plain.y()) << "and nothing but its red";
+
+            // **Each sheet glows by its own texture**, as the rasterizer sums `texel * alpha * (light +
+            // glow)` per crossing: a red sheet that glows white, laid on a grey one that does not,
+            // adds what each adds alone. Laid on one plane, so both stand where the one light is
+            // read. The red texel has no green, so the pair adds the grey sheet's green and no more;
+            // a mean glow over both spread `0.25 * EMISSIVE_INTENSITY` of green onto the grey.
+            const auto pairAdds = [&](const std::vector<Material>& worn) {
+                SceneDesc scene = build(std::nullopt);
+                const Index sheet
+                    = scene.addMesh(MeshArrays{ .mPositions = held, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                for (const Material& one : worn)
+                    scene.addInstance(MeshInstance{ .mMesh = sheet, .mMaterial = scene.addMaterial(one) });
+                const Frame frame = shoot(scene, textures, camera, size);
+                return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2)) - wall;
+            };
+            Material glowing = greySheet;
+            glowing.mDiffuse = 1;
+            glowing.mEmissiveColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
+
+            const osg::Vec3f redAlone = pairAdds({ glowing });
+            const osg::Vec3f greyAlone = pairAdds({ greySheet });
+            const osg::Vec3f both = pairAdds({ glowing, greySheet });
+            ASSERT_GT(redAlone.x(), 0.5f * Shaders::EMISSIVE_INTENSITY * 0.99f) << "the red sheet did not glow";
+            EXPECT_NEAR(redAlone.y(), 0.0f, 1e-5f) << "a red texel glowed green";
+            EXPECT_NEAR(both.y(), greyAlone.y(), 1e-4f) << "the red sheet's glow lit the grey one's texels";
+            for (int channel = 0; channel < 3; ++channel)
+                EXPECT_NEAR(both[channel], redAlone[channel] + greyAlone[channel], 1e-3f * both[channel] + 1e-5f)
+                    << "two sheets on one plane add other than each alone, channel " << channel;
         }
 
         /// **An additive sheet is drawn from the face the content draws, and not from its back.**
@@ -1626,6 +1762,9 @@ namespace Rtx::Testing
         /// `(128, 64)`, since this renderer has no queue and `RtxGroundCompositePassTest` holds the
         /// bake to the stack.
         ///
+        /// **A classic layer reflects the strength its alpha paints**, at the exponent the rasterizer's
+        /// terrain fixes, and a flattened chunk reads that beside the authored share.
+        ///
         /// **And a map that stands in is no map**, one slot at a time: the leaning normal map
         /// standing in leaves the card's own normal in every column, the authored texture standing
         /// in leaves a Lambert layer that reflects nothing at a roughness of one, and so does the
@@ -1637,6 +1776,7 @@ namespace Rtx::Testing
             constexpr std::array<std::uint8_t, 4> sLeaning{ 191, 128, 221, 255 };
             constexpr std::array<std::uint8_t, 4> sAuthored{ 128, 128, 128, 64 };
             constexpr std::array<std::uint8_t, 4> sGloss{ 128, 64, 0, 255 };
+            constexpr std::array<std::uint8_t, 4> sClassicGloss{ 0, 64, 128, 255 };
             const std::array<TextureData, 4> textures{ describeTexel(sRed, 0), describeTexel(sLeaning, 1),
                 describeTexel(sAuthored, 2), describeTexel(sGloss, 3) };
 
@@ -1651,10 +1791,13 @@ namespace Rtx::Testing
 
             // The three columns of the middle row, in the view `show`, with the texture in slot
             // `standsIn` described as the stand-in.
-            const auto render = [&](SurfaceView show, bool flattened, std::optional<Index> standsIn = std::nullopt) {
+            const auto render = [&](SurfaceView show, bool flattened, std::optional<Index> standsIn = std::nullopt,
+                                    bool classic = false) {
                 std::array<TextureData, 4> described = textures;
                 if (standsIn.has_value())
                     described[*standsIn].mSource = TextureSource::StandIn;
+                if (classic)
+                    described[3] = describeTexel(sClassicGloss, 3);
 
                 SceneDesc scene;
                 const Index mesh = scene.addMesh(MeshArrays{
@@ -1671,7 +1814,7 @@ namespace Rtx::Testing
                     Testing::layerOf(2, scene.materials().addMask(secondMask), 2, 1),
                 };
                 layers[0].mNormal = 1;
-                layers[1].mFlags = Shaders::LAYER_AUTHORED;
+                layers[1].mFlags = classic ? Shaders::LAYER_CLASSIC : Shaders::LAYER_AUTHORED;
 
                 Material material;
                 material.mKind = MaterialKind::Terrain;
@@ -1758,6 +1901,24 @@ namespace Rtx::Testing
                 EXPECT_EQ(noGlossSpecular[at].x(), 0.0f) << "a gloss that stands in, column " << at;
                 EXPECT_EQ(noGlossRough[at].x(), 1.0f) << "a gloss that stands in, column " << at;
             }
+
+            // **A classic layer reflects its alpha** at the exponent `terrain.frag` fixes, and its
+            // diffuse is delit as any vanilla one: 64 of 255 is the reflectance, 0.250980, and 128
+            // the exponent, a roughness of `(2 / 130)^(1/4) = 0.352199`.
+            const float classicRough = Shaders::roughnessOfExponent(Shaders::CLASSIC_GROUND_EXPONENT);
+            ASSERT_NEAR(classicRough, std::pow(2.0f / 130.0f, 0.25f), 1e-6f);
+            const std::array classicSpecular = render(SurfaceView::Specular, false, std::nullopt, true);
+            const std::array classicRoughness = render(SurfaceView::Roughness, false, std::nullopt, true);
+            EXPECT_EQ(classicSpecular[0].x(), 0.0f);
+            EXPECT_NEAR(classicSpecular[1].x(), second * rough, 1e-7f);
+            EXPECT_NEAR(classicSpecular[2].x(), rough, 1e-7f);
+            EXPECT_NEAR(classicRoughness[1].x(), (1.0f - second) + second * classicRough, 1e-6f);
+            EXPECT_NEAR(classicRoughness[2].x(), classicRough, 1e-6f);
+
+            // Flattened, a classic gloss's blue is that reflectance, beside the authored share in red.
+            const std::array classicFlat = render(SurfaceView::Specular, true, std::nullopt, true);
+            for (std::size_t at = 0; at < 3; ++at)
+                EXPECT_NEAR(classicFlat[at].x(), 128.0f / 255.0f, 1e-7f) << "flattened classic column " << at;
         }
 
         /// **Parallax shifts the sheet toward the eye by the height the normal map carries**, as the
@@ -1933,7 +2094,8 @@ namespace Rtx::Testing
             // composite — which chunk it is the ground of, and no bytes.
             Material flattened = material;
             flattened.mFlatten = true;
-            flattened.mDiffuse = scene.textures().addBaked("chunk/0", TextureEncoding::Colour);
+            flattened.mDiffuse
+                = scene.textures().addBaked("chunk/0", TextureKind::GroundAlbedo, TextureEncoding::Colour, chunk);
             scene.setMaterial(chunk, flattened);
             const TextureData composite{
                 .mSlot = flattened.mDiffuse,

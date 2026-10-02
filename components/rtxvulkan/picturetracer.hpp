@@ -4,6 +4,7 @@
 
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
@@ -25,15 +26,16 @@ namespace Rtx
     {
     public:
         /// @param passes what the chain traces with, which outlives it.
+        /// @param radiance the run's, as the frame's chain has it.
         PictureTracer(const Device& device, const TracePasses& passes, const TraceMedia& media, DisplayChain& display,
-            GuiTextures& textures);
+            GuiTextures& textures, RadianceWidth radiance);
 
         /// Whether a picture this big fits what is built, which `grow` would leave alone.
         bool holds(VkExtent2D extent) const { return mChain.holds(extent.width, extent.height); }
 
         /// Makes the chain at least this big, and the byte image the texture is copied out of with
         /// it. What it replaces buries itself, so a picture in flight traces to the end.
-        void grow(VkExtent2D extent, RadianceWidth radiance);
+        void grow(VkExtent2D extent);
 
         /// Records a picture of `traced` under `camera` into `texture`, which `holds` the camera's
         /// extent, on a batch that rides the next submit and that nobody here waits for: the next

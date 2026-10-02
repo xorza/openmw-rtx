@@ -17,7 +17,6 @@
 #include <osg/ref_ptr>
 
 #include <components/esm/refid.hpp>
-#include <components/misc/constants.hpp>
 #include <components/misc/result.hpp>
 #include <components/nifosg/nifloader.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -34,14 +33,15 @@
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/meshtable.hpp>
-#include <components/sceneutil/waterutil.hpp>
 #include <components/terrain/storage.hpp>
 #include <components/terrain/world.hpp>
 #include <components/vfs/pathutil.hpp>
 
+#include "../../mwworld/cell.hpp"
 #include "../../mwworld/cellstore.hpp"
 #include "../../mwworld/weather.hpp"
 #include "../sceneframe.hpp"
+#include "../searules.hpp"
 #include "../sky.hpp"
 #include "../vismask.hpp"
 #include "classmasks.hpp"
@@ -122,32 +122,33 @@ namespace MWRender
             Effect = 3,
         };
 
-        /// What the world walk may see: `sWorldTraversal` without the player bit, which is stamped
-        /// on nothing a content file holds. `WorldMirror::setShowsPlayer` says why the player is a
-        /// question.
-        constexpr osg::Node::NodeMask worldTraversal(const bool showsPlayer)
+        /// What the world walk may see: `sWorldTraversal`, without the player or the actors where the
+        /// eye's view mask leaves them out — `WorldMirror::setViewMask`. Those two only, because they
+        /// share one class: the trace's ray mask hides every other class the view leaves out, and
+        /// a walk that went on past an actor would stand it in the class the player keeps on.
+        constexpr osg::Node::NodeMask worldTraversal(const unsigned int view)
         {
-            const osg::Node::NodeMask player = showsPlayer ? 0 : static_cast<osg::Node::NodeMask>(Mask_Player);
+            constexpr osg::Node::NodeMask walkedByView = Mask_Player | Mask_Actor;
 
-            return sWorldTraversal & ~player;
+            return sWorldTraversal & ~(walkedByView & ~view);
         }
     }
 
     WorldMirror::WorldMirror(const Rtx::MirrorKnobs& knobs)
-        : mExtractor(mScene, &mTraversals, &mThreadContent)
+        : mWalk{ .mSpecular = knobs.mSpecularLayout }
+        , mExtractor(mScene, mWalk)
+        , mTraversal(worldTraversal(~0u))
         , mReach(knobs.mReach)
-        , mSpecularLayout(knobs.mSpecularLayout)
     {
         mRing.setStaticsEnabled(knobs.mDistantStatics);
         mRing.setMinSize(knobs.mMinSize);
-        mRing.setSpecularLayout(knobs.mSpecularLayout);
         // The sky is not mirrored: the engine rebuilds it every frame, state sets and all, so
         // walking it churns the identity maps and makes every frame a full rebuild, and a ray that
         // reaches the sky gets this renderer's own. The simple water is the local map's copy of the
         // sea, which a mirror walking both would place twice. What the content hides is the one bit
         // `sWorldTraversal` names, rather than none, so the update traversal still reaches a hidden
         // bone.
-        mExtractor.setTraversalMask(worldTraversal(mShowsPlayer));
+        mExtractor.setTraversalMask(mTraversal);
 
         // Where the engine stamps its identities: the cell roots under the scene root and the
         // reference roots under those, and the player beside the cells (`MWRender::Objects`).
@@ -156,9 +157,8 @@ namespace MWRender
         // What is left of the two is the sea, which this renderer stands: upstream's plane, as
         // `MWRender::Water` makes it, on a transform a frame moves.
         mExtractor.setWaterMask(Mask_Water);
-        mExtractor.setSpecularLayout(mSpecularLayout);
 
-        osg::ref_ptr<osg::Geometry> sea = SceneUtil::createWaterGeometry(Constants::CellSizeInUnits * 150, 40, 900);
+        osg::ref_ptr<osg::Geometry> sea = createSeaGeometry();
         sea->setNodeMask(Mask_Water);
         sea->setName("Sea Geometry");
         mSea = new osg::PositionAttitudeTransform;
@@ -166,7 +166,7 @@ namespace MWRender
         mSea->addChild(sea);
 
         // The roots the game marks, so a camera's cull mask can keep or leave out what stands
-        // under them — `rayMaskOf` reads the same table the other way.
+        // under them — `describeView` reads the same table the other way.
         for (const ClassMask& held : sClassMasks)
             if (held.mClass != Rtx::InstanceClass::Static)
                 mExtractor.setClassMask(held.mClass, held.mNodes);
@@ -212,30 +212,14 @@ namespace MWRender
 
     void WorldMirror::standSea(const MWWorld::CellStore& cell)
     {
-        if (!cell.getCell()->isExterior())
-        {
-            mSeaCentre = osg::Vec2f(0.f, 0.f);
-            return;
-        }
-
-        constexpr int half = Constants::CellSizeInUnits / 2;
-        const int x = cell.getCell()->getGridX() * Constants::CellSizeInUnits + half;
-        const int y = cell.getCell()->getGridY() * Constants::CellSizeInUnits + half;
-        mSeaCentre = osg::Vec2f(static_cast<float>(x), static_cast<float>(y));
+        const MWWorld::Cell& stood = *cell.getCell();
+        mSeaCentre = stood.isExterior() ? seaCentre(stood.getGridX(), stood.getGridY()) : osg::Vec2f(0.f, 0.f);
     }
 
-    void WorldMirror::setShowsPlayer(const bool shows)
+    void WorldMirror::setViewMask(const unsigned int view)
     {
-        if (shows == mShowsPlayer)
-            return;
-
-        mShowsPlayer = shows;
-        mExtractor.setTraversalMask(worldTraversal(mShowsPlayer));
-    }
-
-    osg::Node::NodeMask WorldMirror::getTraversalMask() const
-    {
-        return worldTraversal(mShowsPlayer);
+        mTraversal = worldTraversal(view);
+        mExtractor.setTraversalMask(mTraversal);
     }
 
     Rtx::ExtractionStats WorldMirror::mirror(const SceneFrame& frame, const osg::Matrixd& view)
@@ -252,7 +236,8 @@ namespace MWRender
 
         // The world's clock and not this renderer's, or the controllers would run while the game
         // was paused.
-        mExtractor.setSimulationTime(frame.mWhen.getSimulationTime());
+        mExtractor.setSimulationTime(
+            frame.mWhen.getSimulationTime(), frame.mPaused ? 0.0 : static_cast<double>(frame.mDeltaTime));
 
         // What goes is the lists a walk refills wholesale; the meshes, materials and textures stay
         // because the structures were built from them, and the placements because they are
@@ -268,10 +253,8 @@ namespace MWRender
         // And the eye every billboard in the world turns to, which the rasterizer's cull hands its
         // `AutoTransform`s and this walk has to be told.
         mExtractor.setEye(Rtx::viewBasisOf(inverseView));
-        mExtractor.extractPrecipitation(
-            frame.mPrecipitation.getRainNode(), eye, frame.mWorld.mUnderwater, Anchor::Rain, frameNumber);
-        mExtractor.extractPrecipitation(
-            frame.mPrecipitation.getParticleNode(), eye, frame.mWorld.mUnderwater, Anchor::Effect, frameNumber);
+        mExtractor.extractPrecipitation(frame.mPrecipitation.getRainNode(), eye, Anchor::Rain, frameNumber);
+        mExtractor.extractPrecipitation(frame.mPrecipitation.getParticleNode(), eye, Anchor::Effect, frameNumber);
 
         // The sea, where the frame says there is one: hidden by its mask otherwise, as the
         // rasterizer's `updateVisible` hid the same plane, so the walk leaves no placement of it.
@@ -312,9 +295,12 @@ namespace MWRender
         // ring and the number both.
         mRing.follow(around);
 
-        // One walk over the whole graph, where every path is already distinct.
+        // One walk over the whole graph, where every path is already distinct, and the one that
+        // stands the references the game said jumped: the other walks stand nothing of theirs.
+        mExtractor.setJumped(frame.mJumped);
         Rtx::ExtractionStats found
             = mExtractor.extractWorld(frame.mScene, osg::Matrixf::identity(), Anchor::World, frameNumber, mRing);
+        mExtractor.setJumped({});
 
         // What the walks did not find has gone. The graph is the whole world every frame, which is
         // what makes mark and sweep sound; the identity maps hold their keys alive until it runs.
@@ -325,7 +311,7 @@ namespace MWRender
         // **Taken once, after every walk of the frame**, and not by a walk: the precipitation and
         // the sea are walks whose counts go nowhere, and the sky's sheets are read between walks,
         // so a count a walk took with it was a count the frame lost.
-        found.mPreprocessed.mOnFrame += mThreadContent.mPreprocessor.takeStats();
+        found.mPreprocessed.mOnFrame += mWalk.mContent.mPreprocessor.takeStats();
 
         return found;
     }

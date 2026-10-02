@@ -52,7 +52,7 @@ namespace RtxTool
         {
             return FilmKey{ .mStop = Stop{ .mName = std::move(name),
                                 .mStand = { .mCell = std::move(cell), .mEye = eye, .mLook = eye + look },
-                                .mSky = { .mHour = sDefaultHour, .mWeather = std::string(sDefaultWeather) } } };
+                                .mSky = { .mHour = sDefaultHour, .mWeather = sDefaultWeather } } };
         }
 
         /// Ten frames a second, a hundred units a second, and a frame whose horizontal field is
@@ -81,11 +81,11 @@ namespace RtxTool
                     .mLook = osg::Vec3f(-18625.098f, -16765.438f, 485.20374f) },
                 .mSky = { .mHour = 6.5f,
                     .mDay = 2,
-                    .mWeather = "Overcast",
+                    .mWeather = Rtx::sWeatherOvercast,
                     .mAir = Rtx::AirClock{ .mSky = { .mSeconds = 36000.123456789, .mCloudScroll = 0.5f },
                         .mCarried = osg::Vec2d(-123456.78901234, 0.1) } } };
             RtxTool::Stop noon = dawn;
-            noon.mSky = { .mHour = 12.0f, .mDay = 0, .mWeather = "Clear" };
+            noon.mSky = { .mHour = 12.0f, .mDay = 0, .mWeather = Rtx::sWeatherClear };
 
             const std::vector<FilmKey> keys = read(describeStanding(dawn) + describeStanding(noon) + describeKey(dawn));
             ASSERT_EQ(keys.size(), 3u);
@@ -96,7 +96,7 @@ namespace RtxTool
             EXPECT_EQ(keys[0].getEye(), *dawn.mStand.mEye);
             EXPECT_EQ(keys[0].getLook(), *dawn.mStand.mLook);
             EXPECT_EQ(keys[0].getHour(), 6.5f);
-            EXPECT_EQ(keys[0].getWeather(), "Overcast");
+            EXPECT_EQ(keys[0].getWeather(), Rtx::sWeatherOvercast);
             EXPECT_FALSE(keys[0].mStop.mSky.mDay.has_value())
                 << "the block has no day; the command line beside it is a comment";
 
@@ -112,7 +112,7 @@ namespace RtxTool
             EXPECT_EQ(keys[2].getEye(), *dawn.mStand.mEye);
             EXPECT_EQ(keys[2].getHour(), 6.5f);
             EXPECT_EQ(keys[2].mStop.mSky.mDay, 2);
-            EXPECT_EQ(keys[2].getWeather(), "Overcast");
+            EXPECT_EQ(keys[2].getWeather(), Rtx::sWeatherOvercast);
 
             const std::vector<FilmKey> timed
                 = read("[a]\ncell = 0,0\npos = 1,2,3\nlook = 4,5,6\nseconds = 2.5\nhold = 1\ncut = false\n");
@@ -138,8 +138,8 @@ namespace RtxTool
             EXPECT_EQ(refusal("# a comment\n\n[a]\ncell = 0,0\npos = 1,2,3\n[b]\n"),
                 "tour.keys:3: key \"a\" names no pos and look");
             EXPECT_EQ(refusal(place + "[b\n"), "tour.keys:5: a section's name is not closed by ]");
-            EXPECT_EQ(
-                refusal(place + "pos = 1,2\n"), "tour.keys:5: pos \"1,2\" is not three numbers separated by commas")
+            EXPECT_EQ(refusal("[a]\ncell = 0,0\nlook = 4,5,6\npos = 1,2\n"),
+                "tour.keys:4: pos \"1,2\" is not three numbers separated by commas")
                 << "quoted whole, and not from where the reading stopped";
             EXPECT_EQ(refusal("[a]\ncell = 0,0\npos =\nlook = 1,2,3\n"),
                 "tour.keys:3: pos \"\" is not three numbers separated by commas")
@@ -224,7 +224,7 @@ namespace RtxTool
             for (std::size_t at = 4; at < keys.size(); ++at)
                 keys[at].mStop.mSky.mHour = 15.0f;
             for (std::size_t at = 5; at < keys.size(); ++at)
-                keys[at].mStop.mSky.mWeather = "Rain";
+                keys[at].mStop.mSky.mWeather = Rtx::sWeatherRain;
             keys[7].mSeconds = 2.5f;
 
             const FilmPlan plan = planFilm(keys, pacingForTests());
@@ -431,7 +431,7 @@ namespace RtxTool
                 keyAt("room", "Vivec, Arena", osg::Vec3f(0, 0, 0)),
             };
             keys[1].mStop.mSky.mHour = 18.0f;
-            keys[1].mStop.mSky.mWeather = "Rain";
+            keys[1].mStop.mSky.mWeather = Rtx::sWeatherRain;
 
             EXPECT_EQ(describePlan(planFilm(keys, pacingForTests())),
                 "film: 3 keys, 2 takes, 142 frames, 14.2 s at 10 frames a second\n"
@@ -450,9 +450,10 @@ namespace RtxTool
         /// keys name after the first.
         ///
         /// By hand: a thousand units at a hundred a second is ten seconds, a hundred frames, with or
-        /// without the keys' own clock, which a flight at one speed does not wait for. `×512` is
-        /// `512 × 30 / 3600 = 4.27` game hours a second, 0.4267 a frame, so the second key, at frame
-        /// 100, is `12 + 42.67 = 54.67` hours, 06:40, and the room, the film's frame 101, 07:06. A
+        /// without the keys' own clock, which a flight at one speed does not wait for. `×512` is 512
+        /// seconds of the game's own clock a second, 51.2 a frame, so the second key, at frame 100,
+        /// is 5120 of them on from the first key's 12:00, and the room, the film's frame 101, 5171;
+        /// which a session at a `timescale` of 30 makes `5120 × 30 / 3600 = 42.67` hours, 06:40. A
         /// weather stands a second, ten frames, and crosses in eight, eighty: frame 100 is ten into
         /// the second period of ninety, where Rain begins to cross back into Clear.
         TEST(RtxFilmTest, aFilmUnderItsOwnSkyFliesAtTheCamerasPace)
@@ -463,7 +464,7 @@ namespace RtxTool
                 keyAt("room", "Vivec, Arena", osg::Vec3f(0, 0, 0)),
             };
             keys[1].mStop.mSky.mHour = 18.0f;
-            keys[1].mStop.mSky.mWeather = "Rain";
+            keys[1].mStop.mSky.mWeather = Rtx::sWeatherRain;
             keys[2].mStop.mSky.mDay = 5;
 
             EXPECT_DOUBLE_EQ(planFilm(keys, pacingForTests()).mTakes[0].mSegments[0].mFrames, 100.0)
@@ -481,8 +482,8 @@ namespace RtxTool
             EXPECT_EQ(flown.mPace, FilmPace::Distance);
 
             const SkyRun& second = plan.mTakes[1].mSky;
-            ASSERT_TRUE(second.mHoursPerFrame.has_value());
-            EXPECT_NEAR(*second.mHoursPerFrame, 512.0 * 30.0 / 3600.0 * 0.1, 1e-7);
+            ASSERT_TRUE(second.mClockPerFrame.has_value());
+            EXPECT_NEAR(*second.mClockPerFrame, 51.2, 1e-5);
             EXPECT_EQ(second.mHoldFrames, 10u);
             EXPECT_EQ(second.mCrossingFrames, 80u);
             EXPECT_EQ(second.mFirstFrame, plan.mTakes[1].mFirstFrame);
@@ -500,18 +501,21 @@ namespace RtxTool
             EXPECT_FALSE(stops[1].mSky.mWeather.has_value());
 
             const std::string text = describePlan(plan);
-            EXPECT_NE(text.find("the clock at ×512 of the game's own over the whole film, 4.27 hours a second\n"),
+            EXPECT_NE(text.find("the clock at ×512 of the game's own over the whole film, the hours below as the first "
+                                "key's and the seconds the clock ran since\n"),
                 std::string::npos)
                 << text;
             EXPECT_NE(text.find("the weather through Clear, Rain and round again, each standing 1.0 s and crossing "
                                 "in 8.0 s\n"),
                 std::string::npos)
                 << text;
-            EXPECT_NE(text.find("  -> shore                       10.0 s  06:40 Rain → Clear, -2,-9  (1000 units at "
-                                "100 a second)\n"),
+            EXPECT_NE(
+                text.find("  -> shore                       10.0 s  12:00 +5120 s Rain → Clear, -2,-9  (1000 units "
+                          "at 100 a second)\n"),
                 std::string::npos)
                 << text;
-            EXPECT_NE(text.find("  room                         Vivec, Arena 07:06, Rain → Clear\n"), std::string::npos)
+            EXPECT_NE(text.find("  room                         Vivec, Arena 12:00 +5171 s, Rain → Clear\n"),
+                std::string::npos)
                 << text;
         }
 

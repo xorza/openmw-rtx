@@ -33,7 +33,8 @@
 #include <components/rtx/mirror/cells/mirrorknobs.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
-#include <components/rtx/preprocess/contentpreprocessor.hpp>
+#include <components/rtx/preprocess/imagefactcache.hpp>
+#include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/vfs/manager.hpp>
 
 namespace MWRender
@@ -44,6 +45,12 @@ namespace MWRender
         /// cells for the ring — the mirror is never attached, so the ring's world is unreadable —
         /// and the eye at the origin. Unstamped, so each is known by its place among its
         /// siblings, which is the one way a body's identity can move while the body stays.
+        /// A ring that stands no ground past the loaded cells.
+        struct NoDistance final : StandingGround
+        {
+            bool standsGround(const osg::Vec2i&) const override { return false; }
+        };
+
         struct TwoBodyFrame
         {
             VFS::Manager mVfs;
@@ -62,8 +69,10 @@ namespace MWRender
             Precipitation mPrecipitation{ mSkyRoot, mCamera, &mScenes };
 
             Rtx::Testing::FakeLand mLand;
+            NoDistance mNoDistance;
             osg::ref_ptr<osg::Group> mGroundRoot = new osg::Group;
-            TracedTerrain mTerrain{ *mGroundRoot, mLand, Mask_Terrain, ESM::Cell::sDefaultWorldspaceId };
+            TracedTerrain mTerrain{ *mGroundRoot, *mGroundRoot, mLand, mScenes, mNoDistance, Mask_Terrain,
+                ESM::Cell::sDefaultWorldspaceId };
             ObjectStorage mObjects;
 
             osg::FrameStamp mWhen;
@@ -147,7 +156,8 @@ namespace MWRender
 
             osg::ref_ptr<osg::Image> sheet = new osg::Image;
             sheet->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
-            mirror.getPreprocessor().meanTexel(*sheet);
+            sheet->setFileName("textures/sheet.dds");
+            mirror.getWalkContext().mContent.mFacts.meanOf(*sheet);
 
             const Rtx::ExtractionStats first = mirror.mirror(world.frame(1), view);
             EXPECT_EQ(first.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::TexelMean).mAsked, 1u)
@@ -164,11 +174,12 @@ namespace MWRender
             mirror.mirror(world.frame(3), view);
         }
 
-        /// **The player is the one thing a mirror leaves out on a question about the camera.** Every
+        /// **The player is the one thing a mirror leaves out on a question about the eye.** Every
         /// other exclusion is a fact about the subtree — the sky is drawn by the trace, the simple
-        /// water is a duplicate — and this one is a fact about who is looking. A camera standing
-        /// where the player stands traced a boot thirteen units from the eye.
-        TEST(RtxWorldMirrorTest, thePlayerIsWalkedOnlyForACameraThatIsTheirEye)
+        /// water is a duplicate — and this one is what the eye's view mask keeps, as the rasterizer
+        /// culls by it: the game keeps the player in, a script's static camera included, and a host
+        /// whose camera stands inside the body takes them out.
+        TEST(RtxWorldMirrorTest, thePlayerAndTheActorsAreWalkedWhereTheViewMaskKeepsThem)
         {
             WorldMirror mirror(Rtx::MirrorKnobs{});
 
@@ -177,7 +188,7 @@ namespace MWRender
             EXPECT_EQ(playing & Mask_Terrain, 0u) << "the intersector's ground is not the ring's";
             EXPECT_EQ(playing & Mask_UpdateVisitor, 0u) << "and what the content hides stays hidden";
 
-            mirror.setShowsPlayer(false);
+            mirror.setViewMask(~0u & ~static_cast<unsigned int>(Mask_Player));
             const osg::Node::NodeMask watching = mirror.getTraversalMask();
             EXPECT_EQ(watching & Mask_Player, 0u);
 
@@ -186,7 +197,14 @@ namespace MWRender
             // trace a world with no ground or draw the sea twice.
             EXPECT_EQ(watching, playing & ~static_cast<osg::Node::NodeMask>(Mask_Player));
 
-            mirror.setShowsPlayer(true);
+            // **`tws` takes the actors out of the walk and leaves the player in it**, because the
+            // two share a class: the ray mask still meets the player, and would meet every actor a
+            // walk went on placing.
+            mirror.setViewMask(~sToggleWorldMask);
+            const osg::Node::NodeMask hidden = mirror.getTraversalMask();
+            EXPECT_EQ(hidden, playing & ~static_cast<osg::Node::NodeMask>(Mask_Actor));
+
+            mirror.setViewMask(~0u);
             EXPECT_EQ(mirror.getTraversalMask(), playing) << "and it comes back";
         }
 

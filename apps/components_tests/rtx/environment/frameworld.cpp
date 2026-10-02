@@ -33,9 +33,7 @@ namespace Rtx
         SkyContent skyWithSheets()
         {
             SkyContent textures;
-            textures.mClouds.fill(Rtx::sNoIndex);
-            textures.mClouds[Rtx::sWeatherClear] = 3;
-            textures.mCloudMean[Rtx::sWeatherClear] = 0.435f;
+            textures.mSheets.push_back(CloudSheet{ .mName = "tx_sky_clear.dds", .mTexture = 3, .mMean = 0.435f });
             textures.mShell = Rtx::CloudShell{
                 .mTiles = osg::Vec2f(0.75f, -0.75f), .mCurvature = 0.06f, .mRings = osg::Vec3f(1.0f, 1.5f, 2.0f)
             };
@@ -79,19 +77,23 @@ namespace Rtx
                 .mStarRoll = 0.125f,
                 .mSky = skyWithSheets(),
                 .mClouds = Rtx::CloudCrossing{
-                    .mWeather = Rtx::sWeatherClear,
-                    .mNext = Rtx::sWeatherClear,
+                    .mSheet = 0,
+                    .mNext = 0,
                     .mScroll = 0.25f,
                 },
                 .mWaterLevel = -37.5f,
+                .mWaterScatter = osg::Vec3f(0.07f, 0.11f, 0.13f),
                 .mSeconds = 12.25f,
                 .mSkySeconds = 47.5,
                 .mRainOnWater = 0.35f,
                 .mShelterHeight = 8992.0f,
                 .mSunGlare = SunGlare{
-                    .mColour = osg::Vec3f(1.0f, 0.745f, 0.306f),
-                    .mAngleMax = 0.5236f,
-                    .mStrength = 0.125f,
+                    .mFader = Sky::SunGlareFader{
+                        .mColour = osg::Vec3f(1.0f, 0.745f, 0.306f),
+                        .mMax = 0.5f,
+                        .mAngleMax = 0.5236f,
+                    },
+                    .mFade = 0.25f,
                 },
             };
         }
@@ -208,19 +210,20 @@ namespace Rtx
             EXPECT_NEAR(drift.get().y(), 504.0, 1e-3);
             expectOffsets(blown, drift.get(), later.mSkySeconds);
 
-            // And the sea runs the same way, as a unit heading.
-            EXPECT_FLOAT_EQ(constants.mSeaHeading.x(), 0.6f);
-            EXPECT_FLOAT_EQ(constants.mSeaHeading.y(), 0.8f);
+            // **And the sea does not**: it runs the rasterizer's fixed wind, `(0.5, -0.8)` over its
+            // length 0.943398, which is `(0.529999, -0.847998)`, whatever the storm.
+            EXPECT_FLOAT_EQ(constants.mSeaHeading.x(), 0.5f / std::sqrt(0.89f));
+            EXPECT_FLOAT_EQ(constants.mSeaHeading.y(), -0.8f / std::sqrt(0.89f));
 
-            // A world with no deck over it — a room — has no wind, and its water runs as the tiles
-            // were drawn rather than nowhere. The fog keeps the distance it was blown, because a
-            // door is not a wind: what would move on the way through it is the whole of the drift.
+            // A world with no deck over it — a room — has no wind, and its water runs the same fixed
+            // way. The fog keeps the distance it was blown, because a door is not a wind: what would
+            // move on the way through it is the whole of the drift.
             WorldReading still = later;
             still.mOutdoors = false;
             still.mSkySeconds = later.mSkySeconds + 1.0;
             Shaders::VisibilityConstants becalmed{};
             describe(still, drift, becalmed);
-            EXPECT_EQ(becalmed.mSeaHeading, osg::Vec2f(1.0f, 0.0f));
+            EXPECT_EQ(becalmed.mSeaHeading, constants.mSeaHeading);
             EXPECT_NEAR(drift.get().x(), 378.0, 1e-3);
             EXPECT_NEAR(drift.get().y(), 504.0, 1e-3);
             expectOffsets(becalmed, drift.get(), still.mSkySeconds);
@@ -251,13 +254,16 @@ namespace Rtx
             // water and the water disagree.
             EXPECT_EQ(constants.mWaterLevel, read.mWaterLevel - Shaders::WATER_TIE_BREAK);
             EXPECT_EQ(constants.mWaterTime, splitSeconds(read.mSeconds)) << "the game wrote this nowhere either";
+            EXPECT_EQ(options.mWaterSeconds, read.mSeconds) << "the wake steps by the clock whole";
             EXPECT_EQ(constants.mRainOnWater, read.mRainOnWater);
             EXPECT_EQ(constants.mShelterHeight, read.mShelterHeight);
+            EXPECT_EQ(constants.mWaterScatter, read.mWaterScatter);
             // And beside the constants, what the display chain takes: the glare as the reading
             // stated it, and the hour's bias.
-            EXPECT_EQ(options.mGlare.mColour, read.mSunGlare.mColour);
-            EXPECT_EQ(options.mGlare.mAngleMax, read.mSunGlare.mAngleMax);
-            EXPECT_EQ(options.mGlare.mStrength, read.mSunGlare.mStrength);
+            EXPECT_EQ(options.mGlare.mFader.mColour, read.mSunGlare.mFader.mColour);
+            EXPECT_EQ(options.mGlare.mFader.mMax, read.mSunGlare.mFader.mMax);
+            EXPECT_EQ(options.mGlare.mFader.mAngleMax, read.mSunGlare.mFader.mAngleMax);
+            EXPECT_EQ(options.mGlare.mFade, read.mSunGlare.mFade);
             EXPECT_EQ(options.mExposureBias, light.mExposureBias);
 
             // The deck and the stars come out of the builders both hosts share, and this is the one
@@ -270,7 +276,8 @@ namespace Rtx
             EXPECT_EQ(constants.mStars.mGlow, stars.mGlow);
 
             EXPECT_EQ(constants.mClouds.mBlend, read.mClouds.mBlend);
-            EXPECT_EQ(constants.mClouds.mTexture, read.mSky.cloudsOf(read.mClouds.mWeather));
+            EXPECT_EQ(constants.mClouds.mTexture,
+                static_cast<std::uint32_t>(read.mSky.mSheets[read.mClouds.mSheet].mTexture));
             EXPECT_EQ(constants.mClouds.mScroll, read.mClouds.mScroll);
             EXPECT_EQ(constants.mClouds.mCurvature, read.mSky.mShell.mCurvature);
             EXPECT_EQ(constants.mClouds.mRings, read.mSky.mShell.mRings);
@@ -354,17 +361,22 @@ namespace Rtx
                 << "nothing the gain reaches was lit, so the gain was not tried";
         }
 
-        /// The glare fader's amount is `SunGlareCallback`'s own line: the strength, faded to nothing
-        /// linearly over `Angle_Max` off the eye's axis, and nothing at all for a frame with no
-        /// fader in it — whatever the eye is looking at.
+        /// The glare fader's amount is `SunGlareCallback`'s own line: the fader's most by the fade,
+        /// faded to nothing linearly over `Angle_Max` off the eye's axis, and nothing at all for a
+        /// frame with no fader in it — whatever the eye is looking at.
         TEST(RtxFrameWorldTest, theGlareFaderFadesLinearlyOffTheEyesAxis)
         {
             Shaders::VisibilityConstants frame{};
-            frame.mCamera.mForward = osg::Vec3f(0.0f, 1.0f, 0.0f);
-            SunGlare fader{ .mAngleMax = osg::DegreesToRadians(30.0f), .mStrength = 0.5f };
+            frame.mEyes.mWorld.mBasis.mForward = osg::Vec3f(0.0f, 1.0f, 0.0f);
+            SunGlare fader{
+                .mFader = Sky::SunGlareFader{ .mColour = osg::Vec3f(),
+                    .mMax = 0.25f,
+                    .mAngleMax = osg::DegreesToRadians(30.0f) },
+                .mFade = 2.0f,
+            };
 
             // Straight at it, ten degrees off, thirty off and past thirty: one, two thirds, nought
-            // and nought of the strength.
+            // and nought of the most by the fade, 0.25 * 2 = 0.5.
             const auto amountAt = [&](float degrees) {
                 const float off = osg::DegreesToRadians(degrees);
                 frame.mSun
@@ -377,7 +389,7 @@ namespace Rtx
             EXPECT_NEAR(amountAt(30.0f), 0.0f, 1e-6f);
             EXPECT_EQ(amountAt(45.0f), 0.0f);
 
-            fader.mStrength = 0.0f;
+            fader.mFade = 0.0f;
             EXPECT_EQ(amountAt(0.0f), 0.0f);
         }
 
@@ -394,8 +406,7 @@ namespace Rtx
             constexpr double hundredHours = 360000.123;
             const osg::Vec2f split = splitSeconds(hundredHours);
             EXPECT_EQ(split.x(), 360000.125f);
-            EXPECT_NEAR(joinSeconds(split), hundredHours, 1e-9);
-            EXPECT_EQ(joinSeconds(splitSeconds(12.25)), 12.25);
+            EXPECT_NEAR(static_cast<double>(split.x()) + static_cast<double>(split.y()), hundredHours, 1e-9);
         }
 
         /// Each scale of the fog is read from where the churn and the turned drift moved it, as a
@@ -465,14 +476,14 @@ namespace Rtx
         {
             Rtx::Shaders::VisibilityConstants constants{};
             constants.mOrigin = osg::Vec3f(1.0f, 2.0f, 3.0f);
-            constants.mCamera.mForward = osg::Vec3f(0.0f, 1.0f, 0.0f);
-            constants.mCamera.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
-            constants.mCamera.mUp = osg::Vec3f(0.0f, 0.0f, 1.0f);
-            constants.mCamera.mWidth = 1280;
-            constants.mCamera.mHeight = 720;
+            constants.mEyes.mWorld.mBasis.mForward = osg::Vec3f(0.0f, 1.0f, 0.0f);
+            constants.mEyes.mWorld.mBasis.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
+            constants.mEyes.mWorld.mBasis.mUp = osg::Vec3f(0.0f, 0.0f, 1.0f);
+            constants.mEyes.mWorld.mWidth = 1280;
+            constants.mEyes.mWorld.mHeight = 720;
             constants.mNear = 1.0f;
             constants.mFar = 12000.0f;
-            constants.mCamera.mSpreadAngle = 0.001f;
+            constants.mEyes.mWorld.mSpreadAngle = 0.001f;
             constants.mFrame = 42;
             constants.mDelight = 0.5f;
             constants.mShow = Shaders::SHOW_ALBEDO;
@@ -482,14 +493,14 @@ namespace Rtx
             describe(distinctReading(), drift, constants);
 
             EXPECT_EQ(constants.mOrigin, osg::Vec3f(1.0f, 2.0f, 3.0f));
-            EXPECT_EQ(constants.mCamera.mForward, osg::Vec3f(0.0f, 1.0f, 0.0f));
-            EXPECT_EQ(constants.mCamera.mRight, osg::Vec3f(1.0f, 0.0f, 0.0f));
-            EXPECT_EQ(constants.mCamera.mUp, osg::Vec3f(0.0f, 0.0f, 1.0f));
-            EXPECT_EQ(constants.mCamera.mWidth, 1280u);
-            EXPECT_EQ(constants.mCamera.mHeight, 720u);
+            EXPECT_EQ(constants.mEyes.mWorld.mBasis.mForward, osg::Vec3f(0.0f, 1.0f, 0.0f));
+            EXPECT_EQ(constants.mEyes.mWorld.mBasis.mRight, osg::Vec3f(1.0f, 0.0f, 0.0f));
+            EXPECT_EQ(constants.mEyes.mWorld.mBasis.mUp, osg::Vec3f(0.0f, 0.0f, 1.0f));
+            EXPECT_EQ(constants.mEyes.mWorld.mWidth, 1280u);
+            EXPECT_EQ(constants.mEyes.mWorld.mHeight, 720u);
             EXPECT_EQ(constants.mNear, 1.0f);
             EXPECT_EQ(constants.mFar, 12000.0f);
-            EXPECT_EQ(constants.mCamera.mSpreadAngle, 0.001f);
+            EXPECT_EQ(constants.mEyes.mWorld.mSpreadAngle, 0.001f);
             EXPECT_EQ(constants.mFrame, 42u);
             EXPECT_EQ(constants.mDelight, 0.5f);
             EXPECT_EQ(constants.mShow, Shaders::SHOW_ALBEDO);
@@ -571,6 +582,19 @@ namespace Rtx
             describe(room, drift, open);
             EXPECT_EQ(open.mMoons[0].mAlpha, 1.0f);
             EXPECT_EQ(open.mMoons[0].mSource.mIrradiance, osg::Vec3f(0.05f, 0.05f, 0.06f));
+            EXPECT_EQ(open.mSkyDrawn, 1u);
+
+            // **A sky `tsky` hid is still a sky**: every light and every layer the open one has, and
+            // the one field the eye's sky reads says it is not drawn.
+            room.mSkyDrawn = false;
+            Shaders::VisibilityConstants hidden{};
+            describe(room, drift, hidden);
+            EXPECT_EQ(hidden.mSkyDrawn, 0u);
+            EXPECT_EQ(hidden.mAmbientFromSky, open.mAmbientFromSky);
+            EXPECT_EQ(hidden.mSkyFill, open.mSkyFill);
+            EXPECT_EQ(hidden.mFogColour, open.mFogColour);
+            EXPECT_EQ(hidden.mClouds.mTexture, open.mClouds.mTexture) << "the deck's shadow went with its picture";
+            EXPECT_EQ(hidden.mMoons[0].mSource.mIrradiance, open.mMoons[0].mSource.mIrradiance);
         }
 
         /// The bias is the light's, and this is the only thing between it and `FrameOptions`.
@@ -618,9 +642,10 @@ namespace Rtx
 
             EXPECT_NE(outside.mFogColour, inside.mFogColour) << "one flag, and it decided nothing";
 
-            const SkyBudget budget = skyBudget(open.mDaylight.mSkyHorizon, open.mDaylight.mSkyZenith,
-                describeStars(open.mDaylight.mStarFade, open.mGlare, open.mStarRoll, open.mSky).mGlow,
-                open.mDaylight.mLight.mAmbient);
+            const SkyBudget budget
+                = skyBudget(open.mDaylight.mSkyHorizon, open.mDaylight.mSkyZenith, open.mSky.mAtmosphere.mZenithShare,
+                    describeStars(open.mDaylight.mStarFade, open.mGlare, open.mStarRoll, open.mSky).mGlow,
+                    open.mDaylight.mLight.mAmbient);
             EXPECT_EQ(outside.mFogColour, fogColour(budget.mMean, open.mDaylight.mFog.mColour));
         }
 

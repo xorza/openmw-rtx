@@ -9,9 +9,11 @@
 #include <string>
 #include <vector>
 
+#include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 #include <apps/rtxtool/instruments/cardwatch.hpp>
 #include <apps/rtxtool/instruments/frametimes.hpp>
 #include <apps/rtxtool/instruments/gpuclock.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -195,24 +197,43 @@ namespace RtxTool
         Rtx::ContentMemory mContent;
     };
 
-    /// What every place of a run stood under, for the record's own header.
+    /// What every place of a run stood under: the premises every figure rests on, so two records
+    /// that are not one run twice cannot be read as an A/B. The report opens with it, and the record
+    /// writes it whole.
     struct BenchHeader
     {
         /// Which suite this came from. Empty where the places were named on the command line, and
         /// where the run is the game measuring itself.
         std::string mSuite;
 
+        /// Whether the build keeps its asserts: a debug build's figure is not one to quote.
+        bool mAsserts = false;
+
+        /// Whether the command measures at all: `bench` and `film` do; `shot`, `check`, `scene`
+        /// and `noise` draw their frames to look at them, and their tables say so.
+        bool mMeasures = false;
+
+        /// Whether a frame is hashed or kept as a picture, which a frame time then carries.
+        bool mHashed = false;
+
+        /// Whether a stop turns the weather through its frames.
+        bool mTurnsWeather = false;
+
+        /// The step every frame stood for, or nothing for the wall — `SessionRequest::mStep`.
+        std::optional<float> mStep{};
+
+        /// Everything the renderer was made with, as the command stated it: the profile — the hold,
+        /// the filter, the jitter, the delight, the gamma, what is shown, the exposure and the
+        /// variants — the mirror's reach, the step, whether the walks settle, and the budget.
+        MWRender::RunSetup mSetup{};
+
         Rtx::FrameExtents mExtents{};
 
-        /// What upscaled the run's frames, as `Reconstruction` reports it: the mode, or `Off` where
-        /// nothing did. **Read off a frame and not off the renderer**,
-        /// which answers the mode alone.
-        Rtx::Upscale mUpscale = Rtx::Upscale::Off;
-
-        /// Where the trace drew from and what its texture levels were offset by, as the frame's
-        /// `Reconstruction` resolved them.
-        Rtx::NoiseSource mNoise = Rtx::NoiseSource::BlueNoiseTile;
-        float mLevelBias = 0.0f;
+        /// What put the run's frames back together, as a frame resolved it: whether the denoisers
+        /// ran, what upscaled, whether the ray jittered, where the trace drew from and what its
+        /// levels were offset by. **Read off a frame and not off the request**, which an upscaler
+        /// overrules: under one the ray always jitters.
+        Rtx::Reconstruction mReconstruction{};
 
         std::uint32_t mMeasured = 0;
         std::uint32_t mWarmup = 0;
@@ -236,16 +257,22 @@ namespace RtxTool
     /// distributions, the device's own account, the clock and the frame rate.
     ///
     /// **Built whole and returned rather than streamed**, because the game logs its report and a
-    /// table split across log lines by a timestamp apiece is not one.
-    std::string describePlace(const BenchPlace& place);
+    /// table split across log lines by a timestamp apiece is not one. `measured` false is a command
+    /// that draws its frames to look at them, whose table says so above it.
+    std::string describePlace(const BenchPlace& place, bool measured = true);
+
+    /// The header as the lines the report opens with.
+    std::string describeHeader(const BenchHeader& header);
 
     /// What a whole run came to, under the places. Empty for a run of one place, which has already
     /// said everything this would.
     std::string describeTotal(std::span<const BenchPlace> places);
 
-    /// Writes the run as one record, for comparing against the same run on another commit.
+    /// Writes the run as one record, for comparing against the same run on another commit, or says
+    /// which path it could not write.
     ///
     /// Hand-written rather than through a library: this is numbers and the names of places, and the
     /// alternative is a dependency for the sake of a page.
-    void writeJson(const std::filesystem::path& path, const BenchHeader& header, std::span<const BenchPlace> places);
+    Misc::Result<void, std::string> writeJson(
+        const std::filesystem::path& path, const BenchHeader& header, std::span<const BenchPlace> places);
 }

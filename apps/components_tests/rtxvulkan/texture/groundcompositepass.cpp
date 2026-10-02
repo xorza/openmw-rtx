@@ -56,8 +56,10 @@ namespace Rtx
             /// The chunk: a solid red under the mip ladder, masked by a two-weight grid that ramps
             /// from all red at the first texel centre to all ladder at the second, with the ladder
             /// tiled `tiling` times across the chunk. Where `authored`, the ladder is authored, so
-            /// its alpha — its grey — is a roughness; `standsIn` describes it as the stand-in.
-            Baked bakeOf(float tiling, std::uint32_t outputs, bool authored, bool standsIn = false)
+            /// its alpha — its grey — is a roughness; where `classic`, it is classic, so its alpha is
+            /// a reflectance; `standsIn` describes it as the stand-in.
+            Baked bakeOf(
+                float tiling, std::uint32_t outputs, bool authored, bool standsIn = false, bool classic = false)
             {
                 Device& device = getDevice();
                 const TexturePasses passes(device);
@@ -85,6 +87,8 @@ namespace Rtx
                 };
                 if (authored)
                     layers[1].mFlags = Shaders::LAYER_AUTHORED;
+                if (classic)
+                    layers[1].mFlags = Shaders::LAYER_CLASSIC;
                 Material chunk;
                 chunk.mKind = MaterialKind::Terrain;
                 chunk.mFlatten = true;
@@ -242,6 +246,19 @@ namespace Rtx
             EXPECT_NEAR(int{ glossOnce[511 * 4 + 1] }, 40, 1);
             EXPECT_NEAR(int{ glossOnce[255 * 4] }, 127, 1);
             EXPECT_NEAR(int{ glossOnce[255 * 4 + 1] }, 148, 1);
+
+            // **A classic ladder reflects its grey**, in the blue, at the exponent the rasterizer's
+            // terrain fixes: texel 511, all ladder, reflects 40 at a roughness of `(2 / 130)^(1/4)
+            // = 0.352199`, or 90; texel 255 reflects `0.49805 * 40 = 19.92`, or 20, at `0.50195 +
+            // 0.49805 * 0.352199 = 0.67736`, or 173. No share is authored.
+            const std::vector<std::uint8_t> classic = bakeOf(1.0f, glossOnly, false, false, true).mGloss;
+            ASSERT_EQ(classic.size(), once.size());
+            EXPECT_EQ(int{ classic[511 * 4] }, 0);
+            EXPECT_NEAR(int{ classic[511 * 4 + 1] }, 90, 1);
+            EXPECT_NEAR(int{ classic[511 * 4 + 2] }, 40, 1);
+            EXPECT_NEAR(int{ classic[255 * 4 + 1] }, 173, 1);
+            EXPECT_NEAR(int{ classic[255 * 4 + 2] }, 20, 1);
+            EXPECT_EQ(int{ classic[0 * 4 + 2] }, 0) << "the red reflects nothing";
         }
     }
 }

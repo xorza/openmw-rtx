@@ -30,16 +30,16 @@ namespace Rtx
         /// The pattern in, every reading out, the addresses of its blocks, the two addresses a
         /// uniform block carries, and the rows out.
         constexpr std::array<VkDescriptorSetLayoutBinding, 5> sBindings{
-            VkDescriptorSetLayoutBinding{
-                0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{
-                1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{
-                2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{
-                3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{
-                4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::PROBE_BIND_SOURCE, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::PROBE_BIND_READINGS, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::PROBE_BIND_BLOCKS, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::PROBE_BIND_ADDRESSES, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::PROBE_BIND_ROW_READINGS, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
         };
 
         /// Enough to cross the workgroup several times and end partway through one: 300 is four
@@ -131,11 +131,14 @@ namespace Rtx
                 device, sizeof(Shaders::ProbeRow) * sCount, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "test");
 
             DescriptorWrites writes(pipeline);
-            writes.buffer(0, VkDescriptorBufferInfo{ source, 0, VK_WHOLE_SIZE });
-            writes.buffer(1, VkDescriptorBufferInfo{ readings.getHandle(), 0, VK_WHOLE_SIZE });
-            writes.buffer(2, VkDescriptorBufferInfo{ blocks.getHandle(), 0, VK_WHOLE_SIZE });
-            writes.buffer(3, VkDescriptorBufferInfo{ addresses.getHandle(), 0, VK_WHOLE_SIZE });
-            writes.buffer(4, VkDescriptorBufferInfo{ rowReadings.getHandle(), 0, VK_WHOLE_SIZE });
+            writes.buffer(Shaders::PROBE_BIND_SOURCE, VkDescriptorBufferInfo{ source, 0, VK_WHOLE_SIZE });
+            writes.buffer(
+                Shaders::PROBE_BIND_READINGS, VkDescriptorBufferInfo{ readings.getHandle(), 0, VK_WHOLE_SIZE });
+            writes.buffer(Shaders::PROBE_BIND_BLOCKS, VkDescriptorBufferInfo{ blocks.getHandle(), 0, VK_WHOLE_SIZE });
+            writes.buffer(
+                Shaders::PROBE_BIND_ADDRESSES, VkDescriptorBufferInfo{ addresses.getHandle(), 0, VK_WHOLE_SIZE });
+            writes.buffer(
+                Shaders::PROBE_BIND_ROW_READINGS, VkDescriptorBufferInfo{ rowReadings.getHandle(), 0, VK_WHOLE_SIZE });
 
             const Shaders::ProbeConstants constants{ .mSource = address, .mCount = sCount, .mBlock = sBlock };
 

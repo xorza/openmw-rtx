@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <components/rtx/common/namedenum.hpp>
+#include <components/rtx/renderer/framedigest.hpp>
 #include <components/rtx/shaders/visibility.h>
 
 namespace Rtx
@@ -99,7 +100,7 @@ namespace RtxTool
     }
 
     /// A digest of every part, indexed by `ScenePart`.
-    using ScenePartDigests = std::array<std::array<std::uint64_t, 2>, static_cast<std::size_t>(ScenePart::Count)>;
+    using ScenePartDigests = std::array<Rtx::DigestWords, static_cast<std::size_t>(ScenePart::Count)>;
 
     /// Digests each part of a scene on its own: the scene as the renderer will read it, every
     /// table in order and the shared geometry buffers included. Answers "is this the same
@@ -139,10 +140,7 @@ namespace RtxTool
 
         void digestVertices(const Rtx::SceneDesc& scene);
 
-        void take(ScenePart part, const std::array<std::uint64_t, 2>& words)
-        {
-            mParts[static_cast<std::size_t>(part)] = words;
-        }
+        void take(ScenePart part, const Rtx::DigestWords& words) { mParts[static_cast<std::size_t>(part)] = words; }
 
         /// Empty until the first digest.
         std::optional<Vertices> mVertices;
@@ -161,9 +159,9 @@ namespace RtxTool
     /// the vertex runs and slot numbers follow: each placement is digested from where it stands,
     /// what it wears and the multiset of its triangles, and no order can tell the sum. Blind to
     /// the layout, which is what `digestLayout` stands beside it for. Textures by their paths.
-    std::array<std::uint64_t, 2> digestScene(const Rtx::SceneDesc& scene);
+    Rtx::DigestWords digestScene(const Rtx::SceneDesc& scene);
 
     /// One number for the whole layout, for a caller with one line to print; a report with room
     /// for the columns names them instead.
-    std::array<std::uint64_t, 2> digestLayout(const ScenePartDigests& parts);
+    Rtx::DigestWords digestLayout(const ScenePartDigests& parts);
 }

@@ -87,8 +87,9 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint key, uint lamps, ui
     const vec3 direction = ray.mAlong;
 
     // Drawn, because a reflection is a picture of the world and shows the faces the world shows.
-    const Surface hit
-        = trace(ray, SHADOW_BIAS, Cone(cone.mWidth, cone.mSpread + lobe), solidMask(frame.mRayMask), true);
+    // From where it left and no further: the origin already stands off the plane (`leaving`), and a
+    // `tmin` beside that would skip whatever stood within a unit of the surface along the ray.
+    const Surface hit = trace(ray, 0.0, Cone(cone.mWidth, cone.mSpread + lobe), solidMask(frame.mRayMask), true);
 
     WaterPath path;
     path.mFound = hit.mHit;
@@ -119,7 +120,7 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint key, uint lamps, ui
     // What a mirror shows is composited into a surface long before the display pass, so the field
     // goes in here — behind whatever the sky's own order left in front of it, which is what `shown`
     // says and is the same rule `tone.comp` draws by.
-    const float blur = pixelBlur(frame.mCamera) + 0.5 * lobe;
+    const float blur = pixelBlur(frame.mEyes.mWorld) + 0.5 * lobe;
 
     path.mLight = SplitLight(reflectedSky(origin, direction, blur, true), vec3(0.0), 1.0);
 
@@ -286,11 +287,18 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     // `WATER_SHORE_FADE`, so a bed further down and a bed nowhere at all are the same answer — which
     // makes that length the ray's own limit, and stops every pixel of open water crossing the sea to
     // be told it is deep.
+    //
+    // **Measured from the surface**, though the ray leaves from above it: the depth is what the ray
+    // travelled less what `leaving` stands over the surface, straight down.
     shaded.mShore = 1.0;
     if (!fromBelow)
+    {
+        const float clearing = SHADOW_BIAS * plane.z;
         shaded.mShore = smoothstep(0.0, WATER_SHORE_FADE,
-            solidWithin(WorldRay(leaving, vec3(0.0, 0.0, -1.0)), SHADOW_BIAS, WATER_SHORE_FADE,
-                Cone(surface.mFootprint, cone.mSpread)));
+            solidWithin(WorldRay(leaving, vec3(0.0, 0.0, -1.0)), 0.0, WATER_SHORE_FADE + clearing,
+                Cone(surface.mFootprint, cone.mSpread))
+                - clearing);
+    }
 
     // How far the eye's own ray had come, which a leg leaving into the air carries on from and
     // what the images stand past: the hit's own distance, and not one taken back off six-figure
@@ -321,11 +329,11 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     // however faint the surface over it has been made.
     const vec3 through = normalize(mix(incident, bent, shaded.mShore));
 
-    // Refraction bends by a third of what reflection does, so what is seen *through* the surface is
-    // blurred correspondingly less by the same lost slopes.
+    // Refraction bends by an eighth of what reflection does from above and a sixth from below, so
+    // what is seen *through* the surface is blurred correspondingly less by the same lost slopes.
     const WorldRay across = WorldRay(leaving, through);
-    const WaterPath behind = waterRay(across, Cone(surface.mFootprint, cone.mSpread), lobe * WATER_REFRACTION_BEND,
-        key, SEED_LAMPS_THROUGH, SEED_AMBIENT_THROUGH);
+    const WaterPath behind = waterRay(across, Cone(surface.mFootprint, cone.mSpread),
+        refractedConeWidth(lobe, WATER_IOR, fromBelow), key, SEED_LAMPS_THROUGH, SEED_AMBIENT_THROUGH);
     const SplitLight refracted = alongLeg(behind, across, !fromBelow, surface.mFootprint, pixel, before);
 
     // **Shared by the luminance each ray adds**, as `mixSplit` shares the sun's bit. A ray that went

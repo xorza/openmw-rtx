@@ -97,6 +97,10 @@ namespace Debug
 
     namespace
     {
+        /// Whether `OPENMW_CRASH_REPORTS` named the reports' folder, which then stands over the
+        /// configured one: `setCrashReports`.
+        bool sReportsNamed = false;
+
         class DebugOutputBase : public boost::iostreams::sink
         {
         public:
@@ -385,6 +389,12 @@ namespace Debug
         return Error;
     }
 
+    void setCrashReports(const std::filesystem::path& userData)
+    {
+        if (!sReportsNamed)
+            Crash::setReportFolder(userData / "crashes");
+    }
+
     void setupLogging(const std::filesystem::path& logDir, std::string_view appName)
     {
         Log::sMinDebugLevel = getDebugLevel();
@@ -458,6 +468,7 @@ namespace Debug
             settings.mApplication = std::string(appName);
             settings.mIssues = "https://github.com/xorza/openmw-rtx/issues";
             const char* const reports = std::getenv("OPENMW_CRASH_REPORTS");
+            sReportsNamed = reports != nullptr;
             settings.mReportFolder = reports != nullptr ? Files::pathFromUnicodeString(reports)
                                                         : Files::FixedPath<>("openmw").getUserDataPath() / "crashes";
             // As the fatal error box below: none for whoever started the game from a shell.

@@ -15,6 +15,7 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/image/formatcensus.hpp>
+#include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/shaders/scene.h>
@@ -30,8 +31,14 @@ namespace Rtx
         /// A file the content named. `TextureRow::mPath` carries it.
         File,
 
-        /// A key this renderer made for something it baked. `TextureRow::mBaked` carries it.
+        /// A key this renderer made for a sprite texture's light bake. `TextureRow::mBaked` carries
+        /// it, and it names the file the bake is made from.
         Baked,
+
+        /// A distant chunk's ground, flattened from its layer stack: the albedo, and the gloss.
+        /// `TextureRow::mBaked` carries the key, and `TextureRow::mGroundOf` the chunk's material.
+        GroundAlbedo,
+        GroundGloss,
     };
 
     /// One slot of the table: what stands in it, its name under the kind, and how it is addressed
@@ -42,6 +49,11 @@ namespace Rtx
         TextureKind mKind = TextureKind::File;
         VFS::Path::Normalized mPath{};
         std::string mBaked{};
+
+        /// The material a ground composite flattens, so a slot says whose ground it is however
+        /// long ago it was made; `sNoIndex` for every other kind.
+        Index mGroundOf = sNoIndex;
+
         TextureWrap mWrap = TextureWrap::Repeat;
 
         /// What the slot is read as: a file's as it was taken, a bake's as `addBaked` was told.
@@ -50,6 +62,10 @@ namespace Rtx
         /// A file's image, which the upload reads: the one the adder held, so the frame that
         /// uploads it opens nothing. Null for a bake, and for a file nothing reads at.
         osg::ref_ptr<const osg::Image> mImage{};
+
+        /// `mImage`'s format as `mEncoding` reads it, read once when the slot is taken.
+        /// `TextureFormat::Unnamed` where there is no image.
+        TextureFormat mFormat = TextureFormat::Unnamed;
     };
 
     /// Every texture the scene names, what still names each one, and which slots changed. A slot
@@ -89,12 +105,16 @@ namespace Rtx
             return add(path, nullptr, wrap, encoding);
         }
 
-        /// The slot for a texture this renderer made — a composite baked for a distant chunk —
-        /// keyed by `key` rather than by a file, taking one where `key` is not known. Two chunks
-        /// that would bake the same image must find the same slot, so `key` has to be stable across
-        /// frames. The same slots and the same reference counting as a file's. Clamped, because a
-        /// bake is one image whose coordinates run edge to edge. `sNoIndex` as `add` answers it.
-        Index addBaked(std::string_view key, TextureEncoding encoding);
+        /// The slot for a texture this renderer made — a sprite's light bake, a composite baked for a
+        /// distant chunk — keyed by `key` rather than by a file, taking one where `key` is not known.
+        /// Two that would bake the same image must find the same slot, so `key` has to be stable
+        /// across frames. The same slots and the same reference counting as a file's. Clamped,
+        /// because a bake is one image whose coordinates run edge to edge. `sNoIndex` as `add`
+        /// answers it.
+        ///
+        /// @param kind any but `File`.
+        /// @param groundOf the chunk's material for a ground composite, `sNoIndex` otherwise.
+        Index addBaked(std::string_view key, TextureKind kind, TextureEncoding encoding, Index groundOf = sNoIndex);
 
         /// The slot `path` stands in as a colour under any wrap, or `sNoIndex` where it stands in
         /// none. What a bake made from a file's alpha finds its source by: the alpha is the same
@@ -108,6 +128,9 @@ namespace Rtx
         /// that textures decide. A revision and not a count, because a slot freed and taken again
         /// has to read as a change.
         std::uint64_t getRevision() const { return mRevision; }
+
+        /// Settles what a drop took out of the arrivals, so they can be read.
+        void compact() { mChanges.compact(); }
 
         void clearArrivals() { mChanges.clearArrivals(); }
 

@@ -288,10 +288,12 @@ namespace Rtx
                     row.mFlags |= Shaders::LAYER_PARALLAX;
             }
 
-            // What a `_diffusespec`'s alpha is, the layout says: a classic one is a highlight's
-            // strength, which this renderer has no use for, and its colour is a diffuse like any.
+            // What a `_diffusespec` is, the layout says: an authored albedo and its roughness, or a
+            // classic diffuse and its highlight's strength. Under `ignore` it is a diffuse like any.
             if (layer.mDiffuseSpec && mSpecularLayout == SpecularLayout::MetalRoughness)
                 row.mFlags |= Shaders::LAYER_AUTHORED;
+            if (layer.mDiffuseSpec && mSpecularLayout == SpecularLayout::Classic)
+                row.mFlags |= Shaders::LAYER_CLASSIC;
 
             mapped = mapped || row.mNormal != sNoIndex || row.mFlags != 0;
 
@@ -504,6 +506,12 @@ namespace Rtx
             return false;
 
         return true;
+    }
+
+    bool CellPlacer::standsGround(const osg::Vec2i& cell) const
+    {
+        const auto found = mCells.find(cell);
+        return found != mCells.end() && found->mGround.mStood.isStanding();
     }
 
     bool CellPlacer::standsNoMore() const

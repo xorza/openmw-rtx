@@ -90,6 +90,11 @@ namespace Rtx
 
         inline constexpr ImageUse sFragmentSample{ VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT };
+
+        /// Sampled by a draw where it stays in `GENERAL`: the picture under the interface, which a
+        /// read back copies from that layout between two draws.
+        inline constexpr ImageUse sFragmentGeneralSample{ VK_IMAGE_LAYOUT_GENERAL,
+            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT };
         inline constexpr ImageUse sColourAttachment{ VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
             VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT };

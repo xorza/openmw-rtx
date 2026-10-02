@@ -25,6 +25,7 @@ namespace MWRender
                 .mSpecularMapLayout = "metal roughness",
                 .mAnisotropy = 8,
                 .mGamma = 1.5f,
+                .mLitEnvironmentMaps = true,
             };
         }
 
@@ -56,6 +57,7 @@ namespace MWRender
             EXPECT_EQ(derived.mMirror.mSpecularLayout, Rtx::SpecularLayout::MetalRoughness);
             EXPECT_EQ(derived.mAnisotropy, 8u);
             EXPECT_EQ(derived.mGamma, 1.5f);
+            EXPECT_TRUE(derived.mLitEnvironmentMaps);
 
             RtxSettingValues handedBack = valid();
             handedBack.mDistantLandCells = 0.0f;
@@ -75,10 +77,9 @@ namespace MWRender
             upscale.mUpscale = "Quality";
             EXPECT_THROW(RtxSettings::derive(upscale), Rtx::InputError);
 
-            // The classic layout is the one a `_spec` file most often has, and it has no name here:
-            // its maps are what `ignore` is for.
+            // A layout is spelled as the documentation spells it, and read by that name alone.
             RtxSettingValues layout = valid();
-            layout.mSpecularMapLayout = "classic";
+            layout.mSpecularMapLayout = "Classic";
             EXPECT_THROW(RtxSettings::derive(layout), Rtx::InputError);
         }
 

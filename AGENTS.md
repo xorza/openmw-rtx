@@ -20,8 +20,11 @@ them.
 
 ## Rules
 
-- Do not change the rasterizer, or anything the ray tracer does not need, beyond what
-  [Accepted diff](#accepted-diff) lists.
+- **Upstream code changes for three reasons only**: a change [Accepted diff](#accepted-diff)
+  lists, an improvement to the ray tracer's integration — the seam and the hooks it needs — or a
+  bug fix the user approved, which is proposed and waits for a yes. A cleanup or a quality change
+  is not made, and one already made is reverted. The diff stays small, but never at the cost of
+  reuse or of the abstraction's quality.
 - Both renderers stand behind one interface that exposes no implementation detail. Where the game
   would branch on which renderer it has, the seam abstracts the question instead.
 - Performance matters. Compute nothing twice; compute as early as possible.
@@ -29,16 +32,12 @@ them.
   here runs anything; an AMD device is stood up under Mesa's drm-shim (`~/Projects/mesa/build-shim`),
   which compiles every kernel and executes none.
 - One binary ships both renderers, and the one not chosen never starts.
-- Opacity micromaps (`VK_EXT_opacity_micromap`) for the cutouts were tried and declined: the
-  trace did not get faster, and building the maps only added loading time. Do not propose them again.
-- Async compute (a second queue, the next trace beside this frame's reconstruction) was tried and
-  declined: the overlap gained 0.1–0.2 ms. The branch `async` has the record. Do not propose it
-  again.
-- Shader Execution Reordering (`VK_EXT_ray_tracing_invocation_reorder`) was tried and declined:
-  sorting cost 17–23% of the trace, and the extension shuts out Mesa's drivers. Do not propose it
-  again.
-- Keep the diff against upstream minimal, but never at the cost of reuse or of the abstraction's
-  quality. [Accepted diff](#accepted-diff) lists what is accepted rather than kept small.
+- Tried, declined, and not to be proposed again: opacity micromaps (`VK_EXT_opacity_micromap`)
+  for the cutouts, which made the trace no faster and only added loading time; async compute (a
+  second queue, the next trace beside this frame's reconstruction), whose overlap gained 0.1–0.2 ms
+  (the branch `async` has the record); and Shader Execution Reordering
+  (`VK_EXT_ray_tracing_invocation_reorder`), whose sorting cost 17–23% of the trace and which
+  shuts out Mesa's drivers.
 
 ## Accepted diff
 
@@ -56,27 +55,60 @@ wrong:
 
 A fifth is the seam's: both renderers draw their frame at `[Video] resolution x/y` and show it
 scaled into the window with black beside it (`Misc::Presentation`), so the GUI, the projection, the
-pointer and Lua read one size whichever renderer draws.
+pointer and Lua read one size whichever renderer draws. A settings file from upstream, which kept
+the window's size there, has it moved to the window on the first start, and the launcher and
+`settings-default.cfg` say what each setting now sets.
 
 **The rest of the tree.**
 
 - The `[RTX]` settings pages and their translations.
 - `components/crashcatcher`: upstream's crash catcher is replaced whole by the fork's own, a
-  Crashpad monitor process.
+  Crashpad monitor process, with the calls that set it up from the configuration
+  (`Debug::setCrashReports`, the hang limit and the version).
 - `README.md`, which is the fork's own page and what a package ships, and `CI/`.
 - The visibility gates (`MWScript::VisibilityGates` and the calls that feed them): without them
   the distance stands scripted stages the game keeps down.
+- The pose hook in `RenderingManager`'s intersection visitor (`Renderer::poseForIntersection`): a
+  skinned body answers a CPU ray with the copy its last cull posed, and the ray tracer culls no
+  world, so the crosshair met every actor in its bind pose.
+- The sky meshes' vertex rules, `components/sky/vertexrules.hpp`, which `ModVertexAlphaVisitor`
+  reads: the rasterizer and the ray tracer fade the cloud shell and the star dome by one rule each.
+- `SceneUtil::StateSetUpdater::getGeneration`, which `reset` bumps: the mirror applies an updater to
+  a state set of its own after the node's update did, and a glow that ended or changed colour by
+  `reset` left the mirror's copy with its last sheet.
+- `MWWorld::MoonModel::phaseEighths`, the phase continuous in game time beside the engine's
+  discrete one: the ray tracer draws the moon to the horizon, where the engine changes a phase, and
+  its terminator follows this one rather than jumping a quarter phase in plain view.
 - The port to SDL3, through the input, the GUI and the window code: the presentation reads a
   window's pixel density and display scale, which a fractionally scaled Wayland desktop sets and
   SDL2 cannot report. SDL3 has no gamma ramp, so `[Video] gamma` is the renderers' own: the
   rasterizer's canvas applies it in its last draw into the frame (`PingPongCanvas`), as the tone
-  pass does in the ray tracer.
+  pass does in the ray tracer. `[Video] contrast` went with the ramp and is not restored: it had no
+  menu control, upstream applied it on Windows alone, and the tone pass has a contrast grade of its
+  own.
 - The five checks the top-level `CMakeLists.txt` adds to upstream's, on for the whole tree, and
   the hunks in upstream code that keep it clean under them, the patches to `extern/sol3` and
   `components/files/configurationmanager` included: one set of checks for every file.
 - A number read from text is finite (`Misc::StringUtils::toNumeric`, which the settings read
   through): `std::from_chars` reads `inf` and `nan`, and no sanitizer stopped either reaching
-  the picture.
+  the picture. Where `from_chars` has no floating point, the stream reads only the prefix it would
+  (`floatPrefix`), so a spelling is one number on every toolchain.
+- What the game does in one step and the ray tracer's histories must hear: a reference the world
+  moves with its physics placed outright is told as a jump (`World::moveObject`'s `jumps`,
+  `RenderingManager::notifyJumped`), and a write of `GameHour` that moves the clock by more than the
+  frame's own step is a cut (`World::noteHourWritten`, `DateTimeManager::jumps`).
+- What the ray tracer reads of the rasterizer's own state: the projection offset `SceneFrame` is
+  handed beside the projection, and `Precipitation::isShown` and its occlusion setting, so neither
+  renderer draws rain the other hides.
+- The renderer's answer to what it declines (`Renderer::support`), asked where the console, Lua and
+  the settings window would otherwise toggle what does nothing under it, and `ToggleBorders` under
+  the ray tracer.
+- Two faults the user approved fixing: `Files::LinuxPath` took a failed `read_symlink` for the
+  executable's path (`ec.value() != -1` holds for every error), and the SDL3 port truncated a
+  window's size over its pixel density where `SDLUtil::windowPoints` rounds.
+- `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
+  view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
+  it.
 
 ## Where the code lives
 

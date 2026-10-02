@@ -22,7 +22,7 @@ namespace
     Crash::NotesRead readAll()
     {
         Crash::NotesRead read;
-        Crash::readNotes(Crash::noteTable(), Platform::Process::currentThreadId(), read);
+        Crash::readNotes(Crash::noteTable(), Platform::Process::currentThreadId(), false, read);
         return read;
     }
 
@@ -183,7 +183,7 @@ namespace
     {
         const auto kindAndReason = [] {
             Crash::NotesRead read;
-            Crash::readNotes(Crash::noteTable(), 0, read);
+            Crash::readNotes(Crash::noteTable(), 0, false, read);
             return std::pair{ read.mKind, std::string(read.mReason) };
         };
 
@@ -232,7 +232,7 @@ namespace
         worker.join();
 
         Crash::NotesRead read;
-        Crash::readNotes(copy, other, read);
+        Crash::readNotes(copy, other, false, read);
         EXPECT_EQ(read.mKind, Crash::ReportKind::Report);
         EXPECT_EQ(std::string_view(read.mReason), "a contract broken");
         ASSERT_EQ(read.mCount, 2u);
@@ -240,6 +240,23 @@ namespace
         EXPECT_EQ(std::string_view(read.mNotes[0].mText), "walking the cell \"Seyda Neen\"");
         EXPECT_EQ(std::string_view(read.mNotes[1].mText), "drawing");
         EXPECT_TRUE(read.mNotes[0].mWhole && read.mNotes[1].mWhole);
+
+        // **A fault taken while the report was written is a crash**, with no reason: the table's
+        // kind and reason are the report's, which the faulting thread never passed the gate for.
+        // Its notes are its own all the same.
+        Crash::readNotes(copy, other, true, read);
+        EXPECT_EQ(read.mKind, Crash::ReportKind::Crash) << "a fault read as the report it landed in";
+        EXPECT_EQ(std::string_view(read.mReason), "") << "a fault was given the report's reason";
+        EXPECT_EQ(read.mCount, 2u);
+
+        // A table that says crash keeps its reason under a fault: `std::terminate`'s abort raises
+        // a signal after saying why.
+        ASSERT_TRUE(Crash::beginReport(Crash::ReportKind::Crash, "std::terminate"));
+        const std::vector<std::byte> ending(Crash::noteTable().begin(), Crash::noteTable().end());
+        Crash::endReport();
+        Crash::readNotes(ending, other, true, read);
+        EXPECT_EQ(read.mKind, Crash::ReportKind::Crash);
+        EXPECT_EQ(std::string_view(read.mReason), "std::terminate");
 
         // A slot is its thread's id and then its sequence count, which a note in progress leaves
         // odd: one step on from the count the copy holds is the worker stopped halfway.
@@ -254,13 +271,13 @@ namespace
         ++sequence;
         std::memcpy(halfway.data() + slots[0] + sizeof(other), &sequence, sizeof(sequence));
 
-        Crash::readNotes(halfway, other, read);
+        Crash::readNotes(halfway, other, false, read);
         ASSERT_EQ(read.mCount, 2u);
         EXPECT_FALSE(read.mNotes[0].mWhole) << "a note stopped halfway read as whole";
         EXPECT_EQ(std::string_view(read.mNotes[0].mText), "walking the cell \"Seyda Neen\"");
         EXPECT_TRUE(read.mNotes[1].mWhole);
 
-        Crash::readNotes(std::span(copy).first(copy.size() - 1), other, read);
+        Crash::readNotes(std::span(copy).first(copy.size() - 1), other, false, read);
         EXPECT_EQ(read.mCount, 0u) << "a table of another size was read";
         EXPECT_EQ(read.mKind, Crash::ReportKind::Crash);
 

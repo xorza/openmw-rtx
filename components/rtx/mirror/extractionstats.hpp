@@ -17,7 +17,7 @@ namespace Rtx
         /// What computing from the content cost: the ring reader's for the cells this walk adopted,
         /// and on the frame's thread — the shapes of the meshes added above, a translucent map's
         /// alpha, an additive map's mean — what the frame's owner took once after its last walk
-        /// (`SceneExtractor::getPreprocessor`). Timed rather than counted, because what it costs
+        /// (`SceneExtractor::getContext`). Timed rather than counted, because what it costs
         /// is triangles and texels and not drawables: one entry of `mMeshesAdded` can be a building
         /// and its neighbour a crate.
         Preprocessed mPreprocessed;

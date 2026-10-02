@@ -33,21 +33,12 @@ from pathlib import Path
 
 from omw.build import Build
 
+# `RtxTool::sDifferedStatus`: the run's one fault is a frame that differed from its reference.
+DIFFERED_STATUS = 3
+
 
 def _tail(log: Path) -> str:
     return "\n".join(log.read_text(errors="replace").splitlines()[-20:])
-
-
-def _differs(block: list[str]) -> bool:
-    """Whether a view of the `against` block moved. The verdict and not the exit code, because a leg
-    that failed for another reason — a pause over its measured frames — prints the block too, every
-    view of it the same, and that is a run that failed rather than a run that did not repeat."""
-    views = []
-    for line in block:
-        if not line.startswith("  "):
-            break
-        views.append(line)
-    return any("every one of them the same" not in view and "the same on every one" not in view for view in views)
 
 
 def repeat(build: Build, args: list[str]) -> int:
@@ -57,7 +48,11 @@ def repeat(build: Build, args: list[str]) -> int:
     extra: list[str] = []
     for arg in args:
         if arg.startswith("--pairs="):
-            pairs = int(arg.split("=", 1)[1])
+            spelled = arg.split("=", 1)[1]
+            if not spelled.isdigit() or int(spelled) < 1:
+                print(f"--pairs={spelled} is not a count of one or more", file=sys.stderr)
+                return 2
+            pairs = int(spelled)
         elif arg.startswith(("--views=", "--suite=")):
             place.append(arg)
         elif arg.startswith(("--seconds=", "--frames=")):
@@ -93,7 +88,7 @@ def repeat(build: Build, args: list[str]) -> int:
         against = next((i for i, line in enumerate(lines) if line.startswith("against ")), None)
         if code == 0:
             print(f"pair {pair} of {pairs}: identical")
-        elif against is not None and _differs(lines[against + 1:]):
+        elif code == DIFFERED_STATUS and against is not None:
             status = 1
             print(f"pair {pair} of {pairs}: NOT repeatable", file=sys.stderr)
             print("\n".join(lines[against:]), file=sys.stderr)

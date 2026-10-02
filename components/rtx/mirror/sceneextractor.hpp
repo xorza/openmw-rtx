@@ -17,8 +17,7 @@
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
-#include <components/rtx/preprocess/meantexels.hpp>
-#include <components/rtx/preprocess/threadcontent.hpp>
+#include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -34,6 +33,7 @@
 #include "nodekind.hpp"
 #include "sceneadopter.hpp"
 #include "shading.hpp"
+#include "walkcontext.hpp"
 
 namespace osg
 {
@@ -65,14 +65,9 @@ namespace Rtx
     class SceneExtractor : public SceneAdopter
     {
     public:
-        /// @param traversals where this walk's traversal numbers come from. Shared by everything
-        ///        that can reach one graph — the game hands the same counter to the world's walk
-        ///        and to every traced view. Left out, the extractor keeps a sequence of its own,
-        ///        which is right for a harness where nothing else walks the same nodes.
-        /// @param content what this thread computes from the content — `ThreadContent`. The game
-        ///        hands the frame thread's to the world's walk and to every traced view's; left out,
-        ///        the extractor keeps its own, for the reason `traversals` gives.
-        explicit SceneExtractor(SceneDesc& scene, Traversals* traversals = nullptr, ThreadContent* content = nullptr);
+        /// @param context what every walk on this thread shares — `WalkContext`. The game hands the
+        ///        frame thread's to the world's walk and to every traced view's.
+        SceneExtractor(SceneDesc& scene, WalkContext& context);
 
         /// Gives back every hold the maps took on the scene — every placement, every row, every
         /// texture — so a scene that outlives this holds nothing of it. The scene outlives it by
@@ -96,10 +91,6 @@ namespace Rtx
         /// drawable is water when its own mask carries no bit outside this one, because a node
         /// mask defaults to all ones. The harness places an analytic sea of its own (`addWater`).
         void setWaterMask(osg::Node::NodeMask mask) { mWaterMask = mask; }
-
-        /// What the `_spec` maps of materials met from here on mean — `[RTX] specular map layout`,
-        /// told rather than read, so this library reads no settings. `Ignore` until told.
-        void setSpecularLayout(SpecularLayout layout) { mMaterials.setSpecularLayout(layout); }
 
         /// Names the node mask the game puts on the root of a class of thing — an actor, an effect,
         /// the player's own arms in first person — by the same rule as the water's: a node whose
@@ -126,18 +117,27 @@ namespace Rtx
         /// hands `computeMatrixForFrame` instead.
         void setEye(const std::optional<ViewBasis>& eye) { mEye = eye; }
 
+        /// The nodes the game put somewhere else in one step since the last walk — a door, a
+        /// teleport — whose placements the walks that follow stand with no motion
+        /// (`PlacementTable::jump`), so a history from where they stood is refused where they
+        /// stand. Told per walk, as the eye is, and kept alive by the caller over the walks it is
+        /// told for.
+        void setJumped(std::span<const osg::Node* const> jumped) { mJumped = jumped; }
+
         /// The world's clock, in seconds, once per frame: what everything the graph animates is
         /// driven by. `SceneUtil::FrameTimeSource` reads the simulation time off the visitor's frame
         /// stamp, so a mirror with a clock of its own would run the game's fires while the game is
         /// paused.
         ///
-        /// **And the emitters' clock, moved on by the gap since the last call**, clamped to the two
-        /// tenths the game's own frame loop caps a step at, and never backwards: `osgParticle`
-        /// integrates the gap between one frame stamp and the last, so a loading screen or frames
-        /// nobody walked would put every plume in the cell on its own ceiling at once. The first
-        /// call only starts it. Also the sequence every emitter's once-per-frame guard is kept
-        /// against, so however many walks reach one, exactly one of them steps it.
-        void setSimulationTime(double seconds);
+        /// **And the emitters' clock, moved on by `step`**: the world's step this frame stands for,
+        /// however a script scales it, and nought where the game stood paused, as the rasterizer's
+        /// cull hands `osgParticle` the world's step. A step and not the gap since the last call,
+        /// because the clock may be set as well as stepped — a harness standing a world at a
+        /// moment — and a gap of an hour is three hundred and sixty thousand particles of a plume
+        /// in one frame. The first call only starts it, and a step backward is none. Also the
+        /// sequence every emitter's once-per-frame guard is kept against, so however many walks
+        /// reach one, exactly one of them steps it.
+        void setSimulationTime(double seconds, double step);
 
         /// Walks `node` and places what it finds by `transform`, under `anchor`. A subtree, and it
         /// never reaches the ring: the precipitation node would otherwise place the ground a
@@ -158,11 +158,10 @@ namespace Rtx
         /// can be the one that forgets it and has the distant ground swept on every frame after the
         /// first, and the extractor holds nothing of the ring between two walks.
         ///
-        /// **`ring` is told `frame` here**, because this is the call that holds both: a ring told
-        /// one frame and walked for another adopts twice on a frame walked twice, and a caller
-        /// that has to remember two calls is a caller that can forget one.
+        /// **`ring` is collected for `frame`**, the walk's own: a ring told one frame and walked for
+        /// another adopts twice on a frame walked twice.
         ///
-        /// @param ring one made on this extractor, which is what it adopts through.
+        /// @param ring one made on this extractor, which is what it adopts through; asserted.
         ExtractionStats extractWorld(const osg::Node& root, const osg::Matrixf& transform, std::size_t anchor,
             std::size_t frame, CellRing& ring);
 
@@ -172,24 +171,21 @@ namespace Rtx
         ///
         /// **Stood at `eye`**: the drops hang under the sky's camera-relative transform, so their
         /// particles are placed about the origin, and the eye they were driven with is the one place
-        /// the box travels nowhere — a sprite's travel between two frames is then its fall. **Not
-        /// walked where the eye is under water**: the sky manager freezes the drops where they stand,
-        /// and walked anyway they hang in the air.
+        /// the box travels nowhere — a sprite's travel between two frames is then its fall.
         ///
         /// @param fall the sky manager's rain box or its driven effect, or null for a world with
-        ///        nothing of that kind over it.
+        ///        nothing of that kind over it or a fall the game hides — under water it freezes the
+        ///        drops where they stand, and walked anyway they hang in the air.
         /// @param anchor as `extract` takes it: the rain and the driven effect are two roots the walk
         ///        cannot tell apart by structure.
         ExtractionStats extractPrecipitation(
-            const osg::Node* fall, const osg::Vec3f& eye, bool underwater, std::size_t anchor, std::size_t frame = 0);
+            const osg::Node* fall, const osg::Vec3f& eye, std::size_t anchor, std::size_t frame = 0);
 
-        /// Where this walk's traversal numbers come from — the one handed in, or its own.
-        Traversals& getTraversals() { return mTraversals; }
-
-        /// This thread's preprocessor: what the walks compute from the content, and what the host
-        /// reads off it between them — the sky's sheets. Its counts are the thread's and not a
+        /// What this thread's walks share. Its preprocessor's counts are the thread's and not a
         /// walk's, so whoever owns the frame takes them once, after the frame's last walk.
-        ContentPreprocessor& getPreprocessor() { return mContent.mPreprocessor; }
+        WalkContext& getContext() { return mContext; }
+
+        SpecularLayout getSpecularLayout() const override { return mContext.mSpecular; }
 
         /// Lets go of everything the walks stood and the ring held, for a world that is detached:
         /// the ring's holds are given back — the two releases read nothing of a walk — and then a
@@ -283,8 +279,9 @@ namespace Rtx
         /// `osg::Drawable` over a source geometry — the bind pose — beside the rig that poses it.
         ///
         /// @param glow the effect the drawable stands under, where the walk is inside one.
+        /// @param jumped whether the drawable stands under a node `setJumped` named.
         void addDrawable(const osg::Drawable& drawable, std::size_t who, std::span<const Shading> shading,
-            const osg::Matrixf& place, InstanceClass what, std::optional<std::size_t> glow);
+            const osg::Matrixf& place, InstanceClass what, std::optional<std::size_t> glow, bool jumped);
 
         /// The state set a node shades with where that is not the one it wears, or null where it
         /// is — `MaterialResolver::animate`, which says what the two cases are. Applied here rather
@@ -323,9 +320,8 @@ namespace Rtx
         /// refills as it descends would be a per-frame allocation as a local.
         std::unique_ptr<Traversal> mWalk;
 
-        /// Used only where the caller named none.
-        Traversals mOwnTraversals;
-        Traversals& mTraversals;
+        /// What this thread's walks share, the owner's.
+        WalkContext& mContext;
 
         /// Every node until the owner states a mask (`setTraversalMask`).
         osg::Node::NodeMask mTraversalMask;
@@ -350,18 +346,13 @@ namespace Rtx
         /// See `setEye`.
         std::optional<ViewBasis> mEye;
 
+        /// See `setJumped`.
+        std::span<const osg::Node* const> mJumped;
+
         /// Every effect this walk entered, in the order it entered them. Which of them the walk
         /// is inside is the traversal's, carried down the subtree beside the class. Reserved once,
         /// `sEffectBudget`.
         std::vector<Glow> mGlows;
-
-        /// Used only where the caller named none.
-        std::optional<ThreadContent> mOwnContent;
-
-        /// Everything the walks compute from what the content holds, on this extractor's thread:
-        /// the thread's, handed in, or this extractor's own. The mean texels in it are a sheet's
-        /// and a flame's alike, so the resolvers below share them.
-        ThreadContent& mContent;
 
         /// Which sweep is current, and where the walk in progress puts its counts. Declared before
         /// the walk and every resolver below, which borrow it rather than keep a copy that could
@@ -375,13 +366,13 @@ namespace Rtx
         Kept<boost::unordered_flat_map<std::size_t, Known>> mPlacements{ mPass };
 
         /// The drawables the walk met, and what poses the ones that deform.
-        MeshResolver mMeshes{ mScene, mPass, mContent.mPreprocessor };
+        MeshResolver mMeshes{ mScene, mPass, mContext.mContent.mPreprocessor };
 
         /// What the content says each surface is, and the textures those name.
-        MaterialResolver mMaterials{ mScene, mPass, mContent.mMeans, mContent.mPreprocessor };
+        MaterialResolver mMaterials{ mScene, mPass, mContext.mContent.mFacts, mContext.mSpecular };
 
         /// The particle systems the walk met, and the sprite textures they hold.
-        EmitterResolver mEmitters{ mScene, mPass, mContent.mMeans };
+        EmitterResolver mEmitters{ mScene, mPass, mContext.mContent.mFacts };
 
         /// How many meshes and materials the scene had freed at the last retire, which the next
         /// one counts what went from.

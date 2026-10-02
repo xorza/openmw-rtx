@@ -46,6 +46,7 @@ namespace RtxTool
             Settings::video().mWindowHeight.set(static_cast<int>(window.mHeight));
             Settings::video().mWindowMode.set(Settings::WindowMode::Windowed);
             Settings::video().mVsyncMode.set(window.mVerticalSync);
+            Settings::video().mFramerateLimit.set(window.mFramerateLimit);
             Settings::camera().mFieldOfView.set(window.mFieldOfView);
 
             // **Physics on the frame's own thread, so a run is the same run twice.** A physics
@@ -56,6 +57,24 @@ namespace RtxTool
             // is one physics step a frame either way, so nothing about the simulation changes but
             // who runs it and when the cache is read.
             Settings::physics().mAsyncNumThreads.set(0);
+        }
+
+        /// **What a measured run reads of the content's companion maps, from the shipped file**:
+        /// whether to look for a model's normal and specular maps and what they are called, which
+        /// `MWRender::Renderer::prepareResources` reads from the registry for both renderers. Two
+        /// machines that differ only in their `settings.cfg` then bench one scene, and a played run
+        /// keeps the player's.
+        void applyShippedContentRules(const Files::ConfigurationManager& config)
+        {
+            Settings::ShadersCategory& shaders = Settings::shaders();
+            shaders.mAutoUseObjectNormalMaps.set(
+                shippedDefault<bool>(config, "Shaders", "auto use object normal maps"));
+            shaders.mAutoUseObjectSpecularMaps.set(
+                shippedDefault<bool>(config, "Shaders", "auto use object specular maps"));
+            shaders.mNormalMapPattern.set(shippedDefault<std::string>(config, "Shaders", "normal map pattern"));
+            shaders.mNormalHeightMapPattern.set(
+                shippedDefault<std::string>(config, "Shaders", "normal height map pattern"));
+            shaders.mSpecularMapPattern.set(shippedDefault<std::string>(config, "Shaders", "specular map pattern"));
         }
     }
 
@@ -74,11 +93,8 @@ namespace RtxTool
         }
 
         applyHostedSettings(window);
-
-        // **The limiter comes off, because there is nobody to pace for.** A hosted run is measured
-        // or it is written to a file, and a frame held back to meet a refresh is a frame spent
-        // waiting.
-        Settings::video().mFramerateLimit.set(0);
+        if (!request.mPlayed)
+            applyShippedContentRules(config);
 
         // **Whether the run was meant to end on its own**, which is what says an empty report is a
         // failure. A window somebody closes has finished no stop and owes no numbers.
@@ -146,6 +162,9 @@ namespace RtxTool
 
                 engine.addContentFile(file);
             }
+
+            for (const std::string& file : variables["groundcover"].as<StringsVector>())
+                engine.addGroundcoverFile(file);
 
             Fallback::Map::init(fallback.mMap);
 

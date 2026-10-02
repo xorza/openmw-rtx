@@ -231,7 +231,7 @@ namespace Rtx
                 ASSERT_EQ(textures.add(names[at]), at);
 
             EXPECT_EQ(textures.add(names.back()), sNoIndex);
-            EXPECT_EQ(textures.addBaked("chunk/1", TextureEncoding::Colour), sNoIndex);
+            EXPECT_EQ(textures.addBaked("chunk/1", TextureKind::GroundAlbedo, TextureEncoding::Colour, 1), sNoIndex);
             EXPECT_EQ(textures.getRefused(), 2u);
             EXPECT_EQ(textures.add(names[7]), 7u) << "a texture that stands takes no slot";
 
@@ -325,30 +325,40 @@ namespace Rtx
             constexpr Index texture = 3;
 
             const Material opaque{ .mDiffuse = texture };
-            EXPECT_EQ(opaque.getAlphaCutoff(), 0.0f);
+            EXPECT_FALSE(opaque.getAlphaTest().cuts());
             EXPECT_FALSE(opaque.isCutout());
 
-            const Material tested{ .mDiffuse = texture, .mAlphaRef = 0.3f, .mAlphaMode = AlphaMode::Cutout };
-            EXPECT_EQ(tested.getAlphaCutoff(), 0.3f);
+            const Material tested{
+                .mDiffuse = texture, .mAlphaTest = { .mReference = 0.3f }, .mAlphaMode = AlphaMode::Cutout
+            };
+            EXPECT_EQ(tested.getAlphaTest().mReference, 0.3f);
             EXPECT_TRUE(tested.isCutout());
 
+            // A test above nought cuts the bare texels, though its reference is nought: a cutout.
+            const Material aboveNought{ .mDiffuse = texture,
+                .mAlphaTest = { .mPasses = Shaders::ALPHA_PASSES_ABOVE },
+                .mAlphaMode = AlphaMode::Cutout };
+            EXPECT_TRUE(aboveNought.isCutout());
+
             const Material blended{ .mDiffuse = texture, .mAlphaMode = AlphaMode::Blend };
-            EXPECT_EQ(blended.getAlphaCutoff(), 0.5f);
+            EXPECT_EQ(blended.getAlphaTest().mReference, 0.5f);
             EXPECT_TRUE(blended.isCutout());
 
-            const Material blendedWithRef{ .mDiffuse = texture, .mAlphaRef = 0.8f, .mAlphaMode = AlphaMode::Blend };
-            EXPECT_EQ(blendedWithRef.getAlphaCutoff(), 0.8f);
+            const Material blendedWithRef{
+                .mDiffuse = texture, .mAlphaTest = { .mReference = 0.8f }, .mAlphaMode = AlphaMode::Blend
+            };
+            EXPECT_EQ(blendedWithRef.getAlphaTest().mReference, 0.8f);
 
             // The mask lives in the diffuse map's alpha, so a cutoff with no map to read it from is
             // not a cutout — and marking it one would cost traversal a candidate loop that could
             // only ever say yes.
             const Material untextured{ .mAlphaMode = AlphaMode::Blend };
-            EXPECT_EQ(untextured.getAlphaCutoff(), 0.5f);
+            EXPECT_EQ(untextured.getAlphaTest().mReference, 0.5f);
             EXPECT_FALSE(untextured.isCutout());
         }
 
-        /// A leaf card and a pane of glass carry the same alpha mode, and the material's own alpha is
-        /// what tells them apart.
+        /// A leaf card and a pane of glass carry the same alpha mode, and the material's own alpha or
+        /// the texture's is what tells them apart.
         ///
         /// **The mode says nothing about it**, because Morrowind keeps its foliage under
         /// `NiAlphaProperty`: a leaf is fully opaque wherever its painted mask is, and a pane is
@@ -358,8 +368,9 @@ namespace Rtx
         /// act on the mode alone.
         ///
         /// `NiMaterialProperty` records that alpha and `NifOsg::AlphaController` animates it, so a
-        /// surface can cross this line while the game runs.
-        TEST(RtxSceneDescTest, theMaterialsOwnAlphaIsWhatTellsAPaneOfGlassFromALeaf)
+        /// surface can cross this line while the game runs. The texture is the other half: one that
+        /// never reaches solid is no mask, and a blend with no test draws it at its alpha.
+        TEST(RtxSceneDescTest, theMaterialsOwnAlphaOrAMaskThatNeverClosesIsWhatTellsAPaneOfGlassFromALeaf)
         {
             constexpr Index texture = 3;
 
@@ -370,14 +381,39 @@ namespace Rtx
             const Material pane{ .mDiffuse = texture, .mOpacity = 0.3f, .mAlphaMode = AlphaMode::Blend };
             EXPECT_TRUE(pane.isTranslucent());
 
+            // A texture that never reaches solid on a material that is all there: the Imperial
+            // lantern's glass, which peaks at 119.
+            const Material lantern{ .mDiffuse = texture, .mAlphaMode = AlphaMode::Blend, .mDiffuseNeverSolid = true };
+            EXPECT_TRUE(lantern.isTranslucent()) << "no mask, so the blend draws it at its alpha";
+            EXPECT_NE(lantern.isTranslucent(), leaf.isTranslucent()) << "the texture's alpha decides";
+            EXPECT_FALSE(lantern.isMedium()) << "a pane at an opacity of one, and no cloud";
+            EXPECT_EQ(lantern.getAlphaTest().mReference, Material::sPaneCutoff)
+                << "what its blend draws as nothing is a hole";
+            EXPECT_EQ(pane.getAlphaTest().mReference, Material::sPaneCutoff);
+            EXPECT_EQ(leaf.getAlphaTest().mReference, Material::sBlendCutoff);
+
+            const Material testedWisp{ .mDiffuse = texture,
+                .mAlphaTest = { .mReference = 0.3f },
+                .mAlphaMode = AlphaMode::Blend,
+                .mDiffuseNeverSolid = true };
+            EXPECT_FALSE(testedWisp.isTranslucent()) << "a test cuts at its reference";
+            EXPECT_EQ(testedWisp.getAlphaTest().mReference, 0.3f);
+
+            const Material addsWisp{ .mDiffuse = texture,
+                .mAlphaMode = AlphaMode::Blend,
+                .mBlend = BlendKind::Add,
+                .mDiffuseNeverSolid = true };
+            EXPECT_FALSE(addsWisp.isTranslucent()) << "an additive sheet covers nothing";
+
             // The mode is half of it: a faded material the content never asked to blend is drawn as
             // it was authored, and a cutout stays a cutout however faint its own alpha is.
             const Material faded{ .mDiffuse = texture, .mOpacity = 0.3f };
             EXPECT_FALSE(faded.isTranslucent()) << "opaque mode, whatever the alpha says";
 
-            const Material tested{
-                .mDiffuse = texture, .mOpacity = 0.3f, .mAlphaRef = 0.3f, .mAlphaMode = AlphaMode::Cutout
-            };
+            const Material tested{ .mDiffuse = texture,
+                .mOpacity = 0.3f,
+                .mAlphaTest = { .mReference = 0.3f },
+                .mAlphaMode = AlphaMode::Cutout };
             EXPECT_FALSE(tested.isTranslucent()) << "a mask the content asked to test is a mask";
 
             // And the texture is the other half of what tells a pane from a cloud. Neither of them
@@ -410,8 +446,8 @@ namespace Rtx
             const Material stained{ .mDiffuse = texture, .mOpacity = faint, .mAlphaMode = AlphaMode::Blend };
             EXPECT_FALSE(stained.isMedium()) << "paint that closes is something to stop on";
 
-            const Material leaf{ .mDiffuse = texture, .mAlphaMode = AlphaMode::Blend, .mDiffuseNeverSolid = true };
-            EXPECT_FALSE(leaf.isMedium()) << "an opaque material, whatever its paint does";
+            const Material lantern{ .mDiffuse = texture, .mAlphaMode = AlphaMode::Blend, .mDiffuseNeverSolid = true };
+            EXPECT_FALSE(lantern.isMedium()) << "a material that is all there is a pane, whatever its paint does";
 
             const Material glass{ .mOpacity = faint, .mAlphaMode = AlphaMode::Blend };
             EXPECT_FALSE(glass.isMedium()) << "no map to have measured";
@@ -539,6 +575,7 @@ namespace Rtx
             mScene.clearArrivals();
 
             Testing::letGoMesh(mScene, mMoving);
+            mScene.compact();
             EXPECT_EQ(mScene.deformers().getHolds(mRig), 1u);
             EXPECT_EQ(mScene.deformers().getRows()[mRig].getVertexCount(), 4u) << "a rig with a mesh on it stays";
             EXPECT_EQ(std::vector<Index>(mScene.meshes().getDeformed().begin(), mScene.meshes().getDeformed().end()),
@@ -546,6 +583,7 @@ namespace Rtx
                 << "the freed slot left the list and the survivor stayed where it was named";
 
             Testing::letGoMesh(mScene, mOther);
+            mScene.compact();
             EXPECT_EQ(mScene.deformers().getHolds(mRig), 0u);
             EXPECT_EQ(mScene.deformers().getRows()[mRig].getVertexCount(), 0u) << "a rig nothing stands on is free";
             EXPECT_TRUE(mScene.deformers().getArrived().empty());
@@ -601,8 +639,9 @@ namespace Rtx
             ASSERT_EQ(scene.deformers().getHolds(first.mDeformer), 0u);
             ASSERT_EQ(scene.deformers().getHolds(second.mDeformer), 0u);
 
-            // **Read after two removals**, each settled as it was made: a set with a removal
+            // **Read after two removals**, settled by the hand-over's compact: a set with a removal
             // outstanding refuses to answer at all.
+            scene.compact();
             EXPECT_TRUE(scene.deformers().getArrived().empty()) << "both arrivals left with their rigs";
 
             EXPECT_EQ(Testing::addOneBoneBody(scene, quad).mDeformer, first.mDeformer)
@@ -626,8 +665,9 @@ namespace Rtx
             const std::array meshes{ quad(), quad(), quad() };
             ASSERT_EQ(meshes[2], 2u);
 
-            const std::array materials{ scene.addMaterial(Material{ .mAlphaRef = 0.25f }),
-                scene.addMaterial(Material{ .mAlphaRef = 0.5f }), scene.addMaterial(Material{ .mAlphaRef = 0.75f }) };
+            const std::array materials{ scene.addMaterial(Material{ .mAlphaTest = { .mReference = 0.25f } }),
+                scene.addMaterial(Material{ .mAlphaTest = { .mReference = 0.5f } }),
+                scene.addMaterial(Material{ .mAlphaTest = { .mReference = 0.75f } }) };
             ASSERT_EQ(materials[2], 2u);
 
             const auto path = [](const char* name) { return VFS::Path::NormalizedView(name); };
@@ -656,7 +696,8 @@ namespace Rtx
             EXPECT_EQ(scene.textures().add(path("textures/d.dds")), textures[0]) << "textures";
             EXPECT_EQ(place(meshes[1]), placed[0]) << "placements";
             EXPECT_EQ(quad(), meshes[0]) << "meshes";
-            EXPECT_EQ(scene.addMaterial(Material{ .mAlphaRef = 0.125f }), materials[0]) << "materials";
+            EXPECT_EQ(scene.addMaterial(Material{ .mAlphaTest = { .mReference = 0.125f } }), materials[0])
+                << "materials";
             scene.drop(std::move(holds[1]));
         }
 
@@ -964,11 +1005,25 @@ namespace Rtx
 
             // A move and a fade in the same frame are one row, named once: it is written whole, so a
             // second name would write it again for nothing.
+            const osg::Matrixf stood = scene.placements().getRows()[two].mInstance.mTransform;
             scene.placements().move(two, osg::Matrixf::translate(0.0f, 0.0f, 5.0f));
             scene.placements().fade(two, 0.25f);
             EXPECT_EQ(sorted(scene.placements().getMoved()), (std::vector<Index>{ two }));
+            EXPECT_EQ(scene.placements().getRows()[two].mPrevious, stood) << "a move forgot where it was";
             scene.placements().advance();
             EXPECT_EQ(sorted(scene.placements().getSettled()), (std::vector<Index>{ two }));
+
+            // **A jump is a row to write with no motion**: where the slot stood is where it stands,
+            // so a history at its new pixels is refused. A jump to where it stands is nothing.
+            const osg::Matrixf landed = osg::Matrixf::translate(4000.0f, 0.0f, 5.0f);
+            EXPECT_TRUE(scene.placements().jump(two, landed));
+            EXPECT_EQ(sorted(scene.placements().getMoved()), (std::vector<Index>{ two }));
+            EXPECT_EQ(scene.placements().getRows()[two].mInstance.mTransform, landed);
+            EXPECT_EQ(scene.placements().getRows()[two].mPrevious, landed) << "a jump carried its step as motion";
+            scene.placements().advance();
+            EXPECT_FALSE(scene.placements().jump(two, landed));
+            EXPECT_TRUE(scene.placements().getMoved().empty());
+            scene.placements().advance();
 
             // A dropped slot is a row to write inactive, and the slot it frees is the next
             // placement's — both reported, on the frames they happen.
@@ -1036,7 +1091,8 @@ namespace Rtx
             // The bake of the texture's alpha sits in the same table, which is why the count of
             // textures at the end is two.
             const Index lighting = scene.textures().addBaked(
-                SpriteLightMap::keyFor(VFS::Path::NormalizedView("textures/tx_fire_00.dds")), TextureEncoding::Colour);
+                SpriteLightMap::keyFor(VFS::Path::NormalizedView("textures/tx_fire_00.dds")), TextureKind::Baked,
+                TextureEncoding::Colour);
 
             const std::array sPlume{
                 Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
@@ -1057,15 +1113,15 @@ namespace Rtx
                 .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                 .mAlpha = 1.0f } };
 
-            scene.addEmitter(sPlume, texture, true, 0.0f, lighting);
+            scene.addEmitter(sPlume, texture, BlendKind::Add, 0.0f, lighting);
             ASSERT_EQ(scene.emitters().size(), 1u);
 
             // An emitter with nothing alive in it is not an emitter, and the next one that has
             // something starts where the first left off rather than where a placeholder would have.
-            scene.addEmitter({}, texture, false);
+            scene.addEmitter({}, texture, BlendKind::Over);
             EXPECT_EQ(scene.emitters().size(), 1u);
 
-            scene.addEmitter(sSmoke, texture, false);
+            scene.addEmitter(sSmoke, texture, BlendKind::Over);
             ASSERT_EQ(scene.emitters().size(), 2u);
 
             // Named once the adds are done, for the reason `SceneDesc`'s spans give.
@@ -1137,9 +1193,9 @@ namespace Rtx
             // **Every add before any read**, for the reason `SceneDesc`'s spans give: a row named
             // while another emitter is still to come is a row the next `addEmitter` moves out from
             // under the name.
-            scene.addEmitter(disc, texture, false);
-            scene.addEmitter(streak, texture, false, 0.1f);
-            scene.addEmitter(leant, texture, false, 0.1f);
+            scene.addEmitter(disc, texture, BlendKind::Over);
+            scene.addEmitter(streak, texture, BlendKind::Over, 0.1f);
+            scene.addEmitter(leant, texture, BlendKind::Over, 0.1f);
 
             ASSERT_EQ(scene.emitters().size(), 3u);
             const std::span<const SpriteEmitter> made = scene.emitters();
@@ -1222,6 +1278,7 @@ namespace Rtx
             // **The drop names the slot it gave up, and it stops being an arrival by naming it.**
             // Nothing has been handed over, so all three are still spoken for — two as arrivals and
             // the third as a departure, never as both.
+            scene.compact();
             EXPECT_EQ(sorted(scene.meshes().getFreed()), (std::vector<Index>{ middle }));
             EXPECT_EQ(sorted(scene.meshes().getArrived()), (std::vector<Index>{ first, last }));
 
@@ -1241,6 +1298,7 @@ namespace Rtx
             // **Taking the slot back moves it the other way**, which is what lets a backend apply
             // the two lists in either order: this slot is built and not then destroyed, whichever
             // half it does first.
+            scene.compact();
             EXPECT_EQ(sorted(scene.meshes().getArrived()), (std::vector<Index>{ first, moved, last }));
             EXPECT_TRUE(scene.meshes().getFreed().empty()) << "a slot taken back was still reported as gone";
 
@@ -1286,12 +1344,14 @@ namespace Rtx
             // arrival and not a departure; arrived and then freed inside one frame, it is a
             // departure the backend is told of a slot it never built — `BottomLevelStore::release`
             // takes that as nothing, and the hand-over relies on it.
+            scene.compact();
             EXPECT_EQ(sorted(scene.meshes().getArrived()), (std::vector<Index>{ slot }));
             EXPECT_TRUE(scene.meshes().getFreed().empty()) << "a slot taken over was still reported gone";
 
             scene.clearArrivals();
             const Index brief = Testing::addQuadMesh(scene);
             Testing::letGoMesh(scene, brief);
+            scene.compact();
             EXPECT_TRUE(scene.meshes().getArrived().empty())
                 << "a slot that went inside the frame was still an arrival";
             EXPECT_EQ(sorted(scene.meshes().getFreed()), (std::vector<Index>{ brief }));
@@ -1526,6 +1586,7 @@ namespace Rtx
             ASSERT_TRUE(terrain.mReleased);
 
             // One texture went with the material that wore it, and it stopped being an arrival.
+            scene.compact();
             EXPECT_EQ(sorted(scene.textures().getFreed()), (std::vector<Index>{ terrain.mGround }));
             EXPECT_EQ(sorted(scene.textures().getArrived()),
                 (std::vector<Index>{ terrain.mStone, terrain.mSand, terrain.mMoss }));
@@ -1546,6 +1607,7 @@ namespace Rtx
             // for `tx_ground` again is a new arrival rather than a hit on a slot nothing stands in.
             EXPECT_EQ(scene.textures().add(VFS::Path::NormalizedView("textures/tx_ground.dds")), terrain.mGround);
             EXPECT_EQ(scene.textures().getRows().size(), 4u) << "the table grew past a free slot";
+            scene.compact();
             EXPECT_EQ(scene.textures().getArrived().back(), terrain.mGround)
                 << "a slot taken over was not reported as arriving";
             EXPECT_TRUE(scene.textures().getFreed().empty()) << "a slot taken back was still reported as gone";
@@ -1889,7 +1951,8 @@ namespace Rtx
         {
             SceneDesc scene;
 
-            const Index baked = scene.textures().addBaked("composite/-3,-2/2", TextureEncoding::Colour);
+            const Index baked
+                = scene.textures().addBaked("composite/-3,-2/2", TextureKind::GroundAlbedo, TextureEncoding::Colour, 2);
             ASSERT_EQ(baked, 0u);
 
             // Standing, and standing is not free — the path is empty because it has none, which is
@@ -1899,7 +1962,9 @@ namespace Rtx
             EXPECT_EQ(scene.textures().getRows()[baked].mBaked, "composite/-3,-2/2");
 
             // The key is what makes two chunks that would bake the same image share one slot.
-            EXPECT_EQ(scene.textures().addBaked("composite/-3,-2/2", TextureEncoding::Colour), baked)
+            EXPECT_EQ(
+                scene.textures().addBaked("composite/-3,-2/2", TextureKind::GroundAlbedo, TextureEncoding::Colour, 2),
+                baked)
                 << "the same bake took a second slot";
             EXPECT_EQ(scene.textures().getRows().size(), 1u);
 
@@ -1921,7 +1986,8 @@ namespace Rtx
             EXPECT_TRUE(scene.textures().getRows()[next].mBaked.empty()) << "the slot kept what the last tenant was";
 
             // The key is free again too, or a bake that came back would find a slot somebody else has.
-            const Index again = scene.textures().addBaked("composite/-3,-2/2", TextureEncoding::Colour);
+            const Index again
+                = scene.textures().addBaked("composite/-3,-2/2", TextureKind::GroundAlbedo, TextureEncoding::Colour, 2);
             EXPECT_EQ(again, 2u) << "a key the table gave back found a slot somebody else has";
             EXPECT_TRUE(scene.textures().isLive(file)) << "the file beside it was never touched";
         }

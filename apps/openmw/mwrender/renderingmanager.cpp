@@ -478,7 +478,7 @@ namespace MWRender
         updateNavMesh();
         updateRecastMesh();
 
-        if (mUpdateProjectionMatrix)
+        if (mUpdateProjectionMatrix || mRenderer.getPresentation().mFrame != mProjectedFrame)
         {
             mUpdateProjectionMatrix = false;
             updateProjectionMatrix();
@@ -666,6 +666,11 @@ namespace MWRender
     class IntersectionVisitorWithIgnoreList : public osgUtil::IntersectionVisitor
     {
     public:
+        explicit IntersectionVisitorWithIgnoreList(Renderer& renderer)
+            : mRenderer(renderer)
+        {
+        }
+
         bool skipTransform(osg::Transform& transform)
         {
             if (mContainsPagedRefs)
@@ -698,10 +703,19 @@ namespace MWRender
             osgUtil::IntersectionVisitor::apply(transform);
         }
 
+        // A skinned or morphed drawable answers with the copy its last cull posed, and a renderer
+        // that does not cull the world poses it here.
+        void apply(osg::Drawable& drawable) override
+        {
+            mRenderer.poseForIntersection(drawable);
+            osgUtil::IntersectionVisitor::apply(drawable);
+        }
+
         void setIgnoreList(std::span<const MWWorld::Ptr> ignoreList) { mIgnoreList = ignoreList; }
         void setContainsPagedRefs(bool contains) { mContainsPagedRefs = contains; }
 
     private:
+        Renderer& mRenderer;
         std::span<const MWWorld::Ptr> mIgnoreList;
         bool mContainsPagedRefs = false;
     };
@@ -711,7 +725,7 @@ namespace MWRender
         std::span<const MWWorld::Ptr> ignoreList)
     {
         if (!mIntersectionVisitor)
-            mIntersectionVisitor = new IntersectionVisitorWithIgnoreList;
+            mIntersectionVisitor = new IntersectionVisitorWithIgnoreList(mRenderer);
 
         mIntersectionVisitor->setIgnoreList(ignoreList);
         mIntersectionVisitor->setContainsPagedRefs(false);
@@ -917,6 +931,7 @@ namespace MWRender
             throw std::runtime_error("Viewing distance is less than near clip");
 
         const osg::Vec2i frame = mRenderer.getPresentation().mFrame;
+        mProjectedFrame = frame;
         const double width = frame.x();
         const double height = frame.y();
 
@@ -940,7 +955,7 @@ namespace MWRender
         // We always set the cameras projection matrix to the un-reversed variant for correct frustum culling.
         mRenderer.getCamera().setProjectionMatrix(unreversedProjectionMatrix);
 
-        mFrame.setProjection(projectionMatrix);
+        mFrame.setProjection(projectionMatrix, osg::Vec2f(static_cast<float>(offsetX), static_cast<float>(offsetY)));
 
         // Since our fog is not radial yet, we should take FOV in account, otherwise terrain near viewing distance may
         // disappear. Limit FOV here just for sure, otherwise viewing distance can be too high.
@@ -1086,7 +1101,7 @@ namespace MWRender
 
     float RenderingManager::getFieldOfView() const
     {
-        return mFieldOfViewOverridden ? mFieldOfViewOverridden : mFieldOfView;
+        return mFieldOfViewOverridden ? mFieldOfViewOverride : mFieldOfView;
     }
 
     osg::Vec3f RenderingManager::getHalfExtents(const MWWorld::ConstPtr& object) const

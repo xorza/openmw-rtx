@@ -15,6 +15,7 @@
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
+#include <components/rtx/common/hashstate.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
@@ -32,8 +33,6 @@
 #include <components/rtx/shaders/skinning.h>
 #include <components/vfs/pathutil.hpp>
 
-#include "digest.hpp"
-
 namespace RtxTool
 {
     namespace
@@ -42,19 +41,19 @@ namespace RtxTool
         class Unordered
         {
         public:
-            void add(const Digest& part)
+            void add(const Rtx::HashState& part)
             {
                 mWords[0] += part.getWords()[0];
                 mWords[1] += part.getWords()[1];
             }
 
-            const std::array<std::uint64_t, 2>& getWords() const { return mWords; }
+            const Rtx::DigestWords& getWords() const { return mWords; }
 
         private:
-            std::array<std::uint64_t, 2> mWords{};
+            Rtx::DigestWords mWords{};
         };
 
-        void addTexture(Digest& digest, const Rtx::SceneDesc& scene, const Rtx::Index texture)
+        void addTexture(Rtx::HashState& digest, const Rtx::SceneDesc& scene, const Rtx::Index texture)
         {
             digest.add(texture == Rtx::sNoIndex);
             if (texture == Rtx::sNoIndex)
@@ -87,9 +86,10 @@ namespace RtxTool
         template <class Texture, class Layers, class Value>
         void forEachMaterialField(const Rtx::Material& material, Texture texture, Layers layers, Value value)
         {
-            const auto& [kind, diffuse, emissive, environment, environmentColour, dark, darkUnit, normal, specular,
-                parallax, diffuseColour, emissiveColour, opacity, alphaRef, alphaMode, blend, vertexColour, twoSided,
-                textureTransform, run, flatten, layersMapped, animated, neverSolid, diffuseMean]
+            const auto& [kind, diffuse, emissive, emissiveUnit, environment, environmentColour, dark, darkUnit, normal,
+                specular, specularClassic, parallax, diffuseColour, emissiveColour, opacity, alphaTest, alphaMode,
+                blend, vertexColour, twoSided, textureTransform, run, flatten, layersMapped, animated, neverSolid,
+                diffuseMean]
                 = material;
 
             texture(diffuse);
@@ -113,6 +113,13 @@ namespace RtxTool
                 value(std::uint8_t{ 3 });
             if (parallax)
                 value(std::uint8_t{ 4 });
+            if (emissiveUnit != 0)
+            {
+                value(std::uint8_t{ 5 });
+                value(emissiveUnit);
+            }
+            if (specularClassic)
+                value(std::uint8_t{ 6 });
 
             layers(run);
 
@@ -122,7 +129,7 @@ namespace RtxTool
             value(diffuseColour);
             value(emissiveColour);
             value(opacity);
-            value(alphaRef);
+            value(alphaTest);
             value(alphaMode);
             value(blend);
             value(vertexColour);
@@ -134,7 +141,7 @@ namespace RtxTool
             value(diffuseMean);
         }
 
-        void addMaterial(Digest& digest, const Rtx::SceneDesc& scene, const Rtx::Index index)
+        void addMaterial(Rtx::HashState& digest, const Rtx::SceneDesc& scene, const Rtx::Index index)
         {
             digest.add(index == Rtx::sNoIndex);
             if (index == Rtx::sNoIndex)
@@ -197,16 +204,16 @@ namespace RtxTool
             return std::tie(kind, runs, influences, offsets, rows);
         }
 
-        void addFields(Digest& digest, const auto& fields)
+        void addFields(Rtx::HashState& digest, const auto& fields)
         {
             std::apply([&digest](const auto&... field) { (digest.add(field), ...); }, fields);
         }
 
         /// One table hashed where it lies.
         template <class T>
-        std::array<std::uint64_t, 2> wordsOf(const std::span<const T> table)
+        Rtx::DigestWords wordsOf(const std::span<const T> table)
         {
-            Digest whole;
+            Rtx::HashState whole;
             whole.add(table);
             return whole.getWords();
         }
@@ -215,7 +222,7 @@ namespace RtxTool
         /// is hashed as the one span it would be laid out flat, so its words are the flat table's;
         /// past one block the spans chain through the seed, which no flat hash can say.
         template <class T>
-        void addBlocks(Digest& digest, const Rtx::BlockedValues<T>& table)
+        void addBlocks(Rtx::HashState& digest, const Rtx::BlockedValues<T>& table)
         {
             if (table.size() == 0)
                 digest.add(std::span<const T>());
@@ -223,9 +230,9 @@ namespace RtxTool
         }
 
         template <class T>
-        std::array<std::uint64_t, 2> wordsOf(const Rtx::BlockedValues<T>& table)
+        Rtx::DigestWords wordsOf(const Rtx::BlockedValues<T>& table)
         {
-            Digest whole;
+            Rtx::HashState whole;
             addBlocks(whole, table);
             return whole.getWords();
         }
@@ -261,7 +268,7 @@ namespace RtxTool
             }
 
             /// The column's digest, over everything added.
-            std::array<std::uint64_t, 2> take() const { return wordsOf(std::span<const std::byte>(mScratch)); }
+            Rtx::DigestWords take() const { return wordsOf(std::span<const std::byte>(mScratch)); }
 
         private:
             std::vector<std::byte>& mScratch;
@@ -283,7 +290,7 @@ namespace RtxTool
             }
         };
 
-        void addCorner(Digest& digest, const Corner& corner)
+        void addCorner(Rtx::HashState& digest, const Corner& corner)
         {
             digest.add(corner.mPosition);
             digest.add(corner.mNormal);
@@ -315,7 +322,7 @@ namespace RtxTool
                 const std::size_t least
                     = static_cast<std::size_t>(std::min_element(corners.begin(), corners.end()) - corners.begin());
 
-                Digest triangle;
+                Rtx::HashState triangle;
                 for (std::size_t corner = 0; corner < 3; ++corner)
                     addCorner(triangle, corners[(least + corner) % 3]);
                 triangles.add(triangle);
@@ -324,7 +331,7 @@ namespace RtxTool
             return triangles;
         }
 
-        void addMesh(Digest& digest, const Rtx::SceneDesc& scene, const Rtx::Index index)
+        void addMesh(Rtx::HashState& digest, const Rtx::SceneDesc& scene, const Rtx::Index index)
         {
             const Rtx::MeshRange& mesh = scene.meshes().getRows()[index];
             digest.add(digestTriangles(scene, mesh).getWords());
@@ -332,7 +339,7 @@ namespace RtxTool
         }
     }
 
-    std::array<std::uint64_t, 2> digestScene(const Rtx::SceneDesc& scene)
+    Rtx::DigestWords digestScene(const Rtx::SceneDesc& scene)
     {
         Unordered whole;
 
@@ -342,7 +349,7 @@ namespace RtxTool
             if (instance.mMesh == Rtx::sNoIndex)
                 continue;
 
-            Digest placement;
+            Rtx::HashState placement;
             placement.add(std::span<const float>(instance.mTransform.ptr(), 16));
             placement.add(instance.mOpacity);
             placement.add(static_cast<std::uint32_t>(instance.mClass));
@@ -353,7 +360,7 @@ namespace RtxTool
 
         for (const Rtx::Light& light : scene.lights())
         {
-            Digest lamp;
+            Rtx::HashState lamp;
             lamp.add(light.mPosition);
             lamp.add(light.mIntensity);
             lamp.add(light.mReach);
@@ -362,7 +369,7 @@ namespace RtxTool
 
         for (const Rtx::SpriteEmitter& emitter : scene.emitters())
         {
-            Digest plume;
+            Rtx::HashState plume;
             plume.add(emitter.mCentre);
             plume.add(emitter.mReach);
             plume.add(emitter.isAdditive());
@@ -413,7 +420,7 @@ namespace RtxTool
 
         // **The tangents are the normals' part, and only where a mesh has any**, so a scene where
         // no vertex has one digests to the words on record, and a report keeps its columns.
-        Digest normals;
+        Rtx::HashState normals;
         addBlocks(normals, meshes.getNormals());
         bool tangents = false;
         meshes.getTangents().forEachBlock([&](const std::span<const std::uint32_t> block) {
@@ -423,7 +430,7 @@ namespace RtxTool
             addBlocks(normals, meshes.getTangents());
         take(ScenePart::Normals, normals.getWords());
 
-        Digest texCoords;
+        Rtx::HashState texCoords;
         addBlocks(texCoords, meshes.getTexCoords());
         addBlocks(texCoords, meshes.getSecondTexCoords());
         take(ScenePart::TexCoords, texCoords.getWords());
@@ -537,7 +544,7 @@ namespace RtxTool
         // Whole, because the block is scalar-packed on every side, which `visibility.h` pins.
         take(ScenePart::Frame,
             frame != nullptr ? wordsOf(std::span<const Rtx::Shaders::VisibilityConstants>(frame, 1))
-                             : std::array<std::uint64_t, 2>{});
+                             : Rtx::DigestWords{});
 
         return mParts;
     }
@@ -548,10 +555,10 @@ namespace RtxTool
         return once.digest(scene);
     }
 
-    std::array<std::uint64_t, 2> digestLayout(const ScenePartDigests& parts)
+    Rtx::DigestWords digestLayout(const ScenePartDigests& parts)
     {
-        Digest whole;
-        for (const std::array<std::uint64_t, 2>& part : parts)
+        Rtx::HashState whole;
+        for (const Rtx::DigestWords& part : parts)
             whole.add(part);
 
         return whole.getWords();

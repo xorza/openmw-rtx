@@ -235,6 +235,10 @@
         <translation></translation>
     </message>
     <message>
+        <source>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window&apos;s own size. In Windowed mode the window keeps the size you last dragged it to.</source>
+        <translation></translation>
+    </message>
+    <message>
         <source>Resolution</source>
         <translation></translation>
     </message>
@@ -263,7 +267,7 @@
         <translation></translation>
     </message>
     <message>
-        <source>How far below the window&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
+        <source>How far below the frame&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
         <translation></translation>
     </message>
     <message>

@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
-#include <stdexcept>
 #include <string>
 #include <thread>
 
@@ -31,6 +30,7 @@
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
 
 #include "glrenderer.hpp"
+#include "vismask.hpp"
 
 namespace MWRender
 {
@@ -212,6 +212,11 @@ namespace MWRender
         applyViewMask();
     }
 
+    unsigned int Renderer::worldViewMask() const
+    {
+        return mWorldToggled ? mViewMask : mViewMask & ~sToggleWorldMask;
+    }
+
     void Renderer::showWorld(const bool shown)
     {
         // Asked every frame by the window manager, and answered on the change alone.
@@ -220,6 +225,19 @@ namespace MWRender
 
         mWorldShown = shown;
         applyWorldShown();
+    }
+
+    void Renderer::processChangedSettings(const Settings::CategorySettingVector& changed)
+    {
+        // A set and not a span, because the renderers ask it by key. Rebuilt per change, which is
+        // a player choosing from a menu and not a frame.
+        Settings::CategorySettingVector honoured;
+        for (const Settings::CategorySetting& setting : changed)
+            if (support().declinedSetting(setting.first, setting.second).empty())
+                honoured.insert(setting);
+
+        if (!honoured.empty())
+            applyChangedSettings(honoured);
     }
 
     bool Renderer::toggleRenderMode(const RenderMode mode)
@@ -238,18 +256,28 @@ namespace MWRender
         adoptTraversalRoot(root);
     }
 
-    std::unique_ptr<Renderer> createRenderer(std::string_view name, const RendererSpec& spec)
+    std::string_view nameOf(const RendererKind kind)
     {
-        if (name == "opengl")
-            return std::make_unique<GlRenderer>(spec);
+        switch (kind)
+        {
+            case RendererKind::OpenGl:
+                return "opengl";
+            case RendererKind::RayTraced:
+                return "raytrace";
+        }
+        Crash::fatal("a renderer kind past the two");
+    }
 
-        if (name == "raytrace")
-            return std::make_unique<RtxRenderer>(spec);
-
-        // **Named rather than fallen back from.** A renderer that quietly became a different one
-        // answers "why does it look like that" with silence, and a name no renderer has is a
-        // configuration mistake rather than a runtime condition.
-        throw std::runtime_error("there is no renderer named \"" + std::string(name) + '"');
+    std::unique_ptr<Renderer> createRenderer(const RendererKind kind, const RendererSpec& spec)
+    {
+        switch (kind)
+        {
+            case RendererKind::OpenGl:
+                return std::make_unique<GlRenderer>(spec);
+            case RendererKind::RayTraced:
+                return std::make_unique<RtxRenderer>(spec);
+        }
+        Crash::fatal("a renderer kind past the two");
     }
 
     SDL_Window* openWindow(const SDL_WindowFlags surfaceFlag)

@@ -16,6 +16,7 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/descriptorsets.hpp>
@@ -114,8 +115,8 @@ namespace Rtx
         /// binds it through.
         TextureWrap getWrap() const { return mWrap; }
 
-        /// The size of the data uploaded, the companion's included, which for a block-compressed image
-        /// is what it occupies.
+        /// What the texture keeps on the device, its companion included: `TextureCost::standing`
+        /// of what it was made as.
         VkDeviceSize getBytes() const { return mBytes; }
 
     private:
@@ -228,6 +229,10 @@ namespace Rtx
         /// it, with `TEXTURE_STANDS_IN` over the count where they are the stand-in's.
         std::uint32_t getTexels(std::uint32_t slot) const { return mTexels.getRows()[slot]; }
 
+        /// How many texels across and down stand in `slot` — the stand-in's where it draws the
+        /// stand-in, and nought where it holds nothing.
+        Shaders::uvec2 getExtent(std::uint32_t slot) const;
+
         /// What the array actually stands. A slot the scene gave back holds nothing and costs
         /// nothing, and neither is counted here.
         TexturesHeld getHeld() const;
@@ -266,10 +271,10 @@ namespace Rtx
         /// What `slot` is sampled through: its texture, or the stand-in.
         const Texture& standingIn(const Slot& slot) const { return slot.mStandIn ? mStandIn : slot.mTexture; }
 
-        /// What `arrived` would take of the device held to `side`: the bytes uploaded and the
-        /// chains and maps the device makes beside them, the ground's composites only where
-        /// `ground` says. The resources' own bytes, which the allocator rounds up a little, and the
-        /// reason `write` still comes down level by level.
+        /// What `arrived` would take of the device held to `side`, at the most while it is made:
+        /// each texture's `TextureCost::total`, the ground's composites only where `ground` says.
+        /// The resources' own bytes, which the allocator rounds up a little, and the reason
+        /// `write` still comes down level by level.
         VkDeviceSize costAt(std::span<const TextureData> arrived, std::uint32_t side, bool ground) const;
 
         /// Stands what `texture` is made as in `into`, held to `side`, or says why the device had no

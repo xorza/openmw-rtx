@@ -4,12 +4,6 @@
 #include <cstdint>
 
 #include "texturedata.hpp"
-#include "textureencoding.hpp"
-
-namespace osg
-{
-    class Image;
-}
 
 namespace Rtx
 {
@@ -33,10 +27,11 @@ namespace Rtx
         /// next step is to look this one up.
         std::uint32_t mUnnamed = 0;
 
-        /// Counts `image` under its format as `encoding`, and its mips beside it.
-        void count(const osg::Image& image, TextureEncoding encoding);
+        /// Counts a texture of `format`, and whether it brought mips.
+        /// @param pixelFormat the image's own, which `mUnnamed` keeps for an unnamed format.
+        void count(TextureFormat format, bool mipped, std::uint32_t pixelFormat);
 
-        /// Takes back what `count` added for the same image and encoding.
-        void discount(const osg::Image& image, TextureEncoding encoding);
+        /// Takes back what `count` added for the same format and mips.
+        void discount(TextureFormat format, bool mipped);
     };
 }

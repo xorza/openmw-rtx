@@ -9,6 +9,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <components/rtx/shaders/probe.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
@@ -22,8 +23,8 @@ namespace Rtx
     {
         /// Where each invocation writes what its launch index was.
         constexpr std::array<VkDescriptorSetLayoutBinding, 1> sBindings{
-            VkDescriptorSetLayoutBinding{
-                0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::PROBE_BIND_LAUNCHED, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                VK_SHADER_STAGE_RAYGEN_BIT_KHR, nullptr },
         };
 
         /// A grid that is neither square nor a multiple of a warp, so a launch that rounded its
@@ -68,7 +69,7 @@ namespace Rtx
             std::memset(written.map(), 0xFF, sCount * sizeof(Launched));
 
             DescriptorWrites write(pipeline);
-            write.buffer(0, VkDescriptorBufferInfo{ written.getHandle(), 0, VK_WHOLE_SIZE });
+            write.buffer(Shaders::PROBE_BIND_LAUNCHED, VkDescriptorBufferInfo{ written.getHandle(), 0, VK_WHOLE_SIZE });
 
             EXPECT_EQ(pipeline.getTable().getNamedUntil(), 0u) << "the table was named before any launch";
             getPool().submitAndWait([&](VkCommandBuffer commands) {

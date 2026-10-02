@@ -1,6 +1,7 @@
 #pragma once
 
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/scene/specularlayout.hpp>
 
 namespace osg
 {
@@ -46,6 +47,9 @@ namespace Rtx
 
         /// The scene every adoption lands in.
         virtual SceneDesc& getScene() = 0;
+
+        /// What the content's `_spec` maps mean on the adopter's thread — `WalkContext::mSpecular`.
+        virtual SpecularLayout getSpecularLayout() const = 0;
 
         /// The counts of the walk in progress. Only inside a walk, which is the only time a
         /// residency stands anything to count.

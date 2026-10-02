@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <osg/Matrix>
@@ -11,9 +12,8 @@
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/mirror/nodekind.hpp>
 #include <components/rtx/mirror/shading.hpp>
-#include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
-#include <components/rtx/preprocess/meantexels.hpp>
+#include <components/rtx/preprocess/threadcontent.hpp>
 
 #include "nightday.hpp"
 
@@ -44,16 +44,16 @@ namespace Rtx
         TemplateWalk();
 
         /// Walks `root` and appends one part to `into` for every drawable under it that holds a
-        /// triangle, with its arrays appended to the model's buffers. An error for the first
-        /// drawable this cannot take, saying why, which refuses the model whole; what `into` holds
-        /// then is its caller's to drop.
+        /// triangle, with its arrays appended to the model's buffers. A drawable this cannot take
+        /// is left out and the model stands without it, as the frame's walk stands a model without
+        /// a drawable it refuses; the first one's reason is `PreparedModel::mRefused`.
         ///
         /// @param mask which nodes the walk may descend into — the same `osg` traversal mask the
         ///        frame's walk carries, so the two reach the same drawables.
-        Misc::Result<void, std::string> read(const osg::Node& root, osg::Node::NodeMask mask, PreparedModel& into);
+        void read(const osg::Node& root, osg::Node::NodeMask mask, PreparedModel& into);
 
         /// What the reads computed from the content since the last take — `ContentPreprocessor`.
-        ContentStats takeStats() { return mContent.takeStats(); }
+        ContentStats takeStats() { return mContent.mPreprocessor.takeStats(); }
 
         void apply(osg::Node& node) override;
         void apply(osg::Transform& node) override;
@@ -73,9 +73,9 @@ namespace Rtx
 
         PreparedModel* mInto = nullptr;
 
-        ContentPreprocessor mContent;
-        MeshReader mMeshes{ mContent };
-        MeanTexels mMeans{ mContent };
+        /// What this thread computes from the content, as the frame thread's walks hold theirs.
+        ThreadContent mContent;
+        MeshReader mMeshes{ mContent.mPreprocessor };
 
         /// This thread's own classifier: `NodeKinds` is written on a miss.
         NodeKinds mKinds;
@@ -92,7 +92,7 @@ namespace Rtx
         /// refilled, because a model is hundreds of drawables and the thread reads thousands.
         std::vector<Shading> mShading;
 
-        /// Why the first drawable this walk could not take was refused, or empty.
-        std::string mRefused;
+        /// Notes why a drawable is left out, the first time the model leaves one.
+        void refuse(std::string_view why);
     };
 }

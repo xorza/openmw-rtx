@@ -71,6 +71,7 @@ bool parseOptions(int argc, char** argv, OMW::Engine& engine, Files::Configurati
     cfgMgr.readConfiguration(variables, desc);
 
     Debug::setupLogging(cfgMgr.getLogPath(), "OpenMW");
+    Debug::setCrashReports(cfgMgr.getUserDataPath());
     Log(Debug::Info) << Version::getOpenmwVersionDescription();
     Crash::annotate("version", Version::getOpenmwVersionDescription());
 

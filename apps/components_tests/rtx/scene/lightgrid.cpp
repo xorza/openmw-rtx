@@ -25,7 +25,7 @@ namespace Rtx
         std::vector<std::uint32_t> lampsIn(const LightGrid& grid, std::uint32_t x, std::uint32_t y, std::uint32_t z)
         {
             const std::uint32_t flat = (z * grid.getSize().y() + y) * grid.getSize().x() + x;
-            const std::span<const std::uint32_t> run = grid.getList().getRun(flat);
+            const std::span<const std::uint32_t> run = grid.getList().getRun(2 * flat);
 
             return std::vector<std::uint32_t>(run.begin(), run.end());
         }
@@ -61,22 +61,32 @@ namespace Rtx
             // A prefix sum with a trailing sentinel: the first run starts where the head ends, the
             // starts never go backwards, and the last one is where the list ends, so the last cell
             // needs no special case. Read as the device reads it, whole.
+            // Two keys a cell, its lamps and its lamps that take light away, so 34 starts and one.
             const std::span<const std::uint32_t> list = grid.getList().getWhole();
-            ASSERT_EQ(list.size(), 18u + 2u) << "one start per cell and one more, then the two entries";
-            EXPECT_EQ(list[0], 18u);
-            EXPECT_TRUE(std::is_sorted(list.begin(), list.begin() + 18));
-            EXPECT_EQ(list[17], list.size());
+            ASSERT_EQ(list.size(), 35u + 2u) << "one start per key and one more, then the two entries";
+            EXPECT_EQ(list[0], 35u);
+            EXPECT_TRUE(std::is_sorted(list.begin(), list.begin() + 35));
+            EXPECT_EQ(list[34], list.size());
         }
 
         /// Every lamp that reaches a cell is in it, in the order they were given.
         TEST(RtxLightGridTest, aCellHoldsEveryLampThatReachesIt)
         {
             // Reaches of 60 about 0 and 100 span -60 to 160, which is inside one cell of 256.
-            const std::array lights{ lampAt(0.0f, 60.0f), lampAt(100.0f, 60.0f) };
-            const LightGrid grid(lights);
+            std::array lights{ lampAt(0.0f, 60.0f), lampAt(50.0f, 60.0f), lampAt(100.0f, 60.0f) };
+            LightGrid grid(lights);
 
-            ASSERT_EQ(grid.getSize(), osg::Vec3ui(1u, 1u, 1u)) << "one cell holds both reaches";
-            EXPECT_EQ(lampsIn(grid, 0, 0, 0), (std::vector<std::uint32_t>{ 0u, 1u }));
+            ASSERT_EQ(grid.getSize(), osg::Vec3ui(1u, 1u, 1u)) << "one cell holds every reach";
+            EXPECT_EQ(lampsIn(grid, 0, 0, 0), (std::vector<std::uint32_t>{ 0u, 1u, 2u }));
+
+            // **A lamp that takes light away is a run of its own**, keyed after its cell's, so no
+            // walk of the lamps meets it — and one that turns into one is binned again where it
+            // stands.
+            lights[1].mIntensity = osg::Vec3f(-1.0f, -1.0f, -1.0f);
+            grid.rebuild(lights);
+            EXPECT_EQ(lampsIn(grid, 0, 0, 0), (std::vector<std::uint32_t>{ 0u, 2u }));
+            const std::span<const std::uint32_t> taking = grid.getList().getRun(1);
+            EXPECT_EQ(std::vector<std::uint32_t>(taking.begin(), taking.end()), std::vector<std::uint32_t>{ 1u });
         }
 
         /// An empty scene is a grid nothing can be found in, and asking is still legal.
@@ -90,9 +100,10 @@ namespace Rtx
             EXPECT_EQ(grid.getList().getEntryCount(), 0u);
 
             const std::span<const std::uint32_t> list = grid.getList().getWhole();
-            ASSERT_EQ(list.size(), 2u) << "the one cell's start and the sentinel, and no run";
-            EXPECT_EQ(list[0], 2u);
-            EXPECT_EQ(list[1], 2u);
+            ASSERT_EQ(list.size(), 3u) << "the one cell's two starts and the sentinel, and no run";
+            EXPECT_EQ(list[0], 3u);
+            EXPECT_EQ(list[1], 3u);
+            EXPECT_EQ(list[2], 3u);
         }
 
         /// The cell doubles until the grid fits, and there are two budgets to fit — or until the grid

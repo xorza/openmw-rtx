@@ -12,13 +12,13 @@
 
 #include <osg/Matrixf>
 #include <osg/Node>
-#include <osg/Quat>
 #include <osg/Transform>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
+#include <components/misc/convert.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/image/texels.hpp>
@@ -38,13 +38,11 @@ namespace Rtx
     {
         osg::Matrixf transformOf(const Terrain::PagedCellRef& ref)
         {
-            const osg::Quat attitude = osg::Quat(ref.mRotation.z(), osg::Vec3f(0.0f, 0.0f, -1.0f))
-                * osg::Quat(ref.mRotation.y(), osg::Vec3f(0.0f, -1.0f, 0.0f))
-                * osg::Quat(ref.mRotation.x(), osg::Vec3f(-1.0f, 0.0f, 0.0f));
+            const float rotation[3] = { ref.mRotation.x(), ref.mRotation.y(), ref.mRotation.z() };
 
             osg::Matrixf transform;
             transform.preMultTranslate(ref.mPosition);
-            transform.preMultRotate(attitude);
+            transform.preMultRotate(Misc::Convert::makeOsgQuat(rotation));
             transform.preMultScale(osg::Vec3f(ref.mScale, ref.mScale, ref.mScale));
 
             return transform;
@@ -121,15 +119,13 @@ namespace Rtx
             // load for every template the game hands out, so this is a read.
             into.mRadius = node->getBound().radius();
 
-            // What the walk had read before it met what it cannot take goes, and the reason stays.
             // The loader answers a file it cannot read with the error marker, which reads.
-            const Misc::Result<void, std::string> walked = mWalk.read(*node, mMask, into);
-            if (!walked.isOk())
-            {
-                into.reuse();
-                into.mPath.assign(path.value());
-                into.mRefused.assign(walked.error());
-            }
+            mWalk.read(*node, mMask, into);
+
+            // A model with nothing left to stand holds no template: it is filed by its path so that
+            // the next reference to it is not walked again, and nothing reads the graph of it.
+            if (into.mParts.empty())
+                into.mTemplate = nullptr;
         });
 
         [[maybe_unused]] const bool fresh = mModelsByPath.insert(&model).second;
@@ -262,11 +258,8 @@ namespace Rtx
             return;
 
         if (!read->mRefused.empty())
-        {
             prepared.mRefusals.push_back(
                 Refusal{ .mKind = Refused::Model, .mName = read->mPath, .mWhy = read->mRefused });
-            return;
-        }
 
         if (read->mParts.empty())
             return;

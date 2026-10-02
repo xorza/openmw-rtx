@@ -1,6 +1,7 @@
 #ifndef OPENMW_COMPONENTS_RTX_SHADERS_ACCUMULATE_H
 #define OPENMW_COMPONENTS_RTX_SHADERS_ACCUMULATE_H
 
+#include "atrous.h"
 #include "camera.h"
 #include "hosttypes.h"
 #include "look.h"
@@ -18,24 +19,22 @@
 // the evidence for the history's width lying somewhere else entirely. The paragraph below is that
 // evidence.
 //
-// **Half floats for the mean and the surface, because neither builds a reference.** What holds the
-// radiance channels at full width is an argument about rounding a term before adding it to a
-// thousand others. A normal is compared against a neighbour's, and a mean is a running value
-// replaced every frame rather than a thousand terms added into one, and no pixel of the bounce
-// comes near the 65504 a half holds.
+// **Half floats for the surface, because it builds no reference.** What holds the radiance channels
+// at full width is an argument about rounding a term before adding it to a thousand others, and a
+// normal is compared against a neighbour's.
 //
-// **What the mean pays for it is a floor on how slowly it may move.** The average is exponential
-// with `alpha = 1 / ACCUMULATE_FRAMES`, so a frame moves the stored value by a sixteenth of the
-// difference — and where that sixteenth falls under half a quantisation step it rounds back to where
-// it was. A half's step is between 2^-12 and 2^-11 of the value, so the average stalls on
-// differences under 0.4 to 0.8 per cent of it, which the cascade's error against a converged
-// reference does not show; `filter.cpp` carries the pair.
+// **Full floats for the mean**, which is the cascade's first level (`atrous.h` says why): a running
+// value a half store would round toward nought at every frame.
 //
 // **And the moments stay full floats whatever the other two do.** `E[l²] - E[l]²` is a difference of
 // two numbers that are nearly equal once a pixel has settled, and a format that rounds each of them
 // separately loses the whole of what is left.
 
-#define ACCUMULATE_COLOUR STORAGE_RGBA16F
+// **The mean is the cascade's format, by definition and not by agreement**: the cascade's first
+// level writes the mean through the one declaration every level writes through, `ATROUS_CHANNEL`,
+// and a qualifier that differs from the image's format is undefined values over the whole image.
+
+#define ACCUMULATE_COLOUR ATROUS_CHANNEL
 #define ACCUMULATE_SURFACE STORAGE_RGBA16F
 #define ACCUMULATE_MOMENTS STORAGE_RGBA32F
 
@@ -67,10 +66,11 @@ namespace Rtx::Shaders
     /// because all three are filled from one frame by one rule.
     struct HistoryConstants
     {
-        /// The camera the frame was traced with. **The jitter is why this is here**: the motion
-        /// vector is written against the jittered pixel centre the ray was actually aimed at, so
-        /// undoing it needs the same offset added back.
-        Camera mCamera;
+        /// The eyes the frame was traced with. **The jitter is why this is here**: the motion vector
+        /// is written against the jittered pixel centre the ray was actually aimed at, so undoing
+        /// it needs the same offset added back; the arms' eye, for the glossy filter, which keeps
+        /// this history too and rebuilds a pixel's ray through the eye that cast it.
+        Eyes mEyes;
 
         /// Non-zero where there is no history to reuse — the first frame, a resize, a door walked
         /// through. Every pixel then starts its count again.
@@ -90,7 +90,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(HistoryConstants) == 68, "HistoryConstants must be scalar-packed on every side");
+    static_assert(sizeof(HistoryConstants) == 144, "HistoryConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

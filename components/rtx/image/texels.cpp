@@ -23,34 +23,47 @@ namespace Rtx
         osg::Vec3f looseTexel(const TextureData& texture, const MipLevel& level, const TexelLayout& layout,
             const std::uint32_t x, const std::uint32_t y)
         {
-            assert(layout.mBytes == 4 && "a loose texel read as four bytes that is not");
-            const std::size_t at = level.mOffset + (std::size_t{ y } * level.mWidth + x) * layout.mBytes;
-            const auto channel = [&](std::size_t offset) {
-                return std::to_integer<std::uint32_t>(texture.mBytes[at + offset]) / 255.0f;
-            };
-
-            // The two loose spellings differ only in which end the three colours are stated from,
-            // and a reader that took one order for both draws the sky with its red and blue swapped.
-            if (isBgr(texture.mFormat))
-                return osg::Vec3f(channel(2), channel(1), channel(0));
-
-            return osg::Vec3f(channel(0), channel(1), channel(2));
+            return looseColourAt(texture, level.texelOffset(x, y, layout.mBytes));
         }
 
-        /// The block at `column` and `band`, counted in blocks. Its colour half is the last eight bytes
-        /// whichever format it is: BC2 and BC3 put their alpha in front of it and BC1 has none.
+        /// The block at `column` and `band`, counted in blocks.
         ColourBlock colourBlockAt(const TextureData& texture, const MipLevel& level, const TexelLayout& layout,
             const std::uint32_t column, const std::uint32_t band)
         {
-            const std::uint32_t columns = (level.mWidth + 3) / 4;
-            const std::size_t at
-                = level.mOffset + (std::size_t{ band } * columns + column) * layout.mBytes + (layout.mBytes - 8);
-            return ColourBlock::read(texture.mBytes.subspan(at).first<8>(), isBc1(texture.mFormat));
+            return ColourBlock::read(
+                colourHalfAt(texture.mBytes, level.blockOffset(column, band, layout.mBytes), layout),
+                isBc1(texture.mFormat));
         }
+    }
+
+    std::span<const std::byte, 8> colourHalfAt(
+        const std::span<const std::byte> bytes, const std::size_t block, const TexelLayout& layout)
+    {
+        return bytes.subspan(block + (layout.mBytes - 8)).first<8>();
+    }
+
+    osg::Vec3f looseColourAt(const TextureData& texture, const std::size_t at)
+    {
+        assert(layoutOf(texture.mFormat).mBytes == 4 && "a loose texel read as four bytes that is not");
+        const auto channel
+            = [&](std::size_t offset) { return std::to_integer<std::uint32_t>(texture.mBytes[at + offset]) / 255.0f; };
+
+        // The two loose spellings differ only in which end the three colours are stated from.
+        if (isBgr(texture.mFormat))
+            return osg::Vec3f(channel(2), channel(1), channel(0));
+
+        return osg::Vec3f(channel(0), channel(1), channel(2));
+    }
+
+    bool readsColour(const TextureData& texture)
+    {
+        return !texture.mBytes.empty() && !texture.mLevels.empty() && isUploadable(texture.mFormat)
+            && texture.mFormat != TextureFormat::Bc5Unorm;
     }
 
     osg::Vec3f texelAt(const TextureData& texture, const MipLevel& level, std::uint32_t x, std::uint32_t y)
     {
+        assert(readsColour(texture) && "a texel read of a texture with no colour to read");
         assert(x < level.mWidth && y < level.mHeight);
 
         const TexelLayout layout = layoutOf(texture.mFormat);
@@ -64,6 +77,7 @@ namespace Rtx
     void readTexelBand(
         const TextureData& texture, const MipLevel& level, const std::uint32_t band, std::vector<osg::Vec3f>& into)
     {
+        assert(readsColour(texture) && "a band read of a texture with no colour to read");
         const std::uint32_t first = band * 4;
         assert(first < level.mHeight && "a band below the level");
         const std::uint32_t rows = std::min(level.mHeight - first, 4u);
@@ -194,6 +208,8 @@ namespace Rtx
                 if (!bytes)
                     return TextureFormat::Unnamed;
                 return colour ? TextureFormat::Bgra8Srgb : TextureFormat::Bgra8Unorm;
+            case GL_BGR:
+                return bytes ? TextureFormat::Bgr8 : TextureFormat::Unnamed;
             case GL_LUMINANCE:
                 return bytes ? TextureFormat::Luminance : TextureFormat::Unnamed;
             case GL_LUMINANCE_ALPHA:
@@ -222,6 +238,8 @@ namespace Rtx
                 return "RGBA8 (linear)";
             case TextureFormat::Rgb8:
                 return "RGB8";
+            case TextureFormat::Bgr8:
+                return "BGR8";
             case TextureFormat::Rgba8Srgb:
                 return "RGBA8";
             case TextureFormat::Bgra8Srgb:

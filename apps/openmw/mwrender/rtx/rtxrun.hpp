@@ -21,12 +21,8 @@ namespace MWRender
     /// both hosts by being here.
     struct RunSetup
     {
-        /// The knobs the frames are traced under, every one of them stated.
-        Rtx::RenderProfile mProfile;
-
-        /// Which validation layers the run asked for. Carried here and never in a settings file,
-        /// for the reason `sValidationByDefault` gives.
-        Rtx::ValidationOptions mValidation{};
+        /// The profile, the layers and the budget, which the renderer hands the backend whole.
+        Rtx::RunProfile mRun;
 
         /// How much world the mirror builds and what of it, as the run decided: the harness from
         /// its command line, a played session from `[RTX] distant land cells` and the paging's
@@ -43,23 +39,10 @@ namespace MWRender
         /// which no switch of the HUD's reaches.
         bool mInterface = true;
 
-        /// How long every frame stands for, in seconds, or nothing to time each one off the wall.
-        /// Everything the world animates steps by it, so ten seconds of world is six hundred frames
-        /// on every machine, and two runs of one build are the same run — which is what every run
-        /// that measures or writes a picture wants. A window somebody watches wants the wall, as
-        /// the played game has it, or the world runs as fast as the card draws. A run's and never
-        /// a setting's: a file that could state a step once turned a played game into a
-        /// fixed-step run for good.
-        std::optional<float> mStep;
-
-        /// Whether each walk waits for the cell it adopts, or nothing to let `mStep` decide: a
-        /// stated step waits. Settled is what makes two processes draw one picture; a run timing the
-        /// streaming path says no (`Rtx::CellRing::setSettled`).
+        /// Whether each walk waits for the cell it adopts, or nothing to let the frame clock's stated
+        /// step decide (`Misc::FrameClock::getStatedStep`): a stated step waits. Settled is what makes two processes
+        /// draw one picture; a run timing the streaming path says no (`Rtx::CellRing::setSettled`).
         std::optional<bool> mSettled{};
-
-        /// `RendererOptions::mMemoryBudget`: the harness's, for a run that asks what a smaller
-        /// card does, and never a played session's.
-        std::optional<std::uint64_t> mMemoryBudget{};
 
         /// Whether the renderer reads its shaders with their source in them, for a profiler that
         /// shows a shader's lines (`Rtx::shaderDirectory`). The harness's, and never a played

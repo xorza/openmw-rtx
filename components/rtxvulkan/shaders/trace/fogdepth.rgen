@@ -59,7 +59,7 @@ void main()
     // air ends, and what the eye cannot meet does not end it. Not the arms: they stand a few units
     // off, on a ray of their own eye's, and the trace reads the air short of them off the froxels
     // in front, which a column that runs on to the wall behind holds just the same.
-    const Cone cone = coneAt(frame.mCamera);
+    const Cone cone = coneAt(frame.mEyes.mWorld);
     const float surface = surfaceWithin(
         WorldRay(origin, ray.mDirection), 0.0, frame.mFar, cone, RayRule(worldMask(frame.mRayMask), true, true));
 

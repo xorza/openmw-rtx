@@ -17,18 +17,13 @@
 #include "variants.glsl"
 
 /// The lobe's two integrals at a cosine to the eye and a perceptual roughness: the table's four
-/// nodes around the point blended, in the square root of the cosine — `Rtx::SpecularAlbedo::at`,
-/// which the tests hold this to.
+/// nodes around the point blended by `brdf.h`'s lookup, which `Rtx::SpecularAlbedo::at` reads too.
 vec2 specularAlbedoAt(float cosine, float roughness)
 {
-    const vec2 node = vec2(specularTableColumn(cosine), specularTableRow(roughness));
-    const uvec2 low = uvec2(node);
-    const uvec2 high = min(low + 1u, uvec2(SPECULAR_TABLE_SIZE - 1u));
-    const vec2 part = node - vec2(low);
-
-    return (specularAlbedoCell(low.x, low.y) * (1.0 - part.x) + specularAlbedoCell(high.x, low.y) * part.x)
-        * (1.0 - part.y)
-        + (specularAlbedoCell(low.x, high.y) * (1.0 - part.x) + specularAlbedoCell(high.x, high.y) * part.x) * part.y;
+    const SpecularTableTaps taps = specularTableTaps(cosine, roughness);
+    return specularTableBlend(taps, specularAlbedoCell(taps.mLeft, taps.mTop),
+        specularAlbedoCell(taps.mRight, taps.mTop), specularAlbedoCell(taps.mLeft, taps.mBottom),
+        specularAlbedoCell(taps.mRight, taps.mBottom));
 }
 
 /// What a glossy surface is to every light it is lit by, worked out once per surface: the lobe
@@ -83,7 +78,7 @@ Gloss glossOf(Surface surface)
     gloss.mAlbedo = vec3(0.0);
     gloss.mDiffuse = surface.mAlbedo;
 
-    if (!HAS_MAPS || !(max(max(surface.mSpecular.r, surface.mSpecular.g), surface.mSpecular.b) > 0.0))
+    if (!HAS_MAPS || !(brightest(surface.mSpecular) > 0.0))
         return gloss;
 
     gloss.mNormal = facingRay(surface.mNormal, surface.mGeometric, surface.mIncident);
@@ -156,8 +151,9 @@ struct LobeSample
 /// @param draw two numbers in `[0, 1)`: the facet's height on the cap, then its azimuth.
 LobeSample lobeSample(Gloss gloss, vec2 draw)
 {
-    const vec3 tangent = tangentTo(gloss.mNormal);
-    const vec3 bitangent = cross(gloss.mNormal, tangent);
+    const TangentFrame around = frameAbout(gloss.mNormal);
+    const vec3 tangent = around.mTangent;
+    const vec3 bitangent = around.mBitangent;
     const vec3 eye = vec3(dot(gloss.mToEye, tangent), dot(gloss.mToEye, bitangent), gloss.mToEyeCosine);
 
     const float turn = TAU * draw.y;

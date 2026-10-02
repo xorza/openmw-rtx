@@ -1,8 +1,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <charconv>
-#include <cmath>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
@@ -24,7 +23,10 @@
 #include <osg/Vec3f>
 
 #include <apps/openmw/mwrender/rtx/rtxsettings.hpp>
+#include <components/crashcatcher/crash.hpp>
+#include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
@@ -43,6 +45,7 @@
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/settings.hpp>
 #include <components/settings/values.hpp>
+#include <components/version/version.hpp>
 
 #include "compare.hpp"
 #include "film.hpp"
@@ -51,6 +54,7 @@
 #include "model/benchrun.hpp"
 #include "model/benchspec.hpp"
 #include "model/blockfile.hpp"
+#include "model/wholenumber.hpp"
 #include "options.hpp"
 #include "run.hpp"
 #include "verbs.hpp"
@@ -62,6 +66,21 @@ namespace RtxTool
         namespace bpo = boost::program_options;
 
         constexpr std::string_view applicationName = "RtxTool";
+
+        /// Opens the log, loads the settings and hands the crash catcher what it reads of both: the
+        /// version every report carries and how long without a frame is a hang. The game's own
+        /// sequence, `parseOptions` in `apps/openmw/main.cpp`, restated, so a hang in the harness is
+        /// reported as one in the game is.
+        void startLogAndSettings(const Files::ConfigurationManager& config)
+        {
+            Debug::setupLogging(config.getLogPath(), applicationName);
+            Debug::setCrashReports(config.getUserDataPath());
+            Log(Debug::Info) << Version::getOpenmwVersionDescription();
+            Crash::annotate("version", Version::getOpenmwVersionDescription());
+
+            Settings::Manager::load(config);
+            Crash::setHangLimit(std::chrono::seconds(Settings::general().mCrashHangSeconds));
+        }
 
         /// Which layers a run wants, from what the command line asked for.
         ///
@@ -101,30 +120,28 @@ namespace RtxTool
         Size parseSize(std::string_view text)
         {
             const std::size_t cross = text.find('x');
-            std::uint32_t width = 0;
-            std::uint32_t height = 0;
+            const std::optional<std::uint32_t> width
+                = cross != std::string_view::npos ? wholeNumber<std::uint32_t>(text.substr(0, cross)) : std::nullopt;
+            const std::optional<std::uint32_t> height
+                = cross != std::string_view::npos ? wholeNumber<std::uint32_t>(text.substr(cross + 1)) : std::nullopt;
 
-            const bool ok = cross != std::string_view::npos
-                && std::from_chars(text.data(), text.data() + cross, width).ec == std::errc()
-                && std::from_chars(text.data() + cross + 1, text.data() + text.size(), height).ec == std::errc();
-
-            if (!ok || width == 0 || height == 0)
+            if (!width.has_value() || !height.has_value() || *width == 0 || *height == 0)
                 throw std::runtime_error("not a size: " + std::string(text));
 
-            return Size{ .mWidth = width, .mHeight = height };
+            return Size{ .mWidth = *width, .mHeight = *height };
         }
 
         /// What `--exposure` asked for: a number to hold it at, or nothing to measure it.
-        std::optional<float> parseExposure(std::string_view text)
+        Rtx::ExposureRule parseExposure(std::string_view text)
         {
             if (text == "auto")
-                return std::nullopt;
+                return Rtx::MeasuredExposure{};
 
             const std::optional<float> value = parseFloat(text);
             if (!value.has_value() || !(*value > 0.0f))
                 throw std::runtime_error("not an exposure: " + std::string(text));
 
-            return value;
+            return Rtx::FixedExposure{ *value };
         }
 
         /// The layers a run that will be measured or compared gets, which is none unless it asked.
@@ -153,23 +170,33 @@ namespace RtxTool
             return hour;
         }
 
-        /// Refuses a weather the line names that is none of the ten, with the option that named it.
-        void refuseUnlessWeather(const std::string_view option, const std::string_view weather)
+        /// The weather the line names, as `Rtx::weatherIndex` numbers it, read as a view file's is;
+        /// refused with the option that named it where it is none of the ten.
+        std::uint32_t weatherNamed(const std::string_view option, const std::string_view weather)
         {
-            if (const Misc::Result<void, std::string_view> checked = checkWeather(weather); !checked.isOk())
+            const std::optional<std::uint32_t> named = Rtx::weatherIndex(weather);
+            if (!named.has_value())
                 throw std::runtime_error(
-                    std::format("--{}: \"{}\" {}: {}", option, weather, checked.error(), listWeathers()));
+                    std::format("--{}: \"{}\" {}: {}", option, weather, checkWeather(weather).error(), listWeathers()));
+            return *named;
+        }
+
+        /// What `--turn-weather` named, in its order.
+        std::vector<std::uint32_t> weathersToTurn(const bpo::variables_map& variables)
+        {
+            std::vector<std::uint32_t> turn;
+            for (const std::string& weather : splitNames(variables["turn-weather"].as<std::string>()))
+                turn.push_back(weatherNamed("turn-weather", weather));
+            return turn;
         }
 
         /// What `--weather` named, or nothing where it was left at its default.
-        std::optional<std::string> weatherGiven(const bpo::variables_map& variables)
+        std::optional<std::uint32_t> weatherGiven(const bpo::variables_map& variables)
         {
             if (variables["weather"].defaulted())
                 return std::nullopt;
 
-            const std::string& weather = variables["weather"].as<std::string>();
-            refuseUnlessWeather("weather", weather);
-            return weather;
+            return weatherNamed("weather", variables["weather"].as<std::string>());
         }
 
         /// What `--air` named, or nothing where the line names none. Text that names no air is
@@ -287,7 +314,8 @@ namespace RtxTool
             framed.mWindow.mWidth = size.mWidth;
             framed.mWindow.mHeight = size.mHeight;
             framed.mWindow.mFieldOfView = variables["fov"].as<float>();
-            framed.mWindow.mVerticalSync = watched ? Settings::video().mVsyncMode.get() : SDLUtil::VSyncMode::Disabled;
+            if (watched)
+                framed.mWindow.keepPlayersPacing();
             framed.mDay = variables["day"].as<int>();
             if (const Misc::Result<void, std::string_view> checked = checkDay(framed.mDay); !checked.isOk())
                 throw std::runtime_error(std::format("--day={} {}", framed.mDay, checked.error()));
@@ -297,46 +325,53 @@ namespace RtxTool
 
             // **The settings the ray tracer reads, from the harness's own sources and through the
             // game's one derivation.** Given on the line, the line's; a window's, the player's; a
-            // measured run's, the file's default — but for the upscaler, whose default for a run is
-            // the harness's own (`sUpscaleByDefault`). The size rule's constant is the player's own, since no
-            // option names it, and the viewing distance only decides where the cells say nought. The
-            // specular map layout is the player's in every run: it says what the content's files mean,
-            // as the `[Shaders]` switches beside it say whether to look for them.
+            // measured run's, the file's default, every one of them — but for the upscaler, whose
+            // default for a run is the harness's own (`sUpscaleByDefault`). So two machines that
+            // differ only in their `settings.cfg` measure one scene under one line.
             const MWRender::RtxSettings derived = MWRender::RtxSettings::derive(MWRender::RtxSettingValues{
                 .mUpscale = typed("upscale") ? spelled("upscale") : Settings::rtx().mUpscale.get(),
                 .mDistantLandCells = given("distant-cells") ? variables["distant-cells"].as<float>()
                     : watched                               ? Settings::rtx().mDistantLandCells.get()
                               : shippedDefault<float>(command.mConfig, "RTX", "distant land cells"),
-                .mViewingDistance = Settings::camera().mViewingDistance,
+                .mViewingDistance = watched ? Settings::camera().mViewingDistance.get()
+                                            : shippedDefault<float>(command.mConfig, "Camera", "viewing distance"),
                 .mObjectPaging = given("distant-statics") ? variables["distant-statics"].as<bool>()
                     : watched                             ? Settings::terrain().mObjectPaging.get()
                               : shippedDefault<bool>(command.mConfig, "Terrain", "object paging"),
-                .mObjectPagingMinSize = Settings::terrain().mObjectPagingMinSize,
-                .mSpecularMapLayout = Settings::rtx().mSpecularMapLayout.get(),
+                .mObjectPagingMinSize = watched
+                    ? Settings::terrain().mObjectPagingMinSize.get()
+                    : shippedDefault<float>(command.mConfig, "Terrain", "object paging min size"),
+                .mSpecularMapLayout = watched
+                    ? Settings::rtx().mSpecularMapLayout.get()
+                    : shippedDefault<std::string>(command.mConfig, "RTX", "specular map layout"),
                 .mAnisotropy = watched ? Settings::general().mAnisotropy.get()
                                        : shippedDefault<int>(command.mConfig, "General", "anisotropy"),
                 .mGamma = given("gamma") ? variables["gamma"].as<float>()
                     : watched            ? Settings::video().mGamma.get()
                                          : shippedDefault<float>(command.mConfig, "Video", "gamma"),
+                .mLitEnvironmentMaps = watched
+                    ? Settings::shaders().mApplyLightingToEnvironmentMaps.get()
+                    : shippedDefault<bool>(command.mConfig, "Shaders", "apply lighting to environment maps"),
             });
             framed.mSetup.mMirror = derived.mMirror;
 
             // **The layers the command's row says, unless the line names some**: `VerbPolicy`.
-            framed.mSetup.mValidation
+            framed.mSetup.mRun.mValidation
                 = policyOf(command.mVerb).mMeasures ? validationForMeasuring(variables) : validationFrom(variables);
             framed.mSetup.mShaderSource = variables["shader-source"].as<bool>();
             if (variables.count("memory-budget") != 0)
-                framed.mSetup.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
+                framed.mSetup.mRun.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
 
-            Rtx::RenderProfile& profile = framed.mSetup.mProfile;
+            Rtx::RenderProfile& profile = framed.mSetup.mRun.mProfile;
             profile.mUpscale = derived.mUpscale;
             profile.mAnisotropy = derived.mAnisotropy;
             profile.mGamma = derived.mGamma;
+            profile.mLitEnvironmentMaps = derived.mLitEnvironmentMaps;
             profile.mDelight = variables["delight"].as<float>();
             profile.mReconstruction.mDenoise = variables["filter"].as<bool>();
             profile.mShow = Rtx::sSurfaceViewNames.require(variables["show"].as<std::string>(), "a surface view");
             profile.mReconstruction.mJitter = variables["jitter"].as<bool>();
-            profile.mExposure = Rtx::ExposureRule{ .mFixed = parseExposure(variables["exposure"].as<std::string>()) };
+            profile.mExposure = parseExposure(variables["exposure"].as<std::string>());
             profile.mStressOverlapMs = variables["hold"].as<bool>() ? sCheckHoldMs : 0.0;
             profile.mSpecializeLaunches = variables["variants"].as<bool>();
             if (const std::string& noise = variables["noise"].as<std::string>(); noise != "auto")
@@ -363,7 +398,7 @@ namespace RtxTool
                     .mShaderDirectory = command.mShaders,
                     .mWidth = 1,
                     .mHeight = 1,
-                    .mValidation = validation,
+                    .mRun = { .mValidation = validation },
                 });
                 out() << renderer->describeDevice();
                 return 0;
@@ -406,28 +441,6 @@ namespace RtxTool
         /// What a `shot` writes its frames' hashes to, beside the pictures, and reads a reference's
         /// from.
         constexpr std::string_view sShotHashes = "hashes.csv";
-
-        /// `--warmup`, refused where it is less than nought: a negative warm-up warmed up over
-        /// nothing, and said nothing.
-        float warmupGiven(const bpo::variables_map& variables)
-        {
-            const float seconds = variables["warmup"].as<float>();
-            if (!(seconds >= 0.0f) || !std::isfinite(seconds))
-                throw std::runtime_error(std::format("--warmup is {}, which is no length", seconds));
-
-            return seconds;
-        }
-
-        /// `--seconds`, refused where it is not more than nought: such a run measured one frame,
-        /// and said nothing.
-        float secondsGiven(const bpo::variables_map& variables)
-        {
-            const float seconds = variables["seconds"].as<float>();
-            if (!(seconds > 0.0f) || !std::isfinite(seconds))
-                throw std::runtime_error(std::format("--seconds is {}, which is not more than nought", seconds));
-
-            return seconds;
-        }
 
         /// Runs `stop` for `frames` once the world stood whole and its histories converged over
         /// `sHistoryFrames`, so its pictures are the ones a player standing there sees. Still where
@@ -478,7 +491,9 @@ namespace RtxTool
             SessionRequest request;
             request.mStops = std::move(stops);
             request.mSetup = framed.mSetup;
+            request.mStep = framed.mStep;
             request.mPlayed = policy.mPlayed;
+            request.mMeasures = policy.mMeasures;
             request.mHud = variables["hud"].as<bool>();
             request.mSetup.mInterface = request.mPlayed || request.mHud;
             request.mVanity = variables["vanity"].as<bool>();
@@ -504,8 +519,8 @@ namespace RtxTool
             BenchSpec spec;
             spec.mRun = variables["frames"].as<std::uint32_t>() > 0
                 ? BenchSpan{ .mFrames = variables["frames"].as<std::uint32_t>() }
-                : BenchSpan{ .mSeconds = secondsGiven(variables) };
-            spec.mWarm = BenchSpan{ .mSeconds = warmupGiven(variables) };
+                : BenchSpan{ .mSeconds = variables["seconds"].as<float>() };
+            spec.mWarm = BenchSpan{ .mSeconds = variables["warmup"].as<float>() };
 
             return spec;
         }
@@ -730,7 +745,7 @@ namespace RtxTool
             // **What each picture is held to is where it came from.** A frame the wavelet composed and
             // nothing upscaled is the picture the hashes cannot judge; a doll and a tile are always
             // denoised (`Reconstruction::forPicture`); the sheet is the textures and nothing traced.
-            const Rtx::RenderProfile& profile = framed.mSetup.mProfile;
+            const Rtx::RenderProfile& profile = framed.mSetup.mRun.mProfile;
             const PictureRule frameRule = profile.mReconstruction.mDenoise && !Rtx::upscales(profile.mUpscale)
                 ? PictureRule::Denoised
                 : PictureRule::Hashed;
@@ -756,6 +771,8 @@ namespace RtxTool
                     stop.mActions.mSheet = file("-textures", PictureRule::Exact);
             }
 
+            clearPictures(out, written);
+
             SessionRequest request = sessionFor(command, framed, std::move(stops));
             request.mHashes = out / sShotHashes;
             if (!against.empty())
@@ -776,16 +793,14 @@ namespace RtxTool
 
             // A bench draws frames the way a player sees them and sums none of them, so it is
             // measured at the width the game runs at. Every other verb keeps the reference's.
-            framed.mSetup.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
+            framed.mSetup.mRun.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
             framed.mSetup.mHeadless = !variables["window"].as<bool>();
 
             const SuiteRun run = chooseBenchViews(variables, command.mResources, "default");
             std::vector<Stop> stops = stopsFrom(run.mViews, variables, framed);
 
             const BenchSpec spec = specFrom(variables);
-            const std::vector<std::string> turn = splitNames(variables["turn-weather"].as<std::string>());
-            for (const std::string& weather : turn)
-                refuseUnlessWeather("turn-weather", weather);
+            const std::vector<std::uint32_t> turn = weathersToTurn(variables);
             const bool hashing = !variables["hashes"].as<std::string>().empty()
                 || !variables["against"].as<std::string>().empty() || !variables["pictures"].as<std::string>().empty();
 
@@ -834,13 +849,13 @@ namespace RtxTool
             Framed framed = frameFrom(command);
 
             // Watched and never summed, like a bench.
-            framed.mSetup.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
+            framed.mSetup.mRun.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
 
             // **On the wall, because somebody is watching.** A stepped world runs as fast as the
             // card draws it, which at two hundred frames a second is three times over; a window
             // is the played game with the walls off, and the played game follows the wall.
             framed.mSetup.mHeadless = false;
-            framed.mSetup.mStep = std::nullopt;
+            framed.mStep = std::nullopt;
 
             Stop staged = stageOnePlace(command, framed);
 
@@ -872,7 +887,7 @@ namespace RtxTool
             const bpo::variables_map& variables = command.mVariables;
             Framed framed = frameFrom(command);
             if (variables["hold"].defaulted())
-                framed.mSetup.mProfile.mStressOverlapMs = sCheckHoldMs;
+                framed.mSetup.mRun.mProfile.mStressOverlapMs = sCheckHoldMs;
 
             const SuiteRun run = chooseBenchViews(variables, command.mResources, "check");
             std::vector<Stop> stops = stopsFrom(run.mViews, variables, framed);
@@ -896,12 +911,12 @@ namespace RtxTool
                 measureFrames(stop, 2);
 
                 for (const Check check : every)
-                    if (canAsk(check, stop, framed.mSetup.mProfile))
+                    if (canAsk(check, stop, framed.mSetup.mRun.mProfile))
                         stop.mActions.mChecks.push_back(check);
 
                 // A route runs for as long as the line says, and ends where it arrives.
                 if (stop.mSchedule.mRoute.has_value())
-                    stop.mSchedule.mSpec.mRun = BenchSpan{ .mSeconds = secondsGiven(variables) };
+                    stop.mSchedule.mSpec.mRun = BenchSpan{ .mSeconds = variables["seconds"].as<float>() };
             }
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));
@@ -948,7 +963,7 @@ namespace RtxTool
             const std::filesystem::path out = outOf(command);
             std::filesystem::create_directories(out);
 
-            const Rtx::ReconstructionRequest& played = framed.mSetup.mProfile.mReconstruction;
+            const Rtx::ReconstructionRequest& played = framed.mSetup.mRun.mProfile.mReconstruction;
             Rtx::ReconstructionRequest reference = played;
             reference.mDenoise = false;
             reference.mJitter = true;
@@ -959,7 +974,7 @@ namespace RtxTool
             reference.mLevelEpsilon = 0.0f;
             Rtx::ReconstructionRequest unfiltered = played;
             unfiltered.mDenoise = false;
-            const Rtx::ExposureRule held{ .mHeld = true };
+            const Rtx::ExposureRule held = Rtx::HeldExposure{};
 
             // One picture of `place` after `frames` frames: their sum where `summed`, and the last of
             // them where not.
@@ -979,17 +994,13 @@ namespace RtxTool
                   };
 
             const float strafe = variables["strafe"].as<float>();
-            if (!(strafe >= 0.0f) || !std::isfinite(strafe))
-                throw std::runtime_error(std::format("--strafe is {}, which is no distance", strafe));
             const float walk = variables["walk"].as<float>();
-            if (!std::isfinite(walk))
-                throw std::runtime_error(std::format("--walk is {}, which is no distance", walk));
             const bool flies = strafe > 0.0f || walk != 0.0f;
 
             // A frame taken standing still has a history as long as the warm-up, which is more than
             // any mode needs to hold sixteen samples a shown pixel.
             const Rtx::FrameExtents extents
-                = Rtx::extentsFor(framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mProfile.mUpscale);
+                = Rtx::extentsFor(framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mRun.mProfile.mUpscale);
             const std::uint32_t barFrames = flies ? noiseBarFramesAfter(sNoiseFlightFrames, extents) : sNoiseBarFrames;
 
             // The frame's own stop, flying in where the line asks: a route that holds the world, so
@@ -1009,8 +1020,7 @@ namespace RtxTool
                     throw std::runtime_error(
                         std::format("--walk={} starts past the point {} faces", walk, place.mName));
 
-                Approach approach
-                    = stop.mStand.approachFrom(strafe, walk, worldStep(framed.mSetup), sNoiseFlightFrames);
+                Approach approach = stop.mStand.approachFrom(strafe, walk, worldStep(framed.mStep), sNoiseFlightFrames);
                 stop.mStand = std::move(approach.mFrom);
                 stop.mSchedule.mRoute = approach.mRoute;
                 return stop;
@@ -1091,7 +1101,7 @@ namespace RtxTool
             Framed framed = frameFrom(command);
 
             // Watched and never summed, like a bench.
-            framed.mSetup.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
+            framed.mSetup.mRun.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
 
             const std::filesystem::path keys = variables["keys"].as<std::string>();
             if (keys.empty())
@@ -1099,15 +1109,12 @@ namespace RtxTool
 
             // **The step is the run's, and the film counts every length in it**: the world moves a
             // frame of film between two frames.
-            const float framesPerSecond = variables["fps"].as<float>();
-            if (!(framesPerSecond > 0.0f))
-                throw std::runtime_error(std::format("--fps is {}, which is not more than nought", framesPerSecond));
-            framed.mSetup.mStep = 1.0f / framesPerSecond;
+            framed.mStep = 1.0f / variables["fps"].as<float>();
             framed.mSetup.mSettled = true;
-            framed.mSetup.mProfile.mUpscale = sFilmUpscale;
+            framed.mSetup.mRun.mProfile.mUpscale = sFilmUpscale;
 
             FilmPacing pacing;
-            pacing.mStep = *framed.mSetup.mStep;
+            pacing.mStep = *framed.mStep;
             pacing.mSpeed = variables["speed"].as<float>();
             pacing.mEase = variables["ease"].as<float>();
             pacing.mLength = filmLengthFrom(variables);
@@ -1121,25 +1128,8 @@ namespace RtxTool
             pacing.mDay = framed.mDay;
             pacing.mWeatherHold = variables["weather-hold"].as<float>();
             if (variables.count("clock") > 0)
-            {
                 pacing.mClock = variables["clock"].as<float>();
-                if (!(*pacing.mClock >= 0.0f) || !std::isfinite(*pacing.mClock))
-                    throw std::runtime_error(std::format("--clock is {}, which is no speed", *pacing.mClock));
-            }
-            for (const std::string& weather : splitNames(variables["turn-weather"].as<std::string>()))
-            {
-                refuseUnlessWeather("turn-weather", weather);
-                pacing.mTurn.push_back(*Rtx::weatherIndex(weather));
-            }
-
-            for (const auto& [name, value] : { std::pair{ "speed", pacing.mSpeed },
-                     std::pair{ "pan-seconds", pacing.mPanSeconds }, std::pair{ "hour-seconds", pacing.mHourSeconds },
-                     std::pair{ "crossing", pacing.mCrossingSeconds }, std::pair{ "still", pacing.mStillSeconds } })
-                if (!(value > 0.0f))
-                    throw std::runtime_error(std::format("--{} is {}, which is not more than nought", name, value));
-            if (!(pacing.mCutDistance >= 0.0f) || !(pacing.mWeatherHold >= 0.0f) || !(pacing.mEase >= 0.0f)
-                || !std::isfinite(pacing.mEase))
-                throw std::runtime_error("--cut-distance, --weather-hold and --ease cannot be less than nought");
+            pacing.mTurn = weathersToTurn(variables);
 
             const FilmPlan plan = planFilm(loadKeys(keys), pacing);
             out() << describePlan(plan) << std::flush;
@@ -1276,8 +1266,7 @@ namespace RtxTool
 
             config.processPaths(variables, std::filesystem::current_path());
             config.readConfiguration(variables, options.mDescription);
-            Debug::setupLogging(config.getLogPath(), applicationName);
-            Settings::Manager::load(config);
+            startLogAndSettings(config);
 
             const std::filesystem::path resources = variables["resources"].as<Files::MaybeQuotedPath>();
 

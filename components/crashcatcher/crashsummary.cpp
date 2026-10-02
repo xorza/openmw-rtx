@@ -1,8 +1,15 @@
 #include "crashsummary.hpp"
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <exception>
+#include <format>
+#include <string>
 #include <string_view>
+#include <utility>
+
+#include "crash.hpp"
 
 namespace Crash
 {
@@ -20,7 +27,7 @@ namespace Crash
                     return "Report";
             }
 
-            return "Crash";
+            fatal("a report kind the summary does not name");
         }
 
         /// What the thread that raised the report did, as its note says: the one that faulted, or
@@ -38,7 +45,7 @@ namespace Crash
                     return ", which asked";
             }
 
-            return "";
+            fatal("a report kind the summary does not mark");
         }
 
         std::string kindPrefix(const CrashFacts& facts)
@@ -69,26 +76,31 @@ namespace Crash
         }
     }
 
-    std::string terminateReason()
+    std::string_view terminateReason(const std::span<char, sNoteCapacity> into)
     {
-        std::string reason = "std::terminate";
-        if (const std::exception_ptr current = std::current_exception())
+        const auto written
+            = [&]<class... Arguments>(std::format_string<Arguments...> format, Arguments&&... arguments) {
+                  const auto end
+                      = std::format_to_n(into.data(), into.size() - 1, format, std::forward<Arguments>(arguments)...);
+                  return std::string_view(into.data(), end.out);
+              };
+
+        const std::exception_ptr current = std::current_exception();
+        if (!current)
+            return written("std::terminate");
+
+        try
         {
-            try
-            {
-                std::rethrow_exception(current);
-            }
-            catch (const std::exception& error)
-            {
-                reason += " on an uncaught exception: ";
-                reason += error.what();
-            }
-            catch (...)
-            {
-                reason += " on an uncaught exception that is no std::exception";
-            }
+            std::rethrow_exception(current);
         }
-        return reason;
+        catch (const std::exception& error)
+        {
+            return written("std::terminate on an uncaught exception: {}", error.what());
+        }
+        catch (...)
+        {
+            return written("std::terminate on an uncaught exception that is no std::exception");
+        }
     }
 
     std::string title(const CrashFacts& facts)
@@ -135,5 +147,16 @@ namespace Crash
             lines.push_back(kind + key + ": " + value);
 
         lines.push_back(kind + (facts.mDump.empty() ? "no dump was written" : "dump " + facts.mDump));
+    }
+
+    std::string hex(const std::uint64_t value)
+    {
+        return std::format("{:#x}", value);
+    }
+
+    std::string nameOf(const CodeNames names, const std::uint32_t code, std::string otherwise)
+    {
+        const auto named = std::ranges::find(names, code, &std::pair<std::uint32_t, std::string_view>::first);
+        return named != names.end() ? std::string(named->second) : std::move(otherwise);
     }
 }

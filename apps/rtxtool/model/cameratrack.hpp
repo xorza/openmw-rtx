@@ -49,6 +49,20 @@ namespace RtxTool
         /// clock asked for a lesser hour runs forward to it the next day.
         double mHoursOn = 0.0;
 
+        /// Seconds the game's own clock has run since the take's first frame, where a `SkyRun`
+        /// sets the clock, which then stands over `mHoursOn`; nothing for the keys' hours. In the
+        /// game's own seconds and not hours, because how many hours those are is the session's
+        /// `timescale`, which the film is planned without.
+        std::optional<double> mClockOn;
+
+        /// Game hours since the take's first frame under a session whose own `timescale` is
+        /// `ownTimeScale`: the clock's seconds counted at it where a run set them, and the keys'
+        /// hours where it did not.
+        double getHoursOn(float ownTimeScale) const
+        {
+            return mClockOn.has_value() ? *mClockOn * static_cast<double>(ownTimeScale) / 3600.0 : mHoursOn;
+        }
+
         /// The weather the sky leaves, the one it goes to, and how far it has crossed, nought to one.
         /// The two are the same where no crossing runs.
         std::uint32_t mWeather = 0;
@@ -66,8 +80,9 @@ namespace RtxTool
     /// list.
     struct SkyRun
     {
-        /// Game hours one frame of film stands for, or nothing for the hours the keys name.
-        std::optional<double> mHoursPerFrame;
+        /// Seconds of the game's own clock one frame of film stands for, or nothing for the hours
+        /// the keys name.
+        std::optional<double> mClockPerFrame;
 
         /// The weathers turned through, as `Rtx::weatherIndex` numbers them, or none for the
         /// crossings the keys make.

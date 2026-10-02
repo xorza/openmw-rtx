@@ -39,8 +39,9 @@ void main()
     // An lvalue `candidateStops` writes only where it is walking past, which this never is.
     uint blocked = 0u;
 
-    if (!candidateStops(uint(gl_InstanceCustomIndexEXT), uint(gl_PrimitiveID), barycentrics,
-            triangleEdges(corners, gl_ObjectToWorldEXT), gl_WorldRayDirectionEXT,
-            cone.mWidth + cone.mSpread * gl_HitTEXT, false, true, blocked))
+    const Candidate candidate = Candidate(uint(gl_InstanceCustomIndexEXT), uint(gl_PrimitiveID), barycentrics,
+        gl_HitTEXT, triangleEdges(corners, gl_ObjectToWorldEXT));
+    if (!candidateStops(
+            candidate, gl_WorldRayDirectionEXT, cone.mWidth + cone.mSpread * candidate.mAt, false, true, blocked))
         ignoreIntersectionEXT;
 }

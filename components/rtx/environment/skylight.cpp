@@ -94,13 +94,13 @@ namespace Rtx
             std::exp(-sAirDepth.x() * mass), std::exp(-sAirDepth.y() * mass), std::exp(-sAirDepth.z() * mass));
     }
 
-    SkyBudget skyBudget(
-        const osg::Vec3f& horizon, const osg::Vec3f& zenith, const osg::Vec3f& sheets, const osg::Vec3f& ambient)
+    SkyBudget skyBudget(const osg::Vec3f& horizon, const osg::Vec3f& zenith, const float zenithShare,
+        const osg::Vec3f& sheets, const osg::Vec3f& ambient)
     {
-        // What a uniform sky would have to be to deliver what this gradient does: linear in
-        // `sin(elevation)`, its cosine-weighted integral over the hemisphere is
-        // `pi * (horizon / 3 + 2 * zenith / 3)`. The sheets are already a mean over the hemisphere.
-        const osg::Vec3f carried = horizon / 3.0f + zenith * (2.0f / 3.0f) + sheets;
+        // What a uniform sky would have to be to deliver what this gradient does: its
+        // cosine-weighted integral over the hemisphere is `pi` times the two colours weighed by
+        // `Atmosphere::mZenithShare`. The sheets are already a mean over the hemisphere.
+        const osg::Vec3f carried = horizon * (1.0f - zenithShare) + zenith * zenithShare + sheets;
 
         const osg::Vec3f fill(std::max(ambient.x() - carried.x(), 0.0f), std::max(ambient.y() - carried.y(), 0.0f),
             std::max(ambient.z() - carried.z(), 0.0f));

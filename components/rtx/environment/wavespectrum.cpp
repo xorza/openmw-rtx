@@ -23,7 +23,7 @@ namespace Rtx
         /// cannot carry a wave whose orbit reaches the bottom.
         float getDepthFactor(float frequency, float depth)
         {
-            const float scaled = frequency * std::sqrt(depth / Shaders::WATER_GRAVITY);
+            const float scaled = frequency * std::sqrt(depth / sGravity);
             if (scaled <= 1.0f)
                 return 0.5f * scaled * scaled;
             if (scaled < 2.0f)
@@ -42,8 +42,8 @@ namespace Rtx
             const float sharpening = std::pow(3.3f, std::exp(-0.5f * offset * offset));
             const float ratio = peak / frequency;
             const float tail = std::exp(-1.25f * ratio * ratio * ratio * ratio);
-            const float jonswap = Shaders::WATER_GRAVITY * Shaders::WATER_GRAVITY
-                / (frequency * frequency * frequency * frequency * frequency) * tail * sharpening;
+            const float jonswap
+                = sGravity * sGravity / (frequency * frequency * frequency * frequency * frequency) * tail * sharpening;
 
             return jonswap * getDepthFactor(frequency, depth);
         }
@@ -51,7 +51,7 @@ namespace Rtx
 
     float SeaState::getFrequency(float wavenumber) const
     {
-        return std::sqrt(Shaders::WATER_GRAVITY * wavenumber * std::tanh(wavenumber * mDepth));
+        return std::sqrt(sGravity * wavenumber * std::tanh(wavenumber * mDepth));
     }
 
     float SeaState::getEnergy(float frequency) const

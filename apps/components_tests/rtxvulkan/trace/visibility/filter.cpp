@@ -138,7 +138,7 @@ namespace Rtx::Testing
             camera.mFrame = 1000;
             const Frame raw = shoot(scene, {}, camera, size);
             const Frame filtered = shoot(scene, {}, camera, size,
-                { .mFrames = 16, .mAverage = false, .mFirstFrame = 2000, .mFilter = true, .mResetHistory = true });
+                { .mFrames = 16, .mAverage = false, .mFirstFrame = 2000, .mFilter = true, .mLoss = HistoryLoss::Cut });
 
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
@@ -192,11 +192,11 @@ namespace Rtx::Testing
             camera.mSkyZenith = osg::Vec3f();
             camera.mSun.mIrradiance = osg::Vec3f();
 
-            const float dark = shoot(
-                unlit, {}, camera, size, { .mFrames = 32, .mAverage = false, .mFilter = true, .mResetHistory = true })
+            const float dark = shoot(unlit, {}, camera, size,
+                { .mFrames = 32, .mAverage = false, .mFilter = true, .mLoss = HistoryLoss::Cut })
                                    .at(centre);
-            const float lit = shoot(
-                scene, {}, camera, size, { .mFrames = 32, .mAverage = false, .mFilter = true, .mResetHistory = true })
+            const float lit = shoot(scene, {}, camera, size,
+                { .mFrames = 32, .mAverage = false, .mFilter = true, .mLoss = HistoryLoss::Cut })
                                   .at(centre);
             ASSERT_GT(lit - dark, 0.01f) << "a lamp that lights nothing proves nothing";
 
@@ -227,7 +227,7 @@ namespace Rtx::Testing
 
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 100.0f, 0.0f), 30.0f, size, size, 100000.0f);
-            camera.mArms = cameraAtFieldOfView(camera.mCamera, 90.0f);
+            camera.mEyes.mArms = cameraAtFieldOfView(camera.mEyes.mWorld, 90.0f);
             camera.mSkyHorizon = osg::Vec3f(0.20f, 0.15f, 0.60f);
             camera.mSkyZenith = osg::Vec3f(0.80f, 0.65f, 0.15f);
             camera.mAmbientFromSky = 1.0f;
@@ -341,7 +341,7 @@ namespace Rtx::Testing
             // test. A still camera, so every pixel reprojects onto itself and no history is
             // rejected — which is the case this has to get right before any other.
             //
-            // **`resetHistory` before each run, and leaving it out is what made this test lie.** The
+            // **A cut before each run, and leaving it out is what made this test lie.** The
             // fixture renders many frames, the accumulator keeps what it built across all of them,
             // and a "one frame" baseline taken without a reset is a baseline that already has a
             // history in it — which reads as the accumulator doing nothing at all.
@@ -490,8 +490,8 @@ namespace Rtx::Testing
         /// it has not moved at all; held, it has not moved whatever it was told.
         ///
         /// **Driven frame by frame rather than through `shoot`**, because that helper calls
-        /// `setScene` every time and a new scene clears the previous camera — which is a reset, and
-        /// a reset is exactly what the middle frame here must not have.
+        /// `setScene` every time and a new scene costs every history — the eye's too, and a lost eye
+        /// is exactly what the middle frame here must not have.
         TEST_F(RtxVisibilityTest, theExposureMovesTowardWhatItMeasuresRatherThanSnappingToIt)
         {
             constexpr std::uint32_t size = 32;
@@ -524,8 +524,10 @@ namespace Rtx::Testing
 
             // The exposure measured rather than pinned, which is the whole subject, `since` after the
             // last frame.
-            const auto shot = [&](const Shaders::VisibilityConstants& camera, const float since = 1.0f / 60.0f) {
-                mRenderer.renderFrame(camera, FrameOptions{ .mSinceLast = since, .mExposure = ExposureRule{} });
+            const auto shot = [&](const Shaders::VisibilityConstants& camera, const float since = 1.0f / 60.0f,
+                                  const HistoryLoss loss = HistoryLoss::None) {
+                mRenderer.renderFrame(
+                    camera, FrameOptions{ .mSinceLast = since, .mLoss = loss, .mExposure = ExposureRule{} });
                 mRenderer.readPixels(pixels);
                 return meanByte();
             };
@@ -548,8 +550,7 @@ namespace Rtx::Testing
             EXPECT_EQ(shot(dim, 0.0f), justAfter) << "the eye moved in no time";
 
             // And the same sky again with no past, which is where it is headed.
-            mRenderer.resetHistory();
-            const double adapted = shot(dim);
+            const double adapted = shot(dim, 1.0f / 60.0f, HistoryLoss::Cut);
 
             EXPECT_GT(adapted, 0.0) << "the dark sky rendered as black even with the eye open";
             EXPECT_LT(justAfter, 0.5 * adapted)
@@ -558,20 +559,35 @@ namespace Rtx::Testing
             // **Held, the eye stays where the frame before left it, reset or not**: the dim sky told
             // it has no past draws exactly what the adapted frame drew, and the bright sky under the
             // dim eye comes out brighter than it did under its own.
-            const auto held = [&](const Shaders::VisibilityConstants& camera) {
-                mRenderer.renderFrame(
-                    camera, FrameOptions{ .mSinceLast = 1.0f / 60.0f, .mExposure = ExposureRule{ .mHeld = true } });
-                mRenderer.readPixels(pixels);
-                return meanByte();
-            };
-            mRenderer.resetHistory();
-            EXPECT_EQ(held(dim), adapted) << "a held eye measured the frame";
+            const auto held
+                = [&](const Shaders::VisibilityConstants& camera, const HistoryLoss loss = HistoryLoss::None) {
+                      mRenderer.renderFrame(camera,
+                          FrameOptions{ .mSinceLast = 1.0f / 60.0f, .mLoss = loss, .mExposure = HeldExposure{} });
+                      mRenderer.readPixels(pixels);
+                      return meanByte();
+                  };
+            EXPECT_EQ(held(dim, HistoryLoss::Cut), adapted) << "a held eye measured the frame";
             EXPECT_GT(held(bright), lit) << "a held eye adapted to the bright sky";
+
+            // **A new extent keeps the eye**: an eye adapted to the bright sky meets the dim one past
+            // two upscale modes as it met it before them, barely moved, where an eye that lost its
+            // past would take the dim sky outright.
+            EXPECT_EQ(shot(bright, 1.0f / 60.0f, HistoryLoss::Cut), lit);
+            mRenderer.setUpscale(Upscale::Quality);
+            mRenderer.setUpscale(Upscale::Off);
+            EXPECT_LT(shot(dim), 0.5 * adapted) << "a new extent snapped the eye";
+
+            // **And a new world loses it, whatever frame comes first**: a held frame after the world
+            // is handed over spends nothing of the eye's loss, and the measured frame after it takes
+            // the dim sky outright, as a cut's frame does, rather than easing from the old world's eye.
+            mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc{}, {});
+            held(bright);
+            EXPECT_EQ(shot(dim), adapted) << "the measured frame eased from the old world's eye";
         }
 
-        /// A reset survives a frame that has no history to reset.
+        /// A reset survives a frame that has no history to reset, and such a frame leaves none.
         ///
-        /// **`resetHistory` is spent by the frame that answers it, and a frame with neither denoiser
+        /// **A cut is spent by the frame that answers it, and a frame with neither denoiser
         /// answers nothing.** A frame not `mDenoised` runs no accumulator and `Upscale::Off` runs no
         /// upscaler, so nothing reads the signal — and a renderer that cleared it at the end of every
         /// frame regardless dropped the reset rather than deferring it. What the game does with that
@@ -606,13 +622,14 @@ namespace Rtx::Testing
             mRenderer.resize(size, size);
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
 
-            const auto renderOne = [&](std::uint32_t frame, bool filter) {
+            const auto renderOne = [&](std::uint32_t frame, bool filter, HistoryLoss loss = HistoryLoss::None) {
                 Shaders::VisibilityConstants sampled = camera;
                 sampled.mFrame = frame;
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = 0,
+                        .mLoss = loss,
                         .mReconstruction = ReconstructionRequest{ .mDenoise = filter },
-                        .mExposure = ExposureRule{ .mFixed = 1.0f } });
+                        .mExposure = FixedExposure{ 1.0f } });
             };
 
             const auto radiance = [&] {
@@ -633,8 +650,7 @@ namespace Rtx::Testing
             // that catches a renderer's first frame instead of by the flag under test.
             renderOne(measured + 1, true);
 
-            mRenderer.resetHistory();
-            renderOne(measured, true);
+            renderOne(measured, true, HistoryLoss::Cut);
             const std::vector<float> single = radiance();
 
             // The same trace with a history behind it, at indices the sampler has not drawn yet so
@@ -651,19 +667,30 @@ namespace Rtx::Testing
 
             // The frame under test sits between the reset and the frame that can act on it, and
             // reads the signal nowhere.
-            mRenderer.resetHistory();
-            renderOne(measured + 2, false);
+            renderOne(measured + 2, false, HistoryLoss::Cut);
             renderOne(measured, true);
             const std::vector<float> carried = radiance();
 
             ASSERT_EQ(carried.size(), single.size());
             EXPECT_EQ(mostTheyDifferBy(carried, single), 0.0f) << "the unfiltered frame spent a reset it could not use";
 
+            // **And an unfiltered frame with no reset ends the history behind it all the same**: the
+            // filtered frame after it reads none, rather than the one from the frame before it as if
+            // it were the last frame's.
+            for (std::uint32_t frame = 0; frame < Shaders::ACCUMULATE_FRAMES; ++frame)
+                renderOne(frame + 200, true);
+            renderOne(measured + 2, false);
+            renderOne(measured, true);
+            const std::vector<float> skipped = radiance();
+
+            ASSERT_EQ(skipped.size(), single.size());
+            EXPECT_EQ(mostTheyDifferBy(skipped, single), 0.0f)
+                << "a filtered frame after an unfiltered one read a history from before it";
+
             // And a filtered frame in its place keeps the sample the reset took. Counted as no
             // history, it would blend at a weight of one — the next frame alone, which is the fresh
             // reset's picture to the value.
-            mRenderer.resetHistory();
-            renderOne(measured + 2, true);
+            renderOne(measured + 2, true, HistoryLoss::Cut);
             renderOne(measured, true);
             const std::vector<float> followed = radiance();
 

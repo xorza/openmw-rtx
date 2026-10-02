@@ -4,6 +4,12 @@
 #include "hosttypes.h"
 #include "portable.h"
 
+// `<cstddef>` for the `offsetof` the pinned layout below is checked with, last because only the
+// host has it.
+#ifdef RTX_HOST
+#include <cstddef>
+#endif
+
 // How many layers of its own emitter stand between each sprite and a light, counted each frame.
 //
 // **A column of smoke has a sunlit side and a shaded side, and nothing per sprite can give it
@@ -84,7 +90,8 @@ namespace Rtx::Shaders
 
 #ifdef RTX_HOST
 
-    static_assert(sizeof(SpriteShadeConstants) == 48, "SpriteShadeConstants must be scalar-packed on every side");
+    static_assert(offsetof(SpriteShadeConstants, mCount) + sizeof(uint) == 44,
+        "SpriteShadeConstants must be scalar-packed on every side");
 }
 
 #endif

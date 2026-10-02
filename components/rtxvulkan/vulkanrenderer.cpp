@@ -9,6 +9,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 
 #include <osg/Vec2f>
 #include <vulkan/vulkan_core.h>
@@ -19,6 +20,7 @@
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
+#include <components/rtx/frame/framepast.hpp>
 #include <components/rtx/frame/framesampling.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -67,26 +69,25 @@ namespace Rtx
     }
 
     VulkanRenderer::VulkanRenderer(const RendererOptions& options)
-        : mInstance(options.mValidation, surfaceExtensionsFor(options))
+        : mInstance(options.mRun.mValidation, surfaceExtensionsFor(options))
         , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle()), options.mShaderDirectory,
               PipelineCacheSpec{ .mDirectory = options.mCacheDirectory })
         , mCounting(options.mCounting)
-        , mProfile(options.mProfile)
+        , mProfile(options.mRun.mProfile)
         , mInverseGamma(1.0f / mProfile.mGamma)
-        , mRing(mDevice, mCounting || mProfile.mStressOverlapMs > 0.0)
+        , mStress(mProfile.mStressOverlapMs > 0.0 ? std::make_unique<StressPass>(mDevice, mProfile.mStressOverlapMs)
+                                                  : nullptr)
+        , mRing(mDevice, mCounting || mStress != nullptr, mStress != nullptr ? mStress->getTickMs() : 0.0)
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
-        , mFrame(mDevice, mTracePasses)
+        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get())
         , mMedia(mDevice)
         , mGui(mDevice)
-        , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures())
+        , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures(), mProfile.mRadianceWidth)
         , mUpscaler(mDevice)
     {
-        mDevice.getMemory().limitBudget(options.mMemoryBudget);
-
-        if (mProfile.mStressOverlapMs > 0.0)
-            mStress = std::make_unique<StressPass>(mDevice, mProfile.mStressOverlapMs);
+        mDevice.getMemory().limitBudget(options.mRun.mMemoryBudget);
 
         if (options.mWindow != nullptr)
             mPresenter = std::make_unique<Presenter>(mDevice, mInstance, options.mWindow, options.mVerticalSync);
@@ -104,16 +105,6 @@ namespace Rtx
         // Every frame in flight, and the presenter's last blit, before the swapchain goes, which
         // is the one handle here not buried.
         tearDown("the device would not finish before the renderer was taken apart", [&] { mDevice.waitIdle(); });
-    }
-
-    void VulkanRenderer::resetHistory()
-    {
-        // The trace's histories and the upscaler's go with the camera, which the next frame finds
-        // missing as it would after a resize. The exposure and the ripples do not: a resize keeps
-        // the brightness and the water's wake.
-        mPreviousCamera.reset();
-        mDisplay.resetHistory();
-        mMedia.resetRipples();
     }
 
     void VulkanRenderer::drain()
@@ -154,7 +145,7 @@ namespace Rtx
         const VkExtent2D output{ width, height };
         const FrameExtents extents = extentsFor(width, height, mProfile.mUpscale);
         const VkExtent2D render{ extents.mRenderWidth, extents.mRenderHeight };
-        mFrame.resize(render.width, render.height, mProfile.mRadianceWidth);
+        mFrame.resize(render.width, render.height);
 
         mTarget.resize(mDevice, width, height);
 
@@ -169,7 +160,7 @@ namespace Rtx
         mDisplay.resize(width, height);
 
         // A frame of a different size is not one this one can be reprojected against.
-        mPreviousCamera.reset();
+        mPast |= FramePast::resized();
     }
 
     std::string VulkanRenderer::describeDevice() const
@@ -220,14 +211,11 @@ namespace Rtx
             mRing.dropReports();
 
             // A sum over one scene means nothing over the next, so it goes back with the scene
-            // rather than being carried empty into one it cannot describe. Neither does a motion
-            // vector, which would point at where something stood in a world that is no longer there.
+            // rather than being carried empty into one it cannot describe. Neither does any history:
+            // a motion vector would point at where something stood in a world that is no longer
+            // there, and the old world's wake would ring on in the new one's water.
             mFrame.dropSum();
-            mPreviousCamera.reset();
-
-            // And the wake the old world's walkers left, which would ring on in the new one's
-            // water wherever the two overlapped.
-            mMedia.resetRipples();
+            mPast |= FramePast::everything();
         }
 
         // What the device has room for is decided below, against what it says now.
@@ -473,13 +461,12 @@ namespace Rtx
     {
         assert(mTarget.isOpen());
 
-        if (vertices.empty() || batches.empty())
-            return;
-
         // After the frame's submit, and not waited for. The GUI is collected once the world has
         // been drawn and there is nothing to gain by holding the frame open for it; the queue draws
-        // it after the frame, and the present blits after both.
-        mGui.draw(vertices, batches, mTarget.get());
+        // it after the frame, and the present blits after both. Drawn with no batches as well,
+        // because what is shown is the picture under them either way.
+        mGui.draw(vertices, batches, mTarget.getPicture(), mTarget.getShown());
+        mShownCurrent = true;
     }
 
     void VulkanRenderer::presentFrame()
@@ -487,7 +474,11 @@ namespace Rtx
         assert(mPresenter != nullptr && "presentFrame on a renderer that was given no window");
         assert(mTarget.isOpen());
 
-        mPresenter->present(mTarget.get());
+        if (!mShownCurrent)
+            mGui.draw({}, {}, mTarget.getPicture(), mTarget.getShown());
+
+        mPresenter->present(mTarget.getShown());
+        mShownCurrent = false;
     }
 
     FrameExtents VulkanRenderer::getExtents() const
@@ -505,12 +496,12 @@ namespace Rtx
         return mTracePasses.mVisibility.awaitKernels(patience);
     }
 
-    Reconstruction VulkanRenderer::renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options)
+    void VulkanRenderer::renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options)
     {
         const DeviceScene* const held = mScenes.find(SceneSlot::world());
         assert(held != nullptr && "renderFrame before setScene");
         const DeviceScene& world = *held;
-        assert(camera.mCamera.mWidth == mFrame.getWidth() && camera.mCamera.mHeight == mFrame.getHeight()
+        assert(camera.mEyes.mWorld.mWidth == mFrame.getWidth() && camera.mEyes.mWorld.mHeight == mFrame.getHeight()
             && "the camera has to be built for the render extent; ask getExtents");
 
         // Coverage and an upscaler do not meet: an upscaler writes the upscaled image itself and is
@@ -530,22 +521,29 @@ namespace Rtx
             mProfile.mUpscale, options.mReconstruction.value_or(mProfile.mReconstruction), getExtents());
         frame.mReconstruction = reconstruction;
 
+        // Every history is worthless after a jump no motion vector can describe: through a door,
+        // with the previous camera kept, a reprojection would fetch one room onto another. Spent
+        // here, by the frame it describes, whatever made it.
+        FramePast past = std::exchange(mPast, FramePast{});
+        past |= FramePast::of(options.mLoss);
+        assert((past.mReprojectionLost || mPreviousCamera.has_value()) && "a past with no camera to reproject");
+
         Shaders::VisibilityConstants sampled = sampleFrame(camera, options, mProfile, reconstruction, world.getCounts(),
-            mPreviousCamera.has_value() ? &*mPreviousCamera : nullptr);
+            past.mReprojectionLost ? nullptr : &*mPreviousCamera);
+        world.measureStars(sampled.mStars);
 
         // The launch the misses are counted against, which is the traced extent and not the shown one.
-        frame.mCountedRays = mCounting ? sampled.mCamera.mWidth * sampled.mCamera.mHeight : 0u;
+        frame.mCountedRays = mCounting ? sampled.mEyes.mWorld.mWidth * sampled.mEyes.mWorld.mHeight : 0u;
 
         const TraceSubject subject
             = mMedia.describe(world, camera, frame.mCounts, mDisplay.getGlareCounts(), mRing.getRecordingSlot());
 
-        // Every history is worthless after a jump no motion vector can describe: walking through a
-        // door once left the previous camera intact and a reprojection fetched one room onto
-        // another. What `resetHistory` said is each history's own, spent by the frame that reads
-        // that history, so a reset before an unfiltered frame waits for the frame that filters.
-        const bool basisLost = !mPreviousCamera.has_value();
-        if (basisLost)
+        if (past.mReprojectionLost)
             mUpscaler.reset();
+        if (past.mEyeLost)
+            mDisplay.loseEye();
+        if (past.mWaterLost)
+            mMedia.resetRipples();
 
         GpuTimer& timer = frame.mTimer;
         const VkCommandBuffer commands = frame.mWorld.mCommands;
@@ -560,20 +558,21 @@ namespace Rtx
         if (subject.mSea)
         {
             mMedia.stepRipples(commands, mRing.getRecordingSlot(), osg::Vec2f(camera.mOrigin.x(), camera.mOrigin.y()),
-                joinSeconds(camera.mWaterTime), &timer);
+                options.mWaterSeconds, &timer);
             mMedia.placeRipples(sampled);
         }
 
-        Image& target = mTarget.get();
+        Image& target = mTarget.getPicture();
+        mShownCurrent = false;
 
         const TraceResult traced = mFrame.record(commands,
             TraceRecording{
                 .mSubject = subject,
-                .mAsked = camera,
+                .mAsked = BinCamera::of(camera),
                 .mSampled = sampled,
-                .mReconstruction = reconstruction,
+                .mDenoised = reconstruction.mDenoised,
                 .mAccumulate = options.mAccumulate,
-                .mPastLost = basisLost,
+                .mPastLost = past.mReprojectionLost,
                 .mTimer = &timer,
             });
         const GBuffer& channels = traced.mInputs.mChannels;
@@ -588,58 +587,54 @@ namespace Rtx
 
             mRing.readDigest(frame, commands, digested,
                 FrameDigest{
-                    .mJitterX = sampled.mCamera.mJitter.x(),
-                    .mJitterY = sampled.mCamera.mJitter.y(),
+                    .mJitterX = sampled.mEyes.mWorld.mJitter.x(),
+                    .mJitterY = sampled.mEyes.mWorld.mJitter.y(),
                     .mFrameDeltaMs = sinceLastMs,
                     .mReset = reconstruction.upscaled() && mUpscaler.isFresh() ? 1u : 0u,
                 },
                 &timer);
         }
 
-        if (reconstruction.upscaled())
-        {
+        // The rest of the frame, over the reconstruction where something upscales and over the
+        // trace's own composite where nothing does. The whole of the frame is the picture, which
+        // is the output's extent either way.
+        const HandedImage shown = [&] {
+            if (!reconstruction.upscaled())
+                return traced.mColour;
+
             timer.open(commands, "upscale");
-            mUpscaler.record(commands,
+            const HandedImage upscaled = mUpscaler.record(commands,
                 UpscaleInputs{
-                    .mColour = traced.mColour,
+                    .mColour = traced.mColour.mImage,
                     .mSurface = channels.get(Channel::Surface),
                     .mMotion = channels.get(Channel::Motion),
                     .mMasks = channels.get(Channel::UpscaleMasks),
-                    .mCamera = sampled.mCamera,
-                    .mArms = sampled.mArms,
+                    .mEyes = sampled.mEyes,
                     .mJitterPhases = reconstruction.mJitterPhases,
                     .mSeconds = options.mSinceLast,
                     .mSlot = mRing.getRecordingSlot(),
                 });
             timer.close(commands);
-        }
+            return upscaled;
+        }();
 
-        // The rest of the frame, over the reconstruction where something upscales and over the
-        // trace's own composite where nothing does. The whole of the frame is the picture, which
-        // is the output's extent either way.
-        const bool upscaled = reconstruction.upscaled();
-
-        FrameLook::Exposure exposure = FrameLook::Measured{
-            .mSeconds = options.mSinceLast, .mReset = basisLost, .mBias = options.mExposureBias
-        };
         const ExposureRule rule = options.mExposure.value_or(mProfile.mExposure);
-        assert(!(rule.mFixed.has_value() && rule.mHeld) && "an exposure both fixed and held");
-        if (rule.mFixed.has_value())
-            exposure = FrameLook::Fixed{ *rule.mFixed };
-        else if (rule.mHeld)
-            exposure = FrameLook::Held{};
+        FrameLook::Exposure exposure = FrameLook::Held{};
+        if (const FixedExposure* fixed = std::get_if<FixedExposure>(&rule))
+            exposure = FrameLook::Fixed{ fixed->mScale };
+        else if (std::holds_alternative<MeasuredExposure>(rule))
+            exposure = FrameLook::Measured{ .mSeconds = options.mSinceLast, .mBias = options.mExposureBias };
 
         mDisplay.record(commands,
             Display{
                 .mTrace = traced,
-                .mShown = upscaled ? mUpscaler.getOutput() : traced.mColour,
-                .mShownFrom = upscaled ? Use::sAnyGeneralWrite : Use::sAnyGeneralRead,
+                .mShown = shown,
                 .mExtent = mTarget.getExtent(),
                 .mSampled = sampled,
                 .mTarget = target,
                 .mFrame = FrameLook{
                     .mExposure = exposure,
-                    .mGlare = FrameLook::Glare{ .mFader = options.mGlare, .mSeconds = options.mSinceLast, .mReset = basisLost },
+                    .mGlare = FrameLook::Glare{ .mFader = options.mGlare, .mSeconds = options.mSinceLast },
                     .mInverseGamma = mInverseGamma,
                     .mDebug = options.mDebug,
                     .mDebugVertices = frame.mDebugVertices,
@@ -663,8 +658,6 @@ namespace Rtx
         // What the next frame reprojects against, and the camera as the caller gave it: a jitter is
         // where inside a pixel this frame sampled, not where the eye was.
         mPreviousCamera = camera;
-
-        return reconstruction;
     }
 
     SceneSlot VulkanRenderer::addViewScene()
@@ -684,12 +677,12 @@ namespace Rtx
     {
         assert(mGui.getTextures().holds(texture) && "a trace into a slot nothing holds");
 
-        const VkExtent2D extent{ camera.mCamera.mWidth, camera.mCamera.mHeight };
+        const VkExtent2D extent{ camera.mEyes.mWorld.mWidth, camera.mEyes.mWorld.mHeight };
         if (extent.width == 0 || extent.height == 0)
             return;
 
         if (!mPictures.holds(extent))
-            mPictures.grow(extent, mProfile.mRadianceWidth);
+            mPictures.grow(extent);
 
         mPictures.trace(texture, camera, options, mScenes.at(options.mScene), mProfile);
     }
@@ -716,7 +709,14 @@ namespace Rtx
     {
         assert(mTarget.isOpen());
 
-        mTarget.get().read(VK_IMAGE_LAYOUT_GENERAL, pixels);
+        mTarget.getPicture().read(VK_IMAGE_LAYOUT_GENERAL, pixels);
+    }
+
+    void VulkanRenderer::readShown(std::vector<std::uint8_t>& pixels)
+    {
+        assert(mTarget.isOpen());
+
+        mTarget.getShown().read(VK_IMAGE_LAYOUT_GENERAL, pixels);
     }
 
     void VulkanRenderer::readChannel(const Channel channel, std::vector<float>& values)

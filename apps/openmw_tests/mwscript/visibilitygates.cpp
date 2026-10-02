@@ -5,13 +5,14 @@
 #include <map>
 #include <optional>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
-#include <variant>
 #include <vector>
 
 #include <gtest/gtest.h>
 
+#include <apps/components_tests/rtx/support/allocations.hpp>
 #include <components/compiler/context.hpp>
 #include <components/compiler/extensions.hpp>
 #include <components/compiler/extensions0.hpp>
@@ -197,19 +198,73 @@ End
             mReads.mGlobals["stronghold"] = row.mStronghold;
             EXPECT_EQ(run(sStageScript, inputs), row.mState) << "Stronghold " << row.mStronghold;
             ASSERT_EQ(inputs.size(), 1u);
-            EXPECT_EQ(inputs[0].mRead, (std::variant<std::string, ESM::RefId>(std::string("stronghold"))));
+            EXPECT_EQ(inputs[0].mSource, MWScript::VisibilitySource::Global);
+            EXPECT_EQ(inputs[0].mId, ESM::RefId::stringRefId("stronghold"));
             EXPECT_EQ(inputs[0].mValue, row.mStronghold);
         }
 
         mReads.mJournal[ESM::RefId::stringRefId("c3_destroydagoth")] = 10;
         EXPECT_EQ(run(sFenceScript, inputs), GateState::Open) << "the heart is not struck";
         ASSERT_EQ(inputs.size(), 1u) << "read under every answer to the cell change and the sound, and kept once";
-        EXPECT_EQ(
-            inputs[0].mRead, (std::variant<std::string, ESM::RefId>(ESM::RefId::stringRefId("c3_destroydagoth"))));
+        EXPECT_EQ(inputs[0].mSource, MWScript::VisibilitySource::Journal);
+        EXPECT_EQ(inputs[0].mId, ESM::RefId::stringRefId("c3_destroydagoth"));
         EXPECT_EQ(inputs[0].mValue, 10);
 
         mReads.mJournal[ESM::RefId::stringRefId("c3_destroydagoth")] = 20;
         EXPECT_EQ(run(sFenceScript, inputs), GateState::Closed) << "struck: down, whatever the sound";
+    }
+
+    /// **A run goes on frame after frame until a frame leaves it as it found it.** A script that
+    /// sets a local and returns takes its reference down on the second frame, which one frame
+    /// answered `Open`; a global the run wrote stands for the frames after; a script that counts
+    /// or toggles never settles, and stands by a history only its cell has.
+    TEST_F(VisibilityGatesTest, aRunGoesOnFrameAfterFrameUntilTheScriptSettles)
+    {
+        std::vector<MWScript::VisibilityInput> inputs;
+        EXPECT_EQ(run("begin s\nshort done\nif ( done == 0 )\nset done to 1\nreturn\nendif\ndisable\nend s\n", inputs),
+            GateState::Closed)
+            << "down on its second frame";
+
+        mReads.mGlobals["flag"] = 0;
+        EXPECT_EQ(
+            run("begin s\nif ( flag == 0 )\nset flag to 1\nreturn\nendif\ndisable\nend s\n", inputs), GateState::Closed)
+            << "the run's own write stands for the next frame";
+        ASSERT_EQ(inputs.size(), 1u);
+        EXPECT_EQ(inputs[0].mValue, 0) << "the game's value, read once";
+
+        EXPECT_EQ(run("begin s\nshort count\nset count to ( count + 1 )\nend s\n", inputs), GateState::Undecided)
+            << "a count never repeats a frame";
+        EXPECT_EQ(run("begin s\nif ( GetDisabled == 1 )\nenable\nelse\ndisable\nendif\nend s\n", inputs),
+            GateState::Undecided)
+            << "a toggle stands one way on one frame and the other on the next";
+        EXPECT_EQ(
+            run("begin s\nshort done\nif ( done == 0 )\nset done to 1\n\"plank\"->disable\nendif\nend s\n", inputs),
+            GateState::Open);
+        EXPECT_EQ(plank(), GateState::Closed) << "a name's last word stands once the script settles";
+
+        // **A run again goes to the heap for nothing**: the gate runs on the frame the story moves,
+        // and every way's locals, writes and names are the run's own members, refilled; a global
+        // is read by its id, which keeps no string of its own.
+        const Compiled settling = compile(
+            "begin s\nshort done\nif ( done == 0 )\nset done to 1\nset flag to 2\nreturn\nendif\nif ( flag == 2 )\n"
+            "\"plank\"->disable\nendif\ndisable\nend s\n");
+        static_cast<void>(mRun.run(settling.mProgram, settling.mLocals, mReads, inputs, mNamed));
+        inputs.clear();
+        const std::size_t before = Rtx::Testing::getAllocationCount();
+        EXPECT_EQ(mRun.run(settling.mProgram, settling.mLocals, mReads, inputs, mNamed), GateState::Closed);
+        EXPECT_EQ(Rtx::Testing::getAllocationCount() - before, 0u);
+        EXPECT_EQ(plank(), GateState::Closed);
+    }
+
+    /// **A broken contract is not an answer.** A program run with locals other than the ones it
+    /// was compiled with reads a local that is not there, which is a fault of the code that handed
+    /// them over: it ends the run, where a handler for every exception made it `Undecided`.
+    TEST_F(VisibilityGatesTest, aProgramRunWithoutItsLocalsIsAFaultAndNotAnAnswer)
+    {
+        const Compiled compiled = compile("begin gate\nshort count\nif ( count == 0 )\n  disable\nendif\nend\n");
+        std::vector<MWScript::VisibilityInput> inputs;
+        EXPECT_THROW(static_cast<void>(mRun.run(compiled.mProgram, Compiler::Locals{}, mReads, inputs, mNamed)),
+            std::out_of_range);
     }
 
     /// **Nothing a run does reaches the game, and what it cannot see it does not guess.** A global

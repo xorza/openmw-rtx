@@ -21,7 +21,6 @@ namespace
         Crash::MonitorArguments written;
         written.mClient = 4242;
         written.mNotes = 0x7ffd12345678;
-        written.mNotesSize = 9352;
         written.mApplication = "crash-tests";
         written.mDialog = false;
         written.mIssues = "https://github.com/xorza/openmw-rtx/issues";
@@ -36,7 +35,6 @@ namespace
         const Crash::MonitorArguments read = Crash::MonitorArguments::read(line, handler);
         EXPECT_EQ(read.mClient, 4242u);
         EXPECT_EQ(read.mNotes, 0x7ffd12345678u);
-        EXPECT_EQ(read.mNotesSize, 9352u);
         EXPECT_EQ(read.mApplication, "crash-tests");
         EXPECT_FALSE(read.mDialog);
         EXPECT_EQ(read.mIssues, "https://github.com/xorza/openmw-rtx/issues");
@@ -48,15 +46,14 @@ namespace
         EXPECT_EQ(written.write().front(), Crash::sMonitorSwitch);
     }
 
-    /// A note table stated with a length that does not read as one is no table, and the monitor
-    /// reads nothing out of the game rather than whatever lies at the address.
-    TEST(CrashMonitorArgumentsTest, aNoteTableWithoutALengthIsNoTable)
+    /// A note table at an address that does not read as a number to its end is no table, and the
+    /// monitor reads nothing out of the game rather than whatever lies at the part it read.
+    TEST(CrashMonitorArgumentsTest, aNoteTableAtAnAddressThatDoesNotReadIsNoTable)
     {
         std::vector<std::string> handler;
-        const std::vector<std::string> line{ "openmw", "--openmw-notes=0x1000", "--openmw-dialog=1" };
+        const std::vector<std::string> line{ "openmw", "--openmw-notes=0x1000:9352", "--openmw-dialog=1" };
         const Crash::MonitorArguments read = Crash::MonitorArguments::read(line, handler);
         EXPECT_EQ(read.mNotes, 0u);
-        EXPECT_EQ(read.mNotesSize, 0u);
         EXPECT_TRUE(read.mDialog);
         EXPECT_FALSE(read.mEndAfter.has_value()) << "a game that names no answer leaves the player to give one";
         EXPECT_EQ(handler, std::vector<std::string>{ "openmw" });
@@ -94,8 +91,17 @@ namespace
         const std::string log = reinterpret_cast<const char*>(u8"C:/Users/Игрок/My Games/OpenMW/openmw.log");
         EXPECT_TRUE(game.setLogPath(log));
         EXPECT_EQ(monitor.getLogPath(), log);
-        EXPECT_FALSE(game.setLogPath(std::string(Crash::sLogPathCapacity + 1, 'x')));
+        EXPECT_FALSE(game.setLogPath(std::string(Crash::sPathCapacity + 1, 'x')));
         EXPECT_EQ(monitor.getLogPath(), log) << "a refused path left the one before";
+
+        // **And the folder the package goes to**, the same way and apart from the log.
+        EXPECT_EQ(monitor.getReportPath(), "");
+        const std::string folder = reinterpret_cast<const char*>(u8"D:/Spiele/Игрок/crashes");
+        EXPECT_TRUE(game.setReportPath(folder));
+        EXPECT_EQ(monitor.getReportPath(), folder);
+        EXPECT_EQ(monitor.getLogPath(), log) << "the folder wrote over the log";
+        EXPECT_FALSE(game.setReportPath(std::string(Crash::sPathCapacity + 1, 'x')));
+        EXPECT_EQ(monitor.getReportPath(), folder);
 
         EXPECT_EQ(Crash::SharedPage::open(id + 2).get(), nullptr);
     }

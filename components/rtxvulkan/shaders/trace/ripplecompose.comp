@@ -11,6 +11,7 @@
 #include "sets.h"
 #include "wave.h"
 #include "lib/pixels.glsl"
+#include "lib/wavetile.glsl"
 
 layout(local_size_x = RIPPLE_WORKGROUP, local_size_y = RIPPLE_WORKGROUP) in;
 
@@ -50,6 +51,6 @@ void main()
                          + heightAt(texel + ivec2(-1, -1)))
         / (4.0 * texelWidth * texelWidth);
 
-    imageStore(surface, texel, vec4(slope, dot(slope, slope), here * here));
-    imageStore(curvature, texel, vec4(xx, yy, xy, 0.0));
+    imageStore(surface, texel, waveSurfaceTexel(here, slope));
+    imageStore(curvature, texel, waveCurvatureTexel(vec3(xx, yy, xy)));
 }

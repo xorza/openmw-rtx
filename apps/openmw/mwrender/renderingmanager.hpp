@@ -216,6 +216,11 @@ namespace MWRender
         /// `notifyWorldSpaceChanged`; the renderer is told of the cut either way.
         void notifyTeleport();
 
+        /// `ptr` was put somewhere else in one step rather than walked there — a door, a teleport,
+        /// a script's `Position` — and its history from where it stood is no history of where it
+        /// stands: `SceneFrame::mJumped`.
+        void notifyJumped(const MWWorld::Ptr& ptr);
+
         void update(float dt, bool paused);
 
         /// Describes this frame and hands it to the renderer, then asks for it drawn: two calls,
@@ -363,6 +368,10 @@ namespace MWRender
         float mFieldOfView;
         float mFirstPersonFieldOfView;
         bool mUpdateProjectionMatrix = false;
+
+        /// The frame the projection was built for: the one owner of the projection asks the
+        /// presentation itself, rather than each renderer calling back up when it changes.
+        osg::Vec2i mProjectedFrame;
         osg::Vec2f mProjectionOffset;
         const MWWorld::GroundcoverStore& mGroundCoverStore;
 

@@ -4,6 +4,7 @@
 set(RTX_TEST_FILES
     rtx/scene/nifsurface.cpp
     myguirtx/sharedtexture.cpp
+    rtx/common/hashstate.cpp
     rtx/common/job.cpp
     rtx/common/monitor.cpp
     rtx/common/namedenum.cpp
@@ -13,6 +14,7 @@ set(RTX_TEST_FILES
     rtx/common/slots.cpp
     rtx/common/stepped.cpp
     rtx/common/worker.cpp
+    rtx/environment/atmosphere.cpp
     rtx/environment/cloudshell.cpp
     rtx/environment/fogbuilder.cpp
     rtx/environment/frameworld.cpp
@@ -24,6 +26,7 @@ set(RTX_TEST_FILES
     rtx/environment/wavespectrum.cpp
     rtx/frame/bluenoise.cpp
     rtx/frame/camera.cpp
+    rtx/frame/framepast.cpp
     rtx/frame/framesampling.cpp
     rtx/frame/reconstruction.cpp
     rtx/frame/specularalbedo.cpp
@@ -38,6 +41,7 @@ set(RTX_TEST_FILES
     rtx/mirror/cells/cellring.cpp
     rtx/mirror/cells/groundreader.cpp
     rtx/mirror/cells/templatewalk.cpp
+    rtx/mirror/drawableposer.cpp
     rtx/mirror/extractor/fixture.hpp
     rtx/mirror/extractor/lights.cpp
     rtx/mirror/extractor/materials.cpp
@@ -71,6 +75,7 @@ set(RTX_TEST_FILES
     rtx/shaders/exposure.cpp
     rtx/shaders/hitrecords.cpp
     rtx/shaders/pixelgrid.cpp
+    rtx/shaders/sharedconstants.cpp
     rtx/shaders/tangent.cpp
     rtx/sourcetree.cpp
     rtx/support/halfstep.cpp
@@ -91,14 +96,19 @@ set(RTX_TEST_FILES
     rtxtool/frametimes.cpp
     rtxtool/gpuclock.cpp
     rtxtool/homekey.cpp
+    rtxtool/numbervalue.cpp
+    rtxtool/measurewindow.cpp
     rtxtool/options.cpp
     rtxtool/picturemean.cpp
     rtxtool/run.cpp
+    rtxtool/runrecord.cpp
     rtxtool/scenedigest.cpp
     rtxtool/skycrossing.cpp
     rtxvulkan/device/buffermarkers.cpp
     rtxvulkan/device/instance.cpp
     rtxvulkan/device/memory/formats.cpp
+    rtxvulkan/device/memory/memorypriority.cpp
+    rtxvulkan/device/memory/memorytypes.cpp
     rtxvulkan/device/physicaldevice.cpp
     rtxvulkan/device/requirements.cpp
     rtxvulkan/pipeline/dispatch.cpp
@@ -113,6 +123,7 @@ set(RTX_TEST_FILES
 )
 
 set(RTX_TEST_SUPPORT
+    rtx/support/cardmemory.hpp
     rtx/support/countingrenderer.hpp
     rtx/support/death.hpp
     rtx/support/displaycurve.hpp
@@ -159,6 +170,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/device/memory/slottable.cpp
     rtxvulkan/device/memory/structurestorage.cpp
     rtxvulkan/device/pipelinecache.cpp
+    rtxvulkan/device/halfstore.cpp
     rtxvulkan/device/probe.cpp
     rtxvulkan/device/readstamp.cpp
     rtxvulkan/display/bloompass.cpp
@@ -180,10 +192,10 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/texture/spritelightpass.cpp
     rtxvulkan/texture/texturearrival.cpp
     rtxvulkan/texture/texturearray.cpp
-    rtxvulkan/trace/fogvolume.cpp
     rtxvulkan/trace/ripplepass.cpp
     rtxvulkan/trace/spritepasses.cpp
     rtxvulkan/trace/stresspass.cpp
+    rtxvulkan/trace/tracechain.cpp
     rtxvulkan/trace/visibility/filter.cpp
     rtxvulkan/trace/visibility/fixture.hpp
     rtxvulkan/trace/visibility/fog.cpp
@@ -205,7 +217,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/trace/wavepass.cpp
 )
 
-# One `Platform::Process` test per system, and the fifo where the system has one.
+# One `Platform::Process` test per system, and the fifo and sysfs where the system has them.
 if (WIN32)
     list(APPEND RTX_TEST_FILES platform/processwin32.cpp)
 else()

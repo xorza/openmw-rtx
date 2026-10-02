@@ -59,6 +59,39 @@ namespace MWWorld
             EXPECT_EQ(afterStatePostLoop.mPhase, static_cast<MWRender::MoonState::Phase>(1));
         }
 
+        /// The continuous phase is the painted one and how far it has run toward the next, so it
+        /// never steps: hour by hour over seventy-two days its whole part is the engine's phase, and
+        /// it moves on by a small, even amount each hour, through every change. Masser's numbers,
+        /// whose first change is on day 2 at 11:57.
+        TEST(MWWorldWeatherTest, masserPhaseRunsContinuouslyAndCrossesWhereTheEngineDoes)
+        {
+            const MWWorld::MoonModel moon(14.0f, 15.0f, 7.0f, 10.0f, 35.0f, 0.5f, 1.0f, 50.0f, 40.0f, 0.5f);
+
+            TimeStamp before;
+            before += 24.0f * 2 + 11.0f + 56.0f / 60.0f;
+            TimeStamp after;
+            after += 24.0f * 2 + 11.0f + 58.0f / 60.0f;
+            EXPECT_NEAR(moon.calculateState(before).mPhaseEighths, 1.0f, 1e-3f);
+            EXPECT_NEAR(moon.calculateState(after).mPhaseEighths, 1.0f, 1e-3f);
+            EXPECT_LT(moon.calculateState(before).mPhaseEighths, 1.0f) << "the old phase, nearly run";
+            EXPECT_GE(moon.calculateState(after).mPhaseEighths, 1.0f) << "the new one, just begun";
+
+            float last = moon.calculateState(TimeStamp()).mPhaseEighths;
+            for (int hour = 1; hour < 72 * 24; ++hour)
+            {
+                TimeStamp at;
+                at += static_cast<float>(hour);
+                const MWRender::MoonState state = moon.calculateState(at);
+                EXPECT_EQ(static_cast<int>(state.mPhaseEighths), static_cast<int>(state.mPhase)) << "hour " << hour;
+
+                // A third of a phase a day at most, give or take where the change hour falls.
+                const float moved = std::fmod(state.mPhaseEighths - last + 8.0f, 8.0f);
+                EXPECT_GT(moved, 0.0f) << "hour " << hour;
+                EXPECT_LT(moved, 0.03f) << "hour " << hour;
+                last = state.mPhaseEighths;
+            }
+        }
+
         TEST(MWWorldWeatherTest, masserPhasesWaningGibbousToThirdQuarterAtCorrectTimes)
         {
             float dailyIncrement = 1.0f;

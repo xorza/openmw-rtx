@@ -7,11 +7,12 @@
 #include <cstdint>
 #include <format>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <variant>
 
 #include <components/files/conversion.hpp>
-#include <components/rtx/common/error.hpp>
 #include <components/rtx/mirror/cells/readermemory.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/renderer/framespend.hpp>
@@ -55,17 +56,59 @@ namespace RtxTool
             return quoted + '"';
         }
 
+        /// Null where no reading read it.
+        std::string asJson(const ClockRange& range)
+        {
+            if (range.mReadings == 0)
+                return "null";
+
+            return std::format(R"({{"meanMhz": {}, "lowestMhz": {}, "highestMhz": {}, "readings": {}}})",
+                range.getMeanMhz(), range.mLowestMhz, range.mHighestMhz, range.mReadings);
+        }
+
+        template <class T>
+        std::string asJson(const std::optional<T>& value)
+        {
+            return value.has_value() ? std::format("{}", *value) : "null";
+        }
+
         /// Null where nothing answered, so a record taken on a machine with no driver library says
-        /// it carries no clock rather than claiming one of zero.
+        /// it carries no clock rather than claiming one of zero; and null for each part the
+        /// instrument cannot read, for the same reason. The mean and the count are in it because
+        /// they say whether two records ran at one clock.
         std::string asJson(const GpuClock& clock)
         {
             if (!clock.mRead)
                 return "null";
 
-            return std::format(
-                R"({{"lowestMhz": {}, "highestMhz": {}, "memoryMhz": {}, "temperatureC": {}, "throttle": {}}})",
-                clock.mLowestMhz, clock.mHighestMhz, clock.mMemoryMhz, clock.mTemperatureC,
-                asJson(describeThrottle(clock.mThrottleMask)));
+            const std::string throttle
+                = clock.mThrottleMask.has_value() ? asJson(describeThrottle(*clock.mThrottleMask)) : "null";
+            return std::format(R"({{"core": {}, "memory": {}, "temperatureC": {}, "throttle": {}}})",
+                asJson(clock.mCore), asJson(clock.mMemory), asJson(clock.mTemperatureC), throttle);
+        }
+
+        /// The scale a fixed exposure states, or nothing for one measured or held.
+        std::optional<float> fixedScaleOf(const Rtx::ExposureRule& exposure)
+        {
+            const Rtx::FixedExposure* fixed = std::get_if<Rtx::FixedExposure>(&exposure);
+            return fixed != nullptr ? std::optional<float>(fixed->mScale) : std::nullopt;
+        }
+
+        /// What the renderer was made with, as the report's header has it, one key a premise.
+        std::string asJson(const MWRender::RunSetup& setup, const std::optional<float>& step)
+        {
+            const Rtx::RenderProfile& profile = setup.mRun.mProfile;
+            const Rtx::MirrorKnobs& mirror = setup.mMirror;
+            return std::format(R"(  "filter": {}, "jitter": {}, "delight": {:.3f}, "gamma": {:.3f}, "show": "{}", )"
+                               R"("exposure": {}, "exposureHeld": {}, "variants": {}, "holdMs": {:.3f},)"
+                               "\n"
+                               R"(  "landCells": {:.1f}, "viewingDistance": {:.1f}, "distantStatics": {}, "step": {}, )"
+                               R"("settled": {}, "memoryBudget": {},)",
+                profile.mReconstruction.mDenoise, profile.mReconstruction.mJitter, profile.mDelight, profile.mGamma,
+                Rtx::sSurfaceViewNames.name(profile.mShow), asJson(fixedScaleOf(profile.mExposure)),
+                std::holds_alternative<Rtx::HeldExposure>(profile.mExposure), profile.mSpecializeLaunches,
+                profile.mStressOverlapMs, mirror.mReach.mCells, mirror.mReach.mViewingDistance, mirror.mDistantStatics,
+                asJson(step), asJson(setup.mSettled), asJson(setup.mRun.mMemoryBudget));
         }
 
         /// Null where nothing looked, for the same reason; and in the record at all because a
@@ -192,7 +235,9 @@ namespace RtxTool
 
     int minuteOfDay(const float hour)
     {
-        return static_cast<int>(std::lround(hour * 60.0f)) % (24 * 60);
+        // In double, where a float times sixty is exact: rounded in float first, an hour a hair
+        // under a half minute would round up to it and then to the minute after.
+        return static_cast<int>(std::lround(static_cast<double>(hour) * 60.0)) % (24 * 60);
     }
 
     std::string describeHour(const float hour)
@@ -229,7 +274,63 @@ namespace RtxTool
         }
     }
 
-    std::string describePlace(const BenchPlace& place)
+    namespace
+    {
+        std::string describeExposure(const Rtx::ExposureRule& exposure)
+        {
+            if (const Rtx::FixedExposure* fixed = std::get_if<Rtx::FixedExposure>(&exposure))
+                return std::format("fixed at {:.3f}", fixed->mScale);
+            return std::holds_alternative<Rtx::HeldExposure>(exposure) ? "held" : "adapted";
+        }
+
+        std::string describeStep(const std::optional<float>& step)
+        {
+            return step.has_value() ? std::format("{:.4f} s", *step) : std::string("the wall");
+        }
+
+        std::string_view describeSettled(const std::optional<bool>& settled)
+        {
+            if (!settled.has_value())
+                return "as the step says";
+            return *settled ? "settled" : "streamed";
+        }
+
+        std::string describeBudget(const std::optional<std::uint64_t>& budget)
+        {
+            return budget.has_value() ? std::format("{} MiB", *budget / (1024 * 1024)) : std::string("none");
+        }
+    }
+
+    std::string describeHeader(const BenchHeader& header)
+    {
+        // **The build and the layers first, because either makes every figure below one not to
+        // quote**, and the command's own word on whether it measures beside them.
+        const Rtx::RenderProfile& profile = header.mSetup.mRun.mProfile;
+        const Rtx::MirrorKnobs& mirror = header.mSetup.mMirror;
+        std::string out = std::format("\nrun  {}, layers {}, {}{}{}\n",
+            header.mAsserts ? "a build with asserts, not one to quote" : "a release build",
+            header.mValidating ? "on, not a figure to quote" : "off", header.mMeasures ? "measured" : "not measured",
+            header.mHashed ? ", every frame hashed" : "", header.mTurnsWeather ? ", the weather turned" : "");
+        const Rtx::Reconstruction& resolved = header.mReconstruction;
+        out += std::format("     {}x{} from {}x{}, upscale {}, filter {}, jitter {}, noise {}, level bias {:.3f}\n",
+            header.mExtents.mOutputWidth, header.mExtents.mOutputHeight, header.mExtents.mRenderWidth,
+            header.mExtents.mRenderHeight, Rtx::sUpscaleNames.name(resolved.mUpscale),
+            resolved.mDenoised ? "on" : "off", resolved.mJitter ? "on" : "off",
+            Rtx::sNoiseSourceNames.name(resolved.mNoise), resolved.mLevelBias);
+        out += std::format("     delight {:.2f}, gamma {:.2f}, show {}, exposure {}, variants {}, hold {}\n",
+            profile.mDelight, profile.mGamma, Rtx::sSurfaceViewNames.name(profile.mShow),
+            describeExposure(profile.mExposure), profile.mSpecializeLaunches ? "on" : "off",
+            profile.mStressOverlapMs > 0.0 ? std::format("{:.1f} ms", profile.mStressOverlapMs) : std::string("none"));
+        out += std::format(
+            "     land {:.1f} cells, viewing distance {:.0f}, distant statics {}, step {}, walks {}, "
+            "memory budget {}\n",
+            mirror.mReach.mCells, mirror.mReach.mViewingDistance, mirror.mDistantStatics ? "on" : "off",
+            describeStep(header.mStep), describeSettled(header.mSetup.mSettled),
+            describeBudget(header.mSetup.mRun.mMemoryBudget));
+        return out;
+    }
+
+    std::string describePlace(const BenchPlace& place, const bool measured)
     {
         std::string out;
 
@@ -284,6 +385,8 @@ namespace RtxTool
             out += std::format("  {:.2f} frames in flight at a submit, {} at the least\n", place.mOverlap.getMean(),
                 place.mOverlap.mLeast);
 
+        if (!measured)
+            out += "  not a measurement: this command draws its frames to look at them, and times them as it goes\n";
         out += describeHeadings();
         for (const Rtx::Timing timing : Rtx::sTimings.values())
             out += describeTimes(std::format("{} ms", Rtx::sTimings.name(timing)), place.mRows[indexOf(timing)]);
@@ -348,7 +451,7 @@ namespace RtxTool
         return std::format("\n{} places, {} frames in {:.1f} s\n", places.size(), frames, lasted);
     }
 
-    void writeJson(
+    Misc::Result<void, std::string> writeJson(
         const std::filesystem::path& path, const BenchHeader& header, const std::span<const BenchPlace> places)
     {
         std::ofstream file(path);
@@ -359,13 +462,20 @@ namespace RtxTool
              << '\n'
              << std::format(R"(  "render": [{}, {}],)", header.mExtents.mRenderWidth, header.mExtents.mRenderHeight)
              << '\n'
-             << std::format(R"(  "upscale": "{}",)", Rtx::sUpscaleNames.name(header.mUpscale)) << '\n'
-             << std::format(R"(  "noise": "{}", "levelBias": {:.3f},)", Rtx::sNoiseSourceNames.name(header.mNoise),
-                    header.mLevelBias)
+             << std::format(R"(  "upscale": "{}", "denoised": {}, "jittered": {},)",
+                    Rtx::sUpscaleNames.name(header.mReconstruction.mUpscale), header.mReconstruction.mDenoised,
+                    header.mReconstruction.mJitter)
+             << '\n'
+             << std::format(R"(  "noise": "{}", "levelBias": {:.3f},)",
+                    Rtx::sNoiseSourceNames.name(header.mReconstruction.mNoise), header.mReconstruction.mLevelBias)
              << '\n'
              << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", header.mMeasured, header.mWarmup,
                     header.mValidating)
              << '\n'
+             << std::format(R"(  "asserts": {}, "measures": {}, "hashed": {}, "turnsWeather": {},)", header.mAsserts,
+                    header.mMeasures, header.mHashed, header.mTurnsWeather)
+             << '\n'
+             << asJson(header.mSetup, header.mStep) << '\n'
              << R"(  "places": [)" << '\n';
 
         for (std::size_t at = 0; at < places.size(); ++at)
@@ -400,6 +510,7 @@ namespace RtxTool
         // that was never written leaves the last one at its path to be compared as this one.
         file.flush();
         if (!file)
-            throw Rtx::InputError("could not write " + Files::pathToUnicodeString(path));
+            return Misc::Err{ "could not write " + Files::pathToUnicodeString(path) };
+        return {};
     }
 }

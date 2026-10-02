@@ -65,6 +65,54 @@ namespace Rtx::Shaders
         return float(row) / float(SPECULAR_TABLE_SIZE - 1u);
     }
 
+    /// Where a point falls among the table's nodes: the node under it on each axis, the node past
+    /// it held to the table's edge, and how far between the two it stands.
+    struct SpecularTableTaps
+    {
+        uint mLeft;
+        uint mRight;
+        uint mTop;
+        uint mBottom;
+        float mAcross;
+        float mDown;
+    };
+
+    /// The four nodes about a cosine to the eye and a perceptual roughness. With
+    /// `specularTableBlend`, the one lookup the host's table and the shader both read the lobe's
+    /// integrals through: a second copy of it would be a second place the two could part.
+    RTX_SHADER SpecularTableTaps specularTableTaps(float cosine, float roughness)
+    {
+        const float across = specularTableColumn(cosine);
+        const float down = specularTableRow(roughness);
+
+        SpecularTableTaps taps;
+        taps.mLeft = uint(across);
+        taps.mTop = uint(down);
+        taps.mRight = min(taps.mLeft + 1u, SPECULAR_TABLE_SIZE - 1u);
+        taps.mBottom = min(taps.mTop + 1u, SPECULAR_TABLE_SIZE - 1u);
+        taps.mAcross = across - float(taps.mLeft);
+        taps.mDown = down - float(taps.mTop);
+        return taps;
+    }
+
+    /// The four nodes `taps` names blended, along the cosine and then along the roughness.
+    RTX_SHADER vec2 specularTableBlend(
+        SpecularTableTaps taps, vec2 leftTop, vec2 rightTop, vec2 leftBottom, vec2 rightBottom)
+    {
+        return (leftTop * (1.0f - taps.mAcross) + rightTop * taps.mAcross) * (1.0f - taps.mDown)
+            + (leftBottom * (1.0f - taps.mAcross) + rightBottom * taps.mAcross) * taps.mDown;
+    }
+
+    /// The perceptual roughness of a Blinn-Phong exponent, which a classic specular map paints as
+    /// its alpha times 255. Walter et al. 2007 match a Beckmann lobe to a Phong lobe of the same
+    /// width at `alpha = sqrt(2 / (n + 2))`, and GGX's alpha is taken as Beckmann's, the convention
+    /// Karis's notes use; the roughness is that alpha's root (`ggxAlpha`). **An approximation**, and
+    /// stated as one: no microfacet lobe is a Phong lobe, and this matches the two near the peak.
+    RTX_SHADER float roughnessOfExponent(float exponent)
+    {
+        return sqrt(sqrt(2.0f / (exponent + 2.0f)));
+    }
+
     /// GGX's alpha for a perceptual roughness: its square, the roughness a map paints being
     /// perceptually linear — glTF 2.0 and Filament. Held at `ROUGHNESS_FLOOR`.
     RTX_SHADER float ggxAlpha(float roughness)
@@ -138,10 +186,12 @@ namespace Rtx::Shaders
     }
 
     /// The perceptual roughness a field of slopes stands for, whose total variance over both axes is
-    /// `slopes`: GGX's `alpha` is `sqrt(2) sigma` for a slope deviation of `sigma` along each axis,
-    /// so `alpha^2` is the variance of both together, and the roughness is its root, `ggxAlpha`'s
-    /// inverse. One quantity however the surface came by its roughness — a painted map, or water's
-    /// slopes the cone averaged away — so a lobe is widened the same way by either.
+    /// `slopes`: Beckmann's `alpha` is `sqrt(2) sigma` for a slope deviation of `sigma` along each
+    /// axis, so `alpha^2` is the variance of both together, and the roughness is its root,
+    /// `ggxAlpha`'s inverse. **An approximation for GGX**, whose slopes have no finite variance: the
+    /// two lobes matched by their alpha, as Tokuyoshi and Kaplanyan match them. One quantity however the surface came
+    /// by its roughness — a painted map, or water's slopes the cone averaged away — so a lobe is widened the same way
+    /// by either.
     RTX_SHADER float slopeRoughness(float slopes)
     {
         return min(sqrt(sqrt(max(slopes, 0.0f))), 1.0f);
@@ -150,9 +200,11 @@ namespace Rtx::Shaders
     /// The slope variance, both axes together, that unit normals stand for whose mean's squared
     /// length falls short of one by `loss`: what a normal map's level has lost of the normals it
     /// averages (Toksvig, *Mipmapping Normal Maps*, 2005). Read through the von Mises–Fisher lobe
-    /// those normals are fitted to (Han et al., *Frequency Domain Normal Map Filtering*, 2007),
-    /// whose sharpness is `(3r − r³) / (1 − r²)` for a mean of length `r` and whose slopes spread
-    /// `1 / sharpness` along each axis: `2 loss / (r (2 + loss))` with `r = √(1 − loss)`.
+    /// those normals are fitted to (Han et al., *Frequency Domain Normal Map Filtering*, 2007).
+    /// **Two approximations**: the lobe's sharpness for a mean of length `r` is Banerjee et al.'s
+    /// estimate of the inverse of the Langevin function, `(3r − r³) / (1 − r²)`, and not the
+    /// lobe's own, and its slopes spread `1 / sharpness` along each axis only where the lobe is
+    /// narrow. Together, `2 loss / (r (2 + loss))` with `r = √(1 − loss)`.
     ///
     /// **In the loss and not the length**, because a mean of normals that agree is one long only to
     /// a float's last place, and that last place, taken to the fourth root a roughness is, is a
@@ -169,7 +221,9 @@ namespace Rtx::Shaders
     /// averages of a surface whose normal turns under it, as a mesh's bend or a normal map's spread
     /// (Tokuyoshi and Kaplanyan, *Improved Geometric Specular Antialiasing*, I3D 2019). Independent
     /// slopes' variances add, so `alpha²` takes the lost slopes on and `slopeRoughness` turns the sum
-    /// back. **The roughness itself where nothing is lost**, selected and not recomputed, so a
+    /// back. **Without the paper's clamp of the added variance at 0.18**: a footprint across a steep
+    /// bend roughens the lobe up to GGX's widest, which `slopeRoughness` holds it at, where theirs
+    /// stops short of it. **The roughness itself where nothing is lost**, selected and not recomputed, so a
     /// surface that loses nothing keeps the roughness it was painted with to the bit.
     RTX_SHADER float widenedRoughness(float roughness, float lost)
     {
@@ -194,6 +248,18 @@ namespace Rtx::Shaders
             return widest;
 
         return min(4.0f * atan(alpha * sqrt((rootTwo - 1.0f) / left)), widest);
+    }
+
+    /// How wide the cone is that the lobe's refracted rays fill, where `reflected` is
+    /// `ggxConeWidth`'s for the same lobe, through a surface of index `ior` against air.
+    ///
+    /// **Half the bend's share of the reflected cone.** Near square on, a facet tilted by `θ`
+    /// deflects a reflection by `2θ` and a refraction by `(1 - n_i / n_t) θ`: `1 - 1 / ior` entering
+    /// the denser side, and `ior - 1` in size `leaving` it, which is the larger, because the ray
+    /// comes from the side that bends it.
+    RTX_SHADER float refractedConeWidth(float reflected, float ior, bool leaving)
+    {
+        return reflected * 0.5f * (leaving ? ior - 1.0f : 1.0f - 1.0f / ior);
     }
 
     /// Schlick's weight, `(1 - cosine)^5`: how far the reflectance at a half vector's angle has

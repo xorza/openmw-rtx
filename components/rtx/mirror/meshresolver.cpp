@@ -11,9 +11,11 @@
 #include <osg/Array>
 #include <osg/BoundingBox>
 #include <osg/BoundingSphere>
+#include <osg/GL>
 #include <osg/Geometry>
 #include <osg/Matrix>
 #include <osg/Matrixf>
+#include <osg/PrimitiveSet>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
@@ -36,6 +38,15 @@ namespace Rtx
 {
     namespace
     {
+        /// Whether `geometry` draws lines or points: an `NiLines`, or a cloud of points.
+        bool drawsLines(const osg::Geometry& geometry)
+        {
+            return std::ranges::any_of(geometry.getPrimitiveSetList(), [](const osg::ref_ptr<osg::PrimitiveSet>& set) {
+                const GLenum mode = set->getMode();
+                return mode == GL_POINTS || mode == GL_LINES || mode == GL_LINE_STRIP || mode == GL_LINE_LOOP;
+            });
+        }
+
         /// How many vertices a geometry has, or nought where it holds none it can be read for.
         /// Asked on its own where the count is the whole question, so a body met again does not
         /// spread its normals to find out.
@@ -131,7 +142,11 @@ namespace Rtx
             return refuse(drawable, readMesh.error());
 
         // Vertices and no triangle: nothing to place, and filed as a refusal is, with nothing to
-        // report, so the next walk does not read and decode it again.
+        // report, so the next walk does not read and decode it again. Lines and points are
+        // reported, because the rasterizer draws them — an `NiLines` — and a ray has no width of
+        // theirs to meet.
+        if (!readMesh.value() && read.mGeometry != nullptr && drawsLines(*read.mGeometry))
+            return refuse(drawable, "its lines and points have no width a ray can meet");
         if (!readMesh.value())
         {
             ++stats.mSkippedEmpty;

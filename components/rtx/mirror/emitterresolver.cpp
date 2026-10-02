@@ -20,7 +20,7 @@
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/image/textureencoding.hpp>
-#include <components/rtx/preprocess/meantexels.hpp>
+#include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
@@ -28,6 +28,9 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>
+#include <components/rtx/scene/texturetable.hpp>
+#include <components/rtx/shaders/look.h>
+#include <components/rtx/shaders/scene.h>
 #include <components/vfs/pathutil.hpp>
 
 #include "extractionstats.hpp"
@@ -52,17 +55,23 @@ namespace Rtx
             return axis * turn;
         }
 
-        /// The image `shading` draws a system's sprites with, described into `described`, or why
-        /// it names none this can draw: a system the game draws and this renderer leaves out.
+        /// The image `shading` draws a system's sprites with, described into `described`: null for
+        /// a surface that names none, which draws untextured, or why it names one this cannot draw —
+        /// a system the game draws and this renderer leaves out.
         Misc::Result<const osg::Image*, std::string_view> readSprite(
             std::span<const Shading> shading, SurfaceDescription& described)
         {
+            // **Nothing describing the surface is OpenGL's own state**: no texture and no material,
+            // so each particle is drawn in its own colour.
             if (!describeSurface(shading, described))
-                return Misc::Err{ "nothing describes its surface" };
+            {
+                described.mVertexColour = VertexColour::Tint;
+                return nullptr;
+            }
 
             const osg::Image* sprite = described.getTextureUse(SurfaceMap::Diffuse).get();
             if (sprite == nullptr)
-                return Misc::Err{ "its surface names no image to draw with" };
+                return sprite;
 
             if (sprite->getFileName().empty())
                 return Misc::Err{ "its image was never a file" };
@@ -83,6 +92,7 @@ namespace Rtx
             mScene.refusals().refuse(Refused::Emitter, particles.getName(), read.error());
         const osg::Image* sprite = read.isOk() ? read.value() : nullptr;
 
+        held.mUntextured = read.isOk() && sprite == nullptr;
         held.mBlend = described.mBlend;
         held.mVertexColour = described.mVertexColour;
         held.mDiffuseColour = decodeColour(described.mDiffuseColour);
@@ -96,7 +106,7 @@ namespace Rtx
         releaseSprite(held);
         held.mSprite = sprite;
         held.mWrap = use.mWrap;
-        held.mMean = nullptr;
+        held.mFacts = nullptr;
         held.mRefused = RefusedTakes();
         if (sprite != nullptr)
             takeSprite(particles, held);
@@ -124,8 +134,8 @@ namespace Rtx
         // The bake is keyed on the file, so two emitters drawing with one texture share one
         // bake, and it is made when the texture is opened for upload — `SceneTextures`. Only
         // where the sprite stands, because the bake is of its alpha.
-        held.mLighting
-            = mScene.holdTexture(mScene.textures().addBaked(SpriteLightMap::keyFor(path), TextureEncoding::Colour));
+        held.mLighting = mScene.holdTexture(
+            mScene.textures().addBaked(SpriteLightMap::keyFor(path), TextureKind::Baked, TextureEncoding::Colour));
     }
 
     void EmitterResolver::releaseSprite(HeldSprite& held)
@@ -151,10 +161,10 @@ namespace Rtx
         else if (held.mSprite != nullptr && held.mSlot.empty())
             takeSprite(particles, held);
 
-        // No image, or an image the texture table had no room for: a slot the shader reads the
-        // sprite out of is what an emitter is drawn with, and it has none. `describeSprite` said
-        // which.
-        if (held.mSprite == nullptr || held.mSlot.empty())
+        // No image it can draw, or an image the texture table had no room for: a slot the shader
+        // reads the sprite out of is what an emitter is drawn with, and it has none.
+        // `describeSprite` said which. A surface that names no image draws with the white texel.
+        if (!held.mUntextured && (held.mSprite == nullptr || held.mSlot.empty()))
             return;
 
         // Noted now and read when the walk is over. Whether this system has been integrated
@@ -166,6 +176,7 @@ namespace Rtx
             .mPlace = place,
             .mFalls = mPass.mFalls,
             .mGlow = glow,
+            .mFade = shading.empty() ? 1.0f : shading.back().mFade.mPlacement,
         });
     }
 
@@ -235,12 +246,16 @@ namespace Rtx
             // multiplying both keeps that a fact about the data. Both are the vertex's, and the
             // material's mode says whether the vertex is read at all — `HeldSprite::mVertexColour`.
             // A blend that adds whole reads no alpha at all, so its sprite is all there whatever
-            // its ramps say — one file in the game, and its silhouette is still its texture's.
+            // its ramps say — one file in the game — and what it adds is its texture's colour,
+            // with the texture's alpha unread too (`EMITTER_ADD_WHOLE`).
             const bool tinted = held.mVertexColour == VertexColour::Tint;
             const osg::Vec4f vertex = particle.getCurrentColor();
             const osg::Vec3f colour = tinted ? decodeColour(vertex) : held.mDiffuseColour;
-            const float opacity = tinted ? vertex.a() * particle.getCurrentAlpha() : held.mOpacity;
-            const float alpha = held.mBlend == BlendKind::AddWhole ? 1.0f : opacity;
+            // The material's own opacity under a tint as well: the vertex replaces its diffuse,
+            // and the `alpha` uniform it carried stands. And the fade, as every fragment the
+            // rasterizer draws is multiplied by `alpha * actorFade`.
+            const float opacity = tinted ? vertex.a() * particle.getCurrentAlpha() * held.mOpacity : held.mOpacity;
+            const float alpha = held.mBlend == BlendKind::AddWhole ? 1.0f : opacity * pending.mFade;
             if (!std::isfinite(alpha) || !isFinite(colour))
                 return Misc::Err{ "a particle's colour is not a finite number" };
             if (!(alpha > 0.0f))
@@ -302,8 +317,10 @@ namespace Rtx
         if (mSpriteScratch.empty())
             return;
 
-        mScene.addEmitter(mSpriteScratch, held.mSlot.get(), held.mBlend != BlendKind::Over, width, held.mLighting.get(),
-            pending.mFalls);
+        // An untextured system is the white texel coloured by its particles, as the rasterizer
+        // draws one, and lit as a flat card, having no alpha to bake.
+        const Index texture = held.mUntextured ? Shaders::TEXTURE_NEUTRAL : held.mSlot.get();
+        mScene.addEmitter(mSpriteScratch, texture, held.mBlend, width, held.mLighting.get(), pending.mFalls);
 
         ++stats.mEmitters;
         stats.mSprites += static_cast<std::uint32_t>(mSpriteScratch.size());
@@ -313,10 +330,16 @@ namespace Rtx
         const SpriteEmitter& emitter = mScene.emitters().back();
         if (pending.mGlow.has_value() && emitter.isAdditive())
         {
-            if (held.mMean == nullptr)
-                held.mMean = &mMeans.of(*held.mSprite);
+            if (held.mUntextured)
+                glows[*pending.mGlow].addSprites(emitter, mSpriteScratch, Shaders::UNTEXTURED_ALBEDO);
+            else
+            {
+                if (held.mFacts == nullptr)
+                    held.mFacts = &mFacts.of(*held.mSprite);
 
-            glows[*pending.mGlow].addSprites(emitter, mSpriteScratch, held.mMean->mColour);
+                glows[*pending.mGlow].addSprites(
+                    emitter, mSpriteScratch, meanUnder(mFacts.meanOf(*held.mFacts, *held.mSprite), held.mBlend));
+            }
         }
     }
 

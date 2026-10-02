@@ -183,6 +183,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window&apos;s own size. In Windowed mode the window keeps the size you last dragged it to.</source>
+        <translation>Die Auflösung, in der das Spiel rendert, Welt und Oberfläche zusammen, skaliert auf das Fenster. Nativ rendert in der Größe des Fensters. Im Fenstermodus behält das Fenster die Größe, auf die du es zuletzt gezogen hast.</translation>
+    </message>
+    <message>
         <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs a GPU with hardware ray tracing: NVIDIA Turing or AMD RDNA 2, or later.</source>
         <translation>Ersetzt den OpenGL-Renderer durch den experimentellen Vulkan-Raytracing-Renderer. Benötigt eine GPU mit Hardware-Raytracing: NVIDIA Turing oder AMD RDNA 2, oder neuer.</translation>
     </message>
@@ -195,8 +199,8 @@
         <translation>Hochskalierung</translation>
     </message>
     <message>
-        <source>How far below the window&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
-        <translation>Wie weit unter der Fenstergröße der Raytracer rendert. Aus traced jedes Pixel ohne Hochskalierer; jeder andere Modus lässt den Hochskalierer laufen, der das Bild über mehrere Bilder rekonstruiert, und alle Modi außer Aus und Nativ tracen weniger Pixel, als sie anzeigen.</translation>
+        <source>How far below the frame&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
+        <translation>Wie weit unter der Bildauflösung der Raytracer rendert. Aus traced jedes Pixel ohne Hochskalierer; jeder andere Modus lässt den Hochskalierer laufen, der das Bild über mehrere Bilder rekonstruiert, und alle Modi außer Aus und Nativ tracen weniger Pixel, als sie anzeigen.</translation>
     </message>
     <message>
         <source>Off</source>

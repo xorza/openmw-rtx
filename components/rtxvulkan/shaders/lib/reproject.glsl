@@ -48,8 +48,9 @@ const float PREVIOUS_SCREEN_REACH = 1.0;
 /// fired along the leading edge of every horizontal pan.
 struct PreviousScreen
 {
-    /// Nought to one across the previous frame, and outside that where the point left it, bounded
-    /// by `PREVIOUS_SCREEN_REACH`.
+    /// On this frame's grid in the units `rayAt` reads a pixel in (`pixelOfScreen`): nought to the
+    /// extent across the previous frame, and outside that where the point left it, bounded by
+    /// `PREVIOUS_SCREEN_REACH` screens.
     vec2 mAt;
 
     /// False where there is no previous frame, and where the point stood behind that eye.
@@ -72,13 +73,16 @@ PreviousScreen previousScreenThrough(vec3 was, vec2 spread)
     // first, a resize, a new scene, and any jump a motion vector could not describe. Behind the
     // previous eye there is no answer either, and the divide below would fold such a point back
     // into the frame as a plausible coordinate.
-    const Screen screen = screenOf(frame.mPrevious, was, spread);
-    if (!(dot(frame.mPrevious.mForward, frame.mPrevious.mForward) > 0.0) || !(screen.mAhead > 0.0))
+    const ScreenBasis previous = frame.mPreviousScreen;
+    const Screen screen = screenOf(previous, was, spread);
+    if (!(dot(previous.mForward, previous.mForward) > 0.0) || !(screen.mAhead > 0.0))
         return PreviousScreen(vec2(0.0), false);
 
-    const vec2 at = (screen.mAt / screen.mAhead) * 0.5 + 0.5;
+    // On this frame's grid, which the previous frame's channels were written at.
+    const vec2 extent = vec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight);
+    const vec2 at = pixelOfScreen(screen, extent);
 
-    return PreviousScreen(clamp(at, vec2(-PREVIOUS_SCREEN_REACH), vec2(1.0 + PREVIOUS_SCREEN_REACH)), true);
+    return PreviousScreen(clamp(at, -PREVIOUS_SCREEN_REACH * extent, (1.0 + PREVIOUS_SCREEN_REACH) * extent), true);
 }
 
 PreviousScreen previousScreen(vec3 was)
@@ -105,15 +109,14 @@ vec2 reprojected(uvec2 pixel, vec3 was, vec2 spread)
     // **No answer under a parallel projection.** The inverse below divides by the distance along
     // the view axis, which is the perspective divide and not this camera's projection. Nothing that
     // traces one reprojects: a map tile is one frame with no frame before it.
-    if (frame.mCamera.mOrthographic != 0u)
+    if (frame.mEyes.mWorld.mOrthographic != 0u)
         return vec2(0.0);
 
     const PreviousScreen screen = previousScreenThrough(was, spread);
     if (!screen.mFound)
         return vec2(0.0);
 
-    const vec2 before = screen.mAt * vec2(frame.mCamera.mWidth, frame.mCamera.mHeight);
-    return before - (vec2(pixel) + 0.5 + frame.mCamera.mJitter);
+    return screen.mAt - (vec2(pixel) + 0.5 + frame.mEyes.mWorld.mJitter);
 }
 
 /// How far a point of a deforming mesh moved between the last frame and this one, in world
@@ -129,7 +132,7 @@ vec3 deformedBy(GpuInstance instance, GpuMesh mesh, uint primitive, vec2 bary, m
 {
     // Asked before the corners are looked up: most of the frame is a mesh that stands, and the
     // index block the corners come out of is a dependent load a mesh with no pose has no use for.
-    if (mesh.mBindOffset == NO_STREAM)
+    if (mesh.mBindOffset == NO_RUN)
         return vec3(0.0);
 
     const vec3 step = triangleDeformation(mesh, triangleCorners(mesh, primitive), bary);
@@ -184,7 +187,7 @@ vec3 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint ins
     // would come out a rounding off nought.
     const float farther = dot(moved, fma(direction, vec3(2.0 * distance), moved)) / (length(was) + distance);
 
-    return vec3(reprojected(pixel, was, spread), frame.mCamera.mOrthographic != 0u ? 0.0 : farther);
+    return vec3(reprojected(pixel, was, spread), frame.mEyes.mWorld.mOrthographic != 0u ? 0.0 : farther);
 }
 
 /// Where the sky a ray found stood on the previous frame's screen, in pixels.

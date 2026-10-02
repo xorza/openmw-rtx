@@ -48,9 +48,6 @@ namespace Rtx
 
     void DenoiseHistory::resize(const std::uint32_t width, const std::uint32_t height)
     {
-        if (!mBlended.isEmpty() && mBlended.getWidth() == width && mBlended.getHeight() == height)
-            return;
-
         mColour = ImagePair::make(
             mDevice, width, height, toVulkanFormat(ACCUMULATE_COLOUR), sReadAndWrite, "accumulate-colour");
         mSurface = ImagePair::make(

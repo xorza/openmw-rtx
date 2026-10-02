@@ -7,6 +7,7 @@
 #include <optional>
 #include <string_view>
 #include <utility>
+#include <variant>
 
 #include <components/rtx/common/namedenum.hpp>
 
@@ -47,9 +48,9 @@ namespace Rtx
         /// Whether the primary ray was wanted moved inside its pixel.
         bool mJitter = false;
 
-        /// Where the trace's draws come from, where a run names a source. Nothing hands the
-        /// choice to `resolve`, which keeps the tile; naming one is the A/B.
-        std::optional<NoiseSource> mNoise{};
+        /// Where the trace's draws come from: the tile, unless a run names the other, which is the
+        /// A/B.
+        NoiseSource mNoise = NoiseSource::BlueNoiseTile;
 
         /// What is added to the texture level bias past the ratio the upscaler sets, in levels,
         /// which a run walks on a sign and a book. Nought is the ratio alone. Without an upscaler
@@ -112,24 +113,14 @@ namespace Rtx
         static Reconstruction resolve(
             const Upscale upscale, const ReconstructionRequest& asked, const FrameExtents& extents)
         {
-            const NoiseSource noise = asked.mNoise.value_or(NoiseSource::BlueNoiseTile);
-            if (!upscales(upscale))
-            {
-                return Reconstruction{
-                    .mDenoised = asked.mDenoise,
-                    .mJitter = asked.mJitter,
-                    .mNoise = noise,
-                    .mLevelBias = asked.mLevelEpsilon,
-                };
-            }
-
+            const bool upscaled = upscales(upscale);
             return Reconstruction{
                 .mDenoised = asked.mDenoise,
                 .mUpscale = upscale,
-                .mJitter = true,
-                .mJitterPhases = jitterPhasesFor(extents.mRenderWidth, extents.mOutputWidth),
-                .mNoise = noise,
-                .mLevelBias = levelBiasOf(extents, asked.mLevelEpsilon),
+                .mJitter = upscaled || asked.mJitter,
+                .mJitterPhases = upscaled ? jitterPhasesFor(extents.mRenderWidth, extents.mOutputWidth) : 0u,
+                .mNoise = asked.mNoise,
+                .mLevelBias = upscaled ? levelBiasOf(extents, asked.mLevelEpsilon) : asked.mLevelEpsilon,
             };
         }
 
@@ -167,17 +158,31 @@ namespace Rtx
         Summed,
     };
 
-    /// What a frame is scaled by before the display curve: a fixed scale, the scale the frame
-    /// before ended on, or neither to measure it off the frame.
-    struct ExposureRule
+    /// The scale measured off the frame, as the eye adapts.
+    struct MeasuredExposure
     {
-        std::optional<float> mFixed{};
-
-        /// Keep what the frame before ended on, measuring nothing and resetting nothing: the frames a
-        /// harness compares with a reference hold the exposure the reference measured, so the two
-        /// are mapped by one curve and the scale is derived rather than stated. Not with `mFixed`.
-        bool mHeld = false;
+        bool operator==(const MeasuredExposure&) const = default;
     };
+
+    /// A scale stated, which nothing measures.
+    struct FixedExposure
+    {
+        float mScale = 1.0f;
+
+        bool operator==(const FixedExposure&) const = default;
+    };
+
+    /// What the frame before ended on, measuring nothing and resetting nothing: the frames a harness
+    /// compares with a reference hold the exposure the reference measured, so the two are mapped by
+    /// one curve and the scale is derived rather than stated.
+    struct HeldExposure
+    {
+        bool operator==(const HeldExposure&) const = default;
+    };
+
+    /// What a frame is scaled by before the display curve: one of the three, so no rule says two of
+    /// them at once.
+    using ExposureRule = std::variant<MeasuredExposure, FixedExposure, HeldExposure>;
 
     /// Everything a run decides once about how the picture is made, in one bag for both hosts,
     /// handed to the backend inside `RendererOptions` and read there. A frame reads what the run
@@ -210,6 +215,11 @@ namespace Rtx
         /// what a profile that says nothing asks, and so what a measured run draws whatever the
         /// player chose.
         float mGamma = 1.0f;
+
+        /// Whether an environment map's sheet is part of the colour the light falls on, as
+        /// `[Shaders] apply lighting to environment maps` asks the rasterizer, rather than light of
+        /// its own past it — `VisibilityConstants::mLitEnvironmentMaps`. Off, the setting's default.
+        bool mLitEnvironmentMaps = false;
 
         /// What every pixel is painted with: the light, or a surface input for a picture of the
         /// maps themselves.

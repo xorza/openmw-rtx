@@ -16,8 +16,6 @@ namespace Rtx
 
         HeldModel taking = mSpareModels.take();
         taking.mModel = &model;
-        taking.mParts.clear();
-        taking.mNamed = 0;
 
         return *mModels.insert(at, std::move(taking));
     }
@@ -59,6 +57,7 @@ namespace Rtx
             return;
 
         mReleasing.insert(mReleasing.end(), known->mParts.begin(), known->mParts.end());
+        known->reuse();
         mSpareModels.give(std::move(*known));
         mModels.erase(known);
     }
@@ -83,9 +82,7 @@ namespace Rtx
             mReleasing.insert(mReleasing.end(), held.mParts.begin(), held.mParts.end());
 
             // The row's room is kept for the next world's models, as `release` keeps a row's.
-            held.mParts.clear();
-            held.mModel = nullptr;
-            held.mNamed = 0;
+            held.reuse();
             mSpareModels.give(std::move(held));
         }
 

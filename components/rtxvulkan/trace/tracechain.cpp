@@ -23,24 +23,33 @@
 
 namespace Rtx
 {
-    TraceChain::TraceChain(const Device& device, const TracePasses& passes)
+    TraceChain::TraceChain(
+        const Device& device, const TracePasses& passes, const std::uint32_t bins, const RadianceWidth radiance)
         : mDevice(device)
         , mPasses(passes)
-        , mBins([&](FrameSlot) {
-            return SpriteBin{ device, passes.mSpriteShade, passes.mSpriteBin };
-        })
+        , mRadiance(radiance)
         , mDenoise(device)
     {
+        assert(bins >= 1 && bins <= sFrameSlots && "a sprite bin past the frames in flight");
+        mBins.reserve(bins);
+        for (std::uint32_t at = 0; at < bins; ++at)
+            mBins.emplace_back(device, passes.mSpriteShade, passes.mSpriteBin);
     }
 
-    void TraceChain::resize(const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
+    void TraceChain::resize(const std::uint32_t width, const std::uint32_t height)
     {
         assert(width > 0 && height > 0);
+
+        // **The one owner of "is this a new extent"**: an upscaling mode changed between two that
+        // trace at one size asks this again, and fourteen channels and twelve fog images made anew
+        // for it would be made for nothing.
+        if (isBuilt() && width == mWidth && height == mHeight)
+            return;
 
         mWidth = width;
         mHeight = height;
 
-        mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, radiance);
+        mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance);
         mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight);
         mDenoise.resize(mWidth, mHeight);
 
@@ -49,18 +58,12 @@ namespace Rtx
         dropSum();
     }
 
-    void TraceChain::grow(const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
+    void TraceChain::grow(const std::uint32_t width, const std::uint32_t height)
     {
         if (holds(width, height))
             return;
 
-        resize(std::max(mWidth, width), std::max(mHeight, height), radiance);
-    }
-
-    VkDeviceAddress TraceChain::getSpriteTileList(const VisibilityInputs& inputs) const
-    {
-        return inputs.mSubject.mDrawsSprites ? mBins.at(inputs.mSubject.mTraceSlot).getTileListAddress()
-                                             : inputs.mSubject.mMedia->describeNoSprites();
+        resize(std::max(mWidth, width), std::max(mHeight, height));
     }
 
     TraceResult TraceChain::record(const VkCommandBuffer commands, const TraceRecording& what)
@@ -68,8 +71,9 @@ namespace Rtx
         assert(isBuilt() && "a trace into a chain that has no extent");
 
         // Each denoiser's history is worthless until the next trace that reads it, which is only
-        // where the wavelet runs. The air's is read by every trace, and the basis of nothing the
-        // frame carries says so to it.
+        // where the wavelet runs: a frame that filters nothing turns every filter fresh in its
+        // turn. The air's is read by every trace, and the basis of nothing the frame carries says
+        // so to it.
         if (what.mPastLost)
             mDenoise.reset();
 
@@ -97,50 +101,58 @@ namespace Rtx
         }
 
         // The sprite tiles are screen space, so they belong to the camera and not to the scene.
-        // Binned on the device into this trace's own bin, ahead of the trace that reads it. Not at
-        // all for a camera handed a list of its own, which is the one that draws none.
+        // Binned on the device into this trace's own bin, ahead of the trace that reads it. **For a
+        // camera that draws no sprites as well**, with none of them in it: the bin is also where the
+        // tiles learn which media and additive surfaces a ray through them can meet, and a camera
+        // told nothing would walk both at every pixel.
         //
         // **Taken, then the block, then the shelter, then the bin.** The block carries the bin's
         // table by address, which it has once the table is taken; the shelter launch reads the
         // block and zeroes the drops under a roof in that table; and the shade and the bin read
         // what is left. Every launch after reads the same block, and the emitters' rows beside it.
-        SpriteBin& bin = mBins.at(inputs.mSubject.mTraceSlot);
-        const bool bins = inputs.mSubject.mDrawsSprites;
-        const SpriteSource sprites
-            = inputs.mSubject.mScene->getBuffers().describeSprites(inputs.mSubject.mScene->getSlot());
-        if (bins)
-            bin.take(sprites, what.mAsked.mCamera, commands);
+        assert(inputs.mSubject.mTraceSlot.get() < mBins.size() && "a trace slot this chain keeps no bin for");
+        SpriteBin& bin = mBins[inputs.mSubject.mTraceSlot.get()];
+        const bool drawsSprites = inputs.mSubject.mDrawsSprites;
+        SpriteSource sprites = inputs.mSubject.mScene->getBuffers().describeSprites(inputs.mSubject.mScene->getSlot());
+        if (!drawsSprites)
+        {
+            sprites.mSpriteCount = 0;
+            sprites.mEmitterCount = 0;
+        }
+        bin.take(sprites, what.mAsked.mCamera, commands);
 
-        // After the take, which may have grown the table, and once: the frame block and the
-        // display's `puffsCoverNothing` read the one list.
-        const VkDeviceAddress tileList = getSpriteTileList(inputs);
+        // After the take, which may have grown the tables, and once: the frame block and the
+        // display's `puffsCoverNothing` read the one set.
+        const SpriteTables tables = bin.getTables();
 
         // Composed by the trace where nothing filters the bounce: `VisibilityConstants::mComposed`.
-        const bool denoised = what.mReconstruction.mDenoised;
+        const bool denoised = what.mDenoised;
         const bool composed = !denoised;
 
-        mPasses.mVisibility.writeFrame(commands, inputs, bin, tileList, what.mSampled, composed);
+        mPasses.mVisibility.writeFrame(commands, inputs, tables, what.mSampled, composed);
 
-        if (bins)
+        if (drawsSprites)
         {
             mPasses.mVisibility.recordSpriteShelter(commands, inputs, what.mSampled, sprites.mSpriteCount, what.mTimer);
             mPasses.mVisibility.recordSpriteEmitters(commands, inputs, sprites.mEmitterCount, what.mTimer);
-            bin.record(commands,
-                Binning{
-                    .mSource = sprites,
-                    .mOrigin = what.mAsked.mOrigin,
-                    .mCamera = what.mAsked.mCamera,
-                    .mToSun = what.mAsked.mSun.mDirection,
-                    .mTimer = what.mTimer,
-                });
         }
+        bin.record(commands,
+            Binning{
+                .mSource = sprites,
+                .mSeen = what.mAsked,
+                .mTimer = what.mTimer,
+            });
 
         mChannels->begin(commands);
         mPasses.mVisibility.record(commands, inputs, what.mSampled, what.mTimer);
         mChannels->handOver(commands);
 
         // Where the bounce, the lobe's light and the layers' ended up: the filters' answers, or the
-        // channels the trace wrote where nothing filtered them.
+        // channels the trace wrote where nothing filtered them. **An unfiltered frame still turns
+        // the histories**, with nothing running, so every filter is fresh at its next run: without
+        // the turn, that run would read the history of the frame before this one as last frame's.
+        if (!denoised)
+            mDenoise.turn(TemporalFlags{});
         const Denoised resolved = denoised ? mPasses.mDenoise.record(commands, mDenoise, *mChannels, what.mSampled,
                                       inputs.mSubject.mMapped, what.mTimer)
                                            : Denoised::unfiltered(*mChannels);
@@ -149,6 +161,7 @@ namespace Rtx
         // to add the frame to. Anything else was composed by the trace, into the channel that is
         // the frame, and every pass after it reads the channel as `handOver` left it.
         const Image& frame = mChannels->get(Channel::Direct);
+        ImageUse leftAs = Use::sAnyShaderRead;
         if (denoised || what.mAccumulate > 0)
         {
             // Written over, where the hand-over left it to be read: nothing has read it since, and
@@ -158,8 +171,8 @@ namespace Rtx
             openZone(what.mTimer, commands, "composite");
             mPasses.mComposite.record(commands, *mChannels, resolved, mSum.isEmpty() ? nullptr : &mSum,
                 Shaders::CompositeConstants{
-                    .mWidth = what.mSampled.mCamera.mWidth,
-                    .mHeight = what.mSampled.mCamera.mHeight,
+                    .mWidth = what.mSampled.mEyes.mWorld.mWidth,
+                    .mHeight = what.mSampled.mEyes.mWorld.mHeight,
                     .mAccumulate = what.mAccumulate,
                     .mComposed = composed ? 1u : 0u,
                 });
@@ -169,11 +182,11 @@ namespace Rtx
             // wider of the two — an upscaler, a lens and a curve against a picture's one curve —
             // and covers both.
             frame.transition(commands, Use::sComputeReadWrite, Use::sAnyGeneralRead);
+            leftAs = Use::sAnyGeneralRead;
         }
 
-        return TraceResult{ .mInputs = inputs,
-            .mColour = frame,
-            .mSpriteTileList = tileList,
-            .mSpritePresence = bin.getPresenceAddress() };
+        return TraceResult{
+            .mInputs = inputs, .mColour = HandedImage{ .mImage = frame, .mLeftAs = leftAs }, .mSprites = tables
+        };
     }
 }

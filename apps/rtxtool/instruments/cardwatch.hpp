@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <optional>
@@ -68,6 +69,10 @@ namespace RtxTool
         /// first sample of a process, so one that is gone by the report is still named.
         void take(std::uint32_t pid, std::string_view name);
 
+        /// Whether `take` would keep a name for `pid`: a process not this one and not seen since
+        /// `clear`. Asked first, so the driver is asked for a name only where one is kept.
+        bool needsName(std::uint32_t pid) const;
+
         /// Forgets every sample; the process stays.
         void clear();
 
@@ -86,6 +91,13 @@ namespace RtxTool
     {
         GpuClock mClock;
         CardShare mShare;
+    };
+
+    /// A place's window, and the window between places that ended where it began.
+    struct CardWindows
+    {
+        CardShare mBefore;
+        CardReading mPlace;
     };
 
     /// The card through a run, on a thread of its own: its clock across a place's frames, and
@@ -113,17 +125,23 @@ namespace RtxTool
         /// Starts sampling. Nothing where it already is.
         void watch();
 
-        /// Begins a place's window, forgetting the clock's readings and the holders, and answers
-        /// the holders seen since `watch` or the last `stop`: the window between places.
-        CardShare start();
+        /// Asks for a place's window to begin, and does nothing else: one store, so the measured
+        /// frame it is called on waits on no lock and no driver call. The worker closes the window
+        /// between places on its next turn, and begins the place's there.
+        void start();
 
         /// Ends the place's window and answers what it came to, this call's own last reading
-        /// included; sampling carries on into the window after.
-        CardReading stop();
+        /// included, with the window between places that ended where it began; sampling carries on
+        /// into the window after. After the last measured frame, where a lock is a stop's to pay.
+        CardWindows stop();
 
         /// How many clock readings the window now open has taken: the number a caller waits on
         /// rather than a sleep chosen for the slowest box this might run on.
         std::uint32_t getReadings();
+
+        // Read by the tests and by nothing else.
+        /// Whether the window `start` asked for has begun.
+        bool hasBegun() const { return !mStartAsked.load(std::memory_order_acquire); }
 
     private:
         /// One reading of both, under the lock: the reading is a few calls into the driver,
@@ -132,6 +150,9 @@ namespace RtxTool
 
         /// Takes one last reading, answers the window and begins the next. Under the lock.
         CardReading close();
+
+        /// Closes the window between places where `start` asked and no turn has yet. Under the lock.
+        void beginAsked();
 
         /// Where the clock is read: NVML where it opens, and amdgpu's sysfs files where it does not
         /// and the box has an AMD card — chosen once, since which card a box has does not change
@@ -148,9 +169,15 @@ namespace RtxTool
         CardTally mTally;
         std::chrono::steady_clock::time_point mBegan;
 
+        /// The window between places, closed where `start` asked.
+        CardShare mBefore;
+
         /// The sampler's scratch, refilled a reading.
         std::vector<CardSample> mSamples;
         std::string mName;
+
+        /// Set by `start` and taken by the worker's next turn, or by `stop` where none came.
+        std::atomic<bool> mStartAsked{ false };
 
         /// Last, for the reason `Worker` gives.
         Rtx::Worker mWorker;

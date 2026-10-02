@@ -115,6 +115,10 @@ namespace RtxTool
         /// request, which it refers into.
         const MWRender::RtxSetup mInstalled;
 
+        /// The world's `timescale` when the first stop began: the game's own clock speed for the
+        /// whole session (`CameraDriver::begin`).
+        std::optional<float> mOwnTimeScale;
+
         /// Which stop is running, and whether it has been started.
         std::size_t mAt = 0;
         bool mStarted = false;

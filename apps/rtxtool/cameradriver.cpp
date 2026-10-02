@@ -1,6 +1,7 @@
 #include "cameradriver.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <format>
 #include <optional>
@@ -13,7 +14,9 @@
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwrender/camera.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
 #include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
 #include <apps/openmw/mwworld/cell.hpp>
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/datetimemanager.hpp>
@@ -32,9 +35,11 @@
 
 namespace RtxTool
 {
-    void CameraDriver::begin(const Stop& stop)
+    void CameraDriver::begin(const Stop& stop, const float ownTimeScale)
     {
+        assert(ownTimeScale > 0.0f && "a session that started under a stopped clock has no speed of its own");
         *this = CameraDriver{};
+        mOwnTimeScale = ownTimeScale;
         beginTurn(stop);
 
         if (stop.mSchedule.mFreeCamera || !stop.mStand.mEye.has_value())
@@ -78,8 +83,8 @@ namespace RtxTool
             // the day, the month and the days passed in step with the hour, which the moons read.
             MWBase::World& world = *MWBase::Environment::get().getWorld();
             const MWWorld::TimeStamp now = world.getTimeStamp();
-            const double behind
-                = mClockFrom + pose.mHoursOn - (now.getDay() * 24.0 + static_cast<double>(now.getHour()));
+            const double behind = mClockFrom + pose.getHoursOn(mOwnTimeScale)
+                - (now.getDay() * 24.0 + static_cast<double>(now.getHour()));
             if (behind > 0.0)
                 world.advanceTime(behind, true);
             return;
@@ -152,29 +157,16 @@ namespace RtxTool
 
     void CameraDriver::beginTurn(const Stop& stop)
     {
-        const std::vector<std::string>& through = stop.mSky.mTurnThrough;
+        const std::vector<std::uint32_t>& through = stop.mSky.mTurnThrough;
         if (through.empty())
             return;
 
         // **From the stop's own weather where it names one**, which the stager asked the world to
         // settle under: the world settles it in its next update, and a held sky has none.
-        const std::optional<std::uint32_t> named
-            = stop.mSky.mWeather.has_value() ? Rtx::weatherIndex(*stop.mSky.mWeather) : std::nullopt;
+        const std::optional<std::uint32_t>& named = stop.mSky.mWeather;
         mSky = named.has_value() ? SkyCrossing(*named, *named, 0.0f) : skyOfTheWorld();
 
-        askTurn(through.front());
-    }
-
-    void CameraDriver::askTurn(const std::string& weather)
-    {
-        const std::optional<std::uint32_t> named = Rtx::weatherIndex(weather);
-        if (!named.has_value())
-        {
-            Log(Debug::Warning) << "Ray tracing session: no weather is called \"" << weather << '"';
-            return;
-        }
-
-        mSky->ask(*named);
+        mSky->ask(through.front());
     }
 
     void CameraDriver::crossSky(const Stop& stop, const float seconds)
@@ -188,8 +180,9 @@ namespace RtxTool
         // clock does, because its asks come on the same schedule.
         const MWWorld::DateTimeManager& clock = *MWBase::Environment::get().getWorld()->getTimeManager();
         const float simulated = seconds * clock.getSimulationTimeScale();
-        mSky->advance(stop.mSky.mTurnThrough.empty() ? SkyCrossing::shareOf(simulated, mDelta, clock.getGameTimeScale())
-                                                     : simulated / sTurnSeconds);
+        mSky->advance(stop.mSky.mTurnThrough.empty()
+                ? SkyCrossing::shareOf(simulated, mDelta, clock.getGameTimeScale(), mOwnTimeScale)
+                : simulated / sTurnSeconds);
 
         holdSky(mSky->getWeather(), mSky->getNextWeather(), mSky->getCrossed());
     }
@@ -254,7 +247,7 @@ namespace RtxTool
 
     void CameraDriver::turnWeather(const Stop& stop, const float step)
     {
-        const std::vector<std::string>& through = stop.mSky.mTurnThrough;
+        const std::vector<std::uint32_t>& through = stop.mSky.mTurnThrough;
         if (through.size() < 2)
             return;
 
@@ -268,13 +261,21 @@ namespace RtxTool
 
         mTurned = 0.0f;
         mTurnedTo = (mTurnedTo + 1) % through.size();
-        askTurn(through[mTurnedTo]);
+        mSky->ask(through[mTurnedTo]);
     }
 
     void CameraDriver::aim(const Stop& stop)
     {
+        // **The body is hidden from a camera this stands inside it**, through the seam's view mask
+        // that both renderers read: a stop flies the player to its route's point so that cells load
+        // around it and stands the camera on the same coordinates, and would trace a boot thirteen
+        // units from the eye. A free camera is the player's own again.
+        if (stop.mSchedule.mFreeCamera)
+            showPlayer(true);
         if (stop.mSchedule.mFreeCamera || !stop.mStand.mEye.has_value())
             return;
+
+        showPlayer(false);
 
         if (stop.mSchedule.mTrack.has_value())
         {
@@ -343,6 +344,15 @@ namespace RtxTool
         // position lives in the physics world as well, and a move that writes only the world's
         // copy is written back over it on the next step.
         world.moveObjectBy(player, eye - osg::Vec3f(stood.pos[0], stood.pos[1], stood.pos[2]), true);
+    }
+
+    void CameraDriver::showPlayer(const bool shown)
+    {
+        MWRender::Renderer& renderer = MWBase::Environment::get().getWorld()->getRenderingManager()->getRenderer();
+        const unsigned int mask = renderer.getViewMask();
+        const unsigned int wanted = shown ? mask | MWRender::Mask_Player : mask & ~MWRender::Mask_Player;
+        if (wanted != mask)
+            renderer.setViewMask(wanted);
     }
 
     void CameraDriver::aimCamera(const osg::Vec3f& eye, const osg::Vec3f& rotation)

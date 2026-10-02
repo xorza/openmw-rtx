@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -14,14 +15,12 @@
 #include <utility>
 #include <vector>
 
-#include <smhasher/MurmurHash3.h>
+#include <components/rtx/common/hashstate.hpp>
 
 namespace Rtx
 {
     namespace
     {
-        using Hash = std::array<std::uint64_t, 2>;
-
         struct Line
         {
             /// Empty for an instruction with no result.
@@ -133,10 +132,10 @@ namespace Rtx
                 mBytes += token;
             }
 
-            void digest(char mark, const Hash& part)
+            void digest(char mark, const DigestWords& part)
             {
                 mBytes += mark;
-                mBytes.append(reinterpret_cast<const char*>(part.data()), sizeof(Hash));
+                mBytes.append(reinterpret_cast<const char*>(part.data()), sizeof(DigestWords));
             }
 
             void number(char mark, std::size_t value)
@@ -148,12 +147,11 @@ namespace Rtx
 
             void end() { mBytes += '\n'; }
 
-            Hash hash() const
+            DigestWords hash() const
             {
-                constexpr std::array<std::uint64_t, 2> seed{};
-                Hash out{};
-                MurmurHash3_x64_128(mBytes.data(), static_cast<int>(mBytes.size()), seed.data(), out.data());
-                return out;
+                HashState state;
+                state.add(std::span<const char>(mBytes));
+                return state.getWords();
             }
 
         private:
@@ -217,7 +215,7 @@ namespace Rtx
                             "a decoration names " + std::string(target) + ", which nothing defines");
             }
 
-            Hash digest()
+            DigestWords digest()
             {
                 refine();
 
@@ -239,29 +237,29 @@ namespace Rtx
                 for (const Line* entry : entries)
                     functionDigest(functionAt(entry->mOperands[1]));
 
-                std::vector<Hash> functions;
+                std::vector<DigestWords> functions;
                 functions.reserve(mFunctions.size());
                 for (std::size_t function = 0; function < mFunctions.size(); ++function)
                     functions.push_back(functionDigest(function));
 
-                std::vector<Hash> fixed;
+                std::vector<DigestWords> fixed;
                 fixed.reserve(mFixed.size());
                 for (const Line* line : mFixed)
                     fixed.push_back(fixedDigest(*line));
 
-                std::vector<Hash> globals = mColours;
+                std::vector<DigestWords> globals = mColours;
                 std::ranges::sort(fixed);
                 std::ranges::sort(globals);
                 std::ranges::sort(functions);
 
                 Canon canon;
-                for (const Hash& part : fixed)
+                for (const DigestWords& part : fixed)
                     canon.digest('X', part);
                 canon.end();
-                for (const Hash& part : globals)
+                for (const DigestWords& part : globals)
                     canon.digest('G', part);
                 canon.end();
-                for (const Hash& part : functions)
+                for (const DigestWords& part : functions)
                     canon.digest('F', part);
                 return canon.hash();
             }
@@ -288,7 +286,7 @@ namespace Rtx
                     for (const std::string_view operand : line.mOperands)
                         canon.literal(isId(operand) ? std::string_view("%") : operand);
 
-                    std::vector<Hash> decorations;
+                    std::vector<DigestWords> decorations;
                     for (const Line* decoration : decorationsOf(line.mResult))
                     {
                         Canon shape;
@@ -299,14 +297,14 @@ namespace Rtx
                         decorations.push_back(shape.hash());
                     }
                     std::ranges::sort(decorations);
-                    for (const Hash& decoration : decorations)
+                    for (const DigestWords& decoration : decorations)
                         canon.digest('D', decoration);
 
                     mColours[global] = canon.hash();
                 }
 
                 std::size_t distinct = countDistinct(mColours);
-                std::vector<Hash> next(mGlobals.size());
+                std::vector<DigestWords> next(mGlobals.size());
                 while (true)
                 {
                     for (std::size_t global = 0; global < mGlobals.size(); ++global)
@@ -318,7 +316,7 @@ namespace Rtx
                             if (isId(operand))
                                 canon.digest('G', mColours[globalAt(operand)]);
 
-                        std::vector<Hash> decorations;
+                        std::vector<DigestWords> decorations;
                         for (const Line* decoration : decorationsOf(line.mResult))
                         {
                             Canon named;
@@ -331,7 +329,7 @@ namespace Rtx
                             decorations.push_back(named.hash());
                         }
                         std::ranges::sort(decorations);
-                        for (const Hash& decoration : decorations)
+                        for (const DigestWords& decoration : decorations)
                             canon.digest('D', decoration);
 
                         next[global] = canon.hash();
@@ -344,7 +342,7 @@ namespace Rtx
                     distinct = refined;
                 }
 
-                std::vector<Hash> sorted = mColours;
+                std::vector<DigestWords> sorted = mColours;
                 std::ranges::sort(sorted);
                 mAlike.assign(mGlobals.size(), false);
                 for (std::size_t global = 0; global < mGlobals.size(); ++global)
@@ -354,7 +352,7 @@ namespace Rtx
                 }
             }
 
-            static std::size_t countDistinct(std::vector<Hash> colours)
+            static std::size_t countDistinct(std::vector<DigestWords> colours)
             {
                 std::ranges::sort(colours);
                 return static_cast<std::size_t>(std::ranges::unique(colours).begin() - colours.begin());
@@ -411,7 +409,7 @@ namespace Rtx
             }
 
             /// **An entry point's interface is a set**, so its variables are sorted by their colours.
-            Hash fixedDigest(const Line& line)
+            DigestWords fixedDigest(const Line& line)
             {
                 Canon canon;
                 canon.literal(line.mOp);
@@ -423,7 +421,7 @@ namespace Rtx
                     nameOutside(canon, line.mOperands[1]);
                     canon.literal(line.mOperands[2]);
 
-                    std::vector<Hash> interface;
+                    std::vector<DigestWords> interface;
                     for (std::size_t at = 3; at < line.mOperands.size(); ++at)
                     {
                         Canon variable;
@@ -431,7 +429,7 @@ namespace Rtx
                         interface.push_back(variable.hash());
                     }
                     std::ranges::sort(interface);
-                    for (const Hash& variable : interface)
+                    for (const DigestWords& variable : interface)
                         canon.digest('G', variable);
                     return canon.hash();
                 }
@@ -447,7 +445,7 @@ namespace Rtx
             /// A function's instructions in their order, each id it defines named by where it is
             /// defined and each decoration on one written after it. **A function a call names is
             /// digested first**, which SPIR-V's ban on recursion keeps finite.
-            Hash functionDigest(std::size_t function)
+            DigestWords functionDigest(std::size_t function)
             {
                 if (mFunctionDigests[function].has_value())
                     return *mFunctionDigests[function];
@@ -481,7 +479,7 @@ namespace Rtx
 
                     if (!line.mResult.empty())
                     {
-                        std::vector<Hash> decorations;
+                        std::vector<DigestWords> decorations;
                         for (const Line* decoration : decorationsOf(line.mResult))
                         {
                             Canon named;
@@ -491,7 +489,7 @@ namespace Rtx
                             decorations.push_back(named.hash());
                         }
                         std::ranges::sort(decorations);
-                        for (const Hash& decoration : decorations)
+                        for (const DigestWords& decoration : decorations)
                             canon.digest('D', decoration);
                     }
                     canon.end();
@@ -506,23 +504,23 @@ namespace Rtx
             std::unordered_map<std::string_view, std::vector<const Line*>> mDecorations;
             std::vector<const Line*> mGlobals;
             std::unordered_map<std::string_view, std::size_t> mGlobalAt;
-            std::vector<Hash> mColours;
+            std::vector<DigestWords> mColours;
 
             /// Whether another global shares a global's colour, and the order the program first
             /// named each such global in, counted within its colour.
             std::vector<bool> mAlike;
             std::unordered_map<std::size_t, std::size_t> mNamed;
-            std::map<Hash, std::size_t> mNamedSoFar;
+            std::map<DigestWords, std::size_t> mNamedSoFar;
 
             std::vector<const Line*> mFixed;
             std::vector<Function> mFunctions;
             std::unordered_map<std::string_view, std::size_t> mFunctionAt;
-            std::vector<std::optional<Hash>> mFunctionDigests;
+            std::vector<std::optional<DigestWords>> mFunctionDigests;
             std::unordered_set<std::size_t> mDigesting;
         };
     }
 
-    std::array<std::uint64_t, 2> digestProgram(std::string_view disassembly)
+    DigestWords digestProgram(std::string_view disassembly)
     {
         return Program(disassembly).digest();
     }

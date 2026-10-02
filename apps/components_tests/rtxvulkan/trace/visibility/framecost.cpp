@@ -24,6 +24,7 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>
+#include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -137,7 +138,7 @@ namespace Rtx::Testing
                         .mAlpha = 0.5f });
 
                 scene.clearPlacement();
-                scene.addEmitter(sprites, puff, false);
+                scene.addEmitter(sprites, puff, BlendKind::Over);
                 renderer.placeScene(Rtx::SceneSlot::world(), scene);
             };
             const auto thicken = [&] { rain(mostSprites - storm++ % mostSprites); };

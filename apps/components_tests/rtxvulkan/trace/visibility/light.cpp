@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <numbers>
 #include <optional>
 #include <span>
@@ -67,7 +68,8 @@ namespace Rtx::Testing
             scene.addInstance(MeshInstance{
                 .mMesh = scene.addMesh(
                     MeshArrays{ .mPositions = sheetAt(4000.0f, 0.0f), .mNormals = normals, .mIndices = sQuadIndices },
-                    shape) });
+                    shape),
+                .mMaterial = addGrey(scene) });
 
             return scene;
         }
@@ -108,7 +110,7 @@ namespace Rtx::Testing
             // gathers is its own hemisphere, and a sky of one radiance makes that gather exact —
             // every direction returns the same number, so one sample is the whole answer.
             const auto render = [&](const osg::Vec3f& direction, const osg::Vec3f& irradiance, Occluder blocked,
-                                    const osg::Vec3f& sky = osg::Vec3f()) {
+                                    const osg::Vec3f& sky = osg::Vec3f(), std::uint32_t noShadows = 0) {
                 SceneDesc scene = makeWall();
                 if (blocked != Occluder::None)
                     addQuad(scene, occluder,
@@ -117,6 +119,7 @@ namespace Rtx::Testing
                         blocked == Occluder::FacingTheSun ? osg::Matrixf::identity() : turned);
 
                 Shaders::VisibilityConstants camera = base;
+                camera.mNoSkyShadows = noShadows;
                 camera.mSun = Shaders::sunSource(-direction, irradiance);
                 camera.mSkyHorizon = sky;
                 camera.mSkyZenith = sky;
@@ -133,6 +136,8 @@ namespace Rtx::Testing
 
             EXPECT_EQ(render(onto, bright, Occluder::None), 153) << "square to the sun";
             EXPECT_EQ(render(onto, bright, Occluder::FacingTheSun), 0) << "and with something standing in the way";
+            EXPECT_EQ(render(onto, bright, Occluder::FacingTheSun, osg::Vec3f(), 1), 153)
+                << "a picture with shadows off, as the rasterizer draws a map tile and a doll";
 
             // **The rasterizer's shadow map, which sees what faces the light.** A single-sided occluder
             // turned toward the wall is a face the light meets from behind, so it casts nothing and
@@ -187,6 +192,45 @@ namespace Rtx::Testing
 
             EXPECT_EQ(litThroughPane(pane, black(0.0f), bright), 153)
                 << "a pane that stops nothing is a pane that is not there";
+        }
+
+        /// **A blend that is all there is a pane where its texture never reaches solid, and a cut
+        /// where it is a mask**: the Imperial lantern's glass is a material of opacity one over a
+        /// texture whose alpha never reaches half. The pane above, black, at an opacity of one,
+        /// wears a texture of alpha 128 everywhere.
+        ///
+        /// As a pane it lets 1 - 128/255 = 0.49804 of the wall through. The wall is 153, which is
+        /// 0.31831 in light, so the pixel is 0.15853, which encodes to 110.86 — the 111 the half
+        /// pane above lands on. Read as a mask, the same alpha is cut at a half, which 0.50196
+        /// passes, so the pane stands whole and black.
+        TEST_F(RtxVisibilityTest, aBlendIsAPaneWhereItsTextureNeverClosesAndACutWhereItIsAMask)
+        {
+            constexpr std::uint32_t size = 33;
+            const std::array pane = uprightQuadAt(20.0f, -50.0f, osg::Vec2f(50.0f, 0.0f));
+
+            constexpr std::array<std::uint8_t, 16> glass{ 0, 0, 0, 128, 0, 0, 0, 128, 0, 0, 0, 128, 0, 0, 0, 128 };
+            Testing::TestTexture texture;
+            Testing::paintFlat(texture, 2, glass, "soft glass");
+            const std::span<const TextureData> textures(&texture.mData, 1);
+
+            const auto render = [&](bool neverSolid) {
+                SceneDesc scene = makeWall();
+                const Index mesh
+                    = scene.addMesh(MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const Index material = scene.addMaterial(Material{
+                    .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("glass.dds")),
+                    .mDiffuseColour = osg::Vec3f(0.0f, 0.0f, 0.0f),
+                    .mAlphaMode = AlphaMode::Blend,
+                    .mDiffuseNeverSolid = neverSolid,
+                });
+                scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
+
+                const Frame frame = shoot(scene, textures, wallCamera(size, osg::Vec3f(2.0f, 2.0f, 2.0f)), size);
+                return frame.byte(centreValueOf(size));
+            };
+
+            EXPECT_EQ(render(true), 111) << "a pane lets the wall through by its alpha";
+            EXPECT_EQ(render(false), 0) << "a mask is cut at a half, which 128 passes";
         }
 
         /// Every layer of a stack is peeled, and not only the nearest of them.
@@ -372,7 +416,7 @@ namespace Rtx::Testing
                 SceneDesc scene = makeWall();
                 const Index material = scene.addMaterial(Material{
                     .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("cutout.dds")),
-                    .mAlphaRef = 0.5f,
+                    .mAlphaTest = { .mReference = 0.5f },
                     .mAlphaMode = AlphaMode::Cutout,
                 });
                 scene.addInstance(
@@ -509,13 +553,14 @@ namespace Rtx::Testing
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -150.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
-            const auto render = [&](AlphaMode mode, float alphaRef) {
+            const auto render = [&](AlphaMode mode, float alphaRef,
+                                    std::uint32_t passes = Shaders::ALPHA_PASSES_AT | Shaders::ALPHA_PASSES_ABOVE) {
                 SceneDesc scene = makeWall();
                 const Index mesh = scene.addMesh(
                     MeshArrays{ .mPositions = masked, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 const Index material = scene.addMaterial(Material{
                     .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("mask.dds")),
-                    .mAlphaRef = alphaRef,
+                    .mAlphaTest = { .mReference = alphaRef, .mPasses = passes },
                     .mAlphaMode = mode,
                 });
                 scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
@@ -527,7 +572,7 @@ namespace Rtx::Testing
             };
 
             // Red where the mask survived and grey where the wall shows through: the mask is pure
-            // red, so its green is zero, and the untextured wall's albedo of 0.5 encodes to
+            // red, so its green is zero, and the grey wall's albedo of 0.5 encodes to
             // 1.055 * 0.5^(1/2.4) - 0.055 = 0.73536, or 187.5 of 255 — which is why the grey is the
             // one value here given a byte of room.
             constexpr int wallGrey = 188;
@@ -550,6 +595,17 @@ namespace Rtx::Testing
                     }
                 }
 
+            // **The test's sides, and not "at least"**: `LESS` at the same half keeps the bare
+            // texels and cuts the painted ones, which is the complement of the cut above to the
+            // pixel, filtered texels included — a sample below a half passes one and fails the other.
+            const std::vector<std::uint8_t> below = render(AlphaMode::Cutout, 0.5f, Shaders::ALPHA_PASSES_BELOW);
+            ASSERT_EQ(below.size(), cutout.size());
+            for (std::size_t i = 0; i < below.size(); i += 4)
+            {
+                const bool kept = cutout[i + 1] == 0;
+                ASSERT_EQ(below[i + 1] == 0, !kept) << "pixel " << i / 4;
+            }
+
             // A blend that named no threshold of its own is traced against the stand-in, and the
             // stand-in is the same half. Same bytes, or Morrowind's foliage — which is blended and
             // never alpha-tested — would not be cut out at all.
@@ -569,7 +625,7 @@ namespace Rtx::Testing
         ///
         /// The centre pixel looks straight at the origin, where the wall's normal is (0, -1, 0) and
         /// the light sits fifty units along it, so the cosine is exactly one and the whole answer is
-        /// the falloff. Written out, with a reach of 500 and the untextured albedo of 0.5:
+        /// the falloff. Written out, with a reach of 500 and the tests' grey of 0.5:
         ///
         ///   window    = 1 - (50 / 500)^4              = 0.99990
         ///   falloff   = window^2 / (50^2 + 1)         = 0.99980 / 2501 = 3.99760e-4
@@ -597,14 +653,18 @@ namespace Rtx::Testing
 
             // A sky rather than the cell's ambient, for the reason the sun's own test gives: what
             // fills a wall the eye can see is the hemisphere it gathers.
-            const auto render = [&](const std::optional<Light>& light, const osg::Vec3f& sky, bool blocked) {
+            const auto render = [&](const std::optional<Light>& light, const osg::Vec3f& sky, bool blocked,
+                                    std::uint32_t noLamps = 0, std::span<const Light> more = {}) {
                 SceneDesc scene = makeWall();
                 if (light.has_value())
                     scene.addLight(*light);
+                for (const Light& also : more)
+                    scene.addLight(also);
                 if (blocked)
                     addQuad(scene, occluder);
 
                 Shaders::VisibilityConstants camera = base;
+                camera.mNoLamps = noLamps;
                 camera.mSkyHorizon = sky;
                 camera.mSkyZenith = sky;
                 camera.mAmbientFromSky = 1.0f;
@@ -654,6 +714,32 @@ namespace Rtx::Testing
             Light spent = lamp;
             spent.mReach = 50.0f;
             EXPECT_EQ(render(spent, osg::Vec3f(), false), 0) << "and one whose reach ends at the wall";
+
+            // **A picture no lamp lights**, a map tile, which the rasterizer's light manager hands
+            // none: the sky's 124 with the lamp there, as without it.
+            EXPECT_EQ(render(lamp, sky, false, 1), 124) << "a lamp lit a picture that asked for none";
+
+            // **A lamp that takes light away takes its unshadowed share off the lamps' term**, as
+            // the rasterizer subtracts a negative light. Half the lamp's intensity, negated, beside
+            // it leaves half its radiance: `0.5 * 0.508947 = 0.254474`, which encodes to
+            // `1.055 * (0.5 * 0.254474)^(1/2.4) - 0.055 = 0.39186`, or 100 of 255.
+            Light taking = lamp;
+            taking.mIntensity = osg::Vec3f(-2000.0f, -2000.0f, -2000.0f);
+            EXPECT_EQ(render(lamp, osg::Vec3f(), false, 0, std::span(&taking, 1)), 100) << "half the lamp taken";
+
+            // It takes from the lamps and no further, floored at nought: with no lamp the sky stays.
+            EXPECT_EQ(render(std::nullopt, sky, false, 0, std::span(&taking, 1)), 124) << "it darkened the sky";
+
+            // And it casts no shadow, as the rasterizer's casts none: the quad between it and the wall
+            // leaves the darkening whole. The lamp it darkens stands clear of the quad, its ray
+            // crossing y = -25 at x = 15.
+            Light aside = lamp;
+            aside.mPosition = osg::Vec3f(30.0f, -50.0f, 0.0f);
+            const int clear = render(aside, osg::Vec3f(), false);
+            const int darkened = render(aside, osg::Vec3f(), false, 0, std::span(&taking, 1));
+            EXPECT_LT(darkened, clear) << "the darkening did not reach the wall";
+            EXPECT_EQ(render(aside, osg::Vec3f(), true, 0, std::span(&taking, 1)), darkened)
+                << "the quad shadowed a lamp that takes light away";
         }
 
         /// **A wall with a specular map reflects the lamp by the lobe the host evaluates**, a
@@ -707,42 +793,43 @@ namespace Rtx::Testing
             const std::array<osg::Vec4f, 4> tangents{ osg::Vec4f(tangent, 1.0f), osg::Vec4f(tangent, 1.0f),
                 osg::Vec4f(tangent, 1.0f), osg::Vec4f(tangent, 1.0f) };
 
-            const auto litAbout
-                = [&](const osg::Vec3f& vertexNormal, std::uint8_t metal, bool leaning, SurfaceView show, float tint) {
-                      const std::array<osg::Vec3f, 4> normals{ vertexNormal, vertexNormal, vertexNormal, vertexNormal };
-                      const std::array<std::uint8_t, 4> mapTexel{ metal, 128, 255, 255 };
-                      const std::array<TextureData, 3> textures{ describeTexel(sBaseTexel, 0),
-                          describeTexel(mapTexel, 1), describeTexel(sLeaningTexel, 2) };
-                      const osg::Vec3f colour(tint, tint, tint);
-                      const std::array<osg::Vec3f, 4> colours{ colour, colour, colour, colour };
+            const auto litAbout = [&](const osg::Vec3f& vertexNormal, std::uint8_t metal, bool leaning,
+                                      SurfaceView show, float tint, bool classic = false) {
+                const std::array<osg::Vec3f, 4> normals{ vertexNormal, vertexNormal, vertexNormal, vertexNormal };
+                const std::array<std::uint8_t, 4> mapTexel{ metal, 128, 255, 255 };
+                const std::array<TextureData, 3> textures{ describeTexel(sBaseTexel, 0), describeTexel(mapTexel, 1),
+                    describeTexel(sLeaningTexel, 2) };
+                const osg::Vec3f colour(tint, tint, tint);
+                const std::array<osg::Vec3f, 4> colours{ colour, colour, colour, colour };
 
-                      SceneDesc scene;
-                      const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
-                          .mNormals = normals,
-                          .mTexCoords = sQuadUv,
-                          .mColours = colours,
-                          .mTangents = tangents,
-                          .mIndices = sQuadIndices });
-                      const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
-                      const Index map = scene.textures().add(
-                          VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
-                      const Index normalMap = scene.textures().add(
-                          VFS::Path::NormalizedView("base_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
-                      scene.addInstance(MeshInstance{ .mMesh = mesh,
-                          .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse,
-                              .mNormal = leaning ? normalMap : sNoIndex,
-                              .mSpecular = map,
-                              .mVertexColour = VertexColour::Tint }) });
-                      scene.addLight(Light{
-                          .mPosition = osg::Vec3f(0.0f, -50.0f, 0.0f),
-                          .mIntensity = osg::Vec3f(4000.0f, 4000.0f, 4000.0f),
-                          .mReach = 500.0f,
-                      });
+                SceneDesc scene;
+                const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
+                    .mNormals = normals,
+                    .mTexCoords = sQuadUv,
+                    .mColours = colours,
+                    .mTangents = tangents,
+                    .mIndices = sQuadIndices });
+                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+                const Index map = scene.textures().add(VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat,
+                    classic ? TextureEncoding::Colour : TextureEncoding::Data);
+                const Index normalMap = scene.textures().add(
+                    VFS::Path::NormalizedView("base_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
+                scene.addInstance(MeshInstance{ .mMesh = mesh,
+                    .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse,
+                        .mNormal = leaning ? normalMap : sNoIndex,
+                        .mSpecular = map,
+                        .mSpecularClassic = classic,
+                        .mVertexColour = VertexColour::Tint }) });
+                scene.addLight(Light{
+                    .mPosition = osg::Vec3f(0.0f, -50.0f, 0.0f),
+                    .mIntensity = osg::Vec3f(4000.0f, 4000.0f, 4000.0f),
+                    .mReach = 500.0f,
+                });
 
-                      const Frame frame = shoot(scene, textures, camera, size, Shot{ .mShow = show });
-                      EXPECT_GT(frame.mHits, 0u);
-                      return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2));
-                  };
+                const Frame frame = shoot(scene, textures, camera, size, Shot{ .mShow = show });
+                EXPECT_GT(frame.mHits, 0u);
+                return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2));
+            };
             const auto lit = [&](std::uint8_t metal, bool leaning, SurfaceView show = SurfaceView::Shaded,
                                  float tint = 1.0f) { return litAbout(normal, metal, leaning, show, tint); };
 
@@ -818,6 +905,16 @@ namespace Rtx::Testing
                 EXPECT_NEAR(shownNormal[axis], wantedNormal[axis], 1e-5f) << axis;
             EXPECT_EQ(lit(0, false, SurfaceView::Roughness), osg::Vec3f(roughness, roughness, roughness));
             EXPECT_EQ(lit(255, false, SurfaceView::Specular), osg::Vec3f(base, base, base));
+
+            // **A classic map is a reflectance and an exponent**: the same texel, `(64, 128, 255,
+            // 255)`, is the lobe's colour whole — no metal splits the base, so the red is a quarter
+            // and not a dielectric's 4% — and an alpha of 255 is an exponent of 255, a roughness of
+            // `(2 / 257)^(1/4) = 0.2970`, where the metal layout read the green's half.
+            const osg::Vec3f classicF0 = litAbout(normal, 64, false, SurfaceView::Specular, 1.0f, true);
+            EXPECT_EQ(classicF0, osg::Vec3f(64.0f / 255.0f, 128.0f / 255.0f, 1.0f));
+            const float classicRoughness = litAbout(normal, 64, false, SurfaceView::Roughness, 1.0f, true).x();
+            EXPECT_NEAR(classicRoughness, Shaders::roughnessOfExponent(255.0f), 1e-6f);
+            EXPECT_NEAR(classicRoughness, std::pow(2.0f / 257.0f, 0.25f), 1e-6f);
         }
 
         /// **A glossy surface that turns under a pixel is as rough as the turns it averages.** The
@@ -859,7 +956,7 @@ namespace Rtx::Testing
                 return frame.at(centre);
             };
 
-            const float footprint = distance * camera.mCamera.mSpreadAngle;
+            const float footprint = distance * camera.mEyes.mWorld.mSpreadAngle;
             for (const float turn : { 0.1f, 0.2f })
                 EXPECT_NEAR(roughnessUnder(turn),
                     Shaders::widenedRoughness(painted, footprint * footprint * turn * turn / 8.0f), 1e-4f)
@@ -924,6 +1021,88 @@ namespace Rtx::Testing
             EXPECT_NEAR(roughnessAt(8.0f), Shaders::widenedRoughness(painted, lost * lost * lost * lost), 1e-4f)
                 << "read past the map's finest level";
             EXPECT_EQ(roughnessAt(-8.0f), painted) << "and at it, where nothing is averaged";
+        }
+
+        /// **A grazing normal-mapped surface loses what its anisotropic read averages, and no
+        /// more.** The wall of the test above, turned forty-five degrees about the eye's line: its
+        /// footprint is as wide as before across and `1 / cos 45° = √2` as long along, so the long
+        /// axis reads `log2 √2 = 0.5` of a level coarser than square on. A read along the footprint
+        /// averages the long axis by the short one, a box of the same area half a `log2` finer, so
+        /// sixteen taps lose a quarter of a level more than square on, and one tap, which reads at
+        /// the long axis, half.
+        ///
+        /// Read back through the roughness view: with the loss rising from nought to all of
+        /// `lost = 221 / 255` over the map's first level, `R⁴ = painted⁴ + (lost · level)⁴`, so the
+        /// level is `(R⁴ - painted⁴)^(1/4) / lost`. The epsilon stands the square-on read a quarter
+        /// of a level in, so every read lands inside the first level.
+        TEST_F(RtxVisibilityTest, aGrazingNormalMappedSurfaceLosesWhatItsAnisotropicReadAverages)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr float painted = 128.0f / 255.0f;
+            constexpr float lost = 221.0f / 255.0f;
+            constexpr std::array<std::uint8_t, 4> baseTexel{ 128, 128, 128, 255 };
+            constexpr std::array<std::uint8_t, 4> mapTexel{ 0, 128, 255, 255 };
+            constexpr std::array<std::uint8_t, 16> leaning{ 218, 128, 218, 255, 37, 128, 218, 255, 37, 128, 218, 255,
+                218, 128, 218, 255 };
+
+            TestTexture relief;
+            paintFlat(relief, 2, leaning, "leaning");
+            relief.mData.mSlot = 2;
+            const std::array<TextureData, 3> textures{ describeTexel(baseTexel, 0), describeTexel(mapTexel, 1),
+                relief.mData };
+
+            const auto wallTurnedBy = [&](float degrees) {
+                const osg::Matrixf turn = osg::Matrixf::rotate(osg::DegreesToRadians(degrees), osg::Vec3f(0, 0, 1));
+                std::array<osg::Vec3f, 4> positions;
+                for (std::size_t at = 0; at < positions.size(); ++at)
+                    positions[at] = sWallQuad[at] * turn;
+                const osg::Vec3f normal = osg::Vec3f(0.0f, -1.0f, 0.0f) * turn;
+                const osg::Vec3f across = osg::Vec3f(1.0f, 0.0f, 0.0f) * turn;
+                const std::array<osg::Vec3f, 4> normals{ normal, normal, normal, normal };
+                const osg::Vec4f tangent(across, 1.0f);
+                const std::array<osg::Vec4f, 4> tangents{ tangent, tangent, tangent, tangent };
+
+                SceneDesc scene;
+                const Index mesh = scene.addMesh(MeshArrays{ .mPositions = positions,
+                    .mNormals = normals,
+                    .mTexCoords = sQuadUv,
+                    .mTangents = tangents,
+                    .mIndices = sQuadIndices });
+                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+                const Index map = scene.textures().add(
+                    VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+                const Index normalMap = scene.textures().add(
+                    VFS::Path::NormalizedView("leaning_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
+                scene.addInstance(MeshInstance{ .mMesh = mesh,
+                    .mMaterial
+                    = scene.addMaterial(Material{ .mDiffuse = diffuse, .mNormal = normalMap, .mSpecular = map }) });
+                return scene;
+            };
+
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            const auto levelRead = [&](float degrees, float epsilon, std::uint32_t anisotropy) {
+                const float shown = shoot(wallTurnedBy(degrees), textures, camera, size,
+                    Shot{ .mLevelEpsilon = epsilon, .mShow = SurfaceView::Roughness, .mAnisotropy = anisotropy })
+                                        .at(centre);
+                const float squared = painted * painted;
+                return std::pow(std::max(shown * shown * shown * shown - squared * squared, 0.0f), 0.25f) / lost;
+            };
+
+            // Where square on reads with no epsilon, found where a step of the epsilon lands inside
+            // the first level: below it the loss is nought, and past it all.
+            float inside = std::numeric_limits<float>::quiet_NaN();
+            for (float step = -12.0f; step <= 12.0f && std::isnan(inside); step += 0.5f)
+                if (const float level = levelRead(0.0f, step, 16); level > 0.05f && level < 0.95f)
+                    inside = level - step;
+            ASSERT_FALSE(std::isnan(inside)) << "no epsilon put the read inside the map's first level";
+
+            const float epsilon = 0.25f - inside;
+            ASSERT_NEAR(levelRead(0.0f, epsilon, 16), 0.25f, 1e-3f) << "the square-on read is not where it was put";
+            EXPECT_NEAR(levelRead(0.0f, epsilon, 1), 0.25f, 1e-3f) << "square on, the taps change nothing";
+            EXPECT_NEAR(levelRead(45.0f, epsilon, 1), 0.75f, 2e-3f) << "one tap reads at the long axis";
+            EXPECT_NEAR(levelRead(45.0f, epsilon, 16), 0.5f, 2e-3f) << "sixteen read the area they average";
         }
 
         /// **A map that stands in is read as no map**, in every role an object's map has: a normal
@@ -1286,7 +1465,8 @@ namespace Rtx::Testing
                 SceneDesc scene;
                 scene.addInstance(
                     MeshInstance{ .mMesh = scene.addMesh(MeshArrays{
-                                      .mPositions = sWallQuad, .mNormals = normals, .mIndices = sQuadIndices }) });
+                                      .mPositions = sWallQuad, .mNormals = normals, .mIndices = sQuadIndices }),
+                        .mMaterial = addGrey(scene) });
                 scene.addLight(lamp);
 
                 const Frame frame = shoot(scene, {}, camera, size);
@@ -1342,7 +1522,7 @@ namespace Rtx::Testing
                 {
                     material.mDiffuse = scene.textures().add(VFS::Path::NormalizedView("sheet.dds"));
                     material.mAlphaMode = AlphaMode::Cutout;
-                    material.mAlphaRef = 0.5f;
+                    material.mAlphaTest.mReference = 0.5f;
                 }
 
                 scene.addInstance(MeshInstance{
@@ -1885,8 +2065,9 @@ namespace Rtx::Testing
                 13, 14, 15, 16, 17 };
 
             SceneDesc scene;
-            scene.addInstance(MeshInstance{ .mMesh
-                = scene.addMesh(MeshArrays{ .mPositions = positions, .mNormals = normals, .mIndices = indices }) });
+            scene.addInstance(MeshInstance{
+                .mMesh = scene.addMesh(MeshArrays{ .mPositions = positions, .mNormals = normals, .mIndices = indices }),
+                .mMaterial = addGrey(scene) });
 
             osg::Vec3f normal = up * 0.9f + nearSide * 0.1f;
             normal.normalize();
@@ -1931,8 +2112,8 @@ namespace Rtx::Testing
         /// scene. Above, the floor gathers `(1 + cos 70) / 2` of it, which is the form factor of a
         /// half-space seen at that tilt. Below, it gathers none.
         ///
-        /// The sheet's own radiance is `0.5 * 0.25 * EMISSIVE_INTENSITY`, which is one, so the floor
-        /// above comes to `0.5 * 0.67101`.
+        /// The sheet's own radiance is `1 * 0.125 * EMISSIVE_INTENSITY` (its untextured texel is
+        /// white), which is one, so the grey floor above comes to `0.5 * 0.67101`.
         TEST_F(RtxVisibilityTest, aBounceDoesNotGatherThroughTheTriangleItLeft)
         {
             constexpr std::uint32_t size = 32;
@@ -1941,7 +2122,7 @@ namespace Rtx::Testing
                 SceneDesc scene = leaningFloor();
 
                 Material glowing;
-                glowing.mEmissiveColour = osg::Vec3f(0.25f, 0.25f, 0.25f);
+                glowing.mEmissiveColour = osg::Vec3f(0.125f, 0.125f, 0.125f);
 
                 // Wide enough that every direction off the floor which is on its side meets it, so
                 // the share below is the geometry's and not the sheet's edge.
@@ -1973,25 +2154,28 @@ namespace Rtx::Testing
             EXPECT_LT(floorUnder(glowingAt(-100.0f)), 0.005f) << "and it stops at the triangle";
         }
 
-        /// A bounce is drawn by the cosine, and two thirds is the number that says so.
+        /// A bounce is drawn by the cosine, and a half is the number that says so.
         ///
         /// **The one property of the estimator a uniform sky cannot show.** Every other test here
         /// fills the sky with one radiance so that a single sample carries no variance — which is
         /// what makes them exact, and what leaves `cosineDirection` unmeasured. A sky that runs from
         /// horizon to zenith turns the direction itself into the answer.
         ///
-        /// Malley's method draws `d.z = sqrt(1 - u)` for uniform `u`, so
+        /// The camera's sky fades by `t = sin e / (sin e + cos e)` (`Testing::sHemisphereRamp`), and
+        /// Malley's method draws the elevation with the density `sin 2e`, so
         ///
-        ///   E[d.z]   = integral of sqrt(t) over [0, 1]  = 2/3
-        ///   Var[d.z] = E[1 - u] - (2/3)^2 = 1/2 - 4/9   = 1/18,  sd = 0.235702
+        ///   E[t]   = 1/2, because t(e) + t(90° - e) = 1 and sin 2e is the same at both
+        ///   E[t²]  = integral of 2 s c · s² / (s + c)² over [0, 90°] = (pi - 2) / 4
+        ///   Var[t] = (pi - 2) / 4 - 1/4 = (pi - 3) / 4,  sd = 0.188144
         ///
-        /// A floor of albedo 0.5 under `mix(horizon, zenith, d.z)` therefore has to come back at
-        /// `0.5 * (horizon + 2/3 * range)` per channel, spread by `0.5 * |range| * 0.235702`.
+        /// A floor of albedo 0.5 under that sky therefore has to come back at
+        /// `0.5 * (horizon + range / 2)` per channel, spread by `0.5 * |range| * 0.188144`.
         ///
         /// **The mean is also what tells this estimator from the wrong one.** Drawing uniformly over
         /// the hemisphere and carrying the cosine as a weight is unbiased as well, but its
-        /// directions average `E[d.z] = 1/2` — a picture a sixth of the sky's range away, which is
-        /// ten times the tolerance below and cannot be mistaken for it.
+        /// directions average `E[t] = integral of t cos e = 1 - ln(1 + sqrt 2) / sqrt 2 = 0.376775`
+        /// — a picture an eighth of the sky's range away, seven times the tolerance below at the
+        /// narrowest range here, and not to be mistaken for it.
         TEST_F(RtxVisibilityTest, aBounceDrawsItsDirectionByTheCosineAndNotUniformly)
         {
             constexpr std::uint32_t size = 64;
@@ -2044,18 +2228,18 @@ namespace Rtx::Testing
             {
                 const auto [mean, spread] = measure(first, channel);
                 const float range = zenith[channel] - horizon[channel];
-                const float byTheCosine = 0.5f * (horizon[channel] + range * 2.0f / 3.0f);
-                const float ifDrawnEvenly = 0.5f * (horizon[channel] + range * 0.5f);
+                const float byTheCosine = 0.5f * (horizon[channel] + range * 0.5f);
+                const float ifDrawnEvenly = 0.5f * (horizon[channel] + range * 0.376775f);
 
                 // One sRGB step at a quarter brightness is 0.004 of linear — a 255th divided by the
                 // curve's slope there — and it swamps the sampling standard error, which over 4096
-                // samples is `0.5 * |range| * 0.235702 / 64`, at most 0.0011.
-                EXPECT_NEAR(mean, byTheCosine, 0.004f) << "channel " << channel << " averages two thirds up";
+                // samples is `0.5 * |range| * 0.188144 / 64`, at most 0.0009.
+                EXPECT_NEAR(mean, byTheCosine, 0.004f) << "channel " << channel << " averages half way up";
                 EXPECT_GT(std::abs(mean - ifDrawnEvenly), 0.02f)
-                    << "channel " << channel << " is nowhere near the half an even draw would give";
+                    << "channel " << channel << " is nowhere near the 0.377 an even draw would give";
 
-                EXPECT_NEAR(spread, 0.5f * std::abs(range) * 0.235702f, 0.003f)
-                    << "channel " << channel << " is spread by the square root's own variance";
+                EXPECT_NEAR(spread, 0.5f * std::abs(range) * 0.188144f, 0.003f)
+                    << "channel " << channel << " is spread by the sky's own variance";
             }
 
             // The frame index has to move every pixel's draw, or a bounce would be a fixed pattern
@@ -2098,15 +2282,15 @@ namespace Rtx::Testing
             // to upload reads as zero everywhere, every pixel draws the same direction as every
             // other, and the spread collapses to nothing while the mean stays right.
             //
-            // Measured, the reduction is 17, 27 and 21 — comfortably past what independence gives,
+            // Measured, the reduction is 19 in each channel — comfortably past what independence gives,
             // because the frames are a golden-ratio sweep of the interval rather than sixty-four
             // guesses at it.
             //
             // **The mean's tolerance is twenty times tighter than the single-frame one above**, and
             // has to be: at sixty-four samples a pixel's values cluster inside a few bytes, so the
             // sRGB step that dominated there is no longer what limits this. A divisor off by one
-            // moves the mean by 0.0046 — the whole point of the assertion, and something a tolerance
-            // sized for one noisy frame would wave through.
+            // moves the mean by a sixty-fourth of it, 0.0029 at the least — the whole point of the
+            // assertion, and something a tolerance sized for one noisy frame would wave through.
             constexpr std::uint32_t averaged = 64;
             const Frame converged = shade(0, averaged);
 
@@ -2115,10 +2299,10 @@ namespace Rtx::Testing
                 const auto [mean, spread] = measure(converged, channel);
                 const float range = zenith[channel] - horizon[channel];
 
-                EXPECT_NEAR(mean, 0.5f * (horizon[channel] + range * 2.0f / 3.0f), 0.0002f)
+                EXPECT_NEAR(mean, 0.5f * (horizon[channel] + range * 0.5f), 0.0002f)
                     << "channel " << channel << " keeps its mean when averaged";
 
-                const float alone = 0.5f * std::abs(range) * 0.235702f;
+                const float alone = 0.5f * std::abs(range) * 0.188144f;
                 EXPECT_GT(alone / spread, std::sqrt(float{ averaged }))
                     << "channel " << channel << " converges at least as fast as independent draws";
                 EXPECT_LT(alone / spread, float{ averaged })

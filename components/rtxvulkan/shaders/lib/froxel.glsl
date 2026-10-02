@@ -212,9 +212,12 @@ FogSlice fogSliceBetween(FogSlice from, FogSlice to, float fraction)
 /// weighted by it, and what the transmittance loses to it is exactly it, since `T * (1 - absorbed)`
 /// is `T - T * absorbed`.
 ///
-/// **Exact for a stretch the line does not bend in**, which is why both callers cut a slice at its
-/// middle: the line from one slice's sample to the next bends only at the samples, so each half of
-/// a slice is one straight piece and its mean is its own middle.
+/// **The transmittance exact over a stretch the line does not bend in, and the light scattered in
+/// the midpoint rule's, second order in the stretch.** A linear extinction's mean is its middle, so
+/// the optical depth is exact; the light a linear source scatters through a linear extinction has a
+/// closed form only through `erf`, and the middle's source over the stretch's loss is its midpoint
+/// estimate. Which is why both callers cut a slice at its middle: the line from one slice's sample
+/// to the next bends only at the samples, so each half of a slice is one straight piece.
 void fogThrough(inout float transmittance, inout vec3 scattered, inout float sunward, FogSlice slice, float length)
 {
     const float weight = transmittance * (1.0 - exp(-slice.mExtinction * length));

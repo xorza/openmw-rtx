@@ -97,7 +97,7 @@ namespace Rtx
     }
 
     void SceneDesc::addEmitter(
-        std::span<const Sprite> sprites, Index texture, bool additive, float width, Index lighting, bool falls)
+        std::span<const Sprite> sprites, Index texture, BlendKind blend, float width, Index lighting, bool falls)
     {
         mTurn.expect(Turn::Open, Turn::Walked);
         if (sprites.empty())
@@ -137,7 +137,9 @@ namespace Rtx
             .mFirst = static_cast<Index>(mSprites.size()),
             .mCount = static_cast<Index>(sprites.size()),
             .mTexture = texture,
-            .mFlags = (additive ? Shaders::EMITTER_ADDITIVE : 0u) | (falls ? Shaders::EMITTER_FALLS : 0u),
+            .mFlags = (blend != BlendKind::Over ? Shaders::EMITTER_ADDITIVE : 0u)
+                | (blend == BlendKind::AddWhole ? Shaders::EMITTER_ADD_WHOLE : 0u)
+                | (falls ? Shaders::EMITTER_FALLS : 0u),
             .mWidth = width,
             .mLighting = lighting,
         });
@@ -297,6 +299,14 @@ namespace Rtx
         mSprites.clear();
         mEmitters.clear();
         mRipples.clear();
+    }
+
+    void SceneDesc::compact()
+    {
+        mMeshes.compact();
+        mTextures.compact();
+        mDeformers.compact();
+        mPlacements.compact();
     }
 
     void SceneDesc::clearArrivals()

@@ -5,6 +5,7 @@
 
 #include <osg/Camera>
 #include <osg/Group>
+#include <osg/Math>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
@@ -26,7 +27,9 @@
 #include <components/rtx/environment/skybuilder.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/shaders/look.h>
+#include <components/settings/values.hpp>
 #include <components/sky/skyclock.hpp>
+#include <components/sky/sunglarefader.hpp>
 #include <components/vfs/manager.hpp>
 
 namespace MWRender
@@ -203,6 +206,25 @@ namespace MWRender
             EXPECT_DOUBLE_EQ(indoors.mSkySeconds, static_cast<double>(step));
         }
 
+        /// A script's view distance closes the air nearer than the world reaches and never further:
+        /// the world stands to the setting's reach, and the eye sees `min(reach, d)` of it.
+        TEST(RtxReadWorldTest, aScriptsViewDistanceClosesTheAirAndNeverOpensIt)
+        {
+            const Standing standing = standingIn(Location::Exterior);
+            const Falling falling;
+            const SkyReader reader;
+
+            const auto edgeFor = [&](const EyeState& eye) {
+                return reader.read(standing.mSky, standing.mWorld, falling.mPrecipitation, 0.0, eye.closesAirAt(sReach))
+                    .mDaylight.mFog.mEdge;
+            };
+
+            EXPECT_EQ(edgeFor(EyeState{}), sReach) << "no script, the world's reach";
+            EXPECT_EQ(edgeFor(EyeState{ .mScriptViewDistance = 2000.0f }), 2000.0f) << "a sandstorm's";
+            EXPECT_EQ(edgeFor(EyeState{ .mScriptViewDistance = 4.0f * sReach }), sReach)
+                << "past the world there is no world to see";
+        }
+
         /// A room is lit by its own record, and the record is the only thing that decides it.
         ///
         /// **The alternative the two above are not.** A cell that is a room carries an `AMBI`, has
@@ -231,10 +253,10 @@ namespace MWRender
         }
 
         /// `tsky` hides the sky and leaves the light: the rasterizer masks the sky node out and
-        /// clears to the fog colour, and the sun goes on lighting the ground. So the reading is
-        /// not outdoors — no deck, no stars, no moons, no dome fill — its zenith is its horizon,
-        /// and its sun is the noon sun with no disc to draw.
-        TEST(RtxReadWorldTest, theSkyToggleHidesTheSkyAndKeepsTheSun)
+        /// clears to the fog colour, and the sun, the moons and the dome go on lighting the ground.
+        /// So the reading is outdoors as before, with the same sky, sun and disc, and says only that
+        /// its sky is not drawn; and it has no glare, whose node hangs under the hidden sun.
+        TEST(RtxReadWorldTest, theSkyToggleHidesTheSkyAndKeepsItsLight)
         {
             Standing standing = standingIn(Location::Exterior);
             standing.mWorld.mSkyShown = false;
@@ -242,12 +264,67 @@ namespace MWRender
             const Rtx::WorldReading hidden = readFrom(standing);
             const Rtx::WorldReading shown = readFrom(standingIn(Location::Exterior));
 
-            EXPECT_FALSE(hidden.mOutdoors);
-            EXPECT_EQ(hidden.mDaylight.mSkyZenith, hidden.mDaylight.mSkyHorizon);
+            EXPECT_TRUE(hidden.mOutdoors) << "a hidden sky stopped lighting";
+            EXPECT_FALSE(hidden.mSkyDrawn);
+            EXPECT_TRUE(shown.mSkyDrawn);
+            EXPECT_EQ(hidden.mDaylight.mSkyZenith, shown.mDaylight.mSkyZenith);
             EXPECT_EQ(hidden.mDaylight.mSkyHorizon, shown.mDaylight.mSkyHorizon);
             EXPECT_EQ(hidden.mDaylight.mLight.mSun.mIrradiance, shown.mDaylight.mLight.mSun.mIrradiance);
-            EXPECT_EQ(hidden.mDaylight.mLight.mSun.mDiscColour, osg::Vec3f()) << "a disc drawn on a hidden sky";
-            EXPECT_NE(shown.mDaylight.mLight.mSun.mDiscColour, osg::Vec3f());
+            EXPECT_EQ(hidden.mDaylight.mLight.mSun.mDiscColour, shown.mDaylight.mLight.mSun.mDiscColour);
+            EXPECT_EQ(hidden.mSunGlare.mFade, 0.0f) << "a glare on a hidden sun";
+        }
+
+        /// **The water scatters back the colour the content settles its murk at**:
+        /// `Water_UnderwaterColor` at `Water_UnderwaterColorWeight`, read off the fallbacks, which the
+        /// seed states as Morrowind's own `012,030,037` at 0.85 — and not the air's share the
+        /// rasterizer's underwater fog mixes in beside it, which a grey storm's air does not move.
+        TEST(RtxReadWorldTest, theWaterScattersTheColourTheContentSettlesItsMurkAt)
+        {
+            Standing standing = standingIn(Location::Exterior);
+            standing.mWorld.mWaterFog.mColour = osg::Vec4f(0.5f, 0.5f, 0.5f, 1.0f);
+
+            const osg::Vec3f scatter = readFrom(standing).mWaterScatter;
+            const osg::Vec3f shipped = Rtx::Shaders::WATER_SCATTER_SHIPPED;
+            for (int channel = 0; channel < 3; ++channel)
+                EXPECT_FLOAT_EQ(scatter[channel], shipped[channel]) << channel;
+        }
+
+        /// **And the extinction keeps the pairing `look.h` states**: the shipped colour peaks in
+        /// blue, where the water takes least away, so the two describe one water.
+        TEST(RtxReadWorldTest, theShippedWaterColourPeaksWhereTheExtinctionIsLeast)
+        {
+            const osg::Vec3f scatter = Rtx::Shaders::WATER_SCATTER_SHIPPED;
+            const osg::Vec3f extinction = Rtx::Shaders::WATER_EXTINCTION;
+            EXPECT_GT(scatter.z(), scatter.y());
+            EXPECT_GT(scatter.y(), scatter.x());
+            EXPECT_LT(extinction.z(), extinction.y());
+            EXPECT_LT(extinction.y(), extinction.x());
+            EXPECT_FLOAT_EQ(scatter.z(), 37.0f / 255.0f * 0.85f) << "Morrowind's own blue at its weight";
+        }
+
+        /// **The glare fades with the disc through sunrise and sunset**, as `SkyManager::setWeather`
+        /// hands the sun `Glare_View` times the disc's alpha: at 06:15 of the shipped day the disc
+        /// stands at a quarter, and so does the glare against a whole disc's.
+        ///
+        /// **And the fader is the content's, as `SunGlareCallback` reads it**: the seed's colour
+        /// `222,095,039` doubled and clamped, 2 * 222 / 255 past one, 190 / 255 and 78 / 255; its most
+        /// of 0.5; and thirty degrees in radians.
+        TEST(RtxReadWorldTest, theGlareFadesWithTheDisc)
+        {
+            const Rtx::WorldReading whole = readFrom(standingIn(Location::Exterior));
+            Standing dawn = standingIn(Location::Exterior);
+            dawn.mSky.mWeather.mSunDiscColor.a() = 0.25f;
+            const Rtx::WorldReading faded = readFrom(dawn);
+
+            ASSERT_GT(whole.mSunGlare.mFade, 0.0f) << "no glare at noon to compare against";
+            EXPECT_FLOAT_EQ(faded.mSunGlare.mFade, 0.25f * whole.mSunGlare.mFade);
+
+            const Sky::SunGlareFader& fader = whole.mSunGlare.mFader;
+            EXPECT_EQ(fader.mColour.x(), 1.0f);
+            EXPECT_FLOAT_EQ(fader.mColour.y(), 190.0f / 255.0f);
+            EXPECT_FLOAT_EQ(fader.mColour.z(), 78.0f / 255.0f);
+            EXPECT_EQ(fader.mMax, 0.5f);
+            EXPECT_FLOAT_EQ(fader.mAngleMax, osg::DegreesToRadians(30.0f));
         }
 
         /// A script paints Secunda `Moons_Script_Color`, and Secunda alone, as
@@ -290,14 +367,14 @@ namespace MWRender
         }
 
         /// What falls is kept off by a roof up to the top of the game's own occluder box — the
-        /// precipitation's range and a cell over it — and by nothing where nothing falls. Asked of
+        /// precipitation's range and a cell over it — and by nothing where nothing falls or
+        /// `weather particle occlusion` is off. Asked of
         /// the precipitation itself: a weather that rains sizes the box by its own numbers, the
         /// height being the mean of the drops' two spawn heights.
         TEST(RtxReadWorldTest, theShelterIsTheOccludersBox)
         {
             const Standing standing = standingIn(Location::Exterior);
             const SkyReader reader;
-            Falling falling;
 
             SkyState rain = standing.mSky;
             rain.mWeather.mRainEffect = "meshes/raindrop.nif";
@@ -309,13 +386,27 @@ namespace MWRender
             rain.mWeather.mRainMaxRaindrops = 650;
             rain.mWeather.mPrecipitationAlpha = 1.0f;
 
-            falling.mPrecipitation.setWeather(rain);
-            EXPECT_EQ(reader.read(rain, standing.mWorld, falling.mPrecipitation, 0.0f, sReach).mShelterHeight,
-                450.0f + static_cast<float>(Constants::CellSizeInUnits));
+            // `weather particle occlusion` decides for both renderers, and defaults to off: the
+            // ray tracer had sheltered the rain the rasterizer lets fall under every awning.
+            const bool setting = Settings::shaders().mWeatherParticleOcclusion;
+            for (const bool shelters : { false, true })
+            {
+                Settings::shaders().mWeatherParticleOcclusion.set(shelters);
+                Falling falling;
 
-            falling.mPrecipitation.setWeather(standing.mSky);
-            EXPECT_EQ(
-                reader.read(standing.mSky, standing.mWorld, falling.mPrecipitation, 0.0f, sReach).mShelterHeight, 0.0f);
+                // (200 + 700) / 2 = 450, and a cell over it.
+                falling.mPrecipitation.setWeather(rain);
+                EXPECT_EQ(reader.read(rain, standing.mWorld, falling.mPrecipitation, 0.0f, sReach).mShelterHeight,
+                    shelters ? 450.0f + static_cast<float>(Constants::CellSizeInUnits) : 0.0f)
+                    << "setting " << shelters;
+
+                falling.mPrecipitation.setWeather(standing.mSky);
+                EXPECT_EQ(
+                    reader.read(standing.mSky, standing.mWorld, falling.mPrecipitation, 0.0f, sReach).mShelterHeight,
+                    0.0f)
+                    << "nothing falling, setting " << shelters;
+            }
+            Settings::shaders().mWeatherParticleOcclusion.set(setting);
         }
     }
 }

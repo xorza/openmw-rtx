@@ -11,6 +11,7 @@ import time
 import urllib.error
 import urllib.request
 import zipfile
+from collections.abc import Callable
 from pathlib import Path, PurePosixPath
 
 from omw.pins import Pin
@@ -33,6 +34,20 @@ _opener.addheaders = [("User-Agent", "omw (https://github.com/xorza/openmw-rtx)"
 
 def partial_of(path: Path) -> Path:
     return path.with_name(path.name + ".partial")
+
+
+def build_beside(final: Path, make: Callable[[Path], object], within: str = "") -> Path:
+    """**Made beside its final name, and given it only once the whole of it is there**, as a download
+    is: `make` fills a partial directory, and `within`, a path inside it, is what takes the name. A
+    run cut off mid-way leaves a partial the next run clears, and never a directory taken for
+    installed."""
+    partial = partial_of(final)
+    shutil.rmtree(partial, ignore_errors=True)
+    make(partial)
+    final.parent.mkdir(parents=True, exist_ok=True)
+    (partial / within).rename(final)
+    shutil.rmtree(partial, ignore_errors=True)
+    return final
 
 
 def digest_of(path: Path, algorithm: str) -> str:

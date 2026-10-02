@@ -11,6 +11,7 @@
 #include <ratio>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include <MyGUI_ITexture.h>
@@ -73,6 +74,7 @@
 #include "../vismask.hpp"
 #include "classmasks.hpp"
 #include "rtxsettings.hpp"
+#include "rtxsupport.hpp"
 #include "tracedground.hpp"
 #include "tracedoverlay.hpp"
 #include "tracedview.hpp"
@@ -99,18 +101,20 @@ namespace MWRender
             const RtxSettings settings = RtxSettings::derive(RtxSettingValues::fromRegistry());
 
             return RunSetup{
-                .mProfile = {
-                    .mUpscale = settings.mUpscale,
-                    .mAnisotropy = settings.mAnisotropy,
-                    .mGamma = settings.mGamma,
-                    .mExposure = Rtx::ExposureRule{},
-                    .mRadianceWidth = Rtx::RadianceWidth::Shown,
+                .mRun = {
+                    .mProfile = {
+                        .mUpscale = settings.mUpscale,
+                        .mAnisotropy = settings.mAnisotropy,
+                        .mGamma = settings.mGamma,
+                        .mLitEnvironmentMaps = settings.mLitEnvironmentMaps,
+                        .mExposure = Rtx::ExposureRule{},
+                        .mRadianceWidth = Rtx::RadianceWidth::Shown,
+                    },
+                    .mValidation
+                    = { .mLevel = Rtx::sValidationByDefault ? Rtx::ValidationLevel::On : Rtx::ValidationLevel::Off },
                 },
-                .mValidation
-                = { .mLevel = Rtx::sValidationByDefault ? Rtx::ValidationLevel::On : Rtx::ValidationLevel::Off },
                 .mMirror = settings.mMirror,
                 .mHeadless = false,
-                .mStep = std::nullopt,
                 .mSettled = std::nullopt,
             };
         }
@@ -168,11 +172,12 @@ namespace MWRender
         options.mHeight = static_cast<std::uint32_t>(getPresentation().mFrame.y());
         options.mWindow = mWindow.get();
         options.mVerticalSync = Settings::video().mVsyncMode;
-        // **The run's answer.** A launcher making a measurement says on its command line whether
-        // the layers load, because a figure taken under them is not one to compare against
-        // anything; `playedRunSetup` says what a session with no command line answers.
-        options.mValidation = setup.mValidation;
-        options.mMemoryBudget = setup.mMemoryBudget;
+        // **The run's answer, handed over whole**: the profile a measurement turns, so a picture
+        // taken by the harness and a frame drawn by the game come from one configuration, the
+        // layers — a launcher making a measurement says on its command line whether they load,
+        // because a figure taken under them is not one to compare against anything — and the
+        // budget. `playedRunSetup` says what a session with no command line answers.
+        options.mRun = setup.mRun;
 
         // **The two finer levels, asked for by name and never on by themselves.** The build decides
         // whether the layers load; these decide what they check, and each costs far more than the
@@ -191,9 +196,9 @@ namespace MWRender
         // Either raises the level whatever the build said, which is what lets a Release build be
         // asked one question without being rebuilt.
         if (askedFor("OPENMW_RTX_SYNC_VALIDATION"))
-            options.mValidation.mLevel = std::max(options.mValidation.mLevel, Rtx::ValidationLevel::Sync);
+            options.mRun.mValidation.mLevel = std::max(options.mRun.mValidation.mLevel, Rtx::ValidationLevel::Sync);
         if (askedFor("OPENMW_RTX_GPU_VALIDATION"))
-            options.mValidation.mLevel = Rtx::ValidationLevel::Gpu;
+            options.mRun.mValidation.mLevel = Rtx::ValidationLevel::Gpu;
 
         // **Counted exactly where a run is installed.** The counts are a report's figures — what
         // tells "the cell rendered" from "the camera faced away from it", and what `check` asserts
@@ -202,24 +207,28 @@ namespace MWRender
         // pixel that hit anything.
         options.mCounting = run != nullptr;
 
-        // **The knobs a measurement turns, handed over whole where the renderer is built**, so a
-        // picture taken by the harness and a frame drawn by the game come from one configuration.
-        options.mProfile = setup.mProfile;
-
         // **Said once, where it is decided.** What reconstructs the frame does not change while the
         // session runs, so it does not belong in the periodic line; what that line carries is the
         // one word a reader of any single line needs, and the rest — at what pair of sizes — is here,
         // where it was chosen.
-        Log(Debug::Info) << "Ray tracing: upscale " << Rtx::sUpscaleNames.name(setup.mProfile.mUpscale);
+        Log(Debug::Info) << "Ray tracing: upscale " << Rtx::sUpscaleNames.name(setup.mRun.mProfile.mUpscale);
 
-        // **Grass hangs off the quad tree, and this renderer has the game build none**: its ground is
-        // the cell ring's. Said and not refused, because a game that asked for grass plays the same
-        // without it; the content still loads, which is the world's to decide.
-        if (Settings::groundcover().mEnabled)
-            Log(Debug::Warning) << "Groundcover is on, and the ray tracer draws none";
+        // **A switch the player turned on for what this renderer declines is said once, with the
+        // declaration's reason**: grass, a second eye, a shader chain. Said and not refused, because
+        // the game plays the same without them; the content still loads, which is the world's to
+        // decide.
+        const std::pair<Settings::CategorySetting, bool> switches[] = {
+            { { "Groundcover", "enabled" }, Settings::groundcover().mEnabled },
+            { { "Stereo", "stereo enabled" }, Settings::stereo().mStereoEnabled },
+            { { "Post Processing", "enabled" }, Settings::postProcessing().mEnabled },
+        };
+        for (const auto& [setting, on] : switches)
+            if (const std::string_view declined = rtxSupport().declinedSetting(setting.first, setting.second);
+                on && !declined.empty())
+                Log(Debug::Warning) << "[" << setting.first << "] " << setting.second << " is on: " << declined;
 
         mRenderer = Rtx::createVulkanRenderer(options);
-        mUpscale = setup.mProfile.mUpscale;
+        mUpscale = setup.mRun.mProfile.mUpscale;
 
         Log(Debug::Info) << "Ray tracing on " << mRenderer->describeDevice();
 
@@ -261,7 +270,6 @@ namespace MWRender
         mMirror.detach();
         mRipples.clear();
         mWorldRoot = nullptr;
-        mRendering = nullptr;
     }
 
     float RtxRenderer::getGroundReach() const noexcept
@@ -288,15 +296,15 @@ namespace MWRender
         // **And a run that means to time the streaming path overrides it**, because waiting is
         // most of what that path then measures. `RunSetup::mSettled` says what the override costs
         // and what it buys.
-        mMirror.setSettled(mSettled.value_or(stated.has_value()));
+        mMirror.getRing().setSettled(mSettled.value_or(stated.has_value()));
 
         Resource::SceneManager& scene = *resources.getSceneManager();
         scene.setShadersEnabled(false);
 
-        // A `_spec` map this renderer does not read is not loaded either: a classic one is refused
-        // by the layout, and a pack of three thousand would sit in memory for nothing.
+        // A `_spec` map this renderer does not read is not loaded either: under `ignore` a pack of
+        // three thousand would sit in memory for nothing.
         Shader::AutoMapRules maps = scene.getAutoMaps();
-        maps.mSpecularMaps = maps.mSpecularMaps && mMirror.getSpecularLayout() == Rtx::SpecularLayout::MetalRoughness;
+        maps.mSpecularMaps = maps.mSpecularMaps && mMirror.getWalkContext().mSpecular != Rtx::SpecularLayout::Ignore;
         scene.setAutoMaps(maps);
     }
 
@@ -314,7 +322,7 @@ namespace MWRender
 
     std::unique_ptr<Ground> RtxRenderer::createGround(const GroundSpec& spec) noexcept
     {
-        return std::make_unique<TracedGround>(spec.mSceneRoot, spec.mStorage, Mask_Terrain, spec.mWorldspace, mMirror);
+        return std::make_unique<TracedGround>(spec, *getResources().getSceneManager(), Mask_Terrain, mMirror);
     }
 
     void RtxRenderer::addCell(const MWWorld::CellStore* cell) noexcept
@@ -344,6 +352,11 @@ namespace MWRender
         mRipples.splash(position);
     }
 
+    void RtxRenderer::poseForIntersection(osg::Drawable& drawable)
+    {
+        mPoser.pose(drawable, getFrameStamp());
+    }
+
     void RtxRenderer::listAssetsToPreload(
         std::vector<VFS::Path::Normalized>& models, std::vector<VFS::Path::Normalized>& textures) noexcept
     {
@@ -355,15 +368,8 @@ namespace MWRender
         presentIn(osg::Vec2i(width, height));
     }
 
-    void RtxRenderer::applyPresentation() noexcept
+    void RtxRenderer::attachWorld(RenderingManager&, osg::Group& worldRoot) noexcept
     {
-        if (mRendering != nullptr)
-            mRendering->updateProjectionMatrix();
-    }
-
-    void RtxRenderer::attachWorld(RenderingManager& world, osg::Group& worldRoot) noexcept
-    {
-        mRendering = &world;
         mPhase.expect(Phase::Between);
         mAttachment.step(Attachment::Attached, Attachment::Detached);
         // Straight under the root: the rasterizer hangs its shadowed scene between the two, and
@@ -377,7 +383,7 @@ namespace MWRender
 
         // The sky's sheets into the mirror's scene, once: they are drawn by rays that reach
         // nothing, so nothing the walk finds would keep their slots.
-        mSky.attach(mMirror.getScene(), *getResources().getSceneManager(), mMirror.getPreprocessor());
+        mSky.attach(mMirror.getScene(), *getResources().getSceneManager(), mMirror.getWalkContext().mContent.mFacts);
     }
 
     void RtxRenderer::adoptTraversalRoot(osg::Group& root) noexcept
@@ -453,11 +459,9 @@ namespace MWRender
     {
         return FrameContext{
             .mRenderer = *this,
-            .mResources = &getResources(),
-            .mScene = mMirror.getScene(),
-            .mReach = mMirror.getReach(),
-            .mEye = mMirror.getEye(),
-            .mGrid = mMirror.getGrid(),
+            .mMirror = mMirror,
+            .mBackend = *mRenderer,
+            .mResources = getResources(),
         };
     }
 
@@ -476,7 +480,7 @@ namespace MWRender
             return 0.0;
 
         const std::chrono::steady_clock::time_point began = std::chrono::steady_clock::now();
-        mViews.draw(sWorldViewsPerFrame, getFrameStamp());
+        mViews.draw(sWorldViewsPerFrame, getFrameStamp(), mMirror.getRing());
         return Rtx::since(began, std::chrono::steady_clock::now());
     }
 
@@ -582,18 +586,20 @@ namespace MWRender
         getScreenshotWriter()(*taken, 0);
     }
 
-    std::unique_ptr<OffscreenView> RtxRenderer::createWorldView(const OffscreenViewSpec& spec) noexcept
+    std::unique_ptr<TracedView> RtxRenderer::traceView(const OffscreenViewSpec& spec, const ViewKind kind)
     {
         assert(mGui != nullptr && "a view before the interface was made");
-        return std::make_unique<TracedView>(spec, ViewKind::World, *mRenderer, mViews, *mGui, mMirror.getTraversals(),
-            mMirror.getContent(), mMirror.getSpecularLayout());
+        return std::make_unique<TracedView>(spec, kind, *mRenderer, mViews, *mGui, mMirror.getWalkContext());
+    }
+
+    std::unique_ptr<OffscreenView> RtxRenderer::createWorldView(const OffscreenViewSpec& spec) noexcept
+    {
+        return traceView(spec, ViewKind::World);
     }
 
     std::unique_ptr<SubjectView> RtxRenderer::createSubjectView(const OffscreenViewSpec& spec) noexcept
     {
-        assert(mGui != nullptr && "a view before the interface was made");
-        return std::make_unique<TracedView>(spec, ViewKind::Subject, *mRenderer, mViews, *mGui, mMirror.getTraversals(),
-            mMirror.getContent(), mMirror.getSpecularLayout());
+        return traceView(spec, ViewKind::Subject);
     }
 
     std::unique_ptr<MapOverlay> RtxRenderer::createMapOverlay(const MapOverlaySpec& spec) noexcept
@@ -607,7 +613,12 @@ namespace MWRender
         mRenderer->setVerticalSync(mode);
     }
 
-    void RtxRenderer::processChangedSettings(const Settings::CategorySettingVector& changed) noexcept
+    const RenderSupport& RtxRenderer::support() const noexcept
+    {
+        return rtxSupport();
+    }
+
+    void RtxRenderer::applyChangedSettings(const Settings::CategorySettingVector& changed) noexcept
     {
         const bool upscale = changed.contains({ "RTX", "upscale" });
         const bool reach
@@ -692,8 +703,16 @@ namespace MWRender
         mPhase.expect(Phase::Between);
         // **Told rather than worked out.** The mirror grows and recycles its slots and is never
         // cleared, so a cell load leaves it looking exactly as a step across a room does; the
-        // renderer has nothing to notice. `Rtx::Renderer::resetHistory` says what that costs.
-        mRenderer->resetHistory();
+        // renderer has nothing to notice. Kept for the next frame the world is traced in, which a
+        // load screen's frames are not.
+        mLoss = std::max(mLoss, Rtx::HistoryLoss::Cut);
+    }
+
+    void RtxRenderer::notifyWorldspaceChanged() noexcept
+    {
+        mPhase.expect(Phase::Between);
+        mLoss = Rtx::HistoryLoss::Worldspace;
+        mRipples.dropStrikes();
     }
 
     void RtxRenderer::renderFrame(const SceneFrame& frame)
@@ -741,40 +760,35 @@ namespace MWRender
             wanted != mRenderer->getProfile().mUpscale)
             mRenderer->setUpscale(wanted);
 
-        // **A frame with the world hidden is the interface and nothing else.** No walk, because the
+        // **A frame under a cover is the interface and nothing else.** No walk, because the
         // update traversal did not run either, and no trace, because the interface covers every
         // pixel of it. The sweep goes with the walk: a walk that did not happen has marked nothing
-        // and a sweep would take the world.
+        // and a sweep would take the world. `tws` is not a cover: it is the world's view mask,
+        // which the walk and the trace read.
         //
         // **The emitter clock stops with it**, which is what a clock of its own is for: it counts
         // the seconds this renderer has shown, so a plume resumes where it left off rather than
         // being handed the loading screen in one step.
         //
-        // **A picture of a subject is drawn all the same**, as the rasterizer's cameras go on
-        // drawing the doll under `tws`: it stands on a scene of its own, which no walk of the world
-        // feeds. A picture of the world waits for the world, and none of its budget is spent.
-        if (!drawsWorld())
+        // **A picture of a subject is drawn all the same**: it stands on a scene of its own, which
+        // no walk of the world feeds. A picture of the world waits for the world, and none of its
+        // budget is spent.
+        if (!isWorldShown())
         {
+            mRipples.dropStrikes();
             mPhase.step(Phase::Views, Phase::Walking);
-            mViews.draw(0, getFrameStamp());
+            mViews.draw(0, getFrameStamp(), mMirror.getRing());
             renderGui();
             return;
         }
-
-        // **Off the frame and not off the session**, because what settles it is whether the eye
-        // is the player's, and a session is only the thing that usually makes it not.
-        mMirror.setShowsPlayer(frame.mEye.mPlayersEye);
 
         // Where the eye stands, as the update traversal settled it on the camera this renderer
         // adopted: read here, at the one moment it is this frame's.
         const osg::Matrixd view = getCamera().getViewMatrix();
 
         // What disturbs the water this frame, decided before the walk and handed to the scene
-        // beside the sprites, which is where the trace and the digest both read it. Not on a
-        // paused frame: the actors have not moved, and a wake pressed on a frame the simulation
-        // stood still on is a ring on a frame the game did not have.
-        if (!frame.mPaused)
-            mRipples.update(frame.mWorld.mWater);
+        // beside the sprites, which is where the trace and the digest both read it.
+        mRipples.update(frame.mWorld.mWater, !frame.mPaused);
 
         // **Where the benchmark's `walk ms` starts**, because that row means the whole mirror: the
         // walk and the sweep behind it.
@@ -884,9 +898,8 @@ namespace MWRender
         const std::chrono::steady_clock::time_point handing = std::chrono::steady_clock::now();
         const Rtx::SceneUpload handed = mMirror.hand(*mRenderer, report.mSpend);
         report.mSpend.at(Rtx::Timing::Place) = Rtx::since(handing, std::chrono::steady_clock::now());
-        report.mUpload = handed.mKind;
-        report.mArrivedMeshes = handed.mArrivedMeshes;
-        report.mCellsToStand = mMirror.getCellsToStand();
+        report.mUpload = handed;
+        report.mCellsToStand = mMirror.getRing().getCellsToStand();
 
         if (handed.mKind == Rtx::SceneUpload::Kind::Rebuilt)
             Log(Debug::Info) << "Ray tracing built " << mMirror.getScene().meshes().getRows().size() << " meshes into "
@@ -931,11 +944,18 @@ namespace MWRender
             return std::nullopt;
         }
 
+        // A script's projection offset: the same fraction of the picture at the traced extent as at
+        // the frame's. The arms' eye is built after it and keeps it, as the rasterizer shifts the
+        // arms' projection too.
+        Rtx::shiftPicture(constants->mEyes.mWorld, frame.mEye.mProjectionShift);
+
         // The arms' own eye, at the field of view the game draws them through.
-        constants->mArms = Rtx::cameraAtFieldOfView(constants->mCamera, frame.mEye.mArmsFieldOfView);
+        constants->mEyes.mArms = Rtx::cameraAtFieldOfView(constants->mEyes.mWorld, frame.mEye.mArmsFieldOfView);
 
         // What the game decided the eye sees, read where the rasterizer reads it.
-        constants->mRayMask = rayMaskOf(getViewMask());
+        const ViewDescription described = describeView(worldViewMask());
+        constants->mRayMask = described.mRayMask;
+        constants->mNoLamps = described.mLamps ? 0 : 1;
 
         // **What the sampler and the jitter are walked by, and leaving it at zero is a bug with two
         // faces.** The bounce samples the same point every frame, so nothing ever converges; and the
@@ -954,8 +974,10 @@ namespace MWRender
     void RtxRenderer::trace(const SceneFrame& frame, Rtx::Shaders::VisibilityConstants constants, FrameReport& report,
         const std::optional<double> since)
     {
-        const Rtx::WorldReading read = mSky.read(
-            frame.mSky, frame.mWorld, frame.mPrecipitation, frame.mWhen.getSimulationTime(), mMirror.getReach());
+        mSky.follow(frame.mSky, mMirror.getScene(), *getResources().getSceneManager(),
+            mMirror.getWalkContext().mContent.mFacts);
+        const Rtx::WorldReading read = mSky.read(frame.mSky, frame.mWorld, frame.mPrecipitation,
+            frame.mWhen.getSimulationTime(), frame.mEye.closesAirAt(mMirror.getReach()));
 
         const double now = getFrameClock().getNow();
         const float sinceLast = mTracedAt.has_value() ? static_cast<float>(now - *mTracedAt) : 0.0f;
@@ -967,6 +989,7 @@ namespace MWRender
         Rtx::FrameOptions options{
             .mAccumulate = mRun.getAccumulated(),
             .mSinceLast = sinceLast,
+            .mLoss = std::exchange(mLoss, Rtx::HistoryLoss::None),
             .mReconstruction = mRun.getReconstruction(),
             .mExposure = mRun.getExposure(),
             .mReadBack = mRun.wantsFrameCopy(),
@@ -989,7 +1012,7 @@ namespace MWRender
             options.mDebug = mDebugWalk.walk(*mWorldRoot);
 
         report.mFrame = mRenderer->getFrameCount();
-        report.mReconstruction = mRenderer->renderFrame(constants, options);
+        mRenderer->renderFrame(constants, options);
         report.mConstants = constants;
 
         report.mSpend.at(Rtx::Timing::Trace) = Rtx::since(tracing, std::chrono::steady_clock::now());

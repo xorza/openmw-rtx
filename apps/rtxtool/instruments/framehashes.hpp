@@ -9,6 +9,7 @@
 #include <string_view>
 #include <vector>
 
+#include <components/misc/result.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
@@ -84,13 +85,18 @@ namespace RtxTool
         /// file it under the frame the report will name.
         std::optional<Pictured> picture(const Rtx::FrameResult& finished);
 
+        /// Drops the rows whose picture will not come: what a run abandoned inside a stop leaves,
+        /// so that its record holds the frames it drew and nothing else.
+        void dropUnpictured();
+
         /// How many rows are noted and not yet pictured: what a stop that did not drain its ring
         /// leaves, and what `write` refuses to write.
         std::size_t countUnpictured() const;
 
-        /// Throws where a row has no picture: a file with a hash of nothing in it would compare
-        /// as a frame that moved, and the ring is what was not drained.
-        void write(const std::filesystem::path& file) const;
+        /// Writes every row, or says which path it could not write. Dies where a row has no
+        /// picture: a file with a hash of nothing in it would compare as a frame that moved, and
+        /// the ring is what was not drained.
+        Misc::Result<void, std::string> write(const std::filesystem::path& file) const;
 
         std::size_t frameCount() const { return mFrames.size(); }
 
@@ -144,7 +150,8 @@ namespace RtxTool
             }
         };
 
-        /// One entry per view this run drew, in the order it drew them.
+        /// One entry per view this run drew, in the order it drew them, then one per view only the
+        /// reference drew, in the reference's order, whose every frame is unmatched.
         std::vector<ViewDifference> against(const FrameHashes& reference) const;
 
         /// The first frame of `view` whose surface or motion differs from the view's first frame, or

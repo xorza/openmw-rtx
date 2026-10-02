@@ -32,6 +32,19 @@ namespace Rtx
     inline constexpr VkMemoryPropertyFlags sHostWritten = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
         | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
+    /// The memory types a request for `required` is placed in, as a mask of type indices: those
+    /// whose placement — device-local, host-visible, coherent, cached — is exactly the request's,
+    /// where the device has any, and otherwise every one that has what the request asks. Never
+    /// AMD's device-coherent or uncached types, nor protected or lazily allocated ones, which no
+    /// request here asks for.
+    ///
+    /// **Stated in the request rather than left to the order the driver lists its types in**: the
+    /// library takes the first type that has what is asked, so staging memory would be
+    /// write-combined system memory only where a driver lists that type before its window, and a
+    /// driver that listed the window first would put every staging block in the 246 MiB the
+    /// host-written tables need. Nought where no type has what is asked.
+    std::uint32_t memoryTypesFor(const VkPhysicalDeviceMemoryProperties& memory, VkMemoryPropertyFlags required);
+
     /// What a range of memory is for, which says what becomes of the content where the device has
     /// no room for it — and so the order the room is given in. Each use stops where every use
     /// before it could be made once more: what the frame holds is what a change of mode makes
@@ -52,6 +65,19 @@ namespace Rtx
     };
 
     inline constexpr std::size_t sMemoryUses = static_cast<std::size_t>(MemoryUse::Texture) + 1;
+
+    /// What `VK_EXT_memory_priority` is told of the memory a use takes: the order a driver that runs
+    /// short evicts it in, lowest first. **The one statement of the priorities**, which every request
+    /// reads.
+    ///
+    /// **Essential memory stands at a half**, the priority the library gives every block outside a
+    /// pool, so a target big enough for an allocation of its own stands where a table in a shared
+    /// block stands. **Content stands at a quarter**, one figure for structures and textures alike,
+    /// because the two share the content pools' blocks and a priority belongs to a block.
+    constexpr float memoryPriorityOf(const MemoryUse use)
+    {
+        return use == MemoryUse::Essential ? 0.5f : 0.25f;
+    }
 
     /// A range of one device allocation, and the allocator that hands it back. Not an allocation
     /// of its own: one `vkAllocateMemory` per image was 1554 for the cell the game starts in, most

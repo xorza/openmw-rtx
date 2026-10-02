@@ -50,9 +50,10 @@ namespace Rtx
     /// without a word. `sVersion` goes up whenever what `run` computes from the same input changes,
     /// which files every older output apart from the new ones.
     ///
-    /// **`run` follows `digest` on the same input**, so a pass may keep what its digest read — a
-    /// texture pass describes the image once, for both. `run` is not called where the cache found
-    /// the output.
+    /// **`run` reads its input whether or not `digest` came first**, because no key is made while
+    /// the cache holds nothing (`ContentCache::sHolds`). Where `digest` did come first, on the same
+    /// input, `run` may use what it read — a texture pass describes the image once for both. `run`
+    /// is not called where the cache found the output.
     template <class Pass>
     concept ContentPass
         = requires(Pass& pass, const typename Pass::Input& input, typename Pass::Output& output, ContentDigest& digest)

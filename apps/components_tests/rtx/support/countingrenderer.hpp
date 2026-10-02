@@ -40,10 +40,6 @@ namespace Rtx::Testing
         const Rtx::RenderProfile& getProfile() const override { return mProfile; }
         bool isValidating() const override { return false; }
 
-        /// Counted rather than acted on: what a caller has to prove is that the discontinuity
-        /// reaches the renderer at all, and this double has no history to throw away.
-        void resetHistory() override { ++mHistoryResets; }
-
         void setScene(
             Rtx::SceneSlot slot, const Rtx::SceneDesc& scene, std::span<const Rtx::TextureData> textures) override
         {
@@ -53,7 +49,7 @@ namespace Rtx::Testing
             // What the backend does: the array is made again and ends where the scene's table
             // does, whatever it held before.
             countAt(slot) = static_cast<std::uint32_t>(scene.textures().getRows().size());
-            heldAt(slot) = { true, scene.getIdentity(), scene.getStructureRevision() };
+            heldAt(slot) = { scene.getIdentity(), scene.getStructureRevision() };
         }
 
         void extendScene(
@@ -79,10 +75,9 @@ namespace Rtx::Testing
         Rtx::SceneHeld describeHeld(Rtx::SceneSlot slot) const override
         {
             const Built& built = heldAt(slot);
-            return Rtx::SceneHeld{ .mBuilt = built.mBuilt,
-                .mIdentity = built.mIdentity,
-                .mStructureRevision = built.mRevision,
-                .mTextureCount = countAt(slot) };
+            return Rtx::SceneHeld{
+                .mIdentity = built.mIdentity, .mStructureRevision = built.mRevision, .mTextureCount = countAt(slot)
+            };
         }
 
         /// What the device refused, which a test fills to be what the next hand-over answers.
@@ -106,11 +101,7 @@ namespace Rtx::Testing
         void setGamma(float) override {}
         Rtx::JobProgress awaitKernels(std::chrono::milliseconds) override { return {}; }
         Rtx::FrameExtents getExtents() const override { return {}; }
-        Rtx::Reconstruction renderFrame(const Rtx::Shaders::VisibilityConstants&, const Rtx::FrameOptions&) override
-        {
-            ++mFrames;
-            return {};
-        }
+        void renderFrame(const Rtx::Shaders::VisibilityConstants&, const Rtx::FrameOptions&) override { ++mFrames; }
         void skipFrame() override { ++mSkipped; }
         std::uint64_t getFrameCount() const override { return mFrames + mSkipped; }
         std::optional<Rtx::FrameResult> finishFrame() override { return std::nullopt; }
@@ -143,7 +134,6 @@ namespace Rtx::Testing
         /// What a slot was built from, which is what says whether an uploader may append.
         struct Built
         {
-            bool mBuilt = false;
             std::uint64_t mIdentity = 0;
             std::uint64_t mRevision = 0;
         };
@@ -179,8 +169,6 @@ namespace Rtx::Testing
         bool takeGuiCopy(Rtx::GuiSlot, std::span<std::uint8_t>) override { return false; }
         void finishGuiTraces() override {}
         void readPixels(std::vector<std::uint8_t>&) override {}
-
-        std::uint32_t mHistoryResets = 0;
 
         /// Which slots the last hand-over described, in the order it described them.
         ///

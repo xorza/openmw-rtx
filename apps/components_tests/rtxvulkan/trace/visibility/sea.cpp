@@ -448,12 +448,12 @@ namespace Rtx::Testing
                 // A pixel's solid angle is its side squared at these angles: the frame is two
                 // degrees across in one case and twenty in the other, where the cos-cubed the exact
                 // form carries is a part in two thousand.
-                Disc disc{ .mPeak = 0.0f, .mTotal = 0.0f, .mSpreadAngle = camera.mCamera.mSpreadAngle };
+                Disc disc{ .mPeak = 0.0f, .mTotal = 0.0f, .mSpreadAngle = camera.mEyes.mWorld.mSpreadAngle };
                 for (std::size_t i = 0; i < std::size_t{ size } * size; ++i)
                 {
                     const float radiance = frame.at(i * 4);
                     disc.mPeak = std::max(disc.mPeak, radiance);
-                    disc.mTotal += radiance * camera.mCamera.mSpreadAngle * camera.mCamera.mSpreadAngle;
+                    disc.mTotal += radiance * camera.mEyes.mWorld.mSpreadAngle * camera.mEyes.mWorld.mSpreadAngle;
                 }
                 return disc;
             };
@@ -788,16 +788,17 @@ namespace Rtx::Testing
 
             // How wide the refraction's cone is where it lands, in world units: the pixel's own
             // footprint where it met the water, plus what it gained over the leg down. **The lobe's
-            // width**, `ggxConeWidth` of the roughness the lost slopes stand for — and a quarter of
-            // it, because refraction bends by `1 - 1 / n` of what reflection does, so what is seen
-            // *through* a rough surface is blurred that much less.
+            // width**, `ggxConeWidth` of the roughness the lost slopes stand for — and an eighth of
+            // it, `refractedConeWidth`, because a facet's tilt turns a reflection by twice itself
+            // and a refraction into water by `1 - 1 / n` of itself, so what is seen *through* a
+            // rough surface is blurred that much less.
             // The pixel's cone where it met the water, which is both what the ladder is read through
             // and what `waveLevel` picks a mip by — one quantity, so one name.
-            const float footprint = camera.mCamera.mSpreadAngle * height;
+            const float footprint = camera.mEyes.mWorld.mSpreadAngle * height;
 
             const auto coneAtBed = [&](float lobe) {
-                const float bent = lobe * (1.0f - 1.0f / Shaders::WATER_IOR);
-                return footprint + (camera.mCamera.mSpreadAngle + bent) * depth;
+                const float bent = Shaders::refractedConeWidth(lobe, Shaders::WATER_IOR, false);
+                return footprint + (camera.mEyes.mWorld.mSpreadAngle + bent) * depth;
             };
 
             const SeaState fine{ .mSignificantHeight = 3.0f, .mPeakWavelength = 64.0f };
@@ -819,14 +820,14 @@ namespace Rtx::Testing
             //
             // **What is left is the two Jensen terms.** The patch's mean cone is a mean over pixels of
             // a width in `sqrt(sqrt(lost))`'s cone, where the prediction takes the cone of the mean,
-            // and the log of a mean stands over the mean of the logs. Measured 1.082 against a
-            // prediction of 1.066.
+            // and the log of a mean stands over the mean of the logs. Measured 0.635 against a
+            // prediction of 0.629.
             //
             // What the assertion settles is the optics: the lobe's own width, `ggxConeWidth` of the
             // roughness the lost slopes stand for, which is how a solid's lobe widens its cone too,
-            // and the `1 - 1/n` that says a refraction is bent by a quarter of what a reflection is.
-            // The cone this water was once widened by, four times the rms slope, predicts 1.428 —
-            // seventeen tolerances away.
+            // and half of the `1 - 1/n` that says a refraction is bent by an eighth of what a
+            // reflection is. A quarter of the lobe, which this water was once widened by, predicts
+            // 1.066 — twenty tolerances away.
             EXPECT_NEAR(
                 std::log2(ruffled / still), std::log2(coneAtBed(lobeOf(fine, footprint)) / coneAtBed(0.0f)), 0.02f)
                 << "the cone widened by the lobe the sea's lost slopes stand for";

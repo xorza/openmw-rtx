@@ -3,17 +3,22 @@
 -- (`RtxTool::SkyKeys`), because what it crosses is a sky no script can reach.
 local core = require('openmw.core')
 local world = require('openmw.world')
+local spelling = require('scripts.rtx.hour')
 
 local function say(player, text)
     player:sendEvent('RtxSay', text)
 end
 
--- The game's default `timescale`, which the clock keys halve and double: ×1 is the game's own
--- day, and a crossing of the sky runs at the game's own speed there (`RtxTool::sGameTimeScale`).
--- Bounded at ×1/8, below which the sky stands still to the eye, and ×1024, at which a day passes
--- in under three seconds and the sun is a streak.
-local baseScale = 30
+-- The game's own `timescale`, which the clock keys halve and double: the one the session started
+-- at, which the harness reads too (`RtxTool::Session`), so ×1 is the game's own day and a crossing
+-- of the sky runs at the game's own speed there. Bounded at ×1/8, below which the sky stands still
+-- to the eye, and ×1024, at which a day passes in under three seconds and the sun is a streak.
+local baseScale = nil
 local slowest, fastest = -3, 10
+
+local function startSession()
+    baseScale = core.getGameTimeScale()
+end
 
 -- What the clock ran at before it was paused, so a second press puts it back.
 local heldScale = nil
@@ -62,12 +67,6 @@ local function speedClock(player, steps)
     say(player, string.format('clock ×%g', 2 ^ exponent))
 end
 
--- The nearest minute, as `Rtx::describeHour` spells it, so this and the window's title agree.
-local function describeHour(hour)
-    local minutes = math.floor(hour * 60 + 0.5) % (24 * 60)
-    return string.format('%02d:%02d', math.floor(minutes / 60), minutes % 60)
-end
-
 -- Written as the hour rather than advanced, so the day and the moons stay where they are. Past
 -- midnight the engine rolls the day on by itself; before it the day is taken down here, and on
 -- day one it stops at midnight, because the engine clamps the day at one.
@@ -85,10 +84,14 @@ local function addHours(player, hours)
     end
 
     globals.gamehour = hour
-    say(player, describeHour(globals.gamehour))
+    say(player, spelling.describe(globals.gamehour))
 end
 
 return {
+    engineHandlers = {
+        onInit = startSession,
+        onLoad = startSession,
+    },
     eventHandlers = {
         RtxPauseClock = function(data)
             pauseClock(data.player)

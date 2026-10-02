@@ -209,22 +209,22 @@ namespace RtxTool
             constexpr std::uint32_t snow = 8;
             const std::vector<TrackKey> keys{ keyAt(0, 0.0f, 0.0f, 12.0f, 0), keyAt(10, 100.0f, 0.0f, 18.0f, rain) };
             const SkyRun run{
-                .mHoursPerFrame = 0.5, .mWeathers = { cloudy, rain, snow }, .mHoldFrames = 2, .mCrossingFrames = 4
+                .mClockPerFrame = 0.5, .mWeathers = { cloudy, rain, snow }, .mHoldFrames = 2, .mCrossingFrames = 4
             };
             const CameraTrack track = trackOf(keys, {}, run);
 
             const TrackPose first = track.pose(0);
-            EXPECT_EQ(first.mHoursOn, 0.0);
+            EXPECT_EQ(first.mClockOn, 0.0);
             EXPECT_EQ(first.mWeather, cloudy);
             EXPECT_EQ(first.mNextWeather, cloudy);
             EXPECT_EQ(first.mCrossed, 0.0f);
 
             const TrackPose crossing = track.pose(4);
-            EXPECT_EQ(crossing.mHoursOn, 2.0);
+            EXPECT_EQ(crossing.mClockOn, 2.0);
             EXPECT_EQ(crossing.mWeather, cloudy);
             EXPECT_EQ(crossing.mNextWeather, rain);
             EXPECT_FLOAT_EQ(crossing.mCrossed, 0.5f);
-            EXPECT_NE(trackOf(keys).pose(4).mHoursOn, crossing.mHoursOn) << "the run changed no hour";
+            EXPECT_EQ(trackOf(keys).pose(4).mClockOn, std::nullopt) << "a clock the keys' track runs";
 
             EXPECT_EQ(track.pose(6).mWeather, rain);
             EXPECT_EQ(track.pose(6).mNextWeather, rain);
@@ -240,16 +240,24 @@ namespace RtxTool
             SkyRun later = run;
             later.mFirstFrame = 10;
             const TrackPose cut = trackOf(keys, {}, later).pose(0);
-            EXPECT_EQ(cut.mHoursOn, 0.5);
+            EXPECT_EQ(cut.mClockOn, 0.5);
             EXPECT_EQ(cut.mWeather, rain);
             EXPECT_EQ(cut.mNextWeather, snow);
             EXPECT_FLOAT_EQ(cut.mCrossed, 0.5f);
 
             // Half a run is the keys' other half: the clock alone leaves the keys' weathers.
-            const CameraTrack clockOnly = trackOf(keys, {}, SkyRun{ .mHoursPerFrame = 0.5 });
+            const CameraTrack clockOnly = trackOf(keys, {}, SkyRun{ .mClockPerFrame = 0.5 });
             EXPECT_EQ(clockOnly.pose(5).mWeather, 0u);
             EXPECT_EQ(clockOnly.pose(5).mNextWeather, rain);
-            EXPECT_EQ(clockOnly.pose(5).mHoursOn, 2.5);
+            EXPECT_EQ(clockOnly.pose(5).mClockOn, 2.5);
+
+            // Hours where the session says how many seconds its own clock runs to one: 2.5 of them
+            // at a `timescale` of 30 are 2.5 × 30 / 3600 hours, and at 10 a third as many. The keys'
+            // own track stands at its hours whatever the scale.
+            EXPECT_DOUBLE_EQ(clockOnly.pose(5).getHoursOn(30.0f), 2.5 * 30.0 / 3600.0);
+            EXPECT_DOUBLE_EQ(clockOnly.pose(5).getHoursOn(10.0f), 2.5 * 10.0 / 3600.0);
+            EXPECT_DOUBLE_EQ(trackOf(keys).pose(5).getHoursOn(30.0f), trackOf(keys).pose(5).mHoursOn);
+            EXPECT_DOUBLE_EQ(trackOf(keys).pose(5).getHoursOn(10.0f), trackOf(keys).pose(5).mHoursOn);
         }
     }
 }

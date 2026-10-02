@@ -64,14 +64,12 @@ namespace Rtx
     {
     }
 
-    Misc::Result<void, std::string> TemplateWalk::read(
-        const osg::Node& root, const osg::Node::NodeMask mask, PreparedModel& into)
+    void TemplateWalk::read(const osg::Node& root, const osg::Node::NodeMask mask, PreparedModel& into)
     {
         mInto = &into;
         mHere = osg::Matrix();
         mModes = NightDayModes{};
         mShading.clear();
-        mRefused.clear();
         setTraversalMask(mask);
 
         // OSG's visitor API is non-const throughout, and this walk writes nothing: the cast happens
@@ -79,21 +77,25 @@ namespace Rtx
         const_cast<osg::Node&>(root).accept(*this);
 
         mInto = nullptr;
+    }
 
-        if (!mRefused.empty())
-            return Misc::Err{ mRefused };
-
-        return {};
+    void TemplateWalk::refuse(std::string_view why)
+    {
+        if (mInto->mRefused.empty())
+            mInto->mRefused.assign(why);
     }
 
     void TemplateWalk::pushShading(const osg::StateSet& stateSet)
     {
-        const float above = mShading.empty() ? 1.0f : mShading.back().mFade;
-        mShading.push_back(Shading{ .mStateSet = &stateSet, .mFade = fadeThrough(stateSet, above) });
+        mShading.push_back(Shading::under(mShading, stateSet, false));
     }
 
     void TemplateWalk::apply(osg::Node& node)
     {
+        // Left out as the frame's walk leaves it out, which says so where it is met.
+        if (const osg::StateSet* own = node.getStateSet(); own != nullptr && drawsIntoDistortion(*own))
+            return;
+
         const std::size_t held = mShading.size();
 
         if (const osg::StateSet* own = node.getStateSet())
@@ -121,6 +123,9 @@ namespace Rtx
 
     void TemplateWalk::apply(osg::Drawable& drawable)
     {
+        if (const osg::StateSet* own = drawable.getStateSet(); own != nullptr && drawsIntoDistortion(*own))
+            return;
+
         const std::size_t held = mShading.size();
 
         if (const osg::StateSet* own = drawable.getStateSet())
@@ -133,10 +138,6 @@ namespace Rtx
 
     void TemplateWalk::take(const osg::Drawable& drawable)
     {
-        // A model is refused whole, so what follows the first refusal is not read.
-        if (!mRefused.empty())
-            return;
-
         const DrawableRead read = readDrawable(drawable, mKinds.of(drawable));
         if (read.mGeometry == nullptr)
             return;
@@ -145,17 +146,16 @@ namespace Rtx
         const Misc::Result<bool, std::string> readMesh = mMeshes.read(read, reading);
         if (!readMesh.isOk())
         {
-            mRefused = readMesh.error();
+            refuse(readMesh.error());
             return;
         }
         if (!readMesh.value())
             return;
 
-        // Here on the reader's thread, where the model is refused whole, and not at the adoption,
-        // which is inside the frame's walk.
+        // Here on the reader's thread, and not at the adoption, which is inside the frame's walk.
         if (const Misc::Result<void, std::string> fits = MeshTable::checkFits(reading.mArrays); !fits.isOk())
         {
-            mRefused = fits.error();
+            refuse(fits.error());
             return;
         }
 
@@ -163,7 +163,7 @@ namespace Rtx
 
         PreparedPart part;
         part.mDrawable = &drawable;
-        part.mMaterial = MaterialResolver::read(mShading, mContent, mMeans);
+        part.mMaterial = MaterialResolver::read(mShading, mContent.mFacts);
         part.mLocal = osg::Matrixf(mHere);
         part.mShape = reading.mShape;
         part.mModes = mModes;

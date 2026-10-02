@@ -530,14 +530,28 @@ namespace MWWorld
 
     void World::setGlobalInt(GlobalVariableName name, int value)
     {
+        const float hour = mTimeManager->getTimeStamp().getHour();
         mTimeManager->updateGlobalInt(name, value);
         mGlobalVariables[name].setInteger(value);
+        if (name == Globals::sGameHour)
+            noteHourWritten(hour);
     }
 
     void World::setGlobalFloat(GlobalVariableName name, float value)
     {
+        const float hour = mTimeManager->getTimeStamp().getHour();
         mTimeManager->updateGlobalFloat(name, value);
         mGlobalVariables[name].setFloat(value);
+        if (name == Globals::sGameHour)
+            noteHourWritten(hour);
+    }
+
+    void World::noteHourWritten(float before)
+    {
+        // A clock that jumped carries the old hour's light through every history the ray tracer
+        // keeps, as a teleport carries the old place's.
+        if (DateTimeManager::jumps(before, mTimeManager->getTimeStamp().getHour(), mHourStep))
+            mRendering->notifyTeleport();
     }
 
     int World::getGlobalInt(GlobalVariableName name) const
@@ -801,6 +815,8 @@ namespace MWWorld
 
         mWeatherManager->advanceTime(hours, incremental);
         mTimeManager->advanceTime(hours, mGlobalVariables);
+        if (incremental)
+            mHourStep = hours;
 
         if (!incremental)
         {
@@ -995,6 +1011,14 @@ namespace MWWorld
     MWWorld::Ptr World::moveObject(
         const Ptr& ptr, CellStore* newCell, const osg::Vec3f& position, bool movePhysics, bool keepActive)
     {
+        // Physics placed outright is a reference put somewhere else in one step; physics stepped
+        // is a reference walking there.
+        return moveObject(ptr, newCell, position, movePhysics, keepActive, movePhysics);
+    }
+
+    MWWorld::Ptr World::moveObject(
+        const Ptr& ptr, CellStore* newCell, const osg::Vec3f& position, bool movePhysics, bool keepActive, bool jumps)
+    {
         ESM::Position pos = ptr.getRefData().getPosition();
         std::memcpy(pos.pos, &position, sizeof(osg::Vec3f));
         ptr.getRefData().setPosition(pos);
@@ -1092,6 +1116,8 @@ namespace MWWorld
         if (haveToMove && newPtr.getRefData().getBaseNode())
         {
             mRendering->moveObject(newPtr, position);
+            if (jumps)
+                mRendering->notifyJumped(newPtr);
             if (movePhysics)
             {
                 mPhysics->updatePosition(newPtr);
@@ -1113,6 +1139,11 @@ namespace MWWorld
 
     MWWorld::Ptr World::moveObject(const Ptr& ptr, const osg::Vec3f& position, bool movePhysics, bool moveToActive)
     {
+        return moveObject(ptr, cellForMove(ptr, position, moveToActive), position, movePhysics);
+    }
+
+    CellStore* World::cellForMove(const Ptr& ptr, const osg::Vec3f& position, bool moveToActive)
+    {
         CellStore* cell = ptr.getCell();
         ESM::RefId worldspaceId
             = cell->isExterior() ? cell->getCell()->getWorldSpace() : ESM::Cell::sDefaultWorldspaceId;
@@ -1126,7 +1157,7 @@ namespace MWWorld
         if (cell->isExterior() || (moveToActive && isCellActive && ptr.getClass().isActor()))
             cell = newCell;
 
-        return moveObject(ptr, cell, position, movePhysics);
+        return cell;
     }
 
     MWWorld::Ptr World::moveObjectBy(const Ptr& ptr, const osg::Vec3f& vec, bool moveToActive)
@@ -1137,7 +1168,7 @@ namespace MWWorld
             actor->adjustPosition(vec);
         if (ptr.getClass().isActor())
             return moveObject(ptr, newpos, false, moveToActive && ptr != getPlayerPtr());
-        return moveObject(ptr, newpos);
+        return moveObject(ptr, cellForMove(ptr, newpos, false), newpos, true, false, false);
     }
 
     void World::scaleObject(const Ptr& ptr, float scale, bool force)

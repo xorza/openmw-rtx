@@ -10,9 +10,12 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
+#include <components/rtx/preprocess/shape/facecross.hpp>
+#include <components/rtx/preprocess/shape/probetable.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 
@@ -274,12 +277,58 @@ namespace Rtx
         /// The shape pass is keyed on everything it reads: the positions, the normals and the
         /// triangles, and whether it may split — the cube's eight positions and eight normals of
         /// twelve bytes, thirty-six indices of four, and the flag's one byte: 96 + 96 + 144 + 1.
+        /// The flag alone moves the key.
         TEST(RtxCreaseSplitTest, theShapePassIsKeyedOnTheNormalsAndOnWhetherItSplits)
         {
-            ContentPreprocessor content;
             const AveragedCube cube;
-            shape(content, cube.mPositions, cube.mNormals, cube.mTriangles);
-            EXPECT_EQ(content.takeStats().at(ContentPassId::Shape).mKeyBytes, 96u + 96u + 144u + 1u);
+            const auto keyOf = [&](const bool splits, ContentDigest& digest) {
+                ShapePass::digest(ShapePass::Input{ .mPositions = cube.mPositions,
+                                      .mNormals = cube.mNormals,
+                                      .mTriangles = cube.mTriangles,
+                                      .mSplits = splits },
+                    digest);
+                return digest.getKey();
+            };
+
+            ContentDigest splitting("shape", ShapePass::sVersion);
+            const ContentKey split = keyOf(true, splitting);
+            EXPECT_EQ(splitting.getBytes(), 96u + 96u + 144u + 1u);
+
+            ContentDigest whole("shape", ShapePass::sVersion);
+            EXPECT_NE(keyOf(false, whole), split);
+        }
+
+        /// **A face is read one way by every shape pass**: the unit normal of the corners' cross
+        /// product and its length, twice the area. Hand-placed: legs of two and three along x and y
+        /// cross to six along z, so the unit is z and the area three; three points on a line cross
+        /// to nothing, which is no normal at all rather than a division by nought.
+        TEST(RtxFaceCrossTest, aFaceIsItsUnitNormalAndTwiceItsArea)
+        {
+            const FaceCross face = FaceCross::of(
+                osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(2.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 3.0f, 0.0f));
+            EXPECT_EQ(face.mUnit, osg::Vec3f(0.0f, 0.0f, 1.0f));
+            EXPECT_EQ(face.mTwiceArea, 6.0f);
+
+            const FaceCross line = FaceCross::of(
+                osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f), osg::Vec3f(2.0f, 0.0f, 0.0f));
+            EXPECT_EQ(line.mUnit, osg::Vec3f());
+            EXPECT_EQ(line.mTwiceArea, 0.0f);
+        }
+
+        /// The probe table is a power of two at least twice as long as what it holds and at least
+        /// sixteen, and a probe wraps from its last slot to its first: three entries take sixteen
+        /// slots, a hash past them is masked, and the slot after fifteen is nought.
+        TEST(RtxProbeTableTest, aTableIsTwiceItsEntriesAndAProbeWraps)
+        {
+            ProbeTable table;
+            table.reset(3);
+            EXPECT_EQ(table.first(17), 1u);
+            EXPECT_EQ(table.next(15), 0u);
+            EXPECT_EQ(table[15], ProbeTable::sEmpty);
+
+            table.reset(20);
+            EXPECT_EQ(table.first(63), 63u) << "twenty entries take sixty-four slots";
+            EXPECT_EQ(table.next(63), 0u);
         }
     }
 }

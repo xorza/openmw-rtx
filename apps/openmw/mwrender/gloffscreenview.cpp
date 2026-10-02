@@ -451,7 +451,7 @@ namespace MWRender
 
     GlDollView::~GlDollView() = default;
 
-    void GlDollView::setView(const osg::Matrixf& view)
+    void GlDollView::setView(const osg::Matrixd& view)
     {
         mDoll.setViewMatrix(view);
     }
@@ -503,7 +503,7 @@ namespace MWRender
     {
     }
 
-    void GlTileView::setView(const osg::Matrixf& view)
+    void GlTileView::setView(const osg::Matrixd& view)
     {
         mTile.mViewMatrix = view;
     }

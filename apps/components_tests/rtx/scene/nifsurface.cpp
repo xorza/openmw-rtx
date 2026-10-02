@@ -169,7 +169,8 @@ namespace Rtx
 
             // Alpha testing and no blending, so the surface is a cutout at the threshold over 255.
             EXPECT_EQ(found->mAlphaMode, Rtx::AlphaMode::Cutout);
-            EXPECT_FLOAT_EQ(found->mAlphaRef, 128.0f / 255.0f);
+            EXPECT_FLOAT_EQ(found->mAlphaTest.mReference, 128.0f / 255.0f);
+            EXPECT_EQ(found->mAlphaTest.mPasses, Rtx::Shaders::ALPHA_PASSES_ABOVE) << "mode four is `GREATER`";
 
             // Two-sided, which is what `DrawMode::Both` asks for and nothing else in a NIF does: the
             // scene root culls back faces, so a surface nothing spoke about shows one. The test below
@@ -284,7 +285,7 @@ namespace Rtx
             const std::optional<Rtx::SurfaceDescription> found = describeTriangle({ &colours, &alpha });
             ASSERT_TRUE(found.has_value());
             EXPECT_EQ(found->mAlphaMode, Rtx::AlphaMode::Blend);
-            EXPECT_FLOAT_EQ(found->mAlphaRef, 64.0f / 255.0f);
+            EXPECT_FLOAT_EQ(found->mAlphaTest.mReference, 64.0f / 255.0f);
         }
     }
 }

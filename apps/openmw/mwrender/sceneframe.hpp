@@ -1,8 +1,11 @@
 #pragma once
 
+#include <algorithm>
 #include <optional>
+#include <span>
 
 #include <osg/Matrixf>
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
@@ -100,7 +103,9 @@ namespace MWRender
 
         WaterState mWater;
 
-        /// Whether the eye is under `mWater`: the water's own rule, asked at the camera.
+        /// Whether the eye is under `mWater`: the water's own rule, asked at the camera's position
+        /// as upstream asked it for the rasterizer's fog and its post-processing. The ray tracer
+        /// takes its medium from the eye it traces, and the precipitation answers for itself.
         bool mUnderwater = false;
 
         /// Fog above the water, which a renderer whose fog is a medium reads even with the eye
@@ -174,7 +179,24 @@ namespace MWRender
     {
         float mNearClip = 0.0f;
         float mViewDistance = 0.0f;
+
+        /// How far a script asked the player to see, `camera.setViewDistance`, where that is not
+        /// the setting. The rasterizer's far clip is `mViewDistance` either way; the ray tracer
+        /// closes its air here and keeps the world standing to the setting's reach, so a script
+        /// never rebuilds the world.
+        std::optional<float> mScriptViewDistance;
+
+        /// Where the air closes for a world that stands to `reach`: there, or nearer where a script
+        /// asked the eye to see less.
+        float closesAirAt(float reach) const { return std::min(reach, mScriptViewDistance.value_or(reach)); }
+
         osg::Matrixf mProjectionMatrix{};
+
+        /// A script's `camera.setProjectionOffset`, as the translation `mProjectionMatrix` carries
+        /// after its perspective: in clip units, x right and y up, nought without one. Said apart
+        /// for a renderer that builds its own projection, which the ray tracer does at its traced
+        /// extent: the picture then moves by the same fraction of itself on both.
+        osg::Vec2f mProjectionShift{};
 
         /// The one the world settled on: the override wherever something asked for one, and the
         /// setting only where nothing did.
@@ -183,10 +205,6 @@ namespace MWRender
         /// The one the player's own arms are drawn through, `first person field of view`, which
         /// `NpcAnimation` swaps the projection to under `Mask_FirstPerson`.
         float mArmsFieldOfView = 0.0f;
-
-        /// Whether the eye is the player's, as against a camera a script or a harness parked
-        /// somewhere: what decides whether the player's own body is in the picture.
-        bool mPlayersEye = true;
     };
 
     /// What there is to draw, and what the world is doing while it is drawn. Handed down rather
@@ -226,5 +244,10 @@ namespace MWRender
         /// it: what `RenderingManager::update` was handed, for the objects that step by it.
         float mDeltaTime = 0.0f;
         bool mPaused = false;
+
+        /// The base nodes of the references the game put somewhere else in one step since the
+        /// last frame — a door, a teleport, a script's `Position` — whose history from where they
+        /// stood is no history of where they stand. Compared by address and never read.
+        std::span<const osg::Node* const> mJumped{};
     };
 }

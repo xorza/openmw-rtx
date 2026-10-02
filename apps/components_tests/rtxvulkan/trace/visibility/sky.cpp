@@ -91,6 +91,14 @@ namespace Rtx::Testing
                 EXPECT_EQ(diffuse[middle + channel], 0.0f) << "no albedo, channel " << channel;
             EXPECT_EQ(surface[centreOf(size) * 2], Shaders::SURFACE_NO_NORMAL) << "no normal";
             EXPECT_EQ(surface[centreOf(size) * 2 + 1], 10000.0f) << "as far away as the camera reaches";
+
+            // **A sky `tsky` hid is the fog colour to the top**, as the rasterizer clears to it: the
+            // top row shows the horizon's pure red as the middle row does.
+            camera.mSkyDrawn = 0;
+            const Frame hidden = shoot(scene, {}, camera, size);
+            EXPECT_EQ(hidden.byte(top), 255) << "the zenith drawn on a hidden sky";
+            EXPECT_EQ(hidden.byte(top + 2), 0);
+            EXPECT_EQ(hidden.byte(middle), 255);
         }
 
         /// Both moons light a floor, and the two slots are one code path.
@@ -416,6 +424,69 @@ namespace Rtx::Testing
             EXPECT_EQ(deck(1.0f), 0.0f) << "a deck whose sheet stands in was drawn";
         }
 
+        /// **The deck turns about the eye**, as the rasterizer turns its cloud mesh about the camera,
+        /// so the sheet overhead stays where it is whichever way a storm drives it.
+        ///
+        /// A sheet of red, green, blue and white quadrants, at a hundredth of a tile a unit. The eye stands at `(10025,
+        /// 25)`, so overhead is `(100.25, 0.25)` on the sheet: the middle of the red texel. Turned a quarter about the
+        /// world's origin instead, overhead would be `(-0.25, 100.25)`, the middle of the green one.
+        TEST_F(RtxVisibilityTest, theDeckTurnsAboutTheEyeAndOverheadStaysPut)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+
+            SceneDesc scene;
+            scene.textures().add(VFS::Path::NormalizedView("cloud.dds"));
+            addQuad(scene, sheetAt(100.0f, -2000.0f));
+
+            // Two texels a quadrant, so the filter about a quadrant's middle reads its own colour
+            // alone: the centre ray is a unit off overhead, and a turn moves that unit.
+            constexpr std::array<std::array<std::uint8_t, 4>, 4> colours{ { { 255, 0, 0, 255 }, { 0, 255, 0, 255 },
+                { 0, 0, 255, 255 }, { 255, 255, 255, 255 } } };
+            std::array<std::uint8_t, 64> quadrants{};
+            for (std::size_t y = 0; y < 4; ++y)
+                for (std::size_t x = 0; x < 4; ++x)
+                    std::copy_n(colours[(y / 2) * 2 + x / 2].begin(), 4, quadrants.begin() + (y * 4 + x) * 4);
+            const MipLevel level{ 0, 4, 4 };
+            const std::array<TextureData, 1> sheets{ TextureData{
+                .mFormat = TextureFormat::Rgba8Unorm,
+                .mWidth = 4,
+                .mHeight = 4,
+                .mBytes = std::as_bytes(std::span(quadrants)),
+                .mLevels = std::span(&level, 1),
+            } };
+
+            const auto overhead = [&](const osg::Vec3f& eye, const osg::Vec2f& bearing) {
+                Shaders::VisibilityConstants camera
+                    = Testing::makeCamera(eye, eye + osg::Vec3f(0.0f, 1.0f, 1000.0f), 10.0f, size, size, 100000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mClouds = Shaders::CloudDeck{
+                    .mOpacity = 1.0f,
+                    .mLit = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                    .mShadowed = osg::Vec3f(),
+                    .mMean = 1.0f,
+                    .mAltitude = 1000.0f,
+                    .mPerTile = osg::Vec2f(0.01f, 0.01f),
+                    .mBearing = bearing,
+                    .mNextBearing = bearing,
+                    .mRings = osg::Vec3f(1.0e5f, 2.0e5f, 3.0e5f),
+                    .mTexture = 0u,
+                    .mNext = 0u,
+                };
+
+                const Frame frame = shoot(scene, sheets, camera, size);
+                return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2));
+            };
+
+            const osg::Vec3f eye(10025.0f, 25.0f, 0.0f);
+            const osg::Vec3f north = overhead(eye, osg::Vec2f(1.0f, 0.0f));
+            EXPECT_EQ(overhead(eye, osg::Vec2f(0.0f, 1.0f)), north) << "a quarter turn moved the sheet overhead";
+            EXPECT_NE(overhead(osg::Vec3f(10075.0f, 25.0f, 0.0f), osg::Vec2f(1.0f, 0.0f)), north)
+                << "the sheet's texel is not what this reads";
+        }
+
         /// The display pass draws the star field, and draws it only where a ray reached the sky.
         ///
         /// **It is drawn there because a point source is what an upscaler removes.** The trace no
@@ -561,12 +632,15 @@ namespace Rtx::Testing
                 camera.mSun
                     = Shaders::sunSource(osg::Vec3f(std::sin(off), std::cos(off), 0.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
                 if (armsDegrees > 0.0f)
-                    camera.mArms = cameraAtFieldOfView(camera.mCamera, armsDegrees);
+                    camera.mEyes.mArms = cameraAtFieldOfView(camera.mEyes.mWorld, armsDegrees);
 
-                const SunGlare fader{ .mColour = osg::Vec3f(1.0f, 0.0f, 0.0f),
-                    .mAngleMax = osg::DegreesToRadians(90.0f),
-                    .mStrength = strength };
-                shoot(scene, sheet, camera, size, Shot{ .mResetHistory = true, .mGlare = fader });
+                const SunGlare fader{
+                    .mFader = Sky::SunGlareFader{ .mColour = osg::Vec3f(1.0f, 0.0f, 0.0f),
+                        .mMax = 1.0f,
+                        .mAngleMax = osg::DegreesToRadians(90.0f) },
+                    .mFade = strength,
+                };
+                shoot(scene, sheet, camera, size, Shot{ .mLoss = HistoryLoss::Cut, .mGlare = fader });
 
                 std::vector<std::uint8_t> pixels;
                 mRenderer.readPixels(pixels);
@@ -734,10 +808,13 @@ namespace Rtx::Testing
                 ASSERT_NEAR(edged[at], open[at], 1.0e-5f) << "at " << at;
 
             // **And there was a gradient to leave alone.** Ninety degrees of frame reaches forty-five
-            // either side of the horizon, so the top row is most of the way to the zenith and the
-            // bottom row is under it — a flat sky would pass the loop above without saying anything.
+            // either side of the horizon, so the bottom row is under it and the top row's middle looks
+            // up at `tan e = 47/48`, where the camera's sky (`Testing::sHemisphereRamp`) has faded
+            // `tan e / (1 + tan e)` = 0.494737 of the way: 0.148421 of red's range of 0.3. A flat sky
+            // would pass the loop above without saying anything.
             const std::size_t bottom = (std::size_t{ size - 1 } * size + size / 2) * 4;
-            EXPECT_GT(edged[size / 2 * 4] - edged[bottom], 0.15f) << "the sky's own gradient, still in it";
+            EXPECT_NEAR(edged[size / 2 * 4] - edged[bottom], 0.148421f, 1.0e-4f)
+                << "the sky's own gradient, still in it";
         }
     }
 }

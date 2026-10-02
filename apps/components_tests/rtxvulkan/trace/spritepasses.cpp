@@ -38,6 +38,9 @@ namespace Rtx
         /// Room for more entries than any fixture here makes, so only the test about room runs out.
         constexpr std::uint32_t sPlenty = 1u << 16;
 
+        /// The class every presence here answers to, which every camera here draws.
+        const std::uint32_t sStill = classBit(InstanceClass::Static);
+
         Shaders::VisibilityConstants lookingAlongX()
         {
             return Testing::makeCamera(
@@ -58,7 +61,7 @@ namespace Rtx
                 = (static_cast<float>(y) + 0.5f + camera.mJitter.y()) / static_cast<float>(camera.mHeight) * 2.0f
                 - 1.0f;
 
-            osg::Vec3f direction = camera.mForward + camera.mRight * u - camera.mUp * v;
+            osg::Vec3f direction = camera.mBasis.mForward + camera.mBasis.mRight * u - camera.mBasis.mUp * v;
             direction.normalize();
 
             return direction;
@@ -231,8 +234,8 @@ namespace Rtx
                 const SpriteBinPass pass(device);
 
                 Binned result;
-                result.mAcross = Shaders::spriteTilesOver(constants.mCamera.mWidth);
-                result.mDown = Shaders::spriteTilesOver(constants.mCamera.mHeight);
+                result.mAcross = Shaders::spriteTilesOver(constants.mEyes.mWorld.mWidth);
+                result.mDown = Shaders::spriteTilesOver(constants.mEyes.mWorld.mHeight);
 
                 const auto count = static_cast<std::uint32_t>(layer.mSprites.size());
                 const std::size_t words = result.getTileCount() + 1 + capacity;
@@ -262,10 +265,12 @@ namespace Rtx
                             .mPresences = presences.getDeviceAddress(),
                             .mPresence = presence.getDeviceAddress(),
                             .mOrigin = constants.mOrigin,
-                            .mCamera = constants.mCamera,
+                            .mCamera = constants.mEyes.mWorld,
+                            .mFrame = SpriteBinPass::frameOf(constants.mEyes.mWorld),
                             .mCount = count,
                             .mCapacity = capacity,
                             .mPresenceCount = static_cast<std::uint32_t>(layer.mPresences.size()),
+                            .mRayMask = constants.mRayMask,
                         },
                         list, presence, nullptr);
                 });
@@ -346,17 +351,18 @@ namespace Rtx
 
             // And the spheres of instances a walk looks for, which the same property holds of: an
             // additive sheet, a cloud, and one of each kind in one sphere, spread as the sprites are.
+            const std::uint32_t still = sStill;
             layer.mPresences = {
-                Shaders::GpuPresence{ osg::Vec3f(40.0f, -12.0f, 6.0f), 5.0f, Shaders::PRESENCE_ADDITIVE },
-                Shaders::GpuPresence{ osg::Vec3f(150.0f, 40.0f, -20.0f), 25.0f, Shaders::PRESENCE_MEDIUM },
-                Shaders::GpuPresence{
-                    osg::Vec3f(70.0f, 20.0f, 10.0f), 8.0f, Shaders::PRESENCE_ADDITIVE | Shaders::PRESENCE_MEDIUM },
+                Shaders::GpuPresence{ osg::Vec3f(40.0f, -12.0f, 6.0f), 5.0f, Shaders::PRESENCE_ADDITIVE, still },
+                Shaders::GpuPresence{ osg::Vec3f(150.0f, 40.0f, -20.0f), 25.0f, Shaders::PRESENCE_MEDIUM, still },
+                Shaders::GpuPresence{ osg::Vec3f(70.0f, 20.0f, 10.0f), 8.0f,
+                    Shaders::PRESENCE_ADDITIVE | Shaders::PRESENCE_MEDIUM, still },
             };
 
             for (const osg::Vec2f jitter : { osg::Vec2f(0.0f, 0.0f), osg::Vec2f(0.49f, -0.49f) })
             {
                 Shaders::VisibilityConstants constants = lookingAlongX();
-                constants.mCamera.mJitter = jitter;
+                constants.mEyes.mWorld.mJitter = jitter;
 
                 const Binned tiles = bin(layer, constants, sPlenty);
                 ASSERT_FALSE(tiles.isUnbinned());
@@ -369,7 +375,7 @@ namespace Rtx
                 for (std::uint32_t y = 0; y < sHeight; ++y)
                     for (std::uint32_t x = 0; x < sWidth; ++x)
                     {
-                        const osg::Vec3f direction = rayThrough(constants.mCamera, x, y);
+                        const osg::Vec3f direction = rayThrough(constants.mEyes.mWorld, x, y);
 
                         // A sphere is met where a billboard of its radius would be.
                         for (const Shaders::GpuPresence& presence : layer.mPresences)
@@ -401,6 +407,31 @@ namespace Rtx
                 EXPECT_GT(met, 200u) << "the fixture stopped covering the frame";
                 EXPECT_GT(found, 50u) << "the spheres stopped covering the frame";
             }
+        }
+
+        /// **A presence of a class the camera does not draw marks no tile**, so a walk along a ray of
+        /// a map tile, which draws no effect, does not look for an effect's sheet. The same sphere of
+        /// class `Effect` marks the tiles it is met from under a camera that draws effects, and none
+        /// under one that draws statics alone.
+        TEST_F(RtxSpriteBinPassTest, aPresenceOfAClassTheCameraDoesNotDrawMarksNoTile)
+        {
+            Layer layer;
+            layer.mPresences = { Shaders::GpuPresence{
+                osg::Vec3f(40.0f, 0.0f, 0.0f), 10.0f, Shaders::PRESENCE_ADDITIVE, classBit(InstanceClass::Effect) } };
+
+            const auto marked = [&](std::uint32_t rayMask) {
+                Shaders::VisibilityConstants constants = lookingAlongX();
+                constants.mRayMask = rayMask;
+                const Binned tiles = bin(layer, constants, sPlenty);
+                std::uint32_t count = 0;
+                for (std::uint32_t y = 0; y < sHeight; ++y)
+                    for (std::uint32_t x = 0; x < sWidth; ++x)
+                        count += (tiles.presenceFor(x, y) & Shaders::PRESENCE_ADDITIVE) != 0 ? 1u : 0u;
+                return count;
+            };
+
+            EXPECT_GT(marked(classBit(InstanceClass::Static) | classBit(InstanceClass::Effect)), 0u);
+            EXPECT_EQ(marked(classBit(InstanceClass::Static)), 0u) << "a map tile looked for an effect";
         }
 
         /// A tile's run ascends, because that is the order the march composites in.
@@ -467,12 +498,12 @@ namespace Rtx
                 return bin(layer, lookingAlongX(), sPlenty);
             };
 
-            const Binned behind
-                = binned({ Shaders::GpuPresence{ osg::Vec3f(-100.0f, 0.0f, 0.0f), 5.0f, Shaders::PRESENCE_MEDIUM } });
-            const Binned around
-                = binned({ Shaders::GpuPresence{ osg::Vec3f(1.0f, 0.0f, 0.0f), 50.0f, Shaders::PRESENCE_ADDITIVE } });
-            const Binned everywhere = binned({ Shaders::GpuPresence{
-                osg::Vec3f(-100.0f, 0.0f, 0.0f), 5.0f, Shaders::PRESENCE_MEDIUM | Shaders::PRESENCE_EVERYWHERE } });
+            const Binned behind = binned(
+                { Shaders::GpuPresence{ osg::Vec3f(-100.0f, 0.0f, 0.0f), 5.0f, Shaders::PRESENCE_MEDIUM, sStill } });
+            const Binned around = binned(
+                { Shaders::GpuPresence{ osg::Vec3f(1.0f, 0.0f, 0.0f), 50.0f, Shaders::PRESENCE_ADDITIVE, sStill } });
+            const Binned everywhere = binned({ Shaders::GpuPresence{ osg::Vec3f(-100.0f, 0.0f, 0.0f), 5.0f,
+                Shaders::PRESENCE_MEDIUM | Shaders::PRESENCE_EVERYWHERE, sStill } });
             for (std::size_t tile = 0; tile < behind.getTileCount(); ++tile)
             {
                 EXPECT_EQ(behind.mPresence[tile], 0u) << "a sphere behind the eye in tile " << tile;
@@ -483,8 +514,8 @@ namespace Rtx
             // Straight ahead, and small: a ball of five a hundred out spans about four degrees of a
             // sixty-degree frame sixty-four pixels wide, a few pixels about the centre — tile (2, 1)
             // holds pixel (32, 24), and the corner tile is thirty degrees away from it.
-            const Binned ahead
-                = binned({ Shaders::GpuPresence{ osg::Vec3f(100.0f, 0.0f, 0.0f), 5.0f, Shaders::PRESENCE_MEDIUM } });
+            const Binned ahead = binned(
+                { Shaders::GpuPresence{ osg::Vec3f(100.0f, 0.0f, 0.0f), 5.0f, Shaders::PRESENCE_MEDIUM, sStill } });
             EXPECT_EQ(ahead.presenceFor(32, 24), Shaders::PRESENCE_MEDIUM);
             EXPECT_EQ(ahead.presenceFor(0, 0), 0u);
             EXPECT_EQ(ahead.presenceFor(sWidth - 1, sHeight - 1), 0u);
@@ -596,13 +627,13 @@ namespace Rtx
             for (std::uint32_t y = 0; y < sHeight; ++y)
                 for (std::uint32_t x = 0; x < sWidth; ++x)
                 {
-                    const osg::Vec3f offset = constants.mCamera.mRight
+                    const osg::Vec3f offset = constants.mEyes.mWorld.mBasis.mRight
                             * ((static_cast<float>(x) + 0.5f) / static_cast<float>(sWidth) * 2.0f - 1.0f)
-                        - constants.mCamera.mUp
+                        - constants.mEyes.mWorld.mBasis.mUp
                             * ((static_cast<float>(y) + 0.5f) / static_cast<float>(sHeight) * 2.0f - 1.0f);
                     const osg::Vec3f from = constants.mOrigin + offset;
 
-                    osg::Vec3f along = constants.mCamera.mForward;
+                    osg::Vec3f along = constants.mEyes.mWorld.mBasis.mForward;
                     along.normalize();
 
                     const osg::Vec3f toSprite = layer.mSprites[0].mPosition - from;
@@ -652,7 +683,7 @@ namespace Rtx
 
             Shaders::VisibilityConstants constants = Testing::makeCamera(
                 osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f), 60.0f, width, height, 10000.0f);
-            constants.mCamera.mJitter = osg::Vec2f(-0.3f, 0.45f);
+            constants.mEyes.mWorld.mJitter = osg::Vec2f(-0.3f, 0.45f);
 
             const Binned tiles = bin(layer, constants, 1u << 20);
             ASSERT_FALSE(tiles.isUnbinned());
@@ -673,7 +704,7 @@ namespace Rtx
             for (std::uint32_t y = 0; y < height; y += 3)
                 for (std::uint32_t x = 0; x < width; x += 3)
                 {
-                    const osg::Vec3f direction = rayThrough(constants.mCamera, x, y);
+                    const osg::Vec3f direction = rayThrough(constants.mEyes.mWorld, x, y);
 
                     for (std::uint32_t at = 0; at < layer.mSprites.size(); ++at)
                     {

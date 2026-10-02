@@ -74,8 +74,9 @@ void main()
     // dampings and the coupling it gave away, and the step before subtracted through the
     // velocity's damping.
     const float a = RIPPLE_STIFFNESS;
-    const float damping = RIPPLE_DAMPING;
-    const float next = a * neighbours + ((2.0 - 2.0 * damping) - 4.0 * a) * held.x - (1.0 - damping) * held.y;
+    const float udamp = RIPPLE_HEIGHT_DAMPING;
+    const float vdamp = RIPPLE_VELOCITY_DAMPING;
+    const float next = a * neighbours + ((2.0 - udamp - vdamp) - 4.0 * a) * held.x - (1.0 - vdamp) * held.y;
 
     // Bounded by the constant as every loop here is, and the count below it: the host never hands
     // more than the buffer holds, and a count that said otherwise would read past it.

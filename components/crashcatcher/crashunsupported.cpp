@@ -22,6 +22,8 @@ namespace Crash
 
     void setLogFile(const std::filesystem::path&) {}
 
+    void setReportFolder(const std::filesystem::path&) {}
+
     void setHangLimit(std::chrono::seconds) {}
 
     void heartbeat() {}

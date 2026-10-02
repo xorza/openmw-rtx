@@ -38,10 +38,12 @@ namespace Rtx
         Rgb = 3,
     };
 
-    /// The frame as an `osg::Image` of the size and the format asked for, resampled nearest here
-    /// because `osg::Image::scaleImage` is `gluScaleImage` and there is no GL context on this
-    /// path. Null where either extent is zero or `frame.mPixels` is shorter than the frame it
-    /// claims to be, because a picture of part of a frame is worse than none.
+    /// The frame as an `osg::Image` of the size and the format asked for: at another size, the
+    /// middle of the frame at the asked aspect, averaged over the area each pixel covers, as the
+    /// rasterizer's thumbnail is cut and scaled — here and not through `osg::Image::scaleImage`,
+    /// which is `gluScaleImage`, because there is no GL context on this path. Null where either
+    /// extent is zero or `frame.mPixels` is shorter than the frame it claims to be, because a
+    /// picture of part of a frame is worse than none.
     osg::ref_ptr<osg::Image> frameImage(
         const TracedFrame& frame, int width, int height, RowOrder order, Channels channels = Channels::Rgba);
 }

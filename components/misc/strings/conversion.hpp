@@ -3,6 +3,7 @@
 
 #include <charconv>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <locale>
 #include <optional>
@@ -67,6 +68,65 @@ namespace Misc::StringUtils
     inline constexpr bool sFromCharsReadsFloats = true;
 #endif
 
+    /// How much of `s` the floating-point number it begins with takes, by `std::from_chars`'s
+    /// grammar: an optional minus, digits with an optional fraction, and an exponent where it is
+    /// complete. Nought where `s` begins with no number.
+    inline std::size_t floatPrefix(std::string_view s)
+    {
+        const auto digitAt = [&](std::size_t at) { return at < s.size() && s[at] >= '0' && s[at] <= '9'; };
+
+        std::size_t at = s.starts_with('-') ? 1 : 0;
+        const std::size_t whole = at;
+        while (digitAt(at))
+            ++at;
+        bool read = at > whole;
+        if (at < s.size() && s[at] == '.' && (read || digitAt(at + 1)))
+        {
+            ++at;
+            read = read || digitAt(at);
+            while (digitAt(at))
+                ++at;
+        }
+        if (!read)
+            return 0;
+
+        if (at < s.size() && (s[at] == 'e' || s[at] == 'E'))
+        {
+            std::size_t exponent = at + 1;
+            if (exponent < s.size() && (s[exponent] == '+' || s[exponent] == '-'))
+                ++exponent;
+            if (digitAt(exponent))
+            {
+                at = exponent;
+                while (digitAt(at))
+                    ++at;
+            }
+        }
+
+        return at;
+    }
+
+    /// The floating-point number `s` begins with, read by a classic-locale stream: what `toNumeric`
+    /// reads with where `std::from_chars` has no floating point. **Held to the prefix `from_chars`
+    /// reads** (`floatPrefix`), so a spelling is the same number on every toolchain or none on any:
+    /// a stream on its own skips leading whitespace, reads a leading `+`, and on libc++ reads `0x10`
+    /// as sixteen.
+    template <typename T>
+    inline std::optional<T> toFloatByStream(std::string_view s)
+    {
+        const std::size_t length = floatPrefix(s);
+        if (length == 0)
+            return std::nullopt;
+
+        T result{};
+        std::istringstream stream{ std::string(s.substr(0, length)) };
+        stream.imbue(std::locale::classic());
+        if (!(stream >> result))
+            return std::nullopt;
+
+        return result;
+    }
+
     /// The number `s` spells, or nothing where it spells none. A floating-point number is a finite
     /// one: `std::from_chars` reads `inf` and `nan` as numbers, and no text this reads — a setting,
     /// a fallback, a script's literal — means either, which every reader would then carry into its
@@ -77,10 +137,10 @@ namespace Misc::StringUtils
         T result{};
         if constexpr (std::is_floating_point_v<T> && !sFromCharsReadsFloats)
         {
-            std::istringstream stream{ std::string(s) };
-            stream.imbue(std::locale::classic());
-            if (s.empty() || !(stream >> result))
+            const std::optional<T> read = toFloatByStream<T>(s);
+            if (!read.has_value())
                 return std::nullopt;
+            result = *read;
         }
         else
         {

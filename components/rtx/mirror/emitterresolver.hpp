@@ -33,8 +33,8 @@ namespace osgParticle
 namespace Rtx
 {
     struct Glow;
-    struct MeanTexel;
-    class MeanTexels;
+    class ImageFactCache;
+    struct ImageFacts;
     struct Shading;
 
     /// Turns the particle systems a walk met into the scene's sprites: a run of discs the trace
@@ -47,12 +47,12 @@ namespace Rtx
         /// @param pass the walk in progress: its sweep stamp and its counts, read at every call.
         ///        Borrowed, so that the mirror and everything resolving into it cannot come to hold
         ///        two answers.
-        /// @param means the thread's mean texels, shared with the materials, because a flame's
-        ///        texture is a sheet's too and one file is averaged once.
-        EmitterResolver(SceneDesc& scene, const MirrorPass& pass, MeanTexels& means)
+        /// @param facts the thread's image facts, shared with the materials, because a flame's
+        ///        texture is a sheet's too and one file is read once.
+        EmitterResolver(SceneDesc& scene, const MirrorPass& pass, ImageFactCache& facts)
             : mScene(scene)
             , mPass(pass)
-            , mMeans(means)
+            , mFacts(facts)
         {
         }
 
@@ -114,9 +114,14 @@ namespace Rtx
             float mOpacity = 1.0f;
 
             /// The image the sprites are drawn with, or null for a system nothing described a
-            /// sprite for, which draws nothing and is refused. What a rewrite is told apart by,
-            /// and what the census names once per emitter.
+            /// sprite for, which draws nothing and is refused, and for one whose surface names no
+            /// image (`mUntextured`). What a rewrite is told apart by, and what the census names
+            /// once per emitter.
             const osg::Image* mSprite = nullptr;
+
+            /// Whether the system's surface names no image: drawn with the white texel, coloured
+            /// by its particles, as the rasterizer draws an untextured particle system.
+            bool mUntextured = false;
 
             /// How the image is addressed past its edges, which is part of the slot it takes.
             TextureWrap mWrap = TextureWrap::Repeat;
@@ -124,10 +129,10 @@ namespace Rtx
             /// Whether the table refused the image a slot, which is asked again once it frees one.
             RefusedTakes mRefused;
 
-            /// That image's mean texel, or null until an effect's glow asks for it: read then and
-            /// kept, because `MeanTexels` keeps a named file's mean for as long as its thread runs,
-            /// and every image here is a named file. Nulled with `mSprite`.
-            const MeanTexel* mMean = nullptr;
+            /// That image's facts, or null until an effect's glow asks for its mean: read then and
+            /// kept, because `ImageFactCache` keeps a named file's facts for as long as its thread
+            /// runs, and every image here is a named file. Nulled with `mSprite`.
+            ImageFacts* mFacts = nullptr;
         };
 
         /// An emitter the walk met, waiting for the walk to finish before its particles are read.
@@ -141,6 +146,9 @@ namespace Rtx
 
             /// The effect it stood under, or nothing.
             std::optional<std::size_t> mGlow;
+
+            /// What its sprites are faded by, as a placement there is — `Fade::mPlacement`.
+            float mFade = 1.0f;
         };
 
         /// Reads what `particles` draws with off its chain into `held`, taking the scene's slots for
@@ -165,7 +173,7 @@ namespace Rtx
 
         SceneDesc& mScene;
         const MirrorPass& mPass;
-        MeanTexels& mMeans;
+        ImageFactCache& mFacts;
 
         /// Which textures each particle system draws with. This entry is the reference: a sprite's
         /// texture hangs off no material, so the scene holds it from first meeting until the sweep

@@ -66,8 +66,8 @@ namespace Rtx
         void resetRipples() { mRipples.reset(); }
 
         /// Steps the wake under the world's frame, anchored at `eye`, and presses in what
-        /// `keepRipples` kept. Only for a trace with a sea: a frame with none leaves the tiles as
-        /// they were.
+        /// `keepRipples` kept, which it spends. Only for a trace with a sea: a frame with none leaves
+        /// the tiles as they were.
         ///
         /// @param timer null where the run is not being timed.
         void stepRipples(

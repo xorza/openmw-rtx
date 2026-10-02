@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <span>
@@ -28,14 +29,22 @@ namespace RtxTool
     class PerfControl
     {
     public:
-        explicit PerfControl(std::filesystem::path fifo);
+        /// How long `open` waits for perf to open its end: perf attaches to a running process and
+        /// loads a BPF program for `--offcpu` before it reads, which takes seconds and not minutes.
+        static constexpr std::chrono::milliseconds sReaderWait{ 30000 };
 
-        /// Starts counting. The first call opens the fifo.
+        explicit PerfControl(std::filesystem::path fifo, std::chrono::milliseconds readerWait = sReaderWait);
+
+        /// Opens the fifo, where it is not open yet: ahead of a place, so no measured frame pays it.
         ///
-        /// **Not on construction, because the reader has to be there first.** Opening a fifo for
-        /// writing with nobody reading it fails outright without blocking, and perf attaches to an
-        /// already-running process seconds after it started. Deferring to the first `enable` puts
-        /// the open after a cell has been read, by which time perf has long since opened its end.
+        /// **Not on construction, because the reader has to be there first**, and a wait for it
+        /// and not a guess at when it came. Opening a fifo for writing with nobody reading it fails
+        /// without blocking, and perf attaches to the harness only after the harness started. The
+        /// open retries that failure until the reader is there, and throws once the wait is spent:
+        /// a perf that never came is a profile that cannot be taken.
+        void open();
+
+        /// Starts counting, on the first measured frame: one write, the fifo `open` opened.
         void enable();
 
         /// Stops counting. Silent before the first `enable`, so a run stopped early is not an error.
@@ -45,6 +54,7 @@ namespace RtxTool
         void send(std::string_view command);
 
         std::filesystem::path mFifo;
+        std::chrono::milliseconds mReaderWait;
         Platform::File::ScopedHandle mHandle;
     };
 

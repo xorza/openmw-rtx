@@ -18,8 +18,8 @@
 #include <apps/components_tests/rtx/support/countingrenderer.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
+#include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
-#include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
@@ -53,12 +53,13 @@ namespace Rtx
         /// which is why `MWRender::LocalMap`'s inclusion mask is not the weather bug again.
         TEST(RtxOffscreenTraceTest, aPictureOfTheWorldOwnsNoSceneAndOneOfASubjectDoes)
         {
+            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
             Testing::CountingRenderer renderer;
             osg::ref_ptr<osg::Group> subject = new osg::Group;
             subject->addChild(Testing::makeQuad());
 
             const OffscreenTrace world(
-                renderer, ViewRequest{ .mWidth = 64, .mHeight = 64, .mRayMask = Shaders::MASK_EVERY_CLASS });
+                renderer, ViewRequest{ .mWidth = 64, .mHeight = 64, .mRayMask = Shaders::MASK_EVERY_CLASS }, context);
             EXPECT_TRUE(world.isOfWorld());
             EXPECT_EQ(world.getScene(), nullptr);
             EXPECT_EQ(renderer.mViewScenes, 0u);
@@ -69,7 +70,8 @@ namespace Rtx
                         .mHeight = 64,
                         .mRayMask = Shaders::MASK_EVERY_CLASS,
                         .mSubject = subject.get(),
-                        .mSubjectMask = sEveryNode });
+                        .mSubjectMask = sEveryNode },
+                    context);
                 EXPECT_FALSE(doll.isOfWorld());
                 ASSERT_NE(doll.getScene(), nullptr);
                 EXPECT_EQ(renderer.mViewScenes, 1u);
@@ -86,12 +88,14 @@ namespace Rtx
         /// profiles apart, so a picture that copied the profile in would show here.
         TEST(RtxOffscreenTraceTest, aPictureLeavesItsSamplingToTheRenderer)
         {
+            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
             Testing::CountingRenderer renderer;
             OffscreenTrace world(renderer,
                 ViewRequest{ .mWidth = 64,
                     .mHeight = 64,
                     .mRayMask = Shaders::MASK_EVERY_CLASS,
-                    .mFraming = { .mProjection = SceneUtil::Perspective{ .mFieldOfView = 60.f } } });
+                    .mFraming = { .mProjection = SceneUtil::Perspective{ .mFieldOfView = 60.f } } },
+                context);
 
             for (const auto& [delight, albedo] : { std::pair{ 0.25f, false }, std::pair{ 0.75f, true } })
             {
@@ -102,7 +106,7 @@ namespace Rtx
                 ASSERT_TRUE(renderer.mTraced.has_value());
                 EXPECT_EQ(renderer.mTraced->mDelight, 0.0f);
                 EXPECT_EQ(renderer.mTraced->mShow, 0u);
-                EXPECT_EQ(renderer.mTraced->mCamera.mJitter, osg::Vec2f());
+                EXPECT_EQ(renderer.mTraced->mEyes.mWorld.mJitter, osg::Vec2f());
             }
         }
 
@@ -146,6 +150,7 @@ namespace Rtx
         /// in the doll on every frame of a slider drag.
         TEST(RtxOffscreenTraceTest, aRebuiltSubjectPlacesWhatArrivedAndHandsTheRoomToWhatComesNext)
         {
+            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
             Testing::CountingRenderer renderer;
 
             osg::ref_ptr<osg::Geometry> body = Testing::makeQuad();
@@ -160,7 +165,8 @@ namespace Rtx
                     .mHeight = 64,
                     .mRayMask = Shaders::MASK_EVERY_CLASS,
                     .mSubject = subject.get(),
-                    .mSubjectMask = sEveryNode });
+                    .mSubjectMask = sEveryNode },
+                context);
             const SceneDesc& scene = *trace.getScene();
 
             ASSERT_TRUE(trace.rebuildSubject(*stampAt(1)));
@@ -245,6 +251,7 @@ namespace Rtx
         /// doll's preprocessing out of every figure and ran its glow at nought.
         TEST(RtxOffscreenTraceTest, aSubjectsWalkSharesTheThreadsContentAndRunsAtTheWorldsClock)
         {
+            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
             Testing::CountingRenderer renderer;
 
             const osg::ref_ptr<ClockedController> glow = new ClockedController;
@@ -252,17 +259,16 @@ namespace Rtx
             subject->setCullCallback(glow);
             subject->addChild(Testing::makeQuad());
 
-            ThreadContent content;
             OffscreenTrace trace(renderer,
                 ViewRequest{ .mWidth = 64,
                     .mHeight = 64,
                     .mRayMask = Shaders::MASK_EVERY_CLASS,
                     .mSubject = subject.get(),
-                    .mSubjectMask = sEveryNode,
-                    .mContent = &content });
+                    .mSubjectMask = sEveryNode },
+                context);
             ASSERT_TRUE(trace.rebuildSubject(*stampAt(7)));
 
-            EXPECT_EQ(content.mPreprocessor.takeStats().at(ContentPassId::Shape).mAsked, 1u)
+            EXPECT_EQ(context.mContent.mPreprocessor.takeStats().at(ContentPassId::Shape).mAsked, 1u)
                 << "the doll's one shape was folded somewhere nobody counts";
             EXPECT_EQ(glow->mAt, 7.0) << "the doll's glow ran at a clock of its own";
         }
@@ -274,6 +280,7 @@ namespace Rtx
         /// acceleration structure in it.
         TEST(RtxOffscreenTraceTest, anEmptySubjectSaysThereIsNothingToTrace)
         {
+            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
             Testing::CountingRenderer renderer;
 
             osg::ref_ptr<osg::Group> subject = new osg::Group;
@@ -283,7 +290,8 @@ namespace Rtx
                     .mHeight = 64,
                     .mRayMask = Shaders::MASK_EVERY_CLASS,
                     .mSubject = subject.get(),
-                    .mSubjectMask = sEveryNode });
+                    .mSubjectMask = sEveryNode },
+                context);
             EXPECT_FALSE(trace.rebuildSubject(*stampAt(1)));
             EXPECT_EQ(trace.getScene()->placements().getCounts().mPlaced, 0u);
         }
@@ -292,6 +300,7 @@ namespace Rtx
         /// dropped wherever it appears below.
         TEST(RtxOffscreenTraceTest, theSubjectMaskKeepsTheWalkOutOfWhatItDoesNotName)
         {
+            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
             Testing::CountingRenderer renderer;
 
             constexpr osg::Node::NodeMask wanted = 1u << 3;
@@ -314,7 +323,8 @@ namespace Rtx
                     .mHeight = 64,
                     .mRayMask = Shaders::MASK_EVERY_CLASS,
                     .mSubject = subject.get(),
-                    .mSubjectMask = wanted });
+                    .mSubjectMask = wanted },
+                context);
             ASSERT_TRUE(trace.rebuildSubject(*stampAt(1)));
 
             // One of the two, and the same fixture with `wanted | other` would take both — which is
@@ -326,7 +336,8 @@ namespace Rtx
                     .mHeight = 64,
                     .mRayMask = Shaders::MASK_EVERY_CLASS,
                     .mSubject = subject.get(),
-                    .mSubjectMask = wanted | other });
+                    .mSubjectMask = wanted | other },
+                context);
             ASSERT_TRUE(both.rebuildSubject(*stampAt(1)));
             EXPECT_EQ(both.getScene()->placements().getCounts().mPlaced, 2u);
         }

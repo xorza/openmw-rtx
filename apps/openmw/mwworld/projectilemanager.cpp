@@ -1,6 +1,5 @@
 #include "projectilemanager.hpp"
 
-#include <algorithm>
 #include <iomanip>
 #include <memory>
 #include <optional>
@@ -154,19 +153,6 @@ namespace
         return lightDiffuseColor;
     }
 
-    // How far a magic bolt's light reaches as the content states it: the largest area among the
-    // effects, in units, or the bolt's own sixty-six where the spell has none or a smaller one. A
-    // renderer that sizes a light by its source radius lights a fireball of fifty feet fifty feet;
-    // the rasterizer keeps the sixty-six and reads none of this.
-    float getMagicBoltLightReach(const ESM::EffectList& effects)
-    {
-        int largestArea = 0;
-        for (const ESM::IndexedENAMstruct& enam : effects.mList)
-            largestArea = std::max(largestArea, enam.mData.mArea);
-
-        return std::max(66.f, static_cast<float>(largestArea) * Constants::UnitsPerFoot);
-    }
-
     osg::Quat lookAt(const osg::Vec3f& pos)
     {
         // Rotate the forward vector towards the position (used for gravity-affected projectiles)
@@ -231,7 +217,7 @@ namespace MWWorld
 
     void ProjectileManager::createModel(State& state, VFS::Path::NormalizedView model, const osg::Vec3f& pos,
         const osg::Quat& orient, bool rotate, bool createLight, osg::Vec4 lightDiffuseColor,
-        VFS::Path::NormalizedView texture, float lightReach)
+        VFS::Path::NormalizedView texture)
     {
         state.mNode = new osg::PositionAttitudeTransform;
         state.mNode->setNodeMask(MWRender::Mask_Effect);
@@ -281,7 +267,6 @@ namespace MWWorld
             SceneUtil::LightSource* projectileLightSource = new SceneUtil::LightSource;
             projectileLightSource->setNodeMask(MWRender::Mask_Lighting);
             projectileLightSource->setRadius(66.f);
-            projectileLightSource->setSourceRadius(lightReach);
 
             state.mNode->addChild(projectileLightSource);
             projectileLightSource->setLight(projectileLight);
@@ -355,8 +340,7 @@ namespace MWWorld
         osg::Vec4 lightDiffuseColor = getMagicBoltLightDiffuseColor(state.mEffects);
 
         VFS::Path::Normalized model = ptr.getClass().getCorrectedModel(ptr);
-        createModel(
-            state, model, pos, orient, true, true, lightDiffuseColor, texture, getMagicBoltLightReach(state.mEffects));
+        createModel(state, model, pos, orient, true, true, lightDiffuseColor, texture);
 
         MWBase::SoundManager* sndMgr = MWBase::Environment::get().getSoundManager();
         for (const auto& soundid : state.mSoundIds)
@@ -805,7 +789,7 @@ namespace MWWorld
 
             osg::Vec4 lightDiffuseColor = getMagicBoltLightDiffuseColor(state.mEffects);
             createModel(state, model, osg::Vec3f(esm.mPosition), osg::Quat(esm.mOrientation), true, true,
-                lightDiffuseColor, texture, getMagicBoltLightReach(state.mEffects));
+                lightDiffuseColor, texture);
             state.mProjectileId = mPhysics->addProjectile(state.getCaster(), osg::Vec3f(esm.mPosition), model, true);
 
             MWBase::SoundManager* sndMgr = MWBase::Environment::get().getSoundManager();

@@ -1,7 +1,10 @@
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -50,6 +53,17 @@ namespace
         };
         EXPECT_EQ(lines, expected);
         EXPECT_EQ(Crash::title(facts), "Crash: EXCEPTION_ACCESS_VIOLATION reading 0x12204cfe000");
+
+        // The words a system's facts are spelt in: an address in hexadecimal, nought included, and a
+        // code by its name, or by what the system half says where it has none.
+        EXPECT_EQ(Crash::hex(0x12204cfe000), "0x12204cfe000");
+        EXPECT_EQ(Crash::hex(0), "0x0");
+        constexpr std::array<std::pair<std::uint32_t, std::string_view>, 2> names{ {
+            { 11, "SIGSEGV" },
+            { 6, "SIGABRT" },
+        } };
+        EXPECT_EQ(Crash::nameOf(names, 6, "signal 6"), "SIGABRT");
+        EXPECT_EQ(Crash::nameOf(names, 7, "signal 7"), "signal 7");
     }
 
     /// A reason given by the code that asked leads, and the exception it was raised as follows
@@ -104,16 +118,21 @@ namespace
 
     /// What a terminate handler reports, for each thing that can be current: the message of a
     /// `std::exception`, a word for anything else thrown, and the bare call where nothing is.
+    ///
+    /// **A message longer than a note is cut to what a note holds**, 255 bytes of the 256: the text
+    /// goes into the caller's buffer, because nothing between `std::terminate` and the abort may
+    /// allocate.
     TEST(CrashSummaryTest, aTerminateNamesWhatWasThrown)
     {
+        char reason[Crash::sNoteCapacity];
         try
         {
             throw std::runtime_error("a storage that cannot be read");
         }
         catch (...)
         {
-            EXPECT_EQ(
-                Crash::terminateReason(), "std::terminate on an uncaught exception: a storage that cannot be read");
+            EXPECT_EQ(Crash::terminateReason(reason),
+                "std::terminate on an uncaught exception: a storage that cannot be read");
         }
 
         try
@@ -122,9 +141,22 @@ namespace
         }
         catch (...)
         {
-            EXPECT_EQ(Crash::terminateReason(), "std::terminate on an uncaught exception that is no std::exception");
+            EXPECT_EQ(
+                Crash::terminateReason(reason), "std::terminate on an uncaught exception that is no std::exception");
         }
 
-        EXPECT_EQ(Crash::terminateReason(), "std::terminate");
+        try
+        {
+            throw std::runtime_error(std::string(400, 'x'));
+        }
+        catch (...)
+        {
+            const std::string_view cut = Crash::terminateReason(reason);
+            EXPECT_EQ(cut.size(), Crash::sNoteCapacity - 1);
+            EXPECT_EQ(
+                cut, "std::terminate on an uncaught exception: " + std::string(Crash::sNoteCapacity - 1 - 41, 'x'));
+        }
+
+        EXPECT_EQ(Crash::terminateReason(reason), "std::terminate");
     }
 }

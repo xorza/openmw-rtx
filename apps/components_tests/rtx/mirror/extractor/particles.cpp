@@ -5,10 +5,12 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
 
+#include <osg/BlendFunc>
 #include <osg/Geode>
 #include <osg/Geometry>
 #include <osg/Group>
@@ -36,6 +38,7 @@
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
@@ -45,6 +48,7 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/texturetable.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -114,6 +118,18 @@ namespace Rtx::Testing
                 SpriteLightMap::keyFor(VFS::Path::NormalizedView("textures/tx_fire_00.dds")));
             EXPECT_EQ(mScene.emitters().front().mTexture, 0u);
             EXPECT_EQ(mScene.emitters().front().mLighting, 1u);
+
+            // **Under an actor the game is fading the sprites fade with it**, as every fragment the
+            // rasterizer draws is multiplied by `alpha * actorFade`: a torch's flame on an invisible
+            // player. A half of each over the quarter above is a sixteenth.
+            osg::ref_ptr<osg::Group> actor = new osg::Group;
+            actor->getOrCreateStateSet()->addUniform(new osg::Uniform("actorFade", 0.5f));
+            actor->getOrCreateStateSet()->addUniform(new osg::Uniform("alpha", 0.5f));
+            actor->addChild(plume.mRoot);
+            mScene.clearPlacement();
+            walk(*actor, 0, 1);
+            ASSERT_EQ(mScene.sprites().size(), 2u);
+            EXPECT_FLOAT_EQ(mScene.sprites()[0].mAlpha, 0.0625f);
         }
 
         /// A material that ignores the vertex is read for the colour and the alpha instead, and
@@ -221,29 +237,47 @@ namespace Rtx::Testing
         /// The blend sits on the transform above the emitter, where `NifOsg` puts it, and the
         /// emitter carries a state set of its own that says nothing about blending — so an answer
         /// read off the drawable is "covers" both times.
+        ///
+        /// **And `ONE, ONE` is a flame whose texels add whole**, which the emitter says beside its
+        /// being additive, as a surface's material says `MATERIAL_ADD_WHOLE`: the sprite walk then
+        /// reads no alpha of its texture, and the flame's sprites carry an alpha of one whatever
+        /// their ramps say — a particle whose two ramps stand at a quarter is a whole one.
         TEST_F(RtxSceneExtractorTest, theBlendTellsAFlameFromSmoke)
         {
-            const auto extractOne = [](bool additive) {
-                const Plume plume = makePlume(osg::Matrix::identity(), additive);
-                emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+            const auto extractOne
+                = [](osg::BlendFunc::BlendFuncMode source, osg::BlendFunc::BlendFuncMode destination) {
+                      const Plume plume = makePlume(osg::Matrix::identity(), false);
+                      plume.mRoot->getOrCreateStateSet()->setAttributeAndModes(
+                          new osg::BlendFunc(source, destination), osg::StateAttribute::ON);
+                      emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 0.25f));
 
-                Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
-                extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
+                      Rtx::SceneDesc scene;
+                      WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                      SceneExtractor extractor(scene, context);
+                      extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
 
-                EXPECT_EQ(scene.emitters().size(), 1u);
-                return scene.emitters().front().isAdditive();
-            };
+                      EXPECT_EQ(scene.emitters().size(), 1u);
+                      EXPECT_EQ(scene.sprites().size(), 1u);
+                      return std::pair(scene.emitters().front().mFlags, scene.sprites().front().mAlpha);
+                  };
 
-            EXPECT_TRUE(extractOne(true));
-            EXPECT_FALSE(extractOne(false));
+            const auto [flame, flameAlpha] = extractOne(osg::BlendFunc::SRC_ALPHA, osg::BlendFunc::ONE);
+            EXPECT_EQ(flame, Shaders::EMITTER_ADDITIVE);
+            EXPECT_FLOAT_EQ(flameAlpha, 0.0625f) << "the colour's alpha and the alpha ramp, a quarter each";
+
+            const auto [smoke, smokeAlpha] = extractOne(osg::BlendFunc::SRC_ALPHA, osg::BlendFunc::ONE_MINUS_SRC_ALPHA);
+            EXPECT_EQ(smoke, 0u);
+            EXPECT_FLOAT_EQ(smokeAlpha, 0.0625f);
+
+            const auto [whole, wholeAlpha] = extractOne(osg::BlendFunc::ONE, osg::BlendFunc::ONE);
+            EXPECT_EQ(whole, Shaders::EMITTER_ADDITIVE | Shaders::EMITTER_ADD_WHOLE);
+            EXPECT_FLOAT_EQ(wholeAlpha, 1.0f);
         }
 
         /// A rain box with one quad of our own under it, which is all the walk can tell from a storm.
         ///
-        /// **What `extractPrecipitation` is handed is a node, an eye and whether it is submerged**, so
-        /// a group that drops nothing is enough to ask both of its questions, and needs no content
-        /// files to build.
+        /// **What `extractPrecipitation` is handed is a node and an eye**, so a group that drops
+        /// nothing is enough to ask its question, and needs no content files to build.
         osg::ref_ptr<osg::Group> makeFalling()
         {
             osg::ref_ptr<osg::Geometry> drop = new osg::Geometry;
@@ -259,40 +293,30 @@ namespace Rtx::Testing
             return falling;
         }
 
-        /// A drop's own travel is its fall, and nothing falls where the eye is under water.
+        /// A drop's own travel is its fall.
         ///
         /// **The box of drops carries no translation of its own**, so its particles are placed about
         /// the origin and the eye is what stands them in the world. Anchoring the walk anywhere else
         /// makes every sprite's motion between two frames the eye's step as well as its fall, which
         /// is a reprojection of the wrong thing — and the drops would slide with the camera.
-        ///
-        /// **And the walk stops entirely under water.** The sky manager freezes the drops where
-        /// they stand and leaves what to draw to whoever is drawing; walked anyway, the ones the
-        /// surface was crossed with hang in the air for as long as the eye stays under it.
-        TEST(RtxSceneExtractorPrecipitationTest, dropsAreStoodAtTheEyeAndNoneIsWalkedUnderWater)
+        TEST(RtxSceneExtractorPrecipitationTest, dropsAreStoodAtTheEye)
         {
             const osg::ref_ptr<osg::Group> falling = makeFalling();
             const osg::Vec3f eye(1000.0f, -2000.0f, 300.0f);
 
             SceneDesc scene;
-            SceneExtractor extractor(scene);
-            extractor.extractPrecipitation(falling, eye, false, 0);
+            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+            SceneExtractor extractor(scene, context);
+            extractor.extractPrecipitation(falling, eye, 0);
 
             ASSERT_EQ(scene.placements().getCounts().mPlaced, 1u) << "the drop was not walked at all";
             EXPECT_EQ(placedAt(scene, 0), eye) << "the drops were stood somewhere other than the eye";
 
-            // Held still where the eye is submerged, which is a walk that does not happen rather
-            // than geometry that is hidden.
-            SceneDesc under;
-            SceneExtractor beneath(under);
-            beneath.extractPrecipitation(falling, eye, true, 0);
-
-            EXPECT_EQ(under.placements().getCounts().mPlaced, 0u);
-
-            // And a world with no weather over it at all is the third case the one call answers.
+            // And a world with no weather over it, or a fall the game hides, is the other case the
+            // one call answers.
             SceneDesc dry;
-            SceneExtractor none(dry);
-            none.extractPrecipitation(nullptr, eye, false, 0);
+            SceneExtractor none(dry, context);
+            none.extractPrecipitation(nullptr, eye, 0);
 
             EXPECT_EQ(dry.placements().getCounts().mPlaced, 0u);
         }
@@ -306,9 +330,9 @@ namespace Rtx::Testing
             emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 
             Rtx::SceneDesc scene;
-            SceneExtractor extractor(scene);
+            SceneExtractor extractor(scene, mContext);
 
-            extractor.extractPrecipitation(plume.mRoot.get(), osg::Vec3f(), false, 0);
+            extractor.extractPrecipitation(plume.mRoot.get(), osg::Vec3f(), 0);
             ASSERT_EQ(scene.emitters().size(), 1u);
             EXPECT_TRUE(scene.emitters().front().falls());
 
@@ -321,7 +345,10 @@ namespace Rtx::Testing
         /// A dead slot keeps the position its last particle expired at, and an emitter with nothing
         /// alive places nothing at all — not a sphere with an empty run behind it, which every ray
         /// crossing that part of the cell would then be rejected by one test later than it needs.
-        TEST_F(RtxSceneExtractorTest, deadParticlesAndUntexturedEmittersPlaceNothing)
+        ///
+        /// **And a system with no texture draws untextured**, as the rasterizer draws it: the white
+        /// texel, each particle in its own colour, lit as a flat card, and no texture of its own.
+        TEST_F(RtxSceneExtractorTest, deadParticlesPlaceNothingAndAnUntexturedSystemDrawsWhite)
         {
             const Plume spent = makePlume(osg::Matrix::identity(), true);
             osgParticle::Particle* particle
@@ -341,22 +368,26 @@ namespace Rtx::Testing
             // The bake of its alpha arrives with it, for the same reason.
             EXPECT_EQ(mScene.textures().getRows().size(), 2u);
 
-            // A particle's whole silhouette is that texture's alpha, so an emitter with none draws
-            // nothing rather than a white disc.
             osg::ref_ptr<osg::Group> bare = new osg::Group;
             osg::ref_ptr<osgParticle::ParticleSystem> particles = new osgParticle::ParticleSystem;
             bare->addChild(particles);
-            emit(*particles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+            emit(*particles, osg::Vec3f(), 1.0f, osg::Vec4f(0.25f, 0.5f, 1.0f, 1.0f));
 
             Rtx::SceneDesc bareScene;
-            SceneExtractor bareExtractor(bareScene);
-            EXPECT_EQ(bareExtractor.extract(*bare, osg::Matrixf::identity(), 0).mEmitters, 0u);
-            EXPECT_TRUE(bareScene.textures().getRows().empty());
+            SceneExtractor bareExtractor(bareScene, mContext);
+            EXPECT_EQ(bareExtractor.extract(*bare, osg::Matrixf::identity(), 0).mEmitters, 1u);
+            EXPECT_TRUE(bareScene.textures().getRows().empty()) << "a slot taken for no image";
+            ASSERT_EQ(bareScene.emitters().size(), 1u);
+            EXPECT_EQ(bareScene.emitters().front().mTexture, Shaders::TEXTURE_NEUTRAL);
+            EXPECT_EQ(bareScene.emitters().front().mLighting, Shaders::NO_TEXTURE) << "a bake of no alpha";
+            ASSERT_EQ(bareScene.sprites().size(), 1u);
+            EXPECT_EQ(bareScene.sprites().front().mColour, Rtx::decodeColour(osg::Vec4f(0.25f, 0.5f, 1.0f, 1.0f)))
+                << "the particle's own colour";
 
-            // The first is no refusal, because a particle that died draws nothing in the game
-            // either; the second is one, because the game draws a system with no texture.
+            // Neither is a refusal: a particle that died draws nothing in the game either, and a
+            // system with no texture draws.
             EXPECT_EQ(mScene.refusals().count(Refused::Emitter), 0u);
-            EXPECT_EQ(bareScene.refusals().count(Refused::Emitter), 1u);
+            EXPECT_EQ(bareScene.refusals().count(Refused::Emitter), 0u);
         }
 
         /// An emitter's sprite is on no material, so the sweep has to speak for it itself.
@@ -614,13 +645,14 @@ namespace Rtx::Testing
                 drive(plume, 100.0, updaterAbove);
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
 
                 // The first turn only starts the clock; the second emits and integrates.
                 for (int turn = 0; turn < 2; ++turn)
                 {
                     scene.clearPlacement();
-                    extractor.setSimulationTime(0.1 * (turn + 1));
+                    extractor.setSimulationTime(0.1 * (turn + 1), 0.1);
                     extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
                 }
 
@@ -637,6 +669,32 @@ namespace Rtx::Testing
             // rather than two stale ones. A particle shot straight up at a hundred units a second
             // is at least a whole tenth-second step off the placer's origin, which is ten.
             EXPECT_GE(above.front(), 10.0f);
+        }
+
+        /// **A long step of the world is the emitters' whole step**, as the rasterizer's cull hands
+        /// `osgParticle` the world's step however a script scales it: a second's step emits a
+        /// hundred particles shot straight up at a hundred units a second, and integrates each a
+        /// hundred units up, where a step held to a fifth of a second emitted twenty and moved them
+        /// twenty.
+        TEST_F(RtxSceneExtractorTest, aLongStepOfTheWorldIsTheEmittersWholeStep)
+        {
+            resetRandom();
+            Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
+            drive(plume, 100.0, true);
+
+            Rtx::SceneDesc scene;
+            SceneExtractor extractor(scene, mContext);
+            for (const double seconds : { 0.1, 1.1 })
+            {
+                scene.clearPlacement();
+                extractor.setSimulationTime(seconds, 1.0);
+                extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
+            }
+
+            const std::vector<float> heights = spriteHeights(scene);
+            ASSERT_FALSE(heights.empty());
+            EXPECT_EQ(heights.size(), 100u) << "a second's hundred particles";
+            EXPECT_NEAR(heights.front(), 100.0f, 1e-4f) << "the emitters stepped less than the world";
         }
 
         /// An emitter runs, and it runs once per turn of the emitter clock however often it is walked.
@@ -675,12 +733,11 @@ namespace Rtx::Testing
             EXPECT_EQ(walk(*plume.mRoot).mSprites, 20u);
         }
 
-        /// A gap in the world's clock is clamped rather than emitted.
-        ///
-        /// A loading screen, a paused window or a harness holding the world still are each a gap an
-        /// emitter would take literally, and a literal hour at a hundred a second is three hundred
-        /// and sixty thousand particles in one frame.
-        TEST_F(RtxSceneExtractorTest, aJumpInTheWorldsClockIsClampedRatherThanEmitted)
+        /// **A jump in the world's clock is no step of the emitters**: they move by the step the
+        /// frame stands for, and a clock set an hour on — a harness standing a world at a moment —
+        /// emits a tenth of a second's ten particles and not an hour's 360,000. A step backward is
+        /// none at all.
+        TEST_F(RtxSceneExtractorTest, aJumpInTheWorldsClockIsNoStepOfTheEmitters)
         {
             Plume plume = makePlume(osg::Matrix::identity(), /*additive=*/true);
             drive(plume, 100.0);
@@ -688,14 +745,12 @@ namespace Rtx::Testing
             runWorld(0.1);
             walk(*plume.mRoot);
 
-            // Clamped to the two tenths the game's own frame loop caps a step at: twenty, not
-            // 360,000.
-            runWorld(3600.0);
-            EXPECT_EQ(walk(*plume.mRoot).mSprites, 20u);
+            mWorldSeconds += 3600.0;
+            runWorld(0.1);
+            EXPECT_EQ(walk(*plume.mRoot).mSprites, 10u);
 
-            // And a step backwards is not a step backwards, it is no step at all.
-            runWorld(-10.0);
-            EXPECT_EQ(walk(*plume.mRoot).mSprites, 20u);
+            mExtractor.setSimulationTime(mWorldSeconds + 0.1, -10.0);
+            EXPECT_EQ(walk(*plume.mRoot).mSprites, 10u);
         }
 
         /// A warm-up is frames drawn: every walk steps the emitters it meets on the clock above,

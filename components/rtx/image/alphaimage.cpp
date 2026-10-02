@@ -111,6 +111,7 @@ namespace Rtx
         {
             const TexelLayout layout = layoutOf(format);
             const std::uint32_t bytesPerBlock = layout.mBytes;
+            const MipLevel level{ .mOffset = 0, .mWidth = width, .mHeight = height };
 
             if (!layout.isBlocked())
             {
@@ -120,7 +121,7 @@ namespace Rtx
                 for (std::uint32_t y = 0; y < height; ++y)
                     for (std::uint32_t x = 0; x < width; ++x)
                     {
-                        const std::size_t at = (std::size_t{ y } * width + x) * bytesPerBlock + 3;
+                        const std::size_t at = level.texelOffset(x, y, layout.mBytes) + 3;
                         if (at < bytes.size() && visit(x, y, static_cast<std::uint8_t>(bytes[at])))
                             return true;
                     }
@@ -135,7 +136,7 @@ namespace Rtx
             for (std::uint32_t row = 0; row < blocksDown; ++row)
                 for (std::uint32_t column = 0; column < blocksAcross; ++column)
                 {
-                    const std::size_t block = (std::size_t{ row } * blocksAcross + column) * bytesPerBlock;
+                    const std::size_t block = level.blockOffset(column, row, layout.mBytes);
                     if (block + bytesPerBlock > bytes.size())
                         continue;
 
@@ -170,7 +171,7 @@ namespace Rtx
     {
         mValues.clear();
 
-        const std::size_t texels = mShape.layOutLike(texture.mLevels, 1);
+        const std::size_t texels = mShape.layOutLike(texture.mLevels, TexelLayout{ .mBytes = 1 });
         if (texels == 0)
             return;
 

@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -46,10 +48,50 @@ namespace Rtx
             EXPECT_EQ(std::count(out.begin(), out.end(), '\n'), 4) << "a line a heap, and the one below them";
             EXPECT_NE(out.find("device-only"), std::string::npos);
             EXPECT_NE(out.find("system"), std::string::npos) << "the system's heap read as video memory";
-            EXPECT_NE(out.find("host-visible"), std::string::npos);
+            EXPECT_NE(out.find("  heap  2  device+host "), std::string::npos) << out;
             EXPECT_NE(out.find("8192.0 MiB"), std::string::npos) << "the first heap's size";
             EXPECT_NE(out.find("256.0 MiB"), std::string::npos) << "the window's size";
             EXPECT_EQ(out.substr(0, 2), "  ") << "the lines were not indented as asked";
+        }
+
+        /// **A card with resizable BAR has one heap of video memory, which the host writes into
+        /// throughout**, and its line names it as both: read by the host's flag alone, 16 GiB of
+        /// video memory read as the small window of a card without it, and no line said "device".
+        TEST(RtxMemoryReportTest, aHeapTheDeviceHoldsAndTheHostWritesIsNamedAsBoth)
+        {
+            MemoryReport report;
+            report.mHeapCount = 2;
+            report.mHeaps[0] = HeapUse{ .mSize = 16ull << 30, .mDeviceLocal = true, .mHostVisible = true };
+            report.mHeaps[1] = HeapUse{ .mSize = 32ull << 30 };
+
+            const std::string out = describeMemory(report);
+            EXPECT_EQ(out.find("  heap  0  device+host    16384.0 MiB"), 0u) << out;
+            EXPECT_NE(out.find("  heap  1  system         32768.0 MiB"), std::string::npos) << out;
+            EXPECT_EQ(out.find("device-only"), std::string::npos) << out;
+        }
+
+        /// **The line under the heaps reads down the page with them**, whatever the number of
+        /// heaps: a column counted by hand from the heap line's format held only while the index
+        /// was one digit, and a card with ten heaps or more put every `reserved` one place to the
+        /// right of the host-written line's.
+        TEST(RtxMemoryReportTest, theHostWrittenLineKeepsTheHeapsColumns)
+        {
+            MemoryReport report;
+            report.mHeapCount = 11;
+            for (std::uint32_t heap = 0; heap < report.mHeapCount; ++heap)
+                report.mHeaps[heap] = HeapUse{ .mSize = 256ull << 20 };
+
+            // "  heap " 7, the index 2, "  " 2, the kind 12, "  " 2, the size 8, " MiB" 4, "   " 3:
+            // `reserved` at 40 on every line.
+            const std::string out = describeMemory(report);
+            std::size_t lines = 0;
+            for (std::size_t start = 0; start < out.size(); ++lines)
+            {
+                const std::size_t end = out.find('\n', start);
+                EXPECT_EQ(out.find("reserved", start) - start, 40u) << out.substr(start, end - start);
+                start = end + 1;
+            }
+            EXPECT_EQ(lines, 12u) << out;
         }
     }
 }

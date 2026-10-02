@@ -187,7 +187,6 @@ namespace MWRender
         scene.setUpNormalsRTForStateSet(precipitationRoot.getOrCreateStateSet(), false);
         SceneUtil::ShadowManager::instance().disableShadowsForStateSet(*precipitationRoot.getOrCreateStateSet());
 
-        mPrecipitationOcclusion = Settings::shaders().mWeatherParticleOcclusion;
         mPrecipitationOccluder
             = std::make_unique<PrecipitationOccluder>(&precipitationRoot, &sceneRoot, &worldRoot, viewer.getCamera());
 
@@ -408,7 +407,7 @@ namespace MWRender
         // its range whenever it is on, and stepped after the dome each unpaused frame. A fresh one
         // is disabled, which is what `Applied` starts at.
         const bool precipitating = precipitation.isOccluded();
-        if (mPrecipitationOcclusion && mApplied.mPrecipitating != precipitating)
+        if (mApplied.mPrecipitating != precipitating)
         {
             if (precipitating)
                 mPrecipitationOccluder->enable();
@@ -416,7 +415,7 @@ namespace MWRender
                 mPrecipitationOccluder->disable();
             mApplied.mPrecipitating = precipitating;
         }
-        if (mPrecipitationOcclusion && precipitating)
+        if (precipitating)
             mPrecipitationOccluder->updateRange(precipitation.getOcclusionRange());
 
         // The dome's own clocks, stepped by the frame as upstream stepped them from

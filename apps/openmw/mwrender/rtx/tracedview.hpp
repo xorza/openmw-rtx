@@ -1,14 +1,12 @@
 #pragma once
 
-#include <osg/Matrixf>
+#include <osg/Matrixd>
 #include <osg/Node>
 #include <osg/Vec2f>
 #include <osg/ref_ptr>
 
 #include <components/myguirtx/rendermanager.hpp>
-#include <components/rtx/mirror/mirrorpass.hpp>
-#include <components/rtx/preprocess/threadcontent.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
+#include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/view/offscreentrace.hpp>
 
 #include "../offscreenview.hpp"
@@ -21,6 +19,7 @@ namespace osg
 
 namespace Rtx
 {
+    class CellRing;
     class Renderer;
 }
 
@@ -54,20 +53,18 @@ namespace MWRender
     class TracedView final : public SubjectView
     {
     public:
-        /// **`traversals` is the one sequence every mirror walk here poses at** — the world's and
-        /// every view's. A subtree both can reach would otherwise be posed by whichever counter
-        /// got there first and frozen for the other.
+        /// **`context` is the frame thread's, which every mirror walk here shares** — the world's
+        /// and every view's. A subtree both can reach would otherwise be posed by whichever counter
+        /// got there first and frozen for the other, and a subject's `_spec` maps mean the world's.
         ///
         /// @param backend what the trace is recorded into.
         /// @param views the list this joins and asks to be drawn on, which outlives it.
         /// @param gui whose texture the trace writes into, and which draws it.
-        /// @param layout what a subject's `_spec` maps mean: the world's.
         TracedView(const OffscreenViewSpec& spec, ViewKind kind, Rtx::Renderer& backend, ViewQueue& views,
-            MyGUIRtx::RenderManager& gui, Rtx::Traversals& traversals, Rtx::ThreadContent& content,
-            Rtx::SpecularLayout layout);
+            MyGUIRtx::RenderManager& gui, Rtx::WalkContext& context);
         ~TracedView() override;
 
-        void setView(const osg::Matrixf& view) override { mTrace.setView(view); }
+        void setView(const osg::Matrixd& view) override { mTrace.setView(view); }
         void setExtent(int width, int height) override;
         void sceneChanged() override;
         void redraw() override;
@@ -87,6 +84,11 @@ namespace MWRender
         /// orthographic world view whose footprint holds the point. What the harness asks to find
         /// the map tile of the cell it stands in, of the renderer that drew it.
         bool coversFromAbove(const osg::Vec2f& over) const;
+
+        /// Whether this picture of the world taken straight down still waits for ground under its
+        /// box: `ring` holds a cell there in the band it asked for and has not adopted it. A tile
+        /// taken before then shows the cell's objects on nothing, and nothing asks for it again.
+        bool waitsForGround(const Rtx::CellRing& ring) const;
 
         void keepCopy() override;
         const osg::Image* getCopy() override;

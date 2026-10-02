@@ -17,6 +17,12 @@ namespace Rtx
 {
     namespace
     {
+        /// Significant wave height over the surface's rms elevation: the oceanographers'
+        /// definition, the mean of the highest third, which for a Gaussian sea is four standard
+        /// deviations. What `SeaState` normalises its spectrum to, so that the one figure a person
+        /// can picture is the one the sea is built from.
+        constexpr float sSignificantOverRms = 4.0f;
+
         /// Two uniform numbers in `(0, 1)` from a grid index, and the same two every time, so a
         /// screenshot taken again draws the same water. Wang's integer hash.
         std::uint32_t scramble(std::uint32_t seed)
@@ -53,7 +59,7 @@ namespace Rtx
             const float tanh = std::tanh(depth);
             const float frequency = sea.getFrequency(wavenumber);
 
-            return Shaders::WATER_GRAVITY * (tanh + depth * (1.0f - tanh * tanh)) / (2.0f * frequency);
+            return sGravity * (tanh + depth * (1.0f - tanh * tanh)) / (2.0f * frequency);
         }
 
         /// Donelan-Banner's density at an angle off the wind, normalised over the circle: a
@@ -153,7 +159,7 @@ namespace Rtx
         // Scaled to the height that was asked for: JONSWAP's `alpha` is a fetch-and-wind parameter
         // nothing here knows, and every term in it is a constant multiplier on everything above — so
         // it cancels, and the one number a person can picture takes its place.
-        const float wanted = sea.mSignificantHeight / Shaders::WATER_SIGNIFICANT_HEIGHT;
+        const float wanted = sea.mSignificantHeight / sSignificantOverRms;
         const float scale = variance > 0.0 ? static_cast<float>(double{ wanted } / std::sqrt(variance)) : 0.0f;
 
         for (WaveCascade& cascade : cascades)

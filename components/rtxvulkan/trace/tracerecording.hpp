@@ -4,9 +4,11 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/shaders/visibility.h>
 
+#include <components/rtxvulkan/device/memory/image.hpp>
+
+#include "spritebin.hpp"
 #include "visibilitypass.hpp"
 
 namespace Rtx
@@ -24,17 +26,17 @@ namespace Rtx
         /// are the chain's to name (`TraceChain::record`).
         TraceSubject mSubject;
 
-        /// The camera the caller asked for. What the sprite bin tiles against, because a bin is
-        /// a screen-space tile and the jitter below is where inside a pixel this frame sampled:
-        /// binning against that would move every tile by a fraction of a pixel a frame, for nothing.
-        Shaders::VisibilityConstants mAsked;
+        /// What the sprite bin tiles against, off the camera the caller asked for (`BinCamera`).
+        BinCamera mAsked;
 
-        /// The same camera as this trace will sample it — the jitter, the previous basis, the
-        /// medium and the layer decision are already in it. What the composite covers is its extent.
-        Shaders::VisibilityConstants mSampled;
+        /// The camera as this trace will sample it — the jitter, the previous basis, the medium and
+        /// the layer decision are already in it. What the composite covers is its extent. Borrowed:
+        /// the frame block is copied once, where the trace writes it (`VisibilityPass::writeFrame`).
+        const Shaders::VisibilityConstants& mSampled;
 
-        /// What reconstructs this trace: whether the denoisers run is what the chain reads of it.
-        const Reconstruction& mReconstruction;
+        /// Whether the denoisers put this trace back together, the one thing the chain reads of
+        /// what reconstructs it.
+        bool mDenoised = false;
 
         /// How many frames the chain's running total holds, this one included, or nought where
         /// nothing is averaging (`FrameOptions::mAccumulate`).
@@ -55,8 +57,7 @@ namespace Rtx
     struct TraceResult
     {
         VisibilityInputs mInputs;
-        const Image& mColour;
-        VkDeviceAddress mSpriteTileList = 0;
-        VkDeviceAddress mSpritePresence = 0;
+        HandedImage mColour;
+        SpriteTables mSprites{};
     };
 }

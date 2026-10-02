@@ -22,7 +22,6 @@
 #include "model/benchrecord.hpp"
 #include "model/benchspec.hpp"
 #include "model/blockfile.hpp"
-#include "model/skycrossing.hpp"
 #include "run.hpp"
 
 namespace RtxTool
@@ -63,7 +62,7 @@ namespace RtxTool
 
             StopSky& sky = key.mStop.mSky;
             sky.mHour = sky.mHour.value_or(sDefaultHour);
-            sky.mWeather = sky.mWeather.value_or(std::string(sDefaultWeather));
+            sky.mWeather = sky.mWeather.value_or(sDefaultWeather);
         }
 
         if (keys.empty())
@@ -100,11 +99,6 @@ namespace RtxTool
     std::uint32_t FilmPacing::framesOf(const float seconds) const
     {
         return std::max(1u, BenchSpan{ .mSeconds = seconds }.getFrames(mStep));
-    }
-
-    double clockHoursPerSecond(const float clock)
-    {
-        return double{ clock } * double{ sGameTimeScale } / 3600.0;
     }
 
     std::uint32_t FilmPlan::getFrames() const
@@ -181,7 +175,7 @@ namespace RtxTool
             return TrackKey{ .mEye = key.getEye(),
                 .mRotation = rotationOf(key),
                 .mHour = key.getHour(),
-                .mWeather = *Rtx::weatherIndex(key.getWeather()),
+                .mWeather = key.getWeather(),
                 .mRests = rests };
         }
 
@@ -390,27 +384,28 @@ namespace RtxTool
         /// The sky `pacing` runs on its own, for the take that begins at the film's `first` frame.
         SkyRun skyRunOf(const FilmPacing& pacing, const std::uint32_t first)
         {
-            std::optional<double> hours;
+            std::optional<double> clock;
             if (pacing.mClock.has_value())
-                hours = clockHoursPerSecond(*pacing.mClock) * double{ pacing.mStep };
+                clock = double{ *pacing.mClock } * double{ pacing.mStep };
 
-            return SkyRun{ .mHoursPerFrame = hours,
+            return SkyRun{ .mClockPerFrame = clock,
                 .mWeathers = pacing.mTurn,
                 .mHoldFrames = BenchSpan{ .mSeconds = pacing.mWeatherHold }.getFrames(pacing.mStep),
                 .mCrossingFrames = pacing.framesOf(pacing.mCrossingSeconds),
                 .mFirstFrame = first };
         }
 
-        /// The hour the film stands at at its `frame`th, where `key` names what the keys say and the
-        /// pacing's own clock writes over it.
-        float hourAt(const FilmPlan& plan, const std::uint32_t frame, const FilmKey& key)
+        /// The hour the film stands at at its `frame`th, where `key` names what the keys say; or,
+        /// where the pacing's own clock writes over it, the first key's hour and the game's own
+        /// seconds the clock has run since, which the session's `timescale` turns into hours.
+        std::string describeHourAt(const FilmPlan& plan, const std::uint32_t frame, const FilmKey& key)
         {
             const SkyRun run = skyRunOf(plan.mPacing, 0);
-            if (!run.mHoursPerFrame.has_value())
-                return key.getHour();
+            if (!run.mClockPerFrame.has_value())
+                return describeHour(key.getHour());
 
-            return static_cast<float>(std::fmod(
-                double{ plan.mKeys.front().getHour() } + static_cast<double>(frame) * *run.mHoursPerFrame, 24.0));
+            return std::format("{} +{:.0f} s", describeHour(plan.mKeys.front().getHour()),
+                static_cast<double>(frame) * *run.mClockPerFrame);
         }
 
         /// The weather the film stands under at its `frame`th, or the two it crosses between, where
@@ -419,7 +414,7 @@ namespace RtxTool
         {
             const SkyRun run = skyRunOf(plan.mPacing, 0);
             if (run.mWeathers.empty())
-                return key.getWeather();
+                return std::string(Rtx::weatherName(key.getWeather()));
 
             TrackPose sky;
             run.turnAt(frame, sky);
@@ -584,8 +579,10 @@ namespace RtxTool
 
         const FilmPacing& pacing = plan.mPacing;
         if (pacing.mClock.has_value())
-            text += std::format("the clock at ×{:g} of the game's own over the whole film, {:.2f} hours a second\n",
-                *pacing.mClock, clockHoursPerSecond(*pacing.mClock));
+            text += std::format(
+                "the clock at ×{:g} of the game's own over the whole film, the hours below as the first key's and "
+                "the seconds the clock ran since\n",
+                *pacing.mClock);
         if (!pacing.mTurn.empty())
         {
             std::string names;
@@ -609,7 +606,7 @@ namespace RtxTool
 
             const std::uint32_t start = drawnAt(take.mFirstFrame, 0.0);
             text += std::format("  {:<28} {} {}, {}{}\n", first.mStop.mName, first.getCell(),
-                describeHour(hourAt(plan, start, first)), weatherAt(plan, start, first),
+                describeHourAt(plan, start, first), weatherAt(plan, start, first),
                 first.mHold > 0.0f ? std::format(", holds {:.1f} s", first.mHold) : std::string());
 
             for (const FilmSegment& segment : take.mSegments)
@@ -618,7 +615,7 @@ namespace RtxTool
                 const std::uint32_t arrival = drawnAt(take.mFirstFrame, segment.mArrival);
 
                 text += std::format("  -> {:<25} {:6.1f} s  {} {}, {}{}  ({})\n", key.mStop.mName,
-                    seconds(segment.mFrames), describeHour(hourAt(plan, arrival, key)), weatherAt(plan, arrival, key),
+                    seconds(segment.mFrames), describeHourAt(plan, arrival, key), weatherAt(plan, arrival, key),
                     key.mHold > 0.0f ? std::format("holds {:.1f} s, ", key.mHold) : std::string(), key.getCell(),
                     describePace(segment, key, take, pacing));
             }

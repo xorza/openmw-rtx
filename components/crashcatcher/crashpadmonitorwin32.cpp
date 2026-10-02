@@ -1,11 +1,8 @@
 #include "crashpadmonitorsystem.hpp"
 
-#include <algorithm>
 #include <array>
 #include <atomic>
-#include <cstddef>
 #include <cstdint>
-#include <ctime>
 #include <string>
 #include <utility>
 #include <vector>
@@ -14,7 +11,7 @@
 
 #include <components/misc/windows.hpp>
 
-#include <shellapi.h>
+#include "crashsummary.hpp"
 
 namespace Crash::Monitor
 {
@@ -54,12 +51,14 @@ namespace Crash::Monitor
             CloseHandle(thread);
     }
 
-    bool GameProcess::end() const
+    Ending GameProcess::end() const
     {
         const HANDLE handle = handleOf(mHold);
-        if (handle == nullptr || WaitForSingleObject(handle, 0) == WAIT_OBJECT_0)
-            return false;
-        return TerminateProcess(handle, 3) != FALSE;
+        if (handle == nullptr)
+            return Ending::Failed;
+        if (WaitForSingleObject(handle, 0) == WAIT_OBJECT_0)
+            return Ending::Gone;
+        return TerminateProcess(handle, 3) != FALSE ? Ending::Ended : Ending::Failed;
     }
 
     std::string describeException(const crashpad::ExceptionSnapshot& exception, std::uint32_t)
@@ -91,29 +90,6 @@ namespace Crash::Monitor
                                               : " executing ")
                 + hex(codes[1]);
         return text;
-    }
-
-    std::vector<std::string> commandLine(int, char**)
-    {
-        std::vector<std::string> arguments;
-        int count = 0;
-        wchar_t** const wide = CommandLineToArgvW(GetCommandLineW(), &count);
-        for (int i = 0; i < count; ++i)
-        {
-            const int size = WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, nullptr, 0, nullptr, nullptr);
-            std::string one(static_cast<std::size_t>(std::max(size, 1)) - 1, '\0');
-            WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, one.data(), size, nullptr, nullptr);
-            arguments.push_back(std::move(one));
-        }
-        LocalFree(wide);
-        return arguments;
-    }
-
-    std::tm localTime(std::time_t seconds)
-    {
-        std::tm local{};
-        localtime_s(&local, &seconds);
-        return local;
     }
 
     std::string_view dumpFolder()

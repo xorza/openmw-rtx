@@ -44,8 +44,8 @@ namespace Rtx::Shaders
     /// Texels along each axis of the field.
     const uint RIPPLE_GRID = 1024u;
 
-    /// World units one texel covers, which with the grid is how far the field reaches: 2560
-    /// units, a third of a cell, from the eye in every direction.
+    /// World units one texel covers, which with the grid is how far the field reaches: 2560 units
+    /// across, so 1280 from the eye in every direction.
     const float RIPPLE_TEXEL = 2.5f;
 
     /// How often the field is stepped, a second. The step is one texel of neighbourhood, so the
@@ -59,9 +59,12 @@ namespace Rtx::Shaders
     const uint RIPPLE_WORKGROUP = 16u;
 
     /// The springs `lib/water/ripples.glsl` states, tuned there by eye to look like water: the
-    /// neighbour coupling, and the two dampings on the height and its velocity.
+    /// neighbour coupling (`a`), and the two dampings on the height (`udamp`) and its velocity
+    /// (`vdamp`). The grid, the texel and these are the rasterizer's, and a GLSL header can
+    /// include none of them: `RtxRipplesTest` holds each equal to its source.
     const float RIPPLE_STIFFNESS = 0.28f;
-    const float RIPPLE_DAMPING = 0.04f;
+    const float RIPPLE_HEIGHT_DAMPING = 0.04f;
+    const float RIPPLE_VELOCITY_DAMPING = 0.04f;
 
     /// One impulse, in the field's own texels.
     struct GpuRippleImpulse

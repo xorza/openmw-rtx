@@ -82,21 +82,14 @@ namespace Rtx
 
     osg::Vec2f SpecularAlbedo::at(float cosine, float roughness) const
     {
-        const float across = Shaders::specularTableColumn(cosine);
-        const float down = Shaders::specularTableRow(roughness);
-        const auto left = static_cast<std::uint32_t>(across);
-        const auto top = static_cast<std::uint32_t>(down);
-        const std::uint32_t right = std::min(left + 1, sSize - 1);
-        const std::uint32_t bottom = std::min(top + 1, sSize - 1);
-        const float x = across - static_cast<float>(left);
-        const float y = down - static_cast<float>(top);
+        const Shaders::SpecularTableTaps taps = Shaders::specularTableTaps(cosine, roughness);
 
         const auto node = [&](std::uint32_t column, std::uint32_t row) {
             const std::size_t at = (std::size_t{ row } * sSize + column) * 2;
             return osg::Vec2f(mValues[at], mValues[at + 1]);
         };
 
-        return (node(left, top) * (1.0f - x) + node(right, top) * x) * (1.0f - y)
-            + (node(left, bottom) * (1.0f - x) + node(right, bottom) * x) * y;
+        return Shaders::specularTableBlend(taps, node(taps.mLeft, taps.mTop), node(taps.mRight, taps.mTop),
+            node(taps.mLeft, taps.mBottom), node(taps.mRight, taps.mBottom));
     }
 }

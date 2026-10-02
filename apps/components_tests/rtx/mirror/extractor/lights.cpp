@@ -24,7 +24,6 @@
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/graphlight.hpp>
 #include <components/esm3/loadligh.hpp>
-#include <components/misc/constants.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/scene/light.hpp>
@@ -55,37 +54,31 @@ namespace Rtx::Testing
         /// which tests ran first decided whether this one passed.
         const float sWhiteLampAtHundred = 100.0f * 100.0f * (0.25f * Shaders::PI);
 
-        /// A magic bolt's light is sized by the source radius the game writes on it — its spell's
-        /// area, or the bolt's own sixty-six where the spell has none or a smaller one — and never
-        /// by the sixty-six cut-off the rasterizer draws every bolt with.
+        /// A light is sized by the radius the content states, and not by the cut-off the rasterizer
+        /// lights with where the two differ.
         ///
-        /// Fifty feet is 50 by 21.333 = 1066.7 units, so the light is a lamp of that radius: its
-        /// reach `1066.7 * 2 + 128 = 2261.3` and its intensity `1066.7^2 * 0.25 * pi = 893,657`
-        /// on a white colour. A spark with no source radius keeps the bolt's own sixty-six,
-        /// reaching `66 * 2 + 128 = 260`; and a touch spell, whose one foot the game rounded up to
-        /// the bolt's sixty-six, reaches the same.
-        TEST_F(RtxSceneExtractorTest, aBoltsLightReachesTheAreaItsSpellStates)
+        /// `Animation::setLightEffect` widens a glow light's cut-off threefold and states its own
+        /// radius beside it: a glow of a hundred is a lamp of radius 100, reaching
+        /// `100 * 2 + 128 = 328` with an intensity of `100^2 * 0.25 * pi = 7853.98` on white. A
+        /// magic bolt's light is the game's sixty-six and nothing else, reaching `66 * 2 + 128 =
+        /// 260`, whatever area its spell covers: the burst's own glow lights that.
+        TEST_F(RtxSceneExtractorTest, aLightIsSizedByTheRadiusTheContentStates)
         {
-            osg::ref_ptr<SceneUtil::LightSource> fireball = makeLightSource(66.0f, osg::Vec4f(1, 1, 1, 1));
-            fireball->setSourceRadius(50.0f * Constants::UnitsPerFoot);
+            osg::ref_ptr<SceneUtil::LightSource> glow = makeLightSource(300.0f, osg::Vec4f(1, 1, 1, 1));
+            glow->setSourceRadius(100.0f);
 
-            osg::ref_ptr<SceneUtil::LightSource> spark = makeLightSource(66.0f, osg::Vec4f(1, 1, 1, 1));
+            osg::ref_ptr<SceneUtil::LightSource> bolt = makeLightSource(66.0f, osg::Vec4f(1, 1, 1, 1));
 
-            osg::ref_ptr<SceneUtil::LightSource> touch = makeLightSource(66.0f, osg::Vec4f(1, 1, 1, 1));
-            touch->setSourceRadius(std::max(66.0f, 1.0f * Constants::UnitsPerFoot));
+            osg::ref_ptr<osg::Group> lit = new osg::Group;
+            lit->addChild(glow);
+            lit->addChild(bolt);
+            walk(*lit);
 
-            osg::ref_ptr<osg::Group> flying = new osg::Group;
-            flying->addChild(fireball);
-            flying->addChild(spark);
-            flying->addChild(touch);
-            walk(*flying);
-
-            ASSERT_EQ(mScene.lights().size(), 3u);
+            ASSERT_EQ(mScene.lights().size(), 2u);
             const std::span<const Rtx::Light> lights = mScene.lights();
-            EXPECT_NEAR(lights[0].mReach, 2261.33f, 0.01f);
-            EXPECT_NEAR(lights[0].mIntensity.x(), 893657.0f, 100.0f);
-            EXPECT_NEAR(lights[1].mReach, 260.0f, 0.01f) << "no area, the bolt's own sixty-six";
-            EXPECT_EQ(lights[2].mReach, lights[1].mReach) << "an area under the bolt's own radius is not a shrinking";
+            EXPECT_NEAR(lights[0].mReach, 328.0f, 0.01f);
+            EXPECT_FLOAT_EQ(lights[0].mIntensity.x(), sWhiteLampAtHundred);
+            EXPECT_NEAR(lights[1].mReach, 260.0f, 0.01f) << "the bolt's own sixty-six";
         }
 
         /// A magic effect's glowing sheets light the world as one fill lamp of their own size and
@@ -194,6 +187,12 @@ namespace Rtx::Testing
         /// a lamp of `66^2 * 0.25 * pi = 3421.2` on white, reaching `66 * 2 + 128 = 260`, and no
         /// glow beside it. And the plume outside any effect is a flame the walk lights nothing
         /// with.
+        ///
+        /// **Under `ONE, ONE` the lamp is the map's mean read whole**, as a sheet's is: the same
+        /// flames over a map at half alpha, whose mean premultiplied is half of (1, 0.21586, 0) and
+        /// read whole is all of it. Both sprites are whole under that blend, so the sum is
+        /// `36 * (1, 0.046203, 0) + 4 * (1, 0.21586, 0) = (40, 2.526748, 0)` and the lamp is
+        /// `(1280, 80.856, 0)`; read premultiplied it was half that.
         TEST_F(RtxSceneExtractorTest, anEffectsFlamesLightTheWorldAsItsLampUnlessTheGameLitIt)
         {
             constexpr osg::Node::NodeMask sEffect = 1u << 1;
@@ -233,6 +232,37 @@ namespace Rtx::Testing
             EXPECT_EQ(lamp.mClearance, lamp.mSourceRadius);
             EXPECT_FLOAT_EQ(lamp.mReach, 128.0f);
             EXPECT_EQ(lamp.mFill, 1u);
+
+            {
+                osg::ref_ptr<osg::Image> half = new osg::Image;
+                half->setFileName("textures/vfx_fireglow_half.tga");
+                half->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                for (std::size_t texel = 0; texel < 4; ++texel)
+                {
+                    half->data()[texel * 4] = 255;
+                    half->data()[texel * 4 + 1] = 128;
+                    half->data()[texel * 4 + 2] = 0;
+                    half->data()[texel * 4 + 3] = 128;
+                }
+
+                const Plume whole = makePlume(
+                    osg::Matrix::scale(2.0, 2.0, 2.0) * osg::Matrix::translate(100.0, 0.0, 0.0), true, half);
+                whole.mRoot->getOrCreateStateSet()->setAttributeAndModes(
+                    new osg::BlendFunc(osg::BlendFunc::ONE, osg::BlendFunc::ONE), osg::StateAttribute::ON);
+                emit(*whole.mParticles, osg::Vec3f(0.0f, 0.0f, 5.0f), 3.0f, osg::Vec4f(1.0f, 0.5f, 0.25f, 0.5f));
+                emit(*whole.mParticles, osg::Vec3f(0.0f, 0.0f, 9.0f), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+
+                osg::ref_ptr<osg::Group> wholeEffect = new osg::Group;
+                wholeEffect->setNodeMask(sEffect);
+                wholeEffect->addChild(whole.mRoot);
+
+                mScene.clearPlacement();
+                walk(*wholeEffect);
+                ASSERT_EQ(mScene.lights().size(), 1u);
+                EXPECT_NEAR(mScene.lights().front().mIntensity.x(), 1280.0f, 1e-1f)
+                    << "a flame that adds whole lit by its mean premultiplied";
+                EXPECT_NEAR(mScene.lights().front().mIntensity.y(), 80.856f, 1e-2f);
+            }
 
             osg::ref_ptr<osg::Group> bolt = new osg::Group;
             bolt->setNodeMask(sEffect);
@@ -343,8 +373,9 @@ namespace Rtx::Testing
 
             const auto litAt = [&lamp](double seconds) {
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
-                extractor.setSimulationTime(seconds);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
+                extractor.setSimulationTime(seconds, 0.0);
                 extractor.extract(*lamp, osg::Matrixf::identity(), 0);
 
                 const std::span<const Rtx::Light> lights = scene.lights();
@@ -355,22 +386,20 @@ namespace Rtx::Testing
 
             float deepest = 0.0f;
 
-            // A pulse turns once in three seconds. Eight samples across it put one within an eighth
-            // of a turn of the peak, so the deepest is at least `0.35 * cos(pi / 8)` from rest.
+            // A slow pulse turns once in two seconds. Eight samples across it put one within an
+            // eighth of a turn of an end, so the deepest is at least `0.75 * 0.375` from the middle.
             for (int i = 0; i < 8; ++i)
             {
-                const float lit = litAt(static_cast<double>(i) * 0.375);
+                const float lit = litAt(static_cast<double>(i) * 0.25);
 
-                // A pulse swings 0.35 either way about what the lamp radiates at rest. The bounds
-                // are formed the way `lightBrightness` forms them, so the trough and the peak sit
-                // on them to the bit.
-                EXPECT_GE(lit, sWhiteLampAtHundred * (1.0f - 0.35f));
-                EXPECT_LE(lit, sWhiteLampAtHundred * (1.0f + 0.35f));
+                // The game's band, a quarter to one of what the lamp radiates at full.
+                EXPECT_GE(lit, sWhiteLampAtHundred * 0.25f);
+                EXPECT_LE(lit, sWhiteLampAtHundred);
 
-                deepest = std::max(deepest, std::abs(lit - sWhiteLampAtHundred));
+                deepest = std::max(deepest, std::abs(lit - sWhiteLampAtHundred * 0.625f));
             }
 
-            EXPECT_GT(deepest, sWhiteLampAtHundred * 0.32f) << "the walk mirrored the lamp at rest";
+            EXPECT_GE(deepest, sWhiteLampAtHundred * 0.28f) << "the walk mirrored the lamp at rest";
 
             // And the instant is the whole of what decides it, so two walks over one clock agree.
             EXPECT_EQ(litAt(1.25), litAt(1.25));

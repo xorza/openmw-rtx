@@ -41,6 +41,10 @@ namespace Rtx
 {
     namespace
     {
+        /// Why a distortion node is left out: `drawsIntoDistortion`.
+        constexpr std::string_view sDistortion
+            = "it bends the rasterizer's picture behind it and draws nothing of its own";
+
         /// Clears the one gate a renderer with no draw can only ever answer wrongly:
         /// `osgParticle` stops a system whose draw has not touched it for two frames, and
         /// `ParticleSystem::_last_frame` moves in `drawImplementation` and nowhere else.
@@ -116,7 +120,7 @@ namespace Rtx
 
         /// Stands the world's clock at `seconds` and moves the emitter clock on by the gap since
         /// the last call. See `SceneExtractor::setSimulationTime`.
-        void setSimulationTime(double seconds);
+        void setSimulationTime(double seconds, double step);
 
         void apply(osg::Node& node) override;
         void apply(osg::Transform& node) override;
@@ -164,23 +168,31 @@ namespace Rtx
         /// A member for the reason the walk is: made once, and a frame allocates none of it.
         SequenceClock mSequenceClock;
 
-        /// The emitters' own clock, and it is not the world's: `osgParticle` integrates the
-        /// difference between one frame stamp and the last, and the world's clock jumps across a
-        /// loading screen. Its frame number is the sequence `ParticleProcessor` keeps its
+        /// The emitters' own stamp, stepped by the world's step: `osgParticle` integrates the
+        /// difference between one frame stamp and the last. Its own and not the world's for that
+        /// reason, and for its frame number, the sequence `ParticleProcessor` keeps its
         /// once-per-frame guard against, which is why nothing else in this renderer may drive a
         /// particle system.
         osg::ref_ptr<osg::FrameStamp> mEmitterStamp = new osg::FrameStamp;
         double mEmitterSeconds = 0.0;
         unsigned int mEmitterFrame = 0;
 
-        /// Where the world's clock stood at the last `setSimulationTime`, nothing before the first.
-        std::optional<double> mWorldSeconds;
+        /// Whether a `setSimulationTime` started the emitters' clock, which the first one does
+        /// rather than step it.
+        bool mStarted = false;
 
-        /// The class the innermost root over the node being walked stated: everything under an
-        /// actor's root is the actor. Carried down the subtree rather than read off each drawable,
-        /// because the game marks the *root* and the drawables under it wear the masks they were
-        /// authored with. Saved and restored around a descent, as `mPathHash` is.
+        /// The class the innermost root over the node being walked stated, or the arms' where a
+        /// first-person root stands over it: everything under an actor's root is the actor. Carried down the subtree
+        /// rather than read off each drawable, because the game marks the *root* and the drawables under it wear the
+        /// masks they were authored with. Saved and restored around a descent, as `mPathHash` is.
         InstanceClass mClass = InstanceClass::Static;
+
+        /// Whether a node the extractor was told jumped stands over the node being walked, carried
+        /// down as the class is.
+        bool mJumping = false;
+
+        /// `SceneExtractor::setJumped`, read once at `begin`.
+        std::span<const osg::Node* const> mJumped;
 
         /// The effect the walk is inside, as an index into the extractor's glows, or nothing.
         /// Opened where the class first turns `Effect` and carried down as the class is: an effect
@@ -254,9 +266,11 @@ namespace Rtx
         // them.
         mClass = InstanceClass::Static;
         mGlow.reset();
+        mJumping = false;
 
         mStampDepth = mExtractor.mStampDepth;
         mEye = mExtractor.mEye;
+        mJumped = mExtractor.mJumped;
         setTraversalMask(mExtractor.mTraversalMask);
 
         // The mirror's own sequence and never the game's. What this walk runs — the controllers
@@ -301,6 +315,12 @@ namespace Rtx
             return;
         }
 
+        if (const osg::StateSet* own = node.getStateSet(); own != nullptr && drawsIntoDistortion(*own))
+        {
+            mExtractor.mScene.refusals().refuse(Refused::Mesh, node.getName(), sDistortion);
+            return;
+        }
+
         const std::size_t held = mShading.size();
         const std::size_t above = mPathHash;
         mPathHash = identity;
@@ -317,18 +337,25 @@ namespace Rtx
 
         const InstanceClass outerClass = mClass;
         const std::optional<std::size_t> outerGlow = mGlow;
-        if (const std::optional<InstanceClass> stated = mExtractor.classOf(node.getNodeMask()))
+        const bool outerJumping = mJumping;
+        mJumping = mJumping || std::ranges::find(mJumped, &node) != mJumped.end();
+        // **A first-person root keeps its subtree whatever is marked inside it**: the rasterizer
+        // draws everything under the arms at their field of view and over everything, a spell's
+        // swirl on the hands included, and the arms' eye is what traces that class.
+        const std::optional<InstanceClass> stated = mExtractor.classOf(node.getNodeMask());
+        if (stated.has_value() && mClass != InstanceClass::FirstPerson)
             mClass = *stated;
 
-        // The root of a magic effect, whose sheets and flames light the world as one lamp. Whatever
-        // is stated under it is still inside it.
-        if (mClass == InstanceClass::Effect && !mGlow.has_value())
+        // The root of a magic effect, whose sheets and flames light the world as one lamp, on the
+        // arms as anywhere. Whatever is stated under it is still inside it.
+        if ((mClass == InstanceClass::Effect || stated == InstanceClass::Effect) && !mGlow.has_value())
             mGlow = mExtractor.openGlow();
 
         descend(node, kind);
 
         mClass = outerClass;
         mGlow = outerGlow;
+        mJumping = outerJumping;
         mPathHash = above;
         --mDepth;
         mShading.resize(held);
@@ -387,18 +414,14 @@ namespace Rtx
         return true;
     }
 
-    void SceneExtractor::Traversal::setSimulationTime(const double seconds)
+    void SceneExtractor::Traversal::setSimulationTime(const double seconds, const double step)
     {
         mStamp->setSimulationTime(seconds);
         mStamp->setReferenceTime(seconds);
 
-        // The cap the game's own frame loop uses, and `MWRender::RainCounter` after it.
-        constexpr double longest = 0.2;
-
-        const double elapsed = mWorldSeconds.has_value() ? seconds - *mWorldSeconds : 0.0;
-        mWorldSeconds = seconds;
-
-        mEmitterSeconds += std::clamp(elapsed, 0.0, longest);
+        if (mStarted)
+            mEmitterSeconds += std::max(step, 0.0);
+        mStarted = true;
         mEmitterStamp->setSimulationTime(mEmitterSeconds);
         mEmitterStamp->setReferenceTime(mEmitterSeconds);
         mEmitterStamp->setFrameNumber(++mEmitterFrame);
@@ -445,17 +468,17 @@ namespace Rtx
 
     void SceneExtractor::Traversal::pushShading(const osg::StateSet& stateSet, const bool animated)
     {
-        const Shading* const above = mShading.empty() ? nullptr : &mShading.back();
-        mShading.push_back(Shading{
-            .mStateSet = &stateSet,
-            .mFade = fadeThrough(stateSet, above != nullptr ? above->mFade : 1.0f),
-            .mAnimated = animated,
-            .mAnimatedThrough = animated || (above != nullptr && above->mAnimatedThrough),
-        });
+        mShading.push_back(Shading::under(mShading, stateSet, animated));
     }
 
     void SceneExtractor::Traversal::apply(osg::Drawable& drawable)
     {
+        if (const osg::StateSet* own = drawable.getStateSet(); own != nullptr && drawsIntoDistortion(*own))
+        {
+            mExtractor.mScene.refusals().refuse(Refused::Mesh, drawable.getName(), sDistortion);
+            return;
+        }
+
         const std::size_t held = mShading.size();
         if (const osg::StateSet* own = drawable.getStateSet())
         {
@@ -467,19 +490,19 @@ namespace Rtx
                 pushShading(*animated, true);
         }
 
-        mExtractor.addDrawable(drawable, identityWith(mPathHash, mChildIndex), mShading, placed(), mClass, mGlow);
+        mExtractor.addDrawable(
+            drawable, identityWith(mPathHash, mChildIndex), mShading, placed(), mClass, mGlow, mJumping);
 
         mShading.resize(held);
     }
 
     /// Every node, until the owner states a mask — `setTraversalMask`, which says why the default
     /// is not the narrower answer it looks like it should be.
-    SceneExtractor::SceneExtractor(SceneDesc& scene, Traversals* traversals, ThreadContent* content)
+    SceneExtractor::SceneExtractor(SceneDesc& scene, WalkContext& context)
         : mScene(scene)
         , mWalk(std::make_unique<Traversal>(*this, mKinds))
-        , mTraversals(traversals == nullptr ? mOwnTraversals : *traversals)
+        , mContext(context)
         , mTraversalMask(~0u)
-        , mContent(content == nullptr ? mOwnContent.emplace() : *content)
     {
         // Reserved once, so no frame rehashes a map. A cell's drawables arriving grow every
         // identity map on that frame, and a table that grows past its room moves every entry on the
@@ -500,9 +523,9 @@ namespace Rtx
         mPlacements.clear([this](const Known& stood) { mScene.dropInstance(stood.mIndex, Stander::Walk); });
     }
 
-    void SceneExtractor::setSimulationTime(double seconds)
+    void SceneExtractor::setSimulationTime(double seconds, double step)
     {
-        mWalk->setSimulationTime(seconds);
+        mWalk->setSimulationTime(seconds, step);
     }
 
     ExtractionStats SceneExtractor::extract(
@@ -514,17 +537,15 @@ namespace Rtx
     ExtractionStats SceneExtractor::extractWorld(
         const osg::Node& root, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame, CellRing& ring)
     {
-        // Here, because this is the one call that holds the ring and the frame both: a ring told
-        // one frame and walked for another adopts twice on a frame walked twice.
-        ring.setFrame(frame);
+        assert(ring.adoptsThrough(*this) && "a ring made on another extractor adopts into its scene");
 
         return walk(root, transform, anchor, frame, &ring, false);
     }
 
-    ExtractionStats SceneExtractor::extractPrecipitation(const osg::Node* fall, const osg::Vec3f& eye,
-        const bool underwater, const std::size_t anchor, const std::size_t frame)
+    ExtractionStats SceneExtractor::extractPrecipitation(
+        const osg::Node* fall, const osg::Vec3f& eye, const std::size_t anchor, const std::size_t frame)
     {
-        if (fall == nullptr || underwater)
+        if (fall == nullptr)
             return {};
 
         return walk(*fall, osg::Matrixf::translate(eye), anchor, frame, nullptr, true);
@@ -559,7 +580,7 @@ namespace Rtx
         // stamped before the throw is standing, and the sweep is owed for the rest.
         mScene.noteWalked();
 
-        mWalk->begin(transform, frame, mTraversals.next(), identitySeed(anchor));
+        mWalk->begin(transform, frame, mContext.mTraversals.next(), identitySeed(anchor));
 
         // The glows a walk that threw opened were never made.
         mGlows.clear();
@@ -574,7 +595,7 @@ namespace Rtx
         // everything else — the same epoch, the same stats, the same sweep — and a second `begin`
         // would date it apart from the rest.
         if (ring != nullptr)
-            ring->collect();
+            ring->collect(frame);
 
         // After the whole walk, including whatever the ring brought in. Everything under it
         // has been stepped by now, so what the sprites are read from is a settled world rather than
@@ -701,7 +722,7 @@ namespace Rtx
 
     void SceneExtractor::addDrawable(const osg::Drawable& drawable, const std::size_t who,
         const std::span<const Shading> shading, const osg::Matrixf& place, const InstanceClass what,
-        const std::optional<std::size_t> glow)
+        const std::optional<std::size_t> glow, const bool jumped)
     {
         ExtractionStats& stats = mPass.getStats();
 
@@ -742,7 +763,7 @@ namespace Rtx
         // Read for every surface and not for actors alone, because nothing here knows which is
         // which: what a mirror can see is a state set above this drawable that says how much of it
         // the game is showing, and the world's own answer to that is one.
-        const float fade = shading.empty() ? 1.0f : shading.back().mFade;
+        const float fade = shading.empty() ? 1.0f : shading.back().mFade.mPlacement;
 
         const MeshInstance resolved{
             .mTransform = place,
@@ -785,7 +806,10 @@ namespace Rtx
             return;
         }
 
-        mScene.placements().move(slot, place);
+        if (jumped)
+            mScene.placements().jump(slot, place);
+        else
+            mScene.placements().move(slot, place);
         mScene.placements().fade(slot, fade);
     }
 

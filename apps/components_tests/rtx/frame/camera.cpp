@@ -5,14 +5,18 @@
 
 #include <gtest/gtest.h>
 
+#include <osg/Matrixd>
 #include <osg/Matrixf>
 #include <osg/Vec2f>
+#include <osg/Vec3d>
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/shaders/camera.h>
+#include <components/rtx/shaders/look.h>
+#include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 
 namespace Rtx
@@ -26,9 +30,9 @@ namespace Rtx
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 90.0f, 100, 100, 1000.0f);
 
-            EXPECT_NEAR(camera.mCamera.mForward.y(), 1.0f, 1e-5f);
-            EXPECT_NEAR(camera.mCamera.mRight.x(), 1.0f, 1e-5f);
-            EXPECT_NEAR(camera.mCamera.mUp.z(), 1.0f, 1e-5f);
+            EXPECT_NEAR(camera.mEyes.mWorld.mBasis.mForward.y(), 1.0f, 1e-5f);
+            EXPECT_NEAR(camera.mEyes.mWorld.mBasis.mRight.x(), 1.0f, 1e-5f);
+            EXPECT_NEAR(camera.mEyes.mWorld.mBasis.mUp.z(), 1.0f, 1e-5f);
         }
 
         TEST(RtxCameraTest, aWiderImageWidensTheHorizontalExtentAndLeavesTheVerticalAlone)
@@ -36,8 +40,39 @@ namespace Rtx
             const Shaders::VisibilityConstants wide = Testing::makeCamera(
                 osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 90.0f, 200, 100, 1000.0f);
 
-            EXPECT_NEAR(wide.mCamera.mRight.x(), 2.0f, 1e-5f);
-            EXPECT_NEAR(wide.mCamera.mUp.z(), 1.0f, 1e-5f);
+            EXPECT_NEAR(wide.mEyes.mWorld.mBasis.mRight.x(), 2.0f, 1e-5f);
+            EXPECT_NEAR(wide.mEyes.mWorld.mBasis.mUp.z(), 1.0f, 1e-5f);
+        }
+
+        /// **A turn of the head moves no camera**, however far out the eye stands. A view matrix's
+        /// translation is `-R t`, and at `|t|` near 10^5 a float ulp is about 0.008: an inverse
+        /// taken in float puts the eye back with an error that changes with `R` alone, which the
+        /// motion between two frames reads as a step. Taken in double, every turn of one eye
+        /// stands the camera at the float nearest that eye — and the float inverse of the same
+        /// views does not, which is what makes this a test of the precision and not of the turns.
+        TEST(RtxCameraTest, aTurnOfTheHeadMovesNoCamera)
+        {
+            const osg::Vec3d eye(98765.4321, -87654.321, 1234.5);
+            const osg::Vec3f nearest(eye);
+
+            bool floatMoved = false;
+            for (int step = 0; step < 16; ++step)
+            {
+                const double heading = step * 0.37;
+                const double pitch = (step % 5 - 2) * 0.3;
+                const osg::Vec3d look(
+                    std::cos(pitch) * std::sin(heading), std::cos(pitch) * std::cos(heading), std::sin(pitch));
+                const osg::Matrixd view = osg::Matrixd::lookAt(eye, eye + look, osg::Vec3d(0.0, 0.0, 1.0));
+
+                const Shaders::VisibilityConstants camera
+                    = makeCameraFromView(view, 60.0f, 64, 64, sNearPlane, 1000.0f).value();
+                EXPECT_EQ(camera.mOrigin, nearest) << "the eye moved at turn " << step;
+                EXPECT_EQ(makeOrthographicCameraFromView(view, 200.0f, 200.0f, 64, 64, 1.0f, 1000.0f)->mOrigin, nearest)
+                    << "the box's eye moved at turn " << step;
+
+                floatMoved = floatMoved || osg::Vec3f(osg::Matrixf::inverse(osg::Matrixf(view)).getTrans()) != nearest;
+            }
+            EXPECT_TRUE(floatMoved) << "no turn moved a float inverse, so nothing here tests the precision";
         }
 
         /// A view with no basis is nothing rather than a camera of NaN: a camera nobody filled in
@@ -69,22 +104,22 @@ namespace Rtx
             const Shaders::VisibilityConstants camera
                 = makeOrthographicCameraFromView(view, 200.0f, 100.0f, 64, 32, 5.0f, 400.0f).value();
 
-            EXPECT_EQ(camera.mCamera.mOrthographic, 1u);
+            EXPECT_EQ(camera.mEyes.mWorld.mOrthographic, 1u);
 
             EXPECT_NEAR(camera.mOrigin.z(), 100.0f, 1e-4f);
-            EXPECT_NEAR(camera.mCamera.mForward.z(), -1.0f, 1e-5f);
-            EXPECT_NEAR(camera.mCamera.mRight.x(), 100.0f, 1e-4f);
-            EXPECT_NEAR(camera.mCamera.mUp.y(), 50.0f, 1e-4f);
+            EXPECT_NEAR(camera.mEyes.mWorld.mBasis.mForward.z(), -1.0f, 1e-5f);
+            EXPECT_NEAR(camera.mEyes.mWorld.mBasis.mRight.x(), 100.0f, 1e-4f);
+            EXPECT_NEAR(camera.mEyes.mWorld.mBasis.mUp.y(), 50.0f, 1e-4f);
 
             // No angle, because a parallel ray's cone does not widen; the shader takes the pixel's
             // constant footprint off `mRight` instead.
-            EXPECT_EQ(camera.mCamera.mSpreadAngle, 0.0f);
+            EXPECT_EQ(camera.mEyes.mWorld.mSpreadAngle, 0.0f);
 
             // **A point of the picture is looked through along the forward, from where the box puts
             // it**, which a pick reads as the trace does (`rayAcross`). A quarter of the way right
             // of the centre and a quarter up is half of `mRight` and half of `mUp`: 50 across and
             // 25 up, and the ray goes straight down the view.
-            const Shaders::Ray parallel = Shaders::rayAcross(camera.mCamera, osg::Vec2f(0.5f, -0.5f));
+            const Shaders::Ray parallel = Shaders::rayAcross(camera.mEyes.mWorld, osg::Vec2f(0.5f, -0.5f));
             EXPECT_NEAR(parallel.mOffset.x(), 50.0f, 1e-4f);
             EXPECT_NEAR(parallel.mOffset.y(), 25.0f, 1e-4f);
             EXPECT_NEAR(parallel.mOffset.z(), 0.0f, 1e-4f);
@@ -92,18 +127,70 @@ namespace Rtx
 
             // And under a pinhole the same offset turns the direction and moves no origin: the
             // plane's right edge of a unit basis is 45 degrees off the forward.
-            Shaders::Camera pinhole = camera.mCamera;
+            Shaders::Camera pinhole = camera.mEyes.mWorld;
             pinhole.mOrthographic = 0u;
-            pinhole.mForward = osg::Vec3f(0.0f, 0.0f, -1.0f);
-            pinhole.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
-            pinhole.mUp = osg::Vec3f(0.0f, 1.0f, 0.0f);
+            pinhole.mBasis.mForward = osg::Vec3f(0.0f, 0.0f, -1.0f);
+            pinhole.mBasis.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
+            pinhole.mBasis.mUp = osg::Vec3f(0.0f, 1.0f, 0.0f);
             const Shaders::Ray fanned = Shaders::rayAcross(pinhole, osg::Vec2f(1.0f, 0.0f));
             EXPECT_EQ(fanned.mOffset, osg::Vec3f());
             EXPECT_NEAR(fanned.mDirection.x(), std::sqrt(0.5f), 1e-6f);
             EXPECT_NEAR(fanned.mDirection.z(), -std::sqrt(0.5f), 1e-6f);
 
+            // **A shifted picture looks ahead where the shift put the axis.** Half the picture right
+            // and a quarter up, in clip units, is half right and a quarter *up* the picture, whose y
+            // runs down: the forward is seen there, and the 45 degrees one unit right of it. Through
+            // the arms' plane twice as wide, half a unit right of the axis is that same edge.
+            Shaders::Camera shifted = pinhole;
+            shiftPicture(shifted, osg::Vec2f(0.5f, 0.25f));
+            EXPECT_EQ(shifted.mBasis.mCentre, osg::Vec2f(0.5f, -0.25f));
+            EXPECT_EQ(Shaders::rayAcross(shifted, osg::Vec2f(0.5f, -0.25f)).mDirection, pinhole.mBasis.mForward);
+            const osg::Vec3f edge = Shaders::rayAcross(shifted, osg::Vec2f(1.5f, -0.25f)).mDirection;
+            EXPECT_EQ(edge, fanned.mDirection);
+            EXPECT_EQ(Shaders::directionAcross(shifted.mBasis, osg::Vec2f(1.0f, -0.25f), osg::Vec2f(2.0f, 1.0f)),
+                fanned.mDirection);
+
+            // A parallel picture's box moves the same way.
+            Shaders::Camera slid = camera.mEyes.mWorld;
+            shiftPicture(slid, osg::Vec2f(0.5f, 0.25f));
+            EXPECT_EQ(Shaders::rayAcross(slid, osg::Vec2f(0.5f, -0.25f)).mOffset, osg::Vec3f());
+
             Testing::expectDies([&] { makeOrthographicCameraFromView(view, 0.0f, 100.0f, 64, 32, 5.0f, 400.0f); },
                 "an orthographic camera with no extent sees nothing");
+        }
+
+        /// A basis read the other way: the right over its squared length, 2 / 4 = 0.5 along x, and
+        /// the up over its own turned down the image, -0.5 / 0.25 = -2 along z, with the forward and
+        /// the centre as they were. The ray through `uv = centre + (1, -1)` passes `forward + right +
+        /// up` one unit ahead, and that point lands back on its `uv`: 2 * 0.5 + 0.25 = 1.25 across and
+        /// 0.5 * -2 - 0.5 = -1.5 down. A basis of nought, a frame with no eye before it, reads as
+        /// nought.
+        TEST(RtxCameraTest, aScreenBasisIsTheBasisOverItsOwnSquares)
+        {
+            const Shaders::Basis basis{
+                .mForward = osg::Vec3f(0.0f, 1.0f, 0.0f),
+                .mRight = osg::Vec3f(2.0f, 0.0f, 0.0f),
+                .mUp = osg::Vec3f(0.0f, 0.0f, 0.5f),
+                .mCentre = osg::Vec2f(0.25f, -0.5f),
+            };
+
+            const Shaders::ScreenBasis screen = screenBasisOf(basis);
+            EXPECT_EQ(screen.mForward, basis.mForward);
+            EXPECT_EQ(screen.mAcross, osg::Vec3f(0.5f, 0.0f, 0.0f));
+            EXPECT_EQ(screen.mDown, osg::Vec3f(0.0f, 0.0f, -2.0f));
+            EXPECT_EQ(screen.mCentre, basis.mCentre);
+
+            const osg::Vec3f offset = basis.mForward + basis.mRight + basis.mUp;
+            const float ahead = offset * screen.mForward;
+            EXPECT_EQ(ahead, 1.0f);
+            EXPECT_EQ(offset * screen.mAcross + screen.mCentre.x() * ahead, 1.25f);
+            EXPECT_EQ(offset * screen.mDown + screen.mCentre.y() * ahead, -1.5f);
+
+            const Shaders::ScreenBasis none = screenBasisOf(Shaders::Basis{
+                .mForward = osg::Vec3f(), .mRight = osg::Vec3f(), .mUp = osg::Vec3f(), .mCentre = osg::Vec2f() });
+            EXPECT_EQ(none.mForward, osg::Vec3f());
+            EXPECT_EQ(none.mAcross, osg::Vec3f());
+            EXPECT_EQ(none.mDown, osg::Vec3f());
         }
 
         /// **The two builders agree on everything a camera carries that is not its own basis.** A
@@ -128,8 +215,9 @@ namespace Rtx
             for (const Shaders::VisibilityConstants& camera : cameras)
             {
                 EXPECT_EQ(camera.mWaterLevel, -std::numeric_limits<float>::infinity());
-                EXPECT_EQ(camera.mSeaHeading, osg::Vec2f(1.0f, 0.0f));
+                EXPECT_EQ(camera.mSeaHeading, Shaders::seaHeading());
                 EXPECT_EQ(camera.mFogLift, 1.0f);
+                EXPECT_EQ(camera.mStars.mTexture, Shaders::NO_TEXTURE) << "a star sheet named before a world";
                 EXPECT_EQ(camera.mFar, 400.0f);
                 EXPECT_EQ(camera.mReach, sFarPlane);
                 EXPECT_EQ(camera.mNear, 1.0f);
@@ -147,9 +235,9 @@ namespace Rtx
             const Shaders::VisibilityConstants viewed
                 = makeCameraFromView(view, 90.0f, 200, 100, 1.0f, 1000.0f).value();
 
-            EXPECT_NEAR(viewed.mCamera.mRight.length(), 2.0f, 1e-5f);
-            EXPECT_NEAR(viewed.mCamera.mUp.length(), 1.0f, 1e-5f);
-            EXPECT_NEAR(viewed.mCamera.mSpreadAngle, std::atan(2.0f / 100.0f), 1e-6f);
+            EXPECT_NEAR(viewed.mEyes.mWorld.mBasis.mRight.length(), 2.0f, 1e-5f);
+            EXPECT_NEAR(viewed.mEyes.mWorld.mBasis.mUp.length(), 1.0f, 1e-5f);
+            EXPECT_NEAR(viewed.mEyes.mWorld.mSpreadAngle, std::atan(2.0f / 100.0f), 1e-6f);
         }
 
         /// The arms' eye is the eye's own until something widens it, and widening keeps the basis
@@ -168,20 +256,20 @@ namespace Rtx
                 { makeCameraFromView(view, 60.0f, 200, 100, 1.0f, 1000.0f).value(),
                     makeOrthographicCameraFromView(view, 200.0f, 100.0f, 200, 100, 1.0f, 1000.0f).value() })
             {
-                EXPECT_EQ(built.mArms.mForward, built.mCamera.mForward);
-                EXPECT_EQ(built.mArms.mRight, built.mCamera.mRight);
-                EXPECT_EQ(built.mArms.mUp, built.mCamera.mUp);
-                EXPECT_EQ(built.mArms.mSpreadAngle, built.mCamera.mSpreadAngle);
-                EXPECT_EQ(built.mArms.mWidth, built.mCamera.mWidth);
+                EXPECT_EQ(built.mEyes.mArms.mBasis.mForward, built.mEyes.mWorld.mBasis.mForward);
+                EXPECT_EQ(built.mEyes.mArms.mBasis.mRight, built.mEyes.mWorld.mBasis.mRight);
+                EXPECT_EQ(built.mEyes.mArms.mBasis.mUp, built.mEyes.mWorld.mBasis.mUp);
+                EXPECT_EQ(built.mEyes.mArms.mSpreadAngle, built.mEyes.mWorld.mSpreadAngle);
+                EXPECT_EQ(built.mEyes.mArms.mWidth, built.mEyes.mWorld.mWidth);
             }
 
             const Shaders::VisibilityConstants narrow
                 = makeCameraFromView(view, 60.0f, 200, 100, 1.0f, 1000.0f).value();
-            const Shaders::Camera wide = cameraAtFieldOfView(narrow.mCamera, 90.0f);
+            const Shaders::Camera wide = cameraAtFieldOfView(narrow.mEyes.mWorld, 90.0f);
 
-            EXPECT_EQ(wide.mForward, narrow.mCamera.mForward);
-            EXPECT_NEAR(wide.mRight.length(), 2.0f, 1e-5f);
-            EXPECT_NEAR(wide.mUp.length(), 1.0f, 1e-5f);
+            EXPECT_EQ(wide.mBasis.mForward, narrow.mEyes.mWorld.mBasis.mForward);
+            EXPECT_NEAR(wide.mBasis.mRight.length(), 2.0f, 1e-5f);
+            EXPECT_NEAR(wide.mBasis.mUp.length(), 1.0f, 1e-5f);
             EXPECT_NEAR(wide.mSpreadAngle, std::atan(2.0f / 100.0f), 1e-6f);
             EXPECT_EQ(wide.mWidth, 200u);
             EXPECT_EQ(wide.mHeight, 100u);
@@ -189,11 +277,11 @@ namespace Rtx
             // The same axes, only longer.
             for (int axis = 0; axis < 3; ++axis)
             {
-                EXPECT_NEAR(wide.mRight[axis] / wide.mRight.length(),
-                    narrow.mCamera.mRight[axis] / narrow.mCamera.mRight.length(), 1e-6f)
+                EXPECT_NEAR(wide.mBasis.mRight[axis] / wide.mBasis.mRight.length(),
+                    narrow.mEyes.mWorld.mBasis.mRight[axis] / narrow.mEyes.mWorld.mBasis.mRight.length(), 1e-6f)
                     << "right " << axis;
-                EXPECT_NEAR(
-                    wide.mUp[axis] / wide.mUp.length(), narrow.mCamera.mUp[axis] / narrow.mCamera.mUp.length(), 1e-6f)
+                EXPECT_NEAR(wide.mBasis.mUp[axis] / wide.mBasis.mUp.length(),
+                    narrow.mEyes.mWorld.mBasis.mUp[axis] / narrow.mEyes.mWorld.mBasis.mUp.length(), 1e-6f)
                     << "up " << axis;
             }
         }

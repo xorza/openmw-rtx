@@ -35,7 +35,7 @@ namespace RtxTool
 
         /// The weather and the hour the run stands under, `Thunderstorm, 14:32`, and which weather
         /// is crossing in where one is, `Clear → Overcast 37%, 14:32`, off the last note; empty until
-        /// a stop has begun and been noted.
+        /// a stop has begun and been noted, which in a run nobody plays is at the stop's end.
         std::string_view describeTitle();
 
         /// Where the run was left, as a stop that would put a camera back there, or null where no

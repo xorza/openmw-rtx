@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 #include <osg/Matrixf>
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 
 #include <components/rtx/frame/camera.hpp>
@@ -12,6 +13,17 @@
 
 namespace Rtx::Testing
 {
+    /// The atmosphere a camera built by hand fades its sky by: an atmosphere whose lower ring stands
+    /// on the horizon and whose upper ring is the zenith, so the fog colour runs to the sky colour
+    /// over the whole hemisphere by `t = sin e / (sin e + cos e)`. Its cosine-weighted mean is a
+    /// half, because `t(e) + t(90° - e) = 1` and the cosine's weight `sin 2e` is the same at both.
+    inline const Shaders::SkyRamp sHemisphereRamp{
+        .mBottom = 0.0f,
+        .mTop = 1.0f,
+        .mLow = osg::Vec2f(1.0f, 0.0f),
+        .mStep = osg::Vec2f(-1.0f, 1.0f),
+    };
+
     /// A pinhole camera at `origin` looking `along`, which need not be a unit vector, with the
     /// world's +Z up: a view matrix and `makeCameraFromView`, which is how the game builds one.
     /// Throws for a direction of nought or along the world's up, which leave no basis.
@@ -24,7 +36,9 @@ namespace Rtx::Testing
         if (!camera.has_value())
             throw std::invalid_argument("a test camera with no basis to look along");
 
-        return *camera;
+        Shaders::VisibilityConstants built = *camera;
+        built.mSkyRamp = sHemisphereRamp;
+        return built;
     }
 
     /// The same, looking at `target`.

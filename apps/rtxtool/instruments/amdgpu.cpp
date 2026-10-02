@@ -99,7 +99,8 @@ namespace RtxTool
             if (const std::optional<std::string_view> read = readSmall(mTemperature, text))
                 degrees = wholeDegrees(*read);
 
-        return GpuClock::reading(*coreMhz, memoryMhz.value_or(0), degrees.value_or(0), 0);
+        // The reasons a card is held back are NVML's bits, which sysfs has no counterpart of.
+        return GpuClock::reading(*coreMhz, memoryMhz, degrees, std::nullopt);
     }
 
     std::optional<std::uint32_t> AmdGpu::currentLevelMhz(std::string_view levels)

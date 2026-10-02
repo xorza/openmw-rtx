@@ -11,6 +11,13 @@
 // copy against every other. There is nothing in it that belongs to one structure rather than to
 // all of them.
 //
+// **A push block carries no padding member, and says where its last member ends.** A block with a
+// 64-bit address is rounded to a multiple of eight on this side and not in the shader's block, and
+// the range a pipeline declares is the host's size (`pushRangeOf`), which Vulkan lets cover bytes
+// the shader does not read. So such a block asserts `offsetof(last) + sizeof(last)` against the
+// shader's size, and leaves the rounding to the compiler; a padding member would only grow the
+// shader's block to match, and grow an all-`uint` block for nothing.
+//
 // **The namespace is reopened rather than nested.** Each header still writes
 // `namespace Rtx::Shaders` around its own contents, which is where a reader looks for what a name
 // belongs to. This only puts the aliases in that namespace first.
@@ -60,6 +67,11 @@ namespace Rtx::Shaders
     /// shared function that draws a direction reads its components as `v[i]` on both sides and
     /// calls this.
     inline vec3 normalize(const vec3& v)
+    {
+        return v * (1.0f / std::sqrt(v * v));
+    }
+
+    inline vec2 normalize(const vec2& v)
     {
         return v * (1.0f / std::sqrt(v * v));
     }

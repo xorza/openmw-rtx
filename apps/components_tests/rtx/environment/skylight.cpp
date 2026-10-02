@@ -185,18 +185,16 @@ namespace Rtx
             EXPECT_FALSE(weatherIndex("").has_value());
         }
 
-        /// The sun's cone is drawn from a literal sine, and the literal is the angle's.
-        ///
-        /// **To within one step of what `sin` of the float angle gives**, because the shader folded
-        /// the sine before the host wrote the limb and its fold landed one step above this box's,
-        /// and the picture is held to what it was. A change to `SUN_SHADOW_RADIUS` fails here
-        /// until the sine is written out again.
-        TEST(RtxSkylightTest, theSunsShadowSineIsTheSineOfItsShadowRadius)
+        /// **The sun's cone is two degrees, and its limb is that angle's sine**, by the rule a moon's
+        /// limb follows: `sin(2π / 180)` is 0.0348995, which the float angle 0.0349066 gives to within
+        /// a step.
+        TEST(RtxSkylightTest, theSunsShadowConeIsTwoDegreesAndItsLimbIsItsSine)
         {
-            const float sine = std::sin(Rtx::Shaders::SUN_SHADOW_RADIUS);
-            EXPECT_LE(std::abs(Rtx::Shaders::SUN_SHADOW_SINE - sine), std::nextafter(sine, 1.0f) - sine);
-            EXPECT_EQ(Rtx::Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(1.0f, 1.0f, 1.0f)).mLimb,
-                Rtx::Shaders::SUN_SHADOW_SINE);
+            EXPECT_EQ(Rtx::Shaders::SUN_SHADOW_RADIUS, static_cast<float>(2.0 * 3.14159265358979 / 180.0));
+            const float limb
+                = Rtx::Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(1.0f, 1.0f, 1.0f)).mLimb;
+            EXPECT_EQ(limb, std::sin(Rtx::Shaders::SUN_SHADOW_RADIUS));
+            EXPECT_NEAR(limb, 0.0348995f, 1e-7f);
         }
 
         /// The hour holds an exposure back, and a noon does not.
@@ -280,18 +278,25 @@ namespace Rtx
         TEST(RtxSkylightTest, aNightsSkyLightsWithMoreThanItIsDrawnWith)
         {
             const auto grey = [](float value) { return osg::Vec3f(value, value, value); };
+            // An atmosphere that shows a surface facing the sky three quarters of the zenith colour.
+            constexpr float share = 0.75f;
             const auto filled = [&](float horizon, float zenith, float sheets, float ambient) {
-                return skyBudget(grey(horizon), grey(zenith), grey(sheets), grey(ambient)).mFill.x();
+                return skyBudget(grey(horizon), grey(zenith), share, grey(sheets), grey(ambient)).mFill.x();
             };
 
-            // A gradient linear in `sin(elevation)` delivers what a uniform sky of `h / 3 + 2z / 3`
-            // would, so a horizon of 0.3 under a zenith of 0.6 is worth 0.5 — and an ambient of 0.8
-            // asks for the 0.3 that is left.
-            EXPECT_NEAR(filled(0.3f, 0.6f, 0.0f, 0.8f), 0.3f, 1e-6f);
+            // The gradient delivers what a uniform sky of `h / 4 + 3z / 4` would, so a horizon of
+            // 0.3 under a zenith of 0.6 is worth 0.525 — and an ambient of 0.8 asks for the 0.275
+            // that is left.
+            EXPECT_NEAR(filled(0.3f, 0.6f, 0.0f, 0.8f), 0.275f, 1e-6f);
 
-            // The zenith is worth twice the horizon, which is what makes those two different skies:
-            // the same pair the other way up is worth 0.4 and leaves 0.4 to ask for.
-            EXPECT_NEAR(filled(0.6f, 0.3f, 0.0f, 0.8f), 0.4f, 1e-6f);
+            // The zenith is worth three times the horizon, which is what makes those two different
+            // skies: the same pair the other way up is worth 0.375 and leaves 0.425 to ask for.
+            EXPECT_NEAR(filled(0.6f, 0.3f, 0.0f, 0.8f), 0.425f, 1e-6f);
+
+            // The share is what weighs the two: none of the zenith is the horizon's 0.3 alone, and
+            // all of it the zenith's 0.6.
+            EXPECT_NEAR(skyBudget(grey(0.3f), grey(0.6f), 0.0f, grey(0.0f), grey(0.8f)).mFill.x(), 0.5f, 1e-6f);
+            EXPECT_NEAR(skyBudget(grey(0.3f), grey(0.6f), 1.0f, grey(0.0f), grey(0.8f)).mFill.x(), 0.2f, 1e-6f);
 
             // A sky that already carries the ambient asks for nothing, and one that outruns it does
             // not ask for less than nothing.
@@ -299,14 +304,15 @@ namespace Rtx
             EXPECT_EQ(filled(0.9f, 0.9f, 0.0f, 0.2f), 0.0f);
 
             // **The night's own sheets come out of the same figure**, which is what keeps a night
-            // where it was as one more layer starts lighting: a tenth of the 0.3 above comes from the
+            // where it was as one more layer starts lighting: 0.03 of the 0.275 above comes from the
             // stars instead of from the fill.
-            EXPECT_NEAR(filled(0.3f, 0.6f, 0.03f, 0.8f), 0.27f, 1e-6f);
+            EXPECT_NEAR(filled(0.3f, 0.6f, 0.03f, 0.8f), 0.245f, 1e-6f);
             EXPECT_EQ(filled(0.3f, 0.6f, 0.5f, 0.8f), 0.0f) << "and sheets that outrun it ask for nothing";
 
             // And it asks per channel: a red ambient over a grey sky fills the red alone rather than
             // lifting the whole of it.
-            const SkyBudget tinted = skyBudget(grey(0.5f), grey(0.5f), osg::Vec3f(), osg::Vec3f(0.9f, 0.5f, 0.1f));
+            const SkyBudget tinted
+                = skyBudget(grey(0.5f), grey(0.5f), share, osg::Vec3f(), osg::Vec3f(0.9f, 0.5f, 0.1f));
             EXPECT_NEAR(tinted.mFill.x(), 0.4f, 1e-6f);
             EXPECT_EQ(tinted.mFill.y(), 0.0f);
             EXPECT_EQ(tinted.mFill.z(), 0.0f);

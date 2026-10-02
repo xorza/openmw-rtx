@@ -33,13 +33,12 @@ namespace Rtx
     /// timer, and cannot be handed any of them. Nothing here is held.
     struct FrameLook
     {
-        /// The eye adapts off the shown frame at its own rate — from nothing where `mReset` says the
-        /// camera has no past — or is held at a value, or keeps the one the frame before ended on. A picture is
-        /// measured off nothing, which `ExposurePass::getPictureExposure` says is a buffer of its own.
+        /// The eye adapts off the shown frame at its own rate — from nothing after `loseEye` — or is
+        /// held at a value, or keeps the one the frame before ended on. A picture is measured off
+        /// nothing, which `ExposurePass::getPictureExposure` says is a buffer of its own.
         struct Measured
         {
             float mSeconds;
-            bool mReset;
             float mBias;
         };
         struct Fixed
@@ -57,7 +56,6 @@ namespace Rtx
         {
             SunGlare mFader;
             float mSeconds;
-            bool mReset;
         };
         Glare mGlare;
 
@@ -83,11 +81,7 @@ namespace Rtx
         /// The frame as it will be shown: the puffs go over it and the curve maps it. The
         /// upscaler's output where one runs, the trace's own composite where none does, and a
         /// picture's own colour inside the interface.
-        const Image& mShown;
-
-        /// Where the last writer of `mShown` left it, which the display hands over from: the
-        /// trace's `Use::sAnyGeneralRead`, or the upscaler's `Use::sAnyGeneralWrite`.
-        ImageUse mShownFrom;
+        HandedImage mShown;
 
         /// How much of the shown frame the picture is, from its corner: the whole of a frame's,
         /// and a picture's own size inside an image that may be larger. The curve encodes as much
@@ -131,8 +125,8 @@ namespace Rtx
 
         /// Says the measured exposure and the glare's eased share are worthless, each until the next
         /// frame that eases it: the share eases on every frame, and the exposure only on a frame
-        /// that measures.
-        void resetHistory() { mExposureStale = mGlareStale = true; }
+        /// that measures. `FramePast::mEyeLost`, and the one route by which the eye hears it.
+        void loseEye() { mExposureStale = mGlareStale = true; }
 
         /// Records everything from the puffs to the target, and leaves `what.mTarget` in
         /// `Use::sComputeWrite`, where the curve left it.
@@ -157,7 +151,7 @@ namespace Rtx
         /// The debug modes' lines and triangles, over the picture and under the interface.
         LinePass mLines;
 
-        /// Set by `resetHistory` and each spent by the next record that eases its history.
+        /// Set by `loseEye` and each spent by the next record that eases its history.
         bool mExposureStale = false;
         bool mGlareStale = false;
     };

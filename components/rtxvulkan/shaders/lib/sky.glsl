@@ -28,7 +28,8 @@
 /// hemisphere and a ray is a direction — `NightSky::mGlow` carries that argument.
 vec3 skyGlow(vec3 direction)
 {
-    return skyGradient(frame.mSkyHorizon, frame.mSkyZenith, direction) + frame.mStars.mGlow + frame.mSkyFill;
+    return skyGradient(frame.mSkyHorizon, frame.mSkyZenith, frame.mSkyRamp, direction) + frame.mStars.mGlow
+        + frame.mSkyFill;
 }
 
 /// Where a point on the layer sits on the sheet, in texture coordinates.
@@ -37,14 +38,17 @@ vec3 skyGlow(vec3 direction)
 /// a sheet laid out from where a ray happened to be looking travels with the camera, and a shadow
 /// off one would travel with it too rather than lie under the cloud that made it.
 ///
-/// The turn is about the world's own origin, so that a ray from an eye and a ray from a shading
-/// point reach one answer. Nothing this renderer draws can see where that centre is: the four
-/// weathers that drive a storm are ash, blight, snow and blizzard, and not one of them reaches a
-/// cloud sheet the archives hold.
+/// **The turn is about the frame's eye**, as the rasterizer turns its cloud mesh about the
+/// camera, and one point for every ray of a frame, so a ray from the eye and a ray from a shading
+/// point reach one answer. An ash or blight storm blows off Red Mountain at the player, so its
+/// bearing changes as the player walks; turned about the world's origin, the deck overhead would
+/// slide by the walk times the player's distance from the origin over their distance from the
+/// mountain.
 vec2 cloudUvAt(vec2 crossing, vec2 bearing)
 {
-    const vec2 along
-        = vec2(crossing.x * bearing.x - crossing.y * bearing.y, crossing.x * bearing.y + crossing.y * bearing.x);
+    const vec2 from = crossing - frame.mOrigin.xy;
+    const vec2 along = vec2(from.x * bearing.x - from.y * bearing.y, from.x * bearing.y + from.y * bearing.x)
+        + frame.mOrigin.xy;
 
     return along * frame.mClouds.mPerTile + vec2(0.0, frame.mClouds.mScroll);
 }
@@ -374,6 +378,15 @@ vec3 moonFace(MoonDisc moon, vec3 direction, float blur, out float covered)
 /// @param shown how much of the star field is still in front of what this returns, from none to all.
 vec3 skyRadiance(vec3 origin, vec3 direction, float blur, bool discs, out float shown)
 {
+    // **A sky turned off is the fog colour the rasterizer clears to**, with nothing on it: `tsky`
+    // hides the sky node and leaves its light, so what changes is what a ray that reached nothing
+    // shows. The same answer on every lane of a frame.
+    if (frame.mSkyDrawn == 0u)
+    {
+        shown = 0.0;
+        return frame.mSkyHorizon;
+    }
+
     shown = 1.0;
 
     // **Everything on or beyond the celestial sphere first, which is what a moon stands in front
@@ -433,7 +446,7 @@ vec3 skyRadiance(vec3 origin, vec3 direction, float blur, bool discs, out float 
     //
     // **The gradient and not `skyGlow`**, which is the one place the two part company: the fill is
     // light the weather says a night has and Morrowind draws nowhere, so an eye must not find it.
-    colour += skyGradient(frame.mSkyHorizon, frame.mSkyZenith, direction);
+    colour += skyGradient(frame.mSkyHorizon, frame.mSkyZenith, frame.mSkyRamp, direction);
 
     // Last, and over everything: the deck is nearer than any of it.
     float covered;

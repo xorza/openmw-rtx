@@ -22,7 +22,7 @@
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
-#include <components/rtx/preprocess/contentpreprocessor.hpp>
+#include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
@@ -99,33 +99,15 @@ namespace MWRender
         /// trace presses it and the digest sees it. After `mirror`, which clears the frame's lists.
         void addRipples(std::span<const Rtx::RippleImpulse> impulses);
 
-        /// A cell the scene added, which is what the sea is centred on: upstream's
-        /// `Water::changeCell`, verbatim in effect — the middle of the cell outdoors, the origin
-        /// indoors, the last one added winning. The plane is a hundred and fifty cells wide, so
-        /// where its middle is does not show; kept the rasterizer's so the two pictures agree.
+        /// A cell the scene added, which is what the sea is centred on, as `Water::changeCell`
+        /// centres it (`seaCentre`): the middle of the cell outdoors, the origin indoors, the last
+        /// one added winning.
         void standSea(const MWWorld::CellStore& cell);
 
         /// Hands the scene to `renderer`, building only what has to be built, and then ends the
         /// placement: where everything stands is what the next frame measures its motion against,
         /// and the change lists the backend just took start again.
         Rtx::SceneUpload hand(Rtx::Renderer& renderer, Rtx::FrameSpend& spend);
-
-        /// Whether each walk waits for the one cell it adopts. `Rtx::CellRing::setSettled` says
-        /// why a run would, and what waiting costs it.
-        void setSettled(bool settled) { mRing.setSettled(settled); }
-
-        /// `Rtx::CellRing::getCellsToStand`.
-        std::uint32_t getCellsToStand() const { return mRing.getCellsToStand(); }
-
-        /// What the game says of one reference, which the content files cannot: a script has
-        /// disabled it, or enabled it again, or the game moved it and the distance must never
-        /// stand it. A cleared world says it of none.
-        void setReferenceEnabled(ESM::RefNum refnum, bool enabled) { mRing.setReferenceEnabled(refnum, enabled); }
-
-        /// What a visibility gate says of the references behind it — `CellRing::setGate`.
-        void setGate(std::uint32_t gate, Terrain::GateState state) { mRing.setGate(gate, state); }
-        void blacklistReference(ESM::RefNum refnum) { mRing.blacklistReference(refnum); }
-        void forgetReferences() { mRing.forgetReferences(); }
 
         /// How much world this renderer builds, in units: the ground, the air and the distant
         /// lights are all measured over it. The settings' count of cells, as they stood when the
@@ -136,6 +118,12 @@ namespace MWRender
         /// The worldspace's grid, as the last walk read it off the land.
         const Rtx::CellGrid& getGrid() const { return mGrid; }
 
+        /// The distant cells: the one route to them, for the ground that tells them what the game
+        /// says of a reference, the frame that asks how much is left to stand, a picture that asks
+        /// whether its ground stands yet, and the harness's checks.
+        Rtx::CellRing& getRing() { return mRing; }
+        const Rtx::CellRing& getRing() const { return mRing; }
+
         /// The menu moved the reach, or the view distance it falls back to. Told rather than read
         /// per frame, so the ring, the air and the map follow one number a frame was handed.
         void setReach(const Rtx::LandReach& reach) { mReach = reach; }
@@ -143,15 +131,11 @@ namespace MWRender
         /// Where the last walk stood the rings: the camera's eye, which is not the player's feet.
         const osg::Vec3f& getEye() const { return mEye; }
 
-        /// Whether the world walk includes the player's own model. True for a game somebody is
-        /// playing.
-        ///
-        /// **A camera that is not the player's eye stands inside the player.** `MWRender::Camera` in
-        /// `Mode::Static` takes the `VM_Normal` branch of `processViewChange`, so the game dresses
-        /// the whole third-person body — and a session flies the player to its route's point so that
-        /// cells load around it, then stands the camera on the same coordinates. What that traced
-        /// was a boot and a trouser leg thirteen units from the eye, filling a third of the frame.
-        void setShowsPlayer(bool shows);
+        /// What the eye sees of the world, `Renderer::worldViewMask`: the world walk leaves the
+        /// player's own model and the actors out where the mask does, as the rasterizer culls
+        /// them. The game keeps `Mask_Player` in, a static camera a script parks included; a host
+        /// whose camera stands inside the player takes it out, and `tws` takes the actors out.
+        void setViewMask(unsigned int view);
 
         const Rtx::SceneDesc& getScene() const { return mScene; }
         Rtx::SceneDesc& getScene() { return mScene; }
@@ -159,35 +143,17 @@ namespace MWRender
         /// What the content holds on the host beside the scene — `Rtx::ContentMemory`.
         Rtx::ContentMemory getContentMemory();
 
-        /// What the frame thread computes from the content, which the world's walk, the sky and
-        /// every traced view's walk share — `Rtx::ThreadContent`.
-        Rtx::ThreadContent& getContent() { return mThreadContent; }
-        Rtx::ContentPreprocessor& getPreprocessor() { return mThreadContent.mPreprocessor; }
-
-        /// Where every walk that can reach one graph takes its traversal numbers from.
-        Rtx::Traversals& getTraversals() { return mTraversals; }
-
-        /// What the content's `_spec` maps mean, as the mirror was made with — for the scene
-        /// manager, which loads them, and for the pictures inside the interface, which read them.
-        Rtx::SpecularLayout getSpecularLayout() const { return mSpecularLayout; }
+        /// What every walk on the frame thread shares — the world's, the sky's and every traced
+        /// view's: the traversal numbers, what the walks compute from the content, and what its
+        /// `_spec` maps mean (`Rtx::WalkContext`).
+        Rtx::WalkContext& getWalkContext() { return mWalk; }
 
         /// What the world's walk may see. Read by the tests and by nothing else.
-        osg::Node::NodeMask getTraversalMask() const;
-
-        /// `Rtx::CellRing::collectStanding`: every reference the ring stands, for the harness's
-        /// check that the game stands none of them.
-        void collectStanding(std::vector<ESM::RefNum>& into) const { mRing.collectStanding(into); }
-
-        /// `Rtx::CellRing::collectGateVerdicts`, for the harness's check that the gates agree with
-        /// the game.
-        void collectGateVerdicts(std::vector<Rtx::GateVerdict>& into) const { mRing.collectGateVerdicts(into); }
+        osg::Node::NodeMask getTraversalMask() const { return mTraversal; }
 
     private:
-        /// Shared by everything that can reach one graph — the world's walk and every traced view.
-        Rtx::Traversals mTraversals;
-
-        /// The same, for what the walks on this thread compute from the content.
-        Rtx::ThreadContent mThreadContent;
+        /// Shared by every walk on the frame thread: the world's and every traced view's.
+        Rtx::WalkContext mWalk;
 
         Rtx::SceneDesc mScene;
 
@@ -198,7 +164,9 @@ namespace MWRender
 
         Rtx::SceneExtractor mExtractor;
 
-        bool mShowsPlayer = true;
+        /// What `setViewMask` last let the walk see: every class until then, as a fresh seam's view
+        /// mask has it.
+        osg::Node::NodeMask mTraversal;
 
         /// The sea: upstream's water geometry under `Mask_Water`, which is how the extractor
         /// knows a sea from a floor, stood at the frame's water height and hidden where the frame
@@ -223,6 +191,5 @@ namespace MWRender
         Rtx::LandReach mReach;
         Rtx::CellGrid mGrid;
         osg::Vec3f mEye;
-        Rtx::SpecularLayout mSpecularLayout;
     };
 }

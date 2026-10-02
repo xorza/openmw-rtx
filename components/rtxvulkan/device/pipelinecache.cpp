@@ -79,7 +79,7 @@ namespace Rtx
             if (failed)
                 return {};
 
-            const std::array<std::uint64_t, 2> shaders = digestShaders(shaderDirectory);
+            const DigestWords shaders = digestShaders(shaderDirectory);
 
             std::array<std::uint8_t, sizeof(shaders)> digest{};
             std::memcpy(digest.data(), shaders.data(), digest.size());
@@ -271,8 +271,12 @@ namespace Rtx
         // Through a temporary with a unique name: a test binary and a tool can be closing at the
         // same moment, and two writing one path would interleave into a file with a valid header
         // and a mixed body, which the header check cannot catch. The rename is atomic.
+        //
+        // **Named to end as a cache does**, `rtx-<key>.<n>.partial.pipelinecache`, so a partial
+        // that a process killed between its write and its rename left behind is one the sweep
+        // counts and ages out; under any other suffix it would stay for good, up to `sMostBytes` of it.
         std::filesystem::path partial = mPath;
-        partial += "." + std::to_string(std::random_device{}()) + ".partial";
+        partial.replace_extension("." + std::to_string(std::random_device{}()) + ".partial" + std::string(sSuffix));
 
         bool written = false;
         {

@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <span>
 #include <sstream>
 #include <string>
@@ -8,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/instruments/cardwatch.hpp>
+#include <apps/rtxtool/instruments/gpuclock.hpp>
 #include <apps/rtxtool/model/benchrecord.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/testing/util.hpp>
@@ -130,7 +132,7 @@ namespace RtxTool
             place.mCard.mHolders.push_back(CardHolder{ .mName = "tab\there", .mSamples = 1 });
 
             const std::filesystem::path path = TestingOpenMW::outputFilePath("escaped-record.json");
-            writeJson(path, BenchHeader{ .mSuite = "a\nb" }, std::span(&place, 1));
+            ASSERT_TRUE(writeJson(path, BenchHeader{ .mSuite = "a\nb" }, std::span(&place, 1)).isOk());
 
             std::ostringstream read;
             read << std::ifstream(path).rdbuf();
@@ -148,6 +150,32 @@ namespace RtxTool
             EXPECT_NE(json.find(backslash), std::string::npos) << json;
             EXPECT_NE(json.find(newline), std::string::npos) << json;
             EXPECT_NE(json.find(tab), std::string::npos) << json;
+        }
+
+        /// The clock goes into the record with the mean and the count a frame time is read against,
+        /// so two records say whether they ran at one clock; and what the instrument could not
+        /// read is null, not nought. Core (1785 + 2070 + 1980) / 3 = 1945 over 3, memory
+        /// (9001 + 8000) / 2 = 8500 over 2.
+        TEST(RtxBenchRecordTest, theRecordWritesTheClockAsTheReportReadsIt)
+        {
+            BenchPlace place;
+            place.mClock = GpuClock::reading(1785, 9001, std::nullopt, std::nullopt);
+            place.mClock.add(GpuClock::reading(2070, 8000, std::nullopt, std::nullopt));
+            place.mClock.add(GpuClock::reading(1980, std::nullopt, std::nullopt, std::nullopt));
+
+            const std::filesystem::path path = TestingOpenMW::outputFilePath("clock-record.json");
+            ASSERT_TRUE(writeJson(path, BenchHeader{}, std::span(&place, 1)).isOk());
+
+            std::ostringstream read;
+            read << std::ifstream(path).rdbuf();
+            const std::string json = read.str();
+            std::filesystem::remove(path);
+
+            constexpr std::string_view clock = R"("clock": {"core": {"meanMhz": 1945, "lowestMhz": 1785, )"
+                                               R"("highestMhz": 2070, "readings": 3}, "memory": {"meanMhz": 8500, )"
+                                               R"("lowestMhz": 8000, "highestMhz": 9001, "readings": 2}, )"
+                                               R"("temperatureC": null, "throttle": null})";
+            EXPECT_NE(json.find(clock), std::string::npos) << json;
         }
     }
 }

@@ -10,10 +10,13 @@
 
 namespace Rtx
 {
-    void FinestTexels::describe(const osg::Image& image, ContentDigest& digest)
+    void FinestTexels::describe(const osg::Image& image)
     {
         mFinest = describeFinest(image, mScratch);
+    }
 
+    void FinestTexels::addTo(ContentDigest& digest) const
+    {
         const bool described = mFinest.has_value();
         digest.addValue(described);
         if (!described)

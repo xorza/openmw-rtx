@@ -77,12 +77,27 @@
 
 #include "../mwrender/animation.hpp"
 #include "../mwrender/npcanimation.hpp"
+#include "../mwrender/renderer.hpp"
+#include "../mwrender/renderingmanager.hpp"
+#include "../mwrender/rendersupport.hpp"
 
 #include "interpretercontext.hpp"
 #include "ref.hpp"
 
 namespace
 {
+    /// Whether the renderer the game runs declines `mode`, which a toggle asks before it toggles,
+    /// and the reason reported as `what`'s answer where it does.
+    bool declines(Interpreter::Runtime& runtime, MWRender::RenderMode mode, std::string_view what)
+    {
+        const std::string_view declined
+            = MWBase::Environment::get().getWorld()->getRenderingManager()->getRenderer().support().declinedMode(mode);
+        if (declined.empty())
+            return false;
+
+        runtime.getContext().report(MWRender::notAvailable(what, declined));
+        return true;
+    }
 
     // Matches ESM::PartReferenceType order
     constexpr std::array<std::string_view, ESM::PRT_Count> sPartNames = { "Head", "Hair", "Neck", "Cuirass", "Groin",
@@ -450,6 +465,9 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
+                if (declines(runtime, MWRender::Render_CollisionDebug, "Collision Mesh Rendering"))
+                    return;
+
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_CollisionDebug);
 
                 runtime.getContext().report(
@@ -462,6 +480,9 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
+                if (declines(runtime, MWRender::Render_CollisionDebug, "Collision Mesh Rendering"))
+                    return;
+
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_CollisionDebug);
 
                 runtime.getContext().report(
@@ -474,6 +495,9 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
+                if (declines(runtime, MWRender::Render_Wireframe, "Wireframe Rendering"))
+                    return;
+
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_Wireframe);
 
                 runtime.getContext().report(enabled ? "Wireframe Rendering -> On" : "Wireframe Rendering -> Off");
@@ -496,6 +520,9 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
+                if (declines(runtime, MWRender::Render_Pathgrid, "Path Grid Rendering"))
+                    return;
+
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_Pathgrid);
 
                 runtime.getContext().report(enabled ? "Path Grid rendering -> On" : "Path Grid Rendering -> Off");
@@ -1712,6 +1739,9 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
+                if (declines(runtime, MWRender::Render_NavMesh, "Navigation Mesh Rendering"))
+                    return;
+
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_NavMesh);
 
                 runtime.getContext().report(
@@ -1724,6 +1754,9 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
+                if (declines(runtime, MWRender::Render_ActorsPaths, "Agents Paths Rendering"))
+                    return;
+
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_ActorsPaths);
 
                 runtime.getContext().report(enabled ? "Agents Paths Rendering -> On" : "Agents Paths Rendering -> Off");
@@ -1765,6 +1798,9 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
+                if (declines(runtime, MWRender::Render_RecastMesh, "Recast Mesh Rendering"))
+                    return;
+
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_RecastMesh);
 
                 runtime.getContext().report(enabled ? "Recast Mesh Rendering -> On" : "Recast Mesh Rendering -> Off");

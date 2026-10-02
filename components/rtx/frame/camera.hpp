@@ -4,7 +4,6 @@
 #include <optional>
 
 #include <osg/Matrixd>
-#include <osg/Matrixf>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
@@ -44,23 +43,32 @@ namespace Rtx
 
     /// The same eye at another field of view: the basis kept and the image plane's half extents
     /// taken from `verticalFovDegrees`, at the camera's own aspect. What the player's own arms are
-    /// seen through — `Shaders::VisibilityConstants::mArms` — since `first person field of view`
+    /// seen through — `Shaders::Eyes::mArms` — since `first person field of view`
     /// and `field of view` are two settings. Every camera built below starts with the arms' eye
     /// equal to its own.
     Shaders::Camera cameraAtFieldOfView(const Shaders::Camera& camera, float verticalFovDegrees);
+
+    /// Moves `camera`'s picture by `shift`, in clip units with x right and y up: what a projection
+    /// post-multiplied by that translation draws, which is how the game applies a script's
+    /// `camera.setProjectionOffset`. `Shaders::Camera::mCentre` holds it in the picture's own axes.
+    void shiftPicture(Shaders::Camera& camera, const osg::Vec2f& shift);
+
+    /// `basis` read the other way, `Shaders::ScreenBasis`: what a block a projection reads is
+    /// handed beside the basis it was worked out from. Nought for a basis of nought.
+    Shaders::ScreenBasis screenBasisOf(const Shaders::Basis& basis);
 
     /// A camera from a view matrix in OpenSceneGraph's convention: row vectors, and an eye space
     /// looking down its own -Z. The basis comes out of the matrix rather than from the world's up,
     /// which is what lets a map look straight down. Nothing for a matrix that cannot be inverted
     /// or whose basis collapsed, as `viewBasisOf` says.
-    std::optional<Shaders::VisibilityConstants> makeCameraFromView(const osg::Matrixf& view, float verticalFovDegrees,
+    std::optional<Shaders::VisibilityConstants> makeCameraFromView(const osg::Matrixd& view, float verticalFovDegrees,
         std::uint32_t width, std::uint32_t height, float near, float far);
 
     /// The same viewpoint with no perspective in it: every ray travels the view direction, and
     /// which one a pixel sends comes from where it sits on a box `worldWidth` by `worldHeight`
     /// centred on the eye. A box with no extent is a caller's contract and not a matrix's, and
     /// `Crash::contract` holds it.
-    std::optional<Shaders::VisibilityConstants> makeOrthographicCameraFromView(const osg::Matrixf& view,
+    std::optional<Shaders::VisibilityConstants> makeOrthographicCameraFromView(const osg::Matrixd& view,
         float worldWidth, float worldHeight, std::uint32_t width, std::uint32_t height, float near, float far);
 
     /// Where inside its pixel frame `index` should sample, in pixels and centred on zero, in the

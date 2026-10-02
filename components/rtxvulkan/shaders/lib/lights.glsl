@@ -48,6 +48,10 @@ SkySource skySourceAt(uint source)
 /// @param draw one pair in `[0, 1)`, which aims the ray inside the disc's cone.
 Passage skyPassage(SkySource sky, vec3 position, vec2 draw)
 {
+    // A picture with shadows off is open to the sky everywhere: one answer for the whole frame.
+    if (frame.mNoSkyShadows != 0u)
+        return Passage(1.0, 1.0);
+
     const Passage passage = lightPassage(position, coneDirection(sky.mDirection, sky.mLimb, draw), frame.mReach);
     return Passage(passage.mOpen, passage.mThrough * cloudShadow(position, sky.mDirection));
 }
@@ -79,16 +83,37 @@ float skyVisible(vec3 position, uint source, vec2 draw)
 ///
 /// **By cell rather than by point, because a walk along a ray has the cell already.** The stretch a
 /// ray spends inside one cell is one list asked once, which is what `weighLamps` is built on.
-uvec2 lampsInCell(vec3 cell)
+///
+/// @param key nought for the lamps that light, one for those that take light away: each cell keeps
+///        the two runs one after the other — `Rtx::LightGrid::getList`.
+uvec2 lightRunInCell(vec3 cell, uint key)
 {
     if (any(lessThan(cell, vec3(0.0))) || any(greaterThanEqual(cell, vec3(frame.mLightGrid.mSize))))
         return uvec2(0u, 0u);
 
     const uvec3 at = uvec3(cell);
     // `flat` is what this wants to be called, and GLSL reserves it for interpolation.
-    const uint index = (at.z * frame.mLightGrid.mSize.y + at.y) * frame.mLightGrid.mSize.x + at.x;
+    const uint index
+        = 2u * lightGridCell(at.x, at.y, at.z, frame.mLightGrid.mSize.x, frame.mLightGrid.mSize.y) + key;
 
     return uvec2(lightListAt(index), lightListAt(index + 1u));
+}
+
+/// The grid cell `position` stands in, which may lie outside the grid.
+vec3 lightCellOf(vec3 position)
+{
+    return floor((position - frame.mLightGrid.mOrigin) * frame.mLightGrid.mInverseCell);
+}
+
+uvec2 lampsInCell(vec3 cell)
+{
+    return lightRunInCell(cell, 0u);
+}
+
+/// The lamps that take light away in the cell at `position`.
+uvec2 darkeningReaching(vec3 position)
+{
+    return lightRunInCell(lightCellOf(position), 1u);
 }
 
 /// How many lamps one point may weigh before it stops.
@@ -116,26 +141,33 @@ uvec2 lampsWithin(uvec2 near)
 /// The same, for a caller holding a place instead of a cell.
 uvec2 lampsReaching(vec3 position)
 {
-    return lampsInCell(floor((position - frame.mLightGrid.mOrigin) * frame.mLightGrid.mInverseCell));
+    return lampsInCell(lightCellOf(position));
+}
+
+/// The size a lamp's singularity is softened by: its own extent, and one unit where it carries less.
+///
+/// **The lamp's own extent, because that is what a lamp is.** An inverse square is the field of a
+/// point, and a point has no field at itself: within a flame's own radius the arithmetic runs away,
+/// and what it draws is a hard bright bead hanging in the air wherever the fog samples beside a
+/// lamp — a firefly, and not the glow of the thing it belongs to. A sphere's irradiance flattens
+/// inside its own surface instead. One unit is the floor, which is what a lamp carrying no size
+/// behaves as. One function, because `falloffAlong` is exact only while it integrates the same
+/// guard `falloff` samples.
+float lampSoftening(float source)
+{
+    return max(source, 1.0);
 }
 
 /// How much of a light `distance` away arrives, per unit intensity.
 ///
 /// An inverse square windowed to arrive at exactly zero where the light's reach ends. Morrowind's
 /// reach is a hard cutoff, and merely clipping an inverse square leaves a visible ring on the floor
-/// where it stops. What keeps the singularity at zero distance finite is `source`, below.
+/// where it stops. What keeps the singularity at zero distance finite is `lampSoftening`.
 float falloff(float distance, float reach, float source)
 {
     const float ratio = distance / reach;
     const float window = clamp(1.0 - ratio * ratio * ratio * ratio, 0.0, 1.0);
-
-    // **The lamp's own extent is what the singularity is softened by, because that is what a lamp
-    // is.** An inverse square is the field of a point, and a point has no field at itself: within a
-    // flame's own radius the arithmetic runs away, and what it drew was a hard bright bead hanging
-    // in the air wherever the fog sampled beside a lamp — a firefly, and not the glow of the thing
-    // it belongs to. A sphere's irradiance flattens inside its own surface instead. One unit is the
-    // floor, which is what a lamp carrying no size behaves as and what this read before.
-    const float held = max(source, 1.0);
+    const float held = lampSoftening(source);
 
     return window * window / (distance * distance + held * held);
 }
@@ -172,7 +204,7 @@ float falloffAlong(float perpendicular, float from, float to, float reach, float
     // In units of the reach, where the chord runs from `bump` to one and the guard `falloff` keeps
     // against the singularity is this much of it.
     const float bump = perpendicular * perpendicular / (reach * reach);
-    const float held = max(source, 1.0);
+    const float held = lampSoftening(source);
     const float guard = held * held / (reach * reach);
 
     const float c2 = -guard;
@@ -513,7 +545,8 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
 {
     const bool sided = dot(facing.mNormal, facing.mNormal) > 0.0;
 
-    const uvec2 near = lampsWithin(lampsReaching(from));
+    // None, for a picture no lamp lights: an empty run, selected, and the loop is over.
+    const uvec2 near = frame.mNoLamps != 0u ? uvec2(0u) : lampsWithin(lampsReaching(from));
     for (uint i = near.x; i < near.y; ++i)
     {
         const uint row = lightListAt(i);
@@ -543,6 +576,25 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
                 lamp.mTowards, gloss, facing.mSide),
             row);
     }
+}
+
+/// What every lamp that takes light away takes from a surface's direct lamp term, per unit albedo:
+/// its unshadowed share, as the rasterizer subtracts a negative light — no shadow ray, because the
+/// rasterizer casts none from a point light, and nothing from the far side of a solid.
+///
+/// @param scale the asker's own share of a lamp, as `weighLamps` takes it: `INV_PI` for a surface.
+vec3 darkeningAt(vec3 from, Facing facing, float scale)
+{
+    vec3 taken = vec3(0.0);
+    const uvec2 near = frame.mNoLamps != 0u ? uvec2(0u) : lampsWithin(darkeningReaching(from));
+    for (uint i = near.x; i < near.y; ++i)
+    {
+        const GpuLight held = lightAt(lightListAt(i));
+        const Lamp lamp = lampAt(held, from);
+        taken -= held.mIntensity * (litCosine(facing, lamp.mTowards) * lamp.mReaching * scale);
+    }
+
+    return taken;
 }
 
 /// What the world leaves of the lamp a reservoir held, from none of it to all.

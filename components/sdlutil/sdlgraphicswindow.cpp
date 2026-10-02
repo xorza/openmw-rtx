@@ -2,6 +2,8 @@
 
 #include <SDL3/SDL_video.h>
 
+#include "sdlvideowrapper.hpp"
+
 #ifdef OPENMW_GL4ES_MANUAL_INIT
 #include "gl4esinit.h"
 #endif
@@ -58,8 +60,7 @@ namespace SDLUtil
 
         const float density = SDL_GetWindowPixelDensity(mWindow);
         SDL_SetWindowPosition(mWindow, x, y);
-        SDL_SetWindowSize(mWindow, static_cast<int>(static_cast<float>(width) / density),
-            static_cast<int>(static_cast<float>(height) / density));
+        SDL_SetWindowSize(mWindow, windowPoints(width, density), windowPoints(height, density));
         return true;
     }
 

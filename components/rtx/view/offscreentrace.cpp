@@ -5,24 +5,17 @@
 #include <optional>
 #include <variant>
 
-#include <osg/CullSettings>
 #include <osg/FrameStamp>
-#include <osg/Matrix>
 #include <osg/Matrixd>
 #include <osg/NodeVisitor>
-#include <osg/Transform>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
-#include <osg/Viewport>
-#include <osgUtil/CullVisitor>
 #include <osgUtil/IntersectionVisitor>
 #include <osgUtil/LineSegmentIntersector>
-#include <osgUtil/RenderStage>
-#include <osgUtil/StateGraph>
 
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/image/colour.hpp>
-#include <components/rtx/mirror/nodekind.hpp>
+#include <components/rtx/mirror/posecull.hpp>
 #include <components/rtx/mirror/poseupdate.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
@@ -33,54 +26,6 @@
 
 namespace Rtx
 {
-    /// A cull traversal that culls nothing and draws nothing, for the one thing left that answers
-    /// only to an `osgUtil::CullVisitor`: `SceneUtil::RigGeometry` and `SceneUtil::MorphGeometry`
-    /// skin inside `accept` by casting the visitor to one, and `OffscreenTrace::pick` reads that
-    /// posed copy once per click. Not for a whole graph: `Terrain::TerrainDrawable::cull` puts the
-    /// chunk in a render bin and never applies it. A real `CullVisitor`, because those casts are
-    /// unchecked. Whoever uses it owes it a frame stamp — `SceneUtil::FrameTimeSource` reads the
-    /// simulation time off it unchecked — and a traversal number a skeleton has not seen.
-    class PoseCull : public osgUtil::CullVisitor
-    {
-    public:
-        PoseCull()
-        {
-            setCullingMode(osg::CullSettings::NO_CULLING);
-            setStateGraph(new osgUtil::StateGraph);
-
-            // Nothing will ever be drawn out of it, but `accept` pushes the drawable's own state set
-            // on the way past, and a state set naming a render bin sends the visitor to
-            // `_currentRenderBin` — which a good deal of Morrowind's content names, the error marker
-            // a missing model resolves to among them.
-            setRenderStage(new osgUtil::RenderStage);
-
-            // `CullStack` reads the back of each of these without checking, so they are pushed once
-            // and never popped: an empty stack is not a permissive one, it is a crash.
-            pushViewport(new osg::Viewport(0, 0, 1, 1));
-            pushProjectionMatrix(new osg::RefMatrix);
-            pushModelViewMatrix(new osg::RefMatrix, osg::Transform::ABSOLUTE_RF);
-        }
-
-        /// The pose is read off the drawable afterwards, so there is nothing to do with it here.
-        void apply(osg::Drawable&) override {}
-
-        /// Everything but a particle simulation, which a real cull visitor would otherwise run:
-        /// `osgParticle` keeps a once-per-frame guard and a `_t0` per processor, so two visitors
-        /// on two clocks difference a `_t0` from one against a time from the other.
-        /// Each `SceneExtractor` owns the emitter clock of what it walks.
-        void apply(osg::Node& node) override
-        {
-            const NodeKind kind = mKinds.of(node);
-            if (kind == NodeKind::ParticleProcessor || kind == NodeKind::ParticleUpdater)
-                return;
-
-            osgUtil::CullVisitor::apply(node);
-        }
-
-    private:
-        NodeKinds mKinds;
-    };
-
     namespace
     {
         osg::Vec3f irradianceOf(const osg::Vec4f& colour)
@@ -89,7 +34,7 @@ namespace Rtx
         }
     }
 
-    OffscreenTrace::OffscreenTrace(Renderer& renderer, const ViewRequest& request)
+    OffscreenTrace::OffscreenTrace(Renderer& renderer, const ViewRequest& request, WalkContext& context)
         : mRenderer(renderer)
         , mRequest(request)
         , mExtentWidth(request.mWidth)
@@ -108,9 +53,8 @@ namespace Rtx
         held.mPoseStamp = new osg::FrameStamp;
         held.mSlot = ViewScene(renderer);
 
-        held.mExtractor = std::make_unique<SceneExtractor>(*held.mScene, request.mTraversals, request.mContent);
+        held.mExtractor = std::make_unique<SceneExtractor>(*held.mScene, context);
         held.mExtractor->setTraversalMask(request.mSubjectMask);
-        held.mExtractor->setSpecularLayout(request.mSpecularLayout);
         held.mPose->setFrameStamp(held.mPoseStamp);
     }
 
@@ -123,7 +67,7 @@ namespace Rtx
         return mSubject != nullptr ? mSubject->mScene.get() : nullptr;
     }
 
-    void OffscreenTrace::setView(const osg::Matrixf& view)
+    void OffscreenTrace::setView(const osg::Matrixd& view)
     {
         mView = view;
     }
@@ -149,7 +93,7 @@ namespace Rtx
 
         // `ViewRequest::mRowOrder` says why the GUI's copy comes out the other way up.
         if (mRequest.mRowOrder == RowOrder::BottomFirst)
-            camera->mCamera.mUp = -camera->mCamera.mUp;
+            camera->mEyes.mWorld.mBasis.mUp = -camera->mEyes.mWorld.mBasis.mUp;
 
         // Where the light stands, unit, in the sense `ViewRequest::mLight` states it and the
         // trace takes it.
@@ -161,6 +105,11 @@ namespace Rtx
         camera->mAmbient = irradianceOf(mRequest.mLight.mAmbient);
         camera->mTransparentBackground = mRequest.mClear.a() < 1.f ? 1 : 0;
         camera->mRayMask = mRequest.mRayMask;
+        camera->mNoLamps = mRequest.mLamps ? 0 : 1;
+
+        // A picture inside the interface is lit by its own flat sun, which the rasterizer draws
+        // with shadows off, the doll's and the map's alike.
+        camera->mNoSkyShadows = 1;
 
         return camera;
     }
@@ -203,10 +152,15 @@ namespace Rtx
 
         // The world's clock, which the update above posed by: an enchanted glow on the doll and a
         // flame in its hand run at the hour the world has, as the rasterizer's preview runs them.
-        subject.mExtractor->setSimulationTime(posing.getSimulationTime());
+        // Redrawn on a change and not every frame, so its emitters step by the gap since the last
+        // redraw, which is what the rasterizer's cull of the preview hands `osgParticle`.
+        const double posedAt = posing.getSimulationTime();
+        const double step = subject.mPosedAt.has_value() ? posedAt - *subject.mPosedAt : 0.0;
+        subject.mPosedAt = posedAt;
+        subject.mExtractor->setSimulationTime(posedAt, step);
 
         // The picture's own eye, for whatever in the subject turns to face one.
-        subject.mExtractor->setEye(viewBasisOf(osg::Matrixd::inverse(osg::Matrixd(mView))));
+        subject.mExtractor->setEye(viewBasisOf(osg::Matrixd::inverse(mView)));
 
         // The number the update above ran at, because that is what a semi-active skeleton compares
         // the walk's `markReached` against: a skeleton told another number stops moving its bones
@@ -258,9 +212,9 @@ namespace Rtx
         // The trace's own rule, so a picture framed orthographically is picked along its parallel
         // rays and not fanned out from its eye. From the near plane to the far one, which a ray
         // reaches at the distance its slant from the forward stretches it to.
-        const Shaders::Ray ray = Shaders::rayAcross(camera->mCamera, osg::Vec2f(x, y));
+        const Shaders::Ray ray = Shaders::rayAcross(camera->mEyes.mWorld, osg::Vec2f(x, y));
         const osg::Vec3f from = camera->mOrigin + ray.mOffset;
-        osg::Vec3f forward = camera->mCamera.mForward;
+        osg::Vec3f forward = camera->mEyes.mWorld.mBasis.mForward;
         forward.normalize();
         const float slant = ray.mDirection * forward;
 
@@ -274,7 +228,7 @@ namespace Rtx
         // intersection with whatever the last cull wrote; the picture was traced from a pose the
         // device computed, so without this the click would land on the bind pose. A number from the
         // shared sequence, because both deforming geometries refuse to move for one they have seen.
-        const unsigned int posed = subject.mExtractor->getTraversals().next();
+        const unsigned int posed = subject.mExtractor->getContext().mTraversals.next();
         subject.mPose->setTraversalNumber(posed);
         subject.mPoseStamp->setFrameNumber(posed);
         subject.mNode->accept(*subject.mPose);
