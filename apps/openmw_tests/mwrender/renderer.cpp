@@ -121,6 +121,9 @@ namespace MWRender
             EXPECT_EQ(sSupport.declinedMode(Render_Pathgrid), "");
             EXPECT_EQ(sSupport.declinedRequest(ScriptRequest::Borders), "no borders here");
             EXPECT_EQ(sSupport.declinedRequest(ScriptRequest::ShaderReload), "");
+            EXPECT_EQ(notAvailable("Wireframe Rendering", sSupport.declinedMode(Render_Wireframe)),
+                "Wireframe Rendering -> not available under this renderer: no wireframe here")
+                << "what the console says in place of a state";
 
             RecordingRenderer renderer;
             renderer.processChangedSettings({ { "Water", "refraction" }, { "Water", "shader" }, { "RTX", "upscale" },

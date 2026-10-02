@@ -2,6 +2,14 @@
 
 namespace MWRender
 {
+    std::string notAvailable(std::string_view what, std::string_view declined)
+    {
+        std::string answer(what);
+        answer += " -> not available under this renderer: ";
+        answer += declined;
+        return answer;
+    }
+
     const SettingSupport* RenderSupport::find(std::string_view category, std::string_view name) const
     {
         const SettingSupport* wholeCategory = nullptr;

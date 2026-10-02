@@ -1,6 +1,7 @@
 #pragma once
 
 #include <span>
+#include <string>
 #include <string_view>
 
 #include "rendermode.hpp"
@@ -43,6 +44,10 @@ namespace MWRender
         ScriptRequest mRequest;
         std::string_view mDeclined;
     };
+
+    /// What the console or a script is told where the renderer declines what it asked for: what it
+    /// asked, and the reason, in place of a state the renderer would never have drawn.
+    std::string notAvailable(std::string_view what, std::string_view declined);
 
     /// **One declaration of what a renderer honours**, made once per renderer and asked by every
     /// reader that would otherwise branch on which renderer it has: the settings window greys a
