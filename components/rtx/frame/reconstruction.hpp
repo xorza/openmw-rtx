@@ -47,9 +47,9 @@ namespace Rtx
         /// Whether the primary ray was wanted moved inside its pixel.
         bool mJitter = false;
 
-        /// Where the trace's draws come from, where a run names a source. Nothing hands the
-        /// choice to `resolve`, which keeps the tile; naming one is the A/B.
-        std::optional<NoiseSource> mNoise{};
+        /// Where the trace's draws come from: the tile, unless a run names the other, which is the
+        /// A/B.
+        NoiseSource mNoise = NoiseSource::BlueNoiseTile;
 
         /// What is added to the texture level bias past the ratio the upscaler sets, in levels,
         /// which a run walks on a sign and a book. Nought is the ratio alone. Without an upscaler
@@ -112,7 +112,7 @@ namespace Rtx
         static Reconstruction resolve(
             const Upscale upscale, const ReconstructionRequest& asked, const FrameExtents& extents)
         {
-            const NoiseSource noise = asked.mNoise.value_or(NoiseSource::BlueNoiseTile);
+            const NoiseSource noise = asked.mNoise;
             if (!upscales(upscale))
             {
                 return Reconstruction{
