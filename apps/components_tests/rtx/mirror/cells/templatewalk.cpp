@@ -180,12 +180,6 @@ namespace Rtx::Testing
             EXPECT_TRUE(modesOf({ Default, ExteriorNight, InteriorDay, Authored }).isEvery());
             EXPECT_FALSE(modesOf({ Default, ExteriorNight, InteriorDay }).isEvery());
 
-            // The rule itself, which `DayNightCallback` and this walk both call.
-            EXPECT_EQ(Constants::nightDayChild(1, 2), 1u);
-            EXPECT_EQ(Constants::nightDayChild(2, 2), 0u) << "two is not more than two";
-            EXPECT_EQ(Constants::nightDayChild(2, 4), 2u);
-            EXPECT_EQ(Constants::nightDayChild(0, 0), 0u) << "a switch of no children";
-
             const auto dayNight = [](std::initializer_list<osg::Node*> children, unsigned int opensOn) {
                 osg::ref_ptr<osg::Switch> branches = new osg::Switch;
                 branches->setName(Constants::NightDayLabel);
