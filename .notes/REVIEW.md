@@ -143,23 +143,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
 
 ## The material reader keeps a subset of what the loader states, by rules other than the rasterizer's
 
-- [ ] **A glow map bound to the second UV set is read through the first** —
-  `components/rtxvulkan/shaders/lib/traversal.glsl:1058-1059` (`point`, the diffuse's set and
-  transform), `components/rtx/mirror/materialresolver.cpp:424`, `:427-428` (a unit is carried for
-  the dark map only), against `files/shaders/compatibility/objects.vert:141` and
-  `nifloader.cpp:2235`, `:1665-1681`. `NifOsg` binds each slot's own UV set at its unit, and the
-  rasterizer reads the glow at that unit. Vanilla: the glow slot of `r/cr_draugr.nif`,
-  `r/draugrlord.nif`, `r/udyrfrykte.nif` and their `x` twins names UV set 1 with clamp
-  (`tx_cr_draugr_eye.dds`), on shapes that carry two sets. The tracer reads it through the body's
-  set 0, so the draugrs' eye glow lands where the body's layout puts it, not on the eyes. A related
-  fragility: `meshreader.cpp:330-352` says a unit that reads another array than unit 0's reads the
-  second set, but `nifloader.cpp:1678-1680` gives every unit a fresh `Vec2Array`, so every unit past 0
-  counts as the second set even when it holds set 0 (the durzog's dark map) and is then read with
-  no texture transform. Better shape: the material carries the unit for each map it reads,
-  `mEmissiveUnit` beside `mDarkUnit`. The mesh reader tells the streams apart by their contents (or
-  by an index `NifOsg` already knows, carried as a user value on the geometry), not by the array's
-  address. `resolveFor` reads the emissive map at its unit's point, as it does the dark map.
-  *(kind: bug; severity: medium; benefit: Solstheim's draugr glow where it was painted)*
 - [ ] **The additive and medium walks read the diffuse map alone, so dark maps and environment
   sheets on effect sheets are dropped** — `components/rtxvulkan/shaders/lib/medium.glsl:75-90`
   (`crossingOf` samples `mDiffuse` only), `:217-222` (says the emissive map is not read, and nothing

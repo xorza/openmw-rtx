@@ -83,7 +83,8 @@ namespace Rtx
                     | (material.mParallax ? Shaders::MATERIAL_PARALLAX : 0u) | vertexColourFlag(material.mVertexColour)
                     | (material.isAdditive() && material.mBlend == BlendKind::AddWhole ? Shaders::MATERIAL_ADD_WHOLE
                                                                                        : 0u)
-                    | ((material.mDarkUnit & Shaders::MATERIAL_DARK_UNIT_MASK) << Shaders::MATERIAL_DARK_UNIT_SHIFT),
+                    | ((material.mDarkUnit & Shaders::MATERIAL_UNIT_MASK) << Shaders::MATERIAL_DARK_UNIT_SHIFT)
+                    | ((material.mEmissiveUnit & Shaders::MATERIAL_UNIT_MASK) << Shaders::MATERIAL_EMISSIVE_UNIT_SHIFT),
             };
         }
 

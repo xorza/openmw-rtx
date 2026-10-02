@@ -409,6 +409,7 @@ namespace Rtx
 
         material.mDiffuse = takeTexture(described->getTextureUse(SurfaceMap::Diffuse), worn);
         material.mEmissive = takeTexture(described->getTextureUse(SurfaceMap::Emissive), worn);
+        material.mEmissiveUnit = described->mEmissiveUnit;
         material.mEnvironment = takeTexture(described->getTextureUse(SurfaceMap::Environment), worn);
         material.mEnvironmentColour = decodeColour(described->mEnvironmentColour);
         material.mDark = takeTexture(described->getTextureUse(SurfaceMap::Dark), worn);

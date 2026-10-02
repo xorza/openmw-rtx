@@ -59,7 +59,11 @@ namespace Rtx
         MaterialKind mKind = MaterialKind::Surface;
 
         Index mDiffuse = sNoIndex;
+
+        /// A map of what glows, read at the texture unit the content bound it at, as the dark map
+        /// below is: the draugrs' eyes read the geometry's second set.
         Index mEmissive = sNoIndex;
+        std::uint8_t mEmissiveUnit = 0;
 
         /// A sphere-mapped sheet the surface adds past its albedo, indexed by where the eye is —
         /// a `NiTextureEffect`, or the caustic sheet an enchanted item shimmers with — and what it

@@ -498,10 +498,11 @@ namespace Rtx::Shaders
     /// opacity of one: a lantern's glass is all there, and its texture says how much glass.
     const uint MATERIAL_TRANSLUCENT = 0x40u;
 
-    /// Which texture unit the dark map is bound at, in these bits of `mFlags` —
-    /// `GpuMesh::mUnitStreams` says which stream that unit reads.
+    /// Which texture unit the dark map and the glow map are bound at, each in these bits of
+    /// `mFlags` — `GpuMesh::mUnitStreams` says which stream that unit reads.
     const uint MATERIAL_DARK_UNIT_SHIFT = 8u;
-    const uint MATERIAL_DARK_UNIT_MASK = 0x0Fu;
+    const uint MATERIAL_EMISSIVE_UNIT_SHIFT = 12u;
+    const uint MATERIAL_UNIT_MASK = 0x0Fu;
 
     /// A sprite emitter that adds — `Rtx::BlendKind::Add`, or `AddWhole` with its sprites' alpha
     /// settled at one by the resolver — and one whose sprites fall from the sky:

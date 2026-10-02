@@ -327,12 +327,15 @@ namespace Rtx
         if (!texCoords.isOk())
             return Misc::Err{ texCoords.error() };
 
-        // **A second set is the first array bound at any unit that is not unit nought's**, and
-        // the units that bind it are noted for the material to look up its dark map's stream by.
-        // `NifOsg` binds a shape's UV sets one per texture unit, in the order the texturing
-        // property names them, so a unit that reads another array than unit nought's is reading
-        // the shape's second set. No vanilla shape carries a third, and the unit the tangents are
-        // at carries no coordinates.
+        // **A second set is the first coordinates bound at any unit that are not unit nought's**,
+        // and the units that bind it are noted for the material to look up its dark and glow maps'
+        // streams by. Told apart by what the arrays hold and not by which array they are:
+        // `NifOsg` gives every unit a fresh array, so the durzog's dark map, bound on the first
+        // set at unit one, is a second array holding the first set. No vanilla shape carries a
+        // third, and the unit the tangents are at carries no coordinates.
+        const auto holdsSame = [](const osg::Vec2Array* left, const osg::Vec2Array* right) {
+            return left == right || (left != nullptr && right != nullptr && left->asVector() == right->asVector());
+        };
         const osg::Vec2Array* second = nullptr;
         std::uint32_t unitStreams = 0;
         for (unsigned int unit = 1; unit < geometry.getNumTexCoordArrays() && unit < 32; ++unit)
@@ -343,11 +346,11 @@ namespace Rtx
             const Misc::Result<const osg::Vec2Array*, std::string> bound = readTexCoords(geometry, unit, count);
             if (!bound.isOk())
                 return Misc::Err{ bound.error() };
-            if (bound.value() == nullptr || bound.value() == texCoords.value())
+            if (bound.value() == nullptr || holdsSame(bound.value(), texCoords.value()))
                 continue;
             if (second == nullptr)
                 second = bound.value();
-            if (bound.value() == second)
+            if (holdsSame(bound.value(), second))
                 unitStreams |= 1u << unit;
         }
 
