@@ -1,10 +1,11 @@
 #pragma once
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <span>
 #include <string>
+
+#include <components/rtx/renderer/framedigest.hpp>
 
 namespace RtxTool
 {
@@ -27,12 +28,12 @@ namespace RtxTool
             add(std::span<const T>(&value, 1));
         }
 
-        const std::array<std::uint64_t, 2>& getWords() const { return mWords; }
+        const Rtx::DigestWords& getWords() const { return mWords; }
 
     private:
-        std::array<std::uint64_t, 2> mWords{};
+        Rtx::DigestWords mWords{};
     };
 
     /// Thirty-two hex digits, which is how a hashes file spells one and how `scene` reports one.
-    std::string spellHash(const std::array<std::uint64_t, 2>& words);
+    std::string spellHash(const Rtx::DigestWords& words);
 }

@@ -48,10 +48,10 @@ namespace RtxTool
                 mWords[1] += part.getWords()[1];
             }
 
-            const std::array<std::uint64_t, 2>& getWords() const { return mWords; }
+            const Rtx::DigestWords& getWords() const { return mWords; }
 
         private:
-            std::array<std::uint64_t, 2> mWords{};
+            Rtx::DigestWords mWords{};
         };
 
         void addTexture(Digest& digest, const Rtx::SceneDesc& scene, const Rtx::Index texture)
@@ -212,7 +212,7 @@ namespace RtxTool
 
         /// One table hashed where it lies.
         template <class T>
-        std::array<std::uint64_t, 2> wordsOf(const std::span<const T> table)
+        Rtx::DigestWords wordsOf(const std::span<const T> table)
         {
             Digest whole;
             whole.add(table);
@@ -231,7 +231,7 @@ namespace RtxTool
         }
 
         template <class T>
-        std::array<std::uint64_t, 2> wordsOf(const Rtx::BlockedValues<T>& table)
+        Rtx::DigestWords wordsOf(const Rtx::BlockedValues<T>& table)
         {
             Digest whole;
             addBlocks(whole, table);
@@ -269,7 +269,7 @@ namespace RtxTool
             }
 
             /// The column's digest, over everything added.
-            std::array<std::uint64_t, 2> take() const { return wordsOf(std::span<const std::byte>(mScratch)); }
+            Rtx::DigestWords take() const { return wordsOf(std::span<const std::byte>(mScratch)); }
 
         private:
             std::vector<std::byte>& mScratch;
@@ -340,7 +340,7 @@ namespace RtxTool
         }
     }
 
-    std::array<std::uint64_t, 2> digestScene(const Rtx::SceneDesc& scene)
+    Rtx::DigestWords digestScene(const Rtx::SceneDesc& scene)
     {
         Unordered whole;
 
@@ -545,7 +545,7 @@ namespace RtxTool
         // Whole, because the block is scalar-packed on every side, which `visibility.h` pins.
         take(ScenePart::Frame,
             frame != nullptr ? wordsOf(std::span<const Rtx::Shaders::VisibilityConstants>(frame, 1))
-                             : std::array<std::uint64_t, 2>{});
+                             : Rtx::DigestWords{});
 
         return mParts;
     }
@@ -556,10 +556,10 @@ namespace RtxTool
         return once.digest(scene);
     }
 
-    std::array<std::uint64_t, 2> digestLayout(const ScenePartDigests& parts)
+    Rtx::DigestWords digestLayout(const ScenePartDigests& parts)
     {
         Digest whole;
-        for (const std::array<std::uint64_t, 2>& part : parts)
+        for (const Rtx::DigestWords& part : parts)
             whole.add(part);
 
         return whole.getWords();

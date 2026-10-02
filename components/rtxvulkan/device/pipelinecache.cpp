@@ -79,7 +79,7 @@ namespace Rtx
             if (failed)
                 return {};
 
-            const std::array<std::uint64_t, 2> shaders = digestShaders(shaderDirectory);
+            const DigestWords shaders = digestShaders(shaderDirectory);
 
             std::array<std::uint8_t, sizeof(shaders)> digest{};
             std::memcpy(digest.data(), shaders.data(), digest.size());

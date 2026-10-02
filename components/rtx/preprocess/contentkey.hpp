@@ -1,11 +1,12 @@
 #pragma once
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <span>
 #include <string_view>
 #include <type_traits>
+
+#include <components/rtx/common/digestwords.hpp>
 
 namespace Rtx
 {
@@ -14,7 +15,7 @@ namespace Rtx
     /// are likely to share one, and every model and texture a game ships is under 2^20.
     struct ContentKey
     {
-        std::array<std::uint64_t, 2> mHash{};
+        DigestWords mHash{};
 
         bool operator==(const ContentKey& other) const = default;
     };
@@ -56,7 +57,7 @@ namespace Rtx
         /// Steps the hash over `bytes` from where it stands.
         void step(std::span<const std::byte> bytes);
 
-        std::array<std::uint64_t, 2> mState{};
+        DigestWords mState{};
         std::uint64_t mBytes = 0;
     };
 }
