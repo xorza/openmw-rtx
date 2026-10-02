@@ -191,13 +191,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
 
 ## The trace's light rules are its own, not the game's
 
-- [ ] **Negative lights are refused, so the 334 darkening lamps vanilla places in 147 interiors are left out**. Evidence:
-  - The ray tracer refuses them: `components/rtx/scene/lightbuilder.cpp:173-177`, `:353`, `components/rtx/mirror/cells/cellreader.cpp:222-233`.
-  - The rasterizer subtracts them: `components/sceneutil/lightutil.cpp:129-135`, `files/shaders/lib/light/util.glsl:93-95`, `files/shaders/lib/light/clamp.glsl:1-8`.
-
-  `createLightSource` negates the diffuse of a `Negative` record, and the shader adds that negative diffuse into every lit fragment in reach, so the record darkens its corner. `makeLight` returns "it takes light away, which a ray cannot" and the lamp is dropped. That reason is false. A lamp's direct term is a weight and one shadow ray toward a point, and neither cares about the sign. The rasterizer casts no shadow from a point light at all, so the darkening needs no ray. Morrowind.esm has 17 `dark_*` records (radius 64 to 1000) placed 334 times in 147 cells: 172 `dark_128`, 66 `dark_256` and 29 `dark_512_01`. The most are in Tel Aruhn (11 in the living quarters, 10 underground), Tel Naga's upper tower (10), Tel Branora and all three wings of the Gateway Inn. Under the ray tracer those Telvanni rooms come out lit where their builders darkened them.
-
-  Better shape: `Light` carries the sign, and `LightGrid` lists subtracting lamps in a run of their own. `gather` sums their unshadowed falloff times the cosine (the rasterizer's own rule: no shadow) and takes that off the surface's direct lamp term, floored at nought as `clampLighting` floors. The air, the bounces and the reservoir never see them. *(kind: missing; severity: medium; benefit: vanilla's darkened rooms stay dark)*
 - [ ] **Night-Eye's lift is a light the exposure meter takes three quarters of back**. Evidence: `apps/openmw/mwworld/player.cpp:502-503`, `apps/openmw/mwrender/renderingmanager.cpp:964-972`, `apps/openmw/mwrender/framedescriber.cpp:41-42`, `apps/openmw/mwrender/rtx/skyreader.cpp:123-126`, `:154`, `components/rtx/environment/skylight.cpp:210`, `:217`, `components/rtx/shaders/look.h:71-83`.
 
   In the rasterizer, Night-Eye adds `0.7 × magnitude` to the ambient term of every lit fragment. Nothing occludes it and nothing adapts it, so a cave's ambient of 0.05 becomes 0.75 at full magnitude. The ray tracer adds the same number to the room's fill (or, outdoors, to the ambient behind the sky fill). From there it is a light like any other:

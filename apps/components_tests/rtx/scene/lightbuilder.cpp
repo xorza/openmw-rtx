@@ -113,8 +113,8 @@ namespace Rtx
                 EXPECT_NEAR(Testing::meanOf(run), 0.625f, 0.001f);
 
                 // And it did move, rather than sitting at its middle and passing the two tests above.
-                EXPECT_GT(*std::max_element(run.begin(), run.end()) - *std::min_element(run.begin(), run.end()),
-                    0.375f);
+                EXPECT_GT(
+                    *std::max_element(run.begin(), run.end()) - *std::min_element(run.begin(), run.end()), 0.375f);
             }
         }
 
@@ -201,8 +201,8 @@ namespace Rtx
                 spread += (static_cast<double>(value) - average) * (static_cast<double>(value) - average);
 
             // A triangle read at one instant across uniform phases has a deviation of its swing over
-            // root three, 0.375 / sqrt(3) = 0.2165. Half of that is far below anything sixty-four ids reach by chance and
-            // far above the nothing a shared phase would give.
+            // root three, 0.375 / sqrt(3) = 0.2165. Half of that is far below anything sixty-four ids reach by chance
+            // and far above the nothing a shared phase would give.
             EXPECT_GT(std::sqrt(spread / static_cast<double>(lit.size())), 0.12);
         }
 
@@ -421,8 +421,8 @@ namespace Rtx
                 (larger->mSourceRadius / light->mSourceRadius) * (larger->mSourceRadius / light->mSourceRadius), 1e-4f);
         }
 
-        /// An unlit record places a mesh and no light, a negative one is nonsense, and a carryable
-        /// one burns where it lies.
+        /// An unlit record places a mesh and no light, a negative one takes light away, and a
+        /// carryable one burns where it lies.
         ///
         /// **Carryable is not carried.** A hundred and fifty-one of `Morrowind.esm`'s light records
         /// can be picked up — every candle and torch among them — and the game lights a cell with
@@ -434,7 +434,10 @@ namespace Rtx
             EXPECT_FALSE(castsWherePlaced(describe(100, 0x00FFFFFF, ESM::Light::OffDefault)));
             EXPECT_TRUE(isNothing(makeLight(describe(100, 0x00FFFFFF, ESM::Light::OffDefault), osg::Vec3f(), 0.0, 1)));
 
-            EXPECT_TRUE(isRefused(makeLight(describe(100, 0x00FFFFFF, ESM::Light::Negative), osg::Vec3f(), 0.0, 1)));
+            const std::optional<Rtx::Light> taking
+                = makeLight(describe(100, 0x00FFFFFF, ESM::Light::Negative), osg::Vec3f(), 0.0, 1).value();
+            ASSERT_TRUE(taking.has_value());
+            EXPECT_LT(taking->mIntensity.x(), 0.0f);
 
             // The flags that say what a light is or how it animates leave it burning.
             for (const std::int32_t flag :
@@ -455,48 +458,33 @@ namespace Rtx
                 << "and so is a record that names less than nothing";
         }
 
-        /// A light that subtracts is refused by both routes to one, and the graph was the half that
-        /// was wrong.
+        /// A light that subtracts is a lamp of the same size and reach, of negative intensity, by both
+        /// routes to one.
         ///
-        /// **`SceneUtil::createLightSource` has no notion of "not a light".** It answers a `Negative`
-        /// record by negating the diffuse and handing back a `LightSource` like any other, so the
-        /// walk mirrored a lamp of negative intensity exactly where the harness placed none. The
-        /// refusal now lives where a colour and a radius meet, which is the one place both routes
-        /// pass through — and this builds the graph the game builds rather than a negative colour by
-        /// hand, so it is the real path that is refused.
-        TEST(RtxLightBuilderTest, aLightThatSubtractsIsRefusedByBothRoutesToOne)
+        /// **`SceneUtil::createLightSource` negates the encoded colour, and the record route negates
+        /// the decoded one**, so the graph's colour is decoded by its magnitude and given its sign
+        /// back: a white record is `-1` either way, and a lamp of radius 100 is `-7853.98`, reaching
+        /// `100 * 2 + 128 = 328` as the white lamp does. A colour that gives in one channel and takes
+        /// in another is no record's and is refused.
+        TEST(RtxLightBuilderTest, aLightThatSubtractsIsADarkeningLampByBothRoutes)
         {
             const SceneUtil::LightCommon subtracting = describe(100, 0x00FFFFFF, ESM::Light::Negative);
-
             const osg::ref_ptr<SceneUtil::LightSource> built
                 = SceneUtil::createLightSource(subtracting, Testing::sLightMask, /*isExterior=*/false);
             ASSERT_NE(built, nullptr);
 
             const osg::Vec3f radiated = lightColour(*built, 0.0);
-            ASSERT_LT(radiated.x(), 0.0f) << "the graph did not build a light that subtracts, so this proves nothing";
+            EXPECT_EQ(radiated, osg::Vec3f(-1.0f, -1.0f, -1.0f));
 
-            EXPECT_TRUE(isRefused(makeLight(radiated, 100.0f, osg::Vec3f()))) << "the walk mirrored it anyway";
-            EXPECT_TRUE(isRefused(makeLight(subtracting, osg::Vec3f(), 0.0, 1))) << "and the record it was built from";
-            EXPECT_EQ(makeLight(subtracting, osg::Vec3f(), 0.0, 1).error(), "it takes light away, which a ray cannot");
+            const std::optional<Rtx::Light> byGraph = makeLight(radiated, 100.0f, osg::Vec3f()).value();
+            const std::optional<Rtx::Light> byRecord = makeLight(subtracting, osg::Vec3f(), 0.0, 1).value();
+            ASSERT_TRUE(byGraph.has_value());
+            ASSERT_TRUE(byRecord.has_value());
+            EXPECT_EQ(byGraph->mIntensity, byRecord->mIntensity);
+            EXPECT_FLOAT_EQ(byRecord->mIntensity.x(), -100.0f * 100.0f * 0.25f * Shaders::PI);
+            EXPECT_FLOAT_EQ(byRecord->mReach, 328.0f);
 
-            // The same record without the flag is an ordinary white lamp by both routes, so what the
-            // two agree on is the flag and not the light.
-            const SceneUtil::LightCommon ordinary = describe(100, 0x00FFFFFF, 0);
-            const osg::ref_ptr<SceneUtil::LightSource> lit
-                = SceneUtil::createLightSource(ordinary, Testing::sLightMask, /*isExterior=*/false);
-
-            EXPECT_TRUE(isLamp(makeLight(lightColour(*lit, 0.0), 100.0f, osg::Vec3f())));
-            EXPECT_TRUE(isLamp(makeLight(ordinary, osg::Vec3f(), 0.0, 1)));
-
-            // **A black record subtracts nothing, so the flag on it decides nothing either.** Both
-            // routes place a lamp that radiates zero, which is what they do for a black record
-            // without the flag, so the two routes agree.
-            const SceneUtil::LightCommon unlit = describe(100, 0x00000000, ESM::Light::Negative);
-            const osg::ref_ptr<SceneUtil::LightSource> dark
-                = SceneUtil::createLightSource(unlit, Testing::sLightMask, /*isExterior=*/false);
-
-            EXPECT_TRUE(isLamp(makeLight(lightColour(*dark, 0.0), 100.0f, osg::Vec3f())));
-            EXPECT_TRUE(isLamp(makeLight(unlit, osg::Vec3f(), 0.0, 1)));
+            EXPECT_TRUE(isRefused(makeLight(osg::Vec3f(-1.0f, 1.0f, 0.0f), 100.0f, osg::Vec3f())));
         }
 
         /// A lamp any number of which is not finite is refused by every route to one.

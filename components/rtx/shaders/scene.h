@@ -619,6 +619,11 @@ namespace Rtx::Shaders
 
         /// Radiant intensity, linear, with the colour folded in, scaled by the square of the
         /// recorded radius: what makes a lantern and a candle differ by their size.
+        ///
+        /// **Negative for a lamp that takes light away**, a `Negative` record. The grid lists it
+        /// under a key of its own (`Rtx::LightGrid`), so no walk of the lamps meets it, and it
+        /// darkens a surface's direct lamp term by its unshadowed share, floored at nought, which
+        /// is the rasterizer's own rule: no shadow, no bounce and nothing in the air.
         vec3 mIntensity RTX_ZERO;
 
         /// How far the light reaches, beyond which it contributes exactly nothing. Stretched from

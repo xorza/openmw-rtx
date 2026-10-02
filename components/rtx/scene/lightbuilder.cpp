@@ -156,6 +156,17 @@ namespace Rtx
             return sum / static_cast<float>(sFlameBands);
         }
 
+        /// A light's diffuse in light, with its sign: `SceneUtil::createLightSource` negates a
+        /// subtracting record's encoded colour, and the curve is the magnitude's, as the record
+        /// overload decodes it.
+        osg::Vec3f decodeSigned(const osg::Vec4f& encoded)
+        {
+            const osg::Vec3f magnitude = decodeColour(
+                osg::Vec4f(std::abs(encoded.x()), std::abs(encoded.y()), std::abs(encoded.z()), encoded.w()));
+            return osg::Vec3f(std::copysign(magnitude.x(), encoded.x()), std::copysign(magnitude.y(), encoded.y()),
+                std::copysign(magnitude.z(), encoded.z()));
+        }
+
         /// The lamp, where every number in it is finite. What it was built from came off a file or
         /// off a graph something else built, so a number that is not finite is data and the lamp is
         /// refused: the grid sized around it would double its cell for ever, and the light would
@@ -178,11 +189,13 @@ namespace Rtx
         if (std::isfinite(radius) && radius <= 0.0f)
             return std::nullopt;
 
-        // A light that subtracts is not one a ray can reach. It arrives here as a colour with a
-        // negative channel, which is what `SceneUtil::createLightSource` builds out of a `Negative`
-        // record and what the record overload builds to match.
-        if (colour.x() < 0.0f || colour.y() < 0.0f || colour.z() < 0.0f)
-            return Misc::Err{ "it takes light away, which a ray cannot" };
+        // **A light that subtracts is a lamp of negative intensity**, which is what
+        // `SceneUtil::createLightSource` builds out of a `Negative` record and what the record
+        // overload builds to match: `Shaders::GpuLight::mIntensity` says what the trace does with
+        // one. A colour that gives in one channel and takes in another is no record's.
+        const bool takes = colour.x() < 0.0f || colour.y() < 0.0f || colour.z() < 0.0f;
+        if (takes && (colour.x() > 0.0f || colour.y() > 0.0f || colour.z() > 0.0f))
+            return Misc::Err{ "it gives light in one colour and takes it away in another" };
 
         return finiteOnly(Light{
             .mPosition = position,
@@ -318,7 +331,7 @@ namespace Rtx
         // a Light spell burns at full strength up to the frame the actor's node mask cuts.
         const float fade = source.getActorFade();
 
-        return decodeColour(diffuse) * (brightness * fade) + decodeColour(light.getAmbient()) * fade;
+        return decodeSigned(diffuse) * (brightness * fade) + decodeColour(light.getAmbient()) * fade;
     }
 
     bool castsWherePlaced(const SceneUtil::LightCommon& record)
