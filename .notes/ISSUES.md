@@ -1,45 +1,15 @@
 # Open issues
 
-Defects the reviews of 2026-10-02 found or rewrote, the parity review against the rasterizer
-included. `.notes/REVIEW.md` holds each one's evidence under its title, beside the defects of the
-first review.
+Open defects that give a wrong or missing result for an input the tree can produce. Most come from
+the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the same title.
 
 - An alpha-blended surface whose material alpha is one and whose texture reaches solid is cut at
   alpha 0.5, where the rasterizer blends its soft texels by the texture's alpha. Every DXT3 leaf,
   banner, rope and sail has a hard edge where the rasterizer's is soft, and a cobweb, a Telvanni
   crystal or Bloodmoon ice whose texture reaches 255 anywhere loses the coverage under the cut.
   `components/rtx/scene/material.hpp` (`Material::isTranslucent`).
-- The display chain hears a lost past two ways. `setScene` and `createTargets` do not set
-  `mExposureStale`, so a first frame with a held or fixed exposure spends the reset. Every `resize`
-  and upscale-mode change resets the measured exposure and the glare share from nothing, against the
-  comment at `components/rtxvulkan/vulkanrenderer.cpp:111-113`.
-- On macOS the crash monitor's hang dialog deadlocks: the watch thread's `SDL_ShowMessageBox`
-  dispatches to the main queue, which Crashpad's Mach loop never drains. No hang box, no crash box,
-  no package, and the monitor never exits. On Linux and Windows an unanswered hang box holds the crash
-  report box. `components/crashcatcher/crashpadmonitor.cpp:292-313`, `:482-490`.
-- A harness run never sets the hang limit: `runHosted` copies `main.cpp`'s configuration without
-  `Crash::setHangLimit` or the version annotation, so a hung harness run is never reported as a hang.
-  `apps/rtxtool/hosted.cpp:100-160`, `components/crashcatcher/crashpadmonitor.cpp:361`.
-- The traced debug lines are drawn after the gamma, and the rasterizer's are raised by it.
-  `components/rtxvulkan/shaders/display/tone.comp:141-143`, `components/rtx/shaders/line.h:15-16`.
-- The seam and `architecture.md` §10 call a time skip a cut, and nothing calls `notifyCut` for one
-  (`set gamehour`, a rest), so the histories carry the old light. `apps/openmw/mwrender/renderer.hpp:305-309`.
-- `RenderingManager::getFieldOfView` returns the override flag (1°) while the field of view is
-  overridden, so in werewolf form Lua's `camera.getFieldOfView()` and `viewportToWorldVector` use 1°.
-  `apps/openmw/mwrender/renderingmanager.cpp:1087-1090`.
-- The SDL3 port answers "which display" two ways: the gyro orientation query reads the setting's
-  display, the event filter the window's. `apps/openmw/mwinput/sensormanager.cpp:46-47`,
-  `components/sdlutil/sdlinputwrapper.cpp:194-196`.
-- `stress.comp` takes `clockRealtimeEXT` ticks as nanoseconds; on RDNA the clock is 100 MHz, so a
-  hold runs ten times as long and its readback is wrong. `components/rtxvulkan/shaders/trace/stress.comp:10-14`.
 - `shadow.h` admits a 32-pixel classification square, where `shadowtiles.comp:206` would shift by 32,
   which is undefined. The width is 24 today. `components/rtx/shaders/shadow.h:111`.
-- The memory clock in the card line is the highest reading, printed beside the mean core clock as if
-  it were the same statistic. `apps/rtxtool/instruments/gpuclock.cpp:74`, `:114`.
-- `--against` says nothing about a view the reference drew and this run did not, and exits 0.
-  `apps/rtxtool/instruments/framehashes.cpp:345-354`.
-- An abandoned run never closes its record, and `shot` then judges pictures in its output folder that
-  this run never wrote. `apps/rtxtool/session.cpp:50-56`, `apps/rtxtool/main.cpp:764-769`.
 - The driver takes macOS for Linux: `bootstrap` downloads the Linux SDK, `build` asks for a disabled
   preset, and `setup` writes `openmw.cfg` to a folder the game never reads.
   `tools/omw/system.py:10-13`, `:125-137`.
