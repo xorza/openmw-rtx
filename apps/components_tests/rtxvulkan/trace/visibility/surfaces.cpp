@@ -1287,6 +1287,37 @@ namespace Rtx::Testing
             effects.mRayMask |= classBit(InstanceClass::Effect);
             EXPECT_GT(shoot(build(0.5f, InstanceClass::Effect), textures, effects, size).at(centre), none.at(centre))
                 << "and one it draws added none";
+
+            // **A sheet wears its dark map and its sphere-mapped sheet**, as `objects.frag` draws a
+            // shield spell's: the grey texel under a red dark map adds red alone, and a red sheet
+            // adds `SUNLIT_WHITE` times its alpha past the lit grey, with no light in it.
+            const auto sheetAdds = [&](const Material& worn) {
+                SceneDesc scene = build(std::nullopt);
+                const Index sheet
+                    = scene.addMesh(MeshArrays{ .mPositions = held, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                scene.addInstance(MeshInstance{ .mMesh = sheet, .mMaterial = scene.addMaterial(worn) });
+                const Frame frame = shoot(scene, textures, camera, size);
+                return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2));
+            };
+            const Material greySheet{
+                .mDiffuse = 0, .mOpacity = 0.5f, .mAlphaMode = AlphaMode::Blend, .mBlend = BlendKind::Add
+            };
+            Material darkened = greySheet;
+            darkened.mDark = 1;
+            Material sheeted = greySheet;
+            sheeted.mEnvironment = 1;
+
+            const Frame alone = shoot(build(std::nullopt), textures, camera, size);
+            const osg::Vec3f wall(alone.at(centre), alone.at(centre + 1), alone.at(centre + 2));
+            const osg::Vec3f plain = sheetAdds(greySheet);
+            const osg::Vec3f dark = sheetAdds(darkened);
+            ASSERT_GT(plain.y(), wall.y()) << "a grey sheet adds green";
+            EXPECT_GT(dark.x(), wall.x()) << "the dark map took the red";
+            EXPECT_EQ(dark.y(), wall.y()) << "the dark map was not read";
+
+            const osg::Vec3f withSheet = sheetAdds(sheeted);
+            EXPECT_NEAR(withSheet.x() - plain.x(), 0.5f * Shaders::SUNLIT_WHITE, 1e-5f) << "the sheet was not added";
+            EXPECT_EQ(withSheet.y(), plain.y()) << "and nothing but its red";
         }
 
         /// **An additive sheet is drawn from the face the content draws, and not from its back.**

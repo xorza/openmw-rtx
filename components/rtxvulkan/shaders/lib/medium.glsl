@@ -57,14 +57,16 @@ float mediumCrossing(float painted, float facing)
 }
 
 /// One crossing of a walk that confirms nothing, read down to what the walk weighs it by: the rows
-/// the candidate names, the corners of its triangle and where between them the walk crossed, and
-/// the texel read there.
+/// the candidate names, the corners of its triangle and where between them the walk crossed, the
+/// cone the texel was read through, and the texel there, its dark map's with it.
 struct Crossing
 {
     GpuInstance mInstance;
     GpuMaterial mMaterial;
     uvec3 mCorner;
     vec2 mBary;
+    SurfaceCone mCone;
+    float mConeWidth;
     vec4 mTexel;
 };
 
@@ -77,14 +79,19 @@ Crossing crossingOf(
     Crossing crossing;
     crossing.mInstance = instanceAt(instanceIndex);
     crossing.mMaterial = materialAt(crossing.mInstance.mMaterial);
-    crossing.mCorner = triangleCorners(meshAt(crossing.mInstance.mMesh), primitive);
+    const GpuMesh mesh = meshAt(crossing.mInstance.mMesh);
+    crossing.mCorner = triangleCorners(mesh, primitive);
     crossing.mBary = bary;
+    crossing.mCone = surfaceConeAt(edges, direction);
+    crossing.mConeWidth = coneWidth;
 
-    const TexturePoint point
-        = candidatePoint(crossing.mCorner, crossing.mMaterial, crossing.mBary, edges, direction, coneWidth, false);
+    const TexturePoint point = candidatePoint(
+        crossing.mCorner, crossing.mMaterial, crossing.mBary, crossing.mCone, coneWidth, false);
 
-    // One path: an untextured shell names `TEXTURE_NEUTRAL`, whose one texel is white.
-    crossing.mTexel = sampleDiffuse(crossing.mMaterial.mDiffuse, point);
+    // One path: an untextured shell names `TEXTURE_NEUTRAL`, whose one texel is white, and a shell
+    // with a dark map and no base map shows its dark map, as the rockslide's dust does.
+    crossing.mTexel = sampleDiffuse(crossing.mMaterial.mDiffuse, point)
+        * darkAt(crossing.mMaterial, mesh, crossing.mCorner, bary, point, crossing.mCone, coneWidth, false);
     return crossing;
 }
 
@@ -108,6 +115,10 @@ struct GatherRule
     /// takes its material's own; an effect's sheet takes what the content asked for.
     bool mVertexTint;
 
+    /// Whether a crossing's sphere-mapped sheet is gathered — `sheetAt` — which a magic effect's
+    /// sheet wears and no cloud in the game does.
+    bool mSheets;
+
     /// Whether what the crossings let through is summed — `blockedBy` — which a layer that covers
     /// reports as its transmittance and a layer that adds has no use for.
     bool mBlocks;
@@ -123,7 +134,7 @@ struct GatherRule
 GatherRule gatherRuleFor(uint mask)
 {
     const bool adds = mask == MASK_ADDITIVE;
-    return GatherRule(mask, !adds, adds, adds, !adds, adds);
+    return GatherRule(mask, !adds, adds, adds, adds, !adds, adds);
 }
 
 /// What a walk gathered along a ray.
@@ -133,9 +144,11 @@ GatherRule gatherRuleFor(uint mask)
 /// share of the limit, which is the one bound a crossing has.
 struct Gathered
 {
-    /// The crossings' colour under their tint, and their glow, each weighted by what it hid.
+    /// The crossings' colour under their tint, and their glow, each weighted by what it hid. And
+    /// their sheets, in light, which are added past the lighting and are lit by nothing.
     uvec3 mUnlit;
     uvec3 mGlowed;
+    uvec3 mSheet;
 
     uint mCoverage;
     uint mCoveredAt;
@@ -167,6 +180,7 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
     Gathered gathered;
     gathered.mUnlit = uvec3(0u);
     gathered.mGlowed = uvec3(0u);
+    gathered.mSheet = uvec3(0u);
     gathered.mCoverage = 0u;
     gathered.mCoveredAt = 0u;
     gathered.mBlocked = 0u;
@@ -234,6 +248,13 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
             gathered.mUnlit, sharePart(texel.rgb * mix(material.mDiffuseColour, vertexColour, tinted) * alpha));
         gathered.mGlowed
             = addShare(gathered.mGlowed, sharePart(mix(material.mEmissiveColour, vertexColour, glowing) * alpha));
+        if (rule.mSheets)
+        {
+            const vec3 shading = faceforward(plane, direction, plane);
+            gathered.mSheet = addShare(gathered.mSheet,
+                sharePart(sheetAt(material, crossing.mCorner, shading, direction, crossing.mCone, crossing.mConeWidth)
+                    * alpha));
+        }
         gathered.mCoverage = addShare(gathered.mCoverage, sharePart(alpha));
         gathered.mCoveredAt = addShare(gathered.mCoveredAt, sharePart(at / limit * alpha));
         if (rule.mBlocks)
@@ -354,8 +375,12 @@ vec3 additiveAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Cone c
     // `mUnlit` already carries every crossing's alpha, so the glow is taken per unit of coverage —
     // a mean over the crossings — and the light likewise: `texel * tint * alpha * (light + glow)`
     // summed over the crossings, which is the rasterizer's own sum.
-    return vec3(gathered.mUnlit) / SHARE_UNIT
-        * (lit.mLight + vec3(gathered.mGlowed) / float(gathered.mCoverage) * EMISSIVE_INTENSITY) * lit.mReaching;
+    // The sheets are added past that, each by its own crossing's alpha, as `objects.frag` adds
+    // `envMap` after its lighting.
+    return (vec3(gathered.mUnlit) / SHARE_UNIT
+                   * (lit.mLight + vec3(gathered.mGlowed) / float(gathered.mCoverage) * EMISSIVE_INTENSITY)
+               + vec3(gathered.mSheet) / SHARE_UNIT)
+        * lit.mReaching;
 }
 
 #endif
