@@ -34,18 +34,6 @@ namespace MWRender
 {
     namespace
     {
-        /// `Weather_Sun_Glare_Fader_Color` as `SunGlareCallback` takes it: doubled and clamped,
-        /// replicating the original's flaw of setting one colour on two material terms, which the
-        /// fixed-function pipeline then saturated — only the red does, at the shipped values, so
-        /// the wash is orange. In the display's own values and not decoded, because that is the
-        /// space the rasterizer adds it in and `tone.comp` adds it in the same.
-        osg::Vec3f glareFaderColour()
-        {
-            const osg::Vec4f read = Fallback::Map::getColour("Weather_Sun_Glare_Fader_Color");
-            return osg::Vec3f(
-                std::min(1.0f, 2.0f * read.r()), std::min(1.0f, 2.0f * read.g()), std::min(1.0f, 2.0f * read.b()));
-        }
-
         osg::Vec3f waterScatter()
         {
             // The content's water colour at its weight, and not the air's share `FogManager` mixes in
@@ -60,9 +48,7 @@ namespace MWRender
 
     SkyReader::SkyReader()
         : mMoonPaint(Rtx::decodeColour(Fallback::Map::getColour("Moons_Script_Color")))
-        , mGlareColour(glareFaderColour())
-        , mGlareMax(Fallback::Map::getFloat("Weather_Sun_Glare_Fader_Max"))
-        , mGlareAngleMax(osg::DegreesToRadians(Fallback::Map::getFloat("Weather_Sun_Glare_Fader_Angle_Max")))
+        , mGlare(Sky::SunGlareFader::read())
         , mMoonSizes{ Fallback::Map::getFloat("Moons_Masser_Size"), Fallback::Map::getFloat("Moons_Secunda_Size") }
         , mWaterScatter(waterScatter())
     {
@@ -270,11 +256,8 @@ namespace MWRender
             // hangs under the sun's own transform, so a sun the weather manager has hidden for the
             // night or a sky `tsky` turned off draws none.
             .mSunGlare = Rtx::SunGlare{
-                .mColour = mGlareColour,
-                .mAngleMax = mGlareAngleMax,
-                .mStrength = skyShown && sky.mSunUp
-                    ? mGlareMax * sky.mGlareFade * weather.mGlareView * weather.mSunDiscColor.a()
-                    : 0.0f,
+                .mFader = mGlare,
+                .mFade = skyShown && sky.mSunUp ? sky.mGlareFade * weather.mGlareView * weather.mSunDiscColor.a() : 0.0f,
             },
         };
     }

@@ -389,7 +389,7 @@ add_component_dir (fallback
     )
 
 add_component_dir (sky
-    moonstate skyclock sundisc timeofday vertexrules
+    moonstate skyclock sundisc sunglarefader timeofday vertexrules
     )
 
 # The ray tracer's API-neutral core. No graphics API is on this library's include path; the Vulkan

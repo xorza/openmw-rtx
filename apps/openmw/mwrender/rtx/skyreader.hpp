@@ -11,6 +11,7 @@
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/sky/skyclock.hpp>
+#include <components/sky/sunglarefader.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace Resource
@@ -128,12 +129,8 @@ namespace MWRender
         /// rasterizer's `SkyManager` reads it. `WorldState::mMoonRed` says when.
         osg::Vec3f mMoonPaint;
 
-        /// The sun glare fader's three constants, read once as `SunGlareCallback` reads them:
-        /// `Weather_Sun_Glare_Fader_Color` doubled and clamped, `_Max`, and `_Angle_Max` in
-        /// radians. `glare.h` says what each is.
-        osg::Vec3f mGlareColour;
-        float mGlareMax;
-        float mGlareAngleMax;
+        /// The sun glare fader, read once, as `SunGlareCallback` reads it.
+        Sky::SunGlareFader mGlare;
 
         /// How big the configuration draws each moon, read with the rest of the fallbacks.
         Rtx::MoonSizes mMoonSizes;

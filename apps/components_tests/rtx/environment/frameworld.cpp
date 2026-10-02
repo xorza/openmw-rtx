@@ -88,9 +88,12 @@ namespace Rtx
                 .mRainOnWater = 0.35f,
                 .mShelterHeight = 8992.0f,
                 .mSunGlare = SunGlare{
-                    .mColour = osg::Vec3f(1.0f, 0.745f, 0.306f),
-                    .mAngleMax = 0.5236f,
-                    .mStrength = 0.125f,
+                    .mFader = Sky::SunGlareFader{
+                        .mColour = osg::Vec3f(1.0f, 0.745f, 0.306f),
+                        .mMax = 0.5f,
+                        .mAngleMax = 0.5236f,
+                    },
+                    .mFade = 0.25f,
                 },
             };
         }
@@ -257,9 +260,10 @@ namespace Rtx
             EXPECT_EQ(constants.mWaterScatter, read.mWaterScatter);
             // And beside the constants, what the display chain takes: the glare as the reading
             // stated it, and the hour's bias.
-            EXPECT_EQ(options.mGlare.mColour, read.mSunGlare.mColour);
-            EXPECT_EQ(options.mGlare.mAngleMax, read.mSunGlare.mAngleMax);
-            EXPECT_EQ(options.mGlare.mStrength, read.mSunGlare.mStrength);
+            EXPECT_EQ(options.mGlare.mFader.mColour, read.mSunGlare.mFader.mColour);
+            EXPECT_EQ(options.mGlare.mFader.mMax, read.mSunGlare.mFader.mMax);
+            EXPECT_EQ(options.mGlare.mFader.mAngleMax, read.mSunGlare.mFader.mAngleMax);
+            EXPECT_EQ(options.mGlare.mFade, read.mSunGlare.mFade);
             EXPECT_EQ(options.mExposureBias, light.mExposureBias);
 
             // The deck and the stars come out of the builders both hosts share, and this is the one
@@ -357,17 +361,22 @@ namespace Rtx
                 << "nothing the gain reaches was lit, so the gain was not tried";
         }
 
-        /// The glare fader's amount is `SunGlareCallback`'s own line: the strength, faded to nothing
-        /// linearly over `Angle_Max` off the eye's axis, and nothing at all for a frame with no
-        /// fader in it — whatever the eye is looking at.
+        /// The glare fader's amount is `SunGlareCallback`'s own line: the fader's most by the fade,
+        /// faded to nothing linearly over `Angle_Max` off the eye's axis, and nothing at all for a
+        /// frame with no fader in it — whatever the eye is looking at.
         TEST(RtxFrameWorldTest, theGlareFaderFadesLinearlyOffTheEyesAxis)
         {
             Shaders::VisibilityConstants frame{};
             frame.mEyes.mWorld.mBasis.mForward = osg::Vec3f(0.0f, 1.0f, 0.0f);
-            SunGlare fader{ .mAngleMax = osg::DegreesToRadians(30.0f), .mStrength = 0.5f };
+            SunGlare fader{
+                .mFader = Sky::SunGlareFader{ .mColour = osg::Vec3f(),
+                    .mMax = 0.25f,
+                    .mAngleMax = osg::DegreesToRadians(30.0f) },
+                .mFade = 2.0f,
+            };
 
             // Straight at it, ten degrees off, thirty off and past thirty: one, two thirds, nought
-            // and nought of the strength.
+            // and nought of the most by the fade, 0.25 * 2 = 0.5.
             const auto amountAt = [&](float degrees) {
                 const float off = osg::DegreesToRadians(degrees);
                 frame.mSun
@@ -380,7 +389,7 @@ namespace Rtx
             EXPECT_NEAR(amountAt(30.0f), 0.0f, 1e-6f);
             EXPECT_EQ(amountAt(45.0f), 0.0f);
 
-            fader.mStrength = 0.0f;
+            fader.mFade = 0.0f;
             EXPECT_EQ(amountAt(0.0f), 0.0f);
         }
 
