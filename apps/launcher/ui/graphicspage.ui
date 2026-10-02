@@ -171,6 +171,9 @@
         </item>
         <item row="6" column="0">
          <widget class="QLabel" name="resolutionLabel">
+          <property name="toolTip">
+           <string>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window's own size. In Windowed mode the window keeps the size you last dragged it to.</string>
+          </property>
           <property name="text">
            <string>Resolution</string>
           </property>

@@ -235,6 +235,10 @@
         <translation>W oknie</translation>
     </message>
     <message>
+        <source>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window&apos;s own size. In Windowed mode the window keeps the size you last dragged it to.</source>
+        <translation>Rozdzielczość, w jakiej gra renderuje świat i interfejs razem, przeskalowana do okna. Natywna renderuje w rozmiarze samego okna. W trybie okienkowym okno zachowuje rozmiar, do którego ostatnio je przeciągnięto.</translation>
+    </message>
+    <message>
         <source>Resolution</source>
         <translation>Rozdzielczość</translation>
     </message>

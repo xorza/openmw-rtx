@@ -235,6 +235,10 @@
         <translation></translation>
     </message>
     <message>
+        <source>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window&apos;s own size. In Windowed mode the window keeps the size you last dragged it to.</source>
+        <translation></translation>
+    </message>
+    <message>
         <source>Resolution</source>
         <translation></translation>
     </message>
