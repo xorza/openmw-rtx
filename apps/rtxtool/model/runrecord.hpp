@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <apps/rtxtool/instruments/framehashes.hpp>
+#include <components/misc/result.hpp>
 
 #include "benchrecord.hpp"
 #include "benchrun.hpp"
@@ -68,6 +69,10 @@ namespace RtxTool
 
         /// Closes the run: the total under the places, the check tally, the hashes and the record.
         ///
+        /// **A file it cannot write is a line of the report and a failed run, never a throw.** It
+        /// runs inside the engine's frame, and a throw from there lost every measured place's
+        /// figures with the report they were in.
+        ///
         /// **Takes the request rather than four paths**, because what it writes and what it compares
         /// against is what the run was asked for — and the request is this component's own.
         void finish(const SessionRequest& request);
@@ -82,6 +87,9 @@ namespace RtxTool
         SessionResult describe(const Stop* left) const;
 
     private:
+        /// Whether `written` holds; where not, says why in the report and fails the run.
+        bool wrote(const Misc::Result<void, std::string>& written);
+
         std::vector<BenchPlace> mPlaces;
         BenchHeader mHeader;
 
