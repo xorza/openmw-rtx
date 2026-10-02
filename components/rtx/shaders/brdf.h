@@ -148,10 +148,12 @@ namespace Rtx::Shaders
     }
 
     /// The perceptual roughness a field of slopes stands for, whose total variance over both axes is
-    /// `slopes`: GGX's `alpha` is `sqrt(2) sigma` for a slope deviation of `sigma` along each axis,
-    /// so `alpha^2` is the variance of both together, and the roughness is its root, `ggxAlpha`'s
-    /// inverse. One quantity however the surface came by its roughness — a painted map, or water's
-    /// slopes the cone averaged away — so a lobe is widened the same way by either.
+    /// `slopes`: Beckmann's `alpha` is `sqrt(2) sigma` for a slope deviation of `sigma` along each
+    /// axis, so `alpha^2` is the variance of both together, and the roughness is its root,
+    /// `ggxAlpha`'s inverse. **An approximation for GGX**, whose slopes have no finite variance: the
+    /// two lobes matched by their alpha, as Tokuyoshi and Kaplanyan match them. One quantity however the surface came
+    /// by its roughness — a painted map, or water's slopes the cone averaged away — so a lobe is widened the same way
+    /// by either.
     RTX_SHADER float slopeRoughness(float slopes)
     {
         return min(sqrt(sqrt(max(slopes, 0.0f))), 1.0f);
@@ -160,9 +162,11 @@ namespace Rtx::Shaders
     /// The slope variance, both axes together, that unit normals stand for whose mean's squared
     /// length falls short of one by `loss`: what a normal map's level has lost of the normals it
     /// averages (Toksvig, *Mipmapping Normal Maps*, 2005). Read through the von Mises–Fisher lobe
-    /// those normals are fitted to (Han et al., *Frequency Domain Normal Map Filtering*, 2007),
-    /// whose sharpness is `(3r − r³) / (1 − r²)` for a mean of length `r` and whose slopes spread
-    /// `1 / sharpness` along each axis: `2 loss / (r (2 + loss))` with `r = √(1 − loss)`.
+    /// those normals are fitted to (Han et al., *Frequency Domain Normal Map Filtering*, 2007).
+    /// **Two approximations**: the lobe's sharpness for a mean of length `r` is Banerjee et al.'s
+    /// estimate of the inverse of the Langevin function, `(3r − r³) / (1 − r²)`, and not the
+    /// lobe's own, and its slopes spread `1 / sharpness` along each axis only where the lobe is
+    /// narrow. Together, `2 loss / (r (2 + loss))` with `r = √(1 − loss)`.
     ///
     /// **In the loss and not the length**, because a mean of normals that agree is one long only to
     /// a float's last place, and that last place, taken to the fourth root a roughness is, is a
@@ -179,7 +183,9 @@ namespace Rtx::Shaders
     /// averages of a surface whose normal turns under it, as a mesh's bend or a normal map's spread
     /// (Tokuyoshi and Kaplanyan, *Improved Geometric Specular Antialiasing*, I3D 2019). Independent
     /// slopes' variances add, so `alpha²` takes the lost slopes on and `slopeRoughness` turns the sum
-    /// back. **The roughness itself where nothing is lost**, selected and not recomputed, so a
+    /// back. **Without the paper's clamp of the added variance at 0.18**: a footprint across a steep
+    /// bend roughens the lobe up to GGX's widest, which `slopeRoughness` holds it at, where theirs
+    /// stops short of it. **The roughness itself where nothing is lost**, selected and not recomputed, so a
     /// surface that loses nothing keeps the roughness it was painted with to the bit.
     RTX_SHADER float widenedRoughness(float roughness, float lost)
     {
