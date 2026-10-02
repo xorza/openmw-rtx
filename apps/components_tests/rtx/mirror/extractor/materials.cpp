@@ -269,19 +269,19 @@ namespace Rtx::Testing
             const Rtx::Material leaf = extractOne(true, leaves);
             EXPECT_FALSE(leaf.isTranslucent()) << "a mask with a soft fringe is cut";
             EXPECT_TRUE(leaf.getTraversed().mCutout);
-            EXPECT_EQ(leaf.getAlphaCutoff(), Material::sBlendCutoff);
+            EXPECT_EQ(leaf.getAlphaTest().mReference, Material::sBlendCutoff);
 
             osg::ref_ptr<osg::Image> glass = imageOf({ 119, 102, 119, 0 });
             const Rtx::Material pane = extractOne(true, glass);
             EXPECT_TRUE(pane.isTranslucent()) << "a texture that never closes is a pane";
             EXPECT_FALSE(pane.isMedium()) << "all there, so a pane and no cloud";
-            EXPECT_EQ(pane.getAlphaCutoff(), Material::sPaneCutoff);
+            EXPECT_EQ(pane.getAlphaTest().mReference, Material::sPaneCutoff);
             EXPECT_TRUE(pane.getTraversed().placedAt(1.0f).mTranslucent);
             EXPECT_FALSE(pane.getTraversed().placedAt(1.0f).mCutout);
 
             const Rtx::Material tested = extractOne(true, glass, 0.5f);
             EXPECT_FALSE(tested.isTranslucent()) << "a test cuts whatever the texture holds";
-            EXPECT_EQ(tested.getAlphaCutoff(), 0.5f);
+            EXPECT_EQ(tested.getAlphaTest().mReference, 0.5f);
 
             // The ring's reader hands over the same facts with its reading.
             PreparedModel model;

@@ -111,7 +111,7 @@ namespace Rtx
 
             const Index cutout = scene.addMaterial(Material{
                 .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("textures/leaf.dds")),
-                .mAlphaRef = 0.5f,
+                .mAlphaTest = { .mReference = 0.5f },
                 .mAlphaMode = AlphaMode::Cutout,
             });
             const Index glass = scene.addMaterial(Material{

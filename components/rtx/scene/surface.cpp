@@ -250,10 +250,12 @@ namespace Rtx
                 material.mEmissiveUnit = static_cast<std::uint8_t>(unit);
         }
 
-        // **The alpha test's reference, from wherever the visitor left it.** `Shader::ShaderVisitor`
-        // replaces the attribute with a `RemovedAlphaFunc` at a default threshold and carries the
-        // real one in a uniform, so the uniform is asked first and the attribute answers where no
-        // visitor has run. `ALWAYS` is no test at all, which is what the scene root wears.
+        // **The alpha test, its reference from wherever the visitor left it.** `Shader::ShaderVisitor`
+        // replaces the attribute with a `RemovedAlphaFunc` of the same function at a default
+        // threshold and carries the real one in a uniform, so the uniform is asked first and the
+        // attribute answers where no visitor has run. The function is OpenGL's set of sides past
+        // `GL_NEVER`: `ALWAYS` is no test at all, which is what the scene root wears, and Morrowind's
+        // own is `GREATER`.
         if (const osg::StateSet::RefAttributePair* tested = stateSet.getAttributePair(osg::StateAttribute::ALPHAFUNC);
             tested != nullptr && SurfaceLocks::takes(locks.mAlphaFunc, tested->second))
         {
@@ -262,9 +264,16 @@ namespace Rtx
             if (const osg::StateSet::RefUniformPair* carried = uniformNamed(stateSet, "alphaRef"))
                 carried->first->get(reference);
 
-            material.mAlphaRef = alpha->getFunction() != osg::AlphaFunc::ALWAYS ? reference : 0.0f;
+            // A test that cuts nothing is no test, and is one value whatever its reference: two
+            // surfaces that differ in nothing else are one material.
+            static_assert(osg::AlphaFunc::ALWAYS - osg::AlphaFunc::NEVER == Shaders::ALPHA_PASSES_ALL);
+            const AlphaTest stated{
+                .mReference = reference,
+                .mPasses = static_cast<std::uint32_t>(alpha->getFunction() - osg::AlphaFunc::NEVER),
+            };
+            material.mAlphaTest = stated.cuts() ? stated : AlphaTest{};
             if (material.mAlphaMode != AlphaMode::Blend)
-                material.mAlphaMode = material.mAlphaRef > 0.0f ? AlphaMode::Cutout : AlphaMode::Opaque;
+                material.mAlphaMode = material.mAlphaTest.cuts() ? AlphaMode::Cutout : AlphaMode::Opaque;
         }
 
         // Blending wins over testing, and the threshold survives for a renderer that would rather cut.
@@ -280,7 +289,7 @@ namespace Rtx
         else if (const osg::StateAttribute::GLModeValue blend = stateSet.getMode(GL_BLEND);
                  blend != osg::StateAttribute::INHERIT && SurfaceLocks::takes(locks.mBlend, blend))
             material.mAlphaMode = (blend & osg::StateAttribute::ON) ? AlphaMode::Blend
-                : material.mAlphaRef > 0.0f                         ? AlphaMode::Cutout
+                : material.mAlphaTest.cuts()                        ? AlphaMode::Cutout
                                                                     : AlphaMode::Opaque;
 
         // Only ever off by the content: a stencil property drawing both faces, or a material file's

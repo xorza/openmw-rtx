@@ -36,15 +36,22 @@ bool isTranslucent(GpuMaterial material)
     return (material.mFlags & MATERIAL_TRANSLUCENT) != 0u;
 }
 
-/// Whether a material carries a mask a ray is tested against: a cutoff. A textured pane carries one
-/// too, `Material::sPaneCutoff`: a texel its blend draws as nothing is a hole to every ray.
+/// Which sides of `GpuMaterial::mAlphaReference` a texel passes on.
+uint alphaPassesOf(GpuMaterial material)
+{
+    return (material.mFlags >> MATERIAL_ALPHA_PASSES_SHIFT) & ALPHA_PASSES_ALL;
+}
+
+/// Whether a material carries a mask a ray is tested against: a test some texel can fail. A
+/// textured pane carries one too, `Material::sPaneCutoff`: a texel its blend draws as nothing is a
+/// hole to every ray.
 ///
 /// The host's `Material::isCutout`, asked again here because the build marks an instance by it
-/// and the shader must agree about which candidates it meant. That rule refuses a cutoff with no
-/// diffuse, so the diffuse is not asked again here.
+/// and the shader must agree about which candidates it meant. That rule refuses a test with no
+/// diffuse, and writes every side for a material it refuses, so neither is asked again here.
 bool hasMask(GpuMaterial material)
 {
-    return material.mAlphaCutoff > 0.0;
+    return alphaPassesOf(material) != ALPHA_PASSES_ALL;
 }
 
 /// Whether a material is a medium the ray goes through rather than a surface it can stop on.
@@ -325,19 +332,19 @@ bool candidateStops(uint instanceIndex, uint primitive, vec2 bary, TriangleEdges
     // four legs each), behind a material bit or not: the code sits in every shadow ray's candidate
     // loop. The hit and a medium's crossing read it.
     const float painted = sampleDiffuse(material.mDiffuse, point).a;
+    const bool there = alphaPasses(alphaPassesOf(material), painted, material.mAlphaReference);
 
     // **A hole is a hole to the ray that walks past as well.** A placement the game is fading
-    // makes its cutout see-through, and the eye still passes a texel under the cutoff before it
+    // makes its cutout see-through, and the eye still passes a texel the test cuts before it
     // peels what is left — so a shadow ray charged by that texel was a shadow of nothing the eye
-    // sees. Selected, so a pane with no mask pays the one compare.
+    // sees. A pane with no mask passes on every side.
     if (walkPast)
     {
-        const bool hole = hasMask(material) && painted < material.mAlphaCutoff;
-        blocked = addShare(blocked, blockedBy(hole ? 0.0 : sampledOpacity(opacity, painted)));
+        blocked = addShare(blocked, blockedBy(there ? sampledOpacity(opacity, painted) : 0.0));
         return false;
     }
 
-    return painted >= material.mAlphaCutoff;
+    return there;
 }
 
 /// The candidate loop, run to completion. It confirms every hit that lands on the material rather

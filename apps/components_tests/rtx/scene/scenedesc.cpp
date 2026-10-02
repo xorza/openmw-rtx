@@ -325,25 +325,35 @@ namespace Rtx
             constexpr Index texture = 3;
 
             const Material opaque{ .mDiffuse = texture };
-            EXPECT_EQ(opaque.getAlphaCutoff(), 0.0f);
+            EXPECT_FALSE(opaque.getAlphaTest().cuts());
             EXPECT_FALSE(opaque.isCutout());
 
-            const Material tested{ .mDiffuse = texture, .mAlphaRef = 0.3f, .mAlphaMode = AlphaMode::Cutout };
-            EXPECT_EQ(tested.getAlphaCutoff(), 0.3f);
+            const Material tested{
+                .mDiffuse = texture, .mAlphaTest = { .mReference = 0.3f }, .mAlphaMode = AlphaMode::Cutout
+            };
+            EXPECT_EQ(tested.getAlphaTest().mReference, 0.3f);
             EXPECT_TRUE(tested.isCutout());
 
+            // A test above nought cuts the bare texels, though its reference is nought: a cutout.
+            const Material aboveNought{ .mDiffuse = texture,
+                .mAlphaTest = { .mPasses = Shaders::ALPHA_PASSES_ABOVE },
+                .mAlphaMode = AlphaMode::Cutout };
+            EXPECT_TRUE(aboveNought.isCutout());
+
             const Material blended{ .mDiffuse = texture, .mAlphaMode = AlphaMode::Blend };
-            EXPECT_EQ(blended.getAlphaCutoff(), 0.5f);
+            EXPECT_EQ(blended.getAlphaTest().mReference, 0.5f);
             EXPECT_TRUE(blended.isCutout());
 
-            const Material blendedWithRef{ .mDiffuse = texture, .mAlphaRef = 0.8f, .mAlphaMode = AlphaMode::Blend };
-            EXPECT_EQ(blendedWithRef.getAlphaCutoff(), 0.8f);
+            const Material blendedWithRef{
+                .mDiffuse = texture, .mAlphaTest = { .mReference = 0.8f }, .mAlphaMode = AlphaMode::Blend
+            };
+            EXPECT_EQ(blendedWithRef.getAlphaTest().mReference, 0.8f);
 
             // The mask lives in the diffuse map's alpha, so a cutoff with no map to read it from is
             // not a cutout — and marking it one would cost traversal a candidate loop that could
             // only ever say yes.
             const Material untextured{ .mAlphaMode = AlphaMode::Blend };
-            EXPECT_EQ(untextured.getAlphaCutoff(), 0.5f);
+            EXPECT_EQ(untextured.getAlphaTest().mReference, 0.5f);
             EXPECT_FALSE(untextured.isCutout());
         }
 
@@ -377,15 +387,17 @@ namespace Rtx
             EXPECT_TRUE(lantern.isTranslucent()) << "no mask, so the blend draws it at its alpha";
             EXPECT_NE(lantern.isTranslucent(), leaf.isTranslucent()) << "the texture's alpha decides";
             EXPECT_FALSE(lantern.isMedium()) << "a pane at an opacity of one, and no cloud";
-            EXPECT_EQ(lantern.getAlphaCutoff(), Material::sPaneCutoff) << "what its blend draws as nothing is a hole";
-            EXPECT_EQ(pane.getAlphaCutoff(), Material::sPaneCutoff);
-            EXPECT_EQ(leaf.getAlphaCutoff(), Material::sBlendCutoff);
+            EXPECT_EQ(lantern.getAlphaTest().mReference, Material::sPaneCutoff)
+                << "what its blend draws as nothing is a hole";
+            EXPECT_EQ(pane.getAlphaTest().mReference, Material::sPaneCutoff);
+            EXPECT_EQ(leaf.getAlphaTest().mReference, Material::sBlendCutoff);
 
-            const Material testedWisp{
-                .mDiffuse = texture, .mAlphaRef = 0.3f, .mAlphaMode = AlphaMode::Blend, .mDiffuseNeverSolid = true
-            };
+            const Material testedWisp{ .mDiffuse = texture,
+                .mAlphaTest = { .mReference = 0.3f },
+                .mAlphaMode = AlphaMode::Blend,
+                .mDiffuseNeverSolid = true };
             EXPECT_FALSE(testedWisp.isTranslucent()) << "a test cuts at its reference";
-            EXPECT_EQ(testedWisp.getAlphaCutoff(), 0.3f);
+            EXPECT_EQ(testedWisp.getAlphaTest().mReference, 0.3f);
 
             const Material addsWisp{ .mDiffuse = texture,
                 .mAlphaMode = AlphaMode::Blend,
@@ -398,9 +410,10 @@ namespace Rtx
             const Material faded{ .mDiffuse = texture, .mOpacity = 0.3f };
             EXPECT_FALSE(faded.isTranslucent()) << "opaque mode, whatever the alpha says";
 
-            const Material tested{
-                .mDiffuse = texture, .mOpacity = 0.3f, .mAlphaRef = 0.3f, .mAlphaMode = AlphaMode::Cutout
-            };
+            const Material tested{ .mDiffuse = texture,
+                .mOpacity = 0.3f,
+                .mAlphaTest = { .mReference = 0.3f },
+                .mAlphaMode = AlphaMode::Cutout };
             EXPECT_FALSE(tested.isTranslucent()) << "a mask the content asked to test is a mask";
 
             // And the texture is the other half of what tells a pane from a cloud. Neither of them
@@ -652,8 +665,9 @@ namespace Rtx
             const std::array meshes{ quad(), quad(), quad() };
             ASSERT_EQ(meshes[2], 2u);
 
-            const std::array materials{ scene.addMaterial(Material{ .mAlphaRef = 0.25f }),
-                scene.addMaterial(Material{ .mAlphaRef = 0.5f }), scene.addMaterial(Material{ .mAlphaRef = 0.75f }) };
+            const std::array materials{ scene.addMaterial(Material{ .mAlphaTest = { .mReference = 0.25f } }),
+                scene.addMaterial(Material{ .mAlphaTest = { .mReference = 0.5f } }),
+                scene.addMaterial(Material{ .mAlphaTest = { .mReference = 0.75f } }) };
             ASSERT_EQ(materials[2], 2u);
 
             const auto path = [](const char* name) { return VFS::Path::NormalizedView(name); };
@@ -682,7 +696,8 @@ namespace Rtx
             EXPECT_EQ(scene.textures().add(path("textures/d.dds")), textures[0]) << "textures";
             EXPECT_EQ(place(meshes[1]), placed[0]) << "placements";
             EXPECT_EQ(quad(), meshes[0]) << "meshes";
-            EXPECT_EQ(scene.addMaterial(Material{ .mAlphaRef = 0.125f }), materials[0]) << "materials";
+            EXPECT_EQ(scene.addMaterial(Material{ .mAlphaTest = { .mReference = 0.125f } }), materials[0])
+                << "materials";
             scene.drop(std::move(holds[1]));
         }
 
