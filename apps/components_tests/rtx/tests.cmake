@@ -170,6 +170,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/device/memory/slottable.cpp
     rtxvulkan/device/memory/structurestorage.cpp
     rtxvulkan/device/pipelinecache.cpp
+    rtxvulkan/device/halfstore.cpp
     rtxvulkan/device/probe.cpp
     rtxvulkan/device/readstamp.cpp
     rtxvulkan/display/bloompass.cpp

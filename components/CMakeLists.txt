@@ -449,7 +449,7 @@ add_component_dir (rtx/scene
 
 add_component_dir (rtx/shaders
     accumulate atrous bindings bloom brdf camera colour composite counts digest exposure fogvolume fsr gbuffer
-    glare ground gui hosttypes line look mipchain normalspread octahedral pane pinning portable probe ripple
+    glare ground gui halfstore hosttypes line look mipchain normalspread octahedral pane pinning portable probe ripple
     scene sets shadingmap shadow skinning sky specular spritebin spritelight spriteshade storageformat stress
     tangent tone visibility wave
     )
