@@ -114,16 +114,16 @@ namespace RtxTool
         }
 
         /// What `--exposure` asked for: a number to hold it at, or nothing to measure it.
-        std::optional<float> parseExposure(std::string_view text)
+        Rtx::ExposureRule parseExposure(std::string_view text)
         {
             if (text == "auto")
-                return std::nullopt;
+                return Rtx::MeasuredExposure{};
 
             const std::optional<float> value = parseFloat(text);
             if (!value.has_value() || !(*value > 0.0f))
                 throw std::runtime_error("not an exposure: " + std::string(text));
 
-            return value;
+            return Rtx::FixedExposure{ *value };
         }
 
         /// The layers a run that will be measured or compared gets, which is none unless it asked.
@@ -343,7 +343,7 @@ namespace RtxTool
             profile.mReconstruction.mDenoise = variables["filter"].as<bool>();
             profile.mShow = Rtx::sSurfaceViewNames.require(variables["show"].as<std::string>(), "a surface view");
             profile.mReconstruction.mJitter = variables["jitter"].as<bool>();
-            profile.mExposure = Rtx::ExposureRule{ .mFixed = parseExposure(variables["exposure"].as<std::string>()) };
+            profile.mExposure = parseExposure(variables["exposure"].as<std::string>());
             profile.mStressOverlapMs = variables["hold"].as<bool>() ? sCheckHoldMs : 0.0;
             profile.mSpecializeLaunches = variables["variants"].as<bool>();
             if (const std::string& noise = variables["noise"].as<std::string>(); noise != "auto")
@@ -947,7 +947,7 @@ namespace RtxTool
             reference.mLevelEpsilon = 0.0f;
             Rtx::ReconstructionRequest unfiltered = played;
             unfiltered.mDenoise = false;
-            const Rtx::ExposureRule held{ .mHeld = true };
+            const Rtx::ExposureRule held = Rtx::HeldExposure{};
 
             // One picture of `place` after `frames` frames: their sum where `summed`, and the last of
             // them where not.

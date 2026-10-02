@@ -460,7 +460,8 @@ namespace Rtx::Testing
                             .mJitter = shot.mJitter,
                             .mNoise = shot.mNoise,
                             .mLevelEpsilon = shot.mLevelEpsilon },
-                        .mExposure = ExposureRule{ .mFixed = shot.mExposure },
+                        .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })
+                                                                : ExposureRule(MeasuredExposure{}),
                         .mDelight = shot.mDelight,
                         .mShow = shot.mShow,
                         .mLitEnvironmentMaps = shot.mLitEnvironmentMaps,

@@ -10,6 +10,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <variant>
 
 #include <components/files/conversion.hpp>
 #include <components/rtx/mirror/cells/readermemory.hpp>
@@ -86,6 +87,13 @@ namespace RtxTool
                 asJson(clock.mCore), asJson(clock.mMemory), asJson(clock.mTemperatureC), throttle);
         }
 
+        /// The scale a fixed exposure states, or nothing for one measured or held.
+        std::optional<float> fixedScaleOf(const Rtx::ExposureRule& exposure)
+        {
+            const Rtx::FixedExposure* fixed = std::get_if<Rtx::FixedExposure>(&exposure);
+            return fixed != nullptr ? std::optional<float>(fixed->mScale) : std::nullopt;
+        }
+
         /// What the renderer was made with, as the report's header has it, one key a premise.
         std::string asJson(const MWRender::RunSetup& setup)
         {
@@ -97,10 +105,10 @@ namespace RtxTool
                                R"(  "landCells": {:.1f}, "viewingDistance": {:.1f}, "distantStatics": {}, "step": {}, )"
                                R"("settled": {}, "memoryBudget": {},)",
                 profile.mReconstruction.mDenoise, profile.mReconstruction.mJitter, profile.mDelight, profile.mGamma,
-                Rtx::sSurfaceViewNames.name(profile.mShow), asJson(profile.mExposure.mFixed), profile.mExposure.mHeld,
-                profile.mSpecializeLaunches, profile.mStressOverlapMs, mirror.mReach.mCells,
-                mirror.mReach.mViewingDistance, mirror.mDistantStatics, asJson(setup.mStep), asJson(setup.mSettled),
-                asJson(setup.mMemoryBudget));
+                Rtx::sSurfaceViewNames.name(profile.mShow), asJson(fixedScaleOf(profile.mExposure)),
+                std::holds_alternative<Rtx::HeldExposure>(profile.mExposure), profile.mSpecializeLaunches,
+                profile.mStressOverlapMs, mirror.mReach.mCells, mirror.mReach.mViewingDistance, mirror.mDistantStatics,
+                asJson(setup.mStep), asJson(setup.mSettled), asJson(setup.mMemoryBudget));
         }
 
         /// Null where nothing looked, for the same reason; and in the record at all because a
@@ -268,9 +276,9 @@ namespace RtxTool
     {
         std::string describeExposure(const Rtx::ExposureRule& exposure)
         {
-            if (exposure.mFixed.has_value())
-                return std::format("fixed at {:.3f}", *exposure.mFixed);
-            return exposure.mHeld ? "held" : "adapted";
+            if (const Rtx::FixedExposure* fixed = std::get_if<Rtx::FixedExposure>(&exposure))
+                return std::format("fixed at {:.3f}", fixed->mScale);
+            return std::holds_alternative<Rtx::HeldExposure>(exposure) ? "held" : "adapted";
         }
 
         std::string describeStep(const std::optional<float>& step)

@@ -100,7 +100,7 @@ namespace Rtx::Testing
                 {
                     Shaders::VisibilityConstants sampled = camera;
                     sampled.mFrame = at;
-                    mRenderer.renderFrame(sampled, FrameOptions{ .mExposure = ExposureRule{ .mFixed = 1.0f } });
+                    mRenderer.renderFrame(sampled, FrameOptions{ .mExposure = FixedExposure{ 1.0f } });
                     ASSERT_TRUE(mRenderer.finishFrame().has_value());
                     if (at < frames / 2)
                         continue;
