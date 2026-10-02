@@ -32,6 +32,7 @@ namespace Rtx::Shaders
     };
 
 #ifdef RTX_HOST
+    static_assert(sizeof(StressConstants) == 4, "StressConstants must be scalar-packed on every side");
 }
 #endif
 

@@ -71,6 +71,7 @@ namespace Rtx::Shaders
 
 #ifdef RTX_HOST
 
+    static_assert(sizeof(ProbeConstants) == 16, "ProbeConstants must be scalar-packed on every side");
     static_assert(sizeof(ProbeAddresses) == 16, "ProbeAddresses must be scalar-packed on every side");
     static_assert(sizeof(ProbeRow) == 48, "ProbeRow must be scalar-packed on every side");
 }

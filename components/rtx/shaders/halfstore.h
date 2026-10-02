@@ -27,6 +27,7 @@ namespace Rtx::Shaders
     };
 
 #ifdef RTX_HOST
+    static_assert(sizeof(HalfStoreConstants) == 4, "HalfStoreConstants must be scalar-packed on every side");
 }
 #endif
 
