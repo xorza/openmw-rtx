@@ -30,6 +30,16 @@ The findings fall into three kinds:
    decimal, a test that asserts too little. They need no design. Section 17 lists the groups and the
    rule for each.
 
+## Progress
+
+Implemented on the branch `refactor`, one commit per item. This section says where the work stands.
+
+- **Now:** Phase 0.
+
+### Waiting for you
+
+Nothing yet.
+
 ## Contents
 
 0. [Principles the redesign keeps](#0-principles-the-redesign-keeps)

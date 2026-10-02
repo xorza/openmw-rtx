@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -231,6 +232,125 @@ namespace RtxTool
 
             // And a mismatch is never `same`, which is what the exit status is built on.
             EXPECT_FALSE(compareFrames(before, Rtx::PngImage{}).same());
+        }
+
+        void writeTo(const std::filesystem::path& file, const Rtx::PngImage& image)
+        {
+            std::filesystem::create_directories(file.parent_path());
+            const Misc::Result<void, std::string> written
+                = Rtx::writePng(file, image.mWidth, image.mHeight, image.mPixels);
+            ASSERT_TRUE(written.isOk()) << written.error();
+        }
+
+        /// **The exit status of `shot --against`, case by case**, over pictures written to a
+        /// directory and read back as a run reads them. A picture moved by one level fails under
+        /// `Exact` and passes under `Denoised`; a hashed picture is measured and never fails; a
+        /// picture with no reference, or a reference with no picture, fails; one failure among
+        /// passes fails the run; no reference directory passes without reading anything; and a
+        /// comparison asked for over no pictures fails, because it compared nothing.
+        TEST(RtxCompareTest, aRunIsJudgedPictureByPictureAndFailsOnWhatItCannotCompare)
+        {
+            const std::filesystem::path root = TestingOpenMW::currentTestDirPath();
+            const std::filesystem::path wrote = root / "wrote";
+            const std::filesystem::path against = root / "against";
+
+            const Rtx::PngImage before = flat(4, 4, 100);
+            Rtx::PngImage oneLevel = before;
+            channelAt(oneLevel, 1, 2, 0) = 101;
+            Rtx::PngImage moved = before;
+            channelAt(moved, 3, 3, 1) = 140;
+
+            writeTo(against / "same.png", before);
+            writeTo(wrote / "same.png", before);
+            writeTo(against / "one-level.png", before);
+            writeTo(wrote / "one-level.png", oneLevel);
+            writeTo(against / "moved.png", before);
+            writeTo(wrote / "moved.png", moved);
+            writeTo(wrote / "no-reference.png", before);
+            writeTo(against / "not-drawn.png", before);
+
+            struct Case
+            {
+                std::vector<WrittenPicture> mPictures;
+                int mStatus;
+                const char* mWhat;
+            };
+            const Case cases[] = {
+                { { { "same.png", PictureRule::Exact } }, 0, "the same picture" },
+                { { { "one-level.png", PictureRule::Exact } }, 1, "one level under the exact rule" },
+                { { { "one-level.png", PictureRule::Denoised } }, 0, "one level under the denoiser's rule" },
+                { { { "moved.png", PictureRule::Denoised } }, 1, "forty levels under the denoiser's rule" },
+                { { { "moved.png", PictureRule::Hashed } }, 0, "a hashed picture that moved" },
+                { { { "no-reference.png", PictureRule::Exact } }, 1, "a picture with no reference" },
+                { { { "not-drawn.png", PictureRule::Exact } }, 1, "a reference with no picture" },
+                { { { "same.png", PictureRule::Exact }, { "moved.png", PictureRule::Exact } }, 1,
+                    "one moved picture among the same" },
+                { {}, 1, "nothing to compare" },
+            };
+            for (const Case& expected : cases)
+                EXPECT_EQ(compareRuns(wrote, against, expected.mPictures), expected.mStatus) << expected.mWhat;
+
+            const std::vector<WrittenPicture> moving = { { "moved.png", PictureRule::Exact } };
+            EXPECT_EQ(compareRuns(wrote, {}, moving), 0) << "no reference directory asks for no comparison";
+
+            std::filesystem::remove_all(root);
+        }
+
+        /// A picture of `width` by `height` whose every pixel is `base`, but for the first `count`
+        /// pixels, which are `base + raised` in every colour channel.
+        Rtx::PngImage raisedAt(
+            std::uint32_t width, std::uint32_t height, std::uint8_t base, std::size_t count, std::uint8_t raised)
+        {
+            Rtx::PngImage image = flat(width, height, base);
+            for (std::size_t pixel = 0; pixel < count; ++pixel)
+                for (std::size_t channel = 0; channel < 3; ++channel)
+                    image.mPixels[pixel * 4 + channel] = static_cast<std::uint8_t>(base + raised);
+            return image;
+        }
+
+        /// **The exit status of `noise`, case by case**, over the five pictures a place writes. The
+        /// frame stands from its mean by the error of `frame` against a flat 100; the bar from its
+        /// limit by `bar` against the same. On a 10 by 10 picture:
+        /// - every pixel 2 off against the bar's 2: mean 2 against 2, p99 2 against 2, as clean;
+        /// - every pixel 3 off against 2: the mean is worse, noisier;
+        /// - two pixels 10 off against every pixel 1: mean 0.2 against 1, but the 99th of 100 pixels
+        ///   is 10 against 1, noisier, which the mean alone would pass;
+        /// - a missing picture, and a picture of another size, fail as not measured;
+        /// - no place at all fails, because nothing was measured.
+        TEST(RtxCompareTest, aFrameIsAsCleanAsItsBarOnlyByTheMeanAndThe99thPercentileBoth)
+        {
+            const std::filesystem::path root = TestingOpenMW::currentTestDirPath();
+            const Rtx::PngImage limit = flat(10, 10, 100);
+
+            const auto place = [&](const std::string& name, const Rtx::PngImage& frame, const Rtx::PngImage& bar) {
+                writeTo(root / (name + ".png"), frame);
+                writeTo(root / (name + std::string(sNoiseMeanSuffix) + ".png"), limit);
+                writeTo(root / (name + std::string(sNoiseBarSuffix) + ".png"), bar);
+                writeTo(root / (name + std::string(sNoiseBarLimitSuffix) + ".png"), limit);
+                writeTo(root / (name + std::string(sNoiseReferenceSuffix) + ".png"), limit);
+            };
+
+            place("clean", raisedAt(10, 10, 100, 100, 2), raisedAt(10, 10, 100, 100, 2));
+            place("noisier-mean", raisedAt(10, 10, 100, 100, 3), raisedAt(10, 10, 100, 100, 2));
+            place("noisier-tail", raisedAt(10, 10, 100, 2, 10), raisedAt(10, 10, 100, 100, 1));
+            place("missing", limit, limit);
+            std::filesystem::remove(root / ("missing" + std::string(sNoiseBarLimitSuffix) + ".png"));
+            place("other-size", flat(10, 9, 100), limit);
+
+            const auto judge = [&](std::vector<std::string> places) { return judgeNoise(root, places, 16); };
+            EXPECT_EQ(judge({ "clean" }), 0);
+            EXPECT_EQ(judge({ "noisier-mean" }), 1);
+            EXPECT_EQ(judge({ "noisier-tail" }), 1) << "a tail the mean hides";
+            EXPECT_EQ(judge({ "missing" }), 1);
+            EXPECT_EQ(judge({ "other-size" }), 1);
+            EXPECT_EQ(judge({ "clean", "noisier-tail" }), 1) << "one noisier place among clean ones";
+            EXPECT_EQ(judge({}), 1) << "nothing measured";
+
+            const PictureError tail = measureError(raisedAt(10, 10, 100, 2, 10), limit);
+            EXPECT_DOUBLE_EQ(tail.mMean, 0.2);
+            EXPECT_EQ(tail.mP99, 10u);
+
+            std::filesystem::remove_all(root);
         }
     }
 }

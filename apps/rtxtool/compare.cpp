@@ -205,6 +205,13 @@ namespace RtxTool
     int judgeNoise(
         const std::filesystem::path& wrote, const std::span<const std::string> places, const std::uint32_t barFrames)
     {
+        // A run that measured nothing has not shown that anything is as clean as its bar.
+        if (places.empty())
+        {
+            out() << "  no place was measured\n";
+            return 1;
+        }
+
         const auto read = [&](const std::string& place, const std::string_view suffix) {
             return Rtx::readPng(wrote / (place + std::string(suffix) + ".png"));
         };
@@ -280,6 +287,13 @@ namespace RtxTool
 
         out() << std::format("{} {} against {}\n", pictures.size(), pictures.size() == 1 ? "picture" : "pictures",
             Files::pathToUnicodeString(against));
+
+        // Asked to compare and given nothing: "nothing moved" would be a pass that compared nothing.
+        if (pictures.empty())
+        {
+            out() << "  this run drew no picture to compare\n";
+            return 1;
+        }
 
         std::uint32_t moved = 0;
         std::uint32_t unmatched = 0;
