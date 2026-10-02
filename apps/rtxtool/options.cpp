@@ -33,6 +33,7 @@
 #include "film.hpp"
 #include "model/benchrun.hpp"
 #include "model/blockfile.hpp"
+#include "model/wholenumber.hpp"
 #include "numbervalue.hpp"
 #include "run.hpp"
 #include "verbs.hpp"
@@ -598,10 +599,8 @@ namespace RtxTool
                 continue;
 
             const std::string_view spelled = name;
-            const std::optional<std::uint64_t> started
-                = Misc::StringUtils::toNumericWhole<std::uint64_t>(spelled.substr(0, dash));
-            const std::optional<std::uint32_t> process
-                = Misc::StringUtils::toNumericWhole<std::uint32_t>(spelled.substr(dash + 1));
+            const std::optional<std::uint64_t> started = wholeNumber<std::uint64_t>(spelled.substr(0, dash));
+            const std::optional<std::uint32_t> process = wholeNumber<std::uint32_t>(spelled.substr(dash + 1));
             if (!started.has_value() || !process.has_value())
                 continue;
 

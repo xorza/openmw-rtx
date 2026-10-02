@@ -50,6 +50,7 @@
 #include "model/benchrun.hpp"
 #include "model/benchspec.hpp"
 #include "model/blockfile.hpp"
+#include "model/wholenumber.hpp"
 #include "options.hpp"
 #include "run.hpp"
 #include "verbs.hpp"
@@ -100,12 +101,10 @@ namespace RtxTool
         Size parseSize(std::string_view text)
         {
             const std::size_t cross = text.find('x');
-            const std::optional<std::uint32_t> width = cross != std::string_view::npos
-                ? Misc::StringUtils::toNumericWhole<std::uint32_t>(text.substr(0, cross))
-                : std::nullopt;
-            const std::optional<std::uint32_t> height = cross != std::string_view::npos
-                ? Misc::StringUtils::toNumericWhole<std::uint32_t>(text.substr(cross + 1))
-                : std::nullopt;
+            const std::optional<std::uint32_t> width
+                = cross != std::string_view::npos ? wholeNumber<std::uint32_t>(text.substr(0, cross)) : std::nullopt;
+            const std::optional<std::uint32_t> height
+                = cross != std::string_view::npos ? wholeNumber<std::uint32_t>(text.substr(cross + 1)) : std::nullopt;
 
             if (!width.has_value() || !height.has_value() || *width == 0 || *height == 0)
                 throw std::runtime_error("not a size: " + std::string(text));

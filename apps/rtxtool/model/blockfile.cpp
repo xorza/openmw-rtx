@@ -15,6 +15,7 @@
 #include <components/rtx/environment/skylight.hpp>
 
 #include "benchrun.hpp"
+#include "wholenumber.hpp"
 
 namespace RtxTool
 {
@@ -42,7 +43,7 @@ namespace RtxTool
 
     std::optional<float> parseFloat(std::string_view text)
     {
-        return Misc::StringUtils::toNumericWhole<float>(text);
+        return wholeNumber<float>(text);
     }
 
     std::optional<osg::Vec3f> parseVec3(std::string_view text)
@@ -70,10 +71,10 @@ namespace RtxTool
         if (!splitExactly(text, pieces))
             return std::nullopt;
 
-        const std::optional<double> seconds = Misc::StringUtils::toNumericWhole<double>(pieces[0]);
+        const std::optional<double> seconds = wholeNumber<double>(pieces[0]);
         const std::optional<float> scroll = parseFloat(pieces[1]);
-        const std::optional<double> x = Misc::StringUtils::toNumericWhole<double>(pieces[2]);
-        const std::optional<double> y = Misc::StringUtils::toNumericWhole<double>(pieces[3]);
+        const std::optional<double> x = wholeNumber<double>(pieces[2]);
+        const std::optional<double> y = wholeNumber<double>(pieces[3]);
         if (!seconds.has_value() || !scroll.has_value() || !x.has_value() || !y.has_value())
             return std::nullopt;
 
@@ -282,7 +283,7 @@ namespace RtxTool
 
     int BlockFile::day(const BlockField& field) const
     {
-        const std::optional<int> value = Misc::StringUtils::toNumericWhole<int>(field.mValue);
+        const std::optional<int> value = wholeNumber<int>(field.mValue);
         if (!value.has_value())
             refuseValue(field, "is not a whole number of days");
         if (const Misc::Result<void, std::string_view> checked = checkDay(*value); !checked.isOk())

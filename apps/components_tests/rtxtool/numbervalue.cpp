@@ -1,6 +1,8 @@
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -10,6 +12,7 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
 
+#include <apps/rtxtool/model/wholenumber.hpp>
 #include <apps/rtxtool/numbervalue.hpp>
 
 namespace RtxTool
@@ -36,6 +39,20 @@ namespace RtxTool
             {
                 return refused.what();
             }
+        }
+
+        /// The whole text or nothing: a value somebody typed for one field is the number and nothing
+        /// after it, and still a finite one.
+        TEST(RtxNumberValueTest, aNumberIsTheWholeTextOrNothing)
+        {
+            EXPECT_EQ(wholeNumber<double>("1.5"), 1.5);
+            EXPECT_EQ(wholeNumber<double>("-2e3"), -2000.0);
+            for (const std::string_view spelled : { "1.5x", "1e", "0x10", " 1", "1 ", "inf", "nan", "" })
+                EXPECT_EQ(wholeNumber<double>(spelled), std::nullopt) << spelled;
+
+            EXPECT_EQ(wholeNumber<int>("42"), 42);
+            EXPECT_EQ(wholeNumber<int>("42px"), std::nullopt);
+            EXPECT_EQ(wholeNumber<unsigned int>("-1"), std::nullopt);
         }
 
         /// **One rule for a number the line gives**: the whole text, a finite number, inside the
