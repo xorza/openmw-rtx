@@ -79,8 +79,9 @@ namespace Rtx
         /// Removes the oldest of this renderer's other caches in the same directory, past the few it
         /// keeps — the eviction. Another cache is for a driver or a shader tree this run does not
         /// have, which a second card or the tree before an edit may have again; one older than the
-        /// kept few compiles from source once. So does a process whose partial write is swept in
-        /// the one-rename window.
+        /// kept few compiles from source once. A partial write ends with the same suffix, so one a
+        /// process left when it was killed between its write and its rename ages out like any other
+        /// cache; one swept in that window costs its writer a compile from source.
         void sweep() const;
 
         VkDevice mDevice = VK_NULL_HANDLE;
