@@ -192,13 +192,70 @@ float throughBlocked(uint blocked)
 /// the cutout test reads its alpha through and a medium's crossing its texel.
 ///
 /// @param detailed whether the candidate is read along its footprint, as `texturePoint` says.
-TexturePoint candidatePoint(uvec3 corners, GpuMaterial material, vec2 bary, TriangleEdges edges, vec3 direction,
-    float coneWidth, bool detailed)
+TexturePoint candidatePoint(
+    uvec3 corners, GpuMaterial material, vec2 bary, SurfaceCone cone, float coneWidth, bool detailed)
 {
     vec2 uv[3];
     triangleUvs(corners, uv);
-    return texturePoint(
-        uv, bary, material.mTextureTransform, surfaceConeAt(edges, direction), coneWidth, detailed);
+    return texturePoint(uv, bary, material.mTextureTransform, cone, coneWidth, detailed);
+}
+
+/// Where a map bound at `unit` reads the hit: at the diffuse's own `point`, or on the second set,
+/// untransformed, where the mesh says that unit reads it — `GpuMesh::mUnitStreams`.
+TexturePoint pointAtUnit(
+    uint unit, TexturePoint point, GpuMesh mesh, uvec3 corner, vec2 bary, SurfaceCone cone, float coneWidth, bool detailed)
+{
+    if (!readsSecondUvs(mesh, unit))
+        return point;
+
+    vec2 second[3];
+    triangleSecondUvs(mesh, corner, second);
+    return texturePoint(second, bary, vec4(1.0, 1.0, 0.0, 0.0), cone, coneWidth, detailed);
+}
+
+/// What the dark map paints where a ray crosses `material`, at the unit the content bound it at, and
+/// white where it holds none: what the diffuse is multiplied by, colour and alpha, which is where
+/// `objects.frag` puts it. **One read for the hit and a medium's crossing**, so a map the surface
+/// wears is worn wherever it is seen. The cut reads none, for the reason `candidateStops` gives.
+vec4 darkAt(GpuMaterial material, GpuMesh mesh, uvec3 corner, vec2 bary, TexturePoint point, SurfaceCone cone,
+    float coneWidth, bool detailed)
+{
+    if (!holdsTexture(material.mDark))
+        return vec4(1.0);
+
+    const uint unit = (material.mFlags >> MATERIAL_DARK_UNIT_SHIFT) & MATERIAL_UNIT_MASK;
+    return sampleDiffuse(material.mDark, pointAtUnit(unit, point, mesh, corner, bary, cone, coneWidth, detailed));
+}
+
+/// **A sphere-mapped sheet, added past the albedo and indexed by where the eye is**, in light, and
+/// nothing where `material` holds none. The original adds `envMap` after its lighting, so it is
+/// emission that depends on the view: the violet sheet a magic effect wears and the caustic sheet an
+/// enchanted item shimmers with are what the artist drew, and neither is a reflection of anything.
+/// The coordinates are the rasterizer's own — `objects.vert` reflects the eye-space view vector
+/// about the eye-space normal and folds it onto the sheet — in the frame camera's basis, so a
+/// bounce that lands on glass armour sees the sheet the way the reflection camera would.
+///
+/// @param shading the normal the surface shows the ray, in world space and unit.
+vec3 sheetAt(GpuMaterial material, uvec3 corner, vec3 shading, vec3 direction, SurfaceCone cone, float coneWidth)
+{
+    if (!holdsTexture(material.mEnvironment))
+        return vec3(0.0);
+
+    // The eye space is OpenGL's, looking down its own -Z.
+    const vec3 right = frame.mUnitRight;
+    const vec3 up = frame.mUnitUp;
+    const vec3 forward = frame.mCamera.mForward;
+    const vec3 viewEye = vec3(dot(direction, right), dot(direction, up), -dot(direction, forward));
+    const vec3 normalEye = vec3(dot(shading, right), dot(shading, up), -dot(shading, forward));
+
+    // **Its own footprint and not the surface's**, which `spherePoint` says at length: a sheet
+    // indexed by the reflection is not read at the level the mesh's coordinates ask for. A second
+    // fetch of the triangle's normals, paid by the materials that wear a sheet, which are few.
+    vec3 normal[3];
+    triangleNormals(corner, normal);
+
+    const TexturePoint sheet = spherePoint(normal, normalEye, viewEye, cone, coneWidth);
+    return SUNLIT_WHITE * sampleDiffuse(material.mEnvironment, sheet).rgb * material.mEnvironmentColour;
 }
 
 /// Whether a candidate hit stops the ray, and what it lets past where it does not.
@@ -260,8 +317,14 @@ bool candidateStops(uint instanceIndex, uint primitive, vec2 bary, TriangleEdges
     if (!walkPast && !hasMask(material))
         return true;
 
-    const TexturePoint point = candidatePoint(
-        triangleCorners(meshAt(instance.mMesh), primitive), material, bary, edges, direction, coneWidth, detailed);
+    const TexturePoint point = candidatePoint(triangleCorners(meshAt(instance.mMesh), primitive), material, bary,
+        surfaceConeAt(edges, direction), coneWidth, detailed);
+
+    // **The diffuse's alpha alone**, where `objects.frag` multiplies the dark map's in before
+    // `alphaTest`. Read here, the dark map cost the dawn deck's trace 3% (2.59 against 2.50 ms,
+    // four legs each), behind a material bit or not: the code sits in every shadow ray's candidate
+    // loop. The hit and a medium's crossing read it.
+    const float painted = sampleDiffuse(material.mDiffuse, point).a;
 
     // **A hole is a hole to the ray that walks past as well.** A placement the game is fading
     // makes its cutout see-through, and the eye still passes a texel under the cutoff before it
@@ -269,13 +332,12 @@ bool candidateStops(uint instanceIndex, uint primitive, vec2 bary, TriangleEdges
     // sees. Selected, so a pane with no mask pays the one compare.
     if (walkPast)
     {
-        const float painted = sampleDiffuse(material.mDiffuse, point).a;
         const bool hole = hasMask(material) && painted < material.mAlphaCutoff;
         blocked = addShare(blocked, blockedBy(hole ? 0.0 : sampledOpacity(opacity, painted)));
         return false;
     }
 
-    return sampleDiffuse(material.mDiffuse, point).a >= material.mAlphaCutoff;
+    return painted >= material.mAlphaCutoff;
 }
 
 /// The candidate loop, run to completion. It confirms every hit that lands on the material rather
@@ -742,19 +804,6 @@ Surface noSurface(vec3 origin)
     return surface;
 }
 
-/// Where a map bound at `unit` reads the hit: at the diffuse's own `point`, or on the second set,
-/// untransformed, where the mesh says that unit reads it — `GpuMesh::mUnitStreams`.
-TexturePoint pointAtUnit(
-    uint unit, TexturePoint point, GpuMesh mesh, uvec3 corner, vec2 bary, SurfaceCone cone, float coneWidth, bool detailed)
-{
-    if (!readsSecondUvs(mesh, unit))
-        return point;
-
-    vec2 second[3];
-    triangleSecondUvs(mesh, corner, second);
-    return texturePoint(second, bary, vec4(1.0, 1.0, 0.0, 0.0), cone, coneWidth, detailed);
-}
-
 /// What a hit is made of.
 ///
 /// **Everything a hit leads to and nothing the traversal already answered.** Every table this reads
@@ -1051,25 +1100,20 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     if (seenThrough)
         surface.mOpacity = sampledOpacity(opacity, material, point);
 
-    // **The dark map multiplies the whole of it**, colour and alpha, which is where `objects.frag`
-    // puts it. At the unit the content bound it at, on whichever set that unit reads: the Sixth
-    // House banners read their second set and the durzog its first.
-    if (holdsTexture(material.mDark))
-    {
-        const uint unit = (material.mFlags >> MATERIAL_DARK_UNIT_SHIFT) & MATERIAL_UNIT_MASK;
-        const vec4 dark = sampleDiffuse(
-            material.mDark, pointAtUnit(unit, point, mesh, corner, hit.mBary, cone, surface.mFootprint, detailed));
-        surface.mAlbedo *= dark.rgb;
+    // **The dark map multiplies the whole of it**, colour and alpha. At the unit the content bound
+    // it at, on whichever set that unit reads: the Sixth House banners read their second set and
+    // the durzog its first. White where there is none, so no surface asks twice.
+    const vec4 dark = darkAt(material, mesh, corner, hit.mBary, point, cone, surface.mFootprint, detailed);
+    surface.mAlbedo *= dark.rgb;
 
-        // And the lobe, for the tint's reason: a dark map is light painted in.
-        if (HAS_MAPS)
-            surface.mSpecular *= dark.rgb;
+    // And the lobe, for the tint's reason: a dark map is light painted in.
+    if (HAS_MAPS)
+        surface.mSpecular *= dark.rgb;
 
-        // The alpha only where an alpha is read at all: an opaque surface's is never written to
-        // the frame, and the peel reads `mOpacity` as whether there is a layer to peel.
-        if (seenThrough)
-            surface.mOpacity *= dark.a;
-    }
+    // The alpha only where an alpha is read at all: an opaque surface's is never written to the
+    // frame, and the peel reads `mOpacity` as whether there is a layer to peel.
+    if (seenThrough)
+        surface.mOpacity *= dark.a;
 
     // At its own unit too: the draugrs' eye glow is bound on their second set.
     if (holdsTexture(material.mEmissive))
@@ -1081,34 +1125,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
                   .rgb;
     }
 
-    // **A sphere-mapped sheet, added past the albedo and indexed by where the eye is.** The
-    // original adds `envMap` after its lighting, so it is emission that depends on the view: the
-    // violet sheet a magic effect wears and the caustic sheet an enchanted item shimmers with are
-    // what the artist drew, and neither is a reflection of anything. The coordinates are the
-    // rasterizer's own — `objects.vert` reflects the eye-space view vector about the eye-space
-    // normal and folds it onto the sheet — in the frame camera's basis, so a bounce that lands on
-    // glass armour sees the sheet the way the reflection camera would.
-    if (holdsTexture(material.mEnvironment))
-    {
-        // The eye space is OpenGL's, looking down its own -Z.
-        const vec3 right = frame.mUnitRight;
-        const vec3 up = frame.mUnitUp;
-        const vec3 forward = frame.mCamera.mForward;
-        const vec3 viewEye = vec3(dot(direction, right), dot(direction, up), -dot(direction, forward));
-        const vec3 normalEye = vec3(dot(surface.mNormal, right), dot(surface.mNormal, up), -dot(surface.mNormal, forward));
-
-        // **Its own footprint and not the surface's**, which `spherePoint` says at length: a sheet
-        // indexed by the reflection is not read at the level the mesh's coordinates ask for. The
-        // second fetch of the triangle's normals in the frame, and the only one outside the
-        // traversal — paid by the materials that wear a sheet, which are few.
-        vec3 normal[3];
-        triangleNormals(corner, normal);
-
-        const TexturePoint sheet = spherePoint(normal, normalEye, viewEye, cone, surface.mFootprint);
-
-        surface.mEmitted
-            += SUNLIT_WHITE * sampleDiffuse(material.mEnvironment, sheet).rgb * material.mEnvironmentColour;
-    }
+    surface.mEmitted += sheetAt(material, corner, surface.mNormal, direction, cone, surface.mFootprint);
 
     return surface;
 }

@@ -143,25 +143,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
 
 ## The material reader keeps a subset of what the loader states, by rules other than the rasterizer's
 
-- [ ] **The additive and medium walks read the diffuse map alone, so dark maps and environment
-  sheets on effect sheets are dropped** — `components/rtxvulkan/shaders/lib/medium.glsl:75-90`
-  (`crossingOf` samples `mDiffuse` only), `:217-222` (says the emissive map is not read, and nothing
-  says the dark map or the sheet is not), `:339-355`; against `objects.frag:159-162`, `:188-245`.
-  The comment at `traversal.glsl:1061-1067` says "the violet sheet a magic effect wears" is drawn
-  there, but an additive sheet never reaches `resolveFor`: it is gathered by `additiveAlong` alone.
-  Vanilla: `e/fire_shield.nif`, `frost_shield.nif`, `lightning_shield.nif` (`VFX_FireShield`,
-  `VFX_FrostShield`, `VFX_LightningShield`, hung on every actor under a shield spell) and
-  `magic_area_myst.nif` (`VFX_MysticismArea`) are `SRC_ALPHA, ONE` sheets with a dark map. The
-  rasterizer multiplies the sheet's colour and alpha by it, and the tracer adds the bare base
-  texture. `i/act_rockslide01.nif` has a dark map and no base map, so the rasterizer shows the dust
-  texture and the tracer a flat `NO_TEXTURE_ALBEDO` grey sheet. `e/magic_cast_restore.nif`,
-  `e/magic_area_alt.nif` and `were_morph*.nif` are additive under an `NiTextureEffect`, whose
-  sphere-mapped sheet the tracer never adds. Also: the cutout test reads the diffuse alpha alone
-  (`traversal.glsl:263-268`), where the rasterizer tests `alpha × dark.a` (`objects.frag:160-164`).
-  Better shape: one per-crossing material read (`texel × dark`, and the sheet where
-  `mEnvironment` is set) shared by `crossingOf`, `candidateStops` and `resolveFor`, so a map the
-  surface wears is read by every walk that meets the surface. *(kind: missing; severity: medium;
-  benefit: spell shields and casting effects as authored)*
 - [ ] **Detail, decal, gloss and bump maps, blend pairs other than the vanilla four, alpha-test
   functions other than "at least", a zero test reference, a clockwise front face, wireframe,
   `NiFogProperty` and `NiLines` are dropped or misread with no refusal** —
