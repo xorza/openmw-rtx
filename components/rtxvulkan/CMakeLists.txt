@@ -192,6 +192,7 @@ set(RTX_SHADER_LIB
     shaders/lib/underwater.glsl
     shaders/lib/variants.glsl
     shaders/lib/water.glsl
+    shaders/lib/wavetile.glsl
     shaders/upscale/fsrcallbacks.glsl
 )
 
