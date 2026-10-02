@@ -156,7 +156,6 @@ namespace MWRender
         };
 
         constexpr std::array sRequests{
-            RequestSupport{ ScriptRequest::Borders, "The ray tracer draws no cell borders yet." },
             RequestSupport{ ScriptRequest::ShaderReload,
                 "The ray tracer's kernels are compiled into the build, and a rebuild changes them." },
             RequestSupport{ ScriptRequest::LiveShaderReload,

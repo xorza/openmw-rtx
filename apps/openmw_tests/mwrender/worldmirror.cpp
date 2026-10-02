@@ -64,7 +64,8 @@ namespace MWRender
 
             Rtx::Testing::FakeLand mLand;
             osg::ref_ptr<osg::Group> mGroundRoot = new osg::Group;
-            TracedTerrain mTerrain{ *mGroundRoot, mLand, Mask_Terrain, ESM::Cell::sDefaultWorldspaceId };
+            TracedTerrain mTerrain{ *mGroundRoot, *mGroundRoot, mLand, mScenes, Mask_Terrain,
+                ESM::Cell::sDefaultWorldspaceId };
             ObjectStorage mObjects;
 
             osg::FrameStamp mWhen;

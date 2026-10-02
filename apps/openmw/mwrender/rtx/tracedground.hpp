@@ -2,19 +2,12 @@
 
 #include <cstdint>
 
-#include <components/esm/refid.hpp>
-
 #include "../ground.hpp"
 #include "tracedterrain.hpp"
 
-namespace osg
+namespace Resource
 {
-    class Group;
-}
-
-namespace Terrain
-{
-    class Storage;
+    class SceneManager;
 }
 
 namespace MWRender
@@ -28,8 +21,8 @@ namespace MWRender
     class TracedGround final : public Ground
     {
     public:
-        TracedGround(osg::Group& sceneRoot, Terrain::Storage& storage, unsigned int nodeMask, ESM::RefId worldspace,
-            WorldMirror& mirror);
+        TracedGround(
+            const GroundSpec& spec, Resource::SceneManager& scenes, unsigned int nodeMask, WorldMirror& mirror);
 
         Terrain::World& getTerrain() override { return mTerrain; }
 

@@ -1,6 +1,7 @@
 #include "tracedterrain.hpp"
 
 #include <algorithm>
+#include <memory>
 #include <utility>
 
 #include <osg/Geometry>
@@ -8,8 +9,11 @@
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
+#include <components/terrain/cellborder.hpp>
 #include <components/terrain/storage.hpp>
 #include <components/terrain/view.hpp>
+
+#include "../vismask.hpp"
 
 namespace MWRender
 {
@@ -22,12 +26,13 @@ namespace MWRender
         };
     }
 
-    TracedTerrain::TracedTerrain(
-        osg::Group& sceneRoot, Terrain::Storage& storage, const unsigned int nodeMask, const ESM::RefId worldspace)
+    TracedTerrain::TracedTerrain(osg::Group& sceneRoot, osg::Group& worldRoot, Terrain::Storage& storage,
+        Resource::SceneManager& scenes, const unsigned int nodeMask, const ESM::RefId worldspace)
         : Terrain::World(&sceneRoot, &storage, nodeMask, worldspace)
         , mNormals(new osg::Vec3Array)
         , mColours(new osg::Vec4ubArray)
     {
+        mCellBorder = std::make_unique<Terrain::CellBorder>(this, &worldRoot, Mask_Debug, &scenes);
     }
 
     TracedTerrain::~TracedTerrain() = default;

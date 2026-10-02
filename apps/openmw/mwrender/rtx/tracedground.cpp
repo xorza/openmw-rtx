@@ -7,9 +7,9 @@
 
 namespace MWRender
 {
-    TracedGround::TracedGround(osg::Group& sceneRoot, Terrain::Storage& storage, const unsigned int nodeMask,
-        const ESM::RefId worldspace, WorldMirror& mirror)
-        : mTerrain(sceneRoot, storage, nodeMask, worldspace)
+    TracedGround::TracedGround(
+        const GroundSpec& spec, Resource::SceneManager& scenes, const unsigned int nodeMask, WorldMirror& mirror)
+        : mTerrain(spec.mSceneRoot, spec.mWorldRoot, spec.mStorage, scenes, nodeMask, spec.mWorldspace)
         , mMirror(mirror)
     {
     }

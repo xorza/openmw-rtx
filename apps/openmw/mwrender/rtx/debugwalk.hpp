@@ -26,9 +26,11 @@ namespace MWRender
     /// — by the world transform in force at the drawable, with the colour the drawer painted at
     /// each vertex or over the whole. Points are not drawn: nothing here has a size for one.
     ///
-    /// **The polygon mode along the path is kept**, as the rasterizer's state stack keeps it: under
-    /// `PolygonMode::LINE`, which the collision drawer sets over its shapes, a triangle or a quad
-    /// is its edges and not a face.
+    /// **The polygon mode and the blend mode along the path are kept**, as the rasterizer's state
+    /// stack keeps them: under `PolygonMode::LINE`, which the collision drawer and the cell borders
+    /// set, a triangle or a quad is its edges and not a face; and where nothing turns `GL_BLEND`
+    /// on, a colour's alpha is not read — the cell borders paint their yellow at an alpha of
+    /// nought, and only the navmesh blends.
     ///
     /// The lists live across frames and are refilled: a walk allocates nothing after the busiest
     /// frame so far.
@@ -45,13 +47,21 @@ namespace MWRender
         void apply(osg::Transform& transform) override;
         void apply(osg::Drawable& drawable) override;
 
-    private:
-        /// Whether `stateSet` states the polygons under it be drawn as their edges, or as faces, or
-        /// leaves what is above in force.
-        void takeMode(const osg::StateSet* stateSet);
+        /// What the state sets along the path leave in force where the walk stands.
+        struct Drawn
+        {
+            /// Whether a polygon is drawn as its edges.
+            bool mEdges = false;
 
-        /// Whether the polygons where the walk stands are drawn as their edges.
-        bool mEdges = false;
+            /// Whether a colour's alpha blends it over the picture.
+            bool mBlends = false;
+        };
+
+    private:
+        /// What `stateSet` states of the two, over what is above where it leaves either alone.
+        void take(const osg::StateSet* stateSet);
+
+        Drawn mDrawn;
 
         /// The transform in force at the node being applied, world from local.
         osg::Matrixf mHere;

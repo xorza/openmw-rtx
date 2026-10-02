@@ -514,13 +514,6 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
-                if (const std::string_view declined = renderSupport().declinedRequest(MWRender::ScriptRequest::Borders);
-                    !declined.empty())
-                {
-                    runtime.getContext().report(MWRender::notAvailable("Border Rendering", declined));
-                    return;
-                }
-
                 bool enabled = MWBase::Environment::get().getWorld()->toggleBorders();
 
                 runtime.getContext().report(enabled ? "Border Rendering -> On" : "Border Rendering -> Off");

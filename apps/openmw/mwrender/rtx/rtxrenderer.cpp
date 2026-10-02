@@ -324,7 +324,7 @@ namespace MWRender
 
     std::unique_ptr<Ground> RtxRenderer::createGround(const GroundSpec& spec) noexcept
     {
-        return std::make_unique<TracedGround>(spec.mSceneRoot, spec.mStorage, Mask_Terrain, spec.mWorldspace, mMirror);
+        return std::make_unique<TracedGround>(spec, *getResources().getSceneManager(), Mask_Terrain, mMirror);
     }
 
     void RtxRenderer::addCell(const MWWorld::CellStore* cell) noexcept

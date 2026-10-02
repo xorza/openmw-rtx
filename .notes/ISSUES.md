@@ -86,3 +86,5 @@ first review.
 - Under `tws` the ray tracer still lights the sea and the player from the lamps of the statics and the
   objects it hides. The rasterizer's light manager collects no light from a culled node, so under the
   rasterizer those lamps go dark.
+- Under `tws` the ray tracer still draws the cell borders. The rasterizer hangs them under the terrain root,
+  whose `Mask_Terrain` `tws` culls, so under it they go with the ground.
