@@ -20,7 +20,7 @@ namespace Rtx
         std::uint64_t mSize = 0;
 
         /// What the driver says this process may have of it — or the renderer's own budget where
-        /// that is less (`RendererOptions::mMemoryBudget`) — and what the driver says the process
+        /// that is less (`RunProfile::mMemoryBudget`) — and what the driver says the process
         /// already holds: both nought where the driver will not say. A budget moves with what else
         /// is running, and is the figure a residency decision is made against.
         std::uint64_t mBudget = 0;
@@ -39,7 +39,8 @@ namespace Rtx
         bool mDeviceLocal = false;
 
         /// Whether the device reads this heap and the host writes into it directly: the one heap
-        /// a card without resizable BAR keeps at a couple of hundred megabytes.
+        /// a card without resizable BAR keeps at a couple of hundred megabytes, and the whole of
+        /// video memory on a card with it.
         bool mHostVisible = false;
     };
 

@@ -111,7 +111,7 @@ namespace Rtx
 
             const Index cutout = scene.addMaterial(Material{
                 .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("textures/leaf.dds")),
-                .mAlphaRef = 0.5f,
+                .mAlphaTest = { .mReference = 0.5f },
                 .mAlphaMode = AlphaMode::Cutout,
             });
             const Index glass = scene.addMaterial(Material{
@@ -152,13 +152,14 @@ namespace Rtx
             EXPECT_EQ(kept[water].mMask, Shaders::MASK_WATER);
             ASSERT_EQ(scene.placements().getPresent().size(), 2u) << "the cloud and the sheet";
 
-            // **A medium is met by the medium bit alone**, so no ray that ignores it is handed it, and
-            // its class rides in `mClass` for the one ray that sums it. Every other placement's mask
-            // is its class. The instance here states no class, which is a static.
+            // **A medium is met by the medium bit alone, and an additive sheet by its own**, so no
+            // ray that ignores either is handed it, and the class rides in `mClass` for the walks that
+            // gather them, which test it against the camera's. Every other placement's mask is its
+            // class. The instances here state no class, which is a static.
             EXPECT_EQ(kept[cloud].mMask, Shaders::MASK_MEDIUM);
             EXPECT_EQ(kept[cloud].mClass, Shaders::MASK_STATIC);
             EXPECT_EQ(kept[glow].mMask, Shaders::MASK_ADDITIVE);
-            EXPECT_EQ(kept[glow].mClass, Shaders::MASK_ADDITIVE);
+            EXPECT_EQ(kept[glow].mClass, Shaders::MASK_STATIC);
             EXPECT_EQ(kept[pane].mMask, kept[pane].mClass);
             EXPECT_EQ(kept[water].mClass, Shaders::MASK_WATER);
 
@@ -187,9 +188,9 @@ namespace Rtx
             expectSame(kept, scene, "moved");
             EXPECT_FALSE(kept[leaf].mMotion == still) << "a mover carried no motion";
             EXPECT_TRUE(kept[water].mMotion == still) << "the sea stood a cell over moved its surface";
-            // The six the build placed, settling for the first time, and then the two that moved: a
-            // slot in both lists is a row written twice, which costs one row twice.
-            EXPECT_EQ(changed, (std::vector<Index>{ leaf, pane, water, chunk, cloud, glow, leaf, water }))
+            // The four the build placed that settle for the first time, and then the two that moved:
+            // a slot in both lists is written once, by the pass that gives it its motion.
+            EXPECT_EQ(changed, (std::vector<Index>{ pane, chunk, cloud, glow, leaf, water }))
                 << "the slots written, in order";
 
             scene.placements().advance();
@@ -231,9 +232,10 @@ namespace Rtx
             scene.placements().advance();
 
             // A drop empties the row; the slot taken over is a new row, and the table grows past it.
-            // The sheet goes too, and out of the present set.
+            // The sheet goes too, and out of the present set once the hand-over settles the lists.
             scene.dropInstance(pane, Stander::Walk);
             scene.dropInstance(glow, Stander::Walk);
+            scene.compact();
             updateInstanceRecords(scene, kept, changed);
             expectSame(kept, scene, "dropped");
             EXPECT_FALSE(kept[pane].mPlaced);

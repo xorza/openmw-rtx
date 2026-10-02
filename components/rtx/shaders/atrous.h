@@ -17,18 +17,15 @@
 // by the trace and read once by whatever consumes it. That is what lets the two formats part: a
 // reference is built through that channel and never through this one.
 //
-// **Half floats, because a filtered bounce is shown and never summed.** A reference is built with
-// the denoiser switched off, so nothing here reaches one — where the argument that holds the
-// radiance at full width, `RadianceWidth::Summed`, is entirely about a term added to a thousand
-// others.
-//
-// **What it costs is a floor, and the floor is measured.** Each level rounds what it stores, which
-// over five levels put about 3e-4 of the value under the cascade's own error — visible only where the cascade
-// had already driven that error below it, which is a flat sheet under a smooth sky.
-// `theFilterAndItsHistoryConvergeOnAGrazingSurface` is that scene, and it carries the pair of
-// figures.
+// **Full floats, because the first level writes the bounce's running mean**, which the accumulator
+// blends into the next frame (`ACCUMULATE_COLOUR` is this format by definition). A half store
+// rounds toward nought on this card (`RtxHalfStoreTest`), so a mean kept in halves falls a little
+// at every store: up to one step a frame, which the blend's weight keeps at up to sixteen, about
+// 0.8 per cent under the mean of the same frames. One declaration writes every level, so every
+// level is full float; the levels after the first are shown and never summed, and would keep halves
+// on their own.
 
-#define ATROUS_CHANNEL STORAGE_RGBA16F
+#define ATROUS_CHANNEL STORAGE_RGBA32F
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders
@@ -55,13 +52,9 @@ namespace Rtx::Shaders
     /// makes the reconstructed positions the ones that were actually shaded.
     struct AtrousConstants
     {
-        Camera mCamera;
-
-        /// The eye the player's arms were traced through, `VisibilityConstants::mArms`: a pixel the
-        /// trace drew on an arm — the puffs channel's flag says which — is rebuilt through it, and
-        /// the rest through `mCamera`. The two stand at one place, so positions rebuilt through
-        /// either still differ by a vector that drops it.
-        Camera mArms;
+        /// The eyes the frame was traced through, `VisibilityConstants::mEyes`. The two stand at one
+        /// place, so positions rebuilt through either still differ by a vector that drops it.
+        Eyes mEyes;
 
         /// The spacing of this level's taps, in pixels. The three sigmas the taps are weighed by
         /// are `look.h`'s, because nothing varies them per level or per frame.
@@ -71,7 +64,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(AtrousConstants) == 124, "AtrousConstants must be scalar-packed on every side");
+    static_assert(sizeof(AtrousConstants) == 140, "AtrousConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

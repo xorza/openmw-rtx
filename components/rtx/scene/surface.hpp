@@ -15,7 +15,9 @@
 
 #include <components/rtx/common/namedenum.hpp>
 #include <components/rtx/image/colour.hpp>
+#include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/shaders/scene.h>
 
 namespace osg
 {
@@ -37,8 +39,61 @@ namespace Rtx
 
         /// Blend. This is where the foliage is: a canopy or a banner is an `NiAlphaProperty` over a
         /// texture whose alpha is all but binary, which the original renderer sorted rather than
-        /// tested. `Rtx::Material::getAlphaCutoff` says what a renderer with no sort does.
+        /// tested. `Rtx::Material::getAlphaTest` says what a renderer with no sort does.
         Blend,
+    };
+
+    /// What of a surface's state the trace does not read, one bit each: a fact the content stated
+    /// that the rasterizer would draw and the trace does not. `MaterialResolver` reports each as a
+    /// refusal, once for each texture a surface names, and draws the rest of the surface.
+    enum class UnreadState : std::uint32_t
+    {
+        /// A detail, decal, gloss or bump map, which no shipped file binds.
+        Role = 1u << 0,
+
+        /// A blend other than the four the shipped files state.
+        BlendPair = 1u << 1,
+        BlendEquation = 1u << 2,
+
+        /// A cull of the front faces.
+        CulledFront = 1u << 3,
+
+        /// Lines or points in place of faces.
+        PolygonMode = 1u << 4,
+
+        /// A fog of the surface's own, an `NiFogProperty`.
+        Fog = 1u << 5,
+
+        Stencil = 1u << 6,
+        ColourMask = 1u << 7,
+        FlatShading = 1u << 8,
+
+        /// A texture unit's own state: an environment mode, a coordinate generator, a matrix.
+        TextureState = 1u << 9,
+
+        /// An attribute or a mode this reader has no rule for.
+        Unknown = 1u << 10,
+    };
+
+    inline constexpr std::array sUnreadStates{ UnreadState::Role, UnreadState::BlendPair, UnreadState::BlendEquation,
+        UnreadState::CulledFront, UnreadState::PolygonMode, UnreadState::Fog, UnreadState::Stencil,
+        UnreadState::ColourMask, UnreadState::FlatShading, UnreadState::TextureState, UnreadState::Unknown };
+
+    /// Why the trace draws a surface that states `state` otherwise: the reason its refusal gives.
+    std::string_view whyUnread(UnreadState state);
+
+    /// An alpha test as OpenGL states one: a reference, and the sides of it a texel passes on
+    /// (`Shaders::ALPHA_PASSES_BELOW` and its two siblings). At least the reference until the content
+    /// says otherwise, which is the cut a blend with no test of its own is traced with.
+    struct AlphaTest
+    {
+        float mReference = 0.0f;
+        std::uint32_t mPasses = Shaders::ALPHA_PASSES_AT | Shaders::ALPHA_PASSES_ABOVE;
+
+        /// Whether some alpha from nought to one fails it — `Shaders::alphaTestCuts`.
+        bool cuts() const { return Shaders::alphaTestCuts(mPasses, mReference); }
+
+        bool operator==(const AlphaTest& other) const = default;
     };
 
     /// What a surface's per-vertex colour is for: `NiVertexColorProperty`'s three vertex modes,
@@ -116,9 +171,11 @@ namespace Rtx
 
         /// A specular map, whose channels `Rtx::SpecularLayout` says the meaning of.
         Specular,
+
+        Count,
     };
 
-    inline constexpr std::size_t sSurfaceMapCount = static_cast<std::size_t>(SurfaceMap::Specular) + 1;
+    inline constexpr std::size_t sSurfaceMapCount = static_cast<std::size_t>(SurfaceMap::Count);
 
     /// The map a role is kept as, or nothing for a role the trace declines to read.
     constexpr std::optional<SurfaceMap> mapOf(const TextureRole role)
@@ -181,19 +238,17 @@ namespace Rtx
         AddWhole,
     };
 
-    /// Whether what is behind a surface is meant to show through it. `AlphaMode::Blend` alone
-    /// does not say so: Morrowind keeps its foliage under `NiAlphaProperty`, so a leaf card and a
-    /// pane of glass carry the same mode, and what tells them apart is the surface's own alpha. An
-    /// additive surface is neither: it covers nothing at any alpha. The one rule, over the three
-    /// facts as the content states them, so a reading made off a description and a material made
-    /// from it cannot answer differently.
-    inline bool translucentSurface(const AlphaMode mode, const float opacity, const BlendKind blend)
+    /// What one texel of a sheet adds on average under `blend`: weighted by its own alpha where the
+    /// blend reads one, and whole where `AddWhole` reads none. One rule for whatever draws the
+    /// sheet, a material's surface or an emitter's sprites.
+    inline osg::Vec3f meanUnder(const MeanTexel& mean, const BlendKind blend)
     {
-        return mode == AlphaMode::Blend && opacity < 1.0f && blend == BlendKind::Over;
+        return blend == BlendKind::AddWhole ? mean.mWhole : mean.mColour;
     }
 
     /// Whether a surface adds to what is behind it and covers nothing — `BlendKind::Add` or
-    /// `AddWhole` under a blend. The same rule over the same two facts, for the same reason.
+    /// `AddWhole` under a blend. The one rule over the two facts as the content states them, so a
+    /// description and a material made from it cannot answer differently.
     inline bool additiveSurface(const AlphaMode mode, const BlendKind blend)
     {
         return mode == AlphaMode::Blend && blend != BlendKind::Over;
@@ -255,10 +310,12 @@ namespace Rtx
         /// which map it is.
         bool mNormalHeight = false;
 
-        /// Which texture unit the dark map is bound at, meaningful where there is one. Carried
-        /// because half the vanilla dark maps read the geometry's second set of texture
-        /// coordinates, and which set a unit reads is the geometry's to say.
+        /// Which texture unit the dark map and the glow map are bound at, each meaningful where
+        /// there is one. Carried because half the vanilla dark maps and some glow maps read the
+        /// geometry's second set of texture coordinates, and which set a unit reads is the
+        /// geometry's to say.
         std::uint8_t mDarkUnit = 0;
+        std::uint8_t mEmissiveUnit = 0;
 
         /// What the environment map is tinted by: `envMapColor`, which `NifOsg` sets to white
         /// under a `NiTextureEffect` and `SceneUtil::GlowUpdater` to the enchantment's colour.
@@ -276,9 +333,21 @@ namespace Rtx
         /// controllers rewrite the colours beside it.
         VertexColour mVertexColour = VertexColour::None;
 
-        /// What `Cutout` cuts at, from nought to one. Meaningful whenever the content asked for
-        /// alpha testing, which includes surfaces that also blend.
-        float mAlphaRef = 0.0f;
+        /// What `Cutout` cuts by. Meaningful whenever the content asked for alpha testing, which
+        /// includes surfaces that also blend; `ALWAYS` passes on every side.
+        AlphaTest mAlphaTest{};
+
+        /// The `UnreadState`s the chain states, as bits: a fact a nearer state set restates is the
+        /// nearer one's, as every other fact here is.
+        std::uint32_t mUnread = 0;
+
+        bool isUnread(UnreadState state) const { return (mUnread & static_cast<std::uint32_t>(state)) != 0; }
+
+        void markUnread(UnreadState state, bool unread)
+        {
+            const auto bit = static_cast<std::uint32_t>(state);
+            mUnread = unread ? mUnread | bit : mUnread & ~bit;
+        }
 
         /// Whether both faces of this surface are drawn and lit. False unless the content says
         /// otherwise, because the scene root turns `GL_CULL_FACE` on for everything under it, and

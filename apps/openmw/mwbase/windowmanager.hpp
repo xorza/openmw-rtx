@@ -10,7 +10,6 @@
 #include <vector>
 
 #include <MyGUI_KeyCode.h>
-#include <osg/Vec2i>
 
 #include "../mwgui/mode.hpp"
 
@@ -205,9 +204,6 @@ namespace MWBase
         /// interface takes at its display's own resolution and at the frame the game started with.
         /// A picture sized by the interface's scale is made at this one.
         virtual float getRasterScale() const = 0;
-
-        /// The frame the interface is laid out at, in pixels: the screen's size to the interface.
-        virtual osg::Vec2i getFrameSize() const = 0;
 
         virtual bool toggleFogOfWar() = 0;
 

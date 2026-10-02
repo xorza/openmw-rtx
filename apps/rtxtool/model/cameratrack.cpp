@@ -38,8 +38,8 @@ namespace RtxTool
 
     void SkyRun::pose(const std::uint32_t frame, TrackPose& into) const
     {
-        if (mHoursPerFrame.has_value())
-            into.mHoursOn = static_cast<double>(frame + (mFirstFrame > 0 ? 1u : 0u)) * *mHoursPerFrame;
+        if (mClockPerFrame.has_value())
+            into.mClockOn = static_cast<double>(frame + (mFirstFrame > 0 ? 1u : 0u)) * *mClockPerFrame;
 
         if (!mWeathers.empty())
             turnAt(mFirstFrame + frame, into);

@@ -18,6 +18,7 @@
 #ifdef RTX_HOST
 
 #include <array>
+#include <cmath>
 #include <cstddef>
 
 namespace Rtx::Shaders
@@ -70,11 +71,15 @@ namespace Rtx::Shaders
         /// and traces no more than a pixel with no arms in front of it.
         uint mLayer;
 
-        /// One where the ray was cast through `VisibilityConstants::mArms` and nought through
-        /// `mCamera`, which is what a stage reads its cone off: the arms' eye is wider than the
+        /// One where the ray was cast through `Eyes::mArms` and nought through
+        /// `Eyes::mWorld`, which is what a stage reads its cone off: the arms' eye is wider than the
         /// world's, and a hit on the arms resolved at the world eye's pixel read a level too fine.
         uint mArms;
     };
+
+    /// How many records an eye's run holds: one for the eye's own hit and one for each layer of the
+    /// peel, which a trace adds to the run it is tracing through.
+    const uint HIT_RECORD_LAYERS = PEEL_LAYERS + 1u;
 
     /// How many eyes the launch casts through: the world's and the arms'.
     const uint HIT_RECORD_EYES = 2u;
@@ -112,7 +117,7 @@ namespace Rtx::Shaders
     /// Nothing, for the arms' eye. **The sky is seen through the world's eye alone**: the arms' eye
     /// traces the arms and nothing else, and a ray of it that finds no arm is not shaded — the
     /// world's own ray is traced there instead, so whatever reaches the sky reached it through
-    /// `mCamera`, and a pixel beside the arms runs the sky's shader once and not twice.
+    /// `Eyes::mWorld`, and a pixel beside the arms runs the sky's shader once and not twice.
     const uint MISS_RECORD_UNSHADED = 1u;
 
     const uint MISS_RECORD_COUNT = 2u;
@@ -134,15 +139,9 @@ namespace Rtx::Shaders
     {
         vec3 mOrigin;
 
-        /// How a pixel becomes a ray. The eye's own place is `mOrigin` above and not in here, for
-        /// the reason `Camera` gives.
-        Camera mCamera;
-
-        /// The eye the player's own arms are seen through: the same place and the same basis,
-        /// at `first person field of view` — `NpcAnimation`'s `OverrideFieldOfViewCallback`
-        /// swaps the projection under `Mask_FirstPerson` for exactly this. The eye's own camera
-        /// where nobody widened it, which is what every camera built here starts as.
-        Camera mArms;
+        /// How a pixel becomes a ray, through the world's eye or the arms'. The eye's own place is
+        /// `mOrigin` above and not in here, for the reason `Camera` gives.
+        Eyes mEyes;
 
         /// How much wider the arms' image plane is than the eye's, per axis — one where the two
         /// fields of view are equal, which is what they ship as. What a point on the arms
@@ -150,7 +149,7 @@ namespace Rtx::Shaders
         /// them.
         vec2 mArmsSpread;
 
-        /// The eye's right and up at unit length, where `mCamera` carries them scaled by the image
+        /// The eye's right and up at unit length, where `mEyes` carries them scaled by the image
         /// plane's half extents: the eye space a sphere-mapped sheet is indexed in. Worked out once
         /// on the host, where every hit that wears a sheet normalised both again.
         vec3 mUnitRight;
@@ -191,6 +190,16 @@ namespace Rtx::Shaders
         /// three.
         uint mTransparentBackground;
 
+        /// Non-zero where no lamp lights the picture: a view whose mask leaves out `Mask_Lighting`,
+        /// as the local map's does, which the rasterizer's light manager hands no lamp. Zero for a
+        /// frame, and for a frame built by hand.
+        uint mNoLamps;
+
+        /// Non-zero where the sky's lights cast no shadow: every picture inside the interface, which
+        /// the rasterizer draws with shadows off (`disableShadowsForStateSet`) under its own flat
+        /// sun. Zero for a frame, and for a frame built by hand.
+        uint mNoSkyShadows;
+
         /// Non-zero where nothing filters the bounce between the trace and the picture: the trace
         /// then composes the frame into `CHANNEL_DIRECT` itself, `composedLight` of the two
         /// channels, and no composite reads them back only to add them.
@@ -202,7 +211,7 @@ namespace Rtx::Shaders
 
         /// The sun as a light: where it stands, unit; how much of its light arrives on a surface
         /// square to it; and the sine of the cone its shadow rays are drawn from, which is
-        /// `SUN_SHADOW_SINE` and not the disc's own half degree — `SUN_SHADOW_RADIUS` says why.
+        /// `SUN_SHADOW_RADIUS`'s and not the disc's own half degree — `SUN_SHADOW_RADIUS` says why.
         ///
         /// One directional light, handled apart from the point lights because it has no position and
         /// no falloff: it is the same everywhere and its shadow ray runs to the end of the world.
@@ -242,12 +251,20 @@ namespace Rtx::Shaders
         StarField mStars;
         SkyPatch mSkyPatches[SKY_PATCH_COUNT];
 
-        /// What a ray that hits nothing comes back with, at the horizon and overhead.
+        /// What a ray that hits nothing comes back with, at the horizon and overhead, and where the
+        /// one fades to the other.
         ///
         /// The game's own two colours: its atmosphere is the one overhead and its fog is what that
         /// fades to at the horizon, which is most of what a Morrowind sky is.
         vec3 mSkyHorizon;
         vec3 mSkyZenith;
+        SkyRamp mSkyRamp;
+
+        /// Whether the sky is drawn for the eye and the mirrors. Nought under `tsky`, where the
+        /// rasterizer hides the sky node and clears to the fog colour while the sky goes on lighting
+        /// what it lit, so only what a ray that reached nothing shows changes. One in a frame built
+        /// by hand.
+        uint mSkyDrawn;
 
         /// How much of `mAmbient` arrives from the sky, from none of it to all.
         ///
@@ -305,6 +322,10 @@ namespace Rtx::Shaders
         /// and a level of minus infinity makes that never positive, so a cell with no water takes
         /// the same path as a point above the surface with no branch of its own.
         float mWaterLevel;
+
+        /// The water's single-scattering albedo, the colour the game settles its murk at:
+        /// `Water_UnderwaterColor` at its weight. `WATER_SCATTER_SHIPPED` says what it is.
+        vec3 mWaterScatter;
 
         /// How long the water has been moving, in seconds, as two floats whose sum is the host's
         /// double: `Rtx::splitSeconds`, and `turnsAt` is what reads it. Nought is a still sea and a
@@ -490,6 +511,12 @@ namespace Rtx::Shaders
         /// leaves the motion at nothing.
         Basis mPrevious;
 
+        /// This frame's world eye and `mPrevious`, each read the other way (`screenOf`). The
+        /// backend's, worked out where it writes this block from the bases beside them, so no
+        /// block carries a basis and another's inverse; nought in what the core describes.
+        ScreenBasis mScreen;
+        ScreenBasis mPreviousScreen;
+
         /// Which frame this is, for anything that wants a different answer than last time.
         ///
         /// Every random draw in the shader is keyed on it — the fog's step jitter and the bounce's
@@ -498,7 +525,7 @@ namespace Rtx::Shaders
         uint mFrame;
 
         /// Non-zero where this scene holds the player's arms and this camera draws them:
-        /// `visibility.rgen` traces `mArms`'s ray on `MASK_FIRST_PERSON` ahead of the world's, and a
+        /// `visibility.rgen` traces `Eyes::mArms`'s ray on `MASK_FIRST_PERSON` ahead of the world's, and a
         /// picture with no arms in it — every third-person frame, every picture inside the
         /// interface — pays no second trace.
         uint mArmsInFrame;
@@ -534,6 +561,17 @@ namespace Rtx::Shaders
         /// also sizes the sun's disc and the wave filter's taps, which are not levels.
         float mLevelBias;
 
+        /// How many taps the footprint sampler takes along a footprint's long axis at most:
+        /// `Rtx::RenderProfile::mAnisotropy`, one where it reads no footprint. What `texturePoint`
+        /// says the anisotropic read resolves, and so what level a normal map's loss is read at.
+        float mAnisotropy;
+
+        /// One where an environment map's sheet joins the albedo the light falls on, as the
+        /// rasterizer's `preLightEnv` adds it before its lighting multiplies — `[Shaders] apply
+        /// lighting to environment maps` — and nought where it is light of its own past the
+        /// lighting, which is that setting's default.
+        uint mLitEnvironmentMaps;
+
         /// Where every table a hit reads is. `GpuTables` says why it rides here.
         ///
         /// **Last, because it is eight-aligned and nothing before it is.** Anywhere else it would
@@ -555,12 +593,13 @@ namespace Rtx::Shaders
     };
 
 #ifdef RTX_HOST
-    /// The sun as the frame carries it, with the one limb every sun is drawn from. The host's one
-    /// spelling of `mSun`, so a frame assembled by hand cannot leave the cone at nought and cast a
-    /// hard edge.
+    /// The sun as the frame carries it, with the one limb every sun is drawn from, by the rule
+    /// `moonSource` draws a moon's: the sine of its angle, on the host, which alone writes it. The
+    /// host's one spelling of `mSun`, so a frame assembled by hand cannot leave the cone at nought and
+    /// cast a hard edge.
     inline SkySource sunSource(const vec3& direction, const vec3& irradiance)
     {
-        return SkySource{ direction, irradiance, SUN_SHADOW_SINE };
+        return SkySource{ direction, irradiance, std::sin(SUN_SHADOW_RADIUS) };
     }
 
     /// Whether a source in the sky lights anything this frame: the sun, or a moon. A moon that is
@@ -576,8 +615,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1224, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1408, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1400, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1584, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(HitRecord) == 8, "HitRecord must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 8, "PuffConstants must be scalar-packed on every side");
 #endif

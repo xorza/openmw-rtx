@@ -34,8 +34,9 @@ namespace RtxTool
             SUCCEED();
         }
 
-        /// On Linux, a path nothing reads; on Windows, any path at all. Named either way.
-        TEST(RtxPerfControlTest, aFifoWithNobodyReadingItIsNamedRatherThanWaitedOn)
+        /// On Linux, a path with no fifo at all, which no wait for a reader mends; on Windows, any
+        /// path at all. Named either way, at once.
+        TEST(RtxPerfControlTest, aFifoThatIsNotThereIsNamedRatherThanWaitedOn)
         {
             const std::filesystem::path missing = TestingOpenMW::outputFilePath("perf-control-absent");
             std::filesystem::remove(missing);

@@ -218,6 +218,15 @@ namespace Rtx
         VkFormat mStorageFormat = VK_FORMAT_UNDEFINED;
     };
 
+    /// An image handed from the pass that wrote it to the pass that reads it next, with the use the
+    /// writer left it at, which the reader transitions from. The writer says where it left the
+    /// image, so the reader does not have to know who wrote it.
+    struct HandedImage
+    {
+        const Image& mImage;
+        ImageUse mLeftAs;
+    };
+
     /// A one-texel image for a binding a shader declares and a branch never reads, because a
     /// descriptor has to point somewhere and the real thing would be sixteen bytes a pixel of the
     /// frame. Laid out once by `usage` and never moved again. Submits and waits, so it belongs to a

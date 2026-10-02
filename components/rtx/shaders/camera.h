@@ -11,6 +11,29 @@ namespace Rtx::Shaders
 {
 #endif
 
+    /// Which way an eye looks and how wide its image plane is: what a previous frame's eye is kept as,
+    /// where its jitter, extent and projection are this frame's.
+    struct Basis
+    {
+        /// `mRight` and `mUp` are already scaled by the half-extents of the image plane at unit
+        /// distance, so a ray is `mForward + mRight * x - mUp * y` for `x` and `y` in [-1, 1] less
+        /// `mCentre`, and no trigonometry in the shader. **`y` runs down the image**, because it is
+        /// the pixel index the jitter is added to, which is why it is subtracted: `mUp` points the
+        /// other way.
+        ///
+        /// **`mForward` is unit**, as `Rtx::viewBasisOf` normalises it.
+        vec3 mForward;
+        vec3 mRight;
+        vec3 mUp;
+
+        /// Where the eye's axis crosses the picture, in the minus-one-to-one `rayAt` reads, x to the
+        /// right and y down: a script's `camera.setProjectionOffset`, which the rasterizer applies as
+        /// a translation after its projection. Nought everywhere else, and then every rule below
+        /// computes the bits it computed without one: a subtraction or an addition of nought is
+        /// exact.
+        vec2 mCentre RTX_ZERO;
+    };
+
     /// Everything needed to turn a pixel into a ray — **and not where the eye is.**
     ///
     /// **The origin is deliberately absent, and that absence is what makes this shared.** The trace
@@ -29,15 +52,8 @@ namespace Rtx::Shaders
     /// filtering. Two copies of one derivation, a frame at a time, is how the two come to differ.
     struct Camera
     {
-        /// `mRight` and `mUp` are already scaled by the half-extents of the image plane at unit
-        /// distance, so a ray is `mForward + mRight * x - mUp * y` for `x` and `y` in [-1, 1] and no
-        /// trigonometry in the shader. **`y` runs down the image**, because it is the pixel index
-        /// the jitter is added to, which is why it is subtracted: `mUp` points the other way.
-        ///
-        /// **`mForward` is unit**, as `Rtx::viewBasisOf` normalises it.
-        vec3 mForward;
-        vec3 mRight;
-        vec3 mUp;
+        /// Which way the eye looks, how wide its image plane is and where its axis crosses it.
+        Basis mBasis;
 
         /// Where inside its pixel the ray is sent, in pixels, `(0, 0)` being the centre.
         ///
@@ -76,21 +92,38 @@ namespace Rtx::Shaders
         uint mHeight;
     };
 
-    /// Which way an eye looks and how wide its image plane is, in the form `Camera` holds the
-    /// three: what a previous frame's eye is kept as, where its jitter, extent and projection are
-    /// this frame's.
-    struct Basis
+    /// The two eyes a pixel's ray can have left: the world's, and the one the player's own arms are
+    /// seen through — the same place and the same basis at `first person field of view`, which
+    /// `NpcAnimation`'s `OverrideFieldOfViewCallback` swaps the projection to under
+    /// `Mask_FirstPerson`. The world's where nobody widened it, which is what every pair built here
+    /// starts as. Which of the two cast a pixel's ray the surface channel says, `eyeOfPixel`.
+    struct Eyes
+    {
+        Camera mWorld;
+        Camera mArms;
+    };
+
+    /// A basis read the other way, which is what `screenOf` projects a point through: the forward
+    /// and the centre as the basis has them, the right over its own squared length and the up over
+    /// its own, turned to point down the image as `rayAt`'s `y` runs. **Worked out once where a
+    /// block is written** (`Rtx::screenBasisOf`), where every projection would take four dot
+    /// products and two divisions of what is a constant of the frame. Nought where the basis is, which is
+    /// what a frame with no eye before it carries.
+    struct ScreenBasis
     {
         vec3 mForward;
-        vec3 mRight;
-        vec3 mUp;
+        vec3 mAcross;
+        vec3 mDown;
+        vec2 mCentre RTX_ZERO;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(Camera) == 60, "Camera must be scalar-packed on every side");
-    static_assert(sizeof(Basis) == 36, "Basis must be scalar-packed on every side");
+    static_assert(sizeof(ScreenBasis) == 44, "ScreenBasis must be scalar-packed on every side");
+    static_assert(sizeof(Camera) == 68, "Camera must be scalar-packed on every side");
+    static_assert(sizeof(Eyes) == 136, "Eyes must be scalar-packed on every side");
+    static_assert(sizeof(Basis) == 44, "Basis must be scalar-packed on every side");
 #endif
 
     /// The traced camera on the grid a pass draws at once: the same basis, `width` by `height`
@@ -153,21 +186,12 @@ namespace Rtx::Shaders
         vec3 mDirection;
     };
 
-    /// The three vectors of `camera`'s eye.
-    RTX_SHADER Basis basisOf(Camera camera)
-    {
-        Basis basis;
-        basis.mForward = camera.mForward;
-        basis.mRight = camera.mRight;
-        basis.mUp = camera.mUp;
-
-        return basis;
-    }
-
-    /// Which way the point `uv` of a pinhole eye's image plane looks, minus one to one across and
-    /// down it: the rule `rayAcross` traces by, over a basis alone, so an eye kept from a previous
-    /// frame looks the way it did. Its components are read as `uv[i]`, which both sides spell alike.
-    RTX_SHADER vec3 directionAcross(Basis basis, vec2 uv)
+    /// Which way the point `uv` of a pinhole eye's picture looks, minus one to one across and down
+    /// it: the rule `rayAcross` traces by, over a basis alone, so an eye kept from a previous frame
+    /// looks the way it did. `spread` widens the image plane about the centre, per axis — one for
+    /// the eye, `VisibilityConstants::mArmsSpread` for the arms' plane over the same basis. Its
+    /// components are read as `uv[i]`, which both sides spell alike.
+    RTX_SHADER vec3 directionAcross(Basis basis, vec2 uv, vec2 spread)
     {
         // **The sum is written out rather than hoisted into a shared term, and that is not an
         // oversight.** Floating-point addition does not associate: `f + (a - b)` and `(f + a) - b`
@@ -185,7 +209,9 @@ namespace Rtx::Shaders
         // the surfaces it reaches and another sample on a few hundred pixels. `precise` keeps these
         // steps apart in every module, so each computes the written sum; the `normalize` under it the
         // build writes out in one order for all of them.
-        RTX_PRECISE vec3 summed = basis.mForward + basis.mRight * uv[0] - basis.mUp * uv[1];
+        RTX_PRECISE float across = (uv[0] - basis.mCentre[0]) * spread[0];
+        RTX_PRECISE float down = (uv[1] - basis.mCentre[1]) * spread[1];
+        RTX_PRECISE vec3 summed = basis.mForward + basis.mRight * across - basis.mUp * down;
         return normalize(summed);
     }
 
@@ -199,15 +225,17 @@ namespace Rtx::Shaders
         {
             // The same pair of multiply-adds `directionAcross` pins, for the same reason. The forward
             // is unit already, as `Camera` states.
-            RTX_PRECISE vec3 offset = camera.mRight * uv[0] - camera.mUp * uv[1];
+            RTX_PRECISE float across = uv[0] - camera.mBasis.mCentre[0];
+            RTX_PRECISE float down = uv[1] - camera.mBasis.mCentre[1];
+            RTX_PRECISE vec3 offset = camera.mBasis.mRight * across - camera.mBasis.mUp * down;
             ray.mOffset = offset;
-            ray.mDirection = camera.mForward;
+            ray.mDirection = camera.mBasis.mForward;
 
             return ray;
         }
 
         ray.mOffset = vec3(0.0, 0.0, 0.0);
-        ray.mDirection = directionAcross(basisOf(camera), uv);
+        ray.mDirection = directionAcross(camera.mBasis, uv, vec2(1.0, 1.0));
 
         return ray;
     }
@@ -248,20 +276,27 @@ struct Screen
 /// The inverse of the generation in `rayAt`, for one basis and one point `offset` from its eye.
 ///
 /// **Over a basis and not a `Camera`**, so the previous frame's eye passes through it as this
-/// frame's does. The basis carries the image plane's half extents, so dividing by each vector's own
-/// square undoes the direction and the scale together; a plane `spread` times wider puts the same
-/// point that much nearer its middle. **The association is the reprojection's**, because a motion
-/// vector is what the answer is judged by: every caller lands on the same bits.
-RTX_SHADER Screen screenOf(Basis basis, vec3 offset, vec2 spread)
+/// frame's does. The basis carries the image plane's half extents over their own squares, so one
+/// dot product undoes the direction and the scale together; a plane `spread` times wider puts the
+/// same point that much nearer its middle, and the centre moves it with the picture, scaled by the
+/// distance ahead because the caller divides by that. **The association is the reprojection's**,
+/// because a motion vector is what the answer is judged by: every caller lands on the same bits.
+RTX_SHADER Screen screenOf(ScreenBasis basis, vec3 offset, vec2 spread)
 {
-    const vec3 right = basis.mRight;
-    const vec3 up = basis.mUp;
-
     Screen screen;
     screen.mAhead = dot(offset, basis.mForward);
-    screen.mAt = vec2(dot(offset, right) / dot(right, right) / spread.x, -dot(offset, up) / dot(up, up) / spread.y);
+    screen.mAt = vec2(dot(offset, basis.mAcross) / spread.x, dot(offset, basis.mDown) / spread.y)
+        + basis.mCentre * screen.mAhead;
 
     return screen;
+}
+
+/// Where `screen` lands on a grid `extent` pixels wide and high, in the units `rayAt` reads a pixel
+/// in — its index, plus the half, plus the jitter it was sent with. The one way back from the plane
+/// to the grid, for a point in front of the eye: `screen.mAhead` must be positive.
+vec2 pixelOfScreen(Screen screen, vec2 extent)
+{
+    return (screen.mAt / screen.mAhead * 0.5 + 0.5) * extent;
 }
 
 /// How wide a pixel's cone is where the ray starts, and how much wider it gets per unit travelled.
@@ -282,7 +317,7 @@ struct Cone
 RTX_SHADER Cone coneAt(Camera camera)
 {
     Cone cone;
-    cone.mWidth = camera.mOrthographic != 0u ? 2.0 * length(camera.mRight) / float(camera.mWidth) : 0.0;
+    cone.mWidth = camera.mOrthographic != 0u ? 2.0 * length(camera.mBasis.mRight) / float(camera.mWidth) : 0.0;
     cone.mSpread = camera.mOrthographic != 0u ? 0.0 : camera.mSpreadAngle;
 
     return cone;

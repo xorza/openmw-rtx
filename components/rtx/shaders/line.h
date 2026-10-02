@@ -25,18 +25,24 @@ namespace Rtx::Shaders
     /// one binding, `bindings.h`'s rule.
     const uint LINE_BIND_SURFACE = 0;
 
-    /// What both stages are told: the camera on the picture's own grid, where the eye stands, the
-    /// near plane a vertex is clipped at, and the traced extent the surface channel is read over.
+    /// What both stages are told: the frame's eye read the other way (`screenOf`) and the picture's
+    /// own extent, where the eye stands, the near plane a vertex is clipped at, and the traced extent
+    /// the surface channel is read over.
     struct LineConstants
     {
-        Camera mCamera;
+        ScreenBasis mScreen;
+        uvec2 mExtent;
         vec3 mOrigin;
         float mNear;
         uvec2 mTraced;
+
+        /// One over the player's gamma, `ToneConstants::mInverseGamma`: the lines are part of the
+        /// picture, which the rasterizer raises whole and the curve raises before they are drawn.
+        float mInverseGamma;
     };
 
 #ifdef RTX_HOST
-    static_assert(sizeof(LineConstants) == 84, "LineConstants must be scalar-packed on every side");
+    static_assert(sizeof(LineConstants) == 80, "LineConstants must be scalar-packed on every side");
 }
 #endif
 

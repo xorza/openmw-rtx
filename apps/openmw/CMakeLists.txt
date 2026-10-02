@@ -28,11 +28,11 @@ add_openmw_dir (mwrender
 
 # The renderer seam, `MWRender::Renderer`, with the rasterizer beside it and the ray tracer in `rtx/`.
 add_openmw_dir (mwrender
-    renderer sceneframe framedescriber skystate ripplerules objectstorage ground glground glrenderer glworld
+    renderer rendersupport glsupport sceneframe framedescriber skystate ripplerules searules objectstorage ground glground glrenderer glworld
     gloffscreenview glmapoverlay mapoverlay pixels
     )
 add_openmw_dir (mwrender/rtx
-    classmasks debugwalk framereport frametimer rippleemitters rtxrenderer rtxrun rtxsettings rtxwindow skyreader
+    classmasks debugwalk framereport frametimer rippleemitters rtxrenderer rtxrun rtxsettings rtxsupport rtxwindow skyreader
     tracedground tracedoverlay tracedterrain tracedview viewqueue worldmirror
     )
 

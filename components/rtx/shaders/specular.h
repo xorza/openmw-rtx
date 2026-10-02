@@ -1,6 +1,7 @@
 #ifndef OPENMW_COMPONENTS_RTX_SHADERS_SPECULAR_H
 #define OPENMW_COMPONENTS_RTX_SHADERS_SPECULAR_H
 
+#include "accumulate.h"
 #include "camera.h"
 #include "hosttypes.h"
 #include "portable.h"
@@ -37,29 +38,22 @@ namespace Rtx::Shaders
     /// What the glossy filter reads that is not an image.
     struct SpecularConstants
     {
-        /// The two eyes a pixel's ray can have left: the direction it saw its surface from, and the
-        /// jitter its motion vector was written against.
-        Camera mCamera;
-        Camera mArms;
+        /// The accumulator's own: the two eyes a pixel's ray can have left, whether there is a
+        /// history to reuse, and what the surface history scaled a distance by — the same numbers,
+        /// because it is the same history.
+        HistoryConstants mHistory;
 
         /// The previous frame's eye, `VisibilityConstants::mPrevious`, and how much wider the arms'
         /// plane is — `mArmsSpread`: what the direction a surface was seen from on the previous
         /// frame is read off. All nought where there was no previous frame.
         Basis mPrevious;
         vec2 mArmsSpread;
-
-        /// Non-zero where there is no history to reuse, as the accumulator is told.
-        uint mReset;
-
-        /// What the accumulator's surface history scaled a distance by —
-        /// `HistoryConstants::mDistanceScale`, the same number, because it is the same history.
-        float mDistanceScale;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(SpecularConstants) == 172, "SpecularConstants must be scalar-packed on every side");
+    static_assert(sizeof(SpecularConstants) == 196, "SpecularConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

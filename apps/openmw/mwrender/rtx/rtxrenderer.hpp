@@ -15,10 +15,12 @@
 
 #include <components/esm3/refnum.hpp>
 #include <components/rtx/common/stepped.hpp>
+#include <components/rtx/frame/framepast.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/cells/cellplacer.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
+#include <components/rtx/mirror/drawableposer.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/sdlutil/vsyncmode.hpp>
@@ -75,6 +77,7 @@ namespace MyGUIRtx
 namespace MWRender
 {
     class TracedView;
+    enum class ViewKind;
 
     /// The picture as rays find it: a window, a mirror of the scene graph, and a trace. It names a
     /// graphics API in one line — the constructor calls `Rtx::createVulkanRenderer` — and initialises
@@ -116,6 +119,7 @@ namespace MWRender
         void addWaterRippleEmitter(const MWWorld::Ptr& ptr) noexcept override;
         void removeWaterRippleEmitter(const MWWorld::Ptr& ptr) noexcept override;
         void emitWaterRipple(const osg::Vec3f& position) noexcept override;
+        void poseForIntersection(osg::Drawable& drawable) override;
 
         /// A `TracedGround`: the storage, the worldspace and the active grid, and no chunks.
         std::unique_ptr<Ground> createGround(const GroundSpec& spec) noexcept override;
@@ -138,6 +142,10 @@ namespace MWRender
         void renderFrame(const SceneFrame& frame) override;
 
         void notifyCut() noexcept override;
+
+        /// The wake goes with the worldspace's water: the backend's ripple field and the strikes
+        /// not yet pressed. A cut inside one keeps both, as the rasterizer keeps its ripples.
+        void notifyWorldspaceChanged() noexcept override;
 
         /// A trace into a texture the GUI draws from. A picture of the world traces against the
         /// scene this renderer holds; a subject that stands in no cell is mirrored into a scene of
@@ -166,7 +174,7 @@ namespace MWRender
 
         /// A present mode: off is mailbox rather than immediate, and adaptive is relaxed FIFO.
         void setVSync(SDLUtil::VSyncMode mode) noexcept override;
-        void processChangedSettings(const Settings::CategorySettingVector& changed) noexcept override;
+        const RenderSupport& support() const noexcept override;
 
         std::unique_ptr<MyGUIPlatform::Platform> createGuiPlatform(float scalingFactor,
             VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath) noexcept override;
@@ -192,27 +200,14 @@ namespace MWRender
         /// against 6.8.
         static void setResourceExpiry(Resource::ResourceSystem& resources, const std::optional<float>& step);
 
-        /// The backend the frames and the pictures are traced into, for the harness's own reads.
+        /// The backend the frames and the pictures are traced into, for the host that made this
+        /// renderer and asks of the device before the first frame; a frame's reads go through
+        /// `FrameContext::mBackend`.
         Rtx::Renderer& getBackend() { return *mRenderer; }
-
-        /// `WorldMirror::getContentMemory`, for a measured run's report.
-        Rtx::ContentMemory getContentMemory() { return mMirror.getContentMemory(); }
-
-        /// `WorldMirror::collectStanding`, for the harness's check that no static stands twice.
-        void collectStanding(std::vector<ESM::RefNum>& into) const { mMirror.collectStanding(into); }
-
-        /// `WorldMirror::collectGateVerdicts`, for the harness's check that the gates agree with
-        /// the game.
-        void collectGateVerdicts(std::vector<Rtx::GateVerdict>& into) const { mMirror.collectGateVerdicts(into); }
 
         /// The pictures inside the interface this renderer holds, for the harness to find the
         /// game's own map tile in.
         ViewQueue& getViews() { return mViews; }
-
-        /// `Rtx::Renderer::getProfile`: the knobs the frames are traced under now — what the
-        /// backend was made with, and then whatever a setting moved. The one copy, which the
-        /// frame path reads as a stop that writes a picture by the same rules does.
-        const Rtx::RenderProfile& getProfile() const { return mRenderer->getProfile(); }
 
         /// Draws the pictures asked for since the last frame — `ViewQueue::draw` with this
         /// renderer's budget of world views — and answers how long that took. From the frame's
@@ -226,15 +221,22 @@ namespace MWRender
 
         void adoptTraversalRoot(osg::Group& root) noexcept override;
 
-        /// Read off the seam at the trace, so nothing to put anywhere.
-        void applyViewMask() noexcept override {}
-        void applyWorldShown() noexcept override {}
+        /// The walk is told the world's view mask, and the trace reads it off the seam. A cover is
+        /// asked at the frame, which neither walks nor traces under one.
+        void applyViewMask() noexcept override { mMirror.setViewMask(worldViewMask()); }
+        void applyWorldShown() noexcept override { mMirror.setViewMask(worldViewMask()); }
 
-        /// The projection follows the frame's aspect at once; the trace and the surface follow at
-        /// the next frame's fit, which waits for a window being dragged to settle.
-        void applyPresentation() noexcept override;
+        /// Nothing here: the trace and the surface follow at the next frame's fit, which waits for a
+        /// window being dragged to settle, and the projection is `RenderingManager`'s to follow.
+        void applyPresentation() noexcept override {}
+
+        void applyChangedSettings(const Settings::CategorySettingVector& changed) noexcept override;
 
     private:
+        /// A picture of `kind`, traced on the frame thread's walk context: the one body behind
+        /// `createWorldView` and `createSubjectView`.
+        std::unique_ptr<TracedView> traceView(const OffscreenViewSpec& spec, ViewKind kind);
+
         /// Builds everything from the setup, which is spent here. Delegated to, so `mRun` can bind
         /// to `mPlayed` where the host installed none and the setup can be a temporary either way.
         RtxRenderer(const RendererSpec& spec, const RtxSetup* run, const RunSetup& setup);
@@ -374,6 +376,9 @@ namespace MWRender
         /// puts it on the device.
         WorldMirror mMirror;
 
+        /// What poses a deforming drawable a ray cast on the CPU reaches, at the mirror's numbers.
+        Rtx::DrawablePoser mPoser{ mMirror.getWalkContext().mTraversals };
+
         /// What the game says about the sky, turned into what the trace is handed. Attached where
         /// the mirror is, because the sheets it holds are the mirror's scene's.
         SkyReader mSky;
@@ -381,6 +386,10 @@ namespace MWRender
         /// What disturbs the water this frame, decided game-side and pressed into the trace's
         /// ripple field.
         RippleEmitters mRipples;
+
+        /// What the host said the next traced frame's past is worth, `notifyCut` and
+        /// `notifyWorldspaceChanged`, kept until a frame traces the world and spends it.
+        Rtx::HistoryLoss mLoss = Rtx::HistoryLoss::None;
 
         /// The scene root this renderer made for the game, held from `createSceneRoot` until
         /// `attachWorld` hangs it under the world root.
@@ -390,9 +399,6 @@ namespace MWRender
         /// into the frame's lines. Borrowed: the world outlives this, and `detachWorld` lets go.
         osg::Group* mWorldRoot = nullptr;
         DebugWalk mDebugWalk;
-
-        /// The world's projection, which follows the frame's aspect. Borrowed as `mWorldRoot` is.
-        RenderingManager* mRendering = nullptr;
 
         /// What the last walk found, and what a second walk added. Kept because a report is written
         /// at the end of a stop and the walks are over by then.

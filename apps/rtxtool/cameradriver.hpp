@@ -36,7 +36,10 @@ namespace RtxTool
         /// or where the player stands where the stop names no eye or hands the camera to the player.
         /// A track's clock runs from the game's time now. Aims the camera, because a frame drawn
         /// before the first `aim` would be drawn from wherever the last stop left it.
-        void begin(const Stop& stop);
+        ///
+        /// `ownTimeScale` is the game's own clock speed: the `timescale` the session started at,
+        /// which a sky crosses at its own pace under and a track's clock counts its seconds in.
+        void begin(const Stop& stop, float ownTimeScale);
 
         /// Moves one frame of `stop`, the `measured`th of its measured frames or one of its warm-up
         /// where that is nothing (`Measurer::getMeasuredIndex`): a track stands its eye, clock and
@@ -87,9 +90,6 @@ namespace RtxTool
         /// turn's first weather.
         void beginTurn(const Stop& stop);
 
-        /// Asks the taken sky for `weather`, which a turn names by its content-file spelling.
-        void askTurn(const std::string& weather);
-
         /// Moves the taken sky on by one frame of `seconds` and hands it to the world, where it is
         /// taken.
         void crossSky(const Stop& stop, float seconds);
@@ -121,6 +121,9 @@ namespace RtxTool
         /// as long as nothing else moves it.
         static void aimCamera(const osg::Vec3f& eye, const osg::Vec3f& rotation);
 
+        /// Whether the eye's view mask keeps the player's own body in the picture.
+        static void showPlayer(bool shown);
+
         /// Where the eye stood when the stop began, which a route flies from.
         osg::Vec3f mFrom;
         osg::Vec3f mFromLook;
@@ -136,6 +139,9 @@ namespace RtxTool
         /// The game's clock at a track's first frame, in hours since the game began: what the
         /// track's hours run on from.
         double mClockFrom = 0.0;
+
+        /// The `timescale` the session started at: `begin`'s.
+        float mOwnTimeScale = 0.0f;
 
         /// Where a window's own camera has to come to stand, while the body is still being put
         /// under it, and how far off it stood at the last correction, squared: `settleBody`.

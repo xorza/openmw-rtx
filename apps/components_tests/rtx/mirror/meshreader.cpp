@@ -131,6 +131,17 @@ namespace Rtx::Testing
             for (const osg::Vec3f& normal : reading.mArrays.mNormals)
                 EXPECT_EQ(normal, osg::Vec3f(0.0f, 0.0f, 1.0f));
 
+            // **Element nought, whatever the array's length**, as OpenGL reads an overall array: an
+            // overall array as long as the vertices is not read per vertex.
+            quad->setNormalArray(makePositions({ osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(0.0f, 1.0f, 0.0f),
+                                     osg::Vec3f(0.0f, 1.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f) }),
+                osg::Array::BIND_OVERALL);
+            MeshReading asLong;
+            ASSERT_TRUE(reader.read(readDrawable(*quad, NodeKinds{}.of(*quad)), asLong).value());
+            ASSERT_EQ(asLong.mArrays.mNormals.size(), 4u);
+            for (const osg::Vec3f& normal : asLong.mArrays.mNormals)
+                EXPECT_EQ(normal, osg::Vec3f(0.0f, 0.0f, 1.0f)) << "an overall array was read per vertex";
+
             // A drawable with no triangles mirrors nothing, and says so rather than reading zero.
             osg::ref_ptr<osg::Geometry> empty = new osg::Geometry;
             EXPECT_FALSE(reader.read(readDrawable(*empty, NodeKinds{}.of(*empty)), reading).value());
@@ -286,16 +297,22 @@ namespace Rtx::Testing
 
         /// The tangents `Shader::MapVisitor` builds are read as they are, and their unit is not
         /// taken for a second set: four floats a vertex there would otherwise refuse the face as
-        /// coordinates of the wrong type. Unit one binds unit nought's own array and unit two a
-        /// second, so only unit two reads the second set.
+        /// coordinates of the wrong type. Unit one holds unit nought's coordinates and units two
+        /// and three a second set, each in an array of its own, so units two and three read it.
         TEST(RtxMeshReaderTest, theTangentUnitIsReadAsTangentsAndNotAsASecondSet)
         {
             osg::ref_ptr<osg::Geometry> quad = makeQuad();
             osg::ref_ptr<osg::Vec2Array> first = new osg::Vec2Array(4);
             osg::ref_ptr<osg::Vec2Array> second = new osg::Vec2Array(4);
+            (*first)[1] = osg::Vec2f(1.0f, 0.0f);
+            (*second)[1] = osg::Vec2f(0.5f, 0.0f);
+
+            // Unit one holds the first set in an array of its own, as `NifOsg` binds every unit:
+            // the same coordinates, so the same set.
             quad->setTexCoordArray(0, first);
-            quad->setTexCoordArray(1, first);
+            quad->setTexCoordArray(1, new osg::Vec2Array(*first));
             quad->setTexCoordArray(2, second);
+            quad->setTexCoordArray(3, new osg::Vec2Array(*second));
 
             ContentPreprocessor content;
             MeshReader reader(content);
@@ -316,7 +333,7 @@ namespace Rtx::Testing
                 EXPECT_EQ(reading.mArrays.mTangents[vertex], (*tangents)[vertex]) << vertex;
 
             EXPECT_EQ(reading.mArrays.mSecondTexCoords.data(), second->asVector().data());
-            EXPECT_EQ(reading.mArrays.mUnitStreams, 1u << 2);
+            EXPECT_EQ(reading.mArrays.mUnitStreams, (1u << 2) | (1u << 3));
         }
 
         /// The two halves land on one row: a mesh adopted from a reading is the mesh `resolve`

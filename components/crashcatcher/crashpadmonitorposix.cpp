@@ -1,9 +1,9 @@
 #include "crashpadmonitorsystem.hpp"
 
 #include <array>
+#include <cerrno>
 #include <csignal>
 #include <cstdint>
-#include <ctime>
 #include <string>
 #include <utility>
 #include <vector>
@@ -11,6 +11,8 @@
 #include <snapshot/exception_snapshot.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include "crashsummary.hpp"
 
 // Linux holds the game by a pidfd, which the C library has no wrapper for everywhere.
 #if defined(__linux__)
@@ -27,7 +29,12 @@ namespace Crash::Monitor
             // No descriptor is a kernel older than 5.3, where nothing is sent rather than something
             // sent to whatever process has the id now.
             (void)id;
-            return hold >= 0 && syscall(SYS_pidfd_send_signal, static_cast<int>(hold), number, nullptr, 0) == 0;
+            if (hold < 0)
+            {
+                errno = EBADF;
+                return false;
+            }
+            return syscall(SYS_pidfd_send_signal, static_cast<int>(hold), number, nullptr, 0) == 0;
 #else
             (void)hold;
             return kill(static_cast<pid_t>(id), number) == 0;
@@ -54,9 +61,11 @@ namespace Crash::Monitor
         send(mId, mHold, SIGUSR2);
     }
 
-    bool GameProcess::end() const
+    Ending GameProcess::end() const
     {
-        return send(mId, mHold, SIGKILL);
+        if (send(mId, mHold, SIGKILL))
+            return Ending::Ended;
+        return errno == ESRCH ? Ending::Gone : Ending::Failed;
     }
 
     std::string describeException(const crashpad::ExceptionSnapshot& exception, std::uint32_t process)
@@ -109,18 +118,6 @@ namespace Crash::Monitor
             text += " at " + hex(exception.ExceptionAddress());
         return text;
 #endif
-    }
-
-    std::vector<std::string> commandLine(int argc, char** argv)
-    {
-        return std::vector<std::string>(argv, argv + argc);
-    }
-
-    std::tm localTime(std::time_t seconds)
-    {
-        std::tm local{};
-        localtime_r(&seconds, &local);
-        return local;
     }
 
     std::string_view dumpFolder()

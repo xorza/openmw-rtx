@@ -54,10 +54,7 @@ namespace Rtx
         mCounts.mMapped -= share.mMapped;
 
         if (share.mMedium + share.mAdditive > 0)
-        {
             mPresent.remove(slot);
-            mPresent.compact();
-        }
     }
 
     Index PlacementTable::add(const MeshInstance& instance, const Material::Traversed& worn)
@@ -160,6 +157,15 @@ namespace Rtx
         return true;
     }
 
+    bool PlacementTable::jump(const Index slot, const osg::Matrixf& transform)
+    {
+        if (!move(slot, transform))
+            return false;
+
+        mRows.at(slot).mPrevious = transform;
+        return true;
+    }
+
     void PlacementTable::drop(const Index slot, const Stander by)
     {
         PlacementRow& row = mRows.at(slot);
@@ -200,6 +206,7 @@ namespace Rtx
                 .mKinds = (share.mAdditive > 0 ? Shaders::PRESENCE_ADDITIVE : 0u)
                     | (share.mMedium > 0 ? Shaders::PRESENCE_MEDIUM : 0u)
                     | (share.mFirstPerson > 0 ? Shaders::PRESENCE_EVERYWHERE : 0u),
+                .mClass = classBit(placed.mClass),
             });
         }
     }

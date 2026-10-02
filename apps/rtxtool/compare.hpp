@@ -163,7 +163,7 @@ namespace RtxTool
     /// more than the bar's from the bar's own limit, by the mean and at the 99th percentile. Beside
     /// it, **each one's bias**: how far its mean stands from the reference, blurred by
     /// `sNoiseBiasBlur`. Returns a process exit status, non-zero where any frame is noisier than its
-    /// bar, or any picture is missing, does not read, or is of another size.
+    /// bar, any picture is missing, does not read, or is of another size, or no place was named.
     ///
     /// **Noise against noise, because a frame and its bar are drawn two ways.** Held to the one
     /// reference, each carried the difference between its own reconstruction and the reference's
@@ -181,11 +181,17 @@ namespace RtxTool
     Misc::Result<void, std::string> checkAgainst(
         const std::filesystem::path& out, const std::filesystem::path& against);
 
+    /// Removes what an earlier run left at each of `pictures` under `out`, ahead of a run that
+    /// writes them: a picture this run does not reach then reads as missing, and never as the last
+    /// run's, which compared as the same.
+    void clearPictures(const std::filesystem::path& out, std::span<const WrittenPicture> pictures);
+
     /// Reads back what a run wrote and says what moved since `against`: a directory an earlier run
     /// wrote on this machine, never a corpus in the tree, because the picture is a function of the
     /// driver and the card as much as of the code. Each of `pictures` is looked for under `against`
     /// by the name it has under `wrote`, and held to its rule. Returns a process exit status,
-    /// non-zero where any picture moved or has no reference, and zero where `against` is empty.
+    /// non-zero where any picture moved or has no reference, or where there is none to compare, and
+    /// zero where `against` is empty.
     ///
     /// **A frame's picture is judged by its hashes where they can judge it.** Where an upscaler
     /// reconstructed the frame the picture is the upscaler's, and where nothing composed it past

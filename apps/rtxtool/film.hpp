@@ -31,7 +31,7 @@ namespace RtxTool
         const osg::Vec3f& getEye() const { return *mStop.mStand.mEye; }
         const osg::Vec3f& getLook() const { return *mStop.mStand.mLook; }
         float getHour() const { return *mStop.mSky.mHour; }
-        const std::string& getWeather() const { return *mStop.mSky.mWeather; }
+        std::uint32_t getWeather() const { return *mStop.mSky.mWeather; }
 
         /// How long the flight to this key takes, in place of the length its changes derive.
         std::optional<float> mSeconds{};
@@ -59,7 +59,7 @@ namespace RtxTool
     /// What paces a film: the command line's, each a default `film --help` states.
     struct FilmPacing
     {
-        /// How long one frame of the film stands for: the run's own step (`RunSetup::mStep`), which
+        /// How long one frame of the film stands for: the run's own step (`SessionRequest::mStep`), which
         /// every length below is counted in frames by, and `--fps` is one over.
         float mStep = sStepSeconds;
 
@@ -90,9 +90,10 @@ namespace RtxTool
         float mCrossingSeconds = 8.0f;
 
         /// **The sky on its own rate, for a time-lapse the camera flies through.** The game
-        /// clock's speed over the whole film as a multiple of the game's own, `sGameTimeScale` —
-        /// the `×N` the clock keys set in a window — where the hours the keys name after the first
-        /// are left alone and set no segment's length; or nothing for the keys' hours.
+        /// clock's speed over the whole film as a multiple of the game's own — the `timescale` the
+        /// session starts at, which is also what the clock keys' `×N` multiplies in a window —
+        /// where the hours the keys name after the first are left alone and set no segment's
+        /// length; or nothing for the keys' hours.
         std::optional<float> mClock;
 
         /// The weathers the sky turns through over the whole film, round and round, as
@@ -127,10 +128,6 @@ namespace RtxTool
         /// The pace along the path in frames, which is what a track counts in.
         Cruise getCruise() const { return Cruise{ .mEase = double{ mEase } / double{ mStep } }; }
     };
-
-    /// Game hours a second of a clock running at `clock` times the game's own speed,
-    /// `sGameTimeScale`: `FilmPacing::mClock`'s rate.
-    double clockHoursPerSecond(float clock);
 
     /// Which of a segment's changes set its length: the flight's speed, a key's own seconds, or
     /// for a segment that goes nowhere the longest of what else it changes.

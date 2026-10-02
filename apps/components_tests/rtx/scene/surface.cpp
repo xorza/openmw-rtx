@@ -7,11 +7,18 @@
 #include <osg/AlphaFunc>
 #include <osg/BlendFunc>
 #include <osg/CopyOp>
+#include <osg/CullFace>
+#include <osg/Depth>
+#include <osg/Fog>
+#include <osg/FrontFace>
 #include <osg/GL>
 #include <osg/Image>
 #include <osg/Matrixf>
+#include <osg/PolygonMode>
+#include <osg/PolygonOffset>
 #include <osg/StateAttribute>
 #include <osg/StateSet>
+#include <osg/Stencil>
 #include <osg/Texture2D>
 #include <osg/Uniform>
 #include <osg/Vec2f>
@@ -179,6 +186,22 @@ namespace Rtx
             EXPECT_FLOAT_EQ(material.mEmissiveMult, 2.0f);
             EXPECT_EQ(material.mVertexColour, VertexColour::Glow);
 
+            // Where the vertex colour is the diffuse, its alpha is the opacity, and every vertex
+            // alpha reads as one. A vertex ambient leaves the material's diffuse, alpha and all.
+            constexpr std::array<std::pair<SceneUtil::VertexColorModes, float>, 3> opacities{ {
+                { SceneUtil::VertexColorModes::AmbientAndDiffuse, 1.0f },
+                { SceneUtil::VertexColorModes::Diffuse, 1.0f },
+                { SceneUtil::VertexColorModes::Ambient, 0.5f },
+            } };
+            for (const auto& [mode, opacity] : opacities)
+            {
+                colours->setVertexColorMode(mode);
+                SurfaceDescription tinted;
+                describeStateSet(*state, tinted);
+                EXPECT_FLOAT_EQ(tinted.mOpacity, opacity) << static_cast<int>(mode);
+            }
+            colours->setVertexColorMode(SceneUtil::VertexColorModes::Emission);
+
             // What `NifOsg::AlphaController` writes, on a state set of the traversal's own.
             osg::ref_ptr<osg::StateSet> animated = new osg::StateSet(*state, osg::CopyOp::SHALLOW_COPY);
             animated->addUniform(new osg::Uniform("alpha", 0.125f));
@@ -195,10 +218,11 @@ namespace Rtx
             EXPECT_FLOAT_EQ(material.mOpacity, 1.0f);
         }
 
-        /// A test is a cutout at its reference, a blend function wins over it, and the visitor's
-        /// rewrite — a `RemovedAlphaFunc` at a default threshold beside an `alphaRef` uniform —
-        /// reads the same as the attribute it replaced. `ALWAYS` is no test, which is what the
-        /// scene root wears.
+        /// A test is a cutout at its reference on the sides its function passes, a blend function
+        /// wins over it, and the visitor's rewrite — a `RemovedAlphaFunc` at a default threshold
+        /// beside an `alphaRef` uniform — reads the same as the attribute it replaced. `ALWAYS` is
+        /// no test, which is what the scene root wears. A test is a cutout wherever it fails some
+        /// alpha: `GREATER` at nought cuts the bare texels, and `GEQUAL` at nought cuts nothing.
         TEST(RtxSurfaceTest, alphaTestingAndBlendingReadAsTheLoaderWroteThem)
         {
             osg::ref_ptr<osg::StateSet> tested = new osg::StateSet;
@@ -207,7 +231,8 @@ namespace Rtx
             SurfaceDescription material;
             describeStateSet(*tested, material);
             EXPECT_EQ(material.mAlphaMode, AlphaMode::Cutout);
-            EXPECT_FLOAT_EQ(material.mAlphaRef, 128.0f / 255.0f);
+            EXPECT_FLOAT_EQ(material.mAlphaTest.mReference, 128.0f / 255.0f);
+            EXPECT_EQ(material.mAlphaTest.mPasses, Shaders::ALPHA_PASSES_ABOVE);
 
             osg::ref_ptr<osg::StateSet> visited = new osg::StateSet;
             visited->setAttribute(Shader::RemovedAlphaFunc::getInstance(osg::AlphaFunc::GREATER),
@@ -217,26 +242,56 @@ namespace Rtx
             material = SurfaceDescription{};
             describeStateSet(*visited, material);
             EXPECT_EQ(material.mAlphaMode, AlphaMode::Cutout);
-            EXPECT_FLOAT_EQ(material.mAlphaRef, 64.0f / 255.0f);
+            EXPECT_FLOAT_EQ(material.mAlphaTest.mReference, 64.0f / 255.0f);
+            EXPECT_EQ(material.mAlphaTest.mPasses, Shaders::ALPHA_PASSES_ABOVE);
 
             // Blending on top of the test: the mode says blend and the threshold survives.
             osg::ref_ptr<osg::StateSet> blended = new osg::StateSet;
             blended->setAttributeAndModes(new osg::BlendFunc);
             describeStateSet(*blended, material);
             EXPECT_EQ(material.mAlphaMode, AlphaMode::Blend);
-            EXPECT_FLOAT_EQ(material.mAlphaRef, 64.0f / 255.0f);
+            EXPECT_FLOAT_EQ(material.mAlphaTest.mReference, 64.0f / 255.0f);
 
             // And a test folded in after the blend keeps the blend.
             describeStateSet(*tested, material);
             EXPECT_EQ(material.mAlphaMode, AlphaMode::Blend);
-            EXPECT_FLOAT_EQ(material.mAlphaRef, 128.0f / 255.0f);
+            EXPECT_FLOAT_EQ(material.mAlphaTest.mReference, 128.0f / 255.0f);
 
             osg::ref_ptr<osg::StateSet> root = new osg::StateSet;
             root->setAttribute(Shader::RemovedAlphaFunc::getInstance(GL_ALWAYS));
             material = SurfaceDescription{};
             describeStateSet(*root, material);
             EXPECT_EQ(material.mAlphaMode, AlphaMode::Opaque);
-            EXPECT_FLOAT_EQ(material.mAlphaRef, 0.0f);
+            EXPECT_EQ(material.mAlphaTest, AlphaTest{}) << "a test that cuts nothing is no test";
+
+            // Each function as the sides it passes on, and whether it cuts anything at its
+            // reference: one row per function a NIF can state.
+            // The two that cut nothing at their reference read as no test.
+            const struct
+            {
+                osg::AlphaFunc::ComparisonFunction mFunction;
+                float mReference;
+                AlphaTest mRead;
+                AlphaMode mMode;
+            } functions[] = {
+                { osg::AlphaFunc::NEVER, 0.5f, { 0.5f, 0u }, AlphaMode::Cutout },
+                { osg::AlphaFunc::LESS, 0.5f, { 0.5f, Shaders::ALPHA_PASSES_BELOW }, AlphaMode::Cutout },
+                { osg::AlphaFunc::EQUAL, 0.5f, { 0.5f, Shaders::ALPHA_PASSES_AT }, AlphaMode::Cutout },
+                { osg::AlphaFunc::LEQUAL, 1.0f, AlphaTest{}, AlphaMode::Opaque },
+                { osg::AlphaFunc::GREATER, 0.0f, { 0.0f, Shaders::ALPHA_PASSES_ABOVE }, AlphaMode::Cutout },
+                { osg::AlphaFunc::NOTEQUAL, 0.5f, { 0.5f, Shaders::ALPHA_PASSES_BELOW | Shaders::ALPHA_PASSES_ABOVE },
+                    AlphaMode::Cutout },
+                { osg::AlphaFunc::GEQUAL, 0.0f, AlphaTest{}, AlphaMode::Opaque },
+            };
+            for (const auto& row : functions)
+            {
+                osg::ref_ptr<osg::StateSet> stated = new osg::StateSet;
+                stated->setAttributeAndModes(new osg::AlphaFunc(row.mFunction, row.mReference));
+                material = SurfaceDescription{};
+                describeStateSet(*stated, material);
+                EXPECT_EQ(material.mAlphaTest, row.mRead) << row.mFunction;
+                EXPECT_EQ(material.mAlphaMode, row.mMode) << row.mFunction;
+            }
         }
 
         /// A parent that set a texture `OVERRIDE` keeps it against a child that did not set its own
@@ -390,6 +445,64 @@ namespace Rtx
             describeStateSet(*mode, material);
             EXPECT_EQ(material.mAlphaMode, AlphaMode::Blend);
             EXPECT_EQ(material.mBlend, BlendKind::Over);
+        }
+
+        /// **What a state set states and the trace does not read is said, one fact a bit**: a blend
+        /// other than the shipped four, a polygon mode of lines, a fog of its own, a stencil test, a
+        /// declined role. What the raster pipeline alone reads — the depth, a polygon offset, a
+        /// clockwise front, which is the winding a mirror turns round — and what the reader carries
+        /// say nothing, so a vanilla surface states none. A nearer state set restating a fact is the
+        /// nearer one's.
+        TEST(RtxSurfaceTest, whatAStateSetStatesAndTheTraceDoesNotReadIsSaid)
+        {
+            const auto unreadOf = [](const osg::StateSet& state) {
+                SurfaceDescription material;
+                describeStateSet(state, material);
+                return material.mUnread;
+            };
+            const auto bit = [](UnreadState state) { return static_cast<std::uint32_t>(state); };
+
+            osg::ref_ptr<osg::StateSet> vanilla = new osg::StateSet;
+            vanilla->setAttributeAndModes(new osg::BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+            vanilla->setAttributeAndModes(new osg::AlphaFunc(osg::AlphaFunc::GREATER, 0.5f));
+            vanilla->setAttributeAndModes(new osg::Depth(osg::Depth::LEQUAL, 0.0, 1.0, false));
+            vanilla->setAttributeAndModes(new osg::PolygonOffset(-1.0f, -1.0f));
+            vanilla->setAttributeAndModes(new osg::CullFace(osg::CullFace::BACK));
+            vanilla->setAttribute(new osg::FrontFace(osg::FrontFace::CLOCKWISE));
+            EXPECT_EQ(unreadOf(*vanilla), 0u);
+
+            osg::ref_ptr<osg::StateSet> multiply = new osg::StateSet;
+            multiply->setAttributeAndModes(new osg::BlendFunc(GL_DST_COLOR, GL_ZERO));
+            EXPECT_EQ(unreadOf(*multiply), bit(UnreadState::BlendPair));
+
+            osg::ref_ptr<osg::StateSet> wire = new osg::StateSet;
+            wire->setAttributeAndModes(new osg::PolygonMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::LINE));
+            wire->setAttributeAndModes(new osg::Fog);
+            wire->setAttributeAndModes(new osg::Stencil);
+            wire->setAttributeAndModes(new osg::CullFace(osg::CullFace::FRONT));
+            EXPECT_EQ(unreadOf(*wire),
+                bit(UnreadState::PolygonMode) | bit(UnreadState::Fog) | bit(UnreadState::Stencil)
+                    | bit(UnreadState::CulledFront));
+
+            osg::ref_ptr<osg::StateSet> detailed = new osg::StateSet;
+            osg::ref_ptr<osg::Texture2D> detail = new osg::Texture2D(new osg::Image);
+            detailed->setTextureAttributeAndModes(0, detail);
+            detailed->setTextureAttribute(0, new SceneUtil::TextureType("detailMap"));
+            EXPECT_EQ(unreadOf(*detailed), bit(UnreadState::Role));
+
+            // Folded: a parent's lines, and a child that fills again.
+            osg::ref_ptr<osg::StateSet> filled = new osg::StateSet;
+            filled->setAttributeAndModes(
+                new osg::PolygonMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::FILL));
+            SurfaceDescription folded;
+            SurfaceLocks locks;
+            describeStateSet(*wire, folded, locks);
+            describeStateSet(*filled, folded, locks);
+            EXPECT_FALSE(folded.isUnread(UnreadState::PolygonMode)) << "the child fills";
+            EXPECT_TRUE(folded.isUnread(UnreadState::Fog)) << "and the parent's fog still stands";
+
+            for (const UnreadState state : sUnreadStates)
+                EXPECT_FALSE(whyUnread(state).empty());
         }
 
         /// The environment map's tint, the ambient the game overrides for a magic effect, and the

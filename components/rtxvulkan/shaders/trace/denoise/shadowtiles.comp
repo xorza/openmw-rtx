@@ -161,7 +161,7 @@ vec2 horizontalNeighbourhood(uint row, uint column)
 /// Whether the history at `at` belongs to the surface this pixel shows.
 bool sameSurface(ivec2 at, vec3 normal, float distance, vec3 moved)
 {
-    if (outsideOf(at, uvec2(frame.mCamera.mWidth, frame.mCamera.mHeight)))
+    if (outsideOf(at, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
         return false;
 
     return heldSurfaceMatches(imageLoad(heldSurface, at), normal, distance, moved, frame.mDistanceScale);
@@ -169,7 +169,7 @@ bool sameSurface(ivec2 at, vec3 normal, float distance, vec3 moved)
 
 void main()
 {
-    const uvec2 extent = uvec2(frame.mCamera.mWidth, frame.mCamera.mHeight);
+    const uvec2 extent = uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight);
     const uvec2 local = gl_LocalInvocationID.xy;
     const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
     const bool inFrame = !outsideOf(uvec2(at), extent);
@@ -284,7 +284,7 @@ void main()
         const vec3 normal = unpackSurfaceNormal(seen.x);
         const float away = surfaceDistance(seen.y);
         const vec3 moved = imageLoad(motion, at).xyz;
-        const HistoryFootprint before = historyFootprint(at, frame.mCamera.mJitter, moved);
+        const HistoryFootprint before = historyFootprint(at, frame.mEyes.mWorld.mJitter, moved);
 
         // The moments at the nearest texel, as the SDK fetches them, and none where that texel is
         // another surface: the SDK's disocclusion.

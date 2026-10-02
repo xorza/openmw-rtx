@@ -241,10 +241,18 @@ namespace Rtx
                     old, std::filesystem::file_time_type::clock::now() - std::chrono::hours(24 * (10 - at)));
             }
 
+            // A partial write a process was killed in the middle of, older than every cache.
+            const std::filesystem::path crashed = cacheDirectory / "rtx-crashed.1234.partial.pipelinecache";
+            std::ofstream(crashed) << "half";
+            std::filesystem::last_write_time(
+                crashed, std::filesystem::file_time_type::clock::now() - std::chrono::hours(24 * 30));
+
             only(Testing::getShaderDirectory());
 
             after = filesIn(cacheDirectory);
             EXPECT_EQ(after.size(), 6u) << "this run's cache, the four kept beside it, and the file that is not ours";
+            EXPECT_EQ(std::find(after.begin(), after.end(), crashed.filename().string()), after.end())
+                << "a partial write was left for good";
             EXPECT_NE(std::find(after.begin(), after.end(), "keep-me.txt"), after.end())
                 << "a file this renderer did not write is left alone";
             EXPECT_EQ(std::find(after.begin(), after.end(), "rtx-older-0.pipelinecache"), after.end())

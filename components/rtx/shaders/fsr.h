@@ -87,8 +87,7 @@ namespace Rtx::Shaders
     /// against.
     struct FsrInputConstants
     {
-        Camera mCamera;
-        Camera mArms;
+        Eyes mEyes;
         float mNear;
     };
 
@@ -134,8 +133,8 @@ namespace Rtx::Shaders
     const uint FSR_CHANGE_PYRAMID_BIND_EXPOSURE = 3;
     const uint FSR_CHANGE_PYRAMID_BIND_ATOMIC = 4;
     const uint FSR_CHANGE_PYRAMID_BIND_MIP_0 = 5;
-    const uint FSR_CHANGE_PYRAMID_BIND_CONSTANTS = 11;
-    const uint FSR_CHANGE_PYRAMID_BIND_SPD = 12;
+    const uint FSR_CHANGE_PYRAMID_BIND_CONSTANTS = FSR_CHANGE_PYRAMID_BIND_MIP_0 + FSR_PYRAMID_MIPS;
+    const uint FSR_CHANGE_PYRAMID_BIND_SPD = FSR_CHANGE_PYRAMID_BIND_CONSTANTS + 1;
 
     const uint FSR_CHANGE_BIND_MIPS = 0;
     const uint FSR_CHANGE_BIND_SHADING_CHANGE = 1;
@@ -187,7 +186,7 @@ namespace Rtx::Shaders
 #ifdef RTX_HOST
     static_assert(sizeof(FsrConstants) == 148, "FsrConstants must be scalar-packed on every side");
     static_assert(sizeof(FsrPyramidConstants) == 24, "FsrPyramidConstants must be scalar-packed on every side");
-    static_assert(sizeof(FsrInputConstants) == 124, "FsrInputConstants must be scalar-packed on every side");
+    static_assert(sizeof(FsrInputConstants) == 140, "FsrInputConstants must be scalar-packed on every side");
     static_assert(sizeof(FsrConstants) <= FSR_BLOCK_PYRAMID - FSR_BLOCK_CONSTANTS);
     static_assert(sizeof(FsrPyramidConstants) <= FSR_BLOCK_INPUTS - FSR_BLOCK_PYRAMID);
     static_assert(sizeof(FsrInputConstants) <= FSR_BLOCKS_BYTES - FSR_BLOCK_INPUTS);

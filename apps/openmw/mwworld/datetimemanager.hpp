@@ -53,6 +53,12 @@ namespace MWWorld
         // Updates mPaused; should be called once a frame.
         void updateIsPaused();
 
+        /// Whether a write of the hour that took the clock from `before` to `after` jumped it:
+        /// moved it either way round the day by more than `step`, the hours the frame advanced it
+        /// by. A script that holds the hour moves it back by one step and no more, and
+        /// `set gamehour to 21` moves it by hours.
+        static bool jumps(float before, float after, double step);
+
     private:
         friend class World;
         void setup(Globals& globalVariables);

@@ -1,6 +1,7 @@
 #include "memory.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <cassert>
 #include <cstdint>
 #include <string>
@@ -44,15 +45,16 @@ namespace Rtx
         /// heap in one block.
         constexpr VkDeviceSize sBlockBytes = 64 * 1024 * 1024;
 
-        /// Content's priority, below the half the library gives every block outside a pool, which
-        /// is where what the frame holds is made. One figure for structures and textures alike,
-        /// because the two share the content pools' blocks and a priority belongs to a block.
-        constexpr float sContentPriority = 0.25f;
-
-        VmaAllocationCreateInfo askingFor(const VkMemoryPropertyFlags properties)
+        /// A request for memory of `properties` in the types `memoryTypesFor` names on `memory`,
+        /// for `use`. The priority is read only for an allocation of its own; one in a block has
+        /// the block's, which `memoryPriorityOf` keeps equal to the use's.
+        VmaAllocationCreateInfo askingFor(
+            const VkPhysicalDeviceMemoryProperties& memory, const VkMemoryPropertyFlags properties, const MemoryUse use)
         {
             VmaAllocationCreateInfo create{};
             create.requiredFlags = properties;
+            create.memoryTypeBits = memoryTypesFor(memory, properties);
+            create.priority = memoryPriorityOf(use);
             if ((properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
                 create.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
@@ -158,22 +160,21 @@ namespace Rtx
         checkVk(vmaCreateAllocator(&create, &mAllocator), "vmaCreateAllocator");
 
         // The type the library picks for a resource that asks for video memory and nothing else,
-        // which is what every structure and texture asks for.
-        const VmaAllocationCreateInfo video = askingFor(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        checkVk(vmaFindMemoryTypeIndex(mAllocator, ~0u, &video, &mVideoType), "vmaFindMemoryTypeIndex");
+        // which is what every structure and texture asks for: the first of the types that request
+        // is placed in, which costs it nothing more than the others do.
+        const std::uint32_t video = memoryTypesFor(mMemory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if (video == 0)
+            throw Unsupported("no memory type is video memory alone among those this device offers");
+        mVideoType = static_cast<std::uint32_t>(std::countr_zero(video));
         mVideoHeap = mMemory.memoryTypes[mVideoType].heapIndex;
 
         // Made now and not when first asked for, so no thread ever makes one: a pool with no block
-        // holds nothing.
-        //
-        // **Not over AMD's device-coherent types**, which the library leaves out of every choice
-        // unless asked for them, and refuses a pool over: RADV on RDNA 2 and 3 and AMD's own driver
-        // list device-local ones, and a pool asked of each stopped those cards at start-up.
+        // holds nothing. One over each type content may be placed in, which leaves out AMD's
+        // device-coherent types: the library refuses a pool over one, and a pool asked of each
+        // stopped RADV's and AMD's cards at start-up.
         for (std::uint32_t type = 0; type < mMemory.memoryTypeCount; ++type)
         {
-            const VkMemoryPropertyFlags flags = mMemory.memoryTypes[type].propertyFlags;
-            if ((flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == 0
-                || (flags & VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD) != 0)
+            if ((video & (1u << type)) == 0)
                 continue;
 
             const VmaPoolCreateInfo pool{ .memoryTypeIndex = type,
@@ -181,11 +182,36 @@ namespace Rtx
                 .blockSize = sBlockBytes,
                 .minBlockCount = 0,
                 .maxBlockCount = 0,
-                .priority = sContentPriority,
+                .priority = memoryPriorityOf(MemoryUse::Texture),
                 .minAllocationAlignment = 0,
                 .pMemoryAllocateNext = nullptr };
             checkVk(vmaCreatePool(mAllocator, &pool, &mContentPools[type]), "vmaCreatePool");
         }
+    }
+
+    std::uint32_t memoryTypesFor(const VkPhysicalDeviceMemoryProperties& memory, const VkMemoryPropertyFlags required)
+    {
+        constexpr VkMemoryPropertyFlags placement = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+            | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+            | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+        constexpr VkMemoryPropertyFlags never = VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD
+            | VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD | VK_MEMORY_PROPERTY_PROTECTED_BIT
+            | VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
+
+        std::uint32_t exact = 0;
+        std::uint32_t having = 0;
+        for (std::uint32_t type = 0; type < memory.memoryTypeCount; ++type)
+        {
+            const VkMemoryPropertyFlags flags = memory.memoryTypes[type].propertyFlags;
+            if ((flags & never) != 0 || (flags & required) != required)
+                continue;
+
+            having |= 1u << type;
+            if ((flags & placement) == (required & placement))
+                exact |= 1u << type;
+        }
+
+        return exact != 0 ? exact : having;
     }
 
     MemoryAllocator::~MemoryAllocator()
@@ -207,7 +233,7 @@ namespace Rtx
         assert(alignment > 0 && (alignment & (alignment - 1)) == 0 && "an alignment is a power of two");
 
         const VkMemoryRequirements requirements = requirementsOf(mDevice, buffer, alignment);
-        const VmaAllocationCreateInfo create = askingFor(properties);
+        const VmaAllocationCreateInfo create = askingFor(mMemory, properties, MemoryUse::Essential);
         VmaAllocation allocation = nullptr;
         VmaAllocationInfo placed{};
         checkAllocated(vmaAllocateMemory(mAllocator, &requirements, &create, &allocation, &placed), properties);
@@ -218,7 +244,7 @@ namespace Rtx
 
     DeviceMemory MemoryAllocator::take(const VkImage image, const VkMemoryPropertyFlags properties)
     {
-        const VmaAllocationCreateInfo create = askingFor(properties);
+        const VmaAllocationCreateInfo create = askingFor(mMemory, properties, MemoryUse::Essential);
         VmaAllocation allocation = nullptr;
         VmaAllocationInfo placed{};
         checkAllocated(vmaAllocateMemoryForImage(mAllocator, image, &create, &allocation, &placed), properties);
@@ -277,9 +303,7 @@ namespace Rtx
         const std::uint32_t typeBits, bool own, const VkMemoryPropertyFlags properties, const MemoryUse use,
         Allocate&& allocate)
     {
-        VmaAllocationCreateInfo create = askingFor(properties);
-        // Read for an allocation of its own; one in a pool has the pool's.
-        create.priority = sContentPriority;
+        VmaAllocationCreateInfo create = askingFor(mMemory, properties, use);
         std::uint32_t type = 0;
         checkAllocated(vmaFindMemoryTypeIndex(mAllocator, typeBits, &create, &type), properties);
         assert(mContentPools[type] != nullptr && "content asked for memory that is not video memory");

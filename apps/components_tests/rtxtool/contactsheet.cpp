@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/instruments/contactsheet.hpp>
+#include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -74,6 +75,59 @@ namespace RtxTool
             EXPECT_EQ(names,
                 (std::vector<std::string_view>{
                     "textures/first.dds", "textures/third.dds", "bake:textures/first.dds" }));
+        }
+
+        /// **What has no colour to read is a checker of eight-texel squares, 32 and 96, in both
+        /// halves**, and the gap between the halves stays the paper's 64. A bake is shaped like its
+        /// source and carries no bytes, and a BC5 map's bytes are two data channels: bytes of 255
+        /// read as colour would draw 255.
+        TEST(RtxContactSheetTest, whatHasNoColourToReadIsDrawnAsAChecker)
+        {
+            std::array<Rtx::TextureData, 3> textures{};
+            textures[0].mSource = Rtx::TextureSource::SpriteBake;
+            textures[0].mWidth = 64;
+            textures[0].mHeight = 64;
+
+            const std::array<std::byte, 16> block = [] {
+                std::array<std::byte, 16> bytes{};
+                bytes.fill(std::byte{ 255 });
+                return bytes;
+            }();
+            const std::array<Rtx::MipLevel, 1> level{ Rtx::MipLevel{ .mOffset = 0, .mWidth = 4, .mHeight = 4 } };
+            textures[1].mFormat = Rtx::TextureFormat::Bc5Unorm;
+            textures[1].mEncoding = Rtx::TextureEncoding::Normal;
+            textures[1].mWidth = 4;
+            textures[1].mHeight = 4;
+            textures[1].mBytes = block;
+            textures[1].mLevels = level;
+
+            const Rtx::Testing::TestTexture painted = Rtx::Testing::paintTwoTones(32, 96);
+            textures[2] = painted.mData;
+
+            EXPECT_FALSE(Rtx::readsColour(textures[0]));
+            EXPECT_FALSE(Rtx::readsColour(textures[1]));
+            EXPECT_TRUE(Rtx::readsColour(textures[2]));
+
+            const ContactSheet sheet = drawContactSheet(textures, 0.0f);
+            const auto shownAt = [&](std::uint32_t index, std::uint32_t x, std::uint32_t y) {
+                const std::size_t at
+                    = (std::size_t{ sheet.getTopOf(index) + y } * sheet.mWidth + sheet.getLeftOf(index) + x) * 4;
+                return static_cast<int>(sheet.mPixels[at]);
+            };
+
+            for (const std::uint32_t index : { 0u, 1u })
+                for (const std::uint32_t half : { 0u, ContactSheet::getStride() })
+                {
+                    EXPECT_EQ(shownAt(index, half, 0), 32) << index;
+                    EXPECT_EQ(shownAt(index, half + 7, 7), 32) << index;
+                    EXPECT_EQ(shownAt(index, half + 8, 0), 96) << index;
+                    EXPECT_EQ(shownAt(index, half, 8), 96) << index;
+                    EXPECT_EQ(shownAt(index, half + 8, 8), 32) << index;
+                }
+            EXPECT_EQ(shownAt(0, ContactSheet::getThumbnail(), 0), 64) << "the gap is the paper";
+
+            const std::uint32_t middle = ContactSheet::getThumbnail() / 2;
+            EXPECT_EQ(shownAt(2, middle, middle), 255) << "a readable texture beside them is still drawn";
         }
 
         /// A cell that used no textures has no sheet to draw, and says so rather than writing one.

@@ -1,56 +1,25 @@
 #include "blockfile.hpp"
 
+#include <algorithm>
 #include <array>
-#include <charconv>
-#include <cmath>
 #include <cstdint>
 #include <format>
 #include <fstream>
 #include <ios>
-#include <locale>
-#include <sstream>
 #include <stdexcept>
 #include <string>
-#include <system_error>
 #include <utility>
 
 #include <components/files/conversion.hpp>
 #include <components/rtx/environment/skylight.hpp>
 
 #include "benchrun.hpp"
+#include "wholenumber.hpp"
 
 namespace RtxTool
 {
     namespace
     {
-        template <class Number>
-        std::optional<Number> parseNumber(std::string_view text)
-        {
-            Number value = 0;
-            const char* const end = text.data() + text.size();
-            bool whole = false;
-            if constexpr (requires { std::from_chars(text.data(), end, value); })
-            {
-                const auto [stop, error] = std::from_chars(text.data(), end, value);
-                whole = error == std::errc() && stop == end;
-            }
-            else
-            {
-                // Apple's libc++ has `from_chars` for whole numbers alone, and its stream reads
-                // through `strtod`, to the nearest. The end of the stream is where a whole number
-                // stops.
-                std::istringstream stream{ std::string(text) };
-                stream.imbue(std::locale::classic());
-                whole = static_cast<bool>(stream >> std::noskipws >> value) && stream.eof();
-            }
-
-            // Both read "inf" and "nan", which no field of a view or a bench stands for.
-            if (!whole || !std::isfinite(value))
-                return std::nullopt;
-
-            return value;
-        }
-
         /// `text` cut at its commas into exactly `into.size()` pieces, each trimmed, or false where
         /// it has any other number of them.
         bool splitExactly(std::string_view text, std::span<std::string_view> into)
@@ -73,7 +42,7 @@ namespace RtxTool
 
     std::optional<float> parseFloat(std::string_view text)
     {
-        return parseNumber<float>(text);
+        return wholeNumber<float>(text);
     }
 
     std::optional<osg::Vec3f> parseVec3(std::string_view text)
@@ -101,10 +70,10 @@ namespace RtxTool
         if (!splitExactly(text, pieces))
             return std::nullopt;
 
-        const std::optional<double> seconds = parseNumber<double>(pieces[0]);
+        const std::optional<double> seconds = wholeNumber<double>(pieces[0]);
         const std::optional<float> scroll = parseFloat(pieces[1]);
-        const std::optional<double> x = parseNumber<double>(pieces[2]);
-        const std::optional<double> y = parseNumber<double>(pieces[3]);
+        const std::optional<double> x = wholeNumber<double>(pieces[2]);
+        const std::optional<double> y = wholeNumber<double>(pieces[3]);
         if (!seconds.has_value() || !scroll.has_value() || !x.has_value() || !y.has_value())
             return std::nullopt;
 
@@ -153,9 +122,19 @@ namespace RtxTool
             if (mBlocks.empty())
                 refuse(number, "a field comes before the first [section]");
 
-            mBlocks.back().mFields.push_back(BlockField{ .mName = std::string(trimmed(text.substr(0, equals))),
-                .mValue = std::string(trimmed(text.substr(equals + 1))),
-                .mLine = number });
+            // **One value a field, in every schema**: else a second `pos` would win and a second
+            // `speed` lose, each by the reader that happened to read it, and a typo would be a quiet
+            // choice.
+            Block& block = mBlocks.back();
+            const std::string_view name = trimmed(text.substr(0, equals));
+            const auto set = std::find_if(block.mFields.begin(), block.mFields.end(),
+                [&](const BlockField& field) { return field.mName == name; });
+            if (set != block.mFields.end())
+                refuse(number,
+                    std::format("a second \"{}\" in [{}], which line {} already sets", name, block.mName, set->mLine));
+
+            block.mFields.push_back(BlockField{
+                .mName = std::string(name), .mValue = std::string(trimmed(text.substr(equals + 1))), .mLine = number });
         }
     }
 
@@ -265,13 +244,13 @@ namespace RtxTool
         return value;
     }
 
-    std::string BlockFile::weather(const BlockField& field) const
+    std::uint32_t BlockFile::weather(const BlockField& field) const
     {
         const std::optional<std::uint32_t> named = Rtx::weatherIndex(field.mValue);
         if (!named.has_value())
             refuseValue(field, checkWeather(field.mValue).error());
 
-        return std::string(Rtx::weatherName(*named));
+        return *named;
     }
 
     osg::Vec3f BlockFile::point(const BlockField& field) const
@@ -304,15 +283,13 @@ namespace RtxTool
 
     int BlockFile::day(const BlockField& field) const
     {
-        const std::string& text = field.mValue;
-        int value = 0;
-        const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
-        if (error != std::errc() || end != text.data() + text.size())
+        const std::optional<int> value = wholeNumber<int>(field.mValue);
+        if (!value.has_value())
             refuseValue(field, "is not a whole number of days");
-        if (const Misc::Result<void, std::string_view> checked = checkDay(value); !checked.isOk())
+        if (const Misc::Result<void, std::string_view> checked = checkDay(*value); !checked.isOk())
             refuseValue(field, checked.error());
 
-        return value;
+        return *value;
     }
 
     bool BlockFile::readPlace(const BlockField& field, Stop& stop) const

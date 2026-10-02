@@ -51,7 +51,7 @@ namespace Rtx::Shaders
         /// The mean luminance of what the sheets being sampled paint, linear.
         ///
         /// **What a texel is read as a ratio to, so the sheet gives shape and `mColour` gives the
-        /// level.** `SkyContent::mCloudMean` carries the argument and the measurements.
+        /// level.** `CloudSheet::mMean` carries the argument and the measurements.
         ///
         /// Nought where the sheet could not be averaged — a file a mod replaced with something
         /// nothing here decodes — which the shader reads as no ratio to take, and draws the deck
@@ -173,6 +173,12 @@ namespace Rtx::Shaders
         float mHorizon;
 
         uint mTexture;
+
+        /// How many texels the sheet `mTexture` names stands at, across and down. **The backend's
+        /// and not the scene's**, because the array can stand a texture smaller than its file
+        /// (`TextureArray::chooseSide`); written beside the ripples, where the frame is sampled, so
+        /// a starry pixel reads a number the host holds rather than a texture header.
+        uvec2 mExtent RTX_ZERO;
     };
 
     /// One source in the sky as a shading point sees it: the sun, or a moon. What the eye sees of
@@ -300,13 +306,53 @@ namespace Rtx::Shaders
     }
 #endif
 
+    /// Where Morrowind's atmosphere fades the fog colour to the sky colour, read off the mesh the
+    /// rasterizer draws it with (`Rtx::readAtmosphere`). The mesh is a cylinder of two rings: the sky
+    /// colour whole on the upper ring and none on the lower, linear between them along the wall, and
+    /// fanned shut above the upper ring. A ray at elevation `e` crosses the wall at the share
+    /// `(r0 sin e - z0 cos e) / ((z1 - z0) cos e - (r1 - r0) sin e)` of the way up it, which is the
+    /// rasterizer's interpolation in a vertical plane through a ring vertex: in Morrowind's own mesh,
+    /// the whole fade between 3.6 and 28.6 degrees.
+    ///
+    /// **All nought is a frame built by hand, and draws the sky colour above the horizon.** No
+    /// atmosphere at all is `mBottom` and `mTop` above one, which draws the fog colour everywhere,
+    /// as the rasterizer does with no mesh to draw.
+    struct SkyRamp
+    {
+        /// The sines of the two rings' elevations: none of the sky colour below the first, all of
+        /// it above the second.
+        float mBottom;
+        float mTop;
+
+        /// The lower ring's radius and height, `r0, z0`, and the upper ring's less those,
+        /// `r1 - r0, z1 - z0`. A ratio is all the share reads, so the mesh's own units stand.
+        vec2 mLow RTX_ZERO;
+        vec2 mStep RTX_ZERO;
+    };
+
+    /// How much of the sky colour the atmosphere shows along unit `direction`: `SkyRamp`'s share.
+    ///
+    /// **Selected and not branched.** The division answers only between the rings, where the wall
+    /// is crossed and what it divides by is positive; outside them it may divide by nought, and
+    /// that answer is not the one selected.
+    RTX_SHADER float skyShare(SkyRamp ramp, vec3 direction)
+    {
+        const float up = direction[2];
+        const float across = sqrt(max(direction[0] * direction[0] + direction[1] * direction[1], 0.0f));
+        const float rise = ramp.mLow[0] * up - ramp.mLow[1] * across;
+        const float run = ramp.mStep[1] * across - ramp.mStep[0] * up;
+        const float between = clamp(rise / run, 0.0f, 1.0f);
+        return up >= ramp.mTop ? 1.0f : (up <= ramp.mBottom ? 0.0f : between);
+    }
+
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(MoonDisc) == 112, "MoonDisc must be scalar-packed on every side");
     static_assert(sizeof(CloudDeck) == 96, "CloudDeck must be scalar-packed on every side");
-    static_assert(sizeof(StarField) == 32, "StarField must be scalar-packed on every side");
+    static_assert(sizeof(StarField) == 40, "StarField must be scalar-packed on every side");
     static_assert(sizeof(SkyPatch) == 44, "SkyPatch must be scalar-packed on every side");
+    static_assert(sizeof(SkyRamp) == 24, "SkyRamp must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST
@@ -316,17 +362,19 @@ namespace Rtx::Shaders
 // What the shading language reads and the host does not, for the reason `RTX_SHADER` gives.
 #ifndef RTX_HOST
 
-/// The sky's own colour along a direction: the game's horizon fading to its zenith.
+/// The sky's own colour along a direction: the game's fog colour faded to its sky colour by the
+/// atmosphere, `SkyRamp`.
 ///
-/// **The two colours rather than the frame they sit in.** What this is about is a gradient between
-/// two colours, and a function that took the frame would tie itself to how a backend binds one.
+/// **The two colours and the ramp rather than the frame they sit in.** What this is about is a
+/// gradient between two colours, and a function that took the frame would tie itself to how a
+/// backend binds one.
 ///
-/// Morrowind records one colour for the fog and for the sky's lower half because they are the same
-/// thing seen at two distances, so a ray that reaches nothing has to converge on exactly what a ray
-/// through a mile of air does.
-RTX_SHADER vec3 skyGradient(vec3 horizon, vec3 zenith, vec3 direction)
+/// Morrowind clears to the fog colour and draws its atmosphere over it, so a ray that reaches
+/// nothing under the atmosphere's lower ring converges on exactly what a ray through a mile of air
+/// does.
+RTX_SHADER vec3 skyGradient(vec3 horizon, vec3 zenith, SkyRamp ramp, vec3 direction)
 {
-    return mix(horizon, zenith, clamp(direction.z, 0.0, 1.0));
+    return mix(horizon, zenith, skyShare(ramp, direction));
 }
 
 #endif

@@ -132,7 +132,6 @@ namespace MWRender
         osg::ref_ptr<SceneUtil::PerViewUniformStateUpdater> mPerViewUniformStateUpdater;
 
         std::unique_ptr<SkyManager> mSky;
-        bool mPrecipitationOcclusion = false;
         std::unique_ptr<PrecipitationOccluder> mPrecipitationOccluder;
 
         osg::ref_ptr<PostProcessor> mPostProcessor;

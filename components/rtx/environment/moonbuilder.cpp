@@ -16,7 +16,7 @@
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturewrap.hpp>
-#include <components/rtx/preprocess/contentpreprocessor.hpp>
+#include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -31,18 +31,13 @@ namespace Rtx
 {
     namespace
     {
-        std::string_view nameOf(Moon moon)
-        {
-            return moon == Moon::Masser ? "Masser" : "Secunda";
-        }
-
         /// How wide `size` draws `moon`. `Fallback::Map` answers a key the configuration leaves out,
         /// and one that does not parse, with nought, and the game draws a quad of no extent for
         /// that; an error for a size below nought, or one that is not finite.
         Misc::Result<float, std::string> radiusOf(Moon moon, float size)
         {
             if (!(size >= 0.0f) || !std::isfinite(size))
-                return Misc::Err{ "Moons_" + std::string(nameOf(moon)) + "_Size is " + std::to_string(size)
+                return Misc::Err{ "Moons_" + std::string(sMoonNames.name(moon)) + "_Size is " + std::to_string(size)
                     + ", which is no size" };
 
             return moonAngularRadius(size);
@@ -54,7 +49,7 @@ namespace Rtx
         /// albedo of exactly one moon rather than of an average of two.
         osg::Vec3f tintOf(const MoonFaces& faces, Moon moon)
         {
-            return faces.meanOf(moon) / (faces.mMasserMean * Shaders::LUMINANCE_WEIGHTS);
+            return faces.of(moon).mMean / (faces.of(Moon::Masser).mMean * Shaders::LUMINANCE_WEIGHTS);
         }
 
         /// What a full moon of `angularRadius` delivers to a surface facing it, before its own tint:
@@ -119,7 +114,7 @@ namespace Rtx
     }
 
     MoonFaces addMoonFaces(SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes,
-        std::vector<TextureHold>& holds, ContentPreprocessor& content)
+        std::vector<TextureHold>& holds, ImageFactCache& facts)
     {
         // A moon of a size that is no size is refused and not drawn.
         const auto drawnWidth = [&](Moon moon, float size) {
@@ -127,32 +122,29 @@ namespace Rtx
             if (radius.isOk())
                 return radius.value();
 
-            scene.refusals().refuse(Refused::Moon, nameOf(moon), radius.error());
+            scene.refusals().refuse(Refused::Moon, sMoonNames.name(moon), radius.error());
             return 0.0f;
         };
 
         // Clamped: a portrait is one image edge to edge, and a repeating tap at its limb would
         // blend the far edge's paint into the disc's antialiasing. A face that does not open takes
         // its slot with no image, which the upload stands in for and refuses; the image manager
-        // logged why.
-        MoonFaces faces{ .mMasserRadius = drawnWidth(Moon::Masser, sizes.mMasser),
-            .mSecundaRadius = drawnWidth(Moon::Secunda, sizes.mSecunda) };
+        // logged why. The mean read here and not on a frame, as a cloud deck's is: a face that does
+        // not open keeps the shipped portrait's.
+        MoonFaces faces;
+        for (std::size_t at = 0; at < sMoonCount; ++at)
+        {
+            const Moon moon = static_cast<Moon>(at);
+            MoonFace& face = faces.of(moon);
+            face.mRadius = drawnWidth(moon, sizes[at]);
 
-        // The mean read here and not on a frame, as a cloud deck's is: a face that does not open
-        // keeps the shipped portrait's.
-        const auto face = [&](const Moon moon, osg::Vec3f& mean) {
             const VFS::Path::NormalizedView path = moonFaceOf(moon);
             const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> image = openImage(images, path);
-            const Index slot
-                = scene.textures().add(path, image.isOk() ? image.value().get() : nullptr, TextureWrap::Clamp);
-            holds.push_back(scene.holdTexture(slot));
+            face.mSlot = scene.textures().add(path, image.isOk() ? image.value().get() : nullptr, TextureWrap::Clamp);
+            holds.push_back(scene.holdTexture(face.mSlot));
             if (image.isOk() && image.value() != nullptr)
-                mean = content.meanTexel(*image.value()).opaque();
-            return slot;
-        };
-
-        faces.mMasser = face(Moon::Masser, faces.mMasserMean);
-        faces.mSecunda = face(Moon::Secunda, faces.mSecundaMean);
+                face.mMean = facts.meanOf(*image.value()).opaque();
+        }
         return faces;
     }
 
@@ -183,9 +175,9 @@ namespace Rtx
     }
 
     MoonPlacement placeMoon(const MoonFaces& faces, Moon moon, float alongArcDegrees, float axisOffsetDegrees,
-        Sky::MoonPhase phase, float alpha)
+        float phaseEighths, float alpha)
     {
-        const float angularRadius = faces.radiusOf(moon);
+        const float angularRadius = faces.of(moon).mRadius;
 
         // `Moon::setState`'s own two rotations (`apps/openmw/mwrender/skyutil.cpp`): the arc
         // tips the moon up from the horizon about +X, and the axis offset swings that whole arc
@@ -208,20 +200,20 @@ namespace Rtx
             .mAngularRadius = angularRadius,
 
             // Eight painted phases are eight steps of a half turn each way, counted from full — so
-            // the index is the angle, and the sign of its sine is the limb the light is on.
-            .mPhaseAngle = static_cast<float>(phase) * 0.25f * osg::PIf,
+            // the count is the angle, and the sign of its sine is the limb the light is on.
+            .mPhaseAngle = phaseEighths * 0.25f * osg::PIf,
 
             // Nought until it is on its arc, which the engine states by leaving the angle there
             // until a moon rises and returning it there once it sets. Without this a moon that is
             // down sits on the horizon all night, because nothing else in the placement says so.
             // Nought too for a moon of no size, whose disc the sky would measure by a limb of zero.
             .mAlpha = alongArcDegrees > 0.0f && angularRadius > 0.0f ? alpha : 0.0f,
-            .mFace = faces.of(moon),
+            .mFace = faces.of(moon).mSlot,
 
             // The file's own mean, unscaled. `Shaders::MOON_RADIANCE` is what takes a
             // moon's texels to radiance, and it multiplies this where no portrait is loaded and the
             // portrait itself where one is — so the level lives in one place either way.
-            .mColour = faces.meanOf(moon),
+            .mColour = faces.of(moon).mMean,
         };
 
         placement.mDirection.normalize();

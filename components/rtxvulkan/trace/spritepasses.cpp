@@ -20,6 +20,18 @@ namespace Rtx
     {
     }
 
+    Shaders::SpriteBinFrame SpriteBinPass::frameOf(const Shaders::Camera& camera)
+    {
+        const float halfWidth = camera.mBasis.mRight.length();
+        const float halfHeight = camera.mBasis.mUp.length();
+        return Shaders::SpriteBinFrame{
+            .mRight = camera.mBasis.mRight / halfWidth,
+            .mUp = camera.mBasis.mUp / halfHeight,
+            .mHalfWidth = halfWidth,
+            .mHalfHeight = halfHeight,
+        };
+    }
+
     void SpriteBinPass::record(VkCommandBuffer commands, const Shaders::SpriteBinConstants& bin, const Buffer& list,
         const Buffer& presence, GpuTimer* const timer) const
     {

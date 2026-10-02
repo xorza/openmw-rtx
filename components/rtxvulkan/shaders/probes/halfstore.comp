@@ -1,0 +1,33 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+// Each float stored into a half-float image as it is, for `RtxHalfStoreTest` to read back how the
+// store rounded it. The format is the one every history kept in halves is declared with.
+
+#include "halfstore.h"
+#include "sets.h"
+#include "storageformat.h"
+
+layout(local_size_x = HALF_STORE_WORKGROUP) in;
+
+layout(set = SET_PASS, binding = HALF_STORE_BIND_VALUES, scalar) readonly buffer Values
+{
+    float values[];
+};
+
+layout(set = SET_PASS, binding = HALF_STORE_BIND_STORED, STORAGE_RGBA16F) uniform writeonly image2D stored;
+
+layout(push_constant, scalar) uniform Push
+{
+    HalfStoreConstants store;
+};
+
+void main()
+{
+    const uint at = gl_GlobalInvocationID.x;
+    if (at >= store.mCount)
+        return;
+
+    imageStore(stored, ivec2(int(at), 0), vec4(values[at]));
+}

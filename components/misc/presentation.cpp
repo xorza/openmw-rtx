@@ -76,4 +76,14 @@ namespace Misc
             static_cast<float>(frame.y()) / static_cast<float>(displayPoints.y()));
         return setting * std::max(1.f, across);
     }
+
+    Crop cropToAspect(const osg::Vec2i frame, const osg::Vec2i asked)
+    {
+        // `frame.x - frame.y * aspect` over the asked aspect `asked.x / asked.y`, truncated, and
+        // the other way about: at most one of the two leaves anything over.
+        const std::int64_t wide = std::int64_t{ frame.x() } * asked.y() - std::int64_t{ frame.y() } * asked.x();
+        const auto left = static_cast<int>(std::max<std::int64_t>(0, wide / asked.y()) / 2);
+        const auto top = static_cast<int>(std::max<std::int64_t>(0, -wide / asked.x()) / 2);
+        return Crop{ .mOrigin = osg::Vec2i(left, top), .mSize = osg::Vec2i(frame.x() - 2 * left, frame.y() - 2 * top) };
+    }
 }

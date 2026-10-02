@@ -9,16 +9,22 @@ namespace Rtx
 {
     void PresentTarget::resize(const Device& device, const std::uint32_t width, const std::uint32_t height)
     {
-        // Drawn into as well as written: the tone curve writes it as a storage image and the GUI
-        // rasterises over what that left.
-        mImage = Image(device, width, height, TonePass::sTargetFormat,
-            VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
-                | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-            "target");
+        // The curve writes the picture as a storage image, the debug lines are drawn over it, the
+        // interface samples it, and a read back copies it.
+        mPicture = Image(device, width, height, TonePass::sTargetFormat,
+            VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            "picture");
+
+        // The interface draws what is shown whole, and a present and a read back copy it.
+        mShown = Image(device, width, height, TonePass::sTargetFormat,
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+            "shown");
 
         device.getPool().submitAndWait([&](VkCommandBuffer commands) {
             const VkClearColorValue black{ .float32 = { 0.0f, 0.0f, 0.0f, 1.0f } };
-            mImage.clear(commands, Use::sUndefined, black, Use::sAnyGeneral);
+            mPicture.clear(commands, Use::sUndefined, black, Use::sAnyGeneral);
+            mShown.clear(commands, Use::sUndefined, black, Use::sAnyGeneral);
         });
     }
 }

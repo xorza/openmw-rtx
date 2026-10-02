@@ -4,7 +4,10 @@
 #include <cstddef>
 #include <optional>
 #include <span>
+#include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include <unicode/locid.h>
 
@@ -42,6 +45,7 @@
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 #include "../mwlua/luamanagerimp.hpp"
+#include "../mwrender/rendersupport.hpp"
 
 #include "confirmationdialog.hpp"
 #include "weightedsearch.hpp"
@@ -274,11 +278,12 @@ namespace MWGui
         return nullptr;
     }
 
-    SettingsWindow::SettingsWindow(Files::ConfigurationManager& cfgMgr)
+    SettingsWindow::SettingsWindow(Files::ConfigurationManager& cfgMgr, const MWRender::RenderSupport& support)
         : WindowBase("openmw_settings_window.layout")
         , mKeyboardMode(true)
         , mCurrentPage(static_cast<size_t>(-1))
         , mCfgMgr(cfgMgr)
+        , mSupport(support)
     {
         const bool terrain = Settings::terrain().mDistantTerrain;
         const std::string_view widgetName = terrain ? "RenderingDistanceSlider" : "LargeRenderingDistanceSlider";
@@ -1091,9 +1096,79 @@ namespace MWGui
         updateWindowModeSettings();
         updateVSyncModeSettings();
         updateRayTracingSettings();
+        declineUnsupported();
         resetScrollbars();
         renderScriptSettings();
         MWBase::Environment::get().getWindowManager()->setKeyFocusWidget(mOkButton);
+    }
+
+    void SettingsWindow::declineUnsupported()
+    {
+        MyGUI::EnumeratorWidgetPtr widgets = mMainWidget->getEnumerator();
+        std::vector<MyGUI::Widget*> pending;
+        while (widgets.next())
+            pending.push_back(widgets.current());
+
+        // The bound controls, wherever they stand in the tree.
+        while (!pending.empty())
+        {
+            MyGUI::Widget* current = pending.back();
+            pending.pop_back();
+            for (std::size_t child = 0; child < current->getChildCount(); ++child)
+                pending.push_back(current->getChildAt(child));
+
+            const std::string_view category = getSettingCategory(current);
+            if (category.empty())
+                continue;
+            if (const std::string_view declined = mSupport.declinedSetting(category, getSettingName(current));
+                !declined.empty())
+                decline(*current, declined);
+        }
+
+        // And the ones the window wires by hand.
+        const std::pair<MyGUI::Widget*, Settings::CategorySetting> wired[] = {
+            { mTextureFilteringButton, { "General", "texture min filter" } },
+            { mAnisotropy, { "General", "anisotropy" } },
+            { mWaterTextureSize, { "Water", "rtt size" } },
+            { mWaterReflectionDetail, { "Water", "reflection detail" } },
+            { mWaterRainRippleDetail, { "Water", "rain ripple detail" } },
+            { mMaxLights, { "Shaders", "max lights" } },
+            { mLightsResetButton, { "Shaders", "max lights" } },
+            { mShadowMapResolution, { "Shadows", "shadow map resolution" } },
+            { mRayTracingUpscale, { "RTX", "upscale" } },
+        };
+        for (const auto& [control, setting] : wired)
+            if (const std::string_view declined = mSupport.declinedSetting(setting.first, setting.second);
+                !declined.empty())
+                decline(*control, declined);
+    }
+
+    void SettingsWindow::decline(MyGUI::Widget& control, std::string_view declined)
+    {
+        control.setEnabled(false);
+
+        std::string text = "#{OMWEngine:RendererDeclines}\n";
+        text += declined;
+        const auto showOn = [&](MyGUI::Widget& holder) {
+            holder.setUserString("ToolTipType", "Layout");
+            holder.setUserString("ToolTipLayout", "TextToolTip");
+            holder.setUserString("Caption_Text", text);
+        };
+
+        // A slider's label is named; a check button or a list stands in a row of its own, two or
+        // three widgets, whose label may carry a tooltip of its own, which the reason replaces.
+        if (MyGUI::ScrollBar* const slider = control.castType<MyGUI::ScrollBar>(false))
+            if (MyGUI::TextBox* const label = getSliderLabel(slider))
+                showOn(*label);
+
+        MyGUI::Widget* const row = control.getParent();
+        if (row == nullptr || row->getChildCount() > 3)
+            return;
+
+        showOn(*row);
+        for (std::size_t child = 0; child < row->getChildCount(); ++child)
+            if (row->getChildAt(child)->isUserString("ToolTipType"))
+                showOn(*row->getChildAt(child));
     }
 
     void SettingsWindow::onClose()

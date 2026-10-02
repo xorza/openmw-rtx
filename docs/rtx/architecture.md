@@ -88,7 +88,8 @@ The one interface the game talks to. Read its header first.
   structures belong to one renderer outright.
 - The game is never handed one renderer's mechanism. The exceptions are the upstream callers
   that cannot change, and they get null under the ray tracer.
-- `createRenderer` throws for a renderer the build lacks. There is no fallback.
+- `createRenderer` takes a `RendererKind`, and every build has both: the one not chosen never
+  starts. There is no fallback.
 - The base keeps what both renderers share: the resource system, the frame clock, the
   screenshot writer, the camera, the traversal root, the view mask and the presentation.
 - The presentation (`Misc::Presentation`) is the one answer to the screen's size. Each renderer
@@ -129,8 +130,10 @@ MyGUI draws the whole interface, as upstream. Only its backend changes.
 `MyGUIPlatform::GuiRenderManager` is the seam into MyGUI, implemented by upstream's OSG manager
 and by `MyGUIRtx::RenderManager`, so `WindowManager` never asks which backend it got.
 
-`MyGUIRtx::RenderManager` is written once for every backend. It needs a table of textures and
-one call that draws a list of triangles, and that is all it uses of `Rtx::GuiRenderer`. Pictures
+`MyGUIRtx::RenderManager` is written once for every backend. It needs the extent, a table of
+textures and one call that draws a list of triangles, which is the whole of `Rtx::GuiRenderer`; a
+picture traced into one of those textures is the renderer's (`Rtx::Renderer::traceGuiTexture`),
+because it is a picture of a scene. Pictures
 the game writes in main memory (the fog of war, the world map, save thumbnails, video frames)
 reach the interface through `shareTexture`: the game marks the image dirty, and the backend
 sends what changed.
@@ -185,7 +188,8 @@ source-tree test holds the order.
 - **`Rtx::ContentPreprocessor`** is the one way anything is computed from what the content files
   hold — a shape's fold and the normals it smoothed across a hard edge split, a texture's alpha and
   mean. One lives on each thread that reads content (`Rtx::ThreadContent`): the frame's, which the
-  world's walk, the sky and every picture's walk share, and the ring's reader's. Every
+  world's walk, the sky and every picture's walk share inside the frame thread's `Rtx::WalkContext`
+  beside the traversal numbers and the specular layout, and the ring's reader's. Every
   pass is keyed on everything it reads and asked of `ContentCache` first; the cache holds nothing
   yet, so every pass runs, and what each costs is counted into the walk's stats and the
   `preprocess` row of a frame.
@@ -341,8 +345,9 @@ GUI, the present.
 
 Four clocks drive a frame, each with one source: host time (the wall in play, the frame count
 times a stated step in a measured run), simulation time, game time (the hour), and the sky's
-clock. The wall is read only to measure. A cut (a teleport, a worldspace change, a time skip)
-resets every history. A setting that changes the extent or the upscaler takes effect at once.
+clock. The wall is read only to measure. A cut (a teleport, a worldspace change, a time skip: a
+rest, a wait, travel, or a script's write that moves the hour past the frame's step) resets every
+history. A setting that changes the extent or the upscaler takes effect at once.
 
 ## 11. Threads
 

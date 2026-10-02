@@ -11,6 +11,21 @@ namespace Rtx
 {
     struct SurfaceDescription;
 
+    /// How much of an actor there is at a point of a chain, as the rasterizer's state stack resolves
+    /// its two uniforms: each replaced by the nearest state set that states it, and a fragment
+    /// multiplied by `alpha * actorFade`.
+    struct Fade
+    {
+        /// What a placement here is faded by: the actor's `alpha * actorFade` where the actor's
+        /// root is the nearest to state an `alpha`, and its `actorFade` alone under a nearer state
+        /// set that states its own — a VFX root, an `NiAlphaController` — whose `alpha` the
+        /// material reads.
+        float mPlacement = 1.0f;
+
+        /// The nearest `actorFade`, which a nearer `alpha` leaves in force.
+        float mActor = 1.0f;
+    };
+
     /// One state set in the chain that shades a drawable, nearest it last. Not simply a node's own,
     /// because OpenMW animates shading with a `SceneUtil::StateSetUpdater`'s state set that belongs
     /// to the traversal.
@@ -21,7 +36,7 @@ namespace Rtx
         /// How much of an actor there is at this point of the chain, resolved as the chain is built
         /// rather than per drawable, which would ask each state set for two uniforms by a string
         /// made on the spot.
-        float mFade = 1.0f;
+        Fade mFade;
 
         /// Whether a controller rewrote this since the last frame, so `MaterialResolver::resolve`
         /// reads a known state set again instead of handing back the slot it already has.
@@ -36,6 +51,11 @@ namespace Rtx
         /// for the enchanted sword and the plain one beside it at once. `MaterialResolver::animate`
         /// is what this is asked for.
         bool mAnimatedThrough = false;
+
+        /// The link `stateSet` makes at the near end of `chain`: its fade resolved through the link
+        /// above it, and whether it or anything above it is a controller's. The one construction of
+        /// a link, so a field added here is set by every walk that builds a chain.
+        static Shading under(std::span<const Shading> chain, const osg::StateSet& stateSet, bool animated);
     };
 
     /// Whether a controller's state set stands anywhere on `shading` — `Shading::mAnimatedThrough`
@@ -54,9 +74,14 @@ namespace Rtx
     /// `material` is then the defaults.
     bool describeSurface(std::span<const Shading> shading, SurfaceDescription& material);
 
-    /// How much of an actor there is under `stateSet`, from the pair of uniforms
-    /// `MWRender::TransparencyUpdater` writes, or `inherited` where it carries neither. Both off
-    /// one state set, because `NifOsg::AlphaController` writes `alpha` alone and a walk that took
-    /// any `alpha` would fade an animated surface twice.
-    float fadeThrough(const osg::StateSet& stateSet, float inherited);
+    /// How much of an actor there is under `stateSet`, `inherited` from above it: the pair of
+    /// uniforms `MWRender::TransparencyUpdater` writes sets both, and an `alpha` alone replaces the
+    /// actor's, which the material then reads (`describeStateSet`), and keeps its `actorFade`.
+    Fade fadeThrough(const osg::StateSet& stateSet, const Fade& inherited);
+
+    /// Whether `stateSet` sends everything under it into the rasterizer's distortion buffer alone
+    /// (`SceneUtil::setupDistortion`): a heat haze or a portal, which bends the picture behind it
+    /// and whose own colour never reaches the frame, and with the shader chain off draws nothing at
+    /// all. Neither walk traces it.
+    bool drawsIntoDistortion(const osg::StateSet& stateSet);
 }

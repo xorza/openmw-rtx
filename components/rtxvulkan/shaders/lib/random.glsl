@@ -285,8 +285,8 @@ vec3 coneDirection(vec3 axis, float sine, vec2 u)
     const float radius = sqrt(drop * (2.0 - drop));
     const float turn = TAU * u.y;
 
-    const vec3 tangent = tangentTo(axis);
-    return tangent * (radius * cos(turn)) + cross(axis, tangent) * (radius * sin(turn)) + axis * (1.0 - drop);
+    const TangentFrame around = frameAbout(axis);
+    return around.mTangent * (radius * cos(turn)) + around.mBitangent * (radius * sin(turn)) + axis * (1.0 - drop);
 }
 
 /// A direction anywhere on the sphere, drawn evenly over it.
@@ -321,9 +321,9 @@ vec3 cosineDirection(vec3 normal, vec2 u)
     const float radius = sqrt(u.x);
     const float angle = TAU * u.y;
 
-    const vec3 tangent = tangentTo(normal);
+    const TangentFrame around = frameAbout(normal);
 
-    return tangent * (radius * cos(angle)) + cross(normal, tangent) * (radius * sin(angle))
+    return around.mTangent * (radius * cos(angle)) + around.mBitangent * (radius * sin(angle))
         + normal * sqrt(max(1.0 - u.x, 0.0));
 }
 

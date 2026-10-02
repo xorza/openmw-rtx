@@ -42,6 +42,10 @@ namespace Rtx
         /// interior cell the engine runs the weather system for.
         bool mOutdoors = false;
 
+        /// Whether that sky is drawn, which `tsky` turns off: the eye and the mirrors then see the
+        /// fog colour where they reached nothing, and the sky lights all it lit.
+        bool mSkyDrawn = true;
+
         /// The weather's `Glare_View`, which is what keeps the stars in under an overcast.
         float mGlare = 1.0f;
 
@@ -59,6 +63,10 @@ namespace Rtx
         CloudCrossing mClouds;
 
         float mWaterLevel = -std::numeric_limits<float>::infinity();
+
+        /// The colour the content settles its water's murk at, which the water scatters back:
+        /// `Shaders::VisibilityConstants::mWaterScatter`.
+        osg::Vec3f mWaterScatter = Shaders::WATER_SCATTER_SHIPPED;
 
         /// What the water moves by, and what the sky does: the simulation's seconds and the sky's
         /// own clock. Two, because a sped-up sky is a time-lapse and sped-up water is noise. Both
@@ -126,9 +134,6 @@ namespace Rtx
     /// good to a nanosecond after years, where one float resolves a quarter of a frame after ten
     /// hours.
     osg::Vec2f splitSeconds(double seconds);
-
-    /// `splitSeconds` undone: the double the two floats carry, for a reader on the host.
-    double joinSeconds(const osg::Vec2f& split);
 
     /// Where each scale of the fog's field is read from, `Shaders::VisibilityConstants::mFogOffsets`:
     /// the churn over `skySeconds` and the air `carried` downwind, turned as the scale is turned,

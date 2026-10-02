@@ -25,12 +25,12 @@
 namespace Rtx
 {
     PictureTracer::PictureTracer(const Device& device, const TracePasses& passes, const TraceMedia& media,
-        DisplayChain& display, GuiTextures& textures)
+        DisplayChain& display, GuiTextures& textures, const RadianceWidth radiance)
         : mDevice(device)
         , mMedia(media)
         , mDisplay(display)
         , mTextures(textures)
-        , mChain(device, passes)
+        , mChain(device, passes, 1, radiance)
         , mCounts(Buffer::deviceLocal(
               device, sizeof(Shaders::FrameCounts), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture counts"))
         , mGlareCounts(Buffer::deviceLocal(
@@ -38,9 +38,9 @@ namespace Rtx
     {
     }
 
-    void PictureTracer::grow(const VkExtent2D extent, const RadianceWidth radiance)
+    void PictureTracer::grow(const VkExtent2D extent)
     {
-        mChain.grow(extent.width, extent.height, radiance);
+        mChain.grow(extent.width, extent.height);
         mTarget = Image(mDevice, mChain.getWidth(), mChain.getHeight(), TonePass::sTargetFormat,
             VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "view target");
     }
@@ -49,7 +49,7 @@ namespace Rtx
         const GuiTraceOptions& options, DeviceScene& traced, const RenderProfile& profile)
     {
         // The camera's own extent is how much of the texture the picture fills.
-        const VkExtent2D extent{ camera.mCamera.mWidth, camera.mCamera.mHeight };
+        const VkExtent2D extent{ camera.mEyes.mWorld.mWidth, camera.mEyes.mWorld.mHeight };
         assert(holds(extent) && "a picture larger than the chain was grown to");
 
         // `VisibilityConstants::mTransparentBackground` says why: over the interface the backdrop
@@ -65,6 +65,7 @@ namespace Rtx
         const Reconstruction reconstruction = Reconstruction::forPicture();
         Shaders::VisibilityConstants sampled
             = sampleFrame(camera, FrameOptions{}, profile, reconstruction, traced.getCounts(), nullptr);
+        traced.measureStars(sampled.mStars);
 
         // The world's ripple field where the picture is of the world, which is the one place it
         // could have a wake in it; a subject of its own stands in no sea.
@@ -81,9 +82,9 @@ namespace Rtx
             const TraceResult picture = mChain.record(commands,
                 TraceRecording{
                     .mSubject = subject,
-                    .mAsked = camera,
+                    .mAsked = BinCamera::of(camera),
                     .mSampled = sampled,
-                    .mReconstruction = reconstruction,
+                    .mDenoised = reconstruction.mDenoised,
                     .mPastLost = true,
                 });
 
@@ -95,7 +96,6 @@ namespace Rtx
                 Display{
                     .mTrace = picture,
                     .mShown = picture.mColour,
-                    .mShownFrom = Use::sAnyGeneralRead,
                     .mExtent = extent,
                     .mSampled = sampled,
                     .mTarget = mTarget,

@@ -42,9 +42,10 @@ namespace Rtx
     {
     }
 
-    FrameRing::FrameRing(const Device& device, const bool readsCounts)
+    FrameRing::FrameRing(const Device& device, const bool readsCounts, const double holdTickMs)
         : mDevice(device)
         , mReadsCounts(readsCounts)
+        , mHoldTickMs(holdTickMs)
         , mSlots([&](FrameSlot) { return FrameRecord{ device }; })
         , mDigest(device)
     {
@@ -194,7 +195,7 @@ namespace Rtx
             .mNotFinite = NotFinite{ .mFog = counted.mNotFinite[Shaders::BOUNDARY_FOG],
                 .mColour = counted.mNotFinite[Shaders::BOUNDARY_COLOUR],
                 .mGuide = counted.mNotFinite[Shaders::BOUNDARY_GUIDE] },
-            .mHeldMs = counted.mHeldNs * 1.0e-6,
+            .mHeldMs = counted.mHeldTicks * mHoldTickMs,
             .mWaitMs = waited,
             .mInFlight = frame.mInFlight,
             .mReconstruction = frame.mReconstruction,

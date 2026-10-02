@@ -254,6 +254,10 @@ struct PuffLayer
     /// is the right colour: the walk has no order to composite by, so it reports what the coverage
     /// came to and where it came from. Nought for a frame that covered nothing.
     float mCoveredAt;
+
+    /// The sum of the covering puffs' alphas, which is what the walk weighed `mColour` and
+    /// `mCoveredAt` by, and what `mergedPuffs` weighs two layers by.
+    float mWeight;
 };
 
 /// A layer with nothing in it, which is what both walks start from and what either answers with
@@ -265,6 +269,7 @@ PuffLayer noPuffs()
     layer.mAdded = vec3(0.0);
     layer.mTransmittance = 1.0;
     layer.mCoveredAt = 0.0;
+    layer.mWeight = 0.0;
 
     return layer;
 }
@@ -427,11 +432,11 @@ SpriteCrossing ballCrossing(
 /// @param direction the ray's, ahead of the eye.
 uvec2 binnedPixel(uvec2 pixel, vec3 direction, bool arms)
 {
-    const Camera world = frame.mCamera;
-    const Screen screen = screenOf(basisOf(world), direction, vec2(1.0));
+    const Camera world = frame.mEyes.mWorld;
+    const Screen screen = screenOf(frame.mScreen, direction, vec2(1.0));
 
-    // `rayAt`'s generation undone: the pixel whose area the ray crosses the plane in.
-    const vec2 across = (screen.mAt / screen.mAhead + 1.0) * 0.5 * vec2(world.mWidth, world.mHeight) - world.mJitter;
+    // The pixel whose area the ray crosses the plane in.
+    const vec2 across = pixelOfScreen(screen, vec2(world.mWidth, world.mHeight)) - world.mJitter;
     const uvec2 through
         = uvec2(clamp(floor(across), vec2(0.0), vec2(float(world.mWidth - 1u), float(world.mHeight - 1u))));
 
@@ -473,7 +478,7 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
 
     // **The tiles are derived and not carried**, from the same function the bin uses, so the two
     // cannot disagree about how many there are across.
-    const uint tile = spriteTileOf(pixel, frame.mCamera.mWidth);
+    const uint tile = spriteTileOf(pixel, frame.mEyes.mWorld.mWidth);
 
     // **Every sprite where the runs did not fit**, which is the list's own degenerate form and the
     // march as it was before the tiles: `SPRITE_LIST_UNBINNED` says when a frame is handed it. The
@@ -506,7 +511,7 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
     // is not the screen's up, which no pinhole's ray inside its own field of view is. Not
     // `tangentTo`, whose tangent is whichever world axis the ray lies least along: that flips
     // between two rays a pixel apart and would turn every puff's texture with it.
-    const vec3 across = normalize(cross(direction, frame.mCamera.mUp));
+    const vec3 across = normalize(cross(direction, frame.mEyes.mWorld.mBasis.mUp));
     const vec3 upward = cross(across, direction);
 
     // The air along this one ray, built before the walk: every sprite below asks the same column
@@ -595,8 +600,10 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
 
         // **The rim is put back on a disc and left alone on a quad.** What the taper restores is
         // a round blob the mip chain averaged into the square it was cut to; a rain streak is
-        // authored as that rectangle, and tapering it would round off the drop.
-        const float painted = texel.a * sprite.mAlpha * (oriented ? 1.0 : spriteTaper(crossing.mRadial, lod));
+        // authored as that rectangle, and tapering it would round off the drop. `ONE, ONE` reads
+        // no alpha, as `gatherAlong` reads none of a surface that adds whole.
+        const float read = (emitter.mFlags & EMITTER_ADD_WHOLE) != 0u ? 1.0 : texel.a;
+        const float painted = read * sprite.mAlpha * (oriented ? 1.0 : spriteTaper(crossing.mRadial, lod));
         if (!(painted > 0.0))
             continue;
 
@@ -698,6 +705,7 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
     {
         layer.mColour = covered / coverage;
         layer.mCoveredAt = coveredAt / coverage;
+        layer.mWeight = coverage;
     }
 
     layer.mAdded = (1.0 - addedThrough) * SUNLIT_WHITE;
@@ -709,27 +717,27 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
 ///
 /// **The same rule each walk already uses inside itself, applied once more.** Neither walk has an
 /// order to composite by, so each reports the exact coverage `1 - prod(1 - a)` filled with its own
-/// coverage-weighted mean colour and taken at its own coverage-weighted depth. Putting two of those
-/// together is the same arithmetic on two terms instead of many, and it is exact wherever the
-/// colours agree — which is what one emitter's smoke and one cloud's shells each are.
+/// mean colour, weighted by each puff's alpha, and taken at its own depth weighted alike. The two
+/// are put together by the same weights, the sum of each walk's alphas, so a pixel's colour is the
+/// same whichever walk drew which puff: four sprites at half and one shell at half weigh four to
+/// one, merged or not. It is exact wherever the colours agree — which is what one emitter's smoke
+/// and one cloud's shells each are.
 ///
 /// **What it gives up is the depth**, and only where both walks found something on one pixel: rain
 /// a few units out and a cloud two thousand away come to one mean the air is split at. The weight
-/// is the coverage, so the one the pixel mostly shows is the one the split is right for.
+/// is the alpha, so the one the pixel mostly shows is the one the split is right for.
 PuffLayer mergedPuffs(PuffLayer first, PuffLayer second)
 {
-    const float firstCoverage = 1.0 - first.mTransmittance;
-    const float secondCoverage = 1.0 - second.mTransmittance;
-    const float coverage = firstCoverage + secondCoverage;
+    const float weight = first.mWeight + second.mWeight;
 
     PuffLayer layer;
     layer.mAdded = first.mAdded + second.mAdded;
     layer.mTransmittance = first.mTransmittance * second.mTransmittance;
-    layer.mColour = coverage > 0.0
-        ? (first.mColour * firstCoverage + second.mColour * secondCoverage) / coverage
-        : vec3(0.0);
+    layer.mWeight = weight;
+    layer.mColour
+        = weight > 0.0 ? (first.mColour * first.mWeight + second.mColour * second.mWeight) / weight : vec3(0.0);
     layer.mCoveredAt
-        = coverage > 0.0 ? (first.mCoveredAt * firstCoverage + second.mCoveredAt * secondCoverage) / coverage : 0.0;
+        = weight > 0.0 ? (first.mCoveredAt * first.mWeight + second.mCoveredAt * second.mWeight) / weight : 0.0;
 
     return layer;
 }

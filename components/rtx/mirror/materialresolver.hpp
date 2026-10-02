@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -14,6 +15,7 @@
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
@@ -37,8 +39,7 @@ namespace SceneUtil
 
 namespace Rtx
 {
-    class ContentPreprocessor;
-    class MeanTexels;
+    class ImageFactCache;
     class SceneDesc;
     struct Shading;
 
@@ -54,14 +55,10 @@ namespace Rtx
         /// What the content said, or nothing where nothing did.
         std::optional<SurfaceDescription> mDescribed{};
 
-        /// Whether the diffuse map's alpha ever reaches solid — decided by the reader for the one
-        /// kind of surface the answer changes, a translucent one, and left unset for every other.
-        /// The reader answers it because the walk over the texels is the reading's whole cost.
-        std::optional<bool> mDiffuseSolid{};
-
-        /// What a texel of the diffuse map adds on average, `Material::mDiffuseMean` — decided by
-        /// the reader for an additive surface, for the same reason, and left unset for every other.
-        std::optional<osg::Vec3f> mDiffuseMean{};
+        /// What the diffuse map's texels say — read by the reader for the surfaces the answer
+        /// changes, a blended one, and left unset for every other. The reader answers it because
+        /// the walk over the texels is the reading's whole cost.
+        std::optional<ImageFacts> mDiffuseFacts{};
     };
 
     /// Turns what the content says a surface is into the scene's materials, and keeps the textures
@@ -83,14 +80,14 @@ namespace Rtx
         /// @param pass the walk in progress: its sweep stamp and its counts, read at every call.
         ///        Borrowed, so that the mirror and everything resolving into it cannot come to hold
         ///        two answers.
-        /// @param means the thread's mean texels, shared with the emitters for the reason
+        /// @param facts the thread's image facts, shared with the emitters for the reason
         ///        `EmitterResolver` gives.
-        /// @param content the walk's thread's, which reads a translucent map's alpha.
-        MaterialResolver(SceneDesc& scene, const MirrorPass& pass, MeanTexels& means, ContentPreprocessor& content)
+        /// @param specular what the `_spec` maps of materials mean — `WalkContext::mSpecular`.
+        MaterialResolver(SceneDesc& scene, const MirrorPass& pass, ImageFactCache& facts, SpecularLayout specular)
             : mScene(scene)
             , mPass(pass)
-            , mMeans(means)
-            , mContent(content)
+            , mFacts(facts)
+            , mSpecularLayout(specular)
         {
         }
 
@@ -107,9 +104,8 @@ namespace Rtx
         /// Reads the chain of state sets in force at a drawable, for a thread that has no scene to
         /// resolve into. `resolve` is the same reading followed by `adopt`.
         ///
-        /// @param content that thread's own, which reads a translucent diffuse map's alpha.
-        /// @param means that thread's own cache of additive maps' means.
-        static MaterialReading read(std::span<const Shading> shading, ContentPreprocessor& content, MeanTexels& means);
+        /// @param facts that thread's own cache of image facts.
+        static MaterialReading read(std::span<const Shading> shading, ImageFactCache& facts);
 
         /// The material slot for a reading, adding it where the mirror holds none under its key,
         /// with one hold taken on the entry — `MeshResolver::adopt` says why a hold. Standing only:
@@ -122,9 +118,6 @@ namespace Rtx
         /// The sea's own, keyed on the state set it has not got because a node mask is what
         /// identifies it.
         Resolved resolveWater();
-
-        /// What the `_spec` maps of materials described from here on mean, `Ignore` until told.
-        void setSpecularLayout(SpecularLayout layout) { mSpecularLayout = layout; }
 
         /// The state set `node` shades with where that is not simply the one it wears, or null
         /// where it is — which is nearly every node in a cell. One per node, rewritten in place, so
@@ -161,10 +154,10 @@ namespace Rtx
         }
 
     private:
-        /// What the scene knows one image as under each encoding and wrap, and whether its alpha
-        /// ever reaches solid, unset until something asks, because the walk over its texels is only
-        /// worth doing for a material that has to tell a wisp from a mask. No one index: the slots
-        /// are twelve, and the sweep reads the reach alone.
+        /// What the scene knows one image as under each encoding and wrap, and what its texels say,
+        /// unset until something asks, because the walk over its texels is only worth doing for a
+        /// material the answer changes. No one index: the slots are twelve, and the sweep reads the
+        /// reach alone.
         struct HeldTexture
         {
             Reach mReach;
@@ -172,7 +165,6 @@ namespace Rtx
             /// The entry's hold on each slot it took, one per wrap and encoding, and empty where it
             /// took none.
             std::array<std::array<TextureHold, sTextureWrapCount>, sTextureEncodingCount> mSlots;
-            std::optional<bool> mSolid;
 
             /// Which of `mSlots` the table refused, a bit each. An animated material asks for its
             /// images every frame, and a full table refused each of them every frame, building the
@@ -181,9 +173,8 @@ namespace Rtx
             RefusedTakes mRefused;
             static_assert(sTextureEncodingCount * sTextureWrapCount <= 16, "a refusal bit per slot");
 
-            /// Its mean texel in the thread's cache, `MeanTexels`, or null until an additive
-            /// material asks.
-            const MeanTexel* mMean = nullptr;
+            /// Its facts in the thread's cache, `ImageFactCache`, or null until a material asks.
+            ImageFacts* mFacts = nullptr;
         };
 
         /// Every image an animated material has worn, each held in `mTextureOf` for as long as the
@@ -220,6 +211,33 @@ namespace Rtx
         /// and a fade at the most, and a controller past these is left unapplied.
         static constexpr std::size_t sMostUpdaters = 4;
 
+        /// What hangs on a node's two chains, exactly: each chain's callbacks in order, and how many
+        /// are the update chain's. A callback moved from one chain to the other, added, removed or
+        /// swapped makes another shape, where a mix of the pointers into one number could not tell
+        /// a cull chain `A→B` from a cull chain `A` beside an update chain `B`.
+        struct ChainShape
+        {
+            /// The callbacks a shape holds; a node whose chains hold more is read again every frame.
+            static constexpr std::size_t sMostCallbacks = 8;
+
+            std::array<const osg::Callback*, sMostCallbacks> mCallbacks{};
+            std::uint8_t mCount = 0;
+            std::uint8_t mUpdates = 0;
+
+            /// False where the chains held more than the shape has room for.
+            bool mWhole = true;
+
+            /// The shape of `node`'s chains now.
+            static ChainShape of(const osg::Node& node);
+
+            /// Whether the chains are as they were: never where either shape was cut short.
+            bool operator==(const ChainShape& other) const
+            {
+                return mWhole && other.mWhole && mCount == other.mCount && mUpdates == other.mUpdates
+                    && std::equal(mCallbacks.begin(), mCallbacks.begin() + mCount, other.mCallbacks.begin());
+            }
+        };
+
         /// The state set a node's controllers write into, kept so that the address a material is
         /// keyed on is the same one next frame. See `animate`. An entry like any other, so the map
         /// sweeps it by the reach every entry carries.
@@ -235,7 +253,13 @@ namespace Rtx
             std::array<SceneUtil::StateSetUpdater*, sMostUpdaters> mUpdaters{};
             std::size_t mUpdaterCount = 0;
             bool mSetUp = false;
-            std::uintptr_t mChains = 0;
+
+            /// Each updater's `getGeneration` when this last applied it. An updater resets itself
+            /// to change its defaults — a glow's end, a glow's new colour — and the node's own
+            /// update consumes that before the walk applies it here, so the state set held here
+            /// hears it by the number alone.
+            std::array<unsigned int, sMostUpdaters> mGenerations{};
+            ChainShape mChains;
         };
 
         /// Reads a whole material off the chain, which is what an arrival and a rewrite both want.
@@ -273,15 +297,10 @@ namespace Rtx
         ///        which keeps the texture through the frames the controller shows another one.
         Index takeTexture(const TextureUse& use, Worn* worn, TextureEncoding encoding = TextureEncoding::Colour);
 
-        /// Whether `image`'s alpha ever reaches solid — `reachesSolid`, read at the first material
-        /// that asks and kept. Asked only for a translucent material's own diffuse map, because it
-        /// walks every texel of the finest level.
-        bool diffuseReachesSolid(const osg::Image* image);
-
-        /// What a texel of `image` adds on average under `blend` — `MeanTexels::of`, found by the
-        /// slot after the first ask. Asked only for an additive material's own diffuse map, because
-        /// the first ask for a file walks its texels. The untextured grey for no image.
-        osg::Vec3f diffuseMeanOf(const osg::Image* image, BlendKind blend);
+        /// What `image`'s texels say — `ImageFactCache::of`, found by the slot after the first ask.
+        /// Asked only for a material the answer changes, because the first ask for a file walks its
+        /// texels. Null for no image and for one `takeTexture` did not meet.
+        ImageFacts* diffuseFacts(const osg::Image* image);
 
         SceneDesc& mScene;
         const MirrorPass& mPass;
@@ -301,11 +320,9 @@ namespace Rtx
         /// address would otherwise be handed the state set the first one's controllers were writing.
         Identity<const osg::Node, Animated> mAnimated{ mPass };
 
-        /// The extractor's, both. The ring's reader has its own and hands its answers over in the
-        /// reading.
-        MeanTexels& mMeans;
-        ContentPreprocessor& mContent;
+        /// The extractor's. The ring's reader has its own and hands its answers over in the reading.
+        ImageFactCache& mFacts;
 
-        SpecularLayout mSpecularLayout = SpecularLayout::Ignore;
+        const SpecularLayout mSpecularLayout;
     };
 }

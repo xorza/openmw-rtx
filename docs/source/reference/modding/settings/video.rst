@@ -15,6 +15,10 @@ Video Settings
    Larger values produce more detailed images within the constraints of your graphics hardware,
    but may reduce the frame rate.
 
+   Upstream OpenMW kept the window's size here: a settings file that states a resolution and no
+   window width has its resolution moved to window width and height on the first start, and renders
+   at the window's own resolution, as it did.
+
 .. omw-setting::
    :title: resolution y
    :type: int

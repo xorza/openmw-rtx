@@ -1,14 +1,8 @@
 #pragma once
 
-#include <algorithm>
 #include <cstdint>
-#include <cstdio>
-#include <ctime>
-#include <span>
 #include <string>
 #include <string_view>
-#include <utility>
-#include <vector>
 
 #include "crashpage.hpp"
 
@@ -21,6 +15,18 @@ namespace crashpad
 /// `crashpadmonitorposix.cpp` and `crashpadmonitorwin32.cpp`.
 namespace Crash::Monitor
 {
+    /// What an End came to.
+    enum class Ending
+    {
+        Ended,
+
+        /// The game was gone before the monitor ended it.
+        Gone,
+
+        /// The monitor holds nothing to end it by, or the system refused.
+        Failed,
+    };
+
     /// The game itself, held from the monitor's start, so a hang request and an End reach the
     /// process that started the monitor and never one that took its id after it ended: a pidfd on
     /// Linux and a handle on Windows. macOS acts on the id.
@@ -37,8 +43,8 @@ namespace Crash::Monitor
         /// debugger starts one; the game's frames are untouched.
         void requestHangReport(Heartbeat& page) const;
 
-        /// Ends the game, and says whether it was there to be ended.
-        bool end() const;
+        /// Ends the game, and says what that came to.
+        Ending end() const;
 
     private:
         std::uint32_t mId = 0;
@@ -52,28 +58,6 @@ namespace Crash::Monitor
     /// one another process sent.
     std::string describeException(const crashpad::ExceptionSnapshot& exception, std::uint32_t process);
 
-    /// The command line as UTF-8, which is what Crashpad's own entry hands `HandlerMain`: on Windows
-    /// from the wide one, because `argv` is in the system's code page there.
-    std::vector<std::string> commandLine(int argc, char** argv);
-
-    std::tm localTime(std::time_t seconds);
-
     /// The folder in Crashpad's database that each system's handler leaves a finished dump in.
     std::string_view dumpFolder();
-
-    inline std::string hex(std::uint64_t value)
-    {
-        char text[20];
-        std::snprintf(text, sizeof(text), "0x%llx", static_cast<unsigned long long>(value));
-        return text;
-    }
-
-    using Names = std::span<const std::pair<std::uint32_t, std::string_view>>;
-
-    /// `code`'s name in `names`, or `otherwise` where it has none.
-    inline std::string nameOf(Names names, std::uint32_t code, std::string otherwise)
-    {
-        const auto named = std::find_if(names.begin(), names.end(), [&](const auto& one) { return one.first == code; });
-        return named != names.end() ? std::string(named->second) : std::move(otherwise);
-    }
 }

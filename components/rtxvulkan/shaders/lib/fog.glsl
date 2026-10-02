@@ -372,7 +372,7 @@ FogSources fogSourcesFrom(MoonTerms terms, float draw)
 /// a column points. Half a pixel back, because `rayAt` adds its own.
 Ray fogColumnRayAt(uvec2 column, vec2 inside)
 {
-    return rayAt(frame.mCamera, (vec2(column) + inside) * float(FOG_VOLUME_SCALE) - 0.5);
+    return rayAt(frame.mEyes.mWorld, (vec2(column) + inside) * float(FOG_VOLUME_SCALE) - 0.5);
 }
 
 /// The ray one column of the fog volume samples its air along this frame.
@@ -595,6 +595,10 @@ float fogColumn(vec3 origin, vec3 direction, float span)
 /// it, the air having no side to face a lamp away from.
 vec3 lampsInAir(inout Reservoir kept, inout uint state, vec3 origin, vec3 direction, float entry, float exit)
 {
+    // None, for a picture no lamp lights: one answer for the whole frame.
+    if (frame.mNoLamps != 0u)
+        return vec3(0.0);
+
     const float side = 1.0 / frame.mLightGrid.mInverseCell;
     const vec3 beyond = frame.mLightGrid.mOrigin + vec3(frame.mLightGrid.mSize) * side;
 
@@ -650,9 +654,13 @@ vec3 lampsInAir(inout Reservoir kept, inout uint state, vec3 origin, vec3 direct
             const uint row = lightListAt(i);
             const GpuLight held = lightAt(row);
 
+            // The lamp's distance off the ray from what is left of the offset past its closest
+            // approach, and not `|offset|² - closest²`: that difference cancels for a lamp nearly on
+            // the ray far down it, by a unit or two at five thousand, which is a source's radius.
             const vec3 offset = held.mPosition - origin;
             const float closest = dot(offset, direction);
-            const float perpendicular = sqrt(max(dot(offset, offset) - closest * closest, 0.0));
+            const vec3 across = offset - direction * closest;
+            const float perpendicular = sqrt(dot(across, across));
 
             // The part of this cell's stretch the lamp reaches at all, which is where its chord
             // through the reach and that stretch overlap.
@@ -751,7 +759,7 @@ vec4 fogEdgeOver(vec3 direction, float from, float to)
     const float crossed = fogEdgeCrossed(to) - fogEdgeCrossed(from);
 
     const float transmittance = pow(FOG_EDGE_TRANSMITTANCE, rise * crossed);
-    const vec3 haze = skyGradient(frame.mSkyHorizon, frame.mSkyZenith, direction);
+    const vec3 haze = skyGradient(frame.mSkyHorizon, frame.mSkyZenith, frame.mSkyRamp, direction);
 
     return vec4(haze * (1.0 - transmittance), transmittance);
 }

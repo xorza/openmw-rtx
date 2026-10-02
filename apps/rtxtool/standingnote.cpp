@@ -16,6 +16,7 @@
 #include <components/rtx/environment/skylight.hpp>
 
 #include "run.hpp"
+#include "stager.hpp"
 
 namespace RtxTool
 {
@@ -48,8 +49,7 @@ namespace RtxTool
 
         const osg::Vec3d at = camera.getPosition();
 
-        // Assigned field by field into the note it already holds, so the weather's string keeps
-        // its room from one frame to the next. `begin` made the note.
+        // Assigned field by field into the note it already holds, which `begin` made.
         Stop& stood = *mStood;
         stood.mStand.mEye = osg::Vec3f(at);
 
@@ -71,10 +71,10 @@ namespace RtxTool
         // readable.
         stood.mStand.mLook = osg::Vec3f(at + camera.getOrient() * osg::Vec3d(0.0, sLookAhead, 0.0));
         stood.mSky.mHour = now.getHour();
-        stood.mSky.mDay = now.getDay();
-        if (!stood.mSky.mWeather.has_value())
-            stood.mSky.mWeather.emplace();
-        *stood.mSky.mWeather = Rtx::weatherName(static_cast<std::uint32_t>(world.getCurrentWeatherScriptId()));
+        // Counted from the new game's day, as `--day` and a key's `day` are, so the line read back
+        // stands on the day it was noted on.
+        stood.mSky.mDay = now.getDay() - Stager::newGameDaysPassed();
+        stood.mSky.mWeather = static_cast<std::uint32_t>(world.getCurrentWeatherScriptId());
 
         // The factor the weather system counts down from one, so what is noted counts up.
         const int arriving = world.getNextWeatherScriptId();
@@ -93,7 +93,7 @@ namespace RtxTool
             return {};
 
         return writeSkyNote(mTitleNote,
-            SkyNote{ .mWeather = left->mSky.mWeather.value(),
+            SkyNote{ .mWeather = Rtx::weatherName(left->mSky.mWeather.value()),
                 .mArriving = mArriving,
                 .mCrossed = mCrossed,
                 .mHour = left->mSky.mHour.value() });

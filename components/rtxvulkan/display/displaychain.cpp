@@ -6,6 +6,7 @@
 #include <span>
 #include <variant>
 
+#include <components/rtx/frame/camera.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/hosttypes.h>
@@ -42,12 +43,12 @@ namespace Rtx
                 .mSpriteTileList = spriteTileList,
                 .mSpritePresence = spritePresence,
                 .mTextureTexels = textureTexels,
-                .mTracedWidth = frame.mCamera.mWidth,
-                .mTracedHeight = frame.mCamera.mHeight,
+                .mTracedWidth = frame.mEyes.mWorld.mWidth,
+                .mTracedHeight = frame.mEyes.mWorld.mHeight,
                 .mBackdrop = frame.mTransparentBackground == 0 ? Shaders::BACKDROP_STARS : Shaders::BACKDROP_INTERFACE,
-                .mCamera = Shaders::cameraOnGrid(frame.mCamera, width, height),
+                .mCamera = Shaders::cameraOnGrid(frame.mEyes.mWorld, width, height),
                 .mStars = frame.mStars,
-                .mGlareColour = fader.mColour,
+                .mGlareColour = fader.mFader.mColour,
                 .mGlareAmount = fader.amountFor(frame),
                 .mInverseGamma = inverseGamma,
             };
@@ -78,7 +79,7 @@ namespace Rtx
     void DisplayChain::record(const VkCommandBuffer commands, const Display& what)
     {
         const VisibilityInputs& inputs = what.mTrace.mInputs;
-        const Image& shown = what.mShown;
+        const Image& shown = what.mShown.mImage;
         assert(shown.getWidth() >= what.mExtent.width && shown.getHeight() >= what.mExtent.height);
 
         const FrameLook* const look = what.mFrame.has_value() ? &*what.mFrame : nullptr;
@@ -95,9 +96,9 @@ namespace Rtx
         // both reads.
         const GBuffer& channels = inputs.mChannels;
 
-        shown.transition(commands, what.mShownFrom, Use::sTraceReadWrite);
+        shown.transition(commands, what.mShown.mLeftAs, Use::sTraceReadWrite);
         mPuffs.recordSpriteComposite(commands, inputs, shown, what.mExtent,
-            VkExtent2D{ what.mSampled.mCamera.mWidth, what.mSampled.mCamera.mHeight }, timer);
+            VkExtent2D{ what.mSampled.mEyes.mWorld.mWidth, what.mSampled.mEyes.mWorld.mHeight }, timer);
         shown.transition(commands, Use::sTraceReadWrite, Use::sComputeReadOrSample);
 
         // What the lens will spread, built here and applied by the curve. Nothing is written back
@@ -128,7 +129,7 @@ namespace Rtx
             else
             {
                 const FrameLook::Measured& measured = std::get<FrameLook::Measured>(look->mExposure);
-                mExposure.record(commands, shown, measured.mSeconds, measured.mReset || mExposureStale, measured.mBias);
+                mExposure.record(commands, shown, measured.mSeconds, mExposureStale, measured.mBias);
                 mExposureStale = false;
             }
             closeZone(timer, commands);
@@ -142,7 +143,7 @@ namespace Rtx
         if (look != nullptr)
         {
             openZone(timer, commands, "glare");
-            mSunGlare.record(commands, look->mGlare.mSeconds, look->mGlare.mReset || mGlareStale);
+            mSunGlare.record(commands, look->mGlare.mSeconds, mGlareStale);
             mGlareStale = false;
             closeZone(timer, commands);
             share = &mSunGlare.getShare();
@@ -160,8 +161,8 @@ namespace Rtx
                 .mTextures = inputs.mSubject.mScene->getTextures(),
                 .mTarget = what.mTarget,
                 .mConstants = toneFor(what.mSampled, look != nullptr ? look->mGlare.mFader : SunGlare{},
-                    look != nullptr ? look->mInverseGamma : 1.0f, what.mTrace.mSpriteTileList,
-                    what.mTrace.mSpritePresence, inputs.mSubject.mScene->getTextureTexels(), what.mExtent.width,
+                    look != nullptr ? look->mInverseGamma : 1.0f, what.mTrace.mSprites.mTileList,
+                    what.mTrace.mSprites.mPresence, inputs.mSubject.mScene->getTextureTexels(), what.mExtent.width,
                     what.mExtent.height),
             });
         closeZone(timer, commands);
@@ -194,15 +195,19 @@ namespace Rtx
         Image& target = what.mTarget;
         target.transition(commands, Use::sComputeWrite, Use::sColourAttachment);
 
+        // `screenOf` divides by the distance ahead, which is the perspective divide.
+        assert(what.mSampled.mEyes.mWorld.mOrthographic == 0 && "debug lines through a parallel projection");
         mLines.record(commands,
             Lines{
                 .mTarget = target,
                 .mSurface = channels.get(Channel::Surface),
                 .mConstants = {
-                    .mCamera = Shaders::cameraOnGrid(what.mSampled.mCamera, what.mExtent.width, what.mExtent.height),
+                    .mScreen = screenBasisOf(what.mSampled.mEyes.mWorld.mBasis),
+                    .mExtent = Shaders::uvec2(what.mExtent.width, what.mExtent.height),
                     .mOrigin = what.mSampled.mOrigin,
                     .mNear = what.mSampled.mNear,
-                    .mTraced = Shaders::uvec2(what.mSampled.mCamera.mWidth, what.mSampled.mCamera.mHeight),
+                    .mTraced = Shaders::uvec2(what.mSampled.mEyes.mWorld.mWidth, what.mSampled.mEyes.mWorld.mHeight),
+                    .mInverseGamma = look.mInverseGamma,
                 },
                 .mVertices = look.mDebugVertices.get(),
                 .mLineCount = static_cast<std::uint32_t>(debug.mLines.size()),

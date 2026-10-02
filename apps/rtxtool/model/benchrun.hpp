@@ -24,7 +24,7 @@ namespace RtxTool
     /// How fast a measured run steps the world unless it states otherwise, in frames a second: world
     /// time and not wall time, so ten seconds is the same six hundred frames on a build that draws
     /// them in four seconds and on one that takes twenty. Sixty because that is what the frame
-    /// budget is written against. A default a run states (`RunSetup::mStep`), and never read in
+    /// budget is written against. A default a run states (`SessionRequest::mStep`), and never read in
     /// place of the step a run stated.
     inline constexpr float sStepRate = 60.0f;
 
@@ -34,9 +34,9 @@ namespace RtxTool
     /// What one frame of world counts for where a run turns seconds into frames — a span, a flight,
     /// a turning sky: the stated step, or where the wall decides, the step a measured run states by
     /// default.
-    inline float worldStep(const MWRender::RunSetup& setup)
+    inline float worldStep(const std::optional<float>& step)
     {
-        return setup.mStep.value_or(sStepSeconds);
+        return step.value_or(sStepSeconds);
     }
 
     /// One thing a run asserts about what the renderer was handed or what it drew, of the running
@@ -96,8 +96,8 @@ namespace RtxTool
         /// by a free-camera stop, and by a routed one.
         CameraStands,
 
-        /// Two frames were in flight at every submit. The ring is sized for two and the game
-        /// keeps two, so a submit that found one is a wait somebody put back — the 0.9 ms a frame
+        /// `Rtx::sFramesInFlight` frames were in flight at every submit. The ring is sized for them
+        /// and the game keeps them, so a submit that found fewer is a wait somebody put back — the 0.9 ms a frame
         /// the device idled for the whole of this fork's life before `Renderer::collectFrame`.
         /// Asked of a place that stands still, because an arrival drains the ring by design.
         FramesOverlap,
@@ -189,9 +189,10 @@ namespace RtxTool
         /// moons read it: a phase runs on a three-day cycle and no hour can stand for a date.
         std::optional<int> mDay{};
 
-        /// A weather as the content files spell it: `Clear`, `Overcast`, `Thunderstorm`. Set
-        /// immediately, so a stop stands under it from its first frame.
-        std::optional<std::string> mWeather{};
+        /// A weather, as `Rtx::weatherIndex` numbers them: read once off a name by the parsers, and
+        /// named again only where text is printed. Set immediately, so a stop stands under it from
+        /// its first frame.
+        std::optional<std::uint32_t> mWeather{};
 
         /// Where the air's clocks stand at the stop's first counted frame, or nothing to leave them
         /// wherever the session's frames carried them. The fog drifts and churns on these and the
@@ -203,8 +204,8 @@ namespace RtxTool
 
         /// Weathers to turn the sky through while the stop runs, in order and round again, as
         /// transitions: what the renderer has to survive is an emitter freed on an ordinary frame.
-        /// Asking for it stops the run being a benchmark.
-        std::vector<std::string> mTurnThrough{};
+        /// Asking for it stops the run being a benchmark. Numbered as `mWeather` is.
+        std::vector<std::uint32_t> mTurnThrough{};
     };
 
     /// Where a stop flies to, and how fast. A route is what puts a cell arriving into a
@@ -370,6 +371,18 @@ namespace RtxTool
         /// it says otherwise.
         MWRender::RunSetup mSetup;
 
+        /// How long every frame stands for, in seconds, or nothing to time each one off the wall:
+        /// what the run hands the engine's frame clock (`OMW::EngineHost::getFrameStep`), which is the one
+        /// source the renderer reads it from. Everything the world animates steps by it, so ten
+        /// seconds of world is six hundred frames on every machine, and two runs of one build are
+        /// the same run. A window somebody watches wants the wall, as the played game has it. A
+        /// run's and never a setting's: a file that could state a step once would turn a played
+        /// game into a fixed-step run for good.
+        std::optional<float> mStep;
+
+        /// Whether the command measures (`VerbPolicy::mMeasures`), which the report's header says.
+        bool mMeasures = false;
+
         /// Whether somebody plays the session (`VerbPolicy::mPlayed`): the menus are theirs to open
         /// and close. Otherwise the run closes any a script opens, and draws the interface only
         /// where `mHud` asks.
@@ -420,11 +433,18 @@ namespace RtxTool
         std::string mSuite;
     };
 
+    /// The exit status of a run whose one fault is a hashed frame that differed from its reference.
+    ///
+    /// **Apart from a run that failed**, which is 1: `omw repeat` tells "not repeatable" from "the
+    /// run itself broke" by this number and not by the report's wording, which a reworded sentence
+    /// would swap.
+    inline constexpr int sDifferedStatus = 3;
+
     /// What a launcher reads back once `Engine::go` has returned.
     struct SessionResult
     {
-        /// Non-zero where a hashed run differed from its reference, or where a stop could not be
-        /// reached at all.
+        /// 1 where a stop could not be reached or something else failed the run; else
+        /// `sDifferedStatus` where a hashed frame differed from its reference; else nought.
         int mExitStatus = 0;
 
         std::vector<BenchPlace> mPlaces;

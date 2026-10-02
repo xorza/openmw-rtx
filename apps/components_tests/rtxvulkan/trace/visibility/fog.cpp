@@ -122,7 +122,7 @@ namespace Rtx::Testing
                 return std::array<int, 3>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2) };
             };
 
-            // The wall is untextured, so its albedo is 0.5 and the cell's ambient is all that is on
+            // The wall is the tests' grey, an albedo of 0.5, and the cell's ambient is all that is on
             // it: 0.5 * 0.6 = 0.3. Over that sits `exp(-3.5e-4 * 2000)` = 0.4966 of transmittance,
             // with the rest of the path's worth of the fog's own colour in front of it.
             const float transmittance = std::exp(-extinction * distance);
@@ -606,10 +606,10 @@ namespace Rtx::Testing
 
             std::vector<float> radiance;
             shoot(scene, {}, camera, size,
-                Shot{
-                    .mFrames = frames, .mAverage = false, .mResetHistory = true, .mEachFrame = [&](const Frame& each) {
-                        radiance.push_back(each.at(centre * 4));
-                    } });
+                Shot{ .mFrames = frames,
+                    .mAverage = false,
+                    .mLoss = HistoryLoss::Cut,
+                    .mEachFrame = [&](const Frame& each) { radiance.push_back(each.at(centre * 4)); } });
 
             double total = 0.0;
             double stepped = 0.0;
@@ -627,6 +627,58 @@ namespace Rtx::Testing
             ASSERT_GT(mean, 0.02) << "the lit air the flicker is measured against";
 
             EXPECT_LT(step / mean, 0.03) << "how far a settled pixel of lit air moves between frames";
+        }
+
+        /// **The air's history turns once a trace, and a frame closed untraced turns nothing.** A
+        /// trace writes one half of the air and reads the other as its history, so the trace after
+        /// a frame the ring closed with no trace reads what the trace before it wrote: forty frames
+        /// with one such frame in the middle end on the air forty frames end on without it, to the
+        /// bit. The pair followed the ring's frame slot before, which the untraced frame advances,
+        /// and the trace after it read the air of the trace two before. And the history matters: the
+        /// same forty with the past lost at that frame end elsewhere.
+        TEST_F(RtxVisibilityTest, aFrameClosedUntracedLeavesTheAirsHistoryWhereTheLastTraceLeftIt)
+        {
+            using Fixture = LampInTheAir;
+
+            constexpr std::uint32_t size = 17;
+            SceneDesc scene = makeWall();
+            scene.addLight(Light{
+                .mPosition = Fixture::sLamp,
+                .mIntensity = Fixture::sIntensity,
+                .mReach = Fixture::sReach,
+            });
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(osg::Vec3f(0.0f, -Fixture::sDistance, 0.0f),
+                osg::Vec3f(0.0f, 0.0f, 0.0f), 10.0f, size, size, 100000.0f);
+            litThroughFog(camera, Fixture::sExtinction);
+            camera.mFogUniform = sVolumeOverEvenAir;
+
+            enum class Between
+            {
+                Nothing,
+                Untraced,
+                Lost,
+            };
+            const auto lastFrame = [&](const Between between) {
+                return shoot(scene, {}, camera, size,
+                    Shot{ .mFrames = 40,
+                        .mAverage = false,
+                        .mLoss = between == Between::Lost ? HistoryLoss::Cut : HistoryLoss::None,
+                        .mLossAt = 20,
+                        .mEachFrame =
+                            [&, at = 0](const Frame&) mutable {
+                                if (++at == 20 && between == Between::Untraced)
+                                {
+                                    mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                                    mRenderer.skipFrame();
+                                }
+                            } })
+                    .mRadiance;
+            };
+
+            const std::vector<float> straight = lastFrame(Between::Nothing);
+            EXPECT_EQ(lastFrame(Between::Untraced), straight) << "the untraced frame turned the air";
+            EXPECT_NE(lastFrame(Between::Lost), straight) << "a history that changes nothing";
         }
 
         /// The volume lights the air up to a surface, wherever inside a slice the surface stands.
@@ -695,7 +747,7 @@ namespace Rtx::Testing
                 shoot(scene, {}, camera, size,
                     Shot{ .mFrames = frames,
                         .mAverage = false,
-                        .mResetHistory = true,
+                        .mLoss = HistoryLoss::Cut,
                         .mEachFrame = [&](const Frame& each) { radiance.push_back(each.at(centre * 4)); } });
 
                 double total = 0.0;
@@ -788,10 +840,10 @@ namespace Rtx::Testing
             };
 
             const osg::Vec3f expected = air(shoot(scene, {}, eye(step, 0.0f, sHaze), size,
-                Shot{ .mFrames = settled + turned + 1, .mAverage = false, .mResetHistory = true }));
+                Shot{ .mFrames = settled + turned + 1, .mAverage = false, .mLoss = HistoryLoss::Cut }));
 
             shoot(scene, {}, eye(0.0f, over, before), size,
-                Shot{ .mFrames = settled, .mAverage = false, .mResetHistory = true });
+                Shot{ .mFrames = settled, .mAverage = false, .mLoss = HistoryLoss::Cut });
             shoot(scene, {}, eye(0.0f, 0.0f, sHaze), size,
                 Shot{ .mFrames = turned, .mAverage = false, .mFirstFrame = settled, .mSetScene = false });
             const osg::Vec3f seen = air(shoot(scene, {}, eye(step, 0.0f, sHaze), size,
@@ -896,7 +948,7 @@ namespace Rtx::Testing
             const SceneDesc wall = makeWall();
             shoot(wall, {}, wallCamera(size, lit, away, away - osg::Vec3f(0.0f, 1.0f, 0.0f)), size);
             const Frame afterDoor
-                = shoot(wall, {}, wallCamera(size, lit), size, Shot{ .mResetHistory = true, .mSetScene = false });
+                = shoot(wall, {}, wallCamera(size, lit), size, Shot{ .mLoss = HistoryLoss::Cut, .mSetScene = false });
             EXPECT_GT(afterDoor.mHits, 0u);
             EXPECT_EQ(afterDoor.mNotFinite.mGuide, 0u);
         }
@@ -1152,7 +1204,7 @@ namespace Rtx::Testing
                     .mRadius = 2000.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                     .mAlpha = 1.0f } };
-                scene.addEmitter(sprites, cut, true);
+                scene.addEmitter(sprites, cut, BlendKind::Add);
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -height, height), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);

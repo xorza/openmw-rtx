@@ -13,7 +13,8 @@ namespace Rtx
         /// A drawable's geometry, met by the walk.
         Mesh,
 
-        /// A template the cell ring stands for the cells the game has not loaded.
+        /// A drawable of a template the cell ring stands for the cells the game has not loaded,
+        /// named by the model, which stands without it.
         Model,
 
         Texture,
@@ -29,9 +30,15 @@ namespace Rtx
 
         /// Some of a particle system's sprites, the rest of it drawn.
         Sprites,
+
+        /// Part of a surface's state, the rest of the surface drawn: `UnreadState`. Named by the
+        /// surface's diffuse texture.
+        Surface,
+
+        Count,
     };
 
-    inline constexpr std::size_t sRefusedKinds = static_cast<std::size_t>(Refused::Sprites) + 1;
+    inline constexpr std::size_t sRefusedKinds = static_cast<std::size_t>(Refused::Count);
 
     /// One refusal, held by what made it until it can be reported: a reader thread hands its own to
     /// the frame with what it read, a describe that a read-only caller also runs hands them to the

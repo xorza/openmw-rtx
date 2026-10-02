@@ -50,7 +50,6 @@ namespace Rtx
             .mLevel = level + 1,
             .mWidth = spread.getWidthAt(level),
             .mHeight = spread.getHeightAt(level),
-            .mPadding = 0,
         };
 
         dispatch(commands, mPipeline, writes, constants,

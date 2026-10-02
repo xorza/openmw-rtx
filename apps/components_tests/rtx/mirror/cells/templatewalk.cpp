@@ -35,6 +35,7 @@
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/scene/meshtable.hpp>
 #include <components/rtx/scene/surface.hpp>
+#include <components/sceneutil/extradata.hpp>
 #include <components/shader/automaps.hpp>
 
 namespace Rtx::Testing
@@ -99,9 +100,16 @@ namespace Rtx::Testing
             collision->setNodeMask(hidden);
             root->addChild(collision);
 
+            // A heat haze, which draws into the rasterizer's distortion buffer alone.
+            osg::ref_ptr<osg::Group> haze = new osg::Group;
+            SceneUtil::setupDistortion(*haze, SceneUtil::DistortionConfig{});
+            osg::ref_ptr<osg::Geometry> hazed = makeQuad();
+            haze->addChild(hazed);
+            root->addChild(haze);
+
             PreparedModel model;
             TemplateWalk walk;
-            ASSERT_TRUE(walk.read(*root, ~hidden, model).isOk());
+            walk.read(*root, ~hidden, model);
 
             ASSERT_EQ(model.mParts.size(), 3u) << "the branch that is on, the frame shown, and the near level";
             EXPECT_EQ(model.mPositions.size(), 12u) << "three quads' corners, appended in turn";
@@ -134,6 +142,7 @@ namespace Rtx::Testing
                 EXPECT_NE(part.mDrawable, first.get()) << "a frame the flipbook is not on is not shown";
                 EXPECT_NE(part.mDrawable, far.get()) << "a level for a farther eye is not the finest";
                 EXPECT_NE(part.mDrawable, collision.get()) << "what the loader hid is not walked";
+                EXPECT_NE(part.mDrawable, hazed.get()) << "a heat haze is traced";
             }
 
             // **Nothing was stepped.** A frame's walk moves a flipbook's clock; this one may not,
@@ -164,6 +173,12 @@ namespace Rtx::Testing
         TEST(RtxTemplateWalkTest, everyBranchOfADayNightSwitchIsReadUnderTheModesThatShowIt)
         {
             using enum NightDayMode;
+
+            // **Every mode is the four of them, counted from the enum**: a mode added and left out
+            // of a hand-written mask would read every unswitched part as switched.
+            EXPECT_EQ(modesOf({ Default, ExteriorNight, InteriorDay, Authored }).mBits, NightDayModes::sEvery);
+            EXPECT_TRUE(modesOf({ Default, ExteriorNight, InteriorDay, Authored }).isEvery());
+            EXPECT_FALSE(modesOf({ Default, ExteriorNight, InteriorDay }).isEvery());
 
             const auto dayNight = [](std::initializer_list<osg::Node*> children, unsigned int opensOn) {
                 osg::ref_ptr<osg::Switch> branches = new osg::Switch;
@@ -206,7 +221,7 @@ namespace Rtx::Testing
                 root->addChild(branches);
 
                 PreparedModel model;
-                ASSERT_TRUE(walk.read(*root, ~0u, model).isOk()) << at;
+                walk.read(*root, ~0u, model);
                 ASSERT_EQ(model.mParts.size(), 1 + read.size()) << at;
                 EXPECT_EQ(model.mParts[0].mDrawable, plain.get()) << at;
                 EXPECT_TRUE(model.mParts[0].mModes.isEvery()) << at << ": outside the switch";
@@ -218,12 +233,12 @@ namespace Rtx::Testing
             }
         }
 
-        /// **A mesh this cannot build refuses its model on the reader's thread**, where the reader
-        /// leaves the model out of its cell. Left to the adoption, the same check refused inside
-        /// the frame's walk. A mesh past one block is one, and a triangle naming a vertex its
-        /// drawable does not have is another, and the walk says which. The walk after it is the
-        /// next model's, whole.
-        TEST(RtxTemplateWalkTest, aMeshThisCannotBuildRefusesTheModelWhereItIsRead)
+        /// **A mesh this cannot build is left out on the reader's thread, and its model stands
+        /// without it**, as the frame's walk stands a model without a drawable it refuses: the quad
+        /// beside it is the model's one part, and the model says why the other went. A mesh past one
+        /// block is one, and a triangle naming a vertex its drawable does not have is another. The
+        /// walk after it is the next model's, with no reason carried into it.
+        TEST(RtxTemplateWalkTest, aMeshThisCannotBuildIsLeftOutAndItsModelStands)
         {
             const std::string pastABlock = "its " + std::to_string(MeshTable::sVertexBlock + 1)
                 + " vertices and 3 indices are past the " + std::to_string(MeshTable::sVertexBlock) + " and "
@@ -234,17 +249,21 @@ namespace Rtx::Testing
                      std::pair{ makeIndexPastItsVertices(), std::string("its triangles name vertex 4 of 4") } })
             {
                 osg::ref_ptr<osg::Group> root = new osg::Group;
-                root->addChild(makeQuad());
+                const osg::ref_ptr<osg::Geometry> kept = makeQuad();
                 root->addChild(broken);
+                root->addChild(kept);
 
                 PreparedModel model;
-                const Misc::Result<void, std::string> refused = walk.read(*root, ~0u, model);
-                ASSERT_FALSE(refused.isOk());
-                EXPECT_EQ(refused.error(), why);
+                walk.read(*root, ~0u, model);
+                EXPECT_EQ(model.mRefused, why);
+                ASSERT_EQ(model.mParts.size(), 1u) << "the model was refused whole";
+                EXPECT_EQ(model.mParts[0].mDrawable, kept.get());
+                EXPECT_EQ(model.mPositions.size(), 4u) << "the refused mesh left arrays behind";
 
                 const osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 PreparedModel next;
-                EXPECT_TRUE(walk.read(*quad, ~0u, next).isOk()) << "a refusal carried into the next model";
+                walk.read(*quad, ~0u, next);
+                EXPECT_TRUE(next.mRefused.empty()) << "a refusal carried into the next model";
                 EXPECT_EQ(next.mParts.size(), 1u);
             }
         }

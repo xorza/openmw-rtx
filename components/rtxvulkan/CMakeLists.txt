@@ -93,7 +93,7 @@ set(RTX_SHADERS
 
 # The device-behaviour probes, only where tests run them: an assumption about the hardware fails as
 # a test rather than as a rendering mystery.
-set(RTX_SHADER_PROBES shaders/probes/pinning.comp shaders/probes/probe.comp shaders/probes/traceprobe.rgen)
+set(RTX_SHADER_PROBES shaders/probes/halfstore.comp shaders/probes/pinning.comp shaders/probes/probe.comp shaders/probes/traceprobe.rgen)
 if (BUILD_COMPONENTS_TESTS)
     list(APPEND RTX_SHADERS ${RTX_SHADER_PROBES})
 endif()
@@ -192,6 +192,7 @@ set(RTX_SHADER_LIB
     shaders/lib/underwater.glsl
     shaders/lib/variants.glsl
     shaders/lib/water.glsl
+    shaders/lib/wavetile.glsl
     shaders/upscale/fsrcallbacks.glsl
 )
 
@@ -328,6 +329,8 @@ set(RTX_VULKAN_FILES
     texture/texture.hpp
     texture/texturearrival.cpp
     texture/texturearrival.hpp
+    texture/texturecost.cpp
+    texture/texturecost.hpp
     texture/texturepasses.hpp
     trace/denoise/accumulatepass.cpp
     trace/denoise/accumulatepass.hpp

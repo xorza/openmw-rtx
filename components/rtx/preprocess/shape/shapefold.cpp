@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <bit>
 #include <limits>
 
 #include <osg/BoundingBox>
@@ -212,9 +211,7 @@ namespace Rtx
             mHashes[t] = mSpelling[t].hash();
         }
 
-        const std::size_t slots = std::bit_ceil(std::max<std::size_t>(count * 2, 16));
-        const std::size_t mask = slots - 1;
-        mTable.assign(slots, sNoEntry);
+        mTable.reset(count);
         mNext.assign(count, sNoEntry);
 
         // From the last triangle back, so each chain runs forwards. The pairing below takes the
@@ -223,8 +220,8 @@ namespace Rtx
         // was folded.
         for (std::size_t t = count; t-- > 0;)
         {
-            std::size_t at = mHashes[t] & mask;
-            for (;; at = (at + 1) & mask)
+            std::size_t at = mTable.first(mHashes[t]);
+            for (;; at = mTable.next(at))
             {
                 const std::uint32_t head = mTable[at];
                 if (head == sNoEntry)
@@ -251,7 +248,7 @@ namespace Rtx
             const std::size_t hash = reversed.hash();
 
             std::uint32_t head = sNoEntry;
-            for (std::size_t at = hash & mask;; at = (at + 1) & mask)
+            for (std::size_t at = mTable.first(hash);; at = mTable.next(at))
             {
                 const std::uint32_t candidate = mTable[at];
                 if (candidate == sNoEntry)

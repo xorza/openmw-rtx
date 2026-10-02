@@ -1,9 +1,14 @@
 #pragma once
 
+#include <components/misc/constants.hpp>
 #include <components/rtx/shaders/scene.h>
 
 namespace Rtx
 {
+    /// Morrowind's gravity, in world units per second squared: the game's two factors, multiplied
+    /// here and written nowhere else.
+    inline constexpr float sGravity = Constants::GravityConst * Constants::UnitsPerMeter;
+
     /// The shortest wave the spectrum carries, in world units — a band limit in time as much as in
     /// space, because the shortest waves decide the caustics and how fast they reshuffle. Carried
     /// down to eighteen units the seabed read as stripes tearing rather than as water.

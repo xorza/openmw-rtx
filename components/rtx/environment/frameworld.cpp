@@ -68,11 +68,6 @@ namespace Rtx
         return osg::Vec2f(high, static_cast<float>(seconds - static_cast<double>(high)));
     }
 
-    double joinSeconds(const osg::Vec2f& split)
-    {
-        return static_cast<double>(split.x()) + static_cast<double>(split.y());
-    }
-
     std::array<osg::Vec3f, Shaders::FOG_SCALES> fogOffsets(const osg::Vec2d& carried, const double skySeconds)
     {
         // The shader's own turns, and its tiles stepped as `fogShape` steps them.
@@ -139,8 +134,9 @@ namespace Rtx
         stars.mFade *= gain;
         stars.mGlow *= gain;
 
-        const SkyBudget budget
-            = reading.mOutdoors ? skyBudget(horizon, zenith, stars.mGlow, light.mAmbient) : SkyBudget{};
+        const SkyBudget budget = reading.mOutdoors
+            ? skyBudget(horizon, zenith, reading.mSky.mAtmosphere.mZenithShare, stars.mGlow, light.mAmbient)
+            : SkyBudget{};
 
         Fog air = day.mFog;
         air.mColour *= gain;
@@ -156,6 +152,8 @@ namespace Rtx
 
         constants.mSkyHorizon = horizon;
         constants.mSkyZenith = zenith;
+        constants.mSkyRamp = reading.mSky.mAtmosphere.mRamp;
+        constants.mSkyDrawn = reading.mSkyDrawn ? 1u : 0u;
         constants.mSkyFill = budget.mFill;
 
         constants.mStars = stars;
@@ -195,15 +193,16 @@ namespace Rtx
         const std::array<osg::Vec3f, Shaders::FOG_SCALES> offsets = fogOffsets(drift.get(), reading.mSkySeconds);
         std::copy(offsets.begin(), offsets.end(), constants.mFogOffsets);
 
-        // The sea runs the way the deck does, and as its tiles were drawn where nothing blows.
-        constants.mSeaHeading = heading.length2() > 0.0f ? heading / heading.length() : osg::Vec2f(1.0f, 0.0f);
+        constants.mSeaHeading = Shaders::seaHeading();
 
         constants.mFogEdge = air.mEdge;
 
         // The same hair the water's own placement is dropped by, so that what the shader calls the
         // water level and where the surface actually is stay one number.
         constants.mWaterLevel = reading.mWaterLevel - Shaders::WATER_TIE_BREAK;
+        constants.mWaterScatter = reading.mWaterScatter;
         constants.mWaterTime = splitSeconds(reading.mSeconds);
+        options.mWaterSeconds = reading.mSeconds;
         constants.mRainOnWater = reading.mRainOnWater;
         constants.mShelterHeight = reading.mShelterHeight;
 

@@ -21,18 +21,20 @@ namespace Rtx
         /// `VisibilityConstants::mArmsSpread`.
         osg::Vec2f armsSpreadOf(const Shaders::VisibilityConstants& frame)
         {
-            return osg::Vec2f(frame.mArms.mRight.length() / frame.mCamera.mRight.length(),
-                frame.mArms.mUp.length() / frame.mCamera.mUp.length());
+            return osg::Vec2f(frame.mEyes.mArms.mBasis.mRight.length() / frame.mEyes.mWorld.mBasis.mRight.length(),
+                frame.mEyes.mArms.mBasis.mUp.length() / frame.mEyes.mWorld.mBasis.mUp.length());
         }
 
         /// Whether every field `sampleFrame` writes is still what a builder leaves it: nought.
         [[maybe_unused]] bool leavesSamplingAlone(const Shaders::VisibilityConstants& stated)
         {
-            return stated.mCamera.mJitter == osg::Vec2f() && stated.mArms.mJitter == osg::Vec2f() && stated.mNoise == 0u
-                && stated.mLevelBias == 0.0f && stated.mArmsSpread == osg::Vec2f() && stated.mUnitRight == osg::Vec3f()
-                && stated.mUnitUp == osg::Vec3f() && stated.mArmsInFrame == 0u && stated.mCameraMotion == osg::Vec3f()
+            return stated.mEyes.mWorld.mJitter == osg::Vec2f() && stated.mEyes.mArms.mJitter == osg::Vec2f()
+                && stated.mNoise == 0u && stated.mLevelBias == 0.0f && stated.mArmsSpread == osg::Vec2f()
+                && stated.mUnitRight == osg::Vec3f() && stated.mUnitUp == osg::Vec3f() && stated.mArmsInFrame == 0u
+                && stated.mCameraMotion == osg::Vec3f() && stated.mAnisotropy == 0.0f
                 && stated.mPrevious.mForward == osg::Vec3f() && stated.mPrevious.mRight == osg::Vec3f()
-                && stated.mPrevious.mUp == osg::Vec3f() && stated.mDelight == 0.0f && stated.mShow == 0u;
+                && stated.mPrevious.mUp == osg::Vec3f() && stated.mDelight == 0.0f && stated.mShow == 0u
+                && stated.mLitEnvironmentMaps == 0u;
         }
     }
 
@@ -51,7 +53,8 @@ namespace Rtx
         // upscaler's history is written against a period of phases.
         const std::uint32_t phase
             = reconstruction.mJitterPhases > 0 ? stated.mFrame % reconstruction.mJitterPhases : stated.mFrame;
-        sampled.mCamera.mJitter = reconstruction.mJitter ? haltonJitter(phase) : options.mJitter.value_or(osg::Vec2f());
+        sampled.mEyes.mWorld.mJitter
+            = reconstruction.mJitter ? haltonJitter(phase) : options.mJitter.value_or(osg::Vec2f());
 
         // The two consequences of the reconstruction the trace reads for itself: where its draws
         // come from, and how far the shown pixel narrows every texture level. A picture's
@@ -60,15 +63,21 @@ namespace Rtx
             = reconstruction.mNoise == NoiseSource::WhiteHash ? Shaders::NOISE_WHITE_HASH : Shaders::NOISE_BLUE_TILE;
         sampled.mLevelBias = reconstruction.mLevelBias;
 
+        // The sampler takes the setting as it is: the settings clamp it to sixteen, and a device
+        // with `samplerAnisotropy`, which the requirements ask for, takes at least sixteen.
+        assert(profile.mAnisotropy >= 1 && "an anisotropy of nought, which no sampler takes");
+        sampled.mAnisotropy = static_cast<float>(profile.mAnisotropy);
+
         sampled.mDelight = options.mDelight.value_or(profile.mDelight);
         sampled.mShow = static_cast<std::uint32_t>(options.mShow.value_or(profile.mShow));
+        sampled.mLitEnvironmentMaps = options.mLitEnvironmentMaps.value_or(profile.mLitEnvironmentMaps) ? 1u : 0u;
 
         // The arms' eye samples where the world's does, or the two halves of one frame would be
         // reconstructed from two grids.
-        sampled.mArms.mJitter = sampled.mCamera.mJitter;
+        sampled.mEyes.mArms.mJitter = sampled.mEyes.mWorld.mJitter;
         sampled.mArmsSpread = armsSpreadOf(stated);
-        sampled.mUnitRight = stated.mCamera.mRight / stated.mCamera.mRight.length();
-        sampled.mUnitUp = stated.mCamera.mUp / stated.mCamera.mUp.length();
+        sampled.mUnitRight = stated.mEyes.mWorld.mBasis.mRight / stated.mEyes.mWorld.mBasis.mRight.length();
+        sampled.mUnitUp = stated.mEyes.mWorld.mBasis.mUp / stated.mEyes.mWorld.mBasis.mUp.length();
 
         // The scene's answer and the camera's both: a map draws no arms.
         sampled.mArmsInFrame = counts.mFirstPerson > 0 && (stated.mRayMask & Shaders::MASK_FIRST_PERSON) != 0 ? 1 : 0;
@@ -79,7 +88,7 @@ namespace Rtx
         if (previous != nullptr)
         {
             sampled.mCameraMotion = stated.mOrigin - previous->mOrigin;
-            sampled.mPrevious = Shaders::basisOf(previous->mCamera);
+            sampled.mPrevious = previous->mEyes.mWorld.mBasis;
         }
 
         return sampled;

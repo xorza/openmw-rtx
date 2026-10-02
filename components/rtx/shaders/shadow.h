@@ -16,9 +16,9 @@
 //
 // **The SDK's widths, but for the moments.** The temporal pass's answer and the filter's levels are
 // a mean and a variance in two halves, as the SDK stores them. The moments — a mean, a running sum
-// of squared deviations and a count — are `R11G11B10_FLOAT` there, a format no layout here names;
-// four halves hold the same three numbers with a sign and five more bits apiece, and a pixel pays
-// eight bytes for it where it paid four.
+// of squared deviations and a count — are `R11G11B10_FLOAT` there, a format no layout here names,
+// and are full floats here: they are a running mean, and a half store rounds toward nought on this
+// card (`RtxHalfStoreTest`), so a mean kept in halves falls a little at every store.
 //
 // **The rays' bits, packed**: one word an 8×4 tile of pixels, bit `(y % 4) * 8 + x % 8` of it one
 // where that pixel's rays got through — the SDK's layout. The classification reads the eighteen
@@ -31,7 +31,7 @@
 
 #define SHADOW_MASK STORAGE_R32UI
 #define SHADOW_REPROJECTED STORAGE_RG16F
-#define SHADOW_MOMENTS STORAGE_RGBA16F
+#define SHADOW_MOMENTS STORAGE_RGBA32F
 #define SHADOW_TILES STORAGE_R8
 
 #ifdef RTX_HOST
@@ -103,8 +103,7 @@ namespace Rtx::Shaders
     /// its position is rebuilt through the one that cast it, as the wavelet rebuilds it.
     struct ShadowFilterConstants
     {
-        Camera mCamera;
-        Camera mArms;
+        Eyes mEyes;
     };
 
 #ifdef RTX_HOST
@@ -117,7 +116,7 @@ namespace Rtx::Shaders
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(ShadowMaskConstants) == 8, "ShadowMaskConstants must be scalar-packed on every side");
-    static_assert(sizeof(ShadowFilterConstants) == 120, "ShadowFilterConstants must be scalar-packed on every side");
+    static_assert(sizeof(ShadowFilterConstants) == 136, "ShadowFilterConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

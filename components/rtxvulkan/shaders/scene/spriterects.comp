@@ -33,41 +33,17 @@ layout(push_constant, scalar) uniform Push
     SpriteBinConstants bin;
 };
 
-/// The camera's axes, unit, beside the half-extents they were scaled by.
-///
-/// `makeCameraFromView` builds `mForward` unit and scales `mRight` and `mUp` by the image plane's
-/// half-width and half-height, so the three are mutually orthogonal and the two lengths are the
-/// only thing separating a direction from a screen coordinate.
-struct Frame
-{
-    vec3 mForward;
-    vec3 mRight;
-    vec3 mUp;
-    float mHalfWidth;
-    float mHalfHeight;
-};
-
-Frame frameOf(Camera camera)
-{
-    Frame frame;
-    frame.mForward = camera.mForward;
-    frame.mHalfWidth = length(camera.mRight);
-    frame.mHalfHeight = length(camera.mUp);
-    frame.mRight = camera.mRight / frame.mHalfWidth;
-    frame.mUp = camera.mUp / frame.mHalfHeight;
-
-    return frame;
-}
-
-/// Where a screen coordinate in minus-one-to-one lands, in whole pixels and generously.
+/// Where a coordinate on the image plane lands, in whole pixels and generously: moved by `axis`,
+/// where the eye's axis crosses the picture along the same axis (`Camera::mCentre`), as `rayAt`
+/// moves it back.
 ///
 /// **A pixel of slack at each end, which is what covers the jitter.** `rayAt` adds half a pixel and
 /// the frame's jitter to the index before scaling, and the jitter is a Halton offset inside the
 /// pixel — so a coordinate is worth a pixel either way and the binning has to hold every ray the
 /// tile can produce, not the one through its centre.
-int toPixel(float coordinate, uint extent, float slack)
+int toPixel(float coordinate, float axis, uint extent, float slack)
 {
-    return int(floor((coordinate + 1.0) * 0.5 * float(extent) + slack));
+    return int(floor((coordinate + axis + 1.0) * 0.5 * float(extent) + slack));
 }
 
 /// Where an orthographic frame sees a ball of `radius` about `centre`, in whole pixels, before the
@@ -78,7 +54,7 @@ int toPixel(float coordinate, uint extent, float slack)
 /// own depth test is what rejects it, and this only has to be no tighter than that. **Off the frame
 /// and not clipped to it**, because a capsule is bounded by two of these and a rectangle clipped to
 /// nothing carries no side to union against.
-ivec4 orthographicPixels(vec3 centre, float radius, Frame frame)
+ivec4 orthographicPixels(vec3 centre, float radius, SpriteBinFrame frame)
 {
     const vec3 toward = centre - bin.mOrigin;
 
@@ -89,8 +65,9 @@ ivec4 orthographicPixels(vec3 centre, float radius, Frame frame)
     const float lowV = (-dot(toward, frame.mUp) - radius) / frame.mHalfHeight;
     const float highV = (-dot(toward, frame.mUp) + radius) / frame.mHalfHeight;
 
-    return ivec4(toPixel(lowU, bin.mCamera.mWidth, -1.0), toPixel(lowV, bin.mCamera.mHeight, -1.0),
-        toPixel(highU, bin.mCamera.mWidth, 1.0), toPixel(highV, bin.mCamera.mHeight, 1.0));
+    const vec2 axis = bin.mCamera.mBasis.mCentre;
+    return ivec4(toPixel(lowU, axis.x, bin.mCamera.mWidth, -1.0), toPixel(lowV, axis.y, bin.mCamera.mHeight, -1.0),
+        toPixel(highU, axis.x, bin.mCamera.mWidth, 1.0), toPixel(highV, axis.y, bin.mCamera.mHeight, 1.0));
 }
 
 /// The tiles one sprite reaches, as an inclusive rectangle, or nothing where it reaches none.
@@ -245,7 +222,7 @@ vec2 capsuleSpan(vec2 from, vec2 to, float radius, float halfExtent)
 /// ray meets the capsule only where both of its coordinates do. Orthographic, the rectangle around
 /// the two balls that cap it: a streak lying across the frame covers a long thin rectangle, and a
 /// ball holding the same two ends covers the square that rectangle sits in.
-TileRect capsuleTiles(Bound bound, Frame frame)
+TileRect capsuleTiles(Bound bound, SpriteBinFrame frame)
 {
     if (bin.mCamera.mOrthographic != 0u)
     {
@@ -261,8 +238,8 @@ TileRect capsuleTiles(Bound bound, Frame frame)
 
     const vec3 from = bound.mFrom - bin.mOrigin;
     const vec3 to = bound.mTo - bin.mOrigin;
-    const float fromDepth = dot(from, frame.mForward);
-    const float toDepth = dot(to, frame.mForward);
+    const float fromDepth = dot(from, bin.mCamera.mBasis.mForward);
+    const float toDepth = dot(to, bin.mCamera.mBasis.mForward);
 
     const vec2 sideways = capsuleSpan(vec2(dot(from, frame.mRight), fromDepth), vec2(dot(to, frame.mRight), toDepth),
         bound.mRadius, frame.mHalfWidth);
@@ -271,16 +248,21 @@ TileRect capsuleTiles(Bound bound, Frame frame)
     const vec2 upright = capsuleSpan(vec2(-dot(from, frame.mUp), fromDepth), vec2(-dot(to, frame.mUp), toDepth),
         bound.mRadius, frame.mHalfHeight);
 
-    return tilesOf(ivec4(toPixel(sideways.x, bin.mCamera.mWidth, -1.0), toPixel(upright.x, bin.mCamera.mHeight, -1.0),
-        toPixel(sideways.y, bin.mCamera.mWidth, 1.0), toPixel(upright.y, bin.mCamera.mHeight, 1.0)));
+    const vec2 axis = bin.mCamera.mBasis.mCentre;
+    return tilesOf(ivec4(toPixel(sideways.x, axis.x, bin.mCamera.mWidth, -1.0),
+        toPixel(upright.x, axis.y, bin.mCamera.mHeight, -1.0), toPixel(sideways.y, axis.x, bin.mCamera.mWidth, 1.0),
+        toPixel(upright.y, axis.y, bin.mCamera.mHeight, 1.0)));
 }
 
 /// ORs one instance's kinds into every tile it can be met from, a lane at a stride.
 void markPresence(GpuPresence held, uint lane, uint across)
 {
+    if ((held.mClass & bin.mRayMask) == 0u)
+        return;
+
     const TileRect rect = (held.mKinds & PRESENCE_EVERYWHERE) != 0u
         ? tilesOf(ivec4(0, 0, int(bin.mCamera.mWidth) - 1, int(bin.mCamera.mHeight) - 1))
-        : capsuleTiles(Bound(held.mCentre, held.mCentre, held.mRadius, false), frameOf(bin.mCamera));
+        : capsuleTiles(Bound(held.mCentre, held.mCentre, held.mRadius, false), bin.mFrame);
     if (isEmpty(rect))
         return;
 
@@ -317,7 +299,7 @@ void main()
 
     // Every lane of the sprite works its rectangle out for itself: a dozen operations against a
     // shared-memory exchange and the barrier that would order it.
-    const TileRect rect = capsuleTiles(boundOf(held, emitter), frameOf(bin.mCamera));
+    const TileRect rect = capsuleTiles(boundOf(held, emitter), bin.mFrame);
 
     if (lane == 0u)
         SpriteRects(bin.mRects).at[sprite] = packSpriteRect(rect.mFrom, rect.mTo);

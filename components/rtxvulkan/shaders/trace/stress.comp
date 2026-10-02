@@ -12,6 +12,8 @@
 // the frame before read 0.9 ms on one frame and 5.5 on the next off an idle card, and took a
 // dozen frames to settle. `clockRealtimeEXT` runs at a fixed rate whatever the card is clocked at,
 // so the loop leaves when the time it was told has passed, on the first frame as on every other.
+// The rate is the device's own and the extension names none, so the host asks in ticks of the
+// queue's timestamp period, which `StressPass` says is the same counter.
 
 #include "counts.h"
 #include "sets.h"
@@ -32,7 +34,7 @@ layout(push_constant, scalar) uniform Push
 void main()
 {
     const uint64 start = clockRealtimeEXT();
-    const uint64 asked = uint64(frame.mNanoseconds);
+    const uint64 asked = uint64(frame.mTicks);
 
     uint64 elapsed = 0ul;
     while (elapsed < asked)
@@ -40,5 +42,5 @@ void main()
 
     // What the loop's own clock came to, for `FrameResult::mHeldMs`.
     if (gl_LocalInvocationIndex == 0u)
-        counts.mHeldNs = uint(elapsed);
+        counts.mHeldTicks = uint(elapsed);
 }

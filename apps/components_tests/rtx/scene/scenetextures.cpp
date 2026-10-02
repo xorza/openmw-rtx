@@ -20,6 +20,7 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/spritelight.hpp>
+#include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
@@ -29,6 +30,8 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/scenetextures.hpp>
+#include <components/rtx/scene/texturetable.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/vfs/pathutil.hpp>
 
 namespace Rtx
@@ -215,9 +218,11 @@ namespace Rtx
         {
             std::vector<Rtx::MipLevel> levels;
             std::vector<std::byte> texels;
-            const Misc::Result<Rtx::TextureData, std::string> rgb = describeImage(*makeBlock(GL_RGB), levels, texels);
-            ASSERT_FALSE(rgb.isOk());
-            EXPECT_EQ(rgb.error(), "its format is RGB8 (6407), which this renderer does not upload");
+            const Misc::Result<Rtx::TextureData, std::string> alpha
+                = describeImage(*makeBlock(GL_ALPHA), levels, texels);
+            ASSERT_FALSE(alpha.isOk());
+            EXPECT_EQ(
+                alpha.error(), "its format is an unnamed pixel format (6406), which this renderer does not upload");
 
             // A format that uploads, so what is refused is the size alone.
             osg::ref_ptr<osg::Image> empty = new osg::Image;
@@ -261,6 +266,8 @@ namespace Rtx
             std::vector<std::byte> texels;
             const Rtx::TextureData gathered = describeImage(*rgba, levels, texels).value();
             ASSERT_EQ(gathered.mBytes.size(), 84u);
+            EXPECT_EQ(texels.size(), 84u);
+            EXPECT_EQ(Rtx::laidBytes(*rgba, Rtx::readFormat(*rgba)), 84u) << "the reserve and the gathering disagree";
             ASSERT_EQ(gathered.mLevels.size(), 3u);
             EXPECT_EQ(gathered.mLevels[1].mOffset, 64u);
             EXPECT_EQ(gathered.mLevels[2].mOffset, 80u);
@@ -284,12 +291,15 @@ namespace Rtx
             const Rtx::TextureData spanned = describeImage(*flat, levels, texels).value();
             EXPECT_EQ(spanned.mBytes.data(), reinterpret_cast<const std::byte*>(flat->data()));
             EXPECT_EQ(spanned.mBytes.size(), 64u);
+            EXPECT_EQ(Rtx::laidBytes(*flat, Rtx::readFormat(*flat)), 0u) << "spanned where it lies, and laid nowhere";
 
             const osg::ref_ptr<osg::Image> sixteen = makeVolume(GL_RGB, GL_UNSIGNED_SHORT_5_6_5, 2);
             texels.clear();
             levels.clear();
             const Rtx::TextureData widened = describeImage(*sixteen, levels, texels).value();
             ASSERT_EQ(widened.mBytes.size(), 84u);
+            EXPECT_EQ(texels.size(), 84u);
+            EXPECT_EQ(Rtx::laidBytes(*sixteen, Rtx::readFormat(*sixteen)), 84u);
             EXPECT_EQ(widened.mLevels[1].mOffset, 64u);
             EXPECT_EQ(widened.mLevels[2].mOffset, 80u);
 
@@ -308,6 +318,7 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView alphaPath("textures/tx_alpha_volume.dds");
             const osg::ref_ptr<osg::Image> alpha = makeVolume(GL_ALPHA, GL_UNSIGNED_BYTE, 1);
             alpha->setFileName(std::string(alphaPath.value()));
+            EXPECT_EQ(Rtx::laidBytes(*alpha, Rtx::readFormat(*alpha)), 0u) << "a format with no layout was counted";
 
             Rtx::SceneDesc scene;
             Testing::addModel(scene, rgbaPath, rgba);
@@ -423,6 +434,54 @@ namespace Rtx
             std::vector<std::byte> texels;
             EXPECT_EQ(describeImage(*image, levels, texels, Rtx::TextureEncoding::Data).value().mFormat,
                 Rtx::TextureFormat::Rgba8Unorm);
+        }
+
+        /// A file a byte a channel with channels missing is widened to RGBA8 too: an alpha of one
+        /// where it has none, blue and red put back in their places for BGR, and a luminance read in
+        /// all three colours. A two-by-two image and its one-texel level, packed tight; the widened
+        /// levels begin at nought and sixteen bytes, four a texel.
+        TEST(RtxSceneTexturesTest, aFileOfMissingChannelsIsWidenedToRgba8)
+        {
+            struct Case
+            {
+                GLenum mPixelFormat;
+                std::size_t mBytes;
+                std::vector<std::uint8_t> mFile;
+                std::array<std::uint8_t, 20> mTexels;
+            };
+            const std::array<Case, 4> cases{ {
+                { GL_RGB, 3, { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 1, 2, 3 },
+                    { 10, 20, 30, 255, 40, 50, 60, 255, 70, 80, 90, 255, 100, 110, 120, 255, 1, 2, 3, 255 } },
+                { GL_BGR, 3, { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 1, 2, 3 },
+                    { 30, 20, 10, 255, 60, 50, 40, 255, 90, 80, 70, 255, 120, 110, 100, 255, 3, 2, 1, 255 } },
+                { GL_LUMINANCE, 1, { 0, 64, 128, 255, 7 },
+                    { 0, 0, 0, 255, 64, 64, 64, 255, 128, 128, 128, 255, 255, 255, 255, 255, 7, 7, 7, 255 } },
+                { GL_LUMINANCE_ALPHA, 2, { 0, 1, 64, 2, 128, 3, 255, 4, 7, 5 },
+                    { 0, 0, 0, 1, 64, 64, 64, 2, 128, 128, 128, 3, 255, 255, 255, 4, 7, 7, 7, 5 } },
+            } };
+
+            for (const Case& one : cases)
+            {
+                auto* bytes = new unsigned char[one.mFile.size()];
+                std::copy(one.mFile.begin(), one.mFile.end(), bytes);
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                image->setFileName("textures/tx_bytes.tga");
+                image->setImage(2, 2, 1, static_cast<GLint>(one.mPixelFormat), one.mPixelFormat, GL_UNSIGNED_BYTE,
+                    bytes, osg::Image::USE_NEW_DELETE, 1);
+                image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<unsigned int>(4 * one.mBytes) });
+
+                std::vector<Rtx::MipLevel> levels;
+                std::vector<std::byte> texels;
+                const Rtx::TextureData described = describeImage(*image, levels, texels).value();
+                EXPECT_EQ(described.mFormat, Rtx::TextureFormat::Rgba8Srgb) << "format " << one.mPixelFormat;
+                ASSERT_EQ(described.mBytes.size(), one.mTexels.size()) << "format " << one.mPixelFormat;
+                for (std::size_t at = 0; at < one.mTexels.size(); ++at)
+                    EXPECT_EQ(std::to_integer<std::uint32_t>(described.mBytes[at]), one.mTexels[at])
+                        << "format " << one.mPixelFormat << ", byte " << at;
+
+                ASSERT_EQ(described.mLevels.size(), 2u);
+                EXPECT_EQ(described.mLevels[1].mOffset, 16u);
+            }
         }
 
         /// An image whose levels its format and OpenSceneGraph count differently is refused by
@@ -574,7 +633,8 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView smoke("textures/tx_smoke.dds");
 
             Rtx::SceneDesc scene;
-            const Rtx::Index bake = scene.textures().addBaked(SpriteLightMap::keyFor(smoke), TextureEncoding::Colour);
+            const Rtx::Index bake = scene.textures().addBaked(
+                SpriteLightMap::keyFor(smoke), Rtx::TextureKind::Baked, TextureEncoding::Colour);
 
             SceneTextures described;
             described.describeAll(scene);
@@ -601,15 +661,13 @@ namespace Rtx
         }
 
         /// A chunk's flattened ground is a slot the queue gave out: the description carries the
-        /// chunk the device sums into it and no bytes. The same slot described with no queue, or
-        /// by one that did not give it out this frame, is a baked name nothing can read and gets
-        /// the stand-in.
-        TEST(RtxSceneTexturesTest, aCompositeNamesItsChunkAndOneNoQueueGaveOutGetsTheStandIn)
+        /// chunk the device sums into it and no bytes. The slot's row names the chunk, so a rebuild
+        /// on a later frame, which no queue sees, describes both of its slots as the arrival did.
+        TEST(RtxSceneTexturesTest, aCompositeNamesItsChunkOnTheFrameItArrivesAndOnEveryRebuild)
         {
-
             Rtx::SceneDesc scene;
             const std::array<Rtx::MaterialLayer, 2> layers{ Rtx::MaterialLayer{ .mDiffuse = 0 },
-                Rtx::MaterialLayer{ .mDiffuse = 1 } };
+                Rtx::MaterialLayer{ .mDiffuse = 1, .mFlags = Shaders::LAYER_CLASSIC } };
             scene.textures().add(VFS::Path::NormalizedView("textures/under.dds"));
             scene.textures().add(VFS::Path::NormalizedView("textures/over.dds"));
             Rtx::Material chunk;
@@ -620,29 +678,45 @@ namespace Rtx
 
             Rtx::CompositeQueue queue;
             ASSERT_EQ(queue.advance(scene), 1u);
-            const Rtx::Index composite = scene.materials().getRows()[material].mDiffuse;
-            ASSERT_NE(composite, Rtx::sNoIndex);
+            const Rtx::Index albedo = scene.materials().getRows()[material].mDiffuse;
+            const Rtx::Index gloss = scene.materials().getRows()[material].mSpecular;
+            ASSERT_NE(albedo, Rtx::sNoIndex);
+            ASSERT_NE(gloss, Rtx::sNoIndex) << "a layer that reflects gives the chunk a gloss";
 
+            const auto check = [&](const SceneTextures& described, const char* when) {
+                const auto find = [&](const Rtx::Index slot) {
+                    return std::ranges::find(described.getDescriptions(), slot, &Rtx::TextureData::mSlot);
+                };
+                const auto ground = find(albedo);
+                ASSERT_NE(ground, described.getDescriptions().end()) << when;
+                EXPECT_EQ(ground->mSource, Rtx::TextureSource::GroundComposite) << when;
+                EXPECT_EQ(ground->mFrom, material) << when;
+                EXPECT_EQ(ground->mFormat, Rtx::TextureFormat::Rgba8Srgb) << when;
+                EXPECT_TRUE(ground->mBytes.empty()) << when << ": a composite carries no bytes";
+                EXPECT_TRUE(ground->mLevels.empty()) << when << ": a composite is shaped by the pass";
+                EXPECT_EQ(ground->getCompanion(), Rtx::TextureCompanion::Neutral) << when;
+
+                const auto glossy = find(gloss);
+                ASSERT_NE(glossy, described.getDescriptions().end()) << when;
+                EXPECT_EQ(glossy->mSource, Rtx::TextureSource::GroundGloss) << when;
+                EXPECT_EQ(glossy->mFrom, material) << when;
+                EXPECT_EQ(glossy->mFormat, Rtx::TextureFormat::Rgba8Unorm) << when;
+                // The rebuild describes the layers' files too, which this test never read.
+                for (const Rtx::Refusal& refused : described.getRefusals())
+                    EXPECT_TRUE(refused.mName == "textures/under.dds" || refused.mName == "textures/over.dds")
+                        << when << ": " << refused.mName << " refused, " << refused.mWhy;
+            };
+
+            const std::array arrived{ albedo, gloss };
             SceneTextures described;
-            described.describe(scene, std::span(&composite, 1), &queue);
-            ASSERT_EQ(described.getDescriptions().size(), std::size_t{ 1 });
-            EXPECT_EQ(described.getDescriptions()[0].mSlot, composite);
-            EXPECT_EQ(described.getDescriptions()[0].mSource, Rtx::TextureSource::GroundComposite);
-            EXPECT_EQ(described.getDescriptions()[0].mFrom, material);
-            EXPECT_EQ(described.getDescriptions()[0].mFormat, Rtx::TextureFormat::Rgba8Srgb);
-            EXPECT_TRUE(described.getDescriptions()[0].mBytes.empty()) << "a composite carries no bytes";
-            EXPECT_TRUE(described.getDescriptions()[0].mLevels.empty()) << "a composite is shaped by the pass";
-            EXPECT_EQ(described.getDescriptions()[0].getCompanion(), Rtx::TextureCompanion::Neutral);
-            EXPECT_TRUE(described.getRefusals().empty());
+            described.describe(scene, arrived);
+            check(described, "the frame it arrived");
 
-            queue.releaseFinished();
-            described.describe(scene, std::span(&composite, 1), &queue);
-            ASSERT_EQ(described.getDescriptions().size(), std::size_t{ 1 });
-            EXPECT_EQ(described.getDescriptions()[0].mSource, Rtx::TextureSource::StandIn);
-            EXPECT_EQ(described.getDescriptions()[0].mFrom, Rtx::sNoIndex);
-            EXPECT_EQ(described.getDescriptions()[0].mName, "stand-in");
-            ASSERT_EQ(described.getRefusals().size(), 1u);
-            EXPECT_EQ(described.getRefusals()[0].mWhy, "no ground was queued to flatten into it");
+            scene.clearArrivals();
+            ASSERT_EQ(queue.advance(scene), 0u) << "nothing else asks";
+            SceneTextures rebuilt;
+            rebuilt.describeAll(scene);
+            check(rebuilt, "a rebuild a frame later");
         }
 
         /// A file that carried one level is described as that level and nothing more: the chain is

@@ -39,10 +39,17 @@ namespace MWRender
         /// near enough the surface — `strikesWater`, the test `RippleSimulation::emitRipple` asks.
         void splash(const osg::Vec3f& at);
 
-        /// Decides this frame's impulses: the wading emitters and the strikes since the last.
+        /// Decides this frame's impulses: the wading emitters and the strikes since the last. Every
+        /// frame, so the list is always this frame's: a paused one decides none and keeps its
+        /// strikes for the frame the simulation runs again.
         /// @param water where the surface stands, which a strike is tested against, and whether
         ///        there is one.
-        void update(const WaterState& water);
+        /// @param simulated whether the simulation advanced this frame.
+        void update(const WaterState& water, bool simulated);
+
+        /// Forgets the strikes since the last update, for a frame that draws no world: the game goes
+        /// on while the world is hidden, and its strikes are not this renderer's to press later.
+        void dropStrikes() { mStrikes.clear(); }
 
         /// What `update` decided, until the next.
         std::span<const Rtx::RippleImpulse> getImpulses() const { return mImpulses; }

@@ -12,6 +12,7 @@
 
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 #include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/environment/skylight.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/sdlutil/vsyncmode.hpp>
@@ -145,9 +146,15 @@ namespace RtxTool
 
         float mFieldOfView = 60.0f;
 
-        /// How the present paces the frame. Off for a measured run, or the wait for the refresh
-        /// lands in `wait ms`; a watched window keeps the player's own setting.
+        /// How the present paces the frame, and the rate the engine's limiter holds it to, nought
+        /// for none. Both off for a run nobody watches, where a frame held back is a frame spent
+        /// waiting and the wait for the refresh lands in `wait ms`.
         SDLUtil::VSyncMode mVerticalSync = SDLUtil::VSyncMode::Disabled;
+        float mFramerateLimit = 0.0f;
+
+        /// Takes the player's own pacing, which a watched window keeps: it is the played game with
+        /// the walls off.
+        void keepPlayersPacing();
     };
 
     /// What a command's frames are traced with, read once off the command line into the two records
@@ -159,12 +166,14 @@ namespace RtxTool
         WindowRequest mWindow;
 
         /// What the renderer is made with, whole: the line's profile, mirror, layers,
-        /// shaders and budget, hidden and stepped at the harness's own rate until a command says
-        /// otherwise. The request `sessionFor` builds carries it as it is, so a knob `RunSetup`
-        /// gains reaches every command by being read here.
-        MWRender::RunSetup mSetup{
-            .mProfile = { .mUpscale = sUpscaleByDefault }, .mHeadless = true, .mStep = sStepSeconds
-        };
+        /// shaders and budget, hidden until a command says otherwise. The request `sessionFor`
+        /// builds carries it as it is, so a knob `RunSetup` gains reaches every command by being
+        /// read here.
+        MWRender::RunSetup mSetup{ .mRun = { .mProfile = { .mUpscale = sUpscaleByDefault } }, .mHeadless = true };
+
+        /// The step every frame stands for — `SessionRequest::mStep` — the harness's own rate until
+        /// a command says otherwise.
+        std::optional<float> mStep = sStepSeconds;
 
         /// Which day, counted from the one a new game begins on. Only the moons read it.
         int mDay = 0;
@@ -178,7 +187,8 @@ namespace RtxTool
     ///
     /// Read as the game reads the setting's text: a number through `Misc::StringUtils::toNumeric`,
     /// which refuses one that is not finite, and a switch as `true` in any case. Throws naming the
-    /// setting where the text is no number. For `float`, `int` and `bool`.
+    /// setting where the text is no number. For `float`, `int`, `bool` and `std::string`, the text
+    /// itself.
     template <class T>
     T shippedDefault(const Files::ConfigurationManager& config, std::string_view category, std::string_view setting);
 
@@ -220,7 +230,7 @@ namespace RtxTool
     /// names one: what a picture of a place is taken at. Not the hour a budget is written against
     /// — a low sun doubles the trace — which is why the views the target is judged on fix `hour`.
     inline constexpr float sDefaultHour = 12.0f;
-    inline constexpr std::string_view sDefaultWeather = "Clear";
+    inline constexpr std::uint32_t sDefaultWeather = Rtx::sWeatherClear;
 
     /// One stop from a view file entry and the sky the command line named. A view id names one
     /// frame, so a place measured at dawn says so in `mSky.mHour`; the command line still wins, as

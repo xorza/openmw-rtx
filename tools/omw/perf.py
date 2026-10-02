@@ -18,7 +18,6 @@ import re
 import shutil
 import subprocess
 import sys
-import time
 from pathlib import Path
 from typing import IO
 
@@ -261,10 +260,7 @@ def _record_offcpu(build: Build, record: list[str], bench: list[str], data: Path
 
     harness = subprocess.Popen(bench, cwd=build.dir, env=build.env, stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT, text=True)
-    # The harness reads a cell before the first frame it measures, which is the time perf has to attach.
-    time.sleep(0.5)
-    if harness.poll() is not None:
-        raise Refusal("the harness ended before perf could attach")
+    # The harness waits at its first place until perf opens the control fifo, so perf starts now.
     recorder = subprocess.Popen([*elevate, *record, "-p", str(harness.pid)])
     _tee(harness, log)
     code = harness.wait()

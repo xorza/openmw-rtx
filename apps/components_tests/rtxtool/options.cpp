@@ -1,10 +1,10 @@
 #include <array>
+#include <exception>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <optional>
 #include <set>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -65,7 +65,7 @@ namespace RtxTool
                 {
                     length(line);
                 }
-                catch (const std::runtime_error& error)
+                catch (const std::exception& error)
                 {
                     return std::string(error.what());
                 }
@@ -78,7 +78,7 @@ namespace RtxTool
             EXPECT_EQ(length({ "--speed=500" }), std::nullopt);
             EXPECT_EQ(refusal({ "--length=35", "--speed=500" }),
                 "--length sets the speed, so --speed cannot be named beside it");
-            EXPECT_EQ(refusal({ "--length=0" }), "--length is 0, which is no length of film");
+            EXPECT_EQ(refusal({ "--length=0" }), "the argument ('0') for option '--length' is not a number >0");
         }
 
         /// The build decides the level nobody named, and the level is spelled the way the table
@@ -209,14 +209,14 @@ namespace RtxTool
             EXPECT_FALSE(lineFor("validation").starts_with("with ")) << "nothing to say where every command reads it";
 
             // **A number a line states is the number the code reads**, formatted from it: eight
-            // milliseconds, four seconds, `512 × 30 / 3600` game hours, sixty frames a second for
+            // milliseconds, four seconds, sixty frames a second for
             // twenty seconds, 800 units at 69.99 a metre, a film of twenty seconds, 16384 units of
             // 8192-unit cells, and the encoder's own three settings.
             EXPECT_NE(lineFor("hold").find("`check` holds 8 milliseconds unless"), std::string::npos)
                 << lineFor("hold");
             EXPECT_NE(lineFor("turn-weather").find("each crossing takes 4 seconds"), std::string::npos);
-            EXPECT_NE(lineFor("clock").find("--clock=512 is 4.27 game hours a second"), std::string::npos)
-                << lineFor("clock");
+            EXPECT_NE(lineFor("clock").find("the timescale the session starts at"), std::string::npos)
+                << "the game's own speed stated as the session's, which no help line can know";
             EXPECT_NE(lineFor("seconds").find("steps 1/60 of a second"), std::string::npos) << lineFor("seconds");
             EXPECT_NE(lineFor("seconds").find("the 20 seconds nobody named are 1200 frames"), std::string::npos);
             EXPECT_NE(lineFor("speed").find("11 metres a second is a drone"), std::string::npos) << lineFor("speed");

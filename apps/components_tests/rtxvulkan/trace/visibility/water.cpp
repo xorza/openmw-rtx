@@ -38,7 +38,7 @@ namespace Rtx::Testing
     {
         /// What the centre pixel must read over `depth` units of flat water with a bed under it.
         ///
-        /// The bed is untextured, so its albedo is 0.5, and **the water is crossed twice**: the sun
+        /// The bed is the tests' grey, an albedo of 0.5, and **the water is crossed twice**: the sun
         /// is attenuated on its way down and again on the way back up to the eye, so what arrives is
         /// the product of two paths and not one of them. Lighting the bottom as though the water
         /// over it were not there is what makes the same column read differently from above and
@@ -167,7 +167,7 @@ namespace Rtx::Testing
             // matter of taste. **Blue survives longest**, which is why a body of water reads blue
             // once it is deep enough to read as anything: water absorbs red twenty-five times as
             // fast as blue, and the dissolved matter that stains a coast blue-ward does not close
-            // that. It is also what `WATER_SCATTER` says, its own peak being in blue.
+            // that. It is also what `WATER_SCATTER_SHIPPED` says, its own peak being in blue.
             EXPECT_LT(overhead[0], overhead[1]) << "red is taken before green";
             EXPECT_LT(overhead[1], overhead[2]) << "and green before blue";
 
@@ -215,7 +215,6 @@ namespace Rtx::Testing
             // On the scene, as the walk puts them, and pressed on every frame of the run: the
             // renderer reads the scene's list as the scene is set.
             const auto look = [&](std::vector<std::uint8_t>& pixels) {
-                mRenderer.resetHistory();
                 pixels = shoot(scene, {}, camera, size,
                     Shot{ .mSea = SeaState{ .mSignificantHeight = 0.0f },
                         .mFrames = 30,
@@ -245,6 +244,25 @@ namespace Rtx::Testing
                 EXPECT_EQ(still[at], walked[at]) << "the corner moved, at value " << at;
 
             EXPECT_EQ(still[centre * 4 + 3], walked[centre * 4 + 3]) << "coverage is not the surface's";
+
+            // **A cut keeps the wake, and only another worldspace takes it**, as the rasterizer
+            // keeps its ripples over a teleport and lets them go with the worldspace. One frame
+            // after the walk, past a cut: the ring still bends the surface, where the frame past a
+            // worldspace change shows the water the walk left.
+            const auto oneAfterTheWalk = [&](const HistoryLoss loss) {
+                std::vector<std::uint8_t> ignored;
+                look(ignored);
+                return shoot(scene, {}, camera, size,
+                    Shot{ .mSea = SeaState{ .mSignificantHeight = 0.0f },
+                        .mFrames = 1,
+                        .mAverage = false,
+                        .mLoss = loss,
+                        .mWaterStep = 1.0f / Shaders::RIPPLE_STEP_RATE,
+                        .mSetScene = false })
+                    .bytes();
+            };
+            const std::vector<std::uint8_t> kept = oneAfterTheWalk(HistoryLoss::Cut);
+            EXPECT_NE(kept, oneAfterTheWalk(HistoryLoss::Worldspace)) << "a cut took the wake";
         }
 
         /// Deep water settles at what it scatters, and at half what only-the-return-leg would give.
@@ -289,18 +307,18 @@ namespace Rtx::Testing
                 return std::array<int, 3>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2) };
             };
 
-            // `WATER_SCATTER.r * 0.5` is 0.02, less the two per cent the surface reflects away, and
+            // `WATER_SCATTER_SHIPPED.r * 0.5` is 0.02, less the two per cent the surface reflects away, and
             // the display curve puts 0.0199 at 39.
             const std::array<int, 3> bedded = look(makeFlooded(4000.0f, depth));
             EXPECT_EQ(bedded[0], 39) << "red, settled at what the water scatters";
 
             // The same column with the bed taken out from under it, which is the asymptote itself:
-            // `WATER_SCATTER * 0.5`, less Fresnel. Off the constants rather than written out, for
+            // `WATER_SCATTER_SHIPPED * 0.5`, less Fresnel. Off the constants rather than written out, for
             // the reason the expectations above are.
             const std::array<int, 3> bottomless = look(makeOpenWater(4000.0f));
             for (std::size_t channel = 0; channel < 3; ++channel)
                 EXPECT_NEAR(bottomless[channel],
-                    encodeSrgb(Shaders::WATER_SCATTER[channel] * 0.5f * (1.0f - Shaders::WATER_F0)), 1)
+                    encodeSrgb(Shaders::WATER_SCATTER_SHIPPED[channel] * 0.5f * (1.0f - Shaders::WATER_F0)), 1)
                     << "channel " << channel << " over water with no bottom";
 
             // And the bed at 2000 units is still there in the two channels it is not deep for, so
@@ -460,7 +478,7 @@ namespace Rtx::Testing
             constexpr float stretch = 200.0f;
 
             // No sun and a black sky, so the ambient is the only light and the answer is the two
-            // exponentials. The bed is untextured, which is an albedo of a half.
+            // exponentials. The bed is the tests' grey, an albedo of a half.
             const auto look = [&](float eye) {
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -0.05f, -eye), osg::Vec3f(0.0f, 0.0f, -eye - 10.0f), 60.0f, size, size, 10000.0f);
@@ -477,8 +495,8 @@ namespace Rtx::Testing
             const auto scattered = [&](float eye, std::size_t channel) {
                 const float o = Shaders::WATER_EXTINCTION[channel];
 
-                return encodeSrgb(Shaders::WATER_SCATTER[channel] * 0.5f * (1.0f - std::exp(-2.0f * o * stretch))
-                    * std::exp(-o * eye));
+                return encodeSrgb(Shaders::WATER_SCATTER_SHIPPED[channel] * 0.5f
+                    * (1.0f - std::exp(-2.0f * o * stretch)) * std::exp(-o * eye));
             };
 
             // Red and blue, which is the whole spread of what water does: red is gone by a thousand
@@ -546,8 +564,8 @@ namespace Rtx::Testing
 
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
-                const float settled
-                    = Shaders::WATER_SCATTER[channel] * 0.5f * std::exp(-Shaders::WATER_EXTINCTION[channel] * eye);
+                const float settled = Shaders::WATER_SCATTER_SHIPPED[channel] * 0.5f
+                    * std::exp(-Shaders::WATER_EXTINCTION[channel] * eye);
 
                 EXPECT_NEAR(lowest[channel], encodeSrgb(settled), 1) << "channel " << channel;
                 EXPECT_EQ(lowest[channel], highest[channel]) << "channel " << channel << " draws an edge";
@@ -684,6 +702,46 @@ namespace Rtx::Testing
             expectTheMiddleAtTheWaterline(grazing, span * 0.5f, "at sixty degrees");
         }
 
+        /// **The shore is as deep as the water, measured from its surface.** A flat bed a few units
+        /// under calm water, seen straight down: a shore pixel hands the composite the bed's albedo
+        /// times one less the fade, so its albedo channel against the dry bed's is the fade alone,
+        /// and the fade is `smoothstep(0, 35, depth)`. The depth is under the surface the trace
+        /// shows, which `WATER_TIE_BREAK` stands half a unit under the sea's plane: a bed five units
+        /// under the plane is 4.5 under the water, `t = 4.5 / 35 = 0.128571`, `t² (3 - 2t) =
+        /// 0.045341`, and one twenty under is 19.5, `0.585341`. The shore ray leaves a unit over the
+        /// surface, and measured from there the same beds read 5.5 and 20.5 units down: 0.066321
+        /// and 0.627312.
+        TEST_F(RtxVisibilityTest, theShoreIsAsDeepAsTheWaterMeasuredFromItsSurface)
+        {
+            constexpr std::uint32_t size = 16;
+            constexpr float extent = 4000.0f;
+
+            const osg::Matrixf above = osg::Matrixf::lookAt(
+                osg::Vec3f(0.0f, 0.0f, 500.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f));
+            Shaders::VisibilityConstants camera
+                = makeOrthographicCameraFromView(above, 100.0f, 100.0f, size, size, 5.0f, 20000.0f).value();
+            camera.mWaterLevel = 0.0f;
+
+            const auto albedoOver = [&](float depth, bool wet) {
+                SceneDesc scene = wet ? makeOpenWater(extent) : SceneDesc{};
+                addQuad(scene,
+                    std::array{ osg::Vec3f(-extent, -extent, -depth), osg::Vec3f(extent, -extent, -depth),
+                        osg::Vec3f(extent, extent, -depth), osg::Vec3f(-extent, extent, -depth) },
+                    scene.addMaterial(Material{}));
+                shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
+                std::vector<float> albedo;
+                mRenderer.readChannel(Channel::Albedo, albedo);
+                const std::size_t across = albedo.size() / (std::size_t{ size } * size);
+                return albedo[centreOf(size) * across];
+            };
+            const auto fadeAt = [&](float depth) { return 1.0f - albedoOver(depth, true) / albedoOver(depth, false); };
+
+            ASSERT_GT(albedoOver(5.0f, false), 0.1f) << "the dry bed shows no albedo";
+            ASSERT_EQ(Shaders::WATER_TIE_BREAK, 0.5f) << "the derivation above stands the surface half a unit down";
+            EXPECT_NEAR(fadeAt(5.0f), 0.045341f, 2e-4f) << "five units under the plane";
+            EXPECT_NEAR(fadeAt(20.0f), 0.585341f, 2e-4f) << "twenty units under the plane";
+        }
+
         /// The water between an eye and the surface over it is water like any other.
         ///
         /// **The half the invariant above cannot see.** Both of its cameras look *down*, so the hit
@@ -773,7 +831,7 @@ namespace Rtx::Testing
 
                 camera.mWaterLevel = 0.0f;
                 camera.mSun.mDirection = sunStandingAt(osg::DegreesToRadians(70.0f));
-                camera.mSun.mLimb = Shaders::SUN_SHADOW_SINE;
+                camera.mSun.mLimb = std::sin(Shaders::SUN_SHADOW_RADIUS);
 
                 // A hundred times the sun the other water tests use. What the water scatters
                 // sideways out of a beam is a fraction of a per cent of it, and at the usual
@@ -825,7 +883,7 @@ namespace Rtx::Testing
             constexpr std::uint32_t column = size / 2;
             constexpr float over = 100.0f;
             const float away = over / std::cos(osg::DegreesToRadians(70.0f));
-            const float radius = away * std::tan(std::asin(Shaders::SUN_SHADOW_SINE));
+            const float radius = away * std::tan(Shaders::SUN_SHADOW_RADIUS);
             const float edge = -0.5f * radius;
             const double hidden = (std::acos(0.5) - 0.5 * std::sqrt(0.75)) / osg::PI;
 
@@ -840,7 +898,7 @@ namespace Rtx::Testing
                     osg::Vec3f(0.0f, -1000.0f, -1000.0f), 60.0f, size, size, 100000.0f);
                 camera.mWaterLevel = 0.0f;
                 camera.mSun.mDirection = sunStandingAt(osg::DegreesToRadians(70.0f));
-                camera.mSun.mLimb = Shaders::SUN_SHADOW_SINE;
+                camera.mSun.mLimb = std::sin(Shaders::SUN_SHADOW_RADIUS);
                 constexpr float blazing = 100.0f * sSunOverWater;
                 camera.mSun.mIrradiance = osg::Vec3f(blazing, blazing, blazing);
 

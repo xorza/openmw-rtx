@@ -71,7 +71,7 @@ vec3 starField(StarField stars, TexelTable texels, vec3 direction, float blur)
     // its own texels are worth in each direction. Floored because a parallel projection has no cone:
     // `mSpreadAngle` is nought there, and what it wants is the nearest texel, which is what a
     // steepening this hard gives.
-    const vec2 size = vec2(textureSize(textures[nonuniformEXT(stars.mTexture)], 0));
+    const vec2 size = vec2(stars.mExtent);
     const vec2 across = max(2.0 * blur * size / stars.mTile, vec2(1.0e-6));
 
     const vec2 at = uv * size;

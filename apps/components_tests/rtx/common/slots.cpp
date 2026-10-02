@@ -190,6 +190,70 @@ namespace Rtx
             Testing::expectAssertDies([&] { pool.free(2); }, "a slot freed twice");
         }
 
+        /// **A slot taken out and named again before the compact stands in the list once, where it
+        /// stood.** What lets a table take a slot out at a drop and settle its lists once a sweep is
+        /// done: a fade counts a row out and back in, and a mesh slot freed and taken again is posed
+        /// again inside one sweep. Removed twice is removed once, and the compact drops exactly the
+        /// slots still out — 7 and 5 here, with 3 put back and 9 never touched.
+        TEST(RtxSlotSetTest, aSlotNamedAgainBeforeTheCompactIsListedOnceWhereItStood)
+        {
+            SlotSet set;
+            set.grow(10);
+            for (const Index slot : { 3u, 7u, 5u, 9u })
+                set.add(slot);
+
+            set.remove(3);
+            set.remove(7);
+            set.remove(7);
+            set.remove(5);
+            set.remove(2);
+            EXPECT_FALSE(set.has(3)) << "the flag is exact before the compact";
+            EXPECT_FALSE(set.has(2));
+            Testing::expectAssertDies([&] { (void)set.getSlots(); }, "between a remove and the compact");
+
+            set.add(3);
+            set.add(3);
+            EXPECT_TRUE(set.has(3));
+            set.compact();
+            EXPECT_EQ(std::vector<Index>(set.getSlots().begin(), set.getSlots().end()), (std::vector<Index>{ 3, 9 }));
+            EXPECT_FALSE(set.has(7));
+
+            // A slot compacted away is absent, so naming it again appends it.
+            set.add(7);
+            set.remove(9);
+            set.add(9);
+            EXPECT_EQ(std::vector<Index>(set.getSlots().begin(), set.getSlots().end()), (std::vector<Index>{ 3, 9, 7 }))
+                << "a slot put back before the compact needs none";
+
+            set.clear();
+            EXPECT_TRUE(set.empty());
+            EXPECT_FALSE(set.has(3));
+            set.add(9);
+            EXPECT_EQ(set.getSlots().size(), 1u) << "a cleared set kept a flag";
+        }
+
+        /// **The last word wins, and a slot moved between the two lists is settled by one compact.**
+        /// A texture that arrived and went inside one hand-over is reported gone, and one that went
+        /// and was taken over is reported arrived — each once, however often it changed sides.
+        TEST(RtxSlotChangesTest, theLastWordWinsAndOneCompactSettlesBothLists)
+        {
+            SlotChanges changes;
+            changes.grow(8);
+            changes.note(1, SlotNews::Arrived);
+            changes.note(2, SlotNews::Arrived);
+            changes.note(4, SlotNews::Freed);
+            changes.note(1, SlotNews::Freed);
+            changes.note(4, SlotNews::Arrived);
+            changes.note(4, SlotNews::Freed);
+            changes.note(4, SlotNews::Arrived);
+            changes.compact();
+
+            EXPECT_EQ(std::vector<Index>(changes.getArrived().begin(), changes.getArrived().end()),
+                (std::vector<Index>{ 2, 4 }));
+            EXPECT_EQ(
+                std::vector<Index>(changes.getFreed().begin(), changes.getFreed().end()), (std::vector<Index>{ 1 }));
+        }
+
         /// **An object given back twice is the pool's assert**, and not two entries on the spare
         /// list handing one object to two takers. Emptied before each give, as every give-back
         /// empties: the flag is the pool's, and a reuse that reset it would hide the second give.

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <numbers>
 #include <span>
 
 #include <osg/BoundingBox>
@@ -80,33 +81,39 @@ namespace Rtx
         /// second.
         constexpr float sTopBand = 9.0f;
 
-        /// One step down the ladder of bands, and the step between a fast animation and its slow
-        /// twin. The golden ratio squared, because bands at a rational ratio come back into phase
-        /// and the whole flicker repeats.
-        constexpr float sBandRatio = 2.618034f;
+        /// One step down the ladder of bands. The golden ratio squared, because bands at a rational
+        /// ratio come back into phase and the whole flicker repeats.
+        constexpr float sBandRatio = std::numbers::phi_v<float> + 1.0f;
 
         /// How many bands a flame is the sum of. Four spans a factor of eighteen in rate, which is the
         /// whole of what a flame does: the puffing at the top, and a draught wandering under it.
         constexpr int sFlameBands = 4;
 
-        /// How far a flame swings, as a fraction of what the light radiates — the peak, with the
-        /// bands weighted to sum to one, so the brightness lands in `1 +- sFlameDepth` exactly. The
-        /// RMS is `sFlameDepth / sqrt(2 * sFlameBands)`, 11% of the light, which is a candle in
-        /// still air; the peak is the draught.
-        constexpr float sFlameDepth = 0.30f;
+        /// `SceneUtil::LightController`'s own numbers, which it spells as literals: the band an
+        /// animated light's brightness walks within, as a share of its recorded colour; how far it
+        /// moves in one tick, fast and slow; and its fifteen ticks a second.
+        constexpr float sDimmest = 0.25f;
+        constexpr float sBrightest = 1.0f;
+        constexpr float sFastSpeed = 0.1f;
+        constexpr float sSlowSpeed = 0.05f;
+        constexpr float sTicksPerSecond = 15.0f;
 
-        /// How far a pulse swings. Deeper than a flame, because a pulse is the whole of what the light
-        /// does: the content gives it to lava, to glowing lichen, to Dwemer tubes and to enchanted
-        /// rings, and none of those has a flame for it to be a variation of.
-        constexpr float sPulseDepth = 0.35f;
+        /// The middle of the game's band, which a flicker and a pulse average — the game walks
+        /// between targets drawn evenly across the band, or between its two ends — and how far
+        /// either side of it they reach.
+        constexpr float sMiddle = (sBrightest + sDimmest) / 2.0f;
+        constexpr float sSwing = (sBrightest - sDimmest) / 2.0f;
 
-        /// The slow pulse, in hertz. Three seconds a cycle reads as a swell rather than as a flicker,
-        /// which is the whole difference between the two kinds.
-        constexpr float sPulseBand = 1.0f / 3.0f;
+        /// How much slower the game's slow animations walk than its fast ones.
+        constexpr float sSlowShare = sSlowSpeed / sFastSpeed;
+
+        /// The game's pulse walks the band one way and back at its speed: a second at the fast
+        /// speed, two at the slow.
+        constexpr float sPulsePeriod = 2.0f * (sBrightest - sDimmest) / (sFastSpeed * sTicksPerSecond);
 
         /// How far apart one light's bands are set, in turns. The golden ratio's conjugate spreads any
         /// number of them around the circle without two landing together.
-        constexpr float sBandPhase = 0.618034f;
+        constexpr float sBandPhase = std::numbers::phi_v<float> - 1.0f;
 
         /// Where a light stands in its animation, in turns, off the light's id so that it is drawn
         /// once and never kept: a phase rolled at random would put the harness's lamp somewhere
@@ -129,6 +136,14 @@ namespace Rtx
             return std::sin(2.0f * Shaders::PI * (turns + phase + static_cast<float>(index) * sBandPhase));
         }
 
+        /// The game's pulse, in `-1 .. 1`: a triangle of `period` seconds, at one at the turn's start.
+        float pulse(double simulationTime, float period, float phase)
+        {
+            const auto turns = static_cast<float>(std::fmod(simulationTime / static_cast<double>(period), 1.0));
+            const float at = turns + phase - std::floor(turns + phase);
+            return 4.0f * std::abs(at - 0.5f) - 1.0f;
+        }
+
         /// The sum of four bands of the ladder, the highest of them at `top` hertz, in `-1 .. 1`.
         float flame(double simulationTime, float top, float phase)
         {
@@ -146,6 +161,17 @@ namespace Rtx
             // has, and the reason this reads as a flame rather than as a wobble at one rate. Divided by
             // their count so that the sum cannot leave `-1 .. 1`, which is what bounds the brightness.
             return sum / static_cast<float>(sFlameBands);
+        }
+
+        /// A light's diffuse in light, with its sign: `SceneUtil::createLightSource` negates a
+        /// subtracting record's encoded colour, and the curve is the magnitude's, as the record
+        /// overload decodes it.
+        osg::Vec3f decodeSigned(const osg::Vec4f& encoded)
+        {
+            const osg::Vec3f magnitude = decodeColour(
+                osg::Vec4f(std::abs(encoded.x()), std::abs(encoded.y()), std::abs(encoded.z()), encoded.w()));
+            return osg::Vec3f(std::copysign(magnitude.x(), encoded.x()), std::copysign(magnitude.y(), encoded.y()),
+                std::copysign(magnitude.z(), encoded.z()));
         }
 
         /// The lamp, where every number in it is finite. What it was built from came off a file or
@@ -170,11 +196,13 @@ namespace Rtx
         if (std::isfinite(radius) && radius <= 0.0f)
             return std::nullopt;
 
-        // A light that subtracts is not one a ray can reach. It arrives here as a colour with a
-        // negative channel, which is what `SceneUtil::createLightSource` builds out of a `Negative`
-        // record and what the record overload builds to match.
-        if (colour.x() < 0.0f || colour.y() < 0.0f || colour.z() < 0.0f)
-            return Misc::Err{ "it takes light away, which a ray cannot" };
+        // **A light that subtracts is a lamp of negative intensity**, which is what
+        // `SceneUtil::createLightSource` builds out of a `Negative` record and what the record
+        // overload builds to match: `Shaders::GpuLight::mIntensity` says what the trace does with
+        // one. A colour that gives in one channel and takes in another is no record's.
+        const bool takes = colour.x() < 0.0f || colour.y() < 0.0f || colour.z() < 0.0f;
+        if (takes && (colour.x() > 0.0f || colour.y() > 0.0f || colour.z() > 0.0f))
+            return Misc::Err{ "it gives light in one colour and takes it away in another" };
 
         return finiteOnly(Light{
             .mPosition = position,
@@ -216,15 +244,14 @@ namespace Rtx
             case SceneUtil::LightController::LT_Flicker:
                 // The whole flame, puffing included. The content gives this one to open fires: a
                 // tiki torch, a brazier, a spark shower and a failing Dwemer tube.
-                return 1.0f + sFlameDepth * flame(simulationTime, sTopBand, phase);
+                return sMiddle + sSwing * flame(simulationTime, sTopBand, phase);
             case SceneUtil::LightController::LT_FlickerSlow:
-                // The same flame with its puffing damped away, which is what a flame behind lantern
-                // glass shows: the window down the ladder is the whole difference.
-                return 1.0f + sFlameDepth * flame(simulationTime, sTopBand / sBandRatio, phase);
+                // The same flame at the game's slow speed, every band of it.
+                return sMiddle + sSwing * flame(simulationTime, sTopBand * sSlowShare, phase);
             case SceneUtil::LightController::LT_Pulse:
-                return 1.0f + sPulseDepth * band(simulationTime, sPulseBand * sBandRatio, phase, 0);
+                return sMiddle + sSwing * pulse(simulationTime, sPulsePeriod, phase);
             case SceneUtil::LightController::LT_PulseSlow:
-                return 1.0f + sPulseDepth * band(simulationTime, sPulseBand, phase, 0);
+                return sMiddle + sSwing * pulse(simulationTime, sPulsePeriod / sSlowShare, phase);
         }
 
         return 1.0f;
@@ -311,7 +338,7 @@ namespace Rtx
         // a Light spell burns at full strength up to the frame the actor's node mask cuts.
         const float fade = source.getActorFade();
 
-        return decodeColour(diffuse) * (brightness * fade) + decodeColour(light.getAmbient()) * fade;
+        return decodeSigned(diffuse) * (brightness * fade) + decodeColour(light.getAmbient()) * fade;
     }
 
     bool castsWherePlaced(const SceneUtil::LightCommon& record)

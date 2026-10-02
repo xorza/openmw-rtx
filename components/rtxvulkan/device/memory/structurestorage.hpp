@@ -50,7 +50,7 @@ namespace Rtx
         /// device has none: a block is memory a mesh can be left out for — `MemoryUse::Structure`.
         ///
         /// @param least how large to make a new block where none of the existing ones can hold it:
-        ///        a load asks for the whole scene's total, an arrival for nothing in particular. A
+        ///        what of the caller's build is still to place, this structure's room included. A
         ///        device with no room for that much makes one only as large as the structure.
         Misc::Result<StructureRoom, std::string_view> take(
             const Device& device, VkDeviceSize bytes, VkDeviceSize least);

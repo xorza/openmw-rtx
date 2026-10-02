@@ -12,11 +12,32 @@
 
 #include "../mwrender/renderer.hpp"
 #include "../mwrender/renderingmanager.hpp"
+#include "../mwrender/rendersupport.hpp"
 
+#include <components/debug/debuglog.hpp>
 #include <components/lua/luastate.hpp>
 
 namespace MWLua
 {
+    namespace
+    {
+        MWRender::Renderer& renderer()
+        {
+            return MWBase::Environment::get().getWorld()->getRenderingManager()->getRenderer();
+        }
+
+        /// Whether the renderer declines what a script asked of it as `what`, for the reason
+        /// `declined` names, which is logged where it does.
+        bool refuses(std::string_view what, std::string_view declined)
+        {
+            if (declined.empty())
+                return false;
+
+            Log(Debug::Warning) << MWRender::notAvailable(what, declined);
+            return true;
+        }
+    }
+
     sol::table initDebugPackage(const Context& context)
     {
         auto view = context.sol();
@@ -36,7 +57,10 @@ namespace MWLua
                 }));
 
         api["toggleRenderMode"] = [context](MWRender::RenderMode value) {
-            context.mLuaManager->addAction([value] { MWBase::Environment::get().getWorld()->toggleRenderMode(value); });
+            context.mLuaManager->addAction([value] {
+                if (!refuses("debug.toggleRenderMode", renderer().support().declinedMode(value)))
+                    MWBase::Environment::get().getWorld()->toggleRenderMode(value);
+            });
         };
 
         api["toggleGodMode"] = []() { MWBase::Environment::get().getWorld()->toggleGodMode(); };
@@ -76,13 +100,18 @@ namespace MWLua
         };
 
         api["triggerShaderReload"] = [context]() {
-            context.mLuaManager->addAction(
-                [] { MWBase::Environment::get().getWorld()->getRenderingManager()->getRenderer().reloadShaders(); });
+            context.mLuaManager->addAction([] {
+                if (!refuses("debug.triggerShaderReload",
+                        renderer().support().declinedRequest(MWRender::ScriptRequest::ShaderReload)))
+                    renderer().reloadShaders();
+            });
         };
 
         api["setShaderHotReloadEnabled"] = [context](bool value) {
             context.mLuaManager->addAction([value] {
-                MWBase::Environment::get().getWorld()->getRenderingManager()->getRenderer().setLiveShaderReload(value);
+                if (!refuses("debug.setShaderHotReloadEnabled",
+                        renderer().support().declinedRequest(MWRender::ScriptRequest::LiveShaderReload)))
+                    renderer().setLiveShaderReload(value);
             });
         };
 

@@ -192,12 +192,11 @@ namespace Rtx::Shaders
     /// a ray's that found nothing, which has no direction to fold.
     RTX_SHADER float packSurfaceNormal(vec3 normal)
     {
-        if (!(abs(normal[0]) + abs(normal[1]) + abs(normal[2]) > 0.0f))
+        if (!octahedralDirected(normal))
             return SURFACE_NO_NORMAL;
 
-        const vec2 square = octahedralSquare(normal);
-        return float(octahedralStep(square[0], SURFACE_NORMAL_STEPS)
-            + octahedralStep(square[1], SURFACE_NORMAL_STEPS) * SURFACE_NORMAL_SPAN);
+        const uvec2 code = octahedralCode(normal, SURFACE_NORMAL_STEPS);
+        return float(code[0] + code[1] * SURFACE_NORMAL_SPAN);
     }
 
     /// The unit normal a code stands for, or nought for `SURFACE_NO_NORMAL`. Selected and not
@@ -205,8 +204,8 @@ namespace Rtx::Shaders
     RTX_SHADER vec3 unpackSurfaceNormal(float packed)
     {
         const uint code = uint(max(packed, 0.0f));
-        const vec3 unit = octahedralUnit(vec2(octahedralCoordinate(code % SURFACE_NORMAL_SPAN, SURFACE_NORMAL_STEPS),
-            octahedralCoordinate(code / SURFACE_NORMAL_SPAN, SURFACE_NORMAL_STEPS)));
+        const vec3 unit
+            = octahedralFromCode(code % SURFACE_NORMAL_SPAN, code / SURFACE_NORMAL_SPAN, SURFACE_NORMAL_STEPS);
         return packed >= 0.0f ? unit : vec3(0.0f, 0.0f, 0.0f);
     }
 
@@ -244,9 +243,9 @@ bool surfaceOnArms(float packed)
 /// rebuild it through different eyes.
 ///
 /// @param packed the pixel's distance as the surface channel holds it.
-Camera eyeOfPixel(float packed, Camera world, Camera arms)
+Camera eyeOfPixel(float packed, Eyes eyes)
 {
-    return surfaceOnArms(packed) ? arms : world;
+    return surfaceOnArms(packed) ? eyes.mArms : eyes.mWorld;
 }
 
 #endif

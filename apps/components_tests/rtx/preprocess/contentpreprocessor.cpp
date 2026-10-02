@@ -15,6 +15,7 @@
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/preprocess/contentcache.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
@@ -67,9 +68,10 @@ namespace Rtx
         }
 
         /// A shape asked through the preprocessor keeps the card's front and says it was a sheet,
-        /// and is counted: asked once, found in no cache, and keyed on exactly what it read — eight
-        /// positions of twelve bytes, no normals, twelve indices of four and the split's one-byte
-        /// flag, 96 + 0 + 48 + 1 = 145.
+        /// and is counted: asked once, found in no cache, and — where the cache holds anything —
+        /// keyed on exactly what it read: eight positions of twelve bytes, no normals, twelve
+        /// indices of four and the split's one-byte flag, 96 + 0 + 48 + 1 = 145. While the cache
+        /// holds nothing, no key is made at all.
         TEST(RtxContentPreprocessorTest, aShapeIsCountedByWhatItRead)
         {
             ContentPreprocessor content;
@@ -83,7 +85,7 @@ namespace Rtx
             const PassStats& shaped = stats.at(ContentPassId::Shape);
             EXPECT_EQ(shaped.mAsked, 1u);
             EXPECT_EQ(shaped.mHits, 0u);
-            EXPECT_EQ(shaped.mKeyBytes, 145u);
+            EXPECT_EQ(shaped.mKeyBytes, ContentCache::sHolds ? 145u : 0u);
             EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 0u) << "a pass not asked counts nothing";
         }
 
@@ -99,13 +101,13 @@ namespace Rtx
             const ContentStats stats = content.takeStats();
             EXPECT_EQ(stats.at(ContentPassId::Shape).mAsked, 2u);
             EXPECT_EQ(stats.at(ContentPassId::Shape).mHits, 0u);
-            EXPECT_EQ(stats.at(ContentPassId::Shape).mKeyBytes, 290u);
+            EXPECT_EQ(stats.at(ContentPassId::Shape).mKeyBytes, ContentCache::sHolds ? 290u : 0u);
 
             EXPECT_EQ(content.takeStats().at(ContentPassId::Shape).mAsked, 0u);
         }
 
         /// The texture passes through the preprocessor answer what the readings of the described
-        /// level do, for an image they read and for one they cannot: a luminance file, which is
+        /// level do, for an image they read and for one they cannot: an alpha-only file, which is
         /// solid by the rule that changes nothing, and worth nothing.
         TEST(RtxContentPreprocessorTest, theTexturePassesAnswerWhatTheDirectReadingsDo)
         {
@@ -124,11 +126,11 @@ namespace Rtx
             EXPECT_EQ(asked.mWhole, direct.mWhole);
             EXPECT_EQ(asked.mAlpha, direct.mAlpha);
 
-            osg::ref_ptr<osg::Image> luminance = new osg::Image;
-            luminance->setFileName("odd.dds");
-            luminance->allocateImage(2, 2, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE);
-            EXPECT_TRUE(content.reachesSolid(*luminance));
-            EXPECT_EQ(content.meanTexel(*luminance).mColour, osg::Vec3f());
+            osg::ref_ptr<osg::Image> alphaOnly = new osg::Image;
+            alphaOnly->setFileName("odd.dds");
+            alphaOnly->allocateImage(2, 2, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
+            EXPECT_TRUE(content.reachesSolid(*alphaOnly));
+            EXPECT_EQ(content.meanTexel(*alphaOnly).mColour, osg::Vec3f());
 
             const ContentStats stats = content.takeStats();
             EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 3u);
@@ -138,7 +140,8 @@ namespace Rtx
         ContentKey finestKeyOf(const osg::Image& image, FinestTexels& finest)
         {
             ContentDigest digest("solid reach", 1);
-            finest.describe(image, digest);
+            finest.describe(image);
+            finest.addTo(digest);
             return digest.getKey();
         }
 
@@ -159,13 +162,14 @@ namespace Rtx
             EXPECT_NE(finestKeyOf(*makeImage(moved, "painted.dds"), finest), key) << "one texel's alpha";
 
             ContentDigest digest("solid reach", 1);
-            finest.describe(*makeImage(sPaint, "painted.dds"), digest);
+            finest.describe(*makeImage(sPaint, "painted.dds"));
+            finest.addTo(digest);
             EXPECT_EQ(digest.getBytes(),
                 sizeof(bool) + sizeof(TextureFormat) + sizeof(TextureEncoding) + 2 * sizeof(std::uint32_t) + 16);
 
-            osg::ref_ptr<osg::Image> luminance = new osg::Image;
-            luminance->allocateImage(2, 2, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE);
-            finestKeyOf(*luminance, finest);
+            osg::ref_ptr<osg::Image> alphaOnly = new osg::Image;
+            alphaOnly->allocateImage(2, 2, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
+            finestKeyOf(*alphaOnly, finest);
             EXPECT_FALSE(finest.get().has_value()) << "an image no reader decodes is described as none";
         }
 

@@ -38,7 +38,7 @@ namespace Rtx::Shaders
     const uint SPRITE_BIN_LANES = 32u;
 
     /// Lanes in one workgroup of the pass over sprites: eight sprites at `SPRITE_BIN_LANES` each.
-    const uint SPRITE_BIN_WORKGROUP = 256u;
+    const uint SPRITE_BIN_WORKGROUP = 8u * SPRITE_BIN_LANES;
 
     /// Lanes in the one workgroup that turns the tile counts into starts.
     ///
@@ -58,7 +58,20 @@ namespace Rtx::Shaders
     const uint SPRITE_RUNS_LANES = 32u;
 
     /// Lanes in one workgroup of the pass over tiles: eight tiles at `SPRITE_RUNS_LANES` each.
-    const uint SPRITE_RUNS_WORKGROUP = 256u;
+    const uint SPRITE_RUNS_WORKGROUP = 8u * SPRITE_RUNS_LANES;
+
+    /// The camera's image-plane axes, unit, beside the half-extents they were scaled by: what the
+    /// binning maps a sprite to the screen with. `makeCameraFromView` builds the right and the up
+    /// orthogonal, so the two lengths are all that separates a direction from a screen coordinate.
+    /// Worked out once on the host per bin, where every lane of every sprite would take two lengths
+    /// and four divisions of it.
+    struct SpriteBinFrame
+    {
+        vec3 mRight;
+        vec3 mUp;
+        float mHalfWidth;
+        float mHalfHeight;
+    };
 
     /// What the three dispatches are handed.
     struct SpriteBinConstants
@@ -91,6 +104,9 @@ namespace Rtx::Shaders
         vec3 mOrigin;
         Camera mCamera;
 
+        /// `mCamera`'s axes as the binning reads them.
+        SpriteBinFrame mFrame;
+
         /// How many sprites there are.
         uint mCount;
 
@@ -100,14 +116,14 @@ namespace Rtx::Shaders
         /// How many `mPresences` rows there are.
         uint mPresenceCount;
 
-        /// What rounds the block to the eight its addresses are aligned to, which the host's
-        /// `sizeof` counts and a scalar block does not.
-        uint mPadding RTX_ZERO;
+        /// The classes the camera draws, `VisibilityConstants::mRayMask`: a presence of a class it
+        /// leaves out marks no tile, so no walk along a ray of it looks for one.
+        uint mRayMask;
     };
 
 #ifdef RTX_HOST
 
-    static_assert(sizeof(SpriteBinConstants) == 144, "SpriteBinConstants must be scalar-packed on every side");
+    static_assert(sizeof(SpriteBinConstants) == 184, "SpriteBinConstants must be scalar-packed on every side");
 }
 
 #endif

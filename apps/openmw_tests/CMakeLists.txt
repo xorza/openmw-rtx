@@ -8,6 +8,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     mwworld/teststore.cpp
     mwworld/testduration.cpp
+    mwworld/testdatetimemanager.cpp
     mwworld/testtimestamp.cpp
     mwworld/testptr.cpp
     mwworld/testweather.cpp
@@ -26,15 +27,19 @@ file(GLOB UNITTEST_SRC_FILES
     mwsound/testheadcache.cpp
     mwsound/testwarmqueue.cpp
 
+    mwrender/classmasks.cpp
     mwrender/debugwalk.cpp
     mwrender/frametimer.cpp
     mwrender/localmap.cpp
     mwrender/pixels.cpp
     mwrender/precipitation.cpp
     mwrender/readworld.cpp
+    mwrender/ripples.cpp
     mwrender/renderer.cpp
     mwrender/rtxrenderer.cpp
     mwrender/rtxsettings.cpp
+    mwrender/rtxsupport.cpp
+    mwrender/searules.cpp
     mwrender/tracedterrain.cpp
     mwrender/waterstate.cpp
     mwrender/worldmirror.cpp

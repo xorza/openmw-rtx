@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
+#include <limits>
 #include <map>
 #include <memory>
 #include <optional>
@@ -39,15 +40,18 @@
 #include <apps/components_tests/rtx/support/fakeland.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
+#include <components/esm/position.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/esm3/refnum.hpp>
 #include <components/misc/constants.hpp>
+#include <components/misc/convert.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/cells/cellplacer.hpp>
 #include <components/rtx/mirror/cells/cellreader.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
@@ -311,14 +315,18 @@ namespace Rtx::Testing
         const osg::Vec3f sLanternAnchor(10.0f, 0.0f, 30.0f);
 
         /// Where the game stands a clone of a reference: the transform `MWRender::Objects` builds,
-        /// with the quaternion the paging and the objects both spell.
+        /// turned as `MWWorld::Scene` turns it, through the record's own three angles — where the
+        /// ring turns it through the paging's vector of them.
         osg::Matrixf gameStands(const Placed& placed)
         {
+            ESM::Position position{};
+            position.rot[0] = placed.mRotation.x();
+            position.rot[1] = placed.mRotation.y();
+            position.rot[2] = placed.mRotation.z();
+
             osg::ref_ptr<SceneUtil::PositionAttitudeTransform> stand = new SceneUtil::PositionAttitudeTransform;
             stand->setPosition(placed.mPosition);
-            stand->setAttitude(osg::Quat(placed.mRotation.z(), osg::Vec3f(0.0f, 0.0f, -1.0f))
-                * osg::Quat(placed.mRotation.y(), osg::Vec3f(0.0f, -1.0f, 0.0f))
-                * osg::Quat(placed.mRotation.x(), osg::Vec3f(-1.0f, 0.0f, 0.0f)));
+            stand->setAttitude(Misc::Convert::makeOsgQuat(position));
             stand->setScale(osg::Vec3f(placed.mScale, placed.mScale, placed.mScale));
 
             osg::Matrix matrix;
@@ -356,11 +364,13 @@ namespace Rtx::Testing
         static_assert(sPlacedCells == 69 && sPreparedCells == 101);
 
         /// A world with nothing on its graph and a ring beside it, walked from a fixed eye. Every
-        /// cell of the land has a record, so every cell stands two ground types.
-        class RtxCellRingTest : public ::testing::Test
+        /// cell of the land has a record, so every cell stands two ground types. The frame thread's
+        /// walks read the `_spec` maps by `Layout`, which a run states once.
+        template <SpecularLayout Layout>
+        class CellRingTestOn : public ::testing::Test
         {
         protected:
-            RtxCellRingTest()
+            CellRingTestOn()
             {
                 for (int x = -8; x <= 30; ++x)
                     for (int y = -8; y <= 30; ++y)
@@ -414,7 +424,6 @@ namespace Rtx::Testing
             {
                 mScene.clearPlacement();
                 mRing.follow(mAround);
-                mRing.setFrame(frame);
                 const ExtractionStats stats
                     = mExtractor.extractWorld(*mEmpty, osg::Matrixf::identity(), 0, frame, mRing);
                 mScene.placements().advance();
@@ -488,15 +497,56 @@ namespace Rtx::Testing
             FewContent mContent;
             osg::ref_ptr<osg::Group> mEmpty = new osg::Group;
 
+            /// What the rock's second layer is flagged as, walked from the start.
+            std::uint32_t rockLayer()
+            {
+                start();
+                fill();
+                const std::optional<MeshInstance> far = groundOf(osg::Vec2i(3, 0));
+                EXPECT_TRUE(far.has_value());
+                if (!far.has_value())
+                    return 0;
+                const Material& material = mScene.materials().getRows()[far->mMaterial];
+                return material.mLayers.in(mScene.materials().getLayers())[1].mFlags;
+            }
+
+            WalkContext mContext{ .mSpecular = Layout };
             SceneDesc mScene;
-            SceneExtractor mExtractor{ mScene };
+            SceneExtractor mExtractor{ mScene, mContext };
             CellRing mRing{ mExtractor };
         };
+
+        using RtxCellRingTest = CellRingTestOn<SpecularLayout::Ignore>;
+        using RtxCellRingClassicTest = CellRingTestOn<SpecularLayout::Classic>;
+        using RtxCellRingMetalTest = CellRingTestOn<SpecularLayout::MetalRoughness>;
+
+        /// **A `_diffusespec` is what the layout says it is**: authored under the metal layout, as the
+        /// test below reads, classic under the classic one, and a plain diffuse under `ignore`.
+        TEST_F(RtxCellRingClassicTest, aDiffusespecIsClassicUnderTheClassicLayout)
+        {
+            EXPECT_EQ(rockLayer(), Shaders::LAYER_CLASSIC | Shaders::LAYER_PARALLAX);
+        }
+
+        TEST_F(RtxCellRingTest, aDiffusespecIsAPlainDiffuseWhereTheLayoutIgnoresIt)
+        {
+            EXPECT_EQ(rockLayer(), Shaders::LAYER_PARALLAX);
+        }
+
+        /// **A ring is walked by the extractor it adopts through and no other**: one made on another
+        /// adopts its rows into that extractor's scene inside this one's walk.
+        TEST_F(RtxCellRingTest, aRingIsWalkedOnlyByTheExtractorItAdoptsThrough)
+        {
+            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+            SceneDesc other;
+            SceneExtractor stranger(other, context);
+            expectAssertDies([&] { stranger.extractWorld(*mEmpty, osg::Matrixf::identity(), 0, 1, mRing); },
+                "a ring made on another extractor adopts into its scene");
+        }
 
         /// A reference stands where the game would stand its clone, on the mesh every copy shares;
         /// what the active grid holds is left to the game; every cell of the reach stands its
         /// ground on a row of the ring's own; and a second walk adds nothing.
-        TEST_F(RtxCellRingTest, referencesStandWhereTheGameWouldStandThemOnOneMeshEach)
+        TEST_F(RtxCellRingMetalTest, referencesStandWhereTheGameWouldStandThemOnOneMeshEach)
         {
             const Placed tree{ .mCell = osg::Vec2i(3, 0),
                 .mModel = "tree.nif",
@@ -522,7 +572,6 @@ namespace Rtx::Testing
                 .mPosition = osg::Vec3f(7.5f * sCellSize, 0.5f * sCellSize, 0.0f) };
             mStorage.mPlaced = { tree, anotherTree, fern, atHome, beyond };
 
-            mRing.setSpecularLayout(SpecularLayout::MetalRoughness);
             start();
 
             const ExtractionStats first = fill();
@@ -538,7 +587,7 @@ namespace Rtx::Testing
             EXPECT_EQ(mRing.getHeldCellCount(), sPreparedCells);
             EXPECT_EQ(first.mPreprocessed.mOffFrame.at(ContentPassId::Shape).mAsked, 2u)
                 << "the tree and the fern shaped once each, on the reader's thread, however many stand";
-            EXPECT_EQ(mExtractor.getPreprocessor().takeStats().at(ContentPassId::Shape).mAsked, 0u)
+            EXPECT_EQ(mExtractor.getContext().mContent.mPreprocessor.takeStats().at(ContentPassId::Shape).mAsked, 0u)
                 << "the frame adopts what the reader shaped";
 
             // **The ground stands where the storage put it**: cell (3, 0)'s placement is translated
@@ -655,8 +704,6 @@ namespace Rtx::Testing
             // the move and the band that arrives comes a cell a walk after it**, so the sweep that
             // follows that one walk is where the meshes nothing stands on go — the two models' and
             // the ground of every cell that left.
-            // Under the layout that reads a `_diffusespec`'s alpha as no roughness from here on.
-            mRing.setSpecularLayout(SpecularLayout::Ignore);
             around(osg::Vec3f(20.5f * sCellSize, 20.5f * sCellSize, 0.0f), osg::Vec4i(19, 19, 22, 22));
             walk(mWalked++);
 
@@ -669,13 +716,13 @@ namespace Rtx::Testing
             EXPECT_EQ(mRing.getHeldCellCount(), sPreparedCells) << "the prepared disc's cells";
             EXPECT_EQ(mScene.meshes().getLiveCount(), sPreparedCells);
 
-            // So the rock there is a diffuse like any, and keeps its normal map.
+            // The rock there is read as the first band's was, and keeps its normal map.
             const std::optional<MeshInstance> away = groundOf(osg::Vec2i(24, 20));
             ASSERT_TRUE(away.has_value());
             const Material& awayMaterial = mScene.materials().getRows()[away->mMaterial];
             const std::span<const MaterialLayer> awayLayers = awayMaterial.mLayers.in(mScene.materials().getLayers());
             ASSERT_EQ(awayLayers.size(), 2u);
-            EXPECT_EQ(awayLayers[1].mFlags, Shaders::LAYER_PARALLAX);
+            EXPECT_EQ(awayLayers[1].mFlags, Shaders::LAYER_AUTHORED | Shaders::LAYER_PARALLAX);
             ASSERT_NE(awayLayers[1].mNormal, sNoIndex);
             EXPECT_EQ(mScene.textures().getRows()[awayLayers[1].mNormal].mPath, "textures/rock_nh.dds");
             EXPECT_TRUE(awayMaterial.mLayersMapped);
@@ -757,8 +804,8 @@ namespace Rtx::Testing
         }
 
         /// **What the reader cannot take is refused where its cell is adopted**, on the frame's
-        /// thread, which is the one that reports: a model its walk refused, and a lamp that takes
-        /// light away. The model is walked once however many references name it, and what else the
+        /// thread, which is the one that reports: a model its walk refused, and a lamp standing where
+        /// no number says. The model is walked once however many references name it, and what else the
         /// cell holds stands. A land texture that does not read is not the reader's to refuse: its
         /// layer stands, and the texture table stands it in and refuses it as it does any texture.
         TEST_F(RtxCellRingTest, whatTheReaderCannotTakeIsRefusedWhereItsCellIsAdopted)
@@ -780,9 +827,12 @@ namespace Rtx::Testing
                     .mRefNum = ESM::RefNum{ 3, 0 },
                     .mPosition = inCell },
             };
+            const float nowhere = std::numeric_limits<float>::quiet_NaN();
             mStorage.mLit = {
-                Lit{
-                    .mCell = osg::Vec2i(3, 1), .mRecord = "dark", .mRefNum = ESM::RefNum{ 4, 0 }, .mPosition = inCell },
+                Lit{ .mCell = osg::Vec2i(3, 1),
+                    .mRecord = "lit",
+                    .mRefNum = ESM::RefNum{ 4, 0 },
+                    .mPosition = osg::Vec3f(nowhere, nowhere, nowhere) },
                 Lit{ .mCell = osg::Vec2i(3, 1), .mRecord = "lit", .mRefNum = ESM::RefNum{ 5, 0 }, .mPosition = inCell },
             };
             start();
@@ -792,10 +842,8 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.refusals().count(Refused::Lamp), 1u);
             EXPECT_EQ(mContent.mBrokenAsked, 1u) << "a refused model walked again for its second reference";
 
-            EXPECT_EQ(filled.mDistantStatics, 2u)
-                << "the tree beside the broken models stands, and so does the dark lamp's lantern: a light this "
-                   "refuses is no model it refuses";
-            ASSERT_EQ(mScene.lights().size(), std::size_t{ 1 }) << "and the lamp beside the dark one burns";
+            EXPECT_EQ(filled.mDistantStatics, 1u) << "the tree beside the broken models stands";
+            ASSERT_EQ(mScene.lights().size(), std::size_t{ 1 }) << "and the lamp beside the refused one burns";
             EXPECT_EQ(mScene.lights().front().mPosition, inCell);
 
             const Index lost = mScene.textures().findFile(VFS::Path::Normalized("textures/rock_diffusespec.dds"));
@@ -806,8 +854,8 @@ namespace Rtx::Testing
 
         /// The paging's size rule, per reference: a radius under the threshold at the eye's distance
         /// to the cell is not stood, and the threshold is the eye's and not the chunk's. A model
-        /// that glows is never thinned, however small, and nor is a lamp whose light stands; a lamp
-        /// this cannot light, one that takes light away, is thinned as a fern is.
+        /// that glows is never thinned, however small, and nor is a lamp whose light stands, one that
+        /// takes light away among them.
         TEST_F(RtxCellRingTest, theSizeRuleIsTheEyesDistanceTimesTheSetting)
         {
             const Placed tree{ .mCell = osg::Vec2i(3, 0),
@@ -839,8 +887,8 @@ namespace Rtx::Testing
             mRing.setMinSize(0.01f);
             start();
 
-            EXPECT_EQ(fill().mDistantStatics, 3u) << "the tree clears 204.8, the ember glows and the flame gives "
-                                                     "light; the fern and the dark lamp do not";
+            EXPECT_EQ(fill().mDistantStatics, 4u) << "the tree clears 204.8, the ember glows and the two lamps' "
+                                                     "lights stand; the fern does not";
 
             // Nearer, the fern clears too: at a hundredth of 8192 the threshold is 81.92, and the
             // fern's 28.28 still does not — so the threshold is lowered instead.
@@ -849,7 +897,7 @@ namespace Rtx::Testing
 
             // A threshold of 20480 thins even the tree.
             mRing.setMinSize(1.0f);
-            EXPECT_EQ(walk(mWalked++).mDistantStatics, 2u) << "the ember and the flame alone";
+            EXPECT_EQ(walk(mWalked++).mDistantStatics, 3u) << "the ember and the two lamps alone";
         }
 
         /// What the size rule admits is a prefix of the cell's placements, largest first, and a
@@ -1236,6 +1284,72 @@ namespace Rtx::Testing
             EXPECT_EQ(mRing.getCellsToStand(), 0u);
         }
 
+        /// **A picture of the ground waits for the ground.** A box over a cell the band asked for and
+        /// the ring has not adopted waits, and stops waiting on the walk that adopts the cell. A box
+        /// that only touches a cell's edge is not over it, and one past the band has nothing to
+        /// wait for, as a ring that stood nothing has not.
+        TEST_F(RtxCellRingTest, aBoxWaitsForTheGroundUnderItUntilItsCellIsHeld)
+        {
+            const auto square = [](const osg::Vec2i& cell) {
+                return std::pair(osg::Vec2f(cell.x() * sCellSize, cell.y() * sCellSize),
+                    osg::Vec2f((cell.x() + 1) * sCellSize, (cell.y() + 1) * sCellSize));
+            };
+            const auto waits = [&](const osg::Vec2i& cell) {
+                const auto [low, high] = square(cell);
+                return mRing.waitsUnder(low, high);
+            };
+
+            start();
+            const osg::Vec2i eye = Rtx::CellGrid().cellOf(mAround.mEye);
+            EXPECT_FALSE(waits(eye)) << "a ring that has walked nothing waits for nothing";
+
+            // Settled, the first walk adopts the nearest cell, which is the eye's own; its square's
+            // far edges touch neighbours not yet held.
+            walk(mWalked++);
+            EXPECT_FALSE(waits(eye)) << "the eye's cell is held, and a touched edge is not under the box";
+
+            const osg::Vec2i far = eye + osg::Vec2i(3, 0);
+            EXPECT_TRUE(waits(far)) << "a cell of the band not yet adopted";
+            EXPECT_FALSE(waits(eye + osg::Vec2i(20, 0))) << "past the band nothing is coming";
+
+            fill();
+            EXPECT_FALSE(waits(far)) << "the walk that adopted it ended the wait";
+        }
+
+        /// **The ring's request follows its inputs, the reach among them.** A reach that grows
+        /// under an eye standing still asks for the cells it takes in, which a request rebuilt only
+        /// where the eye moved would never ask for. And a walk indoors has nothing to stand, where
+        /// an exterior band left short before it would keep its shortfall.
+        TEST_F(RtxCellRingTest, aReachThatGrowsUnderAStillEyeAsksForItsNewCellsAndIndoorsHasNoneToStand)
+        {
+            start();
+            walk(mWalked++);
+            while (mRing.getCellsToStand() > 0 && mWalked < 1000)
+                walk(mWalked++);
+            ASSERT_EQ(mRing.getHeldCellCount(), sPreparedCells);
+
+            // **The ground stands to the reach and no further**, which is what the trace draws: the
+            // eye's own cell, the one whose nearest point is 3.5 cells out, and not the prepared
+            // band's corner at 3.5² + 3.5² = 24.5 square cells against 16, nor a cell neither ring
+            // holds.
+            EXPECT_TRUE(mRing.standsGround(osg::Vec2i(0, 0)));
+            EXPECT_TRUE(mRing.standsGround(osg::Vec2i(4, 0)));
+            EXPECT_FALSE(mRing.standsGround(osg::Vec2i(4, 4))) << "a held cell past the reach";
+            EXPECT_FALSE(mRing.standsGround(osg::Vec2i(6, 0)));
+
+            mAround.mReach += sCellSize;
+            walk(mWalked++);
+            const std::uint32_t outer = mRing.getCellsToStand();
+            EXPECT_GT(outer, 0u) << "the grown band asked for nothing";
+            EXPECT_EQ(mRing.getHeldCellCount(), sPreparedCells + 1) << "and its walk adopted nothing new";
+            EXPECT_TRUE(mRing.standsGround(osg::Vec2i(4, 4))) << "24.5 against 25 now";
+
+            mAround.mExterior = false;
+            walk(mWalked++);
+            EXPECT_EQ(mRing.getCellsToStand(), 0u) << "the exterior's shortfall outlived it";
+            EXPECT_FALSE(mRing.standsGround(osg::Vec2i(0, 0))) << "a room stands no ground";
+        }
+
         /// **A reader that throws ends the process where it threw**, and says what it threw.
         /// Nothing catches it on the reader's thread, so the crash catcher's report keeps that
         /// thread's stack; a catch that carried it to the frame handed over the message alone. The
@@ -1504,6 +1618,25 @@ namespace Rtx::Testing
                 if (kept == 0)
                     break;
             }
+        }
+
+        /// **A held cell reused for the next cell is that cell's from its first field**: every
+        /// scalar back at its default, every list empty with the room it grew, so a field added to
+        /// `HeldCell` is reset with no line of its own.
+        TEST(RtxHeldCellTest, aReusedCellKeepsItsRoomAndNothingOfTheLastCell)
+        {
+            HeldCell held;
+            held.mCell = osg::Vec2i(3, -2);
+            held.mStatics = true;
+            held.mShown = 5;
+            held.mLights.reserve(8);
+
+            held.reuse();
+            EXPECT_EQ(held.mCell, osg::Vec2i());
+            EXPECT_FALSE(held.mStatics);
+            EXPECT_EQ(held.mShown, 0u);
+            EXPECT_TRUE(held.mLights.empty());
+            EXPECT_EQ(held.mLights.capacity(), 8u) << "the room the list grew was given back";
         }
 
         /// And a model the walk refused, which no cell holds, is counted as filed and never as lent.

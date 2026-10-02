@@ -96,6 +96,7 @@ add_component_dir (settings
     categories/windows
     gyroscopeaxis
     hrtfmode
+    migration
     navmeshrendermode
     parser
     sanitizer
@@ -388,22 +389,22 @@ add_component_dir (fallback
     )
 
 add_component_dir (sky
-    moonstate skyclock sundisc timeofday vertexrules
+    moonstate skyclock sundisc sunglarefader timeofday vertexrules
     )
 
 # The ray tracer's API-neutral core. No graphics API is on this library's include path; the Vulkan
 # backend is its own library, `components/rtxvulkan`. `shaders/` holds what C++ and GLSL share.
 add_component_dir (rtx/common
-    clock error finite index job jobprogress menu monitor namedenum parallel pointhash radicalinverse runs
-    scratch slots stepped worker
+    clock digestwords error finite hashstate index job jobprogress menu monitor namedenum parallel pointhash
+    radicalinverse runs scratch slots stepped worker
     )
 
 add_component_dir (rtx/environment
-    cloudshell fogbuilder frameworld moonbuilder nightsky skybuilder skylight wavecascade wavespectrum
+    atmosphere cloudshell fogbuilder frameworld moonbuilder nightsky skybuilder skylight wavecascade wavespectrum
     )
 
 add_component_dir (rtx/frame
-    bluenoise camera debuglines frameextents frameoptions framesampling reconstruction specularalbedo
+    bluenoise camera debuglines frameextents frameoptions framepast framesampling reconstruction specularalbedo
     spritelistsize sunglare surfaceview upscale
     )
 
@@ -413,8 +414,9 @@ add_component_dir (rtx/image
     )
 
 add_component_dir (rtx/mirror
-    contentmemory emitterresolver extractionstats materialresolver meshreader meshresolver mirroridentity
-    mirrorpass nodekind poseupdate sceneadopter sceneextractor shading worlddescent
+    contentmemory drawableposer emitterresolver extractionstats materialresolver meshreader meshresolver
+    mirroridentity mirrorpass nodekind posecull poseupdate sceneadopter sceneextractor shading walkcontext
+    worlddescent
     )
 
 add_component_dir (rtx/mirror/cells
@@ -423,11 +425,11 @@ add_component_dir (rtx/mirror/cells
     )
 
 add_component_dir (rtx/preprocess
-    contentcache contentkey contentpass contentpreprocessor contentstats meantexels threadcontent
+    contentcache contentkey contentpass contentpreprocessor contentstats imagefactcache threadcontent
     )
 
 add_component_dir (rtx/preprocess/shape
-    creasesplit pockettree shapefold shapepass
+    creasesplit facecross pockettree probetable shapefold shapepass
     )
 
 add_component_dir (rtx/preprocess/texture
@@ -435,8 +437,8 @@ add_component_dir (rtx/preprocess/texture
     )
 
 add_component_dir (rtx/renderer
-    channel framedigest frameimage framespend guirenderer memoryreport png renderer sceneuploader
-    shaderdirectory slot
+    channel framedigest frameimage framesinflight framespend guirenderer memoryreport png
+    renderer sceneuploader shaderdirectory slot
     )
 
 add_component_dir (rtx/scene
@@ -447,7 +449,7 @@ add_component_dir (rtx/scene
 
 add_component_dir (rtx/shaders
     accumulate atrous bindings bloom brdf camera colour composite counts digest exposure fogvolume fsr gbuffer
-    glare ground gui hosttypes line look mipchain normalspread octahedral pane pinning portable probe ripple
+    glare ground gui halfstore hosttypes line look mipchain normalspread octahedral pane pinning portable probe ripple
     scene sets shadingmap shadow skinning sky specular spritebin spritelight spriteshade storageformat stress
     tangent tone visibility wave
     )
@@ -577,6 +579,7 @@ add_component_dir(platform
 if (WIN32)
     add_component_dir(platform
         filewin32
+        localtimewin32
         processwin32
         memorywin32
         sharedmemorywin32
@@ -587,6 +590,7 @@ if (WIN32)
 elseif (UNIX)
     add_component_dir(platform
         fileposix
+        localtimeposix
         processposix
         memoryposix
         sharedmemoryposix

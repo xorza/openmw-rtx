@@ -58,8 +58,10 @@ namespace Rtx
         /// One over the cell's side, which is what turns a position into a cell without a divide.
         float getInverseCell() const { return mInverseCell; }
 
-        /// Every cell's lamps, keyed by `(z * size.y + y) * size.x + x`, in the order the lamps were
-        /// given.
+        /// Every cell's lamps, keyed by twice `(z * size.y + y) * size.x + x`, in the order the lamps
+        /// were given, and the cell's lamps that take light away under the key after: a run of their
+        /// own, so a walk of the lamps never meets one, and beside the cell's own, so the three starts
+        /// a shaded point reads are three words together.
         const RunList& getList() const { return mList; }
 
     private:
@@ -78,8 +80,8 @@ namespace Rtx
         RunList mList;
 
         /// Where each light stood when it was last binned, and how far it reached — `xyz` and `w`,
-        /// entry `i` for light `i` — and the cells that put it in. Refilled beside the list and
-        /// never freed.
+        /// entry `i` for light `i`, the reach negated for a light that takes light away — and the
+        /// cells that put it in. Refilled beside the list and never freed.
         std::vector<osg::Vec4f> mBinnedOn;
         std::vector<CellBox> mBoxes;
     };

@@ -16,6 +16,7 @@
 #include <components/rtx/image/formatcensus.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/preprocess/contentcache.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/scene/texturetable.hpp>
@@ -46,9 +47,10 @@ namespace Rtx::Testing
         }
 
         /// A walk computes from the content through the extractor's own preprocessor: a quad met
-        /// the first time is shaped once, keyed on its four positions, no normals, six indices and
-        /// the split's flag, 48 + 0 + 24 + 1 = 73 bytes; met again it is the mesh already uploaded,
-        /// and the second walk shapes nothing.
+        /// the first time is shaped once — keyed, where the cache holds anything, on its four
+        /// positions, no normals, six indices and the split's flag, 48 + 0 + 24 + 1 = 73 bytes, and
+        /// on nothing otherwise; met again it is the mesh already uploaded, and the second walk
+        /// shapes nothing.
         /// The counts wait in the preprocessor for the frame's owner, and a walk takes none of them.
         TEST_F(RtxSceneExtractorTest, aWalkPreprocessesThroughTheExtractorsOwnAndAMeshMetAgainCostsNothing)
         {
@@ -57,16 +59,16 @@ namespace Rtx::Testing
             const ExtractionStats first = walk(*quad, 0, 1);
             EXPECT_EQ(first.mPreprocessed.mOnFrame.at(ContentPassId::Shape).mAsked, 0u) << "a walk took the count";
 
-            const ContentStats counted = mExtractor.getPreprocessor().takeStats();
+            const ContentStats counted = mExtractor.getContext().mContent.mPreprocessor.takeStats();
             EXPECT_EQ(counted.at(ContentPassId::Shape).mAsked, 1u);
-            EXPECT_EQ(counted.at(ContentPassId::Shape).mKeyBytes, 73u);
+            EXPECT_EQ(counted.at(ContentPassId::Shape).mKeyBytes, ContentCache::sHolds ? 73u : 0u);
 
             walk(*quad, 0, 2);
-            EXPECT_EQ(mExtractor.getPreprocessor().takeStats().at(ContentPassId::Shape).mAsked, 0u);
+            EXPECT_EQ(mExtractor.getContext().mContent.mPreprocessor.takeStats().at(ContentPassId::Shape).mAsked, 0u);
         }
 
-        /// A texture arrives under the format it was decoded in, and its mip chain is counted beside
-        /// it — and leaves with its slot.
+        /// A texture arrives under the format it was decoded in, which its row keeps, and its mip
+        /// chain is counted beside it — and leaves with its slot.
         ///
         /// The count is what says whether the content is what the uploader was written for, so a
         /// scene that stands a format nobody expected reports it rather than leaving it to a throw.
@@ -102,6 +104,8 @@ namespace Rtx::Testing
             EXPECT_EQ(blocks.mMet, 2u);
             EXPECT_EQ(blocks.mMipped, 1u) << "one of the two brought a chain";
             EXPECT_EQ(census.mMet[static_cast<std::size_t>(TextureFormat::Unnamed)].mMet, 0u);
+            for (const TextureRow& row : mScene.textures().getRows())
+                EXPECT_EQ(row.mFormat, TextureFormat::Bc1RgbaSrgb) << row.mPath << ": the row and the census disagree";
 
             mScene.clearPlacement();
             walk(*root, 0, 1);

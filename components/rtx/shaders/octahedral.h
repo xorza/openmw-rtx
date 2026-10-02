@@ -65,6 +65,26 @@ namespace Rtx::Shaders
         return (float(stored) - float(steps)) / float(steps);
     }
 
+    /// Whether `direction` has one to fold: some length, and none a number cannot hold.
+    RTX_SHADER bool octahedralDirected(vec3 direction)
+    {
+        return abs(direction[0]) + abs(direction[1]) + abs(direction[2]) > 0.0f;
+    }
+
+    /// `direction`, `octahedralDirected`, as the two coordinates of the square stepped to `steps`:
+    /// the half of a packed word every word of this map shares, before its own bit layout.
+    RTX_SHADER uvec2 octahedralCode(vec3 direction, uint steps)
+    {
+        const vec2 square = octahedralSquare(direction);
+        return uvec2(octahedralStep(square[0], steps), octahedralStep(square[1], steps));
+    }
+
+    /// The unit direction the two stepped coordinates `x` and `y` stand for.
+    RTX_SHADER vec3 octahedralFromCode(uint x, uint y, uint steps)
+    {
+        return octahedralUnit(vec2(octahedralCoordinate(x, steps), octahedralCoordinate(y, steps)));
+    }
+
 #ifdef RTX_HOST
 }
 #endif

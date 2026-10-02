@@ -13,6 +13,7 @@
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/vfs/pathutil.hpp>
 
@@ -42,13 +43,11 @@ namespace Rtx
             return scene.addMaterial(material);
         }
 
-        /// One frame of the uploader's sequence around the queue: take, describe what was taken,
-        /// then let go of it and of the arrivals, so the next frame's gather sees only what the
-        /// next walk writes.
+        /// One frame of the uploader's sequence around the queue: take, then let go of the
+        /// arrivals, so the next frame's gather sees only what the next walk writes.
         std::size_t frame(CompositeQueue& queue, SceneDesc& scene)
         {
             const std::size_t taken = queue.advance(scene);
-            queue.releaseFinished();
             scene.clearArrivals();
             return taken;
         }
@@ -73,9 +72,9 @@ namespace Rtx
                 const Material& given = scene.materials().getRows()[chunk];
                 const Index baked = given.mDiffuse;
                 ASSERT_NE(baked, sNoIndex) << "the chunk still shades from its stack";
-                EXPECT_EQ(queue.find(baked).mMaterial, chunk)
+                EXPECT_EQ(scene.textures().getRows()[baked].mGroundOf, chunk)
                     << "the slot the chunk was given is not named as its ground";
-                EXPECT_FALSE(queue.find(baked).mGloss);
+                EXPECT_EQ(scene.textures().getRows()[baked].mKind, TextureKind::GroundAlbedo);
 
                 // **The row says what the slot is read as**, and the description reads the row: the
                 // albedo a colour, the gloss data. The gloss's row said colour while its description
@@ -86,21 +85,16 @@ namespace Rtx
                 {
                     ASSERT_NE(given.mSpecular, sNoIndex) << "a chunk that reflects was given no gloss";
                     EXPECT_NE(given.mSpecular, baked);
-                    EXPECT_EQ(queue.find(given.mSpecular).mMaterial, chunk);
-                    EXPECT_TRUE(queue.find(given.mSpecular).mGloss) << "the gloss is named as the albedo";
+                    EXPECT_EQ(scene.textures().getRows()[given.mSpecular].mGroundOf, chunk);
+                    EXPECT_EQ(scene.textures().getRows()[given.mSpecular].mKind, TextureKind::GroundGloss)
+                        << "the gloss is named as the albedo";
                     EXPECT_EQ(scene.textures().getRows()[given.mSpecular].mEncoding, TextureEncoding::Data);
                 }
                 else
                     EXPECT_EQ(given.mSpecular, sNoIndex) << "a chunk that reflects nowhere was given a gloss";
 
-                EXPECT_EQ(queue.find(static_cast<Index>(scene.textures().getRows().size())).mMaterial, sNoIndex)
-                    << "a slot past every slot the table holds";
-
-                // A slot given out is let go of after the arrival that described it, and a chunk with
-                // its ground asks for no more: the rewrite that gave it the slot is a row written, and
-                // the gather has to read it as answered rather than as asking again.
-                queue.releaseFinished();
-                EXPECT_EQ(queue.find(baked).mMaterial, sNoIndex);
+                // A chunk with its ground asks for no more: the rewrite that gave it the slot is a
+                // row written, and the gather has to read it as answered rather than as asking again.
                 scene.clearArrivals();
                 EXPECT_EQ(frame(queue, scene), 0u) << "a chunk with its ground asked again";
             }
@@ -204,7 +198,60 @@ namespace Rtx
             EXPECT_EQ(queue.advance(scene), 1u);
             const Index baked = scene.materials().getRows()[chunk].mDiffuse;
             ASSERT_NE(baked, sNoIndex);
-            EXPECT_EQ(queue.find(baked).mMaterial, chunk);
+            EXPECT_EQ(scene.textures().getRows()[baked].mGroundOf, chunk);
+        }
+
+        /// **A chunk the texture table refuses keeps its place, and the queue asks again only once
+        /// the table frees a slot.** Dropped, the chunk never asked again — its material is not
+        /// written again — and the ground stayed a stack for good; asked every frame, each frame
+        /// paid a refusal for nothing.
+        ///
+        /// Counted by the table's refusals: the first frame tries the first chunk and stops, one;
+        /// the second tries nothing, still one. A freed slot goes to the first chunk, and the same
+        /// frame tries the second and stops, two; then nothing again until the next freed slot,
+        /// which the second takes.
+        TEST(RtxCompositeQueueTest, aRefusedChunkKeepsItsPlaceUntilTheTableFreesASlot)
+        {
+            SceneDesc scene;
+            const std::array<Index, 2> chunks{
+                addChunk(scene, VFS::Path::NormalizedView("textures/one-a.dds"),
+                    VFS::Path::NormalizedView("textures/one-b.dds")),
+                addChunk(scene, VFS::Path::NormalizedView("textures/two-a.dds"),
+                    VFS::Path::NormalizedView("textures/two-b.dds")),
+            };
+
+            TextureTable& textures = scene.textures();
+            std::vector<VFS::Path::Normalized> fillers;
+            fillers.reserve(TextureTable::sCapacity);
+            while (textures.getLiveCount() < TextureTable::sCapacity)
+            {
+                fillers.emplace_back("textures/fill" + std::to_string(fillers.size()) + ".dds");
+                ASSERT_NE(textures.add(fillers.back()), sNoIndex);
+            }
+
+            const auto diffuse
+                = [&](const std::size_t chunk) { return scene.materials().getRows()[chunks[chunk]].mDiffuse; };
+
+            CompositeQueue queue;
+            EXPECT_EQ(frame(queue, scene), 0u);
+            EXPECT_EQ(textures.getRefused(), 1u) << "the take went on past a refusal";
+            EXPECT_EQ(frame(queue, scene), 0u);
+            EXPECT_EQ(textures.getRefused(), 1u) << "a refused take was asked again before anything was freed";
+
+            const Index first = textures.add(fillers[0]);
+            scene.drop(scene.holdTexture(first));
+            EXPECT_EQ(frame(queue, scene), 1u);
+            EXPECT_EQ(diffuse(0), first) << "the chunk refused first was not first in line";
+            EXPECT_EQ(diffuse(1), sNoIndex);
+            EXPECT_EQ(textures.getRefused(), 2u);
+            EXPECT_EQ(frame(queue, scene), 0u);
+            EXPECT_EQ(textures.getRefused(), 2u);
+
+            const Index second = textures.add(fillers[1]);
+            scene.drop(scene.holdTexture(second));
+            EXPECT_EQ(frame(queue, scene), 1u);
+            EXPECT_EQ(diffuse(1), second) << "the second chunk was dropped at its refusal";
+            EXPECT_EQ(frame(queue, scene), 0u);
         }
     }
 }

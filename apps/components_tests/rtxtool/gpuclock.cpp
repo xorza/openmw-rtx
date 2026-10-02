@@ -1,3 +1,6 @@
+#include <cstdint>
+#include <optional>
+
 #include <gtest/gtest.h>
 
 #include <apps/rtxtool/instruments/gpuclock.hpp>
@@ -27,6 +30,11 @@ namespace RtxTool
             EXPECT_EQ(describeThrottle(0x0000000000000020ull), "sw thermal slowdown");
             EXPECT_EQ(describeThrottle(0x0000000000000080ull), "hw power brake");
 
+            // The two the driver grew after the table was first written, which this card reports
+            // under a hold: a board's limit policy, and its reliability policy.
+            EXPECT_EQ(describeThrottle(0x0000000000000200ull), "board limit");
+            EXPECT_EQ(describeThrottle(0x0000000000000400ull), "reliability");
+
             // Several at once, in the order the bits are numbered rather than the order they were
             // asked about.
             EXPECT_EQ(describeThrottle(0x0000000000000044ull), "sw power cap, hw thermal slowdown");
@@ -45,14 +53,21 @@ namespace RtxTool
             // which would read as a measurement rather than as an absence.
             EXPECT_EQ(describeClock(GpuClock{}), "");
 
-            const GpuClock capped = GpuClock::reading(1785, 9001, 66, 0x4);
+            const GpuClock capped = GpuClock::reading(1785, 9001, 66, 0x4u);
             EXPECT_EQ(
                 describeClock(capped), "  clock 1785 MHz core over 1 reading, 9001 MHz memory, 66 °C — sw power cap\n");
 
             // A card at its own clock says so in words, rather than trailing an empty dash.
-            const GpuClock free = GpuClock::reading(2325, 9001, 43, 0);
+            const GpuClock free = GpuClock::reading(2325, 9001, 43, 0u);
             EXPECT_EQ(describeClock(free),
                 "  clock 2325 MHz core over 1 reading, 9001 MHz memory, 43 °C — nothing holding it back\n");
+
+            // **What the instrument cannot read is not printed as a reading.** AMD's sysfs states no
+            // reasons, and a missing hwmon file no temperature: nought for either would claim an
+            // unthrottled card at freezing point.
+            const GpuClock unknown = GpuClock::reading(1600, std::nullopt, std::nullopt, std::nullopt);
+            EXPECT_EQ(
+                describeClock(unknown), "  clock 1600 MHz core over 1 reading — what holds it back is not read\n");
         }
 
         /// A place is described by every reading taken across its frames, and says how many.
@@ -63,16 +78,16 @@ namespace RtxTool
         /// says which, and the mean is the figure a frame time is read against.
         TEST(RtxGpuClockTest, everyReadingCountsTowardTheMeanAndTheCountIsPrinted)
         {
-            GpuClock place = GpuClock::reading(1785, 9001, 61, 0x4);
-            place.add(GpuClock::reading(2070, 9001, 66, 0x1));
-            place.add(GpuClock::reading(1980, 9001, 64, 0x0));
+            GpuClock place = GpuClock::reading(1785, 9001, 61, 0x4u);
+            place.add(GpuClock::reading(2070, 9001, 66, 0x1u));
+            place.add(GpuClock::reading(1980, 9001, 64, 0x0u));
 
-            EXPECT_EQ(place.mLowestMhz, 1785u);
-            EXPECT_EQ(place.mHighestMhz, 2070u);
-            EXPECT_EQ(place.mReadings, 3u);
+            EXPECT_EQ(place.mCore.mLowestMhz, 1785u);
+            EXPECT_EQ(place.mCore.mHighestMhz, 2070u);
+            EXPECT_EQ(place.getReadings(), 3u);
 
             // (1785 + 2070 + 1980) / 3 = 5835 / 3 = 1945.
-            EXPECT_EQ(place.getMeanMhz(), 1945u);
+            EXPECT_EQ(place.mCore.getMeanMhz(), 1945u);
 
             // The hottest it got, and every reason any reading saw — a card that went idle at one
             // point and was capped at another was both, and each says something about the numbers.
@@ -84,25 +99,41 @@ namespace RtxTool
             // standing rather than pulling the range down to zero or the mean toward it.
             const GpuClock held = place;
             place.add(GpuClock{});
-            EXPECT_EQ(place.mLowestMhz, held.mLowestMhz);
-            EXPECT_EQ(place.mHighestMhz, held.mHighestMhz);
-            EXPECT_EQ(place.mReadings, held.mReadings);
-            EXPECT_EQ(place.getMeanMhz(), held.getMeanMhz());
+            EXPECT_EQ(place.mCore.mLowestMhz, held.mCore.mLowestMhz);
+            EXPECT_EQ(place.mCore.mHighestMhz, held.mCore.mHighestMhz);
+            EXPECT_EQ(place.getReadings(), held.getReadings());
+            EXPECT_EQ(place.mCore.getMeanMhz(), held.mCore.getMeanMhz());
 
             // And the first reading into an empty one is that reading, rather than a range from
             // nought.
             GpuClock first;
             first.add(held);
             EXPECT_TRUE(first.mRead);
-            EXPECT_EQ(first.mLowestMhz, held.mLowestMhz);
-            EXPECT_EQ(first.mReadings, held.mReadings);
+            EXPECT_EQ(first.mCore.mLowestMhz, held.mCore.mLowestMhz);
+            EXPECT_EQ(first.getReadings(), held.getReadings());
 
             // A card that never moved still says how many readings said so, which is what tells it
             // from one asked once.
-            GpuClock still = GpuClock::reading(2325, 9001, 43, 0);
-            still.add(GpuClock::reading(2325, 9001, 44, 0));
+            GpuClock still = GpuClock::reading(2325, 9001, 43, 0u);
+            still.add(GpuClock::reading(2325, 9001, 44, 0u));
             EXPECT_EQ(describeClock(still),
                 "  clock 2325 MHz core over 2 readings, 9001 MHz memory, 44 °C — nothing holding it back\n");
+
+            // **The memory clock is the same statistic as the core's**, so a card that dropped its
+            // memory clock for most of a place reads its mean and not its peak. Its count is its own,
+            // and printed where a reading read the core and not the memory. (9001 + 8000) / 2 =
+            // 8500.5, which the mean truncates to 8500. A reason one reading could not read leaves
+            // what the others read, and a temperature none could read stays unread.
+            GpuClock dropped = GpuClock::reading(1785, 9001, std::nullopt, 0x4u);
+            dropped.add(GpuClock::reading(2070, 8000, std::nullopt, std::nullopt));
+            dropped.add(GpuClock::reading(1980, std::nullopt, std::nullopt, 0x1u));
+            EXPECT_EQ(dropped.mMemory.getMeanMhz(), 8500u);
+            EXPECT_EQ(dropped.mMemory.mReadings, 2u);
+            EXPECT_EQ(dropped.mTemperatureC, std::nullopt);
+            EXPECT_EQ(dropped.mThrottleMask, std::optional<std::uint64_t>(0x5u));
+            EXPECT_EQ(describeClock(dropped),
+                "  clock 1945 MHz core over 3 readings, 1785–2070, 8500 MHz memory over 2 readings, 8000–9001 — gpu "
+                "idle, sw power cap\n");
         }
     }
 }

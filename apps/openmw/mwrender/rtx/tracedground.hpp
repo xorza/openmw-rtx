@@ -2,19 +2,12 @@
 
 #include <cstdint>
 
-#include <components/esm/refid.hpp>
-
 #include "../ground.hpp"
 #include "tracedterrain.hpp"
 
-namespace osg
+namespace Resource
 {
-    class Group;
-}
-
-namespace Terrain
-{
-    class Storage;
+    class SceneManager;
 }
 
 namespace MWRender
@@ -25,11 +18,11 @@ namespace MWRender
     /// chunks, and the mirror's cell ring, which stands the distant statics itself. What the game
     /// says of a reference reaches the ring through this and the mirror, the way it reaches the
     /// paging through `GlGround`.
-    class TracedGround final : public Ground
+    class TracedGround final : public Ground, public StandingGround
     {
     public:
-        TracedGround(osg::Group& sceneRoot, Terrain::Storage& storage, unsigned int nodeMask, ESM::RefId worldspace,
-            WorldMirror& mirror);
+        TracedGround(
+            const GroundSpec& spec, Resource::SceneManager& scenes, unsigned int nodeMask, WorldMirror& mirror);
 
         Terrain::World& getTerrain() override { return mTerrain; }
 
@@ -42,6 +35,9 @@ namespace MWRender
         void setGate(std::uint32_t gate, Terrain::GateState state) override;
 
         void clear() override;
+
+        /// The ring's word: whether the trace draws the cell's ground.
+        bool standsGround(const osg::Vec2i& cell) const override;
 
     private:
         TracedTerrain mTerrain;

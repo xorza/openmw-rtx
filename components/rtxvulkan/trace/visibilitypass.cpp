@@ -18,6 +18,7 @@
 #include <components/rtx/common/parallel.hpp>
 #include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/frame/bluenoise.hpp>
+#include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/specularalbedo.hpp>
 #include <components/rtx/scene/lightgrid.hpp>
 #include <components/rtx/scene/material.hpp>
@@ -469,8 +470,8 @@ namespace Rtx
                 .mVolume = inputs.mFogVolume.getSet() });
     }
 
-    void VisibilityPass::writeFrame(VkCommandBuffer commands, const VisibilityInputs& inputs, const SpriteBin& bin,
-        const VkDeviceAddress spriteTileList, const Shaders::VisibilityConstants& constants, const bool composed) const
+    void VisibilityPass::writeFrame(VkCommandBuffer commands, const VisibilityInputs& inputs,
+        const SpriteTables& sprites, const Shaders::VisibilityConstants& constants, const bool composed) const
     {
         assert(inputs.mSubject.mScene != nullptr && inputs.mSubject.mMedia != nullptr
             && "a trace of no scene, or in no media");
@@ -479,6 +480,9 @@ namespace Rtx
         Shaders::VisibilityConstants described = constants;
 
         described.mComposed = composed ? 1u : 0u;
+
+        described.mScreen = screenBasisOf(described.mEyes.mWorld.mBasis);
+        described.mPreviousScreen = screenBasisOf(described.mPrevious);
 
         // The tiles' widths come off the pass that built them, so what the shader divides by is
         // what is actually bound rather than a second statement of the same table.
@@ -513,12 +517,11 @@ namespace Rtx
         described.mTables.mBlueNoise = mBlueNoise.addressFor();
         described.mTables.mSpecularAlbedo = mSpecularAlbedo.addressFor();
 
-        // The trace's own, shaded and binned for this camera ahead of it, or the list of nothing
-        // for a camera that draws no sprites and binned none.
-        described.mTables.mSprites = bin.getSpritesAddress();
-        described.mTables.mEmitterFrames = bin.getEmitterFramesAddress();
-        described.mTables.mSpriteTileList = spriteTileList;
-        described.mTables.mSpritePresence = bin.getPresenceAddress();
+        // The trace's own, shaded and binned for this camera ahead of it (`SpriteTables`).
+        described.mTables.mSprites = sprites.mSprites;
+        described.mTables.mEmitterFrames = sprites.mEmitterFrames;
+        described.mTables.mSpriteTileList = sprites.mTileList;
+        described.mTables.mSpritePresence = sprites.mPresence;
 
         // Nothing addressed here may be nothing, and every address must be what its reference
         // claims. A descriptor bound as a null handle cost this renderer a device with no message;
@@ -575,8 +578,8 @@ namespace Rtx
     void VisibilityPass::record(VkCommandBuffer commands, const VisibilityInputs& inputs,
         const Shaders::VisibilityConstants& constants, GpuTimer* timer) const
     {
-        assert(inputs.mChannels.getWidth() >= constants.mCamera.mWidth
-            && inputs.mChannels.getHeight() >= constants.mCamera.mHeight);
+        assert(inputs.mChannels.getWidth() >= constants.mEyes.mWorld.mWidth
+            && inputs.mChannels.getHeight() >= constants.mEyes.mWorld.mHeight);
 
         assert(inputs.mSubject.mScene != nullptr && inputs.mSubject.mMedia != nullptr
             && "a trace of no scene, or in no media");
@@ -643,7 +646,7 @@ namespace Rtx
 
         // One invocation a pixel and no tail, where the dispatch it replaces covered the picture
         // in whole workgroups and had every one of them test whether it had run off the edge.
-        pipeline.traceRays(commands, constants.mCamera.mWidth, constants.mCamera.mHeight);
+        pipeline.traceRays(commands, constants.mEyes.mWorld.mWidth, constants.mEyes.mWorld.mHeight);
 
         closeZone(timer, commands);
 

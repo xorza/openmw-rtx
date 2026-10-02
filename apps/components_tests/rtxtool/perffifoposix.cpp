@@ -1,7 +1,11 @@
+#include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <filesystem>
 #include <string>
+#include <system_error>
+#include <thread>
 #include <utility>
 
 #include <gtest/gtest.h>
@@ -85,6 +89,47 @@ namespace RtxTool
 
             // The gap between them is a cell being loaded, and perf counts nothing across it.
             EXPECT_EQ(listening.read(), "enable\ndisable\nenable\ndisable\n");
+        }
+
+        /// **The open waits for perf, and does not guess when it comes.** perf attaches to the
+        /// harness after the harness started, and loads a BPF program before it opens its end; a
+        /// fifo with no reader refuses a writer at once, and a driver that slept half a second
+        /// first raced a slow load. A reader that never comes is a failure once the wait is spent.
+        TEST(RtxPerfControlTest, theOpenWaitsForAReaderThatComesLateAndNoLonger)
+        {
+            const std::filesystem::path path = TestingOpenMW::outputFilePath("perf-control-late-test");
+            std::filesystem::remove(path);
+            ASSERT_EQ(::mkfifo(path.c_str(), 0600), 0);
+
+            int reader = -1;
+            std::thread perf([&] {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                reader = ::open(path.c_str(), O_RDONLY | O_NONBLOCK);
+            });
+            PerfControl control(path, std::chrono::seconds(10));
+            control.open();
+            perf.join();
+            ASSERT_GE(reader, 0);
+
+            control.enable();
+            std::array<char, 16> buffer{};
+            const ssize_t got = ::read(reader, buffer.data(), buffer.size());
+            EXPECT_EQ(std::string(buffer.data(), static_cast<std::size_t>(std::max<ssize_t>(got, 0))), "enable\n");
+            ::close(reader);
+
+            const auto begun = std::chrono::steady_clock::now();
+            PerfControl alone(path, std::chrono::milliseconds(50));
+            try
+            {
+                alone.open();
+                ADD_FAILURE() << "a fifo nobody reads was opened";
+            }
+            catch (const std::system_error& error)
+            {
+                EXPECT_EQ(error.code(), std::errc::no_such_device_or_address) << error.what();
+            }
+            EXPECT_GE(std::chrono::steady_clock::now() - begun, std::chrono::milliseconds(50)) << "it did not wait";
+            std::filesystem::remove(path);
         }
 
         TEST(RtxPerfControlTest, aStopBeforeTheFirstFrameSaysNothing)

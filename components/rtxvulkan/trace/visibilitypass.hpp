@@ -27,7 +27,7 @@ namespace Rtx
     class GBuffer;
     class GpuTimer;
     class Image;
-    class SpriteBin;
+    struct SpriteTables;
     class TraceMedia;
 
     /// What one trace is of and where its results go but for the chain's own images: the scene
@@ -152,14 +152,13 @@ namespace Rtx
         /// sprites among them. Before every launch of this frame, `recordSpriteShelter` first,
         /// because that one runs before the bin and reads the block like the rest.
         ///
-        /// @param bin where this trace's sprites and tiles are, which the chain recording the
-        ///        trace owns and filled ahead of it.
-        /// @param spriteTileList the tiles' list the trace reads, `TraceChain::getSpriteTileList`.
+        /// @param sprites where this trace's sprites and tiles are, off the bin the chain recording
+        ///        the trace owns and filled ahead of it.
         /// @param composed whether nothing filters this trace's bounce, so it composes the frame
         ///        itself — `VisibilityConstants::mComposed`, which the chain that knows is the one to
         ///        say.
-        void writeFrame(VkCommandBuffer commands, const VisibilityInputs& inputs, const SpriteBin& bin,
-            VkDeviceAddress spriteTileList, const Shaders::VisibilityConstants& constants, bool composed) const;
+        void writeFrame(VkCommandBuffer commands, const VisibilityInputs& inputs, const SpriteTables& sprites,
+            const Shaders::VisibilityConstants& constants, bool composed) const;
 
         /// Zeroes, in the bin's own table, every falling sprite that stands under a roof — one ray
         /// straight up apiece, `spriteshelter.rgen`. After `writeFrame` and the bin's `take`, and

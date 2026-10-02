@@ -14,12 +14,15 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
-#include <components/rtx/preprocess/meantexels.hpp>
+#include <components/rtx/preprocess/contentstats.hpp>
+#include <components/rtx/preprocess/imagefactcache.hpp>
 
 namespace Rtx
 {
@@ -156,7 +159,7 @@ namespace Rtx
         {
             osg::ref_ptr<osg::Image> luminance = new osg::Image;
             luminance->setFileName("odd.dds");
-            luminance->allocateImage(2, 2, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE);
+            luminance->allocateImage(2, 2, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
 
             EXPECT_EQ(ContentPreprocessor().meanTexel(*luminance).mColour, osg::Vec3f());
             EXPECT_EQ(ContentPreprocessor().meanTexel(*luminance).mAlpha, 0.0f);
@@ -188,38 +191,51 @@ namespace Rtx
             EXPECT_EQ(empty.opaque(), osg::Vec3f());
         }
 
-        /// A file is averaged once for the process and found by its name after: two images of one
+        /// A file is read once for the process and found by its name after: two images of one
         /// file, in two spellings of it, are one entry and one reference, and a second ask reads
-        /// nothing — the entry stands where it stood. An image that is not a file is averaged at
-        /// every ask and kept nowhere.
-        TEST(RtxMeanTexelsTest, aFileIsAveragedOnceAndFoundByItsName)
+        /// nothing and allocates nothing — the entry stands where it stood. **Each fact is read at its own first ask**,
+        /// because the two are different walks: an entry asked its mean has read no solid reach.
+        TEST(RtxImageFactCacheTest, aFileIsReadOnceAndFoundByItsName)
         {
             ContentPreprocessor content;
-            MeanTexels means(content);
+            ImageFactCache facts(content);
 
             osg::ref_ptr<osg::Image> red
                 = makeSheetImage({ 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255 });
             red->setFileName("Textures\\VFX_Fire.dds");
-            const MeanTexel& first = means.of(*red);
+            const MeanTexel& first = facts.meanOf(*red);
             EXPECT_NEAR(first.mColour.x(), 1.0f, 1e-5f);
-            EXPECT_EQ(means.size(), 1u);
+            EXPECT_EQ(facts.size(), 1u);
+            EXPECT_FALSE(facts.of(*red).mReachesSolid.has_value()) << "a fact nobody asked for was read";
 
             // The same file spelt the way the texture table spells it, and painted differently:
             // the cache answers for the name and never reads the second image.
-            osg::ref_ptr<osg::Image> again
-                = makeSheetImage({ 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255 });
+            osg::ref_ptr<osg::Image> again = makeSheetImage({ 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0 });
             again->setFileName("textures/vfx_fire.dds");
-            const MeanTexel& second = means.of(*again);
-            EXPECT_EQ(&second, &first) << "a second spelling of one file made a second entry";
-            EXPECT_NEAR(second.mColour.x(), 1.0f, 1e-5f) << "the second image was read";
-            EXPECT_EQ(means.size(), 1u);
+            EXPECT_EQ(&facts.of(*again), &facts.of(*red)) << "a second spelling of one file made a second entry";
 
-            // An image with no name is one the texture table refuses, so nothing asks its mean.
+            // Found without an allocation, because the ring's reader asks for every material it
+            // reads.
+            const std::size_t allocated = Testing::getAllocationCount();
+            facts.of(*again);
+            EXPECT_EQ(Testing::getAllocationCount(), allocated) << "a file already met was found through a new string";
+            EXPECT_EQ(&facts.meanOf(*again), &first);
+            EXPECT_NEAR(facts.meanOf(*again).mColour.x(), 1.0f, 1e-5f) << "the second image was read";
+            EXPECT_EQ(facts.size(), 1u);
+
+            // Asked once and kept: the solid reach read off solid red, and found again under the
+            // second spelling without reading the second image, whose alpha is nought throughout.
+            EXPECT_TRUE(facts.reachesSolid(facts.of(*red), *red));
+            EXPECT_EQ(content.takeStats().at(ContentPassId::SolidReach).mAsked, 1u);
+            EXPECT_TRUE(facts.reachesSolid(facts.of(*again), *again)) << "the second image was read";
+            EXPECT_EQ(content.takeStats().at(ContentPassId::SolidReach).mAsked, 0u) << "a fact read twice";
+
+            // An image with no name is one the texture table refuses, so nothing asks its facts.
             osg::ref_ptr<osg::Image> unnamed
                 = makeSheetImage({ 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255 });
             unnamed->setFileName("");
             Testing::expectAssertDies(
-                [&] { means.of(*unnamed); }, "the mean of an image the texture table would have refused");
+                [&] { facts.of(*unnamed); }, "the facts of an image the texture table would have refused");
         }
     }
 
@@ -267,13 +283,14 @@ namespace Rtx
         TEST(RtxTextureFormatTest, everySpellingReadsAsItsFormatAndNamesItself)
         {
             using enum TextureEncoding;
-            constexpr std::array<FormatCase, 30> sCases{ {
+            constexpr std::array<FormatCase, 31> sCases{ {
                 { GL_COMPRESSED_RGB_S3TC_DXT1_EXT, Colour, TextureFormat::Bc1RgbaSrgb, "BC1 (DXT1)" },
                 { GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, Colour, TextureFormat::Bc1RgbaSrgb, "BC1 (DXT1)" },
                 { GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, Colour, TextureFormat::Bc2Srgb, "BC2 (DXT3)" },
                 { GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, Colour, TextureFormat::Bc3Srgb, "BC3 (DXT5)" },
                 { GL_COMPRESSED_RED_GREEN_RGTC2_EXT, Colour, TextureFormat::Unnamed, "an unnamed pixel format" },
                 { GL_RGB, Colour, TextureFormat::Rgb8, "RGB8" },
+                { GL_BGR, Colour, TextureFormat::Bgr8, "BGR8" },
                 { GL_RGBA, Colour, TextureFormat::Rgba8Srgb, "RGBA8" },
                 { GL_BGRA, Colour, TextureFormat::Bgra8Srgb, "BGRA8" },
                 { GL_LUMINANCE, Colour, TextureFormat::Luminance, "L8" },
@@ -307,8 +324,8 @@ namespace Rtx
                     << one.mName << " of type " << one.mType;
                 EXPECT_EQ(nameOf(one.mFormat), one.mName);
                 EXPECT_EQ(isUploadable(one.mFormat), one.mFormat < TextureFormat::Rgb565) << one.mName;
-                EXPECT_EQ(
-                    isWidened(one.mFormat), one.mFormat >= TextureFormat::Rgb565 && one.mFormat < TextureFormat::Rgb8)
+                EXPECT_EQ(isWidened(one.mFormat),
+                    one.mFormat >= TextureFormat::Rgb565 && one.mFormat != TextureFormat::Unnamed)
                     << one.mName;
                 EXPECT_EQ(isSrgb(one.mFormat), one.mEncoding == Colour && isUploadable(one.mFormat)) << one.mName;
                 EXPECT_EQ(isBc1(one.mFormat),

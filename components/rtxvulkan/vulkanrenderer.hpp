@@ -13,6 +13,7 @@
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
+#include <components/rtx/frame/framepast.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -59,7 +60,6 @@ namespace Rtx
 
         std::string describeDevice() const override;
         bool isValidating() const override;
-        void resetHistory() override;
 
         void setScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> textures) override;
         void extendScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> arrived) override;
@@ -80,7 +80,7 @@ namespace Rtx
         FrameExtents getExtents() const override;
         const RenderProfile& getProfile() const override { return mProfile; }
         JobProgress awaitKernels(std::chrono::milliseconds patience) override;
-        Reconstruction renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) override;
+        void renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) override;
         std::uint64_t getFrameCount() const override;
         std::optional<FrameResult> finishFrame() override;
         std::optional<FrameResult> collectFrame() override;
@@ -106,6 +106,10 @@ namespace Rtx
         /// The device the renderer made, for a test that holds its memory to a budget of its own.
         const Device& getDevice() const { return mDevice; }
 
+        /// The passes every trace runs, for a test that stands a chain up beside the frame's on
+        /// pipelines already made.
+        const TracePasses& getTracePasses() const { return mTracePasses; }
+
         /// The sea every scene is traced with, `SeaState{}` until told. Uploads a spectrum and
         /// waits the frames in flight out first.
         void setSea(const SeaState& sea);
@@ -117,6 +121,10 @@ namespace Rtx
         /// The same for the composite's own output, which no channel holds: the frame a measurement
         /// is taken on, where `readPixels` gives the one a display would show.
         void readComposite(std::vector<float>& values);
+
+        /// What a present would show, the interface over the picture, four bytes a pixel, tightly
+        /// packed: where `readPixels` gives the picture alone.
+        void readShown(std::vector<std::uint8_t>& pixels);
 
         /// The whole of a GUI texture as the device holds it, four bytes a pixel, tightly packed,
         /// row zero first.
@@ -167,13 +175,23 @@ namespace Rtx
         /// gamma is set rather than on every frame.
         float mInverseGamma = 1.0f;
 
+        /// The hold `RenderProfile::mStressOverlapMs` asked for, or nothing. Ahead of the ring, which
+        /// reads the hold's reading in milliseconds by the rate the hold measured.
+        std::unique_ptr<StressPass> mStress;
+
         /// The frames in flight and what each came to.
         FrameRing mRing;
 
-        /// The frame as bytes at the output extent, which is what anything outside this reads. It
-        /// is also where that extent is stated — `PresentTarget::getExtent` — rather than beside
-        /// it in a pair of members something would have to keep level.
+        /// The frame as bytes at the output extent, the picture and what is shown, which is what
+        /// anything outside this reads. It is also where that extent is stated —
+        /// `PresentTarget::getExtent` — rather than beside it in a pair of members something would
+        /// have to keep level.
         PresentTarget mTarget;
+
+        /// Whether what is shown holds the picture as it stands now, with this frame's interface
+        /// over it: set by `drawGui`, and spent by a new picture and by a present. A present of a
+        /// frame nothing drew the interface on draws the picture alone.
+        bool mShownCurrent = false;
 
         /// Before the trace's passes and the display, which read the scenes' texture layout.
         ScenePasses mScenePasses;
@@ -187,10 +205,15 @@ namespace Rtx
         TraceChain mFrame;
 
         /// The camera the last frame was traced with, for reprojecting this one against, or nothing
-        /// before the first frame and after a resize, a new scene or a reset. **Nothing, and not a
-        /// camera of noughts**: one read as a camera left the step from its origin in the frame's
-        /// motion, and a door 80000 units from the eye stored an infinite distance at every pixel.
+        /// before the first frame. **Nothing, and not a camera of noughts**: one read as a camera
+        /// would leave the step from its origin in the frame's motion, and a door 80000 units from
+        /// the eye would store an infinite distance at every pixel.
         std::optional<Shaders::VisibilityConstants> mPreviousCamera;
+
+        /// What this renderer's own events cost the next traced frame — a new extent, a new world,
+        /// the first frame of all — which the frame folds the host's `FrameOptions::mLoss` into and
+        /// spends.
+        FramePast mPast = FramePast::everything();
 
         SceneStats mStats;
 
@@ -199,9 +222,6 @@ namespace Rtx
         DisplayChain mDisplay;
 
         TraceMedia mMedia;
-
-        /// The hold `RenderProfile::mStressOverlapMs` asked for, or nothing.
-        std::unique_ptr<StressPass> mStress;
 
         /// After the passes above, which every scene holds by reference.
         SceneSlots mScenes;

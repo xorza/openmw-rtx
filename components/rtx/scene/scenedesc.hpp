@@ -28,6 +28,7 @@
 #include "ripple.hpp"
 #include "rowhold.hpp"
 #include "sprite.hpp"
+#include "surface.hpp"
 #include "texturetable.hpp"
 
 namespace Rtx
@@ -172,7 +173,7 @@ namespace Rtx
         ///        an axis where this is set and none where it is not — `SpriteEmitter::mWidth`.
         /// @param lighting the bake of `texture`'s alpha, or `sNoIndex`. `SpriteEmitter::mLighting`.
         /// @param falls whether the sprites fall from the sky. `SpriteEmitter::mFalls`.
-        void addEmitter(std::span<const Sprite> sprites, Index texture, bool additive, float width = 0.0f,
+        void addEmitter(std::span<const Sprite> sprites, Index texture, BlendKind blend, float width = 0.0f,
             Index lighting = sNoIndex, bool falls = false);
 
         /// Empties the per-frame lists a walk rebuilds wholesale: lights, deformed meshes, sprites
@@ -236,6 +237,11 @@ namespace Rtx
         /// makes it at the one point every path passes, because a walk may run twice — which is
         /// also where the hand-over of a scene a walk left unswept is refused (`Turn`).
         void orderLights();
+
+        /// Settles every list the tables took a slot out of, once in a hand-over and before anything
+        /// reads them: a sweep gives back thousands of slots, and a pass over a list for each was
+        /// what settling at every drop cost.
+        void compact();
 
         /// Forgets what arrived and what was freed, which a hand-over does once it has read both.
         void clearArrivals();

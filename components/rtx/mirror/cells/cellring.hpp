@@ -5,6 +5,7 @@
 #include <optional>
 #include <vector>
 
+#include <osg/Vec2f>
 #include <osg/Vec2i>
 #include <osg/Vec3f>
 
@@ -78,14 +79,6 @@ namespace Rtx
 
         void setMinSize(float minSize) { mPlacer.setMinSize(minSize); }
 
-        /// What the ground's `_diffusespec` maps mean — `CellPlacer::setSpecularLayout`.
-        void setSpecularLayout(SpecularLayout layout) { mPlacer.setSpecularLayout(layout); }
-
-        /// The frame the next walk is for, so a frame walked twice adopts one cell and not two.
-        /// Told by `SceneExtractor::extractWorld`, which is the call that has the ring and the
-        /// frame both; a caller that drives a ring outside a walk says it itself.
-        void setFrame(std::size_t frame);
-
         /// Whether a walk waits for the cell it is about to adopt, so which frame a cell is adopted
         /// on is the schedule's answer and not the thread's. The order is what makes it so: one
         /// reader takes the cells `ask` sorted and hands them back in that order. One cell a frame
@@ -96,6 +89,11 @@ namespace Rtx
         /// not yet read, or read and waiting for the frame that adopts them. What a harness stop
         /// waits out before it measures, settled or not.
         std::uint32_t getCellsToStand() const;
+
+        /// Whether a cell under the square from `low` to `high`, world units on the plane, is in the
+        /// band the last walk asked over and not yet held: a picture of the ground there taken now
+        /// shows the cell's objects on nothing. False where the last walk stood nothing.
+        bool waitsUnder(const osg::Vec2f& low, const osg::Vec2f& high) const;
 
         /// `CellSupply::getReaderMemory`.
         ReaderMemory getReaderMemory() { return mSupply.getReaderMemory(); }
@@ -111,8 +109,12 @@ namespace Rtx
         void setGate(std::uint32_t gate, Terrain::GateState state);
 
         /// Hands the adopter everything held that the graph does not parent, and adds what it stood
-        /// to the walk's counts, because the ring is stood inside the adopter's walk.
-        void collect();
+        /// to the walk's counts, because the ring is stood inside the adopter's walk — the one of
+        /// `frame`, so a frame walked twice adopts one cell and not two.
+        void collect(std::size_t frame);
+
+        /// Whether this ring adopts through `adopter`, which is what a walk that collects it is.
+        bool adoptsThrough(const SceneAdopter& adopter) const { return &mAdopter == &adopter; }
 
         /// Gives the adopter back every hold `forget` let go of, for a ring the frame will not walk
         /// again — a world detached. `collect` does the same at both ends of a walk.
@@ -130,6 +132,10 @@ namespace Rtx
         // Read by the tests and by nothing else.
         /// How many cells the prepared ring holds.
         std::size_t getHeldCellCount() const { return mPlacer.getHeldCount(); }
+
+        /// Whether the ground of the cell at `cell` stands in the top level, which is whether the
+        /// trace draws it — `CellPlacer::standsGround`.
+        bool standsGround(const osg::Vec2i& cell) const { return mPlacer.standsGround(cell); }
 
     private:
         bool handed(const osg::Vec2i& cell) const;
@@ -151,8 +157,8 @@ namespace Rtx
         /// `ask` named something, because nothing is coming otherwise.
         void waitForNext(const osg::Vec3f& eye, float band);
 
-        /// Adopts the next cell the supply read, which is one cell and one frame's worth.
-        void adoptHanded();
+        /// Adopts the next cell the supply read, which is one cell and `frame`'s worth.
+        void adoptHanded(std::size_t frame);
 
         void adopt(PreparedCell& cell);
 
@@ -170,7 +176,7 @@ namespace Rtx
         void letGo(const HeldCell& cell);
 
         /// The whole of what a walk does to the rings: what `collect` wraps in the walk it is inside.
-        void walkRings(ExtractionStats& stats);
+        void walkRings(ExtractionStats& stats, std::size_t frame);
 
         /// Lets go of every cell, every model and every image the frame holds. What the supply lent
         /// dies with its reader, so this runs before the supply is pointed anywhere else.
@@ -204,18 +210,35 @@ namespace Rtx
         bool mStatics = true;
         bool mSettled = false;
 
-        /// Whether the request list has to be rebuilt: the eye, the held and handed sets or the
-        /// statics switch changed since it was. `ask` rebuilds the whole band, and nothing else on
-        /// the frame path is proportional to the band.
-        bool mAskStale = true;
-        std::optional<osg::Vec3f> mLastEye;
+        /// What a request is made from. `ask` rebuilds the whole band, and nothing else on the frame
+        /// path is proportional to the band, so it rebuilds where any of these differs from the last
+        /// request's and nowhere else: a function of its inputs, where a flag set at each place an
+        /// input moves missed the reach, which grows under a still eye.
+        struct AskInputs
+        {
+            osg::Vec3f mEye;
+            float mBand = 0.0f;
+            bool mStatics = true;
+            std::size_t mHeld = 0;
+            std::size_t mHanded = 0;
 
-        /// How many cells the band held when `ask` last walked it, the reach and the band past it.
-        /// Every held cell is one of them once a walk has dropped what left, so what is left to
-        /// stand is this less what is held.
+            /// How many cells were ever taken from the supply, and how many worlds followed: a cell
+            /// discarded on arrival and a new reader change no set, and are asked for again.
+            std::uint64_t mTaken = 0;
+            std::uint64_t mFollowed = 0;
+
+            bool operator==(const AskInputs& other) const = default;
+        };
+
+        std::optional<AskInputs> mAsked;
+        std::uint64_t mTaken = 0;
+        std::uint64_t mFollowed = 0;
+
+        /// How many cells the band held when `ask` last walked it, the reach and the band past it,
+        /// or nought where the last walk stood nothing — indoors, or with no reader. Every held cell
+        /// of an exterior walk is one of them once it has dropped what left, so what is left to stand
+        /// is this less what is held.
         std::uint32_t mBandCells = 0;
-
-        std::size_t mFrame = 0;
 
         /// The frame a cell was last adopted on, so a frame walked twice adopts once.
         std::size_t mAdoptedFrame = ~std::size_t{ 0 };

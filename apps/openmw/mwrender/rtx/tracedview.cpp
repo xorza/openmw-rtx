@@ -16,6 +16,7 @@
 
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/myguirtx/texture.hpp>
+#include <components/rtx/mirror/cells/cellring.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/sceneutil/offscreenframing.hpp>
@@ -34,23 +35,21 @@ namespace MWRender
 
         /// The spec as the trace takes it. Bottom row first, which is what
         /// `OffscreenView::getTexture` promises and what the widgets showing one invert V for.
-        Rtx::ViewRequest requestFor(const OffscreenViewSpec& spec, ViewKind kind, Rtx::Traversals& traversals,
-            Rtx::ThreadContent& content, Rtx::SpecularLayout layout)
+        Rtx::ViewRequest requestFor(const OffscreenViewSpec& spec, ViewKind kind)
         {
             osg::Node* const subject = kind == ViewKind::Subject ? &spec.mScene : nullptr;
+            const ViewDescription described = describeView(spec.mMask);
             return Rtx::ViewRequest{
                 .mWidth = static_cast<std::uint32_t>(spec.mWidth),
                 .mHeight = static_cast<std::uint32_t>(spec.mHeight),
-                .mRayMask = rayMaskOf(spec.mMask),
+                .mRayMask = described.mRayMask,
+                .mLamps = described.mLamps,
                 .mFraming = spec.mFraming,
                 .mLight = spec.mSun,
                 .mClear = spec.mClearColour,
                 .mRowOrder = Rtx::RowOrder::BottomFirst,
                 .mSubject = subject,
                 .mSubjectMask = spec.mMask,
-                .mTraversals = &traversals,
-                .mContent = &content,
-                .mSpecularLayout = layout,
             };
         }
 
@@ -63,10 +62,9 @@ namespace MWRender
     }
 
     TracedView::TracedView(const OffscreenViewSpec& spec, ViewKind kind, Rtx::Renderer& backend, ViewQueue& views,
-        MyGUIRtx::RenderManager& gui, Rtx::Traversals& traversals, Rtx::ThreadContent& content,
-        Rtx::SpecularLayout layout)
+        MyGUIRtx::RenderManager& gui, Rtx::WalkContext& context)
         : mViews(views)
-        , mTrace(backend, requestFor(spec, kind, traversals, content, layout))
+        , mTrace(backend, requestFor(spec, kind), context)
         , mTexture(gui.takeTexture(nextViewName()))
     {
         const int width = static_cast<int>(mTrace.getWidth());
@@ -100,9 +98,21 @@ namespace MWRender
             return false;
 
         // Where the eye stands is the inverse view's translation; the box is centred on it.
-        const osg::Vec3f eye = osg::Matrixf::inverse(mTrace.getView()).getTrans();
+        const osg::Vec3f eye = osg::Matrixd::inverse(mTrace.getView()).getTrans();
         return std::abs(eye.x() - over.x()) <= box->mWidth * 0.5f
             && std::abs(eye.y() - over.y()) <= box->mHeight * 0.5f;
+    }
+
+    bool TracedView::waitsForGround(const Rtx::CellRing& ring) const
+    {
+        const auto* box = std::get_if<SceneUtil::Orthographic>(&mTrace.getFraming().mProjection);
+        if (!isOfWorld() || box == nullptr)
+            return false;
+
+        const osg::Vec3f eye = osg::Matrixd::inverse(mTrace.getView()).getTrans();
+        const osg::Vec2f half(box->mWidth * 0.5f, box->mHeight * 0.5f);
+        const osg::Vec2f centre(eye.x(), eye.y());
+        return ring.waitsUnder(centre - half, centre + half);
     }
 
     MyGUI::ITexture& TracedView::getTexture() const

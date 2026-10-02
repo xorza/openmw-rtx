@@ -84,17 +84,6 @@ namespace Rtx
             }
         };
 
-        /// How often the light crosses its own resting brightness, per second.
-        float crossingsPerSecond(const std::vector<float>& run, double step)
-        {
-            std::size_t crossings = 0;
-            for (std::size_t i = 1; i < run.size(); ++i)
-                if ((run[i] - 1.0f) * (run[i - 1] - 1.0f) < 0.0f)
-                    ++crossings;
-
-            return static_cast<float>(static_cast<double>(crossings) / (static_cast<double>(run.size() - 1) * step));
-        }
-
         /// A light the record says nothing about burns at exactly what it is.
         TEST(RtxLightBuilderTest, aSteadyLightIsExactlyOne)
         {
@@ -104,12 +93,10 @@ namespace Rtx
                 EXPECT_EQ(steady.at(seconds), 1.0f);
         }
 
-        /// A flame stays inside its depth and, over time, radiates exactly what the record says.
-        ///
-        /// **The mean is the point.** The rasterizer's own animation walks toward a random target
-        /// between a quarter and one, so a flickering light averages 0.63 of its recorded colour;
-        /// this one averages the colour itself, so a candle is as bright as the record says it is.
-        TEST(RtxLightBuilderTest, aFlameStaysWithinItsDepthAndAveragesOne)
+        /// An animated lamp stays in the game's band and averages its middle, as the game's own walk
+        /// between targets does: `LightController` draws its targets evenly from a quarter to one, or
+        /// alternates the two, so the time average is `(0.25 + 1) / 2 = 0.625` of the recorded colour.
+        TEST(RtxLightBuilderTest, anAnimatedLampStaysInTheGamesBandAndAveragesItsMiddle)
         {
             for (const SceneUtil::LightController::LightType type :
                 { SceneUtil::LightController::LT_Flicker, SceneUtil::LightController::LT_FlickerSlow,
@@ -117,66 +104,58 @@ namespace Rtx
             {
                 const Lamp lamp{ type };
                 const std::vector<float> run = lamp.run(60000, 0.01);
-                const bool pulse
-                    = type == SceneUtil::LightController::LT_Pulse || type == SceneUtil::LightController::LT_PulseSlow;
 
-                // The bands are weighted to sum to one, so the depth is a bound and not a statistic.
-                const float depth = pulse ? 0.35f : 0.30f;
-                EXPECT_GE(*std::min_element(run.begin(), run.end()), 1.0f - depth);
-                EXPECT_LE(*std::max_element(run.begin(), run.end()), 1.0f + depth);
+                EXPECT_GE(*std::min_element(run.begin(), run.end()), 0.25f);
+                EXPECT_LE(*std::max_element(run.begin(), run.end()), 1.0f);
 
-                // Ten minutes is at least a hundred turns of the slowest band any of them carries,
-                // so what is left of it here is a thousandth.
-                EXPECT_NEAR(Testing::meanOf(run), 1.0f, 0.001f);
+                // Ten minutes is at least three hundred turns of the slowest band any of them
+                // carries, so what is left of it here is a thousandth.
+                EXPECT_NEAR(Testing::meanOf(run), 0.625f, 0.001f);
 
-                // And it did move, rather than sitting at its mean and passing the two tests above.
-                EXPECT_GT(*std::max_element(run.begin(), run.end()) - *std::min_element(run.begin(), run.end()), depth);
+                // And it did move, rather than sitting at its middle and passing the two tests above.
+                EXPECT_GT(
+                    *std::max_element(run.begin(), run.end()) - *std::min_element(run.begin(), run.end()), 0.375f);
             }
         }
 
-        /// The fast flicker is the flame itself and the slow one is that flame seen through glass.
-        ///
-        /// Both are four bands of one ladder; the slow one takes its window a step down, so it loses
-        /// the puffing at the top and gains a drift at the bottom. One step of the ladder is 2.618,
-        /// and the rate at which the light crosses its own mean follows it: about 11 times a second
-        /// against about 4.
-        TEST(RtxLightBuilderTest, theSlowFlickerIsTheSameFlameOneStepDownTheLadder)
+        /// The slow flicker is the same flame at the game's slow speed, half the fast one, so at any
+        /// instant it stands where the fast one stood at half that time.
+        TEST(RtxLightBuilderTest, theSlowFlickerIsTheFlameAtHalfTheSpeed)
         {
             const Lamp fast{ SceneUtil::LightController::LT_Flicker };
             const Lamp slow{ SceneUtil::LightController::LT_FlickerSlow };
 
-            // 200 hertz, so the nine-hertz band's own crossings are resolved rather than counted
-            // twice.
-            const float busy = crossingsPerSecond(fast.run(12000, 0.005), 0.005);
-            const float gentle = crossingsPerSecond(slow.run(12000, 0.005), 0.005);
-
-            EXPECT_GT(busy, 8.0f);
-            EXPECT_LT(gentle, 6.0f);
-            EXPECT_GT(busy, gentle * 2.0f) << "the two flicker flags read as the same light";
+            for (const double seconds : { 0.0, 0.1, 0.37, 2.5, 41.25 })
+                EXPECT_NEAR(slow.at(2.0 * seconds), fast.at(seconds), 1e-5f) << "at " << seconds;
         }
 
-        /// A pulse is one sine, so it comes back to where it was and its two halves cancel exactly.
-        ///
-        /// The slow one turns once every three seconds and the fast one is a step of the ladder
-        /// above it, at 3 / 2.618 = 1.1459 seconds.
-        TEST(RtxLightBuilderTest, aPulseIsExactlyPeriodic)
+        /// A pulse is the game's own triangle: it walks from a quarter to one and back at the game's
+        /// speed, `0.1 * 15 = 1.5` a second, so a turn is `2 * 0.75 / 1.5 = 1` second, and two at the
+        /// slow speed.
+        TEST(RtxLightBuilderTest, aPulseIsTheGamesTriangle)
         {
+            const Lamp fast{ SceneUtil::LightController::LT_Pulse };
             const Lamp slow{ SceneUtil::LightController::LT_PulseSlow };
 
             for (const double seconds : { 0.0, 0.3, 1.7, 10.5, 123.25 })
             {
-                EXPECT_NEAR(slow.at(seconds), slow.at(seconds + 3.0), 1e-5f);
+                EXPECT_NEAR(fast.at(seconds), fast.at(seconds + 1.0), 1e-5f);
+                EXPECT_NEAR(slow.at(seconds), slow.at(seconds + 2.0), 1e-5f);
 
-                // Half a turn on, the sine is its own negative, so the pair averages the resting
-                // brightness whatever phase this lamp was given.
-                EXPECT_NEAR(slow.at(seconds) + slow.at(seconds + 1.5), 2.0f, 1e-5f);
+                // Half a turn on, the triangle stands as far the other side of its middle.
+                EXPECT_NEAR(fast.at(seconds) + fast.at(seconds + 0.5), 1.25f, 1e-5f);
+                EXPECT_NEAR(slow.at(seconds) + slow.at(seconds + 1.0), 1.25f, 1e-5f);
             }
 
-            const Lamp fast{ SceneUtil::LightController::LT_Pulse };
-            constexpr double period = 3.0 / 2.618034;
-
-            for (const double seconds : { 0.0, 0.3, 1.7, 10.5 })
-                EXPECT_NEAR(fast.at(seconds), fast.at(seconds + period), 1e-5f);
+            // It reaches both ends of the band, and between them it moves at the game's speed.
+            const std::vector<float> run = fast.run(1000, 0.001);
+            EXPECT_NEAR(*std::min_element(run.begin(), run.end()), 0.25f, 0.0015f);
+            EXPECT_NEAR(*std::max_element(run.begin(), run.end()), 1.0f, 0.0015f);
+            std::size_t steady = 0;
+            for (std::size_t i = 1; i < run.size(); ++i)
+                if (std::abs(std::abs(run[i] - run[i - 1]) - 0.0015f) < 1e-5f)
+                    ++steady;
+            EXPECT_GE(steady, run.size() - 3) << "the pulse did not walk at a steady 1.5 a second";
         }
 
         /// The clock and the light's id are the whole of the state, so one instant is one answer.
@@ -221,9 +200,9 @@ namespace Rtx
             for (const float value : lit)
                 spread += (static_cast<double>(value) - average) * (static_cast<double>(value) - average);
 
-            // A pulse read at one instant across uniform phases has a deviation of 0.35 / sqrt(2),
-            // which is 0.247. Half of that is far below anything sixty-four ids reach by chance and
-            // far above the nothing a shared phase would give.
+            // A triangle read at one instant across uniform phases has a deviation of its swing over
+            // root three, 0.375 / sqrt(3) = 0.2165. Half of that is far below anything sixty-four ids reach by chance
+            // and far above the nothing a shared phase would give.
             EXPECT_GT(std::sqrt(spread / static_cast<double>(lit.size())), 0.12);
         }
 
@@ -442,8 +421,8 @@ namespace Rtx
                 (larger->mSourceRadius / light->mSourceRadius) * (larger->mSourceRadius / light->mSourceRadius), 1e-4f);
         }
 
-        /// An unlit record places a mesh and no light, a negative one is nonsense, and a carryable
-        /// one burns where it lies.
+        /// An unlit record places a mesh and no light, a negative one takes light away, and a
+        /// carryable one burns where it lies.
         ///
         /// **Carryable is not carried.** A hundred and fifty-one of `Morrowind.esm`'s light records
         /// can be picked up — every candle and torch among them — and the game lights a cell with
@@ -455,7 +434,10 @@ namespace Rtx
             EXPECT_FALSE(castsWherePlaced(describe(100, 0x00FFFFFF, ESM::Light::OffDefault)));
             EXPECT_TRUE(isNothing(makeLight(describe(100, 0x00FFFFFF, ESM::Light::OffDefault), osg::Vec3f(), 0.0, 1)));
 
-            EXPECT_TRUE(isRefused(makeLight(describe(100, 0x00FFFFFF, ESM::Light::Negative), osg::Vec3f(), 0.0, 1)));
+            const std::optional<Rtx::Light> taking
+                = makeLight(describe(100, 0x00FFFFFF, ESM::Light::Negative), osg::Vec3f(), 0.0, 1).value();
+            ASSERT_TRUE(taking.has_value());
+            EXPECT_LT(taking->mIntensity.x(), 0.0f);
 
             // The flags that say what a light is or how it animates leave it burning.
             for (const std::int32_t flag :
@@ -476,48 +458,33 @@ namespace Rtx
                 << "and so is a record that names less than nothing";
         }
 
-        /// A light that subtracts is refused by both routes to one, and the graph was the half that
-        /// was wrong.
+        /// A light that subtracts is a lamp of the same size and reach, of negative intensity, by both
+        /// routes to one.
         ///
-        /// **`SceneUtil::createLightSource` has no notion of "not a light".** It answers a `Negative`
-        /// record by negating the diffuse and handing back a `LightSource` like any other, so the
-        /// walk mirrored a lamp of negative intensity exactly where the harness placed none. The
-        /// refusal now lives where a colour and a radius meet, which is the one place both routes
-        /// pass through — and this builds the graph the game builds rather than a negative colour by
-        /// hand, so it is the real path that is refused.
-        TEST(RtxLightBuilderTest, aLightThatSubtractsIsRefusedByBothRoutesToOne)
+        /// **`SceneUtil::createLightSource` negates the encoded colour, and the record route negates
+        /// the decoded one**, so the graph's colour is decoded by its magnitude and given its sign
+        /// back: a white record is `-1` either way, and a lamp of radius 100 is `-7853.98`, reaching
+        /// `100 * 2 + 128 = 328` as the white lamp does. A colour that gives in one channel and takes
+        /// in another is no record's and is refused.
+        TEST(RtxLightBuilderTest, aLightThatSubtractsIsADarkeningLampByBothRoutes)
         {
             const SceneUtil::LightCommon subtracting = describe(100, 0x00FFFFFF, ESM::Light::Negative);
-
             const osg::ref_ptr<SceneUtil::LightSource> built
                 = SceneUtil::createLightSource(subtracting, Testing::sLightMask, /*isExterior=*/false);
             ASSERT_NE(built, nullptr);
 
             const osg::Vec3f radiated = lightColour(*built, 0.0);
-            ASSERT_LT(radiated.x(), 0.0f) << "the graph did not build a light that subtracts, so this proves nothing";
+            EXPECT_EQ(radiated, osg::Vec3f(-1.0f, -1.0f, -1.0f));
 
-            EXPECT_TRUE(isRefused(makeLight(radiated, 100.0f, osg::Vec3f()))) << "the walk mirrored it anyway";
-            EXPECT_TRUE(isRefused(makeLight(subtracting, osg::Vec3f(), 0.0, 1))) << "and the record it was built from";
-            EXPECT_EQ(makeLight(subtracting, osg::Vec3f(), 0.0, 1).error(), "it takes light away, which a ray cannot");
+            const std::optional<Rtx::Light> byGraph = makeLight(radiated, 100.0f, osg::Vec3f()).value();
+            const std::optional<Rtx::Light> byRecord = makeLight(subtracting, osg::Vec3f(), 0.0, 1).value();
+            ASSERT_TRUE(byGraph.has_value());
+            ASSERT_TRUE(byRecord.has_value());
+            EXPECT_EQ(byGraph->mIntensity, byRecord->mIntensity);
+            EXPECT_FLOAT_EQ(byRecord->mIntensity.x(), -100.0f * 100.0f * 0.25f * Shaders::PI);
+            EXPECT_FLOAT_EQ(byRecord->mReach, 328.0f);
 
-            // The same record without the flag is an ordinary white lamp by both routes, so what the
-            // two agree on is the flag and not the light.
-            const SceneUtil::LightCommon ordinary = describe(100, 0x00FFFFFF, 0);
-            const osg::ref_ptr<SceneUtil::LightSource> lit
-                = SceneUtil::createLightSource(ordinary, Testing::sLightMask, /*isExterior=*/false);
-
-            EXPECT_TRUE(isLamp(makeLight(lightColour(*lit, 0.0), 100.0f, osg::Vec3f())));
-            EXPECT_TRUE(isLamp(makeLight(ordinary, osg::Vec3f(), 0.0, 1)));
-
-            // **A black record subtracts nothing, so the flag on it decides nothing either.** Both
-            // routes place a lamp that radiates zero, which is what they do for a black record
-            // without the flag, so the two routes agree.
-            const SceneUtil::LightCommon unlit = describe(100, 0x00000000, ESM::Light::Negative);
-            const osg::ref_ptr<SceneUtil::LightSource> dark
-                = SceneUtil::createLightSource(unlit, Testing::sLightMask, /*isExterior=*/false);
-
-            EXPECT_TRUE(isLamp(makeLight(lightColour(*dark, 0.0), 100.0f, osg::Vec3f())));
-            EXPECT_TRUE(isLamp(makeLight(unlit, osg::Vec3f(), 0.0, 1)));
+            EXPECT_TRUE(isRefused(makeLight(osg::Vec3f(-1.0f, 1.0f, 0.0f), 100.0f, osg::Vec3f())));
         }
 
         /// A lamp any number of which is not finite is refused by every route to one.

@@ -7,31 +7,36 @@
 
 namespace MWRender
 {
-    TracedGround::TracedGround(osg::Group& sceneRoot, Terrain::Storage& storage, const unsigned int nodeMask,
-        const ESM::RefId worldspace, WorldMirror& mirror)
-        : mTerrain(sceneRoot, storage, nodeMask, worldspace)
+    TracedGround::TracedGround(
+        const GroundSpec& spec, Resource::SceneManager& scenes, const unsigned int nodeMask, WorldMirror& mirror)
+        : mTerrain(spec.mSceneRoot, spec.mWorldRoot, spec.mStorage, scenes, *this, nodeMask, spec.mWorldspace)
         , mMirror(mirror)
     {
     }
 
+    bool TracedGround::standsGround(const osg::Vec2i& cell) const
+    {
+        return mMirror.getRing().standsGround(cell);
+    }
+
     bool TracedGround::enableReference(int type, const MWWorld::ConstPtr& ptr, const bool enabled)
     {
-        mMirror.setReferenceEnabled(ptr.getCellRef().getRefNum(), enabled);
+        mMirror.getRing().setReferenceEnabled(ptr.getCellRef().getRefNum(), enabled);
         return false;
     }
 
     void TracedGround::blacklistReference(int type, const MWWorld::ConstPtr& ptr)
     {
-        mMirror.blacklistReference(ptr.getCellRef().getRefNum());
+        mMirror.getRing().blacklistReference(ptr.getCellRef().getRefNum());
     }
 
     void TracedGround::setGate(const std::uint32_t gate, const Terrain::GateState state)
     {
-        mMirror.setGate(gate, state);
+        mMirror.getRing().setGate(gate, state);
     }
 
     void TracedGround::clear()
     {
-        mMirror.forgetReferences();
+        mMirror.getRing().forgetReferences();
     }
 }

@@ -21,10 +21,12 @@
 
 #include "ground.hpp"
 #include "rendermode.hpp"
+#include "rendersupport.hpp"
 
 namespace osg
 {
     class Camera;
+    class Drawable;
     class FrameStamp;
     class Group;
     class Image;
@@ -149,6 +151,11 @@ namespace MWRender
         virtual void removeWaterRippleEmitter(const MWWorld::Ptr& ptr) {}
         virtual void emitWaterRipple(const osg::Vec3f& position) {}
 
+        /// Brings `drawable`'s own vertices to the pose this frame shows before a ray cast on the CPU
+        /// reads them: `SceneUtil::RigGeometry` and `MorphGeometry` pose that copy in a cull alone.
+        /// Nothing for a renderer whose cull of the world posed it.
+        virtual void poseForIntersection(osg::Drawable& drawable) {}
+
         /// What this renderer would like loaded before the first cell is: the rasterizer's sky and
         /// water meshes and textures.
         virtual void listAssetsToPreload(
@@ -199,7 +206,7 @@ namespace MWRender
 
         /// What the eye sees, as the bits of `MWRender::VisMask` the game has switched on: the
         /// one vocabulary both renderers read, the rasterizer as its cull mask and the ray tracer
-        /// as `rayMaskOf`. Kept here, so a screen that covers the world (`showWorld`) parks the
+        /// as `describeView`. Kept here, so a screen that covers the world (`showWorld`) parks the
         /// rasterizer's camera without the game's answer moving.
         void setViewMask(unsigned int mask);
         unsigned int getViewMask() const { return mViewMask; }
@@ -217,17 +224,13 @@ namespace MWRender
         /// and a world `tws` hides is still updated — and the rest are the renderer's own
         /// (`Render_Wireframe` is the rasterizer's polygon mode). The game keeps the modes that
         /// are its own nodes (paths, meshes, the pathgrid) and the water.
-        ///
-        /// **A map tile asked for under `tws` differs.** The rasterizer hides the world by a mask its
-        /// offscreen cameras do not share, so the tile is drawn. The ray tracer draws a tile against
-        /// the scene a walk hands over, and a hidden world is walked by nothing: the tile waits for
-        /// the world to come back. The doll stands on a scene of its own and is drawn by both.
         bool toggleRenderMode(RenderMode mode);
         bool isWorldToggled() const { return mWorldToggled; }
 
-        /// Whether a frame draws the world: both of the answers above, said once so a frame cannot
-        /// walk on one and trace on the other.
-        bool drawsWorld() const { return mWorldShown && mWorldToggled; }
+        /// What the eye sees while the world is shown: the view mask, less `sToggleWorldMask`
+        /// where `tws` hides the world. The sky, the water, the player and the effects stay, and
+        /// both renderers draw them. Only the eye's: a map tile and the doll keep their own masks.
+        unsigned int worldViewMask() const;
 
         /// The shader chain over the frame, or null where this renderer has none. Owned here,
         /// because what happens between the scene and the screen is the whole of what a renderer is
@@ -303,9 +306,13 @@ namespace MWRender
         virtual void renderFrame(const SceneFrame& frame) = 0;
 
         /// The eye did not travel here: a change of worldspace, a teleport inside one, a time
-        /// skip. What the last frame showed is not what this one is a step from, which a renderer
-        /// reconstructing across frames needs telling and a rasterizer does not. Only the
-        /// simulation knows, because a cell load looks like a step from below the seam.
+        /// skip — the game's own, `World::advanceTime` past its frame's step, which a rest, a wait,
+        /// travel, training and jail make. What the last frame showed is not what this one is a
+        /// step from, which a renderer reconstructing across frames needs telling and a rasterizer
+        /// does not. Only the simulation knows, because a cell load looks like a step from below
+        /// the seam. A script's write to the clock (`set GameHour`) is a skip where it moves the hour
+        /// by more than the frame's step (`MWWorld::DateTimeManager::jumps`); one that holds the
+        /// hour, as a clock script does on every frame, is not.
         virtual void notifyCut() {}
 
         /// The worldspace changed, which is one kind of cut and the one kind that ends what a
@@ -368,7 +375,10 @@ namespace MWRender
         void renderLoadingFrame(double targetFrameRate);
 
         /// The frame without the GUI, into an image. The screenshot console command and the save
-        /// thumbnails; blocks until the frame it asked for has been drawn.
+        /// thumbnails. The rasterizer draws a frame for it and blocks until it has; the ray tracer
+        /// reads the last picture it traced, which is this frame's world wherever the world is
+        /// shown, `tws` included. Under a cover the two differ: the rasterizer's frame has no world
+        /// in it, and the ray tracer's is the last world it showed.
         virtual void capture(osg::Image& image, int width, int height) = 0;
 
         /// The screenshot key, which writes a file rather than handing back an image, through the
@@ -391,10 +401,13 @@ namespace MWRender
 
         virtual void setVSync(SDLUtil::VSyncMode mode) = 0;
 
-        /// Settings the player changed in the menu, as `Settings::Manager` reports them. Each
-        /// renderer picks out its own — the rasterizer its shader chain, the ray tracer its
-        /// upscaler — and the game never learns which setting belongs to whom.
-        virtual void processChangedSettings(const Settings::CategorySettingVector& changed) {}
+        /// What this renderer honours, and why it declines the rest. Asked wherever the game would
+        /// otherwise branch on which renderer it has: the settings window, the console, Lua.
+        virtual const RenderSupport& support() const = 0;
+
+        /// Settings the player changed in the menu, as `Settings::Manager` reports them, of which
+        /// the renderer is handed the ones its `support` honours.
+        void processChangedSettings(const Settings::CategorySettingVector& changed);
 
         /// The origin the per-frame profiler measures from, so its spans land on the same axis as
         /// the renderer's own counters.
@@ -455,6 +468,9 @@ namespace MWRender
         /// A render mode other than `Render_Scene`, which the seam answers itself.
         virtual bool toggleOwnRenderMode(RenderMode mode) { return false; }
 
+        /// The changed settings the renderer honours, out of `processChangedSettings`.
+        virtual void applyChangedSettings(const Settings::CategorySettingVector& honoured) {}
+
         /// What `renderLoadingFrame` says before it draws: how long the frame stands for, which is
         /// what the rasterizer's compiler is given to spend on what a loader handed over.
         virtual void applyLoadingBudget(double targetFrameRate) {}
@@ -485,11 +501,20 @@ namespace MWRender
         bool mWorldToggled = true;
     };
 
-    /// The game's own choice, by name. Throws naming the name where there is no such renderer,
-    /// because a fallback would answer "why does it look like that" with silence. A host with a
-    /// renderer of its own — the harness, with its run — makes it itself, as the engine's host
-    /// (`OMW::EngineHost::createRenderer`).
-    std::unique_ptr<Renderer> createRenderer(std::string_view name, const RendererSpec& spec);
+    /// Which of the two renderers a build ships draws the game: both are in every build, and the
+    /// one not chosen never starts.
+    enum class RendererKind
+    {
+        OpenGl,
+        RayTraced,
+    };
+
+    /// The kind as the log and a crash report name it.
+    std::string_view nameOf(RendererKind kind);
+
+    /// The game's own choice. A host with a renderer of its own — the harness, with its run —
+    /// makes it itself, as the engine's host (`OMW::EngineHost::createRenderer`).
+    std::unique_ptr<Renderer> createRenderer(RendererKind kind, const RendererSpec& spec);
 
     /// The window a renderer draws into, as the video settings ask for it: hidden, on the display
     /// `[Video] screen` names and in its window mode, or null with SDL's error to read. Hidden,

@@ -64,9 +64,8 @@ namespace Rtx
         const std::uint32_t lineCount = what.mLineCount;
         const std::uint32_t triangleCount = what.mTriangleCount;
 
-        assert(constants.mCamera.mOrthographic == 0 && "debug lines through a parallel projection");
-        assert(constants.mCamera.mWidth == target.getWidth() && constants.mCamera.mHeight == target.getHeight()
-            && "a camera on a grid other than the target's");
+        assert(constants.mExtent.x() == target.getWidth() && constants.mExtent.y() == target.getHeight()
+            && "lines on a grid other than the target's");
         assert(constants.mTraced.x() == surface.getWidth() && constants.mTraced.y() == surface.getHeight()
             && "a traced extent other than the surface channel's");
 
@@ -74,7 +73,7 @@ namespace Rtx
             return;
 
         // `line.vert` writes Vulkan's own clip space, `+Y` down as the picture is indexed.
-        beginDrawingOver(commands, target, ClipUp::Down);
+        beginDrawingOver(commands, target, ClipUp::Down, Underneath::Kept);
 
         const VkBuffer bound = vertices.getHandle();
         const VkDeviceSize offset = 0;

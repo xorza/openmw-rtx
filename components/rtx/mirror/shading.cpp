@@ -19,7 +19,18 @@ namespace Rtx
         return said;
     }
 
-    float fadeThrough(const osg::StateSet& stateSet, float inherited)
+    Shading Shading::under(const std::span<const Shading> chain, const osg::StateSet& stateSet, const bool animated)
+    {
+        const Shading* const above = chain.empty() ? nullptr : &chain.back();
+        return Shading{
+            .mStateSet = &stateSet,
+            .mFade = fadeThrough(stateSet, above != nullptr ? above->mFade : Fade{}),
+            .mAnimated = animated,
+            .mAnimatedThrough = animated || (above != nullptr && above->mAnimatedThrough),
+        };
+    }
+
+    Fade fadeThrough(const osg::StateSet& stateSet, const Fade& inherited)
     {
         // Asked of the list before the name, because nearly every state set in the world has no
         // uniform at all. `osg::StateSet::getUniform` searches a `std::map` keyed on
@@ -35,16 +46,25 @@ namespace Rtx
         static const std::string sActorFade("actorFade");
         static const std::string sAlpha("alpha");
 
-        const osg::Uniform* fade = stateSet.getUniform(sActorFade);
+        const osg::Uniform* const fade = stateSet.getUniform(sActorFade);
+        const osg::Uniform* const hidden = stateSet.getUniform(sAlpha);
         if (fade == nullptr)
-            return inherited;
+            return hidden != nullptr ? Fade{ .mPlacement = inherited.mActor, .mActor = inherited.mActor } : inherited;
 
         float actorFade = 1.0f;
         float alpha = 1.0f;
         fade->get(actorFade);
-        if (const osg::Uniform* hidden = stateSet.getUniform(sAlpha))
+        if (hidden != nullptr)
             hidden->get(alpha);
 
-        return actorFade * alpha;
+        return Fade{ .mPlacement = actorFade * alpha, .mActor = actorFade };
+    }
+
+    bool drawsIntoDistortion(const osg::StateSet& stateSet)
+    {
+        // The mode first, because nearly every state set inherits its bin and a name compared per
+        // node a walk enters would be paid by all of them.
+        return stateSet.getRenderBinMode() != osg::StateSet::INHERIT_RENDERBIN_DETAILS
+            && stateSet.getBinName() == "Distortion";
     }
 }

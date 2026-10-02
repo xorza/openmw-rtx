@@ -80,10 +80,11 @@ namespace MWRender
 
     /// The picture as OpenSceneGraph draws it: a GL window, a viewer and upstream's frame loop.
     ///
-    /// **The rasterizer is not modified, wrapped or conditionally compiled around — it is gathered.**
-    /// Every threading, realize and traversal decision here is upstream's, moved rather than
-    /// rewritten, which is what makes "does the other renderer do this correctly" answerable by
-    /// comparison (`AGENTS.md`).
+    /// **The rasterizer is gathered and not rewritten.** Every threading, realize and traversal
+    /// decision here is upstream's, moved rather than rewritten, which is what makes "does the other
+    /// renderer do this correctly" answerable by comparison. Its picture is upstream's but for the
+    /// changes `AGENTS.md` accepts: four the ray tracer needs, the frame shown scaled into the window
+    /// (`applyPresentation`), and the gamma its canvas applies in its last draw.
     class GlRenderer final : public Renderer
     {
     public:
@@ -133,7 +134,7 @@ namespace MWRender
         osgUtil::IncrementalCompileOperation* getCompileOperation() const override;
 
         void setVSync(SDLUtil::VSyncMode mode) override;
-        void processChangedSettings(const Settings::CategorySettingVector& changed) override;
+        const RenderSupport& support() const override;
 
         void addCell(const MWWorld::CellStore* cell) override;
         void removeCell(const MWWorld::CellStore* cell) override;
@@ -170,6 +171,7 @@ namespace MWRender
         void applyViewMask() override;
         void applyWorldShown() override;
         bool toggleOwnRenderMode(RenderMode mode) override;
+        void applyChangedSettings(const Settings::CategorySettingVector& honoured) override;
         void applyLoadingBudget(double targetFrameRate) override;
 
         /// The post-processor at the frame's size, the frame remade where its size moved, and the
@@ -234,9 +236,6 @@ namespace MWRender
 
         /// Writes `mask` to the master camera and to the stereo pair, which are no-ops in mono.
         void cull(unsigned int mask);
-
-        /// The seam's view mask, less the world's bits while `tws` is off.
-        unsigned int worldCullMask() const;
 
         osg::ref_ptr<SceneUtil::SelectDepthFormatOperation> mSelectDepthFormatOperation;
         osg::ref_ptr<SceneUtil::Color::SelectColorFormatOperation> mSelectColorFormatOperation;

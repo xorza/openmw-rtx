@@ -96,7 +96,9 @@ namespace Rtx
         const VkDeviceSize scratchAlignment = mDevice.getPhysicalDevice().getStructureScratchAlignment();
 
         // Sized before anything is created, so a load's structures land in one storage block rather
-        // than one per mesh. An arrival asks for nothing and gets a block big enough for itself.
+        // than one per mesh. What is still to place, which falls as each is placed: a block made
+        // after part of an arrival went into the holes a departed cell left covers the rest and
+        // not the whole arrival again.
         VkDeviceSize wanted = 0;
         VkDeviceSize scratchTotal = 0;
 
@@ -274,6 +276,7 @@ namespace Rtx
             }
 
             row.mStructure = AccelerationStructure::bottomLevel(mDevice, mStorage, room.value(), mBuilding[at].mSize);
+            wanted -= std::min(wanted, alignUp(mBuilding[at].mSize, StructureStorage::sAlignment));
 
             mBuild.mBuilds[at].dstAccelerationStructure = row.mStructure.getHandle();
             mBuild.mBuilds[at].scratchData.deviceAddress = scratchAddress + mBuilding[at].mScratchOffset;

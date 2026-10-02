@@ -10,15 +10,12 @@
 
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/slots.hpp>
+#include <components/rtx/renderer/framesinflight.hpp>
 
 namespace Rtx
 {
-    /// How many frames may be in flight over one scene at once, which is how many copies there are
-    /// of every table a frame writes. Two, because the CPU is one frame ahead of the GPU and no
-    /// more: the walk and the placement of frame N+1 run while frame N is traced, so the tables N+1
-    /// writes cannot be the ones N reads, and a third copy would buy nothing, since the CPU has
-    /// nothing to do that far ahead.
-    inline constexpr std::uint32_t sFrameSlots = 2;
+    /// How many copies there are of every table a frame writes: one for each frame in flight.
+    inline constexpr std::uint32_t sFrameSlots = sFramesInFlight;
 
     /// Which copy of a double-buffered table a frame writes. A type and not a `std::uint32_t`,
     /// because a scene slot, a GUI texture and this were one spelling between them — and

@@ -34,26 +34,23 @@ namespace MWRender
 {
     namespace
     {
-        /// `Weather_Sun_Glare_Fader_Color` as `SunGlareCallback` takes it: doubled and clamped,
-        /// replicating the original's flaw of setting one colour on two material terms, which the
-        /// fixed-function pipeline then saturated — only the red does, at the shipped values, so
-        /// the wash is orange. In the display's own values and not decoded, because that is the
-        /// space the rasterizer adds it in and `tone.comp` adds it in the same.
-        osg::Vec3f glareFaderColour()
+        osg::Vec3f waterScatter()
         {
-            const osg::Vec4f read = Fallback::Map::getColour("Weather_Sun_Glare_Fader_Color");
-            return osg::Vec3f(
-                std::min(1.0f, 2.0f * read.r()), std::min(1.0f, 2.0f * read.g()), std::min(1.0f, 2.0f * read.b()));
+            // The content's water colour at its weight, and not the air's share `FogManager` mixes in
+            // beside it: that share tints the rasterizer's picture under water, and read as the water's
+            // own albedo it would turn a clear noon's sea a muddy grey and undo the pairing `look.h`
+            // states with `WATER_EXTINCTION`.
+            const osg::Vec4f colour = Fallback::Map::getColour("Water_UnderwaterColor");
+            return osg::Vec3f(colour.r(), colour.g(), colour.b())
+                * Fallback::Map::getFloat("Water_UnderwaterColorWeight");
         }
     }
 
     SkyReader::SkyReader()
         : mMoonPaint(Rtx::decodeColour(Fallback::Map::getColour("Moons_Script_Color")))
-        , mGlareColour(glareFaderColour())
-        , mGlareMax(Fallback::Map::getFloat("Weather_Sun_Glare_Fader_Max"))
-        , mGlareAngleMax(osg::DegreesToRadians(Fallback::Map::getFloat("Weather_Sun_Glare_Fader_Angle_Max")))
-        , mMoonSizes{ .mMasser = Fallback::Map::getFloat("Moons_Masser_Size"),
-            .mSecunda = Fallback::Map::getFloat("Moons_Secunda_Size") }
+        , mGlare(Sky::SunGlareFader::read())
+        , mMoonSizes{ Fallback::Map::getFloat("Moons_Masser_Size"), Fallback::Map::getFloat("Moons_Secunda_Size") }
+        , mWaterScatter(waterScatter())
     {
     }
 
@@ -61,6 +58,7 @@ namespace MWRender
     {
         return Rtx::SkyMeshes{
             .mClouds = Settings::models().mSkyclouds,
+            .mAtmosphere = Settings::models().mSkyatmosphere,
             .mStars = Settings::models().mSkynight02,
             .mStarsFallback = Settings::models().mSkynight01,
         };
@@ -71,6 +69,7 @@ namespace MWRender
     {
         const Rtx::SkyMeshes sky = meshes();
         models.push_back(sky.mClouds);
+        models.push_back(sky.mAtmosphere);
         if (vfs.exists(sky.mStars))
             models.push_back(sky.mStars);
         models.push_back(sky.mStarsFallback);
@@ -79,11 +78,19 @@ namespace MWRender
             textures.emplace_back(Rtx::moonFaceOf(moon));
     }
 
-    void SkyReader::attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ContentPreprocessor& content)
+    void SkyReader::attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ImageFactCache& facts)
     {
-        mMoonFaces = Rtx::addMoonFaces(scene, *scenes.getImageManager(), mMoonSizes, mHolds, content);
-        mSkyContent = Rtx::addSkyContent(scene, scenes, meshes(), content, mHolds);
+        mMoonFaces = Rtx::addMoonFaces(scene, *scenes.getImageManager(), mMoonSizes, mHolds, facts);
+        mSkyContent = Rtx::addSkyContent(scene, scenes, meshes(), facts, mHolds);
         mTimescaleClouds = Fallback::Map::getBool("Weather_Timescale_Clouds");
+    }
+
+    void SkyReader::follow(
+        const SkyState& sky, Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ImageFactCache& facts)
+    {
+        for (const std::string* name : { &sky.mWeather.mCloudTexture, &sky.mWeather.mNextCloudTexture })
+            if (!name->empty() && mSkyContent.sheetNamed(*name) == Rtx::sNoSheet)
+                Rtx::addCloudSheet(scene, scenes, facts, mHolds, *name, mSkyContent);
     }
 
     void SkyReader::detach(Rtx::SceneDesc& scene)
@@ -135,11 +142,10 @@ namespace MWRender
         const bool skyShown = world.mSkyShown;
 
         // An interior has no sky colour: the weather system stops writing it indoors, so the air's
-        // own colour stands in. A quasi-exterior has weather and so has one. A sky turned off is
-        // the fog colour to the top, which is what the rasterizer's clear shows there.
-        const osg::Vec3f zenith = room.has_value() ? room->mSkyZenith
-            : skyShown                             ? Rtx::decodeColour(weather.mSkyColor)
-                                                   : haze;
+        // own colour stands in. A quasi-exterior has weather and so has one. A sky turned off keeps
+        // it: what the sky lights is unchanged, and what an eye sees there is the frame's to say
+        // (`Rtx::WorldReading::mSkyDrawn`).
+        const osg::Vec3f zenith = room.has_value() ? room->mSkyZenith : Rtx::decodeColour(weather.mSkyColor);
 
         // The sun is not assembled here: everything the world says about it goes to the one builder
         // that decides what a sun may be, and the light is taken whole from whichever built it.
@@ -152,7 +158,7 @@ namespace MWRender
             .mSunShareAloft = Rtx::sunShareAloft(world.mGameHour, sky.mTimes),
             .mSunColour = Rtx::decodeColour(world.mSunColour),
             .mAmbient = Rtx::decodeColour(world.mAmbientColour),
-            .mDiscColour = skyShown ? Rtx::decodeColour(weather.mSunDiscColor) : osg::Vec3f(),
+            .mDiscColour = Rtx::decodeColour(weather.mSunDiscColor),
             .mGlare = weather.mGlareView,
         };
         const Rtx::Skylight light = room.has_value() ? room->mLight : Rtx::makeSkylight(reading);
@@ -176,14 +182,12 @@ namespace MWRender
             // The glare is applied here, where the rasterizer applies it too
             // (`SkyManager::setWeather` calls `Moon::adjustTransparency` after the hand-over).
             moons[moon] = Rtx::placeMoon(mMoonFaces, static_cast<Rtx::Moon>(moon), state.mRotationFromHorizon,
-                state.mRotationFromNorth, state.mPhase, state.mDaylightFade * weather.mGlareView);
+                state.mRotationFromNorth, state.mPhaseEighths, state.mDaylightFade * weather.mGlareView);
         }
 
         // Secunda alone, as `SkyManager::setMoonColour` paints it.
         if (world.mMoonRed)
             moons[static_cast<std::size_t>(Rtx::Moon::Secunda)].mPaint = mMoonPaint;
-
-        const auto weatherId = static_cast<std::uint32_t>(world.mWeatherId);
 
         // **Nothing recorded is not a rate.** `Weather::transitionDelta` divides by
         // `Clouds_Maximum_Percent`, which the shipped fallbacks leave at nought for ash and blight,
@@ -204,17 +208,19 @@ namespace MWRender
                 .mStarFade = weather.mNight ? weather.mNightFade : 0.f,
                 .mFog = air,
             },
-            .mOutdoors = skyShown,
+            .mOutdoors = world.isOutdoors(),
+            .mSkyDrawn = skyShown,
             .mGlare = weather.mGlareView,
             .mStarRoll = Sky::starRoll(world.mGameTime),
             .mSky = mSkyContent,
             .mMoons = moons,
             .mClouds = Rtx::CloudCrossing{
-                .mWeather = weatherId,
-                // The current weather twice where nothing is arriving, since the deck crosses
-                // unconditionally: naming it on both sides at a blend of nothing is what lets it.
-                .mNext = world.mNextWeatherId.has_value() ? static_cast<std::uint32_t>(*world.mNextWeatherId)
-                                                          : weatherId,
+                // The sheets the weather names, as the rasterizer is handed them. The one ahead
+                // only while a weather is arriving: outside a transition the engine leaves the last
+                // one's name standing at a blend of nothing.
+                .mSheet = mSkyContent.sheetNamed(weather.mCloudTexture),
+                .mNext = world.mNextWeatherId.has_value() ? mSkyContent.sheetNamed(weather.mNextCloudTexture)
+                                                          : Rtx::sNoSheet,
                 .mBlend = cloudBlend,
                 // Reported rather than derived, because an ash or blight storm blows off Red
                 // Mountain at the player; one each, because the rasterizer turns each of its two
@@ -228,6 +234,8 @@ namespace MWRender
             // answer "how deep is this point" with never.
             .mWaterLevel = world.mWater.isShown() ? world.mWater.mHeight : -std::numeric_limits<float>::infinity(),
 
+            .mWaterScatter = mWaterScatter,
+
             // What the sea is animated by, in elapsed seconds rather than frames, or the sea would
             // slow down whenever the frame did.
             .mSeconds = seconds,
@@ -237,19 +245,19 @@ namespace MWRender
 
             // The top of the box the rasterizer's `PrecipitationOccluder::update` draws its depth
             // map from: the precipitation's own range and a cell over it, above the eye. Nought
-            // where the game says what is falling is not the kind a roof stops — ash and blight
-            // blow under one, and rain and snow do not.
+            // where `weather particle occlusion` is off, or where the game says what is falling is
+            // not the kind a roof stops — ash and blight blow under one, and rain and snow do not.
             .mShelterHeight
             = falling.isOccluded() ? falling.getOcclusionRange().z() + Constants::CellSizeInUnits : 0.0f,
 
             // The fader's strength as `SunGlareCallback` multiplies it up: `_Max` by the
-            // time-of-day fade by the weather's `Glare_View`. The glare node hangs under the sun's
-            // own transform, so a sun the weather manager has hidden for the night or a sky `tsky`
-            // turned off draws none.
+            // time-of-day fade by the glare view `SkyManager::setWeather` hands the sun, which is
+            // the weather's `Glare_View` by the disc's own sunrise and sunset alpha. The glare node
+            // hangs under the sun's own transform, so a sun the weather manager has hidden for the
+            // night or a sky `tsky` turned off draws none.
             .mSunGlare = Rtx::SunGlare{
-                .mColour = mGlareColour,
-                .mAngleMax = mGlareAngleMax,
-                .mStrength = skyShown && sky.mSunUp ? mGlareMax * sky.mGlareFade * weather.mGlareView : 0.0f,
+                .mFader = mGlare,
+                .mFade = skyShown && sky.mSunUp ? sky.mGlareFade * weather.mGlareView * weather.mSunDiscColor.a() : 0.0f,
             },
         };
     }

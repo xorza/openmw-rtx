@@ -1,10 +1,13 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Vec3f>
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/frame/spritelistsize.hpp>
 #include <components/rtx/shaders/camera.h>
+#include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/scene/spritesource.hpp>
@@ -16,20 +19,52 @@ namespace Rtx
     class SpriteBinPass;
     class SpriteShadePass;
 
-    /// What one bin is of: the sprites, where they are seen from, and what lights them. A record
-    /// and not an argument list, because `mOrigin` is a place and `mToSun` a direction and the
-    /// two are one type, so a list takes either for the other.
+    /// Where a bin's sprites are seen from and what lights them, off the camera the caller asked
+    /// for: a bin is a screen-space tile, and the jitter a trace samples by would move every tile by
+    /// a fraction of a pixel a frame, for nothing. A record and not an argument list, because
+    /// `mOrigin` is a place and `mToSun` a direction and the two are one type, so a list takes
+    /// either for the other.
+    struct BinCamera
+    {
+        /// Where the eye stands, and the camera whose screen tiles the sprites are binned into.
+        osg::Vec3f mOrigin;
+        Shaders::Camera mCamera;
+
+        /// The classes the camera draws, `VisibilityConstants::mRayMask`.
+        std::uint32_t mRayMask = 0;
+
+        /// Toward the sun, which the shade lights every sprite by.
+        osg::Vec3f mToSun;
+
+        /// The four of `asked`, the frame block a caller asked for.
+        static BinCamera of(const Shaders::VisibilityConstants& asked)
+        {
+            return BinCamera{ .mOrigin = asked.mOrigin,
+                .mCamera = asked.mEyes.mWorld,
+                .mRayMask = asked.mRayMask,
+                .mToSun = asked.mSun.mDirection };
+        }
+    };
+
+    /// Where one trace's sprite tables are, read once off its bin after `take`, which may have grown
+    /// them: what the frame block binds, and what the display reads of the same trace after it. A
+    /// camera that draws no sprites binds its slot's bin all the same; the bin took no sprite, so its
+    /// list holds none.
+    struct SpriteTables
+    {
+        VkDeviceAddress mSprites = 0;
+        VkDeviceAddress mEmitterFrames = 0;
+        VkDeviceAddress mTileList = 0;
+        VkDeviceAddress mPresence = 0;
+    };
+
+    /// What one bin is of: the sprites, and where they are seen from.
     struct Binning
     {
         /// The sprites this bin took, as the scene's tables describe them.
         const SpriteSource& mSource;
 
-        /// Where the eye stands, and the camera whose screen tiles the sprites are binned into.
-        osg::Vec3f mOrigin;
-        Shaders::Camera mCamera;
-
-        /// Toward the sun, which the shade lights every sprite by.
-        osg::Vec3f mToSun;
+        BinCamera mSeen;
 
         /// Null where the run is not being timed.
         GpuTimer* mTimer = nullptr;
@@ -53,10 +88,9 @@ namespace Rtx
         /// what the last bin here reported it needed, where the timeline says that report has
         /// landed — and copies `source`'s sprites into this bin's own, on the queue, left where a
         /// launch or a dispatch may read and write them. First, and apart from `record`, because
-        /// what stands between the two is the frame block: `getSpritesAddress` and
-        /// `getTileListAddress` are only the addresses once the tables are grown, the block carries
-        /// both, and the shelter launch that zeroes the sheltered sprites reads the block before
-        /// the shade reads the sprites.
+        /// what stands between the two is the frame block: `getTables` names them only once they
+        /// are grown, the block carries them, and the shelter launch that zeroes the sheltered
+        /// sprites reads the block before the shade reads the sprites.
         void take(const SpriteSource& source, const Shaders::Camera& camera, VkCommandBuffer commands);
 
         /// Shades the sprites `take` copied against the sun in place, and records the bin of them
@@ -64,10 +98,14 @@ namespace Rtx
         /// commands. `commands` first, as every other `record` in this backend takes it.
         void record(VkCommandBuffer commands, const Binning& what);
 
-        VkDeviceAddress getSpritesAddress() const { return mSprites.get().addressFor(); }
-        VkDeviceAddress getEmitterFramesAddress() const { return mEmitterFrames.get().addressFor(); }
-        VkDeviceAddress getTileListAddress() const { return mTileList.get().addressFor(); }
-        VkDeviceAddress getPresenceAddress() const { return mPresence.get().addressFor(); }
+        /// Where the tables stand now: after `take`, which is what grows them.
+        SpriteTables getTables() const
+        {
+            return SpriteTables{ .mSprites = mSprites.get().addressFor(),
+                .mEmitterFrames = mEmitterFrames.get().addressFor(),
+                .mTileList = mTileList.get().addressFor(),
+                .mPresence = mPresence.get().addressFor() };
+        }
 
         VkDeviceSize getBytes() const;
 

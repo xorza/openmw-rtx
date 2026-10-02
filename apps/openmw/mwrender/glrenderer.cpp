@@ -80,6 +80,7 @@
 #include "glground.hpp"
 #include "glmapoverlay.hpp"
 #include "gloffscreenview.hpp"
+#include "glsupport.hpp"
 #include "glworld.hpp"
 #include "groundcover.hpp"
 #include "mapoverlay.hpp"
@@ -494,16 +495,11 @@ namespace MWRender
         mViewer->getCamera()->setCullMaskRight(mask);
     }
 
-    unsigned int GlRenderer::worldCullMask() const
-    {
-        return isWorldToggled() ? getViewMask() : getViewMask() & ~sToggleWorldMask;
-    }
-
     void GlRenderer::applyWorldShown()
     {
         const bool covered = !isWorldShown();
         mViewer->getUpdateVisitor()->setTraversalMask(covered ? sCoveredCullMask : mShownUpdateMask);
-        cull(covered ? sCoveredCullMask : worldCullMask());
+        cull(covered ? sCoveredCullMask : worldViewMask());
 
         // The water's reflection reads `tws` on its own, and a cover leaves it as it was.
         if (mWorld)
@@ -515,7 +511,7 @@ namespace MWRender
         // **Not while a screen covers the world.** The camera then carries the two bits the
         // interface is drawn with, and `applyWorldShown` writes the seam's word when the screen ends.
         if (isWorldShown())
-            cull(worldCullMask());
+            cull(worldViewMask());
     }
 
     bool GlRenderer::toggleOwnRenderMode(const RenderMode mode)
@@ -847,7 +843,12 @@ namespace MWRender
         return mViewer->getIncrementalCompileOperation();
     }
 
-    void GlRenderer::processChangedSettings(const Settings::CategorySettingVector& changed)
+    const RenderSupport& GlRenderer::support() const
+    {
+        return glSupport();
+    }
+
+    void GlRenderer::applyChangedSettings(const Settings::CategorySettingVector& changed)
     {
         if (!mWorld)
             return;

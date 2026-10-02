@@ -23,6 +23,9 @@
 #include "../mwbase/environment.hpp"
 #include "../mwbase/inputmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
+#include "../mwbase/world.hpp"
+#include "../mwrender/renderer.hpp"
+#include "../mwrender/renderingmanager.hpp"
 
 #include <format>
 
@@ -333,8 +336,9 @@ namespace MWLua
             return luaManager->uiResourceManager()->findCursor(windowManager->getCurrentCursorName());
         };
 
-        api["screenSize"] = [windowManager]() {
-            const osg::Vec2i frame = windowManager->getFrameSize();
+        api["screenSize"] = []() {
+            const osg::Vec2i frame
+                = MWBase::Environment::get().getWorld()->getRenderingManager()->getRenderer().getPresentation().mFrame;
             return osg::Vec2f(static_cast<float>(frame.x()), static_cast<float>(frame.y()));
         };
 

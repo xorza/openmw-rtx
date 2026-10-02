@@ -148,8 +148,8 @@ layout (set = SET_PASS, binding = FSR_INPUTS_BIND_INPUTS, scalar) uniform cbInpu
 FfxFloat32 LoadInputDepth(FfxInt32x2 iPxPos)
 {
     const vec2 seen = texelFetch(r_input_surface, iPxPos, 0).rg;
-    const Camera eye = eyeOfPixel(seen.y, cbInputs.mCamera, cbInputs.mArms);
-    const float along = surfaceDistance(seen.y) * dot(rayAt(eye, vec2(iPxPos)).mDirection, eye.mForward);
+    const Camera eye = eyeOfPixel(seen.y, cbInputs.mEyes);
+    const float along = surfaceDistance(seen.y) * dot(rayAt(eye, vec2(iPxPos)).mDirection, eye.mBasis.mForward);
     return seen.x == SURFACE_NO_NORMAL ? 0.0 : cbInputs.mNear / max(along, cbInputs.mNear);
 }
 #endif

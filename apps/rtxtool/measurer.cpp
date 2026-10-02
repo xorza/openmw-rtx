@@ -42,13 +42,6 @@ namespace RtxTool
         /// unpausing on the notice the close sends; what is still there after a hundred times that
         /// is a pause the session cannot lift, and a stop waiting on it would wait for ever.
         constexpr float sPauseSeconds = 2.0f;
-
-        /// **How long a stop waits on a world that stopped arriving, in milliseconds of the wall.**
-        /// A settled walk adopts a cell a frame and an unsettled one whenever the reader hands one
-        /// over: the deck's whole band, four hundred and twenty frames of it, stood in seven seconds.
-        /// Ten seconds with no cell is a reader that is stuck or a ring that leaves cells it never
-        /// asks for, and not a slow one.
-        constexpr double sStallMs = 10000.0;
     }
 
     Measurer::Measurer(const SessionRequest& request, RunRecord& record)
@@ -63,7 +56,7 @@ namespace RtxTool
         std::uint32_t longest = 0;
         for (const Stop& stop : request.mStops)
             if (!stop.mSchedule.mSpec.mRun.isUntilClosed())
-                longest = std::max(longest, stop.mSchedule.mSpec.getMeasured(worldStep(request.mSetup)));
+                longest = std::max(longest, stop.mSchedule.mSpec.getMeasured(worldStep(request.mStep)));
 
         mProgress.mSamples.reserve(longest);
         mProgress.mGpu.reserve(longest);
@@ -80,60 +73,62 @@ namespace RtxTool
         // that a field added to it is reset here whether or not its author remembered to.
         mProgress.restart();
 
-        mProgress.mWarmup = stop.mSchedule.mSpec.getWarmup(worldStep(mRequest.mSetup));
+        const float step = worldStep(mRequest.mStep);
+        mProgress.mWindow = MeasureWindow(stop.mSchedule.mSpec.getWarmup(step),
+            BenchSpan{ .mSeconds = sPauseSeconds }.getFrames(step), mRequest.mPlayed);
         mProgress.mCell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell();
         mProgress.mPlace.mView = stop.mName;
         mProgress.mPlace.mCell = stop.mStand.mCell;
         mProgress.mPlace.mNote = stop.mNote;
-    }
 
-    std::optional<std::uint32_t> Measurer::getMeasuredIndex() const
-    {
-        if (mProgress.mMeasuredFrom.has_value())
-            return mProgress.mSeen - *mProgress.mMeasuredFrom;
-
-        // The world stood whole and the warm-up has run its length since, so the frame about to
-        // be drawn opens the measurement, which `frame` marks when it takes that frame.
-        if (mProgress.mWhole && mProgress.mWarmedRan == mProgress.mWarmup)
-            return 0u;
-
-        return std::nullopt;
+        // Before the place's frames, so the first measured one pays no open.
+        mProfiling.open();
     }
 
     Measurer::Verdict Measurer::frame(const Stop& stop, const MWRender::FrameContext& context,
         const MWRender::FrameReport& report, const bool arrived)
     {
-        Rtx::Renderer& renderer = context.mRenderer.getBackend();
+        Rtx::Renderer& renderer = context.mBackend;
         const double frameMs = report.mSpend.at(Rtx::Timing::Frame);
-        const float step = worldStep(mRequest.mSetup);
+        const float step = worldStep(mRequest.mStep);
         const std::uint32_t measured = stop.mSchedule.mSpec.getMeasured(step);
 
-        if (!mProgress.mMeasuredFrom.has_value() && mProgress.mWhole && mProgress.mWarmedRan == mProgress.mWarmup)
-        {
-            mProgress.mMeasuredFrom = mProgress.mSeen;
+        // **Counted at the frame the run traced, and never at the frame the device answered for
+        // it.** The count is what the trace's sampler and the upscaler's jitter are walked by, what
+        // the hashes table numbers its rows by and what ends the stop; and a result comes back one
+        // frame later or two, by whether the card had finished when the frame after asked — so a
+        // count of results would put two runs of one build at different points of the sequence,
+        // and pair the scene of one frame with the picture of another. What the device answered is
+        // taken in below, under the number of the frame it answers for.
+        const MeasureWindow::Taken taken = mProgress.mWindow.take(WindowFrame{
+            .mWhole = report.isWhole(),
+            .mPaused = report.mPaused,
+            .mCellsToStand = report.mCellsToStand,
+            .mArrivedMeshes = report.mUpload.mArrivedMeshes,
+            .mSpend = report.mSpend,
+        });
+        const MeasureWindow& window = mProgress.mWindow;
 
+        if (taken.mOpened)
+        {
             // Said where it happened, so a run that took longer to arrive than it was asked to
             // says why. Nothing for a world that stood whole on its first frame.
-            if (mProgress.mWaited > 1)
+            if (window.getWaited() > 1)
                 mRecord.note(std::format("{}: the world stood whole on its frame {}, and the warm-up ran {} after it\n",
-                    stop.mName, mProgress.mWaited, mProgress.mWarmup));
-            if (mProgress.mWarmedPaused > 0)
+                    stop.mName, window.getWaited(), window.getWarmup()));
+            if (window.getWarmedPaused() > 0)
                 mRecord.note(
                     std::format("{}: the world stood paused on {} frames ahead of the measurement, held by {}\n",
-                        stop.mName, mProgress.mWarmedPaused, mProgress.mPausedBy));
+                        stop.mName, window.getWarmedPaused(), mProgress.mPausedBy));
 
             // **Sampled through the measured frames and not at their ends.** Two readings bound
             // nothing: the ends of a place agree to within a couple of per cent while the card
             // moves a fifth of its clock between them, and a leg that lost its clock then reads
             // like a leg that lost its speed.
             //
-            // **What the window before answered is said once, ahead of the first place.** A
-            // desktop that was drawing while the run loaded was caught in nearly every sample,
-            // and every place's own line then reads against it.
-            const CardShare before = mCardWatch.start();
-            if (mRecord.empty() && before.mViewed)
-                mRecord.note(std::format("before the first stop, {}\n", describeCard(before)));
-
+            // **Asked for and not opened here**: the worker begins the window on its next turn, so
+            // this frame pays one store and no driver call (`CardWatch::start`).
+            mCardWatch.start();
             mProfiling.enable();
 
             // The backend's number of the first measured frame: what says of a result that comes
@@ -141,90 +136,31 @@ namespace RtxTool
             mProgress.mFirstMeasured = report.mFrame;
         }
 
-        // **Counted here, at the frame the run traced, and never at the frame the device answered
-        // for it.** The count is what the trace's sampler and the upscaler's jitter are walked by,
-        // what the hashes table numbers its rows by and what ends the stop; and a result comes back
-        // one frame later or two, by whether the card had finished when the frame after asked —
-        // so a count of results put two runs of one build at different points of the sequence,
-        // and paired the scene of one frame with the picture of another. What the device answered
-        // is taken in below, under the number of the frame it answers for.
-        ++mProgress.mSeen;
-
         if (report.mResult.has_value())
             answered(stop, *report.mResult, renderer.getExtents());
         if (!mFailure.empty())
             return Verdict::Failed;
 
-        // **This frame's wall time closes the span the frame before it worked in.**
-        // `Timing::Frame` runs from the last frame's opening to this one's, so what it
-        // holds is the game's update this frame arrived through and the renderer's work of the
-        // frame before — the finish, the walk, the placement and the trace that ran after that
-        // frame opened. Those are the rows kept beside it, and the meshes that work brought, so a
-        // row's figures are the figures of the span it is read against and a worst frame's shares
-        // are its own. What this frame does is kept for the frame after to close, and the last
-        // measured frame's work is closed by nothing: it ran after the last span ended.
-        Rtx::FrameSpend closed = mProgress.mPendingSpend;
-        closed.at(Rtx::Timing::Frame) = frameMs;
-        closed.at(Rtx::Timing::Update) = report.mSpend.at(Rtx::Timing::Update);
-        closed.at(Rtx::Timing::Sleep) = report.mSpend.at(Rtx::Timing::Sleep);
-        const std::uint32_t closedArrived = mProgress.mPendingArrived;
-        mProgress.mPendingSpend = report.mSpend;
-        mProgress.mPendingArrived = report.mArrivedMeshes;
+        // Named once, on the first paused frame ahead of the measurement, for its note and its failure.
+        if (taken.mFirstPause)
+            mProgress.mPausedBy = Stager::describePause();
 
-        if (!mProgress.mMeasuredFrom.has_value())
+        switch (taken.mOutcome)
         {
-            if (!report.mPaused || mRequest.mPlayed)
-            {
-                if (mProgress.mWhole)
-                {
-                    ++mProgress.mWarmedRan;
-                    return Verdict::Going;
-                }
-
-                // **A stop is measured from the frame after one that drew the whole world**, and
-                // never by a count of frames from its first. A ring adopts one cell a frame, so a
-                // reach of ten cells is some four hundred frames before its last cell stands, and
-                // a warm-up of two seconds measured, and pictured, a third of the ground. The frame
-                // that stood whole is no frame of the warm-up, which is what a stop asks for after it.
-                //
-                // **Waited on for as long as it comes nearer, and no longer**: a frame that left
-                // fewer cells to stand than any before it is the world arriving, and the wait fails
-                // where `sStallMs` of frames brought none. Never by a count of frames, because an
-                // unsettled walk adopts a cell when the reader has one and not every frame.
-                if (mProgress.mWaited++ == 0 || report.mCellsToStand < mProgress.mLeastToStand)
-                {
-                    mProgress.mLeastToStand = report.mCellsToStand;
-                    mProgress.mStalledMs = 0.0;
-                }
-                else
-                    mProgress.mStalledMs += frameMs;
-                mProgress.mWhole = report.isWhole();
-
-                // Not in a session somebody plays, which walks where it likes from its first frame
-                // and brings cells in as it walks.
-                if (!mProgress.mWhole && !mRequest.mPlayed && mProgress.mStalledMs > sStallMs)
-                {
-                    mFailure = std::format(
-                        "the world of {} did not stand whole through {} frames: {} cells short, "
-                        "and the last {:.1f} s brought none of them",
-                        stop.mName, mProgress.mWaited, mProgress.mLeastToStand, mProgress.mStalledMs / 1000.0);
-                    return Verdict::Failed;
-                }
-
+            case MeasureWindow::Outcome::Measured:
+                break;
+            case MeasureWindow::Outcome::Ahead:
                 return Verdict::Going;
-            }
-
-            if (mProgress.mWarmedPaused++ == 0)
-                mProgress.mPausedBy = Stager::describePause();
-
-            if (mProgress.mWarmedPaused > BenchSpan{ .mSeconds = sPauseSeconds }.getFrames(step))
-            {
-                mFailure = std::format("the world stood paused through {} frames ahead of {}, held by {}",
-                    mProgress.mWarmedPaused, stop.mName, mProgress.mPausedBy);
+            case MeasureWindow::Outcome::Stalled:
+                mFailure = std::format(
+                    "the world of {} did not stand whole through {} frames: {} cells short, "
+                    "and the last {:.1f} s brought none of them",
+                    stop.mName, window.getWaited(), window.getLeastToStand(), window.getStalledMs() / 1000.0);
                 return Verdict::Failed;
-            }
-
-            return Verdict::Going;
+            case MeasureWindow::Outcome::PausedTooLong:
+                mFailure = std::format("the world stood paused through {} frames ahead of {}, held by {}",
+                    window.getWarmedPaused(), stop.mName, mProgress.mPausedBy);
+                return Verdict::Failed;
         }
 
         // A window that runs until it is closed is looked at and not measured: nothing reads its
@@ -232,8 +168,8 @@ namespace RtxTool
         if (stop.mSchedule.mSpec.mRun.isUntilClosed())
             return Verdict::Going;
 
-        mProgress.mSamples.add(closed);
-        mProgress.mPlace.mArrivals.add(closedArrived, closed);
+        mProgress.mSamples.add(taken.mClosed);
+        mProgress.mPlace.mArrivals.add(taken.mClosedArrived, taken.mClosed);
         mProgress.mWallMs += frameMs;
 
         // **A measured frame of a paused world is a frame of something else**, and nothing else in
@@ -255,11 +191,11 @@ namespace RtxTool
         if (const void* cell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell();
             mProgress.mCell != nullptr && cell != mProgress.mCell)
         {
-            mProgress.mPlace.mCrossings.add(report.mUpload == Rtx::SceneUpload::Kind::Rebuilt, frameMs);
+            mProgress.mPlace.mCrossings.add(report.mUpload.mKind == Rtx::SceneUpload::Kind::Rebuilt, frameMs);
             mProgress.mCell = cell;
         }
 
-        const std::uint32_t drawn = mProgress.mSeen - *mProgress.mMeasuredFrom;
+        const std::uint32_t drawn = taken.mDrawn;
 
         // Numbered here, where the frame is traced, for `writeFilmFrame` to find when its picture
         // comes back.
@@ -275,7 +211,7 @@ namespace RtxTool
         // picture finds its row by when it comes back. A frame ahead of the measurement has no row.
         if (stop.mActions.mHash)
             mRecord.getHashes().note(
-                stop.mName, drawn, report.mFrame, mDigester.digest(context.mScene, &report.mConstants));
+                stop.mName, drawn, report.mFrame, mDigester.digest(context.mMirror.getScene(), &report.mConstants));
 
         return drawn < measured && !arrived ? Verdict::Going : Verdict::Ended;
     }
@@ -283,10 +219,11 @@ namespace RtxTool
     void Measurer::answered(const Stop& stop, const Rtx::FrameResult& finished, const Rtx::FrameExtents& extents)
     {
         // A frame ahead of the measurement: its picture has no row and its figures are nobody's.
-        if (!mProgress.mMeasuredFrom.has_value() || stop.mSchedule.mSpec.mRun.isUntilClosed()
+        if (!mProgress.mWindow.isOpen() || stop.mSchedule.mSpec.mRun.isUntilClosed()
             || finished.mFrame < mProgress.mFirstMeasured)
             return;
 
+        mProgress.mReconstruction = finished.mReconstruction;
         mProgress.mPlace.mOverlap.add(finished.mInFlight);
         mProgress.mGpu.add(finished.mGpu.spans());
         mProgress.mNotFinite.add(finished.mNotFinite);
@@ -309,7 +246,7 @@ namespace RtxTool
 
     void Measurer::writeFilmFrame(const Stop& stop, const Rtx::FrameResult& finished, const Rtx::FrameExtents& extents)
     {
-        std::array<Progress::FilmFrame, 4>& pending = mProgress.mFilmFrames;
+        Progress::FilmFrames& pending = mProgress.mFilmFrames;
         const auto end = pending.begin() + static_cast<std::ptrdiff_t>(mProgress.mFilmPending);
         const auto found = std::find_if(
             pending.begin(), end, [&](const Progress::FilmFrame& one) { return one.mFrame == finished.mFrame; });
@@ -353,15 +290,22 @@ namespace RtxTool
     BenchPlace Measurer::finish(const Stop& stop, const MWRender::FrameContext& context,
         const MWRender::FrameReport& report, const float travelled, StopWriter& writer)
     {
-        Rtx::Renderer& renderer = context.mRenderer.getBackend();
-        const float step = worldStep(mRequest.mSetup);
+        Rtx::Renderer& renderer = context.mBackend;
+        const float step = worldStep(mRequest.mStep);
 
         mProfiling.disable();
 
-        const CardReading card = mCardWatch.stop();
+        const CardWindows card = mCardWatch.stop();
         BenchPlace& place = mProgress.mPlace;
-        place.mClock = card.mClock;
-        place.mCard = card.mShare;
+        place.mClock = card.mPlace.mClock;
+        place.mCard = card.mPlace.mShare;
+
+        // **What the window before answered is said once, for the first place.** A desktop that
+        // was drawing while the run loaded was caught in nearly every sample, and every place's own
+        // line then reads against it.
+        if (!mBeforeSaid && card.mBefore.mViewed)
+            mRecord.note(std::format("before the first stop, {}\n", describeCard(card.mBefore)));
+        mBeforeSaid = true;
 
         const Rtx::FrameExtents extents = renderer.getExtents();
 
@@ -394,7 +338,7 @@ namespace RtxTool
         // computing one of the operations left to the device — a division, a root, a
         // transcendental — otherwise, and the stop's frames are then two codes' and no reference.
         if (stop.mSchedule.mFrozen && !stop.mSchedule.mRoute.has_value() && stop.mActions.mHash
-            && !report.mReconstruction.mJitter)
+            && !mProgress.mReconstruction.mJitter)
             if (const std::optional<std::uint32_t> moved = mRecord.getHashes().findStillMoved(stop.mName))
             {
                 const std::string why = std::format(
@@ -406,16 +350,14 @@ namespace RtxTool
 
         if (mRecord.empty())
         {
-            // **Taken at the first stop, and bench's alone.** Only `bench` writes the header
-            // (`--json`), and a bench's stops override none of the upscaling, the reconstruction
-            // and the exposure, so the first stop's are the run's; a command whose stops override
-            // them writes none. The upscaling is the frame's own answer — the pair the renderer
-            // resolved this frame — and not the renderer's mode alone.
+            // **What only a frame says, taken at the first stop**; `RunRecord::begin` took the rest.
+            // A bench's stops override none of the upscaling, the reconstruction and the exposure,
+            // so the first stop's are the run's; another command's stops may, and its header says
+            // the first stop's. The upscaling is the last measured frame's own answer, off its
+            // result — the pair the renderer resolved for it — and not the renderer's mode alone.
             BenchHeader& header = mRecord.getHeader();
             header.mExtents = extents;
-            header.mUpscale = report.mReconstruction.mUpscale;
-            header.mNoise = report.mReconstruction.mNoise;
-            header.mLevelBias = report.mReconstruction.mLevelBias;
+            header.mReconstruction = mProgress.mReconstruction;
             header.mValidating = renderer.isValidating();
             header.mMeasured = stop.mSchedule.mSpec.getMeasured(step);
             header.mWarmup = stop.mSchedule.mSpec.getWarmup(step);
@@ -432,7 +374,7 @@ namespace RtxTool
                 .mOverlap = place.mOverlap,
                 .mZones = zones,
                 .mHold = mProgress.mHold,
-                .mHoldAskedMs = mRequest.mSetup.mProfile.mStressOverlapMs,
+                .mHoldAskedMs = mRequest.mSetup.mRun.mProfile.mStressOverlapMs,
                 .mNotFinite = mProgress.mNotFinite,
             },
             mRecord);
@@ -450,7 +392,7 @@ namespace RtxTool
         place.mTravelled = travelled;
         place.mScene = renderer.getSceneStats();
         place.mMemory = renderer.getMemoryReport();
-        place.mContent = context.mRenderer.getContentMemory();
+        place.mContent = context.mMirror.getContentMemory();
         place.mGpu.assign(zones.begin(), zones.end());
 
         return std::move(place);

@@ -37,10 +37,10 @@ namespace Rtx
 
     float CellGrid::reachOf(const LandReach& reach) const
     {
-        if (!(reach.mCells > 0.0f))
-            return reach.mViewingDistance;
-
-        return reach.mCells * mCellSize;
+        // Nought hands the reach to `viewing distance`, which the settings bound only below; both
+        // sources stop at the same bound, which the trace's far plane stands over.
+        const float asked = reach.mCells > 0.0f ? reach.mCells * mCellSize : reach.mViewingDistance;
+        return std::min(asked, LandReach::sMostCells * mCellSize);
     }
 
     bool inActiveGrid(const osg::Vec2i& cell, const osg::Vec4i& activeGrid)

@@ -1,5 +1,7 @@
 #include <algorithm>
+#include <array>
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <span>
 #include <string>
@@ -10,6 +12,7 @@
 
 #include <osg/AlphaFunc>
 #include <osg/BlendFunc>
+#include <osg/FrameStamp>
 #include <osg/GL>
 #include <osg/Geometry>
 #include <osg/Group>
@@ -18,6 +21,7 @@
 #include <osg/MatrixTransform>
 #include <osg/Node>
 #include <osg/NodeVisitor>
+#include <osg/PrimitiveSet>
 #include <osg/StateAttribute>
 #include <osg/StateSet>
 #include <osg/Texture2D>
@@ -32,15 +36,21 @@
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/graphlight.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
+#include <components/resource/resourcesystem.hpp>
+#include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/mirror/cells/prepared.hpp>
+#include <components/rtx/mirror/cells/templatewalk.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
+#include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/scene/surface.hpp>
@@ -50,6 +60,8 @@
 #include <components/sceneutil/statesetupdater.hpp>
 #include <components/sceneutil/texmat.hpp>
 #include <components/sceneutil/texturetype.hpp>
+#include <components/sceneutil/util.hpp>
+#include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"
@@ -170,12 +182,53 @@ namespace Rtx::Testing
             EXPECT_EQ(stats.mInstances, 0u);
             EXPECT_TRUE(mScene.meshes().getRows().empty());
 
+            EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 0u) << "a point with no triangle draws nothing anywhere";
+
             // Filed as it was found, so the next walk neither reads it nor adds it.
             mScene.clearPlacement();
             const ExtractionStats again = walk(*geometry, 0, 1);
             EXPECT_EQ(again.mSkippedEmpty, 0u) << "an empty drawable read again";
             EXPECT_EQ(again.mInstances, 0u);
             EXPECT_TRUE(mScene.meshes().getRows().empty());
+        }
+
+        /// **Lines are refused and not filed as empty**: the rasterizer draws an `NiLines`, and a ray
+        /// has no width of theirs to meet, so the log says so once for the drawable.
+        TEST_F(RtxSceneExtractorTest, linesAreRefusedWhereTheRasterizerDrawsThem)
+        {
+            osg::ref_ptr<osg::Geometry> geometry = new osg::Geometry;
+            geometry->setName("a rope");
+            geometry->setVertexArray(makePositions({ osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f) }));
+            geometry->addPrimitiveSet(new osg::DrawArrays(GL_LINES, 0, 2));
+
+            const ExtractionStats stats = walk(*geometry);
+            EXPECT_EQ(stats.mInstances, 0u);
+            EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 1u);
+
+            mScene.clearPlacement();
+            walk(*geometry, 0, 1);
+            EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 1u) << "said once";
+        }
+
+        /// **What a surface states and the trace does not read is a refusal of its state**, named by
+        /// its diffuse texture and said once whatever stands on it; the surface is drawn.
+        TEST_F(RtxSceneExtractorTest, aSurfacesUnreadStateIsRefusedOnceAndTheSurfaceDrawn)
+        {
+            const auto multiplied = [] {
+                osg::ref_ptr<osg::Geometry> quad = makeQuad();
+                osg::StateSet& state = *quad->getOrCreateStateSet();
+                paint(state, "textures/tx_a_steel.dds");
+                state.setAttributeAndModes(new osg::BlendFunc(GL_DST_COLOR, GL_ZERO));
+                return quad;
+            };
+
+            const ExtractionStats first = walk(*multiplied());
+            EXPECT_EQ(first.mInstances, 1u) << "the surface is drawn";
+            EXPECT_EQ(mScene.refusals().count(Refused::Surface), 1u);
+
+            mScene.clearPlacement();
+            walk(*multiplied(), 0, 1);
+            EXPECT_EQ(mScene.refusals().count(Refused::Surface), 1u) << "said once for the texture";
         }
 
         /// A drawable that describes nothing inherits what the state sets above it say.
@@ -208,34 +261,84 @@ namespace Rtx::Testing
         /// A blend is what marks a cutout in this data, and it has to survive into the material.
         ///
         /// Morrowind's foliage, grates and banners are drawn with `NiAlphaProperty` over a texture
-        /// whose alpha is all but binary; hardly anything in the game sets an alpha test. Losing
-        /// the blend here loses every mask with it.
-        TEST_F(RtxSceneExtractorTest, aBlendedSurfaceIsTracedAsACutoutAndAPlainOneIsNot)
+        /// whose alpha is binary; hardly anything in the game sets an alpha test. Losing the blend
+        /// here loses every mask with it.
+        ///
+        /// **And the texture's alpha decides between a cut and a pane.** A mask is solid wherever
+        /// its paint is, and stays a cut however soft its fringe. A texture that never reaches
+        /// solid is no mask, so the Imperial lantern's glass, whose alpha peaks at 119, is a pane
+        /// and not a hole. A test cuts at its reference whatever the texture holds. A file nothing
+        /// here reads answers what traces it as before: a cut.
+        TEST_F(RtxSceneExtractorTest, aBlendIsACutWhereItsTextureIsAMaskAndAPaneWhereItNeverCloses)
         {
-            const auto extractOne = [](bool blend) {
+            const auto imageOf = [](std::array<std::uint8_t, 4> alphas) {
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                image->setFileName("textures/tx_window_pane.dds");
+                image->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                for (std::size_t texel = 0; texel < alphas.size(); ++texel)
+                    image->data()[texel * 4 + 3] = alphas[texel];
+                return image;
+            };
+
+            const auto extractOne = [](bool blend, osg::Image* image, float test = 0.0f) {
                 osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 osg::StateSet& state = *quad->getOrCreateStateSet();
-                paint(state, "textures/tx_leaves.dds");
+                if (image != nullptr)
+                    paint(state, *image);
+                else
+                    paint(state, "textures/tx_leaves.dds");
                 if (blend)
-                {
                     state.setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON);
-                }
+                if (test > 0.0f)
+                    state.setAttributeAndModes(new osg::AlphaFunc(osg::AlphaFunc::GREATER, test));
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
                 return scene.materials().getRows().front();
             };
 
-            const Rtx::Material blended = extractOne(true);
-            EXPECT_EQ(blended.mAlphaMode, AlphaMode::Blend);
-            EXPECT_TRUE(blended.isCutout());
+            const Rtx::Material unread = extractOne(true, nullptr);
+            EXPECT_EQ(unread.mAlphaMode, AlphaMode::Blend);
+            EXPECT_TRUE(unread.isCutout());
+            EXPECT_FALSE(unread.isTranslucent()) << "a file nothing reads keeps the cut";
 
-            const Rtx::Material plain = extractOne(false);
+            const Rtx::Material plain = extractOne(false, nullptr);
             EXPECT_EQ(plain.mAlphaMode, AlphaMode::Opaque);
             EXPECT_FALSE(plain.isCutout());
+
+            osg::ref_ptr<osg::Image> leaves = imageOf({ 0, 255, 119, 0 });
+            const Rtx::Material leaf = extractOne(true, leaves);
+            EXPECT_FALSE(leaf.isTranslucent()) << "a mask with a soft fringe is cut";
+            EXPECT_TRUE(leaf.getTraversed().mCutout);
+            EXPECT_EQ(leaf.getAlphaTest().mReference, Material::sBlendCutoff);
+
+            osg::ref_ptr<osg::Image> glass = imageOf({ 119, 102, 119, 0 });
+            const Rtx::Material pane = extractOne(true, glass);
+            EXPECT_TRUE(pane.isTranslucent()) << "a texture that never closes is a pane";
+            EXPECT_FALSE(pane.isMedium()) << "all there, so a pane and no cloud";
+            EXPECT_EQ(pane.getAlphaTest().mReference, Material::sPaneCutoff);
+            EXPECT_TRUE(pane.getTraversed().placedAt(1.0f).mTranslucent);
+            EXPECT_FALSE(pane.getTraversed().placedAt(1.0f).mCutout);
+
+            const Rtx::Material tested = extractOne(true, glass, 0.5f);
+            EXPECT_FALSE(tested.isTranslucent()) << "a test cuts whatever the texture holds";
+            EXPECT_EQ(tested.getAlphaTest().mReference, 0.5f);
+
+            // The ring's reader hands over the same facts with its reading.
+            PreparedModel model;
+            osg::ref_ptr<osg::Geometry> quad = makeQuad();
+            paint(*quad->getOrCreateStateSet(), *glass);
+            quad->getOrCreateStateSet()->setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON);
+            TemplateWalk walk;
+            walk.read(*quad, ~0u, model);
+            ASSERT_EQ(model.mParts.size(), 1u);
+            ASSERT_TRUE(model.mParts[0].mMaterial.mDiffuseFacts.has_value());
+            EXPECT_EQ(model.mParts[0].mMaterial.mDiffuseFacts->mReachesSolid, std::optional<bool>(false));
+            EXPECT_FALSE(model.mParts[0].mMaterial.mDiffuseFacts->mMean.has_value()) << "a pane asks no mean";
         }
 
         /// A surface that adds — `SRC_ALPHA, ONE` — is no cutout, no pane and no medium: it is
@@ -255,7 +358,8 @@ namespace Rtx::Testing
                 state.setAttribute(colours);
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -318,7 +422,8 @@ namespace Rtx::Testing
                     state.addUniform(new osg::Uniform("sun.ambient", osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f)));
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
                 return scene.materials().getRows().front().mEmissiveColour;
@@ -360,6 +465,7 @@ namespace Rtx::Testing
             describeStateSet(state, described);
             EXPECT_EQ(described.getTextureUse(SurfaceMap::Emissive).mWrap, TextureWrap::Clamp);
             EXPECT_EQ(described.getTexture(SurfaceMap::Emissive), sameFile.get());
+            EXPECT_EQ(described.mEmissiveUnit, 3);
 
             walk(*quad);
 
@@ -367,6 +473,7 @@ namespace Rtx::Testing
             const Rtx::Material& material = mScene.materials().getRows().front();
             EXPECT_NE(material.mDark, sNoIndex);
             EXPECT_EQ(material.mDarkUnit, 1);
+            EXPECT_EQ(material.mEmissiveUnit, 3);
             EXPECT_NE(material.mEnvironment, sNoIndex);
             EXPECT_NEAR(material.mEnvironmentColour.x(), 1.0f, 1.0e-6f);
             EXPECT_NEAR(material.mEnvironmentColour.y(), 0.2140411f, 1.0e-6f);
@@ -380,10 +487,10 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.textures().getRows().size(), 4u);
         }
 
-        /// **The companion maps reach the material as data, and the specular map only in the layout
-        /// that names what its channels mean.** A normal map with height and one without are one map.
-        /// A walk told nothing reads no specular map: the classic layout is the one OpenMW documents,
-        /// and read as metalness and roughness it is wrong. **A normal map bound with its height is
+        /// **The companion maps reach the material, and the specular map only in the layout that
+        /// names what its channels mean.** A normal map with height and one without are one map. A
+        /// walk told nothing reads no specular map; the metal layout reads it as data, and the
+        /// classic one as a colour, its highlight being one the artist saw. **A normal map bound with its height is
         /// parallax**, and not on a cutout, whose hole the traversal finds with no eye to shift by.
         TEST_F(RtxSceneExtractorTest, theCompanionMapsReachTheMaterialAsDataAndTheSpecularMapOnlyInItsLayout)
         {
@@ -397,8 +504,8 @@ namespace Rtx::Testing
                     state.setAttributeAndModes(new osg::AlphaFunc(osg::AlphaFunc::GEQUAL, 0.5f));
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
-                extractor.setSpecularLayout(layout);
+                WalkContext context{ .mSpecular = layout };
+                SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -422,6 +529,12 @@ namespace Rtx::Testing
             EXPECT_EQ(readRows[read.mSpecular].mEncoding, TextureEncoding::Data);
             EXPECT_EQ(readRows.size(), 3u);
             EXPECT_FALSE(read.mParallax) << "a normal map without one";
+            EXPECT_FALSE(read.mSpecularClassic);
+
+            const auto [classic, classicRows] = extractOne(SpecularLayout::Classic, TextureRole::Normal);
+            ASSERT_NE(classic.mSpecular, sNoIndex);
+            EXPECT_EQ(classicRows[classic.mSpecular].mEncoding, TextureEncoding::Colour);
+            EXPECT_TRUE(classic.mSpecularClassic);
 
             const auto [cut, cutRows] = extractOne(SpecularLayout::Ignore, TextureRole::NormalHeight, true);
             EXPECT_TRUE(cut.isCutout());
@@ -602,6 +715,64 @@ namespace Rtx::Testing
             EXPECT_EQ(frame(4), 1.0f) << "a fade that went, still applied";
         }
 
+        /// **A spell's glow ends when the game says, and a glow given a new colour wears it.** Open
+        /// and Lock put `SceneUtil::addEnchantedGlow` on a door for a second; an enchantment's glow
+        /// is recoloured by the next spell. Both change the glow's defaults by
+        /// `StateSetUpdater::reset`, which the node's own update consumes before the walk applies
+        /// the same updater to its own copy, so the copy hears it by the updater's generation. A
+        /// copy that never heard it kept the last sheet for as long as the door stood.
+        TEST_F(RtxSceneExtractorTest, aSpellCastGlowEndsWhenTheGameSaysAndARecolouredGlowWearsItsColour)
+        {
+            const VFS::Manager vfs;
+            Resource::ResourceSystem resources(&vfs, 1.0, nullptr);
+
+            // The ray tracer compiles none of the rasterizer's shaders, and neither does this.
+            resources.getSceneManager()->setShadersEnabled(false);
+
+            const auto frame = [&](osg::Group& root, unsigned int number, double seconds) {
+                osg::ref_ptr<osg::FrameStamp> stamp = new osg::FrameStamp;
+                stamp->setFrameNumber(number);
+                stamp->setSimulationTime(seconds);
+                osgUtil::UpdateVisitor update;
+                update.setTraversalNumber(number);
+                update.setFrameStamp(stamp);
+                root.accept(update);
+
+                runWorld(seconds - mWorldSeconds);
+                mScene.clearPlacement();
+                walk(root, 0, number);
+                mExtractor.retire();
+                mScene.clearArrivals();
+                return mScene.materials().getRows()[mScene.placements().getRows().front().mInstance.mMaterial];
+            };
+
+            // A glow of a second, from ten seconds in: the node's update starts its clock at ten
+            // and ends it on the first frame past eleven.
+            osg::ref_ptr<osg::Group> door = makeShape(shapeState());
+            SceneUtil::addEnchantedGlow(door, &resources, osg::Vec4f(1.0f, 0.0f, 0.0f, 1.0f), 1.0f);
+
+            // The archives here are empty, so every sheet is the image manager's one stand-in,
+            // which has no name the texture table would take. Named, it stands in for all of them.
+            const auto* sheet = static_cast<const osg::Texture2D*>(
+                door->getStateSet()->getTextureAttribute(1, osg::StateAttribute::TEXTURE));
+            ASSERT_NE(sheet, nullptr) << "the glow's unit is the one after the diffuse";
+            const_cast<osg::Image*>(sheet->getImage())->setFileName("textures/magicitem/caust00.dds");
+            EXPECT_NE(frame(*door, 1, 10.0).mEnvironment, sNoIndex) << "the glow the spell put on";
+            EXPECT_NE(frame(*door, 2, 10.5).mEnvironment, sNoIndex) << "half way through";
+            EXPECT_EQ(frame(*door, 3, 11.5).mEnvironment, sNoIndex) << "ended on the frame the game ended it";
+            EXPECT_EQ(frame(*door, 4, 12.0).mEnvironment, sNoIndex) << "and it stays ended";
+
+            // A permanent glow recoloured: one and nought decode to themselves, so the colours are
+            // exact.
+            osg::ref_ptr<osg::Group> sword = makeShape(shapeState());
+            osg::ref_ptr<SceneUtil::GlowUpdater> glow
+                = SceneUtil::addEnchantedGlow(sword, &resources, osg::Vec4f(1.0f, 0.0f, 0.0f, 1.0f), -1.0f);
+            EXPECT_EQ(frame(*sword, 5, 13.0).mEnvironmentColour, osg::Vec3f(1.0f, 0.0f, 0.0f));
+            glow->setColor(osg::Vec4f(0.0f, 0.0f, 1.0f, 1.0f));
+            EXPECT_EQ(frame(*sword, 6, 13.5).mEnvironmentColour, osg::Vec3f(0.0f, 0.0f, 1.0f))
+                << "the new colour on the frame it was given";
+        }
+
         /// A material read once keeps every map it names for as long as it stands. The walk's own
         /// hold on an image goes on the frame after the material arrived, so the row's is the one
         /// that lasts — and a map the row does not hold is freed under it, its slot handed to the
@@ -644,7 +815,7 @@ namespace Rtx::Testing
             for (const bool onDrawable : { false, true })
             {
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                SceneExtractor extractor(scene, mContext);
 
                 osg::ref_ptr<osg::StateSet> shared = shapeState();
 
@@ -723,7 +894,8 @@ namespace Rtx::Testing
                 parent->addChild(quad);
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
                 extractor.extract(*parent, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.placements().getRows().size(), 1u);
@@ -816,7 +988,8 @@ namespace Rtx::Testing
                 surface.setEmissiveMultiplier(multiplier);
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -857,7 +1030,8 @@ namespace Rtx::Testing
                     root->addChild(makeLightSource(100.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f)));
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
                 extractor.extract(*root, osg::Matrixf::identity(), 0);
 
                 const std::span<const Light> lights = scene.lights();
@@ -887,7 +1061,8 @@ namespace Rtx::Testing
                     quad->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -932,7 +1107,7 @@ namespace Rtx::Testing
             colours(*quad->getOrCreateStateSet());
 
             Rtx::SceneDesc plain;
-            SceneExtractor other(plain);
+            SceneExtractor other(plain, mContext);
             other.extract(*quad, osg::Matrixf::identity(), 0);
             EXPECT_FALSE(plain.meshes().getRows()[0].mShape.mSheet);
             EXPECT_EQ(plain.meshes().getRows()[0].getTriangleCount(), 2u);
@@ -969,7 +1144,7 @@ namespace Rtx::Testing
             // an analytic sea of its own instead.
             {
                 Rtx::SceneDesc scene;
-                SceneExtractor silent(scene);
+                SceneExtractor silent(scene, mContext);
                 silent.extract(*root, osg::Matrixf::identity(), 0);
 
                 ASSERT_EQ(scene.materials().getRows().size(), 3u);
@@ -1316,6 +1491,26 @@ namespace Rtx::Testing
 
             ASSERT_EQ(mScene.materials().getRows().size(), 1u);
             expectRed(mScene.materials().getRows()[0].mDiffuseColour, 0.5225216f);
+
+            // **A controller moved from one chain to the other is a chain changed**, though the
+            // same callbacks stand in the same order read cull first: a cull chain `first→second`
+            // applies `second` last, and `second` on the update chain beside `first` on the cull
+            // chain applies `first` last, as the rasterizer runs them.
+            first->mRed = 0.25f;
+            node->removeUpdateCallback(second);
+            node->addCullCallback(first);
+            node->addCullCallback(second);
+            mScene.clearPlacement();
+            walk(*node, 0, 4);
+            ASSERT_EQ(mScene.materials().getRows().size(), 1u);
+            expectRed(mScene.materials().getRows()[0].mDiffuseColour, 0.5225216f);
+
+            node->removeCullCallback(second);
+            node->addUpdateCallback(second);
+            mScene.clearPlacement();
+            walk(*node, 0, 5);
+            ASSERT_EQ(mScene.materials().getRows().size(), 1u);
+            expectRed(mScene.materials().getRows()[0].mDiffuseColour, 0.0508761f);
         }
     }
 }

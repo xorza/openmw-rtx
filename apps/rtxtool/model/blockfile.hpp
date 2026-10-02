@@ -88,8 +88,8 @@ namespace RtxTool
     {
     public:
         /// Reads `in`, which `source` names in whatever is refused: blank lines and `#` comments
-        /// are passed over, and anything else that is neither a `[name]` nor a `field = value`, or
-        /// a field before the first section, is refused.
+        /// are passed over, and anything else that is neither a `[name]` nor a `field = value`, a
+        /// field before the first section, or a field a section sets twice, is refused.
         BlockFile(std::istream& in, std::string source);
 
         /// The same, from the file at `path`, which is refused where it cannot be read.
@@ -126,9 +126,9 @@ namespace RtxTool
         /// An hour of the day, from nought up to but not including twenty-four.
         float hour(const BlockField& field) const;
 
-        /// One of the ten weathers the content files name, in any case, and handed back spelled as
-        /// they spell it, so nothing after the file meets another spelling.
-        std::string weather(const BlockField& field) const;
+        /// One of the ten weathers the content files name, in any case, handed back as
+        /// `Rtx::weatherIndex` numbers it, so nothing after the file meets a spelling at all.
+        std::uint32_t weather(const BlockField& field) const;
 
         /// Three numbers separated by commas; an empty value is no point, and not one left unsaid.
         osg::Vec3f point(const BlockField& field) const;

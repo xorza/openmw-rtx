@@ -36,6 +36,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     nifloader/testbulletnifloader.cpp
 
+    platform/localtime.cpp
     platform/thread.cpp
 
     detournavigator/navigator.cpp
@@ -54,6 +55,7 @@ file(GLOB UNITTEST_SRC_FILES
     serialization/sizeaccumulator.cpp
     serialization/integration.cpp
 
+    settings/migration.cpp
     settings/parser.cpp
     settings/shadermanager.cpp
     settings/testvalues.cpp

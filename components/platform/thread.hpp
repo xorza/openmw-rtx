@@ -81,9 +81,9 @@ namespace Platform
     ///
     /// **Every thread starts named, and under the terminate handler of the thread that made it.**
     /// MSVC keeps that handler per thread and starts each new one on the default, which aborts and
-    /// says nothing; elsewhere the process has one and setting it changes nothing. So a failure on
-    /// any thread ends the way it would have on its maker's: in the crash catcher's report, or a
-    /// test's death handler.
+    /// says nothing; elsewhere the process has one and setting it changes nothing. What needs the
+    /// copy is a test's death handler, set on the thread that runs the statement. The crash catcher
+    /// sets its own on every thread the loader starts, and needs none.
     class Thread
     {
     public:

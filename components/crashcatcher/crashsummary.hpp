@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -47,10 +49,21 @@ namespace Crash
     std::string title(const CrashFacts& facts);
 
     /// Why `std::terminate` ran, as a report names it: the uncaught exception's message where there
-    /// is one. Called from inside a terminate handler, where the exception is still current.
-    std::string terminateReason();
+    /// is one, written into `into` and cut to what a note holds. Called from inside a terminate
+    /// handler, where the exception is still current, so it allocates nothing: an uncaught
+    /// `std::bad_alloc` is one of the reasons it names.
+    std::string_view terminateReason(std::span<char, sNoteCapacity> into);
 
     /// The summary of `facts`, a line each into `lines`, each without the log's time stamp or a
     /// line end. The same lines on every system, whichever of them wrote the report.
     void summarise(const CrashFacts& facts, std::vector<std::string>& lines);
+
+    /// `value` in hexadecimal, as the facts write an address or a code: `0x10`.
+    std::string hex(std::uint64_t value);
+
+    /// The names a system gives its codes, as an exception's facts spell them.
+    using CodeNames = std::span<const std::pair<std::uint32_t, std::string_view>>;
+
+    /// `code`'s name in `names`, or `otherwise` where it has none.
+    std::string nameOf(CodeNames names, std::uint32_t code, std::string otherwise);
 }

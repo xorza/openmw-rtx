@@ -24,6 +24,7 @@
 #include <components/sdlutil/vsyncmode.hpp>
 
 #include "framedigest.hpp"
+#include "framesinflight.hpp"
 #include "guirenderer.hpp"
 #include "memoryreport.hpp"
 #include "slot.hpp"
@@ -83,6 +84,37 @@ namespace Rtx
     /// configuration file.
     inline constexpr bool sValidationByDefault = OPENMW_RTX_VALIDATION_BY_DEFAULT;
 
+    /// Whether this build keeps `assert`: what says a figure is a debug build's. The standard's
+    /// own switch, which is defined or not rather than nought or one, read here once.
+#ifdef NDEBUG
+    inline constexpr bool sAssertsOn = false;
+#else
+    inline constexpr bool sAssertsOn = true;
+#endif
+
+    /// What a run decides once of how the renderer works: the knobs the frames are traced under,
+    /// which layers watch, and how much video memory it may take. One record, held whole by the
+    /// backend's options and by each host's run and assigned whole, so a knob of the run is declared
+    /// once.
+    struct RunProfile
+    {
+        /// Everything the run decided once about how the picture is made. The upscaling mode is
+        /// fixed for the renderer's lifetime bar `Renderer::setUpscale`, and a build that has no
+        /// upscaler refuses anything but `Off` at construction.
+        RenderProfile mProfile{};
+
+        /// Which validation layers watch. Carried by the run and never in a settings file, for the
+        /// reason `sValidationByDefault` gives.
+        ValidationOptions mValidation{};
+
+        /// The video memory the renderer takes its budget to be, in bytes, where the device states
+        /// more; nothing to take the device's word. For a run that asks what a smaller card does
+        /// with a place: content stops where it would stop there — textures held to a smaller side
+        /// first — and what still does not fit is refused as it would be. What the frame itself
+        /// holds is never refused, whatever this says. The harness's, and never a played session's.
+        std::optional<std::uint64_t> mMemoryBudget{};
+    };
+
     struct RendererOptions
     {
         /// Where the build wrote the compiled shaders for whichever backend this is.
@@ -94,14 +126,12 @@ namespace Rtx
         std::filesystem::path mCacheDirectory{};
 
         /// The frame's size: what `readPixels` gives back, and what a window shows scaled to fit.
-        /// What it is traced at follows from `mProfile.mUpscale`.
+        /// What it is traced at follows from `mRun.mProfile.mUpscale`.
         std::uint32_t mWidth = 1920;
         std::uint32_t mHeight = 1080;
 
-        /// Everything the run decided once about how the picture is made. The upscaling mode is
-        /// fixed for the renderer's lifetime bar `Renderer::setUpscale`, and a build that has no
-        /// upscaler refuses anything but `Off` at construction.
-        RenderProfile mProfile{};
+        /// What the run decided once: the profile, the layers and the budget.
+        RunProfile mRun{};
 
         /// Where the frame is shown, or null for a renderer that only reads pixels back. A window
         /// and not a surface, because a surface is a thing an API has.
@@ -112,41 +142,32 @@ namespace Rtx
         /// its own setting over, and `Renderer::setVerticalSync` follows a change to it.
         SDLUtil::VSyncMode mVerticalSync = SDLUtil::VSyncMode::Disabled;
 
-        ValidationOptions mValidation;
-
         /// Whether the frame counts for the host: the primary rays that hit anything, and the
         /// values that were not finite at each boundary they crossed — `FrameResult::mHits` and
         /// `mNotFinite`. On by default, so a reader who forgets it gets a number rather than a
         /// silent nought; the game clears it. Not a knob of the run's picture, which is why it is
         /// not in the profile.
         bool mCounting = true;
-
-        /// The video memory the renderer takes its budget to be, in bytes, where the device states
-        /// more; nothing to take the device's word. For a run that asks what a smaller card does
-        /// with a place: content stops where it would stop there — textures held to a smaller side
-        /// first — and what still does not fit is refused as it would be. What the frame itself
-        /// holds is never refused, whatever this says.
-        std::optional<std::uint64_t> mMemoryBudget{};
     };
 
     /// What a backend holds in one of its slots, as it says so itself. A slot and a scene are one
     /// to one, so nothing here has to name which scene.
     struct SceneHeld
     {
-        /// Whether `setScene` has ever filled this slot.
-        bool mBuilt = false;
-
         /// `SceneDesc::getIdentity` of the description the slot was built from: an uploader
         /// handing another description to a slot has to build, because the structures and the
         /// texture array are the first description's, and appending the second's arrivals onto
-        /// them would begin past the end of its own table. Nought where nothing was built.
+        /// them would begin past the end of its own table. Nought where nothing was built, which
+        /// no description's identity is.
         std::uint64_t mIdentity = 0;
 
         /// `SceneDesc::getStructureRevision` as it stood at the last `setScene` or `extendScene`.
         std::uint64_t mStructureRevision = 0;
 
-        /// How long the texture table is, which is where an `extendScene`'s arrivals begin — the
-        /// length and not the tally, which `SceneStats::mTextureCount` is.
+        /// How long the slot's texture array is: the table's length, holes included, and not the
+        /// tally, which `SceneStats::mTextureCount` is. Every arrival names its own slot, so nothing
+        /// appends by it; it is the one view of the array's length, which an array built short of
+        /// the table would get wrong.
         std::uint32_t mTextureCount = 0;
     };
 
@@ -199,7 +220,7 @@ namespace Rtx
 
     /// Where the device spent a frame, in the order the work was recorded, or nothing where it
     /// cannot write timestamps. Owned by the report rather than borrowed from the timer that
-    /// measured it: with two frames in flight, the frame that takes this frame's slot begins its
+    /// measured it: with `sFramesInFlight` in flight, the frame that takes this frame's slot begins its
     /// timer before this report is read.
     class GpuZones
     {
@@ -285,6 +306,25 @@ namespace Rtx
         std::optional<FrameDigest> mDigest;
     };
 
+    /// What a picture inside the interface is asked for, beyond where its camera stands. How much
+    /// of the texture the picture fills, from its top-left corner, is the camera's own extent; the
+    /// rest is left at `mClear`. The inventory doll's window resizes and the texture behind it
+    /// does not.
+    struct GuiTraceOptions
+    {
+        /// What the rest of the texture holds, red first: transparent black for a picture the GUI
+        /// composites over what is behind it.
+        std::array<float, 4> mClear{};
+
+        /// What to trace against: a slot `Renderer::addViewScene` gave out, or the world's for the
+        /// one the frame is drawn from. A map tile is a picture of the world; a doll is not.
+        SceneSlot mScene = SceneSlot::world();
+
+        /// Whether to leave a copy of the whole texture where `takeGuiCopy` can hand it to the host,
+        /// which is the one time a picture inside the interface comes back to main memory.
+        bool mReadBack = false;
+    };
+
     /// One traced image, whichever API produced it: what a scene is handed to, what the interface
     /// is drawn on, what produces a frame, and what a test or a harness reads back. Nothing below
     /// this line is abstracted — buffers, memory, command buffers and pipelines belong to a backend
@@ -339,9 +379,23 @@ namespace Rtx
 
         virtual void dropViewScene(SceneSlot slot) = 0;
 
-        /// The next frame has no usable past: a door, a teleport, a cut. Only the simulation knows,
-        /// because a cell load looks like a step from here. Costs one frame of reconstruction.
-        virtual void resetHistory() = 0;
+        /// Traces the scene from `camera` into a GUI texture rather than into the frame: a map
+        /// tile, the inventory doll. Not the frame's chain — nothing upscales or averages and the
+        /// exposure is one, because a still has no previous frame. Recorded and not run: the picture
+        /// rides the next submit, reads the copy of the scene its last placement wrote, and the next
+        /// placement of that scene waits for the frame it rode.
+        virtual void traceGuiTexture(
+            GuiSlot texture, const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options)
+            = 0;
+
+        /// The copy the last `traceGuiTexture` with `mReadBack` left of `texture`, four bytes a
+        /// pixel, tightly packed, row zero first, into `into` as far as it reaches. False until the
+        /// copy arrived, which is two frames on, and never a wait.
+        virtual bool takeGuiCopy(GuiSlot texture, std::span<std::uint8_t> into) = 0;
+
+        /// Submits every picture recorded and not yet carried and waits for them, for a harness or a
+        /// test standing outside any frame. A game never calls it.
+        virtual void finishGuiTraces() = 0;
 
         /// Resizes the frame; what the trace runs at follows from the upscaler, and `getExtents`
         /// says.
@@ -382,8 +436,9 @@ namespace Rtx
 
         /// Traces one frame; `setScene` first, which is an assert. Returns before the device has
         /// drawn it, so the caller can place the next one meanwhile, and `finishFrame` reads back
-        /// what it came to. At most two frames are in flight.
-        virtual Reconstruction renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) = 0;
+        /// what it came to, the reconstruction it resolved among it (`FrameResult::mReconstruction`):
+        /// one road for that, the frame's own result. At most `sFramesInFlight` frames are in flight.
+        virtual void renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) = 0;
 
         /// Closes the frame this frame's placements of the world opened, with no trace: where a
         /// placement is not followed by `renderFrame`, because the host refused the camera. Without
@@ -403,7 +458,7 @@ namespace Rtx
 
         /// What the oldest unreported frame came to, waiting only where the ring has no room for
         /// the frame about to be placed, or nothing where none has finished. Before `placeScene`,
-        /// this is what keeps two frames in flight: the frame behind stays on the device while the
+        /// this is what keeps `sFramesInFlight` in flight: the frame behind stays on the device while the
         /// next is placed, and the report is the frame before it. `finishFrame` there instead waits
         /// the frame behind out on every frame, so the device idles from its last pass until the
         /// next placement is submitted — a gap a device-bound frame pays in full.
@@ -434,10 +489,10 @@ namespace Rtx
         /// `Renderer::setScene` has been called for the world.
         virtual const SceneStats& getSceneStats() const = 0;
 
-        /// Copies the output image into `pixels`, four bytes per pixel, tightly packed: the frame
-        /// last traced, with whatever interface was drawn over it since — so read between a trace
-        /// and its present, it is that trace's picture and not the one presented before it. Not on
-        /// a frame path: it submits a copy and waits for it, so it is not const.
+        /// Copies the picture into `pixels`, four bytes per pixel, tightly packed: the frame last
+        /// traced, at the output extent, without the interface drawn over it since — what a
+        /// screenshot, a save's thumbnail and a frozen frame show, as the rasterizer's do. Not on a
+        /// frame path: it submits a copy and waits for it, so it is not const.
         virtual void readPixels(std::vector<std::uint8_t>& pixels) = 0;
 
     protected:

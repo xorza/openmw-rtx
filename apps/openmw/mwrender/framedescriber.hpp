@@ -1,8 +1,10 @@
 #pragma once
 
 #include <optional>
+#include <vector>
 
 #include <osg/Matrixf>
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
@@ -77,8 +79,12 @@ namespace MWRender
         void setMoonRed(bool red) { mMoonRed = red; }
 
         /// What `updateProjectionMatrix` settled on: the reversed-depth form where the depth buffer
-        /// is reversed, which is what a shader reads.
-        void setProjection(const osg::Matrixf& projection) { mProjection = projection; }
+        /// is reversed, which is what a shader reads, and the script's offset it translated it by.
+        void setProjection(const osg::Matrixf& projection, const osg::Vec2f& shift)
+        {
+            mProjection = projection;
+            mProjectionShift = shift;
+        }
 
         /// What `RenderingManager::update` was handed, for the frame that follows it.
         void setStep(float deltaTime, bool paused)
@@ -86,6 +92,13 @@ namespace MWRender
             mDeltaTime = deltaTime;
             mPaused = paused;
         }
+
+        /// Says `node` was put somewhere else in one step, for the next frame described:
+        /// `SceneFrame::mJumped`.
+        void noteJumped(const osg::Node& node) { mJumped.push_back(&node); }
+
+        /// Lets go of the jumps a drawn frame carried.
+        void clearJumped() { mJumped.clear(); }
 
         /// Describes this frame off `sources` and the facts kept here, and keeps it until the next.
         const SceneFrame& describe(const FrameSources& sources);
@@ -102,6 +115,7 @@ namespace MWRender
         bool mSkyShown = false;
         bool mMoonRed = false;
         osg::Matrixf mProjection;
+        osg::Vec2f mProjectionShift;
         float mDeltaTime = 0.f;
         bool mPaused = false;
 
@@ -110,5 +124,9 @@ namespace MWRender
         WorldState mWorld;
         EyeState mEye;
         std::optional<SceneFrame> mFrame;
+
+        /// Kept across frames and cleared, so a frame allocates none of it once the most jumps any
+        /// frame held have been held.
+        std::vector<const osg::Node*> mJumped;
     };
 }

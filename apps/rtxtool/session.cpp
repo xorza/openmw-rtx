@@ -11,7 +11,9 @@
 #include <apps/openmw/mwbase/statemanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
+#include <apps/openmw/mwworld/globals.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
+#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/result.hpp>
 
@@ -27,6 +29,7 @@ namespace RtxTool
             mRecord.readReference(mRequest.mAgainst);
 
         mRecord.reserve(mRequest.mStops.size());
+        mRecord.begin(mRequest);
 
         if (mRequest.mStops.empty())
             mDone = true;
@@ -34,12 +37,15 @@ namespace RtxTool
 
     std::unique_ptr<MWRender::Renderer> Session::createRenderer(const MWRender::RendererSpec& spec)
     {
-        return std::make_unique<MWRender::RtxRenderer>(spec, &mInstalled);
+        // The engine names the renderer it chose itself, and it chose none here.
+        Crash::annotate("renderer", MWRender::nameOf(MWRender::RendererKind::RayTraced));
+        auto renderer = std::make_unique<MWRender::RtxRenderer>(spec, &mInstalled);
+        return renderer;
     }
 
     std::optional<float> Session::getFrameStep() const
     {
-        return mRequest.mSetup.mStep;
+        return mRequest.mStep;
     }
 
     SessionResult Session::describe() const
@@ -50,7 +56,7 @@ namespace RtxTool
     void Session::abandon(const std::string_view why)
     {
         Log(Debug::Error) << "Ray tracing session: " << why;
-        mRecord.fail();
+        mRecord.abandon(mRequest);
         mDone = true;
         MWBase::Environment::get().getStateManager()->requestQuit();
     }
@@ -68,19 +74,34 @@ namespace RtxTool
     {
         const Stop& stop = currentStop();
 
+        // Before the first stop is staged, because staging moves the clock: the game's own speed is
+        // what the world's `timescale` stood at when the session began.
+        if (!mOwnTimeScale.has_value())
+        {
+            mOwnTimeScale = MWBase::Environment::get().getWorld()->getGlobalFloat(MWWorld::Globals::sTimeScale);
+            if (!(*mOwnTimeScale > 0.0f))
+            {
+                abandon(
+                    std::format("the world's timescale is {}, and a stopped clock has no speed of its own to "
+                                "cross a sky or run a film's clock at",
+                        *mOwnTimeScale));
+                return;
+            }
+        }
+
         if (const Misc::Result<void, std::string> staged = mStager.stage(stop, mRequest); !staged.isOk())
         {
             abandon(staged.error());
             return;
         }
 
-        mCamera.begin(stop);
+        mCamera.begin(stop, *mOwnTimeScale);
         mNote.begin(stop);
         mMeasurer.begin(stop);
 
         mStarted = true;
 
-        const float step = worldStep(mRequest.mSetup);
+        const float step = worldStep(mRequest.mStep);
         Log(Debug::Info) << "Ray tracing session: stop " << (mAt + 1) << " of " << mRequest.mStops.size() << ", "
                          << (stop.mName.empty() ? "unnamed" : stop.mName) << " — the world standing whole, "
                          << stop.mSchedule.mSpec.getWarmup(step) << " frames warming up, then "
@@ -213,7 +234,7 @@ namespace RtxTool
             if (const SkyPress press = mSkyKeys.listen(); press.mSteps != 0)
                 mCamera.turnSkyBy(currentStop(), press.mSteps, press.mAtOnce);
         }
-        mCamera.step(currentStop(), mMeasurer.getMeasuredIndex(), worldStep(mRequest.mSetup));
+        mCamera.step(currentStop(), mMeasurer.getMeasuredIndex(), worldStep(mRequest.mStep));
 
         // **After the camera has stepped and on every frame, warm-up included.** `CameraDriver::aim`
         // says why once is not enough; the warm-up frames stand at the route's start.
@@ -234,8 +255,15 @@ namespace RtxTool
         // during the frame's own update, the eye the route flew and the sky the turn crossed, and
         // the air the renderer stepped. Taken before the frame, the note would be a camera one update
         // behind the picture. The last one taken is what `RunRecord::describe` publishes.
-        mNote.take(report.mAir);
-        mHome.answer(mNote.getLeft(), report, context.mRenderer.getBackend().getExtents());
+        //
+        // **Every frame only where somebody plays the run**, which is where the window's title
+        // shows the note and the Home key reads it. Work here lands in the next frame's time, so a
+        // measured run takes the note once, at each stop's end.
+        if (mRequest.mPlayed)
+        {
+            mNote.take(report.mAir);
+            mHome.answer(mNote.getLeft(), report, context.mBackend.getExtents());
+        }
 
         switch (mMeasurer.frame(currentStop(), context, report, mCamera.hasArrived()))
         {
@@ -254,6 +282,9 @@ namespace RtxTool
     {
         const Stop& stop = currentStop();
         const std::optional<Route>& route = stop.mSchedule.mRoute;
+
+        if (!mRequest.mPlayed)
+            mNote.take(report.mAir);
 
         mRecord.add(
             mMeasurer.finish(stop, context, report, route.has_value() ? mCamera.getTravelled(*route) : 1.0f, mWriter));

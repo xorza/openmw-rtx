@@ -42,6 +42,22 @@ namespace Misc
     /// because a window being minimised still has a frame to keep.
     Presentation present(osg::Vec2i asked, osg::Vec2i drawable);
 
+    /// Where a picture at the aspect of another size is cut out of a frame.
+    struct Crop
+    {
+        osg::Vec2i mOrigin;
+        osg::Vec2i mSize;
+
+        bool operator==(const Crop& other) const = default;
+    };
+
+    /// The middle of a `frame` at the aspect of `asked`: what a save's thumbnail is cut from, so a
+    /// wide frame's thumbnail is not the whole of it squashed. In whole pixels and centred, the
+    /// leftover halved and rounded down, by the rule `MWRender::ScreenshotManager` cuts by; worked in
+    /// whole numbers where it works in double, so the two can part by a pixel where the double
+    /// lands a hair under a whole one. Sides of nought or less are asked of nothing.
+    Crop cropToAspect(osg::Vec2i frame, osg::Vec2i asked);
+
     /// How many frame pixels a unit of the interface takes: `setting` times the frame pixels that
     /// would fall on one of the display's points if the frame filled the display, and never less
     /// than `setting`. So the interface keeps its size on the display where the frame is finer than

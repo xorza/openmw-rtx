@@ -6,6 +6,7 @@
 #include <osg/Camera>
 
 #include <components/sceneutil/lightmanager.hpp>
+#include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -90,6 +91,7 @@ namespace MWRender
         mWorld = describeWorld(sources);
         mEye = sources.mEye;
         mEye.mProjectionMatrix = mProjection;
+        mEye.mProjectionShift = mProjectionShift;
 
         mFrame.emplace(SceneFrame{
             .mScene = sources.mScene,
@@ -102,6 +104,7 @@ namespace MWRender
             .mObjectStorage = sources.mObjectStorage,
             .mDeltaTime = mDeltaTime,
             .mPaused = mPaused,
+            .mJumped = mJumped,
         });
 
         return *mFrame;
@@ -122,9 +125,10 @@ namespace MWRender
         return EyeState{
             .mNearClip = mNearClip,
             .mViewDistance = mViewDistance,
-            .mFieldOfView = mFieldOfViewOverridden ? mFieldOfViewOverride : mFieldOfView,
+            .mScriptViewDistance
+            = mViewDistance != Settings::camera().mViewingDistance ? std::optional<float>(mViewDistance) : std::nullopt,
+            .mFieldOfView = getFieldOfView(),
             .mArmsFieldOfView = mFirstPersonFieldOfView,
-            .mPlayersEye = mCamera->getMode() != Camera::Mode::Static,
         };
     }
 
@@ -154,5 +158,12 @@ namespace MWRender
         mPrecipitation->setViewPoint(camera.getInverseViewMatrix().getTrans());
 
         mRenderer.renderFrame(mFrame.get());
+        mFrame.clearJumped();
+    }
+
+    void RenderingManager::notifyJumped(const MWWorld::Ptr& ptr)
+    {
+        if (const osg::Node* node = ptr.getRefData().getBaseNode())
+            mFrame.noteJumped(*node);
     }
 }

@@ -171,6 +171,9 @@
         </item>
         <item row="6" column="0">
          <widget class="QLabel" name="resolutionLabel">
+          <property name="toolTip">
+           <string>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window's own size. In Windowed mode the window keeps the size you last dragged it to.</string>
+          </property>
           <property name="text">
            <string>Resolution</string>
           </property>
@@ -238,7 +241,7 @@
         <item row="8" column="1">
          <widget class="QComboBox" name="rayTracingUpscaleComboBox">
           <property name="toolTip">
-           <string>How far below the window's size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</string>
+           <string>How far below the frame's size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</string>
           </property>
          </widget>
         </item>

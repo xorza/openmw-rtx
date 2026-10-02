@@ -3,19 +3,24 @@
 #include <cerrno>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
 #include <limits>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <signal.h>
 #include <sys/resource.h>
 #include <unistd.h>
 
-// The system calls that are each system's own: a thread's id, and Linux's way to leave no core.
+// The system calls that are each system's own: a thread's id, the running file, and Linux's way to
+// leave no core.
 #if defined(__linux__)
 #include <sys/prctl.h>
 #include <sys/syscall.h>
 #elif defined(__APPLE__)
+#include <mach-o/dyld.h>
 #include <pthread.h>
 #elif defined(__FreeBSD__)
 #include <pthread_np.h>
@@ -38,6 +43,37 @@ namespace Platform::Process
     void setEnvironment(const char* name, const char* value)
     {
         setenv(name, value, 1);
+    }
+
+    std::optional<std::filesystem::path> executable()
+    {
+        std::error_code error;
+#if defined(__APPLE__)
+        std::uint32_t size = 0;
+        _NSGetExecutablePath(nullptr, &size);
+        std::string path(size, '\0');
+        if (_NSGetExecutablePath(path.data(), &size) != 0)
+            return std::nullopt;
+
+        std::filesystem::path resolved = std::filesystem::canonical(path.c_str(), error);
+        if (error)
+            return std::nullopt;
+        return resolved;
+#else
+        // Linux names it the first way, and the BSDs' process file systems one of the others.
+        for (const char* link : { "/proc/self/exe", "/proc/self/file", "/proc/curproc/exe", "/proc/curproc/file" })
+        {
+            std::filesystem::path path = std::filesystem::read_symlink(link, error);
+            if (!error)
+                return path;
+        }
+        return std::nullopt;
+#endif
+    }
+
+    std::vector<std::string> commandLine(const int argc, char** const argv)
+    {
+        return std::vector<std::string>(argv, argv + argc);
     }
 
     std::uint32_t currentId()

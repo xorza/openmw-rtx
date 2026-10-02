@@ -1,6 +1,6 @@
 #pragma once
 
-#include <osg/Matrixf>
+#include <osg/Matrixd>
 #include <osg/Node>
 #include <osg/Vec4f>
 
@@ -40,7 +40,7 @@ namespace MWRender
         /// Only the nodes these bits select (`MWRender::VisMask`): an inclusion mask AND-ed at
         /// every node, so a category left out is dropped wherever it appears below. The rasterizer
         /// puts it on the camera's cull mask; a ray tracer masks the walk of a subject with it and
-        /// hands every picture the classes its rays meet (`rayMaskOf`).
+        /// hands every picture the classes its rays meet (`describeView`).
         unsigned int mMask = ~0u;
 
         SceneUtil::Framing mFraming{};
@@ -64,8 +64,10 @@ namespace MWRender
         OffscreenView(const OffscreenView&) = delete;
         OffscreenView& operator=(const OffscreenView&) = delete;
 
-        /// Where the picture is taken from. Takes effect on the next `redraw()`.
-        virtual void setView(const osg::Matrixf& view) = 0;
+        /// Where the picture is taken from. Takes effect on the next `redraw()`. In double, because
+        /// a view matrix's translation is the eye's distance from the world's origin, which in an
+        /// exterior is past where a float holds a hundredth of a unit.
+        virtual void setView(const osg::Matrixd& view) = 0;
 
         /// Update the subtree and draw it again. Not per frame: a doll is redrawn when the player
         /// puts something on, and a map tile when its cell is first entered.

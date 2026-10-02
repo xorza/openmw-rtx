@@ -15,6 +15,7 @@
 #include "instruments/frametimes.hpp"
 #include "instruments/scenedigest.hpp"
 #include "model/benchrecord.hpp"
+#include "model/measurewindow.hpp"
 
 namespace MWRender
 {
@@ -59,13 +60,13 @@ namespace RtxTool
         /// Frames traced since the stop began, those ahead of the measurement included: what the
         /// trace's sampler and the upscaler's jitter are walked by and what the hashes number their
         /// rows by.
-        std::uint32_t getSeen() const { return mProgress.mSeen; }
+        std::uint32_t getSeen() const { return mProgress.mWindow.getSeen(); }
 
         /// Which of the stop's measured frames the frame about to be drawn is, counted from nought,
         /// or nothing while it is a frame ahead of them — until a frame drew the whole world, and
         /// the world has run, unpaused, through the warm-up the stop asked for after it. What a
         /// route flies over, a take's track is posed by and a reference is averaged over.
-        std::optional<std::uint32_t> getMeasuredIndex() const;
+        std::optional<std::uint32_t> getMeasuredIndex() const { return mProgress.mWindow.getMeasuredIndex(); }
 
         /// Takes one traced frame of `stop`, and with it whatever the device answered for an earlier
         /// one. `Ended` once the stop has measured its length or its route has `arrived`.
@@ -98,28 +99,8 @@ namespace RtxTool
         /// because the series are reserved once for the longest stop of the run.
         struct Progress
         {
-            std::uint32_t mSeen = 0;
-
-            /// Whether a frame of the stop drew the whole world (`MWRender::FrameReport::isWhole`),
-            /// how many frames it took, that one included, the fewest cells any of them left to
-            /// stand, and the wall time since that fewest last fell: `frame` says why.
-            bool mWhole = false;
-            std::uint32_t mWaited = 0;
-            std::uint32_t mLeastToStand = 0;
-            double mStalledMs = 0.0;
-
-            /// The warm-up the stop asked for after the world stood whole, in frames — the card's
-            /// clock for a bench, the histories for a picture (`sHistoryFrames`) — and how far it
-            /// has come. Then the frames the world stood paused on before the measurement, which
-            /// count toward neither: a world standing still neither arrives nor runs, so a menu a
-            /// script opens at load lengthens the wait rather than eating into it. Every frame
-            /// counts in a session somebody plays, whose pauses are theirs.
-            std::uint32_t mWarmup = 0;
-            std::uint32_t mWarmedRan = 0;
-            std::uint32_t mWarmedPaused = 0;
-
-            /// What `mSeen` stood at when the first measured frame came, or nothing before it.
-            std::optional<std::uint32_t> mMeasuredFrom;
+            /// Which frames are measured, and which span each closes.
+            MeasureWindow mWindow;
 
             /// The backend's number of the first measured frame, so a result that comes back once
             /// the measurement began can say whether the frame it answers for was measured.
@@ -130,19 +111,21 @@ namespace RtxTool
             double mWallMs = 0.0;
             Rtx::NotFinite mNotFinite;
 
-            /// The renderer's work of the frame behind, and the meshes it brought, waiting for the
-            /// frame that closes the span they are in: `frame` says which that is.
-            Rtx::FrameSpend mPendingSpend;
-            std::uint32_t mPendingArrived = 0;
+            /// What put the last measured frame back together, off its own result: the frame the
+            /// stop's checks and the record's header describe.
+            Rtx::Reconstruction mReconstruction{};
 
             /// Which frame of the film each frame in flight is, by the backend's number: a picture
             /// comes back a frame or two after the frame it was traced as, and is numbered by that.
+            /// Room for one on the device in each slot and one finished in each that the ring has
+            /// not reported yet.
             struct FilmFrame
             {
                 std::uint64_t mFrame = 0;
                 std::uint32_t mNumber = 0;
             };
-            std::array<FilmFrame, 4> mFilmFrames{};
+            using FilmFrames = std::array<FilmFrame, 2 * Rtx::sFramesInFlight>;
+            FilmFrames mFilmFrames{};
             std::size_t mFilmPending = 0;
 
             /// How many measured frames the world stood paused on, and what paused it: noted on the
@@ -179,6 +162,9 @@ namespace RtxTool
 
         /// perf's control fifo, held for the whole run so every stop brackets its own frames.
         PerfControl mProfiling;
+
+        /// Whether the window before the first place was said, which is said once.
+        bool mBeforeSaid = false;
 
         /// The card, watched from the session's start: its clock across each stop's measured
         /// frames, and who held it through every window of the run. Held rather than made per

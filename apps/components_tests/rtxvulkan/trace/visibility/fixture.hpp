@@ -151,7 +151,7 @@ namespace Rtx::Testing
     inline SceneDesc makeWall(float scale = 1.0f)
     {
         SceneDesc scene;
-        addQuad(scene, sWallQuad, sNoIndex, osg::Matrixf::scale(scale, 1.0f, scale));
+        addQuad(scene, sWallQuad, std::nullopt, osg::Matrixf::scale(scale, 1.0f, scale));
         return scene;
     }
 
@@ -353,15 +353,17 @@ namespace Rtx::Testing
         /// epsilon, which with no upscaler in the fixture is the whole of the bias.
         float mLevelEpsilon = 0.0f;
 
-        /// Where the trace draws from, or nothing for the reconstruction's own choice, which with
-        /// no upscaler is the tile every figure over this fixture was derived against.
-        std::optional<NoiseSource> mNoise{};
+        /// Where the trace draws from: the tile every figure over this fixture was derived against,
+        /// unless a test names the other.
+        NoiseSource mNoise = NoiseSource::BlueNoiseTile;
 
-        /// Throws the denoiser's history away before the run.
+        /// What the past of the run's frame `mLossAt` is worth (`FrameOptions::mLoss`). A shot that
+        /// sets its scene has lost every history at its first frame already, as a new world does.
         ///
         /// **A one-frame baseline taken after a longer run is a baseline that already has a history
         /// in it**, which reads as the accumulator doing nothing at all.
-        bool mResetHistory = false;
+        HistoryLoss mLoss = HistoryLoss::None;
+        std::uint32_t mLossAt = 0;
 
         /// The exposure the composite is held at. `std::nullopt` is the exposure the frame measures
         /// for itself, which is what a test about the exposure pass wants — and what every figure
@@ -384,6 +386,9 @@ namespace Rtx::Testing
         /// harness's profile — which paints the light and divides out none (`describeRenderer`).
         std::optional<SurfaceView> mShow{};
         std::optional<float> mDelight{};
+
+        /// `RenderProfile::mLitEnvironmentMaps` over the harness's, which leaves a sheet unlit.
+        std::optional<bool> mLitEnvironmentMaps{};
 
         /// `RenderProfile::mAnisotropy` for the shot. One, so the level a cone names is the level
         /// read, which is what every test that measures a level off the mip ladder relies on.
@@ -413,7 +418,7 @@ namespace Rtx::Testing
     inline Shot filteredRun(std::uint32_t frames, std::uint32_t first = 0)
     {
         return Shot{
-            .mFrames = frames, .mAverage = false, .mFirstFrame = first, .mFilter = true, .mResetHistory = true
+            .mFrames = frames, .mAverage = false, .mFirstFrame = first, .mFilter = true, .mLoss = HistoryLoss::Cut
         };
     }
 
@@ -436,9 +441,6 @@ namespace Rtx::Testing
             else
                 mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
 
-            if (shot.mResetHistory)
-                mRenderer.resetHistory();
-
             // One frame per sample, each waited out before the next, which orders them — and the
             // renderer's own history barrier is what makes each sum visible to the next.
             const std::uint32_t drawn = std::max(shot.mFrames, 1u);
@@ -448,18 +450,23 @@ namespace Rtx::Testing
                 Shaders::VisibilityConstants sampled = camera;
                 if (shot.mFrames > 0)
                     sampled.mFrame = shot.mFirstFrame + at;
+                const double waterSeconds = static_cast<double>(at) * static_cast<double>(shot.mWaterStep);
                 if (shot.mWaterStep > 0.0f)
-                    sampled.mWaterTime = splitSeconds(static_cast<double>(at) * static_cast<double>(shot.mWaterStep));
+                    sampled.mWaterTime = splitSeconds(waterSeconds);
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = shot.mFrames > 0 && shot.mAverage ? at + 1 : 0,
                         .mGlare = shot.mGlare,
+                        .mWaterSeconds = waterSeconds,
+                        .mLoss = at == shot.mLossAt ? shot.mLoss : HistoryLoss::None,
                         .mReconstruction = ReconstructionRequest{ .mDenoise = shot.mFilter,
                             .mJitter = shot.mJitter,
                             .mNoise = shot.mNoise,
                             .mLevelEpsilon = shot.mLevelEpsilon },
-                        .mExposure = ExposureRule{ .mFixed = shot.mExposure },
+                        .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })
+                                                                : ExposureRule(MeasuredExposure{}),
                         .mDelight = shot.mDelight,
                         .mShow = shot.mShow,
+                        .mLitEnvironmentMaps = shot.mLitEnvironmentMaps,
                         .mJitter = shot.mOffset,
                         .mDebug = shot.mDebug });
 

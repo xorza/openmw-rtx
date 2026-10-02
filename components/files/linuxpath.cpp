@@ -86,7 +86,7 @@ namespace Files
         {
             std::error_code ec;
             const auto binPath = read_symlink(path, ec);
-            if (ec.value() != -1)
+            if (!ec)
             {
                 localPath = binPath.parent_path() / "";
                 break;

@@ -20,7 +20,7 @@ namespace MWRender
     };
 
     /// The one mapping from the game's masks to the ray tracer's classes, read both ways:
-    /// `rayMaskOf` turns a camera's cull mask into the classes its rays meet, and `WorldMirror`
+    /// `describeView` turns a camera's cull mask into the classes its rays meet, and `WorldMirror`
     /// names the roots the walk sorts by. `Static` is what states none of the others, so the walk
     /// is never told its mask.
     inline constexpr std::array<ClassMask, 4> sClassMasks{
@@ -30,7 +30,19 @@ namespace MWRender
         ClassMask{ Rtx::InstanceClass::FirstPerson, Mask_FirstPerson },
     };
 
-    /// A camera's cull mask as the trace reads it: which `Rtx::InstanceClass`es its rays meet, and
-    /// whether it draws the sprites. The one translation, so both renderers read one mask.
-    std::uint32_t rayMaskOf(osg::Node::NodeMask cullMask);
+    /// What a camera's cull mask says to the trace.
+    struct ViewDescription
+    {
+        /// Which `Rtx::InstanceClass`es its rays meet, and whether it draws the sprites and the
+        /// water.
+        std::uint32_t mRayMask = 0;
+
+        /// Whether the world's lamps light it: `Mask_Lighting`, which the rasterizer's light
+        /// manager hands a camera its lights by.
+        bool mLamps = false;
+    };
+
+    /// A camera's cull mask as the trace reads it. The one translation, so both renderers read one
+    /// mask.
+    ViewDescription describeView(osg::Node::NodeMask cullMask);
 }

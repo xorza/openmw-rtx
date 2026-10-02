@@ -5,18 +5,16 @@
 #include <optional>
 #include <span>
 
-#include <osg/Matrixf>
+#include <osg/Matrixd>
 #include <osg/Node>
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 
-#include <components/rtx/mirror/mirrorpass.hpp>
-#include <components/rtx/preprocess/threadcontent.hpp>
+#include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/slot.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/sceneutil/offscreenframing.hpp>
 
@@ -46,6 +44,9 @@ namespace Rtx
         /// actors, the effects and the particles; a doll asks for every class.
         std::uint32_t mRayMask = 0;
 
+        /// Whether the world's lamps light the picture: a map tile's do not.
+        bool mLamps = true;
+
         /// How the picture is projected and where it is clipped.
         SceneUtil::Framing mFraming{};
 
@@ -72,19 +73,6 @@ namespace Rtx
 
         /// Which nodes the walk of the subject may descend into, AND-ed at every node.
         osg::Node::NodeMask mSubjectMask = ~0u;
-
-        /// Where the subject's walk and the pick's traversal numbers come from, shared with
-        /// everything else that can reach the same nodes, because a subtree two walks reach would
-        /// otherwise be run by whichever got there first and frozen for the other. Left out, the
-        /// walk keeps a sequence of its own.
-        Traversals* mTraversals = nullptr;
-
-        /// What the subject's walk computes from the content, the frame thread's, so a doll reads
-        /// the world's caches and counts into the world's figures. Left out, the walk keeps its own.
-        ThreadContent* mContent = nullptr;
-
-        /// What the subject's `_spec` maps mean — the world's, so a doll wears what the world does.
-        SpecularLayout mSpecularLayout = SpecularLayout::Ignore;
     };
 
     /// One picture traced from somewhere other than the eye: an inventory doll, a map tile. The
@@ -98,14 +86,19 @@ namespace Rtx
     class OffscreenTrace
     {
     public:
-        OffscreenTrace(Renderer& renderer, const ViewRequest& request);
+        /// @param context what the subject's walk shares with every other walk on the thread
+        ///        (`WalkContext`): the traversal numbers, because a subtree two walks reach would
+        ///        otherwise be run by whichever got there first and frozen for the other; the
+        ///        content's caches, so a doll counts into the world's figures; and the layout of the
+        ///        `_spec` maps, so a doll wears what the world does.
+        OffscreenTrace(Renderer& renderer, const ViewRequest& request, WalkContext& context);
 
         /// Out of line because `SceneDesc`, `SceneExtractor` and the update visitor are only forward
         /// declared here.
         ~OffscreenTrace();
 
         /// Where the picture is taken from. Takes effect on the next trace.
-        void setView(const osg::Matrixf& view);
+        void setView(const osg::Matrixd& view);
 
         /// Fill only this much of the picture, from its top-left corner, and leave the rest at the
         /// clear colour. Clamped to the size this was made at. For the inventory doll, whose window
@@ -120,7 +113,7 @@ namespace Rtx
         /// How the picture is projected, as it was asked for, and where it is taken from, as
         /// `setView` last said: what says which piece of the world a tile is a picture of.
         const SceneUtil::Framing& getFraming() const { return mRequest.mFraming; }
-        const osg::Matrixf& getView() const { return mView; }
+        const osg::Matrixd& getView() const { return mView; }
         std::uint32_t getHeight() const { return mRequest.mHeight; }
 
         /// The mirror of the subject, or null for a picture of the world — which has no scene of its
@@ -202,6 +195,10 @@ namespace Rtx
             /// The traversal number the subject's update last ran at, which `rebuildSubject` hands
             /// the update traversal and the walk after it. A pick's own cull is dated after it.
             unsigned int mPosedFrame = 0;
+
+            /// The world's clock at the last redraw, nothing before the first: what the subject's
+            /// emitters are stepped by the gap from.
+            std::optional<double> mPosedAt;
         };
 
         /// Null for a picture of the world, which traces against the scene the frame's own walk
@@ -212,7 +209,7 @@ namespace Rtx
         /// clamped against, and the camera is built from the rest at every trace.
         ViewRequest mRequest;
 
-        osg::Matrixf mView;
+        osg::Matrixd mView;
 
         /// How much of the picture is filled, from its top-left corner.
         std::uint32_t mExtentWidth = 0;

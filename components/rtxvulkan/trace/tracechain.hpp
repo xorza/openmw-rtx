@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 #include <vulkan/vulkan_core.h>
 
@@ -35,18 +36,21 @@ namespace Rtx
         /// Nothing has an extent until `resize` or `grow` is called.
         ///
         /// @param passes what the chain traces with, which outlives it.
-        TraceChain(const Device& device, const TracePasses& passes);
-
-        /// Builds the chain at exactly this extent, whatever it was before.
-        ///
+        /// @param bins how many sprite bins the chain keeps, `VisibilityInputs::mTraceSlot` picking
+        ///        one: one per frame in flight for the world's, and one for the pictures', which are
+        ///        traced and waited for one at a time.
         /// @param radiance how wide the radiance channels and the frame composed from them are
         ///        stored — the run's choice, which `Rtx::RadianceWidth` argues.
-        void resize(std::uint32_t width, std::uint32_t height, RadianceWidth radiance);
+        TraceChain(const Device& device, const TracePasses& passes, std::uint32_t bins, RadianceWidth radiance);
+
+        /// Builds the chain at exactly this extent, whatever it was before, and nothing where it
+        /// already stands at it.
+        void resize(std::uint32_t width, std::uint32_t height);
 
         /// Makes the chain at least this big, keeping whatever extent it already reached on either
         /// axis. Nothing where it already `holds` the size. Grown and never shrunk, because a
         /// smaller picture uses a corner of a larger one's images rather than rebuilding them.
-        void grow(std::uint32_t width, std::uint32_t height, RadianceWidth radiance);
+        void grow(std::uint32_t width, std::uint32_t height);
 
         /// The extent the images are at, which is what a dispatch over the whole of one covers.
         /// Nought until the first `resize` or `grow`.
@@ -80,23 +84,20 @@ namespace Rtx
         void dropSum() { mSum = Image(); }
 
     private:
-        /// The sprite tile list the trace of `inputs` reads: the media's list of nothing for a camera
-        /// that draws no sprites, and the slot's bin otherwise. Asked once, after the bin's `take`,
-        /// which may have grown the table.
-        VkDeviceAddress getSpriteTileList(const VisibilityInputs& inputs) const;
-
         const Device& mDevice;
         const TracePasses& mPasses;
 
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
+        const RadianceWidth mRadiance;
 
         std::unique_ptr<GBuffer> mChannels;
         std::unique_ptr<FogVolume> mFogVolume;
 
-        /// One sprite bin per frame in flight — `VisibilityInputs::mTraceSlot` picks — so the frame
-        /// behind keeps the tables its trace reads while this frame's bin writes its own.
-        PerSlot<SpriteBin> mBins;
+        /// The sprite bins — `VisibilityInputs::mTraceSlot` picks — so the frame behind keeps the
+        /// tables its trace reads while this frame's bin writes its own. Made once, at the count the
+        /// chain was made with.
+        std::vector<SpriteBin> mBins;
 
         /// What the shared denoising passes keep of this camera, at the extent.
         DenoiseHistory mDenoise;

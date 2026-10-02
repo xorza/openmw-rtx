@@ -55,7 +55,7 @@ namespace Rtx
     const Image& AtrousPass::record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
         const GBuffer& buffer, const DenoiseFrame& frame) const
     {
-        const Shaders::Camera& camera = frame.mSampled.mCamera;
+        const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         const Image& blended = images.mBlended;
         const Image& history = images.mColour;
         const Image& scratch = images.mScratch;
@@ -68,8 +68,7 @@ namespace Rtx
         // (`DenoiseHistory::discard`); every level after the first reads what the one before
         // wrote, which is what the barriers below order.
         Shaders::AtrousConstants level{
-            .mCamera = camera,
-            .mArms = frame.mSampled.mArms,
+            .mEyes = frame.mSampled.mEyes,
             .mStep = 1,
         };
 

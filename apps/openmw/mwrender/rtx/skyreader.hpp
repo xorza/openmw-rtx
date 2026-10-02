@@ -11,6 +11,7 @@
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/sky/skyclock.hpp>
+#include <components/sky/sunglarefader.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace Resource
@@ -25,7 +26,7 @@ namespace VFS
 
 namespace Rtx
 {
-    class ContentPreprocessor;
+    class ImageFactCache;
     class SceneDesc;
 }
 
@@ -64,8 +65,8 @@ namespace MWRender
         /// material speaks for the slots and the sweep would take them on the first frame a cell
         /// died. Once, where the world is attached.
         ///
-        /// @param content what the sheets' means are read through: the frame thread's.
-        void attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ContentPreprocessor& content);
+        /// @param facts what the sheets' means are read through: the frame thread's.
+        void attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ImageFactCache& facts);
 
         /// Gives every hold `attach` took back to `scene`, so a scene the world has left holds
         /// nothing of the sky: `attach`'s pair, where the world is detached.
@@ -82,6 +83,12 @@ namespace MWRender
         /// Stands the air's clocks at `air`, in place of wherever this session's frames carried them:
         /// the sky's own and the fog's carry together, because they are one moment.
         void holdAir(const Rtx::AirClock& air);
+
+        /// Opens a sheet the weather names that the sky does not hold yet, once — a script's
+        /// `weather.cloudTexture` — as the rasterizer loads one when the name changes. Every frame,
+        /// before `read`, between `attach` and `detach`.
+        void follow(
+            const SkyState& sky, Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ImageFactCache& facts);
 
         /// @param falling what the weather drops, for how much of it rings the water and how high
         ///        a roof shelters from it.
@@ -122,14 +129,14 @@ namespace MWRender
         /// rasterizer's `SkyManager` reads it. `WorldState::mMoonRed` says when.
         osg::Vec3f mMoonPaint;
 
-        /// The sun glare fader's three constants, read once as `SunGlareCallback` reads them:
-        /// `Weather_Sun_Glare_Fader_Color` doubled and clamped, `_Max`, and `_Angle_Max` in
-        /// radians. `glare.h` says what each is.
-        osg::Vec3f mGlareColour;
-        float mGlareMax;
-        float mGlareAngleMax;
+        /// The sun glare fader, read once, as `SunGlareCallback` reads it.
+        Sky::SunGlareFader mGlare;
 
         /// How big the configuration draws each moon, read with the rest of the fallbacks.
         Rtx::MoonSizes mMoonSizes;
+
+        /// The water's scattering albedo, `Water_UnderwaterColor` at `Water_UnderwaterColorWeight`,
+        /// read once: `WATER_SCATTER_SHIPPED` says what it is.
+        osg::Vec3f mWaterScatter;
     };
 }

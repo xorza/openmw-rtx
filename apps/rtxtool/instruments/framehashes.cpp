@@ -16,6 +16,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/common/hashstate.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 #include "digest.hpp"
@@ -124,7 +125,7 @@ namespace RtxTool
         /// the jitter or a reset that never clears would move, and nothing in an image would.
         Rtx::DigestWords digestHanded(const Rtx::FrameDigest& digest)
         {
-            Digest words;
+            Rtx::HashState words;
             words.add(digest.mJitterX);
             words.add(digest.mJitterY);
             words.add(digest.mFrameDeltaMs);
@@ -150,7 +151,7 @@ namespace RtxTool
 
         assert(finished.mDigest.has_value() && "a frame read back without the digest the same option asks for");
 
-        Digest digest;
+        Rtx::HashState digest;
         digest.add(finished.mPixels);
         row->mHash = digest.getWords();
 
@@ -165,13 +166,18 @@ namespace RtxTool
         return Pictured{ .mView = row->mView, .mFrame = row->mFrame };
     }
 
+    void FrameHashes::dropUnpictured()
+    {
+        std::erase_if(mFrames, [](const Frame& held) { return !held.mPictured; });
+    }
+
     std::size_t FrameHashes::countUnpictured() const
     {
         return static_cast<std::size_t>(
             std::count_if(mFrames.begin(), mFrames.end(), [](const Frame& held) { return !held.mPictured; }));
     }
 
-    void FrameHashes::write(const std::filesystem::path& file) const
+    Misc::Result<void, std::string> FrameHashes::write(const std::filesystem::path& file) const
     {
         Crash::contract(countUnpictured() == 0, "frames were noted and never pictured; the ring was not drained");
 
@@ -190,10 +196,13 @@ namespace RtxTool
             out << '\n';
         }
 
-        // **Thrown and not reported**: a reference that did not get written and a command that
-        // still succeeded is the next run comparing against whatever was at that path before.
+        // **Answered, so the run fails and not only says so**: a reference that did not get
+        // written and a command that still succeeded is the next run comparing against whatever
+        // was at that path before.
+        out.flush();
         if (!out)
-            throw Rtx::InputError("could not write " + Files::pathToUnicodeString(file));
+            return Misc::Err{ "could not write " + Files::pathToUnicodeString(file) };
+        return {};
     }
 
     FrameHashes FrameHashes::read(const std::filesystem::path& file)
@@ -440,6 +449,24 @@ namespace RtxTool
                 difference.mUnmatched += static_cast<std::uint32_t>(missing) - difference.mFrames;
         }
 
+        // **And a view the reference drew and this run did not draw at all**, which no frame of
+        // this run names: without its own entry a comparison would cover fewer views than it was
+        // asked to and say nothing of the rest.
+        const std::size_t drawn = differences.size();
+        for (const Stretch& was : stretches)
+        {
+            const auto named = [&](const ViewDifference& difference) { return difference.mView == was.mView; };
+            const auto last = differences.begin() + static_cast<std::ptrdiff_t>(drawn);
+            if (std::any_of(differences.begin(), last, named))
+                continue;
+
+            if (const auto known = std::find_if(last, differences.end(), named); known != differences.end())
+                known->mUnmatched += static_cast<std::uint32_t>(was.mTo - was.mFrom);
+            else
+                differences.push_back(ViewDifference{
+                    .mView = std::string(was.mView), .mUnmatched = static_cast<std::uint32_t>(was.mTo - was.mFrom) });
+        }
+
         return differences;
     }
 
@@ -448,6 +475,9 @@ namespace RtxTool
         // **The scene is asked here too, though it does not fail the run.** Reporting only the
         // picture is what let a run be called identical while the description behind it moved on
         // every frame, which is the fault these columns were added for.
+        if (difference.mFrames == 0)
+            return std::format("not drawn by this run, {} frames of the reference's", difference.mUnmatched);
+
         std::vector<std::string> clauses;
         if (difference.same())
         {

@@ -7,6 +7,7 @@
 #include <components/rtx/common/runs.hpp>
 
 #include "scenedesc.hpp"
+#include "texturetable.hpp"
 
 namespace Rtx
 {
@@ -42,22 +43,6 @@ namespace Rtx
         /// texture slot and is an arrival like any other.
         std::size_t advance(SceneDesc& scene);
 
-        /// What `advance` gave one slot out as.
-        struct Baked
-        {
-            /// The material whose ground it is, or `sNoIndex` where nothing here gave the slot out
-            /// this frame.
-            Index mMaterial = sNoIndex;
-
-            /// Whether it is the chunk's gloss rather than its albedo.
-            bool mGloss = false;
-        };
-
-        Baked find(Index slot) const;
-
-        /// Lets go of what `advance` gave out, after the arrival that described it.
-        void releaseFinished() { mFinished.clear(); }
-
     private:
         /// Which chunk asked: the material's slot and where its layers sat when it did, so a slot
         /// another chunk took over in the meantime is not handed the first one's ground.
@@ -75,11 +60,16 @@ namespace Rtx
 
         /// Takes the chunks at the front of the schedule, at most `limit` of them, and says how
         /// many. A chunk taken takes a texture slot and goes onto the material that asked; one
-        /// whose slot another chunk took over while it waited is dropped.
+        /// whose slot another chunk took over while it waited is dropped. A chunk the texture table
+        /// has no room for goes back to the front, and nothing is taken again until the table
+        /// frees a slot.
         std::size_t take(SceneDesc& scene, std::size_t limit);
 
         /// Puts `asked` at the back of the schedule, growing the ring where it is full.
         void wait(const Asked& asked);
+
+        /// Puts `asked`, the ask just taken from the front, back where it stood.
+        void putBack(const Asked& asked);
 
         /// The ask `age` places behind the oldest.
         Asked& waitingAt(std::size_t age) { return mWaiting[(mFront + age) % mWaiting.size()]; }
@@ -91,16 +81,15 @@ namespace Rtx
         std::size_t mFront = 0;
         std::size_t mCount = 0;
 
-        /// A slot given out, and the chunk it is the ground of.
-        struct Given
-        {
-            Index mSlot = sNoIndex;
-            Baked mBaked;
-        };
+        /// Where in `mWaiting` each material's ask stands, `sNoIndex` where it has none: what
+        /// `gather` finds a chunk asking again by, where a search of the ring was a pass over every
+        /// waiting chunk for each written one. An ask stays in the ring after a newer one replaced
+        /// it, naming no material, so a material has at most one position.
+        std::vector<Index> mPositions;
 
-        /// What `advance` gave out this frame: at most `sCompositesPerFrame` chunks, each an albedo
-        /// and at most one gloss. Emptied by `releaseFinished` and never freed.
-        std::vector<Given> mFinished;
+        /// The texture table's refusal of a composite, which holds the schedule until the table
+        /// frees a slot: every chunk wants one, so the next would be refused the same way.
+        RefusedTakes mRefused;
 
         std::string mKey;
     };

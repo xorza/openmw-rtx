@@ -57,8 +57,8 @@ namespace Rtx
 
         // The horizontal half angle's tangent, which FSR works out from the vertical one and the
         // aspect and the camera states outright.
-        const float tanHalfWidth = frame.mCamera.mRight.length();
-        const float tanHalfHeight = frame.mCamera.mUp.length();
+        const float tanHalfWidth = frame.mCamera.mBasis.mRight.length();
+        const float tanHalfHeight = frame.mCamera.mBasis.mUp.length();
         at.mTanHalfFov = tanHalfWidth;
         at.mViewSpaceToMetres = 1.0f / Shaders::UNITS_PER_METRE;
 

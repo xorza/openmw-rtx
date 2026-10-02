@@ -24,6 +24,19 @@ namespace Rtx
         std::uint32_t mOffset = 0;
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
+
+        /// Where texel `x`, `y` of a loose level begins, at `bytes` a texel.
+        constexpr std::size_t texelOffset(std::uint32_t x, std::uint32_t y, std::size_t bytes) const
+        {
+            return mOffset + (std::size_t{ y } * mWidth + x) * bytes;
+        }
+
+        /// Where the block at `column` and `band` of a block-compressed level begins, counted in
+        /// blocks of four texels a side from the level's corner, at `bytes` a block.
+        constexpr std::size_t blockOffset(std::uint32_t column, std::uint32_t band, std::size_t bytes) const
+        {
+            return mOffset + (std::size_t{ band } * ((mWidth + 3) / 4) + column) * bytes;
+        }
     };
 
     /// How many levels a chain from `width` by `height` down to one texel has: what
@@ -32,6 +45,8 @@ namespace Rtx
     {
         return static_cast<std::uint32_t>(std::bit_width(std::max(width, height)));
     }
+
+    struct TexelLayout;
 
     /// The shape of a chain of mip levels: where each one sits and how big it is. The shape and not
     /// the texels, because four payloads build the same chain.
@@ -60,17 +75,17 @@ namespace Rtx
             const MipLevel& which = getLevel(level);
             assert(x < which.mWidth && y < which.mHeight && "a texel outside its level");
 
-            return which.mOffset + (std::size_t{ y } * which.mWidth + x) * stride;
+            return which.texelOffset(x, y, stride);
         }
 
         /// Lays out a chain from `width` by `height` down to one texel, and answers how many bytes
-        /// it needs at `stride` bytes a texel. Every level's offset is in that payload.
-        std::size_t layOutTo1x1(std::uint32_t width, std::uint32_t height, std::size_t stride);
+        /// it needs laid as `laid` says. Every level's offset is in that payload.
+        std::size_t layOutTo1x1(std::uint32_t width, std::uint32_t height, const TexelLayout& laid);
 
         /// Lays out one level per entry of `shape`, keeping their extents and renumbering their
-        /// offsets into a payload of `stride` bytes a texel, because the source's offsets are in
-        /// the source's payload. Answers how many bytes that needs.
-        std::size_t layOutLike(std::span<const MipLevel> shape, std::size_t stride);
+        /// offsets into a payload laid as `laid` says, because the source's offsets are in the
+        /// source's payload. Answers how many bytes that needs.
+        std::size_t layOutLike(std::span<const MipLevel> shape, const TexelLayout& laid);
     };
 
     /// Every format OpenSceneGraph decodes a texture into: the ones this renderer uploads first,
@@ -120,9 +135,11 @@ namespace Rtx
         Argb4444,
         Xrgb4444,
 
-        /// Read by the census and never uploaded: `describeImage` refuses them by name, and does
-        /// not write the missing channels in as it widens the sixteen-bit ones.
+        /// A byte a channel with channels missing, as an old mod's 24-bit `.tga` or `.bmp` and a
+        /// grey `.dds` hold them: `describeImage` widens each to RGBA8 too, an alpha of one where
+        /// there is none and the luminance copied to all three colours.
         Rgb8,
+        Bgr8,
         Luminance,
         LuminanceAlpha,
 
@@ -141,7 +158,7 @@ namespace Rtx
     /// Whether `describeImage` widens a format to RGBA8 on the way in.
     inline bool isWidened(const TextureFormat format)
     {
-        return format >= TextureFormat::Rgb565 && format < TextureFormat::Rgb8;
+        return format >= TextureFormat::Rgb565 && format < TextureFormat::Unnamed;
     }
 
     /// How a format lays its texels out: square blocks `mSide` texels across of `mBytes` bytes
@@ -193,6 +210,7 @@ namespace Rtx
             case TextureFormat::LuminanceAlpha:
                 return TexelLayout{ .mBytes = 2 };
             case TextureFormat::Rgb8:
+            case TextureFormat::Bgr8:
                 return TexelLayout{ .mBytes = 3 };
             case TextureFormat::Luminance:
                 return TexelLayout{ .mBytes = 1 };
@@ -235,6 +253,7 @@ namespace Rtx
             case TextureFormat::Argb4444:
             case TextureFormat::Xrgb4444:
             case TextureFormat::Rgb8:
+            case TextureFormat::Bgr8:
             case TextureFormat::Luminance:
             case TextureFormat::LuminanceAlpha:
             case TextureFormat::Unnamed:

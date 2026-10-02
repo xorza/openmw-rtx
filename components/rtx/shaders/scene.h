@@ -50,7 +50,7 @@ namespace Rtx::Shaders
     /// the scene's table are both bounded by.
     const uint TEXTURE_SLOTS = 4096u;
 
-    /// The one slot the scene never hands out: one texel of `NO_TEXTURE_ALBEDO` with an alpha of
+    /// The one slot the scene never hands out: one texel of `UNTEXTURED_ALBEDO` with an alpha of
     /// one, stood by the backend when the array is made, under the neutral shading map.
     ///
     /// **A texture and not a sentinel, so no reader tests for it.** A material with no diffuse
@@ -110,13 +110,6 @@ namespace Rtx::Shaders
     /// in.** Water's absorption is published per metre and every other number in this file is per
     /// world unit, and a conversion done in a comment is a conversion nothing checks.
     const float UNITS_PER_METRE = 69.99125f;
-
-    /// Morrowind's gravity, in world units per second squared.
-    ///
-    /// **Multiplied out here rather than written down.** The game states both factors —
-    /// `Constants::GravityConst` and `Constants::UnitsPerMeter` — and this is the only place that
-    /// wants their product, so writing the product is a third number to keep in step with two.
-    const float WATER_GRAVITY = 8.96f * UNITS_PER_METRE;
 
     /// The circle constant, and the Lambertian BRDF's reciprocal of it.
     ///
@@ -283,13 +276,6 @@ namespace Rtx::Shaders
     /// this is seven millimetres.
     const float WATER_TIE_BREAK = 0.5f;
 
-    /// Significant wave height over the surface's rms elevation.
-    ///
-    /// The oceanographers' definition — the mean of the highest third, which for a Gaussian sea is
-    /// four standard deviations. It is what `SeaState` normalises its spectrum to, so that the one
-    /// figure a person can picture is the one the sea is built from.
-    const float WATER_SIGNIFICANT_HEIGHT = 4.0f;
-
     /// A ceiling on how bright a focus is allowed to get.
     ///
     /// Where the refracted bundle collapses to a line the Jacobian goes to zero and the intensity to
@@ -357,7 +343,7 @@ namespace Rtx::Shaders
     /// node mask on a path intersects the camera's cull mask; the local map's has no actors, no
     /// effects and no particles in it, and the eye's has everything. Here a placement carries the
     /// class the innermost node on its path stated — `Rtx::InstanceClass` — and a trace carries
-    /// which classes its camera draws. `MWRender::rayMaskOf` is where the one becomes the other.
+    /// which classes its camera draws. `MWRender::describeView` is where the one becomes the other.
     ///
     /// **Water must not cast a shadow, and the mask is how traversal is told so at no cost.** The
     /// alternative — building water non-opaque so the candidate loop can wave shadow rays past —
@@ -407,7 +393,7 @@ namespace Rtx::Shaders
     }
 
     /// What the world's own eye ray casts with: what the camera draws, less the arms, which are
-    /// the arms' eye's alone — `VisibilityConstants::mArms`. The rasterizer draws them under a
+    /// the arms' eye's alone — `Eyes::mArms`. The rasterizer draws them under a
     /// projection of their own and clears the depth under them, so they stand in front of
     /// everything; here they are traced first, and the world's ray never meets them.
     RTX_SHADER uint worldMask(uint rayMask)
@@ -440,11 +426,6 @@ namespace Rtx::Shaders
     /// Each layer costs a traversal on the pixels that reach it, and none on a pixel with nothing
     /// see-through in it.
     const uint PEEL_LAYERS = 4u;
-
-    /// How many hit records each closest-hit shader stands behind: one for the eye's own hit and one
-    /// for each layer of the peel, so an instance's shader-table offset is its kind times this and a
-    /// trace adds the layer it is tracing for. `HitRecord` in `visibility.h` is what a record carries.
-    const uint HIT_RECORD_LAYERS = PEEL_LAYERS + 1u;
 
     /// A surface that is nowhere opaque, gathered as a depth along the ray rather than met.
     ///
@@ -491,16 +472,63 @@ namespace Rtx::Shaders
     /// `Rtx::Material::mParallax`, and `parallaxShift` says by how much.
     const uint MATERIAL_PARALLAX = 0x20u;
 
-    /// Which texture unit the dark map is bound at, in these bits of `mFlags` —
-    /// `GpuMesh::mUnitStreams` says which stream that unit reads.
-    const uint MATERIAL_DARK_UNIT_SHIFT = 8u;
-    const uint MATERIAL_DARK_UNIT_MASK = 0x0Fu;
+    /// The surface is a pane — `Rtx::Material::isTranslucent`: what is behind it shows through by
+    /// its texture's alpha times `mOpacity`, and it has no mask.
+    ///
+    /// **A bit and not `mOpacity` below one**, because a blend whose texture is soft is a pane at an
+    /// opacity of one: a lantern's glass is all there, and its texture says how much glass.
+    const uint MATERIAL_TRANSLUCENT = 0x40u;
 
-    /// A sprite emitter that adds — `Rtx::BlendKind::Add`, or `AddWhole` with its sprites' alpha
-    /// settled at one by the resolver — and one whose sprites fall from the sky:
-    /// `spriteshelter.rgen` drops those that stand under cover.
+    /// The specular map is a classic one — `Rtx::SpecularLayout::Classic`: a reflectance in RGB and
+    /// an exponent in A, beside a diffuse that is delit as a vanilla one is. Without it a specular
+    /// map is a metalness and a roughness over an authored base colour.
+    const uint MATERIAL_SPECULAR_CLASSIC = 0x80u;
+
+    /// Which texture unit the dark map and the glow map are bound at, each in these bits of
+    /// `mFlags` — `GpuMesh::mUnitStreams` says which stream that unit reads.
+    const uint MATERIAL_DARK_UNIT_SHIFT = 8u;
+    const uint MATERIAL_EMISSIVE_UNIT_SHIFT = 12u;
+    const uint MATERIAL_UNIT_MASK = 0x0Fu;
+
+    /// Which sides of the alpha test's reference a texel passes on, one bit each: OpenGL's own
+    /// comparison functions, which are `GL_NEVER` plus exactly this set — `GL_LESS` is below,
+    /// `GL_GREATER` above, `GL_GEQUAL` at and above, `GL_ALWAYS` all three. In these bits of
+    /// `mFlags`, all three where the surface has no mask, so a texel tested against it passes.
+    const uint ALPHA_PASSES_BELOW = 0x1u;
+    const uint ALPHA_PASSES_AT = 0x2u;
+    const uint ALPHA_PASSES_ABOVE = 0x4u;
+    const uint ALPHA_PASSES_ALL = 0x7u;
+    const uint MATERIAL_ALPHA_PASSES_SHIFT = 16u;
+
+    /// Whether `alpha` passes a test at `reference` that passes on the sides `passes` names: the
+    /// side selected, and no branch on the function.
+    RTX_SHADER bool alphaPasses(uint passes, float alpha, float reference)
+    {
+        const uint side = alpha < reference ? ALPHA_PASSES_BELOW
+            : alpha == reference            ? ALPHA_PASSES_AT
+                                            : ALPHA_PASSES_ABOVE;
+        return (passes & side) != 0u;
+    }
+
+    /// Whether the test fails some alpha from nought to one: whether it cuts anything at all. A
+    /// test at least nought passes everything, and one above nought cuts every bare texel.
+    RTX_SHADER bool alphaTestCuts(uint passes, float reference)
+    {
+        const bool below = (passes & ALPHA_PASSES_BELOW) == 0u && reference > 0.0f;
+        const bool at = (passes & ALPHA_PASSES_AT) == 0u && reference >= 0.0f && reference <= 1.0f;
+        const bool above = (passes & ALPHA_PASSES_ABOVE) == 0u && reference < 1.0f;
+        return below || at || above;
+    }
+
+    /// A sprite emitter that adds — `Rtx::BlendKind::Add` or `AddWhole` — and one whose sprites
+    /// fall from the sky: `spriteshelter.rgen` drops those that stand under cover.
     const uint EMITTER_ADDITIVE = 0x01u;
     const uint EMITTER_FALLS = 0x02u;
+
+    /// An emitter that adds whole, `ONE, ONE`, beside `EMITTER_ADDITIVE`: its texels add their
+    /// colour with their alpha unread, as `MATERIAL_ADD_WHOLE` says of a surface. The resolver
+    /// settles its sprites' own alpha at one.
+    const uint EMITTER_ADD_WHOLE = 0x04u;
 
     /// The content doubled every triangle of this mesh for its back — `Rtx::FoldedShape::mSheet`.
     /// With a mask on its material that is a leaf, and `SHEET_TRANSMISSION` says what the light on
@@ -527,7 +555,7 @@ namespace Rtx::Shaders
         uint mShape;
 
         /// Where this mesh's second set of texture coordinates begins in the blocks of their own,
-        /// or `NO_STREAM` for a mesh that brought none, which is nearly every mesh. Mesh-local, as
+        /// or `NO_RUN` for a mesh that brought none, which is nearly every mesh. Mesh-local, as
         /// `mVertexOffset` is: the vertex's index within the mesh is added to it.
         uint mSecondTexCoordOffset;
 
@@ -538,14 +566,15 @@ namespace Rtx::Shaders
         uint mUnitStreams;
 
         /// Where this mesh's posed vertices sit among the deforming meshes' — `Rtx::MeshRange::
-        /// mBindOffset`, the index the pose blocks are addressed by — or `NO_STREAM` for a mesh
+        /// mBindOffset`, the index the pose blocks are addressed by — or `NO_RUN` for a mesh
         /// that stands. What lets a hit on a body read where its triangle stood last frame: the
         /// one field a moving surface's motion cannot do without, and the sixth word of the row.
         uint mBindOffset;
     };
 
-    /// A mesh with no second set of texture coordinates.
-    const uint NO_STREAM = 0xFFFFFFFFu;
+    /// A run a mesh does not have: `GpuMesh::mSecondTexCoordOffset` for a mesh that brought no
+    /// second set of texture coordinates, and `GpuMesh::mBindOffset` for one that does not deform.
+    const uint NO_RUN = 0xFFFFFFFFu;
 
     /// A vertex's tangent as one word: the direction folded onto the octahedron, each of its two
     /// coordinates stepped to `2 * TANGENT_STEPS + 1` values in fifteen bits, the handedness of the
@@ -611,6 +640,11 @@ namespace Rtx::Shaders
 
         /// Radiant intensity, linear, with the colour folded in, scaled by the square of the
         /// recorded radius: what makes a lantern and a candle differ by their size.
+        ///
+        /// **Negative for a lamp that takes light away**, a `Negative` record. The grid lists it
+        /// under a key of its own (`Rtx::LightGrid`), so no walk of the lamps meets it, and it
+        /// darkens a surface's direct lamp term by its unshadowed share, floored at nought, which
+        /// is the rasterizer's own rule: no shadow, no bounce and nothing in the air.
         vec3 mIntensity RTX_ZERO;
 
         /// How far the light reaches, beyond which it contributes exactly nothing. Stretched from
@@ -653,6 +687,14 @@ namespace Rtx::Shaders
         float mInverseCell;
         uvec3 mSize;
     };
+
+    /// The flat index of the grid's cell `x`, `y`, `z` in a grid `width` by `height` across: the
+    /// one arithmetic the host's binning and the shader's lookup have to agree on. Scalars, because
+    /// a vector's members are spelled apart in the two languages.
+    RTX_SHADER uint lightGridCell(uint x, uint y, uint z, uint width, uint height)
+    {
+        return (z * height + y) * width + x;
+    }
 
     /// Where every table a hit reads is, as one address apiece.
     ///
@@ -762,6 +804,16 @@ namespace Rtx::Shaders
     /// shifts the layer by it, and so does the stack here; a flattened chunk has no eye to shift
     /// toward.
     const uint LAYER_PARALLAX = 0x02u;
+
+    /// A ground layer whose diffuse is OpenMW's classic `_diffusespec` — `SpecularLayout::Classic`:
+    /// a vanilla picture in RGB, delit as any, and the highlight's strength in alpha, which is the
+    /// grey reflectance at normal incidence. The exponent is the one `terrain.frag` fixes,
+    /// `CLASSIC_GROUND_EXPONENT`.
+    const uint LAYER_CLASSIC = 0x04u;
+
+    /// The Blinn-Phong exponent the rasterizer lights every classic `_diffusespec` layer with,
+    /// `terrain.frag`'s 128.
+    const float CLASSIC_GROUND_EXPONENT = 128.0f;
 
     /// One layer of a terrain material: a tiling ground texture and the weights that place it.
     ///
@@ -908,15 +960,6 @@ namespace Rtx::Shaders
     /// is sized so that this is a rare frame and never a wrong one.
     const uint SPRITE_LIST_UNBINNED = 0u;
 
-    /// How much brighter the lit side of a puff is than its mean, and the far side darker.
-    ///
-    /// **A puff has no dark side and still has a lit one.** A cloud of droplets scatters the sun
-    /// through the whole of itself, which is why `puffLight` gives a puff a card's worth of the sun
-    /// rather than a sphere's quarter; but the side the sun is on is brighter than the side it is
-    /// not, and that is what makes a ball read as a ball. `1 + SPRITE_WRAP * dot(normal, toward)`
-    /// keeps the mean over the sphere where it was and puts three to one between front and back.
-    const float SPRITE_WRAP = 0.5;
-
     /// One particle system: what its sprites are drawn with, and a sphere that holds all of them,
     /// which is the whole spatial structure because one rejection throws a small emitter away for
     /// almost every pixel.
@@ -1011,19 +1054,23 @@ namespace Rtx::Shaders
         vec3 mCentre;
         float mRadius;
         uint mKinds;
+
+        /// The class bit of the placement, `GpuInstance::mClass`: a camera that does not draw the
+        /// class is told nothing of it.
+        uint mClass;
     };
 
     struct GpuMaterial
     {
         uint mDiffuse;
 
-        /// The alpha below which a texel is a hole, or zero where the surface has none.
+        /// The alpha test's reference, which the sides in `mFlags` (`MATERIAL_ALPHA_PASSES_SHIFT`)
+        /// pass on.
         ///
         /// The mode it came from does not survive the trip: what a cutout costs traversal is one
-        /// comparison, and a material that wants none stores a threshold nothing can fail. Which
-        /// instances stop to make that comparison at all is settled by the build, from the same
-        /// number.
-        float mAlphaCutoff;
+        /// comparison, and a material that wants none passes on every side. Which instances stop
+        /// to make that comparison at all is settled by the build, from the same test.
+        float mAlphaReference;
 
         /// How much of the surface is there, or one for a surface that is all there.
         ///
@@ -1034,7 +1081,8 @@ namespace Rtx::Shaders
         /// surface covers, strength where it adds.
         ///
         /// Multiplied by the texture's alpha at the candidate, which is what a blend does: a stained
-        /// pane's texture says where the lead is and this says how much glass there is.
+        /// pane's texture says where the lead is and this says how much glass there is. Whether the
+        /// surface is a pane at all is `MATERIAL_TRANSLUCENT`.
         float mOpacity;
 
         /// Where this material's terrain layers are, or a count of zero for a single-textured
@@ -1109,7 +1157,7 @@ namespace Rtx::Shaders
     static_assert(sizeof(GpuSprite) == 56, "GpuSprite must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitter) == 40, "GpuEmitter must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitterFrame) == 16, "GpuEmitterFrame must be scalar-packed on every side");
-    static_assert(sizeof(GpuPresence) == 20, "GpuPresence must be scalar-packed on every side");
+    static_assert(sizeof(GpuPresence) == 24, "GpuPresence must be scalar-packed on every side");
     static_assert(sizeof(GpuTables) == 184, "GpuTables must be scalar-packed on every side");
 
 #endif

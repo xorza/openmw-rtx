@@ -27,6 +27,7 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>
+#include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/skinning.h>
 #include <components/vfs/pathutil.hpp>
 
@@ -241,7 +242,8 @@ namespace RtxTool
                 .mRadius = 4.0f,
                 .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                 .mAlpha = 1.0f } };
-            scene.addEmitter(sprites, texture, additive, 0.0f, Rtx::sNoIndex, falls);
+            scene.addEmitter(
+                sprites, texture, additive ? Rtx::BlendKind::Add : Rtx::BlendKind::Over, 0.0f, Rtx::sNoIndex, falls);
 
             return digestParts(scene);
         }

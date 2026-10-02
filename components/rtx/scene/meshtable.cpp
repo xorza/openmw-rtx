@@ -214,11 +214,8 @@ namespace Rtx
         range.mBounds = osg::BoundingBoxf();
 
         // A slot given back names no structure to refit, however it was posed this frame: the
-        // structure has gone with it. Settled at once, because the same slot may be taken and posed
-        // again before anything reads the set.
+        // structure has gone with it.
         mDeformed.remove(mesh);
-        mDeformed.compact();
-        deformers.compact();
 
         mRows.free(mesh);
         note(mesh, SlotNews::Freed);
@@ -233,6 +230,12 @@ namespace Rtx
             + std::size_t{ mSecondTexCoords.size() } * sizeof(osg::Vec2f)
             + std::size_t{ mColours.size() } * sizeof(osg::Vec3f)
             + std::size_t{ mIndices.size() } * sizeof(std::uint32_t);
+    }
+
+    void MeshTable::compact()
+    {
+        mDeformed.compact();
+        mChanges.compact();
     }
 
     void MeshTable::clearArrivals()

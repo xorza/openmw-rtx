@@ -29,7 +29,7 @@ namespace Rtx
     void AccumulatePass::record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
         const GBuffer& buffer, const DenoiseFrame& frame) const
     {
-        const Shaders::Camera& camera = frame.mSampled.mCamera;
+        const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         assert(images.mBlended.getWidth() >= camera.mWidth && images.mBlended.getHeight() >= camera.mHeight);
 
         DescriptorWrites writes(mPipeline);
@@ -44,7 +44,7 @@ namespace Rtx
         writes.image(Shaders::ACCUMULATE_BIND_BLENDED_OUT, images.mBlended.describeStorage());
 
         const Shaders::HistoryConstants constants{
-            .mCamera = camera,
+            .mEyes = frame.mSampled.mEyes,
             .mReset = images.mFresh ? 1u : 0u,
             .mDistanceScale = frame.mDistanceScale,
         };
