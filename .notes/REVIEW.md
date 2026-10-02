@@ -92,7 +92,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
 
 ## Shading math departs from the exact form it claims
 
-- [ ] **`sunUnderWater`'s floor comment is wrong twice** — `components/rtxvulkan/shaders/lib/underwater.glsl:66-68`. A floor of 0.05 on `-travelling.z` is 2.9°, not "a tenth of a degree". Light that enters from air never meets a critical angle, so `refract` always answers. For any source above the horizon, `-travelling.z ≥ cos(48.6°) = 0.66`, so the floor binds only for a source below it. *(severity: low; benefit: accurate invariant)*
 - [ ] **The light animation's golden-ratio constants are typed-in decimals of what their docs derive** — `components/rtx/scene/lightbuilder.cpp:83-86`, `:107-109`. `sBandRatio = 2.618034f` is documented as "the golden ratio squared" and `sBandPhase = 0.618034f` as "the golden ratio's conjugate"; both are `std::numbers::phi_v<float> + 1` and `- 1`. Each rounds to the same float today, so the picture does not move; the cost is a second statement of a closed form. Better shape: derive both from `std::numbers::phi`. *(kind: design; severity: low; benefit: derived over baked-in)*
 
 ## One fact has two names, and nothing holds them equal
