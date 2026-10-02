@@ -2,23 +2,19 @@
 
 #include <filesystem>
 #include <ostream>
-#include <set>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include <boost/program_options/variables_map.hpp>
 
 #include <apps/openmw/engine.hpp>
+#include <apps/openmw/startup.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <components/debug/debugging.hpp>
-#include <components/fallback/fallback.hpp>
-#include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
-#include <components/files/multidircollection.hpp>
+#include <components/misc/result.hpp>
 #include <components/settings/values.hpp>
 #include <components/settings/windowmode.hpp>
-#include <components/toutf8/toutf8.hpp>
 
 #include "session.hpp"
 
@@ -27,8 +23,6 @@ namespace RtxTool
     namespace
     {
         namespace bpo = boost::program_options;
-
-        using StringsVector = std::vector<std::string>;
 
         /// Everything a hosted run writes into the settings before the engine reads them: the
         /// window it is presented in.
@@ -84,14 +78,6 @@ namespace RtxTool
     {
         std::ostream& out = Debug::getRawStdout();
 
-        const StringsVector content = variables["content"].as<StringsVector>();
-        if (content.empty())
-        {
-            out << "no content file given: name one with --content, or point openmw.cfg at an "
-                   "installation.\n";
-            return 1;
-        }
-
         applyHostedSettings(window);
         if (!request.mPlayed)
             applyShippedContentRules(config);
@@ -105,7 +91,28 @@ namespace RtxTool
 
         const unsigned int seed = request.mRandomSeed;
 
-        const Fallback::FallbackMap fallback = variables["fallback"].as<Fallback::FallbackMap>();
+        // **The game's own reading of the installation** (`OpenMW::readInstallation`), with what
+        // a played run adds to it: the keys exist where somebody plays the run —
+        // `VerbPolicy::mPlayed`, and not wherever there is a window: a bench shows one, and a
+        // key pressed there moved the clock, the hour or the weather under a measurement that
+        // recorded none of it. A played run answers the brackets, the comma, the full stop, the
+        // slash and the page keys with the weather and the clock, through the Lua scripts under
+        // the harness's own data directory, and Home with where it stands, through the session;
+        // the played game names neither the directory nor the file.
+        OpenMW::InstallationExtras extras;
+        if (played)
+        {
+            extras.mDataDirs.push_back(resources / "rtx" / "vfs");
+            extras.mContent.emplace_back("rtxtool.omwscripts");
+        }
+
+        const Misc::Result<OpenMW::Installation, std::string> installation
+            = OpenMW::readInstallation(variables, config, extras);
+        if (!installation.isOk())
+        {
+            out << installation.error() << '\n';
+            return 1;
+        }
 
         // **Built before the engine and read after it.** A run that ends its last stop and a window
         // somebody closes both have to be reported, and only the first ever reaches `finish` — so
@@ -117,53 +124,9 @@ namespace RtxTool
             OMW::Engine engine(config);
             engine.setRecastMaxLogLevel(Debug::getRecastMaxLogLevel());
 
-            engine.setEncoding(ToUTF8::calculateEncoding(variables["encoding"].as<std::string>()));
             engine.setResourceDir(resources);
 
-            Files::PathContainer dataDirs(
-                Files::asPathContainer(variables["data"].as<Files::MaybeQuotedPathContainer>()));
-            if (Files::PathContainer::value_type local(
-                    variables["data-local"].as<Files::MaybeQuotedPathContainer::value_type>().u8string());
-                !local.empty())
-                dataDirs.push_back(std::move(local));
-
-            config.filterOutNonExistingPaths(dataDirs);
-
-            // **The keys exist where somebody plays the run** — `VerbPolicy::mPlayed`, and not
-            // wherever there is a window: a bench shows one, and a key pressed there moved the
-            // clock, the hour or the weather under a measurement that recorded none of it. A played
-            // run answers the brackets, the comma, the full stop, the slash and the page keys with
-            // the weather and the clock, through the Lua scripts under the harness's own data
-            // directory, and Home with where it stands, through the session; the played game names
-            // neither the directory nor the file.
-            if (played)
-                dataDirs.push_back(resources / "rtx" / "vfs");
-
-            engine.setDataDirs(dataDirs);
-
-            for (const std::string& archive : variables["fallback-archive"].as<StringsVector>())
-                engine.addArchive(archive);
-
-            // **The same first file and the same refusal of a repeat as `apps/openmw/main.cpp`.** A
-            // content list read here and there by different rules is two installations described as
-            // one, which is the drift this whole path exists to remove. A copy, and named as one:
-            // the rule lives in an upstream file this fork does not edit.
-            engine.addContentFile("builtin.omwscripts");
-            if (played)
-                engine.addContentFile("rtxtool.omwscripts");
-            std::set<std::string> once{ "builtin.omwscripts" };
-            for (const std::string& file : content)
-            {
-                if (!once.insert(file).second)
-                {
-                    out << "content file specified more than once: " << file << '\n';
-                    return 1;
-                }
-
-                engine.addContentFile(file);
-            }
-
-            Fallback::Map::init(fallback.mMap);
+            installation.value().handTo(engine);
 
             // **Straight into the world, with no character generation.** `setSkipMenu(true, false)`
             // reaches `StateManager::newGame(true)`, which is the bypass a session wants: a stop says
