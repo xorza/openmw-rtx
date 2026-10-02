@@ -9,6 +9,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 
 #include <osg/Vec2f>
 #include <vulkan/vulkan_core.h>
@@ -19,6 +20,7 @@
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
+#include <components/rtx/frame/framepast.hpp>
 #include <components/rtx/frame/framesampling.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -105,19 +107,6 @@ namespace Rtx
         tearDown("the device would not finish before the renderer was taken apart", [&] { mDevice.waitIdle(); });
     }
 
-    void VulkanRenderer::resetHistory()
-    {
-        // The trace's histories and the upscaler's go with the camera, which the next frame finds
-        // missing as it would after a resize, and the eye's adaptation with the display's.
-        mPreviousCamera.reset();
-        mDisplay.resetHistory();
-    }
-
-    void VulkanRenderer::dropRipples()
-    {
-        mMedia.resetRipples();
-    }
-
     void VulkanRenderer::drain()
     {
         mDevice.getPool().finishDeferred();
@@ -171,7 +160,7 @@ namespace Rtx
         mDisplay.resize(width, height);
 
         // A frame of a different size is not one this one can be reprojected against.
-        mPreviousCamera.reset();
+        mPast |= FramePast::resized();
     }
 
     std::optional<PciAddress> VulkanRenderer::getPciAddress() const
@@ -227,14 +216,11 @@ namespace Rtx
             mRing.dropReports();
 
             // A sum over one scene means nothing over the next, so it goes back with the scene
-            // rather than being carried empty into one it cannot describe. Neither does a motion
-            // vector, which would point at where something stood in a world that is no longer there.
+            // rather than being carried empty into one it cannot describe. Neither does any history:
+            // a motion vector would point at where something stood in a world that is no longer
+            // there, and the old world's wake would ring on in the new one's water.
             mFrame.dropSum();
-            mPreviousCamera.reset();
-
-            // And the wake the old world's walkers left, which would ring on in the new one's
-            // water wherever the two overlapped.
-            mMedia.resetRipples();
+            mPast |= FramePast::everything();
         }
 
         // What the device has room for is decided below, against what it says now.
@@ -540,8 +526,15 @@ namespace Rtx
             mProfile.mUpscale, options.mReconstruction.value_or(mProfile.mReconstruction), getExtents());
         frame.mReconstruction = reconstruction;
 
+        // Every history is worthless after a jump no motion vector can describe: walking through a
+        // door once left the previous camera intact and a reprojection fetched one room onto
+        // another. Spent here, by the frame it describes, whatever made it.
+        FramePast past = std::exchange(mPast, FramePast{});
+        past |= FramePast::of(options.mLoss);
+        assert((past.mReprojectionLost || mPreviousCamera.has_value()) && "a past with no camera to reproject");
+
         Shaders::VisibilityConstants sampled = sampleFrame(camera, options, mProfile, reconstruction, world.getCounts(),
-            mPreviousCamera.has_value() ? &*mPreviousCamera : nullptr);
+            past.mReprojectionLost ? nullptr : &*mPreviousCamera);
 
         // The launch the misses are counted against, which is the traced extent and not the shown one.
         frame.mCountedRays = mCounting ? sampled.mCamera.mWidth * sampled.mCamera.mHeight : 0u;
@@ -549,13 +542,12 @@ namespace Rtx
         const TraceSubject subject
             = mMedia.describe(world, camera, frame.mCounts, mDisplay.getGlareCounts(), mRing.getRecordingSlot());
 
-        // Every history is worthless after a jump no motion vector can describe: walking through a
-        // door once left the previous camera intact and a reprojection fetched one room onto
-        // another. What `resetHistory` said is each history's own, spent by the frame that reads
-        // that history, so a reset before an unfiltered frame waits for the frame that filters.
-        const bool basisLost = !mPreviousCamera.has_value();
-        if (basisLost)
+        if (past.mReprojectionLost)
             mUpscaler.reset();
+        if (past.mEyeLost)
+            mDisplay.loseEye();
+        if (past.mWaterLost)
+            mMedia.resetRipples();
 
         GpuTimer& timer = frame.mTimer;
         const VkCommandBuffer commands = frame.mWorld.mCommands;
@@ -584,7 +576,7 @@ namespace Rtx
                 .mSampled = sampled,
                 .mDenoised = reconstruction.mDenoised,
                 .mAccumulate = options.mAccumulate,
-                .mPastLost = basisLost,
+                .mPastLost = past.mReprojectionLost,
                 .mTimer = &timer,
             });
         const GBuffer& channels = traced.mInputs.mChannels;
@@ -636,9 +628,7 @@ namespace Rtx
         if (const FixedExposure* fixed = std::get_if<FixedExposure>(&rule))
             exposure = FrameLook::Fixed{ fixed->mScale };
         else if (std::holds_alternative<MeasuredExposure>(rule))
-            exposure = FrameLook::Measured{
-                .mSeconds = options.mSinceLast, .mReset = basisLost, .mBias = options.mExposureBias
-            };
+            exposure = FrameLook::Measured{ .mSeconds = options.mSinceLast, .mBias = options.mExposureBias };
 
         mDisplay.record(commands,
             Display{
@@ -649,7 +639,7 @@ namespace Rtx
                 .mTarget = target,
                 .mFrame = FrameLook{
                     .mExposure = exposure,
-                    .mGlare = FrameLook::Glare{ .mFader = options.mGlare, .mSeconds = options.mSinceLast, .mReset = basisLost },
+                    .mGlare = FrameLook::Glare{ .mFader = options.mGlare, .mSeconds = options.mSinceLast },
                     .mInverseGamma = mInverseGamma,
                     .mDebug = options.mDebug,
                     .mDebugVertices = frame.mDebugVertices,

@@ -13,6 +13,7 @@
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
+#include <components/rtx/frame/framepast.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -60,8 +61,6 @@ namespace Rtx
         std::string describeDevice() const override;
         std::optional<PciAddress> getPciAddress() const override;
         bool isValidating() const override;
-        void resetHistory() override;
-        void dropRipples() override;
 
         void setScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> textures) override;
         void extendScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> arrived) override;
@@ -207,10 +206,15 @@ namespace Rtx
         TraceChain mFrame;
 
         /// The camera the last frame was traced with, for reprojecting this one against, or nothing
-        /// before the first frame and after a resize, a new scene or a reset. **Nothing, and not a
-        /// camera of noughts**: one read as a camera left the step from its origin in the frame's
-        /// motion, and a door 80000 units from the eye stored an infinite distance at every pixel.
+        /// before the first frame. **Nothing, and not a camera of noughts**: one read as a camera
+        /// left the step from its origin in the frame's motion, and a door 80000 units from the eye
+        /// stored an infinite distance at every pixel.
         std::optional<Shaders::VisibilityConstants> mPreviousCamera;
+
+        /// What this renderer's own events cost the next traced frame — a new extent, a new world,
+        /// the first frame of all — which the frame folds the host's `FrameOptions::mLoss` into and
+        /// spends.
+        FramePast mPast = FramePast::everything();
 
         SceneStats mStats;
 

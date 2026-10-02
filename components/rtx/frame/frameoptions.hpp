@@ -6,6 +6,7 @@
 #include <osg/Vec2f>
 
 #include "debuglines.hpp"
+#include "framepast.hpp"
 #include "reconstruction.hpp"
 #include "sunglare.hpp"
 #include "surfaceview.hpp"
@@ -48,6 +49,10 @@ namespace Rtx
         /// whole, so a step boundary is read off the clock and not off its split rebuilt. Filled
         /// where the world describes the frame (`describeWorld`).
         double mWaterSeconds = 0.0;
+
+        /// What this frame's past is worth, as the host tells it: the one route by which a loss
+        /// reaches the histories, each of which reads its column of `FramePast`.
+        HistoryLoss mLoss = HistoryLoss::None;
 
         /// What the frame asks of the reconstruction in place of the profile's, before the
         /// upscaler has its say — `Reconstruction::resolve` is the rule.

@@ -96,7 +96,7 @@ namespace Rtx::Testing
                     }
 
                     const Frame filtered = shoot(scene, {}, camera, size,
-                        { .mSea = SeaState{ .mSignificantHeight = 0.0f }, .mFilter = true, .mResetHistory = true });
+                        { .mSea = SeaState{ .mSignificantHeight = 0.0f }, .mFilter = true, .mLoss = HistoryLoss::Cut });
                     EXPECT_EQ(filtered.mRadiance, raw.mRadiance);
                 }
         }
@@ -130,7 +130,7 @@ namespace Rtx::Testing
                         .mAverage = false,
                         .mFirstFrame = 2000,
                         .mFilter = true,
-                        .mResetHistory = true });
+                        .mLoss = HistoryLoss::Cut });
 
                 const float rawError = raw.errorFrom(reference);
                 const float denoisedError = denoised.errorFrom(reference);

@@ -404,7 +404,7 @@ add_component_dir (rtx/environment
     )
 
 add_component_dir (rtx/frame
-    bluenoise camera debuglines frameextents frameoptions framesampling reconstruction specularalbedo
+    bluenoise camera debuglines frameextents frameoptions framepast framesampling reconstruction specularalbedo
     spritelistsize sunglare surfaceview upscale
     )
 

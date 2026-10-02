@@ -269,7 +269,7 @@ namespace Rtx::Testing
                 shoot(scene, puff, camera, size,
                     Shot{ .mFrames = slatted ? frames : 1u,
                         .mAverage = false,
-                        .mResetHistory = true,
+                        .mLoss = HistoryLoss::Cut,
                         .mEachFrame = [&](const Frame& each) { radiance.push_back(each.at(centre)); } });
                 return radiance;
             };
@@ -365,8 +365,8 @@ namespace Rtx::Testing
                     std::array{ osg::Vec3f(-500.0f, 200.0f, -500.0f), osg::Vec3f(edge, 200.0f, -500.0f),
                         osg::Vec3f(edge, 200.0f, 500.0f), osg::Vec3f(-500.0f, 200.0f, 500.0f) });
 
-                return shoot(
-                    scene, textures, camera, size, Shot{ .mResetHistory = true, .mOffset = osg::Vec2f(across, 0.0f) })
+                return shoot(scene, textures, camera, size,
+                    Shot{ .mLoss = HistoryLoss::Cut, .mOffset = osg::Vec2f(across, 0.0f) })
                     .at(centre);
             };
 
@@ -439,7 +439,7 @@ namespace Rtx::Testing
                             .mDiffuseNeverSolid = true }));
                 }
 
-                const Frame frame = shoot(scene, textures, camera, size, Shot{ .mResetHistory = true });
+                const Frame frame = shoot(scene, textures, camera, size, Shot{ .mLoss = HistoryLoss::Cut });
                 return Seen{
                     .mRed = frame.at(centre), .mGreen = frame.at(centre + 1), .mThrough = frame.at(centre + 3)
                 };

@@ -294,8 +294,9 @@ namespace Rtx::Testing
         // **And nothing a previous test's frames left**, for the same reason: the renderer is the
         // binary's, and what it carries from one frame to the next — the denoiser's and the air's
         // histories, the exposure, the ripples on the water — is state a test did not draw: a
-        // footfall one test presses into the water bends the next test's still sea.
-        mRenderer.resetHistory();
+        // footfall one test presses into the water bends the next test's still sea. A new world
+        // costs every history, as it does the game.
+        mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc{}, {});
 
         // And no gamma a previous test asked for, which every picture after it would be raised by.
         mRenderer.setGamma(1.0f);

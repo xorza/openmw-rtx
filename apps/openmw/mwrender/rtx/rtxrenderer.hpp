@@ -15,6 +15,7 @@
 
 #include <components/esm3/refnum.hpp>
 #include <components/rtx/common/stepped.hpp>
+#include <components/rtx/frame/framepast.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/cells/cellplacer.hpp>
@@ -385,6 +386,10 @@ namespace MWRender
         /// What disturbs the water this frame, decided game-side and pressed into the trace's
         /// ripple field.
         RippleEmitters mRipples;
+
+        /// What the host said the next traced frame's past is worth, `notifyCut` and
+        /// `notifyWorldspaceChanged`, kept until a frame traces the world and spends it.
+        Rtx::HistoryLoss mLoss = Rtx::HistoryLoss::None;
 
         /// The scene root this renderer made for the game, held from `createSceneRoot` until
         /// `attachWorld` hangs it under the world root.

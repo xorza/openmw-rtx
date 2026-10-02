@@ -41,11 +41,6 @@ namespace Rtx::Testing
         const Rtx::RenderProfile& getProfile() const override { return mProfile; }
         bool isValidating() const override { return false; }
 
-        /// Counted rather than acted on: what a caller has to prove is that the discontinuity
-        /// reaches the renderer at all, and this double has no history to throw away.
-        void resetHistory() override { ++mHistoryResets; }
-        void dropRipples() override {}
-
         void setScene(
             Rtx::SceneSlot slot, const Rtx::SceneDesc& scene, std::span<const Rtx::TextureData> textures) override
         {
@@ -175,8 +170,6 @@ namespace Rtx::Testing
         bool takeGuiCopy(Rtx::GuiSlot, std::span<std::uint8_t>) override { return false; }
         void finishGuiTraces() override {}
         void readPixels(std::vector<std::uint8_t>&) override {}
-
-        std::uint32_t mHistoryResets = 0;
 
         /// Which slots the last hand-over described, in the order it described them.
         ///

@@ -705,14 +705,15 @@ namespace MWRender
         mPhase.expect(Phase::Between);
         // **Told rather than worked out.** The mirror grows and recycles its slots and is never
         // cleared, so a cell load leaves it looking exactly as a step across a room does; the
-        // renderer has nothing to notice. `Rtx::Renderer::resetHistory` says what that costs.
-        mRenderer->resetHistory();
+        // renderer has nothing to notice. Kept for the next frame the world is traced in, which a
+        // load screen's frames are not.
+        mLoss = std::max(mLoss, Rtx::HistoryLoss::Cut);
     }
 
     void RtxRenderer::notifyWorldspaceChanged() noexcept
     {
         mPhase.expect(Phase::Between);
-        mRenderer->dropRipples();
+        mLoss = Rtx::HistoryLoss::Worldspace;
         mRipples.dropStrikes();
     }
 
@@ -990,6 +991,7 @@ namespace MWRender
         Rtx::FrameOptions options{
             .mAccumulate = mRun.getAccumulated(),
             .mSinceLast = sinceLast,
+            .mLoss = std::exchange(mLoss, Rtx::HistoryLoss::None),
             .mReconstruction = mRun.getReconstruction(),
             .mExposure = mRun.getExposure(),
             .mReadBack = mRun.wantsFrameCopy(),
