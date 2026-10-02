@@ -82,6 +82,7 @@ namespace Rtx
                     .mScroll = 0.25f,
                 },
                 .mWaterLevel = -37.5f,
+                .mWaterScatter = osg::Vec3f(0.07f, 0.11f, 0.13f),
                 .mSeconds = 12.25f,
                 .mSkySeconds = 47.5,
                 .mRainOnWater = 0.35f,
@@ -252,6 +253,7 @@ namespace Rtx
             EXPECT_EQ(constants.mWaterTime, splitSeconds(read.mSeconds)) << "the game wrote this nowhere either";
             EXPECT_EQ(constants.mRainOnWater, read.mRainOnWater);
             EXPECT_EQ(constants.mShelterHeight, read.mShelterHeight);
+            EXPECT_EQ(constants.mWaterScatter, read.mWaterScatter);
             // And beside the constants, what the display chain takes: the glare as the reading
             // stated it, and the hour's bias.
             EXPECT_EQ(options.mGlare.mColour, read.mSunGlare.mColour);

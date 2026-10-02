@@ -201,7 +201,7 @@ struct WaterColumn
 WaterColumn waterColumn(vec3 from, vec3 direction, float path, float footprint, uvec2 pixel)
 {
     const vec3 transmittance = waterTransmittance(path);
-    const vec3 sky = WATER_SCATTER * ((1.0 - transmittance * transmittance) * 0.5) * frame.mAmbient
+    const vec3 sky = frame.mWaterScatter * ((1.0 - transmittance * transmittance) * 0.5) * frame.mAmbient
         * daylightReaching(from);
 
     // The same test `fogAlong` makes before it spends anything on shafts: an interior and a night
@@ -225,7 +225,7 @@ WaterColumn waterColumn(vec3 from, vec3 direction, float path, float footprint, 
     const vec3 gathered = abs(g) < 1.0e-3 ? WATER_EXTINCTION * path
                                           : (1.0 - exp(-WATER_EXTINCTION * (g * path))) / g;
 
-    const vec3 beam = WATER_SCATTER * sunward * waterTransmittance(sun.mSlant * depth) * gathered;
+    const vec3 beam = frame.mWaterScatter * sunward * waterTransmittance(sun.mSlant * depth) * gathered;
 
     const float share = brightest(beam) / max(brightest(sky + beam), 1.0e-9);
     if (share < WATER_SHAFT_FLOOR)

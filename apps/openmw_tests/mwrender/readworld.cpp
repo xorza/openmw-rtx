@@ -271,6 +271,34 @@ namespace MWRender
             EXPECT_EQ(hidden.mSunGlare.mStrength, 0.0f) << "a glare on a hidden sun";
         }
 
+        /// **The water scatters back the colour the content settles its murk at**:
+        /// `Water_UnderwaterColor` at `Water_UnderwaterColorWeight`, read off the fallbacks, which the
+        /// seed states as Morrowind's own `012,030,037` at 0.85 — and not the air's share the
+        /// rasterizer's underwater fog mixes in beside it, which a grey storm's air does not move.
+        TEST(RtxReadWorldTest, theWaterScattersTheColourTheContentSettlesItsMurkAt)
+        {
+            Standing standing = standingIn(Location::Exterior);
+            standing.mWorld.mWaterFog.mColour = osg::Vec4f(0.5f, 0.5f, 0.5f, 1.0f);
+
+            const osg::Vec3f scatter = readFrom(standing).mWaterScatter;
+            const osg::Vec3f shipped = Rtx::Shaders::WATER_SCATTER_SHIPPED;
+            for (int channel = 0; channel < 3; ++channel)
+                EXPECT_FLOAT_EQ(scatter[channel], shipped[channel]) << channel;
+        }
+
+        /// **And the extinction keeps the pairing `look.h` states**: the shipped colour peaks in
+        /// blue, where the water takes least away, so the two describe one water.
+        TEST(RtxReadWorldTest, theShippedWaterColourPeaksWhereTheExtinctionIsLeast)
+        {
+            const osg::Vec3f scatter = Rtx::Shaders::WATER_SCATTER_SHIPPED;
+            const osg::Vec3f extinction = Rtx::Shaders::WATER_EXTINCTION;
+            EXPECT_GT(scatter.z(), scatter.y());
+            EXPECT_GT(scatter.y(), scatter.x());
+            EXPECT_LT(extinction.z(), extinction.y());
+            EXPECT_LT(extinction.y(), extinction.x());
+            EXPECT_FLOAT_EQ(scatter.z(), 37.0f / 255.0f * 0.85f) << "Morrowind's own blue at its weight";
+        }
+
         /// **The glare fades with the disc through sunrise and sunset**, as `SkyManager::setWeather`
         /// hands the sun `Glare_View` times the disc's alpha: at 06:15 of the shipped day the disc
         /// stands at a quarter, and so does the glare against a whole disc's.

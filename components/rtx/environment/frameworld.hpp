@@ -64,6 +64,10 @@ namespace Rtx
 
         float mWaterLevel = -std::numeric_limits<float>::infinity();
 
+        /// The colour the content settles its water's murk at, which the water scatters back:
+        /// `Shaders::VisibilityConstants::mWaterScatter`.
+        osg::Vec3f mWaterScatter = Shaders::WATER_SCATTER_SHIPPED;
+
         /// What the water moves by, and what the sky does: the simulation's seconds and the sky's
         /// own clock. Two, because a sped-up sky is a time-lapse and sped-up water is noise. Both
         /// in double, and narrowed by nothing but the consumer that knows the period it reduces

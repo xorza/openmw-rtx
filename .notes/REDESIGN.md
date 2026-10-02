@@ -147,6 +147,14 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   test instead, and the record in `ISSUES.md`. Serialising a fault behind a report in progress on
   another thread (a first-chance handler that waits on the gate) would give one clean dump each,
   per system; that is a design of its own, not built.
+- **W14.4: the water's scattering colour leaves the air's share out.** The plan said the colour and
+  the weather fog's share both come from the fallbacks. Built with the share, the colour the
+  rasterizer's underwater fog settles at, a clear noon's sea turned a muddy brown-grey over most of
+  every coastal picture (`seyda-neen-pond` moved on all its pixels, red up by a fifth): the share is
+  the air's, a tint on the rasterizer's picture under water, and read as the water's own albedo it
+  quadrupled the red and undid the blue-peaked pairing `look.h` states with `WATER_EXTINCTION`. The
+  branch reads `Water_UnderwaterColor` at its weight, so a water mod's colour reaches the trace, and
+  nothing moved. If a storm should grey the sea, that is a separate term on the water, not its albedo.
 - **Someone ran `git pull --rebase origin` on `refactor`** while the work ran, after two early
   commits (`a297255ebe`, `3de0c852f7`) reached `origin/refactor`. I left them and worked forward:
   `da36abeaa0` moves the test the first one put in the wrong binary.

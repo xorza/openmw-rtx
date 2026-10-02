@@ -858,12 +858,15 @@ namespace Rtx::Shaders
     /// tropical water really does behave that way, because molecular scattering dominates its blue;
     /// a tannin-stained coastal swamp does not, and this game's water is the second.
     ///
-    /// **Morrowind's own, which it states as a colour rather than as an albedo.**
-    /// `Water_UnderwaterColor` is `012,030,037` and `Water_UnderwaterColorWeight` is 0.85, and
-    /// `MWRender::FogManager::getFogColor` mixes them into the weather's fog at exactly that
-    /// weight — so `(12, 30, 37) / 255 * 0.85` is the colour the game settles its own murk at.
-    /// Read straight across, because the two quantities are the same one: a share of what arrives
-    /// that comes back rather than being swallowed.
+    /// **The content's own, which it states as a colour rather than as an albedo.**
+    /// `MWRender::FogManager::getFogColor` mixes `Water_UnderwaterColor` into the weather's fog at
+    /// `Water_UnderwaterColorWeight`, and the water's share of that is the colour the game settles
+    /// its own murk at. The trace reads the two fallbacks (`VisibilityConstants::mWaterScatter`), so
+    /// a water mod's colour reaches it, and not the air's share, which tints the rasterizer's
+    /// picture under water and is no property of the water. Read straight across, because the two
+    /// quantities are the same one: a share of what arrives that comes back rather than being
+    /// swallowed. This is what Morrowind's own `012,030,037` at 0.85 come to, and what a frame built
+    /// by hand carries.
     ///
     /// **What the game states and this cannot use is the density.** `Water_UnderwaterDayFog` is
     /// 2.5, and `FogManager` runs its ramp from `min(view, 7168) * (1 - depth)` — which for any
@@ -882,7 +885,7 @@ namespace Rtx::Shaders
     /// falls toward blue where every real water's rises — molecular scattering goes as the fourth
     /// power of the wavenumber. What that costs is confined to the colour a very deep column
     /// settles at, which is the one thing the game states outright and this defers to.
-    const vec3 WATER_SCATTER = vec3(0.04f, 0.1f, 0.1233f);
+    const vec3 WATER_SCATTER_SHIPPED = vec3(12.0f, 30.0f, 37.0f) / 255.0f * 0.85f;
 
     /// How far forward water throws what it scatters.
     ///

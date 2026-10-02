@@ -44,13 +44,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
 
 ## The traced sky reads the weather by rules of its own, not by the content's
 
-- [ ] **`WATER_SCATTER` restates `Water_UnderwaterColor × Water_UnderwaterColorWeight` as literals, and the underwater fog inputs have no reader** — `components/rtx/shaders/look.h:851-874`; `apps/openmw/mwrender/fogmanager.cpp:22-24`, `:39-40`, `:70-71`, `:86-94`; `apps/openmw/mwworld/weather.cpp:864`; `apps/openmw/mwrender/sceneframe.hpp:110-112`.
-
-  **The literals.** `(0.04, 0.1, 0.1233)` is `(12, 30, 37) / 255 × 0.85` typed in. `look.h` calls it "Morrowind's own", but content that sets another `Water_UnderwaterColor` (a water mod, an expansion's cfg) moves the rasterizer's murk and not the trace's.
-
-  **The unread inputs.** `WorldState::mWaterFog` is described every frame, and nothing in `mwrender/rtx` or `components/rtx` reads it. `Water_UnderwaterIndoorFog`, the four `Water_Underwater*Fog` hours and `[Fog] distant underwater fog start/end` reach only the rasterizer. `look.h:857-863` explains why the density is not used, but not that the colour is frozen.
-
-  **Better shape.** `SkyReader` reads the two fallbacks once, as it reads `Moons_Script_Color`, and hands the albedo in the frame constants. A test holds `WATER_EXTINCTION`'s stated agreement against what was read. The weather fog's 15% share of the water colour (`apps/openmw/mwrender/fogmanager.cpp:86-93`), which tints a stormy sea grey, is lost with it. *(kind: design; severity: low; benefit: the content's water colour reaches the trace)*
 - [ ] **`tx_sun_05` and `tx_sun_flash_grey_05` are never read, and nothing says the bloom stands in for the flash** — `apps/openmw/mwrender/skyutil.cpp:625-642`, `:146-215`, `:764-792`; `components/rtx/shaders/look.h:177-183`; `components/rtx/shaders/glare.h:31-38`.
 
   **Rasterizer.** It draws the sun as a textured quad. Over that it draws an additive flash sprite 2.6 times wider, scaled by the occlusion query's seen share and faded out under a tenth of it.

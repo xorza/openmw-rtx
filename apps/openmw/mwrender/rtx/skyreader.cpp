@@ -45,6 +45,16 @@ namespace MWRender
             return osg::Vec3f(
                 std::min(1.0f, 2.0f * read.r()), std::min(1.0f, 2.0f * read.g()), std::min(1.0f, 2.0f * read.b()));
         }
+
+        osg::Vec3f waterScatter()
+        {
+            // The content's water colour at its weight, and not the air's share `FogManager` mixes in
+            // beside it: that share tints the rasterizer's picture under water, and read as the water's
+            // own albedo it turned a clear noon's sea a muddy grey and undid the pairing `look.h` states
+            // with `WATER_EXTINCTION`.
+            const osg::Vec4f colour = Fallback::Map::getColour("Water_UnderwaterColor");
+            return osg::Vec3f(colour.r(), colour.g(), colour.b()) * Fallback::Map::getFloat("Water_UnderwaterColorWeight");
+        }
     }
 
     SkyReader::SkyReader()
@@ -54,6 +64,7 @@ namespace MWRender
         , mGlareAngleMax(osg::DegreesToRadians(Fallback::Map::getFloat("Weather_Sun_Glare_Fader_Angle_Max")))
         , mMoonSizes{ .mMasser = Fallback::Map::getFloat("Moons_Masser_Size"),
             .mSecunda = Fallback::Map::getFloat("Moons_Secunda_Size") }
+        , mWaterScatter(waterScatter())
     {
     }
 
@@ -236,6 +247,8 @@ namespace MWRender
             // Negative infinity and not zero: zero is sea level, and a cell with no water has to
             // answer "how deep is this point" with never.
             .mWaterLevel = world.mWater.isShown() ? world.mWater.mHeight : -std::numeric_limits<float>::infinity(),
+
+            .mWaterScatter = mWaterScatter,
 
             // What the sea is animated by, in elapsed seconds rather than frames, or the sea would
             // slow down whenever the frame did.
