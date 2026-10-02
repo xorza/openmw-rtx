@@ -111,13 +111,6 @@ namespace Rtx::Shaders
     /// world unit, and a conversion done in a comment is a conversion nothing checks.
     const float UNITS_PER_METRE = 69.99125f;
 
-    /// Morrowind's gravity, in world units per second squared.
-    ///
-    /// **Multiplied out here rather than written down.** The game states both factors —
-    /// `Constants::GravityConst` and `Constants::UnitsPerMeter` — and this is the only place that
-    /// wants their product, so writing the product is a third number to keep in step with two.
-    const float WATER_GRAVITY = 8.96f * UNITS_PER_METRE;
-
     /// The circle constant, and the Lambertian BRDF's reciprocal of it.
     ///
     /// Shared because the shader divides every light by `INV_PI` and a lamp's intensity is built
@@ -282,13 +275,6 @@ namespace Rtx::Shaders
     /// anything the eye reads, which the sea itself sets — the waves are metres of amplitude and
     /// this is seven millimetres.
     const float WATER_TIE_BREAK = 0.5f;
-
-    /// Significant wave height over the surface's rms elevation.
-    ///
-    /// The oceanographers' definition — the mean of the highest third, which for a Gaussian sea is
-    /// four standard deviations. It is what `SeaState` normalises its spectrum to, so that the one
-    /// figure a person can picture is the one the sea is built from.
-    const float WATER_SIGNIFICANT_HEIGHT = 4.0f;
 
     /// A ceiling on how bright a focus is allowed to get.
     ///
