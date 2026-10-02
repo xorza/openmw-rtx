@@ -113,24 +113,14 @@ namespace Rtx
         static Reconstruction resolve(
             const Upscale upscale, const ReconstructionRequest& asked, const FrameExtents& extents)
         {
-            const NoiseSource noise = asked.mNoise;
-            if (!upscales(upscale))
-            {
-                return Reconstruction{
-                    .mDenoised = asked.mDenoise,
-                    .mJitter = asked.mJitter,
-                    .mNoise = noise,
-                    .mLevelBias = asked.mLevelEpsilon,
-                };
-            }
-
+            const bool upscaled = upscales(upscale);
             return Reconstruction{
                 .mDenoised = asked.mDenoise,
                 .mUpscale = upscale,
-                .mJitter = true,
-                .mJitterPhases = jitterPhasesFor(extents.mRenderWidth, extents.mOutputWidth),
-                .mNoise = noise,
-                .mLevelBias = levelBiasOf(extents, asked.mLevelEpsilon),
+                .mJitter = upscaled || asked.mJitter,
+                .mJitterPhases = upscaled ? jitterPhasesFor(extents.mRenderWidth, extents.mOutputWidth) : 0u,
+                .mNoise = asked.mNoise,
+                .mLevelBias = upscaled ? levelBiasOf(extents, asked.mLevelEpsilon) : asked.mLevelEpsilon,
             };
         }
 
