@@ -6,10 +6,6 @@
 
 namespace RtxTool
 {
-    /// The game's own `timescale`, the one a new game starts at and the clock keys of `sky.lua` halve
-    /// and double: at it, a crossing takes the weather's own `Transition_Delta`.
-    inline constexpr float sGameTimeScale = 30.0f;
-
     /// The sky as the harness crosses it, one weather into another, handed to the world whole on
     /// every frame (`MWBase::World::holdWeather`) where the harness has taken the sky.
     ///
@@ -61,11 +57,12 @@ namespace RtxTool
 
         /// How much of a crossing `seconds` of the simulation's clock run for a weather whose own
         /// `Transition_Delta` is `delta`, under a game clock at `gameTimeScale`: the world's own
-        /// crossing at the game's own speed, `sGameTimeScale`, and faster or slower as the clock
-        /// is, so a sky crosses in step with the sun. Nought under a stopped clock.
-        static float shareOf(float seconds, float delta, float gameTimeScale)
+        /// crossing at the game's own speed, `ownTimeScale` — the `timescale` the session started
+        /// at, which the clock keys of `sky.lua` halve and double — and faster or slower as the
+        /// clock is, so a sky crosses in step with the sun. Nought under a stopped clock.
+        static float shareOf(float seconds, float delta, float gameTimeScale, float ownTimeScale)
         {
-            return seconds * delta * gameTimeScale / sGameTimeScale;
+            return seconds * delta * gameTimeScale / ownTimeScale;
         }
 
         /// Where in `rolled` the weather `steps` on from `getNextWeather` stands, or back where

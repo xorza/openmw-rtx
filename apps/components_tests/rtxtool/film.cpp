@@ -450,9 +450,10 @@ namespace RtxTool
         /// keys name after the first.
         ///
         /// By hand: a thousand units at a hundred a second is ten seconds, a hundred frames, with or
-        /// without the keys' own clock, which a flight at one speed does not wait for. `×512` is
-        /// `512 × 30 / 3600 = 4.27` game hours a second, 0.4267 a frame, so the second key, at frame
-        /// 100, is `12 + 42.67 = 54.67` hours, 06:40, and the room, the film's frame 101, 07:06. A
+        /// without the keys' own clock, which a flight at one speed does not wait for. `×512` is 512
+        /// seconds of the game's own clock a second, 51.2 a frame, so the second key, at frame 100,
+        /// is 5120 of them on from the first key's 12:00, and the room, the film's frame 101, 5171;
+        /// which a session at a `timescale` of 30 makes `5120 × 30 / 3600 = 42.67` hours, 06:40. A
         /// weather stands a second, ten frames, and crosses in eight, eighty: frame 100 is ten into
         /// the second period of ninety, where Rain begins to cross back into Clear.
         TEST(RtxFilmTest, aFilmUnderItsOwnSkyFliesAtTheCamerasPace)
@@ -481,8 +482,8 @@ namespace RtxTool
             EXPECT_EQ(flown.mPace, FilmPace::Distance);
 
             const SkyRun& second = plan.mTakes[1].mSky;
-            ASSERT_TRUE(second.mHoursPerFrame.has_value());
-            EXPECT_NEAR(*second.mHoursPerFrame, 512.0 * 30.0 / 3600.0 * 0.1, 1e-7);
+            ASSERT_TRUE(second.mClockPerFrame.has_value());
+            EXPECT_NEAR(*second.mClockPerFrame, 51.2, 1e-5);
             EXPECT_EQ(second.mHoldFrames, 10u);
             EXPECT_EQ(second.mCrossingFrames, 80u);
             EXPECT_EQ(second.mFirstFrame, plan.mTakes[1].mFirstFrame);
@@ -500,18 +501,21 @@ namespace RtxTool
             EXPECT_FALSE(stops[1].mSky.mWeather.has_value());
 
             const std::string text = describePlan(plan);
-            EXPECT_NE(text.find("the clock at ×512 of the game's own over the whole film, 4.27 hours a second\n"),
+            EXPECT_NE(text.find("the clock at ×512 of the game's own over the whole film, the hours below as the first "
+                                "key's and the seconds the clock ran since\n"),
                 std::string::npos)
                 << text;
             EXPECT_NE(text.find("the weather through Clear, Rain and round again, each standing 1.0 s and crossing "
                                 "in 8.0 s\n"),
                 std::string::npos)
                 << text;
-            EXPECT_NE(text.find("  -> shore                       10.0 s  06:40 Rain → Clear, -2,-9  (1000 units at "
-                                "100 a second)\n"),
+            EXPECT_NE(
+                text.find("  -> shore                       10.0 s  12:00 +5120 s Rain → Clear, -2,-9  (1000 units "
+                          "at 100 a second)\n"),
                 std::string::npos)
                 << text;
-            EXPECT_NE(text.find("  room                         Vivec, Arena 07:06, Rain → Clear\n"), std::string::npos)
+            EXPECT_NE(text.find("  room                         Vivec, Arena 12:00 +5171 s, Rain → Clear\n"),
+                std::string::npos)
                 << text;
         }
 

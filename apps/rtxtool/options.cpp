@@ -474,13 +474,10 @@ namespace RtxTool
             "the least a crossing into another weather takes. The sky crosses over the whole of the "
             "segment between two keys whatever it takes; under --turn-weather, each crossing takes this");
         option(Verbs::Film, "clock", number(atLeast(0.0f)),
-            std::format("run the game clock at this many times the game's own speed over the whole film — the ×N "
-                        "the clock keys set in a window, so --clock=512 is {:.2f} game hours a second — whatever "
-                        "hours the keys after the first name: a time-lapse the camera flies through at its own "
-                        "pace, across cuts. The keys' hours then set no segment's length, and --clock=0 holds the "
-                        "first key's hour",
-                clockHoursPerSecond(512.0f))
-                .c_str());
+            "run the game clock at this many times the game's own speed over the whole film — the timescale the "
+            "session starts at, which the ×N the clock keys set in a window multiplies too — whatever hours the keys "
+            "after the first name: a time-lapse the camera flies through at its own pace, across cuts. The keys' "
+            "hours then set no segment's length, and --clock=0 holds the first key's hour");
         option(Verbs::Film, "weather-hold", number(atLeast(0.0f))->default_value(pacing.mWeatherHold),
             "how long each weather of --turn-weather stands before it crosses into the next");
         option(Verbs::Film, "still", number(atLeast(0.0f, true))->default_value(pacing.mStillSeconds),

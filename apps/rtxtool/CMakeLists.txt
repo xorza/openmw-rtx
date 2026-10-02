@@ -98,7 +98,7 @@ copy_all_resource_files("${OpenMW_SOURCE_DIR}/files/rtx" "${RTX_RESOURCES_ROOT}"
 # The keys a watched run answers to, as the harness's own data directory: `hosted.cpp` adds it
 # wherever there is a window, and the played game never does.
 copy_all_resource_files("${OpenMW_SOURCE_DIR}/files/rtx/vfs" "${RTX_RESOURCES_ROOT}" "resources/rtx/vfs"
-                        "rtxtool.omwscripts;scripts/rtx/keys.lua;scripts/rtx/sky.lua")
+                        "rtxtool.omwscripts;scripts/rtx/hour.lua;scripts/rtx/keys.lua;scripts/rtx/sky.lua")
 
 # The harness links the game, so a picture taken here is the picture played. Only the executable
 # links it: `openmw-rtxtool-lib` stays engine-free for `components-tests`, so the hosted files are
