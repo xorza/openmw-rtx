@@ -266,6 +266,32 @@ vec3 sheetAt(GpuMaterial material, uvec3 corner, vec3 shading, vec3 direction, S
     return SUNLIT_WHITE * sampleDiffuse(material.mEnvironment, sheet).rgb * material.mEnvironmentColour;
 }
 
+/// A triangle a ray query or an any-hit shader met, before anything decides whether it stops the
+/// ray: which instance row and primitive, where on the triangle, how far along the ray, and the
+/// triangle's world edges.
+struct Candidate
+{
+    uint mInstance;
+    uint mPrimitive;
+    vec2 mBary;
+    float mAt;
+    TriangleEdges mEdges;
+};
+
+/// Reads the candidate `query` stands at into a new `candidate`: the one statement of the read,
+/// and a macro because a `rayQueryEXT` cannot be a parameter.
+#define RTX_READ_CANDIDATE(query, candidate)                                                                 \
+    Candidate candidate;                                                                                    \
+    candidate.mInstance = rayQueryGetIntersectionInstanceCustomIndexEXT(query, false);                      \
+    candidate.mPrimitive = rayQueryGetIntersectionPrimitiveIndexEXT(query, false);                          \
+    candidate.mBary = rayQueryGetIntersectionBarycentricsEXT(query, false);                                 \
+    candidate.mAt = rayQueryGetIntersectionTEXT(query, false);                                              \
+    {                                                                                                       \
+        vec3 candidateCorners[3];                                                                           \
+        rayQueryGetIntersectionTriangleVertexPositionsEXT(query, false, candidateCorners);                  \
+        candidate.mEdges = triangleEdges(candidateCorners, rayQueryGetIntersectionObjectToWorldEXT(query, false)); \
+    }
+
 /// Whether a candidate hit stops the ray, and what it lets past where it does not.
 ///
 /// **One load of the instance and its material, and not three questions asked in turn.** Whether a
@@ -290,10 +316,10 @@ vec3 sheetAt(GpuMaterial material, uvec3 corner, vec3 shading, vec3 direction, S
 ///        any other. **A literal at every call**, so the whole branch folds.
 /// @param detailed whether the ray draws the picture, so its cutout is read along the footprint the
 ///        surface it cuts is read along — `texturePoint`. A literal at every call as well.
-bool candidateStops(uint instanceIndex, uint primitive, vec2 bary, TriangleEdges edges, vec3 direction,
-    float coneWidth, bool seeThrough, bool detailed, inout uint blocked)
+bool candidateStops(
+    Candidate candidate, vec3 direction, float coneWidth, bool seeThrough, bool detailed, inout uint blocked)
 {
-    const GpuInstance instance = instanceAt(instanceIndex);
+    const GpuInstance instance = instanceAt(candidate.mInstance);
     const GpuMaterial material = materialAt(instance.mMaterial);
 
     const float opacity = surfaceOpacity(instance, material);
@@ -325,8 +351,8 @@ bool candidateStops(uint instanceIndex, uint primitive, vec2 bary, TriangleEdges
     if (!walkPast && !hasMask(material))
         return true;
 
-    const TexturePoint point = candidatePoint(triangleCorners(meshAt(instance.mMesh), primitive), material, bary,
-        surfaceConeAt(edges, direction), coneWidth, detailed);
+    const TexturePoint point = candidatePoint(triangleCorners(meshAt(instance.mMesh), candidate.mPrimitive), material,
+        candidate.mBary, surfaceConeAt(candidate.mEdges, direction), coneWidth, detailed);
 
     // **The diffuse's alpha alone**, where `objects.frag` multiplies the dark map's in before
     // `alphaTest`. Read here, the dark map cost the dawn deck's trace 3% (2.59 against 2.50 ms,
@@ -373,17 +399,8 @@ bool candidateStops(uint instanceIndex, uint primitive, vec2 bary, TriangleEdges
         if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)    \
             continue;                                                                                       \
                                                                                                             \
-        const uint candidateInstance = rayQueryGetIntersectionInstanceCustomIndexEXT(query, false);         \
-        const uint candidatePrimitive = rayQueryGetIntersectionPrimitiveIndexEXT(query, false);             \
-        const vec2 candidateBary = rayQueryGetIntersectionBarycentricsEXT(query, false);                    \
-                                                                                                            \
-        vec3 candidateCorners[3];                                                                           \
-        rayQueryGetIntersectionTriangleVertexPositionsEXT(query, false, candidateCorners);                  \
-        const TriangleEdges candidateEdges                                                                  \
-            = triangleEdges(candidateCorners, rayQueryGetIntersectionObjectToWorldEXT(query, false));       \
-                                                                                                            \
-        if (candidateStops(candidateInstance, candidatePrimitive, candidateBary, candidateEdges, (along),   \
-                (cone), (seeThrough), (detailed), (blocked)))                                               \
+        RTX_READ_CANDIDATE(query, candidate)                                                                \
+        if (candidateStops(candidate, (along), (cone), (seeThrough), (detailed), (blocked)))                \
             rayQueryConfirmIntersectionEXT(query);                                                          \
     }
 

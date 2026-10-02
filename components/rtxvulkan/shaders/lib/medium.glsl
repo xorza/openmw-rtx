@@ -73,16 +73,15 @@ struct Crossing
 /// The crossing a candidate names.
 ///
 /// @param coneWidth how wide the ray's cone is at the crossing, which picks the texel's level.
-Crossing crossingOf(
-    uint instanceIndex, uint primitive, vec2 bary, TriangleEdges edges, vec3 direction, float coneWidth)
+Crossing crossingOf(Candidate candidate, vec3 direction, float coneWidth)
 {
     Crossing crossing;
-    crossing.mInstance = instanceAt(instanceIndex);
+    crossing.mInstance = instanceAt(candidate.mInstance);
     crossing.mMaterial = materialAt(crossing.mInstance.mMaterial);
     const GpuMesh mesh = meshAt(crossing.mInstance.mMesh);
-    crossing.mCorner = triangleCorners(mesh, primitive);
-    crossing.mBary = bary;
-    crossing.mCone = surfaceConeAt(edges, direction);
+    crossing.mCorner = triangleCorners(mesh, candidate.mPrimitive);
+    crossing.mBary = candidate.mBary;
+    crossing.mCone = surfaceConeAt(candidate.mEdges, direction);
     crossing.mConeWidth = coneWidth;
 
     const TexturePoint point = candidatePoint(
@@ -91,7 +90,7 @@ Crossing crossingOf(
     // One path: an untextured shell names `TEXTURE_NEUTRAL`, whose one texel is white, and a shell
     // with a dark map and no base map shows its dark map, as the rockslide's dust does.
     crossing.mTexel = sampleDiffuse(crossing.mMaterial.mDiffuse, point)
-        * darkAt(crossing.mMaterial, mesh, crossing.mCorner, bary, point, crossing.mCone, coneWidth, false);
+        * darkAt(crossing.mMaterial, mesh, crossing.mCorner, candidate.mBary, point, crossing.mCone, coneWidth, false);
     return crossing;
 }
 
@@ -198,24 +197,17 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
         if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)
             continue;
 
-        const uint instanceIndex = rayQueryGetIntersectionInstanceCustomIndexEXT(query, false);
+        RTX_READ_CANDIDATE(query, candidate)
 
         // **A class the camera does not draw is not there**, as `candidateStops` says of a medium
         // the shadow ray walks past: the walk's own mask says only medium or additive.
-        if ((instanceAt(instanceIndex).mClass & frame.mRayMask) == 0u)
+        if ((instanceAt(candidate.mInstance).mClass & frame.mRayMask) == 0u)
             continue;
 
-        const uint primitive = rayQueryGetIntersectionPrimitiveIndexEXT(query, false);
-        const vec2 bary = rayQueryGetIntersectionBarycentricsEXT(query, false);
-        const float at = rayQueryGetIntersectionTEXT(query, false);
+        const float at = candidate.mAt;
+        const vec3 crossed = cross(candidate.mEdges.mFirst, candidate.mEdges.mSecond);
 
-        vec3 corners[3];
-        rayQueryGetIntersectionTriangleVertexPositionsEXT(query, false, corners);
-        const TriangleEdges edges = triangleEdges(corners, rayQueryGetIntersectionObjectToWorldEXT(query, false));
-        const vec3 crossed = cross(edges.mFirst, edges.mSecond);
-
-        const Crossing crossing
-            = crossingOf(instanceIndex, primitive, bary, edges, direction, cone.mWidth + cone.mSpread * at);
+        const Crossing crossing = crossingOf(candidate, direction, cone.mWidth + cone.mSpread * at);
         const GpuMaterial material = crossing.mMaterial;
         const vec4 texel = crossing.mTexel;
 
@@ -269,13 +261,13 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
         // instance**, because two hiding the same share arrive in the card's order, and the first
         // of them would be the scheduler's choice.
         const bool tied = alpha == gathered.mCoveringAlpha && alpha > 0.0
-            && (at < gathered.mCoveringAt || (at == gathered.mCoveringAt && instanceIndex < gathered.mCovering));
+            && (at < gathered.mCoveringAt || (at == gathered.mCoveringAt && candidate.mInstance < gathered.mCovering));
         if (alpha > gathered.mCoveringAlpha || tied)
         {
             gathered.mCoveringAlpha = alpha;
             gathered.mCoveringNormal = plane;
             gathered.mCoveringAt = at;
-            gathered.mCovering = instanceIndex;
+            gathered.mCovering = candidate.mInstance;
         }
     }
 
