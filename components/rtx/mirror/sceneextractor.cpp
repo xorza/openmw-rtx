@@ -448,7 +448,7 @@ namespace Rtx
         const Shading* const above = mShading.empty() ? nullptr : &mShading.back();
         mShading.push_back(Shading{
             .mStateSet = &stateSet,
-            .mFade = fadeThrough(stateSet, above != nullptr ? above->mFade : 1.0f),
+            .mFade = fadeThrough(stateSet, above != nullptr ? above->mFade : Fade{}),
             .mAnimated = animated,
             .mAnimatedThrough = animated || (above != nullptr && above->mAnimatedThrough),
         });
@@ -742,7 +742,7 @@ namespace Rtx
         // Read for every surface and not for actors alone, because nothing here knows which is
         // which: what a mirror can see is a state set above this drawable that says how much of it
         // the game is showing, and the world's own answer to that is one.
-        const float fade = shading.empty() ? 1.0f : shading.back().mFade;
+        const float fade = shading.empty() ? 1.0f : shading.back().mFade.mPlacement;
 
         const MeshInstance resolved{
             .mTransform = place,

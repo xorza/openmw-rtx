@@ -19,8 +19,10 @@ namespace Rtx
         {
             const osg::ref_ptr<osg::StateSet> bare = new osg::StateSet;
 
-            EXPECT_FLOAT_EQ(fadeThrough(*bare, 1.0f), 1.0f);
-            EXPECT_FLOAT_EQ(fadeThrough(*bare, 0.25f), 0.25f) << "the chain's own fade was not carried through";
+            EXPECT_EQ(fadeThrough(*bare, Fade{}).mPlacement, 1.0f);
+            const Fade faded = fadeThrough(*bare, Fade{ .mPlacement = 0.25f, .mActor = 0.5f });
+            EXPECT_EQ(faded.mPlacement, 0.25f) << "the chain's own fade was not carried through";
+            EXPECT_EQ(faded.mActor, 0.5f);
         }
 
         /// A state set carrying a uniform that is not the fade inherits too.
@@ -32,7 +34,7 @@ namespace Rtx
             const osg::ref_ptr<osg::StateSet> other = new osg::StateSet;
             other->addUniform(new osg::Uniform("useNormalAsColor", 1));
 
-            EXPECT_FLOAT_EQ(fadeThrough(*other, 0.5f), 0.5f);
+            EXPECT_EQ(fadeThrough(*other, Fade{ .mPlacement = 0.5f, .mActor = 0.5f }).mPlacement, 0.5f);
         }
 
         /// The fade the game writes is read, and the alpha beside it is multiplied into it.
@@ -41,17 +43,30 @@ namespace Rtx
         /// `alpha` on the same state set. Three quarters of a half is three eighths, and the
         /// inherited fade is replaced rather than multiplied — the nearest state set that carries
         /// the pair is the whole answer.
-        TEST(RtxShadingTest, theFadeAndTheAlphaAreMultipliedAndReplaceWhatWasInherited)
+        ///
+        /// **And a nearer `alpha` replaces the actor's and keeps its fade**, as the rasterizer's
+        /// state stack resolves the two uniforms apart: a cast effect's root on an invisible caster
+        /// states an `alpha` of one, so the placement under it is faded by the actor's three
+        /// quarters alone, and the material reads its own `alpha`.
+        TEST(RtxShadingTest, theFadeAndTheAlphaAreMultipliedAndANearerAlphaReplacesTheActors)
         {
             const osg::ref_ptr<osg::StateSet> fading = new osg::StateSet;
             fading->addUniform(new osg::Uniform("actorFade", 0.75f));
 
-            EXPECT_FLOAT_EQ(fadeThrough(*fading, 1.0f), 0.75f);
-            EXPECT_FLOAT_EQ(fadeThrough(*fading, 0.1f), 0.75f)
+            EXPECT_FLOAT_EQ(fadeThrough(*fading, Fade{}).mPlacement, 0.75f);
+            EXPECT_FLOAT_EQ(fadeThrough(*fading, Fade{ .mPlacement = 0.1f, .mActor = 0.1f }).mPlacement, 0.75f)
                 << "an inherited fade was multiplied rather than replaced";
 
             fading->addUniform(new osg::Uniform("alpha", 0.5f));
-            EXPECT_FLOAT_EQ(fadeThrough(*fading, 1.0f), 0.375f);
+            const Fade actor = fadeThrough(*fading, Fade{});
+            EXPECT_FLOAT_EQ(actor.mPlacement, 0.375f);
+            EXPECT_FLOAT_EQ(actor.mActor, 0.75f);
+
+            const osg::ref_ptr<osg::StateSet> cast = new osg::StateSet;
+            cast->addUniform(new osg::Uniform("alpha", 1.0f));
+            const Fade under = fadeThrough(*cast, actor);
+            EXPECT_FLOAT_EQ(under.mPlacement, 0.75f) << "the invisibility's alpha reached a cast effect";
+            EXPECT_FLOAT_EQ(under.mActor, 0.75f);
         }
     }
 }
