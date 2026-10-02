@@ -530,9 +530,7 @@ namespace Rtx
     ExtractionStats SceneExtractor::extractWorld(
         const osg::Node& root, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame, CellRing& ring)
     {
-        // Here, because this is the one call that holds the ring and the frame both: a ring told
-        // one frame and walked for another adopts twice on a frame walked twice.
-        ring.setFrame(frame);
+        assert(ring.adoptsThrough(*this) && "a ring made on another extractor adopts into its scene");
 
         return walk(root, transform, anchor, frame, &ring, false);
     }
@@ -590,7 +588,7 @@ namespace Rtx
         // everything else — the same epoch, the same stats, the same sweep — and a second `begin`
         // would date it apart from the rest.
         if (ring != nullptr)
-            ring->collect();
+            ring->collect(frame);
 
         // After the whole walk, including whatever the ring brought in. Everything under it
         // has been stepped by now, so what the sprites are read from is a settled world rather than

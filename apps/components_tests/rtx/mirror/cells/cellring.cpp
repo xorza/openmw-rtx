@@ -418,7 +418,6 @@ namespace Rtx::Testing
             {
                 mScene.clearPlacement();
                 mRing.follow(mAround);
-                mRing.setFrame(frame);
                 const ExtractionStats stats
                     = mExtractor.extractWorld(*mEmpty, osg::Matrixf::identity(), 0, frame, mRing);
                 mScene.placements().advance();
@@ -525,6 +524,17 @@ namespace Rtx::Testing
         TEST_F(RtxCellRingTest, aDiffusespecIsAPlainDiffuseWhereTheLayoutIgnoresIt)
         {
             EXPECT_EQ(rockLayer(), Shaders::LAYER_PARALLAX);
+        }
+
+        /// **A ring is walked by the extractor it adopts through and no other**: one made on another
+        /// adopts its rows into that extractor's scene inside this one's walk.
+        TEST_F(RtxCellRingTest, aRingIsWalkedOnlyByTheExtractorItAdoptsThrough)
+        {
+            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+            SceneDesc other;
+            SceneExtractor stranger(other, context);
+            expectAssertDies([&] { stranger.extractWorld(*mEmpty, osg::Matrixf::identity(), 0, 1, mRing); },
+                "a ring made on another extractor adopts into its scene");
         }
 
         /// A reference stands where the game would stand its clone, on the mesh every copy shares;

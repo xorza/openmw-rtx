@@ -89,11 +89,6 @@ namespace Rtx
         mStatics = enabled;
     }
 
-    void CellRing::setFrame(const std::size_t frame)
-    {
-        mFrame = frame;
-    }
-
     void CellRing::setSettled(const bool settled)
     {
         mSettled = settled;
@@ -244,16 +239,16 @@ namespace Rtx
         }
     }
 
-    void CellRing::adoptHanded()
+    void CellRing::adoptHanded(const std::size_t frame)
     {
         // One cell a frame, and one frame walked twice adopts once. A cell's meshes are copied
         // into the scene and its structures built by the hand-over that follows; two on one frame
         // would be the batch behind a threshold this renderer never takes. A settled walk keeps the
         // rule and waits for its one cell, which is what `setSettled` says.
-        if (mHanded.empty() || mAdoptedFrame == mFrame)
+        if (mHanded.empty() || mAdoptedFrame == frame)
             return;
 
-        mAdoptedFrame = mFrame;
+        mAdoptedFrame = frame;
         adopt(*mHanded.front());
         mHanded.erase(mHanded.begin());
     }
@@ -335,14 +330,14 @@ namespace Rtx
         mPlacer.collectGateVerdicts(mAround.mActiveGrid, into);
     }
 
-    void CellRing::collect()
+    void CellRing::collect(const std::size_t frame)
     {
         mTurn.step(Turn::Collected, Turn::Followed);
         ExtractionStats& stats = mAdopter.getStats();
 
         // What `forget` let go of since the last walk, and then what this walk lets go of.
         mHolds.releaseParts(mAdopter);
-        walkRings(stats);
+        walkRings(stats, frame);
         mHolds.releaseParts(mAdopter);
 
         // Asserted after every walk, so a placement that outlived its cell, or a cell whose
@@ -357,7 +352,7 @@ namespace Rtx
         stats.mGroundCells += mPlacer.getGroundPlaced();
     }
 
-    void CellRing::walkRings(ExtractionStats& stats)
+    void CellRing::walkRings(ExtractionStats& stats, const std::size_t frame)
     {
         // Nothing stands, so nothing is left to stand: an exterior band short of cells must not
         // outlive the walk that asked over it.
@@ -402,7 +397,7 @@ namespace Rtx
         if (mSettled && mHanded.empty() && !mAsking.mCells.empty())
             waitForNext(eye, band);
 
-        adoptHanded();
+        adoptHanded(frame);
 
         stats.mLights += mPlacer.place(mAround);
 
