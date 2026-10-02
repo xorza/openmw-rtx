@@ -51,6 +51,11 @@ namespace Rtx
         /// for the enchanted sword and the plain one beside it at once. `MaterialResolver::animate`
         /// is what this is asked for.
         bool mAnimatedThrough = false;
+
+        /// The link `stateSet` makes at the near end of `chain`: its fade resolved through the link
+        /// above it, and whether it or anything above it is a controller's. The one construction of
+        /// a link, so a field added here is set by every walk that builds a chain.
+        static Shading under(std::span<const Shading> chain, const osg::StateSet& stateSet, bool animated);
     };
 
     /// Whether a controller's state set stands anywhere on `shading` — `Shading::mAnimatedThrough`

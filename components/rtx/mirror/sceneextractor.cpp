@@ -468,13 +468,7 @@ namespace Rtx
 
     void SceneExtractor::Traversal::pushShading(const osg::StateSet& stateSet, const bool animated)
     {
-        const Shading* const above = mShading.empty() ? nullptr : &mShading.back();
-        mShading.push_back(Shading{
-            .mStateSet = &stateSet,
-            .mFade = fadeThrough(stateSet, above != nullptr ? above->mFade : Fade{}),
-            .mAnimated = animated,
-            .mAnimatedThrough = animated || (above != nullptr && above->mAnimatedThrough),
-        });
+        mShading.push_back(Shading::under(mShading, stateSet, animated));
     }
 
     void SceneExtractor::Traversal::apply(osg::Drawable& drawable)
