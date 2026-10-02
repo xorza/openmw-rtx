@@ -65,6 +65,44 @@ namespace Rtx::Shaders
         return float(row) / float(SPECULAR_TABLE_SIZE - 1u);
     }
 
+    /// Where a point falls among the table's nodes: the node under it on each axis, the node past
+    /// it held to the table's edge, and how far between the two it stands.
+    struct SpecularTableTaps
+    {
+        uint mLeft;
+        uint mRight;
+        uint mTop;
+        uint mBottom;
+        float mAcross;
+        float mDown;
+    };
+
+    /// The four nodes about a cosine to the eye and a perceptual roughness. With
+    /// `specularTableBlend`, the one lookup the host's table and the shader both read the lobe's
+    /// integrals through: a second copy of it would be a second place the two could part.
+    RTX_SHADER SpecularTableTaps specularTableTaps(float cosine, float roughness)
+    {
+        const float across = specularTableColumn(cosine);
+        const float down = specularTableRow(roughness);
+
+        SpecularTableTaps taps;
+        taps.mLeft = uint(across);
+        taps.mTop = uint(down);
+        taps.mRight = min(taps.mLeft + 1u, SPECULAR_TABLE_SIZE - 1u);
+        taps.mBottom = min(taps.mTop + 1u, SPECULAR_TABLE_SIZE - 1u);
+        taps.mAcross = across - float(taps.mLeft);
+        taps.mDown = down - float(taps.mTop);
+        return taps;
+    }
+
+    /// The four nodes `taps` names blended, along the cosine and then along the roughness.
+    RTX_SHADER vec2 specularTableBlend(
+        SpecularTableTaps taps, vec2 leftTop, vec2 rightTop, vec2 leftBottom, vec2 rightBottom)
+    {
+        return (leftTop * (1.0f - taps.mAcross) + rightTop * taps.mAcross) * (1.0f - taps.mDown)
+            + (leftBottom * (1.0f - taps.mAcross) + rightBottom * taps.mAcross) * taps.mDown;
+    }
+
     /// The perceptual roughness of a Blinn-Phong exponent, which a classic specular map paints as
     /// its alpha times 255. Walter et al. 2007 match a Beckmann lobe to a Phong lobe of the same
     /// width at `alpha = sqrt(2 / (n + 2))`, and GGX's alpha is taken as Beckmann's, the convention
