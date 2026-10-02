@@ -120,9 +120,11 @@ namespace Rtx
         Argb4444,
         Xrgb4444,
 
-        /// Read by the census and never uploaded: `describeImage` refuses them by name, and does
-        /// not write the missing channels in as it widens the sixteen-bit ones.
+        /// A byte a channel with channels missing, as an old mod's 24-bit `.tga` or `.bmp` and a
+        /// grey `.dds` hold them: `describeImage` widens each to RGBA8 too, an alpha of one where
+        /// there is none and the luminance copied to all three colours.
         Rgb8,
+        Bgr8,
         Luminance,
         LuminanceAlpha,
 
@@ -141,7 +143,7 @@ namespace Rtx
     /// Whether `describeImage` widens a format to RGBA8 on the way in.
     inline bool isWidened(const TextureFormat format)
     {
-        return format >= TextureFormat::Rgb565 && format < TextureFormat::Rgb8;
+        return format >= TextureFormat::Rgb565 && format < TextureFormat::Unnamed;
     }
 
     /// How a format lays its texels out: square blocks `mSide` texels across of `mBytes` bytes
@@ -193,6 +195,7 @@ namespace Rtx
             case TextureFormat::LuminanceAlpha:
                 return TexelLayout{ .mBytes = 2 };
             case TextureFormat::Rgb8:
+            case TextureFormat::Bgr8:
                 return TexelLayout{ .mBytes = 3 };
             case TextureFormat::Luminance:
                 return TexelLayout{ .mBytes = 1 };
@@ -235,6 +238,7 @@ namespace Rtx
             case TextureFormat::Argb4444:
             case TextureFormat::Xrgb4444:
             case TextureFormat::Rgb8:
+            case TextureFormat::Bgr8:
             case TextureFormat::Luminance:
             case TextureFormat::LuminanceAlpha:
             case TextureFormat::Unnamed:

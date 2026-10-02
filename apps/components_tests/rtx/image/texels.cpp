@@ -158,7 +158,7 @@ namespace Rtx
         {
             osg::ref_ptr<osg::Image> luminance = new osg::Image;
             luminance->setFileName("odd.dds");
-            luminance->allocateImage(2, 2, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE);
+            luminance->allocateImage(2, 2, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
 
             EXPECT_EQ(ContentPreprocessor().meanTexel(*luminance).mColour, osg::Vec3f());
             EXPECT_EQ(ContentPreprocessor().meanTexel(*luminance).mAlpha, 0.0f);
@@ -276,13 +276,14 @@ namespace Rtx
         TEST(RtxTextureFormatTest, everySpellingReadsAsItsFormatAndNamesItself)
         {
             using enum TextureEncoding;
-            constexpr std::array<FormatCase, 30> sCases{ {
+            constexpr std::array<FormatCase, 31> sCases{ {
                 { GL_COMPRESSED_RGB_S3TC_DXT1_EXT, Colour, TextureFormat::Bc1RgbaSrgb, "BC1 (DXT1)" },
                 { GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, Colour, TextureFormat::Bc1RgbaSrgb, "BC1 (DXT1)" },
                 { GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, Colour, TextureFormat::Bc2Srgb, "BC2 (DXT3)" },
                 { GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, Colour, TextureFormat::Bc3Srgb, "BC3 (DXT5)" },
                 { GL_COMPRESSED_RED_GREEN_RGTC2_EXT, Colour, TextureFormat::Unnamed, "an unnamed pixel format" },
                 { GL_RGB, Colour, TextureFormat::Rgb8, "RGB8" },
+                { GL_BGR, Colour, TextureFormat::Bgr8, "BGR8" },
                 { GL_RGBA, Colour, TextureFormat::Rgba8Srgb, "RGBA8" },
                 { GL_BGRA, Colour, TextureFormat::Bgra8Srgb, "BGRA8" },
                 { GL_LUMINANCE, Colour, TextureFormat::Luminance, "L8" },
@@ -316,8 +317,8 @@ namespace Rtx
                     << one.mName << " of type " << one.mType;
                 EXPECT_EQ(nameOf(one.mFormat), one.mName);
                 EXPECT_EQ(isUploadable(one.mFormat), one.mFormat < TextureFormat::Rgb565) << one.mName;
-                EXPECT_EQ(
-                    isWidened(one.mFormat), one.mFormat >= TextureFormat::Rgb565 && one.mFormat < TextureFormat::Rgb8)
+                EXPECT_EQ(isWidened(one.mFormat),
+                    one.mFormat >= TextureFormat::Rgb565 && one.mFormat != TextureFormat::Unnamed)
                     << one.mName;
                 EXPECT_EQ(isSrgb(one.mFormat), one.mEncoding == Colour && isUploadable(one.mFormat)) << one.mName;
                 EXPECT_EQ(isBc1(one.mFormat),

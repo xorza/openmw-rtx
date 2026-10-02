@@ -446,7 +446,7 @@ namespace Rtx
 
         /// **A deck's sheet this cannot upload is left out, and not drawn as the stand-in**, which
         /// is an opaque grey and over a deck the whole sky. The seed names Clear's and Overcast's;
-        /// the archive holds Clear's as three channels, which no upload takes, and not Overcast's.
+        /// the archive holds Clear's as an alpha alone, which no upload takes, and not Overcast's.
         TEST(RtxSkyBuilderTest, aDeckSheetThisCannotUploadIsLeftOutRatherThanDrawnGrey)
         {
             const std::unique_ptr<VFS::Manager> vfs
@@ -458,7 +458,7 @@ namespace Rtx
 
             osg::ref_ptr<osg::Image> rgb = new osg::Image;
             rgb->setFileName("textures/tx_sky_clear.dds");
-            rgb->allocateImage(4, 4, 1, GL_RGB, GL_UNSIGNED_BYTE);
+            rgb->allocateImage(4, 4, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
             images.hold(VFS::Path::NormalizedView("textures/tx_sky_clear.dds"), rgb);
 
             SceneDesc scene;
@@ -555,8 +555,8 @@ namespace Rtx
         }
 
         /// **A star sheet this cannot upload is refused by name and left out**, as a deck's is:
-        /// taken, it would stand in as an opaque grey. The dome holds two patches, three channels
-        /// first, which no upload takes, and four after it, which takes the first patch.
+        /// taken, it would stand in as an opaque grey. The dome holds two patches, an alpha alone
+        /// first, which no upload takes, and four channels after it, which takes the first patch.
         TEST(RtxSkyBuilderTest, aStarSheetThisCannotUploadIsRefusedByNameAndLeftOut)
         {
             constexpr VFS::Path::NormalizedView dome("meshes/sky_night_02.nif");
@@ -568,7 +568,7 @@ namespace Rtx
 
             osg::ref_ptr<osg::Image> rgb = new osg::Image;
             rgb->setFileName("textures/star_rgb.dds");
-            rgb->allocateImage(4, 4, 1, GL_RGB, GL_UNSIGNED_BYTE);
+            rgb->allocateImage(4, 4, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
             osg::ref_ptr<osg::Image> rgba = new osg::Image;
             rgba->setFileName("textures/star_rgba.dds");
             rgba->allocateImage(4, 4, 1, GL_RGBA, GL_UNSIGNED_BYTE);
