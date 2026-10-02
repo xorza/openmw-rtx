@@ -346,6 +346,7 @@ PuffLayer mediumAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Con
     layer.mColour = (vec3(gathered.mUnlit) * lit.mLight + vec3(gathered.mGlowed)) / float(gathered.mCoverage)
         * lit.mReaching;
     layer.mCoveredAt = lit.mSeen;
+    layer.mWeight = float(gathered.mCoverage) / SHARE_UNIT;
 
     return layer;
 }
