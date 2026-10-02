@@ -62,11 +62,7 @@ void main()
     // the order the hit shader adds it in. The gloss is the hit's too: the share of the weight on
     // authored layers, which reflect `DIELECTRIC_F0`, the roughness over every layer, a Lambert
     // one counted at one, and the mean reflectance the classic layers' alpha states.
-    vec3 albedo = vec3(0.0);
-    float weights = 0.0;
-    float reflecting = 0.0;
-    float roughness = 0.0;
-    float shining = 0.0;
+    GroundSum sum = noGround();
     for (uint i = 0u; i < material.mLayerCount; ++i)
     {
         const GpuLayer layer = layers.at[material.mLayerOffset + i];
@@ -80,13 +76,7 @@ void main()
         const vec4 read = textureLod(
             textures[nonuniformEXT(layer.mDiffuse)], at, groundLod(layer.mDiffuse, layer, GROUND_COMPOSITE_EXTENT));
         const vec4 shown = layerTexel(layer, at, read, GROUND_COMPOSITE_DELIGHT, authored, classic);
-        albedo += showing * shown.rgb;
-        weights += showing;
-        roughness += showing * shown.a;
-        if (authored)
-            reflecting += showing;
-        if (classic)
-            shining += showing * read.a;
+        addLayer(sum, showing, shown, read.a, authored, classic, true);
     }
 
     // Which of the two the bake writes is the dispatch's, so a branch here is uniform across it.
@@ -94,11 +84,10 @@ void main()
     // Opaque, because ground is not see-through: a composite left with its alpha at nought is a
     // chunk the cutout test throws every ray straight through.
     if ((chunk.mOutputs & GROUND_COMPOSITE_ALBEDO) != 0u)
-        imageStore(composite, ivec2(texel), vec4(encodeSrgb(albedo), 1.0));
+        imageStore(composite, ivec2(texel), vec4(encodeSrgb(sum.mAlbedo), 1.0));
 
     // Data and not a picture: stored as it is, through a view with no curve over a format with
     // none. Where no layer shows, the ground is a Lambert surface.
     if ((chunk.mOutputs & GROUND_COMPOSITE_GLOSS) != 0u)
-        imageStore(gloss, ivec2(texel),
-            vec4(weights > 0.0 ? vec3(reflecting, roughness, shining) / weights : vec3(0.0, 1.0, 0.0), 1.0));
+        imageStore(gloss, ivec2(texel), vec4(groundGloss(sum), 1.0));
 }

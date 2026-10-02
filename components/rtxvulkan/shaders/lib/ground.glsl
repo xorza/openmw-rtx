@@ -163,4 +163,47 @@ float groundLod(uint slot, GpuLayer layer, uint extent)
     return clamp(log2(footprint), 0.0, deepest);
 }
 
+/// What a stack sums to, layer by layer in its own order — a float sum is the order it was added
+/// in, and the hit and the bake add in one: the albedo, and for the gloss the weight, the share of
+/// it on authored layers, which reflect `DIELECTRIC_F0`, the roughness over every layer with a
+/// Lambert one at one, and the reflectance the classic layers' alpha states.
+struct GroundSum
+{
+    vec3 mAlbedo;
+    float mWeights;
+    float mReflecting;
+    float mRoughness;
+    float mShining;
+};
+
+GroundSum noGround()
+{
+    return GroundSum(vec3(0.0), 0.0, 0.0, 0.0, 0.0);
+}
+
+/// Adds a layer showing `showing` of itself: what `layerTexel` made of it, `shown`, and the file's
+/// own alpha, `readAlpha`, which a classic layer's reflectance is. The gloss's sums only where
+/// `maps` says, which the hit has as `HAS_MAPS` so a vanilla program carries none of them.
+void addLayer(inout GroundSum sum, float showing, vec4 shown, float readAlpha, bool authored, bool classic, bool maps)
+{
+    sum.mAlbedo += showing * shown.rgb;
+    if (!maps)
+        return;
+
+    sum.mWeights += showing;
+    sum.mRoughness += showing * shown.a;
+    if (authored)
+        sum.mReflecting += showing;
+    if (classic)
+        sum.mShining += showing * readAlpha;
+}
+
+/// The stack's gloss: the share of its weight that reflects, its roughness and the classic layers'
+/// reflectance, over the weight — a Lambert surface where no layer shows.
+vec3 groundGloss(GroundSum sum)
+{
+    return sum.mWeights > 0.0 ? vec3(sum.mReflecting, sum.mRoughness, sum.mShining) / sum.mWeights
+                              : vec3(0.0, 1.0, 0.0);
+}
+
 #endif
