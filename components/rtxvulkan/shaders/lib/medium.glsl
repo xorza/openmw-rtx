@@ -144,8 +144,9 @@ GatherRule gatherRuleFor(uint mask)
 /// share of the limit, which is the one bound a crossing has.
 struct Gathered
 {
-    /// The crossings' colour under their tint, and their glow, each weighted by what it hid. And
-    /// their sheets, in light, which are added past the lighting and are lit by nothing.
+    /// The crossings' colour under their tint, and under their glow, each weighted by what it hid:
+    /// a crossing's texture glows by its own glow, so the two are summed per crossing and lit apart.
+    /// And their sheets, in light, which are added past the lighting and are lit by nothing.
     uvec3 mUnlit;
     uvec3 mGlowed;
     uvec3 mSheet;
@@ -246,8 +247,8 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
 
         gathered.mUnlit = addShare(
             gathered.mUnlit, sharePart(texel.rgb * mix(material.mDiffuseColour, vertexColour, tinted) * alpha));
-        gathered.mGlowed
-            = addShare(gathered.mGlowed, sharePart(mix(material.mEmissiveColour, vertexColour, glowing) * alpha));
+        gathered.mGlowed = addShare(
+            gathered.mGlowed, sharePart(texel.rgb * mix(material.mEmissiveColour, vertexColour, glowing) * alpha));
         if (rule.mSheets)
         {
             const vec3 shading = faceforward(plane, direction, plane);
@@ -333,15 +334,17 @@ PuffLayer mediumAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Con
 
     layer.mTransmittance = throughBlocked(gathered.mBlocked);
 
-    // The unit cancels in a ratio of two sums, so neither is scaled back.
-    const vec3 albedo = vec3(gathered.mUnlit) / float(gathered.mCoverage);
-
     const GatheredLight lit = gatheredLight(pixel, origin, direction, limit, gathered);
 
+    // The unit cancels in a ratio of two sums, so neither is scaled back. Each crossing's glow is
+    // its own texture's, so the mean is exact for any mix of shells; the one light is exact for one
+    // colour of shell, as the gather says.
+    //
     // **The glow is not scaled by `EMISSIVE_INTENSITY`**, as a surface's and a sheet's are: the
     // Ghostfence is a medium that glows, and at that scale a night's exposure washes it to white and
     // loses the orbs painted on it.
-    layer.mColour = albedo * (lit.mLight + vec3(gathered.mGlowed) / float(gathered.mCoverage)) * lit.mReaching;
+    layer.mColour = (vec3(gathered.mUnlit) * lit.mLight + vec3(gathered.mGlowed)) / float(gathered.mCoverage)
+        * lit.mReaching;
     layer.mCoveredAt = lit.mSeen;
 
     return layer;
@@ -372,15 +375,11 @@ vec3 additiveAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Cone c
 
     const GatheredLight lit = gatheredLight(pixel, origin, direction, limit, gathered);
 
-    // `mUnlit` already carries every crossing's alpha, so the glow is taken per unit of coverage —
-    // a mean over the crossings — and the light likewise: `texel * tint * alpha * (light + glow)`
-    // summed over the crossings, which is the rasterizer's own sum.
-    // The sheets are added past that, each by its own crossing's alpha, as `objects.frag` adds
-    // `envMap` after its lighting.
-    return (vec3(gathered.mUnlit) / SHARE_UNIT
-                   * (lit.mLight + vec3(gathered.mGlowed) / float(gathered.mCoverage) * EMISSIVE_INTENSITY)
-               + vec3(gathered.mSheet) / SHARE_UNIT)
-        * lit.mReaching;
+    // `texel * alpha * (tint * light + glow)` summed over the crossings, which is the rasterizer's own
+    // sum under the one light. The sheets are added past that, each by its own crossing's alpha, as
+    // `objects.frag` adds `envMap` after its lighting.
+    return (vec3(gathered.mUnlit) * lit.mLight + vec3(gathered.mGlowed) * EMISSIVE_INTENSITY + vec3(gathered.mSheet))
+        / SHARE_UNIT * lit.mReaching;
 }
 
 #endif
