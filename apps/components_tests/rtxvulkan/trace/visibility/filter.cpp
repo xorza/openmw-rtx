@@ -569,7 +569,7 @@ namespace Rtx::Testing
             EXPECT_GT(held(bright), lit) << "a held eye adapted to the bright sky";
         }
 
-        /// A reset survives a frame that has no history to reset.
+        /// A reset survives a frame that has no history to reset, and such a frame leaves none.
         ///
         /// **`resetHistory` is spent by the frame that answers it, and a frame with neither denoiser
         /// answers nothing.** A frame not `mDenoised` runs no accumulator and `Upscale::Off` runs no
@@ -658,6 +658,19 @@ namespace Rtx::Testing
 
             ASSERT_EQ(carried.size(), single.size());
             EXPECT_EQ(mostTheyDifferBy(carried, single), 0.0f) << "the unfiltered frame spent a reset it could not use";
+
+            // **And an unfiltered frame with no reset ends the history behind it all the same**: the
+            // filtered frame after it reads none, rather than the one from the frame before it as if
+            // it were the last frame's.
+            for (std::uint32_t frame = 0; frame < Shaders::ACCUMULATE_FRAMES; ++frame)
+                renderOne(frame + 200, true);
+            renderOne(measured + 2, false);
+            renderOne(measured, true);
+            const std::vector<float> skipped = radiance();
+
+            ASSERT_EQ(skipped.size(), single.size());
+            EXPECT_EQ(mostTheyDifferBy(skipped, single), 0.0f)
+                << "a filtered frame after an unfiltered one read a history from before it";
 
             // And a filtered frame in its place keeps the sample the reset took. Counted as no
             // history, it would blend at a weight of one — the next frame alone, which is the fresh
