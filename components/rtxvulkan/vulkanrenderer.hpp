@@ -60,6 +60,7 @@ namespace Rtx
         std::string describeDevice() const override;
         bool isValidating() const override;
         void resetHistory() override;
+        void dropRipples() override;
 
         void setScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> textures) override;
         void extendScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> arrived) override;

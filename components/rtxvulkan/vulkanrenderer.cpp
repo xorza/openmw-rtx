@@ -109,10 +109,13 @@ namespace Rtx
     void VulkanRenderer::resetHistory()
     {
         // The trace's histories and the upscaler's go with the camera, which the next frame finds
-        // missing as it would after a resize. The exposure and the ripples do not: a resize keeps
-        // the brightness and the water's wake.
+        // missing as it would after a resize, and the eye's adaptation with the display's.
         mPreviousCamera.reset();
         mDisplay.resetHistory();
+    }
+
+    void VulkanRenderer::dropRipples()
+    {
         mMedia.resetRipples();
     }
 

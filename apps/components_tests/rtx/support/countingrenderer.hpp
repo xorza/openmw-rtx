@@ -43,6 +43,7 @@ namespace Rtx::Testing
         /// Counted rather than acted on: what a caller has to prove is that the discontinuity
         /// reaches the renderer at all, and this double has no history to throw away.
         void resetHistory() override { ++mHistoryResets; }
+        void dropRipples() override {}
 
         void setScene(
             Rtx::SceneSlot slot, const Rtx::SceneDesc& scene, std::span<const Rtx::TextureData> textures) override
