@@ -20,6 +20,7 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/spritelight.hpp>
+#include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
@@ -265,6 +266,8 @@ namespace Rtx
             std::vector<std::byte> texels;
             const Rtx::TextureData gathered = describeImage(*rgba, levels, texels).value();
             ASSERT_EQ(gathered.mBytes.size(), 84u);
+            EXPECT_EQ(texels.size(), 84u);
+            EXPECT_EQ(Rtx::laidBytes(*rgba, Rtx::readFormat(*rgba)), 84u) << "the reserve and the gathering disagree";
             ASSERT_EQ(gathered.mLevels.size(), 3u);
             EXPECT_EQ(gathered.mLevels[1].mOffset, 64u);
             EXPECT_EQ(gathered.mLevels[2].mOffset, 80u);
@@ -288,12 +291,15 @@ namespace Rtx
             const Rtx::TextureData spanned = describeImage(*flat, levels, texels).value();
             EXPECT_EQ(spanned.mBytes.data(), reinterpret_cast<const std::byte*>(flat->data()));
             EXPECT_EQ(spanned.mBytes.size(), 64u);
+            EXPECT_EQ(Rtx::laidBytes(*flat, Rtx::readFormat(*flat)), 0u) << "spanned where it lies, and laid nowhere";
 
             const osg::ref_ptr<osg::Image> sixteen = makeVolume(GL_RGB, GL_UNSIGNED_SHORT_5_6_5, 2);
             texels.clear();
             levels.clear();
             const Rtx::TextureData widened = describeImage(*sixteen, levels, texels).value();
             ASSERT_EQ(widened.mBytes.size(), 84u);
+            EXPECT_EQ(texels.size(), 84u);
+            EXPECT_EQ(Rtx::laidBytes(*sixteen, Rtx::readFormat(*sixteen)), 84u);
             EXPECT_EQ(widened.mLevels[1].mOffset, 64u);
             EXPECT_EQ(widened.mLevels[2].mOffset, 80u);
 
@@ -312,6 +318,7 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView alphaPath("textures/tx_alpha_volume.dds");
             const osg::ref_ptr<osg::Image> alpha = makeVolume(GL_ALPHA, GL_UNSIGNED_BYTE, 1);
             alpha->setFileName(std::string(alphaPath.value()));
+            EXPECT_EQ(Rtx::laidBytes(*alpha, Rtx::readFormat(*alpha)), 0u) << "a format with no layout was counted";
 
             Rtx::SceneDesc scene;
             Testing::addModel(scene, rgbaPath, rgba);

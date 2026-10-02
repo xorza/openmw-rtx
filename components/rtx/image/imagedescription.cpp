@@ -211,23 +211,37 @@ namespace Rtx
         return checkFormat(image, readFormat(image, encoding));
     }
 
+    namespace
+    {
+        /// What a level `across` by `down` of `format` takes once laid into the caller's texels:
+        /// four bytes a texel where the format is one this widens, its own size otherwise.
+        std::size_t laidLevelBytes(const TextureFormat format, const std::uint32_t across, const std::uint32_t down)
+        {
+            return isWidened(format) ? std::size_t{ across } * down * 4 : layoutOf(format).levelBytes(across, down);
+        }
+
+        /// `laidBytes` for the first `count` levels, which is what `describeLevels` lays.
+        std::size_t laidBytesOf(const osg::Image& image, const TextureFormat format, const std::uint32_t count)
+        {
+            if (!isWidened(format) && (!isUploadable(format) || slicesAdjoin(image, count)))
+                return 0;
+            if (image.s() <= 0 || image.t() <= 0)
+                return 0;
+
+            const auto width = static_cast<std::uint32_t>(image.s());
+            const auto height = static_cast<std::uint32_t>(image.t());
+
+            std::size_t bytes = 0;
+            for (std::uint32_t level = 0; level < count; ++level)
+                bytes += laidLevelBytes(format, std::max(width >> level, 1u), std::max(height >> level, 1u));
+
+            return bytes;
+        }
+    }
+
     std::size_t laidBytes(const osg::Image& image, const TextureFormat format)
     {
-        const bool widened = isWidened(format);
-        if (!widened && (!isUploadable(format) || slicesAdjoin(image, keptLevels(image))))
-            return 0;
-        if (image.s() <= 0 || image.t() <= 0)
-            return 0;
-
-        const auto width = static_cast<std::uint32_t>(image.s());
-        const auto height = static_cast<std::uint32_t>(image.t());
-        const TexelLayout laid = layoutOf(widened ? TextureFormat::Rgba8Unorm : format);
-
-        std::size_t bytes = 0;
-        for (std::uint32_t level = 0; level < keptLevels(image); ++level)
-            bytes += laid.levelBytes(std::max(width >> level, 1u), std::max(height >> level, 1u));
-
-        return bytes;
+        return laidBytesOf(image, format, keptLevels(image));
     }
 
     Misc::Result<TextureData, std::string> describeImage(const osg::Image& image, std::vector<MipLevel>& levels,
@@ -313,15 +327,9 @@ namespace Rtx
 
             // **Laid into `texels`, which the caller holds**, so the description spans storage that
             // outlives this call as the image's own does: level by level from where each lies in the
-            // image, widened to RGBA8 where the format is one this widens. A widened level is four
-            // bytes a texel, so every level begins where the texels before it end, four bytes each.
-            const auto outBytes = [&](const MipLevel& level) {
-                return widened ? std::size_t{ level.mWidth } * level.mHeight * 4
-                               : layout.levelBytes(level.mWidth, level.mHeight);
-            };
-            std::size_t total = 0;
-            for (std::uint32_t level = 0; level < count; ++level)
-                total += outBytes(levels[first + level]);
+            // image, widened to RGBA8 where the format is one this widens. Every level begins where
+            // the texels before it end, and the total is the one a caller reserved by.
+            const std::size_t total = laidBytesOf(image, format, count);
 
             const std::size_t from = texels.size();
             texels.resize(from + total);
@@ -332,7 +340,8 @@ namespace Rtx
                 MipLevel& laidOut = levels[first + level];
                 const std::size_t bytes = layout.levelBytes(laidOut.mWidth, laidOut.mHeight);
                 const std::span<const std::byte> source(data + image.getMipmapOffset(level), bytes);
-                const std::span<std::byte> target = into.subspan(at, outBytes(laidOut));
+                const std::span<std::byte> target
+                    = into.subspan(at, laidLevelBytes(format, laidOut.mWidth, laidOut.mHeight));
                 if (widened)
                     widen(format, source, target);
                 else
