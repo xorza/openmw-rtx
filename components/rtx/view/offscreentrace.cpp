@@ -68,7 +68,7 @@ namespace Rtx
         return mSubject != nullptr ? mSubject->mScene.get() : nullptr;
     }
 
-    void OffscreenTrace::setView(const osg::Matrixf& view)
+    void OffscreenTrace::setView(const osg::Matrixd& view)
     {
         mView = view;
     }
@@ -156,7 +156,7 @@ namespace Rtx
         subject.mExtractor->setSimulationTime(posing.getSimulationTime());
 
         // The picture's own eye, for whatever in the subject turns to face one.
-        subject.mExtractor->setEye(viewBasisOf(osg::Matrixd::inverse(osg::Matrixd(mView))));
+        subject.mExtractor->setEye(viewBasisOf(osg::Matrixd::inverse(mView)));
 
         // The number the update above ran at, because that is what a semi-active skeleton compares
         // the walk's `markReached` against: a skeleton told another number stops moving its bones

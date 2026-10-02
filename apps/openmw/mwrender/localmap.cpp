@@ -183,8 +183,8 @@ namespace MWRender
             segment.mRange = range;
         }
 
-        segment.mView->setView(osg::Matrixf::lookAt(
-            osg::Vec3f(left, top, range.mMax + 5), osg::Vec3f(left, top, range.mMin), osg::Vec3f(upVector)));
+        segment.mView->setView(osg::Matrixd::lookAt(
+            osg::Vec3d(left, top, range.mMax + 5), osg::Vec3d(left, top, range.mMin), osg::Vec3d(upVector)));
         segment.mView->redraw();
     }
 

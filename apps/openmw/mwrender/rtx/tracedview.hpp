@@ -1,6 +1,6 @@
 #pragma once
 
-#include <osg/Matrixf>
+#include <osg/Matrixd>
 #include <osg/Node>
 #include <osg/Vec2f>
 #include <osg/ref_ptr>
@@ -72,7 +72,7 @@ namespace MWRender
             Rtx::SpecularLayout layout);
         ~TracedView() override;
 
-        void setView(const osg::Matrixf& view) override { mTrace.setView(view); }
+        void setView(const osg::Matrixd& view) override { mTrace.setView(view); }
         void setExtent(int width, int height) override;
         void sceneChanged() override;
         void redraw() override;

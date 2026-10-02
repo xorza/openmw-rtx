@@ -79,13 +79,43 @@ namespace Rtx
             return constants;
         }
 
-        std::optional<ViewBasis> basisOf(const osg::Matrixf& view)
+        /// **Inverted in double**, as the walk inverts the same matrix for the same eye: the view's
+        /// translation is `-R t` with `|t|` near 10^5 in an exterior, where a float inverse carries
+        /// an error of a hundredth of a unit that changes with the rotation alone, and a turn of the
+        /// head moved the camera.
+        std::optional<ViewBasis> basisOf(const osg::Matrixd& view)
         {
-            osg::Matrixf world;
+            osg::Matrixd world;
             if (!world.invert(view))
                 return std::nullopt;
 
-            return viewBasisOf(osg::Matrixd(world));
+            return viewBasisOf(world);
+        }
+
+        /// The one recipe both projections share: the eye and its axes out of `view`, the image
+        /// plane's half extents and the angle a pixel covers out of `spread`.
+        std::optional<Shaders::VisibilityConstants> cameraAt(const osg::Matrixd& view, const Spread& spread,
+            const bool orthographic, std::uint32_t width, std::uint32_t height, float near, float far)
+        {
+            assert(width > 0 && height > 0);
+
+            const std::optional<ViewBasis> basis = basisOf(view);
+            if (!basis.has_value())
+                return std::nullopt;
+
+            Shaders::VisibilityConstants camera = beforeWorld(basis->mOrigin, near, far);
+            camera.mCamera = Shaders::Camera{
+                .mForward = basis->mForward,
+                .mRight = basis->mRight * spread.mHalfWidth,
+                .mUp = basis->mUp * spread.mHalfHeight,
+                .mSpreadAngle = spread.mAngle,
+                .mOrthographic = orthographic ? 1u : 0u,
+                .mWidth = width,
+                .mHeight = height,
+            };
+            camera.mArms = camera.mCamera;
+
+            return camera;
         }
     }
 
@@ -100,7 +130,7 @@ namespace Rtx
             .mUp = osg::Vec3f(world(1, 0), world(1, 1), world(1, 2)),
         };
 
-        // **Not `<= 0`, which NaN passes.** `osg::Matrixf::invert` inverts a singular view — an eye
+        // **Not `<= 0`, which NaN passes.** `osg::Matrixd::invert` inverts a singular view — an eye
         // looking at itself, or straight down along the up it was given — into NaN and says it
         // succeeded, and every axis of it then normalises to a length of NaN.
         if (!(basis.mForward.normalize() > 0.f) || !(basis.mRight.normalize() > 0.f) || !(basis.mUp.normalize() > 0.f)
@@ -124,60 +154,23 @@ namespace Rtx
         return widened;
     }
 
-    std::optional<Shaders::VisibilityConstants> makeCameraFromView(const osg::Matrixf& view, float verticalFovDegrees,
+    std::optional<Shaders::VisibilityConstants> makeCameraFromView(const osg::Matrixd& view, float verticalFovDegrees,
         std::uint32_t width, std::uint32_t height, float near, float far)
     {
-        assert(width > 0 && height > 0);
-
-        const std::optional<ViewBasis> basis = basisOf(view);
-        if (!basis.has_value())
-            return std::nullopt;
-
-        const Spread spread = spreadOf(verticalFovDegrees, width, height);
-
-        Shaders::VisibilityConstants camera = beforeWorld(basis->mOrigin, near, far);
-        camera.mCamera = Shaders::Camera{
-            .mForward = basis->mForward,
-            .mRight = basis->mRight * spread.mHalfWidth,
-            .mUp = basis->mUp * spread.mHalfHeight,
-            .mSpreadAngle = spread.mAngle,
-            .mOrthographic = 0,
-            .mWidth = width,
-            .mHeight = height,
-        };
-        camera.mArms = camera.mCamera;
-
-        return camera;
+        return cameraAt(view, spreadOf(verticalFovDegrees, width, height), false, width, height, near, far);
     }
 
-    std::optional<Shaders::VisibilityConstants> makeOrthographicCameraFromView(const osg::Matrixf& view,
+    std::optional<Shaders::VisibilityConstants> makeOrthographicCameraFromView(const osg::Matrixd& view,
         float worldWidth, float worldHeight, std::uint32_t width, std::uint32_t height, float near, float far)
     {
-        assert(width > 0 && height > 0);
-
         Crash::contract(worldWidth > 0.f && worldHeight > 0.f, "an orthographic camera with no extent sees nothing");
 
-        const std::optional<ViewBasis> basis = basisOf(view);
-        if (!basis.has_value())
-            return std::nullopt;
-
-        Shaders::VisibilityConstants camera = beforeWorld(basis->mOrigin, near, far);
-        camera.mCamera = Shaders::Camera{
-            .mForward = basis->mForward,
-            .mRight = basis->mRight * (worldWidth * 0.5f),
-            .mUp = basis->mUp * (worldHeight * 0.5f),
-
-            // Zero, and not for want of an answer. A parallel ray's cone does not widen with
-            // distance; what it has instead is a footprint one pixel of the box wide for its whole
-            // length, which the shader works out from `mRight` rather than carry twice.
-            .mSpreadAngle = 0.f,
-            .mOrthographic = 1,
-            .mWidth = width,
-            .mHeight = height,
-        };
-        camera.mArms = camera.mCamera;
-
-        return camera;
+        // A spread angle of zero, and not for want of an answer. A parallel ray's cone does not
+        // widen with distance; what it has instead is a footprint one pixel of the box wide for its
+        // whole length, which the shader works out from `mRight` rather than carry twice.
+        return cameraAt(view,
+            Spread{ .mHalfWidth = worldWidth * 0.5f, .mHalfHeight = worldHeight * 0.5f, .mAngle = 0.f }, true, width,
+            height, near, far);
     }
 
     osg::Vec2f haltonJitter(std::uint32_t index)
