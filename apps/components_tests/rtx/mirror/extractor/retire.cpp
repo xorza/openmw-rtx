@@ -598,7 +598,8 @@ namespace Rtx::Testing
         }
 
         /// Everything under a root the caller names a class is placed as that class, and the
-        /// innermost named root stands for the path.
+        /// innermost named root stands for the path — but under the arms, which keep what is marked
+        /// inside them.
         ///
         /// The game marks the root of an actor, an effect or the player's arms and not their
         /// drawables, so the mark is carried down the subtree: a quad under the arms' group takes
@@ -614,9 +615,14 @@ namespace Rtx::Testing
             constexpr osg::Node::NodeMask sPlayer = 1u << 4;
             constexpr osg::Node::NodeMask sEffect = 1u << 1;
 
+            osg::ref_ptr<osg::Group> cast = new osg::Group;
+            cast->setNodeMask(sEffect);
+            cast->addChild(makeQuad());
+
             osg::ref_ptr<osg::Group> arms = new osg::Group;
             arms->setNodeMask(sFirstPerson);
             arms->addChild(makeQuad());
+            arms->addChild(cast);
 
             osg::ref_ptr<osg::Group> effect = new osg::Group;
             effect->setNodeMask(sEffect);
@@ -640,19 +646,20 @@ namespace Rtx::Testing
             std::vector<Rtx::InstanceRecord> records;
             Rtx::makeInstanceRecords(mScene, records);
 
-            ASSERT_EQ(records.size(), 4u);
+            ASSERT_EQ(records.size(), 5u);
             EXPECT_EQ(records[0].mMask, Rtx::Shaders::MASK_FIRST_PERSON) << "under the arms' root";
-            EXPECT_EQ(records[1].mMask, Rtx::Shaders::MASK_ACTOR) << "under the player's root";
-            EXPECT_EQ(records[2].mMask, Rtx::Shaders::MASK_EFFECT) << "the effect on the player, innermost";
-            EXPECT_EQ(records[3].mMask, Rtx::Shaders::MASK_STATIC) << "beside them";
+            EXPECT_EQ(records[1].mMask, Rtx::Shaders::MASK_FIRST_PERSON) << "a cast on the hands is the arms'";
+            EXPECT_EQ(records[2].mMask, Rtx::Shaders::MASK_ACTOR) << "under the player's root";
+            EXPECT_EQ(records[3].mMask, Rtx::Shaders::MASK_EFFECT) << "the effect on the player, innermost";
+            EXPECT_EQ(records[4].mMask, Rtx::Shaders::MASK_STATIC) << "beside them";
 
             // And a caller that names no class — the harness — places the same graph as static
-            // four times.
+            // five times.
             Rtx::SceneDesc unnamed;
             SceneExtractor silent(unnamed);
             silent.extract(*root, osg::Matrixf::identity(), 0);
             Rtx::makeInstanceRecords(unnamed, records);
-            ASSERT_EQ(records.size(), 4u);
+            ASSERT_EQ(records.size(), 5u);
             for (const Rtx::InstanceRecord& record : records)
                 EXPECT_EQ(record.mMask, Rtx::Shaders::MASK_STATIC);
         }

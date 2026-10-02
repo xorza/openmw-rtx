@@ -176,10 +176,10 @@ namespace Rtx
         /// Where the world's clock stood at the last `setSimulationTime`, nothing before the first.
         std::optional<double> mWorldSeconds;
 
-        /// The class the innermost root over the node being walked stated: everything under an
-        /// actor's root is the actor. Carried down the subtree rather than read off each drawable,
-        /// because the game marks the *root* and the drawables under it wear the masks they were
-        /// authored with. Saved and restored around a descent, as `mPathHash` is.
+        /// The class the innermost root over the node being walked stated, or the arms' where a
+        /// first-person root stands over it: everything under an actor's root is the actor. Carried down the subtree
+        /// rather than read off each drawable, because the game marks the *root* and the drawables under it wear the
+        /// masks they were authored with. Saved and restored around a descent, as `mPathHash` is.
         InstanceClass mClass = InstanceClass::Static;
 
         /// The effect the walk is inside, as an index into the extractor's glows, or nothing.
@@ -317,12 +317,16 @@ namespace Rtx
 
         const InstanceClass outerClass = mClass;
         const std::optional<std::size_t> outerGlow = mGlow;
-        if (const std::optional<InstanceClass> stated = mExtractor.classOf(node.getNodeMask()))
+        // **A first-person root keeps its subtree whatever is marked inside it**: the rasterizer
+        // draws everything under the arms at their field of view and over everything, a spell's
+        // swirl on the hands included, and the arms' eye is what traces that class.
+        const std::optional<InstanceClass> stated = mExtractor.classOf(node.getNodeMask());
+        if (stated.has_value() && mClass != InstanceClass::FirstPerson)
             mClass = *stated;
 
-        // The root of a magic effect, whose sheets and flames light the world as one lamp. Whatever
-        // is stated under it is still inside it.
-        if (mClass == InstanceClass::Effect && !mGlow.has_value())
+        // The root of a magic effect, whose sheets and flames light the world as one lamp, on the
+        // arms as anywhere. Whatever is stated under it is still inside it.
+        if ((mClass == InstanceClass::Effect || stated == InstanceClass::Effect) && !mGlow.has_value())
             mGlow = mExtractor.openGlow();
 
         descend(node, kind);
