@@ -95,7 +95,7 @@ namespace RtxTool
         }
 
         /// What the renderer was made with, as the report's header has it, one key a premise.
-        std::string asJson(const MWRender::RunSetup& setup)
+        std::string asJson(const MWRender::RunSetup& setup, const std::optional<float>& step)
         {
             const Rtx::RenderProfile& profile = setup.mProfile;
             const Rtx::MirrorKnobs& mirror = setup.mMirror;
@@ -108,7 +108,7 @@ namespace RtxTool
                 Rtx::sSurfaceViewNames.name(profile.mShow), asJson(fixedScaleOf(profile.mExposure)),
                 std::holds_alternative<Rtx::HeldExposure>(profile.mExposure), profile.mSpecializeLaunches,
                 profile.mStressOverlapMs, mirror.mReach.mCells, mirror.mReach.mViewingDistance, mirror.mDistantStatics,
-                asJson(setup.mStep), asJson(setup.mSettled), asJson(setup.mMemoryBudget));
+                asJson(step), asJson(setup.mSettled), asJson(setup.mMemoryBudget));
         }
 
         /// Null where nothing looked, for the same reason; and in the record at all because a
@@ -322,7 +322,7 @@ namespace RtxTool
             "     land {:.1f} cells, viewing distance {:.0f}, distant statics {}, step {}, walks {}, "
             "memory budget {}\n",
             mirror.mReach.mCells, mirror.mReach.mViewingDistance, mirror.mDistantStatics ? "on" : "off",
-            describeStep(header.mSetup.mStep), describeSettled(header.mSetup.mSettled),
+            describeStep(header.mStep), describeSettled(header.mSetup.mSettled),
             describeBudget(header.mSetup.mMemoryBudget));
         return out;
     }
@@ -469,7 +469,7 @@ namespace RtxTool
              << std::format(R"(  "asserts": {}, "measures": {}, "hashed": {}, "turnsWeather": {},)", header.mAsserts,
                     header.mMeasures, header.mHashed, header.mTurnsWeather)
              << '\n'
-             << asJson(header.mSetup) << '\n'
+             << asJson(header.mSetup, header.mStep) << '\n'
              << R"(  "places": [)" << '\n';
 
         for (std::size_t at = 0; at < places.size(); ++at)

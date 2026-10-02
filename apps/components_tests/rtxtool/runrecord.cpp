@@ -69,7 +69,7 @@ namespace RtxTool
             profile.mStressOverlapMs = 8.0;
             request.mSetup.mMirror.mReach = Rtx::LandReach{ .mCells = 4.0f, .mViewingDistance = 7168.0f };
             request.mSetup.mMirror.mDistantStatics = false;
-            request.mSetup.mStep = 0.0625f;
+            request.mStep = 0.0625f;
             request.mSetup.mSettled = false;
             request.mSetup.mMemoryBudget = 512ull * 1024 * 1024;
 

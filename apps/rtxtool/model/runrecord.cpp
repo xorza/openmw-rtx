@@ -20,6 +20,7 @@ namespace RtxTool
         mHeader.mTurnsWeather = std::any_of(request.mStops.begin(), request.mStops.end(),
             [](const Stop& stop) { return !stop.mSky.mTurnThrough.empty(); });
         mHeader.mSetup = request.mSetup;
+        mHeader.mStep = request.mStep;
     }
 
     void RunRecord::add(BenchPlace place)

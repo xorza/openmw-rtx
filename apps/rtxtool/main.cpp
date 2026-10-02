@@ -473,6 +473,7 @@ namespace RtxTool
             SessionRequest request;
             request.mStops = std::move(stops);
             request.mSetup = framed.mSetup;
+            request.mStep = framed.mStep;
             request.mPlayed = policy.mPlayed;
             request.mMeasures = policy.mMeasures;
             request.mHud = variables["hud"].as<bool>();
@@ -836,7 +837,7 @@ namespace RtxTool
             // card draws it, which at two hundred frames a second is three times over; a window
             // is the played game with the walls off, and the played game follows the wall.
             framed.mSetup.mHeadless = false;
-            framed.mSetup.mStep = std::nullopt;
+            framed.mStep = std::nullopt;
 
             Stop staged = stageOnePlace(command, framed);
 
@@ -1001,8 +1002,7 @@ namespace RtxTool
                     throw std::runtime_error(
                         std::format("--walk={} starts past the point {} faces", walk, place.mName));
 
-                Approach approach
-                    = stop.mStand.approachFrom(strafe, walk, worldStep(framed.mSetup), sNoiseFlightFrames);
+                Approach approach = stop.mStand.approachFrom(strafe, walk, worldStep(framed.mStep), sNoiseFlightFrames);
                 stop.mStand = std::move(approach.mFrom);
                 stop.mSchedule.mRoute = approach.mRoute;
                 return stop;
@@ -1091,12 +1091,12 @@ namespace RtxTool
 
             // **The step is the run's, and the film counts every length in it**: the world moves a
             // frame of film between two frames.
-            framed.mSetup.mStep = 1.0f / variables["fps"].as<float>();
+            framed.mStep = 1.0f / variables["fps"].as<float>();
             framed.mSetup.mSettled = true;
             framed.mSetup.mProfile.mUpscale = sFilmUpscale;
 
             FilmPacing pacing;
-            pacing.mStep = *framed.mSetup.mStep;
+            pacing.mStep = *framed.mStep;
             pacing.mSpeed = variables["speed"].as<float>();
             pacing.mEase = variables["ease"].as<float>();
             pacing.mLength = filmLengthFrom(variables);
