@@ -31,8 +31,9 @@ namespace Rtx
             return stated.mCamera.mJitter == osg::Vec2f() && stated.mArms.mJitter == osg::Vec2f() && stated.mNoise == 0u
                 && stated.mLevelBias == 0.0f && stated.mArmsSpread == osg::Vec2f() && stated.mUnitRight == osg::Vec3f()
                 && stated.mUnitUp == osg::Vec3f() && stated.mArmsInFrame == 0u && stated.mCameraMotion == osg::Vec3f()
-                && stated.mPrevious.mForward == osg::Vec3f() && stated.mPrevious.mRight == osg::Vec3f()
-                && stated.mPrevious.mUp == osg::Vec3f() && stated.mDelight == 0.0f && stated.mShow == 0u;
+                && stated.mAnisotropy == 0.0f && stated.mPrevious.mForward == osg::Vec3f()
+                && stated.mPrevious.mRight == osg::Vec3f() && stated.mPrevious.mUp == osg::Vec3f()
+                && stated.mDelight == 0.0f && stated.mShow == 0u;
         }
     }
 
@@ -59,6 +60,11 @@ namespace Rtx
         sampled.mNoise
             = reconstruction.mNoise == NoiseSource::WhiteHash ? Shaders::NOISE_WHITE_HASH : Shaders::NOISE_BLUE_TILE;
         sampled.mLevelBias = reconstruction.mLevelBias;
+
+        // The sampler takes the setting as it is: the settings clamp it to sixteen, and a device
+        // with `samplerAnisotropy`, which the requirements ask for, takes at least sixteen.
+        assert(profile.mAnisotropy >= 1 && "an anisotropy of nought, which no sampler takes");
+        sampled.mAnisotropy = static_cast<float>(profile.mAnisotropy);
 
         sampled.mDelight = options.mDelight.value_or(profile.mDelight);
         sampled.mShow = static_cast<std::uint32_t>(options.mShow.value_or(profile.mShow));

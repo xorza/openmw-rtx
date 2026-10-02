@@ -13,9 +13,6 @@ first review.
   `mExposureStale`, so a first frame with a held or fixed exposure spends the reset. Every `resize`
   and upscale-mode change resets the measured exposure and the glare share from nothing, against the
   comment at `components/rtxvulkan/vulkanrenderer.cpp:111-113`.
-- `normalMapSlopes` reads the normal map's spread at the footprint's long-axis level while the map is
-  read anisotropically, so a glossy normal-mapped surface goes 1.3 levels too rough at 80° off the
-  normal. `components/rtxvulkan/shaders/lib/texturing.glsl:322-329`.
 - On macOS the crash monitor's hang dialog deadlocks: the watch thread's `SDL_ShowMessageBox`
   dispatches to the main queue, which Crashpad's Mach loop never drains. No hang box, no crash box,
   no package, and the monitor never exits. On Linux and Windows an unanswered hang box holds the crash
