@@ -48,76 +48,43 @@ namespace MWScript
         /// that sets a local and returns, then acts on it, settles in two or three.
         constexpr std::size_t sFramesTried = 16;
 
-        /// A global the run wrote, and the value it wrote: the run's own from then on.
-        struct Written
-        {
-            std::string mName;
-            double mValue;
-
-            bool operator==(const Written&) const = default;
-        };
-
-        /// What a frame left the run as: what the next frame starts from, and all it starts from.
-        struct RunState
-        {
-            std::vector<int> mShorts;
-            std::vector<int> mLongs;
-            std::vector<float> mFloats;
-            std::vector<Written> mWritten;
-            bool mEnabled = true;
-            std::vector<VisibilityNamed> mNamed;
-
-            bool operator==(const RunState&) const = default;
-        };
-
         /// The run's world: the reference's answer, its locals, and the globals it set, none of
         /// which reach the game.
         class RunContext final : public Interpreter::Context
         {
         public:
             /// @param events one bit an `Event`: what each answers in this run.
+            /// Starts `way` from every local at nought, nothing written, nothing named, and the
+            /// reference standing.
             RunContext(const Compiler::Locals& locals, const VisibilityReads& reads,
-                std::vector<VisibilityInput>& inputs, std::vector<VisibilityNamed>& named, unsigned events)
+                std::vector<VisibilityInput>& inputs, VisibilityWay& way, unsigned events)
                 : mEvents(events)
-                , mShorts(locals.get('s').size(), 0)
-                , mLongs(locals.get('l').size(), 0)
-                , mFloats(locals.get('f').size(), 0.0f)
                 , mReads(reads)
                 , mInputs(inputs)
-                , mNamed(named)
+                , mWay(way)
             {
+                way.mShorts.assign(locals.get('s').size(), 0);
+                way.mLongs.assign(locals.get('l').size(), 0);
+                way.mFloats.assign(locals.get('f').size(), 0.0f);
+                way.mWritten.clear();
+                way.mEnabled = true;
+                way.mNamed.clear();
             }
 
-            bool isEnabled() const { return mEnabled; }
+            bool isEnabled() const { return mWay.mEnabled; }
 
-            /// Copies what this frame left into `state`, whose room is kept from frame to frame.
-            void saveInto(RunState& state) const
-            {
-                state.mShorts = mShorts;
-                state.mLongs = mLongs;
-                state.mFloats = mFloats;
-                state.mWritten = mWritten;
-                state.mEnabled = mEnabled;
-                state.mNamed = mNamed;
-            }
-
-            /// Whether the run stands as `state` has it.
-            bool isAt(const RunState& state) const
-            {
-                return mShorts == state.mShorts && mLongs == state.mLongs && mFloats == state.mFloats
-                    && mWritten == state.mWritten && mEnabled == state.mEnabled && mNamed == state.mNamed;
-            }
-            void setEnabled(bool enabled) { mEnabled = enabled; }
+            void setEnabled(bool enabled) { mWay.mEnabled = enabled; }
 
             void setNamed(const ESM::RefId& name, bool enabled)
             {
                 const Terrain::GateState state = enabled ? Terrain::GateState::Open : Terrain::GateState::Closed;
+                std::vector<VisibilityNamed>& named = mWay.mNamed;
                 const auto known = std::find_if(
-                    mNamed.begin(), mNamed.end(), [&](const VisibilityNamed& named) { return named.mName == name; });
-                if (known != mNamed.end())
+                    named.begin(), named.end(), [&](const VisibilityNamed& was) { return was.mName == name; });
+                if (known != named.end())
                     known->mState = state;
                 else
-                    mNamed.push_back(VisibilityNamed{ .mName = name, .mState = state });
+                    named.push_back(VisibilityNamed{ .mName = name, .mState = state });
             }
 
             int ask(Event event)
@@ -133,22 +100,28 @@ namespace MWScript
             int readJournal(const ESM::RefId& quest)
             {
                 const int index = mReads.getJournalIndex(quest);
-                if (std::none_of(mInputs.begin(), mInputs.end(), [&](const VisibilityInput& input) {
-                        const ESM::RefId* read = std::get_if<ESM::RefId>(&input.mRead);
-                        return read != nullptr && *read == quest;
-                    }))
-                    mInputs.push_back(VisibilityInput{ .mRead = quest, .mValue = static_cast<double>(index) });
+                note(VisibilityInput{
+                    .mSource = VisibilitySource::Journal, .mId = quest, .mValue = static_cast<double>(index) });
                 return index;
             }
 
             ESM::RefId getTarget() const override { return ESM::RefId(); }
 
-            int getLocalShort(int index) const override { return mShorts.at(static_cast<std::size_t>(index)); }
-            int getLocalLong(int index) const override { return mLongs.at(static_cast<std::size_t>(index)); }
-            float getLocalFloat(int index) const override { return mFloats.at(static_cast<std::size_t>(index)); }
-            void setLocalShort(int index, int value) override { mShorts.at(static_cast<std::size_t>(index)) = value; }
-            void setLocalLong(int index, int value) override { mLongs.at(static_cast<std::size_t>(index)) = value; }
-            void setLocalFloat(int index, float value) override { mFloats.at(static_cast<std::size_t>(index)) = value; }
+            int getLocalShort(int index) const override { return mWay.mShorts.at(static_cast<std::size_t>(index)); }
+            int getLocalLong(int index) const override { return mWay.mLongs.at(static_cast<std::size_t>(index)); }
+            float getLocalFloat(int index) const override { return mWay.mFloats.at(static_cast<std::size_t>(index)); }
+            void setLocalShort(int index, int value) override
+            {
+                mWay.mShorts.at(static_cast<std::size_t>(index)) = value;
+            }
+            void setLocalLong(int index, int value) override
+            {
+                mWay.mLongs.at(static_cast<std::size_t>(index)) = value;
+            }
+            void setLocalFloat(int index, float value) override
+            {
+                mWay.mFloats.at(static_cast<std::size_t>(index)) = value;
+            }
 
             // A message, a report: nothing the reference's standing rests on, and nothing a run may
             // show anyone.
@@ -189,50 +162,48 @@ namespace MWScript
             void setMemberFloat(ESM::RefId, std::string_view, float, bool) override { throw Undecided(); }
 
         private:
+            /// Keeps `read` among the inputs, once, though every way `VisibilityRun::run` tries reads
+            /// it again.
+            void note(const VisibilityInput& read) const
+            {
+                if (std::none_of(mInputs.begin(), mInputs.end(),
+                        [&](const VisibilityInput& input) { return input.reads(read); }))
+                    mInputs.push_back(read);
+            }
+
             double readGlobal(std::string_view name) const
             {
-                const auto written = std::find_if(
-                    mWritten.begin(), mWritten.end(), [&](const Written& global) { return global.mName == name; });
-                if (written != mWritten.end())
+                const VisibilityInput global{ .mSource = VisibilitySource::Global,
+                    .mId = ESM::RefId::stringRefId(name) };
+                const auto written = std::find_if(mWay.mWritten.begin(), mWay.mWritten.end(),
+                    [&](const VisibilityInput& was) { return was.reads(global); });
+                if (written != mWay.mWritten.end())
                     return written->mValue;
 
                 const double value = mReads.getGlobal(name);
-
-                // Once, though every way `VisibilityRun::run` tries reads it again.
-                if (std::none_of(mInputs.begin(), mInputs.end(), [&](const VisibilityInput& input) {
-                        const std::string* read = std::get_if<std::string>(&input.mRead);
-                        return read != nullptr && *read == name;
-                    }))
-                    mInputs.push_back(VisibilityInput{ .mRead = std::string(name), .mValue = value });
+                note(VisibilityInput{ .mSource = VisibilitySource::Global, .mId = global.mId, .mValue = value });
                 return value;
             }
 
             void writeGlobal(std::string_view name, double value)
             {
-                const auto written = std::find_if(
-                    mWritten.begin(), mWritten.end(), [&](const Written& global) { return global.mName == name; });
-                if (written != mWritten.end())
+                const VisibilityInput global{
+                    .mSource = VisibilitySource::Global, .mId = ESM::RefId::stringRefId(name), .mValue = value
+                };
+                const auto written = std::find_if(mWay.mWritten.begin(), mWay.mWritten.end(),
+                    [&](const VisibilityInput& was) { return was.reads(global); });
+                if (written != mWay.mWritten.end())
                     written->mValue = value;
                 else
-                    mWritten.push_back(Written{ .mName = std::string(name), .mValue = value });
+                    mWay.mWritten.push_back(global);
             }
-
-            /// What the content files say of a reference: it stands.
-            bool mEnabled = true;
 
             unsigned mEvents = 0;
             unsigned mAsked = 0;
 
-            std::vector<int> mShorts;
-            std::vector<int> mLongs;
-            std::vector<float> mFloats;
-            std::vector<Written> mWritten;
-
             const VisibilityReads& mReads;
             std::vector<VisibilityInput>& mInputs;
-
-            /// What this way left each name, the last word on it.
-            std::vector<VisibilityNamed>& mNamed;
+            VisibilityWay& mWay;
         };
 
         RunContext& contextOf(Interpreter::Runtime& runtime)
@@ -365,17 +336,15 @@ namespace MWScript
                     continue;
                 tried |= 1u << events;
 
-                mWay.clear();
                 RunContext context(locals, reads, inputs, mWay, events);
-                RunState found;
                 bool settled = false;
                 try
                 {
                     for (std::size_t frame = 0; frame < sFramesTried && !settled; ++frame)
                     {
-                        context.saveInto(found);
+                        mFound = mWay;
                         mInterpreter.run(program, context);
-                        settled = context.isAt(found);
+                        settled = mWay == mFound;
                     }
                 }
                 // **An instruction nobody installed, or a question only an active cell answers**:
@@ -411,21 +380,22 @@ namespace MWScript
     {
         // The first way says what each name is; every way after it must say the same of every
         // name, and a name one way left alone is a name the frame's history decides.
+        const std::vector<VisibilityNamed>& left = mWay.mNamed;
         if (!before)
         {
-            named = mWay;
+            named = left;
             return;
         }
 
         for (VisibilityNamed& was : named)
         {
             const auto now = std::find_if(
-                mWay.begin(), mWay.end(), [&](const VisibilityNamed& way) { return way.mName == was.mName; });
-            if (now == mWay.end() || now->mState != was.mState)
+                left.begin(), left.end(), [&](const VisibilityNamed& way) { return way.mName == was.mName; });
+            if (now == left.end() || now->mState != was.mState)
                 was.mState = Terrain::GateState::Undecided;
         }
 
-        for (const VisibilityNamed& way : mWay)
+        for (const VisibilityNamed& way : left)
             if (std::none_of(
                     named.begin(), named.end(), [&](const VisibilityNamed& was) { return was.mName == way.mName; }))
                 named.push_back(VisibilityNamed{ .mName = way.mName, .mState = Terrain::GateState::Undecided });

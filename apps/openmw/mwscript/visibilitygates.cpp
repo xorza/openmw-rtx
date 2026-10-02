@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <string>
 #include <string_view>
-#include <variant>
 
 #include <components/compiler/generator.hpp>
 #include <components/compiler/opcodes.hpp>
@@ -227,10 +226,10 @@ namespace MWScript
 
     bool VisibilityGates::moved(const VisibilityInput& input, const VisibilityReads& reads)
     {
-        if (const ESM::RefId* quest = std::get_if<ESM::RefId>(&input.mRead))
-            return reads.getJournalIndex(*quest) != input.mValue;
+        if (input.mSource == VisibilitySource::Journal)
+            return reads.getJournalIndex(input.mId) != input.mValue;
 
-        return reads.getGlobal(std::get<std::string>(input.mRead)) != input.mValue;
+        return reads.getGlobal(input.mId.getRefIdString()) != input.mValue;
     }
 
     void VisibilityGates::settle(
@@ -302,7 +301,7 @@ namespace MWScript
             for (const VisibilityInput& input : script.mInputs)
             {
                 const auto same = std::find_if(mWatched.begin(), mWatched.end(),
-                    [&](const Watched& watched) { return watched.mInput.mRead == input.mRead; });
+                    [&](const Watched& watched) { return watched.mInput.reads(input); });
                 if (same == mWatched.end())
                 {
                     script.mWatches.push_back(static_cast<std::uint32_t>(mWatched.size()));

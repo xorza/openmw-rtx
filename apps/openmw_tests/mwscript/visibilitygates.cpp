@@ -8,11 +8,11 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <variant>
 #include <vector>
 
 #include <gtest/gtest.h>
 
+#include <apps/components_tests/rtx/support/allocations.hpp>
 #include <components/compiler/context.hpp>
 #include <components/compiler/extensions.hpp>
 #include <components/compiler/extensions0.hpp>
@@ -198,15 +198,16 @@ End
             mReads.mGlobals["stronghold"] = row.mStronghold;
             EXPECT_EQ(run(sStageScript, inputs), row.mState) << "Stronghold " << row.mStronghold;
             ASSERT_EQ(inputs.size(), 1u);
-            EXPECT_EQ(inputs[0].mRead, (std::variant<std::string, ESM::RefId>(std::string("stronghold"))));
+            EXPECT_EQ(inputs[0].mSource, MWScript::VisibilitySource::Global);
+            EXPECT_EQ(inputs[0].mId, ESM::RefId::stringRefId("stronghold"));
             EXPECT_EQ(inputs[0].mValue, row.mStronghold);
         }
 
         mReads.mJournal[ESM::RefId::stringRefId("c3_destroydagoth")] = 10;
         EXPECT_EQ(run(sFenceScript, inputs), GateState::Open) << "the heart is not struck";
         ASSERT_EQ(inputs.size(), 1u) << "read under every answer to the cell change and the sound, and kept once";
-        EXPECT_EQ(
-            inputs[0].mRead, (std::variant<std::string, ESM::RefId>(ESM::RefId::stringRefId("c3_destroydagoth"))));
+        EXPECT_EQ(inputs[0].mSource, MWScript::VisibilitySource::Journal);
+        EXPECT_EQ(inputs[0].mId, ESM::RefId::stringRefId("c3_destroydagoth"));
         EXPECT_EQ(inputs[0].mValue, 10);
 
         mReads.mJournal[ESM::RefId::stringRefId("c3_destroydagoth")] = 20;
@@ -240,6 +241,19 @@ End
             run("begin s\nshort done\nif ( done == 0 )\nset done to 1\n\"plank\"->disable\nendif\nend s\n", inputs),
             GateState::Open);
         EXPECT_EQ(plank(), GateState::Closed) << "a name's last word stands once the script settles";
+
+        // **A run again goes to the heap for nothing**: the gate runs on the frame the story moves,
+        // and every way's locals, writes and names are the run's own members, refilled; a global
+        // is read by its id, which keeps no string of its own.
+        const Compiled settling = compile(
+            "begin s\nshort done\nif ( done == 0 )\nset done to 1\nset flag to 2\nreturn\nendif\nif ( flag == 2 )\n"
+            "\"plank\"->disable\nendif\ndisable\nend s\n");
+        static_cast<void>(mRun.run(settling.mProgram, settling.mLocals, mReads, inputs, mNamed));
+        inputs.clear();
+        const std::size_t before = Rtx::Testing::getAllocationCount();
+        EXPECT_EQ(mRun.run(settling.mProgram, settling.mLocals, mReads, inputs, mNamed), GateState::Closed);
+        EXPECT_EQ(Rtx::Testing::getAllocationCount() - before, 0u);
+        EXPECT_EQ(plank(), GateState::Closed);
     }
 
     /// **A broken contract is not an answer.** A program run with locals other than the ones it
