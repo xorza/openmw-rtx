@@ -1,6 +1,7 @@
 #ifndef OPENMW_COMPONENTS_RTX_SHADERS_ACCUMULATE_H
 #define OPENMW_COMPONENTS_RTX_SHADERS_ACCUMULATE_H
 
+#include "atrous.h"
 #include "camera.h"
 #include "hosttypes.h"
 #include "look.h"
@@ -35,7 +36,11 @@
 // two numbers that are nearly equal once a pixel has settled, and a format that rounds each of them
 // separately loses the whole of what is left.
 
-#define ACCUMULATE_COLOUR STORAGE_RGBA16F
+// **The mean is the cascade's format, by definition and not by agreement**: the cascade's first
+// level writes the mean through the one declaration every level writes through, `ATROUS_CHANNEL`,
+// and a qualifier that differs from the image's format is undefined values over the whole image.
+
+#define ACCUMULATE_COLOUR ATROUS_CHANNEL
 #define ACCUMULATE_SURFACE STORAGE_RGBA16F
 #define ACCUMULATE_MOMENTS STORAGE_RGBA32F
 
