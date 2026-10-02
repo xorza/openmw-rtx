@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
+#include <span>
 #include <string_view>
 #include <vector>
 
@@ -17,6 +19,23 @@ namespace osg
 namespace Rtx
 {
     struct AlphaScratch;
+
+    /// Where the block at `column` and `band` of a block-compressed `level` begins, counted in blocks
+    /// from the level's corner.
+    std::size_t blockOffset(const MipLevel& level, const TexelLayout& layout, std::uint32_t column, std::uint32_t band);
+
+    /// Where texel `x`, `y` of a loose `level` begins.
+    std::size_t looseOffset(const MipLevel& level, const TexelLayout& layout, std::uint32_t x, std::uint32_t y);
+
+    /// The colour half of the block that begins at `block`: its last eight bytes whichever format it
+    /// is, because BC2 and BC3 put their alpha in front of it and BC1 has none.
+    std::span<const std::byte, 8> colourHalfAt(
+        std::span<const std::byte> bytes, std::size_t block, const TexelLayout& layout);
+
+    /// The three colours of the loose texel of `texture` that begins at `at`, a byte each over 255,
+    /// in red, green and blue order whichever order the format states them in: a reader that took
+    /// one order for both draws the sky with its red and blue swapped.
+    osg::Vec3f looseColourAt(const TextureData& texture, std::size_t at);
 
     /// Whether `texelAt` and `readTexelBand` can read `texture`'s colour: a description that carries
     /// its own bytes, in a BC1, BC2 or BC3 block or four loose bytes. A bake and a composite carry no
