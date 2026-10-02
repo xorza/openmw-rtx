@@ -78,7 +78,7 @@ Gloss glossOf(Surface surface)
     gloss.mAlbedo = vec3(0.0);
     gloss.mDiffuse = surface.mAlbedo;
 
-    if (!HAS_MAPS || !(max(max(surface.mSpecular.r, surface.mSpecular.g), surface.mSpecular.b) > 0.0))
+    if (!HAS_MAPS || !(brightest(surface.mSpecular) > 0.0))
         return gloss;
 
     gloss.mNormal = facingRay(surface.mNormal, surface.mGeometric, surface.mIncident);

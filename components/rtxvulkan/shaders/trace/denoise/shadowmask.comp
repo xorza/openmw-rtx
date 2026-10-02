@@ -39,6 +39,8 @@
 #include "sets.h"
 #include "shadow.h"
 
+#include "lib/pixels.glsl"
+
 layout(local_size_x = SHADOW_MASK_WIDTH, local_size_y = 2 * SHADOW_MASK_HEIGHT) in;
 
 /// `CHANNEL_SUNLIT`, for its alpha: whether the pixel's rays got through. No format, because it is as
@@ -65,7 +67,7 @@ void main()
 
     barrier();
 
-    if (all(lessThan(at, uvec2(frame.mWidth, frame.mHeight))) && imageLoad(sunlit, ivec2(at)).a > 0.5)
+    if (!outsideOf(at, uvec2(frame.mWidth, frame.mHeight)) && imageLoad(sunlit, ivec2(at)).a > 0.5)
     {
         const uint bit = (local.y % SHADOW_MASK_HEIGHT) * SHADOW_MASK_WIDTH + local.x;
         atomicOr(gTiles[local.y / SHADOW_MASK_HEIGHT], 1u << bit);

@@ -957,6 +957,9 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     // row says about which it is.
     vec3 albedo = vec3(0.0);
 
+    // Asked once: each is a load through a buffer reference, and three branches below ask it.
+    const bool specularMap = HAS_MAPS && holdsTexture(material.mSpecular);
+
     // What a stack's maps add, each weighted as the layer's albedo is: the share of the weight on
     // layers that reflect, the roughness over every layer with a Lambert one at one, and the
     // tangent-space normals — the layers' own where they have a map and straight up where not.
@@ -1010,7 +1013,8 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
             // Shifted as `terrain.frag` shifts the layer, before any read of it, by the height read
             // where the layer was.
             TexturePoint at = texturePoint(uv, hit.mBary, layer.mDiffuseTransform, cone, surface.mFootprint, detailed);
-            if (HAS_MAPS && detailed && (layer.mFlags & LAYER_PARALLAX) != 0u && holdsTexture(layer.mNormal))
+            const bool mapped = HAS_MAPS && detailed && holdsTexture(layer.mNormal);
+            if (mapped && (layer.mFlags & LAYER_PARALLAX) != 0u)
                 at.mAt += parallaxShift(layerEye, sampleDiffuse(layer.mNormal, at).a);
 
             const bool authored = HAS_MAPS && layerAuthored(layer, sceneTexels());
@@ -1028,7 +1032,6 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
                 if (classic)
                     shining += showing * read.a;
 
-                const bool mapped = detailed && holdsTexture(layer.mNormal);
                 painted += showing * (mapped ? sampleNormalMap(layer.mNormal, at) : vec3(0.0, 0.0, 1.0));
                 spread += mapped ? showing * normalMapSlopes(layer.mNormal, at) : 0.0;
                 relief = relief || mapped;
@@ -1050,7 +1053,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
         // And what the layers' maps lost, weighted as their roughness is.
         lostSlopes += weights > 0.0 ? spread / weights : 0.0;
     }
-    else if (HAS_MAPS && holdsTexture(material.mSpecular) && (material.mFlags & MATERIAL_SPECULAR_CLASSIC) == 0u)
+    else if (specularMap && (material.mFlags & MATERIAL_SPECULAR_CLASSIC) == 0u)
         albedo = sampleDiffuse(material.mDiffuse, point).rgb;
     else
         albedo = sampleAlbedo(material.mDiffuse, point);
@@ -1082,13 +1085,13 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
         surface.mSpecular = vec3(DIELECTRIC_F0 * (reflecting / weights) + shining / weights) * tint;
         surface.mRoughness = roughness / weights;
     }
-    else if (HAS_MAPS && holdsTexture(material.mSpecular) && surface.mGround)
+    else if (specularMap && surface.mGround)
     {
         const vec3 gloss = sampleDiffuse(material.mSpecular, point).rgb;
         surface.mSpecular = vec3(DIELECTRIC_F0 * gloss.x + gloss.z) * tint;
         surface.mRoughness = gloss.y;
     }
-    else if (HAS_MAPS && holdsTexture(material.mSpecular))
+    else if (specularMap)
     {
         // **A classic map is a reflectance and an exponent** over a diffuse that is no base
         // colour: no metal splits it, the highlight colour is the lobe's whole, and the exponent
