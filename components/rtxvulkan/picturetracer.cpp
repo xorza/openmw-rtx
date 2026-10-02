@@ -95,7 +95,6 @@ namespace Rtx
                 Display{
                     .mTrace = picture,
                     .mShown = picture.mColour,
-                    .mShownFrom = Use::sAnyGeneralRead,
                     .mExtent = extent,
                     .mSampled = sampled,
                     .mTarget = mTarget,

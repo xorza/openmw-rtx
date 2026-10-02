@@ -81,9 +81,6 @@ namespace Rtx
         /// Lets what `resize` built go and keeps the pipelines, for a mode turned off that may come back.
         void release();
 
-        /// The image `record` writes, which the display composites the puffs over and maps.
-        const Image& getOutput() const;
-
         /// Says the history is worthless, until the next `record`: after a jump no motion vector can
         /// describe, a new cell or a teleport. A `resize` says it too.
         void reset() { mFrame.reset(); }
@@ -91,9 +88,9 @@ namespace Rtx
         /// Whether the next `record` reads no history.
         bool isFresh() const { return mFrame.isFresh(); }
 
-        /// Records one reconstruction into `getOutput`, at the output extent, and leaves it as
-        /// `Use::sAnyGeneralWrite`. After `resize`.
-        void record(VkCommandBuffer commands, const UpscaleInputs& inputs);
+        /// Records one reconstruction at the output extent, and hands over the image it wrote,
+        /// which the display composites the puffs over and maps. After `resize`.
+        HandedImage record(VkCommandBuffer commands, const UpscaleInputs& inputs);
 
         /// One line for `info`: which upscaler this renderer has.
         static std::string_view describe() { return "FSR 3.1.4, ported"; }

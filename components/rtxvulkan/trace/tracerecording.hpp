@@ -6,6 +6,8 @@
 
 #include <components/rtx/shaders/visibility.h>
 
+#include <components/rtxvulkan/device/memory/image.hpp>
+
 #include "spritebin.hpp"
 #include "visibilitypass.hpp"
 
@@ -55,7 +57,7 @@ namespace Rtx
     struct TraceResult
     {
         VisibilityInputs mInputs;
-        const Image& mColour;
+        HandedImage mColour;
         SpriteTables mSprites{};
     };
 }

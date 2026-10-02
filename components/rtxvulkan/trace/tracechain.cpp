@@ -161,6 +161,7 @@ namespace Rtx
         // to add the frame to. Anything else was composed by the trace, into the channel that is
         // the frame, and every pass after it reads the channel as `handOver` left it.
         const Image& frame = mChannels->get(Channel::Direct);
+        ImageUse leftAs = Use::sAnyShaderRead;
         if (denoised || what.mAccumulate > 0)
         {
             // Written over, where the hand-over left it to be read: nothing has read it since, and
@@ -181,8 +182,11 @@ namespace Rtx
             // wider of the two — an upscaler, a lens and a curve against a picture's one curve —
             // and covers both.
             frame.transition(commands, Use::sComputeReadWrite, Use::sAnyGeneralRead);
+            leftAs = Use::sAnyGeneralRead;
         }
 
-        return TraceResult{ .mInputs = inputs, .mColour = frame, .mSprites = tables };
+        return TraceResult{
+            .mInputs = inputs, .mColour = HandedImage{ .mImage = frame, .mLeftAs = leftAs }, .mSprites = tables
+        };
     }
 }
