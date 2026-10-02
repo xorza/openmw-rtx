@@ -67,8 +67,9 @@ namespace Rtx
         assert(isBuilt() && "a trace into a chain that has no extent");
 
         // Each denoiser's history is worthless until the next trace that reads it, which is only
-        // where the wavelet runs. The air's is read by every trace, and the basis of nothing the
-        // frame carries says so to it.
+        // where the wavelet runs: a frame that filters nothing turns every filter fresh in its
+        // turn. The air's is read by every trace, and the basis of nothing the frame carries says
+        // so to it.
         if (what.mPastLost)
             mDenoise.reset();
 
@@ -145,7 +146,11 @@ namespace Rtx
         mChannels->handOver(commands);
 
         // Where the bounce, the lobe's light and the layers' ended up: the filters' answers, or the
-        // channels the trace wrote where nothing filtered them.
+        // channels the trace wrote where nothing filtered them. **An unfiltered frame still turns
+        // the histories**, with nothing running, so every filter is fresh at its next run: without
+        // the turn, that run read the history of the frame before this one as last frame's.
+        if (!denoised)
+            mDenoise.turn(TemporalFlags{});
         const Denoised resolved = denoised ? mPasses.mDenoise.record(commands, mDenoise, *mChannels, what.mSampled,
                                       inputs.mSubject.mMapped, what.mTimer)
                                            : Denoised::unfiltered(*mChannels);
