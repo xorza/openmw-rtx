@@ -2,7 +2,6 @@
 
 #include <string>
 #include <string_view>
-#include <variant>
 #include <vector>
 
 #include <components/esm/refid.hpp>
@@ -43,15 +42,31 @@ namespace MWScript
         }
     };
 
+    /// Which kind of value a run read.
+    enum class VisibilitySource
+    {
+        Global,
+        Journal,
+    };
+
     /// One value a run read, and what it was: a gate is evaluated again when one of these moves.
+    /// Also one global a run wrote, and what it wrote.
     struct VisibilityInput
     {
-        /// What was read: a global by its name, or a journal entry by its quest. One identity, so
-        /// two reads of one value compare equal and a read of a global never names a quest.
-        std::variant<std::string, ESM::RefId> mRead;
+        /// What was read: a global by its id, or a journal entry by its quest. The kind beside the
+        /// id, so two reads of one value are one read and a global never names a quest. An id and
+        /// not a name, so a read keeps no string of its own: a gate is run again on the frame the
+        /// story moves.
+        VisibilitySource mSource = VisibilitySource::Global;
+        ESM::RefId mId;
 
         /// Doubles, so a long global compares exactly.
         double mValue = 0.0;
+
+        /// Whether this and `other` read one value, whatever each found it to be.
+        bool reads(const VisibilityInput& other) const { return mSource == other.mSource && mId == other.mId; }
+
+        bool operator==(const VisibilityInput&) const = default;
     };
 
     /// What a run left a reference its script names by `Enable` and `Disable` as: `Undecided` where
@@ -62,6 +77,26 @@ namespace MWScript
         Terrain::GateState mState = Terrain::GateState::Undecided;
 
         bool operator==(const VisibilityNamed&) const = default;
+    };
+
+    /// What one way of a run stands at between two frames: what the next frame starts from, and all
+    /// it starts from.
+    struct VisibilityWay
+    {
+        std::vector<int> mShorts;
+        std::vector<int> mLongs;
+        std::vector<float> mFloats;
+
+        /// The globals the way wrote, each the way's own from then on.
+        std::vector<VisibilityInput> mWritten;
+
+        /// The reference's answer: what the content files say of it until a frame says otherwise.
+        bool mEnabled = true;
+
+        /// What the way left each name it enabled or disabled, the last word on it.
+        std::vector<VisibilityNamed> mNamed;
+
+        bool operator==(const VisibilityWay&) const = default;
     };
 
     /// Runs a reference's own script as a frame in an active cell would, and answers whether the
@@ -106,7 +141,9 @@ namespace MWScript
 
         Interpreter::Interpreter mInterpreter;
 
-        // What one way of the events left each name, refilled by every way.
-        std::vector<VisibilityNamed> mWay;
+        /// The way being run, and what its last frame found it at. Members, refilled by every way,
+        /// so a run goes to the heap only past the most any run before it held.
+        VisibilityWay mWay;
+        VisibilityWay mFound;
     };
 }
