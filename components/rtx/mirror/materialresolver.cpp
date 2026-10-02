@@ -55,19 +55,30 @@ namespace Rtx
             return count;
         }
 
-        /// What hangs on `node`'s two chains, as one number: a callback added, removed or swapped
-        /// anywhere on either changes it. Pointer arithmetic down chains of one or two, against the
-        /// casts `findUpdaters` takes.
-        std::uintptr_t chainSignature(const osg::Node& node)
-        {
-            std::uintptr_t signature = 0;
-            for (const osg::Callback* chain : { node.getCullCallback(), node.getUpdateCallback() })
-                for (const osg::Callback* callback = chain; callback != nullptr;
-                     callback = callback->getNestedCallback())
-                    signature = (signature * 31u) ^ reinterpret_cast<std::uintptr_t>(callback);
+    }
 
-            return signature;
+    MaterialResolver::ChainShape MaterialResolver::ChainShape::of(const osg::Node& node)
+    {
+        // Pointers down chains of one or two, against the casts `findUpdaters` takes; the update
+        // chain first, as `findUpdaters` reads them.
+        ChainShape shape;
+        const std::array<const osg::Callback*, 2> chains{ node.getUpdateCallback(), node.getCullCallback() };
+        for (std::size_t at = 0; at < chains.size(); ++at)
+        {
+            for (const osg::Callback* callback = chains[at]; callback != nullptr;
+                 callback = callback->getNestedCallback())
+            {
+                if (shape.mCount == sMostCallbacks)
+                {
+                    shape.mWhole = false;
+                    return shape;
+                }
+                shape.mCallbacks[shape.mCount++] = callback;
+            }
+            if (at == 0)
+                shape.mUpdates = shape.mCount;
         }
+        return shape;
     }
 
     const osg::StateSet* MaterialResolver::animate(osg::Node& node, osg::NodeVisitor* visitor, const bool underAnimated)
@@ -85,7 +96,7 @@ namespace Rtx
         // keeps a null one.
         const auto [entry, arrived] = mAnimated.reach(&node);
         Animated& held = entry->second;
-        const std::uintptr_t chains = chainSignature(node);
+        const ChainShape chains = ChainShape::of(node);
         if (arrived || chains != held.mChains)
         {
             held.mChains = chains;
