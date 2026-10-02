@@ -15,6 +15,7 @@
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
+#include <components/rtx/common/hashstate.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
@@ -32,8 +33,6 @@
 #include <components/rtx/shaders/skinning.h>
 #include <components/vfs/pathutil.hpp>
 
-#include "digest.hpp"
-
 namespace RtxTool
 {
     namespace
@@ -42,7 +41,7 @@ namespace RtxTool
         class Unordered
         {
         public:
-            void add(const Digest& part)
+            void add(const Rtx::HashState& part)
             {
                 mWords[0] += part.getWords()[0];
                 mWords[1] += part.getWords()[1];
@@ -54,7 +53,7 @@ namespace RtxTool
             Rtx::DigestWords mWords{};
         };
 
-        void addTexture(Digest& digest, const Rtx::SceneDesc& scene, const Rtx::Index texture)
+        void addTexture(Rtx::HashState& digest, const Rtx::SceneDesc& scene, const Rtx::Index texture)
         {
             digest.add(texture == Rtx::sNoIndex);
             if (texture == Rtx::sNoIndex)
@@ -142,7 +141,7 @@ namespace RtxTool
             value(diffuseMean);
         }
 
-        void addMaterial(Digest& digest, const Rtx::SceneDesc& scene, const Rtx::Index index)
+        void addMaterial(Rtx::HashState& digest, const Rtx::SceneDesc& scene, const Rtx::Index index)
         {
             digest.add(index == Rtx::sNoIndex);
             if (index == Rtx::sNoIndex)
@@ -205,7 +204,7 @@ namespace RtxTool
             return std::tie(kind, runs, influences, offsets, rows);
         }
 
-        void addFields(Digest& digest, const auto& fields)
+        void addFields(Rtx::HashState& digest, const auto& fields)
         {
             std::apply([&digest](const auto&... field) { (digest.add(field), ...); }, fields);
         }
@@ -214,7 +213,7 @@ namespace RtxTool
         template <class T>
         Rtx::DigestWords wordsOf(const std::span<const T> table)
         {
-            Digest whole;
+            Rtx::HashState whole;
             whole.add(table);
             return whole.getWords();
         }
@@ -223,7 +222,7 @@ namespace RtxTool
         /// is hashed as the one span it would be laid out flat, so its words are the flat table's;
         /// past one block the spans chain through the seed, which no flat hash can say.
         template <class T>
-        void addBlocks(Digest& digest, const Rtx::BlockedValues<T>& table)
+        void addBlocks(Rtx::HashState& digest, const Rtx::BlockedValues<T>& table)
         {
             if (table.size() == 0)
                 digest.add(std::span<const T>());
@@ -233,7 +232,7 @@ namespace RtxTool
         template <class T>
         Rtx::DigestWords wordsOf(const Rtx::BlockedValues<T>& table)
         {
-            Digest whole;
+            Rtx::HashState whole;
             addBlocks(whole, table);
             return whole.getWords();
         }
@@ -291,7 +290,7 @@ namespace RtxTool
             }
         };
 
-        void addCorner(Digest& digest, const Corner& corner)
+        void addCorner(Rtx::HashState& digest, const Corner& corner)
         {
             digest.add(corner.mPosition);
             digest.add(corner.mNormal);
@@ -323,7 +322,7 @@ namespace RtxTool
                 const std::size_t least
                     = static_cast<std::size_t>(std::min_element(corners.begin(), corners.end()) - corners.begin());
 
-                Digest triangle;
+                Rtx::HashState triangle;
                 for (std::size_t corner = 0; corner < 3; ++corner)
                     addCorner(triangle, corners[(least + corner) % 3]);
                 triangles.add(triangle);
@@ -332,7 +331,7 @@ namespace RtxTool
             return triangles;
         }
 
-        void addMesh(Digest& digest, const Rtx::SceneDesc& scene, const Rtx::Index index)
+        void addMesh(Rtx::HashState& digest, const Rtx::SceneDesc& scene, const Rtx::Index index)
         {
             const Rtx::MeshRange& mesh = scene.meshes().getRows()[index];
             digest.add(digestTriangles(scene, mesh).getWords());
@@ -350,7 +349,7 @@ namespace RtxTool
             if (instance.mMesh == Rtx::sNoIndex)
                 continue;
 
-            Digest placement;
+            Rtx::HashState placement;
             placement.add(std::span<const float>(instance.mTransform.ptr(), 16));
             placement.add(instance.mOpacity);
             placement.add(static_cast<std::uint32_t>(instance.mClass));
@@ -361,7 +360,7 @@ namespace RtxTool
 
         for (const Rtx::Light& light : scene.lights())
         {
-            Digest lamp;
+            Rtx::HashState lamp;
             lamp.add(light.mPosition);
             lamp.add(light.mIntensity);
             lamp.add(light.mReach);
@@ -370,7 +369,7 @@ namespace RtxTool
 
         for (const Rtx::SpriteEmitter& emitter : scene.emitters())
         {
-            Digest plume;
+            Rtx::HashState plume;
             plume.add(emitter.mCentre);
             plume.add(emitter.mReach);
             plume.add(emitter.isAdditive());
@@ -421,7 +420,7 @@ namespace RtxTool
 
         // **The tangents are the normals' part, and only where a mesh has any**, so a scene where
         // no vertex has one digests to the words on record, and a report keeps its columns.
-        Digest normals;
+        Rtx::HashState normals;
         addBlocks(normals, meshes.getNormals());
         bool tangents = false;
         meshes.getTangents().forEachBlock([&](const std::span<const std::uint32_t> block) {
@@ -431,7 +430,7 @@ namespace RtxTool
             addBlocks(normals, meshes.getTangents());
         take(ScenePart::Normals, normals.getWords());
 
-        Digest texCoords;
+        Rtx::HashState texCoords;
         addBlocks(texCoords, meshes.getTexCoords());
         addBlocks(texCoords, meshes.getSecondTexCoords());
         take(ScenePart::TexCoords, texCoords.getWords());
@@ -558,7 +557,7 @@ namespace RtxTool
 
     Rtx::DigestWords digestLayout(const ScenePartDigests& parts)
     {
-        Digest whole;
+        Rtx::HashState whole;
         for (const Rtx::DigestWords& part : parts)
             whole.add(part);
 

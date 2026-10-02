@@ -1,9 +1,6 @@
 #include "contentkey.hpp"
 
-#include <algorithm>
-#include <climits>
-
-#include <smhasher/MurmurHash3.h>
+#include <cstdint>
 
 namespace Rtx
 {
@@ -19,22 +16,8 @@ namespace Rtx
     void ContentDigest::addBytes(const std::span<const std::byte> bytes)
     {
         const std::uint64_t length = bytes.size();
-        step(std::as_bytes(std::span<const std::uint64_t>(&length, 1)));
-        step(bytes);
+        mState.add(length);
+        mState.add(bytes);
         mBytes += length;
-    }
-
-    void ContentDigest::step(std::span<const std::byte> bytes)
-    {
-        // The hash takes its length as an `int`, and a run past that is taken in pieces, each
-        // chained into the state like any other.
-        do
-        {
-            const std::size_t piece = std::min<std::size_t>(bytes.size(), INT_MAX);
-            DigestWords next{};
-            MurmurHash3_x64_128(bytes.data(), static_cast<int>(piece), mState.data(), next.data());
-            mState = next;
-            bytes = bytes.subspan(piece);
-        } while (!bytes.empty());
     }
 }

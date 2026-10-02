@@ -4,14 +4,14 @@
 #include <exception>
 #include <fstream>
 #include <ios>
+#include <span>
 #include <string>
 #include <system_error>
 #include <vector>
 
-#include <smhasher/MurmurHash3.h>
-
 #include <components/debug/debuglog.hpp>
 #include <components/files/hash.hpp>
+#include <components/rtx/common/hashstate.hpp>
 
 namespace Rtx
 {
@@ -30,7 +30,7 @@ namespace Rtx
 
         std::sort(files.begin(), files.end());
 
-        DigestWords digest{ 0, 0 };
+        HashState digest;
         for (const std::filesystem::path& file : files)
         {
             std::ifstream stream(file, std::ios::binary);
@@ -40,17 +40,13 @@ namespace Rtx
             // The name as well as the contents, so that renaming a shader is a change and two files
             // trading contents is not the same set.
             const std::string name = file.filename().string();
-            DigestWords step{ 0, 0 };
-            MurmurHash3_x64_128(name.data(), static_cast<int>(name.size()), digest.data(), step.data());
-            digest = step;
+            digest.add(std::span<const char>(name));
 
             // `Files::getHash` throws where a read fails, and this may not: a digest is a key, and a
             // module that will not read is one the renderer reading it reports.
             try
             {
-                const DigestWords content = Files::getHash(name, stream);
-                MurmurHash3_x64_128(content.data(), static_cast<int>(sizeof(content)), digest.data(), step.data());
-                digest = step;
+                digest.add(Files::getHash(name, stream));
             }
             catch (const std::exception& error)
             {
@@ -58,6 +54,6 @@ namespace Rtx
             }
         }
 
-        return digest;
+        return digest.getWords();
     }
 }

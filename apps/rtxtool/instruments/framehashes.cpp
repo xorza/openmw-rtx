@@ -16,6 +16,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/common/hashstate.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 #include "digest.hpp"
@@ -124,7 +125,7 @@ namespace RtxTool
         /// the jitter or a reset that never clears would move, and nothing in an image would.
         Rtx::DigestWords digestHanded(const Rtx::FrameDigest& digest)
         {
-            Digest words;
+            Rtx::HashState words;
             words.add(digest.mJitterX);
             words.add(digest.mJitterY);
             words.add(digest.mFrameDeltaMs);
@@ -150,7 +151,7 @@ namespace RtxTool
 
         assert(finished.mDigest.has_value() && "a frame read back without the digest the same option asks for");
 
-        Digest digest;
+        Rtx::HashState digest;
         digest.add(finished.mPixels);
         row->mHash = digest.getWords();
 
