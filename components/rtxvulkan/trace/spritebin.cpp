@@ -80,10 +80,10 @@ namespace Rtx
     void SpriteBin::record(VkCommandBuffer commands, const Binning& what)
     {
         const SpriteSource& source = what.mSource;
-        const osg::Vec3f& origin = what.mOrigin;
-        const Shaders::Camera& camera = what.mCamera;
-        const osg::Vec3f& toSun = what.mToSun;
-        const std::uint32_t rayMask = what.mRayMask;
+        const osg::Vec3f& origin = what.mSeen.mOrigin;
+        const Shaders::Camera& camera = what.mSeen.mCamera;
+        const osg::Vec3f& toSun = what.mSeen.mToSun;
+        const std::uint32_t rayMask = what.mSeen.mRayMask;
         GpuTimer* const timer = what.mTimer;
 
         const std::uint32_t count = source.mSpriteCount;

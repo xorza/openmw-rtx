@@ -580,9 +580,9 @@ namespace Rtx
         const TraceResult traced = mFrame.record(commands,
             TraceRecording{
                 .mSubject = subject,
-                .mAsked = camera,
+                .mAsked = BinCamera::of(camera),
                 .mSampled = sampled,
-                .mReconstruction = reconstruction,
+                .mDenoised = reconstruction.mDenoised,
                 .mAccumulate = options.mAccumulate,
                 .mPastLost = basisLost,
                 .mTimer = &timer,
