@@ -61,8 +61,6 @@ first review.
   `apps/openmw/mwrender/rtx/rtxrenderer.cpp:214-219`.
 - Textures in BC4, BC6H, BC7 and other formats outside the list draw as the grey
   stand-in, and a sky deck in one is left out. `components/rtx/image/texels.cpp:145-204`.
-- The sun glare is up to four times the rasterizer's at sunrise and sunset: the disc's alpha is left
-  out of its strength. `apps/openmw/mwrender/rtx/skyreader.cpp:245-253`.
 - `tsky` outdoors changes the trace's lighting: the sky's light, the moons, the deck's shadow and the
   fog colour go with the dome. `apps/openmw/mwrender/rtx/skyreader.cpp:130-142`.
 - `tcb` and `tcg` draw collision triangles as solid white faces, where the rasterizer draws wireframe.
