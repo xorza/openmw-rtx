@@ -270,7 +270,6 @@ namespace MWRender
         mMirror.detach();
         mRipples.clear();
         mWorldRoot = nullptr;
-        mRendering = nullptr;
     }
 
     float RtxRenderer::getGroundReach() const noexcept
@@ -369,15 +368,10 @@ namespace MWRender
         presentIn(osg::Vec2i(width, height));
     }
 
-    void RtxRenderer::applyPresentation() noexcept
-    {
-        if (mRendering != nullptr)
-            mRendering->updateProjectionMatrix();
-    }
+    void RtxRenderer::applyPresentation() noexcept {}
 
-    void RtxRenderer::attachWorld(RenderingManager& world, osg::Group& worldRoot) noexcept
+    void RtxRenderer::attachWorld(RenderingManager&, osg::Group& worldRoot) noexcept
     {
-        mRendering = &world;
         mPhase.expect(Phase::Between);
         mAttachment.step(Attachment::Attached, Attachment::Detached);
         // Straight under the root: the rasterizer hangs its shadowed scene between the two, and
