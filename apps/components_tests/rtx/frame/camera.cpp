@@ -59,8 +59,8 @@ namespace Rtx
             {
                 const double heading = step * 0.37;
                 const double pitch = (step % 5 - 2) * 0.3;
-                const osg::Vec3d look(std::cos(pitch) * std::sin(heading), std::cos(pitch) * std::cos(heading),
-                    std::sin(pitch));
+                const osg::Vec3d look(
+                    std::cos(pitch) * std::sin(heading), std::cos(pitch) * std::cos(heading), std::sin(pitch));
                 const osg::Matrixd view = osg::Matrixd::lookAt(eye, eye + look, osg::Vec3d(0.0, 0.0, 1.0));
 
                 const Shaders::VisibilityConstants camera

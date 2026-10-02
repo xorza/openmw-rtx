@@ -546,6 +546,11 @@ namespace Rtx::Shaders
         /// also sizes the sun's disc and the wave filter's taps, which are not levels.
         float mLevelBias;
 
+        /// How many taps the footprint sampler takes along a footprint's long axis at most:
+        /// `Rtx::RenderProfile::mAnisotropy`, one where it reads no footprint. What `texturePoint`
+        /// says the anisotropic read resolves, and so what level a normal map's loss is read at.
+        float mAnisotropy;
+
         /// Where every table a hit reads is. `GpuTables` says why it rides here.
         ///
         /// **Last, because it is eight-aligned and nothing before it is.** Anywhere else it would

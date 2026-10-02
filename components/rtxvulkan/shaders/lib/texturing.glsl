@@ -168,6 +168,11 @@ struct TexturePoint
     vec2 mAcross;
     vec2 mAlong;
     bool mAnisotropic;
+
+    /// The level the read resolves, before the texture's own resolution is added: `mBase` where it
+    /// is read at the long axis's level, and the area of what it averages where it is read along
+    /// the footprint — `texturePoint` says how much that is.
+    float mResolved;
 };
 
 /// @param transform mesh texture coordinates to this texture's, as `uv * xy + zw`.
@@ -191,6 +196,7 @@ TexturePoint texturePoint(vec2 uv[3], vec2 bary, vec4 transform, SurfaceCone con
     // surface or on the texture, comes out with no gradient at all, which is level nought — what
     // `coneBase` gives it as the finest.
     point.mAnisotropic = anisotropic;
+    point.mResolved = point.mBase;
     if (anisotropic)
     {
         const vec2 second = corner1 - corner0;
@@ -199,6 +205,15 @@ TexturePoint texturePoint(vec2 uv[3], vec2 bary, vec4 transform, SurfaceCone con
 
         point.mAcross = (second * dot(cone.mAcross, cone.mToSecond) + third * dot(cone.mAcross, cone.mToThird)) * width;
         point.mAlong = (second * dot(cone.mAlong, cone.mToSecond) + third * dot(cone.mAlong, cone.mToThird)) * width;
+
+        // **What the filter averages is the long axis by the level it reads at**: up to
+        // `mAnisotropy` taps along the long axis, each as wide as the long axis over the taps or the
+        // short axis, whichever is wider. A box of the same area is the level its loss is read
+        // at, half a `log2` of the axes' ratio finer than the long axis where the taps cover it.
+        const float major = max(length(point.mAcross), length(point.mAlong));
+        const float minor = min(length(point.mAcross), length(point.mAlong));
+        const float covered = max(minor, major / frame.mAnisotropy);
+        point.mResolved = major > 0.0 ? 0.5 * log2(major * covered) : TEXTURE_FINEST_BASE;
     }
 
     return point;
@@ -249,7 +264,7 @@ TexturePoint spherePoint(vec3 normal[3], vec3 shading, vec3 direction, SurfaceCo
     const float shortest
         = min(min(dot(normal[0], normal[0]), dot(normal[1], normal[1])), dot(normal[2], normal[2]));
     if (!(shortest > 1e-8))
-        return TexturePoint(at, TEXTURE_FINEST_BASE, vec2(0.0), vec2(0.0), false);
+        return TexturePoint(at, TEXTURE_FINEST_BASE, vec2(0.0), vec2(0.0), false, TEXTURE_FINEST_BASE);
 
     const vec3 tip = normalize(normal[0]);
     const vec3 spread = cross(normalize(normal[1]) - tip, normalize(normal[2]) - tip);
@@ -258,7 +273,8 @@ TexturePoint spherePoint(vec3 normal[3], vec3 shading, vec3 direction, SurfaceCo
     // the reflections span is `4 cos` of that, and a sixteenth of it is sheet area.
     const float sheetArea = 0.25 * abs(dot(direction, shading)) * length(spread);
 
-    return TexturePoint(at, coneBaseOf(sheetArea, cone, coneWidth), vec2(0.0), vec2(0.0), false);
+    const float base = coneBaseOf(sheetArea, cone, coneWidth);
+    return TexturePoint(at, base, vec2(0.0), vec2(0.0), false, base);
 }
 
 /// Which mip one texture on that sheet should be read from.
@@ -315,13 +331,16 @@ vec3 sampleNormalMap(uint slot, TexturePoint point)
 }
 
 /// The slope variance a normal map's level has lost under the cone that reads it: its spread
-/// (`NormalSpreadPass`), at the level `sampleNormalMap` reads the map at, which is what
-/// `widenedRoughness` takes. **A level down, because the spread begins at the map's second level**:
-/// its first averages nothing and loses nothing, so the chain stores none of it, and between the
-/// two the loss rises from nought as a filter between the two levels would carry it.
+/// (`NormalSpreadPass`), at the level `sampleNormalMap`'s read resolves (`TexturePoint::mResolved`),
+/// which is what `widenedRoughness` takes. **A level down, because the spread begins at the map's
+/// second level**: its first averages nothing and loses nothing, so the chain stores none of it,
+/// and between the two the loss rises from nought as a filter between the two levels would carry
+/// it.
 float normalMapSlopes(uint slot, TexturePoint point)
 {
-    const float level = coneLod(slot, point);
+    const float level = point.mResolved <= TEXTURE_FINEST_BASE
+        ? 0.0
+        : point.mResolved + 0.5 * log2(float(textureTexelsAt(slot)));
     const float lost = textureLod(companions[nonuniformEXT(slot)], point.mAt, max(level - 1.0, 0.0)).r;
     const float roughness = lost * clamp(level, 0.0, 1.0);
 

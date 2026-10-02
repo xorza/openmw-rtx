@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <numbers>
 #include <optional>
 #include <span>
@@ -997,6 +998,88 @@ namespace Rtx::Testing
             EXPECT_NEAR(roughnessAt(8.0f), Shaders::widenedRoughness(painted, lost * lost * lost * lost), 1e-4f)
                 << "read past the map's finest level";
             EXPECT_EQ(roughnessAt(-8.0f), painted) << "and at it, where nothing is averaged";
+        }
+
+        /// **A grazing normal-mapped surface loses what its anisotropic read averages, and no
+        /// more.** The wall of the test above, turned forty-five degrees about the eye's line: its
+        /// footprint is as wide as before across and `1 / cos 45° = √2` as long along, so the long
+        /// axis reads `log2 √2 = 0.5` of a level coarser than square on. A read along the footprint
+        /// averages the long axis by the short one, a box of the same area half a `log2` finer, so
+        /// sixteen taps lose a quarter of a level more than square on, and one tap, which reads at
+        /// the long axis, half.
+        ///
+        /// Read back through the roughness view: with the loss rising from nought to all of
+        /// `lost = 221 / 255` over the map's first level, `R⁴ = painted⁴ + (lost · level)⁴`, so the
+        /// level is `(R⁴ - painted⁴)^(1/4) / lost`. The epsilon stands the square-on read a quarter
+        /// of a level in, so every read lands inside the first level.
+        TEST_F(RtxVisibilityTest, aGrazingNormalMappedSurfaceLosesWhatItsAnisotropicReadAverages)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr float painted = 128.0f / 255.0f;
+            constexpr float lost = 221.0f / 255.0f;
+            constexpr std::array<std::uint8_t, 4> baseTexel{ 128, 128, 128, 255 };
+            constexpr std::array<std::uint8_t, 4> mapTexel{ 0, 128, 255, 255 };
+            constexpr std::array<std::uint8_t, 16> leaning{ 218, 128, 218, 255, 37, 128, 218, 255, 37, 128, 218, 255,
+                218, 128, 218, 255 };
+
+            TestTexture relief;
+            paintFlat(relief, 2, leaning, "leaning");
+            relief.mData.mSlot = 2;
+            const std::array<TextureData, 3> textures{ describeTexel(baseTexel, 0), describeTexel(mapTexel, 1),
+                relief.mData };
+
+            const auto wallTurnedBy = [&](float degrees) {
+                const osg::Matrixf turn = osg::Matrixf::rotate(osg::DegreesToRadians(degrees), osg::Vec3f(0, 0, 1));
+                std::array<osg::Vec3f, 4> positions;
+                for (std::size_t at = 0; at < positions.size(); ++at)
+                    positions[at] = sWallQuad[at] * turn;
+                const osg::Vec3f normal = osg::Vec3f(0.0f, -1.0f, 0.0f) * turn;
+                const osg::Vec3f across = osg::Vec3f(1.0f, 0.0f, 0.0f) * turn;
+                const std::array<osg::Vec3f, 4> normals{ normal, normal, normal, normal };
+                const osg::Vec4f tangent(across, 1.0f);
+                const std::array<osg::Vec4f, 4> tangents{ tangent, tangent, tangent, tangent };
+
+                SceneDesc scene;
+                const Index mesh = scene.addMesh(MeshArrays{ .mPositions = positions,
+                    .mNormals = normals,
+                    .mTexCoords = sQuadUv,
+                    .mTangents = tangents,
+                    .mIndices = sQuadIndices });
+                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+                const Index map = scene.textures().add(
+                    VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+                const Index normalMap = scene.textures().add(
+                    VFS::Path::NormalizedView("leaning_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
+                scene.addInstance(MeshInstance{ .mMesh = mesh,
+                    .mMaterial
+                    = scene.addMaterial(Material{ .mDiffuse = diffuse, .mNormal = normalMap, .mSpecular = map }) });
+                return scene;
+            };
+
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            const auto levelRead = [&](float degrees, float epsilon, std::uint32_t anisotropy) {
+                const float shown = shoot(wallTurnedBy(degrees), textures, camera, size,
+                    Shot{ .mLevelEpsilon = epsilon, .mShow = SurfaceView::Roughness, .mAnisotropy = anisotropy })
+                                        .at(centre);
+                const float squared = painted * painted;
+                return std::pow(std::max(shown * shown * shown * shown - squared * squared, 0.0f), 0.25f) / lost;
+            };
+
+            // Where square on reads with no epsilon, found where a step of the epsilon lands inside
+            // the first level: below it the loss is nought, and past it all.
+            float inside = std::numeric_limits<float>::quiet_NaN();
+            for (float step = -12.0f; step <= 12.0f && std::isnan(inside); step += 0.5f)
+                if (const float level = levelRead(0.0f, step, 16); level > 0.05f && level < 0.95f)
+                    inside = level - step;
+            ASSERT_FALSE(std::isnan(inside)) << "no epsilon put the read inside the map's first level";
+
+            const float epsilon = 0.25f - inside;
+            ASSERT_NEAR(levelRead(0.0f, epsilon, 16), 0.25f, 1e-3f) << "the square-on read is not where it was put";
+            EXPECT_NEAR(levelRead(0.0f, epsilon, 1), 0.25f, 1e-3f) << "square on, the taps change nothing";
+            EXPECT_NEAR(levelRead(45.0f, epsilon, 1), 0.75f, 2e-3f) << "one tap reads at the long axis";
+            EXPECT_NEAR(levelRead(45.0f, epsilon, 16), 0.5f, 2e-3f) << "sixteen read the area they average";
         }
 
         /// **A map that stands in is read as no map**, in every role an object's map has: a normal
