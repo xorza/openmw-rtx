@@ -559,8 +559,7 @@ namespace Rtx::Testing
             // it has no past draws exactly what the adapted frame drew, and the bright sky under the
             // dim eye comes out brighter than it did under its own.
             const auto held = [&](const Shaders::VisibilityConstants& camera) {
-                mRenderer.renderFrame(
-                    camera, FrameOptions{ .mSinceLast = 1.0f / 60.0f, .mExposure = ExposureRule{ .mHeld = true } });
+                mRenderer.renderFrame(camera, FrameOptions{ .mSinceLast = 1.0f / 60.0f, .mExposure = HeldExposure{} });
                 mRenderer.readPixels(pixels);
                 return meanByte();
             };
@@ -612,7 +611,7 @@ namespace Rtx::Testing
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = 0,
                         .mReconstruction = ReconstructionRequest{ .mDenoise = filter },
-                        .mExposure = ExposureRule{ .mFixed = 1.0f } });
+                        .mExposure = FixedExposure{ 1.0f } });
             };
 
             const auto radiance = [&] {

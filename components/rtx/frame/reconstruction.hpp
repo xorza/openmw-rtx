@@ -7,6 +7,7 @@
 #include <optional>
 #include <string_view>
 #include <utility>
+#include <variant>
 
 #include <components/rtx/common/namedenum.hpp>
 
@@ -167,17 +168,31 @@ namespace Rtx
         Summed,
     };
 
-    /// What a frame is scaled by before the display curve: a fixed scale, the scale the frame
-    /// before ended on, or neither to measure it off the frame.
-    struct ExposureRule
+    /// The scale measured off the frame, as the eye adapts.
+    struct MeasuredExposure
     {
-        std::optional<float> mFixed{};
-
-        /// Keep what the frame before ended on, measuring nothing and resetting nothing: the frames a
-        /// harness compares with a reference hold the exposure the reference measured, so the two
-        /// are mapped by one curve and the scale is derived rather than stated. Not with `mFixed`.
-        bool mHeld = false;
+        bool operator==(const MeasuredExposure&) const = default;
     };
+
+    /// A scale stated, which nothing measures.
+    struct FixedExposure
+    {
+        float mScale = 1.0f;
+
+        bool operator==(const FixedExposure&) const = default;
+    };
+
+    /// What the frame before ended on, measuring nothing and resetting nothing: the frames a harness
+    /// compares with a reference hold the exposure the reference measured, so the two are mapped by
+    /// one curve and the scale is derived rather than stated.
+    struct HeldExposure
+    {
+        bool operator==(const HeldExposure&) const = default;
+    };
+
+    /// What a frame is scaled by before the display curve: one of the three, so no rule says two of
+    /// them at once.
+    using ExposureRule = std::variant<MeasuredExposure, FixedExposure, HeldExposure>;
 
     /// Everything a run decides once about how the picture is made, in one bag for both hosts,
     /// handed to the backend inside `RendererOptions` and read there. A frame reads what the run

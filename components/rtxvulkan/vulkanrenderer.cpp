@@ -630,15 +630,14 @@ namespace Rtx
         // is the output's extent either way.
         const bool upscaled = reconstruction.upscaled();
 
-        FrameLook::Exposure exposure = FrameLook::Measured{
-            .mSeconds = options.mSinceLast, .mReset = basisLost, .mBias = options.mExposureBias
-        };
         const ExposureRule rule = options.mExposure.value_or(mProfile.mExposure);
-        assert(!(rule.mFixed.has_value() && rule.mHeld) && "an exposure both fixed and held");
-        if (rule.mFixed.has_value())
-            exposure = FrameLook::Fixed{ *rule.mFixed };
-        else if (rule.mHeld)
-            exposure = FrameLook::Held{};
+        FrameLook::Exposure exposure = FrameLook::Held{};
+        if (const FixedExposure* fixed = std::get_if<FixedExposure>(&rule))
+            exposure = FrameLook::Fixed{ fixed->mScale };
+        else if (std::holds_alternative<MeasuredExposure>(rule))
+            exposure = FrameLook::Measured{
+                .mSeconds = options.mSinceLast, .mReset = basisLost, .mBias = options.mExposureBias
+            };
 
         mDisplay.record(commands,
             Display{
