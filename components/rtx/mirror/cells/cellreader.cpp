@@ -38,9 +38,11 @@ namespace Rtx
     {
         osg::Matrixf transformOf(const Terrain::PagedCellRef& ref)
         {
+            const float rotation[3] = { ref.mRotation.x(), ref.mRotation.y(), ref.mRotation.z() };
+
             osg::Matrixf transform;
             transform.preMultTranslate(ref.mPosition);
-            transform.preMultRotate(Misc::Convert::makeOsgQuat(ref.mRotation));
+            transform.preMultRotate(Misc::Convert::makeOsgQuat(rotation));
             transform.preMultScale(osg::Vec3f(ref.mScale, ref.mScale, ref.mScale));
 
             return transform;
