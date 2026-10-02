@@ -5,6 +5,7 @@
 #include <optional>
 #include <vector>
 
+#include <osg/Vec2f>
 #include <osg/Vec2i>
 #include <osg/Vec3f>
 
@@ -96,6 +97,11 @@ namespace Rtx
         /// not yet read, or read and waiting for the frame that adopts them. What a harness stop
         /// waits out before it measures, settled or not.
         std::uint32_t getCellsToStand() const;
+
+        /// Whether a cell under the square from `low` to `high`, world units on the plane, is in the
+        /// band the last walk asked over and not yet held: a picture of the ground there taken now
+        /// shows the cell's objects on nothing. False where the last walk stood nothing.
+        bool waitsUnder(const osg::Vec2f& low, const osg::Vec2f& high) const;
 
         /// `CellSupply::getReaderMemory`.
         ReaderMemory getReaderMemory() { return mSupply.getReaderMemory(); }

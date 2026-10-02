@@ -135,6 +135,9 @@ namespace MWRender
         /// The worldspace's grid, as the last walk read it off the land.
         const Rtx::CellGrid& getGrid() const { return mGrid; }
 
+        /// The ring, for a picture that asks whether its ground stands yet.
+        const Rtx::CellRing& getRing() const { return mRing; }
+
         /// The menu moved the reach, or the view distance it falls back to. Told rather than read
         /// per frame, so the ring, the air and the map follow one number a frame was handed.
         void setReach(const Rtx::LandReach& reach) { mReach = reach; }

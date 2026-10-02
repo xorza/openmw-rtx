@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -101,6 +102,28 @@ namespace Rtx
 
         assert(getHeldCellCount() <= mBandCells && "a cell held outside the band the last walk asked over");
         return mBandCells - static_cast<std::uint32_t>(getHeldCellCount());
+    }
+
+    bool CellRing::waitsUnder(const osg::Vec2f& low, const osg::Vec2f& high) const
+    {
+        if (mBandCells == 0 || !mAsked.has_value())
+            return false;
+
+        // The cells the square overlaps by some area, so one that only touches its edge is out: a
+        // map tile's box is its cell's square exactly.
+        const CellGrid& grid = mAround.mWorld.mGrid;
+        const float side = grid.getCellSize();
+        const auto first = [&](float at) { return static_cast<int>(std::floor(at / side)); };
+        const auto last = [&](float at) { return static_cast<int>(std::ceil(at / side)) - 1; };
+        for (int x = first(low.x()); x <= last(high.x()); ++x)
+            for (int y = first(low.y()); y <= last(high.y()); ++y)
+            {
+                const osg::Vec2i cell(x, y);
+                if (grid.withinReach(cell, mAsked->mEye, mAsked->mBand) && !mPlacer.holds(cell))
+                    return true;
+            }
+
+        return false;
     }
 
     bool CellRing::handed(const osg::Vec2i& cell) const
