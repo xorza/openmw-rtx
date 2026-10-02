@@ -131,3 +131,7 @@ first review.
   `apps/rtxtool/main.cpp`'s `main`), so a harness run that crashes or hangs writes no report unless
   a shell asks for one. The comment's reason, a dialog waiting for a click, no longer holds: the
   same `main` defaults `OPENMW_CRASH_DIALOG` to `0`.
+- The tracer reads `SceneUtil::VertexColorModes::Ambient` as `VertexColour::Tint`, which replaces
+  the diffuse colour with the vertex colour. The rasterizer's `getDiffuseColor` keeps the material's
+  diffuse under that mode, and only the ambient takes the vertex colour.
+  `components/rtx/scene/surface.cpp` `vertexColourOf`.
