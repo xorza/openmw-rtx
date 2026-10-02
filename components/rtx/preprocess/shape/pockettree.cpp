@@ -9,6 +9,8 @@
 
 #include <osg/Vec3d>
 
+#include "facecross.hpp"
+
 namespace Rtx
 {
     namespace
@@ -106,9 +108,9 @@ namespace Rtx
         mOrder.clear();
         for (std::uint32_t t = 0; t < count; ++t)
         {
-            const osg::Vec3f cross = (corner(t, 1) - corner(t, 0)) ^ (corner(t, 2) - corner(t, 0));
-            const float twiceArea = cross.length();
-            mNormals[t] = twiceArea > 0.0f ? cross / twiceArea : osg::Vec3f();
+            const FaceCross face = FaceCross::of(corner(t, 0), corner(t, 1), corner(t, 2));
+            const float twiceArea = face.mTwiceArea;
+            mNormals[t] = face.mUnit;
             mAreas[t] = 0.5f * twiceArea;
             mCentroids[t] = (corner(t, 0) + corner(t, 1) + corner(t, 2)) / 3.0f;
             if (twiceArea > 0.0f)

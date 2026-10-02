@@ -1,11 +1,12 @@
 #include "creasesplit.hpp"
 
 #include <algorithm>
-#include <bit>
 #include <cmath>
 #include <cstddef>
 
 #include <components/rtx/common/pointhash.hpp>
+
+#include "facecross.hpp"
 
 namespace Rtx
 {
@@ -45,10 +46,9 @@ namespace Rtx
         mFaces.resize(count);
         for (std::size_t t = 0; t < count; ++t)
         {
-            const osg::Vec3f& a = positions[triangles[3 * t]];
-            osg::Vec3f face = (positions[triangles[3 * t + 1]] - a) ^ (positions[triangles[3 * t + 2]] - a);
-            const float length = face.length();
-            mFaces[t] = length > 0.0f ? face / length : osg::Vec3f();
+            mFaces[t] = FaceCross::of(
+                positions[triangles[3 * t]], positions[triangles[3 * t + 1]], positions[triangles[3 * t + 2]])
+                            .mUnit;
         }
 
         const std::uint32_t welded = weld(positions);
@@ -79,19 +79,17 @@ namespace Rtx
 
     std::uint32_t CreaseSplit::weld(const std::span<const osg::Vec3f> positions)
     {
-        const std::size_t slots = std::bit_ceil(std::max<std::size_t>(positions.size() * 2, 16));
-        const std::size_t mask = slots - 1;
-        mTable.assign(slots, sNoEntry);
+        mTable.reset(positions.size());
         mPositionOf.resize(positions.size());
 
         std::uint32_t welded = 0;
         for (std::uint32_t vertex = 0; vertex < positions.size(); ++vertex)
         {
             const osg::Vec3f& position = positions[vertex];
-            for (std::size_t at = hashPoints(std::span(&position, 1)) & mask;; at = (at + 1) & mask)
+            for (std::size_t at = mTable.first(hashPoints(std::span(&position, 1)));; at = mTable.next(at))
             {
                 const std::uint32_t held = mTable[at];
-                if (held == sNoEntry)
+                if (held == ProbeTable::sEmpty)
                 {
                     mTable[at] = vertex;
                     mPositionOf[vertex] = welded++;
