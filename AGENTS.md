@@ -86,7 +86,9 @@ pointer and Lua read one size whichever renderer draws.
   window's pixel density and display scale, which a fractionally scaled Wayland desktop sets and
   SDL2 cannot report. SDL3 has no gamma ramp, so `[Video] gamma` is the renderers' own: the
   rasterizer's canvas applies it in its last draw into the frame (`PingPongCanvas`), as the tone
-  pass does in the ray tracer.
+  pass does in the ray tracer. `[Video] contrast` went with the ramp and is not restored: it had no
+  menu control, upstream applied it on Windows alone, and the tone pass has a contrast grade of its
+  own.
 - The five checks the top-level `CMakeLists.txt` adds to upstream's, on for the whole tree, and
   the hunks in upstream code that keep it clean under them, the patches to `extern/sol3` and
   `components/files/configurationmanager` included: one set of checks for every file.
