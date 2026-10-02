@@ -7,6 +7,7 @@
 #include <osg/Vec3f>
 
 #include <components/esm3/loadcell.hpp>
+#include <components/esm3/loadregn.hpp>
 #include <components/misc/constants.hpp>
 #include <components/sky/timeofday.hpp>
 
@@ -170,7 +171,7 @@ namespace Rtx
     inline constexpr std::uint32_t sWeatherBlight = 7;
     inline constexpr std::uint32_t sWeatherSnow = 8;
     inline constexpr std::uint32_t sWeatherBlizzard = 9;
-    inline constexpr std::uint32_t sWeatherCount = 10;
+    inline constexpr std::uint32_t sWeatherCount = ESM::Weather::Length;
 
     /// A weather's index, as `MWWorld::WeatherManager` registers them, or nothing for a name that is
     /// none of the ten. Any case, as the game reads a weather's id.
