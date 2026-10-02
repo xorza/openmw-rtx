@@ -133,12 +133,15 @@ namespace RtxTool
             // what says the fields were read in the order they were asked for rather than shuffled.
             const GpuClock clock = nvml.readClock();
             ASSERT_TRUE(clock.mRead);
-            EXPECT_GT(clock.mLowestMhz, 100u);
-            EXPECT_LT(clock.mLowestMhz, 10000u);
-            EXPECT_EQ(clock.mLowestMhz, clock.mHighestMhz) << "one reading is not a range";
-            EXPECT_GT(clock.mMemoryMhz, 100u);
-            EXPECT_GT(clock.mTemperatureC, 0u);
-            EXPECT_LT(clock.mTemperatureC, 120u);
+            EXPECT_GT(clock.mCore.mLowestMhz, 100u);
+            EXPECT_LT(clock.mCore.mLowestMhz, 10000u);
+            EXPECT_EQ(clock.mCore.mLowestMhz, clock.mCore.mHighestMhz) << "one reading is not a range";
+            EXPECT_EQ(clock.mMemory.mReadings, 1u);
+            EXPECT_GT(clock.mMemory.mLowestMhz, 100u);
+            ASSERT_TRUE(clock.mTemperatureC.has_value());
+            EXPECT_GT(*clock.mTemperatureC, 0u);
+            EXPECT_LT(*clock.mTemperatureC, 120u);
+            EXPECT_TRUE(clock.mThrottleMask.has_value());
 
             // This process, by the name the driver keeps for it: the executable's own, without
             // its directory, which is what a report prints beside a count.
@@ -208,9 +211,9 @@ namespace RtxTool
 
             const CardReading& place = windows.mPlace;
             EXPECT_TRUE(place.mClock.mRead);
-            EXPECT_GT(place.mClock.mReadings, 2u) << "a watch that answered with no more than its two ends";
-            EXPECT_GE(place.mClock.getMeanMhz(), place.mClock.mLowestMhz);
-            EXPECT_LE(place.mClock.getMeanMhz(), place.mClock.mHighestMhz);
+            EXPECT_GT(place.mClock.getReadings(), 2u) << "a watch that answered with no more than its two ends";
+            EXPECT_GE(place.mClock.mCore.getMeanMhz(), place.mClock.mCore.mLowestMhz);
+            EXPECT_LE(place.mClock.mCore.getMeanMhz(), place.mClock.mCore.mHighestMhz);
             EXPECT_EQ(place.mShare.mViewed, sampled);
             EXPECT_GT(place.mShare.mSeconds, 0.0);
 

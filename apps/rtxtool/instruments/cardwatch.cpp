@@ -108,7 +108,7 @@ namespace RtxTool
 
     std::uint32_t CardWatch::getReadings()
     {
-        return mMonitor.under([this] { return mClock.mReadings; });
+        return mMonitor.under([this] { return mClock.getReadings(); });
     }
 
     void CardWatch::read()
