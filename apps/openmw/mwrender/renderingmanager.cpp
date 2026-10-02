@@ -936,7 +936,7 @@ namespace MWRender
         const double height = frame.y();
 
         const double aspect = width / height;
-        const float fov = getFieldOfView();
+        const float fov = mFieldOfViewOverridden ? mFieldOfViewOverride : mFieldOfView;
 
         osg::Matrix unreversedProjectionMatrix = osg::Matrix::perspective(fov, aspect, mNearClip, mViewDistance);
 

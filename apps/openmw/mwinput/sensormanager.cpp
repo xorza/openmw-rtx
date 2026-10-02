@@ -1,13 +1,13 @@
 #include "sensormanager.hpp"
 
 #include <components/debug/debuglog.hpp>
+#include <components/sdlutil/sdldisplay.hpp>
 #include <components/settings/values.hpp>
 
 namespace MWInput
 {
-    SensorManager::SensorManager(SDL_Window* window)
-        : mWindow(window)
-        , mRotation()
+    SensorManager::SensorManager()
+        : mRotation()
         , mGyroValues()
         , mGyroUpdateTimer(0.f)
         , mGyroscope(nullptr)
@@ -43,7 +43,8 @@ namespace MWInput
 
         float angle = 0;
 
-        SDL_DisplayOrientation currentOrientation = SDL_GetCurrentDisplayOrientation(SDL_GetDisplayForWindow(mWindow));
+        SDL_DisplayOrientation currentOrientation
+            = SDL_GetCurrentDisplayOrientation(SDLUtil::displayAt(Settings::video().mScreen));
         switch (currentOrientation)
         {
             case SDL_ORIENTATION_UNKNOWN:
