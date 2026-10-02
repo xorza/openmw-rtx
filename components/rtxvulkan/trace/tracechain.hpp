@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 #include <vulkan/vulkan_core.h>
 
@@ -35,7 +36,10 @@ namespace Rtx
         /// Nothing has an extent until `resize` or `grow` is called.
         ///
         /// @param passes what the chain traces with, which outlives it.
-        TraceChain(const Device& device, const TracePasses& passes);
+        /// @param bins how many sprite bins the chain keeps, `VisibilityInputs::mTraceSlot` picking
+        ///        one: one per frame in flight for the world's, and one for the pictures', which are
+        ///        traced and waited for one at a time.
+        TraceChain(const Device& device, const TracePasses& passes, std::uint32_t bins);
 
         /// Builds the chain at exactly this extent, whatever it was before.
         ///
@@ -89,9 +93,10 @@ namespace Rtx
         std::unique_ptr<GBuffer> mChannels;
         std::unique_ptr<FogVolume> mFogVolume;
 
-        /// One sprite bin per frame in flight — `VisibilityInputs::mTraceSlot` picks — so the frame
-        /// behind keeps the tables its trace reads while this frame's bin writes its own.
-        PerSlot<SpriteBin> mBins;
+        /// The sprite bins — `VisibilityInputs::mTraceSlot` picks — so the frame behind keeps the
+        /// tables its trace reads while this frame's bin writes its own. Made once, at the count the
+        /// chain was made with.
+        std::vector<SpriteBin> mBins;
 
         /// What the shared denoising passes keep of this camera, at the extent.
         DenoiseHistory mDenoise;
