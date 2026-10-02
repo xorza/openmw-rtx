@@ -53,6 +53,19 @@ namespace Rtx
 
     inline constexpr std::size_t sMemoryUses = static_cast<std::size_t>(MemoryUse::Texture) + 1;
 
+    /// What `VK_EXT_memory_priority` is told of the memory a use takes: the order a driver that runs
+    /// short evicts it in, lowest first. **The one statement of the priorities**, which every request
+    /// reads.
+    ///
+    /// **Essential memory stands at a half**, the priority the library gives every block outside a
+    /// pool, so a target big enough for an allocation of its own stands where a table in a shared
+    /// block stands. **Content stands at a quarter**, one figure for structures and textures alike,
+    /// because the two share the content pools' blocks and a priority belongs to a block.
+    constexpr float memoryPriorityOf(const MemoryUse use)
+    {
+        return use == MemoryUse::Essential ? 0.5f : 0.25f;
+    }
+
     /// A range of one device allocation, and the allocator that hands it back. Not an allocation
     /// of its own: one `vkAllocateMemory` per image was 1554 for the cell the game starts in, most
     /// for a shading map of two kilobytes; sub-allocated, that cell takes a couple of dozen.
