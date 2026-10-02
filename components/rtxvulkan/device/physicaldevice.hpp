@@ -2,11 +2,14 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
+
+#include <components/rtx/renderer/pciaddress.hpp>
 
 #include "requirements.hpp"
 
@@ -83,6 +86,10 @@ namespace Rtx
             return mProperties->mAccelerationStructure.minAccelerationStructureScratchOffsetAlignment;
         }
 
+        /// Where the device stands on the PCI bus, or nothing where it does not offer
+        /// `VK_EXT_pci_bus_info`.
+        const std::optional<PciAddress>& getPciAddress() const { return mPciAddress; }
+
         /// Whether this device offers `name`, one of the options' extensions.
         bool hasOptionalExtension(const char* name) const;
 
@@ -98,5 +105,7 @@ namespace Rtx
         std::unique_ptr<DeviceProperties> mProperties;
 
         Profile mProfile;
+
+        std::optional<PciAddress> mPciAddress;
     };
 }

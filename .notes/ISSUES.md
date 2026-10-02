@@ -20,9 +20,6 @@ first review.
 - A harness run never sets the hang limit: `runHosted` copies `main.cpp`'s configuration without
   `Crash::setHangLimit` or the version annotation, so a hung harness run is never reported as a hang.
   `apps/rtxtool/hosted.cpp:100-160`, `components/crashcatcher/crashpadmonitor.cpp:361`.
-- The card watch reads NVML device 0 or the first AMD card in sysfs, not the device the renderer
-  chose: on a Ryzen APU with a Radeon card the clock line describes the idle integrated GPU.
-  `apps/rtxtool/instruments/nvml.cpp:74-82`, `apps/rtxtool/instruments/amdgpu.cpp:53-80`.
 - The traced debug lines are drawn after the gamma, and the rasterizer's are raised by it.
   `components/rtxvulkan/shaders/display/tone.comp:141-143`, `components/rtx/shaders/line.h:15-16`.
 - The seam and `architecture.md` §10 call a time skip a cut, and nothing calls `notifyCut` for one

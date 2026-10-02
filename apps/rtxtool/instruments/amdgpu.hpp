@@ -3,7 +3,10 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
+#include <string>
 #include <string_view>
+
+#include <components/rtx/renderer/pciaddress.hpp>
 
 #include "gpuclock.hpp"
 
@@ -11,8 +14,9 @@ namespace RtxTool
 {
     /// AMD's kernel driver as it describes a card in sysfs: the current level of each clock and the
     /// temperature, which is what `CardWatch` asks NVML for on an NVIDIA card. Read from the files
-    /// `amdgpu` keeps under `/sys/class/drm/card*/device/`, of the first card whose PCI vendor is
-    /// AMD's.
+    /// `amdgpu` keeps in the PCI device's own directory, of the device the renderer chose: on a
+    /// box with an integrated Radeon beside a discrete one, the first card the kernel lists is
+    /// usually the one that drew nothing.
     ///
     /// **No process samples.** amdgpu counts a client's use per open file of the device, under
     /// `/proc/<pid>/fdinfo`, and keeps no list per card a reader can take, so who held the card is
@@ -20,9 +24,13 @@ namespace RtxTool
     class AmdGpu
     {
     public:
-        /// The first AMD card on the box, or nothing where there is none. Nothing is read until
-        /// `readClock`.
-        static std::optional<AmdGpu> find();
+        /// The AMD card at `address` under `devices`, or nothing where the device there is not
+        /// AMD's. Nothing is read until `readClock`.
+        static std::optional<AmdGpu> find(
+            const Rtx::PciAddress& address, const std::filesystem::path& devices = "/sys/bus/pci/devices");
+
+        /// `address` as sysfs names a PCI device's directory: `0000:03:00.0`.
+        static std::string sysfsNameOf(const Rtx::PciAddress& address);
 
         /// Why the report names no holder of an AMD card.
         static std::string_view describeUnsampled() { return "amdgpu keeps no process samples for a card"; }

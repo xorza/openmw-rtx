@@ -1,4 +1,6 @@
 #include <filesystem>
+#include <format>
+#include <fstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -10,6 +12,7 @@
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/renderer/pciaddress.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
@@ -134,6 +137,28 @@ namespace Rtx
                 report.find(mHarness.mDevice->getPhysicalDevice().getProperties().mProperties2.properties.deviceName),
                 std::string::npos);
             EXPECT_NE(report.find("max primitive count"), std::string::npos);
+        }
+
+        /// **The device says where it stands on the bus, and the system finds the same card
+        /// there**: the address an instrument asks a driver's library for is the card this
+        /// renderer draws on, by the vendor both of them name.
+        TEST_F(RtxDeviceTest, theDeviceSaysWhereItStandsOnTheBus)
+        {
+            const PhysicalDevice& physical = mHarness.mDevice->getPhysicalDevice();
+            ASSERT_TRUE(physical.getPciAddress().has_value()) << "every target driver offers VK_EXT_pci_bus_info";
+            const PciAddress& address = *physical.getPciAddress();
+
+            const std::string spelt = std::format(
+                "{:04x}:{:02x}:{:02x}.{:x}", address.mDomain, address.mBus, address.mDevice, address.mFunction);
+            EXPECT_NE(physical.describe().find("PCI bus:           " + spelt), std::string::npos);
+
+            const std::filesystem::path device = std::filesystem::path("/sys/bus/pci/devices") / spelt;
+            if (!std::filesystem::exists(device.parent_path()))
+                return;
+
+            std::string vendor;
+            std::ifstream(device / "vendor") >> vendor;
+            EXPECT_EQ(vendor, std::format("0x{:04x}", physical.getProperties().mProperties2.properties.vendorID));
         }
     }
 }

@@ -61,8 +61,7 @@ namespace RtxTool
     }
 
     CardWatch::CardWatch(const std::chrono::milliseconds period)
-        : mAmdGpu(mNvml.isOpen() ? std::nullopt : AmdGpu::find())
-        , mPeriod(period)
+        : mPeriod(period)
         , mTally(Platform::Process::currentId())
         , mBegan(std::chrono::steady_clock::now())
     {
@@ -70,10 +69,19 @@ namespace RtxTool
 
     CardWatch::~CardWatch() = default;
 
-    void CardWatch::watch()
+    void CardWatch::watch(const std::optional<Rtx::PciAddress>& device)
     {
         if (mWorker.isRunning())
             return;
+
+        if (device.has_value())
+        {
+            mNvml.choose(*device);
+            if (!mNvml.isOpen())
+                mAmdGpu = AmdGpu::find(*device);
+        }
+        else
+            mUnaddressed = true;
 
         mMonitor.under([&] { close(); });
         mWorker.repeat("card watch", mPeriod, [this] {
@@ -139,7 +147,9 @@ namespace RtxTool
         if (!mNvml.hasSamples())
         {
             reading.mShare.mViewed = false;
-            reading.mShare.mWhyNot = mAmdGpu.has_value() ? AmdGpu::describeUnsampled() : mNvml.describeUnsampled();
+            reading.mShare.mWhyNot = mUnaddressed ? "the renderer's device does not say where it stands on the bus"
+                : mAmdGpu.has_value()             ? AmdGpu::describeUnsampled()
+                                                  : mNvml.describeUnsampled();
         }
 
         mClock = GpuClock{};

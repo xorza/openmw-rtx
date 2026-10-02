@@ -4,6 +4,7 @@
 #include <array>
 #include <cstddef>
 #include <format>
+#include <string>
 
 namespace RtxTool
 {
@@ -53,7 +54,7 @@ namespace RtxTool
         // reasons under the name that replaced `ThrottleReasons` or under that one where the
         // driver is older.
         if (!load(mLibrary, mInit, "nvmlInit_v2") || !load(mLibrary, mShutdown, "nvmlShutdown")
-            || !load(mLibrary, mHandleByIndex, "nvmlDeviceGetHandleByIndex_v2")
+            || !load(mLibrary, mHandleByBusId, "nvmlDeviceGetHandleByPciBusId_v2")
             || !load(mLibrary, mClockInfo, "nvmlDeviceGetClockInfo")
             || !load(mLibrary, mTemperature, "nvmlDeviceGetTemperature")
             || (!load(mLibrary, mEventReasons, "nvmlDeviceGetCurrentClocksEventReasons")
@@ -70,20 +71,29 @@ namespace RtxTool
             mLibrary = Platform::Library::ScopedHandle();
             return;
         }
+        mStarted = true;
+        mAbsence = "no device was chosen";
+    }
 
+    void Nvml::choose(const Rtx::PciAddress& address)
+    {
+        if (!mStarted || isOpen())
+            return;
+
+        const std::string busId = busIdOf(address);
         Device device = nullptr;
-        if (const Return found = mHandleByIndex(0, &device); found != sSuccess)
+        if (const Return found = mHandleByBusId(busId.c_str(), &device); found != sSuccess)
         {
-            mAbsence = std::format("the driver's management library names no device, its error {}", found);
-            mShutdown();
-            mLibrary = Platform::Library::ScopedHandle();
+            mAbsence = std::format("the driver's management library knows no device at {}, its error {}", busId, found);
             return;
         }
         mDevice = device;
+        mAbsence.clear();
 
         if (!load(mLibrary, mProcessUtilization, "nvmlDeviceGetProcessUtilization")
             || !load(mLibrary, mProcessName, "nvmlSystemGetProcessName"))
         {
+            mProcessUtilization = nullptr;
             mUnsampled = "the driver's management library keeps no process samples";
             return;
         }
@@ -104,9 +114,16 @@ namespace RtxTool
             mCursor = std::max(mCursor, mScratch[at].mStamp);
     }
 
+    std::string Nvml::busIdOf(const Rtx::PciAddress& address)
+    {
+        // `NVML_DEVICE_PCI_BUS_ID_FMT`, with the function where the header writes a nought.
+        return std::format(
+            "{:08X}:{:02X}:{:02X}.{:X}", address.mDomain, address.mBus, address.mDevice, address.mFunction);
+    }
+
     Nvml::~Nvml()
     {
-        if (isOpen())
+        if (mStarted)
             mShutdown();
     }
 

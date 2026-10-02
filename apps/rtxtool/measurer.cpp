@@ -60,11 +60,6 @@ namespace RtxTool
 
         mProgress.mSamples.reserve(longest);
         mProgress.mGpu.reserve(longest);
-
-        // **From here and not from the first frame**, because the window before the first stop
-        // is the load, at the card's idle clock, where a desktop that is drawing shows plainest;
-        // `CardWatch` says why.
-        mCardWatch.watch();
     }
 
     void Measurer::begin(const Stop& stop)

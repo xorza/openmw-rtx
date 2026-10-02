@@ -3,6 +3,7 @@
 #include <array>
 #include <charconv>
 #include <cstddef>
+#include <format>
 #include <fstream>
 #include <ios>
 #include <string>
@@ -49,38 +50,32 @@ namespace RtxTool
     {
     }
 
-    std::optional<AmdGpu> AmdGpu::find()
+    std::optional<AmdGpu> AmdGpu::find(const Rtx::PciAddress& address, const std::filesystem::path& devices)
     {
-        std::error_code error;
         std::array<char, 512> text;
-        for (const std::filesystem::directory_entry& card :
-            std::filesystem::directory_iterator("/sys/class/drm", error))
+        const std::filesystem::path device = devices / sysfsNameOf(address);
+        const std::optional<std::string_view> vendor = readSmall(device / "vendor", text);
+        if (!vendor.has_value() || !vendor->starts_with(sAmdVendor))
+            return std::nullopt;
+
+        std::error_code error;
+        std::filesystem::path temperature;
+        for (const std::filesystem::directory_entry& hwmon :
+            std::filesystem::directory_iterator(device / "hwmon", error))
         {
-            // `card0` and not a connector of it, `card0-HDMI-A-1`, which holds no `device/vendor`
-            // of its own but a link back to the card's.
-            const std::string name = card.path().filename().string();
-            if (!name.starts_with("card") || name.find('-') != std::string::npos)
-                continue;
-
-            const std::filesystem::path device = card.path() / "device";
-            const std::optional<std::string_view> vendor = readSmall(device / "vendor", text);
-            if (!vendor.has_value() || !vendor->starts_with(sAmdVendor))
-                continue;
-
-            std::filesystem::path temperature;
-            for (const std::filesystem::directory_entry& hwmon :
-                std::filesystem::directory_iterator(device / "hwmon", error))
+            if (std::filesystem::exists(hwmon.path() / "temp1_input", error))
             {
-                if (std::filesystem::exists(hwmon.path() / "temp1_input", error))
-                {
-                    temperature = hwmon.path() / "temp1_input";
-                    break;
-                }
+                temperature = hwmon.path() / "temp1_input";
+                break;
             }
-            return AmdGpu(device, std::move(temperature));
         }
+        return AmdGpu(device, std::move(temperature));
+    }
 
-        return std::nullopt;
+    std::string AmdGpu::sysfsNameOf(const Rtx::PciAddress& address)
+    {
+        return std::format(
+            "{:04x}:{:02x}:{:02x}.{:x}", address.mDomain, address.mBus, address.mDevice, address.mFunction);
     }
 
     GpuClock AmdGpu::readClock() const

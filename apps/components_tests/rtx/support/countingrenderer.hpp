@@ -37,6 +37,7 @@ namespace Rtx::Testing
     {
     public:
         std::string describeDevice() const override { return "a renderer that counts rather than draws"; }
+        std::optional<PciAddress> getPciAddress() const override { return std::nullopt; }
         const Rtx::RenderProfile& getProfile() const override { return mProfile; }
         bool isValidating() const override { return false; }
 

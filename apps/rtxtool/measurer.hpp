@@ -9,6 +9,7 @@
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/pciaddress.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 #include "instruments/cardwatch.hpp"
@@ -50,9 +51,17 @@ namespace RtxTool
             Failed,
         };
 
-        /// Reserves every series at the longest stop of `request`, so no measured frame grows one,
-        /// and starts watching the card; `record` is what the run is written into.
+        /// Reserves every series at the longest stop of `request`, so no measured frame grows one;
+        /// `record` is what the run is written into.
         Measurer(const SessionRequest& request, RunRecord& record);
+
+        /// Starts watching the card the renderer draws on, `device`, once the renderer exists.
+        ///
+        /// **Where the renderer is made and not from the first frame**, because the window before
+        /// the first stop is the load, at the card's idle clock, where a desktop that is drawing
+        /// shows plainest; `CardWatch` says why. **Not from construction either**: which card the
+        /// renderer draws on is known only once it chose one.
+        void watchCard(const std::optional<Rtx::PciAddress>& device) { mCardWatch.watch(device); }
 
         /// Starts counting `stop`, with the player where the stager put them.
         void begin(const Stop& stop);
