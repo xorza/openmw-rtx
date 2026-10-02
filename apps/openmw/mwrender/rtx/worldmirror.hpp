@@ -99,10 +99,9 @@ namespace MWRender
         /// trace presses it and the digest sees it. After `mirror`, which clears the frame's lists.
         void addRipples(std::span<const Rtx::RippleImpulse> impulses);
 
-        /// A cell the scene added, which is what the sea is centred on: upstream's
-        /// `Water::changeCell`, verbatim in effect — the middle of the cell outdoors, the origin
-        /// indoors, the last one added winning. The plane is a hundred and fifty cells wide, so
-        /// where its middle is does not show; kept the rasterizer's so the two pictures agree.
+        /// A cell the scene added, which is what the sea is centred on, as `Water::changeCell`
+        /// centres it (`seaCentre`): the middle of the cell outdoors, the origin indoors, the last
+        /// one added winning.
         void standSea(const MWWorld::CellStore& cell);
 
         /// Hands the scene to `renderer`, building only what has to be built, and then ends the
