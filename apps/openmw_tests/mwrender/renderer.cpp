@@ -300,10 +300,11 @@ namespace MWRender
             Settings::video().mResolutionY.set(0);
         }
 
-        /// A name no renderer has is a configuration mistake, refused by name.
-        TEST(RendererTest, anUnknownRendererIsRefusedByName)
+        /// The two kinds by the words the log and a crash report have always named them by.
+        TEST(RendererTest, eachKindIsNamedByTheWordTheLogPrints)
         {
-            EXPECT_THROW(createRenderer("software", RendererSpec{}), std::runtime_error);
+            EXPECT_EQ(nameOf(RendererKind::OpenGl), "opengl");
+            EXPECT_EQ(nameOf(RendererKind::RayTraced), "raytrace");
         }
     }
 }
