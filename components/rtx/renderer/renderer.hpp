@@ -142,20 +142,20 @@ namespace Rtx
     /// to one, so nothing here has to name which scene.
     struct SceneHeld
     {
-        /// Whether `setScene` has ever filled this slot.
-        bool mBuilt = false;
-
         /// `SceneDesc::getIdentity` of the description the slot was built from: an uploader
         /// handing another description to a slot has to build, because the structures and the
         /// texture array are the first description's, and appending the second's arrivals onto
-        /// them would begin past the end of its own table. Nought where nothing was built.
+        /// them would begin past the end of its own table. Nought where nothing was built, which
+        /// no description's identity is.
         std::uint64_t mIdentity = 0;
 
         /// `SceneDesc::getStructureRevision` as it stood at the last `setScene` or `extendScene`.
         std::uint64_t mStructureRevision = 0;
 
-        /// How long the texture table is, which is where an `extendScene`'s arrivals begin — the
-        /// length and not the tally, which `SceneStats::mTextureCount` is.
+        /// How long the slot's texture array is: the table's length, holes included, and not the
+        /// tally, which `SceneStats::mTextureCount` is. Every arrival names its own slot, so nothing
+        /// appends by it; it is the one view of the array's length, which an array built short of
+        /// the table would get wrong.
         std::uint32_t mTextureCount = 0;
     };
 
