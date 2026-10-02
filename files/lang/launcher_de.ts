@@ -195,8 +195,8 @@
         <translation>Hochskalierung</translation>
     </message>
     <message>
-        <source>How far below the window&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
-        <translation>Wie weit unter der Fenstergröße der Raytracer rendert. Aus traced jedes Pixel ohne Hochskalierer; jeder andere Modus lässt den Hochskalierer laufen, der das Bild über mehrere Bilder rekonstruiert, und alle Modi außer Aus und Nativ tracen weniger Pixel, als sie anzeigen.</translation>
+        <source>How far below the frame&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
+        <translation>Wie weit unter der Bildauflösung der Raytracer rendert. Aus traced jedes Pixel ohne Hochskalierer; jeder andere Modus lässt den Hochskalierer laufen, der das Bild über mehrere Bilder rekonstruiert, und alle Modi außer Aus und Nativ tracen weniger Pixel, als sie anzeigen.</translation>
     </message>
     <message>
         <source>Off</source>

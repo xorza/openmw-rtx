@@ -263,8 +263,8 @@
         <translation>Масштабирование</translation>
     </message>
     <message>
-        <source>How far below the window&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
-        <translation>Насколько ниже размера окна выполняется трассировка лучей. «Отключено» трассирует каждый пиксель без масштабировщика; любой другой режим запускает масштабировщик, который восстанавливает кадр по нескольким кадрам, и каждый режим, кроме «Отключено» и «Нативное», трассирует меньше пикселей, чем показывает.</translation>
+        <source>How far below the frame&apos;s size the ray tracer traces. Off traces every pixel with no upscaler; every other mode runs the upscaler, which reconstructs the frame across frames, and every mode but Off and Native traces fewer pixels than it shows.</source>
+        <translation>Насколько ниже разрешения кадра выполняется трассировка лучей. «Отключено» трассирует каждый пиксель без масштабировщика; любой другой режим запускает масштабировщик, который восстанавливает кадр по нескольким кадрам, и каждый режим, кроме «Отключено» и «Нативное», трассирует меньше пикселей, чем показывает.</translation>
     </message>
     <message>
         <source>Off</source>

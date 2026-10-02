@@ -80,10 +80,11 @@ namespace MWRender
 
     /// The picture as OpenSceneGraph draws it: a GL window, a viewer and upstream's frame loop.
     ///
-    /// **The rasterizer is not modified, wrapped or conditionally compiled around — it is gathered.**
-    /// Every threading, realize and traversal decision here is upstream's, moved rather than
-    /// rewritten, which is what makes "does the other renderer do this correctly" answerable by
-    /// comparison (`AGENTS.md`).
+    /// **The rasterizer is gathered and not rewritten.** Every threading, realize and traversal
+    /// decision here is upstream's, moved rather than rewritten, which is what makes "does the other
+    /// renderer do this correctly" answerable by comparison. Its picture is upstream's but for the
+    /// changes `AGENTS.md` accepts: four the ray tracer needs, the frame shown scaled into the window
+    /// (`applyPresentation`), and the gamma its canvas applies in its last draw.
     class GlRenderer final : public Renderer
     {
     public:
