@@ -96,8 +96,20 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   *Done differently:* the rain shelter is `Precipitation::isOccluded`, not a `WorldState` field;
   a script's write to `GameHour` is stated as no cut rather than made one, because upstream's weather
   does not treat it as a skip either.
-- **Now:** Phase 1, the remaining lows of W14 (the material reader, Night-Eye, the distant statics'
-  animation, the post-processing package), then the lows of each other workstream, by section.
+- **Phase 1, lows of W11:** done so far — the clock kept as two ranges with unknowns left unknown
+  and the record carrying each mean and count, the heap label by both flags and the column from the
+  line's own format, perf's fifo waited for, `--against` naming a view only the reference drew,
+  `view` keeping the player's frame-rate limit, a record file that fails to write failing the run
+  without losing its report, an abandoned run closing its record and `shot` clearing its pictures
+  first, the standing note taken per frame only in a played run, the card watched by the
+  renderer's PCI address, the stress hold asked in ticks of the timestamp period, and NVML's two
+  newer reasons named. *Done differently:* the hold's tick is the queue's timestamp period, not a
+  probe timed against the timestamps; the probe met stalls of up to 2.6 ms around the loop and was
+  off by up to four fifths, and both vendors read one counter for the two (Mesa's RADV source and
+  NVIDIA's `%globaltimer`). The record's premises (W11's header) are still open.
+- **Now:** Phase 1, W11's header, then the visibility gates and the lows of each other section;
+  the remaining lows of W14 (the material reader, Night-Eye, the distant statics' animation, the
+  post-processing package) wait where the list above says.
 
 ### Waiting for you
 
