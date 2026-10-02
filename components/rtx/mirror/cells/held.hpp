@@ -162,14 +162,8 @@ namespace Rtx
                        [](const Placement& placement) { return placement.mStood.isStanding(); })
                 && !mGround.mStood.isStanding() && "a cell reused with something still standing");
 
-            mCell = osg::Vec2i();
-            mStatics = false;
-            mShown = 0;
-            mPlacements.clear();
-            mModels.clear();
-            mLights.clear();
-            mByReference.clear();
-            mGround.reuse();
+            reuseKeeping(*this, &HeldCell::mPlacements, &HeldCell::mModels, &HeldCell::mLights, &HeldCell::mByReference,
+                &HeldCell::mGround);
         }
     };
 
@@ -204,6 +198,9 @@ namespace Rtx
 
             /// Cells that name it, adopted or handed over and waiting.
             std::uint32_t mNamed = 0;
+
+            /// Empties it for the next model, keeping the room its parts grew.
+            void reuse() { reuseKeeping(*this, &HeldModel::mParts); }
         };
 
         /// The entry for `model`, made where the frame knows of none.

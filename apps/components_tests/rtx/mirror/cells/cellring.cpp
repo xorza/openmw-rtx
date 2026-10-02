@@ -1614,6 +1614,25 @@ namespace Rtx::Testing
             }
         }
 
+        /// **A held cell reused for the next cell is that cell's from its first field**: every
+        /// scalar back at its default, every list empty with the room it grew, so a field added to
+        /// `HeldCell` is reset with no line of its own.
+        TEST(RtxHeldCellTest, aReusedCellKeepsItsRoomAndNothingOfTheLastCell)
+        {
+            HeldCell held;
+            held.mCell = osg::Vec2i(3, -2);
+            held.mStatics = true;
+            held.mShown = 5;
+            held.mLights.reserve(8);
+
+            held.reuse();
+            EXPECT_EQ(held.mCell, osg::Vec2i());
+            EXPECT_FALSE(held.mStatics);
+            EXPECT_EQ(held.mShown, 0u);
+            EXPECT_TRUE(held.mLights.empty());
+            EXPECT_EQ(held.mLights.capacity(), 8u) << "the room the list grew was given back";
+        }
+
         /// And a model the walk refused, which no cell holds, is counted as filed and never as lent.
         TEST(RtxCellReaderTest, aModelsRoomIsCountedLentThenSpareAndNeverBoth)
         {
