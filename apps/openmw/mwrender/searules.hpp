@@ -9,16 +9,15 @@
 
 namespace MWRender
 {
-    /// The sea's plane, as the game lays it under an exterior: a hundred and fifty cells across, in
-    /// forty segments, its texture repeating every nine hundred units. The rasterizer's water and the
-    /// ray tracer's sea are both this plane.
+    /// The sea's plane, as `MWRender::Water` lays it under an exterior: a hundred and fifty cells
+    /// across, in forty segments, its texture repeating every nine hundred units.
     inline osg::ref_ptr<osg::Geometry> createSeaGeometry()
     {
         return SceneUtil::createWaterGeometry(Constants::CellSizeInUnits * 150, 40, 900);
     }
 
-    /// Where the sea is centred under the exterior cell at `gridX`, `gridY`: the cell's middle.
-    /// Indoors it stands at the origin.
+    /// Where the sea is centred under the exterior cell at `gridX`, `gridY`: the cell's middle, as
+    /// `Water::getSceneNodeCoordinates` centres it. Indoors it stands at the origin.
     inline osg::Vec2f seaCentre(int gridX, int gridY)
     {
         constexpr int half = Constants::CellSizeInUnits / 2;
