@@ -107,11 +107,7 @@ namespace Rtx::Testing
         void setGamma(float) override {}
         Rtx::JobProgress awaitKernels(std::chrono::milliseconds) override { return {}; }
         Rtx::FrameExtents getExtents() const override { return {}; }
-        Rtx::Reconstruction renderFrame(const Rtx::Shaders::VisibilityConstants&, const Rtx::FrameOptions&) override
-        {
-            ++mFrames;
-            return {};
-        }
+        void renderFrame(const Rtx::Shaders::VisibilityConstants&, const Rtx::FrameOptions&) override { ++mFrames; }
         void skipFrame() override { ++mSkipped; }
         std::uint64_t getFrameCount() const override { return mFrames + mSkipped; }
         std::optional<Rtx::FrameResult> finishFrame() override { return std::nullopt; }

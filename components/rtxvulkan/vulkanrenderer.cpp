@@ -515,7 +515,7 @@ namespace Rtx
         return mTracePasses.mVisibility.awaitKernels(patience);
     }
 
-    Reconstruction VulkanRenderer::renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options)
+    void VulkanRenderer::renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options)
     {
         const DeviceScene* const held = mScenes.find(SceneSlot::world());
         assert(held != nullptr && "renderFrame before setScene");
@@ -673,8 +673,6 @@ namespace Rtx
         // What the next frame reprojects against, and the camera as the caller gave it: a jitter is
         // where inside a pixel this frame sampled, not where the eye was.
         mPreviousCamera = camera;
-
-        return reconstruction;
     }
 
     SceneSlot VulkanRenderer::addViewScene()

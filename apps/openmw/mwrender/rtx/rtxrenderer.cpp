@@ -1018,7 +1018,7 @@ namespace MWRender
             options.mDebug = mDebugWalk.walk(*mWorldRoot);
 
         report.mFrame = mRenderer->getFrameCount();
-        report.mReconstruction = mRenderer->renderFrame(constants, options);
+        mRenderer->renderFrame(constants, options);
         report.mConstants = constants;
 
         report.mSpend.at(Rtx::Timing::Trace) = Rtx::since(tracing, std::chrono::steady_clock::now());

@@ -78,9 +78,6 @@ namespace MWRender
         /// answer comes back, a frame or two from now.
         std::uint64_t mFrame = 0;
 
-        /// What put this frame back together.
-        Rtx::Reconstruction mReconstruction{};
-
         /// What the frame was traced with beside the scene — the camera, the sky, the air, the sea
         /// and the sample — for the run's hashes to name when a picture moves and the scene did not.
         Rtx::Shaders::VisibilityConstants mConstants{};

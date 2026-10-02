@@ -408,8 +408,9 @@ namespace Rtx
 
         /// Traces one frame; `setScene` first, which is an assert. Returns before the device has
         /// drawn it, so the caller can place the next one meanwhile, and `finishFrame` reads back
-        /// what it came to. At most two frames are in flight.
-        virtual Reconstruction renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) = 0;
+        /// what it came to, the reconstruction it resolved among it (`FrameResult::mReconstruction`):
+        /// one road for that, the frame's own result. At most `sFramesInFlight` frames are in flight.
+        virtual void renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) = 0;
 
         /// Closes the frame this frame's placements of the world opened, with no trace: where a
         /// placement is not followed by `renderFrame`, because the host refused the camera. Without

@@ -229,15 +229,11 @@ namespace RtxTool
 
         Rtx::FrameExtents mExtents{};
 
-        /// What upscaled the run's frames, as `Reconstruction` reports it: the mode, or `Off` where
-        /// nothing did. **Read off a frame and not off the renderer**,
-        /// which answers the mode alone.
-        Rtx::Upscale mUpscale = Rtx::Upscale::Off;
-
-        /// Where the trace drew from and what its texture levels were offset by, as the frame's
-        /// `Reconstruction` resolved them.
-        Rtx::NoiseSource mNoise = Rtx::NoiseSource::BlueNoiseTile;
-        float mLevelBias = 0.0f;
+        /// What put the run's frames back together, as a frame resolved it: whether the denoisers
+        /// ran, what upscaled, whether the ray jittered, where the trace drew from and what its
+        /// levels were offset by. **Read off a frame and not off the request**, which an upscaler
+        /// overrules: under one the ray always jitters.
+        Rtx::Reconstruction mReconstruction{};
 
         std::uint32_t mMeasured = 0;
         std::uint32_t mWarmup = 0;
