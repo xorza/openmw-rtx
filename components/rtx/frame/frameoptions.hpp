@@ -43,6 +43,12 @@ namespace Rtx
         /// frame the world did not describe.
         SunGlare mGlare{};
 
+        /// The water's clock in seconds, as the host keeps it, which the wake steps by: what the
+        /// frame block carries split in two for a shader (`VisibilityConstants::mWaterTime`), here
+        /// whole, so a step boundary is read off the clock and not off its split rebuilt. Filled
+        /// where the world describes the frame (`describeWorld`).
+        double mWaterSeconds = 0.0;
+
         /// What the frame asks of the reconstruction in place of the profile's, before the
         /// upscaler has its say — `Reconstruction::resolve` is the rule.
         std::optional<ReconstructionRequest> mReconstruction{};

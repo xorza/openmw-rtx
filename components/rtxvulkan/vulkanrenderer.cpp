@@ -570,7 +570,7 @@ namespace Rtx
         if (subject.mSea)
         {
             mMedia.stepRipples(commands, mRing.getRecordingSlot(), osg::Vec2f(camera.mOrigin.x(), camera.mOrigin.y()),
-                joinSeconds(camera.mWaterTime), &timer);
+                options.mWaterSeconds, &timer);
             mMedia.placeRipples(sampled);
         }
 
