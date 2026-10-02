@@ -158,6 +158,7 @@ namespace Rtx
         constants.mSkyHorizon = horizon;
         constants.mSkyZenith = zenith;
         constants.mSkyRamp = reading.mSky.mAtmosphere.mRamp;
+        constants.mSkyDrawn = reading.mSkyDrawn ? 1u : 0u;
         constants.mSkyFill = budget.mFill;
 
         constants.mStars = stars;

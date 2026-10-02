@@ -145,11 +145,10 @@ namespace MWRender
         const bool skyShown = world.mSkyShown;
 
         // An interior has no sky colour: the weather system stops writing it indoors, so the air's
-        // own colour stands in. A quasi-exterior has weather and so has one. A sky turned off is
-        // the fog colour to the top, which is what the rasterizer's clear shows there.
-        const osg::Vec3f zenith = room.has_value() ? room->mSkyZenith
-            : skyShown                             ? Rtx::decodeColour(weather.mSkyColor)
-                                                   : haze;
+        // own colour stands in. A quasi-exterior has weather and so has one. A sky turned off keeps
+        // it: what the sky lights is unchanged, and what an eye sees there is the frame's to say
+        // (`Rtx::WorldReading::mSkyDrawn`).
+        const osg::Vec3f zenith = room.has_value() ? room->mSkyZenith : Rtx::decodeColour(weather.mSkyColor);
 
         // The sun is not assembled here: everything the world says about it goes to the one builder
         // that decides what a sun may be, and the light is taken whole from whichever built it.
@@ -162,7 +161,7 @@ namespace MWRender
             .mSunShareAloft = Rtx::sunShareAloft(world.mGameHour, sky.mTimes),
             .mSunColour = Rtx::decodeColour(world.mSunColour),
             .mAmbient = Rtx::decodeColour(world.mAmbientColour),
-            .mDiscColour = skyShown ? Rtx::decodeColour(weather.mSunDiscColor) : osg::Vec3f(),
+            .mDiscColour = Rtx::decodeColour(weather.mSunDiscColor),
             .mGlare = weather.mGlareView,
         };
         const Rtx::Skylight light = room.has_value() ? room->mLight : Rtx::makeSkylight(reading);
@@ -212,7 +211,8 @@ namespace MWRender
                 .mStarFade = weather.mNight ? weather.mNightFade : 0.f,
                 .mFog = air,
             },
-            .mOutdoors = skyShown,
+            .mOutdoors = world.isOutdoors(),
+            .mSkyDrawn = skyShown,
             .mGlare = weather.mGlareView,
             .mStarRoll = Sky::starRoll(world.mGameTime),
             .mSky = mSkyContent,

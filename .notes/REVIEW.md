@@ -51,19 +51,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
   **The unread inputs.** `WorldState::mWaterFog` is described every frame, and nothing in `mwrender/rtx` or `components/rtx` reads it. `Water_UnderwaterIndoorFog`, the four `Water_Underwater*Fog` hours and `[Fog] distant underwater fog start/end` reach only the rasterizer. `look.h:857-863` explains why the density is not used, but not that the colour is frozen.
 
   **Better shape.** `SkyReader` reads the two fallbacks once, as it reads `Moons_Script_Color`, and hands the albedo in the frame constants. A test holds `WATER_EXTINCTION`'s stated agreement against what was read. The weather fog's 15% share of the water colour (`apps/openmw/mwrender/fogmanager.cpp:86-93`), which tints a stormy sea grey, is lost with it. *(kind: design; severity: low; benefit: the content's water colour reaches the trace)*
-- [ ] **Toggling the sky off outdoors changes the trace's lighting, where the rasterizer only hides the dome** — `apps/openmw/mwrender/rtx/skyreader.cpp:130-142`, `:207`; `components/rtx/environment/frameworld.cpp:136-153`, `:162-182`; `components/rtxvulkan/shaders/lib/frame.glsl:31-34`.
-
-  **The input.** `WorldState::mSkyShown` is false outdoors only under `tsky` or `ToggleSky` (`apps/openmw/mwworld/worldimp.cpp:179-184`, `:818-823`).
-
-  **Ray tracer.** `SkyReader` hands it over as `WorldReading::mOutdoors`, which `describeWorld` uses as "the sky is a light". So under `tsky`:
-  - `mAmbientFromSky` drops to nought: escaped bounces return nothing, and the ambient's occlusion reach becomes a room's.
-  - The moons stop lighting.
-  - The deck's shadow goes.
-  - The air's colour skips `fogColour` and is the raw decoded fog record.
-
-  `skyreader.cpp:134` itself says "the sun and the weather go on lighting".
-
-  **Better shape.** Two fields: whether the cell is open to the sky (`WorldState::isOutdoors`), which decides the light, and whether the sky is drawn (`mSkyShown`), which only blanks the dome, decks, discs and patches the eye and the mirrors see. *(kind: bug; severity: low; benefit: a debug toggle that changes only what it says)*
 - [ ] **`tx_sun_05` and `tx_sun_flash_grey_05` are never read, and nothing says the bloom stands in for the flash** — `apps/openmw/mwrender/skyutil.cpp:625-642`, `:146-215`, `:764-792`; `components/rtx/shaders/look.h:177-183`; `components/rtx/shaders/glare.h:31-38`.
 
   **Rasterizer.** It draws the sun as a textured quad. Over that it draws an additive flash sprite 2.6 times wider, scaled by the occlusion query's seen share and faded out under a tenth of it.

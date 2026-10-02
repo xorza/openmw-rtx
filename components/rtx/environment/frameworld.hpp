@@ -42,6 +42,10 @@ namespace Rtx
         /// interior cell the engine runs the weather system for.
         bool mOutdoors = false;
 
+        /// Whether that sky is drawn, which `tsky` turns off: the eye and the mirrors then see the
+        /// fog colour where they reached nothing, and the sky lights all it lit.
+        bool mSkyDrawn = true;
+
         /// The weather's `Glare_View`, which is what keeps the stars in under an overcast.
         float mGlare = 1.0f;
 

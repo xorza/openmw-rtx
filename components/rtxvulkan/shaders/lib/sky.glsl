@@ -376,6 +376,15 @@ vec3 moonFace(MoonDisc moon, vec3 direction, float blur, out float covered)
 /// @param shown how much of the star field is still in front of what this returns, from none to all.
 vec3 skyRadiance(vec3 origin, vec3 direction, float blur, bool discs, out float shown)
 {
+    // **A sky turned off is the fog colour the rasterizer clears to**, with nothing on it: `tsky`
+    // hides the sky node and leaves its light, so what changes is what a ray that reached nothing
+    // shows. The same answer on every lane of a frame.
+    if (frame.mSkyDrawn == 0u)
+    {
+        shown = 0.0;
+        return frame.mSkyHorizon;
+    }
+
     shown = 1.0;
 
     // **Everything on or beyond the celestial sphere first, which is what a moon stands in front
