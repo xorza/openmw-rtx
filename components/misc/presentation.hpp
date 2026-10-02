@@ -53,8 +53,9 @@ namespace Misc
 
     /// The middle of a `frame` at the aspect of `asked`: what a save's thumbnail is cut from, so a
     /// wide frame's thumbnail is not the whole of it squashed. In whole pixels and centred, the
-    /// leftover halved and rounded down, as `MWRender::ScreenshotManager` cuts it; worked in whole
-    /// numbers, where a float would round a 16K side. Sides of nought or less are asked of nothing.
+    /// leftover halved and rounded down, by the rule `MWRender::ScreenshotManager` cuts by; worked in
+    /// whole numbers where it works in double, so the two can part by a pixel where the double
+    /// lands a hair under a whole one. Sides of nought or less are asked of nothing.
     Crop cropToAspect(osg::Vec2i frame, osg::Vec2i asked);
 
     /// How many frame pixels a unit of the interface takes: `setting` times the frame pixels that
