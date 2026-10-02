@@ -1,5 +1,8 @@
 #include "datetimemanager.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 #include <components/l10n/manager.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -181,6 +184,16 @@ namespace MWWorld
             return {};
         else
             return months[month];
+    }
+
+    bool DateTimeManager::jumps(float before, float after, double step)
+    {
+        // The frame's step reaches the hour through a float, whose spacing below 24 is at most
+        // 2^-19 of an hour: a held hour's step back is the step as that rounding left it.
+        constexpr double hourSpacing = 0x1p-19;
+
+        const double apart = std::fmod(std::abs(static_cast<double>(after) - static_cast<double>(before)), 24.0);
+        return std::min(apart, 24.0 - apart) > step + hourSpacing;
     }
 
     void DateTimeManager::updateGlobalFloat(GlobalVariableName name, float value)

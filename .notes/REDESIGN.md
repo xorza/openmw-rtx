@@ -149,13 +149,13 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
 
 ### Waiting for you
 
-- **W1 step 5: a write of `GameHour` as a cut, refined.** The plan calls `notifyCut` on every write
-  of the `GameHour` global. A script that holds the hour writes it every frame, and every frame
-  would then drop every history, which is a picture of noise for as long as the mod runs. The
-  branch states for now that a script's write is no cut, as upstream's weather treats it (the seam
-  and `architecture.md` say so). In Phase 3 the cut goes where the write moves the clock by more
-  than the frame's own step, which is the review's wording; that keeps a held hour and catches
-  `set gamehour to 21`. Say if you want every write to cut instead.
+- **W1 step 5: a write of `GameHour` as a cut, refined.** The plan called `notifyCut` on every
+  write of the `GameHour` global. A script that holds the hour writes it every frame, and every
+  frame would then drop every history. The branch cuts where the write moves the clock by more than
+  the frame's own step, either way round the day (`DateTimeManager::jumps`): a held hour moves it
+  back one step and does not cut, and `set gamehour to 21` does. A rest, a wait, travel and jail
+  were cuts already, through upstream's `notifyWorldSpaceChanged` in a non-incremental
+  `advanceTime`. Say if you want every write to cut instead.
 - **Coverage (high 5, W14.1): the plan's rule was measured and not taken.** The plan said a blend
   is a pane wherever one texel of its finest level is soft. Every DXT3 leaf, banner, rope and sail
   the game ships is soft at its anti-aliased edge (4-bit alpha, steps of 17), so the rule made them
