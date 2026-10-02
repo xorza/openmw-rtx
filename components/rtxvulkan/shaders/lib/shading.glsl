@@ -219,8 +219,11 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     weighLamps(kept, state, position, facing, INV_PI, gloss);
     kept.mFrom = leaving;
 
+    // **The lamps that take light away take it off the lamps' term and no further**, floored at
+    // nought as the rasterizer clamps its lighting: the sun, the sky and the bounce stay whole.
     float lampShare;
-    const vec3 lampDiffuse = lampsThrough(kept, lampDraw, lampShare);
+    const vec3 lampDiffuse
+        = max(lampsThrough(kept, lampDraw, lampShare) - darkeningAt(position, facing, INV_PI), vec3(0.0));
     radiance += lampDiffuse;
 
     if (gloss.mGlossy)

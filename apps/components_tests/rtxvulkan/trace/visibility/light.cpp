@@ -641,10 +641,12 @@ namespace Rtx::Testing
             // A sky rather than the cell's ambient, for the reason the sun's own test gives: what
             // fills a wall the eye can see is the hemisphere it gathers.
             const auto render = [&](const std::optional<Light>& light, const osg::Vec3f& sky, bool blocked,
-                                    std::uint32_t noLamps = 0) {
+                                    std::uint32_t noLamps = 0, std::span<const Light> more = {}) {
                 SceneDesc scene = makeWall();
                 if (light.has_value())
                     scene.addLight(*light);
+                for (const Light& also : more)
+                    scene.addLight(also);
                 if (blocked)
                     addQuad(scene, occluder);
 
@@ -703,6 +705,28 @@ namespace Rtx::Testing
             // **A picture no lamp lights**, a map tile, which the rasterizer's light manager hands
             // none: the sky's 124 with the lamp there, as without it.
             EXPECT_EQ(render(lamp, sky, false, 1), 124) << "a lamp lit a picture that asked for none";
+
+            // **A lamp that takes light away takes its unshadowed share off the lamps' term**, as
+            // the rasterizer subtracts a negative light. Half the lamp's intensity, negated, beside
+            // it leaves half its radiance: `0.5 * 0.508947 = 0.254474`, which encodes to
+            // `1.055 * (0.5 * 0.254474)^(1/2.4) - 0.055 = 0.39186`, or 100 of 255.
+            Light taking = lamp;
+            taking.mIntensity = osg::Vec3f(-2000.0f, -2000.0f, -2000.0f);
+            EXPECT_EQ(render(lamp, osg::Vec3f(), false, 0, std::span(&taking, 1)), 100) << "half the lamp taken";
+
+            // It takes from the lamps and no further, floored at nought: with no lamp the sky stays.
+            EXPECT_EQ(render(std::nullopt, sky, false, 0, std::span(&taking, 1)), 124) << "it darkened the sky";
+
+            // And it casts no shadow, as the rasterizer's casts none: the quad between it and the wall
+            // leaves the darkening whole. The lamp it darkens stands clear of the quad, its ray
+            // crossing y = -25 at x = 15.
+            Light aside = lamp;
+            aside.mPosition = osg::Vec3f(30.0f, -50.0f, 0.0f);
+            const int clear = render(aside, osg::Vec3f(), false);
+            const int darkened = render(aside, osg::Vec3f(), false, 0, std::span(&taking, 1));
+            EXPECT_LT(darkened, clear) << "the darkening did not reach the wall";
+            EXPECT_EQ(render(aside, osg::Vec3f(), true, 0, std::span(&taking, 1)), darkened)
+                << "the quad shadowed a lamp that takes light away";
         }
 
         /// **A wall with a specular map reflects the lamp by the lobe the host evaluates**, a

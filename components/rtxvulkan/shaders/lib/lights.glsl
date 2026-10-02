@@ -90,7 +90,21 @@ uvec2 lampsInCell(vec3 cell)
 
     const uvec3 at = uvec3(cell);
     // `flat` is what this wants to be called, and GLSL reserves it for interpolation.
-    const uint index = (at.z * frame.mLightGrid.mSize.y + at.y) * frame.mLightGrid.mSize.x + at.x;
+    const uint index = 2u * ((at.z * frame.mLightGrid.mSize.y + at.y) * frame.mLightGrid.mSize.x + at.x);
+
+    return uvec2(lightListAt(index), lightListAt(index + 1u));
+}
+
+/// The lamps that take light away in the cell at `position`: the run under the key after the
+/// cell's own — `Rtx::LightGrid::getList`.
+uvec2 darkeningReaching(vec3 position)
+{
+    const vec3 cell = floor((position - frame.mLightGrid.mOrigin) * frame.mLightGrid.mInverseCell);
+    if (any(lessThan(cell, vec3(0.0))) || any(greaterThanEqual(cell, vec3(frame.mLightGrid.mSize))))
+        return uvec2(0u, 0u);
+
+    const uvec3 at = uvec3(cell);
+    const uint index = 2u * ((at.z * frame.mLightGrid.mSize.y + at.y) * frame.mLightGrid.mSize.x + at.x) + 1u;
 
     return uvec2(lightListAt(index), lightListAt(index + 1u));
 }
@@ -548,6 +562,25 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
                 lamp.mTowards, gloss, facing.mSide),
             row);
     }
+}
+
+/// What every lamp that takes light away takes from a surface's direct lamp term, per unit albedo:
+/// its unshadowed share, as the rasterizer subtracts a negative light — no shadow ray, because the
+/// rasterizer casts none from a point light, and nothing from the far side of a solid.
+///
+/// @param scale the asker's own share of a lamp, as `weighLamps` takes it: `INV_PI` for a surface.
+vec3 darkeningAt(vec3 from, Facing facing, float scale)
+{
+    vec3 taken = vec3(0.0);
+    const uvec2 near = frame.mNoLamps != 0u ? uvec2(0u) : lampsWithin(darkeningReaching(from));
+    for (uint i = near.x; i < near.y; ++i)
+    {
+        const GpuLight held = lightAt(lightListAt(i));
+        const Lamp lamp = lampAt(held, from);
+        taken -= held.mIntensity * (litCosine(facing, lamp.mTowards) * lamp.mReaching * scale);
+    }
+
+    return taken;
 }
 
 /// What the world leaves of the lamp a reservoir held, from none of it to all.

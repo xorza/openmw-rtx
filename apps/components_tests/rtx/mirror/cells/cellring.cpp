@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
+#include <limits>
 #include <map>
 #include <memory>
 #include <optional>
@@ -757,8 +758,8 @@ namespace Rtx::Testing
         }
 
         /// **What the reader cannot take is refused where its cell is adopted**, on the frame's
-        /// thread, which is the one that reports: a model its walk refused, and a lamp that takes
-        /// light away. The model is walked once however many references name it, and what else the
+        /// thread, which is the one that reports: a model its walk refused, and a lamp standing where
+        /// no number says. The model is walked once however many references name it, and what else the
         /// cell holds stands. A land texture that does not read is not the reader's to refuse: its
         /// layer stands, and the texture table stands it in and refuses it as it does any texture.
         TEST_F(RtxCellRingTest, whatTheReaderCannotTakeIsRefusedWhereItsCellIsAdopted)
@@ -780,9 +781,12 @@ namespace Rtx::Testing
                     .mRefNum = ESM::RefNum{ 3, 0 },
                     .mPosition = inCell },
             };
+            const float nowhere = std::numeric_limits<float>::quiet_NaN();
             mStorage.mLit = {
-                Lit{
-                    .mCell = osg::Vec2i(3, 1), .mRecord = "dark", .mRefNum = ESM::RefNum{ 4, 0 }, .mPosition = inCell },
+                Lit{ .mCell = osg::Vec2i(3, 1),
+                    .mRecord = "lit",
+                    .mRefNum = ESM::RefNum{ 4, 0 },
+                    .mPosition = osg::Vec3f(nowhere, nowhere, nowhere) },
                 Lit{ .mCell = osg::Vec2i(3, 1), .mRecord = "lit", .mRefNum = ESM::RefNum{ 5, 0 }, .mPosition = inCell },
             };
             start();
@@ -792,10 +796,8 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.refusals().count(Refused::Lamp), 1u);
             EXPECT_EQ(mContent.mBrokenAsked, 1u) << "a refused model walked again for its second reference";
 
-            EXPECT_EQ(filled.mDistantStatics, 2u)
-                << "the tree beside the broken models stands, and so does the dark lamp's lantern: a light this "
-                   "refuses is no model it refuses";
-            ASSERT_EQ(mScene.lights().size(), std::size_t{ 1 }) << "and the lamp beside the dark one burns";
+            EXPECT_EQ(filled.mDistantStatics, 1u) << "the tree beside the broken models stands";
+            ASSERT_EQ(mScene.lights().size(), std::size_t{ 1 }) << "and the lamp beside the refused one burns";
             EXPECT_EQ(mScene.lights().front().mPosition, inCell);
 
             const Index lost = mScene.textures().findFile(VFS::Path::Normalized("textures/rock_diffusespec.dds"));
@@ -806,8 +808,8 @@ namespace Rtx::Testing
 
         /// The paging's size rule, per reference: a radius under the threshold at the eye's distance
         /// to the cell is not stood, and the threshold is the eye's and not the chunk's. A model
-        /// that glows is never thinned, however small, and nor is a lamp whose light stands; a lamp
-        /// this cannot light, one that takes light away, is thinned as a fern is.
+        /// that glows is never thinned, however small, and nor is a lamp whose light stands, one that
+        /// takes light away among them.
         TEST_F(RtxCellRingTest, theSizeRuleIsTheEyesDistanceTimesTheSetting)
         {
             const Placed tree{ .mCell = osg::Vec2i(3, 0),
@@ -839,8 +841,8 @@ namespace Rtx::Testing
             mRing.setMinSize(0.01f);
             start();
 
-            EXPECT_EQ(fill().mDistantStatics, 3u) << "the tree clears 204.8, the ember glows and the flame gives "
-                                                     "light; the fern and the dark lamp do not";
+            EXPECT_EQ(fill().mDistantStatics, 4u) << "the tree clears 204.8, the ember glows and the two lamps' "
+                                                     "lights stand; the fern does not";
 
             // Nearer, the fern clears too: at a hundredth of 8192 the threshold is 81.92, and the
             // fern's 28.28 still does not — so the threshold is lowered instead.
@@ -849,7 +851,7 @@ namespace Rtx::Testing
 
             // A threshold of 20480 thins even the tree.
             mRing.setMinSize(1.0f);
-            EXPECT_EQ(walk(mWalked++).mDistantStatics, 2u) << "the ember and the flame alone";
+            EXPECT_EQ(walk(mWalked++).mDistantStatics, 3u) << "the ember and the two lamps alone";
         }
 
         /// What the size rule admits is a prefix of the cell's placements, largest first, and a

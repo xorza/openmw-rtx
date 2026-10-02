@@ -25,6 +25,14 @@ namespace
 
     using CellBox = Rtx::LightGrid::CellBox;
 
+    /// Where a light stands for the grid, with its reach negated where it takes light away: what
+    /// decides its cells and its key, so a light that changed either is binned again.
+    osg::Vec4f binnedOn(const Rtx::Light& light)
+    {
+        const bool takes = light.mIntensity.x() < 0.0f || light.mIntensity.y() < 0.0f || light.mIntensity.z() < 0.0f;
+        return osg::Vec4f(light.mPosition, takes ? -light.mReach : light.mReach);
+    }
+
     /// The flat index of a cell, which is the one arithmetic the shader has to agree with.
     std::size_t cellAt(std::uint32_t x, std::uint32_t y, std::uint32_t z, const osg::Vec3ui& size)
     {
@@ -86,7 +94,7 @@ namespace Rtx
         for (std::size_t at = 0; at < lights.size(); ++at)
         {
             const Light& light = lights[at];
-            const osg::Vec4f stood(light.mPosition, light.mReach);
+            const osg::Vec4f stood = binnedOn(light);
             if (mBinnedOn[at] == stood)
                 continue;
 
@@ -97,7 +105,7 @@ namespace Rtx
             }
 
             const CellBox box = boxAround(light.mPosition, light.mReach, mOrigin, mInverseCell, mSize);
-            rebin = rebin || box != mBoxes[at];
+            rebin = rebin || box != mBoxes[at] || (mBinnedOn[at].w() < 0.0f) != (stood.w() < 0.0f);
             mBoxes[at] = box;
             mBinnedOn[at] = stood;
         }
@@ -126,7 +134,7 @@ namespace Rtx
         mBinnedOn.clear();
         mBinnedOn.reserve(lights.size());
         for (const Light& light : lights)
-            mBinnedOn.emplace_back(light.mPosition, light.mReach);
+            mBinnedOn.push_back(binnedOn(light));
 
         // In double, because the lamps' numbers are finite and their difference in float is not: a
         // lamp placed near the end of the range, which a corrupted record reads as easily as NaN,
@@ -177,14 +185,16 @@ namespace Rtx
     void LightGrid::fill()
     {
         const std::size_t cells = std::size_t{ mSize.x() } * mSize.y() * mSize.z();
+        const auto keyOf
+            = [&](std::size_t index, std::size_t cell) { return 2 * cell + (mBinnedOn[index].w() < 0.0f ? 1 : 0); };
 
-        mList.start(cells);
-        for (const CellBox& box : mBoxes)
-            forEachCell(box, mSize, [&](std::size_t cell) { mList.count(cell); });
+        mList.start(2 * cells);
+        for (std::size_t index = 0; index < mBoxes.size(); ++index)
+            forEachCell(mBoxes[index], mSize, [&](std::size_t cell) { mList.count(keyOf(index, cell)); });
 
         mList.place();
         for (std::size_t index = 0; index < mBoxes.size(); ++index)
-            forEachCell(
-                mBoxes[index], mSize, [&](std::size_t cell) { mList.put(cell, static_cast<std::uint32_t>(index)); });
+            forEachCell(mBoxes[index], mSize,
+                [&](std::size_t cell) { mList.put(keyOf(index, cell), static_cast<std::uint32_t>(index)); });
     }
 }
