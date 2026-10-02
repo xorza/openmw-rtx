@@ -56,32 +56,30 @@ wrong:
 
 A fifth is the seam's: both renderers draw their frame at `[Video] resolution x/y` and show it
 scaled into the window with black beside it (`Misc::Presentation`), so the GUI, the projection, the
-pointer and Lua read one size whichever renderer draws.
+pointer and Lua read one size whichever renderer draws. A settings file from upstream, which kept
+the window's size there, has it moved to the window on the first start, and the launcher and
+`settings-default.cfg` say what each setting now sets.
 
 **The rest of the tree.**
 
 - The `[RTX]` settings pages and their translations.
 - `components/crashcatcher`: upstream's crash catcher is replaced whole by the fork's own, a
-  Crashpad monitor process.
+  Crashpad monitor process, with the calls that set it up from the configuration
+  (`Debug::setCrashReports`, the hang limit and the version).
 - `README.md`, which is the fork's own page and what a package ships, and `CI/`.
 - The visibility gates (`MWScript::VisibilityGates` and the calls that feed them): without them
   the distance stands scripted stages the game keeps down.
 - The pose hook in `RenderingManager`'s intersection visitor (`Renderer::poseForIntersection`): a
   skinned body answers a CPU ray with the copy its last cull posed, and the ray tracer culls no
   world, so the crosshair met every actor in its bind pose.
-- `ScreenshotManager`'s thumbnail crop, through `Misc::cropToAspect`, which the ray tracer's
-  `capture` calls as well: one rule for where a save's thumbnail is cut from.
 - The sky meshes' vertex rules, `components/sky/vertexrules.hpp`, which `ModVertexAlphaVisitor`
-  reads: the rasterizer and the ray tracer fade the cloud shell, the atmosphere and the star dome by
-  one rule each.
+  reads: the rasterizer and the ray tracer fade the cloud shell and the star dome by one rule each.
 - `SceneUtil::StateSetUpdater::getGeneration`, which `reset` bumps: the mirror applies an updater to
   a state set of its own after the node's update did, and a glow that ended or changed colour by
   `reset` left the mirror's copy with its last sheet.
 - `MWWorld::MoonModel::phaseEighths`, the phase continuous in game time beside the engine's
   discrete one: the ray tracer draws the moon to the horizon, where the engine changes a phase, and
   its terminator follows this one rather than jumping a quarter phase in plain view.
-- `SceneUtil::LightController`'s band and speeds, named as constants: the ray tracer's lamp
-  animation keeps the game's statistics by reading them there, not by restating them.
 - The port to SDL3, through the input, the GUI and the window code: the presentation reads a
   window's pixel density and display scale, which a fractionally scaled Wayland desktop sets and
   SDL2 cannot report. SDL3 has no gamma ramp, so `[Video] gamma` is the renderers' own: the
@@ -94,7 +92,21 @@ pointer and Lua read one size whichever renderer draws.
   `components/files/configurationmanager` included: one set of checks for every file.
 - A number read from text is finite (`Misc::StringUtils::toNumeric`, which the settings read
   through): `std::from_chars` reads `inf` and `nan`, and no sanitizer stopped either reaching
-  the picture.
+  the picture. Where `from_chars` has no floating point, the stream reads only the prefix it would
+  (`floatPrefix`), so a spelling is one number on every toolchain.
+- What the game does in one step and the ray tracer's histories must hear: a reference the world
+  moves with its physics placed outright is told as a jump (`World::moveObject`'s `jumps`,
+  `RenderingManager::notifyJumped`), and a write of `GameHour` that moves the clock by more than the
+  frame's own step is a cut (`World::noteHourWritten`, `DateTimeManager::jumps`).
+- What the ray tracer reads of the rasterizer's own state: the projection offset `SceneFrame` is
+  handed beside the projection, and `Precipitation::isShown` and its occlusion setting, so neither
+  renderer draws rain the other hides.
+- The renderer's answer to what it declines (`Renderer::support`), asked where the console, Lua and
+  the settings window would otherwise toggle what does nothing under it, and `ToggleBorders` under
+  the ray tracer.
+- `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
+  view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
+  it.
 
 ## Where the code lives
 
