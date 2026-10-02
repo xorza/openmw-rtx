@@ -178,6 +178,15 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   `andrano-tomb`, `mournhold-arrival`), brighter: the guild's mean byte 47 → 65, the tomb's 55 →
   65. The other way to one edge, black raised to 2^-10, ignores the band and darkens the same
   places (the guild 47 → 31.5), which lost the room's detail. Say if you want that one.
+- **D5 answered: a half store rounds toward nought on this card** (`RtxHalfStoreTest`). The bounce's
+  running mean and the shadow moments are full floats now. The cascade writes every level through
+  one declaration, so every level went to full floats: release bench on a quiet card, the filter
+  zone about +0.05 ms and the accumulate zone +0.03 to +0.08 ms at the two decks, nothing at the
+  guild. Bias against the converged reference fell at all three `noise` places (1.93 → 1.89,
+  1.62 → 1.60, 2.17 → 2.13). A split that keeps the later levels in halves (one body, two declared
+  targets) took half of that bias back (1.91, 1.61, 2.15), because the later levels' stores round
+  toward nought too; its saving could not be measured — another program held the card — so the
+  branch keeps every level in full floats. Say if the 0.1 ms matters more than the bias.
 - **Coverage (high 5, W14.1): the plan's rule was measured and not taken.** The plan said a blend
   is a pane wherever one texel of its finest level is soft. Every DXT3 leaf, banner, rope and sail
   the game ships is soft at its anti-aliased edge (4-bit alpha, steps of 17), so the rule made them
