@@ -36,6 +36,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/renderer.cpp
     mwrender/rtxrenderer.cpp
     mwrender/rtxsettings.cpp
+    mwrender/rtxsupport.cpp
     mwrender/tracedterrain.cpp
     mwrender/waterstate.cpp
     mwrender/worldmirror.cpp

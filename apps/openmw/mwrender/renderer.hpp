@@ -21,6 +21,7 @@
 
 #include "ground.hpp"
 #include "rendermode.hpp"
+#include "rendersupport.hpp"
 
 namespace osg
 {
@@ -397,10 +398,13 @@ namespace MWRender
 
         virtual void setVSync(SDLUtil::VSyncMode mode) = 0;
 
-        /// Settings the player changed in the menu, as `Settings::Manager` reports them. Each
-        /// renderer picks out its own — the rasterizer its shader chain, the ray tracer its
-        /// upscaler — and the game never learns which setting belongs to whom.
-        virtual void processChangedSettings(const Settings::CategorySettingVector& changed) {}
+        /// What this renderer honours, and why it declines the rest. Asked wherever the game would
+        /// otherwise branch on which renderer it has: the settings window, the console, Lua.
+        virtual const RenderSupport& support() const = 0;
+
+        /// Settings the player changed in the menu, as `Settings::Manager` reports them, of which
+        /// the renderer is handed the ones its `support` honours.
+        void processChangedSettings(const Settings::CategorySettingVector& changed);
 
         /// The origin the per-frame profiler measures from, so its spans land on the same axis as
         /// the renderer's own counters.
@@ -460,6 +464,9 @@ namespace MWRender
 
         /// A render mode other than `Render_Scene`, which the seam answers itself.
         virtual bool toggleOwnRenderMode(RenderMode mode) { return false; }
+
+        /// The changed settings the renderer honours, out of `processChangedSettings`.
+        virtual void applyChangedSettings(const Settings::CategorySettingVector& honoured) {}
 
         /// What `renderLoadingFrame` says before it draws: how long the frame stands for, which is
         /// what the rasterizer's compiler is given to spend on what a loader handed over.

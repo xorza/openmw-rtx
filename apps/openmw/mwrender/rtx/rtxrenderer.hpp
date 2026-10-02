@@ -168,7 +168,7 @@ namespace MWRender
 
         /// A present mode: off is mailbox rather than immediate, and adaptive is relaxed FIFO.
         void setVSync(SDLUtil::VSyncMode mode) noexcept override;
-        void processChangedSettings(const Settings::CategorySettingVector& changed) noexcept override;
+        const RenderSupport& support() const noexcept override;
 
         std::unique_ptr<MyGUIPlatform::Platform> createGuiPlatform(float scalingFactor,
             VFS::Path::NormalizedView resourcePath, const std::filesystem::path& logPath) noexcept override;
@@ -235,6 +235,8 @@ namespace MWRender
         /// The projection follows the frame's aspect at once; the trace and the surface follow at
         /// the next frame's fit, which waits for a window being dragged to settle.
         void applyPresentation() noexcept override;
+
+        void applyChangedSettings(const Settings::CategorySettingVector& changed) noexcept override;
 
     private:
         /// Builds everything from the setup, which is spent here. Delegated to, so `mRun` can bind

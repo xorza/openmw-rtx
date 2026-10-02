@@ -222,6 +222,19 @@ namespace MWRender
         applyWorldShown();
     }
 
+    void Renderer::processChangedSettings(const Settings::CategorySettingVector& changed)
+    {
+        // A set and not a span, because the renderers ask it by key. Rebuilt per change, which is
+        // a player choosing from a menu and not a frame.
+        Settings::CategorySettingVector honoured;
+        for (const Settings::CategorySetting& setting : changed)
+            if (support().declinedSetting(setting.first, setting.second).empty())
+                honoured.insert(setting);
+
+        if (!honoured.empty())
+            applyChangedSettings(honoured);
+    }
+
     bool Renderer::toggleRenderMode(const RenderMode mode)
     {
         if (mode != Render_Scene)

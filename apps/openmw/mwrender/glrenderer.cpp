@@ -80,6 +80,7 @@
 #include "glground.hpp"
 #include "glmapoverlay.hpp"
 #include "gloffscreenview.hpp"
+#include "glsupport.hpp"
 #include "glworld.hpp"
 #include "groundcover.hpp"
 #include "mapoverlay.hpp"
@@ -847,7 +848,12 @@ namespace MWRender
         return mViewer->getIncrementalCompileOperation();
     }
 
-    void GlRenderer::processChangedSettings(const Settings::CategorySettingVector& changed)
+    const RenderSupport& GlRenderer::support() const
+    {
+        return glSupport();
+    }
+
+    void GlRenderer::applyChangedSettings(const Settings::CategorySettingVector& changed)
     {
         if (!mWorld)
             return;
