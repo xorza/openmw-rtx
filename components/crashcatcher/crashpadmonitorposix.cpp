@@ -1,6 +1,7 @@
 #include "crashpadmonitorsystem.hpp"
 
 #include <array>
+#include <cerrno>
 #include <csignal>
 #include <cstdint>
 #include <ctime>
@@ -27,7 +28,12 @@ namespace Crash::Monitor
             // No descriptor is a kernel older than 5.3, where nothing is sent rather than something
             // sent to whatever process has the id now.
             (void)id;
-            return hold >= 0 && syscall(SYS_pidfd_send_signal, static_cast<int>(hold), number, nullptr, 0) == 0;
+            if (hold < 0)
+            {
+                errno = EBADF;
+                return false;
+            }
+            return syscall(SYS_pidfd_send_signal, static_cast<int>(hold), number, nullptr, 0) == 0;
 #else
             (void)hold;
             return kill(static_cast<pid_t>(id), number) == 0;
@@ -54,9 +60,11 @@ namespace Crash::Monitor
         send(mId, mHold, SIGUSR2);
     }
 
-    bool GameProcess::end() const
+    Ending GameProcess::end() const
     {
-        return send(mId, mHold, SIGKILL);
+        if (send(mId, mHold, SIGKILL))
+            return Ending::Ended;
+        return errno == ESRCH ? Ending::Gone : Ending::Failed;
     }
 
     std::string describeException(const crashpad::ExceptionSnapshot& exception, std::uint32_t process)

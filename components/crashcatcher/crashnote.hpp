@@ -119,5 +119,11 @@ namespace Crash
     /// runs, with `first`'s note first. A thread whose note is empty is doing nothing it noted, and
     /// is left out. The copy must be the whole table: the monitor is this same
     /// executable and knows its layout.
-    void readNotes(std::span<const std::byte> table, std::uint64_t first, NotesRead& into);
+    ///
+    /// **`faulted` says the dump is of a fault the system raised, not one the process asked for**,
+    /// and such a dump is a crash whatever the table says. A thread that faults while another's hang
+    /// or report is being written finds the table saying `Hang` or `Report`, because the gate holds
+    /// the catcher's own reports and no fault; the kind and the reason are then the other report's,
+    /// and are not read.
+    void readNotes(std::span<const std::byte> table, std::uint64_t first, bool faulted, NotesRead& into);
 }

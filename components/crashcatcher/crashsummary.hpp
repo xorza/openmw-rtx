@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -47,8 +49,10 @@ namespace Crash
     std::string title(const CrashFacts& facts);
 
     /// Why `std::terminate` ran, as a report names it: the uncaught exception's message where there
-    /// is one. Called from inside a terminate handler, where the exception is still current.
-    std::string terminateReason();
+    /// is one, written into `into` and cut to what a note holds. Called from inside a terminate
+    /// handler, where the exception is still current, so it allocates nothing: an uncaught
+    /// `std::bad_alloc` is one of the reasons it names.
+    std::string_view terminateReason(std::span<char, sNoteCapacity> into);
 
     /// The summary of `facts`, a line each into `lines`, each without the log's time stamp or a
     /// line end. The same lines on every system, whichever of them wrote the report.

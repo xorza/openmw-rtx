@@ -279,14 +279,6 @@ namespace Crash
                 CrashFacts facts;
                 const crashpad::ExceptionSnapshot* const exception = snapshot->Exception();
                 facts.mThread = exception != nullptr ? exception->ThreadID() : 0;
-
-                std::vector<std::byte> table(mMonitor.mNotesSize);
-                const crashpad::ProcessMemory* const memory = snapshot->Memory();
-                const bool read
-                    = memory != nullptr && !table.empty() && memory->Read(mMonitor.mNotes, table.size(), table.data());
-                readNotes(read ? std::span<const std::byte>(table) : std::span<const std::byte>(), facts.mThread,
-                    facts.mNotes);
-
                 facts.mStalledFor = mMonitor.mStalledFor.load();
 
                 if (exception != nullptr)
@@ -298,6 +290,15 @@ namespace Crash
                         scanStack(*snapshot, facts.mThread, *context, facts.mStack);
                     }
                 }
+
+                // The exception says what the dump is, and the table only what a dump asked for is:
+                // `describeException` names every fault and nothing the game asked for.
+                std::vector<std::byte> table(noteTable().size());
+                const crashpad::ProcessMemory* const memory = snapshot->Memory();
+                const bool read = memory != nullptr && mMonitor.mNotes != 0
+                    && memory->Read(mMonitor.mNotes, table.size(), table.data());
+                readNotes(read ? std::span<const std::byte>(table) : std::span<const std::byte>(), facts.mThread,
+                    !facts.mException.empty(), facts.mNotes);
 
                 for (const auto& [key, value] : snapshot->AnnotationsSimpleMap())
                     facts.mAnnotations.emplace_back(key, value);
@@ -373,10 +374,19 @@ namespace Crash
                 return;
             }
 
-            if (ended || !monitor.mGame.end())
-                appendToLog(monitor, { "Hang: the game ended before End was answered, and nothing was ended" });
-            else
-                monitor.mEnded = true;
+            const Monitor::Ending ending = ended ? Monitor::Ending::Gone : monitor.mGame.end();
+            switch (ending)
+            {
+                case Monitor::Ending::Ended:
+                    monitor.mEnded = true;
+                    return;
+                case Monitor::Ending::Gone:
+                    appendToLog(monitor, { "Hang: the game ended before End was answered, and nothing was ended" });
+                    return;
+                case Monitor::Ending::Failed:
+                    appendToLog(monitor, { "Hang: the monitor could not end the game" });
+                    return;
+            }
         }
 
         /// **The hang watch**, once a second: a frame counter that stops for the limit is a hang,

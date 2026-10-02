@@ -92,3 +92,9 @@ first review.
   median of one build read 0.92, 1.34 and 0.97 ms in three legs back to back, with `update` moving
   beside it, and holding the run to the performance cores (`taskset -c 0-15`) did not settle it.
   Nothing in the report says which state a leg ran in. `apps/rtxtool/instruments/`.
+- A fault on one thread while another thread's `Crash::report` or hang report is being written
+  leaves two dumps on Linux, and the report's dump is summarised as the fault: Crashpad's Linux client
+  keeps one exception record, which `DumpWithoutCrash` and the crash signal handler both write
+  (`extern/fetched/crashpad/client/crashpad_client_linux.cc:170-180`), so the report's dump reads
+  "Crash: SIGSEGV at 0x10 in thread <the reporting thread>, which crashed". Seen in 8 of 8 runs of a
+  thread that faults once `Crash::isReporting()` holds. `components/crashcatcher/crashpadclient.cpp:47-54`.

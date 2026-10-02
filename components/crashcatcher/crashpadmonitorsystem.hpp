@@ -21,6 +21,18 @@ namespace crashpad
 /// `crashpadmonitorposix.cpp` and `crashpadmonitorwin32.cpp`.
 namespace Crash::Monitor
 {
+    /// What an End came to.
+    enum class Ending
+    {
+        Ended,
+
+        /// The game was gone before the monitor ended it.
+        Gone,
+
+        /// The monitor holds nothing to end it by, or the system refused.
+        Failed,
+    };
+
     /// The game itself, held from the monitor's start, so a hang request and an End reach the
     /// process that started the monitor and never one that took its id after it ended: a pidfd on
     /// Linux and a handle on Windows. macOS acts on the id.
@@ -37,8 +49,8 @@ namespace Crash::Monitor
         /// debugger starts one; the game's frames are untouched.
         void requestHangReport(Heartbeat& page) const;
 
-        /// Ends the game, and says whether it was there to be ended.
-        bool end() const;
+        /// Ends the game, and says what that came to.
+        Ending end() const;
 
     private:
         std::uint32_t mId = 0;
