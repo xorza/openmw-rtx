@@ -25,6 +25,7 @@
 #include <apps/openmw/mwrender/renderer.hpp>
 #include <apps/openmw/mwrender/rendermode.hpp>
 #include <apps/openmw/mwrender/rendersupport.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
 #include <components/misc/frameclock.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -53,7 +54,9 @@ namespace MWRender
         {
         public:
             /// Whether the world was to be drawn, at each `applyWorldShown`.
-            std::vector<bool> mApplied;
+            /// What each `applyWorldShown` left a frame to draw: the world's view mask, or nothing under
+            /// a cover.
+            std::vector<unsigned int> mApplied;
 
             /// The simulation time of each `advance`, and how many times the interface was drawn.
             std::vector<double> mAdvanced;
@@ -98,7 +101,7 @@ namespace MWRender
         protected:
             void adoptTraversalRoot(osg::Group&) override {}
             void applyViewMask() override {}
-            void applyWorldShown() override { mApplied.push_back(drawsWorld()); }
+            void applyWorldShown() override { mApplied.push_back(isWorldShown() ? worldViewMask() : 0u); }
             void applyPresentation() override { ++mPresented; }
             void applyChangedSettings(const Settings::CategorySettingVector& honoured) override
             {
@@ -136,31 +139,38 @@ namespace MWRender
         }
 
         /// **A cover that ends while `tws` is off leaves the world hidden, and `tws` under a cover
-        /// brings nothing back.** The two are one answer to a frame and two to the game, and the
-        /// renderer hears about each change once: the window manager asks every frame.
-        TEST(RendererTest, aCoverAndTwsAreTwoReasonsAndOneAnswer)
+        /// brings nothing back.** The two are two reasons to the game and two answers to a frame:
+        /// a cover draws nothing, and `tws` draws the view less the world's own bits — the sky, the
+        /// water, the player and the effects stay. The renderer hears about each change once: the
+        /// window manager asks every frame.
+        TEST(RendererTest, aCoverAndTwsAreTwoReasonsAndTwoAnswers)
         {
+            constexpr unsigned int hidden = ~sToggleWorldMask;
+
             RecordingRenderer renderer;
-            EXPECT_TRUE(renderer.drawsWorld());
+            EXPECT_EQ(renderer.worldViewMask(), ~0u);
 
             renderer.showWorld(false);
             renderer.showWorld(false);
             EXPECT_FALSE(renderer.isWorldShown());
             EXPECT_TRUE(renderer.isWorldToggled());
-            EXPECT_EQ(renderer.mApplied, (std::vector<bool>{ false }));
+            EXPECT_EQ(renderer.mApplied, (std::vector<unsigned int>{ 0u }));
 
             EXPECT_FALSE(renderer.toggleRenderMode(Render_Scene));
             EXPECT_FALSE(renderer.isWorldToggled());
-            EXPECT_EQ(renderer.mApplied, (std::vector<bool>{ false, false }));
+            EXPECT_EQ(renderer.mApplied, (std::vector<unsigned int>{ 0u, 0u }));
 
             renderer.showWorld(true);
             EXPECT_TRUE(renderer.isWorldShown());
-            EXPECT_FALSE(renderer.drawsWorld());
-            EXPECT_EQ(renderer.mApplied, (std::vector<bool>{ false, false, false }));
+            EXPECT_EQ(renderer.mApplied, (std::vector<unsigned int>{ 0u, 0u, hidden }));
+
+            // The view mask's own word survives `tws`: the host's camera inside the player.
+            renderer.setViewMask(~static_cast<unsigned int>(Mask_Player));
+            EXPECT_EQ(renderer.worldViewMask(), hidden & ~static_cast<unsigned int>(Mask_Player));
+            renderer.setViewMask(~0u);
 
             EXPECT_TRUE(renderer.toggleRenderMode(Render_Scene));
-            EXPECT_TRUE(renderer.drawsWorld());
-            EXPECT_EQ(renderer.mApplied, (std::vector<bool>{ false, false, false, true }));
+            EXPECT_EQ(renderer.mApplied, (std::vector<unsigned int>{ 0u, 0u, hidden, ~0u }));
 
             // The rest are the game's own nodes, and a renderer that has none says so.
             EXPECT_FALSE(renderer.toggleRenderMode(Render_Wireframe));

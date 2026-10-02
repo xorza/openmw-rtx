@@ -236,9 +236,6 @@ namespace MWRender
         /// Writes `mask` to the master camera and to the stereo pair, which are no-ops in mono.
         void cull(unsigned int mask);
 
-        /// The seam's view mask, less the world's bits while `tws` is off.
-        unsigned int worldCullMask() const;
-
         osg::ref_ptr<SceneUtil::SelectDepthFormatOperation> mSelectDepthFormatOperation;
         osg::ref_ptr<SceneUtil::Color::SelectColorFormatOperation> mSelectColorFormatOperation;
 

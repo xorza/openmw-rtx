@@ -224,17 +224,13 @@ namespace MWRender
         /// and a world `tws` hides is still updated — and the rest are the renderer's own
         /// (`Render_Wireframe` is the rasterizer's polygon mode). The game keeps the modes that
         /// are its own nodes (paths, meshes, the pathgrid) and the water.
-        ///
-        /// **A map tile asked for under `tws` differs.** The rasterizer hides the world by a mask its
-        /// offscreen cameras do not share, so the tile is drawn. The ray tracer draws a tile against
-        /// the scene a walk hands over, and a hidden world is walked by nothing: the tile waits for
-        /// the world to come back. The doll stands on a scene of its own and is drawn by both.
         bool toggleRenderMode(RenderMode mode);
         bool isWorldToggled() const { return mWorldToggled; }
 
-        /// Whether a frame draws the world: both of the answers above, said once so a frame cannot
-        /// walk on one and trace on the other.
-        bool drawsWorld() const { return mWorldShown && mWorldToggled; }
+        /// What the eye sees while the world is shown: the view mask, less `sToggleWorldMask`
+        /// where `tws` hides the world. The sky, the water, the player and the effects stay, and
+        /// both renderers draw them. Only the eye's: a map tile and the doll keep their own masks.
+        unsigned int worldViewMask() const;
 
         /// The shader chain over the frame, or null where this renderer has none. Owned here,
         /// because what happens between the scene and the screen is the whole of what a renderer is

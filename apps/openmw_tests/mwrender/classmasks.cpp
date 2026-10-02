@@ -13,6 +13,7 @@ namespace MWRender
         /// the buildings and the still water: its rays meet the statics and the water and nothing
         /// else, and no lamp lights it, because it leaves out `Mask_Lighting`. The game's own eye,
         /// which leaves nothing out, meets every class, draws the sprites, and is lit by every lamp.
+        /// Under `tws` it meets everything but the statics.
         TEST(MWRenderClassMasksTest, aViewsMaskSaysWhichClassesItMeetsAndWhetherLampsLightIt)
         {
             const ViewDescription map
@@ -26,6 +27,14 @@ namespace MWRender
                     | Rtx::classBit(Rtx::InstanceClass::Effect) | Rtx::classBit(Rtx::InstanceClass::FirstPerson)
                     | Rtx::Shaders::MASK_WATER | Rtx::Shaders::MASK_PARTICLE);
             EXPECT_TRUE(eye.mLamps);
+
+            // `tws`: the statics' class goes, and the player keeps the actors' class on.
+            const ViewDescription hidden = describeView(~sToggleWorldMask);
+            EXPECT_EQ(hidden.mRayMask,
+                Rtx::classBit(Rtx::InstanceClass::Actor) | Rtx::classBit(Rtx::InstanceClass::Effect)
+                    | Rtx::classBit(Rtx::InstanceClass::FirstPerson) | Rtx::Shaders::MASK_WATER
+                    | Rtx::Shaders::MASK_PARTICLE);
+            EXPECT_TRUE(hidden.mLamps);
         }
     }
 }

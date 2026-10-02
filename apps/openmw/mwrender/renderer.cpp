@@ -31,6 +31,7 @@
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
 
 #include "glrenderer.hpp"
+#include "vismask.hpp"
 
 namespace MWRender
 {
@@ -210,6 +211,11 @@ namespace MWRender
     {
         mViewMask = mask;
         applyViewMask();
+    }
+
+    unsigned int Renderer::worldViewMask() const
+    {
+        return mWorldToggled ? mViewMask : mViewMask & ~sToggleWorldMask;
     }
 
     void Renderer::showWorld(const bool shown)

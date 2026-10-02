@@ -761,19 +761,20 @@ namespace MWRender
             wanted != mRenderer->getProfile().mUpscale)
             mRenderer->setUpscale(wanted);
 
-        // **A frame with the world hidden is the interface and nothing else.** No walk, because the
+        // **A frame under a cover is the interface and nothing else.** No walk, because the
         // update traversal did not run either, and no trace, because the interface covers every
         // pixel of it. The sweep goes with the walk: a walk that did not happen has marked nothing
-        // and a sweep would take the world.
+        // and a sweep would take the world. `tws` is not a cover: it is the world's view mask,
+        // which the walk and the trace read.
         //
         // **The emitter clock stops with it**, which is what a clock of its own is for: it counts
         // the seconds this renderer has shown, so a plume resumes where it left off rather than
         // being handed the loading screen in one step.
         //
-        // **A picture of a subject is drawn all the same**, as the rasterizer's cameras go on
-        // drawing the doll under `tws`: it stands on a scene of its own, which no walk of the world
-        // feeds. A picture of the world waits for the world, and none of its budget is spent.
-        if (!drawsWorld())
+        // **A picture of a subject is drawn all the same**: it stands on a scene of its own, which
+        // no walk of the world feeds. A picture of the world waits for the world, and none of its
+        // budget is spent.
+        if (!isWorldShown())
         {
             mRipples.dropStrikes();
             mPhase.step(Phase::Views, Phase::Walking);
@@ -949,7 +950,7 @@ namespace MWRender
         constants->mArms = Rtx::cameraAtFieldOfView(constants->mCamera, frame.mEye.mArmsFieldOfView);
 
         // What the game decided the eye sees, read where the rasterizer reads it.
-        const ViewDescription described = describeView(getViewMask());
+        const ViewDescription described = describeView(worldViewMask());
         constants->mRayMask = described.mRayMask;
         constants->mNoLamps = described.mLamps ? 0 : 1;
 
