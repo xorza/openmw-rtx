@@ -153,12 +153,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
   - **Unstated:** a player who leaves the setting off sees two different rains. The comment at `skyreader.cpp:238-241` states the rule and not that the setting is ignored.
   - **Better shape:** one owner decides whether a shelter stands. `WorldState` carries `Settings::shaders().mWeatherParticleOcclusion && precipitation.isOccluded()`, which `GlWorld` and `SkyReader` both read. Alternatively, the fork states that the trace always shelters and the setting is the rasterizer's alone.
   - *(kind: missing; severity: low; benefit: one answer to "does rain fall under this roof")*
-- [ ] **With `distant land cells = 0` the reach follows `viewing distance` past both the reach's own bound and the trace's far plane** — `components/rtx/mirror/cells/cellgrid.cpp:38-44`, `components/settings/categories/rtx.hpp:13-25`, `components/settings/categories/camera.hpp:25`, `components/rtx/frame/camera.hpp:16-19`, `components/rtx/frame/camera.cpp:52`, `components/rtx/environment/fogbuilder.cpp:256-267`, `components/rtxvulkan/shaders/lib/fog.glsl:704-708`.
-  - **The bound is skipped:** `sMaxDistantLandCells = 10` is documented as "a bound on how much world a frame is asked to stand", but `reachOf` returns `mViewingDistance` unclamped where the count is 0. `viewing distance` is sanitized only as greater than 0.
-  - **The trace stops short of the reach:** every ray ends at `sFarPlane` = 200 000 units (24.4 cells), while the ring stands and the edge air is tuned out to the reach. `fogEdgeCrossed` clamps a sky ray at `mFar`, so the air has not closed where the rays stop.
-  - **In game:** `settings.cfg` with `[RTX] distant land cells = 0` (a value `rtx.rst` documents) and `[Camera] viewing distance = 300000`. The ring asks for about 4 300 cells, and the land ends in a hard line against the sky at 200 000 units.
-  - **Better shape:** `reachOf` clamps both sources to one bound, in units: `min(reach, sMaxDistantLandCells × cell size)`, which also stays under `sFarPlane - cell`. A static assert ties `sFarPlane` to the largest reach plus the band (`cellring.cpp:338`).
-  - *(kind: bug; severity: low; benefit: the reach's documented bound holds for both of its sources)*
 
 ## The walk resolves a node's state by rules other than the rasterizer's state stack
 

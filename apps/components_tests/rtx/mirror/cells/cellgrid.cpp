@@ -150,7 +150,7 @@ namespace Rtx
 
         /// The reach is the setting's cells of the grid's own width, and nought hands the decision
         /// to the rasterizer's viewing distance: four cells is 32768 units in Morrowind's world and
-        /// 16384 in a worldspace of 4096-unit cells.
+        /// 16384 in a worldspace of 4096-unit cells. Either is bounded by `LandReach::sMostCells`.
         TEST(RtxCellGridTest, theReachIsCellsOfTheGridsWidthOrTheViewingDistanceWhereNoneWereNamed)
         {
             EXPECT_FLOAT_EQ(CellGrid().reachOf({ .mCells = 4.0f, .mViewingDistance = 7168.0f }), 32768.0f);
@@ -159,6 +159,13 @@ namespace Rtx
             EXPECT_FLOAT_EQ(CellGrid().reachOf({ .mCells = 0.0f, .mViewingDistance = 7168.0f }), 7168.0f);
             EXPECT_FLOAT_EQ(CellGrid(4096.0f).reachOf({ .mCells = -1.0f, .mViewingDistance = 7168.0f }), 7168.0f)
                 << "a negative count is none";
+
+            // **Both sources stop at ten cells of the grid's width**: a viewing distance of 300000
+            // under nought cells is 81920 units in Morrowind's world and 40960 in the other, and a
+            // count past ten, which the setting's clamp keeps out, would be held there too.
+            EXPECT_FLOAT_EQ(CellGrid().reachOf({ .mCells = 0.0f, .mViewingDistance = 300000.0f }), 81920.0f);
+            EXPECT_FLOAT_EQ(CellGrid(4096.0f).reachOf({ .mCells = 0.0f, .mViewingDistance = 300000.0f }), 40960.0f);
+            EXPECT_FLOAT_EQ(CellGrid().reachOf({ .mCells = 12.0f, .mViewingDistance = 7168.0f }), 81920.0f);
         }
 
         /// **The grid is the worldspace's.** An eye at x = 40960 stands in cell 5 of Morrowind's

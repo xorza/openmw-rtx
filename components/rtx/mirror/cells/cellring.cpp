@@ -9,6 +9,8 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
+#include <components/misc/constants.hpp>
+#include <components/rtx/frame/camera.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -19,6 +21,11 @@
 
 namespace Rtx
 {
+    // **Every cell the ring stands is inside the trace's reach**: the most a reach takes, and the
+    // one cell past it the ring stands as the band, at the widest cells any worldspace has.
+    static_assert(sFarPlane > (LandReach::sMostCells + 1.0f) * Constants::CellSizeInUnits,
+        "the ring stands cells past where every ray ends");
+
     namespace
     {
         /// The order the prepared disc's missing cells are read in: nearest first, then a fixed
