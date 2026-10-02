@@ -390,7 +390,9 @@ The work in this plan:
 
 ### D4. The three upstream bug fixes stay in the fork.
 
-No work is left.
+No work is left. A fourth joins them (W7): `RenderingManager::getFieldOfView` returned the override
+flag, 1°, wherever a field of view was overridden — in werewolf form, to Lua's camera — and the
+projection and `describeEye` each spelled the right rule beside it; both call the getter now.
 
 ### D5. Still open, and a measurement: how this device rounds a half-float store
 
