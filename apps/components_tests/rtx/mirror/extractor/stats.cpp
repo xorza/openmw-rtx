@@ -65,8 +65,8 @@ namespace Rtx::Testing
             EXPECT_EQ(mExtractor.getContext().mContent.mPreprocessor.takeStats().at(ContentPassId::Shape).mAsked, 0u);
         }
 
-        /// A texture arrives under the format it was decoded in, and its mip chain is counted beside
-        /// it — and leaves with its slot.
+        /// A texture arrives under the format it was decoded in, which its row keeps, and its mip
+        /// chain is counted beside it — and leaves with its slot.
         ///
         /// The count is what says whether the content is what the uploader was written for, so a
         /// scene that stands a format nobody expected reports it rather than leaving it to a throw.
@@ -102,6 +102,8 @@ namespace Rtx::Testing
             EXPECT_EQ(blocks.mMet, 2u);
             EXPECT_EQ(blocks.mMipped, 1u) << "one of the two brought a chain";
             EXPECT_EQ(census.mMet[static_cast<std::size_t>(TextureFormat::Unnamed)].mMet, 0u);
+            for (const TextureRow& row : mScene.textures().getRows())
+                EXPECT_EQ(row.mFormat, TextureFormat::Bc1RgbaSrgb) << row.mPath << ": the row and the census disagree";
 
             mScene.clearPlacement();
             walk(*root, 0, 1);

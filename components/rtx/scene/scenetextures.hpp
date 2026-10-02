@@ -76,8 +76,7 @@ namespace Rtx
             /// The file's image, or why none reads. Null for a slot that names no file.
             Misc::Result<osg::ref_ptr<const osg::Image>, std::string> mImage = osg::ref_ptr<const osg::Image>();
 
-            /// The image's format as `mEncoding` reads it, read once for the reserve and the
-            /// description both. Unnamed where there is no image.
+            /// The row's `TextureRow::mFormat`, which the reserve and the description both read.
             TextureFormat mFormat = TextureFormat::Unnamed;
 
             /// For a chunk's flattened ground, the material it flattens and which of its two

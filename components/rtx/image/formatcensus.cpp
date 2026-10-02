@@ -3,31 +3,25 @@
 #include <cassert>
 #include <cstddef>
 
-#include <osg/Image>
-
-#include "texels.hpp"
-
 namespace Rtx
 {
-    void FormatCensus::count(const osg::Image& image, const TextureEncoding encoding)
+    void FormatCensus::count(const TextureFormat format, const bool mipped, const std::uint32_t pixelFormat)
     {
-        const TextureFormat format = readFormat(image, encoding);
-
         FormatCount& met = mMet[static_cast<std::size_t>(format)];
         ++met.mMet;
-        if (image.getNumMipmapLevels() > 1)
+        if (mipped)
             ++met.mMipped;
 
         if (format == TextureFormat::Unnamed)
-            mUnnamed = static_cast<std::uint32_t>(image.getPixelFormat());
+            mUnnamed = pixelFormat;
     }
 
-    void FormatCensus::discount(const osg::Image& image, const TextureEncoding encoding)
+    void FormatCensus::discount(const TextureFormat format, const bool mipped)
     {
-        FormatCount& met = mMet[static_cast<std::size_t>(readFormat(image, encoding))];
+        FormatCount& met = mMet[static_cast<std::size_t>(format)];
         assert(met.mMet > 0 && "a texture discounted that was never counted");
         --met.mMet;
-        if (image.getNumMipmapLevels() > 1)
+        if (mipped)
             --met.mMipped;
     }
 }
