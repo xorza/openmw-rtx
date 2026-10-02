@@ -16,7 +16,7 @@ namespace RtxTool
         // NVML's `nvmlClocksEventReason*` bits, in its own order. Idle is among them because a
         // reading taken from an idle card is a reading of the wrong thing, and saying so is the
         // whole point of quoting the clock at all.
-        static constexpr std::array<std::pair<std::uint64_t, std::string_view>, 9> sReasons{ {
+        static constexpr std::array<std::pair<std::uint64_t, std::string_view>, 11> sReasons{ {
             { 0x0000000000000001ull, "gpu idle" },
             { 0x0000000000000002ull, "applications clocks setting" },
             { 0x0000000000000004ull, "sw power cap" },
@@ -26,6 +26,8 @@ namespace RtxTool
             { 0x0000000000000040ull, "hw thermal slowdown" },
             { 0x0000000000000080ull, "hw power brake" },
             { 0x0000000000000100ull, "display clock setting" },
+            { 0x0000000000000200ull, "board limit" },
+            { 0x0000000000000400ull, "reliability" },
         } };
 
         std::string named;

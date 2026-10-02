@@ -30,6 +30,11 @@ namespace RtxTool
             EXPECT_EQ(describeThrottle(0x0000000000000020ull), "sw thermal slowdown");
             EXPECT_EQ(describeThrottle(0x0000000000000080ull), "hw power brake");
 
+            // The two the driver grew after the table was first written, which this card reports
+            // under a hold: a board's limit policy, and its reliability policy.
+            EXPECT_EQ(describeThrottle(0x0000000000000200ull), "board limit");
+            EXPECT_EQ(describeThrottle(0x0000000000000400ull), "reliability");
+
             // Several at once, in the order the bits are numbered rather than the order they were
             // asked about.
             EXPECT_EQ(describeThrottle(0x0000000000000044ull), "sw power cap, hw thermal slowdown");
