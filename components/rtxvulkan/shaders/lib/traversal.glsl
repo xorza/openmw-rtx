@@ -960,14 +960,11 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     // Asked once: each is a load through a buffer reference, and three branches below ask it.
     const bool specularMap = HAS_MAPS && holdsTexture(material.mSpecular);
 
-    // What a stack's maps add, each weighted as the layer's albedo is: the share of the weight on
-    // layers that reflect, the roughness over every layer with a Lambert one at one, and the
-    // tangent-space normals — the layers' own where they have a map and straight up where not.
-    // `groundcomposite.comp` sums the first two the same way into a distant chunk's gloss.
-    float weights = 0.0;
-    float reflecting = 0.0;
-    float shining = 0.0;
-    float roughness = 0.0;
+    // What a stack sums to, as `groundcomposite.comp` sums it into a distant chunk's composite and
+    // gloss (`GroundSum`), and beside it what only a hit reads: the tangent-space normals, each
+    // weighted as the layer's albedo is — the layers' own where they have a map and straight up
+    // where not — and what their maps lost.
+    GroundSum ground = noGround();
     float spread = 0.0;
     vec3 painted = vec3(0.0);
     bool relief = false;
@@ -1021,22 +1018,16 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
             const bool classic = HAS_MAPS && layerClassic(layer, sceneTexels());
             const vec4 read = sampleDiffuse(layer.mDiffuse, at);
             const vec4 shown = layerTexel(layer, at.mAt, read, frame.mDelight, authored, classic);
-            albedo += showing * shown.rgb;
+            addLayer(ground, showing, shown, read.a, authored, classic, HAS_MAPS);
 
             if (HAS_MAPS)
             {
-                weights += showing;
-                roughness += showing * shown.a;
-                if (authored)
-                    reflecting += showing;
-                if (classic)
-                    shining += showing * read.a;
-
                 painted += showing * (mapped ? sampleNormalMap(layer.mNormal, at) : vec3(0.0, 0.0, 1.0));
                 spread += mapped ? showing * normalMapSlopes(layer.mNormal, at) : 0.0;
                 relief = relief || mapped;
             }
         }
+        albedo = ground.mAlbedo;
 
         // **The layers' normals summed by their weights and then carried once**, through the
         // layers' one frame: summing before the frame is summing after it. The rasterizer lights
@@ -1051,7 +1042,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
         }
 
         // And what the layers' maps lost, weighted as their roughness is.
-        lostSlopes += weights > 0.0 ? spread / weights : 0.0;
+        lostSlopes += ground.mWeights > 0.0 ? spread / ground.mWeights : 0.0;
     }
     else if (specularMap && (material.mFlags & MATERIAL_SPECULAR_CLASSIC) == 0u)
         albedo = sampleDiffuse(material.mDiffuse, point).rgb;
@@ -1080,10 +1071,11 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     // its layers, a distant chunk from the gloss baked beside its composite — and the tint darkens
     // it for the same reason. A stack with no layer that reflects keeps the Lambert surface's
     // numbers exactly, since no division is taken for it.
-    if (HAS_MAPS && (reflecting > 0.0 || shining > 0.0))
+    if (HAS_MAPS && (ground.mReflecting > 0.0 || ground.mShining > 0.0))
     {
-        surface.mSpecular = vec3(DIELECTRIC_F0 * (reflecting / weights) + shining / weights) * tint;
-        surface.mRoughness = roughness / weights;
+        const vec3 gloss = groundGloss(ground);
+        surface.mSpecular = vec3(DIELECTRIC_F0 * gloss.x + gloss.z) * tint;
+        surface.mRoughness = gloss.y;
     }
     else if (specularMap && surface.mGround)
     {
