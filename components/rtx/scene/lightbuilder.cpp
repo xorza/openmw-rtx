@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <numbers>
 #include <span>
 
 #include <osg/BoundingBox>
@@ -82,7 +83,7 @@ namespace Rtx
 
         /// One step down the ladder of bands. The golden ratio squared, because bands at a rational
         /// ratio come back into phase and the whole flicker repeats.
-        constexpr float sBandRatio = 2.618034f;
+        constexpr float sBandRatio = std::numbers::phi_v<float> + 1.0f;
 
         /// How many bands a flame is the sum of. Four spans a factor of eighteen in rate, which is the
         /// whole of what a flame does: the puffing at the top, and a draught wandering under it.
@@ -106,7 +107,7 @@ namespace Rtx
 
         /// How far apart one light's bands are set, in turns. The golden ratio's conjugate spreads any
         /// number of them around the circle without two landing together.
-        constexpr float sBandPhase = 0.618034f;
+        constexpr float sBandPhase = std::numbers::phi_v<float> - 1.0f;
 
         /// Where a light stands in its animation, in turns, off the light's id so that it is drawn
         /// once and never kept: a phase rolled at random would put the harness's lamp somewhere
