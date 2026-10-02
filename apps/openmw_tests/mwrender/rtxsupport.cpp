@@ -158,7 +158,9 @@ namespace MWRender
         /// the renderer took it up, fails here.
         TEST(RtxSupportTest, theSettingsPageListsWhatTheRayTracerDeclines)
         {
-            const std::string page = contentsOf(sourceRoot() / "docs/source/reference/modding/settings/rtx.rst");
+            // Without the carriage returns a Windows checkout gives every line, which `getline` keeps.
+            std::string page = contentsOf(sourceRoot() / "docs/source/reference/modding/settings/rtx.rst");
+            std::erase(page, '\r');
             std::set<std::tuple<std::string, std::string, std::string>> listed;
             const std::regex keyLine(R"rx(\* ``\[([^\]]+)\] ([^`]+)``: (.+))rx");
             const std::regex categoryLine(R"rx(\* ``\[([^\]]+)\]`` every key: (.+))rx");
