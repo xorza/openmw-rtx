@@ -321,11 +321,11 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     // however faint the surface over it has been made.
     const vec3 through = normalize(mix(incident, bent, shaded.mShore));
 
-    // Refraction bends by a third of what reflection does, so what is seen *through* the surface is
-    // blurred correspondingly less by the same lost slopes.
+    // Refraction bends by an eighth of what reflection does from above and a sixth from below, so
+    // what is seen *through* the surface is blurred correspondingly less by the same lost slopes.
     const WorldRay across = WorldRay(leaving, through);
-    const WaterPath behind = waterRay(across, Cone(surface.mFootprint, cone.mSpread), lobe * WATER_REFRACTION_BEND,
-        key, SEED_LAMPS_THROUGH, SEED_AMBIENT_THROUGH);
+    const WaterPath behind = waterRay(across, Cone(surface.mFootprint, cone.mSpread),
+        refractedConeWidth(lobe, WATER_IOR, fromBelow), key, SEED_LAMPS_THROUGH, SEED_AMBIENT_THROUGH);
     const SplitLight refracted = alongLeg(behind, across, !fromBelow, surface.mFootprint, pixel, before);
 
     // **Shared by the luminance each ray adds**, as `mixSplit` shares the sun's bit. A ray that went

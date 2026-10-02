@@ -196,6 +196,18 @@ namespace Rtx::Shaders
         return min(4.0f * atan(alpha * sqrt((rootTwo - 1.0f) / left)), widest);
     }
 
+    /// How wide the cone is that the lobe's refracted rays fill, where `reflected` is
+    /// `ggxConeWidth`'s for the same lobe, through a surface of index `ior` against air.
+    ///
+    /// **Half the bend's share of the reflected cone.** Near square on, a facet tilted by `θ`
+    /// deflects a reflection by `2θ` and a refraction by `(1 - n_i / n_t) θ`: `1 - 1 / ior` entering
+    /// the denser side, and `ior - 1` in size `leaving` it, which is the larger, because the ray
+    /// comes from the side that bends it.
+    RTX_SHADER float refractedConeWidth(float reflected, float ior, bool leaving)
+    {
+        return reflected * 0.5f * (leaving ? ior - 1.0f : 1.0f - 1.0f / ior);
+    }
+
     /// Schlick's weight, `(1 - cosine)^5`: how far the reflectance at a half vector's angle has
     /// climbed from its value at normal incidence toward its value at grazing.
     RTX_SHADER float schlickWeight(float cosine)

@@ -197,6 +197,44 @@ namespace Rtx
             EXPECT_EQ(Shaders::ggxConeWidth(1.0f, 1.0f), 1.0f);
         }
 
+        /// **A refracted cone is the reflected one times half the bend**, checked against Snell's law
+        /// itself in double: a ray square on to a surface whose normal is tilted by a thousandth of a
+        /// radian. The reflection turns by twice the tilt; the refraction into water by
+        /// `1 - 1 / 1.333 = 0.2498125` of it, and out of water by `0.333` of it, so the two cones are
+        /// `0.1249062` and `0.1665` of the reflected one. By hand at a reflected cone of 0.4:
+        /// `0.0499625` entering and `0.0666` leaving.
+        TEST(RtxBrdfTest, aRefractedConeIsTheReflectedOneTimesHalfTheBend)
+        {
+            const double tilt = 1e-3;
+            const double normal[3] = { 0.0, std::sin(tilt), std::cos(tilt) };
+
+            // Snell's law in vector form, for a unit `incident` against a unit `normal` facing it:
+            // the turn of the refracted ray off the incident.
+            const auto turned = [&](const double (&incident)[3], const double eta) {
+                const double facing = -(incident[0] * normal[0] + incident[1] * normal[1] + incident[2] * normal[2]);
+                const double sign = facing < 0.0 ? -1.0 : 1.0;
+                const double cosine = facing * sign;
+                const double k = 1.0 - eta * eta * (1.0 - cosine * cosine);
+                double bent[3];
+                for (int axis = 0; axis < 3; ++axis)
+                    bent[axis] = eta * incident[axis] + sign * (eta * cosine - std::sqrt(k)) * normal[axis];
+                const double along = bent[0] * incident[0] + bent[1] * incident[1] + bent[2] * incident[2];
+                return std::acos(std::min(along, 1.0));
+            };
+
+            const double ior = 1.333;
+            const double down[3] = { 0.0, 0.0, -1.0 };
+            const double up[3] = { 0.0, 0.0, 1.0 };
+            const double entering = turned(down, 1.0 / ior) / (2.0 * tilt);
+            const double leaving = turned(up, ior) / (2.0 * tilt);
+
+            EXPECT_NEAR(Shaders::refractedConeWidth(1.0f, 1.333f, false), entering, 1e-4);
+            EXPECT_NEAR(Shaders::refractedConeWidth(1.0f, 1.333f, true), leaving, 1e-4);
+            EXPECT_NEAR(Shaders::refractedConeWidth(0.4f, 1.333f, false), 0.0499625f, 1e-6f);
+            EXPECT_NEAR(Shaders::refractedConeWidth(0.4f, 1.333f, true), 0.0666f, 1e-6f);
+            EXPECT_NE(Shaders::refractedConeWidth(0.4f, 1.333f, false), Shaders::refractedConeWidth(0.4f, 1.333f, true));
+        }
+
         /// **A field of slopes is the roughness a painted map would state for it**, so water's guide
         /// holds the quantity a solid's does and the shore blends two of one thing. By hand: slopes
         /// of `sigma = 0.1` along each axis are a variance of `0.02` over both, which is GGX's
