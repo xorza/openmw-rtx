@@ -96,6 +96,7 @@ add_component_dir (settings
     categories/windows
     gyroscopeaxis
     hrtfmode
+    migration
     navmeshrendermode
     parser
     sanitizer

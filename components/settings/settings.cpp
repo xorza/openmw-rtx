@@ -1,4 +1,5 @@
 #include "settings.hpp"
+#include "migration.hpp"
 #include "parser.hpp"
 #include "values.hpp"
 
@@ -117,6 +118,8 @@ namespace Settings
         auto settingspath = paths.back() / userSettingsFile;
         if (std::filesystem::exists(settingspath))
             parser.loadSettingsFile(settingspath, mUserSettings, false, false);
+        if (!loadEditorSettings)
+            migrateUserSettings(mUserSettings);
 
         if (!loadEditorSettings)
             Settings::StaticValues::init();

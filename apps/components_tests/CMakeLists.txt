@@ -54,6 +54,7 @@ file(GLOB UNITTEST_SRC_FILES
     serialization/sizeaccumulator.cpp
     serialization/integration.cpp
 
+    settings/migration.cpp
     settings/parser.cpp
     settings/shadermanager.cpp
     settings/testvalues.cpp
