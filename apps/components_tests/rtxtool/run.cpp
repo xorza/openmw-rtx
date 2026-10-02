@@ -18,6 +18,9 @@
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/run.hpp>
 #include <components/rtx/environment/frameworld.hpp>
+#include <components/sdlutil/vsyncmode.hpp>
+#include <components/settings/categories/video.hpp>
+#include <components/settings/values.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool
@@ -243,6 +246,30 @@ namespace RtxTool
         std::filesystem::path resources()
         {
             return std::filesystem::path(OPENMW_RTX_SHADER_DIR).parent_path();
+        }
+
+        /// **A watched window keeps the player's pacing whole**: the vertical sync and the frame-rate
+        /// limit both. A window that kept the one and not the other drew as fast as the card could
+        /// under a player who had asked for 60.
+        TEST(RtxWindowRequestTest, aWatchedWindowKeepsThePlayersSyncAndLimit)
+        {
+            const WindowRequest unwatched;
+            EXPECT_EQ(unwatched.mVerticalSync, SDLUtil::VSyncMode::Disabled);
+            EXPECT_EQ(unwatched.mFramerateLimit, 0.0f);
+
+            Settings::VideoCategory& video = Settings::video();
+            const SDLUtil::VSyncMode sync = video.mVsyncMode;
+            const float limit = video.mFramerateLimit;
+            video.mVsyncMode.set(SDLUtil::VSyncMode::Adaptive);
+            video.mFramerateLimit.set(72.0f);
+
+            WindowRequest watched;
+            watched.keepPlayersPacing();
+            EXPECT_EQ(watched.mVerticalSync, SDLUtil::VSyncMode::Adaptive);
+            EXPECT_EQ(watched.mFramerateLimit, 72.0f);
+
+            video.mVsyncMode.set(sync);
+            video.mFramerateLimit.set(limit);
         }
 
         TEST(RtxBenchSuiteTest, aSuiteFileIsSectionsOfViewNames)

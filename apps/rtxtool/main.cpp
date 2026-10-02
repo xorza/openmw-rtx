@@ -286,7 +286,8 @@ namespace RtxTool
             framed.mWindow.mWidth = size.mWidth;
             framed.mWindow.mHeight = size.mHeight;
             framed.mWindow.mFieldOfView = variables["fov"].as<float>();
-            framed.mWindow.mVerticalSync = watched ? Settings::video().mVsyncMode.get() : SDLUtil::VSyncMode::Disabled;
+            if (watched)
+                framed.mWindow.keepPlayersPacing();
             framed.mDay = variables["day"].as<int>();
             if (const Misc::Result<void, std::string_view> checked = checkDay(framed.mDay); !checked.isOk())
                 throw std::runtime_error(std::format("--day={} {}", framed.mDay, checked.error()));
