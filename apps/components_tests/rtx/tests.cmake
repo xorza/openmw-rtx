@@ -93,6 +93,7 @@ set(RTX_TEST_FILES
     rtxtool/frametimes.cpp
     rtxtool/gpuclock.cpp
     rtxtool/homekey.cpp
+    rtxtool/numbervalue.cpp
     rtxtool/measurewindow.cpp
     rtxtool/options.cpp
     rtxtool/picturemean.cpp

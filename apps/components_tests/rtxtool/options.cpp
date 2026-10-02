@@ -1,10 +1,10 @@
 #include <array>
+#include <exception>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <optional>
 #include <set>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -65,7 +65,7 @@ namespace RtxTool
                 {
                     length(line);
                 }
-                catch (const std::runtime_error& error)
+                catch (const std::exception& error)
                 {
                     return std::string(error.what());
                 }
@@ -78,7 +78,7 @@ namespace RtxTool
             EXPECT_EQ(length({ "--speed=500" }), std::nullopt);
             EXPECT_EQ(refusal({ "--length=35", "--speed=500" }),
                 "--length sets the speed, so --speed cannot be named beside it");
-            EXPECT_EQ(refusal({ "--length=0" }), "--length is 0, which is no length of film");
+            EXPECT_EQ(refusal({ "--length=0" }), "the argument ('0') for option '--length' is not a number >0");
         }
 
         /// The build decides the level nobody named, and the level is spelled the way the table
