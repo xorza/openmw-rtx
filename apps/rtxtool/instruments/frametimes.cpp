@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -11,6 +12,8 @@
 #include <numeric>
 #include <string>
 #include <string_view>
+#include <system_error>
+#include <thread>
 #include <utility>
 
 #include <components/files/conversion.hpp>
@@ -18,15 +21,34 @@
 
 namespace RtxTool
 {
-    PerfControl::PerfControl(std::filesystem::path fifo)
+    PerfControl::PerfControl(std::filesystem::path fifo, const std::chrono::milliseconds readerWait)
         : mFifo(std::move(fifo))
+        , mReaderWait(readerWait)
     {
     }
 
     void PerfControl::open()
     {
-        if (!mFifo.empty() && mHandle == Platform::File::Handle::Invalid)
-            mHandle = Platform::Fifo::openForWriting(mFifo);
+        if (mFifo.empty() || mHandle != Platform::File::Handle::Invalid)
+            return;
+
+        const std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now() + mReaderWait;
+        while (true)
+        {
+            try
+            {
+                mHandle = Platform::Fifo::openForWriting(mFifo);
+                return;
+            }
+            catch (const std::system_error& error)
+            {
+                // `ENXIO` is "nobody reads it yet"; every other failure is final.
+                if (error.code() != std::errc::no_such_device_or_address
+                    || std::chrono::steady_clock::now() >= deadline)
+                    throw;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
     }
 
     void PerfControl::enable()
