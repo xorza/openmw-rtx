@@ -31,7 +31,7 @@ namespace RtxTool
         const osg::Vec3f& getEye() const { return *mStop.mStand.mEye; }
         const osg::Vec3f& getLook() const { return *mStop.mStand.mLook; }
         float getHour() const { return *mStop.mSky.mHour; }
-        const std::string& getWeather() const { return *mStop.mSky.mWeather; }
+        std::uint32_t getWeather() const { return *mStop.mSky.mWeather; }
 
         /// How long the flight to this key takes, in place of the length its changes derive.
         std::optional<float> mSeconds{};

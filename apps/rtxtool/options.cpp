@@ -220,7 +220,8 @@ namespace RtxTool
                 Rtx::sSurfaceViewNames.list())
                 .c_str());
 
-        option(sOneSky, "weather", bpo::value<std::string>()->default_value(std::string(sDefaultWeather)),
+        option(sOneSky, "weather",
+            bpo::value<std::string>()->default_value(std::string(Rtx::weatherName(sDefaultWeather))),
             std::format("which weather's sun, sky and precipitation an exterior stands under, named as the "
                         "content files spell it: {}. The ones that drop something drop it here too. Given, "
                         "it beats a weather a view fixes for itself",

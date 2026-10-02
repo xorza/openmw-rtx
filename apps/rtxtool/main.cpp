@@ -152,23 +152,33 @@ namespace RtxTool
             return hour;
         }
 
-        /// Refuses a weather the line names that is none of the ten, with the option that named it.
-        void refuseUnlessWeather(const std::string_view option, const std::string_view weather)
+        /// The weather the line names, as `Rtx::weatherIndex` numbers it, read as a view file's is;
+        /// refused with the option that named it where it is none of the ten.
+        std::uint32_t weatherNamed(const std::string_view option, const std::string_view weather)
         {
-            if (const Misc::Result<void, std::string_view> checked = checkWeather(weather); !checked.isOk())
+            const std::optional<std::uint32_t> named = Rtx::weatherIndex(weather);
+            if (!named.has_value())
                 throw std::runtime_error(
-                    std::format("--{}: \"{}\" {}: {}", option, weather, checked.error(), listWeathers()));
+                    std::format("--{}: \"{}\" {}: {}", option, weather, checkWeather(weather).error(), listWeathers()));
+            return *named;
+        }
+
+        /// What `--turn-weather` named, in its order.
+        std::vector<std::uint32_t> weathersToTurn(const bpo::variables_map& variables)
+        {
+            std::vector<std::uint32_t> turn;
+            for (const std::string& weather : splitNames(variables["turn-weather"].as<std::string>()))
+                turn.push_back(weatherNamed("turn-weather", weather));
+            return turn;
         }
 
         /// What `--weather` named, or nothing where it was left at its default.
-        std::optional<std::string> weatherGiven(const bpo::variables_map& variables)
+        std::optional<std::uint32_t> weatherGiven(const bpo::variables_map& variables)
         {
             if (variables["weather"].defaulted())
                 return std::nullopt;
 
-            const std::string& weather = variables["weather"].as<std::string>();
-            refuseUnlessWeather("weather", weather);
-            return weather;
+            return weatherNamed("weather", variables["weather"].as<std::string>());
         }
 
         /// What `--air` named, or nothing where the line names none. Text that names no air is
@@ -771,9 +781,7 @@ namespace RtxTool
             std::vector<Stop> stops = stopsFrom(run.mViews, variables, framed);
 
             const BenchSpec spec = specFrom(variables);
-            const std::vector<std::string> turn = splitNames(variables["turn-weather"].as<std::string>());
-            for (const std::string& weather : turn)
-                refuseUnlessWeather("turn-weather", weather);
+            const std::vector<std::uint32_t> turn = weathersToTurn(variables);
             const bool hashing = !variables["hashes"].as<std::string>().empty()
                 || !variables["against"].as<std::string>().empty() || !variables["pictures"].as<std::string>().empty();
 
@@ -1103,11 +1111,7 @@ namespace RtxTool
             pacing.mWeatherHold = variables["weather-hold"].as<float>();
             if (variables.count("clock") > 0)
                 pacing.mClock = variables["clock"].as<float>();
-            for (const std::string& weather : splitNames(variables["turn-weather"].as<std::string>()))
-            {
-                refuseUnlessWeather("turn-weather", weather);
-                pacing.mTurn.push_back(*Rtx::weatherIndex(weather));
-            }
+            pacing.mTurn = weathersToTurn(variables);
 
             const FilmPlan plan = planFilm(loadKeys(keys), pacing);
             out() << describePlan(plan) << std::flush;

@@ -239,17 +239,10 @@ namespace RtxTool
         return why.empty() ? std::string("no reason the game names") : why;
     }
 
-    void Stager::setWeather(MWBase::World& world, const std::string_view name)
+    void Stager::setWeather(MWBase::World& world, const std::uint32_t weather)
     {
-        const std::optional<std::uint32_t> named = Rtx::weatherIndex(name);
-        if (!named.has_value())
-        {
-            Log(Debug::Warning) << "Ray tracing session: no weather is called \"" << name << '"';
-            return;
-        }
-
         world.changeWeather(world.getPlayerPtr().getCell()->getCell()->getRegion(),
-            ESM::Weather::indexToRefId(static_cast<int>(*named)));
+            ESM::Weather::indexToRefId(static_cast<int>(weather)));
     }
 
     void Stager::boostPlayer()

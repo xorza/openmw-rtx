@@ -52,7 +52,7 @@ namespace RtxTool
         {
             return FilmKey{ .mStop = Stop{ .mName = std::move(name),
                                 .mStand = { .mCell = std::move(cell), .mEye = eye, .mLook = eye + look },
-                                .mSky = { .mHour = sDefaultHour, .mWeather = std::string(sDefaultWeather) } } };
+                                .mSky = { .mHour = sDefaultHour, .mWeather = sDefaultWeather } } };
         }
 
         /// Ten frames a second, a hundred units a second, and a frame whose horizontal field is
@@ -81,11 +81,11 @@ namespace RtxTool
                     .mLook = osg::Vec3f(-18625.098f, -16765.438f, 485.20374f) },
                 .mSky = { .mHour = 6.5f,
                     .mDay = 2,
-                    .mWeather = "Overcast",
+                    .mWeather = Rtx::sWeatherOvercast,
                     .mAir = Rtx::AirClock{ .mSky = { .mSeconds = 36000.123456789, .mCloudScroll = 0.5f },
                         .mCarried = osg::Vec2d(-123456.78901234, 0.1) } } };
             RtxTool::Stop noon = dawn;
-            noon.mSky = { .mHour = 12.0f, .mDay = 0, .mWeather = "Clear" };
+            noon.mSky = { .mHour = 12.0f, .mDay = 0, .mWeather = Rtx::sWeatherClear };
 
             const std::vector<FilmKey> keys = read(describeStanding(dawn) + describeStanding(noon) + describeKey(dawn));
             ASSERT_EQ(keys.size(), 3u);
@@ -96,7 +96,7 @@ namespace RtxTool
             EXPECT_EQ(keys[0].getEye(), *dawn.mStand.mEye);
             EXPECT_EQ(keys[0].getLook(), *dawn.mStand.mLook);
             EXPECT_EQ(keys[0].getHour(), 6.5f);
-            EXPECT_EQ(keys[0].getWeather(), "Overcast");
+            EXPECT_EQ(keys[0].getWeather(), Rtx::sWeatherOvercast);
             EXPECT_FALSE(keys[0].mStop.mSky.mDay.has_value())
                 << "the block has no day; the command line beside it is a comment";
 
@@ -112,7 +112,7 @@ namespace RtxTool
             EXPECT_EQ(keys[2].getEye(), *dawn.mStand.mEye);
             EXPECT_EQ(keys[2].getHour(), 6.5f);
             EXPECT_EQ(keys[2].mStop.mSky.mDay, 2);
-            EXPECT_EQ(keys[2].getWeather(), "Overcast");
+            EXPECT_EQ(keys[2].getWeather(), Rtx::sWeatherOvercast);
 
             const std::vector<FilmKey> timed
                 = read("[a]\ncell = 0,0\npos = 1,2,3\nlook = 4,5,6\nseconds = 2.5\nhold = 1\ncut = false\n");
@@ -224,7 +224,7 @@ namespace RtxTool
             for (std::size_t at = 4; at < keys.size(); ++at)
                 keys[at].mStop.mSky.mHour = 15.0f;
             for (std::size_t at = 5; at < keys.size(); ++at)
-                keys[at].mStop.mSky.mWeather = "Rain";
+                keys[at].mStop.mSky.mWeather = Rtx::sWeatherRain;
             keys[7].mSeconds = 2.5f;
 
             const FilmPlan plan = planFilm(keys, pacingForTests());
@@ -431,7 +431,7 @@ namespace RtxTool
                 keyAt("room", "Vivec, Arena", osg::Vec3f(0, 0, 0)),
             };
             keys[1].mStop.mSky.mHour = 18.0f;
-            keys[1].mStop.mSky.mWeather = "Rain";
+            keys[1].mStop.mSky.mWeather = Rtx::sWeatherRain;
 
             EXPECT_EQ(describePlan(planFilm(keys, pacingForTests())),
                 "film: 3 keys, 2 takes, 142 frames, 14.2 s at 10 frames a second\n"
@@ -463,7 +463,7 @@ namespace RtxTool
                 keyAt("room", "Vivec, Arena", osg::Vec3f(0, 0, 0)),
             };
             keys[1].mStop.mSky.mHour = 18.0f;
-            keys[1].mStop.mSky.mWeather = "Rain";
+            keys[1].mStop.mSky.mWeather = Rtx::sWeatherRain;
             keys[2].mStop.mSky.mDay = 5;
 
             EXPECT_DOUBLE_EQ(planFilm(keys, pacingForTests()).mTakes[0].mSegments[0].mFrames, 100.0)
