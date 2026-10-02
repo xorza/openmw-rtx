@@ -63,8 +63,10 @@ SunUnderWater sunUnderWater(vec3 toward)
 {
     const vec3 travelling = refract(-toward, vec3(0.0, 0.0, 1.0), 1.0 / WATER_IOR);
 
-    // A tenth of a degree above the horizontal is the floor, which is also where `refract` stops
-    // answering: past the critical angle nothing enters the water at all.
+    // Light that enters from the air meets no critical angle, so `refract` always answers, and a
+    // source anywhere above the horizon travels at most 48.6 degrees off the vertical under the
+    // surface, a cosine of 0.66. The floor of 0.05 — 2.9 degrees above the horizontal — binds only
+    // for a source under the horizon, a moon that has set, and holds its slant at twenty.
     return SunUnderWater(travelling, 1.0 / max(-travelling.z, 0.05));
 }
 
