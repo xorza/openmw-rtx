@@ -52,7 +52,7 @@ namespace RtxTool
         TEST(RtxRunRecordTest, theReportOpensWithWhatTheRunStoodUnder)
         {
             Stop turning;
-            turning.mSky.mTurnThrough = { "Rain" };
+            turning.mSky.mTurnThrough = { Rtx::sWeatherRain };
 
             SessionRequest request;
             request.mStops = { turning };

@@ -154,29 +154,16 @@ namespace RtxTool
 
     void CameraDriver::beginTurn(const Stop& stop)
     {
-        const std::vector<std::string>& through = stop.mSky.mTurnThrough;
+        const std::vector<std::uint32_t>& through = stop.mSky.mTurnThrough;
         if (through.empty())
             return;
 
         // **From the stop's own weather where it names one**, which the stager asked the world to
         // settle under: the world settles it in its next update, and a held sky has none.
-        const std::optional<std::uint32_t> named
-            = stop.mSky.mWeather.has_value() ? Rtx::weatherIndex(*stop.mSky.mWeather) : std::nullopt;
+        const std::optional<std::uint32_t>& named = stop.mSky.mWeather;
         mSky = named.has_value() ? SkyCrossing(*named, *named, 0.0f) : skyOfTheWorld();
 
-        askTurn(through.front());
-    }
-
-    void CameraDriver::askTurn(const std::string& weather)
-    {
-        const std::optional<std::uint32_t> named = Rtx::weatherIndex(weather);
-        if (!named.has_value())
-        {
-            Log(Debug::Warning) << "Ray tracing session: no weather is called \"" << weather << '"';
-            return;
-        }
-
-        mSky->ask(*named);
+        mSky->ask(through.front());
     }
 
     void CameraDriver::crossSky(const Stop& stop, const float seconds)
@@ -256,7 +243,7 @@ namespace RtxTool
 
     void CameraDriver::turnWeather(const Stop& stop, const float step)
     {
-        const std::vector<std::string>& through = stop.mSky.mTurnThrough;
+        const std::vector<std::uint32_t>& through = stop.mSky.mTurnThrough;
         if (through.size() < 2)
             return;
 
@@ -270,7 +257,7 @@ namespace RtxTool
 
         mTurned = 0.0f;
         mTurnedTo = (mTurnedTo + 1) % through.size();
-        askTurn(through[mTurnedTo]);
+        mSky->ask(through[mTurnedTo]);
     }
 
     void CameraDriver::aim(const Stop& stop)

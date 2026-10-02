@@ -63,7 +63,7 @@ namespace RtxTool
 
             StopSky& sky = key.mStop.mSky;
             sky.mHour = sky.mHour.value_or(sDefaultHour);
-            sky.mWeather = sky.mWeather.value_or(std::string(sDefaultWeather));
+            sky.mWeather = sky.mWeather.value_or(sDefaultWeather);
         }
 
         if (keys.empty())
@@ -181,7 +181,7 @@ namespace RtxTool
             return TrackKey{ .mEye = key.getEye(),
                 .mRotation = rotationOf(key),
                 .mHour = key.getHour(),
-                .mWeather = *Rtx::weatherIndex(key.getWeather()),
+                .mWeather = key.getWeather(),
                 .mRests = rests };
         }
 
@@ -419,7 +419,7 @@ namespace RtxTool
         {
             const SkyRun run = skyRunOf(plan.mPacing, 0);
             if (run.mWeathers.empty())
-                return key.getWeather();
+                return std::string(Rtx::weatherName(key.getWeather()));
 
             TrackPose sky;
             run.turnAt(frame, sky);

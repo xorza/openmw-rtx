@@ -117,7 +117,7 @@ namespace RtxTool
         return std::format("# {} at {:.0f}, {:.0f}, {:.0f} — bearing {:.0f}°, climb {:.0f}° — day {}, {}, {}\n",
             stop.mStand.mCell, eye.x(), eye.y(), eye.z(), bearingOf(stop.mStand), climbOf(stop.mStand),
             stop.mSky.mDay.value_or(0), describeHour(stop.mSky.mHour.value_or(sDefaultHour)),
-            stop.mSky.mWeather.value_or(std::string(sDefaultWeather)));
+            Rtx::weatherName(stop.mSky.mWeather.value_or(sDefaultWeather)));
     }
 
     std::string describeAir(const Rtx::AirClock& air)
@@ -150,7 +150,7 @@ namespace RtxTool
             block += std::format("hour = {}\n", *stop.mSky.mHour);
 
         if (stop.mSky.mWeather.has_value() && *stop.mSky.mWeather != sDefaultWeather)
-            block += std::format("weather = {}\n", *stop.mSky.mWeather);
+            block += std::format("weather = {}\n", Rtx::weatherName(*stop.mSky.mWeather));
 
         // Always where it is known, since no air is the file's own: one left out is whatever the
         // run's frames carried it to.
@@ -171,7 +171,7 @@ namespace RtxTool
             "# openmw-rtxtool view --cell=\"{}\" --pos={},{},{} --look={},{},{} --hour={} --day={} --weather={}",
             stop.mStand.mCell, eye.x(), eye.y(), eye.z(), look.x(), look.y(), look.z(),
             stop.mSky.mHour.value_or(sDefaultHour), stop.mSky.mDay.value_or(0),
-            stop.mSky.mWeather.value_or(std::string(sDefaultWeather)));
+            Rtx::weatherName(stop.mSky.mWeather.value_or(sDefaultWeather)));
 
         if (stop.mSky.mAir.has_value())
             command += std::format(" --air={}", describeAir(*stop.mSky.mAir));
@@ -363,9 +363,9 @@ namespace RtxTool
             return given.has_value() ? *given : fixed.value_or(sDefaultHour);
         }
 
-        std::string weatherFor(const std::optional<std::string>& given, const std::optional<std::string>& fixed)
+        std::uint32_t weatherFor(const std::optional<std::uint32_t>& given, const std::optional<std::uint32_t>& fixed)
         {
-            return given.has_value() ? *given : fixed.value_or(std::string(sDefaultWeather));
+            return given.has_value() ? *given : fixed.value_or(sDefaultWeather);
         }
     }
 

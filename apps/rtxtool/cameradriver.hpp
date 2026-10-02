@@ -87,9 +87,6 @@ namespace RtxTool
         /// turn's first weather.
         void beginTurn(const Stop& stop);
 
-        /// Asks the taken sky for `weather`, which a turn names by its content-file spelling.
-        void askTurn(const std::string& weather);
-
         /// Moves the taken sky on by one frame of `seconds` and hands it to the world, where it is
         /// taken.
         void crossSky(const Stop& stop, float seconds);
