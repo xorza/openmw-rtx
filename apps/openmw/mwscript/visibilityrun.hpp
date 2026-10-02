@@ -60,6 +60,8 @@ namespace MWScript
     {
         ESM::RefId mName;
         Terrain::GateState mState = Terrain::GateState::Undecided;
+
+        bool operator==(const VisibilityNamed&) const = default;
     };
 
     /// Runs a reference's own script as a frame in an active cell would, and answers whether the
@@ -84,9 +86,17 @@ namespace MWScript
         VisibilityRun(const VisibilityRun&) = delete;
         VisibilityRun& operator=(const VisibilityRun&) = delete;
 
-        /// Runs `program` over a reference the content files stand, with every local at nought,
-        /// appends to `inputs` every global and journal entry it read, and fills `named` with
-        /// what it left each reference it names — nothing where the run itself is `Undecided`.
+        /// Runs `program` over a reference the content files stand, from every local at nought and
+        /// frame after frame, until a frame leaves the run as it found it; appends to `inputs` every
+        /// global and journal entry it read, and fills `named` with what it left each reference it
+        /// names — nothing where the run itself is `Undecided`.
+        ///
+        /// **Frames, and not one frame**, because a script that sets a local and returns acts on
+        /// it a frame later: one frame answered `Open` for a reference the second takes down. The
+        /// state a frame leaves is the locals, the globals the run wrote, its answer and each
+        /// name's; a frame that leaves it unchanged leaves every frame after it the same. A script
+        /// that does not settle within `sFramesTried` frames is `Undecided`: one that counts or
+        /// toggles stands by a history only its cell has.
         Terrain::GateState run(const Interpreter::Program& program, const Compiler::Locals& locals,
             const VisibilityReads& reads, std::vector<VisibilityInput>& inputs, std::vector<VisibilityNamed>& named);
 

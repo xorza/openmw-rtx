@@ -213,6 +213,35 @@ End
         EXPECT_EQ(run(sFenceScript, inputs), GateState::Closed) << "struck: down, whatever the sound";
     }
 
+    /// **A run goes on frame after frame until a frame leaves it as it found it.** A script that
+    /// sets a local and returns takes its reference down on the second frame, which one frame
+    /// answered `Open`; a global the run wrote stands for the frames after; a script that counts
+    /// or toggles never settles, and stands by a history only its cell has.
+    TEST_F(VisibilityGatesTest, aRunGoesOnFrameAfterFrameUntilTheScriptSettles)
+    {
+        std::vector<MWScript::VisibilityInput> inputs;
+        EXPECT_EQ(run("begin s\nshort done\nif ( done == 0 )\nset done to 1\nreturn\nendif\ndisable\nend s\n", inputs),
+            GateState::Closed)
+            << "down on its second frame";
+
+        mReads.mGlobals["flag"] = 0;
+        EXPECT_EQ(
+            run("begin s\nif ( flag == 0 )\nset flag to 1\nreturn\nendif\ndisable\nend s\n", inputs), GateState::Closed)
+            << "the run's own write stands for the next frame";
+        ASSERT_EQ(inputs.size(), 1u);
+        EXPECT_EQ(inputs[0].mValue, 0) << "the game's value, read once";
+
+        EXPECT_EQ(run("begin s\nshort count\nset count to ( count + 1 )\nend s\n", inputs), GateState::Undecided)
+            << "a count never repeats a frame";
+        EXPECT_EQ(run("begin s\nif ( GetDisabled == 1 )\nenable\nelse\ndisable\nendif\nend s\n", inputs),
+            GateState::Undecided)
+            << "a toggle stands one way on one frame and the other on the next";
+        EXPECT_EQ(
+            run("begin s\nshort done\nif ( done == 0 )\nset done to 1\n\"plank\"->disable\nendif\nend s\n", inputs),
+            GateState::Open);
+        EXPECT_EQ(plank(), GateState::Closed) << "a name's last word stands once the script settles";
+    }
+
     /// **A broken contract is not an answer.** A program run with locals other than the ones it
     /// was compiled with reads a local that is not there, which is a fault of the code that handed
     /// them over: it ends the run, where a handler for every exception made it `Undecided`.
