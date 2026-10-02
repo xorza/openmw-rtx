@@ -73,6 +73,7 @@
 #include "../vismask.hpp"
 #include "classmasks.hpp"
 #include "rtxsettings.hpp"
+#include "rtxsupport.hpp"
 #include "tracedground.hpp"
 #include "tracedoverlay.hpp"
 #include "tracedview.hpp"
@@ -612,7 +613,12 @@ namespace MWRender
         mRenderer->setVerticalSync(mode);
     }
 
-    void RtxRenderer::processChangedSettings(const Settings::CategorySettingVector& changed) noexcept
+    const RenderSupport& RtxRenderer::support() const noexcept
+    {
+        return rtxSupport();
+    }
+
+    void RtxRenderer::applyChangedSettings(const Settings::CategorySettingVector& changed) noexcept
     {
         const bool upscale = changed.contains({ "RTX", "upscale" });
         const bool reach

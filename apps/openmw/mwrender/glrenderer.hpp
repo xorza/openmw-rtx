@@ -133,7 +133,7 @@ namespace MWRender
         osgUtil::IncrementalCompileOperation* getCompileOperation() const override;
 
         void setVSync(SDLUtil::VSyncMode mode) override;
-        void processChangedSettings(const Settings::CategorySettingVector& changed) override;
+        const RenderSupport& support() const override;
 
         void addCell(const MWWorld::CellStore* cell) override;
         void removeCell(const MWWorld::CellStore* cell) override;
@@ -170,6 +170,7 @@ namespace MWRender
         void applyViewMask() override;
         void applyWorldShown() override;
         bool toggleOwnRenderMode(RenderMode mode) override;
+        void applyChangedSettings(const Settings::CategorySettingVector& honoured) override;
         void applyLoadingBudget(double targetFrameRate) override;
 
         /// The post-processor at the frame's size, the frame remade where its size moved, and the

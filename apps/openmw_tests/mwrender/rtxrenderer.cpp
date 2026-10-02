@@ -71,8 +71,7 @@ namespace MWRender
         static_assert(noexcept(std::declval<RtxRenderer&>().capture(std::declval<osg::Image&>(), 0, 0)));
         static_assert(noexcept(std::declval<RtxRenderer&>().saveScreenshot()));
         static_assert(noexcept(std::declval<RtxRenderer&>().setVSync(std::declval<SDLUtil::VSyncMode>())));
-        static_assert(noexcept(std::declval<RtxRenderer&>().processChangedSettings(
-            std::declval<const Settings::CategorySettingVector&>())));
+        static_assert(noexcept(std::declval<const RtxRenderer&>().support()));
         static_assert(noexcept(std::declval<RtxRenderer&>().getStartTick()));
 
         static_assert(!noexcept(std::declval<RtxRenderer&>().renderFrame(std::declval<const SceneFrame&>())));

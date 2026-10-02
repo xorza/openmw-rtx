@@ -1,3 +1,4 @@
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <filesystem>
@@ -23,10 +24,12 @@
 #include <apps/openmw/mwrender/offscreenview.hpp>
 #include <apps/openmw/mwrender/renderer.hpp>
 #include <apps/openmw/mwrender/rendermode.hpp>
+#include <apps/openmw/mwrender/rendersupport.hpp>
 #include <components/misc/frameclock.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
+#include <components/settings/categories.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -34,6 +37,17 @@ namespace MWRender
 {
     namespace
     {
+        /// Water declined whole and one of its keys honoured by name, which beats the category, and
+        /// one key of another category declined.
+        constexpr auto sDeclared = std::to_array<SettingSupport>({
+            { "Water", "", "no water here" },
+            { "Water", "shader", {} },
+            { "RTX", "upscale", "no upscaler here" },
+        });
+        constexpr std::array sDeclaredModes{ ModeSupport{ Render_Wireframe, "no wireframe here" } };
+        constexpr std::array sDeclaredRequests{ RequestSupport{ ScriptRequest::Borders, "no borders here" } };
+        constexpr RenderSupport sSupport(sDeclared, sDeclaredModes, sDeclaredRequests);
+
         /// A renderer that draws nothing and records what the seam tells it about the world.
         class RecordingRenderer final : public Renderer
         {
@@ -47,6 +61,9 @@ namespace MWRender
 
             /// How many times the presentation was applied.
             std::size_t mPresented = 0;
+
+            /// What each settings change handed over.
+            std::vector<Settings::CategorySettingVector> mHonoured;
 
             using Renderer::adopt;
             using Renderer::getLastHold;
@@ -71,6 +88,7 @@ namespace MWRender
             void saveScreenshot() override {}
             void setVSync(SDLUtil::VSyncMode) override {}
             osg::Timer_t getStartTick() const override { return 0; }
+            const RenderSupport& support() const override { return sSupport; }
             std::unique_ptr<MyGUIPlatform::Platform> createGuiPlatform(
                 float, VFS::Path::NormalizedView, const std::filesystem::path&) override
             {
@@ -82,7 +100,37 @@ namespace MWRender
             void applyViewMask() override {}
             void applyWorldShown() override { mApplied.push_back(drawsWorld()); }
             void applyPresentation() override { ++mPresented; }
+            void applyChangedSettings(const Settings::CategorySettingVector& honoured) override
+            {
+                mHonoured.push_back(honoured);
+            }
         };
+
+        /// **A declaration answers by the key, then by its category, and honours what it does not
+        /// name**, and a renderer is handed only the changed settings it honours, and nothing at all
+        /// for a change it declines whole.
+        TEST(RendererTest, aRendererIsHandedTheChangedSettingsItsDeclarationHonours)
+        {
+            EXPECT_EQ(sSupport.declinedSetting("Water", "refraction"), "no water here") << "by the category";
+            EXPECT_EQ(sSupport.declinedSetting("Water", "shader"), "") << "the key beats its category";
+            EXPECT_EQ(sSupport.declinedSetting("RTX", "upscale"), "no upscaler here");
+            EXPECT_EQ(sSupport.declinedSetting("RTX", "enabled"), "") << "a key the declaration does not name";
+            EXPECT_TRUE(sSupport.namesSetting("Water", "refraction"));
+            EXPECT_FALSE(sSupport.namesSetting("RTX", "enabled"));
+            EXPECT_EQ(sSupport.declinedMode(Render_Wireframe), "no wireframe here");
+            EXPECT_EQ(sSupport.declinedMode(Render_Pathgrid), "");
+            EXPECT_EQ(sSupport.declinedRequest(ScriptRequest::Borders), "no borders here");
+            EXPECT_EQ(sSupport.declinedRequest(ScriptRequest::ShaderReload), "");
+
+            RecordingRenderer renderer;
+            renderer.processChangedSettings({ { "Water", "refraction" }, { "Water", "shader" }, { "RTX", "upscale" },
+                { "Camera", "field of view" } });
+            renderer.processChangedSettings({ { "Water", "refraction" }, { "RTX", "upscale" } });
+
+            ASSERT_EQ(renderer.mHonoured.size(), 1u) << "a change of declined settings alone was handed over";
+            EXPECT_EQ(renderer.mHonoured[0],
+                (Settings::CategorySettingVector{ { "Water", "shader" }, { "Camera", "field of view" } }));
+        }
 
         /// **A cover that ends while `tws` is off leaves the world hidden, and `tws` under a cover
         /// brings nothing back.** The two are one answer to a frame and two to the game, and the
