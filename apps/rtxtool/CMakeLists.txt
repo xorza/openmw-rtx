@@ -41,6 +41,8 @@ set(RTXTOOL_FILES
     model/cameratrack.hpp
     model/cruise.cpp
     model/cruise.hpp
+    model/measurewindow.cpp
+    model/measurewindow.hpp
     model/runrecord.cpp
     model/runrecord.hpp
     model/skycrossing.cpp

@@ -85,6 +85,7 @@ set(RTX_TEST_FILES
     rtxtool/compare.cpp
     rtxtool/contactsheet.cpp
     rtxtool/cruise.cpp
+    rtxtool/measurewindow.cpp
     rtxtool/drivercache.cpp
     rtxtool/film.cpp
     rtxtool/framehashes.cpp
