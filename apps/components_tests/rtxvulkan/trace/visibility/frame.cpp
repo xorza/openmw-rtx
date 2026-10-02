@@ -66,7 +66,7 @@ namespace Rtx::Testing
             };
 
             SceneDesc placedByInstance;
-            addQuad(placedByInstance, local, sNoIndex, transform);
+            addQuad(placedByInstance, local, std::nullopt, transform);
 
             std::array<osg::Vec3f, 4> moved{};
             for (std::size_t i = 0; i < local.size(); ++i)
@@ -141,7 +141,7 @@ namespace Rtx::Testing
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, -200.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
             // A sky with green in it and nothing else, so that "this is sky" and "this is the
-            // untextured wall" cannot be confused: the wall is grey through every channel.
+            // grey wall" cannot be confused: the wall is grey through every channel.
             camera.mSkyHorizon = osg::Vec3f(0.0f, 0.25f, 0.0f);
             camera.mSkyZenith = osg::Vec3f(0.0f, 0.25f, 0.0f);
 
@@ -164,9 +164,10 @@ namespace Rtx::Testing
         /// tall; the wall is four hundred. Every ray must land on it, so the answer is exact rather
         /// than a threshold.
         ///
-        /// The colour is exact too. These quads carry no state set, so they get the untextured
-        /// material: a linear albedo of 0.5, which the shader encodes on the way out as
-        /// 1.055 * 0.5^(1/2.4) - 0.055 = 0.735, or 187 of 255.
+        /// The colour is exact too. The wall wears the tests' grey with no map, a linear albedo of
+        /// 0.5, which the shader encodes on the way out as 1.055 * 0.5^(1/2.4) - 0.055 = 0.735, or
+        /// 187 of 255. **A surface with no map is its material's colour**, as the game draws one: the
+        /// texel under it is white, so a wall with no material at all is white whole, 255.
         TEST_F(RtxVisibilityTest, aWallLargerThanTheFrameIsHitByEveryRay)
         {
             constexpr std::uint32_t size = 64;
@@ -183,6 +184,12 @@ namespace Rtx::Testing
                 ASSERT_NEAR(frame.byte(i + 1), 187, 1) << "green at pixel " << i / 4;
                 ASSERT_NEAR(frame.byte(i + 2), 187, 1) << "blue at pixel " << i / 4;
             }
+
+            SceneDesc bare;
+            addQuad(bare, sWallQuad, sNoIndex);
+            const Frame white = shoot(bare, {}, camera, size, Shot{ .mShow = SurfaceView::Albedo });
+            for (std::size_t channel = 0; channel < 3; ++channel)
+                EXPECT_EQ(white.byte(centreValueOf(size) + channel), 255) << "channel " << channel;
 
             // **The same frame, measured rather than held, and the whole of the arithmetic is
             // here.** A flat frame is the one input whose exposure can be worked out by hand, and

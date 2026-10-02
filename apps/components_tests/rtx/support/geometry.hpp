@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -126,13 +127,23 @@ namespace Rtx::Testing
         return scene.addMesh(MeshArrays{ .mPositions = corners, .mIndices = sQuadIndices });
     }
 
-    /// A quad of `corners` placed in `scene` by `transform`, in `material` where it names one.
-    /// Returns the placement.
-    inline Index addQuad(SceneDesc& scene, std::span<const osg::Vec3f, 4> corners, Index material = sNoIndex,
-        const osg::Matrixf& transform = osg::Matrixf::identity())
+    /// The colour of a test's plain surface: a grey of one half, which the values the tests work
+    /// out by hand are written for. Stated as a material, because a surface with no material is
+    /// white, as the game draws one, and a white floor bounces every ray at full strength.
+    inline Index addGrey(SceneDesc& scene)
     {
+        return scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f) });
+    }
+
+    /// A quad of `corners` placed in `scene` by `transform`, in `material`, or in a grey of its own
+    /// (`addGrey`) where it names none. `sNoIndex` places it with no material at all. Returns the
+    /// placement.
+    inline Index addQuad(SceneDesc& scene, std::span<const osg::Vec3f, 4> corners,
+        std::optional<Index> material = std::nullopt, const osg::Matrixf& transform = osg::Matrixf::identity())
+    {
+        const Index worn = material.has_value() ? *material : addGrey(scene);
         const Index mesh = addQuadMesh(scene, corners);
-        return scene.addInstance(MeshInstance{ .mTransform = transform, .mMesh = mesh, .mMaterial = material });
+        return scene.addInstance(MeshInstance{ .mTransform = transform, .mMesh = mesh, .mMaterial = worn });
     }
 
     /// A mesh, a material and the texture it names, which is how a model arrives, and where it

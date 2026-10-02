@@ -403,8 +403,8 @@ namespace Rtx::Testing
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
-            // No textures at all, so the array is allocated with nothing in it. The untextured
-            // material's 0.5 encoded: `1.055 * 0.5^(1/2.4) - 0.055` is 0.735, or 187 of 255.
+            // No textures at all, so the array is allocated with nothing in it. The tests'
+            // grey of 0.5 encoded: `1.055 * 0.5^(1/2.4) - 0.055` is 0.735, or 187 of 255.
             const Frame plain = shoot(makeWall(), {}, camera, size, Shot{ .mShow = SurfaceView::Albedo });
             EXPECT_EQ(plain.mHits, size * size);
             EXPECT_NEAR(plain.byte(centre), 187, 1);

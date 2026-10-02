@@ -151,7 +151,7 @@ namespace Rtx::Testing
     inline SceneDesc makeWall(float scale = 1.0f)
     {
         SceneDesc scene;
-        addQuad(scene, sWallQuad, sNoIndex, osg::Matrixf::scale(scale, 1.0f, scale));
+        addQuad(scene, sWallQuad, std::nullopt, osg::Matrixf::scale(scale, 1.0f, scale));
         return scene;
     }
 

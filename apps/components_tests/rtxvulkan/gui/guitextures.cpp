@@ -533,8 +533,9 @@ namespace Rtx
         SceneDesc makeSheet(float extent, float fade = 1.0f)
         {
             SceneDesc scene;
-            scene.addInstance(
-                MeshInstance{ .mMesh = Testing::addQuadMesh(scene, Testing::sheetAt(extent, 0.0f)), .mOpacity = fade });
+            scene.addInstance(MeshInstance{ .mMesh = Testing::addQuadMesh(scene, Testing::sheetAt(extent, 0.0f)),
+                .mMaterial = Testing::addGrey(scene),
+                .mOpacity = fade });
 
             return scene;
         }

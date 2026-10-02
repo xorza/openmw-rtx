@@ -498,7 +498,7 @@ namespace Rtx
         mArrival.open(2);
         mNeutral.standColour(device, batch, mArrival, "neutral texel",
             osg::Vec4f(
-                Shaders::NO_TEXTURE_ALBEDO.x(), Shaders::NO_TEXTURE_ALBEDO.y(), Shaders::NO_TEXTURE_ALBEDO.z(), 1.0f));
+                Shaders::UNTEXTURED_ALBEDO.x(), Shaders::UNTEXTURED_ALBEDO.y(), Shaders::UNTEXTURED_ALBEDO.z(), 1.0f));
 
         // Essential, and the one texture made that way: it is what stands where the device had no
         // room for the texture itself.

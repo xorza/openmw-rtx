@@ -1135,7 +1135,7 @@ namespace Rtx::Testing
                 scene.addEmitter(drops, cut, false, 0.0f, sNoIndex, falls);
 
                 // A lid two hundred wide over the left drop alone, three hundred up.
-                addQuad(scene, sheetAt(100.0f, 300.0f), sNoIndex, osg::Matrixf::translate(-100.0f, 0.0f, 0.0f));
+                addQuad(scene, sheetAt(100.0f, 300.0f), std::nullopt, osg::Matrixf::translate(-100.0f, 0.0f, 0.0f));
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -1000.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 30.0f, size, size, 100000.0f);
