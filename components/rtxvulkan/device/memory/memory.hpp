@@ -32,6 +32,19 @@ namespace Rtx
     inline constexpr VkMemoryPropertyFlags sHostWritten = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
         | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
+    /// The memory types a request for `required` is placed in, as a mask of type indices: those
+    /// whose placement — device-local, host-visible, coherent, cached — is exactly the request's,
+    /// where the device has any, and otherwise every one that has what the request asks. Never
+    /// AMD's device-coherent or uncached types, nor protected or lazily allocated ones, which no
+    /// request here asks for.
+    ///
+    /// **Stated in the request rather than left to the order the driver lists its types in**: the
+    /// library takes the first type that has what is asked, so staging memory was write-combined
+    /// system memory only because the drivers in hand list that type before their window, and a
+    /// driver that listed the window first would put every staging block in the 246 MiB the
+    /// host-written tables need. Nought where no type has what is asked.
+    std::uint32_t memoryTypesFor(const VkPhysicalDeviceMemoryProperties& memory, VkMemoryPropertyFlags required);
+
     /// What a range of memory is for, which says what becomes of the content where the device has
     /// no room for it — and so the order the room is given in. Each use stops where every use
     /// before it could be made once more: what the frame holds is what a change of mode makes

@@ -8,6 +8,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <apps/components_tests/rtx/support/cardmemory.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 
@@ -47,23 +48,7 @@ namespace Rtx
             properties.mVulkan12.driverID = VK_DRIVER_ID_NVIDIA_PROPRIETARY;
             std::ranges::copy(std::string_view("590.48.01"), properties.mVulkan12.driverInfo);
 
-            VkPhysicalDeviceMemoryProperties& memory = properties.mMemory;
-            memory.memoryHeapCount = 3;
-            memory.memoryHeaps[0] = VkMemoryHeap{ 6442450944ull, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT };
-            memory.memoryHeaps[1] = VkMemoryHeap{ 25177847808ull, 0 };
-            memory.memoryHeaps[2] = VkMemoryHeap{ 257949696ull, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT };
-
-            memory.memoryTypeCount = 5;
-            memory.memoryTypes[0] = VkMemoryType{ 0, 1 };
-            memory.memoryTypes[1] = VkMemoryType{ VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0 };
-            memory.memoryTypes[2]
-                = VkMemoryType{ VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 1 };
-            memory.memoryTypes[3] = VkMemoryType{ VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                    | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-                1 };
-            memory.memoryTypes[4] = VkMemoryType{ VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-                    | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                2 };
+            properties.mMemory = Testing::turingMemory();
         }
 
         /// This box's RTX 4090 Laptop, as `openmw-rtxtool info` reports it.
@@ -75,19 +60,16 @@ namespace Rtx
             properties.mProperties2.properties.apiVersion = VK_MAKE_API_VERSION(0, 1, 4, 341);
             properties.mVulkan12.driverID = VK_DRIVER_ID_NVIDIA_PROPRIETARY;
 
-            VkPhysicalDeviceMemoryProperties& memory = properties.mMemory;
-            memory.memoryHeapCount = 2;
-            memory.memoryHeaps[0] = VkMemoryHeap{ 17171480576ull, VK_MEMORY_HEAP_DEVICE_LOCAL_BIT };
-            memory.memoryHeaps[1] = VkMemoryHeap{ 50259238912ull, 0 };
+            properties.mMemory = Testing::adaMemory();
+        }
 
-            memory.memoryTypeCount = 4;
-            memory.memoryTypes[0] = VkMemoryType{ 0, 1 };
-            memory.memoryTypes[1] = VkMemoryType{ VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0 };
-            memory.memoryTypes[2]
-                = VkMemoryType{ VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 1 };
-            memory.memoryTypes[3] = VkMemoryType{ VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-                    | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                0 };
+        /// An RX 6800 under RADV, as Mesa's drm-shim has it report itself for `NAVI21`.
+        void describeRdna2(DeviceProperties& properties)
+        {
+            properties.mProperties2.properties.apiVersion = VK_MAKE_API_VERSION(0, 1, 4, 354);
+            properties.mVulkan12.driverID = VK_DRIVER_ID_MESA_RADV;
+            std::ranges::copy(std::string_view("Mesa 26.2.3"), properties.mVulkan12.driverInfo);
+            properties.mMemory = Testing::rdna2Memory();
         }
 
         /// Everything a qualifying device answers, so a case below changes one thing and asks what
@@ -220,9 +202,10 @@ namespace Rtx
                 EXPECT_EQ(refusedUnder(VK_DRIVER_ID_MOLTENVK, "1.4.1"), "missing extensions: VK_KHR_shader_fma");
             }
             {
-                // What a Radeon or an Arc lists — reports 51246 and 51371: everything the trace needs,
-                // under another vendor's driver. The renderer traces on it.
-                Card foreign(&describeTuring);
+                // What a Radeon lists — its own memory types, AMD's device-coherent ones among them:
+                // everything the trace needs, under another vendor's driver. The renderer traces on it.
+                Card foreign(&describeRdna2);
+                EXPECT_EQ(foreign.profile().mObstacle, "");
                 foreign.mProperties.mVulkan12.driverID = VK_DRIVER_ID_AMD_PROPRIETARY;
                 EXPECT_EQ(foreign.profile().mObstacle, "");
             }

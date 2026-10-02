@@ -105,6 +105,7 @@ set(RTX_TEST_FILES
     rtxvulkan/device/instance.cpp
     rtxvulkan/device/memory/formats.cpp
     rtxvulkan/device/memory/memorypriority.cpp
+    rtxvulkan/device/memory/memorytypes.cpp
     rtxvulkan/device/physicaldevice.cpp
     rtxvulkan/device/requirements.cpp
     rtxvulkan/pipeline/dispatch.cpp
@@ -119,6 +120,7 @@ set(RTX_TEST_FILES
 )
 
 set(RTX_TEST_SUPPORT
+    rtx/support/cardmemory.hpp
     rtx/support/countingrenderer.hpp
     rtx/support/death.hpp
     rtx/support/displaycurve.hpp
