@@ -59,35 +59,49 @@ namespace Rtx
                 Testing::DeviceTest::TearDown();
             }
 
-            /// Clears a target to `sBackground`, records `draws` over it, and hands back the pixels.
-            /// Four bytes each, row zero at the top.
+            /// Records a picture of `sBackground` and `draws` over it into a target, and hands back
+            /// the pixels. Four bytes each, row zero at the top. The picture is the pass's first
+            /// draw, as `GuiDrawer` makes it, ahead of `vertices` and `draws`.
             void drawAndRead(
                 std::span<const GuiVertex> vertices, std::span<const GuiDraw> draws, std::vector<std::uint8_t>& pixels)
             {
                 Device& device = *mHarness.mDevice;
 
+                Image picture(device, sExtent, sExtent, VK_FORMAT_R8G8B8A8_UNORM,
+                    VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, "gui test picture");
                 Image target(device, sExtent, sExtent, VK_FORMAT_R8G8B8A8_UNORM,
                     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
                         | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                     "gui test target");
 
+                const std::array<GuiVertex, 6> backdrop
+                    = Testing::makeGuiQuad(-1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 255, 255, 255));
+                std::vector<GuiVertex> all(backdrop.begin(), backdrop.end());
+                all.insert(all.end(), vertices.begin(), vertices.end());
+
+                std::vector<GuiDraw> shifted{ GuiDraw{ .mTexture = picture.getView(),
+                    .mFirstVertex = 0,
+                    .mVertexCount = static_cast<std::uint32_t>(backdrop.size()),
+                    .mBlend = Blend::None,
+                    .mLayout = VK_IMAGE_LAYOUT_GENERAL } };
+                for (GuiDraw draw : draws)
+                {
+                    draw.mFirstVertex += static_cast<std::uint32_t>(backdrop.size());
+                    shifted.push_back(draw);
+                }
+
                 Batch upload(getPool());
-                const Buffer buffer = uploadBuffer(upload, vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, "test");
+                const Buffer buffer
+                    = uploadBuffer(upload, std::span<const GuiVertex>(all), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, "test");
                 upload.flush();
 
                 getPool().submitAndWait([&](VkCommandBuffer commands) {
-                    target.transition(
-                        commands, ImageUse{ VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_2_NONE, 0 }, Use::sClearWrite);
-
                     const VkClearColorValue clear{ .float32 = { sBackground[0] / 255.0f, sBackground[1] / 255.0f,
                                                        sBackground[2] / 255.0f, sBackground[3] / 255.0f } };
-                    const VkImageSubresourceRange whole{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-                    vkCmdClearColorImage(
-                        commands, target.getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear, 1, &whole);
+                    picture.clear(commands, Use::sUndefined, clear, Use::sFragmentGeneralSample);
+                    target.transition(commands, Use::sUndefined, Use::sColourAttachment);
 
-                    target.transition(commands, Use::sClearWrite, Use::sColourAttachment);
-
-                    mPass->record(commands, target, buffer, draws);
+                    mPass->record(commands, target, buffer, shifted);
                 });
 
                 target.read(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, pixels);
@@ -298,8 +312,8 @@ namespace Rtx
             }
         }
 
-        /// Nothing to draw records nothing at all, rather than an empty render pass over the frame.
-        TEST_F(RtxGuiPassTest, aFrameWithNoBatchesLeavesTheTargetAlone)
+        /// Nothing to draw over the picture draws the picture alone.
+        TEST_F(RtxGuiPassTest, aFrameWithNoBatchesShowsThePictureAlone)
         {
             const std::array<GuiVertex, 6> quad
                 = Testing::makeGuiQuad(-1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 0, 0, 255));

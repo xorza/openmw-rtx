@@ -118,11 +118,21 @@ namespace Rtx
         Up,
     };
 
-    /// Begins drawing over the whole of `target`, loaded rather than cleared because the frame is
-    /// already in it, with the viewport and the scissor set to its extent. Dynamic rendering, so
-    /// there is no render pass and no framebuffer; `vkCmdEndRendering` ends it.
+    /// What a draw over a target does with what the target holds.
+    enum class Underneath
+    {
+        /// Loaded, because the picture is already in it.
+        Kept,
+
+        /// Left undefined, because the first draw writes every pixel.
+        Replaced,
+    };
+
+    /// Begins drawing over the whole of `target`, with the viewport and the scissor set to its
+    /// extent. Dynamic rendering, so there is no render pass and no framebuffer;
+    /// `vkCmdEndRendering` ends it.
     ///
     /// @param target in `VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL` and made with
     ///        `VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT`, which is asserted.
-    void beginDrawingOver(VkCommandBuffer commands, const Image& target, ClipUp up);
+    void beginDrawingOver(VkCommandBuffer commands, const Image& target, ClipUp up, Underneath underneath);
 }

@@ -855,23 +855,25 @@ namespace Rtx::Testing
             const Shaders::VisibilityConstants camera = wallCamera(
                 size, osg::Vec3f(2.0f, 2.0f, 2.0f), osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f));
 
-            const auto shown = [&](float ahead, std::span<const DebugVertex> triangles) {
-                // Half a unit under the eye's own height: fifty ahead that is three tenths of a
-                // pixel under the middle row's centre, so the line rasterizes on that row and not
-                // on the boundary between two.
-                const std::array<DebugVertex, 2> line{
-                    DebugVertex{ .mPosition = osg::Vec3f(-500.0f, -100.0f + ahead, -0.5f),
-                        .mColour = osg::Vec4f(1.0f, 0.0f, 0.0f, 1.0f) },
-                    DebugVertex{ .mPosition = osg::Vec3f(500.0f, -100.0f + ahead, -0.5f),
-                        .mColour = osg::Vec4f(1.0f, 0.0f, 0.0f, 1.0f) },
-                };
-                shoot(scene, {}, camera, size, Shot{ .mDebug = { .mLines = line, .mTriangles = triangles } });
+            const auto shown
+                = [&](float ahead, std::span<const DebugVertex> triangles, float red = 1.0f, float gamma = 1.0f) {
+                      // Half a unit under the eye's own height: fifty ahead that is three tenths of a
+                      // pixel under the middle row's centre, so the line rasterizes on that row and not
+                      // on the boundary between two.
+                      const std::array<DebugVertex, 2> line{
+                          DebugVertex{ .mPosition = osg::Vec3f(-500.0f, -100.0f + ahead, -0.5f),
+                              .mColour = osg::Vec4f(red, 0.0f, 0.0f, 1.0f) },
+                          DebugVertex{ .mPosition = osg::Vec3f(500.0f, -100.0f + ahead, -0.5f),
+                              .mColour = osg::Vec4f(red, 0.0f, 0.0f, 1.0f) },
+                      };
+                      shoot(scene, {}, camera, size,
+                          Shot{ .mGamma = gamma, .mDebug = { .mLines = line, .mTriangles = triangles } });
 
-                std::vector<std::uint8_t> pixels;
-                mRenderer.readPixels(pixels);
-                requireFrame(pixels, size);
-                return pixels;
-            };
+                      std::vector<std::uint8_t> pixels;
+                      mRenderer.readPixels(pixels);
+                      requireFrame(pixels, size);
+                      return pixels;
+                  };
 
             const std::vector<std::uint8_t> bare = shown(150.0f, {});
             ASSERT_GT(int{ bare[middle] }, 20) << "the wall is not lit";
@@ -897,6 +899,12 @@ namespace Rtx::Testing
                 << "the triangle was not blended over the wall";
             EXPECT_NEAR(int{ filled[low + 1] }, static_cast<int>(0.75f * bare[low + 1]), 1);
             EXPECT_EQ(filled[middle], bare[middle]) << "the triangle reached a row above it";
+
+            // **And raised to the player's gamma with the picture under it**, as the rasterizer
+            // raises its debug draws with the world. A line of red 0.25 is 63.75 of 255 at a gamma
+            // of one, and at a gamma of two it is raised by a half, `0.25^(1/2)` = 0.5: 127.5.
+            EXPECT_NEAR(int{ shown(50.0f, {}, 0.25f)[middle] }, 64, 1) << "the line at a gamma of one";
+            EXPECT_NEAR(int{ shown(50.0f, {}, 0.25f, 2.0f)[middle] }, 128, 1) << "the line at a gamma of two";
         }
 
         /// The player's arms are seen through their own eye and stand in front of everything.

@@ -74,7 +74,7 @@ namespace Rtx
             return;
 
         // `line.vert` writes Vulkan's own clip space, `+Y` down as the picture is indexed.
-        beginDrawingOver(commands, target, ClipUp::Down);
+        beginDrawingOver(commands, target, ClipUp::Down, Underneath::Kept);
 
         const VkBuffer bound = vertices.getHandle();
         const VkDeviceSize offset = 0;

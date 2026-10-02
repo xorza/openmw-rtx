@@ -1,6 +1,7 @@
 #include "guipass.hpp"
 
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 
@@ -63,7 +64,9 @@ namespace Rtx
             options.mSpecialization = premultiplied ? sPremultiplied : sStraight;
             options.mVertexModule = "gui.vert.spv";
             options.mFragmentModule = "gui.frag.spv";
-            if (blend == Blend::Additive)
+            if (blend == Blend::None)
+                options.mName = "gui picture";
+            else if (blend == Blend::Additive)
                 options.mName = premultiplied ? "gui additive premultiplied" : "gui additive";
             else
                 options.mName = premultiplied ? "gui premultiplied" : "gui";
@@ -72,7 +75,8 @@ namespace Rtx
     }
 
     GuiPass::GuiPass(const Device& device)
-        : mOver(device, describePipeline(TonePass::sTargetFormat, Blend::Over, AlphaForm::Straight))
+        : mReplace(device, describePipeline(TonePass::sTargetFormat, Blend::None, AlphaForm::Straight))
+        , mOver(device, describePipeline(TonePass::sTargetFormat, Blend::Over, AlphaForm::Straight))
         , mAdditive(device, describePipeline(TonePass::sTargetFormat, Blend::Additive, AlphaForm::Straight))
         , mOverPremultiplied(device, describePipeline(TonePass::sTargetFormat, Blend::Over, AlphaForm::Premultiplied))
         , mAdditivePremultiplied(
@@ -83,6 +87,9 @@ namespace Rtx
 
     const GraphicsPipeline<NoConstants>& GuiPass::pipelineFor(const GuiDraw& draw) const
     {
+        if (draw.mBlend == Blend::None)
+            return mReplace;
+
         if (draw.mSource == AlphaForm::Premultiplied)
             return draw.mBlend == Blend::Additive ? mAdditivePremultiplied : mOverPremultiplied;
 
@@ -92,11 +99,10 @@ namespace Rtx
     void GuiPass::record(
         VkCommandBuffer commands, const Image& target, const Buffer& vertices, std::span<const GuiDraw> draws) const
     {
-        if (draws.empty())
-            return;
+        assert(!draws.empty() && draws.front().mBlend == Blend::None && "an interface drawn over no picture");
 
         // MyGUI computes its vertices for a clip space with +Y up, which is OpenGL's.
-        beginDrawingOver(commands, target, ClipUp::Up);
+        beginDrawingOver(commands, target, ClipUp::Up, Underneath::Replaced);
 
         // Named by hand, because a vertex buffer is bound by handle and not handed out as an
         // address or a descriptor.
@@ -119,8 +125,8 @@ namespace Rtx
             // Against the layout of the pipeline that is bound: the four are identical, but a push
             // is only defined against the one in force.
             DescriptorWrites texture(pipeline);
-            texture.image(Shaders::GUI_BIND_TEXTURE,
-                VkDescriptorImageInfo{ mSampler.get(), draw.mTexture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL });
+            texture.image(
+                Shaders::GUI_BIND_TEXTURE, VkDescriptorImageInfo{ mSampler.get(), draw.mTexture, draw.mLayout });
             pushDescriptors(commands, pipeline, texture);
             vkCmdDraw(commands, draw.mVertexCount, 1, draw.mFirstVertex, 0);
         }

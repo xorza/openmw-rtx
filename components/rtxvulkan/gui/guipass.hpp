@@ -29,6 +29,10 @@ namespace Rtx
         /// where it changes, so a caller that keeps like with like pays for one bind.
         Blend mBlend = Blend::Over;
         AlphaForm mSource = AlphaForm::Straight;
+
+        /// The layout the texture is read in: an interface texture's, or `GENERAL` for the picture
+        /// under the interface, which a read back copies from that layout.
+        VkImageLayout mLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     };
 
     /// The GUI, over the finished picture — after tone mapping, because MyGUI picked its colours
@@ -40,22 +44,23 @@ namespace Rtx
         /// Draws over the curve's picture, in `TonePass::sTargetFormat`.
         explicit GuiPass(const Device& device);
 
-        /// @param target what to draw over, in `VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL` and made
-        ///        with `VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT`, which is asserted. Loaded rather than
-        ///        cleared: the frame is already in it.
+        /// @param target what to draw, in `VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL` and made with
+        ///        `VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT`, which is asserted. Not loaded: the first
+        ///        draw is the picture, `Blend::None` over the whole of it.
         /// @param vertices every batch's vertices in one buffer, in `Rtx::GuiVertex` layout.
-        /// @param draws what to draw and what to read while drawing it, in order. Each texture must
-        ///        be in `VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL`.
+        /// @param draws what to draw and what to read while drawing it, in order, the picture
+        ///        first. Each texture must be in the layout its draw names.
         void record(VkCommandBuffer commands, const Image& target, const Buffer& vertices,
             std::span<const GuiDraw> draws) const;
 
     private:
         const GraphicsPipeline<NoConstants>& pipelineFor(const GuiDraw& draw) const;
 
-        /// Four, because a blend mode is baked into a pipeline: over or added, of a straight texture
-        /// or a premultiplied one. The alternative is `VK_EXT_extended_dynamic_state3`, which is a
-        /// device feature to require and a driver path to trust for something that is four objects
-        /// compiled once at startup.
+        /// Five, because a blend mode is baked into a pipeline: over or added, of a straight texture
+        /// or a premultiplied one, and the picture under all of them, which replaces. The
+        /// alternative is `VK_EXT_extended_dynamic_state3`, which is a device feature to require and
+        /// a driver path to trust for something that is five objects compiled once at startup.
+        GraphicsPipeline<NoConstants> mReplace;
         GraphicsPipeline<NoConstants> mOver;
         GraphicsPipeline<NoConstants> mAdditive;
         GraphicsPipeline<NoConstants> mOverPremultiplied;

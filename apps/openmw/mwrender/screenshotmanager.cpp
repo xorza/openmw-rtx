@@ -4,6 +4,7 @@
 #include <mutex>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/misc/presentation.hpp>
 #include <components/stereo/multiview.hpp>
 #include <components/stereo/stereomanager.hpp>
 
@@ -76,13 +77,10 @@ namespace MWRender
                 screenW = eyeRes.x();
                 screenH = eyeRes.y();
             }
-            double imageaspect = double(mWidth) / double(mHeight);
-            int leftPadding = std::max(0, static_cast<int>(screenW - screenH * imageaspect) / 2);
-            int topPadding = std::max(0, static_cast<int>(screenH - screenW / imageaspect) / 2);
-            int width = screenW - leftPadding * 2;
-            int height = screenH - topPadding * 2;
+            const Misc::Crop crop = Misc::cropToAspect(osg::Vec2i(screenW, screenH), osg::Vec2i(mWidth, mHeight));
 
-            mImage->readPixels(leftPadding, topPadding, width, height, GL_RGB, GL_UNSIGNED_BYTE);
+            mImage->readPixels(
+                crop.mOrigin.x(), crop.mOrigin.y(), crop.mSize.x(), crop.mSize.y(), GL_RGB, GL_UNSIGNED_BYTE);
             mImage->scaleImage(mWidth, mHeight, 1);
         }
 

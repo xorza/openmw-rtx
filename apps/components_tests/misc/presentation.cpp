@@ -102,5 +102,21 @@ namespace Misc
             EXPECT_FLOAT_EQ(interfaceScale(2.f, { 7680, 2160 }, display), 3.f);
             EXPECT_FLOAT_EQ(interfaceScale(1.25f, { 7680, 2160 }, { 0, 0 }), 1.25f);
         }
+
+        /// **A save's thumbnail is the middle of the frame at the thumbnail's aspect**, 518 by 266.
+        /// A 1920 by 1080 frame is taller: `1080 - 1920 * 266 / 518` = 94.05 rows over, 94 whole,
+        /// 47 off the top and the bottom. A 7680 by 2160 frame is wider:
+        /// `7680 - 2160 * 518 / 266` = 3473.68 columns over, 3473 whole, 1736 off each side. A frame
+        /// at the thumbnail's own aspect is not cut at all.
+        TEST(MiscPresentationTest, aThumbnailIsTheMiddleOfTheFrameAtItsOwnAspect)
+        {
+            const osg::Vec2i thumbnail(518, 266);
+            EXPECT_EQ(cropToAspect({ 1920, 1080 }, thumbnail),
+                (Crop{ .mOrigin = osg::Vec2i(0, 47), .mSize = osg::Vec2i(1920, 986) }));
+            EXPECT_EQ(cropToAspect({ 7680, 2160 }, thumbnail),
+                (Crop{ .mOrigin = osg::Vec2i(1736, 0), .mSize = osg::Vec2i(4208, 2160) }));
+            EXPECT_EQ(cropToAspect({ 1036, 532 }, thumbnail),
+                (Crop{ .mOrigin = osg::Vec2i(0, 0), .mSize = osg::Vec2i(1036, 532) }));
+        }
     }
 }

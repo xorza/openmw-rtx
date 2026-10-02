@@ -434,10 +434,10 @@ namespace Rtx
         /// `Renderer::setScene` has been called for the world.
         virtual const SceneStats& getSceneStats() const = 0;
 
-        /// Copies the output image into `pixels`, four bytes per pixel, tightly packed: the frame
-        /// last traced, with whatever interface was drawn over it since — so read between a trace
-        /// and its present, it is that trace's picture and not the one presented before it. Not on
-        /// a frame path: it submits a copy and waits for it, so it is not const.
+        /// Copies the picture into `pixels`, four bytes per pixel, tightly packed: the frame last
+        /// traced, at the output extent, without the interface drawn over it since — what a
+        /// screenshot, a save's thumbnail and a frozen frame show, as the rasterizer's do. Not on a
+        /// frame path: it submits a copy and waits for it, so it is not const.
         virtual void readPixels(std::vector<std::uint8_t>& pixels) = 0;
 
     protected:

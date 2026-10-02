@@ -473,13 +473,12 @@ namespace Rtx
     {
         assert(mTarget.isOpen());
 
-        if (vertices.empty() || batches.empty())
-            return;
-
         // After the frame's submit, and not waited for. The GUI is collected once the world has
         // been drawn and there is nothing to gain by holding the frame open for it; the queue draws
-        // it after the frame, and the present blits after both.
-        mGui.draw(vertices, batches, mTarget.get());
+        // it after the frame, and the present blits after both. Drawn with no batches as well,
+        // because what is shown is the picture under them either way.
+        mGui.draw(vertices, batches, mTarget.getPicture(), mTarget.getShown());
+        mShownCurrent = true;
     }
 
     void VulkanRenderer::presentFrame()
@@ -487,7 +486,11 @@ namespace Rtx
         assert(mPresenter != nullptr && "presentFrame on a renderer that was given no window");
         assert(mTarget.isOpen());
 
-        mPresenter->present(mTarget.get());
+        if (!mShownCurrent)
+            mGui.draw({}, {}, mTarget.getPicture(), mTarget.getShown());
+
+        mPresenter->present(mTarget.getShown());
+        mShownCurrent = false;
     }
 
     FrameExtents VulkanRenderer::getExtents() const
@@ -564,7 +567,8 @@ namespace Rtx
             mMedia.placeRipples(sampled);
         }
 
-        Image& target = mTarget.get();
+        Image& target = mTarget.getPicture();
+        mShownCurrent = false;
 
         const TraceResult traced = mFrame.record(commands,
             TraceRecording{
@@ -716,7 +720,14 @@ namespace Rtx
     {
         assert(mTarget.isOpen());
 
-        mTarget.get().read(VK_IMAGE_LAYOUT_GENERAL, pixels);
+        mTarget.getPicture().read(VK_IMAGE_LAYOUT_GENERAL, pixels);
+    }
+
+    void VulkanRenderer::readShown(std::vector<std::uint8_t>& pixels)
+    {
+        assert(mTarget.isOpen());
+
+        mTarget.getShown().read(VK_IMAGE_LAYOUT_GENERAL, pixels);
     }
 
     void VulkanRenderer::readChannel(const Channel channel, std::vector<float>& values)
