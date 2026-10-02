@@ -122,7 +122,9 @@ namespace Rtx
 
             // One normal for the whole drawable is a normal: `SceneUtil::createWaterGeometry` binds
             // exactly this, and dropping it made the sea flat black and took the exposure with it.
-            if (normals->size() != positions->size() && normals->getBinding() == osg::Array::BIND_OVERALL)
+            // Element nought whatever the array's length, as OpenGL reads an overall array and as
+            // `readColours` reads one.
+            if (normals->getBinding() == osg::Array::BIND_OVERALL)
             {
                 flat.assign(positions->size(), normals->at(0));
                 arrays.mNormals = std::span(flat);
