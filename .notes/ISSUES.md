@@ -4,11 +4,11 @@ Defects the reviews of 2026-10-02 found or rewrote, the parity review against th
 included. `.notes/REVIEW.md` holds each one's evidence under its title, beside the defects of the
 first review.
 
-- An alpha-blended surface whose material alpha is one is cut at alpha 0.5, where the rasterizer
-  blends it by the texture's alpha. 781 vanilla shapes carry soft alpha: the Imperial lantern's glass
-  disappears, interior lava comes out speckled, and waterfalls, cobwebs, Telvanni crystals and
-  Bloodmoon ice lose most of their coverage. `components/rtx/scene/material.hpp:167-187`,
-  `components/rtxvulkan/shaders/lib/traversal.glsl:268`.
+- An alpha-blended surface whose material alpha is one and whose texture reaches solid is cut at
+  alpha 0.5, where the rasterizer blends its soft texels by the texture's alpha. Every DXT3 leaf,
+  banner, rope and sail has a hard edge where the rasterizer's is soft, and a cobweb, a Telvanni
+  crystal or Bloodmoon ice whose texture reaches 255 anywhere loses the coverage under the cut.
+  `components/rtx/scene/material.hpp` (`Material::isTranslucent`).
 - The crosshair, activation and Lua's `castRenderingRay` meet skinned actors in their bind pose:
   `RigGeometry` poses its CPU copy only in a cull, and the ray tracer never culls the world. A corpse
   on the floor is hard to focus or loot. `components/sceneutil/riggeometry.cpp:137-157`,
