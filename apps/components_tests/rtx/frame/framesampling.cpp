@@ -22,10 +22,10 @@ namespace Rtx
         Shaders::VisibilityConstants stated()
         {
             Shaders::VisibilityConstants frame{};
-            frame.mCamera.mBasis.mRight = osg::Vec3f(2.0f, 0.0f, 0.0f);
-            frame.mCamera.mBasis.mUp = osg::Vec3f(0.0f, 0.0f, 1.0f);
-            frame.mArms = frame.mCamera;
-            frame.mArms.mBasis.mRight = osg::Vec3f(3.0f, 0.0f, 0.0f);
+            frame.mEyes.mWorld.mBasis.mRight = osg::Vec3f(2.0f, 0.0f, 0.0f);
+            frame.mEyes.mWorld.mBasis.mUp = osg::Vec3f(0.0f, 0.0f, 1.0f);
+            frame.mEyes.mArms = frame.mEyes.mWorld;
+            frame.mEyes.mArms.mBasis.mRight = osg::Vec3f(3.0f, 0.0f, 0.0f);
             frame.mOrigin = osg::Vec3f(10.0f, 20.0f, 30.0f);
             frame.mFrame = 4;
             frame.mRayMask = Shaders::MASK_FIRST_PERSON;
@@ -71,15 +71,16 @@ namespace Rtx
             const InstanceCounts counts{ .mFirstPerson = 1 };
             Shaders::VisibilityConstants previous = stated();
             previous.mOrigin = osg::Vec3f(7.0f, 20.0f, 30.0f);
-            previous.mCamera.mBasis.mForward = osg::Vec3f(0.0f, 1.0f, 0.0f);
+            previous.mEyes.mWorld.mBasis.mForward = osg::Vec3f(0.0f, 1.0f, 0.0f);
 
             const Shaders::VisibilityConstants sampled
                 = sampleFrame(stated(), FrameOptions{}, RenderProfile{}, jittering, counts, &previous);
 
-            EXPECT_EQ(sampled.mCamera.mJitter, haltonJitter(4));
-            EXPECT_FLOAT_EQ(sampled.mCamera.mJitter.x(), 0.125f);
-            EXPECT_NEAR(sampled.mCamera.mJitter.y(), 7.0f / 9.0f - 0.5f, 1e-6f);
-            EXPECT_EQ(sampled.mArms.mJitter, sampled.mCamera.mJitter) << "the arms sample where the eye does";
+            EXPECT_EQ(sampled.mEyes.mWorld.mJitter, haltonJitter(4));
+            EXPECT_FLOAT_EQ(sampled.mEyes.mWorld.mJitter.x(), 0.125f);
+            EXPECT_NEAR(sampled.mEyes.mWorld.mJitter.y(), 7.0f / 9.0f - 0.5f, 1e-6f);
+            EXPECT_EQ(sampled.mEyes.mArms.mJitter, sampled.mEyes.mWorld.mJitter)
+                << "the arms sample where the eye does";
 
             // Under an upscaler's period the index wraps: frame four of three phases is phase one,
             // Halton's second term less a half, (1/4, 2/3) - 1/2 = (-0.25, 0.16667).
@@ -87,9 +88,9 @@ namespace Rtx
             cycling.mJitterPhases = 3;
             const Shaders::VisibilityConstants wrapped
                 = sampleFrame(stated(), FrameOptions{}, RenderProfile{}, cycling, counts, &previous);
-            EXPECT_EQ(wrapped.mCamera.mJitter, haltonJitter(1));
-            EXPECT_FLOAT_EQ(wrapped.mCamera.mJitter.x(), -0.25f);
-            EXPECT_NEAR(wrapped.mCamera.mJitter.y(), 2.0f / 3.0f - 0.5f, 1e-6f);
+            EXPECT_EQ(wrapped.mEyes.mWorld.mJitter, haltonJitter(1));
+            EXPECT_FLOAT_EQ(wrapped.mEyes.mWorld.mJitter.x(), -0.25f);
+            EXPECT_NEAR(wrapped.mEyes.mWorld.mJitter.y(), 2.0f / 3.0f - 0.5f, 1e-6f);
             EXPECT_EQ(sampled.mNoise, Shaders::NOISE_WHITE_HASH);
             EXPECT_EQ(sampled.mLevelBias, -0.5f);
             EXPECT_EQ(sampled.mArmsSpread, osg::Vec2f(1.5f, 1.0f));
@@ -107,13 +108,13 @@ namespace Rtx
             // not jitter samples the centre unless the frame states an offset of its own.
             const Shaders::VisibilityConstants picture
                 = sampleFrame(stated(), FrameOptions{}, RenderProfile{}, Reconstruction{}, counts, nullptr);
-            EXPECT_EQ(picture.mCamera.mJitter, osg::Vec2f());
+            EXPECT_EQ(picture.mEyes.mWorld.mJitter, osg::Vec2f());
             EXPECT_EQ(picture.mCameraMotion, osg::Vec3f());
             EXPECT_EQ(picture.mNoise, Shaders::NOISE_BLUE_TILE);
 
             const Shaders::VisibilityConstants offset = sampleFrame(stated(),
                 FrameOptions{ .mJitter = osg::Vec2f(0.25f, 0.0f) }, RenderProfile{}, Reconstruction{}, counts, nullptr);
-            EXPECT_EQ(offset.mCamera.mJitter, osg::Vec2f(0.25f, 0.0f));
+            EXPECT_EQ(offset.mEyes.mWorld.mJitter, osg::Vec2f(0.25f, 0.0f));
         }
     }
 }

@@ -420,16 +420,14 @@ namespace Rtx
         const Shaders::FsrConstants& constants = mFrame.advance(FsrFrame::Frame{
             .mRender = targets.mRender,
             .mOutput = targets.mOutput,
-            .mCamera = inputs.mCamera,
+            .mCamera = inputs.mEyes.mWorld,
             .mJitterPhases = inputs.mJitterPhases,
             .mSeconds = inputs.mSeconds,
         });
         const FsrFrame::Pyramid& pyramid = targets.mPyramid;
 
         const Buffer& blocks = mBlocks.at(inputs.mSlot);
-        const Shaders::FsrInputConstants inputConstants{
-            .mCamera = inputs.mCamera, .mArms = inputs.mArms, .mNear = FsrFrame::sNear
-        };
+        const Shaders::FsrInputConstants inputConstants{ .mEyes = inputs.mEyes, .mNear = FsrFrame::sNear };
         blocks.writeAt(Shaders::FSR_BLOCK_CONSTANTS, std::span(&constants, 1));
         blocks.writeAt(Shaders::FSR_BLOCK_PYRAMID, std::span(&pyramid.mConstants, 1));
         blocks.writeAt(Shaders::FSR_BLOCK_INPUTS, std::span(&inputConstants, 1));

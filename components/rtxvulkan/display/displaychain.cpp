@@ -42,10 +42,10 @@ namespace Rtx
                 .mSpriteTileList = spriteTileList,
                 .mSpritePresence = spritePresence,
                 .mTextureTexels = textureTexels,
-                .mTracedWidth = frame.mCamera.mWidth,
-                .mTracedHeight = frame.mCamera.mHeight,
+                .mTracedWidth = frame.mEyes.mWorld.mWidth,
+                .mTracedHeight = frame.mEyes.mWorld.mHeight,
                 .mBackdrop = frame.mTransparentBackground == 0 ? Shaders::BACKDROP_STARS : Shaders::BACKDROP_INTERFACE,
-                .mCamera = Shaders::cameraOnGrid(frame.mCamera, width, height),
+                .mCamera = Shaders::cameraOnGrid(frame.mEyes.mWorld, width, height),
                 .mStars = frame.mStars,
                 .mGlareColour = fader.mColour,
                 .mGlareAmount = fader.amountFor(frame),
@@ -97,7 +97,7 @@ namespace Rtx
 
         shown.transition(commands, what.mShown.mLeftAs, Use::sTraceReadWrite);
         mPuffs.recordSpriteComposite(commands, inputs, shown, what.mExtent,
-            VkExtent2D{ what.mSampled.mCamera.mWidth, what.mSampled.mCamera.mHeight }, timer);
+            VkExtent2D{ what.mSampled.mEyes.mWorld.mWidth, what.mSampled.mEyes.mWorld.mHeight }, timer);
         shown.transition(commands, Use::sTraceReadWrite, Use::sComputeReadOrSample);
 
         // What the lens will spread, built here and applied by the curve. Nothing is written back
@@ -199,10 +199,10 @@ namespace Rtx
                 .mTarget = target,
                 .mSurface = channels.get(Channel::Surface),
                 .mConstants = {
-                    .mCamera = Shaders::cameraOnGrid(what.mSampled.mCamera, what.mExtent.width, what.mExtent.height),
+                    .mCamera = Shaders::cameraOnGrid(what.mSampled.mEyes.mWorld, what.mExtent.width, what.mExtent.height),
                     .mOrigin = what.mSampled.mOrigin,
                     .mNear = what.mSampled.mNear,
-                    .mTraced = Shaders::uvec2(what.mSampled.mCamera.mWidth, what.mSampled.mCamera.mHeight),
+                    .mTraced = Shaders::uvec2(what.mSampled.mEyes.mWorld.mWidth, what.mSampled.mEyes.mWorld.mHeight),
                     .mInverseGamma = look.mInverseGamma,
                 },
                 .mVertices = look.mDebugVertices.get(),

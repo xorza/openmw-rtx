@@ -506,7 +506,7 @@ namespace Rtx
         const DeviceScene* const held = mScenes.find(SceneSlot::world());
         assert(held != nullptr && "renderFrame before setScene");
         const DeviceScene& world = *held;
-        assert(camera.mCamera.mWidth == mFrame.getWidth() && camera.mCamera.mHeight == mFrame.getHeight()
+        assert(camera.mEyes.mWorld.mWidth == mFrame.getWidth() && camera.mEyes.mWorld.mHeight == mFrame.getHeight()
             && "the camera has to be built for the render extent; ask getExtents");
 
         // Coverage and an upscaler do not meet: an upscaler writes the upscaled image itself and is
@@ -537,7 +537,7 @@ namespace Rtx
             past.mReprojectionLost ? nullptr : &*mPreviousCamera);
 
         // The launch the misses are counted against, which is the traced extent and not the shown one.
-        frame.mCountedRays = mCounting ? sampled.mCamera.mWidth * sampled.mCamera.mHeight : 0u;
+        frame.mCountedRays = mCounting ? sampled.mEyes.mWorld.mWidth * sampled.mEyes.mWorld.mHeight : 0u;
 
         const TraceSubject subject
             = mMedia.describe(world, camera, frame.mCounts, mDisplay.getGlareCounts(), mRing.getRecordingSlot());
@@ -591,8 +591,8 @@ namespace Rtx
 
             mRing.readDigest(frame, commands, digested,
                 FrameDigest{
-                    .mJitterX = sampled.mCamera.mJitter.x(),
-                    .mJitterY = sampled.mCamera.mJitter.y(),
+                    .mJitterX = sampled.mEyes.mWorld.mJitter.x(),
+                    .mJitterY = sampled.mEyes.mWorld.mJitter.y(),
                     .mFrameDeltaMs = sinceLastMs,
                     .mReset = reconstruction.upscaled() && mUpscaler.isFresh() ? 1u : 0u,
                 },
@@ -613,8 +613,7 @@ namespace Rtx
                     .mSurface = channels.get(Channel::Surface),
                     .mMotion = channels.get(Channel::Motion),
                     .mMasks = channels.get(Channel::UpscaleMasks),
-                    .mCamera = sampled.mCamera,
-                    .mArms = sampled.mArms,
+                    .mEyes = sampled.mEyes,
                     .mJitterPhases = reconstruction.mJitterPhases,
                     .mSeconds = options.mSinceLast,
                     .mSlot = mRing.getRecordingSlot(),
@@ -682,7 +681,7 @@ namespace Rtx
     {
         assert(mGui.getTextures().holds(texture) && "a trace into a slot nothing holds");
 
-        const VkExtent2D extent{ camera.mCamera.mWidth, camera.mCamera.mHeight };
+        const VkExtent2D extent{ camera.mEyes.mWorld.mWidth, camera.mEyes.mWorld.mHeight };
         if (extent.width == 0 || extent.height == 0)
             return;
 

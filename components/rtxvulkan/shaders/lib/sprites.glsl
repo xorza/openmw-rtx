@@ -432,7 +432,7 @@ SpriteCrossing ballCrossing(
 /// @param direction the ray's, ahead of the eye.
 uvec2 binnedPixel(uvec2 pixel, vec3 direction, bool arms)
 {
-    const Camera world = frame.mCamera;
+    const Camera world = frame.mEyes.mWorld;
     const Screen screen = screenOf(world.mBasis, direction, vec2(1.0));
 
     // `rayAt`'s generation undone: the pixel whose area the ray crosses the plane in.
@@ -478,7 +478,7 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
 
     // **The tiles are derived and not carried**, from the same function the bin uses, so the two
     // cannot disagree about how many there are across.
-    const uint tile = spriteTileOf(pixel, frame.mCamera.mWidth);
+    const uint tile = spriteTileOf(pixel, frame.mEyes.mWorld.mWidth);
 
     // **Every sprite where the runs did not fit**, which is the list's own degenerate form and the
     // march as it was before the tiles: `SPRITE_LIST_UNBINNED` says when a frame is handed it. The
@@ -511,7 +511,7 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
     // is not the screen's up, which no pinhole's ray inside its own field of view is. Not
     // `tangentTo`, whose tangent is whichever world axis the ray lies least along: that flips
     // between two rays a pixel apart and would turn every puff's texture with it.
-    const vec3 across = normalize(cross(direction, frame.mCamera.mBasis.mUp));
+    const vec3 across = normalize(cross(direction, frame.mEyes.mWorld.mBasis.mUp));
     const vec3 upward = cross(across, direction);
 
     // The air along this one ray, built before the walk: every sprite below asks the same column

@@ -105,15 +105,15 @@ vec2 reprojected(uvec2 pixel, vec3 was, vec2 spread)
     // **No answer under a parallel projection.** The inverse below divides by the distance along
     // the view axis, which is the perspective divide and not this camera's projection. Nothing that
     // traces one reprojects: a map tile is one frame with no frame before it.
-    if (frame.mCamera.mOrthographic != 0u)
+    if (frame.mEyes.mWorld.mOrthographic != 0u)
         return vec2(0.0);
 
     const PreviousScreen screen = previousScreenThrough(was, spread);
     if (!screen.mFound)
         return vec2(0.0);
 
-    const vec2 before = screen.mAt * vec2(frame.mCamera.mWidth, frame.mCamera.mHeight);
-    return before - (vec2(pixel) + 0.5 + frame.mCamera.mJitter);
+    const vec2 before = screen.mAt * vec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight);
+    return before - (vec2(pixel) + 0.5 + frame.mEyes.mWorld.mJitter);
 }
 
 /// How far a point of a deforming mesh moved between the last frame and this one, in world
@@ -184,7 +184,7 @@ vec3 motionOf(uvec2 pixel, vec3 origin, vec3 direction, float distance, uint ins
     // would come out a rounding off nought.
     const float farther = dot(moved, fma(direction, vec3(2.0 * distance), moved)) / (length(was) + distance);
 
-    return vec3(reprojected(pixel, was, spread), frame.mCamera.mOrthographic != 0u ? 0.0 : farther);
+    return vec3(reprojected(pixel, was, spread), frame.mEyes.mWorld.mOrthographic != 0u ? 0.0 : farther);
 }
 
 /// Where the sky a ray found stood on the previous frame's screen, in pixels.

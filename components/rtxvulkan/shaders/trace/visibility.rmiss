@@ -45,7 +45,7 @@ void main()
     // the pixel is then seen through. A picture's background is nothing as well.
     const bool picture = frame.mTransparentBackground != 0u;
     if (!waterUnbounded(false, origin, direction) && !picture)
-        answer.mRadiance = skyRadiance(origin, direction, pixelBlur(frame.mCamera), true, answer.mBackdropShown);
+        answer.mRadiance = skyRadiance(origin, direction, pixelBlur(frame.mEyes.mWorld), true, answer.mBackdropShown);
 
     // **And the interface behind a picture is its backdrop, shown whole**: no sky stands in front
     // of it, so whatever the launch put in front of this miss is all that covers it.

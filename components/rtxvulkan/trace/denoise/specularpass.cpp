@@ -28,8 +28,8 @@ namespace Rtx
         const GBuffer& buffer, const DenoiseFrame& frame) const
     {
         const Shaders::VisibilityConstants& sampled = frame.mSampled;
-        const std::uint32_t width = sampled.mCamera.mWidth;
-        const std::uint32_t height = sampled.mCamera.mHeight;
+        const std::uint32_t width = sampled.mEyes.mWorld.mWidth;
+        const std::uint32_t height = sampled.mEyes.mWorld.mHeight;
         assert(images.mMean.getWidth() >= width && images.mMean.getHeight() >= height);
 
         DescriptorWrites writes(mPipeline);
@@ -41,12 +41,13 @@ namespace Rtx
         writes.image(Shaders::SPECULAR_BIND_MEAN, images.mMean.describeStorage());
 
         const Shaders::SpecularConstants constants{
-            .mCamera = sampled.mCamera,
-            .mArms = sampled.mArms,
+            .mHistory = Shaders::HistoryConstants{
+                .mEyes = sampled.mEyes,
+                .mReset = images.mFresh ? 1u : 0u,
+                .mDistanceScale = frame.mDistanceScale,
+            },
             .mPrevious = sampled.mPrevious,
             .mArmsSpread = sampled.mArmsSpread,
-            .mReset = images.mFresh ? 1u : 0u,
-            .mDistanceScale = frame.mDistanceScale,
         };
 
         dispatch(commands, mPipeline, writes, constants, Groups::covering(width, height, Shaders::SPECULAR_WORKGROUP));

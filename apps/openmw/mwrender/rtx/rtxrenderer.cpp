@@ -949,10 +949,10 @@ namespace MWRender
         // A script's projection offset: the same fraction of the picture at the traced extent as at
         // the frame's. The arms' eye is built after it and keeps it, as the rasterizer shifts the
         // arms' projection too.
-        Rtx::shiftPicture(constants->mCamera, frame.mEye.mProjectionShift);
+        Rtx::shiftPicture(constants->mEyes.mWorld, frame.mEye.mProjectionShift);
 
         // The arms' own eye, at the field of view the game draws them through.
-        constants->mArms = Rtx::cameraAtFieldOfView(constants->mCamera, frame.mEye.mArmsFieldOfView);
+        constants->mEyes.mArms = Rtx::cameraAtFieldOfView(constants->mEyes.mWorld, frame.mEye.mArmsFieldOfView);
 
         // What the game decided the eye sees, read where the rasterizer reads it.
         const ViewDescription described = describeView(worldViewMask());

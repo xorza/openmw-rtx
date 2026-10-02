@@ -103,8 +103,7 @@ namespace Rtx::Shaders
     /// its position is rebuilt through the one that cast it, as the wavelet rebuilds it.
     struct ShadowFilterConstants
     {
-        Camera mCamera;
-        Camera mArms;
+        Eyes mEyes;
     };
 
 #ifdef RTX_HOST

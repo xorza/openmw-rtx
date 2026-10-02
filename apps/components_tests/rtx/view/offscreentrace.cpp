@@ -106,7 +106,7 @@ namespace Rtx
                 ASSERT_TRUE(renderer.mTraced.has_value());
                 EXPECT_EQ(renderer.mTraced->mDelight, 0.0f);
                 EXPECT_EQ(renderer.mTraced->mShow, 0u);
-                EXPECT_EQ(renderer.mTraced->mCamera.mJitter, osg::Vec2f());
+                EXPECT_EQ(renderer.mTraced->mEyes.mWorld.mJitter, osg::Vec2f());
             }
         }
 

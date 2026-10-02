@@ -106,7 +106,7 @@ namespace Rtx
                 return std::nullopt;
 
             Shaders::VisibilityConstants camera = beforeWorld(basis->mOrigin, near, far);
-            camera.mCamera = Shaders::Camera{
+            camera.mEyes.mWorld = Shaders::Camera{
                 .mBasis = Shaders::Basis{
                     .mForward = basis->mForward,
                     .mRight = basis->mRight * spread.mHalfWidth,
@@ -117,7 +117,7 @@ namespace Rtx
                 .mWidth = width,
                 .mHeight = height,
             };
-            camera.mArms = camera.mCamera;
+            camera.mEyes.mArms = camera.mEyes.mWorld;
 
             return camera;
         }

@@ -19,7 +19,7 @@ layout(shaderRecordEXT, scalar) buffer HitRecordBlock
 /// The cone the ray this stage answers for was cast with.
 ///
 /// **The record says which eye, and the eye says the cone.** The launch traces the world through
-/// `frame.mCamera` and the player's arms through `frame.mArms`, whose spread the host widens to
+/// `frame.mEyes.mWorld` and the player's arms through `frame.mEyes.mArms`, whose spread the host widens to
 /// the first-person field of view, and a hit on the arms read at the world eye's narrower pixel
 /// was a texel resolved a level too fine. Every other ray in the frame is an inline query inside a
 /// shader and never comes through here. A select on a record field, which is uniform per record.

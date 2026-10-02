@@ -372,7 +372,7 @@ FogSources fogSourcesFrom(MoonTerms terms, float draw)
 /// a column points. Half a pixel back, because `rayAt` adds its own.
 Ray fogColumnRayAt(uvec2 column, vec2 inside)
 {
-    return rayAt(frame.mCamera, (vec2(column) + inside) * float(FOG_VOLUME_SCALE) - 0.5);
+    return rayAt(frame.mEyes.mWorld, (vec2(column) + inside) * float(FOG_VOLUME_SCALE) - 0.5);
 }
 
 /// The ray one column of the fog volume samples its air along this frame.

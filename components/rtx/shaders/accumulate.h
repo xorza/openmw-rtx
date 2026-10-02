@@ -66,10 +66,11 @@ namespace Rtx::Shaders
     /// because all three are filled from one frame by one rule.
     struct HistoryConstants
     {
-        /// The camera the frame was traced with. **The jitter is why this is here**: the motion
-        /// vector is written against the jittered pixel centre the ray was actually aimed at, so
-        /// undoing it needs the same offset added back.
-        Camera mCamera;
+        /// The eyes the frame was traced with. **The jitter is why this is here**: the motion vector
+        /// is written against the jittered pixel centre the ray was actually aimed at, so undoing
+        /// it needs the same offset added back; the arms' eye, for the glossy filter, which keeps
+        /// this history too and rebuilds a pixel's ray through the eye that cast it.
+        Eyes mEyes;
 
         /// Non-zero where there is no history to reuse — the first frame, a resize, a door walked
         /// through. Every pixel then starts its count again.
@@ -89,7 +90,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(HistoryConstants) == 76, "HistoryConstants must be scalar-packed on every side");
+    static_assert(sizeof(HistoryConstants) == 144, "HistoryConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

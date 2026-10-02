@@ -83,7 +83,7 @@ vec3 fogVolumeWas(vec3 fromEye)
         return vec3(-1.0);
 
     const vec2 at = fogVolumeAcross(
-        screen.mAt * vec2(float(frame.mCamera.mWidth), float(frame.mCamera.mHeight)), frame.mFogColumns);
+        screen.mAt * vec2(float(frame.mEyes.mWorld.mWidth), float(frame.mEyes.mWorld.mHeight)), frame.mFogColumns);
 
     // A slice holds what its own jittered point read, so its texel centre is the slice's middle
     // and a distance reads straight off the curve with no half-texel shift — which the

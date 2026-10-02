@@ -44,8 +44,7 @@ namespace Rtx
         const Image& mMasks;
 
         /// The two eyes the trace sampled through, jitter and all.
-        Shaders::Camera mCamera;
-        Shaders::Camera mArms;
+        Shaders::Eyes mEyes;
 
         /// `Reconstruction::mJitterPhases`: what the jitter the trace sampled with repeats after.
         std::uint32_t mJitterPhases = 0;

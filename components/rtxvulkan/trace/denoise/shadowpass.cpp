@@ -58,7 +58,7 @@ namespace Rtx
     const Image& ShadowPass::record(VkCommandBuffer commands, const DenoiseHistory::ShadowImages& images,
         const GBuffer& buffer, const DenoiseFrame& frame) const
     {
-        const Shaders::Camera& camera = frame.mSampled.mCamera;
+        const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         const std::uint32_t width = camera.mWidth;
         const std::uint32_t height = camera.mHeight;
         assert(images.mVisibility.getWidth() >= width && images.mVisibility.getHeight() >= height);
@@ -92,7 +92,7 @@ namespace Rtx
             writes.image(Shaders::SHADOW_TILES_BIND_MASK, images.mMask.describeStorage());
 
             const Shaders::HistoryConstants constants{
-                .mCamera = camera,
+                .mEyes = frame.mSampled.mEyes,
                 .mReset = images.mFresh ? 1u : 0u,
                 .mDistanceScale = frame.mDistanceScale,
             };
@@ -108,7 +108,7 @@ namespace Rtx
         const std::array<const Image*, Shaders::SHADOW_FILTER_LEVELS> targets{ &images.mHistory, &images.mScratch,
             &images.mVisibility };
 
-        const Shaders::ShadowFilterConstants constants{ .mCamera = camera, .mArms = frame.mSampled.mArms };
+        const Shaders::ShadowFilterConstants constants{ .mEyes = frame.mSampled.mEyes };
         for (std::uint32_t level = 0; level < Shaders::SHADOW_FILTER_LEVELS; ++level)
         {
             orderDispatches(commands, taken);

@@ -49,7 +49,7 @@ namespace Rtx
         const GuiTraceOptions& options, DeviceScene& traced, const RenderProfile& profile)
     {
         // The camera's own extent is how much of the texture the picture fills.
-        const VkExtent2D extent{ camera.mCamera.mWidth, camera.mCamera.mHeight };
+        const VkExtent2D extent{ camera.mEyes.mWorld.mWidth, camera.mEyes.mWorld.mHeight };
         assert(holds(extent) && "a picture larger than the chain was grown to");
 
         // `VisibilityConstants::mTransparentBackground` says why: over the interface the backdrop
