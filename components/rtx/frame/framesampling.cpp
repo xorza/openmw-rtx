@@ -21,8 +21,8 @@ namespace Rtx
         /// `VisibilityConstants::mArmsSpread`.
         osg::Vec2f armsSpreadOf(const Shaders::VisibilityConstants& frame)
         {
-            return osg::Vec2f(frame.mArms.mRight.length() / frame.mCamera.mRight.length(),
-                frame.mArms.mUp.length() / frame.mCamera.mUp.length());
+            return osg::Vec2f(frame.mArms.mBasis.mRight.length() / frame.mCamera.mBasis.mRight.length(),
+                frame.mArms.mBasis.mUp.length() / frame.mCamera.mBasis.mUp.length());
         }
 
         /// Whether every field `sampleFrame` writes is still what a builder leaves it: nought.
@@ -74,8 +74,8 @@ namespace Rtx
         // reconstructed from two grids.
         sampled.mArms.mJitter = sampled.mCamera.mJitter;
         sampled.mArmsSpread = armsSpreadOf(stated);
-        sampled.mUnitRight = stated.mCamera.mRight / stated.mCamera.mRight.length();
-        sampled.mUnitUp = stated.mCamera.mUp / stated.mCamera.mUp.length();
+        sampled.mUnitRight = stated.mCamera.mBasis.mRight / stated.mCamera.mBasis.mRight.length();
+        sampled.mUnitUp = stated.mCamera.mBasis.mUp / stated.mCamera.mBasis.mUp.length();
 
         // The scene's answer and the camera's both: a map draws no arms.
         sampled.mArmsInFrame = counts.mFirstPerson > 0 && (stated.mRayMask & Shaders::MASK_FIRST_PERSON) != 0 ? 1 : 0;
@@ -86,7 +86,7 @@ namespace Rtx
         if (previous != nullptr)
         {
             sampled.mCameraMotion = stated.mOrigin - previous->mOrigin;
-            sampled.mPrevious = Shaders::basisOf(previous->mCamera);
+            sampled.mPrevious = previous->mCamera.mBasis;
         }
 
         return sampled;

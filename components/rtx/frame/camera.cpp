@@ -107,9 +107,11 @@ namespace Rtx
 
             Shaders::VisibilityConstants camera = beforeWorld(basis->mOrigin, near, far);
             camera.mCamera = Shaders::Camera{
-                .mForward = basis->mForward,
-                .mRight = basis->mRight * spread.mHalfWidth,
-                .mUp = basis->mUp * spread.mHalfHeight,
+                .mBasis = Shaders::Basis{
+                    .mForward = basis->mForward,
+                    .mRight = basis->mRight * spread.mHalfWidth,
+                    .mUp = basis->mUp * spread.mHalfHeight,
+                },
                 .mSpreadAngle = spread.mAngle,
                 .mOrthographic = orthographic ? 1u : 0u,
                 .mWidth = width,
@@ -149,8 +151,8 @@ namespace Rtx
         const Spread spread = spreadOf(verticalFovDegrees, camera.mWidth, camera.mHeight);
 
         Shaders::Camera widened = camera;
-        widened.mRight = camera.mRight * (spread.mHalfWidth / camera.mRight.length());
-        widened.mUp = camera.mUp * (spread.mHalfHeight / camera.mUp.length());
+        widened.mBasis.mRight = camera.mBasis.mRight * (spread.mHalfWidth / camera.mBasis.mRight.length());
+        widened.mBasis.mUp = camera.mBasis.mUp * (spread.mHalfHeight / camera.mBasis.mUp.length());
         widened.mSpreadAngle = spread.mAngle;
 
         return widened;
@@ -159,7 +161,7 @@ namespace Rtx
     void shiftPicture(Shaders::Camera& camera, const osg::Vec2f& shift)
     {
         // The picture's y runs down, as `rayAt` indexes it.
-        camera.mCentre = osg::Vec2f(shift.x(), -shift.y());
+        camera.mBasis.mCentre = osg::Vec2f(shift.x(), -shift.y());
     }
 
     std::optional<Shaders::VisibilityConstants> makeCameraFromView(const osg::Matrixd& view, float verticalFovDegrees,

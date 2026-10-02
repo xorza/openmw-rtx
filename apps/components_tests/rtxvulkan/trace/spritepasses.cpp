@@ -61,7 +61,7 @@ namespace Rtx
                 = (static_cast<float>(y) + 0.5f + camera.mJitter.y()) / static_cast<float>(camera.mHeight) * 2.0f
                 - 1.0f;
 
-            osg::Vec3f direction = camera.mForward + camera.mRight * u - camera.mUp * v;
+            osg::Vec3f direction = camera.mBasis.mForward + camera.mBasis.mRight * u - camera.mBasis.mUp * v;
             direction.normalize();
 
             return direction;
@@ -626,13 +626,13 @@ namespace Rtx
             for (std::uint32_t y = 0; y < sHeight; ++y)
                 for (std::uint32_t x = 0; x < sWidth; ++x)
                 {
-                    const osg::Vec3f offset = constants.mCamera.mRight
+                    const osg::Vec3f offset = constants.mCamera.mBasis.mRight
                             * ((static_cast<float>(x) + 0.5f) / static_cast<float>(sWidth) * 2.0f - 1.0f)
-                        - constants.mCamera.mUp
+                        - constants.mCamera.mBasis.mUp
                             * ((static_cast<float>(y) + 0.5f) / static_cast<float>(sHeight) * 2.0f - 1.0f);
                     const osg::Vec3f from = constants.mOrigin + offset;
 
-                    osg::Vec3f along = constants.mCamera.mForward;
+                    osg::Vec3f along = constants.mCamera.mBasis.mForward;
                     along.normalize();
 
                     const osg::Vec3f toSprite = layer.mSprites[0].mPosition - from;
