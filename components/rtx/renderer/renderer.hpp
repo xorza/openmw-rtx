@@ -340,8 +340,12 @@ namespace Rtx
         virtual void dropViewScene(SceneSlot slot) = 0;
 
         /// The next frame has no usable past: a door, a teleport, a cut. Only the simulation knows,
-        /// because a cell load looks like a step from here. Costs one frame of reconstruction.
+        /// because a cell load looks like a step from here. Costs one frame of reconstruction. The
+        /// water's wake stays, as the rasterizer keeps its ripples over a teleport: `dropRipples`.
         virtual void resetHistory() = 0;
+
+        /// The water's wake goes: another worldspace, whose water the old wake would ring on in.
+        virtual void dropRipples() = 0;
 
         /// Resizes the frame; what the trace runs at follows from the upscaler, and `getExtents`
         /// says.

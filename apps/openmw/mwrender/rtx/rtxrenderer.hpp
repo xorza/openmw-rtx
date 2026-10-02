@@ -141,6 +141,10 @@ namespace MWRender
 
         void notifyCut() noexcept override;
 
+        /// The wake goes with the worldspace's water: the backend's ripple field and the strikes
+        /// not yet pressed. A cut inside one keeps both, as the rasterizer keeps its ripples.
+        void notifyWorldspaceChanged() noexcept override;
+
         /// A trace into a texture the GUI draws from. A picture of the world traces against the
         /// scene this renderer holds; a subject that stands in no cell is mirrored into a scene of
         /// its own.

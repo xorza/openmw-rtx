@@ -717,6 +717,13 @@ namespace MWRender
         mRenderer->resetHistory();
     }
 
+    void RtxRenderer::notifyWorldspaceChanged() noexcept
+    {
+        mPhase.expect(Phase::Between);
+        mRenderer->dropRipples();
+        mRipples.dropStrikes();
+    }
+
     void RtxRenderer::renderFrame(const SceneFrame& frame)
     {
         mPhase.step(Phase::Walking, Phase::Between);
