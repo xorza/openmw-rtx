@@ -491,6 +491,13 @@ namespace Rtx::Shaders
     /// `Rtx::Material::mParallax`, and `parallaxShift` says by how much.
     const uint MATERIAL_PARALLAX = 0x20u;
 
+    /// The surface is a pane — `Rtx::Material::isTranslucent`: what is behind it shows through by
+    /// its texture's alpha times `mOpacity`, and it has no mask.
+    ///
+    /// **A bit and not `mOpacity` below one**, because a blend whose texture is soft is a pane at an
+    /// opacity of one: a lantern's glass is all there, and its texture says how much glass.
+    const uint MATERIAL_TRANSLUCENT = 0x40u;
+
     /// Which texture unit the dark map is bound at, in these bits of `mFlags` —
     /// `GpuMesh::mUnitStreams` says which stream that unit reads.
     const uint MATERIAL_DARK_UNIT_SHIFT = 8u;
@@ -1034,7 +1041,8 @@ namespace Rtx::Shaders
         /// surface covers, strength where it adds.
         ///
         /// Multiplied by the texture's alpha at the candidate, which is what a blend does: a stained
-        /// pane's texture says where the lead is and this says how much glass there is.
+        /// pane's texture says where the lead is and this says how much glass there is. Whether the
+        /// surface is a pane at all is `MATERIAL_TRANSLUCENT`.
         float mOpacity;
 
         /// Where this material's terrain layers are, or a count of zero for a single-textured

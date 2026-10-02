@@ -347,8 +347,8 @@ namespace Rtx
             EXPECT_FALSE(untextured.isCutout());
         }
 
-        /// A leaf card and a pane of glass carry the same alpha mode, and the material's own alpha is
-        /// what tells them apart.
+        /// A leaf card and a pane of glass carry the same alpha mode, and the material's own alpha or
+        /// the texture's is what tells them apart.
         ///
         /// **The mode says nothing about it**, because Morrowind keeps its foliage under
         /// `NiAlphaProperty`: a leaf is fully opaque wherever its painted mask is, and a pane is
@@ -358,8 +358,9 @@ namespace Rtx
         /// act on the mode alone.
         ///
         /// `NiMaterialProperty` records that alpha and `NifOsg::AlphaController` animates it, so a
-        /// surface can cross this line while the game runs.
-        TEST(RtxSceneDescTest, theMaterialsOwnAlphaIsWhatTellsAPaneOfGlassFromALeaf)
+        /// surface can cross this line while the game runs. The texture is the other half: one that
+        /// never reaches solid is no mask, and a blend with no test draws it at its alpha.
+        TEST(RtxSceneDescTest, theMaterialsOwnAlphaOrAMaskThatNeverClosesIsWhatTellsAPaneOfGlassFromALeaf)
         {
             constexpr Index texture = 3;
 
@@ -369,6 +370,28 @@ namespace Rtx
 
             const Material pane{ .mDiffuse = texture, .mOpacity = 0.3f, .mAlphaMode = AlphaMode::Blend };
             EXPECT_TRUE(pane.isTranslucent());
+
+            // A texture that never reaches solid on a material that is all there: the Imperial
+            // lantern's glass, which peaks at 119.
+            const Material lantern{ .mDiffuse = texture, .mAlphaMode = AlphaMode::Blend, .mDiffuseNeverSolid = true };
+            EXPECT_TRUE(lantern.isTranslucent()) << "no mask, so the blend draws it at its alpha";
+            EXPECT_NE(lantern.isTranslucent(), leaf.isTranslucent()) << "the texture's alpha decides";
+            EXPECT_FALSE(lantern.isMedium()) << "a pane at an opacity of one, and no cloud";
+            EXPECT_EQ(lantern.getAlphaCutoff(), Material::sPaneCutoff) << "what its blend draws as nothing is a hole";
+            EXPECT_EQ(pane.getAlphaCutoff(), Material::sPaneCutoff);
+            EXPECT_EQ(leaf.getAlphaCutoff(), Material::sBlendCutoff);
+
+            const Material testedWisp{
+                .mDiffuse = texture, .mAlphaRef = 0.3f, .mAlphaMode = AlphaMode::Blend, .mDiffuseNeverSolid = true
+            };
+            EXPECT_FALSE(testedWisp.isTranslucent()) << "a test cuts at its reference";
+            EXPECT_EQ(testedWisp.getAlphaCutoff(), 0.3f);
+
+            const Material addsWisp{ .mDiffuse = texture,
+                .mAlphaMode = AlphaMode::Blend,
+                .mBlend = BlendKind::Add,
+                .mDiffuseNeverSolid = true };
+            EXPECT_FALSE(addsWisp.isTranslucent()) << "an additive sheet covers nothing";
 
             // The mode is half of it: a faded material the content never asked to blend is drawn as
             // it was authored, and a cutout stays a cutout however faint its own alpha is.
@@ -410,8 +433,8 @@ namespace Rtx
             const Material stained{ .mDiffuse = texture, .mOpacity = faint, .mAlphaMode = AlphaMode::Blend };
             EXPECT_FALSE(stained.isMedium()) << "paint that closes is something to stop on";
 
-            const Material leaf{ .mDiffuse = texture, .mAlphaMode = AlphaMode::Blend, .mDiffuseNeverSolid = true };
-            EXPECT_FALSE(leaf.isMedium()) << "an opaque material, whatever its paint does";
+            const Material lantern{ .mDiffuse = texture, .mAlphaMode = AlphaMode::Blend, .mDiffuseNeverSolid = true };
+            EXPECT_FALSE(lantern.isMedium()) << "a material that is all there is a pane, whatever its paint does";
 
             const Material glass{ .mOpacity = faint, .mAlphaMode = AlphaMode::Blend };
             EXPECT_FALSE(glass.isMedium()) << "no map to have measured";

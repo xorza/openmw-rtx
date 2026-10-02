@@ -78,6 +78,7 @@ namespace Rtx
                 .mNormal = material.mNormal,
                 .mSpecular = material.mSpecular,
                 .mFlags = (material.isMedium() ? Shaders::MATERIAL_MEDIUM : 0u)
+                    | (material.isTranslucent() ? Shaders::MATERIAL_TRANSLUCENT : 0u)
                     | (untextured && material.mLayers.mCount > 0 ? Shaders::MATERIAL_STACKED : 0u)
                     | (material.mParallax ? Shaders::MATERIAL_PARALLAX : 0u) | vertexColourFlag(material.mVertexColour)
                     | (material.isAdditive() && material.mBlend == BlendKind::AddWhole ? Shaders::MATERIAL_ADD_WHOLE

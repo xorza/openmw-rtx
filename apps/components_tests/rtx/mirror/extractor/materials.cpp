@@ -1,5 +1,7 @@
 #include <algorithm>
+#include <array>
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <span>
 #include <string>
@@ -35,6 +37,8 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/mirror/cells/prepared.hpp>
+#include <components/rtx/mirror/cells/templatewalk.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
@@ -208,18 +212,36 @@ namespace Rtx::Testing
         /// A blend is what marks a cutout in this data, and it has to survive into the material.
         ///
         /// Morrowind's foliage, grates and banners are drawn with `NiAlphaProperty` over a texture
-        /// whose alpha is all but binary; hardly anything in the game sets an alpha test. Losing
-        /// the blend here loses every mask with it.
-        TEST_F(RtxSceneExtractorTest, aBlendedSurfaceIsTracedAsACutoutAndAPlainOneIsNot)
+        /// whose alpha is binary; hardly anything in the game sets an alpha test. Losing the blend
+        /// here loses every mask with it.
+        ///
+        /// **And the texture's alpha decides between a cut and a pane.** A mask is solid wherever
+        /// its paint is, and stays a cut however soft its fringe. A texture that never reaches
+        /// solid is no mask, so the Imperial lantern's glass, whose alpha peaks at 119, is a pane
+        /// and not a hole. A test cuts at its reference whatever the texture holds. A file nothing
+        /// here reads answers what traces it as before: a cut.
+        TEST_F(RtxSceneExtractorTest, aBlendIsACutWhereItsTextureIsAMaskAndAPaneWhereItNeverCloses)
         {
-            const auto extractOne = [](bool blend) {
+            const auto imageOf = [](std::array<std::uint8_t, 4> alphas) {
+                osg::ref_ptr<osg::Image> image = new osg::Image;
+                image->setFileName("textures/tx_window_pane.dds");
+                image->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                for (std::size_t texel = 0; texel < alphas.size(); ++texel)
+                    image->data()[texel * 4 + 3] = alphas[texel];
+                return image;
+            };
+
+            const auto extractOne = [](bool blend, osg::Image* image, float test = 0.0f) {
                 osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 osg::StateSet& state = *quad->getOrCreateStateSet();
-                paint(state, "textures/tx_leaves.dds");
+                if (image != nullptr)
+                    paint(state, *image);
+                else
+                    paint(state, "textures/tx_leaves.dds");
                 if (blend)
-                {
                     state.setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON);
-                }
+                if (test > 0.0f)
+                    state.setAttributeAndModes(new osg::AlphaFunc(osg::AlphaFunc::GREATER, test));
 
                 Rtx::SceneDesc scene;
                 SceneExtractor extractor(scene);
@@ -229,13 +251,43 @@ namespace Rtx::Testing
                 return scene.materials().getRows().front();
             };
 
-            const Rtx::Material blended = extractOne(true);
-            EXPECT_EQ(blended.mAlphaMode, AlphaMode::Blend);
-            EXPECT_TRUE(blended.isCutout());
+            const Rtx::Material unread = extractOne(true, nullptr);
+            EXPECT_EQ(unread.mAlphaMode, AlphaMode::Blend);
+            EXPECT_TRUE(unread.isCutout());
+            EXPECT_FALSE(unread.isTranslucent()) << "a file nothing reads keeps the cut";
 
-            const Rtx::Material plain = extractOne(false);
+            const Rtx::Material plain = extractOne(false, nullptr);
             EXPECT_EQ(plain.mAlphaMode, AlphaMode::Opaque);
             EXPECT_FALSE(plain.isCutout());
+
+            osg::ref_ptr<osg::Image> leaves = imageOf({ 0, 255, 119, 0 });
+            const Rtx::Material leaf = extractOne(true, leaves);
+            EXPECT_FALSE(leaf.isTranslucent()) << "a mask with a soft fringe is cut";
+            EXPECT_TRUE(leaf.getTraversed().mCutout);
+            EXPECT_EQ(leaf.getAlphaCutoff(), Material::sBlendCutoff);
+
+            osg::ref_ptr<osg::Image> glass = imageOf({ 119, 102, 119, 0 });
+            const Rtx::Material pane = extractOne(true, glass);
+            EXPECT_TRUE(pane.isTranslucent()) << "a texture that never closes is a pane";
+            EXPECT_FALSE(pane.isMedium()) << "all there, so a pane and no cloud";
+            EXPECT_EQ(pane.getAlphaCutoff(), Material::sPaneCutoff);
+            EXPECT_TRUE(pane.getTraversed().placedAt(1.0f).mTranslucent);
+            EXPECT_FALSE(pane.getTraversed().placedAt(1.0f).mCutout);
+
+            const Rtx::Material tested = extractOne(true, glass, 0.5f);
+            EXPECT_FALSE(tested.isTranslucent()) << "a test cuts whatever the texture holds";
+            EXPECT_EQ(tested.getAlphaCutoff(), 0.5f);
+
+            // The ring's reader hands over the same facts with its reading.
+            PreparedModel model;
+            osg::ref_ptr<osg::Geometry> quad = makeQuad();
+            paint(*quad->getOrCreateStateSet(), *glass);
+            quad->getOrCreateStateSet()->setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON);
+            TemplateWalk walk;
+            ASSERT_TRUE(walk.read(*quad, ~0u, model).isOk());
+            ASSERT_EQ(model.mParts.size(), 1u);
+            ASSERT_TRUE(model.mParts[0].mMaterial.mDiffuseFacts.has_value());
+            EXPECT_FALSE(model.mParts[0].mMaterial.mDiffuseFacts->mReachesSolid);
         }
 
         /// A surface that adds — `SRC_ALPHA, ONE` — is no cutout, no pane and no medium: it is

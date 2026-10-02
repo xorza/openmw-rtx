@@ -40,38 +40,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
 
   Better shape: the game says which reference jumped, as it says a cut for the eye. `World::moveObject`'s teleporting paths (as opposed to physics stepping) call a seam member, `Renderer::notifyMoved(const osg::Node&)`. The ray tracer turns it into a still placement: `PlacementTable::place(slot, transform)` sets `mPrevious` to the new transform and the pose blocks of both copies to the new pose. The motion is then nought, and the surface test rejects the old place's history at the new pixels. *(kind: design; severity: low; benefit: a teleported object is lit where it stands from its first frame)*
 
-## A blended surface's coverage is decided by the material's alpha alone
-
-- [ ] **Every alpha-blended surface whose material alpha is one is alpha-tested at 0.5, so lantern
-  panes, waterfalls, interior lava, cobwebs and crystals lose most or all of their texels** —
-  `components/rtx/scene/material.hpp:167-187` (`sBlendCutoff`, `getAlphaCutoff`), `:213`, `:229`;
-  `components/rtx/scene/surface.hpp:190-193` (`translucentSurface` asks `opacity < 1.0f`);
-  `components/rtxvulkan/shaders/lib/traversal.glsl:268`; against
-  `files/shaders/compatibility/objects.frag:156-164` (blend, no discard where no test was asked
-  for). The rasterizer draws an `NiAlphaProperty` blend with no test as a soft blend by the
-  texture's alpha. The tracer calls such a surface translucent only where the material's own alpha
-  is below one, and otherwise cuts it at half. The doc's reason, "Morrowind's masks are painted
-  rather than anti-aliased, so the alpha is very nearly binary", holds for foliage and is false for
-  a class of vanilla textures. The vanilla scan finds 781 shapes in 143 files that blend `Over` with
-  no test, with material alpha one, and whose base texture has at least 15% of its texels strictly
-  between alpha 0.05 and 0.95. Among them: `tx_window_pane` (the glass of `light_com_lantern_01/02`,
-  the Imperial lantern): 100% soft, no texel at or above 0.5 (max 119/255), so the panes disappear;
-  `tx_lava_molten` (`in_lava_*`, the Red Mountain and Dagoth interiors): 100% soft, max 136, about
-  half of it under the cut, so it comes out as a speckled mask; `tx_waterfall_02` / `_01`
-  (`ex_vivec_waterfall_01/03/05`, `in_om_waterfall`): 95% soft, 20% / 81% above half;
-  `tx_webbing00/10` (`furn_web00/10`): 5% / 3% above half; `tx_crystal_01/03` (`in_t_councilhall`,
-  `in_t_crystal_01/02`, `in_icesheet_01/02`): 99% soft; `tx_item_pot_glass_*` (glass Dunmer
-  lanterns): max 136; `tx_dagoth_chalk00/10/20` (Sixth House floor chalk); `tx_bm_icelayer_01`
-  (Bloodmoon ice chunks, opaque instead of translucent). `apps/components_tests/rtx/scene/scenedesc.cpp:335-337`
-  pins the half as the expected answer. Better shape: whether a texture's alpha is a mask or a
-  coverage is a fact of the image, computed once by `ContentPreprocessor` beside `reachesSolid`
-  (the share of texels strictly inside the band a painted mask does not use). An `Over` blend whose
-  diffuse alpha is a coverage is translucent — a pane, or a medium where it never reaches solid —
-  whatever the material's alpha. One whose alpha is a mask keeps the half cut that the foliage
-  wants. `Material::isTranslucent` and `MaterialReading` carry that fact, and the test pins both
-  cases. *(kind: bug; severity: high; benefit: lanterns, lava, waterfalls and webs drawn as the
-  game draws them)*
-
 ## The rendering ray reads the scene graph, and under the ray tracer the graph is not what is drawn
 
 - [ ] **The crosshair, activation and `castRenderingRay` meet skinned actors in their bind pose under the ray tracer** — `components/sceneutil/riggeometry.cpp:52-90`, `:137-157`, `:361-392`, `components/sceneutil/morphgeometry.cpp:111-114`, `:172-185`, `apps/openmw/mwrender/rtx/rtxrenderer.cpp:404-440`, `components/rtx/mirror/poseupdate.hpp:16-24`, `apps/openmw/mwrender/renderingmanager.cpp:709-787`, `apps/openmw/mwworld/worldimp.cpp:1712-1739`, `components/rtx/view/offscreentrace.cpp:36-43`, `:272-280`. `RigGeometry` and `MorphGeometry` pose their CPU copy only inside a cull traversal. An intersector reads that copy through `accept(PrimitiveFunctor&)`. Until the first cull, the copy holds the source vertices: the bind pose. The rasterizer culls every frame, so `castRay` meets the pose on the screen. The ray tracer never culls the world, because it skins on the device, and its update visitor only refreshes the bounds (`updateBounds`, from the bone spheres). `OffscreenTrace::pick` already runs a `PoseCull` before it intersects the doll, "so without this the click would land on the bind pose". Nothing does that for `RenderingManager::castRay` or `castCameraToViewportRay`. In game: a corpse lying on the floor. `getFocusObject` (`ignoreActors = false`) clips the ray to the lying body's flat posed box and then tests the upright bind-pose triangles inside it. Only the ankles of an invisible standing figure are left to hit, so the corpse is hard to focus, loot or read a tooltip from. Sitting, sleeping, swimming and flying creatures (a cliff racer) miss the same way. A Lua `castRenderingRay` at an animated NPC returns bind-pose hit points. Better shape: the seam answers "pose this drawable for a CPU intersection" (`Renderer::poseForIntersection(osg::Drawable&)`). The rasterizer's answer is nothing, because its cull posed it at this traversal number. The ray tracer runs the `PoseCull` that `offscreentrace.cpp` already has, moved to `components/sceneutil` so both callers share one, on each `RigGeometry`/`MorphGeometry` whose bound the segment enters, at most once per frame number. `IntersectionVisitorWithIgnoreList` calls it from `apply(osg::Drawable&)`. Posing is then paid per ray that reaches an actor, not per actor per frame. A test casts a ray through the posed position of a bone that a keyframe moved away from its bind position and asserts the hit. *(kind: bug; severity: high; benefit: focus, looting and script rays meet the actor the player sees)*

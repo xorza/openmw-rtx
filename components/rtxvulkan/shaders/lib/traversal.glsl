@@ -29,22 +29,22 @@ const float SHADOW_BIAS = 1.0;
 
 /// Whether a material is meant to be seen through everywhere, rather than in the holes of a mask.
 ///
-/// One number and no mode, for the reason `GpuMaterial::mOpacity` gives: a leaf card and a pane of
-/// glass carry the same alpha mode, and the host is what tells them apart.
+/// A bit and no mode, for the reason `MATERIAL_TRANSLUCENT` gives: a leaf card and a pane of glass
+/// carry the same alpha mode, and the host is what tells them apart.
 bool isTranslucent(GpuMaterial material)
 {
-    return material.mOpacity < 1.0;
+    return (material.mFlags & MATERIAL_TRANSLUCENT) != 0u;
 }
 
-/// Whether a material carries a mask a ray is tested against: a cutoff, and no translucency — a
-/// pane is there everywhere, thinly, and has no holes to find.
+/// Whether a material carries a mask a ray is tested against: a cutoff. A textured pane carries one
+/// too, `Material::sPaneCutoff`: a texel its blend draws as nothing is a hole to every ray.
 ///
 /// The host's `Material::isCutout`, asked again here because the build marks an instance by it
 /// and the shader must agree about which candidates it meant. That rule refuses a cutoff with no
 /// diffuse, so the diffuse is not asked again here.
 bool hasMask(GpuMaterial material)
 {
-    return !isTranslucent(material) && material.mAlphaCutoff > 0.0;
+    return material.mAlphaCutoff > 0.0;
 }
 
 /// Whether a material is a medium the ray goes through rather than a surface it can stop on.
@@ -88,6 +88,16 @@ uint facingFor(bool draws)
 bool isSeenThrough(float opacity)
 {
     return opacity < 1.0;
+}
+
+/// Whether what is behind a placement of `material` may show through it, before its texture is
+/// read: a fade or the material's own alpha below one, or a pane whose texture says how much of
+/// it is there.
+///
+/// @param opacity `surfaceOpacity` of the placement, made once by the caller.
+bool isSeenThrough(float opacity, GpuMaterial material)
+{
+    return isSeenThrough(opacity) || isTranslucent(material);
 }
 
 /// How much of a see-through surface is there, where a ray met it.
@@ -222,7 +232,7 @@ bool candidateStops(uint instanceIndex, uint primitive, vec2 bary, TriangleEdges
     const GpuMaterial material = materialAt(instance.mMaterial);
 
     const float opacity = surfaceOpacity(instance, material);
-    const bool walkPast = seeThrough && isSeenThrough(opacity);
+    const bool walkPast = seeThrough && isSeenThrough(opacity, material);
 
     // **Nothing stops on a medium, whatever the ray was asking.** A surface that is nowhere opaque
     // is not a surface: the eye walks through a cloud and commits the mountain behind it, and a
@@ -241,7 +251,7 @@ bool candidateStops(uint instanceIndex, uint primitive, vec2 bary, TriangleEdges
         return false;
 
     // **Met and not tested where there is nothing to test.** A material with no mask arrives here
-    // because forcing an instance non-opaque says nothing about its material: a pane of glass is
+    // because forcing an instance non-opaque says nothing about its material: an untextured pane is
     // forced for its own alpha, and an actor is forced for the fade its placement carries. Neither
     // promises a mask.
     //
@@ -1024,7 +1034,8 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     // there costs every opaque surface in the frame. This is a fetch a pane of glass pays and
     // nothing else does.
     const float opacity = surfaceOpacity(instance, material);
-    if (isSeenThrough(opacity))
+    const bool seenThrough = isSeenThrough(opacity, material);
+    if (seenThrough)
         surface.mOpacity = sampledOpacity(opacity, material, point);
 
     // **The dark map multiplies the whole of it**, colour and alpha, which is where `objects.frag`
@@ -1051,7 +1062,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
 
         // The alpha only where an alpha is read at all: an opaque surface's is never written to
         // the frame, and the peel reads `mOpacity` as whether there is a layer to peel.
-        if (isSeenThrough(opacity))
+        if (seenThrough)
             surface.mOpacity *= dark.a;
     }
 
