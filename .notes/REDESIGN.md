@@ -128,7 +128,15 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   true only after a record; `getOutput` is gone. The hand-over found one wrong statement: the
   display took the trace's frame as the composite left it where no composite ran (both `GENERAL`,
   so no picture moved). `Files::getHash` is upstream's and keeps its own state.
-- **Now:** Phase 2, W4 and W5. Phase 1's remaining lows wait for something
+- **Phase 2, W4:** done — one per-thread cache of image facts that a hit asks without an
+  allocation, the row's format read once at the take and the census counted by format, one
+  function for a laid level's bytes, and no content key while `ContentCache::sHolds` is false.
+  *Done differently:* `ImageFactCache::of` takes the image and normalises its name into a scratch
+  string, because no caller holds the file's `NormalizedView` when it asks. Measured
+  (`release bench`, `island-crossing`): the preprocess row's p95 0.99 → 0.93 ms and p99
+  1.83 → 1.74 ms; its worst frame 3.21 → 3.67 ms is one frame. The second `one-cell-walk` leg ran
+  beside another process on the card (15 of 39 samples) and is not read.
+- **Now:** Phase 2, W5. Phase 1's remaining lows wait for something
   outside the tree: BC7 and groundcover (see below), Night-Eye (D8), the in-memory particle image (a
   key for an image no file names, which the material reader lacks too), the distant statics'
   animation and the post-processing package.
