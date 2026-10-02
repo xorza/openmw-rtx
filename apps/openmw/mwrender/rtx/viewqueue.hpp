@@ -10,6 +10,11 @@ namespace osg
     class FrameStamp;
 }
 
+namespace Rtx
+{
+    class CellRing;
+}
+
 namespace MWRender
 {
     class TracedOverlay;
@@ -37,8 +42,9 @@ namespace MWRender
         /// Draws the pictures asked for since the last flush: every subject's and up to
         /// `worldViews` of the world's, the rest waiting for the next. A fresh load asks for nine
         /// map tiles at once and a cell crossing for a row of three; a picture of a subject is
-        /// never held back. A subject is posed at `posing` — `TracedView::draw`.
-        void draw(std::uint32_t worldViews, const osg::FrameStamp& posing);
+        /// never held back. A picture of the world whose ground `ring` has not stood yet waits for
+        /// it — `TracedView::waitsForGround`. A subject is posed at `posing` — `TracedView::draw`.
+        void draw(std::uint32_t worldViews, const osg::FrameStamp& posing, const Rtx::CellRing& ring);
 
         /// Whether a flush is in progress, which a flush inside a flush must not be.
         bool isDrawing() const { return !mDrawing.empty(); }

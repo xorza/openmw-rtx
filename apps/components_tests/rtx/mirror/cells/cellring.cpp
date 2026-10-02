@@ -49,6 +49,7 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/cells/cellplacer.hpp>
 #include <components/rtx/mirror/cells/cellreader.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
@@ -1236,6 +1237,38 @@ namespace Rtx::Testing
             walk(mWalked++);
             EXPECT_EQ(mRing.getHeldCellCount(), sPreparedCells) << "a walk adopted a cell after the band stood whole";
             EXPECT_EQ(mRing.getCellsToStand(), 0u);
+        }
+
+        /// **A picture of the ground waits for the ground.** A box over a cell the band asked for and
+        /// the ring has not adopted waits, and stops waiting on the walk that adopts the cell. A box
+        /// that only touches a cell's edge is not over it, and one past the band has nothing to
+        /// wait for, as a ring that stood nothing has not.
+        TEST_F(RtxCellRingTest, aBoxWaitsForTheGroundUnderItUntilItsCellIsHeld)
+        {
+            const auto square = [](const osg::Vec2i& cell) {
+                return std::pair(osg::Vec2f(cell.x() * sCellSize, cell.y() * sCellSize),
+                    osg::Vec2f((cell.x() + 1) * sCellSize, (cell.y() + 1) * sCellSize));
+            };
+            const auto waits = [&](const osg::Vec2i& cell) {
+                const auto [low, high] = square(cell);
+                return mRing.waitsUnder(low, high);
+            };
+
+            start();
+            const osg::Vec2i eye = Rtx::CellGrid().cellOf(mAround.mEye);
+            EXPECT_FALSE(waits(eye)) << "a ring that has walked nothing waits for nothing";
+
+            // Settled, the first walk adopts the nearest cell, which is the eye's own; its square's
+            // far edges touch neighbours not yet held.
+            walk(mWalked++);
+            EXPECT_FALSE(waits(eye)) << "the eye's cell is held, and a touched edge is not under the box";
+
+            const osg::Vec2i far = eye + osg::Vec2i(3, 0);
+            EXPECT_TRUE(waits(far)) << "a cell of the band not yet adopted";
+            EXPECT_FALSE(waits(eye + osg::Vec2i(20, 0))) << "past the band nothing is coming";
+
+            fill();
+            EXPECT_FALSE(waits(far)) << "the walk that adopted it ended the wait";
         }
 
         /// **The ring's request follows its inputs, the reach among them.** A reach that grows

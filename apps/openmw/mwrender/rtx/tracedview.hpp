@@ -24,6 +24,11 @@ namespace Rtx
     class Renderer;
 }
 
+namespace Rtx
+{
+    class CellRing;
+}
+
 namespace MWRender
 {
     class ViewQueue;
@@ -87,6 +92,11 @@ namespace MWRender
         /// orthographic world view whose footprint holds the point. What the harness asks to find
         /// the map tile of the cell it stands in, of the renderer that drew it.
         bool coversFromAbove(const osg::Vec2f& over) const;
+
+        /// Whether this picture of the world taken straight down still waits for ground under its
+        /// box: `ring` holds a cell there in the band it asked for and has not adopted it. A tile
+        /// taken before then shows the cell's objects on nothing, and nothing asks for it again.
+        bool waitsForGround(const Rtx::CellRing& ring) const;
 
         void keepCopy() override;
         const osg::Image* getCopy() override;

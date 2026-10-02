@@ -16,6 +16,7 @@
 
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/myguirtx/texture.hpp>
+#include <components/rtx/mirror/cells/cellring.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/sceneutil/offscreenframing.hpp>
@@ -105,6 +106,18 @@ namespace MWRender
         const osg::Vec3f eye = osg::Matrixf::inverse(mTrace.getView()).getTrans();
         return std::abs(eye.x() - over.x()) <= box->mWidth * 0.5f
             && std::abs(eye.y() - over.y()) <= box->mHeight * 0.5f;
+    }
+
+    bool TracedView::waitsForGround(const Rtx::CellRing& ring) const
+    {
+        const auto* box = std::get_if<SceneUtil::Orthographic>(&mTrace.getFraming().mProjection);
+        if (!isOfWorld() || box == nullptr)
+            return false;
+
+        const osg::Vec3f eye = osg::Matrixf::inverse(mTrace.getView()).getTrans();
+        const osg::Vec2f half(box->mWidth * 0.5f, box->mHeight * 0.5f);
+        const osg::Vec2f centre(eye.x(), eye.y());
+        return ring.waitsUnder(centre - half, centre + half);
     }
 
     MyGUI::ITexture& TracedView::getTexture() const
