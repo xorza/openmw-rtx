@@ -18,9 +18,9 @@
 #include <boost/program_options/variables_map.hpp>
 
 #include <components/crashcatcher/crash.hpp>
-#include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
+#include <components/files/installationoptions.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/platform/process.hpp>
@@ -43,8 +43,6 @@ namespace RtxTool
 {
     namespace
     {
-        using StringsVector = std::vector<std::string>;
-
         /// The commands that can stand at one place named on the line — a cell, a camera, a view.
         /// A run of places — `bench` and `check`, and `shot` and `scene` under `--views` — takes
         /// its cells and its cameras from `views.cfg` instead.
@@ -519,33 +517,6 @@ namespace RtxTool
             "sample a different point inside each pixel every frame. Only worth anything to "
             "something putting several frames together, and forced on whenever anything upscales");
 
-        option(Verbs::Every, "data",
-            bpo::value<Files::MaybeQuotedPathContainer>()
-                ->default_value(Files::MaybeQuotedPathContainer(), "data")
-                ->multitoken()
-                ->composing(),
-            "set data directories (later directories have higher priority)");
-
-        option(Verbs::Every, "data-local",
-            bpo::value<Files::MaybeQuotedPathContainer::value_type>()->default_value(
-                Files::MaybeQuotedPathContainer::value_type(), ""),
-            "set local data directory (highest priority)");
-
-        option(Verbs::Every, "fallback-archive",
-            bpo::value<StringsVector>()->default_value(StringsVector(), "fallback-archive")->multitoken()->composing(),
-            "set fallback BSA archives (later archives have higher priority)");
-
-        option(Verbs::Every, "content",
-            bpo::value<StringsVector>()->default_value(StringsVector(), "")->multitoken()->composing(),
-            "content file(s): esm/esp, or omwgame/omwaddon/omwscripts");
-
-        option(Verbs::Every, "encoding", bpo::value<std::string>()->default_value("win1252"),
-            "character encoding of the content files");
-
-        option(Verbs::Every, "fallback",
-            bpo::value<Fallback::FallbackMap>()->default_value(Fallback::FallbackMap(), "")->multitoken()->composing(),
-            "fallback values");
-
         // **The engine's own two, because a hosted run starts a real game.** Where to stand is a
         // savegame's business — it restores the player, the camera, the hour and every cell the
         // session had loaded, which no pair of coordinates can — and what the world draws at random
@@ -558,6 +529,7 @@ namespace RtxTool
             "seed the world's random draws, so two runs of one build draw the same world");
 
         Files::ConfigurationManager::addCommonOptions(result.mDescription);
+        Files::addInstallationOptions(result.mDescription);
 
         return result;
     }
