@@ -18,7 +18,6 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/sceneutil/lightmanager.hpp>
-#include <components/sceneutil/lightutil.hpp>
 
 #include "material.hpp"
 #include "mesh.hpp"
@@ -341,6 +340,21 @@ namespace Rtx
         return !record.mOffDefault;
     }
 
+    SceneUtil::LightController::LightType animationOf(const SceneUtil::LightCommon& record)
+    {
+        SceneUtil::LightController::LightType type = SceneUtil::LightController::LT_Normal;
+        if (record.mFlicker)
+            type = SceneUtil::LightController::LT_Flicker;
+        if (record.mFlickerSlow)
+            type = SceneUtil::LightController::LT_FlickerSlow;
+        if (record.mPulse)
+            type = SceneUtil::LightController::LT_Pulse;
+        if (record.mPulseSlow)
+            type = SceneUtil::LightController::LT_PulseSlow;
+
+        return type;
+    }
+
     Misc::Result<std::optional<Light>, std::string_view> makeLight(
         const SceneUtil::LightCommon& record, const osg::Vec3f& position, const double simulationTime, const int id)
     {
@@ -351,9 +365,12 @@ namespace Rtx
         // negate on opposite sides of the sRGB conversion, so what they agree on is the sign, which
         // is the whole of what a refusal reads.
         const osg::Vec3f recorded = decodeColour(record.mColor);
-        const float brightness = lightBrightness(SceneUtil::lightAnimation(record), id, simulationTime);
+        const float brightness = lightBrightness(animationOf(record), id, simulationTime);
 
-        return makeLight(
-            (record.mNegative ? -recorded : recorded) * brightness, SceneUtil::lightRadius(record), position);
+        // The minimum scene light radius is 16 in Morrowind, which `createLightSource` applies
+        // before the walk ever reads the source's radius back.
+        const float radius = std::max(record.mRadius, 16.0f);
+
+        return makeLight((record.mNegative ? -recorded : recorded) * brightness, radius, position);
     }
 }
