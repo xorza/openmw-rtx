@@ -77,6 +77,8 @@ namespace MWRender
         std::string_view declinedRequest(ScriptRequest request) const;
 
         std::span<const SettingSupport> getSettings() const { return mSettings; }
+        std::span<const ModeSupport> getModes() const { return mModes; }
+        std::span<const RequestSupport> getRequests() const { return mRequests; }
 
     private:
         /// The entry that answers for the setting: its own key, or else its category's.
