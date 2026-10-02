@@ -371,7 +371,10 @@ namespace MWRender
         void renderLoadingFrame(double targetFrameRate);
 
         /// The frame without the GUI, into an image. The screenshot console command and the save
-        /// thumbnails; blocks until the frame it asked for has been drawn.
+        /// thumbnails. The rasterizer draws a frame for it and blocks until it has; the ray tracer
+        /// reads the last picture it traced, which is this frame's world wherever the world is
+        /// shown, `tws` included. Under a cover the two differ: the rasterizer's frame has no world
+        /// in it, and the ray tracer's is the last world it showed.
         virtual void capture(osg::Image& image, int width, int height) = 0;
 
         /// The screenshot key, which writes a file rather than handing back an image, through the
