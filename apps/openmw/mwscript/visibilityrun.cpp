@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <exception>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -21,9 +21,14 @@ namespace MWScript
     namespace
     {
         /// What makes a run's answer `Undecided`: the script asked for something only an active
-        /// cell has.
-        struct Undecided
+        /// cell has. A `std::runtime_error`, the kind the interpreter answers an instruction nobody
+        /// installed with, so one handler takes both and nothing else.
+        struct Undecided : std::runtime_error
         {
+            Undecided()
+                : std::runtime_error("the script asks what only an active cell has")
+            {
+            }
         };
 
         /// What a script may ask whose answer only a frame of an active cell has: whether the
@@ -328,14 +333,11 @@ namespace MWScript
                 {
                     mInterpreter.run(program, context);
                 }
-                // The interpreter answers an instruction nobody installed with an exception of its
-                // own: the one kind of answer a run cannot give is a wrong one.
-                catch (const Undecided&)
-                {
-                    named.clear();
-                    return Terrain::GateState::Undecided;
-                }
-                catch (const std::exception&)
+                // **An instruction nobody installed, or a question only an active cell answers**:
+                // the one kind of answer a run cannot give is a wrong one. Nothing else is caught:
+                // a program whose locals are not the ones it was compiled with is a broken
+                // contract, which ends the run rather than reading as an answer.
+                catch (const std::runtime_error&)
                 {
                     named.clear();
                     return Terrain::GateState::Undecided;
