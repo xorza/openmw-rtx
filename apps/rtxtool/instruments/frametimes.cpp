@@ -23,13 +23,17 @@ namespace RtxTool
     {
     }
 
+    void PerfControl::open()
+    {
+        if (!mFifo.empty() && mHandle == Platform::File::Handle::Invalid)
+            mHandle = Platform::Fifo::openForWriting(mFifo);
+    }
+
     void PerfControl::enable()
     {
-        if (mFifo.empty())
-            return;
-
+        open();
         if (mHandle == Platform::File::Handle::Invalid)
-            mHandle = Platform::Fifo::openForWriting(mFifo);
+            return;
 
         send("enable\n");
     }

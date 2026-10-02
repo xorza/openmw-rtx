@@ -26,6 +26,13 @@ namespace RtxTool
         mHolders.push_back(CardHolder{ .mPid = pid, .mName = std::string(name), .mSamples = 1 });
     }
 
+    bool CardTally::needsName(const std::uint32_t pid) const
+    {
+        return pid != mSelf && std::none_of(mHolders.begin(), mHolders.end(), [pid](const CardHolder& holder) {
+            return holder.mPid == pid;
+        });
+    }
+
     void CardTally::clear()
     {
         mSamples = 0;
@@ -69,17 +76,34 @@ namespace RtxTool
             return;
 
         mMonitor.under([&] { close(); });
-        mWorker.repeat("card watch", mPeriod, [this] { mMonitor.under([this] { read(); }); });
+        mWorker.repeat("card watch", mPeriod, [this] {
+            mMonitor.under([this] {
+                if (mStartAsked.load(std::memory_order_acquire))
+                    beginAsked();
+                else
+                    read();
+            });
+        });
     }
 
-    CardShare CardWatch::start()
+    void CardWatch::start()
     {
-        return mMonitor.under([&] { return close().mShare; });
+        mStartAsked.store(true, std::memory_order_release);
     }
 
-    CardReading CardWatch::stop()
+    CardWindows CardWatch::stop()
     {
-        return mMonitor.under([&] { return close(); });
+        return mMonitor.under([&] {
+            beginAsked();
+            const CardReading place = close();
+            return CardWindows{ .mBefore = mBefore, .mPlace = place };
+        });
+    }
+
+    void CardWatch::beginAsked()
+    {
+        if (mStartAsked.exchange(false, std::memory_order_acq_rel))
+            mBefore = close().mShare;
     }
 
     std::uint32_t CardWatch::getReadings()
@@ -97,7 +121,8 @@ namespace RtxTool
             if (!sample.mHeld)
                 continue;
 
-            mNvml.nameProcess(sample.mPid, mName);
+            if (mTally.needsName(sample.mPid))
+                mNvml.nameProcess(sample.mPid, mName);
             mTally.take(sample.mPid, mName);
         }
     }

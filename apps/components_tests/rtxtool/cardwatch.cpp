@@ -33,6 +33,11 @@ namespace RtxTool
             tally.take(7, "kwin_wayland");
             tally.take(100, "openmw-rtxtool");
 
+            // A name is asked for a process not this one and not yet seen, and for no other.
+            EXPECT_FALSE(tally.needsName(100)) << "this process";
+            EXPECT_FALSE(tally.needsName(7)) << "a process already named";
+            EXPECT_TRUE(tally.needsName(41));
+
             const CardShare share = tally.summarise(2.5);
             EXPECT_TRUE(share.mViewed);
             EXPECT_DOUBLE_EQ(share.mSeconds, 2.5);
@@ -188,14 +193,20 @@ namespace RtxTool
             watch.watch();
             EXPECT_GE(watch.getReadings(), 2u);
 
-            // Starting a place's window answers the window before it and begins from nothing.
-            const CardShare before = watch.start();
-            EXPECT_EQ(before.mViewed, sampled);
-            EXPECT_GT(before.mSeconds, 0.0);
-            EXPECT_LT(watch.getReadings(), 2u) << "a place's window carried the window before it";
+            // **Starting a place's window asks and waits on nothing**: the watch's next turn closes
+            // the window between places and begins the place's, which is waited for, not timed.
+            watch.start();
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+            while (!watch.hasBegun() && std::chrono::steady_clock::now() < deadline)
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            ASSERT_TRUE(watch.hasBegun()) << "the watch's loop never began the window";
 
-            waitFor(2);
-            const CardReading place = watch.stop();
+            waitFor(3);
+            const CardWindows windows = watch.stop();
+            EXPECT_EQ(windows.mBefore.mViewed, sampled);
+            EXPECT_GT(windows.mBefore.mSeconds, 0.0);
+
+            const CardReading& place = windows.mPlace;
             EXPECT_TRUE(place.mClock.mRead);
             EXPECT_GT(place.mClock.mReadings, 2u) << "a watch that answered with no more than its two ends";
             EXPECT_GE(place.mClock.getMeanMhz(), place.mClock.mLowestMhz);
@@ -203,9 +214,12 @@ namespace RtxTool
             EXPECT_EQ(place.mShare.mViewed, sampled);
             EXPECT_GT(place.mShare.mSeconds, 0.0);
 
-            // And the window after a stop is a window of its own, shorter than the place's.
-            const CardShare after = watch.start();
-            EXPECT_LT(after.mSeconds, place.mShare.mSeconds);
+            // **A window `stop` ends before any turn began it is begun there**, so a place two
+            // frames long still has a window between places and one of its own.
+            watch.start();
+            const CardWindows hurried = watch.stop();
+            EXPECT_TRUE(hurried.mPlace.mClock.mRead) << "the place's own last reading";
+            EXPECT_TRUE(watch.hasBegun());
         }
     }
 }

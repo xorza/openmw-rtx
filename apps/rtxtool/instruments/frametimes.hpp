@@ -30,12 +30,15 @@ namespace RtxTool
     public:
         explicit PerfControl(std::filesystem::path fifo);
 
-        /// Starts counting. The first call opens the fifo.
+        /// Opens the fifo, where it is not open yet: ahead of a place, so no measured frame pays it.
         ///
         /// **Not on construction, because the reader has to be there first.** Opening a fifo for
         /// writing with nobody reading it fails outright without blocking, and perf attaches to an
-        /// already-running process seconds after it started. Deferring to the first `enable` puts
-        /// the open after a cell has been read, by which time perf has long since opened its end.
+        /// already-running process seconds after it started. Deferring to the first place puts the
+        /// open after a cell has been read, by which time perf has long since opened its end.
+        void open();
+
+        /// Starts counting, on the first measured frame: one write, the fifo `open` opened.
         void enable();
 
         /// Stops counting. Silent before the first `enable`, so a run stopped early is not an error.
