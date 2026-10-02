@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <optional>
 #include <span>
 #include <vector>
@@ -84,6 +85,28 @@ namespace Rtx
                 mRenderer.drawGui(quad, batches);
             }
 
+            /// A texture over the whole frame, tinted by `colour`: one layer of `drawLayers`.
+            struct Layer
+            {
+                GuiSlot mTexture;
+                std::uint32_t mColour;
+            };
+
+            /// The layers in one call, the first lowest, which is how a frame's interface is drawn.
+            void drawLayers(std::initializer_list<Layer> layers)
+            {
+                std::vector<GuiVertex> vertices;
+                std::vector<GuiBatch> batches;
+                for (const Layer& layer : layers)
+                {
+                    const std::array<GuiVertex, 6> quad = Testing::makeGuiQuad(-1.0f, 1.0f, 1.0f, -1.0f, layer.mColour);
+                    batches.push_back(
+                        GuiBatch{ layer.mTexture, static_cast<std::uint32_t>(vertices.size()), quad.size() });
+                    vertices.insert(vertices.end(), quad.begin(), quad.end());
+                }
+                mRenderer.drawGui(vertices, batches);
+            }
+
             /// The four bytes at a pixel of a GUI texture, row zero at the top.
             std::array<std::uint8_t, 4> inTexture(
                 GuiSlot texture, std::uint32_t extent, std::uint32_t x, std::uint32_t y)
@@ -94,8 +117,17 @@ namespace Rtx
                 return Testing::rgbaAt(mPixels, extent, x, y);
             }
 
-            /// The four bytes at a pixel of the presented frame, row zero at the top.
+            /// The four bytes at a pixel of what a present would show, row zero at the top.
             std::array<std::uint8_t, 4> at(std::uint32_t x, std::uint32_t y)
+            {
+                mRenderer.readShown(mPixels);
+                EXPECT_EQ(mPixels.size(), std::size_t{ sExtent } * sExtent * 4);
+
+                return Testing::rgbaAt(mPixels, sExtent, x, y);
+            }
+
+            /// The four bytes at a pixel of the picture, without the interface over it.
+            std::array<std::uint8_t, 4> inPicture(std::uint32_t x, std::uint32_t y)
             {
                 mRenderer.readPixels(mPixels);
                 EXPECT_EQ(mPixels.size(), std::size_t{ sExtent } * sExtent * 4);
@@ -119,22 +151,46 @@ namespace Rtx
             EXPECT_EQ(at(4, 4), (std::array<std::uint8_t, 4>{ 200, 100, 50, 255 }));
         }
 
-        /// A second call draws over what the first left, rather than over whatever the frame held.
+        /// A later batch draws over what an earlier one left, and a second call draws the whole
+        /// interface again over the picture rather than over the first call's interface.
         ///
         /// **This is what makes a GUI out of one call per frame.** MyGUI produces its batches in
-        /// layer order and the renderer draws them in that order; a pass that discarded the target
-        /// each time would show only the last thing drawn.
-        TEST_F(RtxGuiDrawTest, aSecondDrawLandsOverTheFirst)
+        /// layer order and the renderer draws them in that order. And a frame with no trace, or a
+        /// message box's nested frame, draws the same interface again: drawn over the last one, a
+        /// translucent window darkened with every frame it stood.
+        TEST_F(RtxGuiDrawTest, aLaterBatchLandsOverAnEarlierOneAndAFrameDrawsItsWholeInterfaceAgain)
         {
             const GuiSlot white = makeTexel({ 255, 255, 255, 255 });
 
-            drawQuad(white, -1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(0, 0, 255, 255));
-            drawQuad(white, -1.0f, 1.0f, 0.0f, -1.0f, Testing::packColour(255, 0, 0, 128));
+            const std::array<GuiVertex, 6> under
+                = Testing::makeGuiQuad(-1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(0, 0, 255, 255));
+            const std::array<GuiVertex, 6> over
+                = Testing::makeGuiQuad(-1.0f, 1.0f, 0.0f, -1.0f, Testing::packColour(255, 0, 0, 128));
+            std::array<GuiVertex, 12> both{};
+            std::copy(under.begin(), under.end(), both.begin());
+            std::copy(over.begin(), over.end(), both.begin() + 6);
+            const std::array<GuiBatch, 2> batches{ GuiBatch{ white, 0, 6 }, GuiBatch{ white, 6, 6 } };
 
             // Exact: an alpha of 128/255 contributes 255 × 128/255 = 128 and leaves
             // 255 × 127/255 = 127 of what was there.
-            EXPECT_EQ(at(1, 4), (std::array<std::uint8_t, 4>{ 128, 0, 127, 255 })) << "blended over";
+            mRenderer.drawGui(both, batches);
+            const std::array<std::uint8_t, 4> once = at(1, 4);
+            EXPECT_EQ(once, (std::array<std::uint8_t, 4>{ 128, 0, 127, 255 })) << "blended over";
             EXPECT_EQ(at(sExtent - 2, 4), (std::array<std::uint8_t, 4>{ 0, 0, 255, 255 })) << "left alone";
+
+            mRenderer.drawGui(both, batches);
+            EXPECT_EQ(at(1, 4), once) << "the second frame blended over the first frame's interface";
+
+            // Only the translucent batch: over the picture, and not over the blue the last frame
+            // drew. A channel `p` of the picture is left `p × 127/255` of itself, and red gains 128.
+            mRenderer.drawGui(over, std::array<GuiBatch, 1>{ GuiBatch{ white, 0, 6 } });
+            const std::array<std::uint8_t, 4> picture = inPicture(1, 4);
+            const auto left = [&](std::size_t channel) {
+                return static_cast<std::uint8_t>(std::lround(float(picture[channel]) * 127.0f / 255.0f));
+            };
+            const auto red = static_cast<std::uint8_t>(std::lround(128.0f + float(picture[0]) * 127.0f / 255.0f));
+            EXPECT_EQ(at(1, 4), (std::array<std::uint8_t, 4>{ red, left(1), left(2), 255 }))
+                << "over the picture alone";
         }
 
         /// Writing a texture again changes what is drawn with it, which is the whole of what a video
@@ -227,11 +283,10 @@ namespace Rtx
             const GuiSlot texture = mRenderer.addGuiTexture(1, 1);
             mHeld.push_back(texture);
 
-            const GuiSlot white = makeTexel({ 255, 255, 255, 255 });
-            drawQuad(white, -1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(0, 0, 255, 255));
-
             // Nothing times anything is nothing: transparent black leaves the blue underneath.
-            drawQuad(texture, -1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 255, 255, 255));
+            const GuiSlot white = makeTexel({ 255, 255, 255, 255 });
+            drawLayers({ Layer{ white, Testing::packColour(0, 0, 255, 255) },
+                Layer{ texture, Testing::packColour(255, 255, 255, 255) } });
 
             EXPECT_EQ(at(4, 4), (std::array<std::uint8_t, 4>{ 0, 0, 255, 255 }));
         }
@@ -457,7 +512,7 @@ namespace Rtx
                 osg::Vec3f(), osg::Vec3f(0.0f, 100.0f, 0.0f), 60.0f, sExtent, sExtent, 1000000.0f);
 
             mRenderer.renderFrame(camera, FrameOptions{});
-            const std::array<std::uint8_t, 4> traced = at(sExtent - 2, 4);
+            const std::array<std::uint8_t, 4> traced = inPicture(sExtent - 2, 4);
 
             // The same camera and the same scene, so the same picture — and then the GUI over half
             // of it.
@@ -468,6 +523,9 @@ namespace Rtx
 
             EXPECT_EQ(at(1, 4), (std::array<std::uint8_t, 4>{ 17, 34, 51, 255 })) << "where the GUI drew";
             EXPECT_EQ(at(sExtent - 2, 4), traced) << "where it did not";
+
+            // And the picture a screenshot or a save's thumbnail reads holds none of the interface.
+            EXPECT_EQ(inPicture(1, 4), traced) << "the interface reached the picture";
         }
 
         /// A level sheet of `extent` about the origin at z = 0, facing up.
@@ -957,8 +1015,8 @@ namespace Rtx
             // sheet, which is opaque and covers the blue; the corner samples where the trace stopped,
             // which is transparent and leaves it.
             const GuiSlot white = makeTexel({ 255, 255, 255, 255 });
-            drawQuad(white, -1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(0, 0, 255, 255));
-            drawQuad(texture, -1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 255, 255, 255));
+            drawLayers({ Layer{ white, Testing::packColour(0, 0, 255, 255) },
+                Layer{ texture, Testing::packColour(255, 255, 255, 255) } });
 
             EXPECT_NE(at(4, 4), (std::array<std::uint8_t, 4>{ 0, 0, 255, 255 })) << "where the picture covers";
             EXPECT_EQ(at(0, 0), (std::array<std::uint8_t, 4>{ 0, 0, 255, 255 })) << "where it does not";
@@ -979,8 +1037,8 @@ namespace Rtx
             ASSERT_EQ(inTexture(texture, extent, 8, 8), (std::array<std::uint8_t, 4>{ g, g, g, 64 }));
 
             const GuiSlot grey = makeTexel({ 128, 128, 128, 255 });
-            drawQuad(grey, -1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 255, 255, 255));
-            drawQuad(texture, -1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 255, 255, 128));
+            drawLayers({ Layer{ grey, Testing::packColour(255, 255, 255, 255) },
+                Layer{ texture, Testing::packColour(255, 255, 255, 128) } });
 
             const float fade = 128.0f / 255.0f;
             const float covered = fade * 64.0f / 255.0f;
@@ -1062,15 +1120,17 @@ namespace Rtx
             EXPECT_EQ(afterPicture, carried) << "the picture took the frame's exposure with it";
         }
 
-        /// Nothing to draw is not an error and does not touch the frame.
-        TEST_F(RtxGuiDrawTest, anEmptyGuiLeavesTheFrameAlone)
+        /// Nothing to draw is not an error, and shows the picture alone: the frame before's
+        /// interface does not outlive it.
+        TEST_F(RtxGuiDrawTest, anEmptyGuiShowsThePictureAlone)
         {
             const GuiSlot white = makeTexel({ 255, 255, 255, 255 });
             drawQuad(white, -1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(17, 34, 51, 255));
+            EXPECT_EQ(at(4, 4), (std::array<std::uint8_t, 4>{ 17, 34, 51, 255 }));
 
             mRenderer.drawGui({}, {});
 
-            EXPECT_EQ(at(4, 4), (std::array<std::uint8_t, 4>{ 17, 34, 51, 255 }));
+            EXPECT_EQ(at(4, 4), inPicture(4, 4)) << "the last frame's interface outlived it";
         }
 
         /// A texture given back outlives the interface that was drawn with it.

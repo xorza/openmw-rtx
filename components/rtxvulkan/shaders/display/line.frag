@@ -9,8 +9,9 @@
 // The offset from the eye is interpolated across the primitive and measured here, so a long line
 // running into a wall stops where the wall is rather than where its ends' distances say. In the
 // display's own values, as the interface is, because the drawers painted their colours against a
-// monitor.
+// monitor; and raised to the player's gamma, as the picture under them is.
 
+#include "colour.h"
 #include "gbuffer.h"
 #include "line.h"
 #include "sets.h"
@@ -40,5 +41,5 @@ void main()
     // leaves the pixel as it was, and a `discard` here is a demote the device is not asked for.
     const float shown = float(length(inOffset) <= surfaceDistance(imageLoad(surfaceChannel, ivec2(traced)).y));
 
-    outColour = vec4(inColour.rgb, inColour.a * shown);
+    outColour = vec4(displayGamma(inColour.rgb, frame.mInverseGamma), inColour.a * shown);
 }

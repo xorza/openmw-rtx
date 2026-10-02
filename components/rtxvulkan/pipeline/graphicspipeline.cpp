@@ -181,7 +181,8 @@ namespace Rtx
         return handle;
     }
 
-    void beginDrawingOver(const VkCommandBuffer commands, const Image& target, const ClipUp up)
+    void beginDrawingOver(
+        const VkCommandBuffer commands, const Image& target, const ClipUp up, const Underneath underneath)
     {
         assert((target.getUsage() & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) != 0);
 
@@ -193,7 +194,7 @@ namespace Rtx
             .resolveMode = VK_RESOLVE_MODE_NONE,
             .resolveImageView = VK_NULL_HANDLE,
             .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+            .loadOp = underneath == Underneath::Kept ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
             .clearValue = {},
         };

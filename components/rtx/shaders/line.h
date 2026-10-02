@@ -33,10 +33,14 @@ namespace Rtx::Shaders
         vec3 mOrigin;
         float mNear;
         uvec2 mTraced;
+
+        /// One over the player's gamma, `ToneConstants::mInverseGamma`: the lines are part of the
+        /// picture, which the rasterizer raises whole and the curve raises before they are drawn.
+        float mInverseGamma;
     };
 
 #ifdef RTX_HOST
-    static_assert(sizeof(LineConstants) == 84, "LineConstants must be scalar-packed on every side");
+    static_assert(sizeof(LineConstants) == 88, "LineConstants must be scalar-packed on every side");
 }
 #endif
 

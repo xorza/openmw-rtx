@@ -118,6 +118,10 @@ namespace Rtx
         /// is taken on, where `readPixels` gives the one a display would show.
         void readComposite(std::vector<float>& values);
 
+        /// What a present would show, the interface over the picture, four bytes a pixel, tightly
+        /// packed: where `readPixels` gives the picture alone.
+        void readShown(std::vector<std::uint8_t>& pixels);
+
         /// The whole of a GUI texture as the device holds it, four bytes a pixel, tightly packed,
         /// row zero first.
         void readGuiTexture(GuiSlot texture, std::vector<std::uint8_t>& pixels);
@@ -170,10 +174,16 @@ namespace Rtx
         /// The frames in flight and what each came to.
         FrameRing mRing;
 
-        /// The frame as bytes at the output extent, which is what anything outside this reads. It
-        /// is also where that extent is stated — `PresentTarget::getExtent` — rather than beside
-        /// it in a pair of members something would have to keep level.
+        /// The frame as bytes at the output extent, the picture and what is shown, which is what
+        /// anything outside this reads. It is also where that extent is stated —
+        /// `PresentTarget::getExtent` — rather than beside it in a pair of members something would
+        /// have to keep level.
         PresentTarget mTarget;
+
+        /// Whether what is shown holds the picture as it stands now, with this frame's interface
+        /// over it: set by `drawGui`, and spent by a new picture and by a present. A present of a
+        /// frame nothing drew the interface on draws the picture alone.
+        bool mShownCurrent = false;
 
         /// Before the trace's passes and the display, which read the scenes' texture layout.
         ScenePasses mScenePasses;

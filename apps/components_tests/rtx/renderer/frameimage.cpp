@@ -27,15 +27,17 @@ namespace Rtx
         }
 
         /// A frame `width` by `height` whose every texel names its own column in red and its own row
-        /// in green, so what a resample picked and which way up it is are both readable.
-        std::vector<std::uint8_t> makeFrame(int width, int height)
+        /// in green, each times `step`, so what a resample took and which way up it is are both
+        /// readable.
+        std::vector<std::uint8_t> makeFrame(int width, int height, int step = 1)
         {
             std::vector<std::uint8_t> pixels;
             pixels.reserve(static_cast<std::size_t>(width) * height * 4);
 
             for (int y = 0; y < height; ++y)
                 for (int x = 0; x < width; ++x)
-                    for (const std::uint8_t channel : texel(static_cast<std::uint8_t>(x), static_cast<std::uint8_t>(y)))
+                    for (const std::uint8_t channel :
+                        texel(static_cast<std::uint8_t>(x * step), static_cast<std::uint8_t>(y * step)))
                         pixels.push_back(channel);
 
             return pixels;
@@ -83,15 +85,16 @@ namespace Rtx
             EXPECT_EQ(at(*bottom, 1, 1), (std::pair<std::uint8_t, std::uint8_t>{ 1, 0 }));
         }
 
-        /// A thumbnail is nearest-sampled, and which texels it lands on is arithmetic rather than
-        /// taste.
+        /// A thumbnail averages the texels each of its pixels covers, and which texels those are is
+        /// arithmetic rather than taste.
         ///
-        /// Hand-computed for four across to two: a target column takes source `x * 4 / 2`, so
-        /// columns 0 and 2; a target row takes the same, so rows 0 and 2 read downwards. Read
-        /// upwards the target rows are 1 and 0 of the target, which land on source rows 2 and 0.
-        TEST(RtxFrameImageTest, aThumbnailTakesTheNearestTexelAndTheSizeItWasAskedFor)
+        /// Four across to two at a step of ten a texel: a target pixel covers a two-by-two block, so
+        /// its red is the mean of two columns, `(0 + 10) / 2` = 5 and `(20 + 30) / 2` = 25, and its
+        /// green the mean of two rows the same way. Read upwards, target row zero is the bottom
+        /// block.
+        TEST(RtxFrameImageTest, aThumbnailAveragesWhatEachPixelCoversAndIsTheSizeItWasAskedFor)
         {
-            const std::vector<std::uint8_t> pixels = makeFrame(4, 4);
+            const std::vector<std::uint8_t> pixels = makeFrame(4, 4, 10);
             const TracedFrame frame{ .mWidth = 4, .mHeight = 4, .mPixels = pixels };
 
             const osg::ref_ptr<osg::Image> top = frameImage(frame, 2, 2, RowOrder::TopFirst);
@@ -99,15 +102,15 @@ namespace Rtx
             EXPECT_EQ(top->s(), 2);
             EXPECT_EQ(top->t(), 2);
 
-            EXPECT_EQ(at(*top, 0, 0), (std::pair<std::uint8_t, std::uint8_t>{ 0, 0 }));
-            EXPECT_EQ(at(*top, 1, 0), (std::pair<std::uint8_t, std::uint8_t>{ 2, 0 }));
-            EXPECT_EQ(at(*top, 0, 1), (std::pair<std::uint8_t, std::uint8_t>{ 0, 2 }));
-            EXPECT_EQ(at(*top, 1, 1), (std::pair<std::uint8_t, std::uint8_t>{ 2, 2 }));
+            EXPECT_EQ(at(*top, 0, 0), (std::pair<std::uint8_t, std::uint8_t>{ 5, 5 }));
+            EXPECT_EQ(at(*top, 1, 0), (std::pair<std::uint8_t, std::uint8_t>{ 25, 5 }));
+            EXPECT_EQ(at(*top, 0, 1), (std::pair<std::uint8_t, std::uint8_t>{ 5, 25 }));
+            EXPECT_EQ(at(*top, 1, 1), (std::pair<std::uint8_t, std::uint8_t>{ 25, 25 }));
 
             const osg::ref_ptr<osg::Image> bottom = frameImage(frame, 2, 2, RowOrder::BottomFirst);
             ASSERT_NE(bottom, nullptr);
-            EXPECT_EQ(at(*bottom, 0, 0), (std::pair<std::uint8_t, std::uint8_t>{ 0, 2 }));
-            EXPECT_EQ(at(*bottom, 1, 1), (std::pair<std::uint8_t, std::uint8_t>{ 2, 0 }));
+            EXPECT_EQ(at(*bottom, 0, 0), (std::pair<std::uint8_t, std::uint8_t>{ 5, 25 }));
+            EXPECT_EQ(at(*bottom, 1, 1), (std::pair<std::uint8_t, std::uint8_t>{ 25, 5 }));
 
             // Three channels: the same texels, packed three bytes apart with the alpha dropped, in
             // a row of six bytes and not eight.
@@ -115,9 +118,9 @@ namespace Rtx
             ASSERT_NE(thumbnail, nullptr);
             EXPECT_EQ(thumbnail->getPixelFormat(), GL_RGB);
             EXPECT_EQ(thumbnail->getRowSizeInBytes(), 6u);
-            EXPECT_EQ(at(*thumbnail, 0, 0), (std::pair<std::uint8_t, std::uint8_t>{ 0, 2 }));
-            EXPECT_EQ(at(*thumbnail, 1, 0), (std::pair<std::uint8_t, std::uint8_t>{ 2, 2 }));
-            EXPECT_EQ(at(*thumbnail, 1, 1), (std::pair<std::uint8_t, std::uint8_t>{ 2, 0 }));
+            EXPECT_EQ(at(*thumbnail, 0, 0), (std::pair<std::uint8_t, std::uint8_t>{ 5, 25 }));
+            EXPECT_EQ(at(*thumbnail, 1, 0), (std::pair<std::uint8_t, std::uint8_t>{ 25, 25 }));
+            EXPECT_EQ(at(*thumbnail, 1, 1), (std::pair<std::uint8_t, std::uint8_t>{ 25, 5 }));
             const std::uint8_t* const second = thumbnail->data(0, 1);
             ASSERT_NE(second, nullptr);
             EXPECT_EQ(second[2], 0) << "blue, and not the alpha that stood after it";
@@ -127,7 +130,16 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> whole = frameImage(frame, 4, 4, RowOrder::TopFirst, Channels::Rgb);
             ASSERT_NE(whole, nullptr);
             EXPECT_EQ(whole->getRowSizeInBytes(), 12u);
-            EXPECT_EQ(at(*whole, 3, 3), (std::pair<std::uint8_t, std::uint8_t>{ 3, 3 }));
+            EXPECT_EQ(at(*whole, 3, 3), (std::pair<std::uint8_t, std::uint8_t>{ 30, 30 }));
+
+            // **A frame of another aspect is cut to the middle first** (`Misc::cropToAspect`): four
+            // by two asked as two by two keeps columns one and two, which a pixel each takes whole.
+            const std::vector<std::uint8_t> wide = makeFrame(4, 2, 10);
+            const osg::ref_ptr<osg::Image> cut
+                = frameImage(TracedFrame{ .mWidth = 4, .mHeight = 2, .mPixels = wide }, 2, 2, RowOrder::TopFirst);
+            ASSERT_NE(cut, nullptr);
+            EXPECT_EQ(at(*cut, 0, 0), (std::pair<std::uint8_t, std::uint8_t>{ 10, 0 }));
+            EXPECT_EQ(at(*cut, 1, 1), (std::pair<std::uint8_t, std::uint8_t>{ 20, 10 }));
         }
 
         /// Nothing to give is null, not a picture of part of a frame.
