@@ -317,10 +317,12 @@ namespace RtxTool
             "  moons:                {}\n"
             "  lamps:                {}\n"
             "  emitters:             {} dropped whole\n"
-            "  emitters' sprites:    {}\n",
+            "  emitters' sprites:    {}\n"
+            "  surfaces' state:      {}\n",
             refused.count(Rtx::Refused::Mesh), refused.count(Rtx::Refused::Model), refused.count(Rtx::Refused::Texture),
             refused.count(Rtx::Refused::SkyLayer), refused.count(Rtx::Refused::Moon), refused.count(Rtx::Refused::Lamp),
-            refused.count(Rtx::Refused::Emitter), refused.count(Rtx::Refused::Sprites)));
+            refused.count(Rtx::Refused::Emitter), refused.count(Rtx::Refused::Sprites),
+            refused.count(Rtx::Refused::Surface)));
 
         // Since the renderer started and not this frame's, because a place is loaded over the
         // frames before its measured ones: what arriving here has cost, pass by pass and thread by

@@ -27,6 +27,7 @@ namespace Rtx
             Wording{ "leaves out", "a", "lamp" },
             Wording{ "leaves out", "an", "emitter" },
             Wording{ "leaves out sprites of", "an", "emitter" },
+            Wording{ "reads part of the state of", "a", "surface" },
         };
 
         /// A kind added to `Refused` and not here would log with no words at all.

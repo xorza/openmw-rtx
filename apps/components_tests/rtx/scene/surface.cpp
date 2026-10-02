@@ -7,11 +7,18 @@
 #include <osg/AlphaFunc>
 #include <osg/BlendFunc>
 #include <osg/CopyOp>
+#include <osg/CullFace>
+#include <osg/Depth>
+#include <osg/Fog>
+#include <osg/FrontFace>
 #include <osg/GL>
 #include <osg/Image>
 #include <osg/Matrixf>
+#include <osg/PolygonMode>
+#include <osg/PolygonOffset>
 #include <osg/StateAttribute>
 #include <osg/StateSet>
+#include <osg/Stencil>
 #include <osg/Texture2D>
 #include <osg/Uniform>
 #include <osg/Vec2f>
@@ -438,6 +445,64 @@ namespace Rtx
             describeStateSet(*mode, material);
             EXPECT_EQ(material.mAlphaMode, AlphaMode::Blend);
             EXPECT_EQ(material.mBlend, BlendKind::Over);
+        }
+
+        /// **What a state set states and the trace does not read is said, one fact a bit**: a blend
+        /// other than the shipped four, a polygon mode of lines, a fog of its own, a stencil test, a
+        /// declined role. What the raster pipeline alone reads — the depth, a polygon offset, a
+        /// clockwise front, which is the winding a mirror turns round — and what the reader carries
+        /// say nothing, so a vanilla surface states none. A nearer state set restating a fact is the
+        /// nearer one's.
+        TEST(RtxSurfaceTest, whatAStateSetStatesAndTheTraceDoesNotReadIsSaid)
+        {
+            const auto unreadOf = [](const osg::StateSet& state) {
+                SurfaceDescription material;
+                describeStateSet(state, material);
+                return material.mUnread;
+            };
+            const auto bit = [](UnreadState state) { return static_cast<std::uint32_t>(state); };
+
+            osg::ref_ptr<osg::StateSet> vanilla = new osg::StateSet;
+            vanilla->setAttributeAndModes(new osg::BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+            vanilla->setAttributeAndModes(new osg::AlphaFunc(osg::AlphaFunc::GREATER, 0.5f));
+            vanilla->setAttributeAndModes(new osg::Depth(osg::Depth::LEQUAL, 0.0, 1.0, false));
+            vanilla->setAttributeAndModes(new osg::PolygonOffset(-1.0f, -1.0f));
+            vanilla->setAttributeAndModes(new osg::CullFace(osg::CullFace::BACK));
+            vanilla->setAttribute(new osg::FrontFace(osg::FrontFace::CLOCKWISE));
+            EXPECT_EQ(unreadOf(*vanilla), 0u);
+
+            osg::ref_ptr<osg::StateSet> multiply = new osg::StateSet;
+            multiply->setAttributeAndModes(new osg::BlendFunc(GL_DST_COLOR, GL_ZERO));
+            EXPECT_EQ(unreadOf(*multiply), bit(UnreadState::BlendPair));
+
+            osg::ref_ptr<osg::StateSet> wire = new osg::StateSet;
+            wire->setAttributeAndModes(new osg::PolygonMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::LINE));
+            wire->setAttributeAndModes(new osg::Fog);
+            wire->setAttributeAndModes(new osg::Stencil);
+            wire->setAttributeAndModes(new osg::CullFace(osg::CullFace::FRONT));
+            EXPECT_EQ(unreadOf(*wire),
+                bit(UnreadState::PolygonMode) | bit(UnreadState::Fog) | bit(UnreadState::Stencil)
+                    | bit(UnreadState::CulledFront));
+
+            osg::ref_ptr<osg::StateSet> detailed = new osg::StateSet;
+            osg::ref_ptr<osg::Texture2D> detail = new osg::Texture2D(new osg::Image);
+            detailed->setTextureAttributeAndModes(0, detail);
+            detailed->setTextureAttribute(0, new SceneUtil::TextureType("detailMap"));
+            EXPECT_EQ(unreadOf(*detailed), bit(UnreadState::Role));
+
+            // Folded: a parent's lines, and a child that fills again.
+            osg::ref_ptr<osg::StateSet> filled = new osg::StateSet;
+            filled->setAttributeAndModes(
+                new osg::PolygonMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::FILL));
+            SurfaceDescription folded;
+            SurfaceLocks locks;
+            describeStateSet(*wire, folded, locks);
+            describeStateSet(*filled, folded, locks);
+            EXPECT_FALSE(folded.isUnread(UnreadState::PolygonMode)) << "the child fills";
+            EXPECT_TRUE(folded.isUnread(UnreadState::Fog)) << "and the parent's fog still stands";
+
+            for (const UnreadState state : sUnreadStates)
+                EXPECT_FALSE(whyUnread(state).empty());
         }
 
         /// The environment map's tint, the ambient the game overrides for a magic effect, and the

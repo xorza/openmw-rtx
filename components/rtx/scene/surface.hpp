@@ -43,6 +43,45 @@ namespace Rtx
         Blend,
     };
 
+    /// What of a surface's state the trace does not read, one bit each: a fact the content stated
+    /// that the rasterizer would draw and the trace does not. `MaterialResolver` reports each as a
+    /// refusal, once for each texture a surface names, and draws the rest of the surface.
+    enum class UnreadState : std::uint32_t
+    {
+        /// A detail, decal, gloss or bump map, which no shipped file binds.
+        Role = 1u << 0,
+
+        /// A blend other than the four the shipped files state.
+        BlendPair = 1u << 1,
+        BlendEquation = 1u << 2,
+
+        /// A cull of the front faces.
+        CulledFront = 1u << 3,
+
+        /// Lines or points in place of faces.
+        PolygonMode = 1u << 4,
+
+        /// A fog of the surface's own, an `NiFogProperty`.
+        Fog = 1u << 5,
+
+        Stencil = 1u << 6,
+        ColourMask = 1u << 7,
+        FlatShading = 1u << 8,
+
+        /// A texture unit's own state: an environment mode, a coordinate generator, a matrix.
+        TextureState = 1u << 9,
+
+        /// An attribute or a mode this reader has no rule for.
+        Unknown = 1u << 10,
+    };
+
+    inline constexpr std::array sUnreadStates{ UnreadState::Role, UnreadState::BlendPair, UnreadState::BlendEquation,
+        UnreadState::CulledFront, UnreadState::PolygonMode, UnreadState::Fog, UnreadState::Stencil,
+        UnreadState::ColourMask, UnreadState::FlatShading, UnreadState::TextureState, UnreadState::Unknown };
+
+    /// Why the trace draws a surface that states `state` otherwise: the reason its refusal gives.
+    std::string_view whyUnread(UnreadState state);
+
     /// An alpha test as OpenGL states one: a reference, and the sides of it a texel passes on
     /// (`Shaders::ALPHA_PASSES_BELOW` and its two siblings). At least the reference until the content
     /// says otherwise, which is the cut a blend with no test of its own is traced with.
@@ -295,6 +334,18 @@ namespace Rtx
         /// What `Cutout` cuts by. Meaningful whenever the content asked for alpha testing, which
         /// includes surfaces that also blend; `ALWAYS` passes on every side.
         AlphaTest mAlphaTest{};
+
+        /// The `UnreadState`s the chain states, as bits: a fact a nearer state set restates is the
+        /// nearer one's, as every other fact here is.
+        std::uint32_t mUnread = 0;
+
+        bool isUnread(UnreadState state) const { return (mUnread & static_cast<std::uint32_t>(state)) != 0; }
+
+        void markUnread(UnreadState state, bool unread)
+        {
+            const auto bit = static_cast<std::uint32_t>(state);
+            mUnread = unread ? mUnread | bit : mUnread & ~bit;
+        }
 
         /// Whether both faces of this surface are drawn and lit. False unless the content says
         /// otherwise, because the scene root turns `GL_CULL_FACE` on for everything under it, and

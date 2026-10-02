@@ -396,6 +396,18 @@ namespace Rtx
 
         const SurfaceDescription* const described = &*reading.mDescribed;
 
+        // What the surface states and the trace does not read, said once for each texture: the
+        // rest of the surface is drawn.
+        if (described->mUnread != 0)
+        {
+            const osg::Image* const named = described->getTexture(SurfaceMap::Diffuse);
+            const std::string_view name
+                = named != nullptr ? std::string_view(named->getFileName()) : std::string_view();
+            for (const UnreadState state : sUnreadStates)
+                if (described->isUnread(state))
+                    mScene.refusals().refuse(Refused::Surface, name, whyUnread(state));
+        }
+
         // Kept, because the medium test below asks about the same image and asking the description
         // twice for it is asking twice.
         const osg::Image* const diffuse = described->getTexture(SurfaceMap::Diffuse);
