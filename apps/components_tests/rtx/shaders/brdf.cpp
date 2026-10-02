@@ -242,7 +242,7 @@ namespace Rtx
         /// `alpha = sqrt(2) * 0.1 = 0.1414214` and a roughness of its root, `0.3760603`; a variance
         /// of `0.09` is `alpha = 0.3`, the cone test's; none is a mirror; and a sea rougher than GGX
         /// states is held at a roughness of one. A painted roughness widened by slopes a footprint
-        /// averages is the same sum.
+        /// averages is the same sum, and a classic map's exponent is a roughness by Walter's match.
         TEST(RtxBrdfTest, aFieldOfSlopesIsTheRoughnessAMapWouldStateForIt)
         {
             EXPECT_NEAR(Shaders::slopeRoughness(0.02f), 0.3760603f, 1e-6f);
@@ -266,6 +266,15 @@ namespace Rtx
             EXPECT_EQ(Shaders::normalSpreadSlopes(0.0f), 0.0f);
             EXPECT_NEAR(Shaders::normalSpreadSlopes(0.19f), 0.38f / (0.9f * 2.19f), 1e-6f);
             EXPECT_EQ(Shaders::slopeRoughness(Shaders::normalSpreadSlopes(1.0f)), 1.0f);
+
+            // A classic map's exponent by Walter's match: nought is `alpha = 1`, a roughness of one;
+            // two is `alpha = √0.5`, a roughness of `0.5^(1/4) = 0.8408964`; and 254, the steepest an
+            // alpha of a byte reaches short of 255, is `alpha = √(2 / 256) = 0.0883883`, a roughness
+            // of `0.2973018`. Steeper is smoother.
+            EXPECT_EQ(Shaders::roughnessOfExponent(0.0f), 1.0f);
+            EXPECT_NEAR(Shaders::roughnessOfExponent(2.0f), 0.8408964f, 1e-6f);
+            EXPECT_NEAR(Shaders::roughnessOfExponent(254.0f), 0.2973018f, 1e-6f);
+            EXPECT_NEAR(Shaders::ggxAlpha(Shaders::roughnessOfExponent(254.0f)), std::sqrt(2.0f / 256.0f), 1e-6f);
         }
 
         /// **The distribution is normalised**: `∫ D (n.h) dω` is one for every alpha, which in

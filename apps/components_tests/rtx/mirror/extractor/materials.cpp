@@ -440,10 +440,10 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.textures().getRows().size(), 4u);
         }
 
-        /// **The companion maps reach the material as data, and the specular map only in the layout
-        /// that names what its channels mean.** A normal map with height and one without are one map.
-        /// A walk told nothing reads no specular map: the classic layout is the one OpenMW documents,
-        /// and read as metalness and roughness it is wrong. **A normal map bound with its height is
+        /// **The companion maps reach the material, and the specular map only in the layout that
+        /// names what its channels mean.** A normal map with height and one without are one map. A
+        /// walk told nothing reads no specular map; the metal layout reads it as data, and the
+        /// classic one as a colour, its highlight being one the artist saw. **A normal map bound with its height is
         /// parallax**, and not on a cutout, whose hole the traversal finds with no eye to shift by.
         TEST_F(RtxSceneExtractorTest, theCompanionMapsReachTheMaterialAsDataAndTheSpecularMapOnlyInItsLayout)
         {
@@ -482,6 +482,12 @@ namespace Rtx::Testing
             EXPECT_EQ(readRows[read.mSpecular].mEncoding, TextureEncoding::Data);
             EXPECT_EQ(readRows.size(), 3u);
             EXPECT_FALSE(read.mParallax) << "a normal map without one";
+            EXPECT_FALSE(read.mSpecularClassic);
+
+            const auto [classic, classicRows] = extractOne(SpecularLayout::Classic, TextureRole::Normal);
+            ASSERT_NE(classic.mSpecular, sNoIndex);
+            EXPECT_EQ(classicRows[classic.mSpecular].mEncoding, TextureEncoding::Colour);
+            EXPECT_TRUE(classic.mSpecularClassic);
 
             const auto [cut, cutRows] = extractOne(SpecularLayout::Ignore, TextureRole::NormalHeight, true);
             EXPECT_TRUE(cut.isCutout());

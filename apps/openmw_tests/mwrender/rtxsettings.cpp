@@ -75,11 +75,12 @@ namespace MWRender
             upscale.mUpscale = "Quality";
             EXPECT_THROW(RtxSettings::derive(upscale), Rtx::InputError);
 
-            // The classic layout is the one a `_spec` file most often has, and it has no name here:
-            // its maps are what `ignore` is for.
+            // A layout is spelled as the documentation spells it, and read by that name alone.
             RtxSettingValues layout = valid();
-            layout.mSpecularMapLayout = "classic";
+            layout.mSpecularMapLayout = "Classic";
             EXPECT_THROW(RtxSettings::derive(layout), Rtx::InputError);
+            layout.mSpecularMapLayout = "classic";
+            EXPECT_EQ(RtxSettings::derive(layout).mMirror.mSpecularLayout, Rtx::SpecularLayout::Classic);
         }
 
         /// A gamma that is not a finite number over nought is refused: nought and less raise the

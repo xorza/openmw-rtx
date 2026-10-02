@@ -65,6 +65,16 @@ namespace Rtx::Shaders
         return float(row) / float(SPECULAR_TABLE_SIZE - 1u);
     }
 
+    /// The perceptual roughness of a Blinn-Phong exponent, which a classic specular map paints as
+    /// its alpha times 255. Walter et al. 2007 match a Beckmann lobe to a Phong lobe of the same
+    /// width at `alpha = sqrt(2 / (n + 2))`, and GGX's alpha is taken as Beckmann's, the convention
+    /// Karis's notes use; the roughness is that alpha's root (`ggxAlpha`). **An approximation**, and
+    /// stated as one: no microfacet lobe is a Phong lobe, and this matches the two near the peak.
+    RTX_SHADER float roughnessOfExponent(float exponent)
+    {
+        return sqrt(sqrt(2.0f / (exponent + 2.0f)));
+    }
+
     /// GGX's alpha for a perceptual roughness: its square, the roughness a map paints being
     /// perceptually linear — glTF 2.0 and Filament. Held at `ROUGHNESS_FLOOR`.
     RTX_SHADER float ggxAlpha(float roughness)

@@ -55,14 +55,17 @@ also follow the settings window while the game runs.
 .. omw-setting::
    :title: specular map layout
    :type: string
-   :range: ignore, metal roughness
+   :range: ignore, classic, metal roughness
    :default: ignore
 
    What the content's :code:`_spec` maps mean. The file cannot say, and two layouts are in use:
    OpenMW's own, with a highlight colour in RGB and glossiness in alpha, and the one of the PBR
    packs, with metalness in red, roughness in green, ambient occlusion in blue and one less
-   subsurface scattering in alpha. :code:`ignore` reads no specular map, which is right for the
-   first and for content with none. :code:`metal roughness` reads the second.
+   subsurface scattering in alpha. :code:`ignore` reads no specular map, which is right for content
+   with none. :code:`classic` reads the first as a reflectance and a roughness: the highlight colour
+   is the reflectance at normal incidence, and the glossiness — a Blinn-Phong exponent over 255 — is
+   matched to a roughness by :math:`\alpha = \sqrt{2 / (n + 2)}`, which is an approximation and not
+   the rasterizer's highlight. :code:`metal roughness` reads the second.
 
    The maps are found by name as :ref:`auto use object specular maps` finds them, and loaded with
    the models, so a change requires a restart. A name this does not know is refused rather than

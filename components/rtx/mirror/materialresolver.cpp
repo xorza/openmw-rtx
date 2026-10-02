@@ -408,12 +408,15 @@ namespace Rtx
         material.mDark = takeTexture(described->getTextureUse(SurfaceMap::Dark), worn);
         material.mDarkUnit = described->mDarkUnit;
 
-        // The companion maps are data, and a specular map is read only in the layout the player
-        // named: a classic one read as metalness and roughness is wrong, so none is read.
+        // A specular map is read only in the layout the player named: a metalness and a roughness
+        // are data, and a classic map's highlight is a colour as the artist saw it.
         material.mNormal = takeTexture(described->getTextureUse(SurfaceMap::Normal), worn, TextureEncoding::Normal);
-        if (mSpecularLayout == SpecularLayout::MetalRoughness)
-            material.mSpecular
-                = takeTexture(described->getTextureUse(SurfaceMap::Specular), worn, TextureEncoding::Data);
+        if (mSpecularLayout != SpecularLayout::Ignore)
+        {
+            material.mSpecularClassic = mSpecularLayout == SpecularLayout::Classic;
+            material.mSpecular = takeTexture(described->getTextureUse(SurfaceMap::Specular), worn,
+                material.mSpecularClassic ? TextureEncoding::Colour : TextureEncoding::Data);
+        }
 
         material.mAlphaTest = described->mAlphaTest;
         material.mAlphaMode = described->mAlphaMode;
