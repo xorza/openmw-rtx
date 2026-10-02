@@ -62,7 +62,11 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
 - **Phase 1, medium 20:** the byte formats are widened; BC7 and groundcover wait (see below). The
   rest of W14.2 (the untextured emitter, the template walk's per-drawable refusal, AutoPlay parts,
   the distortion node) stays with the lows of its section.
-- **Now:** Phase 1, medium item 21, W13 and W11.
+- **Phase 1, medium 21:** done — one rule for every number the harness reads (a float read the
+  same way on every toolchain, one value semantic with stated ranges), the shipped settings for a
+  measured run, and the card watch's window opened on its own thread. The rest of W11 (the record's
+  premises, the watch on the renderer's card, the output files after `go`) stays with its lows.
+- **Now:** Phase 1, medium item 22, W6.
 
 ### Waiting for you
 
