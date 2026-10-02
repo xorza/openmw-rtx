@@ -35,7 +35,7 @@ void main()
     // The traced texel under this fragment of the picture, nearest and not filtered: a distance
     // is not a quantity that averages. `tracedPixelUnder`, the one the puffs and the curve take.
     const uvec2 traced = tracedPixelUnder(
-        uvec2(gl_FragCoord.xy), uvec2(frame.mCamera.mWidth, frame.mCamera.mHeight), frame.mTraced);
+        uvec2(gl_FragCoord.xy), frame.mExtent, frame.mTraced);
 
     // Hidden by its alpha and not discarded: under the pass's `Over` blend an alpha of nought
     // leaves the pixel as it was, and a `discard` here is a demote the device is not asked for.

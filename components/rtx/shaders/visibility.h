@@ -511,6 +511,12 @@ namespace Rtx::Shaders
         /// leaves the motion at nothing.
         Basis mPrevious;
 
+        /// This frame's world eye and `mPrevious`, each read the other way (`screenOf`). The
+        /// backend's, worked out where it writes this block from the bases beside them, so no
+        /// block carries a basis and another's inverse; nought in what the core describes.
+        ScreenBasis mScreen;
+        ScreenBasis mPreviousScreen;
+
         /// Which frame this is, for anything that wants a different answer than last time.
         ///
         /// Every random draw in the shader is keyed on it — the fog's step jitter and the bounce's
@@ -609,8 +615,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1312, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1496, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1400, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1584, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(HitRecord) == 8, "HitRecord must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 8, "PuffConstants must be scalar-packed on every side");
 #endif

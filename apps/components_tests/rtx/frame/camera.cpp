@@ -159,6 +159,40 @@ namespace Rtx
                 "an orthographic camera with no extent sees nothing");
         }
 
+        /// A basis read the other way: the right over its squared length, 2 / 4 = 0.5 along x, and
+        /// the up over its own turned down the image, -0.5 / 0.25 = -2 along z, with the forward and
+        /// the centre as they were. The ray through `uv = centre + (1, -1)` passes `forward + right +
+        /// up` one unit ahead, and that point lands back on its `uv`: 2 * 0.5 + 0.25 = 1.25 across and
+        /// 0.5 * -2 - 0.5 = -1.5 down. A basis of nought, a frame with no eye before it, reads as
+        /// nought.
+        TEST(RtxCameraTest, aScreenBasisIsTheBasisOverItsOwnSquares)
+        {
+            const Shaders::Basis basis{
+                .mForward = osg::Vec3f(0.0f, 1.0f, 0.0f),
+                .mRight = osg::Vec3f(2.0f, 0.0f, 0.0f),
+                .mUp = osg::Vec3f(0.0f, 0.0f, 0.5f),
+                .mCentre = osg::Vec2f(0.25f, -0.5f),
+            };
+
+            const Shaders::ScreenBasis screen = screenBasisOf(basis);
+            EXPECT_EQ(screen.mForward, basis.mForward);
+            EXPECT_EQ(screen.mAcross, osg::Vec3f(0.5f, 0.0f, 0.0f));
+            EXPECT_EQ(screen.mDown, osg::Vec3f(0.0f, 0.0f, -2.0f));
+            EXPECT_EQ(screen.mCentre, basis.mCentre);
+
+            const osg::Vec3f offset = basis.mForward + basis.mRight + basis.mUp;
+            const float ahead = offset * screen.mForward;
+            EXPECT_EQ(ahead, 1.0f);
+            EXPECT_EQ(offset * screen.mAcross + screen.mCentre.x() * ahead, 1.25f);
+            EXPECT_EQ(offset * screen.mDown + screen.mCentre.y() * ahead, -1.5f);
+
+            const Shaders::ScreenBasis none = screenBasisOf(Shaders::Basis{
+                .mForward = osg::Vec3f(), .mRight = osg::Vec3f(), .mUp = osg::Vec3f(), .mCentre = osg::Vec2f() });
+            EXPECT_EQ(none.mForward, osg::Vec3f());
+            EXPECT_EQ(none.mAcross, osg::Vec3f());
+            EXPECT_EQ(none.mDown, osg::Vec3f());
+        }
+
         /// **The two builders agree on everything a camera carries that is not its own basis.** A
         /// viewpoint is built before anything has described the world over it, and what the two
         /// leave behind for `describeWorld` to overwrite has to be one answer — a sea level of

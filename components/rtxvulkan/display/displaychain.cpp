@@ -6,6 +6,7 @@
 #include <span>
 #include <variant>
 
+#include <components/rtx/frame/camera.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/hosttypes.h>
@@ -194,12 +195,15 @@ namespace Rtx
         Image& target = what.mTarget;
         target.transition(commands, Use::sComputeWrite, Use::sColourAttachment);
 
+        // `screenOf` divides by the distance ahead, which is the perspective divide.
+        assert(what.mSampled.mEyes.mWorld.mOrthographic == 0 && "debug lines through a parallel projection");
         mLines.record(commands,
             Lines{
                 .mTarget = target,
                 .mSurface = channels.get(Channel::Surface),
                 .mConstants = {
-                    .mCamera = Shaders::cameraOnGrid(what.mSampled.mEyes.mWorld, what.mExtent.width, what.mExtent.height),
+                    .mScreen = screenBasisOf(what.mSampled.mEyes.mWorld.mBasis),
+                    .mExtent = Shaders::uvec2(what.mExtent.width, what.mExtent.height),
                     .mOrigin = what.mSampled.mOrigin,
                     .mNear = what.mSampled.mNear,
                     .mTraced = Shaders::uvec2(what.mSampled.mEyes.mWorld.mWidth, what.mSampled.mEyes.mWorld.mHeight),
