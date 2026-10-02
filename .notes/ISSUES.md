@@ -88,3 +88,7 @@ first review.
   report's dump was written, and the process then stood still until CTest's 300 s timeout killed it,
   without "crash-tests lived on". `apps/components_tests/crashcatcher/crashtestsposix.cpp:46-60`,
   `components/crashcatcher/crashpadclientposix.cpp:25-33`.
+- A measured run's host rows move as a whole between runs of one build: at `one-cell-walk` the walk
+  median of one build read 0.92, 1.34 and 0.97 ms in three legs back to back, with `update` moving
+  beside it, and holding the run to the performance cores (`taskset -c 0-15`) did not settle it.
+  Nothing in the report says which state a leg ran in. `apps/rtxtool/instruments/`.

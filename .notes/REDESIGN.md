@@ -66,7 +66,13 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   same way on every toolchain, one value semantic with stated ranges), the shipped settings for a
   measured run, and the card watch's window opened on its own thread. The rest of W11 (the record's
   premises, the watch on the renderer's card, the output files after `go`) stays with its lows.
-- **Now:** Phase 1, medium item 22, W6.
+- **Phase 1, medium 22:** done — `SlotSet`'s third state with one compact per hand-over, the
+  instance record written once, and the composite queue's refusal and O(1) gather. Benched against
+  the base (`bench-5`) and against the commit before it (`bench-6`, `bench-7`): frame, p99 and worst
+  level at `one-cell-walk`, `balmora` and `island-crossing`. The host rows move between legs of one
+  build by up to 40% (in `ISSUES.md`); every build reaches the same low walk median, 0.92–0.97 ms.
+  W6's block growth, the refit, the running totals and the presence rows stay in Phase 5.
+- **Now:** Phase 1, medium item 23, the crash kind from the exception.
 
 ### Waiting for you
 
