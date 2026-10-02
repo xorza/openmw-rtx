@@ -77,12 +77,20 @@
 
 #include "../mwrender/animation.hpp"
 #include "../mwrender/npcanimation.hpp"
+#include "../mwrender/renderer.hpp"
+#include "../mwrender/renderingmanager.hpp"
+#include "../mwrender/rendersupport.hpp"
 
 #include "interpretercontext.hpp"
 #include "ref.hpp"
 
 namespace
 {
+    /// What the renderer the game runs honours, which a toggle asks before it toggles.
+    const MWRender::RenderSupport& renderSupport()
+    {
+        return MWBase::Environment::get().getWorld()->getRenderingManager()->getRenderer().support();
+    }
 
     // Matches ESM::PartReferenceType order
     constexpr std::array<std::string_view, ESM::PRT_Count> sPartNames = { "Head", "Hair", "Neck", "Cuirass", "Groin",
@@ -450,6 +458,13 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
+                if (const std::string_view declined = renderSupport().declinedMode(MWRender::Render_CollisionDebug);
+                    !declined.empty())
+                {
+                    runtime.getContext().report(MWRender::notAvailable("Collision Mesh Rendering", declined));
+                    return;
+                }
+
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_CollisionDebug);
 
                 runtime.getContext().report(
@@ -462,6 +477,13 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
+                if (const std::string_view declined = renderSupport().declinedMode(MWRender::Render_CollisionDebug);
+                    !declined.empty())
+                {
+                    runtime.getContext().report(MWRender::notAvailable("Collision Mesh Rendering", declined));
+                    return;
+                }
+
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_CollisionDebug);
 
                 runtime.getContext().report(
@@ -474,6 +496,13 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
+                if (const std::string_view declined = renderSupport().declinedMode(MWRender::Render_Wireframe);
+                    !declined.empty())
+                {
+                    runtime.getContext().report(MWRender::notAvailable("Wireframe Rendering", declined));
+                    return;
+                }
+
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_Wireframe);
 
                 runtime.getContext().report(enabled ? "Wireframe Rendering -> On" : "Wireframe Rendering -> Off");
@@ -485,6 +514,13 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
+                if (const std::string_view declined = renderSupport().declinedRequest(MWRender::ScriptRequest::Borders);
+                    !declined.empty())
+                {
+                    runtime.getContext().report(MWRender::notAvailable("Border Rendering", declined));
+                    return;
+                }
+
                 bool enabled = MWBase::Environment::get().getWorld()->toggleBorders();
 
                 runtime.getContext().report(enabled ? "Border Rendering -> On" : "Border Rendering -> Off");
@@ -496,6 +532,13 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
+                if (const std::string_view declined = renderSupport().declinedMode(MWRender::Render_Pathgrid);
+                    !declined.empty())
+                {
+                    runtime.getContext().report(MWRender::notAvailable("Path Grid Rendering", declined));
+                    return;
+                }
+
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_Pathgrid);
 
                 runtime.getContext().report(enabled ? "Path Grid rendering -> On" : "Path Grid Rendering -> Off");
@@ -1712,6 +1755,13 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
+                if (const std::string_view declined = renderSupport().declinedMode(MWRender::Render_NavMesh);
+                    !declined.empty())
+                {
+                    runtime.getContext().report(MWRender::notAvailable("Navigation Mesh Rendering", declined));
+                    return;
+                }
+
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_NavMesh);
 
                 runtime.getContext().report(
@@ -1724,6 +1774,13 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
+                if (const std::string_view declined = renderSupport().declinedMode(MWRender::Render_ActorsPaths);
+                    !declined.empty())
+                {
+                    runtime.getContext().report(MWRender::notAvailable("Agents Paths Rendering", declined));
+                    return;
+                }
+
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_ActorsPaths);
 
                 runtime.getContext().report(enabled ? "Agents Paths Rendering -> On" : "Agents Paths Rendering -> Off");
@@ -1765,6 +1822,13 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
+                if (const std::string_view declined = renderSupport().declinedMode(MWRender::Render_RecastMesh);
+                    !declined.empty())
+                {
+                    runtime.getContext().report(MWRender::notAvailable("Recast Mesh Rendering", declined));
+                    return;
+                }
+
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_RecastMesh);
 
                 runtime.getContext().report(enabled ? "Recast Mesh Rendering -> On" : "Recast Mesh Rendering -> Off");
