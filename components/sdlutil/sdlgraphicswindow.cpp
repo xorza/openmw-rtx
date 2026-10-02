@@ -2,7 +2,7 @@
 
 #include <SDL3/SDL_video.h>
 
-#include "sdldisplay.hpp"
+#include "sdlvideowrapper.hpp"
 
 #ifdef OPENMW_GL4ES_MANUAL_INIT
 #include "gl4esinit.h"
