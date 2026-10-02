@@ -78,7 +78,7 @@ namespace Rtx
     void DisplayChain::record(const VkCommandBuffer commands, const Display& what)
     {
         const VisibilityInputs& inputs = what.mTrace.mInputs;
-        const Image& shown = what.mShown;
+        const Image& shown = what.mShown.mImage;
         assert(shown.getWidth() >= what.mExtent.width && shown.getHeight() >= what.mExtent.height);
 
         const FrameLook* const look = what.mFrame.has_value() ? &*what.mFrame : nullptr;
@@ -95,7 +95,7 @@ namespace Rtx
         // both reads.
         const GBuffer& channels = inputs.mChannels;
 
-        shown.transition(commands, what.mShownFrom, Use::sTraceReadWrite);
+        shown.transition(commands, what.mShown.mLeftAs, Use::sTraceReadWrite);
         mPuffs.recordSpriteComposite(commands, inputs, shown, what.mExtent,
             VkExtent2D{ what.mSampled.mCamera.mWidth, what.mSampled.mCamera.mHeight }, timer);
         shown.transition(commands, Use::sTraceReadWrite, Use::sComputeReadOrSample);

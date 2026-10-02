@@ -411,13 +411,7 @@ namespace Rtx
         mTargets.reset();
     }
 
-    const Image& Upscaler::getOutput() const
-    {
-        assert(mTargets != nullptr && "the upscaler's output asked for before a resize made one");
-        return mTargets->mOutputImage;
-    }
-
-    void Upscaler::record(const VkCommandBuffer commands, const UpscaleInputs& inputs)
+    HandedImage Upscaler::record(const VkCommandBuffer commands, const UpscaleInputs& inputs)
     {
         assert(mTargets != nullptr && "an upscale before a resize");
         Targets& targets = *mTargets;
@@ -593,5 +587,7 @@ namespace Rtx
         run(Pass::Instability, overRender);
         between();
         run(Pass::Accumulate, Groups::covering(output.width, output.height, Shaders::FSR_WORKGROUP));
+
+        return HandedImage{ .mImage = targets.mOutputImage, .mLeftAs = Use::sComputeReadWrite };
     }
 }

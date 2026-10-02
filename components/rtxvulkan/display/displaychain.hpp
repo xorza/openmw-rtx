@@ -83,11 +83,7 @@ namespace Rtx
         /// The frame as it will be shown: the puffs go over it and the curve maps it. The
         /// upscaler's output where one runs, the trace's own composite where none does, and a
         /// picture's own colour inside the interface.
-        const Image& mShown;
-
-        /// Where the last writer of `mShown` left it, which the display hands over from: the
-        /// trace's `Use::sAnyGeneralRead`, or the upscaler's `Use::sAnyGeneralWrite`.
-        ImageUse mShownFrom;
+        HandedImage mShown;
 
         /// How much of the shown frame the picture is, from its corner: the whole of a frame's,
         /// and a picture's own size inside an image that may be larger. The curve encodes as much

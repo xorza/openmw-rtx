@@ -607,12 +607,17 @@ namespace Rtx
                 &timer);
         }
 
-        if (reconstruction.upscaled())
-        {
+        // The rest of the frame, over the reconstruction where something upscales and over the
+        // trace's own composite where nothing does. The whole of the frame is the picture, which
+        // is the output's extent either way.
+        const HandedImage shown = [&] {
+            if (!reconstruction.upscaled())
+                return traced.mColour;
+
             timer.open(commands, "upscale");
-            mUpscaler.record(commands,
+            const HandedImage upscaled = mUpscaler.record(commands,
                 UpscaleInputs{
-                    .mColour = traced.mColour,
+                    .mColour = traced.mColour.mImage,
                     .mSurface = channels.get(Channel::Surface),
                     .mMotion = channels.get(Channel::Motion),
                     .mMasks = channels.get(Channel::UpscaleMasks),
@@ -623,12 +628,8 @@ namespace Rtx
                     .mSlot = mRing.getRecordingSlot(),
                 });
             timer.close(commands);
-        }
-
-        // The rest of the frame, over the reconstruction where something upscales and over the
-        // trace's own composite where nothing does. The whole of the frame is the picture, which
-        // is the output's extent either way.
-        const bool upscaled = reconstruction.upscaled();
+            return upscaled;
+        }();
 
         const ExposureRule rule = options.mExposure.value_or(mProfile.mExposure);
         FrameLook::Exposure exposure = FrameLook::Held{};
@@ -642,8 +643,7 @@ namespace Rtx
         mDisplay.record(commands,
             Display{
                 .mTrace = traced,
-                .mShown = upscaled ? mUpscaler.getOutput() : traced.mColour,
-                .mShownFrom = upscaled ? Use::sAnyGeneralWrite : Use::sAnyGeneralRead,
+                .mShown = shown,
                 .mExtent = mTarget.getExtent(),
                 .mSampled = sampled,
                 .mTarget = target,
