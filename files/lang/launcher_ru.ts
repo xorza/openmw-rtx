@@ -239,6 +239,10 @@
         <translation>Рамка окна</translation>
     </message>
     <message>
+        <source>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window&apos;s own size. In Windowed mode the window keeps the size you last dragged it to.</source>
+        <translation>Разрешение, в котором игра выполняет рендеринг мира и интерфейса вместе, с масштабированием под окно. «Нативное» выполняет рендеринг в собственном размере окна. В оконном режиме окно сохраняет размер, до которого вы его в последний раз растянули.</translation>
+    </message>
+    <message>
         <source>Resolution</source>
         <translation>Разрешение экрана</translation>
     </message>

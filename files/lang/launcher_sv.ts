@@ -183,6 +183,10 @@
         <translation>16</translation>
     </message>
     <message>
+        <source>The resolution the game renders at, the world and the interface together, shown scaled to fit the window. Native renders at the window&apos;s own size. In Windowed mode the window keeps the size you last dragged it to.</source>
+        <translation>Upplösningen spelet renderar i, världen och gränssnittet tillsammans, skalad för att fylla fönstret. Nativ renderar i fönstrets egen storlek. I fönsterläge behåller fönstret storleken du senast drog det till.</translation>
+    </message>
+    <message>
         <source>Replaces the OpenGL renderer with the experimental Vulkan ray tracing renderer. Needs a GPU with hardware ray tracing: NVIDIA Turing or AMD RDNA 2, or later.</source>
         <translation>Ersätter OpenGL-renderaren med den experimentella Vulkan-renderaren med strålspårning. Kräver ett grafikkort med strålspårning i hårdvara: NVIDIA Turing eller AMD RDNA 2, eller senare.</translation>
     </message>
