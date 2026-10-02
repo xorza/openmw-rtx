@@ -136,6 +136,24 @@ namespace Rtx
             EXPECT_NEAR(fanned.mDirection.x(), std::sqrt(0.5f), 1e-6f);
             EXPECT_NEAR(fanned.mDirection.z(), -std::sqrt(0.5f), 1e-6f);
 
+            // **A shifted picture looks ahead where the shift put the axis.** Half the picture right
+            // and a quarter up, in clip units, is half right and a quarter *up* the picture, whose y
+            // runs down: the forward is seen there, and the 45 degrees one unit right of it. Through
+            // the arms' plane twice as wide, half a unit right of the axis is that same edge.
+            Shaders::Camera shifted = pinhole;
+            shiftPicture(shifted, osg::Vec2f(0.5f, 0.25f));
+            EXPECT_EQ(shifted.mCentre, osg::Vec2f(0.5f, -0.25f));
+            EXPECT_EQ(Shaders::rayAcross(shifted, osg::Vec2f(0.5f, -0.25f)).mDirection, pinhole.mForward);
+            const osg::Vec3f edge = Shaders::rayAcross(shifted, osg::Vec2f(1.5f, -0.25f)).mDirection;
+            EXPECT_EQ(edge, fanned.mDirection);
+            EXPECT_EQ(Shaders::directionAcross(Shaders::basisOf(shifted), osg::Vec2f(1.0f, -0.25f), osg::Vec2f(2.0f, 1.0f)),
+                fanned.mDirection);
+
+            // A parallel picture's box moves the same way.
+            Shaders::Camera slid = camera.mCamera;
+            shiftPicture(slid, osg::Vec2f(0.5f, 0.25f));
+            EXPECT_EQ(Shaders::rayAcross(slid, osg::Vec2f(0.5f, -0.25f)).mOffset, osg::Vec3f());
+
             Testing::expectDies([&] { makeOrthographicCameraFromView(view, 0.0f, 100.0f, 64, 32, 5.0f, 400.0f); },
                 "an orthographic camera with no extent sees nothing");
         }

@@ -30,9 +30,10 @@ namespace Rtx::Shaders
     struct Camera
     {
         /// `mRight` and `mUp` are already scaled by the half-extents of the image plane at unit
-        /// distance, so a ray is `mForward + mRight * x - mUp * y` for `x` and `y` in [-1, 1] and no
-        /// trigonometry in the shader. **`y` runs down the image**, because it is the pixel index
-        /// the jitter is added to, which is why it is subtracted: `mUp` points the other way.
+        /// distance, so a ray is `mForward + mRight * x - mUp * y` for `x` and `y` in [-1, 1] less
+        /// `mCentre`, and no trigonometry in the shader. **`y` runs down the image**, because it is
+        /// the pixel index the jitter is added to, which is why it is subtracted: `mUp` points the
+        /// other way.
         ///
         /// **`mForward` is unit**, as `Rtx::viewBasisOf` normalises it.
         vec3 mForward;
@@ -51,6 +52,13 @@ namespace Rtx::Shaders
         /// Zero is a ray through the pixel's centre, which is every frame that is not being
         /// upscaled or averaged.
         vec2 mJitter RTX_ZERO;
+
+        /// Where the eye's axis crosses the picture, in the minus-one-to-one `rayAt` reads, x to the
+        /// right and y down: a script's `camera.setProjectionOffset`, which the rasterizer applies as
+        /// a translation after its projection. Nought everywhere else, and then every rule below
+        /// computes the bits it computed without one: a subtraction or an addition of nought is
+        /// exact.
+        vec2 mCentre RTX_ZERO;
 
         /// The angle one pixel subtends, in radians.
         ///
@@ -84,13 +92,14 @@ namespace Rtx::Shaders
         vec3 mForward;
         vec3 mRight;
         vec3 mUp;
+        vec2 mCentre;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(Camera) == 60, "Camera must be scalar-packed on every side");
-    static_assert(sizeof(Basis) == 36, "Basis must be scalar-packed on every side");
+    static_assert(sizeof(Camera) == 68, "Camera must be scalar-packed on every side");
+    static_assert(sizeof(Basis) == 44, "Basis must be scalar-packed on every side");
 #endif
 
     /// The traced camera on the grid a pass draws at once: the same basis, `width` by `height`
@@ -160,14 +169,17 @@ namespace Rtx::Shaders
         basis.mForward = camera.mForward;
         basis.mRight = camera.mRight;
         basis.mUp = camera.mUp;
+        basis.mCentre = camera.mCentre;
 
         return basis;
     }
 
-    /// Which way the point `uv` of a pinhole eye's image plane looks, minus one to one across and
-    /// down it: the rule `rayAcross` traces by, over a basis alone, so an eye kept from a previous
-    /// frame looks the way it did. Its components are read as `uv[i]`, which both sides spell alike.
-    RTX_SHADER vec3 directionAcross(Basis basis, vec2 uv)
+    /// Which way the point `uv` of a pinhole eye's picture looks, minus one to one across and down
+    /// it: the rule `rayAcross` traces by, over a basis alone, so an eye kept from a previous frame
+    /// looks the way it did. `spread` widens the image plane about the centre, per axis — one for
+    /// the eye, `VisibilityConstants::mArmsSpread` for the arms' plane over the same basis. Its
+    /// components are read as `uv[i]`, which both sides spell alike.
+    RTX_SHADER vec3 directionAcross(Basis basis, vec2 uv, vec2 spread)
     {
         // **The sum is written out rather than hoisted into a shared term, and that is not an
         // oversight.** Floating-point addition does not associate: `f + (a - b)` and `(f + a) - b`
@@ -185,7 +197,9 @@ namespace Rtx::Shaders
         // the surfaces it reaches and another sample on a few hundred pixels. `precise` keeps these
         // steps apart in every module, so each computes the written sum; the `normalize` under it the
         // build writes out in one order for all of them.
-        RTX_PRECISE vec3 summed = basis.mForward + basis.mRight * uv[0] - basis.mUp * uv[1];
+        RTX_PRECISE float across = (uv[0] - basis.mCentre[0]) * spread[0];
+        RTX_PRECISE float down = (uv[1] - basis.mCentre[1]) * spread[1];
+        RTX_PRECISE vec3 summed = basis.mForward + basis.mRight * across - basis.mUp * down;
         return normalize(summed);
     }
 
@@ -199,7 +213,9 @@ namespace Rtx::Shaders
         {
             // The same pair of multiply-adds `directionAcross` pins, for the same reason. The forward
             // is unit already, as `Camera` states.
-            RTX_PRECISE vec3 offset = camera.mRight * uv[0] - camera.mUp * uv[1];
+            RTX_PRECISE float across = uv[0] - camera.mCentre[0];
+            RTX_PRECISE float down = uv[1] - camera.mCentre[1];
+            RTX_PRECISE vec3 offset = camera.mRight * across - camera.mUp * down;
             ray.mOffset = offset;
             ray.mDirection = camera.mForward;
 
@@ -207,7 +223,7 @@ namespace Rtx::Shaders
         }
 
         ray.mOffset = vec3(0.0, 0.0, 0.0);
-        ray.mDirection = directionAcross(basisOf(camera), uv);
+        ray.mDirection = directionAcross(basisOf(camera), uv, vec2(1.0, 1.0));
 
         return ray;
     }
@@ -250,8 +266,9 @@ struct Screen
 /// **Over a basis and not a `Camera`**, so the previous frame's eye passes through it as this
 /// frame's does. The basis carries the image plane's half extents, so dividing by each vector's own
 /// square undoes the direction and the scale together; a plane `spread` times wider puts the same
-/// point that much nearer its middle. **The association is the reprojection's**, because a motion
-/// vector is what the answer is judged by: every caller lands on the same bits.
+/// point that much nearer its middle, and the centre moves it with the picture, scaled by the
+/// distance ahead because the caller divides by that. **The association is the reprojection's**,
+/// because a motion vector is what the answer is judged by: every caller lands on the same bits.
 RTX_SHADER Screen screenOf(Basis basis, vec3 offset, vec2 spread)
 {
     const vec3 right = basis.mRight;
@@ -259,7 +276,8 @@ RTX_SHADER Screen screenOf(Basis basis, vec3 offset, vec2 spread)
 
     Screen screen;
     screen.mAhead = dot(offset, basis.mForward);
-    screen.mAt = vec2(dot(offset, right) / dot(right, right) / spread.x, -dot(offset, up) / dot(up, up) / spread.y);
+    screen.mAt = vec2(dot(offset, right) / dot(right, right) / spread.x, -dot(offset, up) / dot(up, up) / spread.y)
+        + basis.mCentre * screen.mAhead;
 
     return screen;
 }

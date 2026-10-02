@@ -4,6 +4,7 @@
 #include <optional>
 
 #include <osg/Matrixf>
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
@@ -187,6 +188,12 @@ namespace MWRender
         float closesAirAt(float reach) const { return std::min(reach, mScriptViewDistance.value_or(reach)); }
 
         osg::Matrixf mProjectionMatrix{};
+
+        /// A script's `camera.setProjectionOffset`, as the translation `mProjectionMatrix` carries
+        /// after its perspective: in clip units, x right and y up, nought without one. Said apart
+        /// for a renderer that builds its own projection, which the ray tracer does at its traced
+        /// extent: the picture then moves by the same fraction of itself on both.
+        osg::Vec2f mProjectionShift{};
 
         /// The one the world settled on: the override wherever something asked for one, and the
         /// setting only where nothing did.

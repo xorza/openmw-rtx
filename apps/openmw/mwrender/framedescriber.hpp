@@ -3,6 +3,7 @@
 #include <optional>
 
 #include <osg/Matrixf>
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
@@ -77,8 +78,12 @@ namespace MWRender
         void setMoonRed(bool red) { mMoonRed = red; }
 
         /// What `updateProjectionMatrix` settled on: the reversed-depth form where the depth buffer
-        /// is reversed, which is what a shader reads.
-        void setProjection(const osg::Matrixf& projection) { mProjection = projection; }
+        /// is reversed, which is what a shader reads, and the script's offset it translated it by.
+        void setProjection(const osg::Matrixf& projection, const osg::Vec2f& shift)
+        {
+            mProjection = projection;
+            mProjectionShift = shift;
+        }
 
         /// What `RenderingManager::update` was handed, for the frame that follows it.
         void setStep(float deltaTime, bool paused)
@@ -102,6 +107,7 @@ namespace MWRender
         bool mSkyShown = false;
         bool mMoonRed = false;
         osg::Matrixf mProjection;
+        osg::Vec2f mProjectionShift;
         float mDeltaTime = 0.f;
         bool mPaused = false;
 

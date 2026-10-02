@@ -352,6 +352,14 @@ namespace Rtx::Testing
             // all. Invert either axis and the two swap.
             EXPECT_EQ(covered(-0.5f), centred + size) << "half a pixel left gains one column";
             EXPECT_EQ(covered(0.5f), centred) << "and half a pixel right crosses nothing";
+
+            // **A shifted picture moves the other way round**: the wall with it. One pixel in clip
+            // units is two over the 64 across, and the edge then stands a pixel and a quarter right
+            // of the centre line, or three quarters left of it.
+            shiftPicture(camera.mCamera, osg::Vec2f(2.0f / size, 0.0f));
+            EXPECT_EQ(covered(0.0f), centred + size) << "the picture a pixel right";
+            shiftPicture(camera.mCamera, osg::Vec2f(-2.0f / size, 0.0f));
+            EXPECT_EQ(covered(0.0f), centred - size) << "and a pixel left";
         }
 
         /// Jitter and the reference mode together, which is the only thing jitter is good for.
@@ -514,6 +522,21 @@ namespace Rtx::Testing
                 // A quarter pixel and better than a third: the second and third Halton terms, which
                 // is what a reprojection that carried the jitter would report here.
                 EXPECT_NEAR(motion[centre * 4], 0.0f, 1e-3f) << "a jittered frame that did not move";
+                EXPECT_NEAR(motion[centre * 4 + 1], 0.0f, 1e-3f);
+
+                // **And a still camera whose picture a script shifted**, which the previous eye
+                // carries: a reprojection through the axis alone would put the surface three
+                // pixels across and two down from where it stands.
+                Shaders::VisibilityConstants shifted = camera;
+                shiftPicture(shifted.mCamera, osg::Vec2f(6.0f / size, 4.0f / size));
+                for (const std::uint32_t frame : { 1u, 2u })
+                {
+                    shifted.mFrame = frame;
+                    mRenderer.renderFrame(shifted, FrameOptions{});
+                }
+
+                mRenderer.readChannel(Channel::Motion, motion);
+                EXPECT_NEAR(motion[centre * 4], 0.0f, 1e-3f) << "a shifted frame that did not move";
                 EXPECT_NEAR(motion[centre * 4 + 1], 0.0f, 1e-3f);
             }
 

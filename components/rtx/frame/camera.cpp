@@ -156,6 +156,12 @@ namespace Rtx
         return widened;
     }
 
+    void shiftPicture(Shaders::Camera& camera, const osg::Vec2f& shift)
+    {
+        // The picture's y runs down, as `rayAt` indexes it.
+        camera.mCentre = osg::Vec2f(shift.x(), -shift.y());
+    }
+
     std::optional<Shaders::VisibilityConstants> makeCameraFromView(const osg::Matrixd& view, float verticalFovDegrees,
         std::uint32_t width, std::uint32_t height, float near, float far)
     {

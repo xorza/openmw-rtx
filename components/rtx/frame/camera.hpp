@@ -48,6 +48,11 @@ namespace Rtx
     /// equal to its own.
     Shaders::Camera cameraAtFieldOfView(const Shaders::Camera& camera, float verticalFovDegrees);
 
+    /// Moves `camera`'s picture by `shift`, in clip units with x right and y up: what a projection
+    /// post-multiplied by that translation draws, which is how the game applies a script's
+    /// `camera.setProjectionOffset`. `Shaders::Camera::mCentre` holds it in the picture's own axes.
+    void shiftPicture(Shaders::Camera& camera, const osg::Vec2f& shift);
+
     /// A camera from a view matrix in OpenSceneGraph's convention: row vectors, and an eye space
     /// looking down its own -Z. The basis comes out of the matrix rather than from the world's up,
     /// which is what lets a map look straight down. Nothing for a matrix that cannot be inverted
