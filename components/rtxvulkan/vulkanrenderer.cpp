@@ -78,11 +78,11 @@ namespace Rtx
         , mRing(mDevice, mCounting || mStress != nullptr, mStress != nullptr ? mStress->getTickMs() : 0.0)
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
-        , mFrame(mDevice, mTracePasses, sFrameSlots)
+        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get())
         , mMedia(mDevice)
         , mGui(mDevice)
-        , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures())
+        , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures(), mProfile.mRadianceWidth)
         , mUpscaler(mDevice)
     {
         mDevice.getMemory().limitBudget(options.mRun.mMemoryBudget);
@@ -156,7 +156,7 @@ namespace Rtx
         const VkExtent2D output{ width, height };
         const FrameExtents extents = extentsFor(width, height, mProfile.mUpscale);
         const VkExtent2D render{ extents.mRenderWidth, extents.mRenderHeight };
-        mFrame.resize(render.width, render.height, mProfile.mRadianceWidth);
+        mFrame.resize(render.width, render.height);
 
         mTarget.resize(mDevice, width, height);
 
@@ -697,7 +697,7 @@ namespace Rtx
             return;
 
         if (!mPictures.holds(extent))
-            mPictures.grow(extent, mProfile.mRadianceWidth);
+            mPictures.grow(extent);
 
         mPictures.trace(texture, camera, options, mScenes.at(options.mScene), mProfile);
     }

@@ -23,9 +23,11 @@
 
 namespace Rtx
 {
-    TraceChain::TraceChain(const Device& device, const TracePasses& passes, const std::uint32_t bins)
+    TraceChain::TraceChain(
+        const Device& device, const TracePasses& passes, const std::uint32_t bins, const RadianceWidth radiance)
         : mDevice(device)
         , mPasses(passes)
+        , mRadiance(radiance)
         , mDenoise(device)
     {
         assert(bins >= 1 && bins <= sFrameSlots && "a sprite bin past the frames in flight");
@@ -34,21 +36,20 @@ namespace Rtx
             mBins.emplace_back(device, passes.mSpriteShade, passes.mSpriteBin);
     }
 
-    void TraceChain::resize(const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
+    void TraceChain::resize(const std::uint32_t width, const std::uint32_t height)
     {
         assert(width > 0 && height > 0);
 
         // **The one owner of "is this a new extent"**: an upscaling mode changed between two that
         // trace at one size asks this again, and fourteen channels and twelve fog images made anew
         // for it would be made for nothing.
-        if (isBuilt() && width == mWidth && height == mHeight && radiance == mRadiance)
+        if (isBuilt() && width == mWidth && height == mHeight)
             return;
 
         mWidth = width;
         mHeight = height;
-        mRadiance = radiance;
 
-        mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, radiance);
+        mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance);
         mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight);
         mDenoise.resize(mWidth, mHeight);
 
@@ -57,12 +58,12 @@ namespace Rtx
         dropSum();
     }
 
-    void TraceChain::grow(const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
+    void TraceChain::grow(const std::uint32_t width, const std::uint32_t height)
     {
         if (holds(width, height))
             return;
 
-        resize(std::max(mWidth, width), std::max(mHeight, height), radiance);
+        resize(std::max(mWidth, width), std::max(mHeight, height));
     }
 
     TraceResult TraceChain::record(const VkCommandBuffer commands, const TraceRecording& what)
