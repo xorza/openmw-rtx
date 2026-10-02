@@ -29,6 +29,8 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/scenetextures.hpp>
+#include <components/rtx/scene/texturetable.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/vfs/pathutil.hpp>
 
 namespace Rtx
@@ -624,7 +626,8 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView smoke("textures/tx_smoke.dds");
 
             Rtx::SceneDesc scene;
-            const Rtx::Index bake = scene.textures().addBaked(SpriteLightMap::keyFor(smoke), TextureEncoding::Colour);
+            const Rtx::Index bake = scene.textures().addBaked(
+                SpriteLightMap::keyFor(smoke), Rtx::TextureKind::Baked, TextureEncoding::Colour);
 
             SceneTextures described;
             described.describeAll(scene);
@@ -651,15 +654,13 @@ namespace Rtx
         }
 
         /// A chunk's flattened ground is a slot the queue gave out: the description carries the
-        /// chunk the device sums into it and no bytes. The same slot described with no queue, or
-        /// by one that did not give it out this frame, is a baked name nothing can read and gets
-        /// the stand-in.
-        TEST(RtxSceneTexturesTest, aCompositeNamesItsChunkAndOneNoQueueGaveOutGetsTheStandIn)
+        /// chunk the device sums into it and no bytes. The slot's row names the chunk, so a rebuild
+        /// on a later frame, which no queue sees, describes both of its slots as the arrival did.
+        TEST(RtxSceneTexturesTest, aCompositeNamesItsChunkOnTheFrameItArrivesAndOnEveryRebuild)
         {
-
             Rtx::SceneDesc scene;
             const std::array<Rtx::MaterialLayer, 2> layers{ Rtx::MaterialLayer{ .mDiffuse = 0 },
-                Rtx::MaterialLayer{ .mDiffuse = 1 } };
+                Rtx::MaterialLayer{ .mDiffuse = 1, .mFlags = Shaders::LAYER_CLASSIC } };
             scene.textures().add(VFS::Path::NormalizedView("textures/under.dds"));
             scene.textures().add(VFS::Path::NormalizedView("textures/over.dds"));
             Rtx::Material chunk;
@@ -670,29 +671,45 @@ namespace Rtx
 
             Rtx::CompositeQueue queue;
             ASSERT_EQ(queue.advance(scene), 1u);
-            const Rtx::Index composite = scene.materials().getRows()[material].mDiffuse;
-            ASSERT_NE(composite, Rtx::sNoIndex);
+            const Rtx::Index albedo = scene.materials().getRows()[material].mDiffuse;
+            const Rtx::Index gloss = scene.materials().getRows()[material].mSpecular;
+            ASSERT_NE(albedo, Rtx::sNoIndex);
+            ASSERT_NE(gloss, Rtx::sNoIndex) << "a layer that reflects gives the chunk a gloss";
 
+            const auto check = [&](const SceneTextures& described, const char* when) {
+                const auto find = [&](const Rtx::Index slot) {
+                    return std::ranges::find(described.getDescriptions(), slot, &Rtx::TextureData::mSlot);
+                };
+                const auto ground = find(albedo);
+                ASSERT_NE(ground, described.getDescriptions().end()) << when;
+                EXPECT_EQ(ground->mSource, Rtx::TextureSource::GroundComposite) << when;
+                EXPECT_EQ(ground->mFrom, material) << when;
+                EXPECT_EQ(ground->mFormat, Rtx::TextureFormat::Rgba8Srgb) << when;
+                EXPECT_TRUE(ground->mBytes.empty()) << when << ": a composite carries no bytes";
+                EXPECT_TRUE(ground->mLevels.empty()) << when << ": a composite is shaped by the pass";
+                EXPECT_EQ(ground->getCompanion(), Rtx::TextureCompanion::Neutral) << when;
+
+                const auto glossy = find(gloss);
+                ASSERT_NE(glossy, described.getDescriptions().end()) << when;
+                EXPECT_EQ(glossy->mSource, Rtx::TextureSource::GroundGloss) << when;
+                EXPECT_EQ(glossy->mFrom, material) << when;
+                EXPECT_EQ(glossy->mFormat, Rtx::TextureFormat::Rgba8Unorm) << when;
+                // The rebuild describes the layers' files too, which this test never read.
+                for (const Rtx::Refusal& refused : described.getRefusals())
+                    EXPECT_TRUE(refused.mName == "textures/under.dds" || refused.mName == "textures/over.dds")
+                        << when << ": " << refused.mName << " refused, " << refused.mWhy;
+            };
+
+            const std::array arrived{ albedo, gloss };
             SceneTextures described;
-            described.describe(scene, std::span(&composite, 1), &queue);
-            ASSERT_EQ(described.getDescriptions().size(), std::size_t{ 1 });
-            EXPECT_EQ(described.getDescriptions()[0].mSlot, composite);
-            EXPECT_EQ(described.getDescriptions()[0].mSource, Rtx::TextureSource::GroundComposite);
-            EXPECT_EQ(described.getDescriptions()[0].mFrom, material);
-            EXPECT_EQ(described.getDescriptions()[0].mFormat, Rtx::TextureFormat::Rgba8Srgb);
-            EXPECT_TRUE(described.getDescriptions()[0].mBytes.empty()) << "a composite carries no bytes";
-            EXPECT_TRUE(described.getDescriptions()[0].mLevels.empty()) << "a composite is shaped by the pass";
-            EXPECT_EQ(described.getDescriptions()[0].getCompanion(), Rtx::TextureCompanion::Neutral);
-            EXPECT_TRUE(described.getRefusals().empty());
+            described.describe(scene, arrived);
+            check(described, "the frame it arrived");
 
-            queue.releaseFinished();
-            described.describe(scene, std::span(&composite, 1), &queue);
-            ASSERT_EQ(described.getDescriptions().size(), std::size_t{ 1 });
-            EXPECT_EQ(described.getDescriptions()[0].mSource, Rtx::TextureSource::StandIn);
-            EXPECT_EQ(described.getDescriptions()[0].mFrom, Rtx::sNoIndex);
-            EXPECT_EQ(described.getDescriptions()[0].mName, "stand-in");
-            ASSERT_EQ(described.getRefusals().size(), 1u);
-            EXPECT_EQ(described.getRefusals()[0].mWhy, "no ground was queued to flatten into it");
+            scene.clearArrivals();
+            ASSERT_EQ(queue.advance(scene), 0u) << "nothing else asks";
+            SceneTextures rebuilt;
+            rebuilt.describeAll(scene);
+            check(rebuilt, "a rebuild a frame later");
         }
 
         /// A file that carried one level is described as that level and nothing more: the chain is

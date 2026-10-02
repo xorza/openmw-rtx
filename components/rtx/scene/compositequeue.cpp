@@ -148,7 +148,8 @@ namespace Rtx
             // A table with no room left keeps the chunk on its stack, which the shader sums at the
             // hit as it does for every chunk still waiting, and keeps its place in line: dropped, it
             // would never ask again, because its material is not written again.
-            const Index slot = scene.textures().addBaked(mKey, TextureEncoding::Colour);
+            const Index slot
+                = scene.textures().addBaked(mKey, TextureKind::GroundAlbedo, TextureEncoding::Colour, asked.mMaterial);
             if (slot == sNoIndex)
             {
                 putBack(asked);
@@ -158,17 +159,14 @@ namespace Rtx
 
             Material given = scene.materials().getRows()[asked.mMaterial];
             given.mDiffuse = slot;
-            mFinished.push_back(Given{ .mSlot = slot, .mBaked = { .mMaterial = asked.mMaterial, .mGloss = false } });
 
             // A table with room for the albedo and not the gloss flattens the chunk with no lobe,
             // which is what it was before it could have one.
             if (reflects(scene, given.mLayers))
             {
                 nameComposite(mKey, "gloss/", asked.mMaterial);
-                given.mSpecular = scene.textures().addBaked(mKey, TextureEncoding::Data);
-                if (given.mSpecular != sNoIndex)
-                    mFinished.push_back(
-                        Given{ .mSlot = given.mSpecular, .mBaked = { .mMaterial = asked.mMaterial, .mGloss = true } });
+                given.mSpecular
+                    = scene.textures().addBaked(mKey, TextureKind::GroundGloss, TextureEncoding::Data, asked.mMaterial);
             }
 
             scene.setMaterial(asked.mMaterial, given);
@@ -176,14 +174,5 @@ namespace Rtx
         }
 
         return finished;
-    }
-
-    CompositeQueue::Baked CompositeQueue::find(const Index slot) const
-    {
-        for (const Given& finished : mFinished)
-            if (finished.mSlot == slot)
-                return finished.mBaked;
-
-        return Baked{};
     }
 }

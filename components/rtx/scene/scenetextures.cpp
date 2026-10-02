@@ -16,19 +16,18 @@
 #include <components/rtx/image/texels.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "compositequeue.hpp"
 #include "refusal.hpp"
 #include "scenedesc.hpp"
 #include "texturetable.hpp"
 
 namespace Rtx
 {
-    void SceneTextures::describeAll(const SceneDesc& scene, const CompositeQueue* composites)
+    void SceneTextures::describeAll(const SceneDesc& scene)
     {
-        describe(scene, everyIndexBelow(scene.textures().getRows().size(), mEverything), composites);
+        describe(scene, everyIndexBelow(scene.textures().getRows().size(), mEverything));
     }
 
-    void SceneTextures::describe(const SceneDesc& scene, std::span<const Index> slots, const CompositeQueue* composites)
+    void SceneTextures::describe(const SceneDesc& scene, std::span<const Index> slots)
     {
         mLevels.clear();
         mTexels.clear();
@@ -61,12 +60,16 @@ namespace Rtx
             }
             else if (row.mKind == TextureKind::File)
                 kept.mImage = Misc::Err{ std::string(sNoImage) };
-            else if (const std::optional<VFS::Path::Normalized> source = SpriteLightMap::sourceOf(row.mBaked))
+            else if (row.mKind == TextureKind::Baked)
             {
                 // Made on the device from the sprite texture's own slot, which the emitter holds
                 // beside this one: a bake carries no bytes and is shaped like its source there.
+                const std::optional<VFS::Path::Normalized> source = SpriteLightMap::sourceOf(row.mBaked);
+                assert(source.has_value() && "a bake's key is made by `SpriteLightMap::keyFor`");
                 kept.mBakedFrom = scene.textures().findFile(*source);
             }
+            else
+                kept.mGround = Ground{ .mMaterial = row.mGroundOf, .mGloss = row.mKind == TextureKind::GroundGloss };
 
             mKept.push_back(std::move(kept));
         }
@@ -97,7 +100,7 @@ namespace Rtx
         {
             const TextureRow& row = scene.textures().getRows()[kept.mSlot];
 
-            const Misc::Result<TextureData, std::string> described = describeKept(kept, composites);
+            const Misc::Result<TextureData, std::string> described = describeKept(kept);
             TextureData data;
             if (described.isOk())
                 data = described.value();
@@ -126,8 +129,7 @@ namespace Rtx
                 .mWhy = "past the " + std::to_string(TextureTable::sCapacity) + " textures the array holds" });
     }
 
-    Misc::Result<TextureData, std::string> SceneTextures::describeKept(
-        const Kept& kept, const CompositeQueue* composites)
+    Misc::Result<TextureData, std::string> SceneTextures::describeKept(const Kept& kept)
     {
         if (!kept.mImage.isOk())
             return Misc::Err{ kept.mImage.error() };
@@ -160,13 +162,11 @@ namespace Rtx
             };
         }
 
-        // Flattened on the device in the placement after this arrival, from the chunk's own stack:
-        // the description carries the chunk and no bytes.
-        const CompositeQueue::Baked chunk
-            = composites != nullptr ? composites->find(kept.mSlot) : CompositeQueue::Baked{};
-        if (chunk.mMaterial == sNoIndex)
-            return Misc::Err{ "no ground was queued to flatten into it" };
-
+        // Flattened on the device in the placement after this arrival, from the chunk's own stack,
+        // which the slot's row names however long ago it was made: the description carries the
+        // chunk and no bytes.
+        assert(kept.mGround.has_value() && "a slot with no file and no bake is a chunk's ground");
+        const Ground& chunk = *kept.mGround;
         if (chunk.mGloss)
             return TextureData{
                 .mSource = TextureSource::GroundGloss,

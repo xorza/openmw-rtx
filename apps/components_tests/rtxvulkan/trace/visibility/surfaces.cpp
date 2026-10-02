@@ -38,6 +38,7 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>
+#include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/brdf.h>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/look.h>
@@ -2093,7 +2094,8 @@ namespace Rtx::Testing
             // composite — which chunk it is the ground of, and no bytes.
             Material flattened = material;
             flattened.mFlatten = true;
-            flattened.mDiffuse = scene.textures().addBaked("chunk/0", TextureEncoding::Colour);
+            flattened.mDiffuse
+                = scene.textures().addBaked("chunk/0", TextureKind::GroundAlbedo, TextureEncoding::Colour, chunk);
             scene.setMaterial(chunk, flattened);
             const TextureData composite{
                 .mSlot = flattened.mDiffuse,

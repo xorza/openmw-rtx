@@ -43,13 +43,11 @@ namespace Rtx
             return scene.addMaterial(material);
         }
 
-        /// One frame of the uploader's sequence around the queue: take, describe what was taken,
-        /// then let go of it and of the arrivals, so the next frame's gather sees only what the
-        /// next walk writes.
+        /// One frame of the uploader's sequence around the queue: take, then let go of the
+        /// arrivals, so the next frame's gather sees only what the next walk writes.
         std::size_t frame(CompositeQueue& queue, SceneDesc& scene)
         {
             const std::size_t taken = queue.advance(scene);
-            queue.releaseFinished();
             scene.clearArrivals();
             return taken;
         }
@@ -74,9 +72,9 @@ namespace Rtx
                 const Material& given = scene.materials().getRows()[chunk];
                 const Index baked = given.mDiffuse;
                 ASSERT_NE(baked, sNoIndex) << "the chunk still shades from its stack";
-                EXPECT_EQ(queue.find(baked).mMaterial, chunk)
+                EXPECT_EQ(scene.textures().getRows()[baked].mGroundOf, chunk)
                     << "the slot the chunk was given is not named as its ground";
-                EXPECT_FALSE(queue.find(baked).mGloss);
+                EXPECT_EQ(scene.textures().getRows()[baked].mKind, TextureKind::GroundAlbedo);
 
                 // **The row says what the slot is read as**, and the description reads the row: the
                 // albedo a colour, the gloss data. The gloss's row said colour while its description
@@ -87,21 +85,16 @@ namespace Rtx
                 {
                     ASSERT_NE(given.mSpecular, sNoIndex) << "a chunk that reflects was given no gloss";
                     EXPECT_NE(given.mSpecular, baked);
-                    EXPECT_EQ(queue.find(given.mSpecular).mMaterial, chunk);
-                    EXPECT_TRUE(queue.find(given.mSpecular).mGloss) << "the gloss is named as the albedo";
+                    EXPECT_EQ(scene.textures().getRows()[given.mSpecular].mGroundOf, chunk);
+                    EXPECT_EQ(scene.textures().getRows()[given.mSpecular].mKind, TextureKind::GroundGloss)
+                        << "the gloss is named as the albedo";
                     EXPECT_EQ(scene.textures().getRows()[given.mSpecular].mEncoding, TextureEncoding::Data);
                 }
                 else
                     EXPECT_EQ(given.mSpecular, sNoIndex) << "a chunk that reflects nowhere was given a gloss";
 
-                EXPECT_EQ(queue.find(static_cast<Index>(scene.textures().getRows().size())).mMaterial, sNoIndex)
-                    << "a slot past every slot the table holds";
-
-                // A slot given out is let go of after the arrival that described it, and a chunk with
-                // its ground asks for no more: the rewrite that gave it the slot is a row written, and
-                // the gather has to read it as answered rather than as asking again.
-                queue.releaseFinished();
-                EXPECT_EQ(queue.find(baked).mMaterial, sNoIndex);
+                // A chunk with its ground asks for no more: the rewrite that gave it the slot is a
+                // row written, and the gather has to read it as answered rather than as asking again.
                 scene.clearArrivals();
                 EXPECT_EQ(frame(queue, scene), 0u) << "a chunk with its ground asked again";
             }
@@ -205,7 +198,7 @@ namespace Rtx
             EXPECT_EQ(queue.advance(scene), 1u);
             const Index baked = scene.materials().getRows()[chunk].mDiffuse;
             ASSERT_NE(baked, sNoIndex);
-            EXPECT_EQ(queue.find(baked).mMaterial, chunk);
+            EXPECT_EQ(scene.textures().getRows()[baked].mGroundOf, chunk);
         }
 
         /// **A chunk the texture table refuses keeps its place, and the queue asks again only once

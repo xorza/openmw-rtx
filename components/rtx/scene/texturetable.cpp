@@ -92,9 +92,13 @@ namespace Rtx
         return sNoIndex;
     }
 
-    Index TextureTable::addBaked(const std::string_view key, const TextureEncoding encoding)
+    Index TextureTable::addBaked(
+        const std::string_view key, const TextureKind kind, const TextureEncoding encoding, const Index groundOf)
     {
         assert(!key.empty() && "a baked texture with no key is one nothing can find again");
+        assert(kind != TextureKind::File && "a file is added by its path");
+        assert((groundOf != sNoIndex) == (kind == TextureKind::GroundAlbedo || kind == TextureKind::GroundGloss)
+            && "a ground composite names its material, and nothing else does");
 
         const auto known = mBakedIndex.find(key);
         if (known != mBakedIndex.end())
@@ -104,8 +108,9 @@ namespace Rtx
             return sNoIndex;
 
         const Index index = takeSlot(TextureRow{
-            .mKind = TextureKind::Baked,
+            .mKind = kind,
             .mBaked = std::string(key),
+            .mGroundOf = groundOf,
             .mWrap = TextureWrap::Clamp,
             .mEncoding = encoding,
         });
@@ -151,6 +156,8 @@ namespace Rtx
                 break;
             }
             case TextureKind::Baked:
+            case TextureKind::GroundAlbedo:
+            case TextureKind::GroundGloss:
                 mBakedIndex.erase(row.mBaked);
                 break;
         }
