@@ -135,6 +135,43 @@ namespace RtxTool
             EXPECT_EQ(report.find("meshes"), std::string::npos) << report;
         }
 
+        /// **A view the reference drew and this run did not is named**, with every frame of it
+        /// unmatched: a comparison states its own coverage, and a run of a smaller suite, or one
+        /// with a view taken out of `views.cfg`, otherwise passed on the views it had left. The
+        /// reference draws `b` twice, two frames and then one, and its entry counts all three.
+        TEST(RtxFrameHashesTest, aViewOnlyTheReferenceDrewIsNamedAsNotDrawn)
+        {
+            std::uint64_t submitted = 0;
+            const auto draw = [&](FrameHashes& run, const std::string_view view, const std::uint32_t frame) {
+                run.note(view, frame, ++submitted, partsOf(100));
+                run.picture(Finished{ submitted, sPixels, digestOf(100) }.result());
+            };
+
+            FrameHashes reference;
+            draw(reference, "a", 1);
+            draw(reference, "b", 1);
+            draw(reference, "b", 2);
+            draw(reference, "c", 1);
+            draw(reference, "b", 3);
+
+            FrameHashes run;
+            draw(run, "a", 1);
+            draw(run, "c", 1);
+
+            const std::vector<FrameHashes::ViewDifference> came = run.against(reference);
+            ASSERT_EQ(came.size(), 3u);
+            EXPECT_EQ(came[0].mView, "a");
+            EXPECT_TRUE(came[0].same());
+            EXPECT_EQ(came[1].mView, "c");
+            EXPECT_TRUE(came[1].same());
+
+            EXPECT_EQ(came[2].mView, "b");
+            EXPECT_EQ(came[2].mFrames, 0u);
+            EXPECT_EQ(came[2].mUnmatched, 3u);
+            EXPECT_FALSE(came[2].same());
+            EXPECT_EQ(describeDifference(came[2]), "not drawn by this run, 3 frames of the reference's");
+        }
+
         TEST(RtxFrameHashesTest, aPictureThatMovedAloneSaysTheSceneDidNot)
         {
             const FrameHashes::ViewDifference difference
@@ -410,7 +447,9 @@ namespace RtxTool
             run.picture(Finished{ 102, sPixels, digestOf(100) }.result());
 
             const std::vector<FrameHashes::ViewDifference> reordered = run.against(elsewhereFirst);
-            ASSERT_EQ(reordered.size(), 1u);
+            ASSERT_EQ(reordered.size(), 2u);
+            EXPECT_EQ(reordered.back().mView, "elsewhere") << "the view only the reference drew, after the run's";
+            EXPECT_EQ(reordered.back().mUnmatched, 1u);
             EXPECT_EQ(reordered.front().mView, "somewhere");
             EXPECT_EQ(reordered.front().mFrames, 3u);
             EXPECT_EQ(reordered.front().mDiffering, std::vector<std::uint32_t>{ 2u });
