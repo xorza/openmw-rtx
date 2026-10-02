@@ -9,13 +9,6 @@ first review.
   banner, rope and sail has a hard edge where the rasterizer's is soft, and a cobweb, a Telvanni
   crystal or Bloodmoon ice whose texture reaches 255 anywhere loses the coverage under the cut.
   `components/rtx/scene/material.hpp` (`Material::isTranslucent`).
-- Indoors, and where the supply has no reader, `CellRing::getCellsToStand` keeps the last exterior
-  ask's shortfall: `mBandCells` is written only in `ask`, and `walkRings` returns before it. An
-  interior stop after a moving exterior stop never stands whole, and the measurer fails it.
-  `components/rtx/mirror/cells/cellring.cpp:95-101`, `:319-333`.
-- A reach that grows while the eye stands still asks for no new cell: `WorldMirror::setReach` sets
-  no `mAskStale`. The distance stays short until the player moves, and `getCellsToStand` says nought.
-  `components/rtx/mirror/cells/cellring.cpp:150-156`, `apps/openmw/mwrender/rtx/worldmirror.cpp:302`.
 - An arrival that partly fits the holes of old structure blocks makes a new block the size of the
   whole arrival: `BottomLevelStore::build` passes the full `wanted` to every `take`. The empty part
   counts against video memory and the texture ceiling.

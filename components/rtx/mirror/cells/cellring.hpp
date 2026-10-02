@@ -204,15 +204,34 @@ namespace Rtx
         bool mStatics = true;
         bool mSettled = false;
 
-        /// Whether the request list has to be rebuilt: the eye, the held and handed sets or the
-        /// statics switch changed since it was. `ask` rebuilds the whole band, and nothing else on
-        /// the frame path is proportional to the band.
-        bool mAskStale = true;
-        std::optional<osg::Vec3f> mLastEye;
+        /// What a request is made from. `ask` rebuilds the whole band, and nothing else on the frame
+        /// path is proportional to the band, so it rebuilds where any of these differs from the last
+        /// request's and nowhere else: a function of its inputs, where a flag set at each place an
+        /// input moves missed the reach, which grows under a still eye.
+        struct AskInputs
+        {
+            osg::Vec3f mEye;
+            float mBand = 0.0f;
+            bool mStatics = true;
+            std::size_t mHeld = 0;
+            std::size_t mHanded = 0;
 
-        /// How many cells the band held when `ask` last walked it, the reach and the band past it.
-        /// Every held cell is one of them once a walk has dropped what left, so what is left to
-        /// stand is this less what is held.
+            /// How many cells were ever taken from the supply, and how many worlds followed: a cell
+            /// discarded on arrival and a new reader change no set, and are asked for again.
+            std::uint64_t mTaken = 0;
+            std::uint64_t mFollowed = 0;
+
+            bool operator==(const AskInputs& other) const = default;
+        };
+
+        std::optional<AskInputs> mAsked;
+        std::uint64_t mTaken = 0;
+        std::uint64_t mFollowed = 0;
+
+        /// How many cells the band held when `ask` last walked it, the reach and the band past it,
+        /// or nought where the last walk stood nothing — indoors, or with no reader. Every held cell
+        /// of an exterior walk is one of them once it has dropped what left, so what is left to stand
+        /// is this less what is held.
         std::uint32_t mBandCells = 0;
 
         std::size_t mFrame = 0;
