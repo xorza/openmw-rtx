@@ -41,17 +41,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
 
   Better shape: the game says which reference jumped, as it says a cut for the eye. `World::moveObject`'s teleporting paths (as opposed to physics stepping) call a seam member, `Renderer::notifyMoved(const osg::Node&)`. The ray tracer turns it into a still placement: `PlacementTable::place(slot, transform)` sets `mPrevious` to the new transform and the pose blocks of both copies to the new pose. The motion is then nought, and the surface test rejects the old place's history at the new pixels. *(kind: design; severity: low; benefit: a teleported object is lit where it stands from its first frame)*
 
-## A harness option writes the world through a variable that means something else
-
-- [ ] **`--day` sets the calendar's day of the month, and the moons it claims to decide never move** — `apps/rtxtool/options.cpp:255-259`, `apps/rtxtool/stager.cpp:110-111`, `apps/openmw/mwworld/datetimemanager.cpp:79-82`, `:108-111`, `apps/openmw/mwworld/weather.cpp:336-342`, `:445-454`, `:877-878`, `apps/rtxtool/standingnote.cpp:47`, `:74`, `apps/rtxtool/run.cpp:160-163`, `:174`, `apps/rtxtool/film.cpp:643`.
-  - **What the option claims.** The help says `--day` is "which day the world stands on, counted from the one a new game starts — 16 Last Seed … It is the moons this decides and nothing else".
-  - **What the stager does instead.** It writes the value to the `day` global (`setGlobalInt(Globals::sDay, …)`). That global is the calendar's day of the month: `DateTimeManager::setDay` clamps anything under 1 to 1 and rolls over months. It leaves `mDaysPassed` alone.
-  - **What the moons read.** `MoonModel::calculateState` and `phase` read `TimeStamp::getDay()`, and `getTimeStamp()` is `TimeStamp(mGameHour, mDaysPassed)`. So no value of `--day` moves either moon, in a view, a key or a film.
-  - **What the default does.** Every staged stop stands on 1 Last Seed, because `stopFor` always sets `mDay`, and the default 0 clamps to 1. A script that reads `Day` sees that date, not the new game's 16th.
-  - **The round trip is broken.** The note a window prints reads `now.getDay()`, which is days passed, and writes it back out as `--day=N` and as a key's `day = N`. Feeding that line or key back sets the day of the month to N instead.
-  - Better shape: the stager states days passed. That is the quantity the moons, `TimeStamp`, the note and `CameraDriver`'s film clock all read. It sets them through `Globals::sDaysPassed`, which `updateGlobalInt` honours, or by advancing whole days from the new game's start the way `CameraDriver::step` advances the hour, so the calendar follows. A stop that names no day leaves the calendar alone. A test stages days 0 and 3 and asserts that the two `MoonState::mPhase` values differ.
-  *(kind: bug; severity: high; benefit: a frame named for its moons is drawn under them, and staging stops rewriting the calendar)*
-
 ## A blended surface's coverage is decided by the material's alpha alone
 
 - [ ] **Every alpha-blended surface whose material alpha is one is alpha-tested at 0.5, so lantern

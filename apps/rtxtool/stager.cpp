@@ -31,6 +31,7 @@
 #include <components/esm/attr.hpp>
 #include <components/esm/position.hpp>
 #include <components/esm/refid.hpp>
+#include <components/esm3/loadglob.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/esm3/loadskil.hpp>
 #include <components/misc/rng.hpp>
@@ -102,13 +103,16 @@ namespace RtxTool
         }
 
         // **Through the globals the console writes and not through the clock's own setters**, which
-        // are `MWWorld::World`'s alone. `set gamehour to` and `set day to` are the same two calls,
-        // so a stop stands at an hour and a date a player could have typed.
+        // are `MWWorld::World`'s alone. `set gamehour to` and `set dayspassed to` are the same two
+        // calls, so a stop stands at an hour and a day a player could have typed.
         if (stop.mSky.mHour.has_value())
             world.setGlobalFloat(MWWorld::Globals::sGameHour, *stop.mSky.mHour);
 
+        // **The days passed and not the calendar's day of the month**, because the moons, the
+        // window's note and the film's clock all read the days passed (`TimeStamp`), and `day` is the
+        // date the calendar shows, clamped to at least one. The calendar is left as it stands.
         if (stop.mSky.mDay.has_value())
-            world.setGlobalInt(MWWorld::Globals::sDay, *stop.mSky.mDay);
+            world.setGlobalInt(MWWorld::Globals::sDaysPassed, newGameDaysPassed() + *stop.mSky.mDay);
 
         if (stop.mSky.mWeather.has_value())
             setWeather(world, *stop.mSky.mWeather);
@@ -182,6 +186,13 @@ namespace RtxTool
         forgetHistory();
 
         return {};
+    }
+
+    int Stager::newGameDaysPassed()
+    {
+        const ESM::Global* global = MWBase::Environment::get().getESMStore()->get<ESM::Global>().find(
+            ESM::RefId::stringRefId(MWWorld::Globals::sDaysPassed.getValue()));
+        return global->mValue.getInteger();
     }
 
     void Stager::forgetHistory()
