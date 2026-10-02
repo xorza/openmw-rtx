@@ -61,8 +61,6 @@ first review.
   `apps/openmw/mwrender/rtx/rtxrenderer.cpp:214-219`.
 - Textures in BC4, BC6H, BC7 and other formats outside the list draw as the grey
   stand-in, and a sky deck in one is left out. `components/rtx/image/texels.cpp:145-204`.
-- `tcb` and `tcg` draw collision triangles as solid white faces, where the rasterizer draws wireframe.
-  `apps/openmw/mwrender/rtx/debugwalk.cpp:129-141`.
 - The harness starts with the crash catcher off (`OPENMW_DISABLE_CRASH_CATCHER` defaulted to `1` in
   `apps/rtxtool/main.cpp`'s `main`), so a harness run that crashes or hangs writes no report unless
   a shell asks for one. The comment's reason, a dialog waiting for a click, no longer holds: the

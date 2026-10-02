@@ -26,6 +26,10 @@ namespace MWRender
     /// — by the world transform in force at the drawable, with the colour the drawer painted at
     /// each vertex or over the whole. Points are not drawn: nothing here has a size for one.
     ///
+    /// **The polygon mode along the path is kept**, as the rasterizer's state stack keeps it: under
+    /// `PolygonMode::LINE`, which the collision drawer sets over its shapes, a triangle or a quad
+    /// is its edges and not a face.
+    ///
     /// The lists live across frames and are refilled: a walk allocates nothing after the busiest
     /// frame so far.
     class DebugWalk : public osg::NodeVisitor
@@ -37,10 +41,18 @@ namespace MWRender
         /// mode is on, at the cost of visiting the root's own children and entering none.
         Rtx::DebugLines walk(osg::Node& root);
 
+        void apply(osg::Node& node) override;
         void apply(osg::Transform& transform) override;
         void apply(osg::Drawable& drawable) override;
 
     private:
+        /// Whether `stateSet` states the polygons under it be drawn as their edges, or as faces, or
+        /// leaves what is above in force.
+        void takeMode(const osg::StateSet* stateSet);
+
+        /// Whether the polygons where the walk stands are drawn as their edges.
+        bool mEdges = false;
+
         /// The transform in force at the node being applied, world from local.
         osg::Matrixf mHere;
 
