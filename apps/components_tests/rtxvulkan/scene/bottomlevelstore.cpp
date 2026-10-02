@@ -271,5 +271,38 @@ namespace Rtx
             getDevice().waitIdle();
             getDevice().collectIdle();
         }
+
+        /// **A block made part way through an arrival covers what is still to place.** Two grids of
+        /// sixty-four make one block of `2s`, `s` a grid's aligned room; one goes, leaving a hole of
+        /// `s`. An arrival of a small grid and another of sixty-four puts the small one into the
+        /// hole, and the large one then fits nowhere: its block is `s`, the rest of the arrival, and
+        /// the storage `3s`. A block of the whole arrival was `s` and the small grid's room again,
+        /// stranded in a block no structure fills.
+        TEST_F(RtxBottomLevelStoreTest, aBlockMadeMidArrivalCoversWhatIsStillToPlace)
+        {
+            const std::array<Index, 4> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
+                addGrid(mScene, 8, 2.0f), addGrid(mScene, 64, 3.0f) };
+            stage();
+
+            BottomLevelStore store(getDevice());
+            build(store, std::span(grids).subspan(0, 2));
+            const VkDeviceSize pair = store.getBytes();
+            ASSERT_EQ(pair % 2, 0u);
+            const VkDeviceSize grid = pair / 2;
+
+            // The room comes back once the submit its structure was buried under has run.
+            store.release(std::span(grids).subspan(0, 1));
+            getPool().submitAndWait([](VkCommandBuffer) {});
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+
+            build(store, std::span(grids).subspan(2, 2));
+            EXPECT_EQ(store.getBytes(), pair + grid)
+                << "the block made for the large grid held the small one's room too";
+
+            // Before the store goes: a buried structure gives its room back to the store's storage.
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+        }
     }
 }
