@@ -10,6 +10,7 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/preprocess/contentkey.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
@@ -274,12 +275,25 @@ namespace Rtx
         /// The shape pass is keyed on everything it reads: the positions, the normals and the
         /// triangles, and whether it may split — the cube's eight positions and eight normals of
         /// twelve bytes, thirty-six indices of four, and the flag's one byte: 96 + 96 + 144 + 1.
+        /// The flag alone moves the key.
         TEST(RtxCreaseSplitTest, theShapePassIsKeyedOnTheNormalsAndOnWhetherItSplits)
         {
-            ContentPreprocessor content;
             const AveragedCube cube;
-            shape(content, cube.mPositions, cube.mNormals, cube.mTriangles);
-            EXPECT_EQ(content.takeStats().at(ContentPassId::Shape).mKeyBytes, 96u + 96u + 144u + 1u);
+            const auto keyOf = [&](const bool splits, ContentDigest& digest) {
+                ShapePass::digest(ShapePass::Input{ .mPositions = cube.mPositions,
+                                      .mNormals = cube.mNormals,
+                                      .mTriangles = cube.mTriangles,
+                                      .mSplits = splits },
+                    digest);
+                return digest.getKey();
+            };
+
+            ContentDigest splitting("shape", ShapePass::sVersion);
+            const ContentKey split = keyOf(true, splitting);
+            EXPECT_EQ(splitting.getBytes(), 96u + 96u + 144u + 1u);
+
+            ContentDigest whole("shape", ShapePass::sVersion);
+            EXPECT_NE(keyOf(false, whole), split);
         }
     }
 }

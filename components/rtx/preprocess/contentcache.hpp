@@ -17,6 +17,10 @@ namespace Rtx
     class ContentCache
     {
     public:
+        /// Whether anything is ever found. While nothing is, no key is made: a key is every byte
+        /// of a pass's input read once more, for an answer that is always no.
+        static constexpr bool sHolds = false;
+
         /// Fills `output` with what `Pass` computed from the input filed under `key`, and says
         /// whether it could.
         template <ContentPass Pass>

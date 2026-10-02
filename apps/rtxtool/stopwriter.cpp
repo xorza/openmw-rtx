@@ -50,6 +50,7 @@
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/cells/cellplacer.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/preprocess/contentcache.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/renderer/png.hpp>
@@ -334,11 +335,15 @@ namespace RtxTool
             for (const auto& [pass, name] : Rtx::sContentPasses.mNames)
             {
                 const Rtx::PassStats& counted = passes->at(pass);
-                into.mRecord.note(
-                    std::format("  {:<6}{:<12} {:>7} asked, {:>7} found, {:>9.1f} ms keying "
-                                "{:>8.1f} MiB, {:>9.1f} ms running\n",
-                        thread, name, counted.mAsked, counted.mHits, counted.mKeyMs,
-                        double(counted.mKeyBytes) / (1024.0 * 1024.0), counted.mRunMs));
+                if constexpr (Rtx::ContentCache::sHolds)
+                    into.mRecord.note(
+                        std::format("  {:<6}{:<12} {:>7} asked, {:>7} found, {:>9.1f} ms keying "
+                                    "{:>8.1f} MiB, {:>9.1f} ms running\n",
+                            thread, name, counted.mAsked, counted.mHits, counted.mKeyMs,
+                            double(counted.mKeyBytes) / (1024.0 * 1024.0), counted.mRunMs));
+                else
+                    into.mRecord.note(std::format("  {:<6}{:<12} {:>7} asked, {:>9.1f} ms running\n", thread, name,
+                        counted.mAsked, counted.mRunMs));
             }
 
         if (into.mReport.mWalked.mAgain.has_value())

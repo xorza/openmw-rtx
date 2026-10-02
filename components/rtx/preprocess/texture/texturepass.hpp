@@ -18,7 +18,7 @@ namespace Rtx
     struct AlphaScratch;
 
     /// An image's finest level as a `TexturePass` reads it — `describeFinest` — described once for
-    /// both the key and the run that follows it.
+    /// both the key and the run that follows it, where a key is made.
     ///
     /// **The key is what the passes read and nothing else**: the format, the encoding, the finest
     /// level's extent and its bytes. Not the file's name, so one picture under two names is one
@@ -34,8 +34,11 @@ namespace Rtx
         {
         }
 
-        /// Describes `image` into the scratch and adds what it came to to `digest`.
-        void describe(const osg::Image& image, ContentDigest& digest);
+        /// Describes `image` into the scratch.
+        void describe(const osg::Image& image);
+
+        /// Adds what the last `describe` came to to `digest`.
+        void addTo(ContentDigest& digest) const;
 
         /// What the last `describe` found, spanning the scratch: nothing for an image no reader
         /// here decodes.
@@ -62,10 +65,21 @@ namespace Rtx
         static constexpr ContentPassId sPass = Id;
         static constexpr std::uint32_t sVersion = Version;
 
-        void digest(const osg::Image& image, ContentDigest& digest) { mFinest.describe(image, digest); }
+        void digest(const osg::Image& image, ContentDigest& digest)
+        {
+            mFinest.describe(image);
+            mFinest.addTo(digest);
+            mDigested = true;
+        }
 
-        /// Answers for the image the last `digest` described.
-        void run(const osg::Image&, Result& result) { result = Answer(mFinest.get(), mFinest.getScratch()); }
+        /// Answers for `image`, described by the `digest` before it where there was one.
+        void run(const osg::Image& image, Result& result)
+        {
+            if (!mDigested)
+                mFinest.describe(image);
+            mDigested = false;
+            result = Answer(mFinest.get(), mFinest.getScratch());
+        }
 
     private:
         /// Made by a `ContentPreprocessor` and by nothing else — `ShapeFold` says why.
@@ -76,6 +90,10 @@ namespace Rtx
         }
 
         FinestTexels mFinest;
+
+        /// Whether `mFinest` describes the image the next `run` is handed: set by `digest`, which
+        /// the preprocessor calls on the same input just before, and spent by `run`.
+        bool mDigested = false;
     };
 
     /// Whether a texture's alpha ever reaches solid — `reachesSolid`. True for an image no reader

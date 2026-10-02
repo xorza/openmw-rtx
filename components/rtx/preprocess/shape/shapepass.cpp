@@ -7,7 +7,7 @@
 
 namespace Rtx
 {
-    void ShapePass::digest(const Input& input, ContentDigest& digest) const
+    void ShapePass::digest(const Input& input, ContentDigest& digest)
     {
         digest.add(input.mPositions);
         digest.add(input.mNormals);
