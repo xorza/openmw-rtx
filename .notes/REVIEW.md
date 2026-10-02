@@ -47,22 +47,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
 
 - [ ] **The Lua post-processing package asks "which renderer" in nine places, where the seam allows one null test** — `apps/openmw/mwrender/renderer.hpp:232-238`, `apps/openmw/mwlua/postprocessingbindings.cpp:44-56`, `:79-80`, `:94-95`, `:140-141`, `:156-157`, `:171-172`, `:180-191`, `:208-216`, `:228-229`. The seam documents the post-processing package as an upstream caller "that tests null once". Under upstream, `load` throws on a missing technique, so `Shader::mShader` is never null. The fork adds a `mRequested` constructor for "a renderer with no chain". Every method (`setBool`… through `getSetter`/`getArraySetter`, `enable`, `disable`, `isEnabled`, `name`, `author`, `description`, `version`) now tests `mShader` for null, which is the renderer question in disguise. `load` and `getChain` test `getPostProcessor() == nullptr` again, and `load` keeps a function-local `static` to log once. Better shape: decide once, where the package is built. `initPostprocessingPackage` registers either upstream's usertype or an inert one whose methods are no-ops and whose `name` is the requested name. The upstream usertype then returns to upstream's code, and item 448 disappears with it. *(kind: design; severity: low; benefit: one branch instead of nine, and upstream's bindings back unchanged)*
 
-## The material reader keeps a subset of what the loader states, by rules other than the rasterizer's
-
-- [ ] **Detail, decal, gloss and bump maps, blend pairs other than the vanilla four, a clockwise
-  front face, wireframe, `NiFogProperty` and `NiLines` are dropped or misread with no refusal** —
-  `components/rtx/scene/surface.hpp:123-148` (`mapOf` declines four roles),
-  `components/rtx/scene/surface.cpp:97-107` (every destination but `ONE` and `DST_ALPHA` reads as
-  `Over`, so `DST_COLOR, ZERO` multiply draws as a cover), `meshresolver.cpp:133-139` (a line drawable is filed as empty); against
-  `objects.frag:179-186`, `:200-210`, `nifloader.cpp:2361`, `:1949-1971` with `alpha.glsl`,
-  `nifloader.cpp:2515-2518`, `:2550-2558`, `:2696-2712`, `:1642-1650`. No vanilla file states any
-  of these (scan), and the tree says so for the four roles and the three blend pairs. But a mod NIF
-  that does is drawn differently with nothing in the log. `docs/rtx/architecture.md:205-207` says
-  content the renderer cannot use is reported once to `Rtx::Refusals`. A clockwise `NiStencilProperty` shows the face the rasterizer culls. Better shape:
-  `describeStateSet` reports each fact it does not carry (a declined role, an unread blend pair, a
-  front face, a polygon mode, a fog override) through the refusals once per state set, as
-  `MeshResolver::refuse` does for geometry. *(kind: missing; severity: low; benefit: mod content that differs says so)*
-
 ## The trace's light rules are its own, not the game's
 
 - [ ] **Night-Eye's lift is a light the exposure meter takes three quarters of back**. Evidence: `apps/openmw/mwworld/player.cpp:502-503`, `apps/openmw/mwrender/renderingmanager.cpp:964-972`, `apps/openmw/mwrender/framedescriber.cpp:41-42`, `apps/openmw/mwrender/rtx/skyreader.cpp:123-126`, `:154`, `components/rtx/environment/skylight.cpp:210`, `:217`, `components/rtx/shaders/look.h:71-83`.

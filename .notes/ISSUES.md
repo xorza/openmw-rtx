@@ -90,3 +90,6 @@ first review.
   whose `Mask_Terrain` `tws` culls, so under it they go with the ground.
 - Past the loaded cells, a rendering ray under the ray tracer meets the ground the ring stands and none
   of the ring's statics. The rasterizer meets its paged statics there, with their reference numbers.
+- A content file's own clockwise `NiStencilProperty` shows, under the ray tracer, the face the rasterizer
+  culls. The material reader cannot tell it from the clockwise front `SceneUtil::attach` states over a
+  mirrored body part, whose mirror lives in the skinning and not in the placement.

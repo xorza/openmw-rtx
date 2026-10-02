@@ -21,6 +21,7 @@
 #include <osg/MatrixTransform>
 #include <osg/Node>
 #include <osg/NodeVisitor>
+#include <osg/PrimitiveSet>
 #include <osg/StateAttribute>
 #include <osg/StateSet>
 #include <osg/Texture2D>
@@ -48,6 +49,8 @@
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
+#include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/scene/surface.hpp>
@@ -179,12 +182,53 @@ namespace Rtx::Testing
             EXPECT_EQ(stats.mInstances, 0u);
             EXPECT_TRUE(mScene.meshes().getRows().empty());
 
+            EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 0u) << "a point with no triangle draws nothing anywhere";
+
             // Filed as it was found, so the next walk neither reads it nor adds it.
             mScene.clearPlacement();
             const ExtractionStats again = walk(*geometry, 0, 1);
             EXPECT_EQ(again.mSkippedEmpty, 0u) << "an empty drawable read again";
             EXPECT_EQ(again.mInstances, 0u);
             EXPECT_TRUE(mScene.meshes().getRows().empty());
+        }
+
+        /// **Lines are refused and not filed as empty**: the rasterizer draws an `NiLines`, and a ray
+        /// has no width of theirs to meet, so the log says so once for the drawable.
+        TEST_F(RtxSceneExtractorTest, linesAreRefusedWhereTheRasterizerDrawsThem)
+        {
+            osg::ref_ptr<osg::Geometry> geometry = new osg::Geometry;
+            geometry->setName("a rope");
+            geometry->setVertexArray(makePositions({ osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f) }));
+            geometry->addPrimitiveSet(new osg::DrawArrays(GL_LINES, 0, 2));
+
+            const ExtractionStats stats = walk(*geometry);
+            EXPECT_EQ(stats.mInstances, 0u);
+            EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 1u);
+
+            mScene.clearPlacement();
+            walk(*geometry, 0, 1);
+            EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 1u) << "said once";
+        }
+
+        /// **What a surface states and the trace does not read is a refusal of its state**, named by
+        /// its diffuse texture and said once whatever stands on it; the surface is drawn.
+        TEST_F(RtxSceneExtractorTest, aSurfacesUnreadStateIsRefusedOnceAndTheSurfaceDrawn)
+        {
+            const auto multiplied = [] {
+                osg::ref_ptr<osg::Geometry> quad = makeQuad();
+                osg::StateSet& state = *quad->getOrCreateStateSet();
+                paint(state, "textures/tx_a_steel.dds");
+                state.setAttributeAndModes(new osg::BlendFunc(GL_DST_COLOR, GL_ZERO));
+                return quad;
+            };
+
+            const ExtractionStats first = walk(*multiplied());
+            EXPECT_EQ(first.mInstances, 1u) << "the surface is drawn";
+            EXPECT_EQ(mScene.refusals().count(Refused::Surface), 1u);
+
+            mScene.clearPlacement();
+            walk(*multiplied(), 0, 1);
+            EXPECT_EQ(mScene.refusals().count(Refused::Surface), 1u) << "said once for the texture";
         }
 
         /// A drawable that describes nothing inherits what the state sets above it say.
