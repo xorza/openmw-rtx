@@ -180,6 +180,13 @@ namespace Rtx::Shaders
     /// a different sun. It decides how wide the disc in the sky is drawn, and with it how wide the
     /// glitter path on water is: the two are the same number seen twice, one directly and one in a
     /// mirror, and they cannot be allowed to disagree.
+    ///
+    /// **The sun the content paints is not read, and bloom stands in for it.** The rasterizer draws
+    /// `tx_sun_05` on a quad three and a half degrees across and, over it, the additive flash
+    /// `tx_sun_flash_grey_05` 2.6 times wider, scaled by the seen share its occlusion query eases.
+    /// The trace draws this disc, uniform, and its bloom spreads it into the halo both sprites
+    /// paint, eased by the same seen share through the glare (`SunGlarePass`). So a sun-texture
+    /// replacer does not reach the trace, and a sunrise past a roof edge does not shrink a flash.
     const float SUN_ANGULAR_RADIUS = 0.004654f;
 
     /// Angular radius of the cone a sun shadow ray is drawn from, in radians: two degrees.
