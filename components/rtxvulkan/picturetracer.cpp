@@ -25,12 +25,12 @@
 namespace Rtx
 {
     PictureTracer::PictureTracer(const Device& device, const TracePasses& passes, const TraceMedia& media,
-        DisplayChain& display, GuiTextures& textures)
+        DisplayChain& display, GuiTextures& textures, const RadianceWidth radiance)
         : mDevice(device)
         , mMedia(media)
         , mDisplay(display)
         , mTextures(textures)
-        , mChain(device, passes, 1)
+        , mChain(device, passes, 1, radiance)
         , mCounts(Buffer::deviceLocal(
               device, sizeof(Shaders::FrameCounts), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture counts"))
         , mGlareCounts(Buffer::deviceLocal(
@@ -38,9 +38,9 @@ namespace Rtx
     {
     }
 
-    void PictureTracer::grow(const VkExtent2D extent, const RadianceWidth radiance)
+    void PictureTracer::grow(const VkExtent2D extent)
     {
-        mChain.grow(extent.width, extent.height, radiance);
+        mChain.grow(extent.width, extent.height);
         mTarget = Image(mDevice, mChain.getWidth(), mChain.getHeight(), TonePass::sTargetFormat,
             VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "view target");
     }
