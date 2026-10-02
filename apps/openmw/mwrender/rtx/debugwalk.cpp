@@ -7,7 +7,10 @@
 #include <osg/Geometry>
 #include <osg/Matrix>
 #include <osg/Matrixf>
+#include <osg/Node>
+#include <osg/PolygonMode>
 #include <osg/PrimitiveSet>
+#include <osg/StateSet>
 #include <osg/TemplatePrimitiveIndexFunctor>
 #include <osg/Transform>
 #include <osg/Vec4f>
@@ -60,6 +63,9 @@ namespace MWRender
             std::vector<Rtx::DebugVertex>* mLines = nullptr;
             std::vector<Rtx::DebugVertex>* mTriangles = nullptr;
 
+            /// Whether a polygon is drawn as its edges, `PolygonMode::LINE`.
+            bool mEdges = false;
+
             Rtx::DebugVertex vertexAt(const unsigned int index) const
             {
                 return Rtx::DebugVertex{
@@ -78,14 +84,32 @@ namespace MWRender
 
             void operator()(const unsigned int a, const unsigned int b, const unsigned int c) const
             {
+                if (mEdges)
+                {
+                    (*this)(a, b);
+                    (*this)(b, c);
+                    (*this)(c, a);
+                    return;
+                }
+
                 mTriangles->push_back(vertexAt(a));
                 mTriangles->push_back(vertexAt(b));
                 mTriangles->push_back(vertexAt(c));
             }
 
+            /// A quad as its outline under `LINE`, as OpenGL draws one, and no diagonal.
             void operator()(
                 const unsigned int a, const unsigned int b, const unsigned int c, const unsigned int d) const
             {
+                if (mEdges)
+                {
+                    (*this)(a, b);
+                    (*this)(b, c);
+                    (*this)(c, d);
+                    (*this)(d, a);
+                    return;
+                }
+
                 (*this)(a, b, c);
                 (*this)(a, c, d);
             }
@@ -103,15 +127,37 @@ namespace MWRender
         mLines.clear();
         mTriangles.clear();
         mHere.makeIdentity();
+        mEdges = false;
 
         root.accept(*this);
 
         return Rtx::DebugLines{ .mLines = mLines, .mTriangles = mTriangles };
     }
 
+    void DebugWalk::takeMode(const osg::StateSet* stateSet)
+    {
+        if (stateSet == nullptr)
+            return;
+
+        const auto* mode
+            = dynamic_cast<const osg::PolygonMode*>(stateSet->getAttribute(osg::StateAttribute::POLYGONMODE));
+        if (mode != nullptr)
+            mEdges = mode->getMode(osg::PolygonMode::FRONT) == osg::PolygonMode::LINE;
+    }
+
+    void DebugWalk::apply(osg::Node& node)
+    {
+        const bool above = mEdges;
+        takeMode(node.getStateSet());
+        traverse(node);
+        mEdges = above;
+    }
+
     void DebugWalk::apply(osg::Transform& transform)
     {
         const osg::Matrixf above = mHere;
+        const bool edgesAbove = mEdges;
+        takeMode(transform.getStateSet());
 
         // In the graph's own precision, as `computeLocalToWorldMatrix` takes it — `osg::Matrix`
         // is double on this box and single on a distribution's OSG — and back to the single the
@@ -122,6 +168,7 @@ namespace MWRender
 
         traverse(transform);
         mHere = above;
+        mEdges = edgesAbove;
     }
 
     void DebugWalk::apply(osg::Drawable& drawable)
@@ -134,8 +181,12 @@ namespace MWRender
         if (positions == nullptr)
             return;
 
+        const bool above = mEdges;
+        takeMode(drawable.getStateSet());
+
         const Painted painted(*geometry);
         osg::TemplatePrimitiveIndexFunctor<Taker> taker;
+        taker.mEdges = mEdges;
         taker.mPositions = positions;
         taker.mPainted = &painted;
         taker.mHere = &mHere;
@@ -144,5 +195,7 @@ namespace MWRender
 
         for (const osg::ref_ptr<osg::PrimitiveSet>& primitives : geometry->getPrimitiveSetList())
             primitives->accept(taker);
+
+        mEdges = above;
     }
 }
