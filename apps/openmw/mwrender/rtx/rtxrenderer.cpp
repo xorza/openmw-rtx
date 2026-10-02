@@ -11,6 +11,7 @@
 #include <ratio>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include <MyGUI_ITexture.h>
@@ -213,11 +214,19 @@ namespace MWRender
         // where it was chosen.
         Log(Debug::Info) << "Ray tracing: upscale " << Rtx::sUpscaleNames.name(setup.mProfile.mUpscale);
 
-        // **Grass hangs off the quad tree, and this renderer has the game build none**: its ground is
-        // the cell ring's. Said and not refused, because a game that asked for grass plays the same
-        // without it; the content still loads, which is the world's to decide.
-        if (Settings::groundcover().mEnabled)
-            Log(Debug::Warning) << "Groundcover is on, and the ray tracer draws none";
+        // **A switch the player turned on for what this renderer declines is said once, with the
+        // declaration's reason**: grass, a second eye, a shader chain. Said and not refused, because
+        // the game plays the same without them; the content still loads, which is the world's to
+        // decide.
+        const std::pair<Settings::CategorySetting, bool> switches[] = {
+            { { "Groundcover", "enabled" }, Settings::groundcover().mEnabled },
+            { { "Stereo", "stereo enabled" }, Settings::stereo().mStereoEnabled },
+            { { "Post Processing", "enabled" }, Settings::postProcessing().mEnabled },
+        };
+        for (const auto& [setting, on] : switches)
+            if (const std::string_view declined = rtxSupport().declinedSetting(setting.first, setting.second);
+                on && !declined.empty())
+                Log(Debug::Warning) << "[" << setting.first << "] " << setting.second << " is on: " << declined;
 
         mRenderer = Rtx::createVulkanRenderer(options);
         mUpscale = setup.mProfile.mUpscale;

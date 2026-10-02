@@ -67,3 +67,68 @@ also follow the settings window while the game runs.
    The maps are found by name as :ref:`auto use object specular maps` finds them, and loaded with
    the models, so a change requires a restart. A name this does not know is refused rather than
    quietly defaulted.
+
+What the ray tracer declines
+****************************
+
+The settings window greys these out under the ray tracer and shows the reason as the tooltip, and
+the console and Lua answer the requests below with "not available under this renderer" and the
+reason. The list is the renderer's own declaration, and a test holds this page to it.
+
+Settings
+========
+
+* ``[Camera] near clip``: The trace starts each ray at the eye, and no near plane cuts the picture.
+* ``[Camera] small feature culling``: The trace culls nothing by its size on the screen.
+* ``[Camera] small feature culling pixel size``: The trace culls nothing by its size on the screen.
+* ``[Cells] cache expiry delay``: This sets how long the rasterizer keeps its chunks. The ray tracer keeps what its ring of cells holds.
+* ``[Cells] target framerate``: This sets the rasterizer's loading budget for each frame. The ray tracer loads cells off the frame.
+* ``[Fog]`` every key: The ray tracer integrates the air along each ray, as dense as the weather's own fog depth makes it.
+* ``[General] texture mag filter``: The ray tracer filters every texture trilinearly.
+* ``[General] texture min filter``: The ray tracer filters every texture trilinearly.
+* ``[General] texture mipmap``: The ray tracer filters every texture trilinearly.
+* ``[Groundcover]`` every key: The ray tracer does not draw groundcover yet.
+* ``[Physics] async num threads``: This sets the rasterizer's draw threads.
+* ``[Post Processing]`` every key: Shader post-processing runs on the rasterizer. The ray tracer has its own exposure, bloom and tone curve.
+* ``[Shaders] adjust coverage for alpha test``: The trace cuts an alpha-tested surface for each ray, with no coverage to adjust.
+* ``[Shaders] antialias alpha test``: The trace cuts an alpha-tested surface for each ray, with no coverage to adjust.
+* ``[Shaders] apply lighting to environment maps``: The ray tracer adds an environment map after the lighting.
+* ``[Shaders] clamp lighting``: The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.
+* ``[Shaders] classic falloff``: The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.
+* ``[Shaders] clustered lighting``: The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.
+* ``[Shaders] force per pixel lighting``: The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.
+* ``[Shaders] light fade start``: The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.
+* ``[Shaders] light radius multiplier``: The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.
+* ``[Shaders] match sunlight to sun``: The ray tracer's sun stands where the sun's disc is.
+* ``[Shaders] max lights``: The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.
+* ``[Shaders] maximum light distance``: The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.
+* ``[Shaders] minimum interior brightness``: The ray tracer lights a room by the ambient its record states.
+* ``[Shaders] particle point lighting``: The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.
+* ``[Shaders] soft particles``: The trace meets a particle as a volume, which a wall cuts softly.
+* ``[Shaders] weather particle occlusion``: The ray tracer always keeps rain and snow off what stands under a roof.
+* ``[Shaders] weather particle occlusion small feature culling pixel size``: The ray tracer always keeps rain and snow off what stands under a roof.
+* ``[Shadows]`` every key: Each surface casts a traced shadow.
+* ``[Stereo]`` every key: The ray tracer draws one eye.
+* ``[Stereo View]`` every key: The ray tracer draws one eye.
+* ``[Terrain] composite map level``: This sets the rasterizer's terrain chunks. The ray tracer stands each cell of its reach whole.
+* ``[Terrain] composite map resolution``: This sets the rasterizer's terrain chunks. The ray tracer stands each cell of its reach whole.
+* ``[Terrain] debug chunks``: This sets the rasterizer's terrain chunks. The ray tracer stands each cell of its reach whole.
+* ``[Terrain] distant terrain``: This sets the rasterizer's terrain chunks. The ray tracer stands each cell of its reach whole.
+* ``[Terrain] lod factor``: This sets the rasterizer's terrain chunks. The ray tracer stands each cell of its reach whole.
+* ``[Terrain] max composite geometry size``: This sets the rasterizer's terrain chunks. The ray tracer stands each cell of its reach whole.
+* ``[Terrain] object paging active grid``: This sets how the rasterizer merges distant objects. The ray tracer places each distant object whole.
+* ``[Terrain] object paging merge factor``: This sets how the rasterizer merges distant objects. The ray tracer places each distant object whole.
+* ``[Terrain] object paging min size cost multiplier``: This sets how the rasterizer merges distant objects. The ray tracer places each distant object whole.
+* ``[Terrain] object paging min size merge factor``: This sets how the rasterizer merges distant objects. The ray tracer places each distant object whole.
+* ``[Terrain] vertex lod mod``: This sets the rasterizer's terrain chunks. The ray tracer stands each cell of its reach whole.
+* ``[Terrain] water culling``: This sets the rasterizer's terrain chunks. The ray tracer stands each cell of its reach whole.
+* ``[Video] antialiasing``: The ray tracer's reconstruction resolves the edges.
+* ``[Water]`` every key: The ray tracer reflects and refracts each water surface by its own rays.
+
+Render modes and requests
+=========================
+
+* Wireframe (``tww``, ``debug.toggleRenderMode``): The ray tracer draws no wireframe.
+* Cell borders (``ToggleBorders``): The ray tracer draws no cell borders yet.
+* Shader reload (``debug.triggerShaderReload``): The ray tracer's kernels are compiled into the build, and a rebuild changes them.
+* Live shader reload (``debug.setShaderHotReloadEnabled``): The ray tracer's kernels are compiled into the build, and a rebuild changes them.
