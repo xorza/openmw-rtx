@@ -75,8 +75,8 @@ namespace Crash
             /// How long the game stood still when the watch asked for a hang report.
             std::atomic<std::uint32_t> mStalledFor{ 0 };
 
-            /// Ends the watch once Crashpad's handler returns. A flag and not `std::stop_token`,
-            /// which Apple's libc++ keeps behind its experimental switch.
+            /// Ends the watch once Crashpad's handler returns, set on the handler's worker. A flag and
+            /// not `std::stop_token`, which Apple's libc++ keeps behind its experimental switch.
             std::mutex mWatchMutex;
             std::condition_variable mWatchWake;
             bool mWatchEnds = false;
@@ -94,8 +94,52 @@ namespace Crash
             /// Guarded as the dumps are.
             LastReport mLastReport;
 
-            /// Whether the player's End ended the game: written by the watch, read once it is joined.
+            /// Whether the player's End ended the game: written and read on the main thread.
             bool mEnded = false;
+
+            /// **What the main thread is asked to do, in order.** It is the one thread that shows a
+            /// dialog: on macOS a message box waits for the main dispatch queue, which Crashpad's
+            /// Mach loop never drains, so the watch's box deadlocked the monitor whenever the
+            /// handler held the main thread. The handler runs on a worker and the watch asks here.
+            struct Request
+            {
+                enum class Kind
+                {
+                    /// The game stood still for `mSeconds`, at the frame count `mStalledAt`.
+                    AskToEnd,
+
+                    /// Crashpad's handler returned `mResult`: the game is gone.
+                    HandlerReturned,
+                };
+
+                Kind mKind = Kind::AskToEnd;
+                std::uint32_t mSeconds = 0;
+                std::uint64_t mStalledAt = 0;
+                int mResult = 0;
+            };
+
+            std::mutex mRequestMutex;
+            std::condition_variable mRequestWake;
+            std::vector<Request> mRequests;
+
+            void post(const Request& request)
+            {
+                {
+                    const std::lock_guard lock(mRequestMutex);
+                    mRequests.push_back(request);
+                }
+                mRequestWake.notify_one();
+            }
+
+            /// The oldest request, waited for.
+            Request take()
+            {
+                std::unique_lock lock(mRequestMutex);
+                mRequestWake.wait(lock, [&] { return !mRequests.empty(); });
+                const Request first = mRequests.front();
+                mRequests.erase(mRequests.begin());
+                return first;
+            }
         };
 
         std::string stamp()
@@ -380,8 +424,10 @@ namespace Crash
                 reported = true;
                 monitor.mStalledFor = static_cast<std::uint32_t>(stalled.count());
                 monitor.mGame.requestHangReport(*page);
-                if (monitor.mDialog && askToEnd(monitor, static_cast<std::uint32_t>(stalled.count())))
-                    endIfStillStalled(monitor, last);
+                if (monitor.mDialog)
+                    monitor.post(MonitorState::Request{ .mKind = MonitorState::Request::Kind::AskToEnd,
+                        .mSeconds = static_cast<std::uint32_t>(stalled.count()),
+                        .mStalledAt = last });
             }
         }
 
@@ -479,15 +525,37 @@ namespace Crash
             handlerArgv.push_back(argument.data());
         handlerArgv.push_back(nullptr);
 
+        // The handler on a worker and the questions on this thread, `MonitorState::Request` says why.
         std::thread watchdog([&] { watch(monitor); });
-        const int result
-            = crashpad::HandlerMain(static_cast<int>(handlerArgv.size() - 1), handlerArgv.data(), &sources);
+        // The watch ends the moment the game is gone, so a question still standing then ends
+        // nothing (`endIfStillStalled`).
+        std::thread handlerThread([&] {
+            const int returned
+                = crashpad::HandlerMain(static_cast<int>(handlerArgv.size() - 1), handlerArgv.data(), &sources);
+            {
+                const std::lock_guard lock(monitor.mWatchMutex);
+                monitor.mWatchEnds = true;
+            }
+            monitor.mWatchWake.notify_one();
+            monitor.post(
+                MonitorState::Request{ .mKind = MonitorState::Request::Kind::HandlerReturned, .mResult = returned });
+        });
+
+        int result = 0;
+        for (;;)
         {
-            const std::lock_guard lock(monitor.mWatchMutex);
-            monitor.mWatchEnds = true;
+            const MonitorState::Request request = monitor.take();
+            if (request.mKind == MonitorState::Request::Kind::HandlerReturned)
+            {
+                result = request.mResult;
+                break;
+            }
+            if (askToEnd(monitor, request.mSeconds))
+                endIfStillStalled(monitor, request.mStalledAt);
         }
-        monitor.mWatchWake.notify_one();
+
         watchdog.join();
+        handlerThread.join();
 
         std::vector<std::filesystem::path> dumps;
         bool crashed = false;
