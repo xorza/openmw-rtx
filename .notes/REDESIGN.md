@@ -85,7 +85,19 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   held by a test. The window's greying has no test: it is widget state no test here can open. The
   post-processing package's nine null tests stay with the lows: the player packages are built before
   the world, so deciding once needs the renderer handed to the Lua context.
-- **Now:** Phase 1, the lows of each workstream, by section.
+- **Phase 1, lows of W14:** done so far — the sky's lows (the glare by the disc's alpha, the zenith
+  and disc colour whatever `tsky` says, the water's scatter colour), the constants written as their
+  derivations, the distortion node refused, untextured particles on the white texel, ring parts
+  without their drawable, the reach bounded from both sources, the emitters stepped by the world's
+  step, the debug polygons as edges under `LINE` and opaque where nothing blends, the rain sheltered
+  only where the setting says, `tws` traced, the cell borders drawn, the projection offset as the
+  camera's centre on both eyes, the precipitation's own word on its frozen drops, the distant ground
+  met by a rendering ray, and the capture and time-skip contracts stated as they hold.
+  *Done differently:* the rain shelter is `Precipitation::isOccluded`, not a `WorldState` field;
+  a script's write to `GameHour` is stated as no cut rather than made one, because upstream's weather
+  does not treat it as a skip either.
+- **Now:** Phase 1, the remaining lows of W14 (the material reader, Night-Eye, the distant statics'
+  animation, the post-processing package), then the lows of each other workstream, by section.
 
 ### Waiting for you
 
