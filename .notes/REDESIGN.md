@@ -53,7 +53,9 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   are done. The darkening costs about 1% of the guild's trace (a probe without it was within noise
   of the base). Night-Eye waits for the D8 probe, which needs a harness hook that gives the player
   the effect; it comes after the other mediums.
-- **Now:** Phase 1, medium item 17, W14.5's rest.
+- **Phase 1, medium 17:** done — the player hidden by the view mask, a script's view distance,
+  and map tiles that wait for their ground.
+- **Now:** Phase 1, medium item 18, W14.4's rest.
 
 ### Waiting for you
 
