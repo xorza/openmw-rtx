@@ -171,7 +171,7 @@ namespace RtxTool
             std::count_if(mFrames.begin(), mFrames.end(), [](const Frame& held) { return !held.mPictured; }));
     }
 
-    void FrameHashes::write(const std::filesystem::path& file) const
+    Misc::Result<void, std::string> FrameHashes::write(const std::filesystem::path& file) const
     {
         Crash::contract(countUnpictured() == 0, "frames were noted and never pictured; the ring was not drained");
 
@@ -190,10 +190,13 @@ namespace RtxTool
             out << '\n';
         }
 
-        // **Thrown and not reported**: a reference that did not get written and a command that
-        // still succeeded is the next run comparing against whatever was at that path before.
+        // **Answered, so the run fails and not only says so**: a reference that did not get
+        // written and a command that still succeeded is the next run comparing against whatever
+        // was at that path before.
+        out.flush();
         if (!out)
-            throw Rtx::InputError("could not write " + Files::pathToUnicodeString(file));
+            return Misc::Err{ "could not write " + Files::pathToUnicodeString(file) };
+        return {};
     }
 
     FrameHashes FrameHashes::read(const std::filesystem::path& file)

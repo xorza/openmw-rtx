@@ -370,7 +370,7 @@ namespace RtxTool
             const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-test.csv");
             std::filesystem::remove(file);
 
-            plainRun(Rtx::Upscale::Quality).write(file);
+            ASSERT_TRUE(plainRun(Rtx::Upscale::Quality).write(file).isOk());
             const FrameHashes read = FrameHashes::read(file);
 
             ASSERT_EQ(read.frameCount(), 1u);
@@ -390,7 +390,7 @@ namespace RtxTool
 
             // And whether the denoiser composed it comes back too.
             const std::filesystem::path denoisedFile = TestingOpenMW::outputFilePath("hashes-denoised-test.csv");
-            denoisedRunOf(sPixels, digestOf(100)).write(denoisedFile);
+            ASSERT_TRUE(denoisedRunOf(sPixels, digestOf(100)).write(denoisedFile).isOk());
             const FrameHashes denoisedRead = FrameHashes::read(denoisedFile);
             EXPECT_EQ(
                 onlyView(denoisedRunOf(sPixels, digestOf(100)).against(denoisedRead)).mConfigurationDiffering, 0u);
@@ -459,7 +459,8 @@ namespace RtxTool
             FrameHashes half;
             half.note("somewhere", 1, 7, partsOf(100));
             const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-half.csv");
-            Rtx::Testing::expectDies([&] { half.write(file); }, "frames were noted and never pictured");
+            Rtx::Testing::expectDies(
+                [&] { static_cast<void>(half.write(file)); }, "frames were noted and never pictured");
             std::filesystem::remove(file);
         }
 
@@ -469,7 +470,7 @@ namespace RtxTool
             add(run, 1, sPixels, partsOf(100));
             add(run, 2, sPixels, partsOf(100));
             const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-order.csv");
-            run.write(file);
+            ASSERT_TRUE(run.write(file).isOk());
 
             std::ifstream in(file);
             std::string header;

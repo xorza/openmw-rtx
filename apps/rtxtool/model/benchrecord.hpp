@@ -12,6 +12,7 @@
 #include <apps/rtxtool/instruments/cardwatch.hpp>
 #include <apps/rtxtool/instruments/frametimes.hpp>
 #include <apps/rtxtool/instruments/gpuclock.hpp>
+#include <components/misc/result.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -243,9 +244,11 @@ namespace RtxTool
     /// said everything this would.
     std::string describeTotal(std::span<const BenchPlace> places);
 
-    /// Writes the run as one record, for comparing against the same run on another commit.
+    /// Writes the run as one record, for comparing against the same run on another commit, or says
+    /// which path it could not write.
     ///
     /// Hand-written rather than through a library: this is numbers and the names of places, and the
     /// alternative is a dependency for the sake of a page.
-    void writeJson(const std::filesystem::path& path, const BenchHeader& header, std::span<const BenchPlace> places);
+    Misc::Result<void, std::string> writeJson(
+        const std::filesystem::path& path, const BenchHeader& header, std::span<const BenchPlace> places);
 }

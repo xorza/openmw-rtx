@@ -12,7 +12,6 @@
 #include <string_view>
 
 #include <components/files/conversion.hpp>
-#include <components/rtx/common/error.hpp>
 #include <components/rtx/mirror/cells/readermemory.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/renderer/framespend.hpp>
@@ -367,7 +366,7 @@ namespace RtxTool
         return std::format("\n{} places, {} frames in {:.1f} s\n", places.size(), frames, lasted);
     }
 
-    void writeJson(
+    Misc::Result<void, std::string> writeJson(
         const std::filesystem::path& path, const BenchHeader& header, const std::span<const BenchPlace> places)
     {
         std::ofstream file(path);
@@ -419,6 +418,7 @@ namespace RtxTool
         // that was never written leaves the last one at its path to be compared as this one.
         file.flush();
         if (!file)
-            throw Rtx::InputError("could not write " + Files::pathToUnicodeString(path));
+            return Misc::Err{ "could not write " + Files::pathToUnicodeString(path) };
+        return {};
     }
 }

@@ -132,7 +132,7 @@ namespace RtxTool
             place.mCard.mHolders.push_back(CardHolder{ .mName = "tab\there", .mSamples = 1 });
 
             const std::filesystem::path path = TestingOpenMW::outputFilePath("escaped-record.json");
-            writeJson(path, BenchHeader{ .mSuite = "a\nb" }, std::span(&place, 1));
+            ASSERT_TRUE(writeJson(path, BenchHeader{ .mSuite = "a\nb" }, std::span(&place, 1)).isOk());
 
             std::ostringstream read;
             read << std::ifstream(path).rdbuf();
@@ -164,7 +164,7 @@ namespace RtxTool
             place.mClock.add(GpuClock::reading(1980, std::nullopt, std::nullopt, std::nullopt));
 
             const std::filesystem::path path = TestingOpenMW::outputFilePath("clock-record.json");
-            writeJson(path, BenchHeader{}, std::span(&place, 1));
+            ASSERT_TRUE(writeJson(path, BenchHeader{}, std::span(&place, 1)).isOk());
 
             std::ostringstream read;
             read << std::ifstream(path).rdbuf();

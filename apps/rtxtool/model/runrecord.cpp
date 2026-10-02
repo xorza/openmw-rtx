@@ -42,12 +42,9 @@ namespace RtxTool
         if (mChecked > 0)
             mReport += std::format("\n{} checks asked, {} failed\n", mChecked, mFailed);
 
-        if (!request.mHashes.empty())
-        {
-            mHashes.write(request.mHashes);
+        if (!request.mHashes.empty() && wrote(mHashes.write(request.mHashes)))
             mReport += std::format(
                 "\nwrote {} frame hashes to {}\n", mHashes.frameCount(), Files::pathToUnicodeString(request.mHashes));
-        }
 
         if (!request.mAgainst.empty())
         {
@@ -63,8 +60,18 @@ namespace RtxTool
         if (!request.mJson.empty())
         {
             mHeader.mSuite = request.mSuite;
-            writeJson(request.mJson, mHeader, mPlaces);
-            mReport += "wrote " + Files::pathToUnicodeString(request.mJson) + '\n';
+            if (wrote(writeJson(request.mJson, mHeader, mPlaces)))
+                mReport += "wrote " + Files::pathToUnicodeString(request.mJson) + '\n';
         }
+    }
+
+    bool RunRecord::wrote(const Misc::Result<void, std::string>& written)
+    {
+        if (written.isOk())
+            return true;
+
+        mReport += std::format("\n{}\n", written.error());
+        fail();
+        return false;
     }
 }

@@ -9,6 +9,7 @@
 #include <string_view>
 #include <vector>
 
+#include <components/misc/result.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
@@ -88,9 +89,10 @@ namespace RtxTool
         /// leaves, and what `write` refuses to write.
         std::size_t countUnpictured() const;
 
-        /// Throws where a row has no picture: a file with a hash of nothing in it would compare
-        /// as a frame that moved, and the ring is what was not drained.
-        void write(const std::filesystem::path& file) const;
+        /// Writes every row, or says which path it could not write. Dies where a row has no
+        /// picture: a file with a hash of nothing in it would compare as a frame that moved, and
+        /// the ring is what was not drained.
+        Misc::Result<void, std::string> write(const std::filesystem::path& file) const;
 
         std::size_t frameCount() const { return mFrames.size(); }
 
