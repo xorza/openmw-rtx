@@ -46,10 +46,26 @@ namespace Rtx
             EXPECT_EQ(std::count(out.begin(), out.end(), '\n'), 4) << "a line a heap, and the one below them";
             EXPECT_NE(out.find("device-only"), std::string::npos);
             EXPECT_NE(out.find("system"), std::string::npos) << "the system's heap read as video memory";
-            EXPECT_NE(out.find("host-visible"), std::string::npos);
+            EXPECT_NE(out.find("  heap 2  device+host "), std::string::npos) << out;
             EXPECT_NE(out.find("8192.0 MiB"), std::string::npos) << "the first heap's size";
             EXPECT_NE(out.find("256.0 MiB"), std::string::npos) << "the window's size";
             EXPECT_EQ(out.substr(0, 2), "  ") << "the lines were not indented as asked";
+        }
+
+        /// **A card with resizable BAR has one heap of video memory, which the host writes into
+        /// throughout**, and its line names it as both: read by the host's flag alone, 16 GiB of
+        /// video memory read as the small window of a card without it, and no line said "device".
+        TEST(RtxMemoryReportTest, aHeapTheDeviceHoldsAndTheHostWritesIsNamedAsBoth)
+        {
+            MemoryReport report;
+            report.mHeapCount = 2;
+            report.mHeaps[0] = HeapUse{ .mSize = 16ull << 30, .mDeviceLocal = true, .mHostVisible = true };
+            report.mHeaps[1] = HeapUse{ .mSize = 32ull << 30 };
+
+            const std::string out = describeMemory(report);
+            EXPECT_EQ(out.find("  heap 0  device+host    16384.0 MiB"), 0u) << out;
+            EXPECT_NE(out.find("  heap 1  system         32768.0 MiB"), std::string::npos) << out;
+            EXPECT_EQ(out.find("device-only"), std::string::npos) << out;
         }
     }
 }
