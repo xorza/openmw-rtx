@@ -163,9 +163,11 @@ namespace MWRender
         /// The rain box and the driven effect, or null where there is none — and nothing falls
         /// while the sky is off: the root's mask hides both nodes from the rasterizer's cull the
         /// moment the player steps indoors, and a walk that starts at the node never meets that
-        /// mask. Both are camera-relative.
-        osg::Group* getRainNode() const { return mEnabled ? mRainNode.get() : nullptr; }
-        osg::PositionAttitudeTransform* getParticleNode() const { return mEnabled ? mParticleNode.get() : nullptr; }
+        /// mask. Nor while the eye `setViewPoint` was last told is under the water: the switch the
+        /// rasterizer's cull skips both nodes by freezes the drops where they stand, and walked
+        /// anyway they hang in the air. Both are camera-relative.
+        osg::Group* getRainNode() const { return isShown() ? mRainNode.get() : nullptr; }
+        osg::PositionAttitudeTransform* getParticleNode() const { return isShown() ? mParticleNode.get() : nullptr; }
 
         /// The root everything here hangs under, for a renderer that wants state on it.
         osg::Group& getRoot() { return *mRoot; }
@@ -187,6 +189,10 @@ namespace MWRender
 
     private:
         bool getRainRipplesEnabled() const;
+
+        /// Whether the rasterizer's cull would draw what falls: the sky on, and the eye out of the
+        /// water as the underwater switch reads it.
+        bool isShown() const { return mEnabled && !mUnderwaterSwitch->isUnderwater(); }
 
         void createRain();
         void destroyRain();

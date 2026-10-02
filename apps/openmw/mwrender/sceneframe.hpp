@@ -102,7 +102,9 @@ namespace MWRender
 
         WaterState mWater;
 
-        /// Whether the eye is under `mWater`: the water's own rule, asked at the camera.
+        /// Whether the eye is under `mWater`: the water's own rule, asked at the camera's position
+        /// as upstream asked it for the rasterizer's fog and its post-processing. The ray tracer
+        /// takes its medium from the eye it traces, and the precipitation answers for itself.
         bool mUnderwater = false;
 
         /// Fog above the water, which a renderer whose fog is a medium reads even with the eye

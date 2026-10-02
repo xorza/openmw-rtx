@@ -263,10 +263,8 @@ namespace MWRender
         // And the eye every billboard in the world turns to, which the rasterizer's cull hands its
         // `AutoTransform`s and this walk has to be told.
         mExtractor.setEye(Rtx::viewBasisOf(inverseView));
-        mExtractor.extractPrecipitation(
-            frame.mPrecipitation.getRainNode(), eye, frame.mWorld.mUnderwater, Anchor::Rain, frameNumber);
-        mExtractor.extractPrecipitation(
-            frame.mPrecipitation.getParticleNode(), eye, frame.mWorld.mUnderwater, Anchor::Effect, frameNumber);
+        mExtractor.extractPrecipitation(frame.mPrecipitation.getRainNode(), eye, Anchor::Rain, frameNumber);
+        mExtractor.extractPrecipitation(frame.mPrecipitation.getParticleNode(), eye, Anchor::Effect, frameNumber);
 
         // The sea, where the frame says there is one: hidden by its mask otherwise, as the
         // rasterizer's `updateVisible` hid the same plane, so the walk leaves no placement of it.

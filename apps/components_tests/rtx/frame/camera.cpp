@@ -146,7 +146,8 @@ namespace Rtx
             EXPECT_EQ(Shaders::rayAcross(shifted, osg::Vec2f(0.5f, -0.25f)).mDirection, pinhole.mForward);
             const osg::Vec3f edge = Shaders::rayAcross(shifted, osg::Vec2f(1.5f, -0.25f)).mDirection;
             EXPECT_EQ(edge, fanned.mDirection);
-            EXPECT_EQ(Shaders::directionAcross(Shaders::basisOf(shifted), osg::Vec2f(1.0f, -0.25f), osg::Vec2f(2.0f, 1.0f)),
+            EXPECT_EQ(
+                Shaders::directionAcross(Shaders::basisOf(shifted), osg::Vec2f(1.0f, -0.25f), osg::Vec2f(2.0f, 1.0f)),
                 fanned.mDirection);
 
             // A parallel picture's box moves the same way.
