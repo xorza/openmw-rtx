@@ -149,8 +149,9 @@ namespace Rtx
         bool mAnimated = false;
 
         /// Whether the diffuse map's alpha never reaches solid anywhere on it — `ImageFacts` —
-        /// which is what separates a cloud from a pane among surfaces with the same alpha mode.
-        /// False for a material with no diffuse map at all, which is an untextured pane.
+        /// which is what makes a blend a pane rather than a mask (`isTranslucent`), and a pane a
+        /// cloud (`isMedium`). False for a material with no diffuse map at all, which is an
+        /// untextured pane.
         bool mDiffuseNeverSolid = false;
 
         /// What one texel of the diffuse map adds on average under this material's blend, in
@@ -164,14 +165,21 @@ namespace Rtx
         /// frame and usually says exactly what it said last time.
         bool operator==(const Material& other) const = default;
 
-        /// What a blended material is tested against when it named no threshold of its own. Half,
-        /// because Morrowind's masks are painted rather than anti-aliased, so the alpha is very
-        /// nearly binary and the fringe a filter puts on it is a texel wide.
+        /// What a blended material is cut at when it named no threshold of its own and is no pane:
+        /// a mask, solid wherever its paint is, so the cut and the blend differ only along its
+        /// fringe, and half splits that fringe evenly between the leaf and the hole.
         static constexpr float sBlendCutoff = 0.5f;
+
+        /// What a pane is cut at when it named no threshold of its own: half a step of an 8-bit
+        /// alpha. **A blend draws a texel of alpha nought as nothing**, so such a texel is a hole to
+        /// every ray, exactly; a filtered sample below half a step covers less than the display
+        /// resolves. Without it a foliage card's empty texels were a pane the eye peeled and a
+        /// bounce stopped on.
+        static constexpr float sPaneCutoff = 0.5f / 255.0f;
 
         /// The alpha below which a texel is a hole, or zero where the surface has none. A blended
         /// material that never asked for a test gets `sBlendCutoff`, because that is where the game
-        /// keeps its foliage.
+        /// keeps its foliage, or `sPaneCutoff` where it is a pane.
         float getAlphaCutoff() const
         {
             switch (mAlphaMode)
@@ -181,7 +189,7 @@ namespace Rtx
                 case AlphaMode::Cutout:
                     return mAlphaRef;
                 case AlphaMode::Blend:
-                    return mAlphaRef > 0.0f ? mAlphaRef : sBlendCutoff;
+                    return mAlphaRef > 0.0f ? mAlphaRef : isTranslucent() ? sPaneCutoff : sBlendCutoff;
             }
             return 0.0f;
         }
@@ -222,17 +230,37 @@ namespace Rtx
         /// opaque or cutout surface is all there, and what its alpha holds is not a coverage.
         bool isBlended() const { return mAlphaMode == AlphaMode::Blend; }
 
-        /// `translucentSurface` of this material. The two answers want opposite things from
-        /// traversal — a mask averaged and tested is right for the leaf, light attenuated as it
-        /// passes is right for the pane and turns the leaf to gauze. Not the opposite of
+        /// Whether what is behind this surface is meant to show through it, by the rasterizer's own
+        /// rule: a blend over what is behind draws every texel at its alpha (`objects.frag`), and
+        /// discards only where the content asked for a test. The two answers want opposite things
+        /// from traversal — a mask averaged and tested is right for the leaf, light attenuated as
+        /// it passes is right for the pane and turns the leaf to gauze. Not the opposite of
         /// `isCutout`, and a pane is both.
-        bool isTranslucent() const { return translucentSurface(mAlphaMode, mOpacity, mBlend); }
+        ///
+        /// **A blend is traced as a cut where its texture is a mask.** Morrowind keeps its foliage
+        /// under `NiAlphaProperty` with no test, so a leaf card and a pane of glass carry the same
+        /// mode. A mask is solid wherever its paint is, so a cut at a half differs from the blend
+        /// along its fringe alone, and a cut is what traversal resolves cheaply. A texture that
+        /// never reaches solid is no mask: the lantern's glass peaks at 119, and a cut drops all of
+        /// it. So a material alpha below one, or such a texture with no test, is a pane. A test cuts
+        /// at its reference, as the rasterizer's discard does. An additive surface is neither: it
+        /// covers nothing.
+        ///
+        /// **A mask's soft fringe stays a cut.** Every DXT3 leaf, banner and rope the game ships is
+        /// soft at its edge, and traced as panes they turned the trace's sun and sky rays through
+        /// them to grain: at Seyda Neen's pier the panes went from 3 to 91.
+        bool isTranslucent() const
+        {
+            return mAlphaMode == AlphaMode::Blend && mBlend == BlendKind::Over
+                && (mOpacity < 1.0f || (!(mAlphaRef > 0.0f) && mDiffuseNeverSolid));
+        }
 
         /// Whether the eye passes through this rather than meeting it: a medium, not a surface.
-        /// Two facts and neither alone — the material's own alpha, which a leaf's does not say, and
-        /// a texture whose paint never closes, which a pane's lead came does. Where both hold the
-        /// layers are composited as depth along the ray — `mediumAlong`.
-        bool isMedium() const { return isTranslucent() && mDiffuseNeverSolid; }
+        /// Two facts and neither alone — the material's own alpha below one, which a leaf's does not
+        /// say and a lantern's glass does not either, and a texture whose paint never closes, which
+        /// a pane's lead came does. Where both hold the layers are composited as depth along the
+        /// ray — `mediumAlong`.
+        bool isMedium() const { return isTranslucent() && mOpacity < 1.0f && mDiffuseNeverSolid; }
 
         /// What a placement keeps of the material it wears — what its row tells traversal, and what
         /// the scene's counts read — stated once because the record builder writes it into the row

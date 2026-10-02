@@ -54,8 +54,8 @@ namespace Rtx
         std::optional<SurfaceDescription> mDescribed{};
 
         /// What the diffuse map's texels say — read by the reader for the surfaces the answer
-        /// changes, a translucent or an additive one, and left unset for every other. The reader
-        /// answers it because the walk over the texels is the reading's whole cost.
+        /// changes, a blended one, and left unset for every other. The reader answers it because
+        /// the walk over the texels is the reading's whole cost.
         std::optional<ImageFacts> mDiffuseFacts{};
     };
 

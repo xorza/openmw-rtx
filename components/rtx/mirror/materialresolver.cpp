@@ -209,11 +209,9 @@ namespace Rtx
         // Off the description the material is copied from, so the reader walks the texels of
         // exactly the images `describe` would.
         const SurfaceDescription& described = *reading.mDescribed;
-        const bool translucent = translucentSurface(described.mAlphaMode, described.mOpacity, described.mBlend);
-        const bool additive = additiveSurface(described.mAlphaMode, described.mBlend);
         const osg::Image* const diffuse = described.getTexture(SurfaceMap::Diffuse);
 
-        if ((translucent || additive) && diffuse != nullptr && !diffuse->getFileName().empty())
+        if (described.mAlphaMode == AlphaMode::Blend && diffuse != nullptr && !diffuse->getFileName().empty())
             reading.mDiffuseFacts = facts.of(*diffuse);
 
         return reading;
@@ -449,17 +447,19 @@ namespace Rtx
 
         // Last, and only for the surfaces the answer separates. Every field the tests read is
         // filled above, and the walk over a texture's texels is worth nothing to a material that is
-        // opaque, masked, or has no diffuse map to read — `Material::isMedium` is the other half,
-        // and a glow is asked of an additive sheet alone. The reading's answer where one was made,
-        // and the walk over the texels only where none was.
-        if ((material.isTranslucent() || material.isAdditive()) && material.mDiffuse != sNoIndex)
+        // opaque, tested, or has no diffuse map to read: whether a blend is a pane or a cut, and a
+        // pane a medium, is the texture's alpha, and a glow is asked of an additive sheet alone. The
+        // reading's answer where one was made, and the walk over the texels only where none was.
+        if (material.isBlended() && material.mDiffuse != sNoIndex)
         {
             const ImageFacts* const facts
                 = reading.mDiffuseFacts.has_value() ? &*reading.mDiffuseFacts : diffuseFacts(diffuse);
-            if (facts != nullptr && material.isTranslucent())
+            if (facts != nullptr)
+            {
                 material.mDiffuseNeverSolid = !facts->mReachesSolid;
-            if (facts != nullptr && material.isAdditive())
-                material.mDiffuseMean = meanUnder(facts->mMean, material.mBlend);
+                if (material.isAdditive())
+                    material.mDiffuseMean = meanUnder(facts->mMean, material.mBlend);
+            }
         }
 
         return material;

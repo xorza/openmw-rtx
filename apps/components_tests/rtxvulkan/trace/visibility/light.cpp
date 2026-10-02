@@ -189,6 +189,45 @@ namespace Rtx::Testing
                 << "a pane that stops nothing is a pane that is not there";
         }
 
+        /// **A blend that is all there is a pane where its texture never reaches solid, and a cut
+        /// where it is a mask**: the Imperial lantern's glass is a material of opacity one over a
+        /// texture whose alpha never reaches half. The pane above, black, at an opacity of one,
+        /// wears a texture of alpha 128 everywhere.
+        ///
+        /// As a pane it lets 1 - 128/255 = 0.49804 of the wall through. The wall is 153, which is
+        /// 0.31831 in light, so the pixel is 0.15853, which encodes to 110.86 — the 111 the half
+        /// pane above lands on. Read as a mask, the same alpha is cut at a half, which 0.50196
+        /// passes, so the pane stands whole and black.
+        TEST_F(RtxVisibilityTest, aBlendIsAPaneWhereItsTextureNeverClosesAndACutWhereItIsAMask)
+        {
+            constexpr std::uint32_t size = 33;
+            const std::array pane = uprightQuadAt(20.0f, -50.0f, osg::Vec2f(50.0f, 0.0f));
+
+            constexpr std::array<std::uint8_t, 16> glass{ 0, 0, 0, 128, 0, 0, 0, 128, 0, 0, 0, 128, 0, 0, 0, 128 };
+            Testing::TestTexture texture;
+            Testing::paintFlat(texture, 2, glass, "soft glass");
+            const std::span<const TextureData> textures(&texture.mData, 1);
+
+            const auto render = [&](bool neverSolid) {
+                SceneDesc scene = makeWall();
+                const Index mesh
+                    = scene.addMesh(MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const Index material = scene.addMaterial(Material{
+                    .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("glass.dds")),
+                    .mDiffuseColour = osg::Vec3f(0.0f, 0.0f, 0.0f),
+                    .mAlphaMode = AlphaMode::Blend,
+                    .mDiffuseNeverSolid = neverSolid,
+                });
+                scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
+
+                const Frame frame = shoot(scene, textures, wallCamera(size, osg::Vec3f(2.0f, 2.0f, 2.0f)), size);
+                return frame.byte(centreValueOf(size));
+            };
+
+            EXPECT_EQ(render(true), 111) << "a pane lets the wall through by its alpha";
+            EXPECT_EQ(render(false), 0) << "a mask is cut at a half, which 128 passes";
+        }
+
         /// Every layer of a stack is peeled, and not only the nearest of them.
         ///
         /// **A person is a stack.** A cuirass over a skirt over a leg is three surfaces on one
