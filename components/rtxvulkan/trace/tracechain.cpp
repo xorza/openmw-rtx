@@ -121,7 +121,7 @@ namespace Rtx
         const VkDeviceAddress tileList = getSpriteTileList(inputs);
 
         // Composed by the trace where nothing filters the bounce: `VisibilityConstants::mComposed`.
-        const bool denoised = what.mReconstruction.mDenoised;
+        const bool denoised = what.mDenoised;
         const bool composed = !denoised;
 
         mPasses.mVisibility.writeFrame(commands, inputs, bin, tileList, what.mSampled, composed);
@@ -134,10 +134,7 @@ namespace Rtx
         bin.record(commands,
             Binning{
                 .mSource = sprites,
-                .mOrigin = what.mAsked.mOrigin,
-                .mCamera = what.mAsked.mCamera,
-                .mRayMask = what.mAsked.mRayMask,
-                .mToSun = what.mAsked.mSun.mDirection,
+                .mSeen = what.mAsked,
                 .mTimer = what.mTimer,
             });
 

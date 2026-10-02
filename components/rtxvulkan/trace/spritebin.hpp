@@ -1,10 +1,13 @@
 #pragma once
 
+#include <cstdint>
+
 #include <osg/Vec3f>
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/frame/spritelistsize.hpp>
 #include <components/rtx/shaders/camera.h>
+#include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/scene/spritesource.hpp>
@@ -16,14 +19,13 @@ namespace Rtx
     class SpriteBinPass;
     class SpriteShadePass;
 
-    /// What one bin is of: the sprites, where they are seen from, and what lights them. A record
-    /// and not an argument list, because `mOrigin` is a place and `mToSun` a direction and the
-    /// two are one type, so a list takes either for the other.
-    struct Binning
+    /// Where a bin's sprites are seen from and what lights them, off the camera the caller asked
+    /// for: a bin is a screen-space tile, and the jitter a trace samples by would move every tile by
+    /// a fraction of a pixel a frame, for nothing. A record and not an argument list, because
+    /// `mOrigin` is a place and `mToSun` a direction and the two are one type, so a list takes
+    /// either for the other.
+    struct BinCamera
     {
-        /// The sprites this bin took, as the scene's tables describe them.
-        const SpriteSource& mSource;
-
         /// Where the eye stands, and the camera whose screen tiles the sprites are binned into.
         osg::Vec3f mOrigin;
         Shaders::Camera mCamera;
@@ -33,6 +35,24 @@ namespace Rtx
 
         /// Toward the sun, which the shade lights every sprite by.
         osg::Vec3f mToSun;
+
+        /// The four of `asked`, the frame block a caller asked for.
+        static BinCamera of(const Shaders::VisibilityConstants& asked)
+        {
+            return BinCamera{ .mOrigin = asked.mOrigin,
+                .mCamera = asked.mCamera,
+                .mRayMask = asked.mRayMask,
+                .mToSun = asked.mSun.mDirection };
+        }
+    };
+
+    /// What one bin is of: the sprites, and where they are seen from.
+    struct Binning
+    {
+        /// The sprites this bin took, as the scene's tables describe them.
+        const SpriteSource& mSource;
+
+        BinCamera mSeen;
 
         /// Null where the run is not being timed.
         GpuTimer* mTimer = nullptr;

@@ -81,9 +81,9 @@ namespace Rtx
             const TraceResult picture = mChain.record(commands,
                 TraceRecording{
                     .mSubject = subject,
-                    .mAsked = camera,
+                    .mAsked = BinCamera::of(camera),
                     .mSampled = sampled,
-                    .mReconstruction = reconstruction,
+                    .mDenoised = reconstruction.mDenoised,
                     .mPastLost = true,
                 });
 
