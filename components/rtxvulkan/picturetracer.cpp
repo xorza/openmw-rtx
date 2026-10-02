@@ -65,6 +65,7 @@ namespace Rtx
         const Reconstruction reconstruction = Reconstruction::forPicture();
         Shaders::VisibilityConstants sampled
             = sampleFrame(camera, FrameOptions{}, profile, reconstruction, traced.getCounts(), nullptr);
+        traced.measureStars(sampled.mStars);
 
         // The world's ripple field where the picture is of the world, which is the one place it
         // could have a wake in it; a subject of its own stands in no sea.

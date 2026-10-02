@@ -16,6 +16,7 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -241,6 +242,11 @@ namespace Rtx
             EXPECT_EQ(textures.getTexels(0), (limit + 1) >> 1) << "the level that stands";
             EXPECT_EQ(textures.getTexels(1), Shaders::TEXTURE_STANDS_IN | 16u) << "past the side";
             EXPECT_EQ(textures.getTexels(2), Shaders::TEXTURE_STANDS_IN | 16u) << "described as the stand-in";
+
+            // Across and down apart, which a texel count is not: the second level of a row past the
+            // side is half the row by the one texel a level never goes under.
+            EXPECT_EQ(textures.getExtent(0), Shaders::uvec2((limit + 1) >> 1, 1u)) << "the level that stands";
+            EXPECT_EQ(textures.getExtent(1), Shaders::uvec2(4u, 4u)) << "the stand-in's, past the side";
         }
 
         /// A texture the device has no room for comes down a level at a time, and one it has room
@@ -297,6 +303,7 @@ namespace Rtx
             EXPECT_EQ(textures.getHeld().mCount, 1u) << "a texture with no room stood";
             EXPECT_EQ(textures.getTexels(0), 1536u * 1536u);
             EXPECT_EQ(textures.getTexels(1), Shaders::TEXTURE_STANDS_IN | 16u) << "no room";
+            EXPECT_EQ(textures.getExtent(0), Shaders::uvec2(1536u, 1536u)) << "the level the room took";
 
             refused.clear();
             {
@@ -309,6 +316,7 @@ namespace Rtx
             EXPECT_EQ(textures.getHeld().mCount, 2u);
             EXPECT_EQ(textures.getHeld().mReduced, 1u) << "a texture standing as its file was counted as smaller";
             EXPECT_EQ(textures.getTexels(1), 3072u * 3072u) << "a slot that stands at last still says the stand-in";
+            EXPECT_EQ(textures.getExtent(1), Shaders::uvec2(3072u, 3072u)) << "and still measures it";
 
             // Before the array goes: what the writes replaced is buried, and the fillers give their
             // room back after it.

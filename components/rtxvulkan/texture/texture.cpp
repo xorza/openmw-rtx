@@ -903,6 +903,13 @@ namespace Rtx
         });
     }
 
+    Shaders::uvec2 TextureArray::getExtent(const std::uint32_t slot) const
+    {
+        assert(slot < mSlots.size() && "the extent of a slot the array does not have");
+        const Image& image = standingIn(mSlots[slot]).getImage();
+        return Shaders::uvec2(image.getWidth(), image.getHeight());
+    }
+
     TexturesHeld TextureArray::getHeld() const
     {
         TexturesHeld held;

@@ -173,6 +173,12 @@ namespace Rtx::Shaders
         float mHorizon;
 
         uint mTexture;
+
+        /// How many texels the sheet `mTexture` names stands at, across and down. **The backend's
+        /// and not the scene's**, because the array can stand a texture smaller than its file
+        /// (`TextureArray::chooseSide`); written beside the ripples, where the frame is sampled, so
+        /// a starry pixel reads a number the host holds rather than a texture header.
+        uvec2 mExtent RTX_ZERO;
     };
 
     /// One source in the sky as a shading point sees it: the sun, or a moon. What the eye sees of
@@ -344,7 +350,7 @@ namespace Rtx::Shaders
 #ifdef RTX_HOST
     static_assert(sizeof(MoonDisc) == 112, "MoonDisc must be scalar-packed on every side");
     static_assert(sizeof(CloudDeck) == 96, "CloudDeck must be scalar-packed on every side");
-    static_assert(sizeof(StarField) == 32, "StarField must be scalar-packed on every side");
+    static_assert(sizeof(StarField) == 40, "StarField must be scalar-packed on every side");
     static_assert(sizeof(SkyPatch) == 44, "SkyPatch must be scalar-packed on every side");
     static_assert(sizeof(SkyRamp) == 24, "SkyRamp must be scalar-packed on every side");
 #endif

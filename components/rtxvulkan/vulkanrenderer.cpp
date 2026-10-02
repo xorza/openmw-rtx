@@ -535,6 +535,7 @@ namespace Rtx
 
         Shaders::VisibilityConstants sampled = sampleFrame(camera, options, mProfile, reconstruction, world.getCounts(),
             past.mReprojectionLost ? nullptr : &*mPreviousCamera);
+        world.measureStars(sampled.mStars);
 
         // The launch the misses are counted against, which is the traced extent and not the shown one.
         frame.mCountedRays = mCounting ? sampled.mEyes.mWorld.mWidth * sampled.mEyes.mWorld.mHeight : 0u;

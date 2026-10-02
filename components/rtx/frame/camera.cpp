@@ -66,6 +66,10 @@ namespace Rtx
 
             constants.mSeaHeading = Shaders::seaHeading();
 
+            // No sheet, and not slot nought, which is a texture of whatever scene the camera is
+            // traced against: a backend that measures the sheet a frame names measured that one.
+            constants.mStars.mTexture = Shaders::NO_TEXTURE;
+
             // The layer `FOG_HEIGHT` names, until a weather says otherwise. A camera is
             // built before anything has described the air over it, and a lift of nothing is a
             // layer of no height at all rather than an absence of one. `describeWorld` overwrites

@@ -16,6 +16,7 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/descriptorsets.hpp>
@@ -227,6 +228,10 @@ namespace Rtx
         /// `slot`'s word in those counts, as every copy is brought up to: how many texels stand in
         /// it, with `TEXTURE_STANDS_IN` over the count where they are the stand-in's.
         std::uint32_t getTexels(std::uint32_t slot) const { return mTexels.getRows()[slot]; }
+
+        /// How many texels across and down stand in `slot` — the stand-in's where it draws the
+        /// stand-in, and nought where it holds nothing.
+        Shaders::uvec2 getExtent(std::uint32_t slot) const;
 
         /// What the array actually stands. A slot the scene gave back holds nothing and costs
         /// nothing, and neither is counted here.
