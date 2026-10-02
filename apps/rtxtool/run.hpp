@@ -145,9 +145,15 @@ namespace RtxTool
 
         float mFieldOfView = 60.0f;
 
-        /// How the present paces the frame. Off for a measured run, or the wait for the refresh
-        /// lands in `wait ms`; a watched window keeps the player's own setting.
+        /// How the present paces the frame, and the rate the engine's limiter holds it to, nought
+        /// for none. Both off for a run nobody watches, where a frame held back is a frame spent
+        /// waiting and the wait for the refresh lands in `wait ms`.
         SDLUtil::VSyncMode mVerticalSync = SDLUtil::VSyncMode::Disabled;
+        float mFramerateLimit = 0.0f;
+
+        /// Takes the player's own pacing, which a watched window keeps: it is the played game with
+        /// the walls off.
+        void keepPlayersPacing();
     };
 
     /// What a command's frames are traced with, read once off the command line into the two records

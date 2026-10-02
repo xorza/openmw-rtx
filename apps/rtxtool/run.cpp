@@ -20,6 +20,7 @@
 #include <components/misc/strings/conversion.hpp>
 #include <components/settings/categories.hpp>
 #include <components/settings/parser.hpp>
+#include <components/settings/values.hpp>
 
 #include "model/benchrecord.hpp"
 #include "model/benchspec.hpp"
@@ -91,6 +92,12 @@ namespace RtxTool
     template bool shippedDefault<bool>(const Files::ConfigurationManager&, std::string_view, std::string_view);
     template std::string shippedDefault<std::string>(
         const Files::ConfigurationManager&, std::string_view, std::string_view);
+
+    void WindowRequest::keepPlayersPacing()
+    {
+        mVerticalSync = Settings::video().mVsyncMode;
+        mFramerateLimit = Settings::video().mFramerateLimit;
+    }
 
     float bearingOf(const Stand& stand)
     {

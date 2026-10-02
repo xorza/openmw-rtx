@@ -46,6 +46,7 @@ namespace RtxTool
             Settings::video().mWindowHeight.set(static_cast<int>(window.mHeight));
             Settings::video().mWindowMode.set(Settings::WindowMode::Windowed);
             Settings::video().mVsyncMode.set(window.mVerticalSync);
+            Settings::video().mFramerateLimit.set(window.mFramerateLimit);
             Settings::camera().mFieldOfView.set(window.mFieldOfView);
 
             // **Physics on the frame's own thread, so a run is the same run twice.** A physics
@@ -94,11 +95,6 @@ namespace RtxTool
         applyHostedSettings(window);
         if (!request.mPlayed)
             applyShippedContentRules(config);
-
-        // **The limiter comes off, because there is nobody to pace for.** A hosted run is measured
-        // or it is written to a file, and a frame held back to meet a refresh is a frame spent
-        // waiting.
-        Settings::video().mFramerateLimit.set(0);
 
         // **Whether the run was meant to end on its own**, which is what says an empty report is a
         // failure. A window somebody closes has finished no stop and owes no numbers.
