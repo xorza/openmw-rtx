@@ -26,6 +26,7 @@ namespace MWRender
             .mSpecularMapLayout = Settings::rtx().mSpecularMapLayout.get(),
             .mAnisotropy = Settings::general().mAnisotropy,
             .mGamma = Settings::video().mGamma,
+            .mLitEnvironmentMaps = Settings::shaders().mApplyLightingToEnvironmentMaps,
         };
     }
 
@@ -47,6 +48,7 @@ namespace MWRender
             },
             .mAnisotropy = static_cast<std::uint32_t>(std::max(values.mAnisotropy, 1)),
             .mGamma = values.mGamma,
+            .mLitEnvironmentMaps = values.mLitEnvironmentMaps,
         };
     }
 }

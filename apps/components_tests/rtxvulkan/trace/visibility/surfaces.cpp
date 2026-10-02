@@ -862,7 +862,8 @@ namespace Rtx::Testing
             const Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
-            const auto render = [&](bool sheeted, std::vector<float>& radiance) {
+            const auto render = [&](bool sheeted, std::vector<float>& radiance, bool lit = false,
+                                    SurfaceView show = SurfaceView::Shaded) {
                 SceneDesc scene;
                 const Index mesh = scene.addMesh(
                     MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
@@ -875,7 +876,8 @@ namespace Rtx::Testing
                 });
                 scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
 
-                const Frame frame = shoot(scene, textures, camera, size);
+                const Frame frame
+                    = shoot(scene, textures, camera, size, Shot{ .mShow = show, .mLitEnvironmentMaps = lit });
                 EXPECT_EQ(frame.mHits, size * size);
                 radiance = frame.mRadiance;
             };
@@ -900,6 +902,27 @@ namespace Rtx::Testing
             const osg::Vec3f downLeft = addedAt(std::size_t{ 29 } * size + 3);
             EXPECT_GT(upRight.y(), upLeft.y()) << "a reflection to the right reads the sheet's second column";
             EXPECT_GT(upLeft.z(), downLeft.z()) << "a reflection upward reads the sheet's second row";
+
+            // **Lit, the sheet is colour the light falls on**, as `apply lighting to environment
+            // maps` makes it under the rasterizer: the albedo is the wall's and the sheet's own
+            // colour, the light it added above over `SUNLIT_WHITE`, held at one; and it adds no
+            // light of its own.
+            std::vector<float> litAlbedo;
+            std::vector<float> plainAlbedo;
+            render(true, litAlbedo, true, SurfaceView::Albedo);
+            render(false, plainAlbedo, true, SurfaceView::Albedo);
+            for (const std::size_t pixel : { centre / 4, std::size_t{ 3 } * size + 29, std::size_t{ 29 } * size + 3 })
+                for (std::size_t channel = 0; channel < 3; ++channel)
+                {
+                    const float added = addedAt(pixel)[static_cast<int>(channel)] / Shaders::SUNLIT_WHITE;
+                    const float plain = plainAlbedo[pixel * 4 + channel];
+                    EXPECT_NEAR(litAlbedo[pixel * 4 + channel], std::min(plain + added, 1.0f), 1e-5f)
+                        << "pixel " << pixel << " channel " << channel;
+                }
+
+            std::vector<float> litShaded;
+            render(true, litShaded, true);
+            EXPECT_NE(litShaded, with) << "the sheet lit and not glowing";
         }
 
         /// A sphere-mapped sheet is read at the level its own coordinates ask for, and the mesh's

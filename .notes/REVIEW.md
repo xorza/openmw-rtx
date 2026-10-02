@@ -62,17 +62,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
   `describeStateSet` reports each fact it does not carry (a declined role, an unread blend pair, a
   front face, a polygon mode, a fog override) through the refusals once per state set, as
   `MeshResolver::refuse` does for geometry. *(kind: missing; severity: low; benefit: mod content that differs says so)*
-- [ ] **`apply lighting to environment maps` is heard by the rasterizer alone** —
-  `apps/openmw/mwrender/glworld.cpp:140`, `objects.frag:212-214`, `:243-245`, against
-  `components/rtxvulkan/shaders/lib/traversal.glsl:1086-1087`. With the setting on, the rasterizer
-  multiplies the sphere-mapped sheet (glass armour, Daedric weapons, the enchanted shimmer) by the
-  light falling on the surface. The tracer always adds it unlit at `SUNLIT_WHITE`, so in a dark
-  cave an enchanted item shimmers at full strength under one renderer and dimly under the other.
-  Nothing in the seam or `rtx.rst` says why. Better shape: `RtxSettings` carries the flag, and
-  `resolveFor` puts the sheet into the albedo-weighted term instead of `mEmitted` where it is set.
-  Or the seam states that the tracer always treats the sheet as emission, and the settings page
-  hides the option under `[RTX] enabled`. *(kind: missing; severity: low; benefit: one answer to
-  one setting)*
 
 ## The trace's light rules are its own, not the game's
 

@@ -37,12 +37,18 @@ namespace Rtx
         /// where a frame that forgot would trace with a delight of nought.
         TEST(RtxFrameSamplingTest, theProfileAnswersWhatTheFrameDidNotAsk)
         {
-            const RenderProfile profile{ .mDelight = 0.75f, .mShow = SurfaceView::Albedo };
+            const RenderProfile profile{ .mDelight = 0.75f, .mLitEnvironmentMaps = true, .mShow = SurfaceView::Albedo };
 
             const Shaders::VisibilityConstants played
                 = sampleFrame(stated(), FrameOptions{}, profile, Reconstruction{}, InstanceCounts{}, nullptr);
             EXPECT_EQ(played.mDelight, 0.75f);
             EXPECT_EQ(played.mShow, static_cast<std::uint32_t>(SurfaceView::Albedo));
+            EXPECT_EQ(played.mLitEnvironmentMaps, 1u);
+            EXPECT_EQ(
+                sampleFrame(stated(), FrameOptions{}, RenderProfile{}, Reconstruction{}, InstanceCounts{}, nullptr)
+                    .mLitEnvironmentMaps,
+                0u)
+                << "the setting's default";
 
             // And the frame's own ask stands over it, which is how a test of one input asks for it.
             const Shaders::VisibilityConstants asked

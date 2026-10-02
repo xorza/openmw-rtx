@@ -97,7 +97,6 @@ Settings
 * ``[Post Processing]`` every key: Shader post-processing runs on the rasterizer. The ray tracer has its own exposure, bloom and tone curve.
 * ``[Shaders] adjust coverage for alpha test``: The trace cuts an alpha-tested surface for each ray, with no coverage to adjust.
 * ``[Shaders] antialias alpha test``: The trace cuts an alpha-tested surface for each ray, with no coverage to adjust.
-* ``[Shaders] apply lighting to environment maps``: The ray tracer adds an environment map after the lighting.
 * ``[Shaders] clamp lighting``: The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.
 * ``[Shaders] classic falloff``: The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.
 * ``[Shaders] clustered lighting``: The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.

@@ -562,6 +562,12 @@ namespace Rtx::Shaders
         /// says the anisotropic read resolves, and so what level a normal map's loss is read at.
         float mAnisotropy;
 
+        /// One where an environment map's sheet joins the albedo the light falls on, as the
+        /// rasterizer's `preLightEnv` adds it before its lighting multiplies — `[Shaders] apply
+        /// lighting to environment maps` — and nought where it is light of its own past the
+        /// lighting, which is that setting's default.
+        uint mLitEnvironmentMaps;
+
         /// Where every table a hit reads is. `GpuTables` says why it rides here.
         ///
         /// **Last, because it is eight-aligned and nothing before it is.** Anywhere else it would
@@ -605,8 +611,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1296, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1480, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1304, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1488, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(HitRecord) == 8, "HitRecord must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 8, "PuffConstants must be scalar-packed on every side");
 #endif

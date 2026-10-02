@@ -320,6 +320,9 @@ namespace RtxTool
                 .mGamma = given("gamma") ? variables["gamma"].as<float>()
                     : watched            ? Settings::video().mGamma.get()
                                          : shippedDefault<float>(command.mConfig, "Video", "gamma"),
+                .mLitEnvironmentMaps = watched
+                    ? Settings::shaders().mApplyLightingToEnvironmentMaps.get()
+                    : shippedDefault<bool>(command.mConfig, "Shaders", "apply lighting to environment maps"),
             });
             framed.mSetup.mMirror = derived.mMirror;
 
@@ -334,6 +337,7 @@ namespace RtxTool
             profile.mUpscale = derived.mUpscale;
             profile.mAnisotropy = derived.mAnisotropy;
             profile.mGamma = derived.mGamma;
+            profile.mLitEnvironmentMaps = derived.mLitEnvironmentMaps;
             profile.mDelight = variables["delight"].as<float>();
             profile.mReconstruction.mDenoise = variables["filter"].as<bool>();
             profile.mShow = Rtx::sSurfaceViewNames.require(variables["show"].as<std::string>(), "a surface view");

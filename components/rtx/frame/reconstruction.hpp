@@ -211,6 +211,11 @@ namespace Rtx
         /// player chose.
         float mGamma = 1.0f;
 
+        /// Whether an environment map's sheet is part of the colour the light falls on, as
+        /// `[Shaders] apply lighting to environment maps` asks the rasterizer, rather than light of
+        /// its own past it — `VisibilityConstants::mLitEnvironmentMaps`. Off, the setting's default.
+        bool mLitEnvironmentMaps = false;
+
         /// What every pixel is painted with: the light, or a surface input for a picture of the
         /// maps themselves.
         SurfaceView mShow = SurfaceView::Shaded;
