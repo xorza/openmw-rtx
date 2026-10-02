@@ -31,7 +31,6 @@
 #include <components/fallback/fallback.hpp>
 
 #include <components/sceneutil/statesetupdater.hpp>
-#include <components/sky/sunglarefader.hpp>
 #include <components/sky/vertexrules.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -227,8 +226,17 @@ namespace MWRender
             , mSunTransform(std::move(sunTransform))
             , mTimeOfDayFade(1.f)
             , mGlareView(1.f)
-            , mFader(Sky::SunGlareFader::read())
         {
+            mColor = Fallback::Map::getColour("Weather_Sun_Glare_Fader_Color");
+            mSunGlareFaderMax = Fallback::Map::getFloat("Weather_Sun_Glare_Fader_Max");
+            mSunGlareFaderAngleMax = Fallback::Map::getFloat("Weather_Sun_Glare_Fader_Angle_Max");
+
+            // Replicating a design flaw in MW. The color was being set on both ambient and emissive properties, which
+            // multiplies the result by two, then finally gets clamped by the fixed function pipeline. With the default
+            // INI settings, only the red component gets clamped, so the resulting color looks more orange than red.
+            mColor *= 2;
+            for (int i = 0; i < 3; ++i)
+                mColor[i] = std::min(1.f, mColor[i]);
         }
 
         void operator()(osg::Node* node, osgUtil::CullVisitor* cv)
@@ -236,7 +244,10 @@ namespace MWRender
             float angleRadians = getAngleToSunInRadians(*cv->getCurrentRenderStage()->getInitialViewMatrix());
             float visibleRatio = getVisibleRatio(cv->getCurrentCamera());
 
-            float fade = mFader.atAngle(angleRadians) * mFader.mMax;
+            const float angleMaxRadians = osg::DegreesToRadians(mSunGlareFaderAngleMax);
+
+            float value = 1.f - std::min(1.f, angleRadians / angleMaxRadians);
+            float fade = value * mSunGlareFaderMax;
 
             fade *= mTimeOfDayFade * mGlareView * visibleRatio;
 
@@ -249,7 +260,8 @@ namespace MWRender
             {
                 osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet;
 
-                stateset->addUniform(new osg::Uniform("diffuseColor", osg::Vec4f(mFader.mColour, fade)));
+                stateset->addUniform(
+                    new osg::Uniform("diffuseColor", osg::Vec4f(mColor.x(), mColor.y(), mColor.z(), fade)));
 
                 cv->pushStateSet(stateset);
                 traverse(node, cv);
@@ -279,7 +291,9 @@ namespace MWRender
         osg::ref_ptr<osg::PositionAttitudeTransform> mSunTransform;
         float mTimeOfDayFade;
         float mGlareView;
-        Sky::SunGlareFader mFader;
+        osg::Vec4f mColor;
+        float mSunGlareFaderMax;
+        float mSunGlareFaderAngleMax;
     };
 
     struct MoonUpdater : SceneUtil::StateSetUpdater
@@ -1002,7 +1016,8 @@ namespace MWRender
             {
                 case ModVertexAlphaVisitor::Atmosphere:
                 {
-                    alpha = Sky::atmosphereAlphaOf(i);
+                    // this is a cylinder, so every second vertex belongs to the bottom-most row
+                    alpha = (i % 2) ? 0.f : 1.f;
                     break;
                 }
                 case ModVertexAlphaVisitor::Clouds:
