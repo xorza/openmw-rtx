@@ -742,6 +742,19 @@ Surface noSurface(vec3 origin)
     return surface;
 }
 
+/// Where a map bound at `unit` reads the hit: at the diffuse's own `point`, or on the second set,
+/// untransformed, where the mesh says that unit reads it — `GpuMesh::mUnitStreams`.
+TexturePoint pointAtUnit(
+    uint unit, TexturePoint point, GpuMesh mesh, uvec3 corner, vec2 bary, SurfaceCone cone, float coneWidth, bool detailed)
+{
+    if (!readsSecondUvs(mesh, unit))
+        return point;
+
+    vec2 second[3];
+    triangleSecondUvs(mesh, corner, second);
+    return texturePoint(second, bary, vec4(1.0, 1.0, 0.0, 0.0), cone, coneWidth, detailed);
+}
+
 /// What a hit is made of.
 ///
 /// **Everything a hit leads to and nothing the traversal already answered.** Every table this reads
@@ -1043,17 +1056,9 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     // House banners read their second set and the durzog its first.
     if (holdsTexture(material.mDark))
     {
-        const uint unit = (material.mFlags >> MATERIAL_DARK_UNIT_SHIFT) & MATERIAL_DARK_UNIT_MASK;
-        TexturePoint darkPoint = point;
-        if (readsSecondUvs(mesh, unit))
-        {
-            vec2 second[3];
-            triangleSecondUvs(mesh, corner, second);
-            darkPoint
-                = texturePoint(second, hit.mBary, vec4(1.0, 1.0, 0.0, 0.0), cone, surface.mFootprint, detailed);
-        }
-
-        const vec4 dark = sampleDiffuse(material.mDark, darkPoint);
+        const uint unit = (material.mFlags >> MATERIAL_DARK_UNIT_SHIFT) & MATERIAL_UNIT_MASK;
+        const vec4 dark = sampleDiffuse(
+            material.mDark, pointAtUnit(unit, point, mesh, corner, hit.mBary, cone, surface.mFootprint, detailed));
         surface.mAlbedo *= dark.rgb;
 
         // And the lobe, for the tint's reason: a dark map is light painted in.
@@ -1066,8 +1071,15 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
             surface.mOpacity *= dark.a;
     }
 
+    // At its own unit too: the draugrs' eye glow is bound on their second set.
     if (holdsTexture(material.mEmissive))
-        surface.mEmitted = EMISSIVE_INTENSITY * sampleDiffuse(material.mEmissive, point).rgb;
+    {
+        const uint unit = (material.mFlags >> MATERIAL_EMISSIVE_UNIT_SHIFT) & MATERIAL_UNIT_MASK;
+        surface.mEmitted = EMISSIVE_INTENSITY
+            * sampleDiffuse(material.mEmissive,
+                pointAtUnit(unit, point, mesh, corner, hit.mBary, cone, surface.mFootprint, detailed))
+                  .rgb;
+    }
 
     // **A sphere-mapped sheet, added past the albedo and indexed by where the eye is.** The
     // original adds `envMap` after its lighting, so it is emission that depends on the view: the

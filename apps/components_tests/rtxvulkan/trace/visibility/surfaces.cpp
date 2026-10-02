@@ -1124,6 +1124,44 @@ namespace Rtx::Testing
 
             // And at a unit the mesh says reads the first set, the second set is not read.
             EXPECT_EQ(albedoUnder(2, 1, 0), (std::array<int, 3>{ 137, 137, 137 }));
+
+            // **A glow map reads the set its own unit reads too**, as the draugrs' eyes do. With no
+            // light, what the wall shows is its glow alone, `EMISSIVE_INTENSITY` times the texel:
+            // the red quadrant whole on the second set, and the middle of all four on the first.
+            Shaders::VisibilityConstants unlit = camera;
+            unlit.mSkyHorizon = osg::Vec3f();
+            unlit.mSkyZenith = osg::Vec3f();
+            unlit.mAmbient = osg::Vec3f();
+            unlit.mSun.mIrradiance = osg::Vec3f();
+            const auto glowUnder = [&](std::uint8_t unit, std::uint32_t unitStreams) {
+                SceneDesc scene;
+                const Index mesh = scene.addMesh(MeshArrays{
+                    .mPositions = sWallQuad,
+                    .mTexCoords = sQuadUv,
+                    .mSecondTexCoords = onRed,
+                    .mUnitStreams = unitStreams,
+                    .mIndices = sQuadIndices,
+                });
+                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
+                scene.textures().add(VFS::Path::NormalizedView("dark.dds"));
+                const Index glow = scene.textures().add(VFS::Path::NormalizedView("sheet.dds"));
+                const Index material
+                    = scene.addMaterial(Material{ .mDiffuse = diffuse, .mEmissive = glow, .mEmissiveUnit = unit });
+                scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
+
+                const Frame frame = shoot(scene, textures, unlit, size);
+                return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2));
+            };
+
+            const osg::Vec3f onSecond = glowUnder(1, 1u << 1);
+            EXPECT_EQ(onSecond, osg::Vec3f(Shaders::EMISSIVE_INTENSITY, 0.0f, 0.0f)) << "the glow read the first set";
+
+            // The sampler weighs the four texels in fixed point, which moves the middle by parts in a
+            // hundred thousand.
+            const osg::Vec3f onFirst = glowUnder(1, 0);
+            const float middle = 0.5f * Shaders::EMISSIVE_INTENSITY;
+            for (int channel = 0; channel < 3; ++channel)
+                EXPECT_NEAR(onFirst[channel], middle, 1e-4f * middle) << "channel " << channel;
         }
 
         /// A surface that adds is met by no ray that shades, adds at the picture's own extent, and

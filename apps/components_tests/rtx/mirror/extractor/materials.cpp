@@ -418,6 +418,7 @@ namespace Rtx::Testing
             describeStateSet(state, described);
             EXPECT_EQ(described.getTextureUse(SurfaceMap::Emissive).mWrap, TextureWrap::Clamp);
             EXPECT_EQ(described.getTexture(SurfaceMap::Emissive), sameFile.get());
+            EXPECT_EQ(described.mEmissiveUnit, 3);
 
             walk(*quad);
 
@@ -425,6 +426,7 @@ namespace Rtx::Testing
             const Rtx::Material& material = mScene.materials().getRows().front();
             EXPECT_NE(material.mDark, sNoIndex);
             EXPECT_EQ(material.mDarkUnit, 1);
+            EXPECT_EQ(material.mEmissiveUnit, 3);
             EXPECT_NE(material.mEnvironment, sNoIndex);
             EXPECT_NEAR(material.mEnvironmentColour.x(), 1.0f, 1.0e-6f);
             EXPECT_NEAR(material.mEnvironmentColour.y(), 0.2140411f, 1.0e-6f);

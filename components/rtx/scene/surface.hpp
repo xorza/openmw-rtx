@@ -245,10 +245,12 @@ namespace Rtx
         /// which map it is.
         bool mNormalHeight = false;
 
-        /// Which texture unit the dark map is bound at, meaningful where there is one. Carried
-        /// because half the vanilla dark maps read the geometry's second set of texture
-        /// coordinates, and which set a unit reads is the geometry's to say.
+        /// Which texture unit the dark map and the glow map are bound at, each meaningful where
+        /// there is one. Carried because half the vanilla dark maps and some glow maps read the
+        /// geometry's second set of texture coordinates, and which set a unit reads is the
+        /// geometry's to say.
         std::uint8_t mDarkUnit = 0;
+        std::uint8_t mEmissiveUnit = 0;
 
         /// What the environment map is tinted by: `envMapColor`, which `NifOsg` sets to white
         /// under a `NiTextureEffect` and `SceneUtil::GlowUpdater` to the enchantment's colour.

@@ -246,6 +246,8 @@ namespace Rtx
                     && carriesHeight(*texture->getImage(0));
             if (*map == SurfaceMap::Dark)
                 material.mDarkUnit = static_cast<std::uint8_t>(unit);
+            if (*map == SurfaceMap::Emissive)
+                material.mEmissiveUnit = static_cast<std::uint8_t>(unit);
         }
 
         // **The alpha test's reference, from wherever the visitor left it.** `Shader::ShaderVisitor`
