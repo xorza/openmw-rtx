@@ -46,6 +46,9 @@ namespace Rtx
         /// actors, the effects and the particles; a doll asks for every class.
         std::uint32_t mRayMask = 0;
 
+        /// Whether the world's lamps light the picture: a map tile's do not.
+        bool mLamps = true;
+
         /// How the picture is projected and where it is clipped.
         SceneUtil::Framing mFraming{};
 

@@ -205,7 +205,7 @@ namespace MWRender
 
         /// What the eye sees, as the bits of `MWRender::VisMask` the game has switched on: the
         /// one vocabulary both renderers read, the rasterizer as its cull mask and the ray tracer
-        /// as `rayMaskOf`. Kept here, so a screen that covers the world (`showWorld`) parks the
+        /// as `describeView`. Kept here, so a screen that covers the world (`showWorld`) parks the
         /// rasterizer's camera without the game's answer moving.
         void setViewMask(unsigned int mask);
         unsigned int getViewMask() const { return mViewMask; }

@@ -278,6 +278,9 @@ TileRect capsuleTiles(Bound bound, Frame frame)
 /// ORs one instance's kinds into every tile it can be met from, a lane at a stride.
 void markPresence(GpuPresence held, uint lane, uint across)
 {
+    if ((held.mClass & bin.mRayMask) == 0u)
+        return;
+
     const TileRect rect = (held.mKinds & PRESENCE_EVERYWHERE) != 0u
         ? tilesOf(ivec4(0, 0, int(bin.mCamera.mWidth) - 1, int(bin.mCamera.mHeight) - 1))
         : capsuleTiles(Bound(held.mCentre, held.mCentre, held.mRadius, false), frameOf(bin.mCamera));

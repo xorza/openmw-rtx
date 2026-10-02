@@ -83,6 +83,7 @@ namespace Rtx
         const osg::Vec3f& origin = what.mOrigin;
         const Shaders::Camera& camera = what.mCamera;
         const osg::Vec3f& toSun = what.mToSun;
+        const std::uint32_t rayMask = what.mRayMask;
         GpuTimer* const timer = what.mTimer;
 
         const std::uint32_t count = source.mSpriteCount;
@@ -114,6 +115,7 @@ namespace Rtx
                 .mCount = count,
                 .mCapacity = mListSize.getCapacity(),
                 .mPresenceCount = source.mPresenceCount,
+                .mRayMask = rayMask,
             },
             mTileList.get(), mPresence.get(), timer);
 

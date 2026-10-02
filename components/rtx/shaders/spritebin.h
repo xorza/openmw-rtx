@@ -100,9 +100,9 @@ namespace Rtx::Shaders
         /// How many `mPresences` rows there are.
         uint mPresenceCount;
 
-        /// What rounds the block to the eight its addresses are aligned to, which the host's
-        /// `sizeof` counts and a scalar block does not.
-        uint mPadding RTX_ZERO;
+        /// The classes the camera draws, `VisibilityConstants::mRayMask`: a presence of a class it
+        /// leaves out marks no tile, so no walk along a ray of it looks for one.
+        uint mRayMask;
     };
 
 #ifdef RTX_HOST

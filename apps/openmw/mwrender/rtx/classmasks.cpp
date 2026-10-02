@@ -4,7 +4,7 @@
 
 namespace MWRender
 {
-    std::uint32_t rayMaskOf(const osg::Node::NodeMask cullMask)
+    ViewDescription describeView(const osg::Node::NodeMask cullMask)
     {
         std::uint32_t mask = 0;
         for (const ClassMask& held : sClassMasks)
@@ -16,8 +16,9 @@ namespace MWRender
         if ((cullMask & (Mask_ParticleSystem | Mask_WeatherParticles)) != 0)
             mask |= Rtx::Shaders::MASK_PARTICLE;
 
-        // No `MASK_MEDIUM`: a medium is gathered by a ray that casts with that bit alone, whatever
-        // the camera, and in the eye's own mask it would meet the shells of a class left out.
-        return mask;
+        // No `MASK_MEDIUM`: a medium is gathered by a ray that casts with that bit alone, and tested
+        // against the camera's classes there; in the eye's own mask it would meet the shells of a
+        // class left out.
+        return ViewDescription{ .mRayMask = mask, .mLamps = (cullMask & Mask_Lighting) != 0 };
     }
 }

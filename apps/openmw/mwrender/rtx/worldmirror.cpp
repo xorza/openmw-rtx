@@ -166,7 +166,7 @@ namespace MWRender
         mSea->addChild(sea);
 
         // The roots the game marks, so a camera's cull mask can keep or leave out what stands
-        // under them — `rayMaskOf` reads the same table the other way.
+        // under them — `describeView` reads the same table the other way.
         for (const ClassMask& held : sClassMasks)
             if (held.mClass != Rtx::InstanceClass::Static)
                 mExtractor.setClassMask(held.mClass, held.mNodes);

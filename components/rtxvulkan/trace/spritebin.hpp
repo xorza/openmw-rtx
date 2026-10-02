@@ -28,6 +28,9 @@ namespace Rtx
         osg::Vec3f mOrigin;
         Shaders::Camera mCamera;
 
+        /// The classes the camera draws, `VisibilityConstants::mRayMask`.
+        std::uint32_t mRayMask = 0;
+
         /// Toward the sun, which the shade lights every sprite by.
         osg::Vec3f mToSun;
 

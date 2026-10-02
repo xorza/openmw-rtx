@@ -595,6 +595,10 @@ float fogColumn(vec3 origin, vec3 direction, float span)
 /// it, the air having no side to face a lamp away from.
 vec3 lampsInAir(inout Reservoir kept, inout uint state, vec3 origin, vec3 direction, float entry, float exit)
 {
+    // None, for a picture no lamp lights: one answer for the whole frame.
+    if (frame.mNoLamps != 0u)
+        return vec3(0.0);
+
     const float side = 1.0 / frame.mLightGrid.mInverseCell;
     const vec3 beyond = frame.mLightGrid.mOrigin + vec3(frame.mLightGrid.mSize) * side;
 

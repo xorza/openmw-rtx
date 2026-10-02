@@ -26,6 +26,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwsound/testheadcache.cpp
     mwsound/testwarmqueue.cpp
 
+    mwrender/classmasks.cpp
     mwrender/debugwalk.cpp
     mwrender/frametimer.cpp
     mwrender/localmap.cpp

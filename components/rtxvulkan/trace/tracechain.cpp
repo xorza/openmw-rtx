@@ -59,8 +59,7 @@ namespace Rtx
 
     VkDeviceAddress TraceChain::getSpriteTileList(const VisibilityInputs& inputs) const
     {
-        return inputs.mSubject.mDrawsSprites ? mBins.at(inputs.mSubject.mTraceSlot).getTileListAddress()
-                                             : inputs.mSubject.mMedia->describeNoSprites();
+        return mBins.at(inputs.mSubject.mTraceSlot).getTileListAddress();
     }
 
     TraceResult TraceChain::record(const VkCommandBuffer commands, const TraceRecording& what)
@@ -97,19 +96,24 @@ namespace Rtx
         }
 
         // The sprite tiles are screen space, so they belong to the camera and not to the scene.
-        // Binned on the device into this trace's own bin, ahead of the trace that reads it. Not at
-        // all for a camera handed a list of its own, which is the one that draws none.
+        // Binned on the device into this trace's own bin, ahead of the trace that reads it. **For a
+        // camera that draws no sprites as well**, with none of them in it: the bin is also where the
+        // tiles learn which media and additive surfaces a ray through them can meet, and a camera
+        // told nothing walked both at every pixel.
         //
         // **Taken, then the block, then the shelter, then the bin.** The block carries the bin's
         // table by address, which it has once the table is taken; the shelter launch reads the
         // block and zeroes the drops under a roof in that table; and the shade and the bin read
         // what is left. Every launch after reads the same block, and the emitters' rows beside it.
         SpriteBin& bin = mBins.at(inputs.mSubject.mTraceSlot);
-        const bool bins = inputs.mSubject.mDrawsSprites;
-        const SpriteSource sprites
-            = inputs.mSubject.mScene->getBuffers().describeSprites(inputs.mSubject.mScene->getSlot());
-        if (bins)
-            bin.take(sprites, what.mAsked.mCamera, commands);
+        const bool drawsSprites = inputs.mSubject.mDrawsSprites;
+        SpriteSource sprites = inputs.mSubject.mScene->getBuffers().describeSprites(inputs.mSubject.mScene->getSlot());
+        if (!drawsSprites)
+        {
+            sprites.mSpriteCount = 0;
+            sprites.mEmitterCount = 0;
+        }
+        bin.take(sprites, what.mAsked.mCamera, commands);
 
         // After the take, which may have grown the table, and once: the frame block and the
         // display's `puffsCoverNothing` read the one list.
@@ -121,19 +125,20 @@ namespace Rtx
 
         mPasses.mVisibility.writeFrame(commands, inputs, bin, tileList, what.mSampled, composed);
 
-        if (bins)
+        if (drawsSprites)
         {
             mPasses.mVisibility.recordSpriteShelter(commands, inputs, what.mSampled, sprites.mSpriteCount, what.mTimer);
             mPasses.mVisibility.recordSpriteEmitters(commands, inputs, sprites.mEmitterCount, what.mTimer);
-            bin.record(commands,
-                Binning{
-                    .mSource = sprites,
-                    .mOrigin = what.mAsked.mOrigin,
-                    .mCamera = what.mAsked.mCamera,
-                    .mToSun = what.mAsked.mSun.mDirection,
-                    .mTimer = what.mTimer,
-                });
         }
+        bin.record(commands,
+            Binning{
+                .mSource = sprites,
+                .mOrigin = what.mAsked.mOrigin,
+                .mCamera = what.mAsked.mCamera,
+                .mRayMask = what.mAsked.mRayMask,
+                .mToSun = what.mAsked.mSun.mDirection,
+                .mTimer = what.mTimer,
+            });
 
         mChannels->begin(commands);
         mPasses.mVisibility.record(commands, inputs, what.mSampled, what.mTimer);

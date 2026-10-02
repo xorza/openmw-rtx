@@ -38,10 +38,12 @@ namespace MWRender
             Rtx::ThreadContent& content, Rtx::SpecularLayout layout)
         {
             osg::Node* const subject = kind == ViewKind::Subject ? &spec.mScene : nullptr;
+            const ViewDescription described = describeView(spec.mMask);
             return Rtx::ViewRequest{
                 .mWidth = static_cast<std::uint32_t>(spec.mWidth),
                 .mHeight = static_cast<std::uint32_t>(spec.mHeight),
-                .mRayMask = rayMaskOf(spec.mMask),
+                .mRayMask = described.mRayMask,
+                .mLamps = described.mLamps,
                 .mFraming = spec.mFraming,
                 .mLight = spec.mSun,
                 .mClear = spec.mClearColour,

@@ -108,7 +108,7 @@ namespace Rtx::Testing
             // gathers is its own hemisphere, and a sky of one radiance makes that gather exact —
             // every direction returns the same number, so one sample is the whole answer.
             const auto render = [&](const osg::Vec3f& direction, const osg::Vec3f& irradiance, Occluder blocked,
-                                    const osg::Vec3f& sky = osg::Vec3f()) {
+                                    const osg::Vec3f& sky = osg::Vec3f(), std::uint32_t noShadows = 0) {
                 SceneDesc scene = makeWall();
                 if (blocked != Occluder::None)
                     addQuad(scene, occluder,
@@ -117,6 +117,7 @@ namespace Rtx::Testing
                         blocked == Occluder::FacingTheSun ? osg::Matrixf::identity() : turned);
 
                 Shaders::VisibilityConstants camera = base;
+                camera.mNoSkyShadows = noShadows;
                 camera.mSun = Shaders::sunSource(-direction, irradiance);
                 camera.mSkyHorizon = sky;
                 camera.mSkyZenith = sky;
@@ -133,6 +134,8 @@ namespace Rtx::Testing
 
             EXPECT_EQ(render(onto, bright, Occluder::None), 153) << "square to the sun";
             EXPECT_EQ(render(onto, bright, Occluder::FacingTheSun), 0) << "and with something standing in the way";
+            EXPECT_EQ(render(onto, bright, Occluder::FacingTheSun, osg::Vec3f(), 1), 153)
+                << "a picture with shadows off, as the rasterizer draws a map tile and a doll";
 
             // **The rasterizer's shadow map, which sees what faces the light.** A single-sided occluder
             // turned toward the wall is a face the light meets from behind, so it casts nothing and
@@ -636,7 +639,8 @@ namespace Rtx::Testing
 
             // A sky rather than the cell's ambient, for the reason the sun's own test gives: what
             // fills a wall the eye can see is the hemisphere it gathers.
-            const auto render = [&](const std::optional<Light>& light, const osg::Vec3f& sky, bool blocked) {
+            const auto render = [&](const std::optional<Light>& light, const osg::Vec3f& sky, bool blocked,
+                                    std::uint32_t noLamps = 0) {
                 SceneDesc scene = makeWall();
                 if (light.has_value())
                     scene.addLight(*light);
@@ -644,6 +648,7 @@ namespace Rtx::Testing
                     addQuad(scene, occluder);
 
                 Shaders::VisibilityConstants camera = base;
+                camera.mNoLamps = noLamps;
                 camera.mSkyHorizon = sky;
                 camera.mSkyZenith = sky;
                 camera.mAmbientFromSky = 1.0f;
@@ -693,6 +698,10 @@ namespace Rtx::Testing
             Light spent = lamp;
             spent.mReach = 50.0f;
             EXPECT_EQ(render(spent, osg::Vec3f(), false), 0) << "and one whose reach ends at the wall";
+
+            // **A picture no lamp lights**, a map tile, which the rasterizer's light manager hands
+            // none: the sky's 124 with the lamp there, as without it.
+            EXPECT_EQ(render(lamp, sky, false, 1), 124) << "a lamp lit a picture that asked for none";
         }
 
         /// **A wall with a specular map reflects the lamp by the lobe the host evaluates**, a
