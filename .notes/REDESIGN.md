@@ -113,10 +113,21 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   kept in members with globals read by id, and the paging's record rule in `Terrain`. The callback
   chains compared by their shape, the pipeline cache's partials named for the sweep, and the
   Windows installs built beside their final names.
-- **Now:** Phase 2, W2 first. Phase 1's remaining lows wait for something outside the tree: BC7
-  and groundcover (see below), Night-Eye (D8), the in-memory particle image (a key for an image no
-  file names, which the material reader lacks too), the distant statics' animation and the
-  post-processing package.
+- **Phase 2, W2:** done — one `WalkContext` per thread handed to every walk by reference, the
+  views' two factories on one body, one accessor to the ring and a narrow `FrameContext`, and the
+  ring collected for the walk's frame with its adopter asserted. *Done differently:* the ring's
+  reader holds a `ThreadContent` and not a whole `WalkContext`, because it walks no traversal and
+  reads no layout; `FrameContext` holds the mirror unconst, because the reader's memory is asked
+  under its lock; and `RtxRenderer::getBackend` stays for the host that made it, which asks the
+  device's PCI address before the first frame.
+- **Phase 2, W3:** under way — the digest's one name, a field a block sets twice refused, the noise
+  source's default, the exposure rule as a variant, the held identity alone, the `Count`
+  enumerators and the moons indexed by `Moon` are done. `SceneHeld::mTextureCount` stays: it is
+  the one view of the array's length, which a GPU test holds against the table.
+- **Now:** Phase 2, the rest of W3, then W4 and W5. Phase 1's remaining lows wait for something
+  outside the tree: BC7 and groundcover (see below), Night-Eye (D8), the in-memory particle image (a
+  key for an image no file names, which the material reader lacks too), the distant statics'
+  animation and the post-processing package.
 
 ### Waiting for you
 
