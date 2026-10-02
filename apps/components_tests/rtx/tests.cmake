@@ -213,11 +213,11 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/trace/wavepass.cpp
 )
 
-# One `Platform::Process` test per system, and the fifo where the system has one.
+# One `Platform::Process` test per system, and the fifo and sysfs where the system has them.
 if (WIN32)
     list(APPEND RTX_TEST_FILES platform/processwin32.cpp)
 else()
-    list(APPEND RTX_TEST_FILES platform/processposix.cpp rtxtool/perffifoposix.cpp)
+    list(APPEND RTX_TEST_FILES platform/processposix.cpp rtxtool/amdgpuposix.cpp rtxtool/perffifoposix.cpp)
 endif()
 
 target_sources(components-tests PRIVATE ${RTX_TEST_FILES} ${RTX_TEST_SUPPORT})
