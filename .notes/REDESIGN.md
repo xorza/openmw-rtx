@@ -136,7 +136,13 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   (`release bench`, `island-crossing`): the preprocess row's p95 0.99 → 0.93 ms and p99
   1.83 → 1.74 ms; its worst frame 3.21 → 3.67 ms is one frame. The second `one-cell-walk` leg ran
   beside another process on the card (15 of 39 samples) and is not read.
-- **Now:** Phase 2, W5. Phase 1's remaining lows wait for something
+- **Phase 2, W5:** done — one price (`TextureCost`: the image, the companion by
+  `getCompanion`, and what the batch holds until the texture is made) that the side's choice and
+  every standing texture read. *Done differently:* three entries and not one, `priceFile`,
+  `priceBake` and `priceComposite`, because a bake's shape is its source's and a `TextureData`
+  does not carry it; each texel size is derived from the storage format (`texelBytes`). No
+  picture moved: the price changes only which side an arrival is held to where the room is short.
+- **Phase 2:** done. **Now:** Phase 3, the frame record (the rest of W1). Phase 1's remaining lows wait for something
   outside the tree: BC7 and groundcover (see below), Night-Eye (D8), the in-memory particle image (a
   key for an image no file names, which the material reader lacks too), the distant statics'
   animation and the post-processing package.
