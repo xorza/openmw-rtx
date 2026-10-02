@@ -6,14 +6,14 @@ namespace Rtx
     {
         mFormat = format;
         mName = {};
-        mBytes.assign(mShape.layOutTo1x1(width, height, sStride), std::byte{});
+        mBytes.assign(mShape.layOutTo1x1(width, height, sLayout), std::byte{});
     }
 
     void OwnedTexture::openLike(const std::span<const MipLevel> shape, const TextureFormat format)
     {
         mFormat = format;
         mName = {};
-        mBytes.assign(mShape.layOutLike(shape, sStride), std::byte{});
+        mBytes.assign(mShape.layOutLike(shape, sLayout), std::byte{});
     }
 
     void OwnedTexture::reuse()
@@ -38,8 +38,7 @@ namespace Rtx
     std::span<std::byte> OwnedTexture::level(const std::uint32_t which)
     {
         const MipLevel& shape = mShape.getLevel(which);
-        return std::span<std::byte>(mBytes).subspan(
-            shape.mOffset, std::size_t{ shape.mWidth } * shape.mHeight * sStride);
+        return std::span<std::byte>(mBytes).subspan(shape.mOffset, sLayout.levelBytes(shape.mWidth, shape.mHeight));
     }
 
     TextureData OwnedTexture::describe() const

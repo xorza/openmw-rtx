@@ -170,7 +170,7 @@ namespace Rtx
     {
         mValues.clear();
 
-        const std::size_t texels = mShape.layOutLike(texture.mLevels, 1);
+        const std::size_t texels = mShape.layOutLike(texture.mLevels, TexelLayout{ .mBytes = 1 });
         if (texels == 0)
             return;
 

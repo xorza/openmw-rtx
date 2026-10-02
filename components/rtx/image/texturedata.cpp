@@ -4,7 +4,7 @@
 
 namespace Rtx
 {
-    std::size_t MipPyramid::layOutTo1x1(const std::uint32_t width, const std::uint32_t height, const std::size_t stride)
+    std::size_t MipPyramid::layOutTo1x1(const std::uint32_t width, const std::uint32_t height, const TexelLayout& laid)
     {
         mLevels.clear();
 
@@ -19,7 +19,7 @@ namespace Rtx
         for (MipLevel level{ .mOffset = 0, .mWidth = width, .mHeight = height };;)
         {
             mLevels.push_back(level);
-            bytes += std::size_t{ level.mWidth } * level.mHeight * stride;
+            bytes += laid.levelBytes(level.mWidth, level.mHeight);
 
             if (level.mWidth == 1 && level.mHeight == 1)
                 break;
@@ -34,7 +34,7 @@ namespace Rtx
         return bytes;
     }
 
-    std::size_t MipPyramid::layOutLike(const std::span<const MipLevel> shape, const std::size_t stride)
+    std::size_t MipPyramid::layOutLike(const std::span<const MipLevel> shape, const TexelLayout& laid)
     {
         mLevels.clear();
         mLevels.reserve(shape.size());
@@ -48,7 +48,7 @@ namespace Rtx
                 .mHeight = level.mHeight,
             });
 
-            bytes += std::size_t{ level.mWidth } * level.mHeight * stride;
+            bytes += laid.levelBytes(level.mWidth, level.mHeight);
         }
 
         return bytes;
