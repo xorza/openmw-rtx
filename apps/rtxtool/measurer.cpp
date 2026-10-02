@@ -240,7 +240,7 @@ namespace RtxTool
 
     void Measurer::writeFilmFrame(const Stop& stop, const Rtx::FrameResult& finished, const Rtx::FrameExtents& extents)
     {
-        std::array<Progress::FilmFrame, 4>& pending = mProgress.mFilmFrames;
+        Progress::FilmFrames& pending = mProgress.mFilmFrames;
         const auto end = pending.begin() + static_cast<std::ptrdiff_t>(mProgress.mFilmPending);
         const auto found = std::find_if(
             pending.begin(), end, [&](const Progress::FilmFrame& one) { return one.mFrame == finished.mFrame; });
