@@ -440,6 +440,24 @@ namespace RtxTool
                 difference.mUnmatched += static_cast<std::uint32_t>(missing) - difference.mFrames;
         }
 
+        // **And a view the reference drew and this run did not draw at all**, which no frame of
+        // this run names: without its own entry a comparison covered fewer views than it was asked
+        // to and said nothing of the rest.
+        const std::size_t drawn = differences.size();
+        for (const Stretch& was : stretches)
+        {
+            const auto named = [&](const ViewDifference& difference) { return difference.mView == was.mView; };
+            const auto last = differences.begin() + static_cast<std::ptrdiff_t>(drawn);
+            if (std::any_of(differences.begin(), last, named))
+                continue;
+
+            if (const auto known = std::find_if(last, differences.end(), named); known != differences.end())
+                known->mUnmatched += static_cast<std::uint32_t>(was.mTo - was.mFrom);
+            else
+                differences.push_back(ViewDifference{
+                    .mView = std::string(was.mView), .mUnmatched = static_cast<std::uint32_t>(was.mTo - was.mFrom) });
+        }
+
         return differences;
     }
 
@@ -448,6 +466,9 @@ namespace RtxTool
         // **The scene is asked here too, though it does not fail the run.** Reporting only the
         // picture is what let a run be called identical while the description behind it moved on
         // every frame, which is the fault these columns were added for.
+        if (difference.mFrames == 0)
+            return std::format("not drawn by this run, {} frames of the reference's", difference.mUnmatched);
+
         std::vector<std::string> clauses;
         if (difference.same())
         {

@@ -144,7 +144,8 @@ namespace RtxTool
             }
         };
 
-        /// One entry per view this run drew, in the order it drew them.
+        /// One entry per view this run drew, in the order it drew them, then one per view only the
+        /// reference drew, in the reference's order, whose every frame is unmatched.
         std::vector<ViewDifference> against(const FrameHashes& reference) const;
 
         /// The first frame of `view` whose surface or motion differs from the view's first frame, or
