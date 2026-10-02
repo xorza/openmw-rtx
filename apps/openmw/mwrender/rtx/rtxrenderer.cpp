@@ -307,7 +307,7 @@ namespace MWRender
         // A `_spec` map this renderer does not read is not loaded either: under `ignore` a pack of
         // three thousand would sit in memory for nothing.
         Shader::AutoMapRules maps = scene.getAutoMaps();
-        maps.mSpecularMaps = maps.mSpecularMaps && mMirror.getSpecularLayout() != Rtx::SpecularLayout::Ignore;
+        maps.mSpecularMaps = maps.mSpecularMaps && mMirror.getWalkContext().mSpecular != Rtx::SpecularLayout::Ignore;
         scene.setAutoMaps(maps);
     }
 
@@ -393,7 +393,7 @@ namespace MWRender
 
         // The sky's sheets into the mirror's scene, once: they are drawn by rays that reach
         // nothing, so nothing the walk finds would keep their slots.
-        mSky.attach(mMirror.getScene(), *getResources().getSceneManager(), mMirror.getContent().mFacts);
+        mSky.attach(mMirror.getScene(), *getResources().getSceneManager(), mMirror.getWalkContext().mContent.mFacts);
     }
 
     void RtxRenderer::adoptTraversalRoot(osg::Group& root) noexcept
@@ -598,18 +598,20 @@ namespace MWRender
         getScreenshotWriter()(*taken, 0);
     }
 
-    std::unique_ptr<OffscreenView> RtxRenderer::createWorldView(const OffscreenViewSpec& spec) noexcept
+    std::unique_ptr<TracedView> RtxRenderer::traceView(const OffscreenViewSpec& spec, const ViewKind kind)
     {
         assert(mGui != nullptr && "a view before the interface was made");
-        return std::make_unique<TracedView>(spec, ViewKind::World, *mRenderer, mViews, *mGui, mMirror.getTraversals(),
-            mMirror.getContent(), mMirror.getSpecularLayout());
+        return std::make_unique<TracedView>(spec, kind, *mRenderer, mViews, *mGui, mMirror.getWalkContext());
+    }
+
+    std::unique_ptr<OffscreenView> RtxRenderer::createWorldView(const OffscreenViewSpec& spec) noexcept
+    {
+        return traceView(spec, ViewKind::World);
     }
 
     std::unique_ptr<SubjectView> RtxRenderer::createSubjectView(const OffscreenViewSpec& spec) noexcept
     {
-        assert(mGui != nullptr && "a view before the interface was made");
-        return std::make_unique<TracedView>(spec, ViewKind::Subject, *mRenderer, mViews, *mGui, mMirror.getTraversals(),
-            mMirror.getContent(), mMirror.getSpecularLayout());
+        return traceView(spec, ViewKind::Subject);
     }
 
     std::unique_ptr<MapOverlay> RtxRenderer::createMapOverlay(const MapOverlaySpec& spec) noexcept
@@ -984,7 +986,8 @@ namespace MWRender
     void RtxRenderer::trace(const SceneFrame& frame, Rtx::Shaders::VisibilityConstants constants, FrameReport& report,
         const std::optional<double> since)
     {
-        mSky.follow(frame.mSky, mMirror.getScene(), *getResources().getSceneManager(), mMirror.getContent().mFacts);
+        mSky.follow(frame.mSky, mMirror.getScene(), *getResources().getSceneManager(),
+            mMirror.getWalkContext().mContent.mFacts);
         const Rtx::WorldReading read = mSky.read(frame.mSky, frame.mWorld, frame.mPrecipitation,
             frame.mWhen.getSimulationTime(), frame.mEye.closesAirAt(mMirror.getReach()));
 

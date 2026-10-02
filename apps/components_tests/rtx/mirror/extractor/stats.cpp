@@ -57,12 +57,12 @@ namespace Rtx::Testing
             const ExtractionStats first = walk(*quad, 0, 1);
             EXPECT_EQ(first.mPreprocessed.mOnFrame.at(ContentPassId::Shape).mAsked, 0u) << "a walk took the count";
 
-            const ContentStats counted = mExtractor.getPreprocessor().takeStats();
+            const ContentStats counted = mExtractor.getContext().mContent.mPreprocessor.takeStats();
             EXPECT_EQ(counted.at(ContentPassId::Shape).mAsked, 1u);
             EXPECT_EQ(counted.at(ContentPassId::Shape).mKeyBytes, 73u);
 
             walk(*quad, 0, 2);
-            EXPECT_EQ(mExtractor.getPreprocessor().takeStats().at(ContentPassId::Shape).mAsked, 0u);
+            EXPECT_EQ(mExtractor.getContext().mContent.mPreprocessor.takeStats().at(ContentPassId::Shape).mAsked, 0u);
         }
 
         /// A texture arrives under the format it was decoded in, and its mip chain is counted beside

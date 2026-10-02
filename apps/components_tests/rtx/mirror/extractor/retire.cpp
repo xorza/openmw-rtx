@@ -656,7 +656,7 @@ namespace Rtx::Testing
             // And a caller that names no class — the harness — places the same graph as static
             // five times.
             Rtx::SceneDesc unnamed;
-            SceneExtractor silent(unnamed);
+            SceneExtractor silent(unnamed, mContext);
             silent.extract(*root, osg::Matrixf::identity(), 0);
             Rtx::makeInstanceRecords(unnamed, records);
             ASSERT_EQ(records.size(), 5u);

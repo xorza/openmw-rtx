@@ -12,9 +12,8 @@
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/mirror/nodekind.hpp>
 #include <components/rtx/mirror/shading.hpp>
-#include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
-#include <components/rtx/preprocess/imagefactcache.hpp>
+#include <components/rtx/preprocess/threadcontent.hpp>
 
 #include "nightday.hpp"
 
@@ -54,7 +53,7 @@ namespace Rtx
         void read(const osg::Node& root, osg::Node::NodeMask mask, PreparedModel& into);
 
         /// What the reads computed from the content since the last take — `ContentPreprocessor`.
-        ContentStats takeStats() { return mContent.takeStats(); }
+        ContentStats takeStats() { return mContent.mPreprocessor.takeStats(); }
 
         void apply(osg::Node& node) override;
         void apply(osg::Transform& node) override;
@@ -74,9 +73,9 @@ namespace Rtx
 
         PreparedModel* mInto = nullptr;
 
-        ContentPreprocessor mContent;
-        MeshReader mMeshes{ mContent };
-        ImageFactCache mFacts{ mContent };
+        /// What this thread computes from the content, as the frame thread's walks hold theirs.
+        ThreadContent mContent;
+        MeshReader mMeshes{ mContent.mPreprocessor };
 
         /// This thread's own classifier: `NodeKinds` is written on a miss.
         NodeKinds mKinds;

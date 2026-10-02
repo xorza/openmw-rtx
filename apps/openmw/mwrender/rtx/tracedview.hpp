@@ -6,9 +6,7 @@
 #include <osg/ref_ptr>
 
 #include <components/myguirtx/rendermanager.hpp>
-#include <components/rtx/mirror/mirrorpass.hpp>
-#include <components/rtx/preprocess/threadcontent.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
+#include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/view/offscreentrace.hpp>
 
 #include "../offscreenview.hpp"
@@ -59,17 +57,15 @@ namespace MWRender
     class TracedView final : public SubjectView
     {
     public:
-        /// **`traversals` is the one sequence every mirror walk here poses at** — the world's and
-        /// every view's. A subtree both can reach would otherwise be posed by whichever counter
-        /// got there first and frozen for the other.
+        /// **`context` is the frame thread's, which every mirror walk here shares** — the world's
+        /// and every view's. A subtree both can reach would otherwise be posed by whichever counter
+        /// got there first and frozen for the other, and a subject's `_spec` maps mean the world's.
         ///
         /// @param backend what the trace is recorded into.
         /// @param views the list this joins and asks to be drawn on, which outlives it.
         /// @param gui whose texture the trace writes into, and which draws it.
-        /// @param layout what a subject's `_spec` maps mean: the world's.
         TracedView(const OffscreenViewSpec& spec, ViewKind kind, Rtx::Renderer& backend, ViewQueue& views,
-            MyGUIRtx::RenderManager& gui, Rtx::Traversals& traversals, Rtx::ThreadContent& content,
-            Rtx::SpecularLayout layout);
+            MyGUIRtx::RenderManager& gui, Rtx::WalkContext& context);
         ~TracedView() override;
 
         void setView(const osg::Matrixd& view) override { mTrace.setView(view); }

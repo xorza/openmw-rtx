@@ -22,6 +22,7 @@
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/mirrorpass.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
+#include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
@@ -157,16 +158,10 @@ namespace MWRender
         /// What the content holds on the host beside the scene — `Rtx::ContentMemory`.
         Rtx::ContentMemory getContentMemory();
 
-        /// What the frame thread computes from the content, which the world's walk, the sky and
-        /// every traced view's walk share — `Rtx::ThreadContent`.
-        Rtx::ThreadContent& getContent() { return mThreadContent; }
-
-        /// Where every walk that can reach one graph takes its traversal numbers from.
-        Rtx::Traversals& getTraversals() { return mTraversals; }
-
-        /// What the content's `_spec` maps mean, as the mirror was made with — for the scene
-        /// manager, which loads them, and for the pictures inside the interface, which read them.
-        Rtx::SpecularLayout getSpecularLayout() const { return mSpecularLayout; }
+        /// What every walk on the frame thread shares — the world's, the sky's and every traced
+        /// view's: the traversal numbers, what the walks compute from the content, and what its
+        /// `_spec` maps mean (`Rtx::WalkContext`).
+        Rtx::WalkContext& getWalkContext() { return mWalk; }
 
         /// What the world's walk may see. Read by the tests and by nothing else.
         osg::Node::NodeMask getTraversalMask() const { return mTraversal; }
@@ -180,11 +175,8 @@ namespace MWRender
         void collectGateVerdicts(std::vector<Rtx::GateVerdict>& into) const { mRing.collectGateVerdicts(into); }
 
     private:
-        /// Shared by everything that can reach one graph — the world's walk and every traced view.
-        Rtx::Traversals mTraversals;
-
-        /// The same, for what the walks on this thread compute from the content.
-        Rtx::ThreadContent mThreadContent;
+        /// Shared by every walk on the frame thread: the world's and every traced view's.
+        Rtx::WalkContext mWalk;
 
         Rtx::SceneDesc mScene;
 
@@ -222,6 +214,5 @@ namespace MWRender
         Rtx::LandReach mReach;
         Rtx::CellGrid mGrid;
         osg::Vec3f mEye;
-        Rtx::SpecularLayout mSpecularLayout;
     };
 }

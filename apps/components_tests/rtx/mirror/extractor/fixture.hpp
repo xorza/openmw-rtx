@@ -140,8 +140,10 @@ namespace Rtx::Testing
             mExtractor.setSimulationTime(mWorldSeconds, seconds);
         }
 
+        /// The frame thread's, which production owns once and every extractor on it shares.
+        WalkContext mContext{ .mSpecular = SpecularLayout::Ignore };
         Rtx::SceneDesc mScene;
-        SceneExtractor mExtractor{ mScene };
+        SceneExtractor mExtractor{ mScene, mContext };
         double mWorldSeconds = 0.0;
     };
 

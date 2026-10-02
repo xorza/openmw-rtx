@@ -34,7 +34,7 @@ namespace Rtx
         }
     }
 
-    OffscreenTrace::OffscreenTrace(Renderer& renderer, const ViewRequest& request)
+    OffscreenTrace::OffscreenTrace(Renderer& renderer, const ViewRequest& request, WalkContext& context)
         : mRenderer(renderer)
         , mRequest(request)
         , mExtentWidth(request.mWidth)
@@ -53,9 +53,8 @@ namespace Rtx
         held.mPoseStamp = new osg::FrameStamp;
         held.mSlot = ViewScene(renderer);
 
-        held.mExtractor = std::make_unique<SceneExtractor>(*held.mScene, request.mTraversals, request.mContent);
+        held.mExtractor = std::make_unique<SceneExtractor>(*held.mScene, context);
         held.mExtractor->setTraversalMask(request.mSubjectMask);
-        held.mExtractor->setSpecularLayout(request.mSpecularLayout);
         held.mPose->setFrameStamp(held.mPoseStamp);
     }
 
@@ -229,7 +228,7 @@ namespace Rtx
         // intersection with whatever the last cull wrote; the picture was traced from a pose the
         // device computed, so without this the click would land on the bind pose. A number from the
         // shared sequence, because both deforming geometries refuse to move for one they have seen.
-        const unsigned int posed = subject.mExtractor->getTraversals().next();
+        const unsigned int posed = subject.mExtractor->getContext().mTraversals.next();
         subject.mPose->setTraversalNumber(posed);
         subject.mPoseStamp->setFrameNumber(posed);
         subject.mNode->accept(*subject.mPose);

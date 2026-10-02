@@ -358,11 +358,13 @@ namespace Rtx::Testing
         static_assert(sPlacedCells == 69 && sPreparedCells == 101);
 
         /// A world with nothing on its graph and a ring beside it, walked from a fixed eye. Every
-        /// cell of the land has a record, so every cell stands two ground types.
-        class RtxCellRingTest : public ::testing::Test
+        /// cell of the land has a record, so every cell stands two ground types. The frame thread's
+        /// walks read the `_spec` maps by `Layout`, which a run states once.
+        template <SpecularLayout Layout>
+        class CellRingTestOn : public ::testing::Test
         {
         protected:
-            RtxCellRingTest()
+            CellRingTestOn()
             {
                 for (int x = -8; x <= 30; ++x)
                     for (int y = -8; y <= 30; ++y)
@@ -490,35 +492,45 @@ namespace Rtx::Testing
             FewContent mContent;
             osg::ref_ptr<osg::Group> mEmpty = new osg::Group;
 
-            SceneDesc mScene;
-            SceneExtractor mExtractor{ mScene };
-            CellRing mRing{ mExtractor };
-        };
-
-        /// **A `_diffusespec` is what the layout says it is**: authored under the metal layout, as the
-        /// test below reads, classic under the classic one, and a plain diffuse under `ignore`.
-        TEST_F(RtxCellRingTest, aDiffusespecIsWhatTheLayoutSaysItIs)
-        {
-            const auto rockLayerUnder = [&](SpecularLayout layout) {
-                mRing.setSpecularLayout(layout);
+            /// What the rock's second layer is flagged as, walked from the start.
+            std::uint32_t rockLayer()
+            {
                 start();
                 fill();
                 const std::optional<MeshInstance> far = groundOf(osg::Vec2i(3, 0));
                 EXPECT_TRUE(far.has_value());
+                if (!far.has_value())
+                    return 0;
                 const Material& material = mScene.materials().getRows()[far->mMaterial];
-                const std::uint32_t flags = material.mLayers.in(mScene.materials().getLayers())[1].mFlags;
-                mRing.follow(WorldAround{});
-                return flags;
-            };
+                return material.mLayers.in(mScene.materials().getLayers())[1].mFlags;
+            }
 
-            EXPECT_EQ(rockLayerUnder(SpecularLayout::Classic), Shaders::LAYER_CLASSIC | Shaders::LAYER_PARALLAX);
-            EXPECT_EQ(rockLayerUnder(SpecularLayout::Ignore), Shaders::LAYER_PARALLAX);
+            WalkContext mContext{ .mSpecular = Layout };
+            SceneDesc mScene;
+            SceneExtractor mExtractor{ mScene, mContext };
+            CellRing mRing{ mExtractor };
+        };
+
+        using RtxCellRingTest = CellRingTestOn<SpecularLayout::Ignore>;
+        using RtxCellRingClassicTest = CellRingTestOn<SpecularLayout::Classic>;
+        using RtxCellRingMetalTest = CellRingTestOn<SpecularLayout::MetalRoughness>;
+
+        /// **A `_diffusespec` is what the layout says it is**: authored under the metal layout, as the
+        /// test below reads, classic under the classic one, and a plain diffuse under `ignore`.
+        TEST_F(RtxCellRingClassicTest, aDiffusespecIsClassicUnderTheClassicLayout)
+        {
+            EXPECT_EQ(rockLayer(), Shaders::LAYER_CLASSIC | Shaders::LAYER_PARALLAX);
+        }
+
+        TEST_F(RtxCellRingTest, aDiffusespecIsAPlainDiffuseWhereTheLayoutIgnoresIt)
+        {
+            EXPECT_EQ(rockLayer(), Shaders::LAYER_PARALLAX);
         }
 
         /// A reference stands where the game would stand its clone, on the mesh every copy shares;
         /// what the active grid holds is left to the game; every cell of the reach stands its
         /// ground on a row of the ring's own; and a second walk adds nothing.
-        TEST_F(RtxCellRingTest, referencesStandWhereTheGameWouldStandThemOnOneMeshEach)
+        TEST_F(RtxCellRingMetalTest, referencesStandWhereTheGameWouldStandThemOnOneMeshEach)
         {
             const Placed tree{ .mCell = osg::Vec2i(3, 0),
                 .mModel = "tree.nif",
@@ -544,7 +556,6 @@ namespace Rtx::Testing
                 .mPosition = osg::Vec3f(7.5f * sCellSize, 0.5f * sCellSize, 0.0f) };
             mStorage.mPlaced = { tree, anotherTree, fern, atHome, beyond };
 
-            mRing.setSpecularLayout(SpecularLayout::MetalRoughness);
             start();
 
             const ExtractionStats first = fill();
@@ -560,7 +571,7 @@ namespace Rtx::Testing
             EXPECT_EQ(mRing.getHeldCellCount(), sPreparedCells);
             EXPECT_EQ(first.mPreprocessed.mOffFrame.at(ContentPassId::Shape).mAsked, 2u)
                 << "the tree and the fern shaped once each, on the reader's thread, however many stand";
-            EXPECT_EQ(mExtractor.getPreprocessor().takeStats().at(ContentPassId::Shape).mAsked, 0u)
+            EXPECT_EQ(mExtractor.getContext().mContent.mPreprocessor.takeStats().at(ContentPassId::Shape).mAsked, 0u)
                 << "the frame adopts what the reader shaped";
 
             // **The ground stands where the storage put it**: cell (3, 0)'s placement is translated
@@ -677,8 +688,6 @@ namespace Rtx::Testing
             // the move and the band that arrives comes a cell a walk after it**, so the sweep that
             // follows that one walk is where the meshes nothing stands on go — the two models' and
             // the ground of every cell that left.
-            // Under the layout that reads a `_diffusespec`'s alpha as no roughness from here on.
-            mRing.setSpecularLayout(SpecularLayout::Ignore);
             around(osg::Vec3f(20.5f * sCellSize, 20.5f * sCellSize, 0.0f), osg::Vec4i(19, 19, 22, 22));
             walk(mWalked++);
 
@@ -691,13 +700,13 @@ namespace Rtx::Testing
             EXPECT_EQ(mRing.getHeldCellCount(), sPreparedCells) << "the prepared disc's cells";
             EXPECT_EQ(mScene.meshes().getLiveCount(), sPreparedCells);
 
-            // So the rock there is a diffuse like any, and keeps its normal map.
+            // The rock there is read as the first band's was, and keeps its normal map.
             const std::optional<MeshInstance> away = groundOf(osg::Vec2i(24, 20));
             ASSERT_TRUE(away.has_value());
             const Material& awayMaterial = mScene.materials().getRows()[away->mMaterial];
             const std::span<const MaterialLayer> awayLayers = awayMaterial.mLayers.in(mScene.materials().getLayers());
             ASSERT_EQ(awayLayers.size(), 2u);
-            EXPECT_EQ(awayLayers[1].mFlags, Shaders::LAYER_PARALLAX);
+            EXPECT_EQ(awayLayers[1].mFlags, Shaders::LAYER_AUTHORED | Shaders::LAYER_PARALLAX);
             ASSERT_NE(awayLayers[1].mNormal, sNoIndex);
             EXPECT_EQ(mScene.textures().getRows()[awayLayers[1].mNormal].mPath, "textures/rock_nh.dds");
             EXPECT_TRUE(awayMaterial.mLayersMapped);

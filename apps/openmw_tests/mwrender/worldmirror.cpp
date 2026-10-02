@@ -157,7 +157,7 @@ namespace MWRender
             osg::ref_ptr<osg::Image> sheet = new osg::Image;
             sheet->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
             sheet->setFileName("textures/sheet.dds");
-            mirror.getContent().mFacts.meanOf(*sheet);
+            mirror.getWalkContext().mContent.mFacts.meanOf(*sheet);
 
             const Rtx::ExtractionStats first = mirror.mirror(world.frame(1), view);
             EXPECT_EQ(first.mPreprocessed.mOnFrame.at(Rtx::ContentPassId::TexelMean).mAsked, 1u)

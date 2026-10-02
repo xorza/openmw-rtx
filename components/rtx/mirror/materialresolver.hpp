@@ -82,10 +82,12 @@ namespace Rtx
         ///        two answers.
         /// @param facts the thread's image facts, shared with the emitters for the reason
         ///        `EmitterResolver` gives.
-        MaterialResolver(SceneDesc& scene, const MirrorPass& pass, ImageFactCache& facts)
+        /// @param specular what the `_spec` maps of materials mean — `WalkContext::mSpecular`.
+        MaterialResolver(SceneDesc& scene, const MirrorPass& pass, ImageFactCache& facts, SpecularLayout specular)
             : mScene(scene)
             , mPass(pass)
             , mFacts(facts)
+            , mSpecularLayout(specular)
         {
         }
 
@@ -116,9 +118,6 @@ namespace Rtx
         /// The sea's own, keyed on the state set it has not got because a node mask is what
         /// identifies it.
         Resolved resolveWater();
-
-        /// What the `_spec` maps of materials described from here on mean, `Ignore` until told.
-        void setSpecularLayout(SpecularLayout layout) { mSpecularLayout = layout; }
 
         /// The state set `node` shades with where that is not simply the one it wears, or null
         /// where it is — which is nearly every node in a cell. One per node, rewritten in place, so
@@ -324,6 +323,6 @@ namespace Rtx
         /// The extractor's. The ring's reader has its own and hands its answers over in the reading.
         ImageFactCache& mFacts;
 
-        SpecularLayout mSpecularLayout = SpecularLayout::Ignore;
+        const SpecularLayout mSpecularLayout;
     };
 }

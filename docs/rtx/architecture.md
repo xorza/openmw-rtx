@@ -185,7 +185,8 @@ source-tree test holds the order.
 - **`Rtx::ContentPreprocessor`** is the one way anything is computed from what the content files
   hold — a shape's fold and the normals it smoothed across a hard edge split, a texture's alpha and
   mean. One lives on each thread that reads content (`Rtx::ThreadContent`): the frame's, which the
-  world's walk, the sky and every picture's walk share, and the ring's reader's. Every
+  world's walk, the sky and every picture's walk share inside the frame thread's `Rtx::WalkContext`
+  beside the traversal numbers and the specular layout, and the ring's reader's. Every
   pass is keyed on everything it reads and asked of `ContentCache` first; the cache holds nothing
   yet, so every pass runs, and what each costs is counted into the walk's stats and the
   `preprocess` row of a frame.
