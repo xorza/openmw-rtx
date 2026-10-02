@@ -14,8 +14,8 @@
 #include <components/esm3/loadscpt.hpp>
 #include <components/interpreter/types.hpp>
 #include <components/misc/strings/lower.hpp>
-#include <components/terrain/objectstorage.hpp>
 
+#include "../mwrender/objectstorage.hpp"
 #include "../mwworld/esmstore.hpp"
 
 namespace MWScript
@@ -104,7 +104,7 @@ namespace MWScript
                 {
                     Toggled toggled = toggledBy(*compiled->mProgram);
                     std::erase_if(toggled.mNames, [&](const ESM::RefId& name) {
-                        return !Terrain::collects(store.findStatic(name), false, Terrain::RefKinds::Both);
+                        return !MWRender::ObjectStorage::handsOver(store.findStatic(name));
                     });
                     if (toggled.mItself || !toggled.mNames.empty())
                     {
@@ -140,7 +140,7 @@ namespace MWScript
                 mWornBy.emplace(record, Worn{ .mScript = found->second, .mOwnGate = mScripts[found->second].mOwnGate });
         };
 
-        // The record types `Terrain::collects` takes that carry a script. A static
+        // The record types `MWRender::ObjectStorage::handsOver` names that carry a script. A static
         // carries none.
         for (const ESM::Activator& record : store.get<ESM::Activator>())
             wear(record.mId, record.mScript);
