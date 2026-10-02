@@ -353,9 +353,9 @@ namespace Rtx::Testing
         /// epsilon, which with no upscaler in the fixture is the whole of the bias.
         float mLevelEpsilon = 0.0f;
 
-        /// Where the trace draws from, or nothing for the reconstruction's own choice, which with
-        /// no upscaler is the tile every figure over this fixture was derived against.
-        std::optional<NoiseSource> mNoise{};
+        /// Where the trace draws from: the tile every figure over this fixture was derived against,
+        /// unless a test names the other.
+        NoiseSource mNoise = NoiseSource::BlueNoiseTile;
 
         /// Throws the denoiser's history away before the run.
         ///
