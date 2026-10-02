@@ -6,12 +6,17 @@
 
 #include "windowbase.hpp"
 
+namespace MWRender
+{
+    class RenderSupport;
+}
+
 namespace MWGui
 {
     class SettingsWindow : public WindowBase
     {
     public:
-        SettingsWindow(Files::ConfigurationManager& cfgMgr);
+        SettingsWindow(Files::ConfigurationManager& cfgMgr, const MWRender::RenderSupport& support);
 
         void onOpen() override;
 
@@ -137,6 +142,19 @@ namespace MWGui
     private:
         void resetScrollbars();
         Files::ConfigurationManager& mCfgMgr;
+
+        /// What the renderer the game runs honours: a control it declines is greyed out, with the
+        /// reason as its tooltip.
+        const MWRender::RenderSupport& mSupport;
+
+        /// Greys out every control whose setting the renderer declines. Last when the window
+        /// opens, because the window's own updates enable controls by rules of their own.
+        void declineUnsupported();
+
+        /// Greys `control` out, and shows `declined` where the pointer over it finds a tooltip:
+        /// on the row it stands in with its label, or on the label a slider names. A greyed widget
+        /// takes no pointer, so the tooltip system starts from the widget behind it.
+        void decline(MyGUI::Widget& control, std::string_view declined);
     };
 }
 

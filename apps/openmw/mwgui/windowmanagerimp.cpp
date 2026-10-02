@@ -415,7 +415,7 @@ namespace MWGui
         mCountDialog = countDialog.get();
         mWindows.push_back(std::move(countDialog));
 
-        auto settingsWindow = std::make_unique<SettingsWindow>(mCfgMgr);
+        auto settingsWindow = std::make_unique<SettingsWindow>(mCfgMgr, mRenderer.support());
         mSettingsWindow = settingsWindow.get();
         mWindows.push_back(std::move(settingsWindow));
         trackWindow(mSettingsWindow, makeSettingsWindowSettingValues());
