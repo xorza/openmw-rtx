@@ -192,6 +192,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/trace/ripplepass.cpp
     rtxvulkan/trace/spritepasses.cpp
     rtxvulkan/trace/stresspass.cpp
+    rtxvulkan/trace/tracechain.cpp
     rtxvulkan/trace/visibility/filter.cpp
     rtxvulkan/trace/visibility/fixture.hpp
     rtxvulkan/trace/visibility/fog.cpp

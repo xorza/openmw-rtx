@@ -41,7 +41,8 @@ namespace Rtx
         ///        traced and waited for one at a time.
         TraceChain(const Device& device, const TracePasses& passes, std::uint32_t bins);
 
-        /// Builds the chain at exactly this extent, whatever it was before.
+        /// Builds the chain at exactly this extent, whatever it was before, and nothing where it
+        /// already stands at it.
         ///
         /// @param radiance how wide the radiance channels and the frame composed from them are
         ///        stored — the run's choice, which `Rtx::RadianceWidth` argues.
@@ -89,6 +90,7 @@ namespace Rtx
 
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
+        RadianceWidth mRadiance = RadianceWidth::Summed;
 
         std::unique_ptr<GBuffer> mChannels;
         std::unique_ptr<FogVolume> mFogVolume;

@@ -41,7 +41,8 @@ namespace Rtx
     public:
         explicit DenoiseHistory(const Device& device);
 
-        /// Makes room for a frame this size, if the last one was not. A resize is a reset.
+        /// Makes room for a frame this size, anew: `TraceChain::resize` is what asks whether the size
+        /// changed. A resize is a reset.
         void resize(std::uint32_t width, std::uint32_t height);
 
         /// Says every history is worthless, until each filter next runs.
