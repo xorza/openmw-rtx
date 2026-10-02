@@ -55,7 +55,9 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   the effect; it comes after the other mediums.
 - **Phase 1, medium 17:** done — the player hidden by the view mask, a script's view distance,
   and map tiles that wait for their ground.
-- **Now:** Phase 1, medium item 18, W14.4's rest.
+- **Phase 1, medium 18:** done — the deck turns about the eye and the sea runs on the rasterizer's
+  wind, the moon's phase runs continuously, and the sky's sheets are keyed by name.
+- **Now:** Phase 1, medium item 19, W14.6's rest.
 
 ### Waiting for you
 
