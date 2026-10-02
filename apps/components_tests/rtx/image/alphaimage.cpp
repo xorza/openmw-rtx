@@ -16,7 +16,6 @@
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/image/alphaimage.hpp>
-#include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 
@@ -282,17 +281,16 @@ namespace Rtx
         /// The solid texel is last, so a walk that answered off the first texel it read fails.
         TEST(RtxAlphaImageTest, reachesSolidIsTrueOnlyWhereSomeTexelIsFullyOpaque)
         {
-            // One preprocessor for every case, which is how a thread holds it.
+            // One preprocessor for all four, which is how a thread holds it: a cell asks this once
+            // per translucent diffuse map it arrives with.
             ContentPreprocessor content;
-            const auto solid = [&](std::array<std::uint8_t, 4> alphas) {
-                return content.imageFacts(*makeAlphaImage(alphas)).mReachesSolid;
-            };
 
-            EXPECT_TRUE(solid({ 0, 119, 254, 255 })) << "one solid texel is a mask";
-            EXPECT_FALSE(solid({ 0, 119, 254, 254 })) << "one short of solid is a wisp";
-            EXPECT_FALSE(solid({ 119, 119, 119, 119 })) << "the blight cloud's own peak";
-            EXPECT_TRUE(solid({ 255, 255, 255, 255 })) << "an untextured surface's stand-in";
-            EXPECT_FALSE(solid({ 0, 0, 0, 0 })) << "all hole";
+            EXPECT_TRUE(content.reachesSolid(*makeAlphaImage({ 0, 119, 254, 255 }))) << "one solid texel is a mask";
+            EXPECT_FALSE(content.reachesSolid(*makeAlphaImage({ 0, 119, 254, 254 }))) << "one short of solid is a wisp";
+            EXPECT_FALSE(content.reachesSolid(*makeAlphaImage({ 119, 119, 119, 119 })))
+                << "the blight cloud's own peak";
+            EXPECT_TRUE(content.reachesSolid(*makeAlphaImage({ 255, 255, 255, 255 })))
+                << "an untextured surface's stand-in";
         }
 
         /// How many bytes OpenSceneGraph counts in one level of `spelling`, which `describeImage` holds
@@ -320,10 +318,10 @@ namespace Rtx
             return image;
         }
 
-        /// A block format is read a block at a time, so the answer is read off the block's own
-        /// spelling: a BC1 block with its endpoints descending has four opaque colours and no hole;
-        /// ascending, its fourth index is the hole and any other index is paint. A BC3 block
-        /// ascending spends index seven on 255 outright.
+        /// A block format answers a block at a time, and stops at the first solid one, so the
+        /// answer is read off the block's own spelling: a BC1 block with its endpoints descending
+        /// has four opaque colours and no hole; ascending, its fourth index is the hole and any
+        /// other index is paint. A BC3 block ascending spends index seven on 255 outright.
         ///
         /// **A texel the block pads past the picture's edge says nothing about the picture.** A
         /// two-by-two BC3 image is one sixteen-texel block, and a 255 in a texel outside the two
@@ -331,44 +329,40 @@ namespace Rtx
         /// picture and 255 in texel three, which is inside the block and outside a two-by-two, and
         /// inside a four-by-four: indices `1, 1, 0, 7, 1, 1` over texels nought to five are
         /// `1 | 1 << 3 | 7 << 9 | 1 << 12 | 1 << 15 = 0x9E09`, little-endian `09 9E`.
-        TEST(RtxAlphaImageTest, aBlockFormatIsReadByItsBlocksAndNeverByItsPadding)
+        TEST(RtxAlphaImageTest, aBlockFormatReachesSolidByItsBlocksAndNeverByItsPadding)
         {
             ContentPreprocessor content;
-            const auto factsOf = [&](GLenum spelling, std::uint32_t side, std::initializer_list<std::uint8_t> bytes) {
-                return content.imageFacts(*makeBlockImage(spelling, side, side, bytes));
-            };
 
-            const ImageFacts opaque
-                = factsOf(GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, { 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF });
-            EXPECT_TRUE(opaque.mReachesSolid) << "descending endpoints: four colours and no hole";
-            const ImageFacts hole
-                = factsOf(GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, { 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF });
-            EXPECT_FALSE(hole.mReachesSolid) << "ascending endpoints and every index three: all hole";
-            const ImageFacts painted
-                = factsOf(GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, { 0x00, 0x00, 0xFF, 0xFF, 0xFC, 0xFF, 0xFF, 0xFF });
-            EXPECT_TRUE(painted.mReachesSolid) << "ascending endpoints and one index nought: one texel of paint";
+            EXPECT_TRUE(content.reachesSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF })))
+                << "descending endpoints: four colours and no hole";
+            EXPECT_FALSE(content.reachesSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF })))
+                << "ascending endpoints and every index three: all hole";
+            EXPECT_TRUE(content.reachesSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 4, 4, { 0x00, 0x00, 0xFF, 0xFF, 0xFC, 0xFF, 0xFF, 0xFF })))
+                << "ascending endpoints and one index nought: one texel of paint";
 
             // Where OpenSceneGraph counts the level short of its block, `describeImage` refuses the
-            // image, and a refused image answers what changes nothing about how the surface is
-            // traced: it reaches solid.
+            // image, and a refused image answers what changes nothing about how the surface is traced.
             const bool wholeBlock = countedBytes(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2) == 16;
-            const ImageFacts padded = factsOf(
-                GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
-            EXPECT_EQ(padded.mReachesSolid, !wholeBlock) << "the 255 is in the padding";
-            const ImageFacts whole = factsOf(
-                GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
-            EXPECT_TRUE(whole.mReachesSolid) << "the same block whole: texel three is in the picture";
-            const ImageFacts ramp = factsOf(
-                GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, { 200, 0, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
-            EXPECT_FALSE(ramp.mReachesSolid)
+            EXPECT_EQ(content.reachesSolid(*makeBlockImage(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 2, 2,
+                          { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })),
+                !wholeBlock)
+                << "the 255 is in the padding";
+            EXPECT_TRUE(content.reachesSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4, { 0, 200, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })))
+                << "the same block whole: texel three is in the picture";
+            EXPECT_FALSE(content.reachesSolid(*makeBlockImage(
+                GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 4, 4, { 200, 0, 0x09, 0x9E, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 })))
                 << "descending from 200, index seven is a step of the ramp and nothing reaches 255";
         }
 
         /// The second image a preprocessor reads costs the heap nothing, and reads as itself.
         ///
-        /// **What holding one is for.** `ImageFactCache` asks this of every blended diffuse map a
-        /// cell arrives with, and a reading that took its levels table and its decoded alpha from
-        /// the heap would take them again for each of those, on the frame the cell lands.
+        /// **What holding one is for.** `MaterialResolver` asks this of every translucent diffuse
+        /// map a cell arrives with, and a reading that took its levels table and its decoded alpha
+        /// from the heap would take them again for each of those, on the frame the cell lands.
         /// Reading as itself is the other half: a scratch that carried the last image's levels
         /// through would answer for a texture it was never shown.
         TEST(RtxAlphaImageTest, aScratchTheCallerKeepsAnswersForEachImageAndAllocatesForNone)
@@ -377,10 +371,10 @@ namespace Rtx
             const osg::ref_ptr<osg::Image> wisp = makeAlphaImage({ 0, 119, 254, 254 });
 
             ContentPreprocessor content;
-            ASSERT_TRUE(content.imageFacts(*mask).mReachesSolid) << "the image this one has to stop carrying";
+            ASSERT_TRUE(content.reachesSolid(*mask)) << "the image this one has to stop carrying";
 
             const std::size_t before = Testing::getAllocationCount();
-            const bool answer = content.imageFacts(*wisp).mReachesSolid;
+            const bool answer = content.reachesSolid(*wisp);
             const std::size_t spent = Testing::getAllocationCount() - before;
 
             EXPECT_FALSE(answer) << "the last image's alpha came through";
@@ -389,17 +383,17 @@ namespace Rtx
 
         /// An image in a format nothing in the game produces is one this cannot answer for.
         ///
-        /// **True and not false**, because false is what turns a blend into a pane and a pane into
-        /// a volume: a texture nobody can read is one to go on tracing exactly as before rather
-        /// than one to stop stopping on.
+        /// **True and not false**, because false is what turns a surface into a volume: a texture
+        /// nobody can read is one to go on tracing exactly as before rather than one to stop
+        /// stopping on.
         TEST(RtxAlphaImageTest, aFormatNobodyShipsReachesSolidRatherThanBecomingAMedium)
         {
             osg::ref_ptr<osg::Image> luminance = new osg::Image;
             luminance->setFileName("odd.dds");
             luminance->allocateImage(2, 2, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE);
 
-            const ImageFacts facts = ContentPreprocessor().imageFacts(*luminance);
-            EXPECT_TRUE(facts.mReachesSolid);
+            ContentPreprocessor content;
+            EXPECT_TRUE(content.reachesSolid(*luminance));
         }
     }
 }

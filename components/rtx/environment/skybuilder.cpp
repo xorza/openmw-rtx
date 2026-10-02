@@ -116,7 +116,7 @@ namespace Rtx
             // Read here and not on the frame that needs it. Averaging a 512-square sheet is a
             // quarter of a million texels, and there are six of them; the image is the one the
             // upload is about to take out of the same cache.
-            const MeanTexel& painted = facts.of(*image.value()).mMean;
+            const MeanTexel& painted = facts.meanOf(*image.value());
             loaded.mCloudMean[weather] = painted.opaque() * Shaders::LUMINANCE_WEIGHTS;
             loaded.mCloudCover[weather] = painted.mAlpha;
         }

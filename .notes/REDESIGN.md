@@ -39,9 +39,11 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   listing, a release build of the base in `~/.cache/omw-refactor/base`). The bench baseline is taken
   back to back with the branch at the end of Phase 1, because a bench beside a build reads wrong.
   The D5 probe is still to run.
-- **Phase 1, high:** 1 to 4 are done. Step 0 is done without the binary fact, which nothing reads
-  (see below). 5 is done by another rule than the plan's (see below).
-- **Now:** Phase 1, high item 6, picking on the posed body.
+- **Phase 1, high:** all eight are done. Step 0 keeps one cache of image facts, but not one walk
+  (see below). 5 is done by another rule than the plan's (see below). A release bench against the
+  base after the eight (`~/.cache/omw-refactor/bench-2/`) matches it within noise at the median,
+  the p99 and the worst frame of all three places.
+- **Now:** Phase 1, medium item 9, the picture and the interface as two images (W12).
 
 ### Waiting for you
 
@@ -56,6 +58,13 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   fringe stays a cut. Webs and crystals are panes only if their texture never reaches 255. To make a
   mask's fringe soft as well, the pane path needs to be cheap and clean for foliage first. Your call
   whether that is wanted.
+- **W4 (Step 0): one cache, two walks, measured.** The plan said one walk reads the mean and the
+  solid reach together. Every blended material asks the reach, and the mean decodes every texel's
+  colour, so the one walk put a full decode of each blended texture the frame met on the frame: the
+  preprocess row's worst frame went from 0 to 11.3 ms at `seyda-neen-ship-dawn`. The branch keeps
+  one per-file cache per thread (`ImageFactCache`), whose entry reads each fact at its first ask:
+  the reach by the walk that stops at the first solid texel, the mean only for an additive sheet.
+  The worst frame is back at 0.07 ms.
 - **Someone ran `git pull --rebase origin` on `refactor`** while the work ran, after two early
   commits (`a297255ebe`, `3de0c852f7`) reached `origin/refactor`. I left them and worked forward:
   `da36abeaa0` moves the test the first one put in the wrong binary.

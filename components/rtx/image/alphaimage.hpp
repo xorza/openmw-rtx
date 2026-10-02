@@ -60,9 +60,9 @@ namespace Rtx
         std::vector<std::uint8_t> mValues;
     };
 
-    /// The buffers `ImageFactPass` reads an image through — `describeFinest`, and `imageFactsOf`'s
+    /// The buffers the texture passes read an image through — `describeFinest`, and `meanTexel`'s
     /// alpha and colours — held by a thread's `ContentPreprocessor` rather than made per call,
-    /// because a cell arrives with many blended diffuse maps.
+    /// because a cell arrives with many translucent diffuse maps.
     struct AlphaScratch
     {
         std::vector<MipLevel> mLevels;
@@ -70,15 +70,21 @@ namespace Rtx
         AlphaImage mAlpha;
 
         /// A band of colours, `readTexelBand`'s, for a reader that takes the colour beside the
-        /// alpha (`imageFactsOf`).
+        /// alpha (`meanTexel`).
         std::vector<osg::Vec3f> mColours;
     };
 
-    /// `image`'s finest level as `imageFactsOf` reads it, described into `scratch`'s buffers with
-    /// every coarser level left off: a chain is the same picture at lower rates, and no fact needs
-    /// more than the finest. Nothing for an image this cannot describe, which is the same image
-    /// whose arrival in the texture table refuses it by name.
+    /// `image`'s finest level as `reachesSolid` and `meanTexel` read it, described into `scratch`'s
+    /// buffers with every coarser level left off: a chain is the same picture at lower rates, and
+    /// neither question needs more than the finest. Nothing for an image this cannot describe,
+    /// which is the same image whose arrival in the texture table refuses it by name.
     ///
     /// @param scratch cleared and refilled here; the description spans it until the next reading.
     std::optional<TextureData> describeFinest(const osg::Image& image, AlphaScratch& scratch);
+
+    /// Whether any texel of a finest level `describeFinest` gave is fully opaque — what tells a wisp
+    /// from a mask, since Morrowind keeps its foliage and its clouds under one alpha mode: a leaf
+    /// card is solid wherever its paint is, and `Tx_Dagoth_Cloud`'s alpha peaks at seven fifteenths.
+    /// The finest level alone, because a mask's average stops reaching solid a level or two down.
+    bool reachesSolid(const TextureData& finest);
 }

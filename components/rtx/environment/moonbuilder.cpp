@@ -147,7 +147,7 @@ namespace Rtx
                 = scene.textures().add(path, image.isOk() ? image.value().get() : nullptr, TextureWrap::Clamp);
             holds.push_back(scene.holdTexture(slot));
             if (image.isOk() && image.value() != nullptr)
-                mean = facts.of(*image.value()).mMean.opaque();
+                mean = facts.meanOf(*image.value()).opaque();
             return slot;
         };
 

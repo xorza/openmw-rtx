@@ -40,11 +40,18 @@ namespace Rtx
         run(mShape, input, output);
     }
 
-    ImageFacts ContentPreprocessor::imageFacts(const osg::Image& image)
+    bool ContentPreprocessor::reachesSolid(const osg::Image& image)
     {
-        ImageFacts facts;
-        run(mImageFacts, image, facts);
-        return facts;
+        bool solid = true;
+        run(mSolid, image, solid);
+        return solid;
+    }
+
+    MeanTexel ContentPreprocessor::meanTexel(const osg::Image& image)
+    {
+        MeanTexel mean;
+        run(mMean, image, mean);
+        return mean;
     }
 
     ContentStats ContentPreprocessor::takeStats()

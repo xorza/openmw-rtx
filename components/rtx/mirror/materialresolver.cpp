@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -219,7 +220,14 @@ namespace Rtx
         const osg::Image* const diffuse = described.getTexture(SurfaceMap::Diffuse);
 
         if (described.mAlphaMode == AlphaMode::Blend && diffuse != nullptr && !diffuse->getFileName().empty())
-            reading.mDiffuseFacts = facts.of(*diffuse);
+        {
+            ImageFacts& known = facts.of(*diffuse);
+            if (additiveSurface(described.mAlphaMode, described.mBlend))
+                facts.meanOf(known, *diffuse);
+            else
+                facts.reachesSolid(known, *diffuse);
+            reading.mDiffuseFacts = known;
+        }
 
         return reading;
     }
@@ -344,7 +352,7 @@ namespace Rtx
         return slot.get();
     }
 
-    const ImageFacts* MaterialResolver::diffuseFacts(const osg::Image* const image)
+    ImageFacts* MaterialResolver::diffuseFacts(const osg::Image* const image)
     {
         if (image == nullptr)
             return nullptr;
@@ -357,7 +365,7 @@ namespace Rtx
             return nullptr;
 
         // Kept by the slot, so the frames after the first find it without the name.
-        const ImageFacts*& facts = known->second.mFacts;
+        ImageFacts*& facts = known->second.mFacts;
         if (facts == nullptr)
             facts = &mFacts.of(*image);
 
@@ -457,16 +465,23 @@ namespace Rtx
         // opaque, tested, or has no diffuse map to read: whether a blend is a pane or a cut, and a
         // pane a medium, is the texture's alpha, and a glow is asked of an additive sheet alone. The
         // reading's answer where one was made, and the walk over the texels only where none was.
-        if (material.isBlended() && material.mDiffuse != sNoIndex)
+        if (material.isBlended() && material.mDiffuse != sNoIndex && reading.mDiffuseFacts.has_value())
         {
-            const ImageFacts* const facts
-                = reading.mDiffuseFacts.has_value() ? &*reading.mDiffuseFacts : diffuseFacts(diffuse);
-            if (facts != nullptr)
-            {
-                material.mDiffuseNeverSolid = !facts->mReachesSolid;
-                if (material.isAdditive())
-                    material.mDiffuseMean = meanUnder(facts->mMean, material.mBlend);
-            }
+            // The reader asked what the same rule below asks of the same image.
+            const ImageFacts& read = *reading.mDiffuseFacts;
+            assert((material.isAdditive() ? read.mMean.has_value() : read.mReachesSolid.has_value())
+                && "a reading that read another fact than its material wants");
+            if (material.isAdditive())
+                material.mDiffuseMean = meanUnder(*read.mMean, material.mBlend);
+            else
+                material.mDiffuseNeverSolid = !*read.mReachesSolid;
+        }
+        else if (material.isBlended() && material.mDiffuse != sNoIndex)
+        {
+            if (ImageFacts* const facts = diffuseFacts(diffuse); facts != nullptr && material.isAdditive())
+                material.mDiffuseMean = meanUnder(mFacts.meanOf(*facts, *diffuse), material.mBlend);
+            else if (facts != nullptr)
+                material.mDiffuseNeverSolid = !mFacts.reachesSolid(*facts, *diffuse);
         }
 
         return material;

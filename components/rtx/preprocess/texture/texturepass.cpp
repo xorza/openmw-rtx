@@ -33,8 +33,13 @@ namespace Rtx
         digest.add(finest.mBytes.subspan(from, bytes));
     }
 
-    ImageFacts factsOfFinest(const std::optional<TextureData>& finest, AlphaScratch& scratch)
+    bool solidReachOf(const std::optional<TextureData>& finest, AlphaScratch&)
     {
-        return finest.has_value() ? imageFactsOf(*finest, scratch) : ImageFacts();
+        return !finest.has_value() || reachesSolid(*finest);
+    }
+
+    MeanTexel texelMeanOf(const std::optional<TextureData>& finest, AlphaScratch& scratch)
+    {
+        return finest.has_value() ? meanTexel(*finest, scratch) : MeanTexel();
     }
 }
