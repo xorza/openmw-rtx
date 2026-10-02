@@ -204,9 +204,9 @@ namespace Rtx
                 .mShape
                 = (mesh.mShape.mSheet ? Shaders::MESH_SHEET : 0u) | (mesh.mTangents ? Shaders::MESH_TANGENTS : 0u),
                 .mSecondTexCoordOffset
-                = mesh.mSecondTexCoords.empty() ? Shaders::NO_STREAM : mesh.mSecondTexCoords.mOffset,
+                = mesh.mSecondTexCoords.empty() ? Shaders::NO_RUN : mesh.mSecondTexCoords.mOffset,
                 .mUnitStreams = mesh.mUnitStreams,
-                .mBindOffset = mesh.deforms() ? mesh.mBindOffset : Shaders::NO_STREAM,
+                .mBindOffset = mesh.deforms() ? mesh.mBindOffset : Shaders::NO_RUN,
             };
         }
     }

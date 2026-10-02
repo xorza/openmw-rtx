@@ -441,11 +441,6 @@ namespace Rtx::Shaders
     /// see-through in it.
     const uint PEEL_LAYERS = 4u;
 
-    /// How many hit records each closest-hit shader stands behind: one for the eye's own hit and one
-    /// for each layer of the peel, so an instance's shader-table offset is its kind times this and a
-    /// trace adds the layer it is tracing for. `HitRecord` in `visibility.h` is what a record carries.
-    const uint HIT_RECORD_LAYERS = PEEL_LAYERS + 1u;
-
     /// A surface that is nowhere opaque, gathered as a depth along the ray rather than met.
     ///
     /// **Carried instead of the class bit and not beside it.** Only two rays want a medium: the shadow
@@ -574,7 +569,7 @@ namespace Rtx::Shaders
         uint mShape;
 
         /// Where this mesh's second set of texture coordinates begins in the blocks of their own,
-        /// or `NO_STREAM` for a mesh that brought none, which is nearly every mesh. Mesh-local, as
+        /// or `NO_RUN` for a mesh that brought none, which is nearly every mesh. Mesh-local, as
         /// `mVertexOffset` is: the vertex's index within the mesh is added to it.
         uint mSecondTexCoordOffset;
 
@@ -585,14 +580,15 @@ namespace Rtx::Shaders
         uint mUnitStreams;
 
         /// Where this mesh's posed vertices sit among the deforming meshes' — `Rtx::MeshRange::
-        /// mBindOffset`, the index the pose blocks are addressed by — or `NO_STREAM` for a mesh
+        /// mBindOffset`, the index the pose blocks are addressed by — or `NO_RUN` for a mesh
         /// that stands. What lets a hit on a body read where its triangle stood last frame: the
         /// one field a moving surface's motion cannot do without, and the sixth word of the row.
         uint mBindOffset;
     };
 
-    /// A mesh with no second set of texture coordinates.
-    const uint NO_STREAM = 0xFFFFFFFFu;
+    /// A run a mesh does not have: `GpuMesh::mSecondTexCoordOffset` for a mesh that brought no
+    /// second set of texture coordinates, and `GpuMesh::mBindOffset` for one that does not deform.
+    const uint NO_RUN = 0xFFFFFFFFu;
 
     /// A vertex's tangent as one word: the direction folded onto the octahedron, each of its two
     /// coordinates stepped to `2 * TANGENT_STEPS + 1` values in fifteen bits, the handedness of the
@@ -977,15 +973,6 @@ namespace Rtx::Shaders
     /// grows the buffer and the next frame is binned. `SpriteBin::record` says how the list
     /// is sized so that this is a rare frame and never a wrong one.
     const uint SPRITE_LIST_UNBINNED = 0u;
-
-    /// How much brighter the lit side of a puff is than its mean, and the far side darker.
-    ///
-    /// **A puff has no dark side and still has a lit one.** A cloud of droplets scatters the sun
-    /// through the whole of itself, which is why `puffLight` gives a puff a card's worth of the sun
-    /// rather than a sphere's quarter; but the side the sun is on is brighter than the side it is
-    /// not, and that is what makes a ball read as a ball. `1 + SPRITE_WRAP * dot(normal, toward)`
-    /// keeps the mean over the sphere where it was and puts three to one between front and back.
-    const float SPRITE_WRAP = 0.5;
 
     /// One particle system: what its sprites are drawn with, and a sphere that holds all of them,
     /// which is the whole spatial structure because one rejection throws a small emitter away for

@@ -77,6 +77,10 @@ namespace Rtx::Shaders
         uint mArms;
     };
 
+    /// How many records an eye's run holds: one for the eye's own hit and one for each layer of the
+    /// peel, which a trace adds to the run it is tracing through.
+    const uint HIT_RECORD_LAYERS = PEEL_LAYERS + 1u;
+
     /// How many eyes the launch casts through: the world's and the arms'.
     const uint HIT_RECORD_EYES = 2u;
 

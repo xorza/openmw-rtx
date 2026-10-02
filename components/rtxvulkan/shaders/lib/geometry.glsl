@@ -117,7 +117,7 @@ void triangleSecondUvs(GpuMesh mesh, uvec3 corner, out vec2 uv[3])
 /// Whether `unit` reads the mesh's second set — `GpuMesh::mUnitStreams` — and there is one.
 bool readsSecondUvs(GpuMesh mesh, uint unit)
 {
-    return mesh.mSecondTexCoordOffset != NO_STREAM && ((mesh.mUnitStreams >> unit) & 1u) != 0u;
+    return mesh.mSecondTexCoordOffset != NO_RUN && ((mesh.mUnitStreams >> unit) & 1u) != 0u;
 }
 
 /// The vertex normals of the triangle a hit landed on, in the mesh's own space and not yet unit:

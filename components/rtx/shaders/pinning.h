@@ -45,6 +45,7 @@ namespace Rtx::Shaders
 
 #ifdef RTX_HOST
     static_assert(sizeof(PinningCase) == 48, "PinningCase must be scalar-packed on every side");
+    static_assert(sizeof(PinningConstants) == 4, "PinningConstants must be scalar-packed on every side");
 }
 #endif
 

@@ -1094,6 +1094,15 @@ namespace Rtx::Shaders
     /// Six tenths is the cloud recipe's figure.
     const float SMOKE_ANISOTROPY = 0.6f;
 
+    /// How much brighter the lit side of a puff is than its mean, and the far side darker.
+    ///
+    /// **A puff has no dark side and still has a lit one.** A cloud of droplets scatters the sun
+    /// through the whole of itself, which is why `puffLight` gives a puff a card's worth of the sun
+    /// rather than a sphere's quarter; but the side the sun is on is brighter than the side it is
+    /// not, and that is what makes a ball read as a ball. `1 + SPRITE_WRAP * dot(normal, toward)`
+    /// keeps the mean over the sphere where it was and puts three to one between front and back.
+    const float SPRITE_WRAP = 0.5f;
+
     /// The most a shell of medium may be thickened by the angle the ray crosses it at.
     ///
     /// **A painted alpha is what one crossing square to the shell hides, and a slanted crossing goes

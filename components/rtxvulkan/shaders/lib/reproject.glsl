@@ -129,7 +129,7 @@ vec3 deformedBy(GpuInstance instance, GpuMesh mesh, uint primitive, vec2 bary, m
 {
     // Asked before the corners are looked up: most of the frame is a mesh that stands, and the
     // index block the corners come out of is a dependent load a mesh with no pose has no use for.
-    if (mesh.mBindOffset == NO_STREAM)
+    if (mesh.mBindOffset == NO_RUN)
         return vec3(0.0);
 
     const vec3 step = triangleDeformation(mesh, triangleCorners(mesh, primitive), bary);
