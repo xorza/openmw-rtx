@@ -24,6 +24,7 @@
 #include <osg/Vec3f>
 
 #include <apps/openmw/mwrender/rtx/rtxsettings.hpp>
+#include <apps/openmw/startup.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
@@ -41,7 +42,6 @@
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtxvulkan/createrenderer.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
-#include <components/settings/settings.hpp>
 #include <components/settings/values.hpp>
 
 #include "compare.hpp"
@@ -1276,8 +1276,7 @@ namespace RtxTool
 
             config.processPaths(variables, std::filesystem::current_path());
             config.readConfiguration(variables, options.mDescription);
-            Debug::setupLogging(config.getLogPath(), applicationName);
-            Settings::Manager::load(config);
+            OpenMW::startLogAndSettings(config, applicationName);
 
             const std::filesystem::path resources = variables["resources"].as<Files::MaybeQuotedPath>();
 

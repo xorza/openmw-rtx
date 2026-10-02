@@ -127,3 +127,7 @@ first review.
   draws it only into its distortion buffer. `apps/openmw/mwrender/distortion.cpp:11-38`.
 - With `distant land cells = 0` the reach takes `viewing distance` unclamped, past the documented
   ten-cell bound and the trace's 200 000-unit far plane. `components/rtx/mirror/cells/cellgrid.cpp:38-44`.
+- The harness starts with the crash catcher off (`OPENMW_DISABLE_CRASH_CATCHER` defaulted to `1` in
+  `apps/rtxtool/main.cpp`'s `main`), so a harness run that crashes or hangs writes no report unless
+  a shell asks for one. The comment's reason, a dialog waiting for a click, no longer holds: the
+  same `main` defaults `OPENMW_CRASH_DIALOG` to `0`.
