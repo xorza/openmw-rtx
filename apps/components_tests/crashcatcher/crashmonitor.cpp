@@ -91,8 +91,17 @@ namespace
         const std::string log = reinterpret_cast<const char*>(u8"C:/Users/Игрок/My Games/OpenMW/openmw.log");
         EXPECT_TRUE(game.setLogPath(log));
         EXPECT_EQ(monitor.getLogPath(), log);
-        EXPECT_FALSE(game.setLogPath(std::string(Crash::sLogPathCapacity + 1, 'x')));
+        EXPECT_FALSE(game.setLogPath(std::string(Crash::sPathCapacity + 1, 'x')));
         EXPECT_EQ(monitor.getLogPath(), log) << "a refused path left the one before";
+
+        // **And the folder the package goes to**, the same way and apart from the log.
+        EXPECT_EQ(monitor.getReportPath(), "");
+        const std::string folder = reinterpret_cast<const char*>(u8"D:/Spiele/Игрок/crashes");
+        EXPECT_TRUE(game.setReportPath(folder));
+        EXPECT_EQ(monitor.getReportPath(), folder);
+        EXPECT_EQ(monitor.getLogPath(), log) << "the folder wrote over the log";
+        EXPECT_FALSE(game.setReportPath(std::string(Crash::sPathCapacity + 1, 'x')));
+        EXPECT_EQ(monitor.getReportPath(), folder);
 
         EXPECT_EQ(Crash::SharedPage::open(id + 2).get(), nullptr);
     }

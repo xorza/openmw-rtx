@@ -48,6 +48,12 @@ namespace Crash
     /// where no catcher is installed.
     void setLogFile(const std::filesystem::path& log);
 
+    /// Where the monitor writes the session's package: the folder the player's configuration names,
+    /// known once it has been read, which is after `install`. Before this, and where a harness named
+    /// one through `OPENMW_CRASH_REPORTS`, the package goes beside Crashpad's dumps. Nothing where
+    /// no catcher is installed.
+    void setReportFolder(const std::filesystem::path& folder);
+
     /// How long without a heartbeat is a hang; nought, as it is until this is called, turns the
     /// check off. The watch begins at the first heartbeat, so a start that draws nothing for a
     /// while is no hang.
