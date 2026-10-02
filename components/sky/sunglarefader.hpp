@@ -5,8 +5,8 @@
 namespace Sky
 {
     /// The full-screen wash the sun lays over the picture as the eye turns toward it, as the content
-    /// sets it (`Weather_Sun_Glare_Fader_*`): read once for the rasterizer's `SunGlareCallback` and
-    /// the ray tracer's sky.
+    /// sets it (`Weather_Sun_Glare_Fader_*`), read as the rasterizer's `SunGlareCallback` reads it,
+    /// for the ray tracer's sky.
     struct SunGlareFader
     {
         /// `_Color` doubled and clamped to one. Replicating a design flaw in Morrowind, which set the
