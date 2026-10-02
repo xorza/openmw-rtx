@@ -165,6 +165,11 @@ namespace RtxTool
         return Pictured{ .mView = row->mView, .mFrame = row->mFrame };
     }
 
+    void FrameHashes::dropUnpictured()
+    {
+        std::erase_if(mFrames, [](const Frame& held) { return !held.mPictured; });
+    }
+
     std::size_t FrameHashes::countUnpictured() const
     {
         return static_cast<std::size_t>(

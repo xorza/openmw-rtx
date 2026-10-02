@@ -279,6 +279,12 @@ namespace RtxTool
             "--against={} is where this run writes; name another --out", Files::pathToUnicodeString(against)) };
     }
 
+    void clearPictures(const std::filesystem::path& out, const std::span<const WrittenPicture> pictures)
+    {
+        for (const WrittenPicture& picture : pictures)
+            std::filesystem::remove(out / picture.mFile);
+    }
+
     int compareRuns(const std::filesystem::path& wrote, const std::filesystem::path& against,
         const std::span<const WrittenPicture> pictures)
     {

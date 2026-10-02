@@ -85,6 +85,10 @@ namespace RtxTool
         /// file it under the frame the report will name.
         std::optional<Pictured> picture(const Rtx::FrameResult& finished);
 
+        /// Drops the rows whose picture will not come: what a run abandoned inside a stop leaves,
+        /// so that its record holds the frames it drew and nothing else.
+        void dropUnpictured();
+
         /// How many rows are noted and not yet pictured: what a stop that did not drain its ring
         /// leaves, and what `write` refuses to write.
         std::size_t countUnpictured() const;

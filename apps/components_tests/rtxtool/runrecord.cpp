@@ -1,4 +1,6 @@
 #include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -6,6 +8,8 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
 #include <components/files/conversion.hpp>
+#include <components/rtx/renderer/framedigest.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool
@@ -64,6 +68,41 @@ namespace RtxTool
                 std::string::npos)
                 << result.mReport;
             EXPECT_EQ(result.mReport.find("wrote"), std::string::npos) << result.mReport;
+        }
+
+        /// **A run that failed before its last stop is closed for the stops it reached.** It was
+        /// left open, and the record of the run before it stood at the path to be compared as this
+        /// one's. A frame noted and never pictured is dropped rather than written as a hash of
+        /// nothing, and the run fails.
+        TEST(RtxRunRecordTest, anAbandonedRunWritesWhatItReachedAndFails)
+        {
+            const std::filesystem::path hashes = TestingOpenMW::outputFilePath("abandoned-hashes.csv");
+            {
+                std::ofstream stale(hashes);
+                stale << "the run before\n";
+            }
+
+            RunRecord record;
+            record.getHashes().note("seyda-neen", 1, 10, ScenePartDigests{});
+            Rtx::FrameResult finished;
+            finished.mFrame = 10;
+            finished.mDigest = Rtx::FrameDigest{};
+            ASSERT_TRUE(record.getHashes().picture(finished).has_value());
+            record.getHashes().note("seyda-neen", 2, 11, ScenePartDigests{});
+
+            SessionRequest request;
+            request.mHashes = hashes;
+            record.abandon(request);
+
+            EXPECT_EQ(record.describe(nullptr).mExitStatus, 1);
+            EXPECT_EQ(record.getHashes().frameCount(), 1u) << "the frame whose picture never came";
+            EXPECT_NE(record.getReport().find("wrote 1 frame hashes"), std::string::npos) << record.getReport();
+
+            std::ostringstream read;
+            read << std::ifstream(hashes).rdbuf();
+            EXPECT_EQ(read.str().find("the run before"), std::string::npos) << read.str();
+            EXPECT_NE(read.str().find("seyda-neen,1,"), std::string::npos) << read.str();
+            std::filesystem::remove(hashes);
         }
     }
 }

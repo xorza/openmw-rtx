@@ -181,6 +181,11 @@ namespace RtxTool
     Misc::Result<void, std::string> checkAgainst(
         const std::filesystem::path& out, const std::filesystem::path& against);
 
+    /// Removes what an earlier run left at each of `pictures` under `out`, ahead of a run that
+    /// writes them: a picture this run does not reach then reads as missing, and never as the last
+    /// run's, which compared as the same.
+    void clearPictures(const std::filesystem::path& out, std::span<const WrittenPicture> pictures);
+
     /// Reads back what a run wrote and says what moved since `against`: a directory an earlier run
     /// wrote on this machine, never a corpus in the tree, because the picture is a function of the
     /// driver and the card as much as of the code. Each of `pictures` is looked for under `against`

@@ -77,6 +77,13 @@ namespace RtxTool
         /// against is what the run was asked for — and the request is this component's own.
         void finish(const SessionRequest& request);
 
+        /// Closes a run that failed before its last stop, for the stops it reached: the frames
+        /// whose pictures will not come are dropped, and the rest is closed as `finish` closes it.
+        ///
+        /// **Closed and not left open**, because a record that was not written leaves the last
+        /// run's at its path, to be compared as this one's.
+        void abandon(const SessionRequest& request);
+
         /// Everything a launcher reads back, with `left` where the eye was, or null where the run
         /// reached no place.
         ///
