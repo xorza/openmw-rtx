@@ -33,6 +33,8 @@ namespace Rtx
         return static_cast<std::uint32_t>(std::bit_width(std::max(width, height)));
     }
 
+    struct TexelLayout;
+
     /// The shape of a chain of mip levels: where each one sits and how big it is. The shape and not
     /// the texels, because four payloads build the same chain.
     struct MipPyramid
@@ -64,13 +66,13 @@ namespace Rtx
         }
 
         /// Lays out a chain from `width` by `height` down to one texel, and answers how many bytes
-        /// it needs at `stride` bytes a texel. Every level's offset is in that payload.
-        std::size_t layOutTo1x1(std::uint32_t width, std::uint32_t height, std::size_t stride);
+        /// it needs laid as `laid` says. Every level's offset is in that payload.
+        std::size_t layOutTo1x1(std::uint32_t width, std::uint32_t height, const TexelLayout& laid);
 
         /// Lays out one level per entry of `shape`, keeping their extents and renumbering their
-        /// offsets into a payload of `stride` bytes a texel, because the source's offsets are in
-        /// the source's payload. Answers how many bytes that needs.
-        std::size_t layOutLike(std::span<const MipLevel> shape, std::size_t stride);
+        /// offsets into a payload laid as `laid` says, because the source's offsets are in the
+        /// source's payload. Answers how many bytes that needs.
+        std::size_t layOutLike(std::span<const MipLevel> shape, const TexelLayout& laid);
     };
 
     /// Every format OpenSceneGraph decodes a texture into: the ones this renderer uploads first,

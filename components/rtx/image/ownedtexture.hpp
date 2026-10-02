@@ -17,6 +17,7 @@ namespace Rtx
     {
     public:
         static constexpr std::size_t sStride = 4;
+        static constexpr TexelLayout sLayout{ .mBytes = sStride };
 
         /// Lays out a chain from `width` by `height` down to one texel, and clears its bytes and
         /// its name — a name is the source's and does not survive being opened over.
