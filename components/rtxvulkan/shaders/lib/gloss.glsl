@@ -17,18 +17,13 @@
 #include "variants.glsl"
 
 /// The lobe's two integrals at a cosine to the eye and a perceptual roughness: the table's four
-/// nodes around the point blended, in the square root of the cosine — `Rtx::SpecularAlbedo::at`,
-/// which the tests hold this to.
+/// nodes around the point blended by `brdf.h`'s lookup, which `Rtx::SpecularAlbedo::at` reads too.
 vec2 specularAlbedoAt(float cosine, float roughness)
 {
-    const vec2 node = vec2(specularTableColumn(cosine), specularTableRow(roughness));
-    const uvec2 low = uvec2(node);
-    const uvec2 high = min(low + 1u, uvec2(SPECULAR_TABLE_SIZE - 1u));
-    const vec2 part = node - vec2(low);
-
-    return (specularAlbedoCell(low.x, low.y) * (1.0 - part.x) + specularAlbedoCell(high.x, low.y) * part.x)
-        * (1.0 - part.y)
-        + (specularAlbedoCell(low.x, high.y) * (1.0 - part.x) + specularAlbedoCell(high.x, high.y) * part.x) * part.y;
+    const SpecularTableTaps taps = specularTableTaps(cosine, roughness);
+    return specularTableBlend(taps, specularAlbedoCell(taps.mLeft, taps.mTop),
+        specularAlbedoCell(taps.mRight, taps.mTop), specularAlbedoCell(taps.mLeft, taps.mBottom),
+        specularAlbedoCell(taps.mRight, taps.mBottom));
 }
 
 /// What a glossy surface is to every light it is lit by, worked out once per surface: the lobe
