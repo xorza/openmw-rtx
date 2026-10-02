@@ -16,6 +16,7 @@ namespace OpenMW
     void startLogAndSettings(const Files::ConfigurationManager& config, std::string_view application)
     {
         Debug::setupLogging(config.getLogPath(), application);
+        Debug::setCrashReports(config.getUserDataPath());
         Log(Debug::Info) << Version::getOpenmwVersionDescription();
         Crash::annotate("version", Version::getOpenmwVersionDescription());
 

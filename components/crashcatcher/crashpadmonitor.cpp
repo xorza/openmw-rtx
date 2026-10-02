@@ -19,6 +19,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -68,6 +69,14 @@ namespace Crash
 
             /// The game's log, which it hands over through the page once it knows it; empty before.
             std::filesystem::path getLog() const { return Files::pathFromUnicodeString(mPage.getLogPath()); }
+
+            /// Where the session's package goes: the folder the game handed over, or beside the
+            /// dumps where it handed none.
+            std::filesystem::path getReportFolder() const
+            {
+                const std::string named = mPage.getReportPath();
+                return named.empty() ? mDatabase : Files::pathFromUnicodeString(named);
+            }
 
             SharedPage mPage;
             Monitor::GameProcess mGame;
@@ -445,8 +454,13 @@ namespace Crash
         /// shell shares. Where it is, and empty where none was written.
         std::filesystem::path packageSession(MonitorState& monitor, std::span<const std::filesystem::path> dumps)
         {
-            const SessionPackage package = writeSessionPackage(monitor.mDatabase, monitor.mApplication,
-                monitor.getLog(), dumps, Monitor::localTime(std::time(nullptr)));
+            // A folder the configuration names may not exist yet; one that cannot be made fails the
+            // package, which says so below.
+            const std::filesystem::path folder = monitor.getReportFolder();
+            std::error_code made;
+            std::filesystem::create_directories(folder, made);
+            const SessionPackage package = writeSessionPackage(
+                folder, monitor.mApplication, monitor.getLog(), dumps, Monitor::localTime(std::time(nullptr)));
 
             std::vector<std::string> lines;
             for (const std::filesystem::path& missing : package.mMissing)

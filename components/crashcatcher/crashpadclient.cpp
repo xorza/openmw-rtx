@@ -123,6 +123,14 @@ namespace Crash
         sPage.setLogPath(Files::pathToUnicodeString(log));
     }
 
+    void setReportFolder(const std::filesystem::path& folder)
+    {
+        if (!sInstalled)
+            return;
+
+        sPage.setReportPath(Files::pathToUnicodeString(folder));
+    }
+
     void setHangLimit(std::chrono::seconds limit)
     {
         if (Heartbeat* const page = sPage.get())

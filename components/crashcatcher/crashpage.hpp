@@ -10,9 +10,9 @@
 
 namespace Crash
 {
-    /// How many bytes of the game's log path the page holds, as UTF-8. A longer path is not
-    /// handed over, and the monitor then writes its summaries into the dump alone.
-    inline constexpr std::size_t sLogPathCapacity = 2048;
+    /// How many bytes of a path the page holds, as UTF-8: the game's log, and the folder its
+    /// packages go to. A longer path is not handed over, and the monitor then does without it.
+    inline constexpr std::size_t sPathCapacity = 2048;
 
     /// What the game and its monitor share while both run, read and written through
     /// `std::atomic_ref`: plain words, so both sides map the same bytes.
@@ -33,7 +33,13 @@ namespace Crash
         /// `mLogPath` name it. Stored after the bytes, so a length the monitor reads covers a path
         /// already written.
         alignas(std::atomic_ref<std::uint32_t>::required_alignment) std::uint32_t mLogPathLength;
-        char mLogPath[sLogPathCapacity];
+        char mLogPath[sPathCapacity];
+
+        /// The folder the player's configuration names for the session's package, as the log
+        /// path is handed over and after the same point: nought until then, and the monitor
+        /// writes the package beside Crashpad's dumps.
+        alignas(std::atomic_ref<std::uint32_t>::required_alignment) std::uint32_t mReportPathLength;
+        char mReportPath[sPathCapacity];
     };
 
     // An atomic that locks takes its lock in the process it runs in, which the other side never
@@ -55,11 +61,17 @@ namespace Crash
         Heartbeat* get() const { return static_cast<Heartbeat*>(mMemory.data()); }
 
         /// Hands the monitor the game's log, `log` in UTF-8, or says it cannot: no page, or a path
-        /// longer than `sLogPathCapacity`. Once, from the thread that sets up the log.
+        /// longer than `sPathCapacity`. Once, from the thread that sets up the log.
         bool setLogPath(std::string_view log) const;
 
         /// The log the game handed over, in UTF-8, or empty where it has handed none yet.
         std::string getLogPath() const;
+
+        /// Hands the monitor the folder the session's package goes to, as `setLogPath` hands the log.
+        bool setReportPath(std::string_view folder) const;
+
+        /// The folder the game handed over, in UTF-8, or empty where it has handed none.
+        std::string getReportPath() const;
 
     private:
         Platform::SharedMemory mMemory;
