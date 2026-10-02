@@ -179,7 +179,6 @@ namespace Rtx
     SceneHeld DeviceScene::describe() const
     {
         return SceneHeld{
-            .mBuilt = true,
             .mIdentity = mBuiltFrom,
             .mStructureRevision = mBuiltStructure,
             .mTextureCount = mTextures.getCount(),

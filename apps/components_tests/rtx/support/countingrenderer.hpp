@@ -55,7 +55,7 @@ namespace Rtx::Testing
             // What the backend does: the array is made again and ends where the scene's table
             // does, whatever it held before.
             countAt(slot) = static_cast<std::uint32_t>(scene.textures().getRows().size());
-            heldAt(slot) = { true, scene.getIdentity(), scene.getStructureRevision() };
+            heldAt(slot) = { scene.getIdentity(), scene.getStructureRevision() };
         }
 
         void extendScene(
@@ -81,10 +81,9 @@ namespace Rtx::Testing
         Rtx::SceneHeld describeHeld(Rtx::SceneSlot slot) const override
         {
             const Built& built = heldAt(slot);
-            return Rtx::SceneHeld{ .mBuilt = built.mBuilt,
-                .mIdentity = built.mIdentity,
-                .mStructureRevision = built.mRevision,
-                .mTextureCount = countAt(slot) };
+            return Rtx::SceneHeld{
+                .mIdentity = built.mIdentity, .mStructureRevision = built.mRevision, .mTextureCount = countAt(slot)
+            };
         }
 
         /// What the device refused, which a test fills to be what the next hand-over answers.
@@ -145,7 +144,6 @@ namespace Rtx::Testing
         /// What a slot was built from, which is what says whether an uploader may append.
         struct Built
         {
-            bool mBuilt = false;
             std::uint64_t mIdentity = 0;
             std::uint64_t mRevision = 0;
         };
