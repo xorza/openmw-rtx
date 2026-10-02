@@ -78,7 +78,7 @@ namespace Rtx
         , mRing(mDevice, mCounting || mStress != nullptr, mStress != nullptr ? mStress->getTickMs() : 0.0)
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
-        , mFrame(mDevice, mTracePasses)
+        , mFrame(mDevice, mTracePasses, sFrameSlots)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get())
         , mMedia(mDevice)
         , mGui(mDevice)

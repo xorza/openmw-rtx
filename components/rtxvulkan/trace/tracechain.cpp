@@ -23,14 +23,15 @@
 
 namespace Rtx
 {
-    TraceChain::TraceChain(const Device& device, const TracePasses& passes)
+    TraceChain::TraceChain(const Device& device, const TracePasses& passes, const std::uint32_t bins)
         : mDevice(device)
         , mPasses(passes)
-        , mBins([&](FrameSlot) {
-            return SpriteBin{ device, passes.mSpriteShade, passes.mSpriteBin };
-        })
         , mDenoise(device)
     {
+        assert(bins >= 1 && bins <= sFrameSlots && "a sprite bin past the frames in flight");
+        mBins.reserve(bins);
+        for (std::uint32_t at = 0; at < bins; ++at)
+            mBins.emplace_back(device, passes.mSpriteShade, passes.mSpriteBin);
     }
 
     void TraceChain::resize(const std::uint32_t width, const std::uint32_t height, const RadianceWidth radiance)
@@ -101,7 +102,8 @@ namespace Rtx
         // table by address, which it has once the table is taken; the shelter launch reads the
         // block and zeroes the drops under a roof in that table; and the shade and the bin read
         // what is left. Every launch after reads the same block, and the emitters' rows beside it.
-        SpriteBin& bin = mBins.at(inputs.mSubject.mTraceSlot);
+        assert(inputs.mSubject.mTraceSlot.get() < mBins.size() && "a trace slot this chain keeps no bin for");
+        SpriteBin& bin = mBins[inputs.mSubject.mTraceSlot.get()];
         const bool drawsSprites = inputs.mSubject.mDrawsSprites;
         SpriteSource sprites = inputs.mSubject.mScene->getBuffers().describeSprites(inputs.mSubject.mScene->getSlot());
         if (!drawsSprites)
