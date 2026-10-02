@@ -112,6 +112,7 @@ namespace Rtx
                 .mPresence = mPresence.get().addressFor(),
                 .mOrigin = origin,
                 .mCamera = camera,
+                .mFrame = SpriteBinPass::frameOf(camera),
                 .mCount = count,
                 .mCapacity = mListSize.getCapacity(),
                 .mPresenceCount = source.mPresenceCount,

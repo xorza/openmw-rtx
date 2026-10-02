@@ -33,32 +33,6 @@ layout(push_constant, scalar) uniform Push
     SpriteBinConstants bin;
 };
 
-/// The camera's axes, unit, beside the half-extents they were scaled by.
-///
-/// `makeCameraFromView` builds `mForward` unit and scales `mRight` and `mUp` by the image plane's
-/// half-width and half-height, so the three are mutually orthogonal and the two lengths are the
-/// only thing separating a direction from a screen coordinate.
-struct Frame
-{
-    vec3 mForward;
-    vec3 mRight;
-    vec3 mUp;
-    float mHalfWidth;
-    float mHalfHeight;
-};
-
-Frame frameOf(Camera camera)
-{
-    Frame frame;
-    frame.mForward = camera.mBasis.mForward;
-    frame.mHalfWidth = length(camera.mBasis.mRight);
-    frame.mHalfHeight = length(camera.mBasis.mUp);
-    frame.mRight = camera.mBasis.mRight / frame.mHalfWidth;
-    frame.mUp = camera.mBasis.mUp / frame.mHalfHeight;
-
-    return frame;
-}
-
 /// Where a coordinate on the image plane lands, in whole pixels and generously: moved by `axis`,
 /// where the eye's axis crosses the picture along the same axis (`Camera::mCentre`), as `rayAt`
 /// moves it back.
@@ -80,7 +54,7 @@ int toPixel(float coordinate, float axis, uint extent, float slack)
 /// own depth test is what rejects it, and this only has to be no tighter than that. **Off the frame
 /// and not clipped to it**, because a capsule is bounded by two of these and a rectangle clipped to
 /// nothing carries no side to union against.
-ivec4 orthographicPixels(vec3 centre, float radius, Frame frame)
+ivec4 orthographicPixels(vec3 centre, float radius, SpriteBinFrame frame)
 {
     const vec3 toward = centre - bin.mOrigin;
 
@@ -248,7 +222,7 @@ vec2 capsuleSpan(vec2 from, vec2 to, float radius, float halfExtent)
 /// ray meets the capsule only where both of its coordinates do. Orthographic, the rectangle around
 /// the two balls that cap it: a streak lying across the frame covers a long thin rectangle, and a
 /// ball holding the same two ends covers the square that rectangle sits in.
-TileRect capsuleTiles(Bound bound, Frame frame)
+TileRect capsuleTiles(Bound bound, SpriteBinFrame frame)
 {
     if (bin.mCamera.mOrthographic != 0u)
     {
@@ -264,8 +238,8 @@ TileRect capsuleTiles(Bound bound, Frame frame)
 
     const vec3 from = bound.mFrom - bin.mOrigin;
     const vec3 to = bound.mTo - bin.mOrigin;
-    const float fromDepth = dot(from, frame.mForward);
-    const float toDepth = dot(to, frame.mForward);
+    const float fromDepth = dot(from, bin.mCamera.mBasis.mForward);
+    const float toDepth = dot(to, bin.mCamera.mBasis.mForward);
 
     const vec2 sideways = capsuleSpan(vec2(dot(from, frame.mRight), fromDepth), vec2(dot(to, frame.mRight), toDepth),
         bound.mRadius, frame.mHalfWidth);
@@ -288,7 +262,7 @@ void markPresence(GpuPresence held, uint lane, uint across)
 
     const TileRect rect = (held.mKinds & PRESENCE_EVERYWHERE) != 0u
         ? tilesOf(ivec4(0, 0, int(bin.mCamera.mWidth) - 1, int(bin.mCamera.mHeight) - 1))
-        : capsuleTiles(Bound(held.mCentre, held.mCentre, held.mRadius, false), frameOf(bin.mCamera));
+        : capsuleTiles(Bound(held.mCentre, held.mCentre, held.mRadius, false), bin.mFrame);
     if (isEmpty(rect))
         return;
 
@@ -325,7 +299,7 @@ void main()
 
     // Every lane of the sprite works its rectangle out for itself: a dozen operations against a
     // shared-memory exchange and the barrier that would order it.
-    const TileRect rect = capsuleTiles(boundOf(held, emitter), frameOf(bin.mCamera));
+    const TileRect rect = capsuleTiles(boundOf(held, emitter), bin.mFrame);
 
     if (lane == 0u)
         SpriteRects(bin.mRects).at[sprite] = packSpriteRect(rect.mFrom, rect.mTo);
