@@ -34,12 +34,13 @@ namespace Rtx
             return (static_cast<std::size_t>(y) * Shaders::RIPPLE_GRID + static_cast<std::size_t>(x)) * 4;
         }
 
-        /// Presses `impulses` and steps `steps` sixtieths on the sky's clock, one record a step.
+        /// Presses `impulses` and steps `steps` sixtieths on the water's clock, one record a step.
         void run(RipplePass& ripples, CommandPool& pool, std::span<const RippleImpulse> impulses, const int steps)
         {
             const double sixtieth = 1.0 / static_cast<double>(Shaders::RIPPLE_STEP_RATE);
             pool.submitAndWait([&](VkCommandBuffer commands) {
-                // The first record stands the window and presses; each one after steps once.
+                // The first record stands the window and keeps the impulses, at a tick that steps
+                // nothing; each one after steps once, and the first step presses what was kept.
                 ripples.record(commands, FrameSlot{ 0 }, impulses, osg::Vec2f(0.0f, 0.0f), 0.0, nullptr);
                 for (int step = 1; step <= steps; ++step)
                     ripples.record(commands, FrameSlot{ 0 }, {}, osg::Vec2f(0.0f, 0.0f), step * sixtieth, nullptr);
@@ -71,15 +72,15 @@ namespace Rtx
             EXPECT_FLOAT_EQ(RipplePass::getExtent(), 2560.0f);
         }
 
-        /// One footfall at the eye presses a ring that spreads: after sixty steps there is slope
-        /// within the reach the springs' wave speed allows and none far beyond it, and the field
-        /// is as symmetric as the stamp was.
+        /// One footfall at the eye presses a ring that spreads: after sixty steps its front stands
+        /// where the springs' wave speed carried it and nothing stands far beyond, and the field is
+        /// as symmetric as the stamp was.
         ///
         /// **The reach is the springs' own number.** `applySprings` couples a texel to its four
-        /// neighbours at 0.28, which is a wave speed of `sqrt(0.28)` texels a step — 0.53 — so
-        /// sixty steps carry the front some thirty-two texels out from a ring five wide. Two
-        /// hundred texels out nothing has arrived, and at the axis the slope along it is nought
-        /// by symmetry.
+        /// neighbours at `RIPPLE_STIFFNESS`, 0.28, which is a wave speed of `sqrt(0.28)` texels a
+        /// step — 0.53 — so sixty steps carry the front some thirty-two texels past the ring. Two
+        /// hundred texels out nothing has arrived, and at the axis the slope along it is nought by
+        /// symmetry.
         TEST_F(RtxRipplePassTest, aFootfallPressesARingThatSpreadsAndStaysSymmetric)
         {
             RipplePass ripples(getDevice());
@@ -108,6 +109,28 @@ namespace Rtx
             EXPECT_GT(largestSlope, 1.0e-3f) << "no ring within forty texels";
             EXPECT_GT(largestCurvature, 1.0e-5f) << "no curvature within forty texels";
 
+            // **The front stands where the wave speed carried the ring.** The ring is 12 units
+            // across a radius, 4.8 texels of 2.5, and the stamp presses out to twice that. Its
+            // outermost crest is carried `sqrt(RIPPLE_STIFFNESS) * 60 = 31.75` texels, to 36.55: the
+            // last lobe of the slope above a tenth of the largest stands within two texels of it,
+            // the lattice's dispersion leaving the rest of the train behind. Past the rim carried
+            // as far, 41.35 texels, the slope is under a hundredth of the largest.
+            const float radius = footfall[0].mSize / Shaders::RIPPLE_TEXEL;
+            const float carried = std::sqrt(Shaders::RIPPLE_STIFFNESS) * 60.0f;
+            int front = 0;
+            for (int away = 1; away < 60; ++away)
+            {
+                const float here = std::abs(surface[texelOf(centre + away, centre)]);
+                const bool crest = here >= std::abs(surface[texelOf(centre + away - 1, centre)])
+                    && here >= std::abs(surface[texelOf(centre + away + 1, centre)]);
+                if (crest && here > 0.1f * largestSlope)
+                    front = away;
+            }
+            EXPECT_NEAR(static_cast<float>(front), carried + radius, 2.0f) << "the front's crest";
+            for (int away = static_cast<int>(std::ceil(carried + 2.0f * radius)); away <= 60; ++away)
+                EXPECT_LT(std::abs(surface[texelOf(centre + away, centre)]), 0.01f * largestSlope)
+                    << "a slope " << away << " texels out, past the rim";
+
             for (int away = 200; away <= 210; ++away)
             {
                 EXPECT_EQ(surface[texelOf(centre + away, centre)], 0.0f) << "a slope " << away << " texels out";
@@ -128,6 +151,31 @@ namespace Rtx
             const std::size_t at = texelOf(centre + 6, centre);
             const float slopeSquared = surface[at] * surface[at] + surface[at + 1] * surface[at + 1];
             EXPECT_NEAR(surface[at + 2], slopeSquared, 1.0e-3f * std::max(slopeSquared, 1.0e-3f));
+        }
+
+        /// **What a step presses is capped at what the buffer holds, oldest first**: one impulse
+        /// past `RIPPLE_IMPULSES_MOST` is dropped, and the water where it fell stays still. The
+        /// kept ones fall a hundred texels east, where the dropped one's ring could not reach.
+        TEST_F(RtxRipplePassTest, theImpulsesPastWhatTheBufferHoldsAreDropped)
+        {
+            RipplePass ripples(getDevice());
+
+            std::vector<RippleImpulse> impulses(Shaders::RIPPLE_IMPULSES_MOST,
+                RippleImpulse{ .mAt = osg::Vec2f(100.0f * Shaders::RIPPLE_TEXEL, 0.0f), .mSize = 12.0f });
+            impulses.push_back(RippleImpulse{ .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f });
+            run(ripples, getPool(), impulses, 10);
+
+            const std::vector<float> surface = Testing::readHalves(ripples.getSurface(), 0);
+            constexpr int centre = static_cast<int>(Shaders::RIPPLE_GRID / 2);
+            float near = 0.0f;
+            float kept = 0.0f;
+            for (int away = -10; away <= 10; ++away)
+            {
+                near = std::max(near, std::abs(surface[texelOf(centre + away, centre)]));
+                kept = std::max(kept, std::abs(surface[texelOf(centre + 100 + away, centre)]));
+            }
+            EXPECT_GT(kept, 0.0f) << "the kept impulses pressed nothing";
+            EXPECT_EQ(near, 0.0f) << "the one past the cap was pressed";
         }
 
         /// The window follows the eye by whole texels and the ring stays where it was pressed.
