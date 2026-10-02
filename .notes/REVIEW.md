@@ -185,7 +185,7 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
   - **Rasterizer:** `checkSupported` gates S3TC alone and hands every other format OpenSceneGraph decodes to GL.
   - **Ray tracer:** the byte formats (RGB8, BGR8, L8, LA8) are widened to RGBA8 as the sixteen-bit ones are. BC4, BC6H, BC7, sixteen bits a channel and float images still fall to `Unnamed`. A refused colour map is the grey stand-in; a refused sky deck leaves its weather with no clouds.
   - **In game:** a modern replacer's BC7 `.dds`, which draws as flat mid-grey under the ray tracer.
-  - **Better shape:** BC4 and BC7 are uploadable formats, core Vulkan block formats on every device the renderer targets. What the host reads of a texture's texels — the facts, the mean and the solid reach — then needs a decoder for each, as BC1 to BC5 have.
+  - **Better shape:** BC7 is an uploadable format, a core Vulkan block format on every device the renderer targets. What the host reads of a colour texture's texels — the facts, the mean and the solid reach — then needs a BC7 decoder, as BC1 to BC3 have. BC4 has no slot that would read it: the normal map is two channels and the specular map three.
   - *(kind: missing; severity: medium; benefit: mod textures stop drawing as grey)*
 - [ ] **A particle system without a file-backed texture is left out entirely** — `components/rtx/mirror/emitterresolver.cpp:53-70`, `:76-84`.
   - **Rasterizer:** draws an `osgParticle::ParticleSystem` whose state names no texture as untextured, vertex-coloured sprites. It draws one whose image was made in memory with that image.

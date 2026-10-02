@@ -100,6 +100,12 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   material bit or not, because the code sits in every shadow ray's candidate loop. A probe without
   it was level with the base. The hit and a medium's crossing read the dark map and the sheet; the
   cut reads the diffuse alpha alone. Which content the difference moves is not counted yet.
+- **Item 20: BC7 waits for a decoder.** The byte formats are widened now. A BC7 colour map uploads
+  as it is on every target card, but the host reads a colour texture's texels for its facts (the
+  mean, the solid reach) and the contact sheet, and BC7 has no host decoder here. Its partition
+  tables are spec data I did not want to write from memory; Mesa's
+  `src/mesa/main/texcompress_bptc_tmp.h` (MIT) holds a decoder. Your call whether to take its
+  tables (a licence note in `files/licenses/`) or have the facts of a BC7 texture be "unknown".
 - **Someone ran `git pull --rebase origin` on `refactor`** while the work ran, after two early
   commits (`a297255ebe`, `3de0c852f7`) reached `origin/refactor`. I left them and worked forward:
   `da36abeaa0` moves the test the first one put in the wrong binary.
