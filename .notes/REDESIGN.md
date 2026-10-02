@@ -169,6 +169,15 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   back one step and does not cut, and `set gamehour to 21` does. A rest, a wait, travel and jail
   were cuts already, through upstream's `notifyWorldSpaceChanged` in a non-incremental
   `advanceTime`. Say if you want every write to cut instead.
+- **W7: the exposure meter's dark edge moved interiors brighter.** `EXPOSURE_BLACK` (10^-4) sat
+  3.3 stops under the scale's bottom (2^-10), so that band was metered at the first bin's middle,
+  up to ten times too bright. One edge now: the scale reaches down to the black edge, at 2^-13
+  (within a third of a stop of 10^-4, and exact), so the band is metered as what it is. Nine
+  pictures moved, all interiors and night exteriors (`seyda-neen-customs`, `balmora-fog-night`,
+  `balmora-storm-night`, `balmora-mages-guild`, `wolverine-hall`, `addamasartus`, `arkngthand`,
+  `andrano-tomb`, `mournhold-arrival`), brighter: the guild's mean byte 47 → 65, the tomb's 55 →
+  65. The other way to one edge, black raised to 2^-10, ignores the band and darkens the same
+  places (the guild 47 → 31.5), which lost the room's detail. Say if you want that one.
 - **Coverage (high 5, W14.1): the plan's rule was measured and not taken.** The plan said a blend
   is a pane wherever one texel of its finest level is soft. Every DXT3 leaf, banner, rope and sail
   the game ships is soft at its anti-aliased edge (4-bit alpha, steps of 17), so the rule made them

@@ -49,20 +49,25 @@ namespace Rtx::Shaders
     /// disc no longer fits the half floats a shown frame is stored in.
     const float DAYLIGHT_GAIN = 10.0f;
 
-    /// Darkest luminance the histogram resolves, as a power of two. About a thousandth of mid grey,
-    /// which is below anything a lit surface reaches and well under an unlit interior.
-    const float MIN_LOG_LUMINANCE = -10.0f;
+    /// Darkest luminance the histogram resolves, as a power of two: about an eight-thousandth of
+    /// white, which is below anything a lit surface reaches and under the darkest corner of an
+    /// unlit interior that is still a picture.
+    const float MIN_LOG_LUMINANCE = -13.0f;
 
-    /// Brightest, as a power of two. Sixty-four times mid grey covers a flame seen directly, and the
+    /// Brightest, as a power of two. Sixty-four times white covers a flame seen directly, and the
     /// day's gain lifts every sunlit pixel past that by `DAYLIGHT_GAIN`: `6 + log2(DAYLIGHT_GAIN)`,
     /// written as a literal for the reason `portable.h` gives.
     const float MAX_LOG_LUMINANCE = 9.32192802f;
 
-    /// Where a pixel stops being binned and starts being counted as black.
+    /// Where a pixel stops being binned and starts being counted as black: the bottom of the scale,
+    /// `2^MIN_LOG_LUMINANCE`, written as the fraction it is exactly. **One edge and one number**:
+    /// a black threshold of 10^-4 under a scale that began at 2^-10 sent the band between them to
+    /// the lowest bin, metered at that bin's middle, up to ten times brighter than it was. The
+    /// scale reaches down to where black was, so that band is metered as what it is.
     ///
     /// Without it the dark areas of an interior pile into the lowest bin and drag the average down
     /// to meet them, and the exposure opens until the few lit surfaces are white.
-    const float EXPOSURE_BLACK = 0.0001f;
+    const float EXPOSURE_BLACK = 1.0f / 8192.0f;
 
     /// The luminance a correctly exposed mid grey sits at. Eighteen per cent is the photographic
     /// convention, and it is what puts an average scene in the middle of the curve rather than at
