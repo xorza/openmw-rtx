@@ -23,30 +23,48 @@ namespace Rtx
         osg::Vec3f looseTexel(const TextureData& texture, const MipLevel& level, const TexelLayout& layout,
             const std::uint32_t x, const std::uint32_t y)
         {
-            assert(layout.mBytes == 4 && "a loose texel read as four bytes that is not");
-            const std::size_t at = level.mOffset + (std::size_t{ y } * level.mWidth + x) * layout.mBytes;
-            const auto channel = [&](std::size_t offset) {
-                return std::to_integer<std::uint32_t>(texture.mBytes[at + offset]) / 255.0f;
-            };
-
-            // The two loose spellings differ only in which end the three colours are stated from,
-            // and a reader that took one order for both draws the sky with its red and blue swapped.
-            if (isBgr(texture.mFormat))
-                return osg::Vec3f(channel(2), channel(1), channel(0));
-
-            return osg::Vec3f(channel(0), channel(1), channel(2));
+            return looseColourAt(texture, looseOffset(level, layout, x, y));
         }
 
-        /// The block at `column` and `band`, counted in blocks. Its colour half is the last eight bytes
-        /// whichever format it is: BC2 and BC3 put their alpha in front of it and BC1 has none.
+        /// The block at `column` and `band`, counted in blocks.
         ColourBlock colourBlockAt(const TextureData& texture, const MipLevel& level, const TexelLayout& layout,
             const std::uint32_t column, const std::uint32_t band)
         {
-            const std::uint32_t columns = (level.mWidth + 3) / 4;
-            const std::size_t at
-                = level.mOffset + (std::size_t{ band } * columns + column) * layout.mBytes + (layout.mBytes - 8);
-            return ColourBlock::read(texture.mBytes.subspan(at).first<8>(), isBc1(texture.mFormat));
+            return ColourBlock::read(
+                colourHalfAt(texture.mBytes, blockOffset(level, layout, column, band), layout), isBc1(texture.mFormat));
         }
+    }
+
+    std::size_t blockOffset(
+        const MipLevel& level, const TexelLayout& layout, const std::uint32_t column, const std::uint32_t band)
+    {
+        const std::uint32_t columns = (level.mWidth + 3) / 4;
+        return level.mOffset + (std::size_t{ band } * columns + column) * layout.mBytes;
+    }
+
+    std::size_t looseOffset(
+        const MipLevel& level, const TexelLayout& layout, const std::uint32_t x, const std::uint32_t y)
+    {
+        return level.mOffset + (std::size_t{ y } * level.mWidth + x) * layout.mBytes;
+    }
+
+    std::span<const std::byte, 8> colourHalfAt(
+        const std::span<const std::byte> bytes, const std::size_t block, const TexelLayout& layout)
+    {
+        return bytes.subspan(block + (layout.mBytes - 8)).first<8>();
+    }
+
+    osg::Vec3f looseColourAt(const TextureData& texture, const std::size_t at)
+    {
+        assert(layoutOf(texture.mFormat).mBytes == 4 && "a loose texel read as four bytes that is not");
+        const auto channel
+            = [&](std::size_t offset) { return std::to_integer<std::uint32_t>(texture.mBytes[at + offset]) / 255.0f; };
+
+        // The two loose spellings differ only in which end the three colours are stated from.
+        if (isBgr(texture.mFormat))
+            return osg::Vec3f(channel(2), channel(1), channel(0));
+
+        return osg::Vec3f(channel(0), channel(1), channel(2));
     }
 
     bool readsColour(const TextureData& texture)

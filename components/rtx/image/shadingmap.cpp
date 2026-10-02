@@ -12,6 +12,7 @@
 
 #include "colour.hpp"
 #include "colourblock.hpp"
+#include "texels.hpp"
 #include "texturedata.hpp"
 
 namespace Rtx
@@ -68,37 +69,23 @@ namespace Rtx
             const TexelLayout layout = layoutOf(texture.mFormat);
             if (layout.isBlocked())
             {
-                const std::uint32_t bytes = layout.mBytes;
                 const std::uint32_t columns = (width + 3) / 4;
                 const std::uint32_t rows = (height + 3) / 4;
-
-                // BC2 and BC3 put eight bytes of alpha before the colour block; BC1 is colour alone.
-                const std::uint32_t colourAt = bytes - 8;
                 for (std::uint32_t row = 0; row < rows; ++row)
                     for (std::uint32_t column = 0; column < columns; ++column)
                     {
-                        const std::size_t at
-                            = level.mOffset + (std::size_t{ row } * columns + column) * bytes + colourAt;
-
                         // The block's own centre decides where it lands, so a block straddling a
                         // boundary is not split between two.
-                        sink(column * 4 + 2, row * 4 + 2,
-                            blockSum(texture.mBytes.subspan(at).first<8>(), isBc1(texture.mFormat), srgb));
+                        const std::span<const std::byte, 8> colour
+                            = colourHalfAt(texture.mBytes, blockOffset(level, layout, column, row), layout);
+                        sink(column * 4 + 2, row * 4 + 2, blockSum(colour, isBc1(texture.mFormat), srgb));
                     }
                 return;
             }
 
-            assert(layout.mBytes == 4 && "a loose texel read as four bytes that is not");
-            const std::size_t red = isBgr(texture.mFormat) ? 2 : 0;
             for (std::uint32_t y = 0; y < height; ++y)
                 for (std::uint32_t x = 0; x < width; ++x)
-                {
-                    const std::size_t at = level.mOffset + (std::size_t{ y } * width + x) * layout.mBytes;
-                    const auto channel = [&](std::size_t offset) {
-                        return std::to_integer<std::uint32_t>(texture.mBytes[at + offset]) / 255.0f;
-                    };
-                    sink(x, y, TexelSum{ linearOf(osg::Vec3f(channel(red), channel(1), channel(2 - red)), srgb), 1 });
-                }
+                    sink(x, y, TexelSum{ linearOf(looseColourAt(texture, looseOffset(level, layout, x, y)), srgb), 1 });
         }
     }
 
