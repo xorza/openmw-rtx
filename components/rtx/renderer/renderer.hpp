@@ -24,6 +24,7 @@
 #include <components/sdlutil/vsyncmode.hpp>
 
 #include "framedigest.hpp"
+#include "framesinflight.hpp"
 #include "guirenderer.hpp"
 #include "memoryreport.hpp"
 #include "pciaddress.hpp"
@@ -208,7 +209,7 @@ namespace Rtx
 
     /// Where the device spent a frame, in the order the work was recorded, or nothing where it
     /// cannot write timestamps. Owned by the report rather than borrowed from the timer that
-    /// measured it: with two frames in flight, the frame that takes this frame's slot begins its
+    /// measured it: with `sFramesInFlight` in flight, the frame that takes this frame's slot begins its
     /// timer before this report is read.
     class GpuZones
     {
@@ -416,7 +417,7 @@ namespace Rtx
 
         /// What the oldest unreported frame came to, waiting only where the ring has no room for
         /// the frame about to be placed, or nothing where none has finished. Before `placeScene`,
-        /// this is what keeps two frames in flight: the frame behind stays on the device while the
+        /// this is what keeps `sFramesInFlight` in flight: the frame behind stays on the device while the
         /// next is placed, and the report is the frame before it. `finishFrame` there instead waits
         /// the frame behind out on every frame, so the device idles from its last pass until the
         /// next placement is submitted — a gap a device-bound frame pays in full.

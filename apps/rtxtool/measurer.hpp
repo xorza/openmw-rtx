@@ -122,12 +122,15 @@ namespace RtxTool
 
             /// Which frame of the film each frame in flight is, by the backend's number: a picture
             /// comes back a frame or two after the frame it was traced as, and is numbered by that.
+            /// Room for one on the device in each slot and one finished in each that the ring has
+            /// not reported yet.
             struct FilmFrame
             {
                 std::uint64_t mFrame = 0;
                 std::uint32_t mNumber = 0;
             };
-            std::array<FilmFrame, 4> mFilmFrames{};
+            using FilmFrames = std::array<FilmFrame, 2 * Rtx::sFramesInFlight>;
+            FilmFrames mFilmFrames{};
             std::size_t mFilmPending = 0;
 
             /// How many measured frames the world stood paused on, and what paused it: noted on the

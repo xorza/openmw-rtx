@@ -723,7 +723,7 @@ namespace RtxTool
                 const Overlap& overlap = facts.mOverlap;
                 found = std::format(
                     "{:.2f} frames in flight at a submit, {} at the least", overlap.getMean(), overlap.mLeast);
-                return overlap.mFrames > 0 && overlap.mLeast == 2;
+                return overlap.mFrames > 0 && overlap.mLeast == Rtx::sFramesInFlight;
             }
 
             case Check::QueueHeld:
