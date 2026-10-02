@@ -18,10 +18,12 @@ namespace Rtx
         {
             const HeapUse& use = report.mHeaps[heap];
 
-            // The host-visible one is named, because it is the one that runs out on a card without
-            // resizable BAR — and the system's, because on such a card it is the largest of the
-            // three and read as video memory it is a card with more room than it has.
-            const char* const kind = use.mHostVisible ? "host-visible" : use.mDeviceLocal ? "device-only" : "system";
+            // **Both flags are named**, because resizable BAR makes the whole of video memory one
+            // heap the host writes into, and a label that read the host's flag alone called it the
+            // small window of a card without. The system's heap is named too, because on such a
+            // card it is the largest of the three and read as video memory it is a card with more
+            // room than it has.
+            const char* const kind = !use.mDeviceLocal ? "system" : use.mHostVisible ? "device+host" : "device-only";
             out += std::format("  heap {}  {:<12}  {:8.1f} MiB   reserved {:7.1f}   live {:7.1f}", heap, kind,
                 megabytes(use.mSize), megabytes(use.mReserved), megabytes(use.mLive));
 
