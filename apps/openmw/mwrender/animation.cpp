@@ -111,8 +111,8 @@ namespace
     public:
         void operator()(osg::Switch* node, osg::NodeVisitor* nv)
         {
-            unsigned int state = MWBase::Environment::get().getWorld()->getNightDayMode();
-            const unsigned int newState = node->getNumChildren() > state ? state : 0;
+            const unsigned int newState = Constants::nightDayChild(
+                MWBase::Environment::get().getWorld()->getNightDayMode(), node->getNumChildren());
 
             if (newState != mCurrentState)
             {
