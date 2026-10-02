@@ -86,6 +86,23 @@ namespace RtxTool
                 asJson(clock.mCore), asJson(clock.mMemory), asJson(clock.mTemperatureC), throttle);
         }
 
+        /// What the renderer was made with, as the report's header has it, one key a premise.
+        std::string asJson(const MWRender::RunSetup& setup)
+        {
+            const Rtx::RenderProfile& profile = setup.mProfile;
+            const Rtx::MirrorKnobs& mirror = setup.mMirror;
+            return std::format(R"(  "filter": {}, "jitter": {}, "delight": {:.3f}, "gamma": {:.3f}, "show": "{}", )"
+                               R"("exposure": {}, "exposureHeld": {}, "variants": {}, "holdMs": {:.3f},)"
+                               "\n"
+                               R"(  "landCells": {:.1f}, "viewingDistance": {:.1f}, "distantStatics": {}, "step": {}, )"
+                               R"("settled": {}, "memoryBudget": {},)",
+                profile.mReconstruction.mDenoise, profile.mReconstruction.mJitter, profile.mDelight, profile.mGamma,
+                Rtx::sSurfaceViewNames.name(profile.mShow), asJson(profile.mExposure.mFixed), profile.mExposure.mHeld,
+                profile.mSpecializeLaunches, profile.mStressOverlapMs, mirror.mReach.mCells,
+                mirror.mReach.mViewingDistance, mirror.mDistantStatics, asJson(setup.mStep), asJson(setup.mSettled),
+                asJson(setup.mMemoryBudget));
+        }
+
         /// Null where nothing looked, for the same reason; and in the record at all because a
         /// record is what a run on another commit is read against, and a run another process
         /// drew through is not the same run.
@@ -247,7 +264,62 @@ namespace RtxTool
         }
     }
 
-    std::string describePlace(const BenchPlace& place)
+    namespace
+    {
+        std::string describeExposure(const Rtx::ExposureRule& exposure)
+        {
+            if (exposure.mFixed.has_value())
+                return std::format("fixed at {:.3f}", *exposure.mFixed);
+            return exposure.mHeld ? "held" : "adapted";
+        }
+
+        std::string describeStep(const std::optional<float>& step)
+        {
+            return step.has_value() ? std::format("{:.4f} s", *step) : std::string("the wall");
+        }
+
+        std::string_view describeSettled(const std::optional<bool>& settled)
+        {
+            if (!settled.has_value())
+                return "as the step says";
+            return *settled ? "settled" : "streamed";
+        }
+
+        std::string describeBudget(const std::optional<std::uint64_t>& budget)
+        {
+            return budget.has_value() ? std::format("{} MiB", *budget / (1024 * 1024)) : std::string("none");
+        }
+    }
+
+    std::string describeHeader(const BenchHeader& header)
+    {
+        // **The build and the layers first, because either makes every figure below one not to
+        // quote**, and the command's own word on whether it measures beside them.
+        const Rtx::RenderProfile& profile = header.mSetup.mProfile;
+        const Rtx::MirrorKnobs& mirror = header.mSetup.mMirror;
+        std::string out = std::format("\nrun  {}, layers {}, {}{}{}\n",
+            header.mAsserts ? "a build with asserts, not one to quote" : "a release build",
+            header.mValidating ? "on, not a figure to quote" : "off", header.mMeasures ? "measured" : "not measured",
+            header.mHashed ? ", every frame hashed" : "", header.mTurnsWeather ? ", the weather turned" : "");
+        out += std::format("     {}x{} from {}x{}, upscale {}, filter {}, jitter {}, noise {}, level bias {:.3f}\n",
+            header.mExtents.mOutputWidth, header.mExtents.mOutputHeight, header.mExtents.mRenderWidth,
+            header.mExtents.mRenderHeight, Rtx::sUpscaleNames.name(header.mUpscale),
+            profile.mReconstruction.mDenoise ? "on" : "off", profile.mReconstruction.mJitter ? "on" : "off",
+            Rtx::sNoiseSourceNames.name(header.mNoise), header.mLevelBias);
+        out += std::format("     delight {:.2f}, gamma {:.2f}, show {}, exposure {}, variants {}, hold {}\n",
+            profile.mDelight, profile.mGamma, Rtx::sSurfaceViewNames.name(profile.mShow),
+            describeExposure(profile.mExposure), profile.mSpecializeLaunches ? "on" : "off",
+            profile.mStressOverlapMs > 0.0 ? std::format("{:.1f} ms", profile.mStressOverlapMs) : std::string("none"));
+        out += std::format(
+            "     land {:.1f} cells, viewing distance {:.0f}, distant statics {}, step {}, walks {}, "
+            "memory budget {}\n",
+            mirror.mReach.mCells, mirror.mReach.mViewingDistance, mirror.mDistantStatics ? "on" : "off",
+            describeStep(header.mSetup.mStep), describeSettled(header.mSetup.mSettled),
+            describeBudget(header.mSetup.mMemoryBudget));
+        return out;
+    }
+
+    std::string describePlace(const BenchPlace& place, const bool measured)
     {
         std::string out;
 
@@ -302,6 +374,8 @@ namespace RtxTool
             out += std::format("  {:.2f} frames in flight at a submit, {} at the least\n", place.mOverlap.getMean(),
                 place.mOverlap.mLeast);
 
+        if (!measured)
+            out += "  not a measurement: this command draws its frames to look at them, and times them as it goes\n";
         out += describeHeadings();
         for (const Rtx::Timing timing : Rtx::sTimings.values())
             out += describeTimes(std::format("{} ms", Rtx::sTimings.name(timing)), place.mRows[indexOf(timing)]);
@@ -384,6 +458,10 @@ namespace RtxTool
              << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", header.mMeasured, header.mWarmup,
                     header.mValidating)
              << '\n'
+             << std::format(R"(  "asserts": {}, "measures": {}, "hashed": {}, "turnsWeather": {},)", header.mAsserts,
+                    header.mMeasures, header.mHashed, header.mTurnsWeather)
+             << '\n'
+             << asJson(header.mSetup) << '\n'
              << R"(  "places": [)" << '\n';
 
         for (std::size_t at = 0; at < places.size(); ++at)

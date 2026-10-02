@@ -464,6 +464,7 @@ namespace RtxTool
             request.mStops = std::move(stops);
             request.mSetup = framed.mSetup;
             request.mPlayed = policy.mPlayed;
+            request.mMeasures = policy.mMeasures;
             request.mHud = variables["hud"].as<bool>();
             request.mSetup.mInterface = request.mPlayed || request.mHud;
             request.mVanity = variables["vanity"].as<bool>();

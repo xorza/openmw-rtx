@@ -30,6 +30,11 @@ namespace RtxTool
     public:
         void reserve(std::size_t places) { mPlaces.reserve(places); }
 
+        /// Takes the premises the run states before its first frame into the header: the build,
+        /// what the command measures and hashes, and what the renderer is made with. What only a
+        /// frame says — the extents, the reconstruction resolved — the first stop adds.
+        void begin(const SessionRequest& request);
+
         /// Whether no place has been measured yet, which is what says the header is still to be
         /// taken.
         bool empty() const { return mPlaces.empty(); }
@@ -38,7 +43,7 @@ namespace RtxTool
         /// at the first place, because every place of a run is traced by one renderer.
         BenchHeader& getHeader() { return mHeader; }
 
-        /// Takes one measured place, and prints it into the report.
+        /// Takes one measured place, and prints it into the report: under the header, for the first.
         void add(BenchPlace place);
 
         /// Adds to the report.
