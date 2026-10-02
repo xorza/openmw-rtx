@@ -137,6 +137,10 @@ namespace Rtx
         /// How many cells the prepared ring holds.
         std::size_t getHeldCellCount() const { return mPlacer.getHeldCount(); }
 
+        /// Whether the ground of the cell at `cell` stands in the top level, which is whether the
+        /// trace draws it — `CellPlacer::standsGround`.
+        bool standsGround(const osg::Vec2i& cell) const { return mPlacer.standsGround(cell); }
+
     private:
         bool handed(const osg::Vec2i& cell) const;
 

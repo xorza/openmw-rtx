@@ -99,6 +99,10 @@ namespace Rtx
         /// Whether a cell at `cell` is held.
         bool holds(const osg::Vec2i& cell) const { return mCells.contains(cell); }
 
+        /// Whether the ground of the cell at `cell` stands in the top level: held, read with land,
+        /// and in the reach.
+        bool standsGround(const osg::Vec2i& cell) const;
+
         /// Lets go of every held cell `keep` refuses: its placements out of the top level, then
         /// `letGo(cell)` — for what the ring lent it — then its ground and its rows, whose sweep
         /// after this walk frees them. The cell's vectors are kept for the next one.

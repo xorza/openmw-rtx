@@ -506,6 +506,12 @@ namespace Rtx
         return true;
     }
 
+    bool CellPlacer::standsGround(const osg::Vec2i& cell) const
+    {
+        const auto found = mCells.find(cell);
+        return found != mCells.end() && found->mGround.mStood.isStanding();
+    }
+
     bool CellPlacer::standsNoMore() const
     {
         std::uint32_t standing = 0;

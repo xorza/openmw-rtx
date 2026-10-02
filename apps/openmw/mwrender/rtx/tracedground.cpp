@@ -9,9 +9,14 @@ namespace MWRender
 {
     TracedGround::TracedGround(
         const GroundSpec& spec, Resource::SceneManager& scenes, const unsigned int nodeMask, WorldMirror& mirror)
-        : mTerrain(spec.mSceneRoot, spec.mWorldRoot, spec.mStorage, scenes, nodeMask, spec.mWorldspace)
+        : mTerrain(spec.mSceneRoot, spec.mWorldRoot, spec.mStorage, scenes, *this, nodeMask, spec.mWorldspace)
         , mMirror(mirror)
     {
+    }
+
+    bool TracedGround::standsGround(const osg::Vec2i& cell) const
+    {
+        return mMirror.getRing().standsGround(cell);
     }
 
     bool TracedGround::enableReference(int type, const MWWorld::ConstPtr& ptr, const bool enabled)
