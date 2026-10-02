@@ -1,4 +1,4 @@
-#include <components/sdlutil/sdlvideowrapper.hpp>
+#include <components/sdlutil/sdldisplay.hpp>
 
 #include <gtest/gtest.h>
 
@@ -12,7 +12,7 @@ namespace SDLUtil
         /// and left the window at one and a half times the resolution. At two it is 1920 by 1080, at
         /// one the pixels themselves, and at 1.25 a size that does not divide whole is the nearest
         /// point: 1366 / 1.25 = 1092.8, so 1093.
-        TEST(SDLUtilVideoWrapperTest, aWindowsPointsGiveThePixelsAskedForAtAnyDensity)
+        TEST(SDLUtilDisplayTest, aWindowsPointsGiveThePixelsAskedForAtAnyDensity)
         {
             EXPECT_EQ(windowPoints(3840, 1.5f), 2560);
             EXPECT_EQ(windowPoints(2160, 1.5f), 1440);
