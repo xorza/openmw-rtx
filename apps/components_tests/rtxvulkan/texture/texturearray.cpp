@@ -14,6 +14,7 @@
 #include <apps/components_tests/rtx/support/device/memorylimits.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/commands.hpp>
@@ -22,6 +23,7 @@
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
+#include <components/rtxvulkan/texture/texturecost.hpp>
 #include <components/rtxvulkan/texture/texturepasses.hpp>
 
 namespace Rtx
@@ -103,6 +105,15 @@ namespace Rtx
         /// is what the ladder itself comes to. A composite is 512 square with its chain, 349525 texels, 1400148 bytes
         /// with its map whatever the side — so a byte short of it and the ladder's least, the
         /// arrival fits nowhere and the ladder is held as though the composite were not there.
+        ///
+        /// **The companions and what a texture is made through count too.** The ladder as a normal
+        /// map brings a spread of half its side to one texel, a byte a texel, and the sixteen-byte
+        /// means it is built through: from 64, 32 square down is 1365 texels, 1365 + 21840 bytes
+        /// beside the 21504, 44709 in all; from 32, 341 texels and 5120, 10917; from 16, 85 texels
+        /// and 1024, 2469. A one-level 64 square the device completes is its chain to one texel,
+        /// 5461 texels and 21844 bytes, the 16384 bytes of the level uploaded to make it, and its
+        /// map, 40276 — whatever the side, because the file has no smaller level — and a bake of it
+        /// is the whole chain again with a map, 23892, and not its one level.
         TEST_F(RtxTextureArrayTest, anArrivalIsHeldToTheLargestSideItFitsTheRoomAt)
         {
             Device& device = getDevice();
@@ -119,9 +130,25 @@ namespace Rtx
             const TextureData composite{ .mSlot = 1, .mSource = TextureSource::GroundComposite, .mFrom = 0 };
             const TextureData bake{ .mSlot = 2, .mSource = TextureSource::SpriteBake, .mFrom = 0 };
 
+            Testing::TestTexture normals;
+            Testing::paintLevels(normals, 64, 64, 3, "normals");
+            normals.mData.mEncoding = TextureEncoding::Normal;
+            Testing::TestTexture completed;
+            Testing::paintLevels(completed, 64, 64, 1, "completed");
+            completed.mData.mCompleteChain = true;
+
             const std::array alone{ ladder.mData };
             const std::array ground{ ladder.mData, composite };
             const std::array baked{ ladder.mData, bake };
+            const std::array spread{ normals.mData };
+            const std::array chained{ completed.mData, bake };
+
+            const TextureCost atTop = priceFile(normals.mData, 0);
+            EXPECT_EQ(atTop.mImage, 21504u);
+            EXPECT_EQ(atTop.mCompanion, 1365u);
+            EXPECT_EQ(atTop.mTransient, 21840u);
+            EXPECT_EQ(atTop.standing(), 21504u + 1365u) << "a standing texture keeps no means";
+            EXPECT_EQ(priceFile(completed.mData, 0).mTransient, 16384u);
 
             struct Case
             {
@@ -146,6 +173,14 @@ namespace Rtx
                 Case{ baked, 23552 + 23551, 32 },
                 Case{ baked, 7168 + 7168, 32 },
                 Case{ baked, 7168 + 7167, 16 },
+                Case{ spread, 44709, limit },
+                Case{ spread, 44708, 32 },
+                Case{ spread, 10917, 32 },
+                Case{ spread, 10916, 16 },
+                Case{ spread, 2469, 16 },
+                Case{ spread, 2468, 1 },
+                Case{ chained, 40276 + 23892, limit },
+                Case{ chained, 40276 + 23891, 1 },
             };
 
             for (const Case& one : cases)
