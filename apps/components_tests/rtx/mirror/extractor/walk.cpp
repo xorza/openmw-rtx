@@ -1,6 +1,8 @@
+#include <array>
 #include <cstddef>
 #include <optional>
 #include <span>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -575,6 +577,51 @@ namespace Rtx::Testing
             ASSERT_EQ(coords.size(), 4u);
             EXPECT_EQ(coords[1], osg::Vec2f(1.0f, 0.5f)) << "a pair per vertex is read";
             EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 1u) << "three components are no texture coordinate";
+        }
+
+        /// **A node the game says jumped stands its placements with no motion**, and its siblings
+        /// keep theirs: the crate taken across the room in one step reprojects nothing from where it
+        /// stood, and the crate pushed beside it reprojects its push. Told for one walk, the jump is
+        /// that walk's: the next move of the same crate is motion again.
+        TEST_F(RtxSceneExtractorTest, aJumpedNodeStandsWithNoMotionAndItsSiblingMovesAsBefore)
+        {
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            osg::ref_ptr<osg::MatrixTransform> jumper = new osg::MatrixTransform(osg::Matrix::translate(1.0, 0.0, 0.0));
+            osg::ref_ptr<osg::MatrixTransform> walker = new osg::MatrixTransform(osg::Matrix::translate(0.0, 1.0, 0.0));
+            jumper->addChild(makeQuad());
+            walker->addChild(makeQuad());
+            root->addChild(jumper);
+            root->addChild(walker);
+
+            walk(*root);
+            ASSERT_EQ(mScene.placements().getRows().size(), 2u);
+            mScene.placements().advance();
+
+            jumper->setMatrix(osg::Matrix::translate(4000.0, 0.0, 0.0));
+            walker->setMatrix(osg::Matrix::translate(0.0, 2.0, 0.0));
+            const std::array<const osg::Node*, 1> jumped{ jumper.get() };
+            mExtractor.setJumped(jumped);
+            mScene.clearPlacement();
+            walk(*root, 0, 1);
+
+            const auto rowAt = [&](const osg::Vec3f& where) -> const PlacementRow& {
+                for (const PlacementRow& row : mScene.placements().getRows())
+                    if (row.mInstance.mTransform.getTrans() == where)
+                        return row;
+                throw std::runtime_error("no placement stands there");
+            };
+            EXPECT_EQ(rowAt(osg::Vec3f(4000.0f, 0.0f, 0.0f)).mPrevious.getTrans(), osg::Vec3f(4000.0f, 0.0f, 0.0f))
+                << "the jump carried its step as motion";
+            EXPECT_EQ(rowAt(osg::Vec3f(0.0f, 2.0f, 0.0f)).mPrevious.getTrans(), osg::Vec3f(0.0f, 1.0f, 0.0f))
+                << "a sibling of the jump lost its motion";
+            mScene.placements().advance();
+
+            jumper->setMatrix(osg::Matrix::translate(4001.0, 0.0, 0.0));
+            mExtractor.setJumped({});
+            mScene.clearPlacement();
+            walk(*root, 0, 2);
+            EXPECT_EQ(rowAt(osg::Vec3f(4001.0f, 0.0f, 0.0f)).mPrevious.getTrans(), osg::Vec3f(4000.0f, 0.0f, 0.0f))
+                << "a jump outlived the walk it was told for";
         }
     }
 }

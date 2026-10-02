@@ -187,6 +187,13 @@ namespace Rtx
         /// masks they were authored with. Saved and restored around a descent, as `mPathHash` is.
         InstanceClass mClass = InstanceClass::Static;
 
+        /// Whether a node the extractor was told jumped stands over the node being walked, carried
+        /// down as the class is.
+        bool mJumping = false;
+
+        /// `SceneExtractor::setJumped`, read once at `begin`.
+        std::span<const osg::Node* const> mJumped;
+
         /// The effect the walk is inside, as an index into the extractor's glows, or nothing.
         /// Opened where the class first turns `Effect` and carried down as the class is: an effect
         /// stated anywhere under an effect is the outer one's.
@@ -259,9 +266,11 @@ namespace Rtx
         // them.
         mClass = InstanceClass::Static;
         mGlow.reset();
+        mJumping = false;
 
         mStampDepth = mExtractor.mStampDepth;
         mEye = mExtractor.mEye;
+        mJumped = mExtractor.mJumped;
         setTraversalMask(mExtractor.mTraversalMask);
 
         // The mirror's own sequence and never the game's. What this walk runs — the controllers
@@ -328,6 +337,8 @@ namespace Rtx
 
         const InstanceClass outerClass = mClass;
         const std::optional<std::size_t> outerGlow = mGlow;
+        const bool outerJumping = mJumping;
+        mJumping = mJumping || std::ranges::find(mJumped, &node) != mJumped.end();
         // **A first-person root keeps its subtree whatever is marked inside it**: the rasterizer
         // draws everything under the arms at their field of view and over everything, a spell's
         // swirl on the hands included, and the arms' eye is what traces that class.
@@ -344,6 +355,7 @@ namespace Rtx
 
         mClass = outerClass;
         mGlow = outerGlow;
+        mJumping = outerJumping;
         mPathHash = above;
         --mDepth;
         mShading.resize(held);
@@ -484,7 +496,8 @@ namespace Rtx
                 pushShading(*animated, true);
         }
 
-        mExtractor.addDrawable(drawable, identityWith(mPathHash, mChildIndex), mShading, placed(), mClass, mGlow);
+        mExtractor.addDrawable(
+            drawable, identityWith(mPathHash, mChildIndex), mShading, placed(), mClass, mGlow, mJumping);
 
         mShading.resize(held);
     }
@@ -715,7 +728,7 @@ namespace Rtx
 
     void SceneExtractor::addDrawable(const osg::Drawable& drawable, const std::size_t who,
         const std::span<const Shading> shading, const osg::Matrixf& place, const InstanceClass what,
-        const std::optional<std::size_t> glow)
+        const std::optional<std::size_t> glow, const bool jumped)
     {
         ExtractionStats& stats = mPass.getStats();
 
@@ -799,7 +812,10 @@ namespace Rtx
             return;
         }
 
-        mScene.placements().move(slot, place);
+        if (jumped)
+            mScene.placements().jump(slot, place);
+        else
+            mScene.placements().move(slot, place);
         mScene.placements().fade(slot, fade);
     }
 

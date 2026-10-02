@@ -153,6 +153,14 @@ namespace MWWorld
 
         void updateSoundListener();
 
+        /// `moveObject`, saying whether the reference was put somewhere else in one step rather
+        /// than walked there, which is what `RenderingManager::notifyJumped` is told.
+        Ptr moveObject(const Ptr& ptr, CellStore* newCell, const osg::Vec3f& position, bool movePhysics,
+            bool keepActive, bool jumps);
+
+        /// The cell a move to `position` lands `ptr` in.
+        CellStore* cellForMove(const Ptr& ptr, const osg::Vec3f& position, bool moveToActive);
+
         /// Tells the renderer a cut where the write of the hour that just took the clock from
         /// `before` jumped it.
         void noteHourWritten(float before);

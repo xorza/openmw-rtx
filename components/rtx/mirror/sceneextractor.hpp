@@ -117,6 +117,13 @@ namespace Rtx
         /// hands `computeMatrixForFrame` instead.
         void setEye(const std::optional<ViewBasis>& eye) { mEye = eye; }
 
+        /// The nodes the game put somewhere else in one step since the last walk — a door, a
+        /// teleport — whose placements the walks that follow stand with no motion
+        /// (`PlacementTable::jump`), so a history from where they stood is refused where they
+        /// stand. Told per walk, as the eye is, and kept alive by the caller over the walks it is
+        /// told for.
+        void setJumped(std::span<const osg::Node* const> jumped) { mJumped = jumped; }
+
         /// The world's clock, in seconds, once per frame: what everything the graph animates is
         /// driven by. `SceneUtil::FrameTimeSource` reads the simulation time off the visitor's frame
         /// stamp, so a mirror with a clock of its own would run the game's fires while the game is
@@ -272,8 +279,9 @@ namespace Rtx
         /// `osg::Drawable` over a source geometry — the bind pose — beside the rig that poses it.
         ///
         /// @param glow the effect the drawable stands under, where the walk is inside one.
+        /// @param jumped whether the drawable stands under a node `setJumped` named.
         void addDrawable(const osg::Drawable& drawable, std::size_t who, std::span<const Shading> shading,
-            const osg::Matrixf& place, InstanceClass what, std::optional<std::size_t> glow);
+            const osg::Matrixf& place, InstanceClass what, std::optional<std::size_t> glow, bool jumped);
 
         /// The state set a node shades with where that is not the one it wears, or null where it
         /// is — `MaterialResolver::animate`, which says what the two cases are. Applied here rather
@@ -337,6 +345,9 @@ namespace Rtx
 
         /// See `setEye`.
         std::optional<ViewBasis> mEye;
+
+        /// See `setJumped`.
+        std::span<const osg::Node* const> mJumped;
 
         /// Every effect this walk entered, in the order it entered them. Which of them the walk
         /// is inside is the traversal's, carried down the subtree beside the class. Reserved once,

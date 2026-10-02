@@ -1005,11 +1005,25 @@ namespace Rtx
 
             // A move and a fade in the same frame are one row, named once: it is written whole, so a
             // second name would write it again for nothing.
+            const osg::Matrixf stood = scene.placements().getRows()[two].mInstance.mTransform;
             scene.placements().move(two, osg::Matrixf::translate(0.0f, 0.0f, 5.0f));
             scene.placements().fade(two, 0.25f);
             EXPECT_EQ(sorted(scene.placements().getMoved()), (std::vector<Index>{ two }));
+            EXPECT_EQ(scene.placements().getRows()[two].mPrevious, stood) << "a move forgot where it was";
             scene.placements().advance();
             EXPECT_EQ(sorted(scene.placements().getSettled()), (std::vector<Index>{ two }));
+
+            // **A jump is a row to write with no motion**: where the slot stood is where it stands,
+            // so a history at its new pixels is refused. A jump to where it stands is nothing.
+            const osg::Matrixf landed = osg::Matrixf::translate(4000.0f, 0.0f, 5.0f);
+            EXPECT_TRUE(scene.placements().jump(two, landed));
+            EXPECT_EQ(sorted(scene.placements().getMoved()), (std::vector<Index>{ two }));
+            EXPECT_EQ(scene.placements().getRows()[two].mInstance.mTransform, landed);
+            EXPECT_EQ(scene.placements().getRows()[two].mPrevious, landed) << "a jump carried its step as motion";
+            scene.placements().advance();
+            EXPECT_FALSE(scene.placements().jump(two, landed));
+            EXPECT_TRUE(scene.placements().getMoved().empty());
+            scene.placements().advance();
 
             // A dropped slot is a row to write inactive, and the slot it frees is the next
             // placement's — both reported, on the frames they happen.

@@ -73,6 +73,12 @@ namespace Rtx
         /// as `fade` is.
         bool move(Index slot, const osg::Matrixf& transform);
 
+        /// Puts the placement in `slot` at `transform` as though it had always stood there: no
+        /// motion, so a history at its new pixels is the old place's and is refused. What the game
+        /// put somewhere else in one step — a door, a teleport — and not what walked there. The
+        /// walk's alone, as `move` is.
+        bool jump(Index slot, const osg::Matrixf& transform);
+
         /// Says every row wearing `material` now wears `worn` and has to be written again — the
         /// material changed what traversal is told about the surfaces standing on it. The
         /// placements that wear it and no other: a list per material is threaded through the
