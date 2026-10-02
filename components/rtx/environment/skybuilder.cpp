@@ -48,77 +48,84 @@ namespace Rtx
 
     }
 
-    std::uint32_t SkyContent::cloudsOf(std::uint32_t weather) const
+    std::uint32_t SkyContent::sheetNamed(std::string_view name) const
     {
-        if (weather >= mClouds.size() || mClouds[weather] == sNoIndex)
-            return Shaders::NO_TEXTURE;
+        if (name.empty())
+            return sNoSheet;
 
-        return static_cast<std::uint32_t>(mClouds[weather]);
+        const auto found = std::find_if(
+            mSheets.begin(), mSheets.end(), [&](const CloudSheet& sheet) { return sheet.mName == name; });
+        return found != mSheets.end() ? static_cast<std::uint32_t>(found - mSheets.begin()) : sNoSheet;
     }
 
-    float SkyContent::meanOf(std::uint32_t weather) const
+    const CloudSheet* SkyContent::drawable(std::uint32_t sheet) const
     {
-        return weather < mCloudMean.size() ? mCloudMean[weather] : 0.0f;
+        if (sheet >= mSheets.size() || mSheets[sheet].mTexture == sNoIndex)
+            return nullptr;
+
+        return &mSheets[sheet];
     }
 
-    float SkyContent::coverOf(std::uint32_t weather) const
+    std::uint32_t addCloudSheet(SceneDesc& scene, Resource::SceneManager& scenes, ImageFactCache& facts,
+        std::vector<TextureHold>& holds, std::string_view name, SkyContent& content)
     {
-        return weather < mCloudCover.size() ? mCloudCover[weather] : 0.0f;
+        const auto at = static_cast<std::uint32_t>(content.mSheets.size());
+        CloudSheet& sheet = content.mSheets.emplace_back(CloudSheet{ .mName = std::string(name) });
+        const VFS::Manager& vfs = *scenes.getVFS();
+
+        // `Morrowind.ini` spells every deck `.tga` and every one ships as `.dds`, so a name joined
+        // by hand leaves the two weathers an importer writes with no deck, in silence.
+        // `correctTexturePath` is the same question `mwrender/sky.cpp` asks.
+        const VFS::Path::Normalized path
+            = Misc::ResourceHelpers::correctTexturePath(VFS::Path::toNormalized(name), vfs);
+        if (!vfs.exists(path))
+        {
+            scene.refusals().refuse(Refused::SkyLayer, path.value(), "the archives hold no such file");
+            return at;
+        }
+
+        // Opened and asked here, where the deck's mean and cover are read off the image anyway: a
+        // sheet the upload cannot take is refused as the sky layer it is, and takes no slot to
+        // stand in, which the device would read as no deck.
+        const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> image
+            = openImage(*scenes.getImageManager(), path);
+        if (!image.isOk())
+        {
+            scene.refusals().refuse(Refused::SkyLayer, path.value(), image.error());
+            return at;
+        }
+        if (const Misc::Result<void, std::string> uploadable = checkUploadable(*image.value()); !uploadable.isOk())
+        {
+            scene.refusals().refuse(Refused::SkyLayer, path.value(), uploadable.error());
+            return at;
+        }
+
+        TextureHold deck = scene.takeTexture(path, *image.value());
+        sheet.mTexture = deck.get();
+        holds.push_back(std::move(deck));
+
+        // Averaging a 512-square sheet is a quarter of a million texels; the image is the one the
+        // upload is about to take out of the same cache.
+        const MeanTexel& painted = facts.meanOf(*image.value());
+        sheet.mMean = painted.opaque() * Shaders::LUMINANCE_WEIGHTS;
+        sheet.mCover = painted.mAlpha;
+        return at;
     }
 
     SkyContent addSkyContent(SceneDesc& scene, Resource::SceneManager& scenes, const SkyMeshes& meshes,
         ImageFactCache& facts, std::vector<TextureHold>& holds)
     {
-        const VFS::Manager& vfs = *scenes.getVFS();
-
         SkyContent loaded;
 
+        // Every weather's sheet now, under a megabyte for all ten, so a storm arriving costs no
+        // upload. Empty where the weather names none, which the shipped fallbacks do for ash and
+        // blight; named once where two weathers share one.
         for (std::uint32_t weather = 0; weather < sWeatherCount; ++weather)
         {
-            // A bare file name the archive holds under `textures/`, and empty where the weather
-            // names none, which the shipped fallbacks do for ash and blight.
             const std::string_view sheet
                 = Fallback::Map::getString("Weather_" + std::string(weatherName(weather)) + "_Cloud_Texture");
-            if (sheet.empty())
-                continue;
-
-            // `Morrowind.ini` spells every deck `.tga` and every one ships as `.dds`, so a name
-            // joined by hand leaves the two weathers an importer writes with no deck, in silence.
-            // `correctTexturePath` is the same question `mwrender/sky.cpp` asks.
-            const VFS::Path::Normalized path
-                = Misc::ResourceHelpers::correctTexturePath(VFS::Path::toNormalized(sheet), vfs);
-            if (!vfs.exists(path))
-            {
-                scene.refusals().refuse(Refused::SkyLayer, path.value(), "the archives hold no such file");
-                continue;
-            }
-
-            // Opened and asked here, where the deck's mean and cover are read off the image anyway:
-            // a sheet the upload cannot take is left out here, refused as the sky layer it is, and
-            // takes no slot to stand in, which the device would read as no deck.
-            const Misc::Result<osg::ref_ptr<const osg::Image>, std::string> image
-                = openImage(*scenes.getImageManager(), path);
-            if (!image.isOk())
-            {
-                scene.refusals().refuse(Refused::SkyLayer, path.value(), image.error());
-                continue;
-            }
-            if (const Misc::Result<void, std::string> uploadable = checkUploadable(*image.value()); !uploadable.isOk())
-            {
-                scene.refusals().refuse(Refused::SkyLayer, path.value(), uploadable.error());
-                continue;
-            }
-
-            TextureHold deck = scene.takeTexture(path, *image.value());
-            loaded.mClouds[weather] = deck.get();
-            holds.push_back(std::move(deck));
-
-            // Read here and not on the frame that needs it. Averaging a 512-square sheet is a
-            // quarter of a million texels, and there are six of them; the image is the one the
-            // upload is about to take out of the same cache.
-            const MeanTexel& painted = facts.meanOf(*image.value());
-            loaded.mCloudMean[weather] = painted.opaque() * Shaders::LUMINANCE_WEIGHTS;
-            loaded.mCloudCover[weather] = painted.mAlpha;
+            if (!sheet.empty() && loaded.sheetNamed(sheet) == sNoSheet)
+                addCloudSheet(scene, scenes, facts, holds, sheet, loaded);
         }
 
         // The shape the deck hangs on is the mesh's, both of its numbers: how high the layer is
@@ -171,40 +178,36 @@ namespace Rtx
 
     Shaders::CloudDeck describeClouds(const CloudCrossing& clouds, const DeckLight& light, const SkyContent& textures)
     {
-        const std::uint32_t weather = clouds.mWeather;
-        const std::uint32_t next = clouds.mNext;
         const float blend = clouds.mBlend;
-        const osg::Vec3f& storm = clouds.mDirection;
-        const osg::Vec3f& nextStorm = clouds.mNextDirection;
-        const float scroll = clouds.mScroll;
-        const std::uint32_t slot = textures.cloudsOf(weather);
 
         // Cleaned where it enters, by the reader that takes it off the weather (`SkyReader::read`):
         // the builder is handed a share and never a content file's division.
         assert(blend >= 0.0f && blend <= 1.0f && "a cloud blend the reader did not clean");
 
-        // The level the sheet is read against crosses with the sheet, and falls back the way it
-        // does. Where the weather ahead names no deck the near sheet stands at both ends of the
-        // blend, on its own bearing, so what the shader reads is that sheet alone and so is the
-        // mean it is read against — and the shader mixes unconditionally, because this is where
-        // the fallback is made.
-        const std::uint32_t ahead = textures.cloudsOf(next);
-        const bool crosses = ahead != Shaders::NO_TEXTURE;
+        // **The four cases the rasterizer's two meshes make**: the near sheet at `1 - blend` and the
+        // one ahead at `blend`. Both, and they cross. The near one alone, and it stands at both ends
+        // of the blend on its own bearing, its mean the one it is read against. The one ahead
+        // alone — out of ash into clear — and it fades in by the blend, standing at both ends on
+        // its bearing. Neither, and there is no deck; nor is there where the mesh gave up no shape.
+        const CloudSheet* const near = textures.drawable(clouds.mSheet);
+        const CloudSheet* const ahead = textures.drawable(clouds.mNext);
+        const CloudSheet* const first = near != nullptr ? near : ahead;
+        const CloudSheet* const second = ahead != nullptr ? ahead : near;
+        const bool crosses = near != nullptr && ahead != nullptr;
+        const bool shaped = textures.mShell.mTiles.x() > 0.0f;
         const auto crossing = [&](float from, float to) { return crosses ? from * (1.0f - blend) + to * blend : from; };
 
-        const float mean = crossing(textures.meanOf(weather), textures.meanOf(next));
-        const float cover = crossing(textures.coverOf(weather), textures.coverOf(next));
+        const osg::Vec3f& storm = near != nullptr ? clouds.mDirection : clouds.mNextDirection;
+        const osg::Vec3f& stormAhead = ahead != nullptr ? clouds.mNextDirection : clouds.mDirection;
+        const float opacity = first == nullptr || !shaped ? 0.0f : near != nullptr ? 1.0f : blend;
 
         return Shaders::CloudDeck{
-            // A weather whose deck was never loaded has no deck, and neither has a sky whose mesh
-            // gave up no shape to hang one on — which is the same thing an interior has, said the
-            // same way.
-            .mOpacity = slot == Shaders::NO_TEXTURE || !(textures.mShell.mTiles.x() > 0.0f) ? 0.0f : 1.0f,
+            .mOpacity = opacity,
 
             .mLit = light.mLit,
             .mShadowed = light.mShadowed,
-            .mMean = mean,
-            .mCover = cover,
+            .mMean = first != nullptr ? crossing(first->mMean, second->mMean) : 0.0f,
+            .mCover = first != nullptr ? crossing(first->mCover, second->mCover) : 0.0f,
 
             // A world height and a tile's own width, which is what anchors the sheet to the
             // ground under it rather than to the eye. `Rtx::sCloudAltitude` is the chosen number and
@@ -212,20 +215,22 @@ namespace Rtx
             .mAltitude = sCloudAltitude,
             .mPerTile = textures.mShell.mTiles / sCloudAltitude,
 
+            // The shader mixes the two by this unconditionally; where one sheet stands at both
+            // ends the mix is that sheet.
             .mBlend = blend,
-            .mScroll = scroll,
+            .mScroll = clouds.mScroll,
 
             // Turned to face where each weather is driving, which is what the engine does to
             // each of its two cloud meshes: the deck of an ashstorm runs the way the ash does. A
             // weather with nothing to drive leaves the direction due north, and this due north too.
             .mBearing = bearingOf(storm),
-            .mNextBearing = bearingOf(crosses ? nextStorm : storm),
+            .mNextBearing = bearingOf(stormAhead),
 
             .mCurvature = textures.mShell.mCurvature,
             .mRings = textures.mShell.mRings,
 
-            .mTexture = slot,
-            .mNext = crosses ? ahead : slot,
+            .mTexture = first != nullptr ? static_cast<std::uint32_t>(first->mTexture) : Shaders::NO_TEXTURE,
+            .mNext = second != nullptr ? static_cast<std::uint32_t>(second->mTexture) : Shaders::NO_TEXTURE,
         };
     }
 

@@ -88,6 +88,14 @@ namespace MWRender
         mTimescaleClouds = Fallback::Map::getBool("Weather_Timescale_Clouds");
     }
 
+    void SkyReader::follow(
+        const SkyState& sky, Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ImageFactCache& facts)
+    {
+        for (const std::string* name : { &sky.mWeather.mCloudTexture, &sky.mWeather.mNextCloudTexture })
+            if (!name->empty() && mSkyContent.sheetNamed(*name) == Rtx::sNoSheet)
+                Rtx::addCloudSheet(scene, scenes, facts, mHolds, *name, mSkyContent);
+    }
+
     void SkyReader::detach(Rtx::SceneDesc& scene)
     {
         scene.drop(mHolds);
@@ -185,8 +193,6 @@ namespace MWRender
         if (world.mMoonRed)
             moons[static_cast<std::size_t>(Rtx::Moon::Secunda)].mPaint = mMoonPaint;
 
-        const auto weatherId = static_cast<std::uint32_t>(world.mWeatherId);
-
         // **Nothing recorded is not a rate.** `Weather::transitionDelta` divides by
         // `Clouds_Maximum_Percent`, which the shipped fallbacks leave at nought for ash and blight,
         // so a transition into either hands over an infinity or a NaN. The rasterizer survives one —
@@ -212,11 +218,12 @@ namespace MWRender
             .mSky = mSkyContent,
             .mMoons = moons,
             .mClouds = Rtx::CloudCrossing{
-                .mWeather = weatherId,
-                // The current weather twice where nothing is arriving, since the deck crosses
-                // unconditionally: naming it on both sides at a blend of nothing is what lets it.
-                .mNext = world.mNextWeatherId.has_value() ? static_cast<std::uint32_t>(*world.mNextWeatherId)
-                                                          : weatherId,
+                // The sheets the weather names, as the rasterizer is handed them. The one ahead
+                // only while a weather is arriving: outside a transition the engine leaves the last
+                // one's name standing at a blend of nothing.
+                .mSheet = mSkyContent.sheetNamed(weather.mCloudTexture),
+                .mNext = world.mNextWeatherId.has_value() ? mSkyContent.sheetNamed(weather.mNextCloudTexture)
+                                                          : Rtx::sNoSheet,
                 .mBlend = cloudBlend,
                 // Reported rather than derived, because an ash or blight storm blows off Red
                 // Mountain at the player; one each, because the rasterizer turns each of its two
