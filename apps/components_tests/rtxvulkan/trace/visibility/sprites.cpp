@@ -380,6 +380,88 @@ namespace Rtx::Testing
             }
         }
 
+        /// **Sprites and shells on one pixel are weighed as one walk weighs its own puffs**, by the
+        /// sum of their alphas, so a pixel's colour does not depend on which walk drew which puff.
+        ///
+        /// Four red sprites on one spot and one green shell behind them, each over a black sky:
+        /// each layer alone gives its straight colour times its coverage, and its transmittance in
+        /// the fourth value. The sprites' alpha is `1 - T^(1/4)` apiece, so they weigh `4α`, and the
+        /// shell weighs `1 - T`. Merged, the red is the sprites' straight red times `4α / (4α + 1 -
+        /// T_shell)`, over the two layers' joint coverage `1 - T_sprites T_shell`. By hand at an alpha
+        /// of a half each: four sprites weigh 2 and the shell 0.5, so the red keeps
+        /// `0.8 * 0.96875 / 0.9375 = 0.8267` of what the sprites gave alone and the green
+        /// `0.2 * 0.96875 / 0.5 = 0.3875` of the shell's; weighing by coverage, 0.9375 to 0.5, kept
+        /// 0.6739 of each.
+        TEST_F(RtxVisibilityTest, spritesAndShellsOnOnePixelAreWeighedByTheirAlphas)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+
+            Shaders::VisibilityConstants camera = Testing::makeCameraAlong(
+                osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mAmbientFromSky = 0.0f;
+            camera.mAmbient = osg::Vec3f();
+            camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
+
+            struct Seen
+            {
+                float mRed = 0.0f;
+                float mGreen = 0.0f;
+                float mThrough = 0.0f;
+            };
+
+            const auto shot = [&](bool sprites, bool shell) {
+                SceneDesc scene;
+                std::array<TextureData, 1> textures{ describeTexel(white) };
+                if (sprites)
+                {
+                    const Index cut = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                    std::array<Sprite, 4> four{};
+                    for (Sprite& one : four)
+                        one = Sprite{ .mPosition = osg::Vec3f(0.0f, 300.0f, 0.0f),
+                            .mRadius = 60.0f,
+                            .mColour = osg::Vec3f(1.0f, 0.0f, 0.0f),
+                            .mAlpha = 0.5f };
+                    scene.addEmitter(four, cut, false);
+                }
+                if (shell)
+                {
+                    const Index texture = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                    addQuad(scene, uprightQuadAt(80.0f, 400.0f),
+                        scene.addMaterial(Material{ .mDiffuse = texture,
+                            .mDiffuseColour = osg::Vec3f(0.0f, 1.0f, 0.0f),
+                            .mOpacity = 0.5f,
+                            .mAlphaMode = AlphaMode::Blend,
+                            .mDiffuseNeverSolid = true }));
+                }
+
+                const Frame frame = shoot(scene, textures, camera, size, Shot{ .mResetHistory = true });
+                return Seen{ .mRed = frame.at(centre), .mGreen = frame.at(centre + 1), .mThrough = frame.at(centre + 3) };
+            };
+
+            const Seen sprites = shot(true, false);
+            const Seen shell = shot(false, true);
+            const Seen both = shot(true, true);
+            ASSERT_GT(sprites.mRed, 0.0f);
+            ASSERT_GT(shell.mGreen, 0.0f);
+            ASSERT_GT(sprites.mThrough, 0.0f);
+            ASSERT_LT(sprites.mThrough, 1.0f);
+            ASSERT_LT(shell.mThrough, 1.0f);
+
+            const float spriteWeight = 4.0f * (1.0f - std::pow(sprites.mThrough, 0.25f));
+            const float shellWeight = 1.0f - shell.mThrough;
+            const float joint = 1.0f - sprites.mThrough * shell.mThrough;
+            EXPECT_NEAR(both.mThrough, sprites.mThrough * shell.mThrough, 1e-4f);
+
+            const float red = spriteWeight / (spriteWeight + shellWeight) * joint / (1.0f - sprites.mThrough);
+            const float green = shellWeight / (spriteWeight + shellWeight) * joint / (1.0f - shell.mThrough);
+            EXPECT_NEAR(both.mRed / sprites.mRed, red, 1e-3f) << "the sprites were weighed by their coverage";
+            EXPECT_NEAR(both.mGreen / shell.mGreen, green, 1e-3f) << "the shell was weighed by its coverage";
+        }
+
         /// A sprite in front of the player's hand is looked for where the arms' ray crosses the
         /// world's picture, and not in the tile of the pixel the ray was cast for.
         ///
