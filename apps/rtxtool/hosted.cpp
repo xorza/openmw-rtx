@@ -57,6 +57,24 @@ namespace RtxTool
             // who runs it and when the cache is read.
             Settings::physics().mAsyncNumThreads.set(0);
         }
+
+        /// **What a measured run reads of the content's companion maps, from the shipped file**:
+        /// whether to look for a model's normal and specular maps and what they are called, which
+        /// `MWRender::Renderer::prepareResources` reads from the registry for both renderers. Two
+        /// machines that differ only in their `settings.cfg` then bench one scene, and a played run
+        /// keeps the player's.
+        void applyShippedContentRules(const Files::ConfigurationManager& config)
+        {
+            Settings::ShadersCategory& shaders = Settings::shaders();
+            shaders.mAutoUseObjectNormalMaps.set(
+                shippedDefault<bool>(config, "Shaders", "auto use object normal maps"));
+            shaders.mAutoUseObjectSpecularMaps.set(
+                shippedDefault<bool>(config, "Shaders", "auto use object specular maps"));
+            shaders.mNormalMapPattern.set(shippedDefault<std::string>(config, "Shaders", "normal map pattern"));
+            shaders.mNormalHeightMapPattern.set(
+                shippedDefault<std::string>(config, "Shaders", "normal height map pattern"));
+            shaders.mSpecularMapPattern.set(shippedDefault<std::string>(config, "Shaders", "specular map pattern"));
+        }
     }
 
     int runHosted(const bpo::variables_map& variables, Files::ConfigurationManager& config,
@@ -74,6 +92,8 @@ namespace RtxTool
         }
 
         applyHostedSettings(window);
+        if (!request.mPlayed)
+            applyShippedContentRules(config);
 
         // **The limiter comes off, because there is nobody to pace for.** A hosted run is measured
         // or it is written to a file, and a frame held back to meet a refresh is a frame spent

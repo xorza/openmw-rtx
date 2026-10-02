@@ -72,7 +72,9 @@ namespace RtxTool
             throw std::runtime_error(std::format("defaults.bin names no [{}] {}", category, setting));
 
         const std::string& text = found->second;
-        if constexpr (std::is_same_v<T, bool>)
+        if constexpr (std::is_same_v<T, std::string>)
+            return text;
+        else if constexpr (std::is_same_v<T, bool>)
             return Misc::StringUtils::ciEqual(text, "true");
         else
         {
@@ -87,6 +89,8 @@ namespace RtxTool
     template float shippedDefault<float>(const Files::ConfigurationManager&, std::string_view, std::string_view);
     template int shippedDefault<int>(const Files::ConfigurationManager&, std::string_view, std::string_view);
     template bool shippedDefault<bool>(const Files::ConfigurationManager&, std::string_view, std::string_view);
+    template std::string shippedDefault<std::string>(
+        const Files::ConfigurationManager&, std::string_view, std::string_view);
 
     float bearingOf(const Stand& stand)
     {

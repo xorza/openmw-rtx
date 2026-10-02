@@ -178,7 +178,8 @@ namespace RtxTool
     ///
     /// Read as the game reads the setting's text: a number through `Misc::StringUtils::toNumeric`,
     /// which refuses one that is not finite, and a switch as `true` in any case. Throws naming the
-    /// setting where the text is no number. For `float`, `int` and `bool`.
+    /// setting where the text is no number. For `float`, `int`, `bool` and `std::string`, the text
+    /// itself.
     template <class T>
     T shippedDefault(const Files::ConfigurationManager& config, std::string_view category, std::string_view setting);
 
