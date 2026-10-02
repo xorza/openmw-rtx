@@ -11,6 +11,7 @@
 #include <apps/openmw/mwbase/statemanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
+#include <apps/openmw/mwworld/globals.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
@@ -74,13 +75,28 @@ namespace RtxTool
     {
         const Stop& stop = currentStop();
 
+        // Before the first stop is staged, because staging moves the clock: the game's own speed is
+        // what the world's `timescale` stood at when the session began.
+        if (!mOwnTimeScale.has_value())
+        {
+            mOwnTimeScale = MWBase::Environment::get().getWorld()->getGlobalFloat(MWWorld::Globals::sTimeScale);
+            if (!(*mOwnTimeScale > 0.0f))
+            {
+                abandon(
+                    std::format("the world's timescale is {}, and a stopped clock has no speed of its own to "
+                                "cross a sky or run a film's clock at",
+                        *mOwnTimeScale));
+                return;
+            }
+        }
+
         if (const Misc::Result<void, std::string> staged = mStager.stage(stop, mRequest); !staged.isOk())
         {
             abandon(staged.error());
             return;
         }
 
-        mCamera.begin(stop);
+        mCamera.begin(stop, *mOwnTimeScale);
         mNote.begin(stop);
         mMeasurer.begin(stop);
 

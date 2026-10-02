@@ -91,16 +91,19 @@ namespace RtxTool
         }
 
         /// **The crossing runs at the game clock's speed and lands where it went.** By hand: Clear's
-        /// `Transition_Delta` of 0.015 at the game's own `timescale` of 30 crosses 0.015 a second,
+        /// `Transition_Delta` of 0.015 at the session's own `timescale` of 30 crosses 0.015 a second,
         /// a minute and seven seconds for a whole one; at ×8, 240, it crosses 0.12 a second; and a
-        /// stopped clock crosses nothing. Four quarters land a crossing on its weather.
+        /// stopped clock crosses nothing. A session that started at 10 counts 30 as ×3, 0.045 a
+        /// second. Four quarters land a crossing on its weather.
         TEST(RtxSkyCrossingTest, aCrossingRunsAtTheClocksSpeedAndLandsWhereItWent)
         {
-            EXPECT_FLOAT_EQ(SkyCrossing::shareOf(1.0f, 0.015f, 30.0f), 0.015f);
-            EXPECT_FLOAT_EQ(SkyCrossing::shareOf(1.0f, 0.015f, 240.0f), 0.12f);
-            EXPECT_FLOAT_EQ(SkyCrossing::shareOf(0.5f, 0.015f, 240.0f), 0.06f);
-            EXPECT_EQ(SkyCrossing::shareOf(1.0f, 0.015f, 0.0f), 0.0f);
-            EXPECT_NE(SkyCrossing::shareOf(1.0f, 0.015f, 30.0f), SkyCrossing::shareOf(1.0f, 0.03f, 30.0f));
+            EXPECT_FLOAT_EQ(SkyCrossing::shareOf(1.0f, 0.015f, 30.0f, 30.0f), 0.015f);
+            EXPECT_FLOAT_EQ(SkyCrossing::shareOf(1.0f, 0.015f, 240.0f, 30.0f), 0.12f);
+            EXPECT_FLOAT_EQ(SkyCrossing::shareOf(0.5f, 0.015f, 240.0f, 30.0f), 0.06f);
+            EXPECT_EQ(SkyCrossing::shareOf(1.0f, 0.015f, 0.0f, 30.0f), 0.0f);
+            EXPECT_FLOAT_EQ(SkyCrossing::shareOf(1.0f, 0.015f, 30.0f, 10.0f), 0.045f);
+            EXPECT_NE(
+                SkyCrossing::shareOf(1.0f, 0.015f, 30.0f, 30.0f), SkyCrossing::shareOf(1.0f, 0.03f, 30.0f, 30.0f));
 
             SkyCrossing crossing(sClear, sRain, 0.0f);
             for (int quarter = 1; quarter <= 3; ++quarter)

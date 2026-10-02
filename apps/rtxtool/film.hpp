@@ -90,9 +90,10 @@ namespace RtxTool
         float mCrossingSeconds = 8.0f;
 
         /// **The sky on its own rate, for a time-lapse the camera flies through.** The game
-        /// clock's speed over the whole film as a multiple of the game's own, `sGameTimeScale` —
-        /// the `×N` the clock keys set in a window — where the hours the keys name after the first
-        /// are left alone and set no segment's length; or nothing for the keys' hours.
+        /// clock's speed over the whole film as a multiple of the game's own — the `timescale` the
+        /// session starts at, which is also what the clock keys' `×N` multiplies in a window —
+        /// where the hours the keys name after the first are left alone and set no segment's
+        /// length; or nothing for the keys' hours.
         std::optional<float> mClock;
 
         /// The weathers the sky turns through over the whole film, round and round, as
@@ -127,10 +128,6 @@ namespace RtxTool
         /// The pace along the path in frames, which is what a track counts in.
         Cruise getCruise() const { return Cruise{ .mEase = double{ mEase } / double{ mStep } }; }
     };
-
-    /// Game hours a second of a clock running at `clock` times the game's own speed,
-    /// `sGameTimeScale`: `FilmPacing::mClock`'s rate.
-    double clockHoursPerSecond(float clock);
 
     /// Which of a segment's changes set its length: the flight's speed, a key's own seconds, or
     /// for a segment that goes nowhere the longest of what else it changes.

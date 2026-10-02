@@ -36,7 +36,10 @@ namespace RtxTool
         /// or where the player stands where the stop names no eye or hands the camera to the player.
         /// A track's clock runs from the game's time now. Aims the camera, because a frame drawn
         /// before the first `aim` would be drawn from wherever the last stop left it.
-        void begin(const Stop& stop);
+        ///
+        /// `ownTimeScale` is the game's own clock speed: the `timescale` the session started at,
+        /// which a sky crosses at its own pace under and a track's clock counts its seconds in.
+        void begin(const Stop& stop, float ownTimeScale);
 
         /// Moves one frame of `stop`, the `measured`th of its measured frames or one of its warm-up
         /// where that is nothing (`Measurer::getMeasuredIndex`): a track stands its eye, clock and
@@ -136,6 +139,9 @@ namespace RtxTool
         /// The game's clock at a track's first frame, in hours since the game began: what the
         /// track's hours run on from.
         double mClockFrom = 0.0;
+
+        /// The `timescale` the session started at: `begin`'s.
+        float mOwnTimeScale = 0.0f;
 
         /// Where a window's own camera has to come to stand, while the body is still being put
         /// under it, and how far off it stood at the last correction, squared: `settleBody`.

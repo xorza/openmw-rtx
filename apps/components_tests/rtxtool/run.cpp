@@ -1,4 +1,5 @@
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
@@ -9,6 +10,8 @@
 #include <vector>
 
 #include <gtest/gtest.h>
+
+#include <sol/sol.hpp>
 
 #include <osg/Vec2d>
 #include <osg/Vec3f>
@@ -22,6 +25,10 @@
 #include <components/settings/categories/video.hpp>
 #include <components/settings/values.hpp>
 #include <components/testing/util.hpp>
+
+#ifndef OPENMW_PROJECT_SOURCE_DIR
+#define OPENMW_PROJECT_SOURCE_DIR "."
+#endif
 
 namespace RtxTool
 {
@@ -236,6 +243,35 @@ namespace RtxTool
                 room, { .mWeather = "Thunderstorm", .mArriving = "Blizzard", .mCrossed = 1.0f, .mHour = 23.99f });
             EXPECT_EQ(longest, "Thunderstorm \u2192 Blizzard 100%, 23:59");
             EXPECT_EQ(longest.size(), 37u);
+        }
+
+        /// **The keys spell an hour as the harness does.** `sky.lua` answers a key with the hour it
+        /// wrote, and the window's title spells the same hour, so the two are held to one answer
+        /// where they could part: at each half minute of the day, as a float the world's
+        /// `gamehour` holds, and a float either side of it. The Lua reads the float widened, as
+        /// the game hands a script its globals.
+        TEST(RtxViewpointTest, theKeysSpellAnHourAsTheHarnessDoes)
+        {
+            sol::state lua;
+            lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string);
+            const sol::table spelling = lua.script_file((std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files"
+                / "rtx" / "vfs" / "scripts" / "rtx" / "hour.lua")
+                                                            .string());
+            const sol::function describe = spelling["describe"];
+
+            std::size_t parted = 0;
+            for (int minute = 0; minute < 24 * 60; ++minute)
+            {
+                const float half = (static_cast<float>(minute) + 0.5f) / 60.0f;
+                for (const float hour : { std::nextafter(half, 0.0f), half, std::nextafter(half, 24.0f) })
+                {
+                    const std::string fromLua = describe(static_cast<double>(hour));
+                    if (fromLua != RtxTool::describeHour(hour) && parted++ < 4)
+                        ADD_FAILURE() << "at " << hour << ": " << fromLua << " against " << RtxTool::describeHour(hour);
+                }
+            }
+            EXPECT_EQ(parted, 0u);
+            EXPECT_EQ(describe(17.2499).get<std::string>(), "17:15");
         }
 
     }

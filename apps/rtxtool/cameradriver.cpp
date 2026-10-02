@@ -1,6 +1,7 @@
 #include "cameradriver.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <format>
 #include <optional>
@@ -34,9 +35,11 @@
 
 namespace RtxTool
 {
-    void CameraDriver::begin(const Stop& stop)
+    void CameraDriver::begin(const Stop& stop, const float ownTimeScale)
     {
+        assert(ownTimeScale > 0.0f && "a session that started under a stopped clock has no speed of its own");
         *this = CameraDriver{};
+        mOwnTimeScale = ownTimeScale;
         beginTurn(stop);
 
         if (stop.mSchedule.mFreeCamera || !stop.mStand.mEye.has_value())
@@ -80,8 +83,8 @@ namespace RtxTool
             // the day, the month and the days passed in step with the hour, which the moons read.
             MWBase::World& world = *MWBase::Environment::get().getWorld();
             const MWWorld::TimeStamp now = world.getTimeStamp();
-            const double behind
-                = mClockFrom + pose.mHoursOn - (now.getDay() * 24.0 + static_cast<double>(now.getHour()));
+            const double behind = mClockFrom + pose.getHoursOn(mOwnTimeScale)
+                - (now.getDay() * 24.0 + static_cast<double>(now.getHour()));
             if (behind > 0.0)
                 world.advanceTime(behind, true);
             return;
@@ -177,8 +180,9 @@ namespace RtxTool
         // clock does, because its asks come on the same schedule.
         const MWWorld::DateTimeManager& clock = *MWBase::Environment::get().getWorld()->getTimeManager();
         const float simulated = seconds * clock.getSimulationTimeScale();
-        mSky->advance(stop.mSky.mTurnThrough.empty() ? SkyCrossing::shareOf(simulated, mDelta, clock.getGameTimeScale())
-                                                     : simulated / sTurnSeconds);
+        mSky->advance(stop.mSky.mTurnThrough.empty()
+                ? SkyCrossing::shareOf(simulated, mDelta, clock.getGameTimeScale(), mOwnTimeScale)
+                : simulated / sTurnSeconds);
 
         holdSky(mSky->getWeather(), mSky->getNextWeather(), mSky->getCrossed());
     }
