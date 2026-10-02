@@ -83,7 +83,6 @@ namespace Rtx
                 .mNormals = shaded,
                 .mTangents = turned,
                 .mCount = mesh.mVertices.mCount,
-                .mPadding = 0,
             };
 
             if (bound != &mSkin)

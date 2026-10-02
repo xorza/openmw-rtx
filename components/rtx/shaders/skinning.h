@@ -4,6 +4,12 @@
 #include "hosttypes.h"
 #include "portable.h"
 
+// `<cstddef>` for the `offsetof` the pinned layout below is checked with, last because only the
+// host has it.
+#ifdef RTX_HOST
+#include <cstddef>
+#endif
+
 // What poses a skinned body or a morphed face on the device, as both sides see it. Included
 // verbatim by the host and by the two kernels, for the reason `scene.h` is: a row the host packs and
 // a kernel reads has to be one row.
@@ -103,9 +109,6 @@ namespace Rtx::Shaders
         uint64 mNormals;
         uint64 mTangents;
         uint mCount;
-
-        /// Explicit, so the range a pipeline declares and the struct a host writes are one size.
-        uint mPadding;
     };
 
     /// The same for a morphed mesh: its base, every target's offsets laid end to end, this frame's
@@ -124,7 +127,8 @@ namespace Rtx::Shaders
 
     static_assert(sizeof(GpuInfluence) == 8, "GpuInfluence must be scalar-packed on every side");
     static_assert(sizeof(GpuBone) == 48, "GpuBone must be scalar-packed on every side");
-    static_assert(sizeof(SkinConstants) == 80, "SkinConstants must be scalar-packed on every side");
+    static_assert(
+        offsetof(SkinConstants, mCount) + sizeof(uint) == 76, "SkinConstants must be scalar-packed on every side");
     static_assert(sizeof(MorphConstants) == 40, "MorphConstants must be scalar-packed on every side");
 }
 
