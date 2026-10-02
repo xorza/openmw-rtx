@@ -26,6 +26,7 @@
 #include <components/rtx/environment/skybuilder.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/shaders/look.h>
+#include <components/settings/values.hpp>
 #include <components/sky/skyclock.hpp>
 #include <components/vfs/manager.hpp>
 
@@ -353,14 +354,14 @@ namespace MWRender
         }
 
         /// What falls is kept off by a roof up to the top of the game's own occluder box — the
-        /// precipitation's range and a cell over it — and by nothing where nothing falls. Asked of
+        /// precipitation's range and a cell over it — and by nothing where nothing falls or
+        /// `weather particle occlusion` is off. Asked of
         /// the precipitation itself: a weather that rains sizes the box by its own numbers, the
         /// height being the mean of the drops' two spawn heights.
         TEST(RtxReadWorldTest, theShelterIsTheOccludersBox)
         {
             const Standing standing = standingIn(Location::Exterior);
             const SkyReader reader;
-            Falling falling;
 
             SkyState rain = standing.mSky;
             rain.mWeather.mRainEffect = "meshes/raindrop.nif";
@@ -372,13 +373,27 @@ namespace MWRender
             rain.mWeather.mRainMaxRaindrops = 650;
             rain.mWeather.mPrecipitationAlpha = 1.0f;
 
-            falling.mPrecipitation.setWeather(rain);
-            EXPECT_EQ(reader.read(rain, standing.mWorld, falling.mPrecipitation, 0.0f, sReach).mShelterHeight,
-                450.0f + static_cast<float>(Constants::CellSizeInUnits));
+            // `weather particle occlusion` decides for both renderers, and defaults to off: the
+            // ray tracer had sheltered the rain the rasterizer lets fall under every awning.
+            const bool setting = Settings::shaders().mWeatherParticleOcclusion;
+            for (const bool shelters : { false, true })
+            {
+                Settings::shaders().mWeatherParticleOcclusion.set(shelters);
+                Falling falling;
 
-            falling.mPrecipitation.setWeather(standing.mSky);
-            EXPECT_EQ(
-                reader.read(standing.mSky, standing.mWorld, falling.mPrecipitation, 0.0f, sReach).mShelterHeight, 0.0f);
+                // (200 + 700) / 2 = 450, and a cell over it.
+                falling.mPrecipitation.setWeather(rain);
+                EXPECT_EQ(reader.read(rain, standing.mWorld, falling.mPrecipitation, 0.0f, sReach).mShelterHeight,
+                    shelters ? 450.0f + static_cast<float>(Constants::CellSizeInUnits) : 0.0f)
+                    << "setting " << shelters;
+
+                falling.mPrecipitation.setWeather(standing.mSky);
+                EXPECT_EQ(
+                    reader.read(standing.mSky, standing.mWorld, falling.mPrecipitation, 0.0f, sReach).mShelterHeight,
+                    0.0f)
+                    << "nothing falling, setting " << shelters;
+            }
+            Settings::shaders().mWeatherParticleOcclusion.set(setting);
         }
     }
 }

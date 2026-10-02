@@ -105,8 +105,7 @@ Settings
 * ``[Shaders] minimum interior brightness``: The ray tracer lights a room by the ambient its record states.
 * ``[Shaders] particle point lighting``: The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.
 * ``[Shaders] soft particles``: The trace meets a particle as a volume, which a wall cuts softly.
-* ``[Shaders] weather particle occlusion``: The ray tracer always keeps rain and snow off what stands under a roof.
-* ``[Shaders] weather particle occlusion small feature culling pixel size``: The ray tracer always keeps rain and snow off what stands under a roof.
+* ``[Shaders] weather particle occlusion small feature culling pixel size``: The trace culls nothing by its size on the screen.
 * ``[Shadows]`` every key: Each surface casts a traced shadow.
 * ``[Stereo]`` every key: The ray tracer draws one eye.
 * ``[Stereo View]`` every key: The ray tracer draws one eye.

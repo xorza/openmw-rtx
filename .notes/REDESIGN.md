@@ -1136,6 +1136,8 @@ separate "or logs once" answers below, and the groundcover log line.
   answered by W14.0's table until each is built.
 - `RtxSettings` carries the texture filter and mipmap keys, and the content sampler is made from them.
 - `WorldState` carries `weather particle occlusion && isOccluded()`, which both renderers read.
+  *Done differently:* `Precipitation::isOccluded` answers it, reading the setting once, because both
+  renderers already ask that object and the rasterizer compiles the rain's shaders by the same read.
 - `reachOf` clamps both of its sources to one bound under `sFarPlane`.
 - `ViewQueue::draw` defers a world view while a cell under its box is in the ring's disc and not yet
   placed (`CellRing::isStood`).
