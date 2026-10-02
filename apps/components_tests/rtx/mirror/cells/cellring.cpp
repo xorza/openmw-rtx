@@ -1236,6 +1236,29 @@ namespace Rtx::Testing
             EXPECT_EQ(mRing.getCellsToStand(), 0u);
         }
 
+        /// **The ring's request follows its inputs, the reach among them.** A reach that grows
+        /// under an eye standing still asks for the cells it now takes in, which a request rebuilt
+        /// only where the eye moved never asked for. And a walk indoors has nothing to stand, where
+        /// an exterior band left short before it kept its shortfall.
+        TEST_F(RtxCellRingTest, aReachThatGrowsUnderAStillEyeAsksForItsNewCellsAndIndoorsHasNoneToStand)
+        {
+            start();
+            walk(mWalked++);
+            while (mRing.getCellsToStand() > 0 && mWalked < 1000)
+                walk(mWalked++);
+            ASSERT_EQ(mRing.getHeldCellCount(), sPreparedCells);
+
+            mAround.mReach += sCellSize;
+            walk(mWalked++);
+            const std::uint32_t outer = mRing.getCellsToStand();
+            EXPECT_GT(outer, 0u) << "the grown band asked for nothing";
+            EXPECT_EQ(mRing.getHeldCellCount(), sPreparedCells + 1) << "and its walk adopted nothing new";
+
+            mAround.mExterior = false;
+            walk(mWalked++);
+            EXPECT_EQ(mRing.getCellsToStand(), 0u) << "the exterior's shortfall outlived it";
+        }
+
         /// **A reader that throws ends the process where it threw**, and says what it threw.
         /// Nothing catches it on the reader's thread, so the crash catcher's report keeps that
         /// thread's stack; a catch that carried it to the frame handed over the message alone. The

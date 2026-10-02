@@ -63,7 +63,7 @@ namespace Rtx
         // reader that lent it.
         forget();
         mSupply.follow(around.mWorld);
-        mAskStale = true;
+        ++mFollowed;
     }
 
     void CellRing::forget()
@@ -78,7 +78,6 @@ namespace Rtx
 
     void CellRing::setStaticsEnabled(const bool enabled)
     {
-        mAskStale = mAskStale || enabled != mStatics;
         mStatics = enabled;
     }
 
@@ -95,7 +94,11 @@ namespace Rtx
     std::uint32_t CellRing::getCellsToStand() const
     {
         // **Counted against the band and not against the ask**, which names what was missing when
-        // it was made: a walk that waited for its cell adopted one of them since.
+        // it was made: a walk that waited for its cell adopted one of them since. A walk that stood
+        // nothing has nothing to stand, though it keeps what it held for the way back out.
+        if (mBandCells == 0)
+            return 0;
+
         assert(getHeldCellCount() <= mBandCells && "a cell held outside the band the last walk asked over");
         return mBandCells - static_cast<std::uint32_t>(getHeldCellCount());
     }
@@ -141,7 +144,7 @@ namespace Rtx
                 discard(*cell);
             else
                 mHanded.push_back(cell);
-            mAskStale = true;
+            ++mTaken;
         }
 
         mDoneScratch.clear();
@@ -149,11 +152,22 @@ namespace Rtx
 
     void CellRing::ask(const osg::Vec3f& eye, const float band)
     {
-        // Rebuilt only when what it depends on moved: the eye, what is held, what is handed, or the
-        // statics switch. Otherwise it is the list the supply already has.
-        if (!mAskStale)
+        // Rebuilt only when what it is made from moved. Otherwise it is the list the supply already
+        // has. Any move of the eye, because the disc is measured from the eye itself and a cell at
+        // its rim can enter or leave on a step: what that costs is a walk over the band's cells on
+        // the frames the eye moves, and nothing on the frames it stands.
+        const AskInputs inputs{
+            .mEye = eye,
+            .mBand = band,
+            .mStatics = mStatics,
+            .mHeld = getHeldCellCount(),
+            .mHanded = mHanded.size(),
+            .mTaken = mTaken,
+            .mFollowed = mFollowed,
+        };
+        if (mAsked == inputs)
             return;
-        mAskStale = false;
+        mAsked = inputs;
 
         mAsking.mCells.clear();
         mAsking.mStatics = mStatics;
@@ -173,7 +187,6 @@ namespace Rtx
 
     void CellRing::sift(const osg::Vec3f& eye, const float band)
     {
-        const std::size_t before = mHanded.size();
         std::erase_if(mHanded, [&](PreparedCell* cell) {
             if (mAround.mWorld.mGrid.withinReach(cell->mCell, eye, band))
                 return false;
@@ -181,7 +194,6 @@ namespace Rtx
             discard(*cell);
             return true;
         });
-        mAskStale = mAskStale || mHanded.size() != before;
     }
 
     void CellRing::waitForNext(const osg::Vec3f& eye, const float band)
@@ -214,7 +226,6 @@ namespace Rtx
         mAdoptedFrame = mFrame;
         adopt(*mHanded.front());
         mHanded.erase(mHanded.begin());
-        mAskStale = true;
     }
 
     void CellRing::adopt(PreparedCell& cell)
@@ -318,8 +329,13 @@ namespace Rtx
 
     void CellRing::walkRings(ExtractionStats& stats)
     {
+        // Nothing stands, so nothing is left to stand: an exterior band short of cells must not
+        // outlive the walk that asked over it.
         if (!mSupply.hasReader())
+        {
+            mBandCells = 0;
             return;
+        }
 
         takeDone();
 
@@ -327,6 +343,7 @@ namespace Rtx
         // what is held stays held for the way back out, and nothing stands.
         if (!mAround.mExterior)
         {
+            mBandCells = 0;
             mPlacer.dropSlots();
             mSupply.publish();
             return;
@@ -337,24 +354,13 @@ namespace Rtx
         // frame a cell crosses into the reach owes only its placements.
         const float band = mAround.mReach + mAround.mWorld.mGrid.getCellSize();
 
-        // Any move, because the disc is measured from the eye itself and a cell at its rim can
-        // enter or leave on a step. What that costs is a walk over the band's cells on the frames
-        // the eye moves, and nothing on the frames it stands.
-        if (mLastEye != eye)
-        {
-            mLastEye = eye;
-            mAskStale = true;
-        }
-
         // A cell held with the statics the other way is dropped whole and read again, for the
         // reason `takeDone` gives.
-        const std::size_t dropped = mPlacer.dropUnless(
+        mPlacer.dropUnless(
             [&](const HeldCell& cell) {
                 return mAround.mWorld.mGrid.withinReach(cell.mCell, eye, band) && cell.mStatics == mStatics;
             },
             [&](const HeldCell& cell) { letGo(cell); });
-        if (dropped > 0)
-            mAskStale = true;
 
         sift(eye, band);
 
