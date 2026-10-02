@@ -38,7 +38,7 @@ namespace Rtx::Shaders
     const uint SPRITE_BIN_LANES = 32u;
 
     /// Lanes in one workgroup of the pass over sprites: eight sprites at `SPRITE_BIN_LANES` each.
-    const uint SPRITE_BIN_WORKGROUP = 256u;
+    const uint SPRITE_BIN_WORKGROUP = 8u * SPRITE_BIN_LANES;
 
     /// Lanes in the one workgroup that turns the tile counts into starts.
     ///
@@ -58,7 +58,7 @@ namespace Rtx::Shaders
     const uint SPRITE_RUNS_LANES = 32u;
 
     /// Lanes in one workgroup of the pass over tiles: eight tiles at `SPRITE_RUNS_LANES` each.
-    const uint SPRITE_RUNS_WORKGROUP = 256u;
+    const uint SPRITE_RUNS_WORKGROUP = 8u * SPRITE_RUNS_LANES;
 
     /// What the three dispatches are handed.
     struct SpriteBinConstants

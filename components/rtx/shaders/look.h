@@ -650,7 +650,7 @@ namespace Rtx::Shaders
     /// Pythagorean triangles, so neither is near a quarter turn of the other: 3-4-5 is thirty-seven
     /// degrees and 5-12-13 is sixty-seven.
     const vec2 FOG_TURN_MIDDLE = vec2(0.8f, 0.6f);
-    const vec2 FOG_TURN_FINE = vec2(0.3846154f, 0.9230769f);
+    const vec2 FOG_TURN_FINE = vec2(5.0f, 12.0f) / 13.0f;
 
     /// The coarsest level of that chain a march is allowed to read.
     ///
