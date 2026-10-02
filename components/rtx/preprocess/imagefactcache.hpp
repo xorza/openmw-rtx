@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <functional>
 #include <optional>
+#include <string>
 #include <unordered_map>
 
 #include <components/rtx/image/texels.hpp>
@@ -49,9 +50,9 @@ namespace Rtx
         }
 
         /// `image`'s entry under its file name, holding no fact until one is asked. The reference
-        /// stands for the life of this object, so a caller that asks every frame keeps it and asks
-        /// once. A named file alone: the texture table refuses an image with no name before any
-        /// caller could ask of it.
+        /// stands for the life of this object. A named file alone: the texture table refuses an
+        /// image with no name before any caller could ask of it. Allocates only for a file met the
+        /// first time, because the ring's reader asks again for every material it reads.
         ImageFacts& of(const osg::Image& image);
 
         /// Whether `image`'s alpha ever reaches solid, read into `facts` — `image`'s entry — at
@@ -68,6 +69,9 @@ namespace Rtx
 
     private:
         std::unordered_map<VFS::Path::Normalized, ImageFacts, VFS::Path::Hash, std::equal_to<>> mByFile;
+
+        /// The file name being looked for, normalised in place.
+        std::string mName;
 
         ContentPreprocessor& mContent;
     };

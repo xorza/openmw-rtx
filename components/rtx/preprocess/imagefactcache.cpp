@@ -1,7 +1,7 @@
 #include "imagefactcache.hpp"
 
 #include <cassert>
-#include <utility>
+#include <string_view>
 
 #include <osg/Image>
 
@@ -14,13 +14,13 @@ namespace Rtx
         assert(!image.getFileName().empty() && "the facts of an image the texture table would have refused");
 
         // Normalised as the texture table normalises it, so one file under two spellings is one
-        // entry. The string is built once per image met and never per ask: a caller keeps the
-        // reference, which this never invalidates.
-        VFS::Path::Normalized file(image.getFileName());
-        if (const auto known = mByFile.find(file); known != mByFile.end())
+        // entry.
+        mName.assign(image.getFileName());
+        VFS::Path::normalizeFilenameInPlace(mName);
+        if (const auto known = mByFile.find(std::string_view(mName)); known != mByFile.end())
             return known->second;
 
-        return mByFile.emplace(std::move(file), ImageFacts{}).first->second;
+        return mByFile.emplace(VFS::Path::Normalized(mName), ImageFacts{}).first->second;
     }
 
     bool ImageFactCache::reachesSolid(ImageFacts& facts, const osg::Image& image)
