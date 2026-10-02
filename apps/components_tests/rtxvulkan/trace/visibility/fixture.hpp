@@ -451,11 +451,13 @@ namespace Rtx::Testing
                 Shaders::VisibilityConstants sampled = camera;
                 if (shot.mFrames > 0)
                     sampled.mFrame = shot.mFirstFrame + at;
+                const double waterSeconds = static_cast<double>(at) * static_cast<double>(shot.mWaterStep);
                 if (shot.mWaterStep > 0.0f)
-                    sampled.mWaterTime = splitSeconds(static_cast<double>(at) * static_cast<double>(shot.mWaterStep));
+                    sampled.mWaterTime = splitSeconds(waterSeconds);
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = shot.mFrames > 0 && shot.mAverage ? at + 1 : 0,
                         .mGlare = shot.mGlare,
+                        .mWaterSeconds = waterSeconds,
                         .mReconstruction = ReconstructionRequest{ .mDenoise = shot.mFilter,
                             .mJitter = shot.mJitter,
                             .mNoise = shot.mNoise,

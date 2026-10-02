@@ -251,6 +251,7 @@ namespace Rtx
             // water and the water disagree.
             EXPECT_EQ(constants.mWaterLevel, read.mWaterLevel - Shaders::WATER_TIE_BREAK);
             EXPECT_EQ(constants.mWaterTime, splitSeconds(read.mSeconds)) << "the game wrote this nowhere either";
+            EXPECT_EQ(options.mWaterSeconds, read.mSeconds) << "the wake steps by the clock whole";
             EXPECT_EQ(constants.mRainOnWater, read.mRainOnWater);
             EXPECT_EQ(constants.mShelterHeight, read.mShelterHeight);
             EXPECT_EQ(constants.mWaterScatter, read.mWaterScatter);
@@ -396,8 +397,7 @@ namespace Rtx
             constexpr double hundredHours = 360000.123;
             const osg::Vec2f split = splitSeconds(hundredHours);
             EXPECT_EQ(split.x(), 360000.125f);
-            EXPECT_NEAR(joinSeconds(split), hundredHours, 1e-9);
-            EXPECT_EQ(joinSeconds(splitSeconds(12.25)), 12.25);
+            EXPECT_NEAR(static_cast<double>(split.x()) + static_cast<double>(split.y()), hundredHours, 1e-9);
         }
 
         /// Each scale of the fog is read from where the churn and the turned drift moved it, as a

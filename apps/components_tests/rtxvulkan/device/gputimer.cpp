@@ -89,7 +89,7 @@ namespace Rtx
         {
             camera.mWaterTime = splitSeconds(waterSeconds);
             const auto start = std::chrono::steady_clock::now();
-            renderer.renderFrame(camera, FrameOptions{});
+            renderer.renderFrame(camera, FrameOptions{ .mWaterSeconds = waterSeconds });
             const std::optional<FrameResult> result = renderer.finishFrame();
             const double wallMs = since(start, std::chrono::steady_clock::now());
 

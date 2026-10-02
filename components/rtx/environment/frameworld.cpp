@@ -68,11 +68,6 @@ namespace Rtx
         return osg::Vec2f(high, static_cast<float>(seconds - static_cast<double>(high)));
     }
 
-    double joinSeconds(const osg::Vec2f& split)
-    {
-        return static_cast<double>(split.x()) + static_cast<double>(split.y());
-    }
-
     std::array<osg::Vec3f, Shaders::FOG_SCALES> fogOffsets(const osg::Vec2d& carried, const double skySeconds)
     {
         // The shader's own turns, and its tiles stepped as `fogShape` steps them.
@@ -207,6 +202,7 @@ namespace Rtx
         constants.mWaterLevel = reading.mWaterLevel - Shaders::WATER_TIE_BREAK;
         constants.mWaterScatter = reading.mWaterScatter;
         constants.mWaterTime = splitSeconds(reading.mSeconds);
+        options.mWaterSeconds = reading.mSeconds;
         constants.mRainOnWater = reading.mRainOnWater;
         constants.mShelterHeight = reading.mShelterHeight;
 
