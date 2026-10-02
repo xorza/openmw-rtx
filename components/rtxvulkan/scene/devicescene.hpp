@@ -14,6 +14,7 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/scene.h>
+#include <components/rtx/shaders/sky.h>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
 
@@ -123,6 +124,10 @@ namespace Rtx
         /// The set the trace binds: the copy the last placement wrote, brought up to date by it.
         VkDescriptorSet getTextures() const { return mTextures.getSet(mSlot); }
         VkDeviceAddress getTextureTexels() const { return mTextures.getTexelsAddress(mSlot); }
+
+        /// Writes into `stars` how large its sheet stands in this scene's array, which the scene
+        /// that named the sheet cannot know: `StarField::mExtent`. Nought where it names none.
+        void measureStars(Shaders::StarField& stars) const;
 
         /// The scene's half of a frame block: where `slot`'s copy of every table a hit reads is,
         /// the structure's index and pose blocks, and the texture array's texel counts. The whole

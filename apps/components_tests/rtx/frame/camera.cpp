@@ -16,6 +16,7 @@
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/look.h>
+#include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 
 namespace Rtx
@@ -182,6 +183,7 @@ namespace Rtx
                 EXPECT_EQ(camera.mWaterLevel, -std::numeric_limits<float>::infinity());
                 EXPECT_EQ(camera.mSeaHeading, Shaders::seaHeading());
                 EXPECT_EQ(camera.mFogLift, 1.0f);
+                EXPECT_EQ(camera.mStars.mTexture, Shaders::NO_TEXTURE) << "a star sheet named before a world";
                 EXPECT_EQ(camera.mFar, 400.0f);
                 EXPECT_EQ(camera.mReach, sFarPlane);
                 EXPECT_EQ(camera.mNear, 1.0f);
