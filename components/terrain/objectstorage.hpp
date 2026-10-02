@@ -9,7 +9,6 @@
 
 #include <osg/Vec2i>
 
-#include <components/esm/defs.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/refnum.hpp>
 #include <components/sceneutil/lightcommon.hpp>
@@ -38,36 +37,6 @@ namespace Terrain
     constexpr bool holds(RefKinds set, RefKinds one)
     {
         return (static_cast<unsigned int>(set) & static_cast<unsigned int>(one)) != 0;
-    }
-
-    /// Whether a walk collecting `kinds` takes a reference of record `type`, into a chunk `far`
-    /// enough that only what stands out at a distance is drawn: what the distance stands of a
-    /// cell, and so which references a script's word on them reaches (`MWScript::VisibilityGates`).
-    constexpr bool collects(int type, bool far, RefKinds kinds)
-    {
-        if (type == ESM::REC_LIGH)
-            return holds(kinds, RefKinds::Lit);
-        if (!holds(kinds, RefKinds::Paged))
-            return false;
-
-        switch (type)
-        {
-            case ESM::REC_STAT:
-            case ESM::REC_ACTI:
-            case ESM::REC_DOOR:
-            case ESM::REC_STAT4:
-            case ESM::REC_DOOR4:
-            case ESM::REC_TREE4:
-                return true;
-            case ESM::REC_CONT:
-            case ESM::REC_ACTI4:
-            case ESM::REC_CONT4:
-            case ESM::REC_FURN4:
-                return !far;
-
-            default:
-                return false;
-        }
     }
 
     /// What a walk of the content files says of each reference, in the order the files stack,
