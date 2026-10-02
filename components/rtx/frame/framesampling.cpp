@@ -33,7 +33,7 @@ namespace Rtx
                 && stated.mUnitUp == osg::Vec3f() && stated.mArmsInFrame == 0u && stated.mCameraMotion == osg::Vec3f()
                 && stated.mAnisotropy == 0.0f && stated.mPrevious.mForward == osg::Vec3f()
                 && stated.mPrevious.mRight == osg::Vec3f() && stated.mPrevious.mUp == osg::Vec3f()
-                && stated.mDelight == 0.0f && stated.mShow == 0u;
+                && stated.mDelight == 0.0f && stated.mShow == 0u && stated.mLitEnvironmentMaps == 0u;
         }
     }
 
@@ -68,6 +68,7 @@ namespace Rtx
 
         sampled.mDelight = options.mDelight.value_or(profile.mDelight);
         sampled.mShow = static_cast<std::uint32_t>(options.mShow.value_or(profile.mShow));
+        sampled.mLitEnvironmentMaps = options.mLitEnvironmentMaps.value_or(profile.mLitEnvironmentMaps) ? 1u : 0u;
 
         // The arms' eye samples where the world's does, or the two halves of one frame would be
         // reconstructed from two grids.

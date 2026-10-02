@@ -50,10 +50,12 @@ namespace Rtx
         /// How the frame is scaled before the display curve, in place of the profile's rule.
         std::optional<ExposureRule> mExposure{};
 
-        /// How much painted lighting to divide out, and what every pixel is painted with, in place of
-        /// the profile's: what a test of one surface input asks for.
+        /// How much painted lighting to divide out, what every pixel is painted with, and whether an
+        /// environment map's sheet is lit, in place of the profile's: what a test of one surface
+        /// input asks for.
         std::optional<float> mDelight{};
         std::optional<SurfaceView> mShow{};
+        std::optional<bool> mLitEnvironmentMaps{};
 
         /// Where in the pixel the frame samples, where the reconstruction does not jitter: a test's
         /// fixed sub-pixel offset. Nothing samples the pixel's centre. A reconstruction that jitters

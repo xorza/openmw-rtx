@@ -24,7 +24,6 @@ namespace MWRender
               "curve.";
         constexpr std::string_view sAlphaTest
             = "The trace cuts an alpha-tested surface for each ray, with no coverage to adjust.";
-        constexpr std::string_view sEnvironmentMaps = "The ray tracer adds an environment map after the lighting.";
         constexpr std::string_view sLamps
             = "The ray tracer lights each surface from every lamp in reach, by the lamp's own falloff.";
         constexpr std::string_view sSunAtDisc = "The ray tracer's sun stands where the sun's disc is.";
@@ -100,7 +99,7 @@ namespace MWRender
             { "RTX", "upscale", {} },
             { "Shaders", "adjust coverage for alpha test", sAlphaTest },
             { "Shaders", "antialias alpha test", sAlphaTest },
-            { "Shaders", "apply lighting to environment maps", sEnvironmentMaps },
+            { "Shaders", "apply lighting to environment maps", {} },
             { "Shaders", "auto use terrain normal maps", {} },
             { "Shaders", "auto use terrain specular maps", {} },
             { "Shaders", "clamp lighting", sLamps },

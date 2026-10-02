@@ -251,10 +251,13 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
             gathered.mGlowed, sharePart(texel.rgb * mix(material.mEmissiveColour, vertexColour, glowing) * alpha));
         if (rule.mSheets)
         {
+            // The surface's rule for the sheet, `resolveFor`'s: lit where the player asked for it.
             const vec3 shading = faceforward(plane, direction, plane);
-            gathered.mSheet = addShare(gathered.mSheet,
-                sharePart(sheetAt(material, crossing.mCorner, shading, direction, crossing.mCone, crossing.mConeWidth)
-                    * alpha));
+            const vec3 sheet
+                = sheetAt(material, crossing.mCorner, shading, direction, crossing.mCone, crossing.mConeWidth) * alpha;
+            const bool lit = frame.mLitEnvironmentMaps != 0u;
+            gathered.mSheet = addShare(gathered.mSheet, sharePart(lit ? vec3(0.0) : sheet));
+            gathered.mUnlit = addShare(gathered.mUnlit, sharePart(lit ? sheet / SUNLIT_WHITE : vec3(0.0)));
         }
         gathered.mCoverage = addShare(gathered.mCoverage, sharePart(alpha));
         gathered.mCoveredAt = addShare(gathered.mCoveredAt, sharePart(at / limit * alpha));

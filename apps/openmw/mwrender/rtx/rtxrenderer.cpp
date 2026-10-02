@@ -105,6 +105,7 @@ namespace MWRender
                     .mUpscale = settings.mUpscale,
                     .mAnisotropy = settings.mAnisotropy,
                     .mGamma = settings.mGamma,
+                    .mLitEnvironmentMaps = settings.mLitEnvironmentMaps,
                     .mExposure = Rtx::ExposureRule{},
                     .mRadianceWidth = Rtx::RadianceWidth::Shown,
                 },

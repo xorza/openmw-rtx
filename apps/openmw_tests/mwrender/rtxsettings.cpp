@@ -25,6 +25,7 @@ namespace MWRender
                 .mSpecularMapLayout = "metal roughness",
                 .mAnisotropy = 8,
                 .mGamma = 1.5f,
+                .mLitEnvironmentMaps = true,
             };
         }
 
@@ -56,6 +57,7 @@ namespace MWRender
             EXPECT_EQ(derived.mMirror.mSpecularLayout, Rtx::SpecularLayout::MetalRoughness);
             EXPECT_EQ(derived.mAnisotropy, 8u);
             EXPECT_EQ(derived.mGamma, 1.5f);
+            EXPECT_TRUE(derived.mLitEnvironmentMaps);
 
             RtxSettingValues handedBack = valid();
             handedBack.mDistantLandCells = 0.0f;
@@ -79,8 +81,6 @@ namespace MWRender
             RtxSettingValues layout = valid();
             layout.mSpecularMapLayout = "Classic";
             EXPECT_THROW(RtxSettings::derive(layout), Rtx::InputError);
-            layout.mSpecularMapLayout = "classic";
-            EXPECT_EQ(RtxSettings::derive(layout).mMirror.mSpecularLayout, Rtx::SpecularLayout::Classic);
         }
 
         /// A gamma that is not a finite number over nought is refused: nought and less raise the

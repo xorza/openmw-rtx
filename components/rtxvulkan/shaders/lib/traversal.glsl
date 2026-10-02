@@ -235,8 +235,9 @@ vec4 darkAt(GpuMaterial material, GpuMesh mesh, uvec3 corner, vec2 bary, Texture
 }
 
 /// **A sphere-mapped sheet, added past the albedo and indexed by where the eye is**, in light, and
-/// nothing where `material` holds none. The original adds `envMap` after its lighting, so it is
-/// emission that depends on the view: the violet sheet a magic effect wears and the caustic sheet an
+/// nothing where `material` holds none. The original adds `envMap` after its lighting unless the
+/// player asks otherwise (`VisibilityConstants::mLitEnvironmentMaps`), so it is emission that
+/// depends on the view: the violet sheet a magic effect wears and the caustic sheet an
 /// enchanted item shimmers with are what the artist drew, and neither is a reflection of anything.
 /// The coordinates are the rasterizer's own — `objects.vert` reflects the eye-space view vector
 /// about the eye-space normal and folds it onto the sheet — in the frame camera's basis, so a
@@ -1142,7 +1143,14 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
                   .rgb;
     }
 
-    surface.mEmitted += sheetAt(material, corner, surface.mNormal, direction, cone, surface.mFootprint);
+    // **Light of its own, or colour the light falls on**, as the player set the rasterizer's
+    // `preLightEnv`: there it joins the diffuse colour past the dark map and before the lighting
+    // multiplies, so here it joins the albedo at the sheet's own colour, held at one so a bounce
+    // returns no more than it met.
+    const vec3 sheet = sheetAt(material, corner, surface.mNormal, direction, cone, surface.mFootprint);
+    const bool lit = frame.mLitEnvironmentMaps != 0u;
+    surface.mEmitted += lit ? vec3(0.0) : sheet;
+    surface.mAlbedo = lit ? min(surface.mAlbedo + sheet / SUNLIT_WHITE, vec3(1.0)) : surface.mAlbedo;
 
     return surface;
 }
