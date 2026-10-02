@@ -31,7 +31,7 @@ namespace Rtx
         do
         {
             const std::size_t piece = std::min<std::size_t>(bytes.size(), INT_MAX);
-            std::array<std::uint64_t, 2> next{};
+            DigestWords next{};
             MurmurHash3_x64_128(bytes.data(), static_cast<int>(piece), mState.data(), next.data());
             mState = next;
             bytes = bytes.subspan(piece);

@@ -20,7 +20,7 @@ namespace Rtx
         return resources / "rtx" / (withSource ? "shaders-source" : "shaders");
     }
 
-    std::array<std::uint64_t, 2> digestShaders(const std::filesystem::path& directory)
+    DigestWords digestShaders(const std::filesystem::path& directory)
     {
         std::error_code failed;
         std::vector<std::filesystem::path> files;
@@ -30,7 +30,7 @@ namespace Rtx
 
         std::sort(files.begin(), files.end());
 
-        std::array<std::uint64_t, 2> digest{ 0, 0 };
+        DigestWords digest{ 0, 0 };
         for (const std::filesystem::path& file : files)
         {
             std::ifstream stream(file, std::ios::binary);
@@ -40,7 +40,7 @@ namespace Rtx
             // The name as well as the contents, so that renaming a shader is a change and two files
             // trading contents is not the same set.
             const std::string name = file.filename().string();
-            std::array<std::uint64_t, 2> step{ 0, 0 };
+            DigestWords step{ 0, 0 };
             MurmurHash3_x64_128(name.data(), static_cast<int>(name.size()), digest.data(), step.data());
             digest = step;
 
@@ -48,7 +48,7 @@ namespace Rtx
             // module that will not read is one the renderer reading it reports.
             try
             {
-                const std::array<std::uint64_t, 2> content = Files::getHash(name, stream);
+                const DigestWords content = Files::getHash(name, stream);
                 MurmurHash3_x64_128(content.data(), static_cast<int>(sizeof(content)), digest.data(), step.data());
                 digest = step;
             }

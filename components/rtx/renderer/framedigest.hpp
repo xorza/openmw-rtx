@@ -3,14 +3,11 @@
 #include <array>
 #include <cstdint>
 
+#include <components/rtx/common/digestwords.hpp>
 #include <components/rtx/shaders/digest.h>
 
 namespace Rtx
 {
-    /// A hundred and twenty-eight bits that name one image's every bit, as `shaders/digest.h` folds
-    /// them.
-    using DigestWords = std::array<std::uint64_t, 2>;
-
     /// What a frame computed before anything past it had a say: every channel the trace wrote, the
     /// direct one holding the frame they compose, digested on the device, and the numbers the frame
     /// handed the reconstruction beside those images. What a comparison of two runs compares. The picture is

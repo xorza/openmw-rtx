@@ -1,8 +1,8 @@
 #pragma once
 
-#include <array>
-#include <cstdint>
 #include <filesystem>
+
+#include <components/rtx/common/digestwords.hpp>
 
 namespace Rtx
 {
@@ -16,5 +16,5 @@ namespace Rtx
     /// one run's pipelines named may be named by the next. The modules without their source are
     /// under a megabyte and hash in a fifth of a millisecond once the system has read them, and the
     /// eight megabytes with it in one; nought where the directory cannot be read.
-    std::array<std::uint64_t, 2> digestShaders(const std::filesystem::path& directory);
+    DigestWords digestShaders(const std::filesystem::path& directory);
 }
