@@ -32,12 +32,10 @@ namespace Rtx::Shaders
 
         uint mWidth;
         uint mHeight;
-
-        uint mPadding;
     };
 
 #ifdef RTX_HOST
-    static_assert(sizeof(NormalSpreadConstants) == 16, "NormalSpreadConstants must be scalar-packed on every side");
+    static_assert(sizeof(NormalSpreadConstants) == 12, "NormalSpreadConstants must be scalar-packed on every side");
 }
 #endif
 
