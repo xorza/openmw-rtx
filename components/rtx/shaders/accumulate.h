@@ -19,17 +19,12 @@
 // the evidence for the history's width lying somewhere else entirely. The paragraph below is that
 // evidence.
 //
-// **Half floats for the mean and the surface, because neither builds a reference.** What holds the
-// radiance channels at full width is an argument about rounding a term before adding it to a
-// thousand others. A normal is compared against a neighbour's, and a mean is a running value
-// replaced every frame rather than a thousand terms added into one, and no pixel of the bounce
-// comes near the 65504 a half holds.
+// **Half floats for the surface, because it builds no reference.** What holds the radiance channels
+// at full width is an argument about rounding a term before adding it to a thousand others, and a
+// normal is compared against a neighbour's.
 //
-// **What the mean pays for it is a drift.** The average is exponential with
-// `alpha = 1 / ACCUMULATE_FRAMES`, so a frame moves the stored value by a sixteenth of the
-// difference — and a half store rounds toward nought on this card (`RtxHalfStoreTest`), so every
-// store takes up to one step off: a half's step is 2^-11 to 2^-10 of the value, which the blend's
-// weight keeps at up to sixteen steps, about 0.8 per cent under the mean of the same frames.
+// **Full floats for the mean**, which is the cascade's first level (`atrous.h` says why): a running
+// value a half store would round toward nought at every frame.
 //
 // **And the moments stay full floats whatever the other two do.** `E[l²] - E[l]²` is a difference of
 // two numbers that are nearly equal once a pixel has settled, and a format that rounds each of them
