@@ -907,8 +907,7 @@ namespace MWRender
         const std::chrono::steady_clock::time_point handing = std::chrono::steady_clock::now();
         const Rtx::SceneUpload handed = mMirror.hand(*mRenderer, report.mSpend);
         report.mSpend.at(Rtx::Timing::Place) = Rtx::since(handing, std::chrono::steady_clock::now());
-        report.mUpload = handed.mKind;
-        report.mArrivedMeshes = handed.mArrivedMeshes;
+        report.mUpload = handed;
         report.mCellsToStand = mMirror.getRing().getCellsToStand();
 
         if (handed.mKind == Rtx::SceneUpload::Kind::Rebuilt)

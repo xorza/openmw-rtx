@@ -99,7 +99,7 @@ namespace RtxTool
             .mWhole = report.isWhole(),
             .mPaused = report.mPaused,
             .mCellsToStand = report.mCellsToStand,
-            .mArrivedMeshes = report.mArrivedMeshes,
+            .mArrivedMeshes = report.mUpload.mArrivedMeshes,
             .mSpend = report.mSpend,
         });
         const MeasureWindow& window = mProgress.mWindow;
@@ -186,7 +186,7 @@ namespace RtxTool
         if (const void* cell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell();
             mProgress.mCell != nullptr && cell != mProgress.mCell)
         {
-            mProgress.mPlace.mCrossings.add(report.mUpload == Rtx::SceneUpload::Kind::Rebuilt, frameMs);
+            mProgress.mPlace.mCrossings.add(report.mUpload.mKind == Rtx::SceneUpload::Kind::Rebuilt, frameMs);
             mProgress.mCell = cell;
         }
 

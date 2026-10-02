@@ -193,7 +193,7 @@ namespace MWRender
             for (const Kind upload : { Kind::Placed, Kind::Extended, Kind::Rebuilt })
                 for (const std::uint32_t left : { 0u, 1u, 352u })
                 {
-                    const FrameReport report{ .mUpload = upload, .mCellsToStand = left };
+                    const FrameReport report{ .mUpload = Rtx::SceneUpload{ .mKind = upload }, .mCellsToStand = left };
                     EXPECT_EQ(report.isWhole(), upload == Kind::Placed && left == 0)
                         << "upload " << static_cast<int>(upload) << ", " << left << " cells to stand";
                 }
