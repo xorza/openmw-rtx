@@ -184,8 +184,7 @@ namespace SceneUtil
         const LightController* getController() const { return mController; }
 
         /// The radius the content states. Not always getRadius(), which is a cut-off that
-        /// Animation::setLightEffect widens threefold for a glow light, and that ProjectileManager
-        /// holds at sixty-six for a bolt whose spell's area is the radius its light should have.
+        /// Animation::setLightEffect widens threefold for a glow light.
         float getSourceRadius() const { return mSourceRadius > 0.f ? mSourceRadius : mRadius; }
 
         void setSourceRadius(float radius) { mSourceRadius = radius; }

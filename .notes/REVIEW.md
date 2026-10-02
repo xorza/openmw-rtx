@@ -217,11 +217,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
   A Khajiit's racial power and every Night-Eye potion are therefore mostly metered away.
 
   Better shape: `describeWorld` already cancels the meter for `DAYLIGHT_GAIN` (`skylight.cpp:130-137`, "the day's gain is adapted to in full"). Treat the Night-Eye share the same way. Multiply `mExposureBias` by `(L_lifted / L_unlifted)^EXPOSURE_ADAPTATION`, where `L` is the light measured with and without `WorldState::mNightEye`, so the lift the effect asked for survives the adaptation. *(kind: design; severity: medium; benefit: the effect does what the game says it does)*
-- [ ] **A magic bolt in flight lights the area its explosion will cover**. Evidence: `apps/openmw/mwworld/projectilemanager.cpp:157-168`, `:284`, `components/sceneutil/lightmanager.hpp:186-189`, `components/rtx/mirror/sceneextractor.cpp:670-677`, `components/rtx/scene/lightbuilder.cpp:179-182`.
-
-  The game gives a bolt's light a radius of 66 (115 under the default `light radius multiplier`). The fork adds `setSourceRadius(max(66, largest area × 21.33))`, and the ray tracer builds the lamp from it: intensity `∝ r²` and reach `2r + 128`. A 20 ft fireball flies with a lamp of radius 427 that reaches 981 units and burns about 42 times brighter than a 66-unit lamp of its colour. A 50 ft one reaches 2261. The spell's area is the radius of the impact. The impact already has its own light, the burst's `Glow` lamp (`lightbuilder.hpp:84-169`), whose ball is the burst the game draws at that area. So the area is lit twice over the projectile's life, first by a bolt that is not yet there. The comment's reason ("a renderer that sizes a light by its source radius lights a fireball of fifty feet fifty feet") restates the change rather than justifying it.
-
-  Better shape: drop `getMagicBoltLightReach` and the `lightReach` parameter. The bolt's lamp then reads the 66 the game set, the burst's glow lights the area, and one upstream hunk leaves the diff. *(kind: design; severity: medium; benefit: casting a destruction spell lights what the game lights)*
 
 ## Content the rasterizer draws reaches the ray tracer with no reader
 

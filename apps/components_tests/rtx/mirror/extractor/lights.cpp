@@ -24,7 +24,6 @@
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/graphlight.hpp>
 #include <components/esm3/loadligh.hpp>
-#include <components/misc/constants.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/scene/light.hpp>
@@ -55,37 +54,31 @@ namespace Rtx::Testing
         /// which tests ran first decided whether this one passed.
         const float sWhiteLampAtHundred = 100.0f * 100.0f * (0.25f * Shaders::PI);
 
-        /// A magic bolt's light is sized by the source radius the game writes on it — its spell's
-        /// area, or the bolt's own sixty-six where the spell has none or a smaller one — and never
-        /// by the sixty-six cut-off the rasterizer draws every bolt with.
+        /// A light is sized by the radius the content states, and not by the cut-off the rasterizer
+        /// lights with where the two differ.
         ///
-        /// Fifty feet is 50 by 21.333 = 1066.7 units, so the light is a lamp of that radius: its
-        /// reach `1066.7 * 2 + 128 = 2261.3` and its intensity `1066.7^2 * 0.25 * pi = 893,657`
-        /// on a white colour. A spark with no source radius keeps the bolt's own sixty-six,
-        /// reaching `66 * 2 + 128 = 260`; and a touch spell, whose one foot the game rounded up to
-        /// the bolt's sixty-six, reaches the same.
-        TEST_F(RtxSceneExtractorTest, aBoltsLightReachesTheAreaItsSpellStates)
+        /// `Animation::setLightEffect` widens a glow light's cut-off threefold and states its own
+        /// radius beside it: a glow of a hundred is a lamp of radius 100, reaching
+        /// `100 * 2 + 128 = 328` with an intensity of `100^2 * 0.25 * pi = 7853.98` on white. A
+        /// magic bolt's light is the game's sixty-six and nothing else, reaching `66 * 2 + 128 =
+        /// 260`, whatever area its spell covers: the burst's own glow lights that.
+        TEST_F(RtxSceneExtractorTest, aLightIsSizedByTheRadiusTheContentStates)
         {
-            osg::ref_ptr<SceneUtil::LightSource> fireball = makeLightSource(66.0f, osg::Vec4f(1, 1, 1, 1));
-            fireball->setSourceRadius(50.0f * Constants::UnitsPerFoot);
+            osg::ref_ptr<SceneUtil::LightSource> glow = makeLightSource(300.0f, osg::Vec4f(1, 1, 1, 1));
+            glow->setSourceRadius(100.0f);
 
-            osg::ref_ptr<SceneUtil::LightSource> spark = makeLightSource(66.0f, osg::Vec4f(1, 1, 1, 1));
+            osg::ref_ptr<SceneUtil::LightSource> bolt = makeLightSource(66.0f, osg::Vec4f(1, 1, 1, 1));
 
-            osg::ref_ptr<SceneUtil::LightSource> touch = makeLightSource(66.0f, osg::Vec4f(1, 1, 1, 1));
-            touch->setSourceRadius(std::max(66.0f, 1.0f * Constants::UnitsPerFoot));
+            osg::ref_ptr<osg::Group> lit = new osg::Group;
+            lit->addChild(glow);
+            lit->addChild(bolt);
+            walk(*lit);
 
-            osg::ref_ptr<osg::Group> flying = new osg::Group;
-            flying->addChild(fireball);
-            flying->addChild(spark);
-            flying->addChild(touch);
-            walk(*flying);
-
-            ASSERT_EQ(mScene.lights().size(), 3u);
+            ASSERT_EQ(mScene.lights().size(), 2u);
             const std::span<const Rtx::Light> lights = mScene.lights();
-            EXPECT_NEAR(lights[0].mReach, 2261.33f, 0.01f);
-            EXPECT_NEAR(lights[0].mIntensity.x(), 893657.0f, 100.0f);
-            EXPECT_NEAR(lights[1].mReach, 260.0f, 0.01f) << "no area, the bolt's own sixty-six";
-            EXPECT_EQ(lights[2].mReach, lights[1].mReach) << "an area under the bolt's own radius is not a shrinking";
+            EXPECT_NEAR(lights[0].mReach, 328.0f, 0.01f);
+            EXPECT_FLOAT_EQ(lights[0].mIntensity.x(), sWhiteLampAtHundred);
+            EXPECT_NEAR(lights[1].mReach, 260.0f, 0.01f) << "the bolt's own sixty-six";
         }
 
         /// A magic effect's glowing sheets light the world as one fill lamp of their own size and
