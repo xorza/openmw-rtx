@@ -127,7 +127,7 @@ namespace Rtx
             /// That image's facts, or null until an effect's glow asks for its mean: read then and
             /// kept, because `ImageFactCache` keeps a named file's facts for as long as its thread
             /// runs, and every image here is a named file. Nulled with `mSprite`.
-            const ImageFacts* mFacts = nullptr;
+            ImageFacts* mFacts = nullptr;
         };
 
         /// An emitter the walk met, waiting for the walk to finish before its particles are read.

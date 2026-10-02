@@ -14,6 +14,7 @@
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
@@ -173,7 +174,7 @@ namespace Rtx
             static_assert(sTextureEncodingCount * sTextureWrapCount <= 16, "a refusal bit per slot");
 
             /// Its facts in the thread's cache, `ImageFactCache`, or null until a material asks.
-            const ImageFacts* mFacts = nullptr;
+            ImageFacts* mFacts = nullptr;
         };
 
         /// Every image an animated material has worn, each held in `mTextureOf` for as long as the
@@ -272,7 +273,7 @@ namespace Rtx
         /// What `image`'s texels say — `ImageFactCache::of`, found by the slot after the first ask.
         /// Asked only for a material the answer changes, because the first ask for a file walks its
         /// texels. Null for no image and for one `takeTexture` did not meet.
-        const ImageFacts* diffuseFacts(const osg::Image* image);
+        ImageFacts* diffuseFacts(const osg::Image* image);
 
         SceneDesc& mScene;
         const MirrorPass& mPass;

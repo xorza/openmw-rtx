@@ -35,9 +35,11 @@ namespace Rtx
         /// `ShapePass`: what a drawable's triangles come to, and its normals where they split.
         void shape(const ShapePass::Input& input, ShapePass::Output& output);
 
-        /// `ImageFactPass`: what `image`'s texels say. A walk over every texel of its finest level,
-        /// so a caller asks `ImageFactCache`, which asks this once a file.
-        ImageFacts imageFacts(const osg::Image& image);
+        /// `SolidReach`: whether `image`'s alpha ever reaches solid.
+        bool reachesSolid(const osg::Image& image);
+
+        /// `TexelMean`: what a texel of `image` is worth on average.
+        MeanTexel meanTexel(const osg::Image& image);
 
         /// What every pass cost since the last take, and nothing counted from here on.
         ContentStats takeStats();
@@ -46,11 +48,12 @@ namespace Rtx
         template <ContentPass Pass>
         void run(Pass& pass, const typename Pass::Input& input, typename Pass::Output& output);
 
-        /// What the texture pass describes an image into.
+        /// What the two texture passes describe an image into, one after the other.
         AlphaScratch mAlphaScratch;
 
         ShapePass mShape;
-        ImageFactPass mImageFacts{ mAlphaScratch };
+        SolidReach mSolid{ mAlphaScratch };
+        TexelMean mMean{ mAlphaScratch };
 
         ContentCache mCache;
         ContentStats mStats;

@@ -292,7 +292,8 @@ namespace Rtx::Testing
             ASSERT_TRUE(walk.read(*quad, ~0u, model).isOk());
             ASSERT_EQ(model.mParts.size(), 1u);
             ASSERT_TRUE(model.mParts[0].mMaterial.mDiffuseFacts.has_value());
-            EXPECT_FALSE(model.mParts[0].mMaterial.mDiffuseFacts->mReachesSolid);
+            EXPECT_EQ(model.mParts[0].mMaterial.mDiffuseFacts->mReachesSolid, std::optional<bool>(false));
+            EXPECT_FALSE(model.mParts[0].mMaterial.mDiffuseFacts->mMean.has_value()) << "a pane asks no mean";
         }
 
         /// A surface that adds — `SRC_ALPHA, ONE` — is no cutout, no pane and no medium: it is

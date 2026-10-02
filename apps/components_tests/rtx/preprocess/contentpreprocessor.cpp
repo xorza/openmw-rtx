@@ -84,7 +84,7 @@ namespace Rtx
             EXPECT_EQ(shaped.mAsked, 1u);
             EXPECT_EQ(shaped.mHits, 0u);
             EXPECT_EQ(shaped.mKeyBytes, 145u);
-            EXPECT_EQ(stats.at(ContentPassId::ImageFacts).mAsked, 0u) << "a pass not asked counts nothing";
+            EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 0u) << "a pass not asked counts nothing";
         }
 
         /// **The cache holds nothing, so every ask runs.** The same shape asked twice is asked
@@ -104,10 +104,10 @@ namespace Rtx
             EXPECT_EQ(content.takeStats().at(ContentPassId::Shape).mAsked, 0u);
         }
 
-        /// The texture pass through the preprocessor answers what the reading of the described
-        /// level does, for an image it reads and for one it cannot: a luminance file, which is solid
-        /// by the rule that changes nothing, and worth nothing.
-        TEST(RtxContentPreprocessorTest, theTexturePassAnswersWhatTheDirectReadingDoes)
+        /// The texture passes through the preprocessor answer what the readings of the described
+        /// level do, for an image they read and for one they cannot: a luminance file, which is
+        /// solid by the rule that changes nothing, and worth nothing.
+        TEST(RtxContentPreprocessorTest, theTexturePassesAnswerWhatTheDirectReadingsDo)
         {
             ContentPreprocessor content;
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
@@ -115,26 +115,29 @@ namespace Rtx
             AlphaScratch scratch;
             const std::optional<TextureData> finest = describeFinest(*painted, scratch);
             ASSERT_TRUE(finest.has_value());
-            const ImageFacts direct = imageFactsOf(*finest, scratch);
-            const ImageFacts asked = content.imageFacts(*painted);
-            EXPECT_EQ(asked.mMean.mColour, direct.mMean.mColour);
-            EXPECT_EQ(asked.mMean.mWhole, direct.mMean.mWhole);
-            EXPECT_EQ(asked.mMean.mAlpha, direct.mMean.mAlpha);
-            EXPECT_TRUE(asked.mReachesSolid) << "its last texel is solid";
+            EXPECT_EQ(content.reachesSolid(*painted), reachesSolid(*finest));
+            EXPECT_TRUE(content.reachesSolid(*painted)) << "its last texel is solid";
+
+            const MeanTexel direct = meanTexel(*finest, scratch);
+            const MeanTexel asked = content.meanTexel(*painted);
+            EXPECT_EQ(asked.mColour, direct.mColour);
+            EXPECT_EQ(asked.mWhole, direct.mWhole);
+            EXPECT_EQ(asked.mAlpha, direct.mAlpha);
 
             osg::ref_ptr<osg::Image> luminance = new osg::Image;
             luminance->setFileName("odd.dds");
             luminance->allocateImage(2, 2, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE);
-            const ImageFacts unread = content.imageFacts(*luminance);
-            EXPECT_TRUE(unread.mReachesSolid);
-            EXPECT_EQ(unread.mMean.mColour, osg::Vec3f());
+            EXPECT_TRUE(content.reachesSolid(*luminance));
+            EXPECT_EQ(content.meanTexel(*luminance).mColour, osg::Vec3f());
 
-            EXPECT_EQ(content.takeStats().at(ContentPassId::ImageFacts).mAsked, 2u);
+            const ContentStats stats = content.takeStats();
+            EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 3u);
+            EXPECT_EQ(stats.at(ContentPassId::TexelMean).mAsked, 2u);
         }
 
         ContentKey finestKeyOf(const osg::Image& image, FinestTexels& finest)
         {
-            ContentDigest digest("image facts", 1);
+            ContentDigest digest("solid reach", 1);
             finest.describe(image, digest);
             return digest.getKey();
         }
@@ -155,7 +158,7 @@ namespace Rtx
             moved[7] = 129;
             EXPECT_NE(finestKeyOf(*makeImage(moved, "painted.dds"), finest), key) << "one texel's alpha";
 
-            ContentDigest digest("image facts", 1);
+            ContentDigest digest("solid reach", 1);
             finest.describe(*makeImage(sPaint, "painted.dds"), digest);
             EXPECT_EQ(digest.getBytes(),
                 sizeof(bool) + sizeof(TextureFormat) + sizeof(TextureEncoding) + 2 * sizeof(std::uint32_t) + 16);
@@ -176,7 +179,7 @@ namespace Rtx
 
             ContentStats second;
             second.at(ContentPassId::Shape) = PassStats{ .mAsked = 1, .mKeyMs = 3.0, .mKeyBytes = 5 };
-            second.at(ContentPassId::ImageFacts) = PassStats{ .mAsked = 4, .mRunMs = 4.0 };
+            second.at(ContentPassId::TexelMean) = PassStats{ .mAsked = 4, .mRunMs = 4.0 };
 
             Preprocessed both{ .mOnFrame = first };
             both += Preprocessed{ .mOnFrame = second, .mOffFrame = second };
@@ -187,7 +190,7 @@ namespace Rtx
             EXPECT_EQ(fold.mKeyMs, 4.0);
             EXPECT_EQ(fold.mRunMs, 2.0);
             EXPECT_EQ(fold.mKeyBytes, 15u);
-            EXPECT_EQ(both.mOnFrame.at(ContentPassId::ImageFacts).mAsked, 4u);
+            EXPECT_EQ(both.mOnFrame.at(ContentPassId::TexelMean).mAsked, 4u);
             EXPECT_EQ(both.mOnFrame.getMs(), 10.0);
             EXPECT_EQ(both.mOffFrame.getMs(), 7.0);
         }

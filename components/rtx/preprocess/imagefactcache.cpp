@@ -9,7 +9,7 @@
 
 namespace Rtx
 {
-    const ImageFacts& ImageFactCache::of(const osg::Image& image)
+    ImageFacts& ImageFactCache::of(const osg::Image& image)
     {
         assert(!image.getFileName().empty() && "the facts of an image the texture table would have refused");
 
@@ -20,6 +20,20 @@ namespace Rtx
         if (const auto known = mByFile.find(file); known != mByFile.end())
             return known->second;
 
-        return mByFile.emplace(std::move(file), mContent.imageFacts(image)).first->second;
+        return mByFile.emplace(std::move(file), ImageFacts{}).first->second;
+    }
+
+    bool ImageFactCache::reachesSolid(ImageFacts& facts, const osg::Image& image)
+    {
+        if (!facts.mReachesSolid.has_value())
+            facts.mReachesSolid = mContent.reachesSolid(image);
+        return *facts.mReachesSolid;
+    }
+
+    const MeanTexel& ImageFactCache::meanOf(ImageFacts& facts, const osg::Image& image)
+    {
+        if (!facts.mMean.has_value())
+            facts.mMean = mContent.meanTexel(image);
+        return *facts.mMean;
     }
 }

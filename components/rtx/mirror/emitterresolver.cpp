@@ -316,7 +316,8 @@ namespace Rtx
             if (held.mFacts == nullptr)
                 held.mFacts = &mFacts.of(*held.mSprite);
 
-            glows[*pending.mGlow].addSprites(emitter, mSpriteScratch, held.mFacts->mMean.mColour);
+            glows[*pending.mGlow].addSprites(
+                emitter, mSpriteScratch, mFacts.meanOf(*held.mFacts, *held.mSprite).mColour);
         }
     }
 

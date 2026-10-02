@@ -100,11 +100,13 @@ namespace Rtx
         }
 
         /// Hands `visit` every texel of one level with its alpha, in row order — a block at a time
-        /// for a block format, so a palette is built once a block. A level whose bytes run short
-        /// hands nothing for the texels past them, which leaves them the fully opaque values
-        /// `build` fills with: the answer a texture that could not be read gets.
+        /// for a block format, so a palette is built once a block — until `visit` answers true.
+        /// A level whose bytes run short hands nothing for the texels past them, which leaves a
+        /// caller with whatever it started from: the fully opaque values `build` fills with, or the
+        /// "reaches nothing" a scan started from — the answer a texture that could not be read
+        /// gets, for the same reason. Answers whether `visit` stopped it.
         template <class Visit>
-        void forEachAlpha(TextureFormat format, std::span<const std::byte> bytes, std::uint32_t width,
+        bool forEachAlpha(TextureFormat format, std::span<const std::byte> bytes, std::uint32_t width,
             std::uint32_t height, Visit visit)
         {
             const TexelLayout layout = layoutOf(format);
@@ -119,11 +121,11 @@ namespace Rtx
                     for (std::uint32_t x = 0; x < width; ++x)
                     {
                         const std::size_t at = (std::size_t{ y } * width + x) * bytesPerBlock + 3;
-                        if (at < bytes.size())
-                            visit(x, y, static_cast<std::uint8_t>(bytes[at]));
+                        if (at < bytes.size() && visit(x, y, static_cast<std::uint8_t>(bytes[at])))
+                            return true;
                     }
 
-                return;
+                return false;
             }
 
             const std::uint32_t blocksAcross = (width + 3) / 4;
@@ -146,8 +148,11 @@ namespace Rtx
                     const std::uint32_t columns = std::min(4u, width - column * 4);
                     for (std::uint32_t dy = 0; dy < rows; ++dy)
                         for (std::uint32_t dx = 0; dx < columns; ++dx)
-                            visit(column * 4 + dx, row * 4 + dy, alphas[dy * 4 + dx]);
+                            if (visit(column * 4 + dx, row * 4 + dy, alphas[dy * 4 + dx]))
+                                return true;
                 }
+
+            return false;
         }
 
         /// One level's alpha, decoded into `into` in row order.
@@ -156,6 +161,7 @@ namespace Rtx
         {
             forEachAlpha(format, bytes, width, height, [&](std::uint32_t x, std::uint32_t y, std::uint8_t alpha) {
                 into[std::size_t{ y } * width + x] = alpha;
+                return false;
             });
         }
     }
@@ -197,5 +203,17 @@ namespace Rtx
             return std::nullopt;
 
         return read.value();
+    }
+
+    bool reachesSolid(const TextureData& finest)
+    {
+        // Only as far as the first solid texel: nearly every map that reaches solid does so in its
+        // first block, so the walk that decodes the level whole is paid by the clouds alone, which
+        // never do.
+        const MipLevel& level = finest.mLevels.front();
+        const std::size_t from = std::min<std::size_t>(level.mOffset, finest.mBytes.size());
+
+        return forEachAlpha(finest.mFormat, finest.mBytes.subspan(from), level.mWidth, level.mHeight,
+            [](std::uint32_t, std::uint32_t, std::uint8_t alpha) { return alpha == 255; });
     }
 }

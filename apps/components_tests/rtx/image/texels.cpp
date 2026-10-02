@@ -18,7 +18,9 @@
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
+#include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/imagefactcache.hpp>
 
 namespace Rtx
@@ -113,10 +115,8 @@ namespace Rtx
         /// `(1 + 1) / 4`, which is what a sheet that adds whole is worth.
         TEST(RtxMeanTexelTest, aTexelIsWorthItsColourInLightTimesHowMuchOfItIsThere)
         {
-            const MeanTexel mean
-                = ContentPreprocessor()
-                      .imageFacts(*makeSheetImage({ 255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 255, 0, 255, 255, 255, 255 }))
-                      .mMean;
+            const MeanTexel mean = ContentPreprocessor().meanTexel(
+                *makeSheetImage({ 255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 255, 0, 255, 255, 255, 255 }));
 
             EXPECT_NEAR(mean.mColour.x(), 0.5f, 1e-5f);
             EXPECT_NEAR(mean.mColour.y(), 0.37549f, 1e-5f);
@@ -138,17 +138,13 @@ namespace Rtx
         /// white is worth 0.216 where it is worth a half.
         TEST(RtxMeanTexelTest, theCurveIsUndoneBeforeTheMeanRatherThanAfterIt)
         {
-            const MeanTexel chequer = ContentPreprocessor()
-                                          .imageFacts(*makeSheetImage(
-                                              { 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255 }))
-                                          .mMean;
+            const MeanTexel chequer = ContentPreprocessor().meanTexel(
+                *makeSheetImage({ 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255, 255 }));
 
             EXPECT_NEAR(chequer.mColour.x(), 0.5f, 1e-5f);
 
-            const MeanTexel flat = ContentPreprocessor()
-                                       .imageFacts(*makeSheetImage({ 128, 128, 128, 255, 128, 128, 128, 255, 128, 128,
-                                           128, 255, 128, 128, 128, 255 }))
-                                       .mMean;
+            const MeanTexel flat = ContentPreprocessor().meanTexel(
+                *makeSheetImage({ 128, 128, 128, 255, 128, 128, 128, 255, 128, 128, 128, 255, 128, 128, 128, 255 }));
 
             EXPECT_NEAR(flat.mColour.x(), 0.21586f, 1e-5f);
         }
@@ -164,8 +160,8 @@ namespace Rtx
             luminance->setFileName("odd.dds");
             luminance->allocateImage(2, 2, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE);
 
-            EXPECT_EQ(ContentPreprocessor().imageFacts(*luminance).mMean.mColour, osg::Vec3f());
-            EXPECT_EQ(ContentPreprocessor().imageFacts(*luminance).mMean.mAlpha, 0.0f);
+            EXPECT_EQ(ContentPreprocessor().meanTexel(*luminance).mColour, osg::Vec3f());
+            EXPECT_EQ(ContentPreprocessor().meanTexel(*luminance).mAlpha, 0.0f);
         }
 
         /// A sheet's paint is what its own alpha calls solid, and not what it adds to the sky behind it.
@@ -178,10 +174,8 @@ namespace Rtx
         /// Morrowind's own clear sheet is exactly this shape, a quarter covered by cirrus.
         TEST(RtxMeanTexelTest, aSheetsPaintIsWhatItsOwnAlphaCallsSolid)
         {
-            const MeanTexel wisps
-                = ContentPreprocessor()
-                      .imageFacts(*makeSheetImage({ 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0 }))
-                      .mMean;
+            const MeanTexel wisps = ContentPreprocessor().meanTexel(
+                *makeSheetImage({ 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0 }));
 
             EXPECT_NEAR(wisps.mColour.x(), 0.5f, 1e-5f);
             EXPECT_NEAR(wisps.mAlpha, 0.5f, 1e-5f);
@@ -189,10 +183,8 @@ namespace Rtx
 
             // And a sheet with nothing painted on it has no paint to average, rather than a division by
             // the nothing that covers it.
-            const MeanTexel empty = ContentPreprocessor()
-                                        .imageFacts(*makeSheetImage(
-                                            { 255, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 0 }))
-                                        .mMean;
+            const MeanTexel empty = ContentPreprocessor().meanTexel(
+                *makeSheetImage({ 255, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 0, 255, 255, 255, 0 }));
 
             EXPECT_EQ(empty.mAlpha, 0.0f);
             EXPECT_EQ(empty.opaque(), osg::Vec3f());
@@ -200,7 +192,8 @@ namespace Rtx
 
         /// A file is read once for the process and found by its name after: two images of one
         /// file, in two spellings of it, are one entry and one reference, and a second ask reads
-        /// nothing — the entry stands where it stood.
+        /// nothing — the entry stands where it stood. **Each fact is read at its own first ask**,
+        /// because the two are different walks: an entry asked its mean has read no solid reach.
         TEST(RtxImageFactCacheTest, aFileIsReadOnceAndFoundByItsName)
         {
             ContentPreprocessor content;
@@ -209,19 +202,26 @@ namespace Rtx
             osg::ref_ptr<osg::Image> red
                 = makeSheetImage({ 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255 });
             red->setFileName("Textures\\VFX_Fire.dds");
-            const ImageFacts& first = facts.of(*red);
-            EXPECT_NEAR(first.mMean.mColour.x(), 1.0f, 1e-5f);
+            const MeanTexel& first = facts.meanOf(*red);
+            EXPECT_NEAR(first.mColour.x(), 1.0f, 1e-5f);
             EXPECT_EQ(facts.size(), 1u);
+            EXPECT_FALSE(facts.of(*red).mReachesSolid.has_value()) << "a fact nobody asked for was read";
 
             // The same file spelt the way the texture table spells it, and painted differently:
             // the cache answers for the name and never reads the second image.
-            osg::ref_ptr<osg::Image> again
-                = makeSheetImage({ 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255 });
+            osg::ref_ptr<osg::Image> again = makeSheetImage({ 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0 });
             again->setFileName("textures/vfx_fire.dds");
-            const ImageFacts& second = facts.of(*again);
-            EXPECT_EQ(&second, &first) << "a second spelling of one file made a second entry";
-            EXPECT_NEAR(second.mMean.mColour.x(), 1.0f, 1e-5f) << "the second image was read";
+            EXPECT_EQ(&facts.of(*again), &facts.of(*red)) << "a second spelling of one file made a second entry";
+            EXPECT_EQ(&facts.meanOf(*again), &first);
+            EXPECT_NEAR(facts.meanOf(*again).mColour.x(), 1.0f, 1e-5f) << "the second image was read";
             EXPECT_EQ(facts.size(), 1u);
+
+            // Asked once and kept: the solid reach read off solid red, and found again under the
+            // second spelling without reading the second image, whose alpha is nought throughout.
+            EXPECT_TRUE(facts.reachesSolid(facts.of(*red), *red));
+            EXPECT_EQ(content.takeStats().at(ContentPassId::SolidReach).mAsked, 1u);
+            EXPECT_TRUE(facts.reachesSolid(facts.of(*again), *again)) << "the second image was read";
+            EXPECT_EQ(content.takeStats().at(ContentPassId::SolidReach).mAsked, 0u) << "a fact read twice";
 
             // An image with no name is one the texture table refuses, so nothing asks its facts.
             osg::ref_ptr<osg::Image> unnamed
