@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -18,6 +20,10 @@ namespace Platform::Process
 
     /// Gives `name` the value `value` in this process's environment, over whatever it had.
     void setEnvironment(const char* name, const char* value);
+
+    /// The file this process runs: the running file itself, not `argv[0]`, which a shell may have
+    /// given as a bare name or a relative path. Nothing where the system would not say.
+    std::optional<std::filesystem::path> executable();
 
     /// This process's id, as the system numbers processes: what a reading that names processes
     /// tells this one from the rest by.

@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <exception>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -100,9 +101,17 @@ namespace Crash
         // 4 MiB; on Linux and macOS it keeps what the registers point at.
         info->set_gather_indirectly_referenced_memory(crashpad::TriState::kEnabled, 4 << 20);
 
-        if (!sClient.StartHandler(base::FilePath(Client::executable().native()),
-                base::FilePath(settings.mReportFolder.native()), base::FilePath(), std::string(), std::string(),
-                { { "product", settings.mApplication } }, monitor.write(), false, false))
+        // The monitor is this executable, started again in its own mode.
+        const std::optional<std::filesystem::path> self = Platform::Process::executable();
+        if (!self.has_value())
+        {
+            sPage = SharedPage();
+            return Misc::Err{ "the system would not say which file this process runs" };
+        }
+
+        if (!sClient.StartHandler(base::FilePath(self->native()), base::FilePath(settings.mReportFolder.native()),
+                base::FilePath(), std::string(), std::string(), { { "product", settings.mApplication } },
+                monitor.write(), false, false))
         {
             sPage = SharedPage();
             return Misc::Err{ "its monitor did not start" };

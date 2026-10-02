@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -21,6 +23,23 @@ namespace Platform::Process
     void setEnvironment(const char* name, const char* value)
     {
         _putenv_s(name, value);
+    }
+
+    std::optional<std::filesystem::path> executable()
+    {
+        std::wstring path(MAX_PATH, L'\0');
+        for (;;)
+        {
+            const DWORD length = GetModuleFileNameW(nullptr, path.data(), static_cast<DWORD>(path.size()));
+            if (length == 0)
+                return std::nullopt;
+            if (length < path.size())
+            {
+                path.resize(length);
+                return std::filesystem::path(path);
+            }
+            path.resize(path.size() * 2);
+        }
     }
 
     std::uint32_t currentId()

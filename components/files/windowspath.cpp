@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <optional>
 
 #define FAR
 #define NEAR
@@ -17,6 +18,7 @@
 #undef FAR
 
 #include <components/debug/debuglog.hpp>
+#include <components/platform/process.hpp>
 
 /**
  * \namespace Files
@@ -111,23 +113,10 @@ namespace Files
 
     std::filesystem::path WindowsPath::getLocalPath() const
     {
-        std::filesystem::path localPath = std::filesystem::current_path() / "";
+        if (const std::optional<std::filesystem::path> executablePath = Platform::Process::executable())
+            return executablePath->parent_path() / "";
 
-        std::wstring executablePath;
-        DWORD copied = 0;
-        do
-        {
-            executablePath.resize(executablePath.size() + MAX_PATH);
-            copied = GetModuleFileNameW(nullptr, executablePath.data(), static_cast<DWORD>(executablePath.size()));
-        } while (GetLastError() == ERROR_INSUFFICIENT_BUFFER);
-
-        if (copied > 0)
-        {
-            localPath = std::filesystem::path(executablePath).parent_path() / "";
-        }
-
-        // lookup exe path
-        return localPath;
+        return std::filesystem::current_path() / "";
     }
 
     std::filesystem::path WindowsPath::getGlobalDataPath() const
