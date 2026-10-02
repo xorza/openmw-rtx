@@ -5,7 +5,7 @@ structural causes behind most of them, gives the target shape for each cause, an
 A reference such as *(REVIEW: Frame-to-frame state)* points at a group heading in `REVIEW.md`.
 
 `REVIEW.md` held 432 findings from three reviews (2026-10-01 and 2026-10-02): 8 high, 85 medium,
-339 low. After Phase 4, 205 stay open, none of them high. The findings that give a wrong or missing
+339 low. After Phase 4, 203 stay open, none of them high. The findings that give a wrong or missing
 result for an input the tree can produce are also in `.notes/ISSUES.md`.
 
 This file keeps what is still to do. A finished workstream's section is gone: the code and the
@@ -211,9 +211,10 @@ and W10 to W13 are done, and §16.3 and §16.4 with them.
 
 These come from `AGENTS.md` and the owner's posture. Each workstream below applies one or more.
 
-- **P1. One source for each truth.** A value that two owners keep is a value that two owners can
-  disagree on. The redesign deletes the second copy. It does not add a check that holds two copies
-  equal, unless the two copies are in two languages and a shared function is not possible.
+- **P1. One source for each truth, inside the fork.** A value that two owners keep is a value that
+  two owners can disagree on. The redesign deletes the second copy. It does not add a check that
+  holds two copies equal, unless the two copies are in two languages and a shared function is not
+  possible. Across the line to upstream code, P9 decides.
 - **P2. A record says what happened.** An owner never infers a fact about the frame from a side
   effect (a zeroed camera, a list that a placement did not clear, a stamp on another object). The
   frame tells each owner what happened, once.
@@ -233,6 +234,11 @@ These come from `AGENTS.md` and the owner's posture. Each workstream below appli
   thing differently, which is its purpose. It does not drop, freeze, misplace or misread what the game
   asks for. Every fact the loader states is carried or refused by name. Every setting, script call and
   console command the rasterizer honours is honoured, or the seam says it is not.
+- **P9. Upstream code changes only where it must.** A change to an upstream file is a bug fix, or a
+  hook the ray tracer cannot work without, and `AGENTS.md`'s Accepted diff names it. A rule the ray
+  tracer shares with the game is a copy in fork code that names the upstream rule it follows, held
+  to it by a test where one can reach both; upstream code is not moved, renamed or tidied to share
+  it.
 
 ---
 
@@ -254,10 +260,9 @@ does not state this reason.
 
 The work in this plan:
 
-- Fix the defects the port brought in: the settings migration (an old file with `resolution x/y`
-  and no `window width` copies the values once), the launcher's custom size (say what it sets, or
-  add the window's size), `androidmain.cpp` (back to upstream's, or out of the fork), and the
-  `GraphicsWindowSDL2` rename (back to upstream's name).
+- Fix the defects the port brought in: `androidmain.cpp` (back to upstream's, or out of the fork)
+  and the `GraphicsWindowSDL2` rename (back to upstream's name). The settings migration and the
+  launcher's text are done.
 
 **Gamma** came back in `c80cd6eded`: both renderers raise the world's picture to one over
 `[Video] gamma` in their last pass over it (the tone pass, `PingPongCanvas`), and `AGENTS.md` records
@@ -272,11 +277,8 @@ renderers.
 
 The work in this plan:
 
-- Correct the `GlRenderer` class comment (`glrenderer.hpp:83-86`), which says the rasterizer is not
-  modified.
-- The pingpong, postprocessor and intersector hunks stay.
-- Correct the upscale docs (`rtx.rst`, `settings-default.cfg`, the launcher tooltip): `off` traces
-  at the frame's size, not the window's.
+- The pingpong, postprocessor and intersector hunks stay. The `GlRenderer` comment and the upscale
+  docs are corrected.
 
 ### D3. The five extra warnings stay on for the whole tree.
 
@@ -441,8 +443,9 @@ tracer with no reader)* and Night-Eye in *(The trace's light rules are its own �
 done in Phase 1. Each item here waits for an input outside the tree ("Waiting for you").
 
 - **Groundcover is one merged mesh per cell**, as the rasterizer's chunks merge it: the ring's
-  reader builds it from `GroundcoverStore` with `Groundcover`'s own `DensityCalculator` (moved to be
-  shared), under `rendering distance` and `density`. One instance per cell keeps the top-level
+  reader builds it from `GroundcoverStore` under `rendering distance` and `density`, with a copy of
+  the density rule that names `Groundcover`'s `DensityCalculator`, which stays where upstream keeps
+  it (P9). One instance per cell keeps the top-level
   structure's row count what it is today, where an instance per plant would multiply it. Stomp is a
   later deformer. Waits for a groundcover plugin to check it against.
 - **BC7 and the other formats a host must read.** Every BC format uploads as it is; the host reads a
@@ -468,10 +471,10 @@ Each carries a test with hand-computed values, on the GPU where the fact is a pi
 
 1. **Debug-only checks on hot paths.** Each `Crash::notNull` on a per-node or per-frame path
    becomes the debug-only form.
-2. **The port's defects:** the settings migration, the launcher's custom size, `androidmain.cpp`,
-   and the `GraphicsWindowSDL2` rename.
-3. **The comments and docs that the decisions make false:** the `GlRenderer` class comment, the
-   upscale docs, `rtx.rst`'s "untouched" and its `-DOPENMW_RTX`.
+2. **The port's defects:** `androidmain.cpp` back to upstream's, and upstream's
+   `GraphicsWindowSDL2` name back. Both take fork lines out of upstream files.
+3. **The docs that the decisions make false:** `rtx.rst`'s and `settings-default.cfg`'s
+   `-DOPENMW_RTX`.
 4. **D1 and D6, as decided:** `AGENTS.md`'s SDL3 entry names the removal of contrast; the engine's
    two frame hooks go into Accepted diff, and the weather hold and the script boxes move into the host.
 5. **The post-processing package tests the renderer once.** `initPostprocessingPackage` registers
@@ -497,7 +500,8 @@ Phase 1.
 `RtxSourceTreeTest` reads the folder order from `architecture.md`'s table, so the order has one
 statement. Move `shaders/` to the top of that table. The test refuses a quoted include with a `..`
 component, and refuses `<apps/...>` under `components/rtx` and `components/rtxvulkan`. Then fix the
-51 quoted `"../"` includes in the fork's `mwrender` files, the two in test support, and the
+quoted `"../"` includes in the fork's own `mwrender` files (never upstream's), the two in test
+support, and the
 `#ifdef _WIN32` in `glrenderer.cpp`. The core's prose names no Vulkan object either (swapchains,
 descriptor sets, command buffers, `VkInstance`): it states each cost in its own terms, and the
 backend's comment carries the Vulkan reason.
@@ -539,9 +543,8 @@ takes a path and widens it on Windows.
 
 ### 16.8 The seam answers each question once
 
-*(REVIEW: The seam promises what only one renderer does)*: W12 takes the thumbnail and the debug
-lines, W14.0's declaration takes the settings window and the post-processing package's question,
-and W1 takes the time-skip cut and the strikes.
+*(REVIEW: The seam promises what only one renderer does)*: what is left is the post-processing
+package's question, §16.1 item 5, which gives upstream's bindings back unchanged.
 
 ---
 
