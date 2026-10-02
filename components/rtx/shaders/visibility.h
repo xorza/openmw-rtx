@@ -261,6 +261,12 @@ namespace Rtx::Shaders
         vec3 mSkyZenith;
         SkyRamp mSkyRamp;
 
+        /// Whether the sky is drawn for the eye and the mirrors. Nought under `tsky`, where the
+        /// rasterizer hides the sky node and clears to the fog colour while the sky goes on lighting
+        /// what it lit, so only what a ray that reached nothing shows changes. One in a frame built
+        /// by hand.
+        uint mSkyDrawn;
+
         /// How much of `mAmbient` arrives from the sky, from none of it to all.
         ///
         /// **The two things an ambient can be, told apart.** Out of doors it is the sky. Inside it
@@ -593,8 +599,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1256, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1440, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1264, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1448, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(HitRecord) == 8, "HitRecord must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 8, "PuffConstants must be scalar-packed on every side");
 #endif

@@ -250,10 +250,10 @@ namespace MWRender
         }
 
         /// `tsky` hides the sky and leaves the light: the rasterizer masks the sky node out and
-        /// clears to the fog colour, and the sun goes on lighting the ground. So the reading is
-        /// not outdoors — no deck, no stars, no moons, no dome fill — its zenith is its horizon,
-        /// and its sun is the noon sun with no disc to draw.
-        TEST(RtxReadWorldTest, theSkyToggleHidesTheSkyAndKeepsTheSun)
+        /// clears to the fog colour, and the sun, the moons and the dome go on lighting the ground.
+        /// So the reading is outdoors as before, with the same sky, sun and disc, and says only that
+        /// its sky is not drawn; and it has no glare, whose node hangs under the hidden sun.
+        TEST(RtxReadWorldTest, theSkyToggleHidesTheSkyAndKeepsItsLight)
         {
             Standing standing = standingIn(Location::Exterior);
             standing.mWorld.mSkyShown = false;
@@ -261,12 +261,14 @@ namespace MWRender
             const Rtx::WorldReading hidden = readFrom(standing);
             const Rtx::WorldReading shown = readFrom(standingIn(Location::Exterior));
 
-            EXPECT_FALSE(hidden.mOutdoors);
-            EXPECT_EQ(hidden.mDaylight.mSkyZenith, hidden.mDaylight.mSkyHorizon);
+            EXPECT_TRUE(hidden.mOutdoors) << "a hidden sky stopped lighting";
+            EXPECT_FALSE(hidden.mSkyDrawn);
+            EXPECT_TRUE(shown.mSkyDrawn);
+            EXPECT_EQ(hidden.mDaylight.mSkyZenith, shown.mDaylight.mSkyZenith);
             EXPECT_EQ(hidden.mDaylight.mSkyHorizon, shown.mDaylight.mSkyHorizon);
             EXPECT_EQ(hidden.mDaylight.mLight.mSun.mIrradiance, shown.mDaylight.mLight.mSun.mIrradiance);
-            EXPECT_EQ(hidden.mDaylight.mLight.mSun.mDiscColour, osg::Vec3f()) << "a disc drawn on a hidden sky";
-            EXPECT_NE(shown.mDaylight.mLight.mSun.mDiscColour, osg::Vec3f());
+            EXPECT_EQ(hidden.mDaylight.mLight.mSun.mDiscColour, shown.mDaylight.mLight.mSun.mDiscColour);
+            EXPECT_EQ(hidden.mSunGlare.mStrength, 0.0f) << "a glare on a hidden sun";
         }
 
         /// **The glare fades with the disc through sunrise and sunset**, as `SkyManager::setWeather`

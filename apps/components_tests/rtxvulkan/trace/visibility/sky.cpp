@@ -91,6 +91,14 @@ namespace Rtx::Testing
                 EXPECT_EQ(diffuse[middle + channel], 0.0f) << "no albedo, channel " << channel;
             EXPECT_EQ(surface[centreOf(size) * 2], Shaders::SURFACE_NO_NORMAL) << "no normal";
             EXPECT_EQ(surface[centreOf(size) * 2 + 1], 10000.0f) << "as far away as the camera reaches";
+
+            // **A sky `tsky` hid is the fog colour to the top**, as the rasterizer clears to it: the
+            // top row shows the horizon's pure red as the middle row does.
+            camera.mSkyDrawn = 0;
+            const Frame hidden = shoot(scene, {}, camera, size);
+            EXPECT_EQ(hidden.byte(top), 255) << "the zenith drawn on a hidden sky";
+            EXPECT_EQ(hidden.byte(top + 2), 0);
+            EXPECT_EQ(hidden.byte(middle), 255);
         }
 
         /// Both moons light a floor, and the two slots are one code path.

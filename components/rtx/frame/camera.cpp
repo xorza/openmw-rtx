@@ -75,6 +75,7 @@ namespace Rtx
             // Every class, until a camera with a cull mask of its own says which it draws. The
             // harness's and the tests' cameras never do.
             constants.mRayMask = Shaders::MASK_EVERY_CLASS;
+            constants.mSkyDrawn = 1;
 
             return constants;
         }

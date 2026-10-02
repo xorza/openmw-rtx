@@ -571,6 +571,19 @@ namespace Rtx
             describe(room, drift, open);
             EXPECT_EQ(open.mMoons[0].mAlpha, 1.0f);
             EXPECT_EQ(open.mMoons[0].mSource.mIrradiance, osg::Vec3f(0.05f, 0.05f, 0.06f));
+            EXPECT_EQ(open.mSkyDrawn, 1u);
+
+            // **A sky `tsky` hid is still a sky**: every light and every layer the open one has, and
+            // the one field the eye's sky reads says it is not drawn.
+            room.mSkyDrawn = false;
+            Shaders::VisibilityConstants hidden{};
+            describe(room, drift, hidden);
+            EXPECT_EQ(hidden.mSkyDrawn, 0u);
+            EXPECT_EQ(hidden.mAmbientFromSky, open.mAmbientFromSky);
+            EXPECT_EQ(hidden.mSkyFill, open.mSkyFill);
+            EXPECT_EQ(hidden.mFogColour, open.mFogColour);
+            EXPECT_EQ(hidden.mClouds.mTexture, open.mClouds.mTexture) << "the deck's shadow went with its picture";
+            EXPECT_EQ(hidden.mMoons[0].mSource.mIrradiance, open.mMoons[0].mSource.mIrradiance);
         }
 
         /// The bias is the light's, and this is the only thing between it and `FrameOptions`.
