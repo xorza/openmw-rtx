@@ -25,9 +25,10 @@ namespace Rtx::Shaders
 
     struct StressConstants
     {
-        /// How long the loop holds, in nanoseconds of the device's real-time clock. Thirty-two
-        /// bits is four seconds, and a hold is milliseconds.
-        uint mNanoseconds;
+        /// How long the loop holds, in ticks of the device's real-time clock, whose rate is the
+        /// device's own: a nanosecond on NVIDIA's, ten on RDNA's 100 MHz counter. Thirty-two bits
+        /// is four seconds at the faster, and a hold is milliseconds.
+        uint mTicks;
     };
 
 #ifdef RTX_HOST

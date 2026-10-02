@@ -112,7 +112,9 @@ namespace Rtx
         /// @param readsCounts whether a frame's counts come back to the host at all: where the
         ///        trace counts its hits, and where a hold leaves its reading. Decided once, and read
         ///        where the block is cleared, ordered for the host and read back.
-        FrameRing(const Device& device, bool readsCounts);
+        /// @param holdTickMs the milliseconds one tick of the hold's clock is worth
+        ///        (`StressPass::getTickMs`), or nought where no hold runs.
+        FrameRing(const Device& device, bool readsCounts, double holdTickMs);
 
         FrameRing(const FrameRing&) = delete;
         FrameRing& operator=(const FrameRing&) = delete;
@@ -207,6 +209,7 @@ namespace Rtx
         /// renderer's own members would tie this ring's correctness to where a boolean happens to
         /// live.
         bool mReadsCounts = false;
+        double mHoldTickMs = 0.0;
 
         PerSlot<FrameRecord> mSlots;
         std::array<GrowableBuffer, sFrameSlots + 1> mPictures;

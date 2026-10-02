@@ -23,13 +23,27 @@ namespace Rtx
     /// **The time is measured where it passes, in the loop, off the device's real-time clock.**
     /// `stress.comp` says why a count is not a time on a card whose clock moves, and it moves the
     /// most on the frames a run measures first. What the loop's clock came to is left in the
-    /// frame's counts, `Shaders::FrameCounts::mHeldNs`, which the ring reads back once the frame is
-    /// waited for — `FrameResult::mHeldMs`.
+    /// frame's counts, `Shaders::FrameCounts::mHeldTicks`, which the ring reads back once the frame
+    /// is waited for — `FrameResult::mHeldMs`.
+    ///
+    /// **The clock's tick is the queue's timestamp period.** `GL_EXT_shader_realtime_clock` names
+    /// no unit, and a hold asked in nanoseconds ran ten times as long on the AMD target and
+    /// reported a tenth of it. Both target vendors read one counter for the two: NVIDIA's
+    /// `%globaltimer` counts nanoseconds and its period is one; RDNA's `s_memrealtime` is the
+    /// 100 MHz reference clock, which RADV states as a period of `1e6 / clock_crystal_freq`
+    /// nanoseconds. Timing the loop against the queue's timestamps instead read stalls of up to
+    /// 2.6 ms around a loop on a card stepping its clock, and moved the rate by four fifths.
     class StressPass
     {
     public:
         /// @param milliseconds how long every frame's hold is to be.
         StressPass(const Device& device, double milliseconds);
+
+        /// The milliseconds one tick of the loop's clock is worth.
+        double getTickMs() const { return mTickMs; }
+
+        /// The ticks every hold asks for.
+        std::uint32_t getTicks() const { return mTicks; }
 
         /// Records the hold into `commands`, timed as `RenderProfile::sHoldZone`, leaving what the
         /// loop's clock read in `counts`: the frame's own block, so the reading is the frame's and
@@ -39,6 +53,7 @@ namespace Rtx
     private:
         ComputePipeline<Shaders::StressConstants> mPipeline;
 
-        std::uint32_t mNanoseconds;
+        double mTickMs = 0.0;
+        std::uint32_t mTicks = 0;
     };
 }

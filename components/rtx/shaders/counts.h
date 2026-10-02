@@ -32,9 +32,9 @@ namespace Rtx::Shaders
         /// these: `FrameRing::finishOldest`.
         uint mMisses;
 
-        /// What the hold's own clock said the hold came to, in nanoseconds, written by the loop
+        /// What the hold's own clock said the hold came to, in its ticks, written by the loop
         /// `check` appends to the frame — `stress.comp`. Left alone by a frame with no hold.
-        uint mHeldNs;
+        uint mHeldTicks;
 
         /// Stores whose value was a NaN or an infinity, one word a boundary, summed by the pass
         /// that wrote them where the trace was built to count — `countNotFinite`. A history that

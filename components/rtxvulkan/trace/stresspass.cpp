@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cmath>
+#include <cstdint>
 
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/shaders/stress.h>
@@ -20,7 +21,10 @@ namespace Rtx
 
     StressPass::StressPass(const Device& device, const double milliseconds)
         : mPipeline(device, sBindings, {}, "stress.comp.spv", "stress")
-        , mNanoseconds(static_cast<std::uint32_t>(std::llround(milliseconds * 1.0e6)))
+        , mTickMs(static_cast<double>(
+                      device.getPhysicalDevice().getProperties().mProperties2.properties.limits.timestampPeriod)
+              * 1.0e-6)
+        , mTicks(static_cast<std::uint32_t>(std::llround(milliseconds / mTickMs)))
     {
     }
 
@@ -31,7 +35,7 @@ namespace Rtx
 
         DescriptorWrites writes(mPipeline);
         writes.buffer(Shaders::STRESS_BIND_COUNTS, counts.describe());
-        dispatch(commands, mPipeline, writes, Shaders::StressConstants{ .mNanoseconds = mNanoseconds }, Groups{});
+        dispatch(commands, mPipeline, writes, Shaders::StressConstants{ .mTicks = mTicks }, Groups{});
 
         timer.close(commands);
     }
