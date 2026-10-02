@@ -84,17 +84,6 @@ namespace Rtx
             }
         };
 
-        /// How often the light crosses its own resting brightness, per second.
-        float crossingsPerSecond(const std::vector<float>& run, double step)
-        {
-            std::size_t crossings = 0;
-            for (std::size_t i = 1; i < run.size(); ++i)
-                if ((run[i] - 1.0f) * (run[i - 1] - 1.0f) < 0.0f)
-                    ++crossings;
-
-            return static_cast<float>(static_cast<double>(crossings) / (static_cast<double>(run.size() - 1) * step));
-        }
-
         /// A light the record says nothing about burns at exactly what it is.
         TEST(RtxLightBuilderTest, aSteadyLightIsExactlyOne)
         {
@@ -104,12 +93,10 @@ namespace Rtx
                 EXPECT_EQ(steady.at(seconds), 1.0f);
         }
 
-        /// A flame stays inside its depth and, over time, radiates exactly what the record says.
-        ///
-        /// **The mean is the point.** The rasterizer's own animation walks toward a random target
-        /// between a quarter and one, so a flickering light averages 0.63 of its recorded colour;
-        /// this one averages the colour itself, so a candle is as bright as the record says it is.
-        TEST(RtxLightBuilderTest, aFlameStaysWithinItsDepthAndAveragesOne)
+        /// An animated lamp stays in the game's band and averages its middle, as the game's own walk
+        /// between targets does: `LightController` draws its targets evenly from a quarter to one, or
+        /// alternates the two, so the time average is `(0.25 + 1) / 2 = 0.625` of the recorded colour.
+        TEST(RtxLightBuilderTest, anAnimatedLampStaysInTheGamesBandAndAveragesItsMiddle)
         {
             for (const SceneUtil::LightController::LightType type :
                 { SceneUtil::LightController::LT_Flicker, SceneUtil::LightController::LT_FlickerSlow,
@@ -117,66 +104,58 @@ namespace Rtx
             {
                 const Lamp lamp{ type };
                 const std::vector<float> run = lamp.run(60000, 0.01);
-                const bool pulse
-                    = type == SceneUtil::LightController::LT_Pulse || type == SceneUtil::LightController::LT_PulseSlow;
 
-                // The bands are weighted to sum to one, so the depth is a bound and not a statistic.
-                const float depth = pulse ? 0.35f : 0.30f;
-                EXPECT_GE(*std::min_element(run.begin(), run.end()), 1.0f - depth);
-                EXPECT_LE(*std::max_element(run.begin(), run.end()), 1.0f + depth);
+                EXPECT_GE(*std::min_element(run.begin(), run.end()), SceneUtil::LightController::sDimmest);
+                EXPECT_LE(*std::max_element(run.begin(), run.end()), SceneUtil::LightController::sBrightest);
 
-                // Ten minutes is at least a hundred turns of the slowest band any of them carries,
-                // so what is left of it here is a thousandth.
-                EXPECT_NEAR(Testing::meanOf(run), 1.0f, 0.001f);
+                // Ten minutes is at least three hundred turns of the slowest band any of them
+                // carries, so what is left of it here is a thousandth.
+                EXPECT_NEAR(Testing::meanOf(run), 0.625f, 0.001f);
 
-                // And it did move, rather than sitting at its mean and passing the two tests above.
-                EXPECT_GT(*std::max_element(run.begin(), run.end()) - *std::min_element(run.begin(), run.end()), depth);
+                // And it did move, rather than sitting at its middle and passing the two tests above.
+                EXPECT_GT(*std::max_element(run.begin(), run.end()) - *std::min_element(run.begin(), run.end()),
+                    0.375f);
             }
         }
 
-        /// The fast flicker is the flame itself and the slow one is that flame seen through glass.
-        ///
-        /// Both are four bands of one ladder; the slow one takes its window a step down, so it loses
-        /// the puffing at the top and gains a drift at the bottom. One step of the ladder is 2.618,
-        /// and the rate at which the light crosses its own mean follows it: about 11 times a second
-        /// against about 4.
-        TEST(RtxLightBuilderTest, theSlowFlickerIsTheSameFlameOneStepDownTheLadder)
+        /// The slow flicker is the same flame at the game's slow speed, half the fast one, so at any
+        /// instant it stands where the fast one stood at half that time.
+        TEST(RtxLightBuilderTest, theSlowFlickerIsTheFlameAtHalfTheSpeed)
         {
             const Lamp fast{ SceneUtil::LightController::LT_Flicker };
             const Lamp slow{ SceneUtil::LightController::LT_FlickerSlow };
 
-            // 200 hertz, so the nine-hertz band's own crossings are resolved rather than counted
-            // twice.
-            const float busy = crossingsPerSecond(fast.run(12000, 0.005), 0.005);
-            const float gentle = crossingsPerSecond(slow.run(12000, 0.005), 0.005);
-
-            EXPECT_GT(busy, 8.0f);
-            EXPECT_LT(gentle, 6.0f);
-            EXPECT_GT(busy, gentle * 2.0f) << "the two flicker flags read as the same light";
+            for (const double seconds : { 0.0, 0.1, 0.37, 2.5, 41.25 })
+                EXPECT_NEAR(slow.at(2.0 * seconds), fast.at(seconds), 1e-5f) << "at " << seconds;
         }
 
-        /// A pulse is one sine, so it comes back to where it was and its two halves cancel exactly.
-        ///
-        /// The slow one turns once every three seconds and the fast one is a step of the ladder
-        /// above it, at 3 / 2.618 = 1.1459 seconds.
-        TEST(RtxLightBuilderTest, aPulseIsExactlyPeriodic)
+        /// A pulse is the game's own triangle: it walks from a quarter to one and back at the game's
+        /// speed, `0.1 * 15 = 1.5` a second, so a turn is `2 * 0.75 / 1.5 = 1` second, and two at the
+        /// slow speed.
+        TEST(RtxLightBuilderTest, aPulseIsTheGamesTriangle)
         {
+            const Lamp fast{ SceneUtil::LightController::LT_Pulse };
             const Lamp slow{ SceneUtil::LightController::LT_PulseSlow };
 
             for (const double seconds : { 0.0, 0.3, 1.7, 10.5, 123.25 })
             {
-                EXPECT_NEAR(slow.at(seconds), slow.at(seconds + 3.0), 1e-5f);
+                EXPECT_NEAR(fast.at(seconds), fast.at(seconds + 1.0), 1e-5f);
+                EXPECT_NEAR(slow.at(seconds), slow.at(seconds + 2.0), 1e-5f);
 
-                // Half a turn on, the sine is its own negative, so the pair averages the resting
-                // brightness whatever phase this lamp was given.
-                EXPECT_NEAR(slow.at(seconds) + slow.at(seconds + 1.5), 2.0f, 1e-5f);
+                // Half a turn on, the triangle stands as far the other side of its middle.
+                EXPECT_NEAR(fast.at(seconds) + fast.at(seconds + 0.5), 1.25f, 1e-5f);
+                EXPECT_NEAR(slow.at(seconds) + slow.at(seconds + 1.0), 1.25f, 1e-5f);
             }
 
-            const Lamp fast{ SceneUtil::LightController::LT_Pulse };
-            constexpr double period = 3.0 / 2.618034;
-
-            for (const double seconds : { 0.0, 0.3, 1.7, 10.5 })
-                EXPECT_NEAR(fast.at(seconds), fast.at(seconds + period), 1e-5f);
+            // It reaches both ends of the band, and between them it moves at the game's speed.
+            const std::vector<float> run = fast.run(1000, 0.001);
+            EXPECT_NEAR(*std::min_element(run.begin(), run.end()), 0.25f, 0.0015f);
+            EXPECT_NEAR(*std::max_element(run.begin(), run.end()), 1.0f, 0.0015f);
+            std::size_t steady = 0;
+            for (std::size_t i = 1; i < run.size(); ++i)
+                if (std::abs(std::abs(run[i] - run[i - 1]) - 0.0015f) < 1e-5f)
+                    ++steady;
+            EXPECT_GE(steady, run.size() - 3) << "the pulse did not walk at a steady 1.5 a second";
         }
 
         /// The clock and the light's id are the whole of the state, so one instant is one answer.
@@ -221,8 +200,8 @@ namespace Rtx
             for (const float value : lit)
                 spread += (static_cast<double>(value) - average) * (static_cast<double>(value) - average);
 
-            // A pulse read at one instant across uniform phases has a deviation of 0.35 / sqrt(2),
-            // which is 0.247. Half of that is far below anything sixty-four ids reach by chance and
+            // A triangle read at one instant across uniform phases has a deviation of its swing over
+            // root three, 0.375 / sqrt(3) = 0.2165. Half of that is far below anything sixty-four ids reach by chance and
             // far above the nothing a shared phase would give.
             EXPECT_GT(std::sqrt(spread / static_cast<double>(lit.size())), 0.12);
         }
