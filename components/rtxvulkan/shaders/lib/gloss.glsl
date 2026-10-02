@@ -151,8 +151,9 @@ struct LobeSample
 /// @param draw two numbers in `[0, 1)`: the facet's height on the cap, then its azimuth.
 LobeSample lobeSample(Gloss gloss, vec2 draw)
 {
-    const vec3 tangent = tangentTo(gloss.mNormal);
-    const vec3 bitangent = cross(gloss.mNormal, tangent);
+    const TangentFrame around = frameAbout(gloss.mNormal);
+    const vec3 tangent = around.mTangent;
+    const vec3 bitangent = around.mBitangent;
     const vec3 eye = vec3(dot(gloss.mToEye, tangent), dot(gloss.mToEye, bitangent), gloss.mToEyeCosine);
 
     const float turn = TAU * draw.y;
