@@ -87,8 +87,7 @@ namespace Rtx
 
     void TemplateWalk::pushShading(const osg::StateSet& stateSet)
     {
-        const Fade above = mShading.empty() ? Fade{} : mShading.back().mFade;
-        mShading.push_back(Shading{ .mStateSet = &stateSet, .mFade = fadeThrough(stateSet, above) });
+        mShading.push_back(Shading::under(mShading, stateSet, false));
     }
 
     void TemplateWalk::apply(osg::Node& node)

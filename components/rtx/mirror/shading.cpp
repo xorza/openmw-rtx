@@ -19,6 +19,17 @@ namespace Rtx
         return said;
     }
 
+    Shading Shading::under(const std::span<const Shading> chain, const osg::StateSet& stateSet, const bool animated)
+    {
+        const Shading* const above = chain.empty() ? nullptr : &chain.back();
+        return Shading{
+            .mStateSet = &stateSet,
+            .mFade = fadeThrough(stateSet, above != nullptr ? above->mFade : Fade{}),
+            .mAnimated = animated,
+            .mAnimatedThrough = animated || (above != nullptr && above->mAnimatedThrough),
+        };
+    }
+
     Fade fadeThrough(const osg::StateSet& stateSet, const Fade& inherited)
     {
         // Asked of the list before the name, because nearly every state set in the world has no

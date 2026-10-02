@@ -1,3 +1,5 @@
+#include <span>
+
 #include <gtest/gtest.h>
 
 #include <osg/StateSet>
@@ -23,6 +25,23 @@ namespace Rtx
             const Fade faded = fadeThrough(*bare, Fade{ .mPlacement = 0.25f, .mActor = 0.5f });
             EXPECT_EQ(faded.mPlacement, 0.25f) << "the chain's own fade was not carried through";
             EXPECT_EQ(faded.mActor, 0.5f);
+
+            // **And a link built under a chain carries it**, as both walks build theirs: the first
+            // link from the defaults, a controller's link animated through everything under it,
+            // and the fade of the link above carried down.
+            const Shading first = Shading::under({}, *bare, false);
+            EXPECT_EQ(first.mStateSet, bare.get());
+            EXPECT_EQ(first.mFade.mPlacement, 1.0f);
+            EXPECT_FALSE(first.mAnimatedThrough);
+
+            const Shading controller{ .mStateSet = bare.get(),
+                .mFade = Fade{ .mPlacement = 0.25f, .mActor = 0.5f },
+                .mAnimated = true,
+                .mAnimatedThrough = true };
+            const Shading below = Shading::under(std::span(&controller, 1), *bare, false);
+            EXPECT_FALSE(below.mAnimated) << "a link was animated for its controller above";
+            EXPECT_TRUE(below.mAnimatedThrough) << "what stands under a controller is not animated by it";
+            EXPECT_EQ(below.mFade.mPlacement, 0.25f) << "the fade above was not carried down";
         }
 
         /// A state set carrying a uniform that is not the fade inherits too.
