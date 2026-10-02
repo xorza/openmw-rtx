@@ -24,7 +24,7 @@
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/sdlutil/events.hpp>
 #include <components/sdlutil/sdlcursormanager.hpp>
-#include <components/sdlutil/sdldisplay.hpp>
+#include <components/sdlutil/sdlvideowrapper.hpp>
 #include <components/settings/settings.hpp>
 #include <components/toutf8/toutf8.hpp>
 #include <components/vfs/pathutil.hpp>

@@ -18,7 +18,7 @@
 #include <components/debug/debuglog.hpp>
 
 #include "imagetosurface.hpp"
-#include "sdldisplay.hpp"
+#include "sdlvideowrapper.hpp"
 
 #if defined(OSG_LIBRARY_STATIC) && (!defined(ANDROID) || OSG_VERSION_GREATER_THAN(3, 6, 5))
 // Sets the default windowing system interface according to the OS.

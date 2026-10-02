@@ -376,6 +376,7 @@ add_component_dir (sdlutil
     sdlgraphicswindow
     sdlinputwrapper
     sdlmappings
+    sdlvideowrapper
     vsyncmode
     )
 

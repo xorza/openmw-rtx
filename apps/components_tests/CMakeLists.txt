@@ -60,7 +60,7 @@ file(GLOB UNITTEST_SRC_FILES
     settings/shadermanager.cpp
     settings/testvalues.cpp
 
-    sdlutil/sdldisplay.cpp
+    sdlutil/sdlvideowrapper.cpp
 
     shader/automaps.cpp
     shader/parsedefines.cpp
