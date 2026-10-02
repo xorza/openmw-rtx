@@ -4,12 +4,10 @@
 
 #include <array>
 #include <cstring>
-#include <optional>
 #include <pwd.h>
 #include <unistd.h>
 
 #include <components/misc/strings/lower.hpp>
-#include <components/platform/process.hpp>
 
 #include "wineutils.hpp"
 
@@ -79,10 +77,23 @@ namespace Files
 
     std::filesystem::path LinuxPath::getLocalPath() const
     {
-        if (const std::optional<std::filesystem::path> binPath = Platform::Process::executable())
-            return binPath->parent_path() / "";
+        auto localPath = std::filesystem::current_path() / "";
 
-        return std::filesystem::current_path() / "";
+        static const std::filesystem::path statusPaths[]
+            = { "/proc/self/exe", "/proc/self/file", "/proc/curproc/exe", "/proc/curproc/file" };
+
+        for (const auto& path : statusPaths)
+        {
+            std::error_code ec;
+            const auto binPath = read_symlink(path, ec);
+            if (!ec)
+            {
+                localPath = binPath.parent_path() / "";
+                break;
+            }
+        }
+
+        return localPath;
     }
 
     std::filesystem::path LinuxPath::getGlobalDataPath() const

@@ -4,18 +4,42 @@
 
 #include <cstdlib>
 #include <filesystem>
-#include <optional>
+#include <mach-o/dyld.h>
 #include <pwd.h>
-#include <stdexcept>
 #include <unistd.h>
 #include <vector>
 
-#include <components/platform/process.hpp>
+#include <components/debug/debuglog.hpp>
 
 #include "wineutils.hpp"
 
 namespace
 {
+    std::filesystem::path getBinaryPath()
+    {
+        uint32_t bufsize = 0;
+        _NSGetExecutablePath(nullptr, &bufsize);
+
+        std::vector<char> buf(bufsize);
+
+        if (_NSGetExecutablePath(buf.data(), &bufsize) == 0)
+        {
+            std::filesystem::path path = std::filesystem::path(buf.begin(), buf.end());
+
+            if (std::filesystem::is_symlink(path))
+            {
+                return std::filesystem::read_symlink(path);
+            }
+
+            return path;
+        }
+        else
+        {
+            Log(Debug::Warning) << "Not enough buffer size to get executable path: " << bufsize;
+            throw std::runtime_error("Failed to get executable path");
+        }
+    }
+
     std::filesystem::path getUserHome()
     {
         const char* dir = getenv("HOME");
@@ -73,11 +97,7 @@ namespace Files
 
     std::filesystem::path MacOsPath::getLocalPath() const
     {
-        const std::optional<std::filesystem::path> binaryPath = Platform::Process::executable();
-        if (!binaryPath.has_value())
-            throw std::runtime_error("Failed to get executable path");
-
-        return binaryPath->parent_path().parent_path() / "Resources";
+        return getBinaryPath().parent_path().parent_path() / "Resources";
     }
 
     std::filesystem::path MacOsPath::getGlobalDataPath() const
