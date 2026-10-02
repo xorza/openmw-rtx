@@ -65,33 +65,6 @@ namespace MWRender
     namespace
     {
         // The paging's own kinds unless a caller names others: what a chunk stands, and never a light
-        bool typeFilter(int type, bool far, Terrain::RefKinds kinds = Terrain::RefKinds::Paged)
-        {
-            if (type == ESM::REC_LIGH)
-                return Terrain::holds(kinds, Terrain::RefKinds::Lit);
-            if (!Terrain::holds(kinds, Terrain::RefKinds::Paged))
-                return false;
-
-            switch (type)
-            {
-                case ESM::REC_STAT:
-                case ESM::REC_ACTI:
-                case ESM::REC_DOOR:
-                case ESM::REC_STAT4:
-                case ESM::REC_DOOR4:
-                case ESM::REC_TREE4:
-                    return true;
-                case ESM::REC_CONT:
-                case ESM::REC_ACTI4:
-                case ESM::REC_CONT4:
-                case ESM::REC_FURN4:
-                    return !far;
-
-                default:
-                    return false;
-            }
-        }
-
         template <typename Record>
         VFS::Path::Normalized getEsm4Model(const Record& record)
         {
@@ -560,7 +533,7 @@ namespace MWRender
                                     continue;
 
                                 int type = store.findStatic(ref.mRefID);
-                                if (!typeFilter(type, size >= 2, kinds))
+                                if (!Terrain::collects(type, size >= 2, kinds))
                                     continue;
                                 if (deleted)
                                 {
@@ -585,7 +558,7 @@ namespace MWRender
                             continue;
                         }
                         int type = store.findStatic(ref.mRefID);
-                        if (!typeFilter(type, size >= 2, kinds))
+                        if (!Terrain::collects(type, size >= 2, kinds))
                             continue;
                         refs.assign(ref.mRefNum, makePagedCellRef(ref));
                     }
@@ -620,7 +593,7 @@ namespace MWRender
                         if (ref4->mFlags & ESM4::Rec_Disabled)
                             continue;
                         int type = store.findStatic(ref4->mBaseObj);
-                        if (!typeFilter(type, size >= 2, kinds))
+                        if (!Terrain::collects(type, size >= 2, kinds))
                             continue;
                         if (!ref4->mEsp.parent.isZeroOrUnset())
                         {
@@ -1037,7 +1010,7 @@ namespace MWRender
     bool ObjectPaging::enableObject(
         int type, ESM::RefNum refnum, const osg::Vec3f& pos, const osg::Vec2i& cell, bool enabled)
     {
-        if (!typeFilter(type, false))
+        if (!Terrain::collects(type, false, Terrain::RefKinds::Paged))
             return false;
 
         {
@@ -1061,7 +1034,7 @@ namespace MWRender
 
     bool ObjectPaging::blacklistObject(int type, ESM::RefNum refnum, const osg::Vec3f& pos, const osg::Vec2i& cell)
     {
-        if (!typeFilter(type, false))
+        if (!Terrain::collects(type, false, Terrain::RefKinds::Paged))
             return false;
 
         {
@@ -1149,12 +1122,6 @@ namespace MWRender
     void ObjectPaging::reportStats(unsigned int frameNumber, osg::Stats* stats) const
     {
         Resource::reportStats("Object Chunk", frameNumber, mCache->getStats(), *stats);
-    }
-
-    // Defined here because the walk it wraps is file-local
-    bool ObjectStorage::handsOver(const int type)
-    {
-        return typeFilter(type, false, Terrain::RefKinds::Both);
     }
 
     void ObjectStorage::collect(float size, const osg::Vec2i& startCell, ESM::RefId worldspace, Terrain::RefKinds kinds,
