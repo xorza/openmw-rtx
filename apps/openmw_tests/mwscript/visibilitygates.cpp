@@ -5,6 +5,7 @@
 #include <map>
 #include <optional>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -210,6 +211,17 @@ End
 
         mReads.mJournal[ESM::RefId::stringRefId("c3_destroydagoth")] = 20;
         EXPECT_EQ(run(sFenceScript, inputs), GateState::Closed) << "struck: down, whatever the sound";
+    }
+
+    /// **A broken contract is not an answer.** A program run with locals other than the ones it
+    /// was compiled with reads a local that is not there, which is a fault of the code that handed
+    /// them over: it ends the run, where a handler for every exception made it `Undecided`.
+    TEST_F(VisibilityGatesTest, aProgramRunWithoutItsLocalsIsAFaultAndNotAnAnswer)
+    {
+        const Compiled compiled = compile("begin gate\nshort count\nif ( count == 0 )\n  disable\nendif\nend\n");
+        std::vector<MWScript::VisibilityInput> inputs;
+        EXPECT_THROW(static_cast<void>(mRun.run(compiled.mProgram, Compiler::Locals{}, mReads, inputs, mNamed)),
+            std::out_of_range);
     }
 
     /// **Nothing a run does reaches the game, and what it cannot see it does not guess.** A global
