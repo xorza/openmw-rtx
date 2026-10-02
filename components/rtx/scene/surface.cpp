@@ -16,6 +16,7 @@
 #include <osg/GL>
 #include <osg/Material>
 #include <osg/Matrixf>
+#include <osg/Multisample>
 #include <osg/PolygonMode>
 #include <osg/ShadeModel>
 #include <osg/StateAttribute>
@@ -272,8 +273,8 @@ namespace Rtx
                 case GL_LIGHTING:
                 case GL_NORMALIZE:
                 case GL_RESCALE_NORMAL:
-                case GL_MULTISAMPLE:
-                case GL_SAMPLE_ALPHA_TO_COVERAGE:
+                case GL_MULTISAMPLE_ARB:
+                case GL_SAMPLE_ALPHA_TO_COVERAGE_ARB:
                     return;
                 case GL_FOG:
                     material.markUnread(UnreadState::Fog, true);
