@@ -131,6 +131,17 @@ namespace Rtx::Testing
             for (const osg::Vec3f& normal : reading.mArrays.mNormals)
                 EXPECT_EQ(normal, osg::Vec3f(0.0f, 0.0f, 1.0f));
 
+            // **Element nought, whatever the array's length**, as OpenGL reads an overall array: an
+            // overall array as long as the vertices is not read per vertex.
+            quad->setNormalArray(makePositions({ osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(0.0f, 1.0f, 0.0f),
+                                     osg::Vec3f(0.0f, 1.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f) }),
+                osg::Array::BIND_OVERALL);
+            MeshReading asLong;
+            ASSERT_TRUE(reader.read(readDrawable(*quad, NodeKinds{}.of(*quad)), asLong).value());
+            ASSERT_EQ(asLong.mArrays.mNormals.size(), 4u);
+            for (const osg::Vec3f& normal : asLong.mArrays.mNormals)
+                EXPECT_EQ(normal, osg::Vec3f(0.0f, 0.0f, 1.0f)) << "an overall array was read per vertex";
+
             // A drawable with no triangles mirrors nothing, and says so rather than reading zero.
             osg::ref_ptr<osg::Geometry> empty = new osg::Geometry;
             EXPECT_FALSE(reader.read(readDrawable(*empty, NodeKinds{}.of(*empty)), reading).value());
