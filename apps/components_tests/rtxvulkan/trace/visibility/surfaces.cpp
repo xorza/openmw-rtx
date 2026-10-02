@@ -38,6 +38,7 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>
+#include <components/rtx/shaders/brdf.h>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
@@ -1737,6 +1738,9 @@ namespace Rtx::Testing
         /// `(128, 64)`, since this renderer has no queue and `RtxGroundCompositePassTest` holds the
         /// bake to the stack.
         ///
+        /// **A classic layer reflects the strength its alpha paints**, at the exponent the rasterizer's
+        /// terrain fixes, and a flattened chunk reads that beside the authored share.
+        ///
         /// **And a map that stands in is no map**, one slot at a time: the leaning normal map
         /// standing in leaves the card's own normal in every column, the authored texture standing
         /// in leaves a Lambert layer that reflects nothing at a roughness of one, and so does the
@@ -1748,6 +1752,7 @@ namespace Rtx::Testing
             constexpr std::array<std::uint8_t, 4> sLeaning{ 191, 128, 221, 255 };
             constexpr std::array<std::uint8_t, 4> sAuthored{ 128, 128, 128, 64 };
             constexpr std::array<std::uint8_t, 4> sGloss{ 128, 64, 0, 255 };
+            constexpr std::array<std::uint8_t, 4> sClassicGloss{ 0, 64, 128, 255 };
             const std::array<TextureData, 4> textures{ describeTexel(sRed, 0), describeTexel(sLeaning, 1),
                 describeTexel(sAuthored, 2), describeTexel(sGloss, 3) };
 
@@ -1762,10 +1767,13 @@ namespace Rtx::Testing
 
             // The three columns of the middle row, in the view `show`, with the texture in slot
             // `standsIn` described as the stand-in.
-            const auto render = [&](SurfaceView show, bool flattened, std::optional<Index> standsIn = std::nullopt) {
+            const auto render = [&](SurfaceView show, bool flattened, std::optional<Index> standsIn = std::nullopt,
+                                    bool classic = false) {
                 std::array<TextureData, 4> described = textures;
                 if (standsIn.has_value())
                     described[*standsIn].mSource = TextureSource::StandIn;
+                if (classic)
+                    described[3] = describeTexel(sClassicGloss, 3);
 
                 SceneDesc scene;
                 const Index mesh = scene.addMesh(MeshArrays{
@@ -1782,7 +1790,7 @@ namespace Rtx::Testing
                     Testing::layerOf(2, scene.materials().addMask(secondMask), 2, 1),
                 };
                 layers[0].mNormal = 1;
-                layers[1].mFlags = Shaders::LAYER_AUTHORED;
+                layers[1].mFlags = classic ? Shaders::LAYER_CLASSIC : Shaders::LAYER_AUTHORED;
 
                 Material material;
                 material.mKind = MaterialKind::Terrain;
@@ -1869,6 +1877,24 @@ namespace Rtx::Testing
                 EXPECT_EQ(noGlossSpecular[at].x(), 0.0f) << "a gloss that stands in, column " << at;
                 EXPECT_EQ(noGlossRough[at].x(), 1.0f) << "a gloss that stands in, column " << at;
             }
+
+            // **A classic layer reflects its alpha** at the exponent `terrain.frag` fixes, and its
+            // diffuse is delit as any vanilla one: 64 of 255 is the reflectance, 0.250980, and 128
+            // the exponent, a roughness of `(2 / 130)^(1/4) = 0.352199`.
+            const float classicRough = Shaders::roughnessOfExponent(Shaders::CLASSIC_GROUND_EXPONENT);
+            ASSERT_NEAR(classicRough, std::pow(2.0f / 130.0f, 0.25f), 1e-6f);
+            const std::array classicSpecular = render(SurfaceView::Specular, false, std::nullopt, true);
+            const std::array classicRoughness = render(SurfaceView::Roughness, false, std::nullopt, true);
+            EXPECT_EQ(classicSpecular[0].x(), 0.0f);
+            EXPECT_NEAR(classicSpecular[1].x(), second * rough, 1e-7f);
+            EXPECT_NEAR(classicSpecular[2].x(), rough, 1e-7f);
+            EXPECT_NEAR(classicRoughness[1].x(), (1.0f - second) + second * classicRough, 1e-6f);
+            EXPECT_NEAR(classicRoughness[2].x(), classicRough, 1e-6f);
+
+            // Flattened, a classic gloss's blue is that reflectance, beside the authored share in red.
+            const std::array classicFlat = render(SurfaceView::Specular, true, std::nullopt, true);
+            for (std::size_t at = 0; at < 3; ++at)
+                EXPECT_NEAR(classicFlat[at].x(), 128.0f / 255.0f, 1e-7f) << "flattened classic column " << at;
         }
 
         /// **Parallax shifts the sheet toward the eye by the height the normal map carries**, as the

@@ -62,20 +62,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
   `describeStateSet` reports each fact it does not carry (a declined role, an unread blend pair, a
   front face, a polygon mode, a fog override) through the refusals once per state set, as
   `MeshResolver::refuse` does for geometry. *(kind: missing; severity: low; benefit: mod content that differs says so)*
-- [ ] **`[RTX] specular map layout = ignore` drops OpenMW's classic `_spec` maps, on the claim that
-  no physical reading of them exists** — `components/rtx/scene/specularlayout.hpp:17-19`,
-  `components/rtx/mirror/materialresolver.cpp:430-435`,
-  `components/rtx/mirror/cells/cellplacer.cpp:291-294`, `docs/source/reference/modding/settings/rtx.rst:56-65`,
-  against `objects.frag:224-237` and `files/shaders/compatibility/terrain.frag` (`_diffusespec`).
-  With `auto use object specular maps` on and a classic map (RGB highlight colour, alpha
-  shininess ÷ 255), the rasterizer draws the highlight and the tracer draws none. "No physical
-  reading of a highlight colour as a reflectance exists" is false. The specular-glossiness
-  workflow (glTF's `KHR_materials_pbrSpecularGlossiness`) reads the specular colour as the
-  reflectance at normal incidence, and the Blinn-Phong exponent `n` maps to a microfacet roughness
-  by the established match `α = sqrt(2 / (n + 2))` (Walter et al. 2007, and Karis's notes). Better
-  shape: a third layout, `classic`, read as `F0 = rgb`, `α` from `a × 255`, with the documentation
-  stating the match as the approximation it is. *(kind: design; severity: low; benefit: classic
-  specular maps reach the trace)*
 - [ ] **`apply lighting to environment maps` is heard by the rasterizer alone** —
   `apps/openmw/mwrender/glworld.cpp:140`, `objects.frag:212-214`, `:243-245`, against
   `components/rtxvulkan/shaders/lib/traversal.glsl:1086-1087`. With the setting on, the rasterizer

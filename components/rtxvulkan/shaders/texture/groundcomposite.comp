@@ -60,11 +60,13 @@ void main()
 
     // The stack in its own order, because a float sum is the order it was added in — and so
     // the order the hit shader adds it in. The gloss is the hit's too: the share of the weight on
-    // layers that reflect, and the roughness over every layer, a Lambert one counted at one.
+    // authored layers, which reflect `DIELECTRIC_F0`, the roughness over every layer, a Lambert
+    // one counted at one, and the mean reflectance the classic layers' alpha states.
     vec3 albedo = vec3(0.0);
     float weights = 0.0;
     float reflecting = 0.0;
     float roughness = 0.0;
+    float shining = 0.0;
     for (uint i = 0u; i < material.mLayerCount; ++i)
     {
         const GpuLayer layer = layers.at[material.mLayerOffset + i];
@@ -73,16 +75,18 @@ void main()
             continue;
 
         const bool authored = layerAuthored(layer, TexelTable(chunk.mTexels));
+        const bool classic = layerClassic(layer, TexelTable(chunk.mTexels));
         const vec2 at = layerUv(layer, chunkUv);
-        const vec4 shown = layerTexel(layer, at,
-            textureLod(textures[nonuniformEXT(layer.mDiffuse)], at,
-                groundLod(layer.mDiffuse, layer, GROUND_COMPOSITE_EXTENT)),
-            GROUND_COMPOSITE_DELIGHT, authored);
+        const vec4 read = textureLod(
+            textures[nonuniformEXT(layer.mDiffuse)], at, groundLod(layer.mDiffuse, layer, GROUND_COMPOSITE_EXTENT));
+        const vec4 shown = layerTexel(layer, at, read, GROUND_COMPOSITE_DELIGHT, authored, classic);
         albedo += showing * shown.rgb;
         weights += showing;
         roughness += showing * shown.a;
         if (authored)
             reflecting += showing;
+        if (classic)
+            shining += showing * read.a;
     }
 
     // Which of the two the bake writes is the dispatch's, so a branch here is uniform across it.
@@ -96,5 +100,5 @@ void main()
     // none. Where no layer shows, the ground is a Lambert surface.
     if ((chunk.mOutputs & GROUND_COMPOSITE_GLOSS) != 0u)
         imageStore(gloss, ivec2(texel),
-            vec4(weights > 0.0 ? vec2(reflecting, roughness) / weights : vec2(0.0, 1.0), 0.0, 1.0));
+            vec4(weights > 0.0 ? vec3(reflecting, roughness, shining) / weights : vec3(0.0, 1.0, 0.0), 1.0));
 }

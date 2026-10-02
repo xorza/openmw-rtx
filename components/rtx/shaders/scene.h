@@ -815,6 +815,16 @@ namespace Rtx::Shaders
     /// toward.
     const uint LAYER_PARALLAX = 0x02u;
 
+    /// A ground layer whose diffuse is OpenMW's classic `_diffusespec` — `SpecularLayout::Classic`:
+    /// a vanilla picture in RGB, delit as any, and the highlight's strength in alpha, which is the
+    /// grey reflectance at normal incidence. The exponent is the one `terrain.frag` fixes,
+    /// `CLASSIC_GROUND_EXPONENT`.
+    const uint LAYER_CLASSIC = 0x04u;
+
+    /// The Blinn-Phong exponent the rasterizer lights every classic `_diffusespec` layer with,
+    /// `terrain.frag`'s 128.
+    const float CLASSIC_GROUND_EXPONENT = 128.0f;
+
     /// One layer of a terrain material: a tiling ground texture and the weights that place it.
     ///
     /// A chunk is four or five of these summed at one hit, where OpenMW draws the stack as one
