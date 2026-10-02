@@ -4,11 +4,6 @@ Defects the reviews of 2026-10-02 found or rewrote, the parity review against th
 included. `.notes/REVIEW.md` holds each one's evidence under its title, beside the defects of the
 first review.
 
-- `--day` writes the calendar's day of the month (the `day` global, clamped to at least 1), and the
-  moons read days passed (`TimeStamp(mGameHour, mDaysPassed)`), so no value of `--day` moves a moon.
-  Every staged stop stands on 1 Last Seed, and a window's note prints days passed back as `--day=N`.
-  `apps/rtxtool/stager.cpp:110-111`, `apps/openmw/mwworld/datetimemanager.cpp:79-82`,
-  `apps/openmw/mwworld/weather.cpp:336-342`.
 - An alpha-blended surface whose material alpha is one is cut at alpha 0.5, where the rasterizer
   blends it by the texture's alpha. 781 vanilla shapes carry soft alpha: the Imperial lantern's glass
   disappears, interior lava comes out speckled, and waterfalls, cobwebs, Telvanni crystals and
