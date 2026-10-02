@@ -29,10 +29,6 @@ namespace Rtx
     /// default casts nothing, and every other record burns where it stands, carryable or not.
     bool castsWherePlaced(const SceneUtil::LightCommon& record);
 
-    /// The animation a record asks for, read off its four flags in the order
-    /// `SceneUtil::createLightSource` reads them, so the last flag set wins there and here.
-    SceneUtil::LightController::LightType animationOf(const SceneUtil::LightCommon& record);
-
     /// The light a `LIGH` reference casts at `simulationTime`: a lamp; nothing where it casts none
     /// (`castsWherePlaced`); or an error saying why, for a negative light, which is meaningless to
     /// a ray traced to an emitter. Every lamp maker answers in those three ways, and the error is a

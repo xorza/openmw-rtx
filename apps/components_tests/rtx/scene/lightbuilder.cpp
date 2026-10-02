@@ -365,12 +365,15 @@ namespace Rtx
                             EXPECT_EQ(fromRecord->mPosition, fromGraph->mPosition);
                         }
 
-            // The animation is read off the flags in the order the game reads them, and the last
-            // flag set wins there too.
-            EXPECT_EQ(animationOf(describe(100, 0, 0)), SceneUtil::LightController::LT_Normal);
-            EXPECT_EQ(animationOf(describe(100, 0, ESM::Light::Flicker)), SceneUtil::LightController::LT_Flicker);
-            EXPECT_EQ(animationOf(describe(100, 0, ESM::Light::Flicker | ESM::Light::PulseSlow)),
+            // The game's rules, which `createLightSource` and the record's lamp both call: the
+            // animation off the flags with the last set winning, and the radius held to sixteen.
+            EXPECT_EQ(SceneUtil::lightAnimation(describe(100, 0, 0)), SceneUtil::LightController::LT_Normal);
+            EXPECT_EQ(SceneUtil::lightAnimation(describe(100, 0, ESM::Light::Flicker)),
+                SceneUtil::LightController::LT_Flicker);
+            EXPECT_EQ(SceneUtil::lightAnimation(describe(100, 0, ESM::Light::Flicker | ESM::Light::PulseSlow)),
                 SceneUtil::LightController::LT_PulseSlow);
+            EXPECT_EQ(SceneUtil::lightRadius(describe(10, 0, 0)), 16.0f);
+            EXPECT_EQ(SceneUtil::lightRadius(describe(100, 0, 0)), 100.0f);
         }
 
         /// Brightness, reach and the size of the flame all come off the one number the record
