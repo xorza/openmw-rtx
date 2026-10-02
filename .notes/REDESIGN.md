@@ -43,11 +43,13 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   (see below). 5 is done by another rule than the plan's (see below). A release bench against the
   base after the eight (`~/.cache/omw-refactor/bench-2/`) matches it within noise at the median,
   the p99 and the worst frame of all three places.
-- **Phase 1, medium:** 9 to 13 are done. 9's thumbnail traces no fresh frame where the world is
+- **Phase 1, medium:** 9 to 15 are done. 9's thumbnail traces no fresh frame where the world is
   hidden, which stays in `REVIEW.md` as a low item. 13's hang limit came with the start function
   both binaries call (`OpenMW::startLogAndSettings`); the rest of W10's lift from `parseOptions`
-  stays in Phase 4.
-- **Now:** Phase 1, medium item 14, the denoiser's turn on unfiltered frames (W1).
+  stays in Phase 4. 15 is four commits; its cut reads no dark map (see below). A release bench
+  against the base after 15 (`~/.cache/omw-refactor/bench-3/`) matches it at the median, and the
+  deck's trace zone is level with the base's.
+- **Now:** Phase 1, medium item 16, W14.3's lights.
 
 ### Waiting for you
 
@@ -82,6 +84,12 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   on 2.2% of its pixels, all in that light. The shadow follows from the geometry and the lamp's
   anchor. If the warmer table is wanted back, the lamp's anchor or its clearance is the place to
   change, not the material.
+- **Item 15: the cut does not read the dark map's alpha.** `objects.frag` tests `alpha × dark.a`,
+  and the plan said one read serves the cut too. Measured: the dark read in `candidateStops` cost
+  the dawn deck's trace 3% (2.59 against 2.50 ms, clock-normalised, four legs each), behind a
+  material bit or not, because the code sits in every shadow ray's candidate loop. A probe without
+  it was level with the base. The hit and a medium's crossing read the dark map and the sheet; the
+  cut reads the diffuse alpha alone. Which content the difference moves is not counted yet.
 - **Someone ran `git pull --rebase origin` on `refactor`** while the work ran, after two early
   commits (`a297255ebe`, `3de0c852f7`) reached `origin/refactor`. I left them and worked forward:
   `da36abeaa0` moves the test the first one put in the wrong binary.
