@@ -10,13 +10,11 @@
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 
-#include <components/rtx/mirror/mirrorpass.hpp>
-#include <components/rtx/preprocess/threadcontent.hpp>
+#include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/slot.hpp>
-#include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/sceneutil/offscreenframing.hpp>
 
@@ -75,19 +73,6 @@ namespace Rtx
 
         /// Which nodes the walk of the subject may descend into, AND-ed at every node.
         osg::Node::NodeMask mSubjectMask = ~0u;
-
-        /// Where the subject's walk and the pick's traversal numbers come from, shared with
-        /// everything else that can reach the same nodes, because a subtree two walks reach would
-        /// otherwise be run by whichever got there first and frozen for the other. Left out, the
-        /// walk keeps a sequence of its own.
-        Traversals* mTraversals = nullptr;
-
-        /// What the subject's walk computes from the content, the frame thread's, so a doll reads
-        /// the world's caches and counts into the world's figures. Left out, the walk keeps its own.
-        ThreadContent* mContent = nullptr;
-
-        /// What the subject's `_spec` maps mean — the world's, so a doll wears what the world does.
-        SpecularLayout mSpecularLayout = SpecularLayout::Ignore;
     };
 
     /// One picture traced from somewhere other than the eye: an inventory doll, a map tile. The
@@ -101,7 +86,12 @@ namespace Rtx
     class OffscreenTrace
     {
     public:
-        OffscreenTrace(Renderer& renderer, const ViewRequest& request);
+        /// @param context what the subject's walk shares with every other walk on the thread
+        ///        (`WalkContext`): the traversal numbers, because a subtree two walks reach would
+        ///        otherwise be run by whichever got there first and frozen for the other; the
+        ///        content's caches, so a doll counts into the world's figures; and the layout of the
+        ///        `_spec` maps, so a doll wears what the world does.
+        OffscreenTrace(Renderer& renderer, const ViewRequest& request, WalkContext& context);
 
         /// Out of line because `SceneDesc`, `SceneExtractor` and the update visitor are only forward
         /// declared here.

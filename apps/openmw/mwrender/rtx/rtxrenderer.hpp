@@ -76,6 +76,7 @@ namespace MyGUIRtx
 namespace MWRender
 {
     class TracedView;
+    enum class ViewKind;
 
     /// The picture as rays find it: a window, a mirror of the scene graph, and a trace. It names a
     /// graphics API in one line — the constructor calls `Rtx::createVulkanRenderer` — and initialises
@@ -244,6 +245,10 @@ namespace MWRender
         void applyChangedSettings(const Settings::CategorySettingVector& changed) noexcept override;
 
     private:
+        /// A picture of `kind`, traced on the frame thread's walk context: the one body behind
+        /// `createWorldView` and `createSubjectView`.
+        std::unique_ptr<TracedView> traceView(const OffscreenViewSpec& spec, ViewKind kind);
+
         /// Builds everything from the setup, which is spent here. Delegated to, so `mRun` can bind
         /// to `mPlayed` where the host installed none and the setup can be a temporary either way.
         RtxRenderer(const RendererSpec& spec, const RtxSetup* run, const RunSetup& setup);
@@ -384,7 +389,7 @@ namespace MWRender
         WorldMirror mMirror;
 
         /// What poses a deforming drawable a ray cast on the CPU reaches, at the mirror's numbers.
-        Rtx::DrawablePoser mPoser{ mMirror.getTraversals() };
+        Rtx::DrawablePoser mPoser{ mMirror.getWalkContext().mTraversals };
 
         /// What the game says about the sky, turned into what the trace is handed. Attached where
         /// the mirror is, because the sheets it holds are the mirror's scene's.

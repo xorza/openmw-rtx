@@ -293,7 +293,8 @@ namespace Rtx::Testing
                     state.setAttributeAndModes(new osg::AlphaFunc(osg::AlphaFunc::GREATER, test));
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -357,7 +358,8 @@ namespace Rtx::Testing
                 state.setAttribute(colours);
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -420,7 +422,8 @@ namespace Rtx::Testing
                     state.addUniform(new osg::Uniform("sun.ambient", osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f)));
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
                 return scene.materials().getRows().front().mEmissiveColour;
@@ -501,8 +504,8 @@ namespace Rtx::Testing
                     state.setAttributeAndModes(new osg::AlphaFunc(osg::AlphaFunc::GEQUAL, 0.5f));
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
-                extractor.setSpecularLayout(layout);
+                WalkContext context{ .mSpecular = layout };
+                SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -812,7 +815,7 @@ namespace Rtx::Testing
             for (const bool onDrawable : { false, true })
             {
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                SceneExtractor extractor(scene, mContext);
 
                 osg::ref_ptr<osg::StateSet> shared = shapeState();
 
@@ -891,7 +894,8 @@ namespace Rtx::Testing
                 parent->addChild(quad);
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
                 extractor.extract(*parent, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.placements().getRows().size(), 1u);
@@ -984,7 +988,8 @@ namespace Rtx::Testing
                 surface.setEmissiveMultiplier(multiplier);
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -1025,7 +1030,8 @@ namespace Rtx::Testing
                     root->addChild(makeLightSource(100.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f)));
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
                 extractor.extract(*root, osg::Matrixf::identity(), 0);
 
                 const std::span<const Light> lights = scene.lights();
@@ -1055,7 +1061,8 @@ namespace Rtx::Testing
                     quad->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
@@ -1100,7 +1107,7 @@ namespace Rtx::Testing
             colours(*quad->getOrCreateStateSet());
 
             Rtx::SceneDesc plain;
-            SceneExtractor other(plain);
+            SceneExtractor other(plain, mContext);
             other.extract(*quad, osg::Matrixf::identity(), 0);
             EXPECT_FALSE(plain.meshes().getRows()[0].mShape.mSheet);
             EXPECT_EQ(plain.meshes().getRows()[0].getTriangleCount(), 2u);
@@ -1137,7 +1144,7 @@ namespace Rtx::Testing
             // an analytic sea of its own instead.
             {
                 Rtx::SceneDesc scene;
-                SceneExtractor silent(scene);
+                SceneExtractor silent(scene, mContext);
                 silent.extract(*root, osg::Matrixf::identity(), 0);
 
                 ASSERT_EQ(scene.materials().getRows().size(), 3u);

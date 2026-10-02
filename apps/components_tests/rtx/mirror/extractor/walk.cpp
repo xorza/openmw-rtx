@@ -128,7 +128,8 @@ namespace Rtx::Testing
             // is the node's, so it carries across the two.
             const auto shownAt = [&frames](double seconds) {
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
                 extractor.setSimulationTime(seconds, 0.0);
                 extractor.extract(*frames, osg::Matrixf::identity(), 0);
 
@@ -171,7 +172,8 @@ namespace Rtx::Testing
                 root->addChild(makeQuad());
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
                 if (mask.has_value())
                     extractor.setTraversalMask(*mask);
 

@@ -252,7 +252,8 @@ namespace Rtx::Testing
                       emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 0.25f));
 
                       Rtx::SceneDesc scene;
-                      SceneExtractor extractor(scene);
+                      WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                      SceneExtractor extractor(scene, context);
                       extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
 
                       EXPECT_EQ(scene.emitters().size(), 1u);
@@ -304,7 +305,8 @@ namespace Rtx::Testing
             const osg::Vec3f eye(1000.0f, -2000.0f, 300.0f);
 
             SceneDesc scene;
-            SceneExtractor extractor(scene);
+            WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+            SceneExtractor extractor(scene, context);
             extractor.extractPrecipitation(falling, eye, 0);
 
             ASSERT_EQ(scene.placements().getCounts().mPlaced, 1u) << "the drop was not walked at all";
@@ -313,7 +315,7 @@ namespace Rtx::Testing
             // And a world with no weather over it, or a fall the game hides, is the other case the
             // one call answers.
             SceneDesc dry;
-            SceneExtractor none(dry);
+            SceneExtractor none(dry, context);
             none.extractPrecipitation(nullptr, eye, 0);
 
             EXPECT_EQ(dry.placements().getCounts().mPlaced, 0u);
@@ -328,7 +330,7 @@ namespace Rtx::Testing
             emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
 
             Rtx::SceneDesc scene;
-            SceneExtractor extractor(scene);
+            SceneExtractor extractor(scene, mContext);
 
             extractor.extractPrecipitation(plume.mRoot.get(), osg::Vec3f(), 0);
             ASSERT_EQ(scene.emitters().size(), 1u);
@@ -372,7 +374,7 @@ namespace Rtx::Testing
             emit(*particles, osg::Vec3f(), 1.0f, osg::Vec4f(0.25f, 0.5f, 1.0f, 1.0f));
 
             Rtx::SceneDesc bareScene;
-            SceneExtractor bareExtractor(bareScene);
+            SceneExtractor bareExtractor(bareScene, mContext);
             EXPECT_EQ(bareExtractor.extract(*bare, osg::Matrixf::identity(), 0).mEmitters, 1u);
             EXPECT_TRUE(bareScene.textures().getRows().empty()) << "a slot taken for no image";
             ASSERT_EQ(bareScene.emitters().size(), 1u);
@@ -643,7 +645,8 @@ namespace Rtx::Testing
                 drive(plume, 100.0, updaterAbove);
 
                 Rtx::SceneDesc scene;
-                SceneExtractor extractor(scene);
+                WalkContext context{ .mSpecular = SpecularLayout::Ignore };
+                SceneExtractor extractor(scene, context);
 
                 // The first turn only starts the clock; the second emits and integrates.
                 for (int turn = 0; turn < 2; ++turn)
@@ -680,7 +683,7 @@ namespace Rtx::Testing
             drive(plume, 100.0, true);
 
             Rtx::SceneDesc scene;
-            SceneExtractor extractor(scene);
+            SceneExtractor extractor(scene, mContext);
             for (const double seconds : { 0.1, 1.1 })
             {
                 scene.clearPlacement();

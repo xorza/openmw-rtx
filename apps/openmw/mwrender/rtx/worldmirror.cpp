@@ -135,14 +135,13 @@ namespace MWRender
     }
 
     WorldMirror::WorldMirror(const Rtx::MirrorKnobs& knobs)
-        : mExtractor(mScene, &mTraversals, &mThreadContent)
+        : mWalk{ .mSpecular = knobs.mSpecularLayout }
+        , mExtractor(mScene, mWalk)
         , mTraversal(worldTraversal(~0u))
         , mReach(knobs.mReach)
-        , mSpecularLayout(knobs.mSpecularLayout)
     {
         mRing.setStaticsEnabled(knobs.mDistantStatics);
         mRing.setMinSize(knobs.mMinSize);
-        mRing.setSpecularLayout(knobs.mSpecularLayout);
         // The sky is not mirrored: the engine rebuilds it every frame, state sets and all, so
         // walking it churns the identity maps and makes every frame a full rebuild, and a ray that
         // reaches the sky gets this renderer's own. The simple water is the local map's copy of the
@@ -158,7 +157,6 @@ namespace MWRender
         // What is left of the two is the sea, which this renderer stands: upstream's plane, as
         // `MWRender::Water` makes it, on a transform a frame moves.
         mExtractor.setWaterMask(Mask_Water);
-        mExtractor.setSpecularLayout(mSpecularLayout);
 
         osg::ref_ptr<osg::Geometry> sea = SceneUtil::createWaterGeometry(Constants::CellSizeInUnits * 150, 40, 900);
         sea->setNodeMask(Mask_Water);
@@ -318,7 +316,7 @@ namespace MWRender
         // **Taken once, after every walk of the frame**, and not by a walk: the precipitation and
         // the sea are walks whose counts go nowhere, and the sky's sheets are read between walks,
         // so a count a walk took with it was a count the frame lost.
-        found.mPreprocessed.mOnFrame += mThreadContent.mPreprocessor.takeStats();
+        found.mPreprocessed.mOnFrame += mWalk.mContent.mPreprocessor.takeStats();
 
         return found;
     }

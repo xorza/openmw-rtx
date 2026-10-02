@@ -491,12 +491,11 @@ namespace Rtx
 
     /// Every node, until the owner states a mask — `setTraversalMask`, which says why the default
     /// is not the narrower answer it looks like it should be.
-    SceneExtractor::SceneExtractor(SceneDesc& scene, Traversals* traversals, ThreadContent* content)
+    SceneExtractor::SceneExtractor(SceneDesc& scene, WalkContext& context)
         : mScene(scene)
         , mWalk(std::make_unique<Traversal>(*this, mKinds))
-        , mTraversals(traversals == nullptr ? mOwnTraversals : *traversals)
+        , mContext(context)
         , mTraversalMask(~0u)
-        , mContent(content == nullptr ? mOwnContent.emplace() : *content)
     {
         // Reserved once, so no frame rehashes a map. A cell's drawables arriving grow every
         // identity map on that frame, and a table that grows past its room moves every entry on the
@@ -576,7 +575,7 @@ namespace Rtx
         // stamped before the throw is standing, and the sweep is owed for the rest.
         mScene.noteWalked();
 
-        mWalk->begin(transform, frame, mTraversals.next(), identitySeed(anchor));
+        mWalk->begin(transform, frame, mContext.mTraversals.next(), identitySeed(anchor));
 
         // The glows a walk that threw opened were never made.
         mGlows.clear();
