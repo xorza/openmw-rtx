@@ -88,16 +88,10 @@ shared uint gInput[SPAN][SPAN];
 shared float gNormal[SPAN][SPAN];
 shared vec3 gPosition[SPAN][SPAN];
 
-/// The eye that cast the ray of a pixel whose distance the surface channel packs as `packed`.
-Camera eyeAt(float packed)
-{
-    return eyeOfPixel(packed, level.mCamera, level.mArms);
-}
-
 /// Fills the workgroup's square, four texels a lane, clamped to the frame as the SDK clamps them.
 void readSquare(ivec2 corner)
 {
-    const ivec2 last = ivec2(level.mCamera.mWidth, level.mCamera.mHeight) - 1;
+    const ivec2 last = ivec2(level.mEyes.mWorld.mWidth, level.mEyes.mWorld.mHeight) - 1;
     for (uint i = gl_LocalInvocationIndex; i < SPAN * SPAN; i += SHADOW_WORKGROUP * SHADOW_WORKGROUP)
     {
         const uvec2 square = uvec2(i % SPAN, i / SPAN);
@@ -110,7 +104,7 @@ void readSquare(ivec2 corner)
         gInput[square.y][square.x] = packHalf2x16(value);
         gNormal[square.y][square.x] = lit ? seen.x : SURFACE_NO_NORMAL;
         gPosition[square.y][square.x]
-            = lit ? positionAlong(eyeAt(seen.y), pixel, surfaceDistance(seen.y)) : vec3(0.0);
+            = lit ? positionAlong(eyeOfPixel(seen.y, level.mEyes), pixel, surfaceDistance(seen.y)) : vec3(0.0);
     }
 }
 
@@ -143,7 +137,7 @@ float kernelAt(int offset)
 void main()
 {
     const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
-    const bool inFrame = !outsideOf(uvec2(at), uvec2(level.mCamera.mWidth, level.mCamera.mHeight));
+    const bool inFrame = !outsideOf(uvec2(at), uvec2(level.mEyes.mWorld.mWidth, level.mEyes.mWorld.mHeight));
 
     // **A cleared tile is copied**: its value is the temporal pass's exact nought or one. Not at the
     // middle level, whose target is the temporal pass's own image, so the value is already there
@@ -172,7 +166,7 @@ void main()
         const vec3 normal = unpackSurfaceNormal(normalCode);
         const vec3 position = gPosition[centre.y][centre.x];
         const float packed = imageLoad(surfaceChannel, at).g;
-        const float footprint = footprintAlong(eyeAt(packed), surfaceDistance(packed));
+        const float footprint = footprintAlong(eyeOfPixel(packed, level.mEyes), surfaceDistance(packed));
         const float deviation = sqrt(max(filteredVariance(centre) + 1e-9, 0.0));
 
         const int step = 1 << SHADOW_LEVEL;

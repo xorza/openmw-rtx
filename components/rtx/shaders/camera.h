@@ -92,10 +92,22 @@ namespace Rtx::Shaders
         uint mHeight;
     };
 
+    /// The two eyes a pixel's ray can have left: the world's, and the one the player's own arms are
+    /// seen through — the same place and the same basis at `first person field of view`, which
+    /// `NpcAnimation`'s `OverrideFieldOfViewCallback` swaps the projection to under
+    /// `Mask_FirstPerson`. The world's where nobody widened it, which is what every pair built here
+    /// starts as. Which of the two cast a pixel's ray the surface channel says, `eyeOfPixel`.
+    struct Eyes
+    {
+        Camera mWorld;
+        Camera mArms;
+    };
+
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(Camera) == 68, "Camera must be scalar-packed on every side");
+    static_assert(sizeof(Eyes) == 136, "Eyes must be scalar-packed on every side");
     static_assert(sizeof(Basis) == 44, "Basis must be scalar-packed on every side");
 #endif
 

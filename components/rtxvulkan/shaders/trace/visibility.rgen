@@ -196,7 +196,7 @@ void main()
     Answer answer;
     if (frame.mArmsInFrame != 0u)
     {
-        const Ray ray = rayAt(frame.mArms, vec2(pixel));
+        const Ray ray = rayAt(frame.mEyes.mArms, vec2(pixel));
         origin = frame.mOrigin + ray.mOffset;
         direction = ray.mDirection;
         answer = answerAlong(
@@ -205,7 +205,7 @@ void main()
     }
     if (!arms)
     {
-        const Ray ray = rayAt(frame.mCamera, vec2(pixel));
+        const Ray ray = rayAt(frame.mEyes.mWorld, vec2(pixel));
         origin = frame.mOrigin + ray.mOffset;
         direction = ray.mDirection;
         answer = answerAlong(origin, 0.0, direction, worldMask(frame.mRayMask), 0u, 0u, MISS_RECORD_SKY);
@@ -237,7 +237,7 @@ void main()
 
     if (arms && answer.mPane)
     {
-        const Cone armsCone = coneAt(frame.mArms);
+        const Cone armsCone = coneAt(frame.mEyes.mArms);
 
         bool behind = false;
         for (; layer < PEEL_LAYERS && answer.mPane; ++layer)
@@ -265,7 +265,7 @@ void main()
         if (behind)
         {
             arms = false;
-            const Ray ray = rayAt(frame.mCamera, vec2(pixel));
+            const Ray ray = rayAt(frame.mEyes.mWorld, vec2(pixel));
             origin = frame.mOrigin + ray.mOffset;
             direction = ray.mDirection;
             answer = answerAlong(origin, 0.0, direction, worldMask(frame.mRayMask), 0u, layer, MISS_RECORD_SKY);
@@ -430,7 +430,7 @@ void main()
     // the sun's quad on the screen: a pixel on the arms looks along the arms' own eye, and a disc
     // counted that way held as many of their pixels as a first-person field of view left in it.
     if (sunUp()
-        && insideCap(arms ? rayAt(frame.mCamera, vec2(pixel)).mDirection : direction, frame.mSun.mDirection,
+        && insideCap(arms ? rayAt(frame.mEyes.mWorld, vec2(pixel)).mDirection : direction, frame.mSun.mDirection,
             capChord(SUN_GLARE_QUERY_RADIUS)))
     {
         atomicAdd(sunGlare.mTotal, 1u);

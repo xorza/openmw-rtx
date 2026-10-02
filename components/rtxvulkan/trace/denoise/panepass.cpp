@@ -27,7 +27,7 @@ namespace Rtx
     const Image& PanePass::record(VkCommandBuffer commands, const DenoiseHistory::PaneImages& images,
         const GBuffer& buffer, const DenoiseFrame& frame) const
     {
-        const Shaders::Camera& camera = frame.mSampled.mCamera;
+        const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         const std::uint32_t width = camera.mWidth;
         const std::uint32_t height = camera.mHeight;
         assert(images.mMean.getWidth() >= width && images.mMean.getHeight() >= height);
@@ -42,7 +42,7 @@ namespace Rtx
         writes.image(Shaders::PANE_BIND_MEAN, images.mMean.describeStorage());
 
         const Shaders::HistoryConstants constants{
-            .mCamera = camera,
+            .mEyes = frame.mSampled.mEyes,
             .mReset = images.mFresh ? 1u : 0u,
             .mDistanceScale = frame.mDistanceScale,
         };

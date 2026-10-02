@@ -244,9 +244,9 @@ bool surfaceOnArms(float packed)
 /// rebuild it through different eyes.
 ///
 /// @param packed the pixel's distance as the surface channel holds it.
-Camera eyeOfPixel(float packed, Camera world, Camera arms)
+Camera eyeOfPixel(float packed, Eyes eyes)
 {
-    return surfaceOnArms(packed) ? arms : world;
+    return surfaceOnArms(packed) ? eyes.mArms : eyes.mWorld;
 }
 
 #endif

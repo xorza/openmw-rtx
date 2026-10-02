@@ -97,7 +97,7 @@ float varianceAround(ivec2 at)
         for (int x = -1; x <= 1; ++x)
         {
             const ivec2 tap = at + ivec2(x, y);
-            if (outsideOf(tap, uvec2(level.mCamera.mWidth, level.mCamera.mHeight)))
+            if (outsideOf(tap, uvec2(level.mEyes.mWorld.mWidth, level.mEyes.mWorld.mHeight)))
                 continue;
 
             if (texelFetch(surfaceChannel, tap, 0).r == SURFACE_NO_NORMAL)
@@ -112,24 +112,18 @@ float varianceAround(ivec2 at)
     return sum / weight;
 }
 
-/// The eye that cast the ray of a pixel whose distance the surface channel packs as `packed`.
-Camera eyeAt(float packed)
-{
-    return eyeOfPixel(packed, level.mCamera, level.mArms);
-}
-
 /// Where the trace's ray through `pixel` ended up, off its distance as the surface channel packs it,
 /// through the eye that cast it. An arm's pixel rebuilt through the world's eye stood on a plane the
 /// arm is not, and the plane test turned its neighbours away.
 vec3 positionAt(ivec2 pixel, float packed)
 {
-    return positionAlong(eyeAt(packed), pixel, surfaceDistance(packed));
+    return positionAlong(eyeOfPixel(packed, level.mEyes), pixel, surfaceDistance(packed));
 }
 
 void main()
 {
     const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
-    if (outsideOf(uvec2(at), uvec2(level.mCamera.mWidth, level.mCamera.mHeight)))
+    if (outsideOf(uvec2(at), uvec2(level.mEyes.mWorld.mWidth, level.mEyes.mWorld.mHeight)))
         return;
 
     const vec2 seen = texelFetch(surfaceChannel, at, 0).rg;
@@ -149,7 +143,7 @@ void main()
     // measured against. Reading `mSpreadAngle` for it instead lands on nought for a parallel
     // projection, and a footprint of nought rejects every tap but the centre — a map tile running
     // every level of this and coming out exactly as it went in.
-    const float footprint = footprintAlong(eyeAt(seen.y), away);
+    const float footprint = footprintAlong(eyeOfPixel(seen.y, level.mEyes), away);
 
     // **How noisy this pixel still is, which is what makes the brightness test mean anything.** A
     // difference of one against a variance of four is nothing; the same difference against a settled
@@ -168,7 +162,7 @@ void main()
         for (int x = -2; x <= 2; ++x)
         {
             const ivec2 tap = at + ivec2(x, y) * int(level.mStep);
-            if (outsideOf(tap, uvec2(level.mCamera.mWidth, level.mCamera.mHeight)))
+            if (outsideOf(tap, uvec2(level.mEyes.mWorld.mWidth, level.mEyes.mWorld.mHeight)))
                 continue;
 
             const vec2 there = texelFetch(surfaceChannel, tap, 0).rg;

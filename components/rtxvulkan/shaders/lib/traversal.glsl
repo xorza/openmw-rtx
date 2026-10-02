@@ -252,7 +252,7 @@ vec3 sheetAt(GpuMaterial material, uvec3 corner, vec3 shading, vec3 direction, S
     // The eye space is OpenGL's, looking down its own -Z.
     const vec3 right = frame.mUnitRight;
     const vec3 up = frame.mUnitUp;
-    const vec3 forward = frame.mCamera.mBasis.mForward;
+    const vec3 forward = frame.mEyes.mWorld.mBasis.mForward;
     const vec3 viewEye = vec3(dot(direction, right), dot(direction, up), -dot(direction, forward));
     const vec3 normalEye = vec3(dot(shading, right), dot(shading, up), -dot(shading, forward));
 

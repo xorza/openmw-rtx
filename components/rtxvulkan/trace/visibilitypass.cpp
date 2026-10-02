@@ -574,8 +574,8 @@ namespace Rtx
     void VisibilityPass::record(VkCommandBuffer commands, const VisibilityInputs& inputs,
         const Shaders::VisibilityConstants& constants, GpuTimer* timer) const
     {
-        assert(inputs.mChannels.getWidth() >= constants.mCamera.mWidth
-            && inputs.mChannels.getHeight() >= constants.mCamera.mHeight);
+        assert(inputs.mChannels.getWidth() >= constants.mEyes.mWorld.mWidth
+            && inputs.mChannels.getHeight() >= constants.mEyes.mWorld.mHeight);
 
         assert(inputs.mSubject.mScene != nullptr && inputs.mSubject.mMedia != nullptr
             && "a trace of no scene, or in no media");
@@ -642,7 +642,7 @@ namespace Rtx
 
         // One invocation a pixel and no tail, where the dispatch it replaces covered the picture
         // in whole workgroups and had every one of them test whether it had run off the edge.
-        pipeline.traceRays(commands, constants.mCamera.mWidth, constants.mCamera.mHeight);
+        pipeline.traceRays(commands, constants.mEyes.mWorld.mWidth, constants.mEyes.mWorld.mHeight);
 
         closeZone(timer, commands);
 

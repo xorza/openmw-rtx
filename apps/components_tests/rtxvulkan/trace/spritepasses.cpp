@@ -234,8 +234,8 @@ namespace Rtx
                 const SpriteBinPass pass(device);
 
                 Binned result;
-                result.mAcross = Shaders::spriteTilesOver(constants.mCamera.mWidth);
-                result.mDown = Shaders::spriteTilesOver(constants.mCamera.mHeight);
+                result.mAcross = Shaders::spriteTilesOver(constants.mEyes.mWorld.mWidth);
+                result.mDown = Shaders::spriteTilesOver(constants.mEyes.mWorld.mHeight);
 
                 const auto count = static_cast<std::uint32_t>(layer.mSprites.size());
                 const std::size_t words = result.getTileCount() + 1 + capacity;
@@ -265,7 +265,7 @@ namespace Rtx
                             .mPresences = presences.getDeviceAddress(),
                             .mPresence = presence.getDeviceAddress(),
                             .mOrigin = constants.mOrigin,
-                            .mCamera = constants.mCamera,
+                            .mCamera = constants.mEyes.mWorld,
                             .mCount = count,
                             .mCapacity = capacity,
                             .mPresenceCount = static_cast<std::uint32_t>(layer.mPresences.size()),
@@ -361,7 +361,7 @@ namespace Rtx
             for (const osg::Vec2f jitter : { osg::Vec2f(0.0f, 0.0f), osg::Vec2f(0.49f, -0.49f) })
             {
                 Shaders::VisibilityConstants constants = lookingAlongX();
-                constants.mCamera.mJitter = jitter;
+                constants.mEyes.mWorld.mJitter = jitter;
 
                 const Binned tiles = bin(layer, constants, sPlenty);
                 ASSERT_FALSE(tiles.isUnbinned());
@@ -374,7 +374,7 @@ namespace Rtx
                 for (std::uint32_t y = 0; y < sHeight; ++y)
                     for (std::uint32_t x = 0; x < sWidth; ++x)
                     {
-                        const osg::Vec3f direction = rayThrough(constants.mCamera, x, y);
+                        const osg::Vec3f direction = rayThrough(constants.mEyes.mWorld, x, y);
 
                         // A sphere is met where a billboard of its radius would be.
                         for (const Shaders::GpuPresence& presence : layer.mPresences)
@@ -626,13 +626,13 @@ namespace Rtx
             for (std::uint32_t y = 0; y < sHeight; ++y)
                 for (std::uint32_t x = 0; x < sWidth; ++x)
                 {
-                    const osg::Vec3f offset = constants.mCamera.mBasis.mRight
+                    const osg::Vec3f offset = constants.mEyes.mWorld.mBasis.mRight
                             * ((static_cast<float>(x) + 0.5f) / static_cast<float>(sWidth) * 2.0f - 1.0f)
-                        - constants.mCamera.mBasis.mUp
+                        - constants.mEyes.mWorld.mBasis.mUp
                             * ((static_cast<float>(y) + 0.5f) / static_cast<float>(sHeight) * 2.0f - 1.0f);
                     const osg::Vec3f from = constants.mOrigin + offset;
 
-                    osg::Vec3f along = constants.mCamera.mBasis.mForward;
+                    osg::Vec3f along = constants.mEyes.mWorld.mBasis.mForward;
                     along.normalize();
 
                     const osg::Vec3f toSprite = layer.mSprites[0].mPosition - from;
@@ -682,7 +682,7 @@ namespace Rtx
 
             Shaders::VisibilityConstants constants = Testing::makeCamera(
                 osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f), 60.0f, width, height, 10000.0f);
-            constants.mCamera.mJitter = osg::Vec2f(-0.3f, 0.45f);
+            constants.mEyes.mWorld.mJitter = osg::Vec2f(-0.3f, 0.45f);
 
             const Binned tiles = bin(layer, constants, 1u << 20);
             ASSERT_FALSE(tiles.isUnbinned());
@@ -703,7 +703,7 @@ namespace Rtx
             for (std::uint32_t y = 0; y < height; y += 3)
                 for (std::uint32_t x = 0; x < width; x += 3)
                 {
-                    const osg::Vec3f direction = rayThrough(constants.mCamera, x, y);
+                    const osg::Vec3f direction = rayThrough(constants.mEyes.mWorld, x, y);
 
                     for (std::uint32_t at = 0; at < layer.mSprites.size(); ++at)
                     {

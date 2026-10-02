@@ -93,7 +93,7 @@ namespace Rtx
 
         // `ViewRequest::mRowOrder` says why the GUI's copy comes out the other way up.
         if (mRequest.mRowOrder == RowOrder::BottomFirst)
-            camera->mCamera.mBasis.mUp = -camera->mCamera.mBasis.mUp;
+            camera->mEyes.mWorld.mBasis.mUp = -camera->mEyes.mWorld.mBasis.mUp;
 
         // Where the light stands, unit, in the sense `ViewRequest::mLight` states it and the
         // trace takes it.
@@ -212,9 +212,9 @@ namespace Rtx
         // The trace's own rule, so a picture framed orthographically is picked along its parallel
         // rays and not fanned out from its eye. From the near plane to the far one, which a ray
         // reaches at the distance its slant from the forward stretches it to.
-        const Shaders::Ray ray = Shaders::rayAcross(camera->mCamera, osg::Vec2f(x, y));
+        const Shaders::Ray ray = Shaders::rayAcross(camera->mEyes.mWorld, osg::Vec2f(x, y));
         const osg::Vec3f from = camera->mOrigin + ray.mOffset;
-        osg::Vec3f forward = camera->mCamera.mBasis.mForward;
+        osg::Vec3f forward = camera->mEyes.mWorld.mBasis.mForward;
         forward.normalize();
         const float slant = ray.mDirection * forward;
 

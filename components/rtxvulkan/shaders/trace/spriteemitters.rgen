@@ -32,8 +32,8 @@ void main()
     // behind the sphere is within `mReach` of the same air. The layer under the band is
     // `fogColumn`'s and is taken exactly, per sprite, by the walk.
     const vec3 toCentre = emitter.mCentre - frame.mOrigin;
-    const bool parallel = frame.mCamera.mOrthographic != 0u;
-    const vec3 forward = frame.mCamera.mBasis.mForward;
+    const bool parallel = frame.mEyes.mWorld.mOrthographic != 0u;
+    const vec3 forward = frame.mEyes.mWorld.mBasis.mForward;
     const float along = parallel ? dot(toCentre, forward) : length(toCentre);
     const vec3 halfway = parallel ? emitter.mCentre - forward * (0.5 * along) : frame.mOrigin + toCentre * 0.5;
 

@@ -407,7 +407,7 @@ namespace Rtx::Shaders
     }
 
     /// What the world's own eye ray casts with: what the camera draws, less the arms, which are
-    /// the arms' eye's alone — `VisibilityConstants::mArms`. The rasterizer draws them under a
+    /// the arms' eye's alone — `Eyes::mArms`. The rasterizer draws them under a
     /// projection of their own and clears the depth under them, so they stand in front of
     /// everything; here they are traced first, and the world's ray never meets them.
     RTX_SHADER uint worldMask(uint rayMask)

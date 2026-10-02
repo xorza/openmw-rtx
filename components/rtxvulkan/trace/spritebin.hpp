@@ -40,7 +40,7 @@ namespace Rtx
         static BinCamera of(const Shaders::VisibilityConstants& asked)
         {
             return BinCamera{ .mOrigin = asked.mOrigin,
-                .mCamera = asked.mCamera,
+                .mCamera = asked.mEyes.mWorld,
                 .mRayMask = asked.mRayMask,
                 .mToSun = asked.mSun.mDirection };
         }

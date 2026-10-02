@@ -956,7 +956,7 @@ namespace Rtx::Testing
                 return frame.at(centre);
             };
 
-            const float footprint = distance * camera.mCamera.mSpreadAngle;
+            const float footprint = distance * camera.mEyes.mWorld.mSpreadAngle;
             for (const float turn : { 0.1f, 0.2f })
                 EXPECT_NEAR(roughnessUnder(turn),
                     Shaders::widenedRoughness(painted, footprint * footprint * turn * turn / 8.0f), 1e-4f)

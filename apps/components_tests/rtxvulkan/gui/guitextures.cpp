@@ -782,8 +782,8 @@ namespace Rtx
             EXPECT_NE(inTexture(texture, extent, 8, 8), lit) << "the puff over the sheet";
 
             Shaders::VisibilityConstants frame = camera;
-            frame.mCamera.mWidth = sExtent;
-            frame.mCamera.mHeight = sExtent;
+            frame.mEyes.mWorld.mWidth = sExtent;
+            frame.mEyes.mWorld.mHeight = sExtent;
             mRenderer.renderFrame(frame, FrameOptions{});
 
             Shaders::VisibilityConstants chart = camera;

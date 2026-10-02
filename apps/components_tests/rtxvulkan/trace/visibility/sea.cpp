@@ -448,12 +448,12 @@ namespace Rtx::Testing
                 // A pixel's solid angle is its side squared at these angles: the frame is two
                 // degrees across in one case and twenty in the other, where the cos-cubed the exact
                 // form carries is a part in two thousand.
-                Disc disc{ .mPeak = 0.0f, .mTotal = 0.0f, .mSpreadAngle = camera.mCamera.mSpreadAngle };
+                Disc disc{ .mPeak = 0.0f, .mTotal = 0.0f, .mSpreadAngle = camera.mEyes.mWorld.mSpreadAngle };
                 for (std::size_t i = 0; i < std::size_t{ size } * size; ++i)
                 {
                     const float radiance = frame.at(i * 4);
                     disc.mPeak = std::max(disc.mPeak, radiance);
-                    disc.mTotal += radiance * camera.mCamera.mSpreadAngle * camera.mCamera.mSpreadAngle;
+                    disc.mTotal += radiance * camera.mEyes.mWorld.mSpreadAngle * camera.mEyes.mWorld.mSpreadAngle;
                 }
                 return disc;
             };
@@ -794,11 +794,11 @@ namespace Rtx::Testing
             // rough surface is blurred that much less.
             // The pixel's cone where it met the water, which is both what the ladder is read through
             // and what `waveLevel` picks a mip by — one quantity, so one name.
-            const float footprint = camera.mCamera.mSpreadAngle * height;
+            const float footprint = camera.mEyes.mWorld.mSpreadAngle * height;
 
             const auto coneAtBed = [&](float lobe) {
                 const float bent = Shaders::refractedConeWidth(lobe, Shaders::WATER_IOR, false);
-                return footprint + (camera.mCamera.mSpreadAngle + bent) * depth;
+                return footprint + (camera.mEyes.mWorld.mSpreadAngle + bent) * depth;
             };
 
             const SeaState fine{ .mSignificantHeight = 3.0f, .mPeakWavelength = 64.0f };

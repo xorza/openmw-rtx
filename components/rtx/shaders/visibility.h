@@ -71,8 +71,8 @@ namespace Rtx::Shaders
         /// and traces no more than a pixel with no arms in front of it.
         uint mLayer;
 
-        /// One where the ray was cast through `VisibilityConstants::mArms` and nought through
-        /// `mCamera`, which is what a stage reads its cone off: the arms' eye is wider than the
+        /// One where the ray was cast through `Eyes::mArms` and nought through
+        /// `Eyes::mWorld`, which is what a stage reads its cone off: the arms' eye is wider than the
         /// world's, and a hit on the arms resolved at the world eye's pixel read a level too fine.
         uint mArms;
     };
@@ -117,7 +117,7 @@ namespace Rtx::Shaders
     /// Nothing, for the arms' eye. **The sky is seen through the world's eye alone**: the arms' eye
     /// traces the arms and nothing else, and a ray of it that finds no arm is not shaded — the
     /// world's own ray is traced there instead, so whatever reaches the sky reached it through
-    /// `mCamera`, and a pixel beside the arms runs the sky's shader once and not twice.
+    /// `Eyes::mWorld`, and a pixel beside the arms runs the sky's shader once and not twice.
     const uint MISS_RECORD_UNSHADED = 1u;
 
     const uint MISS_RECORD_COUNT = 2u;
@@ -139,15 +139,9 @@ namespace Rtx::Shaders
     {
         vec3 mOrigin;
 
-        /// How a pixel becomes a ray. The eye's own place is `mOrigin` above and not in here, for
-        /// the reason `Camera` gives.
-        Camera mCamera;
-
-        /// The eye the player's own arms are seen through: the same place and the same basis,
-        /// at `first person field of view` — `NpcAnimation`'s `OverrideFieldOfViewCallback`
-        /// swaps the projection under `Mask_FirstPerson` for exactly this. The eye's own camera
-        /// where nobody widened it, which is what every camera built here starts as.
-        Camera mArms;
+        /// How a pixel becomes a ray, through the world's eye or the arms'. The eye's own place is
+        /// `mOrigin` above and not in here, for the reason `Camera` gives.
+        Eyes mEyes;
 
         /// How much wider the arms' image plane is than the eye's, per axis — one where the two
         /// fields of view are equal, which is what they ship as. What a point on the arms
@@ -155,7 +149,7 @@ namespace Rtx::Shaders
         /// them.
         vec2 mArmsSpread;
 
-        /// The eye's right and up at unit length, where `mCamera` carries them scaled by the image
+        /// The eye's right and up at unit length, where `mEyes` carries them scaled by the image
         /// plane's half extents: the eye space a sphere-mapped sheet is indexed in. Worked out once
         /// on the host, where every hit that wears a sheet normalised both again.
         vec3 mUnitRight;
@@ -525,7 +519,7 @@ namespace Rtx::Shaders
         uint mFrame;
 
         /// Non-zero where this scene holds the player's arms and this camera draws them:
-        /// `visibility.rgen` traces `mArms`'s ray on `MASK_FIRST_PERSON` ahead of the world's, and a
+        /// `visibility.rgen` traces `Eyes::mArms`'s ray on `MASK_FIRST_PERSON` ahead of the world's, and a
         /// picture with no arms in it — every third-person frame, every picture inside the
         /// interface — pays no second trace.
         uint mArmsInFrame;

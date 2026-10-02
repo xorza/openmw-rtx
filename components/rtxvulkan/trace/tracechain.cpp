@@ -171,8 +171,8 @@ namespace Rtx
             openZone(what.mTimer, commands, "composite");
             mPasses.mComposite.record(commands, *mChannels, resolved, mSum.isEmpty() ? nullptr : &mSum,
                 Shaders::CompositeConstants{
-                    .mWidth = what.mSampled.mCamera.mWidth,
-                    .mHeight = what.mSampled.mCamera.mHeight,
+                    .mWidth = what.mSampled.mEyes.mWorld.mWidth,
+                    .mHeight = what.mSampled.mEyes.mWorld.mHeight,
                     .mAccumulate = what.mAccumulate,
                     .mComposed = composed ? 1u : 0u,
                 });

@@ -120,7 +120,7 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint key, uint lamps, ui
     // What a mirror shows is composited into a surface long before the display pass, so the field
     // goes in here — behind whatever the sky's own order left in front of it, which is what `shown`
     // says and is the same rule `tone.comp` draws by.
-    const float blur = pixelBlur(frame.mCamera) + 0.5 * lobe;
+    const float blur = pixelBlur(frame.mEyes.mWorld) + 0.5 * lobe;
 
     path.mLight = SplitLight(reflectedSky(origin, direction, blur, true), vec3(0.0), 1.0);
 

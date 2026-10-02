@@ -227,7 +227,7 @@ namespace Rtx::Testing
 
             Shaders::VisibilityConstants camera = Testing::makeCamera(
                 osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 100.0f, 0.0f), 30.0f, size, size, 100000.0f);
-            camera.mArms = cameraAtFieldOfView(camera.mCamera, 90.0f);
+            camera.mEyes.mArms = cameraAtFieldOfView(camera.mEyes.mWorld, 90.0f);
             camera.mSkyHorizon = osg::Vec3f(0.20f, 0.15f, 0.60f);
             camera.mSkyZenith = osg::Vec3f(0.80f, 0.65f, 0.15f);
             camera.mAmbientFromSky = 1.0f;

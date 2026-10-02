@@ -1071,7 +1071,7 @@ namespace Rtx::Testing
                 return ladderLevel(frame.at(centre) / Shaders::EMISSIVE_INTENSITY);
             };
 
-            const float headOn = std::log2(camera.mCamera.mSpreadAngle * away);
+            const float headOn = std::log2(camera.mEyes.mWorld.mSpreadAngle * away);
             EXPECT_NEAR(headOn, 2.762f, 0.001f) << "the cone the form above names";
 
             EXPECT_NEAR(levelOf(1.0f, 1.0f), headOn, 0.02f) << "head on, the cone's own width";

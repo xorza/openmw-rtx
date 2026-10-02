@@ -52,13 +52,9 @@ namespace Rtx::Shaders
     /// makes the reconstructed positions the ones that were actually shaded.
     struct AtrousConstants
     {
-        Camera mCamera;
-
-        /// The eye the player's arms were traced through, `VisibilityConstants::mArms`: a pixel the
-        /// trace drew on an arm — the puffs channel's flag says which — is rebuilt through it, and
-        /// the rest through `mCamera`. The two stand at one place, so positions rebuilt through
-        /// either still differ by a vector that drops it.
-        Camera mArms;
+        /// The eyes the frame was traced through, `VisibilityConstants::mEyes`. The two stand at one
+        /// place, so positions rebuilt through either still differ by a vector that drops it.
+        Eyes mEyes;
 
         /// The spacing of this level's taps, in pixels. The three sigmas the taps are weighed by
         /// are `look.h`'s, because nothing varies them per level or per frame.

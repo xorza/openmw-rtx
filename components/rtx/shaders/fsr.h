@@ -87,8 +87,7 @@ namespace Rtx::Shaders
     /// against.
     struct FsrInputConstants
     {
-        Camera mCamera;
-        Camera mArms;
+        Eyes mEyes;
         float mNear;
     };
 

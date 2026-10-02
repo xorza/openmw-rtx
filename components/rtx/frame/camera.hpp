@@ -43,7 +43,7 @@ namespace Rtx
 
     /// The same eye at another field of view: the basis kept and the image plane's half extents
     /// taken from `verticalFovDegrees`, at the camera's own aspect. What the player's own arms are
-    /// seen through — `Shaders::VisibilityConstants::mArms` — since `first person field of view`
+    /// seen through — `Shaders::Eyes::mArms` — since `first person field of view`
     /// and `field of view` are two settings. Every camera built below starts with the arms' eye
     /// equal to its own.
     Shaders::Camera cameraAtFieldOfView(const Shaders::Camera& camera, float verticalFovDegrees);
