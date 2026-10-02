@@ -38,6 +38,7 @@ set(RTX_TEST_FILES
     rtx/mirror/cells/cellring.cpp
     rtx/mirror/cells/groundreader.cpp
     rtx/mirror/cells/templatewalk.cpp
+    rtx/mirror/drawableposer.cpp
     rtx/mirror/extractor/fixture.hpp
     rtx/mirror/extractor/lights.cpp
     rtx/mirror/extractor/materials.cpp

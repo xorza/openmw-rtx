@@ -25,6 +25,7 @@
 namespace osg
 {
     class Camera;
+    class Drawable;
     class FrameStamp;
     class Group;
     class Image;
@@ -148,6 +149,11 @@ namespace MWRender
         virtual void addWaterRippleEmitter(const MWWorld::Ptr& ptr) {}
         virtual void removeWaterRippleEmitter(const MWWorld::Ptr& ptr) {}
         virtual void emitWaterRipple(const osg::Vec3f& position) {}
+
+        /// Brings `drawable`'s own vertices to the pose this frame shows before a ray cast on the CPU
+        /// reads them: `SceneUtil::RigGeometry` and `MorphGeometry` pose that copy in a cull alone.
+        /// Nothing for a renderer whose cull of the world posed it.
+        virtual void poseForIntersection(osg::Drawable& drawable) {}
 
         /// What this renderer would like loaded before the first cell is: the rasterizer's sky and
         /// water meshes and textures.
