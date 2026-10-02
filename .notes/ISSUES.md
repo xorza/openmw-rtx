@@ -88,3 +88,5 @@ first review.
   rasterizer those lamps go dark.
 - Under `tws` the ray tracer still draws the cell borders. The rasterizer hangs them under the terrain root,
   whose `Mask_Terrain` `tws` culls, so under it they go with the ground.
+- Past the loaded cells, a rendering ray under the ray tracer meets the ground the ring stands and none
+  of the ring's statics. The rasterizer meets its paged statics there, with their reference numbers.

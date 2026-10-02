@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <vector>
 
 #include <osg/Array>
@@ -14,7 +15,13 @@ namespace osg
 {
     class Geometry;
     class Group;
+    class Node;
     class PositionAttitudeTransform;
+}
+
+namespace osgUtil
+{
+    class IntersectionVisitor;
 }
 
 namespace Resource
@@ -30,6 +37,17 @@ namespace Terrain
 
 namespace MWRender
 {
+    /// Which cells past the loaded ones stand ground the trace draws: the ring's word, which the
+    /// ground that owns both forwards. Asked by a ray cast, and by nothing else.
+    class StandingGround
+    {
+    public:
+        virtual bool standsGround(const osg::Vec2i& cell) const = 0;
+
+    protected:
+        ~StandingGround() = default;
+    };
+
     /// The ground as the ray tracer stands it: a `Terrain::World` that holds the storage, the
     /// worldspace and the active grid, and draws no chunks — `Rtx::CellRing` reads the land
     /// records itself, and a chunk the game built beside it would be one nothing traces.
@@ -48,11 +66,17 @@ namespace MWRender
     /// the storage's heights under the rasterizer's own triangles, with no material, no texture
     /// and no normal, which a ray asks nothing of. The mirror's walk leaves `Mask_Terrain` out, so
     /// the trace never meets one.
+    ///
+    /// **And past the loaded cells, the ground the ring stands**, which the rasterizer's quad tree
+    /// answers with its chunks: a cell the segment crosses whose ground `distance` says stands is
+    /// filled into one scratch grid of the same triangles and met by the same intersector, nearest
+    /// cell first, so a cast toward a hill four cells away meets the hill the trace draws.
     class TracedTerrain final : public Terrain::World
     {
     public:
         TracedTerrain(osg::Group& sceneRoot, osg::Group& worldRoot, Terrain::Storage& storage,
-            Resource::SceneManager& scenes, unsigned int nodeMask, ESM::RefId worldspace);
+            Resource::SceneManager& scenes, const StandingGround& distance, unsigned int nodeMask,
+            ESM::RefId worldspace);
 
         /// Out of line, where the grids' types are whole.
         ~TracedTerrain() override;
@@ -69,6 +93,11 @@ namespace MWRender
         /// Takes the cell's grid down and keeps it for the next cell to arrive.
         void unloadCell(int x, int y) override;
 
+        /// What `visitor`'s segment meets of the distance's ground, inserted into its intersections
+        /// as a loaded grid's would be. Called by the node this hangs under the terrain root, which
+        /// the visitor enters whatever the segment.
+        void meet(osgUtil::IntersectionVisitor& visitor);
+
     private:
         /// One cell's grid: which cell it stands, the transform at the cell's middle, and the
         /// geometry under it whose positions are the storage's.
@@ -82,6 +111,9 @@ namespace MWRender
 
         /// A grid to stand a cell on: one a cell gave back, or a new one.
         CellGrid takeGrid();
+
+        /// Fills `grid` with `cell`'s ground and stands it at the cell's middle.
+        void fill(CellGrid& grid, const osg::Vec2i& cell);
 
         /// The grid standing `cell`, or null.
         CellGrid* findGrid(const osg::Vec2i& cell);
@@ -97,5 +129,15 @@ namespace MWRender
         /// a node for every cell that arrived.
         std::vector<CellGrid> mCells;
         std::vector<CellGrid> mSpare;
+
+        /// Borrowed: the ground that made this owns what answers.
+        const StandingGround& mDistance;
+
+        /// The one grid a distant cell is filled into for a ray, and which cell it holds.
+        CellGrid mFar;
+        std::optional<osg::Vec2i> mFarCell;
+
+        /// The node under the terrain root that hands an intersection visitor to `meet`.
+        osg::ref_ptr<osg::Node> mAnswer;
     };
 }

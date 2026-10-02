@@ -45,6 +45,12 @@ namespace MWRender
         /// cells for the ring — the mirror is never attached, so the ring's world is unreadable —
         /// and the eye at the origin. Unstamped, so each is known by its place among its
         /// siblings, which is the one way a body's identity can move while the body stays.
+        /// A ring that stands no ground past the loaded cells.
+        struct NoDistance final : StandingGround
+        {
+            bool standsGround(const osg::Vec2i&) const override { return false; }
+        };
+
         struct TwoBodyFrame
         {
             VFS::Manager mVfs;
@@ -63,8 +69,9 @@ namespace MWRender
             Precipitation mPrecipitation{ mSkyRoot, mCamera, &mScenes };
 
             Rtx::Testing::FakeLand mLand;
+            NoDistance mNoDistance;
             osg::ref_ptr<osg::Group> mGroundRoot = new osg::Group;
-            TracedTerrain mTerrain{ *mGroundRoot, *mGroundRoot, mLand, mScenes, Mask_Terrain,
+            TracedTerrain mTerrain{ *mGroundRoot, *mGroundRoot, mLand, mScenes, mNoDistance, Mask_Terrain,
                 ESM::Cell::sDefaultWorldspaceId };
             ObjectStorage mObjects;
 

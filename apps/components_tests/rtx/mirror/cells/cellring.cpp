@@ -1283,15 +1283,26 @@ namespace Rtx::Testing
                 walk(mWalked++);
             ASSERT_EQ(mRing.getHeldCellCount(), sPreparedCells);
 
+            // **The ground stands to the reach and no further**, which is what the trace draws: the
+            // eye's own cell, the one whose nearest point is 3.5 cells out, and not the prepared
+            // band's corner at 3.5² + 3.5² = 24.5 square cells against 16, nor a cell neither ring
+            // holds.
+            EXPECT_TRUE(mRing.standsGround(osg::Vec2i(0, 0)));
+            EXPECT_TRUE(mRing.standsGround(osg::Vec2i(4, 0)));
+            EXPECT_FALSE(mRing.standsGround(osg::Vec2i(4, 4))) << "a held cell past the reach";
+            EXPECT_FALSE(mRing.standsGround(osg::Vec2i(6, 0)));
+
             mAround.mReach += sCellSize;
             walk(mWalked++);
             const std::uint32_t outer = mRing.getCellsToStand();
             EXPECT_GT(outer, 0u) << "the grown band asked for nothing";
             EXPECT_EQ(mRing.getHeldCellCount(), sPreparedCells + 1) << "and its walk adopted nothing new";
+            EXPECT_TRUE(mRing.standsGround(osg::Vec2i(4, 4))) << "24.5 against 25 now";
 
             mAround.mExterior = false;
             walk(mWalked++);
             EXPECT_EQ(mRing.getCellsToStand(), 0u) << "the exterior's shortfall outlived it";
+            EXPECT_FALSE(mRing.standsGround(osg::Vec2i(0, 0))) << "a room stands no ground";
         }
 
         /// **A reader that throws ends the process where it threw**, and says what it threw.
