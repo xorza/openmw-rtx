@@ -7,12 +7,9 @@
 #include <ctime>
 #include <filesystem>
 #include <iomanip>
-#include <optional>
 #include <sstream>
 #include <string>
 #include <system_error>
-
-#include <components/platform/localtime.hpp>
 
 namespace Misc
 {
@@ -27,11 +24,16 @@ namespace Misc
 
     inline std::string timeTToString(const std::time_t tp, const char* fmt)
     {
-        const std::optional<std::tm> timeInfo = Platform::localTime(tp);
-        if (!timeInfo.has_value())
+        tm timeInfo{};
+#ifdef _WIN32
+        if (const errno_t error = localtime_s(&timeInfo, &tp); error != 0)
+            throw std::system_error(error, std::generic_category());
+#else
+        if (localtime_r(&tp, &timeInfo) == nullptr)
             throw std::system_error(errno, std::generic_category());
+#endif
         std::stringstream out;
-        out << std::put_time(&*timeInfo, fmt);
+        out << std::put_time(&timeInfo, fmt);
         return out.str();
     }
 
