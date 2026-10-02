@@ -42,11 +42,15 @@ namespace Rtx
         /// the loop's own clock reads what was asked and no more than one tick past it, and the
         /// queue was held at least that long.
         ///
+        /// **In the clock's own ticks, at the queue's timestamp period**, which the zone reads in
+        /// as well: a zone no shorter than the loop is the two counters running at one rate, and on
+        /// NVIDIA's, which counts nanoseconds, a tick is a millionth of a millisecond.
+        ///
         /// **Off a cold card, deliberately.** The card idles at a few hundred megahertz and steps
         /// its clock over the first frames of load, which is where a hold set by a count missed by
         /// a third. A clock switch stalls the card for a millisecond or so, which the zone shows
         /// and the loop's clock runs through; so the zone is asked only to be no shorter than the
-        /// loop. Ten microseconds past the asked time is the tick the loop leaves on: the
+        /// loop. Ten microseconds past the asked time is the tick the loop leaves on: NVIDIA's
         /// real-time clock advances by the microsecond.
         TEST_F(RtxStressPassTest, theHoldIsTheTimeAskedOnEveryFrameWhateverTheCardsClock)
         {
@@ -55,29 +59,30 @@ namespace Rtx
 
             StressPass four(device, 4.0);
             StressPass eight(device, 8.0);
+            if (device.getPhysicalDevice().getProperties().mProperties2.properties.vendorID == 0x10de)
+            {
+                EXPECT_EQ(four.getTickMs(), 1.0e-6) << "NVIDIA's clock counts nanoseconds";
+            }
 
             // Where the loop leaves its reading, as the ring's frame slot holds it.
             Buffer counts = Buffer::readBack(
                 device, sizeof(Shaders::FrameCounts), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "frame counts");
 
-            struct Hold
+            for (StressPass* const hold : { &four, &eight })
             {
-                StressPass* mPass;
-                std::uint32_t mAskedNs;
-            };
+                // The asked time in ticks, at the pass's own rate: 4 ms and 8 ms.
+                EXPECT_NEAR(hold->getTicks() * hold->getTickMs(), hold == &four ? 4.0 : 8.0, hold->getTickMs());
+                const double tenMicroseconds = 0.01 / hold->getTickMs();
 
-            for (const Hold hold : { Hold{ &four, 4000000u }, Hold{ &eight, 8000000u } })
                 for (std::uint64_t frame = 0; frame < 8; ++frame)
                 {
-                    const double zoneMs = frameOf(*hold.mPass, timer, counts, frame);
-                    if (zoneMs <= 0.0)
-                        GTEST_SKIP() << "the device does not time its own zones";
-
-                    const std::uint32_t held = static_cast<const Shaders::FrameCounts*>(counts.map())->mHeldNs;
-                    EXPECT_GE(held, hold.mAskedNs) << "frame " << frame;
-                    EXPECT_LE(held, hold.mAskedNs + 10000u) << "frame " << frame;
-                    EXPECT_GE(zoneMs, static_cast<double>(held) * 1.0e-6) << "frame " << frame;
+                    const double zoneMs = frameOf(*hold, timer, counts, frame);
+                    const std::uint32_t held = static_cast<const Shaders::FrameCounts*>(counts.map())->mHeldTicks;
+                    EXPECT_GE(held, hold->getTicks()) << "frame " << frame;
+                    EXPECT_LE(held, hold->getTicks() + tenMicroseconds) << "frame " << frame;
+                    EXPECT_GE(zoneMs, held * hold->getTickMs()) << "frame " << frame;
                 }
+            }
         }
     }
 }

@@ -173,6 +173,10 @@ namespace Rtx
         /// gamma is set rather than on every frame.
         float mInverseGamma = 1.0f;
 
+        /// The hold `RenderProfile::mStressOverlapMs` asked for, or nothing. Ahead of the ring, which
+        /// reads the hold's reading in milliseconds by the rate the hold measured.
+        std::unique_ptr<StressPass> mStress;
+
         /// The frames in flight and what each came to.
         FrameRing mRing;
 
@@ -211,9 +215,6 @@ namespace Rtx
         DisplayChain mDisplay;
 
         TraceMedia mMedia;
-
-        /// The hold `RenderProfile::mStressOverlapMs` asked for, or nothing.
-        std::unique_ptr<StressPass> mStress;
 
         /// After the passes above, which every scene holds by reference.
         SceneSlots mScenes;

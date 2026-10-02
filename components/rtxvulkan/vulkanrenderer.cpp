@@ -73,7 +73,9 @@ namespace Rtx
         , mCounting(options.mCounting)
         , mProfile(options.mProfile)
         , mInverseGamma(1.0f / mProfile.mGamma)
-        , mRing(mDevice, mCounting || mProfile.mStressOverlapMs > 0.0)
+        , mStress(mProfile.mStressOverlapMs > 0.0 ? std::make_unique<StressPass>(mDevice, mProfile.mStressOverlapMs)
+                                                  : nullptr)
+        , mRing(mDevice, mCounting || mStress != nullptr, mStress != nullptr ? mStress->getTickMs() : 0.0)
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
         , mFrame(mDevice, mTracePasses)
@@ -84,9 +86,6 @@ namespace Rtx
         , mUpscaler(mDevice)
     {
         mDevice.getMemory().limitBudget(options.mMemoryBudget);
-
-        if (mProfile.mStressOverlapMs > 0.0)
-            mStress = std::make_unique<StressPass>(mDevice, mProfile.mStressOverlapMs);
 
         if (options.mWindow != nullptr)
             mPresenter = std::make_unique<Presenter>(mDevice, mInstance, options.mWindow, options.mVerticalSync);
