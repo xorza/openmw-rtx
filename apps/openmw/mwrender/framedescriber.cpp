@@ -127,7 +127,7 @@ namespace MWRender
             .mViewDistance = mViewDistance,
             .mScriptViewDistance
             = mViewDistance != Settings::camera().mViewingDistance ? std::optional<float>(mViewDistance) : std::nullopt,
-            .mFieldOfView = mFieldOfViewOverridden ? mFieldOfViewOverride : mFieldOfView,
+            .mFieldOfView = getFieldOfView(),
             .mArmsFieldOfView = mFirstPersonFieldOfView,
         };
     }

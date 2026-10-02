@@ -936,7 +936,7 @@ namespace MWRender
         const double height = frame.y();
 
         const double aspect = width / height;
-        const float fov = mFieldOfViewOverridden ? mFieldOfViewOverride : mFieldOfView;
+        const float fov = getFieldOfView();
 
         osg::Matrix unreversedProjectionMatrix = osg::Matrix::perspective(fov, aspect, mNearClip, mViewDistance);
 
@@ -1101,7 +1101,7 @@ namespace MWRender
 
     float RenderingManager::getFieldOfView() const
     {
-        return mFieldOfViewOverridden ? mFieldOfViewOverridden : mFieldOfView;
+        return mFieldOfViewOverridden ? mFieldOfViewOverride : mFieldOfView;
     }
 
     osg::Vec3f RenderingManager::getHalfExtents(const MWWorld::ConstPtr& object) const
