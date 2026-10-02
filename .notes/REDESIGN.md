@@ -106,10 +106,17 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   newer reasons named. *Done differently:* the hold's tick is the queue's timestamp period, not a
   probe timed against the timestamps; the probe met stalls of up to 2.6 ms around the loop and was
   off by up to four fifths, and both vendors read one counter for the two (Mesa's RADV source and
-  NVIDIA's `%globaltimer`). The record's premises (W11's header) are still open.
-- **Now:** Phase 1, W11's header, then the visibility gates and the lows of each other section;
-  the remaining lows of W14 (the material reader, Night-Eye, the distant statics' animation, the
-  post-processing package) wait where the list above says.
+  NVIDIA's `%globaltimer`). The report and the record now open with the run's premises (W11's
+  header), and a command that does not measure says so above its table.
+- **Phase 1, lows of §16.4 and the caches:** done — a gate's script run frame after frame until it
+  settles, a broken contract that ends the run rather than reading as undecided, the run's state
+  kept in members with globals read by id, and the paging's record rule in `Terrain`. The callback
+  chains compared by their shape, the pipeline cache's partials named for the sweep, and the
+  Windows installs built beside their final names.
+- **Now:** Phase 2, W2 first. Phase 1's remaining lows wait for something outside the tree: BC7
+  and groundcover (see below), Night-Eye (D8), the in-memory particle image (a key for an image no
+  file names, which the material reader lacks too), the distant statics' animation and the
+  post-processing package.
 
 ### Waiting for you
 
