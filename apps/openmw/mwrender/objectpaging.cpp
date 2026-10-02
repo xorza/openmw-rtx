@@ -33,6 +33,7 @@
 #include <components/esm4/loadfurn.hpp>
 #include <components/esm4/loadstat.hpp>
 #include <components/esm4/loadtree.hpp>
+#include <components/misc/convert.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
@@ -831,9 +832,7 @@ namespace MWRender
                     continue;
 
                 const osg::Vec3f nodePos = ref.mPosition - worldCenter;
-                const osg::Quat nodeAttitude = osg::Quat(ref.mRotation.z(), osg::Vec3f(0, 0, -1))
-                    * osg::Quat(ref.mRotation.y(), osg::Vec3f(0, -1, 0))
-                    * osg::Quat(ref.mRotation.x(), osg::Vec3f(-1, 0, 0));
+                const osg::Quat nodeAttitude = Misc::Convert::makeOsgQuat(ref.mRotation);
                 const osg::Vec3f nodeScale(ref.mScale, ref.mScale, ref.mScale);
 
                 osg::ref_ptr<osg::Group> trans;

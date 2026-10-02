@@ -12,13 +12,13 @@
 
 #include <osg/Matrixf>
 #include <osg/Node>
-#include <osg/Quat>
 #include <osg/Transform>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
+#include <components/misc/convert.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/image/texels.hpp>
@@ -38,13 +38,9 @@ namespace Rtx
     {
         osg::Matrixf transformOf(const Terrain::PagedCellRef& ref)
         {
-            const osg::Quat attitude = osg::Quat(ref.mRotation.z(), osg::Vec3f(0.0f, 0.0f, -1.0f))
-                * osg::Quat(ref.mRotation.y(), osg::Vec3f(0.0f, -1.0f, 0.0f))
-                * osg::Quat(ref.mRotation.x(), osg::Vec3f(-1.0f, 0.0f, 0.0f));
-
             osg::Matrixf transform;
             transform.preMultTranslate(ref.mPosition);
-            transform.preMultRotate(attitude);
+            transform.preMultRotate(Misc::Convert::makeOsgQuat(ref.mRotation));
             transform.preMultScale(osg::Vec3f(ref.mScale, ref.mScale, ref.mScale));
 
             return transform;

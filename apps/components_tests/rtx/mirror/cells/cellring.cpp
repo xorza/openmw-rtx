@@ -40,11 +40,13 @@
 #include <apps/components_tests/rtx/support/fakeland.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
+#include <components/esm/position.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/esm3/refnum.hpp>
 #include <components/misc/constants.hpp>
+#include <components/misc/convert.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -313,14 +315,18 @@ namespace Rtx::Testing
         const osg::Vec3f sLanternAnchor(10.0f, 0.0f, 30.0f);
 
         /// Where the game stands a clone of a reference: the transform `MWRender::Objects` builds,
-        /// with the quaternion the paging and the objects both spell.
+        /// turned as `MWWorld::Scene` turns it, through the record's own three angles — where the
+        /// ring turns it through the paging's vector of them.
         osg::Matrixf gameStands(const Placed& placed)
         {
+            ESM::Position position{};
+            position.rot[0] = placed.mRotation.x();
+            position.rot[1] = placed.mRotation.y();
+            position.rot[2] = placed.mRotation.z();
+
             osg::ref_ptr<SceneUtil::PositionAttitudeTransform> stand = new SceneUtil::PositionAttitudeTransform;
             stand->setPosition(placed.mPosition);
-            stand->setAttitude(osg::Quat(placed.mRotation.z(), osg::Vec3f(0.0f, 0.0f, -1.0f))
-                * osg::Quat(placed.mRotation.y(), osg::Vec3f(0.0f, -1.0f, 0.0f))
-                * osg::Quat(placed.mRotation.x(), osg::Vec3f(-1.0f, 0.0f, 0.0f)));
+            stand->setAttitude(Misc::Convert::makeOsgQuat(position));
             stand->setScale(osg::Vec3f(placed.mScale, placed.mScale, placed.mScale));
 
             osg::Matrix matrix;
