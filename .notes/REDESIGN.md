@@ -49,7 +49,11 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   stays in Phase 4. 15 is four commits; its cut reads no dark map (see below). A release bench
   against the base after 15 (`~/.cache/omw-refactor/bench-3/`) matches it at the median, and the
   deck's trace zone is level with the base's.
-- **Now:** Phase 1, medium item 16, W14.3's lights.
+- **Phase 1, medium 16:** the bolt's lamp, the flicker in the game's band and the darkening lamps
+  are done. The darkening costs about 1% of the guild's trace (a probe without it was within noise
+  of the base). Night-Eye waits for the D8 probe, which needs a harness hook that gives the player
+  the effect; it comes after the other mediums.
+- **Now:** Phase 1, medium item 17, W14.5's rest.
 
 ### Waiting for you
 
