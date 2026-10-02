@@ -111,6 +111,26 @@ namespace SceneUtil
         return lightSource;
     }
 
+    float lightRadius(const SceneUtil::LightCommon& esmLight)
+    {
+        // The minimum scene light radius is 16 in Morrowind
+        return std::max(esmLight.mRadius, 16.f);
+    }
+
+    LightController::LightType lightAnimation(const SceneUtil::LightCommon& esmLight)
+    {
+        LightController::LightType type = LightController::LT_Normal;
+        if (esmLight.mFlicker)
+            type = LightController::LT_Flicker;
+        if (esmLight.mFlickerSlow)
+            type = LightController::LT_FlickerSlow;
+        if (esmLight.mPulse)
+            type = LightController::LT_Pulse;
+        if (esmLight.mPulseSlow)
+            type = LightController::LT_PulseSlow;
+        return type;
+    }
+
     osg::ref_ptr<LightSource> createLightSource(
         const SceneUtil::LightCommon& esmLight, unsigned int lightMask, bool isExterior, const osg::Vec4f& ambient)
     {
@@ -118,8 +138,7 @@ namespace SceneUtil
         osg::ref_ptr<SceneUtil::Light> light(new SceneUtil::Light);
         lightSource->setNodeMask(lightMask);
 
-        // The minimum scene light radius is 16 in Morrowind
-        const float radius = std::max(esmLight.mRadius, 16.f);
+        const float radius = lightRadius(esmLight);
         lightSource->setRadius(radius);
 
         configureLight(light, radius, isExterior);
@@ -142,14 +161,7 @@ namespace SceneUtil
         osg::ref_ptr<SceneUtil::LightController> ctrl(new SceneUtil::LightController);
         ctrl->setDiffuse(light->getDiffuse());
         ctrl->setSpecular(light->getSpecular());
-        if (esmLight.mFlicker)
-            ctrl->setType(SceneUtil::LightController::LT_Flicker);
-        if (esmLight.mFlickerSlow)
-            ctrl->setType(SceneUtil::LightController::LT_FlickerSlow);
-        if (esmLight.mPulse)
-            ctrl->setType(SceneUtil::LightController::LT_Pulse);
-        if (esmLight.mPulseSlow)
-            ctrl->setType(SceneUtil::LightController::LT_PulseSlow);
+        ctrl->setType(lightAnimation(esmLight));
 
         lightSource->setController(ctrl);
 

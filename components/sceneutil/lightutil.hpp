@@ -4,6 +4,8 @@
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 
+#include "lightcontroller.hpp"
+
 namespace osg
 {
     class Group;
@@ -20,6 +22,13 @@ namespace SceneUtil
     class Light;
     class LightSource;
     struct LightCommon;
+
+    /// @brief The radius the scene gives a light: its own, but at least 16, as in Morrowind.
+    float lightRadius(const SceneUtil::LightCommon& esmLight);
+
+    /// @brief The animation a light's flags ask for. Where several are set, the last of flicker, slow flicker, pulse
+    /// and slow pulse wins.
+    LightController::LightType lightAnimation(const SceneUtil::LightCommon& esmLight);
 
     /// @brief Set up global attenuation settings for a Light.
     /// @param radius The radius of the light source.
