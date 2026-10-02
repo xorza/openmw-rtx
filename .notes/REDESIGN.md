@@ -142,7 +142,20 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   `priceBake` and `priceComposite`, because a bake's shape is its source's and a `TextureData`
   does not carry it; each texel size is derived from the storage format (`texelBytes`). No
   picture moved: the price changes only which side an arrival is held to where the room is short.
-- **Phase 2:** done. **Now:** Phase 3, the frame record (the rest of W1). Phase 1's remaining lows wait for something
+- **Phase 2:** done.
+- **Phase 3:** done — the host's loss rides `FrameOptions::mLoss`, and the backend folds it with
+  its own events (a new extent, a new world, the first frame) into one `FramePast`, whose columns
+  the reprojection, the eye and the wake each read; `resetHistory` and `dropRipples` are gone. A
+  resize keeps the eye (D7). A write of the hour that jumps the clock is a cut (see below). A
+  reference the world moves with physics placed outright is told as a jump and stood with no
+  motion. *Done differently:* no `FrameStep` and no `mSimulated`: a paused frame hands the wake no
+  impulses and a water clock that did not move, which the step reads already, and the water's
+  seconds stay where W3 put them. A skin needs no still pose, because its pose delta is in object
+  space. `SetPos` and `moveObjectBy` stay steps, because a script moves a platform with them a
+  little each frame. Upstream code this adds to (for Phase 6's list): `World::moveObject`'s split
+  and `cellForMove`, `World::setGlobal*` with `noteHourWritten`, `DateTimeManager::jumps`, and
+  `RenderingManager::notifyJumped`.
+- **Now:** Phase 4, device contracts (W7, W10). Phase 1's remaining lows wait for something
   outside the tree: BC7 and groundcover (see below), Night-Eye (D8), the in-memory particle image (a
   key for an image no file names, which the material reader lacks too), the distant statics'
   animation and the post-processing package.
