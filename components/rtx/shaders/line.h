@@ -40,7 +40,7 @@ namespace Rtx::Shaders
     };
 
 #ifdef RTX_HOST
-    static_assert(sizeof(LineConstants) == 88, "LineConstants must be scalar-packed on every side");
+    static_assert(sizeof(LineConstants) == 96, "LineConstants must be scalar-packed on every side");
 }
 #endif
 

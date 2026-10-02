@@ -94,7 +94,7 @@ vec3 toEyeBefore(HistoryFootprint footprint, bool arms)
     const vec2 before = vec2(footprint.mLow) + footprint.mAcross + 0.5;
     const vec2 uv = before / vec2(frame.mCamera.mWidth, frame.mCamera.mHeight) * 2.0 - 1.0;
     const vec2 spread = arms ? frame.mArmsSpread : vec2(1.0);
-    return -directionAcross(frame.mPrevious, uv * spread);
+    return -directionAcross(frame.mPrevious, uv, spread);
 }
 
 /// Whether the history at `at` belongs to the surface this pixel shows.

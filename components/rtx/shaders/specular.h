@@ -59,7 +59,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(SpecularConstants) == 172, "SpecularConstants must be scalar-packed on every side");
+    static_assert(sizeof(SpecularConstants) == 196, "SpecularConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

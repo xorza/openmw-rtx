@@ -954,7 +954,7 @@ namespace MWRender
         // We always set the cameras projection matrix to the un-reversed variant for correct frustum culling.
         mRenderer.getCamera().setProjectionMatrix(unreversedProjectionMatrix);
 
-        mFrame.setProjection(projectionMatrix);
+        mFrame.setProjection(projectionMatrix, osg::Vec2f(static_cast<float>(offsetX), static_cast<float>(offsetY)));
 
         // Since our fog is not radial yet, we should take FOV in account, otherwise terrain near viewing distance may
         // disappear. Limit FOV here just for sure, otherwise viewing distance can be too high.

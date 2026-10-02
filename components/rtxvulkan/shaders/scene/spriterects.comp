@@ -59,15 +59,17 @@ Frame frameOf(Camera camera)
     return frame;
 }
 
-/// Where a screen coordinate in minus-one-to-one lands, in whole pixels and generously.
+/// Where a coordinate on the image plane lands, in whole pixels and generously: moved by `axis`,
+/// where the eye's axis crosses the picture along the same axis (`Camera::mCentre`), as `rayAt`
+/// moves it back.
 ///
 /// **A pixel of slack at each end, which is what covers the jitter.** `rayAt` adds half a pixel and
 /// the frame's jitter to the index before scaling, and the jitter is a Halton offset inside the
 /// pixel — so a coordinate is worth a pixel either way and the binning has to hold every ray the
 /// tile can produce, not the one through its centre.
-int toPixel(float coordinate, uint extent, float slack)
+int toPixel(float coordinate, float axis, uint extent, float slack)
 {
-    return int(floor((coordinate + 1.0) * 0.5 * float(extent) + slack));
+    return int(floor((coordinate + axis + 1.0) * 0.5 * float(extent) + slack));
 }
 
 /// Where an orthographic frame sees a ball of `radius` about `centre`, in whole pixels, before the
@@ -89,8 +91,9 @@ ivec4 orthographicPixels(vec3 centre, float radius, Frame frame)
     const float lowV = (-dot(toward, frame.mUp) - radius) / frame.mHalfHeight;
     const float highV = (-dot(toward, frame.mUp) + radius) / frame.mHalfHeight;
 
-    return ivec4(toPixel(lowU, bin.mCamera.mWidth, -1.0), toPixel(lowV, bin.mCamera.mHeight, -1.0),
-        toPixel(highU, bin.mCamera.mWidth, 1.0), toPixel(highV, bin.mCamera.mHeight, 1.0));
+    const vec2 axis = bin.mCamera.mCentre;
+    return ivec4(toPixel(lowU, axis.x, bin.mCamera.mWidth, -1.0), toPixel(lowV, axis.y, bin.mCamera.mHeight, -1.0),
+        toPixel(highU, axis.x, bin.mCamera.mWidth, 1.0), toPixel(highV, axis.y, bin.mCamera.mHeight, 1.0));
 }
 
 /// The tiles one sprite reaches, as an inclusive rectangle, or nothing where it reaches none.
@@ -271,8 +274,10 @@ TileRect capsuleTiles(Bound bound, Frame frame)
     const vec2 upright = capsuleSpan(vec2(-dot(from, frame.mUp), fromDepth), vec2(-dot(to, frame.mUp), toDepth),
         bound.mRadius, frame.mHalfHeight);
 
-    return tilesOf(ivec4(toPixel(sideways.x, bin.mCamera.mWidth, -1.0), toPixel(upright.x, bin.mCamera.mHeight, -1.0),
-        toPixel(sideways.y, bin.mCamera.mWidth, 1.0), toPixel(upright.y, bin.mCamera.mHeight, 1.0)));
+    const vec2 axis = bin.mCamera.mCentre;
+    return tilesOf(ivec4(toPixel(sideways.x, axis.x, bin.mCamera.mWidth, -1.0),
+        toPixel(upright.x, axis.y, bin.mCamera.mHeight, -1.0), toPixel(sideways.y, axis.x, bin.mCamera.mWidth, 1.0),
+        toPixel(upright.y, axis.y, bin.mCamera.mHeight, 1.0)));
 }
 
 /// ORs one instance's kinds into every tile it can be met from, a lane at a stride.

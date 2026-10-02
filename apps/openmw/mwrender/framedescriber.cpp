@@ -90,6 +90,7 @@ namespace MWRender
         mWorld = describeWorld(sources);
         mEye = sources.mEye;
         mEye.mProjectionMatrix = mProjection;
+        mEye.mProjectionShift = mProjectionShift;
 
         mFrame.emplace(SceneFrame{
             .mScene = sources.mScene,
