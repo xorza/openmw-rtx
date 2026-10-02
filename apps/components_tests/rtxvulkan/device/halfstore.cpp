@@ -28,10 +28,10 @@ namespace Rtx
     namespace
     {
         constexpr std::array<VkDescriptorSetLayoutBinding, 2> sBindings{
-            VkDescriptorSetLayoutBinding{
-                0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{
-                1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::HALF_STORE_BIND_VALUES, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::HALF_STORE_BIND_STORED, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
         };
 
         struct RtxHalfStoreTest : Testing::DeviceTest
@@ -51,8 +51,9 @@ namespace Rtx
                     VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "half store");
 
                 DescriptorWrites writes(pipeline);
-                writes.buffer(0, VkDescriptorBufferInfo{ source.getHandle(), 0, VK_WHOLE_SIZE });
-                writes.image(1, stored.describeStorage());
+                writes.buffer(
+                    Shaders::HALF_STORE_BIND_VALUES, VkDescriptorBufferInfo{ source.getHandle(), 0, VK_WHOLE_SIZE });
+                writes.image(Shaders::HALF_STORE_BIND_STORED, stored.describeStorage());
 
                 getPool().submitAndWait([&](VkCommandBuffer commands) {
                     stored.transition(commands, Use::sUndefined, Use::sComputeWrite);
