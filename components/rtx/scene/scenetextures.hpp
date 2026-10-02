@@ -18,7 +18,6 @@
 
 namespace Rtx
 {
-    class CompositeQueue;
     class SceneDesc;
 
     /// Every live texture a scene names, described, and the storage those descriptions point into.
@@ -41,15 +40,12 @@ namespace Rtx
         /// building an array from nothing. The free slots are not among them. A texture that cannot
         /// be described is described as the stand-in and refused, and so is the array running out
         /// of room.
-        /// @param composites which slots are chunks' flattened ground, or null for a caller that
-        ///        flattens none. A terrain slot the queue did not give out is described as the
-        ///        stand-in and refused.
-        void describeAll(const SceneDesc& scene, const CompositeQueue* composites = nullptr);
+        void describeAll(const SceneDesc& scene);
 
         /// The same, for `slots` and nothing else — what stops a texture being described twice. A
         /// list and not an offset, because a slot a departing cell freed is taken over wherever it
         /// sits.
-        void describe(const SceneDesc& scene, std::span<const Index> slots, const CompositeQueue* composites = nullptr);
+        void describe(const SceneDesc& scene, std::span<const Index> slots);
 
         /// What the last `describe` found, each carrying the slot it goes to in `TextureData::mSlot`.
         std::span<const TextureData> getDescriptions() const { return mDescriptions; }
@@ -60,6 +56,12 @@ namespace Rtx
 
     private:
         /// One slot `describe` decided to describe, and what resolving it found.
+        struct Ground
+        {
+            Index mMaterial = sNoIndex;
+            bool mGloss = false;
+        };
+
         struct Kept
         {
             Index mSlot = sNoIndex;
@@ -77,10 +79,14 @@ namespace Rtx
             /// The image's format as `mEncoding` reads it, read once for the reserve and the
             /// description both. Unnamed where there is no image.
             TextureFormat mFormat = TextureFormat::Unnamed;
+
+            /// For a chunk's flattened ground, the material it flattens and which of its two
+            /// layers the slot holds. Nothing for a slot that is no composite.
+            std::optional<Ground> mGround{};
         };
 
         /// What `kept` is described as, or why it gets the stand-in.
-        Misc::Result<TextureData, std::string> describeKept(const Kept& kept, const CompositeQueue* composites);
+        Misc::Result<TextureData, std::string> describeKept(const Kept& kept);
 
         // Refilled by every `describe` and never freed, so each settles at the busiest arrival so
         // far — which is where the room to grow one is least.

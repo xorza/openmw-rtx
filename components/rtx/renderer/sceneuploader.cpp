@@ -97,9 +97,9 @@ namespace Rtx
             // Read only across the call below: `TextureData` carries spans into `mTextures`. The
             // whole table where there is nothing to append to, and the arrivals otherwise.
             if (!mine)
-                mTextures.describeAll(tables, composites);
+                mTextures.describeAll(tables);
             else
-                mTextures.describe(tables, tables.textures().getArrived(), composites);
+                mTextures.describe(tables, tables.textures().getArrived());
             scene.refusals().refuse(mTextures.getRefusals());
 
             const std::chrono::steady_clock::time_point described = std::chrono::steady_clock::now();
@@ -133,15 +133,9 @@ namespace Rtx
         }
 
         // One tail, because all three hand-overs end the same way: each has uploaded, so each is
-        // done with the scene's arrivals and with the queue's bytes. Said per branch instead, none of
-        // it is owed by any one branch in particular, so a branch written without a line of it looks
-        // finished — and the release is the line a frame that baked a composite never reaches.
+        // done with the scene's arrivals. Said per branch instead, it is owed by no one branch in
+        // particular, so a branch written without it looks finished.
         scene.clearArrivals();
-
-        // After the upload and not before: between the take and here, what the queue holds is
-        // which arriving slots are ground and whose, and the describe above is what reads it.
-        if (composites != nullptr)
-            composites->releaseFinished();
 
         // Last, after every branch has read what moved: a walk that handed nothing over keeps its
         // lists for the hand-over that will. Every hand-over, a picture's too, whose scene would

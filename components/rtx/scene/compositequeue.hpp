@@ -43,22 +43,6 @@ namespace Rtx
         /// texture slot and is an arrival like any other.
         std::size_t advance(SceneDesc& scene);
 
-        /// What `advance` gave one slot out as.
-        struct Baked
-        {
-            /// The material whose ground it is, or `sNoIndex` where nothing here gave the slot out
-            /// this frame.
-            Index mMaterial = sNoIndex;
-
-            /// Whether it is the chunk's gloss rather than its albedo.
-            bool mGloss = false;
-        };
-
-        Baked find(Index slot) const;
-
-        /// Lets go of what `advance` gave out, after the arrival that described it.
-        void releaseFinished() { mFinished.clear(); }
-
     private:
         /// Which chunk asked: the material's slot and where its layers sat when it did, so a slot
         /// another chunk took over in the meantime is not handed the first one's ground.
@@ -106,17 +90,6 @@ namespace Rtx
         /// The texture table's refusal of a composite, which holds the schedule until the table
         /// frees a slot: every chunk wants one, so the next would be refused the same way.
         RefusedTakes mRefused;
-
-        /// A slot given out, and the chunk it is the ground of.
-        struct Given
-        {
-            Index mSlot = sNoIndex;
-            Baked mBaked;
-        };
-
-        /// What `advance` gave out this frame: at most `sCompositesPerFrame` chunks, each an albedo
-        /// and at most one gloss. Emptied by `releaseFinished` and never freed.
-        std::vector<Given> mFinished;
 
         std::string mKey;
     };
