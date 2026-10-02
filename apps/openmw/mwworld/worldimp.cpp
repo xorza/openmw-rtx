@@ -530,14 +530,28 @@ namespace MWWorld
 
     void World::setGlobalInt(GlobalVariableName name, int value)
     {
+        const float hour = mTimeManager->getTimeStamp().getHour();
         mTimeManager->updateGlobalInt(name, value);
         mGlobalVariables[name].setInteger(value);
+        if (name == Globals::sGameHour)
+            noteHourWritten(hour);
     }
 
     void World::setGlobalFloat(GlobalVariableName name, float value)
     {
+        const float hour = mTimeManager->getTimeStamp().getHour();
         mTimeManager->updateGlobalFloat(name, value);
         mGlobalVariables[name].setFloat(value);
+        if (name == Globals::sGameHour)
+            noteHourWritten(hour);
+    }
+
+    void World::noteHourWritten(float before)
+    {
+        // A clock that jumped carries the old hour's light through every history the ray tracer
+        // keeps, as a teleport carries the old place's.
+        if (DateTimeManager::jumps(before, mTimeManager->getTimeStamp().getHour(), mHourStep))
+            mRendering->notifyTeleport();
     }
 
     int World::getGlobalInt(GlobalVariableName name) const
@@ -801,6 +815,8 @@ namespace MWWorld
 
         mWeatherManager->advanceTime(hours, incremental);
         mTimeManager->advanceTime(hours, mGlobalVariables);
+        if (incremental)
+            mHourStep = hours;
 
         if (!incremental)
         {

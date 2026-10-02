@@ -109,6 +109,10 @@ namespace MWWorld
         bool mGodMode;
         bool mScriptsEnabled;
         bool mDiscardMovements;
+
+        /// The hours the last frame advanced the clock by, which a write of the hour is held
+        /// against: `DateTimeManager::jumps`.
+        double mHourStep = 0.0;
         std::vector<std::string> mContentFiles;
 
         std::filesystem::path mUserDataPath;
@@ -148,6 +152,10 @@ namespace MWWorld
         Ptr copyObjectToCell(const ConstPtr& ptr, CellStore* cell, ESM::Position pos, int count, bool adjustPos);
 
         void updateSoundListener();
+
+        /// Tells the renderer a cut where the write of the hour that just took the clock from
+        /// `before` jumped it.
+        void noteHourWritten(float before);
 
         void preloadSpells();
 
