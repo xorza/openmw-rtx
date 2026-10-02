@@ -167,7 +167,7 @@ namespace Rtx::Testing
             // matter of taste. **Blue survives longest**, which is why a body of water reads blue
             // once it is deep enough to read as anything: water absorbs red twenty-five times as
             // fast as blue, and the dissolved matter that stains a coast blue-ward does not close
-            // that. It is also what `WATER_SCATTER` says, its own peak being in blue.
+            // that. It is also what `WATER_SCATTER_SHIPPED` says, its own peak being in blue.
             EXPECT_LT(overhead[0], overhead[1]) << "red is taken before green";
             EXPECT_LT(overhead[1], overhead[2]) << "and green before blue";
 
@@ -289,18 +289,18 @@ namespace Rtx::Testing
                 return std::array<int, 3>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2) };
             };
 
-            // `WATER_SCATTER.r * 0.5` is 0.02, less the two per cent the surface reflects away, and
+            // `WATER_SCATTER_SHIPPED.r * 0.5` is 0.02, less the two per cent the surface reflects away, and
             // the display curve puts 0.0199 at 39.
             const std::array<int, 3> bedded = look(makeFlooded(4000.0f, depth));
             EXPECT_EQ(bedded[0], 39) << "red, settled at what the water scatters";
 
             // The same column with the bed taken out from under it, which is the asymptote itself:
-            // `WATER_SCATTER * 0.5`, less Fresnel. Off the constants rather than written out, for
+            // `WATER_SCATTER_SHIPPED * 0.5`, less Fresnel. Off the constants rather than written out, for
             // the reason the expectations above are.
             const std::array<int, 3> bottomless = look(makeOpenWater(4000.0f));
             for (std::size_t channel = 0; channel < 3; ++channel)
                 EXPECT_NEAR(bottomless[channel],
-                    encodeSrgb(Shaders::WATER_SCATTER[channel] * 0.5f * (1.0f - Shaders::WATER_F0)), 1)
+                    encodeSrgb(Shaders::WATER_SCATTER_SHIPPED[channel] * 0.5f * (1.0f - Shaders::WATER_F0)), 1)
                     << "channel " << channel << " over water with no bottom";
 
             // And the bed at 2000 units is still there in the two channels it is not deep for, so
@@ -477,8 +477,8 @@ namespace Rtx::Testing
             const auto scattered = [&](float eye, std::size_t channel) {
                 const float o = Shaders::WATER_EXTINCTION[channel];
 
-                return encodeSrgb(Shaders::WATER_SCATTER[channel] * 0.5f * (1.0f - std::exp(-2.0f * o * stretch))
-                    * std::exp(-o * eye));
+                return encodeSrgb(Shaders::WATER_SCATTER_SHIPPED[channel] * 0.5f
+                    * (1.0f - std::exp(-2.0f * o * stretch)) * std::exp(-o * eye));
             };
 
             // Red and blue, which is the whole spread of what water does: red is gone by a thousand
@@ -546,8 +546,8 @@ namespace Rtx::Testing
 
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
-                const float settled
-                    = Shaders::WATER_SCATTER[channel] * 0.5f * std::exp(-Shaders::WATER_EXTINCTION[channel] * eye);
+                const float settled = Shaders::WATER_SCATTER_SHIPPED[channel] * 0.5f
+                    * std::exp(-Shaders::WATER_EXTINCTION[channel] * eye);
 
                 EXPECT_NEAR(lowest[channel], encodeSrgb(settled), 1) << "channel " << channel;
                 EXPECT_EQ(lowest[channel], highest[channel]) << "channel " << channel << " draws an edge";

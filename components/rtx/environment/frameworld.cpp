@@ -205,6 +205,7 @@ namespace Rtx
         // The same hair the water's own placement is dropped by, so that what the shader calls the
         // water level and where the surface actually is stay one number.
         constants.mWaterLevel = reading.mWaterLevel - Shaders::WATER_TIE_BREAK;
+        constants.mWaterScatter = reading.mWaterScatter;
         constants.mWaterTime = splitSeconds(reading.mSeconds);
         constants.mRainOnWater = reading.mRainOnWater;
         constants.mShelterHeight = reading.mShelterHeight;

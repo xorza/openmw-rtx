@@ -46,6 +46,10 @@ namespace TestingOpenMW
                 { "Weather_Sun_Pre-Sunset_Time", "1" },
                 { "Weather_Sun_Post-Sunset_Time", "1.25" },
 
+                // The water's colour, which a reading of the sky takes as the water's scattering.
+                { "Water_UnderwaterColor", "012,030,037" },
+                { "Water_UnderwaterColorWeight", "0.85" },
+
                 // The glare's fader, which a reading of the sky multiplies its strength up from.
                 { "Weather_Sun_Glare_Fader_Max", "0.5" },
                 { "Weather_Sun_Glare_Fader_Angle_Max", "30.0" },

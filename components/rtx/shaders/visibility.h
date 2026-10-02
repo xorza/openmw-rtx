@@ -324,6 +324,10 @@ namespace Rtx::Shaders
         /// the same path as a point above the surface with no branch of its own.
         float mWaterLevel;
 
+        /// The water's single-scattering albedo, the colour the game settles its murk at:
+        /// `Water_UnderwaterColor` at its weight. `WATER_SCATTER_SHIPPED` says what it is.
+        vec3 mWaterScatter;
+
         /// How long the water has been moving, in seconds, as two floats whose sum is the host's
         /// double: `Rtx::splitSeconds`, and `turnsAt` is what reads it. Nought is a still sea and a
         /// deterministic frame, which is what a test wants; the window path passes its own clock.
@@ -599,8 +603,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1264, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1448, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1272, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1456, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(HitRecord) == 8, "HitRecord must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 8, "PuffConstants must be scalar-packed on every side");
 #endif

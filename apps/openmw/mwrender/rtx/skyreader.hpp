@@ -137,5 +137,9 @@ namespace MWRender
 
         /// How big the configuration draws each moon, read with the rest of the fallbacks.
         Rtx::MoonSizes mMoonSizes;
+
+        /// The water's scattering albedo, `Water_UnderwaterColor` at `Water_UnderwaterColorWeight`,
+        /// read once: `WATER_SCATTER_SHIPPED` says what it is.
+        osg::Vec3f mWaterScatter;
     };
 }

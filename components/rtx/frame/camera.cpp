@@ -76,6 +76,7 @@ namespace Rtx
             // harness's and the tests' cameras never do.
             constants.mRayMask = Shaders::MASK_EVERY_CLASS;
             constants.mSkyDrawn = 1;
+            constants.mWaterScatter = Shaders::WATER_SCATTER_SHIPPED;
 
             return constants;
         }
