@@ -606,10 +606,10 @@ namespace Rtx::Testing
 
             std::vector<float> radiance;
             shoot(scene, {}, camera, size,
-                Shot{
-                    .mFrames = frames, .mAverage = false, .mResetHistory = true, .mEachFrame = [&](const Frame& each) {
-                        radiance.push_back(each.at(centre * 4));
-                    } });
+                Shot{ .mFrames = frames,
+                    .mAverage = false,
+                    .mLoss = HistoryLoss::Cut,
+                    .mEachFrame = [&](const Frame& each) { radiance.push_back(each.at(centre * 4)); } });
 
             double total = 0.0;
             double stepped = 0.0;
@@ -663,18 +663,15 @@ namespace Rtx::Testing
                 return shoot(scene, {}, camera, size,
                     Shot{ .mFrames = 40,
                         .mAverage = false,
-                        .mResetHistory = true,
+                        .mLoss = between == Between::Lost ? HistoryLoss::Cut : HistoryLoss::None,
+                        .mLossAt = 20,
                         .mEachFrame =
                             [&, at = 0](const Frame&) mutable {
-                                if (++at != 20)
-                                    return;
-                                if (between == Between::Untraced)
+                                if (++at == 20 && between == Between::Untraced)
                                 {
                                     mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
                                     mRenderer.skipFrame();
                                 }
-                                if (between == Between::Lost)
-                                    mRenderer.resetHistory();
                             } })
                     .mRadiance;
             };
@@ -750,7 +747,7 @@ namespace Rtx::Testing
                 shoot(scene, {}, camera, size,
                     Shot{ .mFrames = frames,
                         .mAverage = false,
-                        .mResetHistory = true,
+                        .mLoss = HistoryLoss::Cut,
                         .mEachFrame = [&](const Frame& each) { radiance.push_back(each.at(centre * 4)); } });
 
                 double total = 0.0;
@@ -843,10 +840,10 @@ namespace Rtx::Testing
             };
 
             const osg::Vec3f expected = air(shoot(scene, {}, eye(step, 0.0f, sHaze), size,
-                Shot{ .mFrames = settled + turned + 1, .mAverage = false, .mResetHistory = true }));
+                Shot{ .mFrames = settled + turned + 1, .mAverage = false, .mLoss = HistoryLoss::Cut }));
 
             shoot(scene, {}, eye(0.0f, over, before), size,
-                Shot{ .mFrames = settled, .mAverage = false, .mResetHistory = true });
+                Shot{ .mFrames = settled, .mAverage = false, .mLoss = HistoryLoss::Cut });
             shoot(scene, {}, eye(0.0f, 0.0f, sHaze), size,
                 Shot{ .mFrames = turned, .mAverage = false, .mFirstFrame = settled, .mSetScene = false });
             const osg::Vec3f seen = air(shoot(scene, {}, eye(step, 0.0f, sHaze), size,
@@ -951,7 +948,7 @@ namespace Rtx::Testing
             const SceneDesc wall = makeWall();
             shoot(wall, {}, wallCamera(size, lit, away, away - osg::Vec3f(0.0f, 1.0f, 0.0f)), size);
             const Frame afterDoor
-                = shoot(wall, {}, wallCamera(size, lit), size, Shot{ .mResetHistory = true, .mSetScene = false });
+                = shoot(wall, {}, wallCamera(size, lit), size, Shot{ .mLoss = HistoryLoss::Cut, .mSetScene = false });
             EXPECT_GT(afterDoor.mHits, 0u);
             EXPECT_EQ(afterDoor.mNotFinite.mGuide, 0u);
         }

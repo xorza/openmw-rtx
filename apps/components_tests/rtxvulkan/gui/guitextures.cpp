@@ -1092,8 +1092,10 @@ namespace Rtx
             // adapts nothing at all.
             constexpr float sStep = 1.0f / 60.0f;
 
-            const auto frame = [&](const Shaders::VisibilityConstants& camera, const ExposureRule exposure) {
-                mRenderer.renderFrame(camera, FrameOptions{ .mSinceLast = sStep, .mExposure = exposure });
+            const auto frame = [&](const Shaders::VisibilityConstants& camera, const ExposureRule exposure,
+                                   const HistoryLoss loss = HistoryLoss::None) {
+                mRenderer.renderFrame(
+                    camera, FrameOptions{ .mSinceLast = sStep, .mLoss = loss, .mExposure = exposure });
                 mRenderer.readPixels(mPixels);
                 return mPixels;
             };
@@ -1102,8 +1104,7 @@ namespace Rtx
             // moved for — so what the dim frame looks like is what the bright frame's exposure made
             // of it, which is exactly what a picture between the two must not change.
             const auto dimFrameAfterBright = [&](bool withPicture) {
-                mRenderer.resetHistory();
-                frame(bright, MeasuredExposure{});
+                frame(bright, MeasuredExposure{}, HistoryLoss::Cut);
                 if (withPicture)
                     mRenderer.traceGuiTexture(texture, picture, GuiTraceOptions{});
 
@@ -1113,8 +1114,7 @@ namespace Rtx
             const std::vector<std::uint8_t> carried = dimFrameAfterBright(false);
             const std::vector<std::uint8_t> afterPicture = dimFrameAfterBright(true);
 
-            mRenderer.resetHistory();
-            frame(bright, MeasuredExposure{});
+            frame(bright, MeasuredExposure{}, HistoryLoss::Cut);
             const std::vector<std::uint8_t> atOne = frame(dim, FixedExposure{ 1.0f });
 
             ASSERT_NE(carried, atOne) << "the carried exposure and one draw the same picture here";

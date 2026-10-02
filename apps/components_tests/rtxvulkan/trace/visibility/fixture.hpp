@@ -357,11 +357,13 @@ namespace Rtx::Testing
         /// unless a test names the other.
         NoiseSource mNoise = NoiseSource::BlueNoiseTile;
 
-        /// Throws the denoiser's history away before the run.
+        /// What the past of the run's frame `mLossAt` is worth (`FrameOptions::mLoss`). A shot that
+        /// sets its scene has lost every history at its first frame already, as a new world does.
         ///
         /// **A one-frame baseline taken after a longer run is a baseline that already has a history
         /// in it**, which reads as the accumulator doing nothing at all.
-        bool mResetHistory = false;
+        HistoryLoss mLoss = HistoryLoss::None;
+        std::uint32_t mLossAt = 0;
 
         /// The exposure the composite is held at. `std::nullopt` is the exposure the frame measures
         /// for itself, which is what a test about the exposure pass wants — and what every figure
@@ -416,7 +418,7 @@ namespace Rtx::Testing
     inline Shot filteredRun(std::uint32_t frames, std::uint32_t first = 0)
     {
         return Shot{
-            .mFrames = frames, .mAverage = false, .mFirstFrame = first, .mFilter = true, .mResetHistory = true
+            .mFrames = frames, .mAverage = false, .mFirstFrame = first, .mFilter = true, .mLoss = HistoryLoss::Cut
         };
     }
 
@@ -439,9 +441,6 @@ namespace Rtx::Testing
             else
                 mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
 
-            if (shot.mResetHistory)
-                mRenderer.resetHistory();
-
             // One frame per sample, each waited out before the next, which orders them — and the
             // renderer's own history barrier is what makes each sum visible to the next.
             const std::uint32_t drawn = std::max(shot.mFrames, 1u);
@@ -458,6 +457,7 @@ namespace Rtx::Testing
                     FrameOptions{ .mAccumulate = shot.mFrames > 0 && shot.mAverage ? at + 1 : 0,
                         .mGlare = shot.mGlare,
                         .mWaterSeconds = waterSeconds,
+                        .mLoss = at == shot.mLossAt ? shot.mLoss : HistoryLoss::None,
                         .mReconstruction = ReconstructionRequest{ .mDenoise = shot.mFilter,
                             .mJitter = shot.mJitter,
                             .mNoise = shot.mNoise,

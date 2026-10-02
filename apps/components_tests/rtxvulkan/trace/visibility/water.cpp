@@ -215,8 +215,6 @@ namespace Rtx::Testing
             // On the scene, as the walk puts them, and pressed on every frame of the run: the
             // renderer reads the scene's list as the scene is set.
             const auto look = [&](std::vector<std::uint8_t>& pixels) {
-                mRenderer.resetHistory();
-                mRenderer.dropRipples();
                 pixels = shoot(scene, {}, camera, size,
                     Shot{ .mSea = SeaState{ .mSignificantHeight = 0.0f },
                         .mFrames = 30,
@@ -247,26 +245,24 @@ namespace Rtx::Testing
 
             EXPECT_EQ(still[centre * 4 + 3], walked[centre * 4 + 3]) << "coverage is not the surface's";
 
-            // **A cut keeps the wake, and only dropping the ripples takes it**, as the rasterizer
+            // **A cut keeps the wake, and only another worldspace takes it**, as the rasterizer
             // keeps its ripples over a teleport and lets them go with the worldspace. One frame
             // after the walk, past a cut: the ring still bends the surface, where the frame past a
-            // dropped field shows the water the walk left.
-            const auto oneAfterTheWalk = [&](bool drop) {
+            // worldspace change shows the water the walk left.
+            const auto oneAfterTheWalk = [&](const HistoryLoss loss) {
                 std::vector<std::uint8_t> ignored;
                 look(ignored);
-                mRenderer.resetHistory();
-                if (drop)
-                    mRenderer.dropRipples();
                 return shoot(scene, {}, camera, size,
                     Shot{ .mSea = SeaState{ .mSignificantHeight = 0.0f },
                         .mFrames = 1,
                         .mAverage = false,
+                        .mLoss = loss,
                         .mWaterStep = 1.0f / Shaders::RIPPLE_STEP_RATE,
                         .mSetScene = false })
                     .bytes();
             };
-            const std::vector<std::uint8_t> kept = oneAfterTheWalk(false);
-            EXPECT_NE(kept, oneAfterTheWalk(true)) << "a cut took the wake";
+            const std::vector<std::uint8_t> kept = oneAfterTheWalk(HistoryLoss::Cut);
+            EXPECT_NE(kept, oneAfterTheWalk(HistoryLoss::Worldspace)) << "a cut took the wake";
         }
 
         /// Deep water settles at what it scatters, and at half what only-the-return-leg would give.

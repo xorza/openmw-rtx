@@ -87,7 +87,6 @@ namespace Rtx::Testing
                 mRenderer.resize(size, size);
                 const UpscaleFor upscale(mRenderer, mode);
                 mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
-                mRenderer.resetHistory();
 
                 // The camera the trace is handed is built for the render extent, which is the mode's:
                 // square, as the output is.
@@ -138,13 +137,13 @@ namespace Rtx::Testing
             const Shaders::VisibilityConstants camera = overTheFloor(size);
 
             std::vector<std::uint8_t> plain;
-            shoot(scene, {}, camera, size, { .mFrames = 24, .mAverage = false, .mResetHistory = true });
+            shoot(scene, {}, camera, size, { .mFrames = 24, .mAverage = false, .mLoss = HistoryLoss::Cut });
             mRenderer.readPixels(plain);
 
             std::vector<std::uint8_t> upscaled;
             {
                 const UpscaleFor native(mRenderer, Upscale::Native);
-                shoot(scene, {}, camera, size, { .mFrames = 24, .mAverage = false, .mResetHistory = true });
+                shoot(scene, {}, camera, size, { .mFrames = 24, .mAverage = false, .mLoss = HistoryLoss::Cut });
                 mRenderer.readPixels(upscaled);
             }
 
@@ -168,7 +167,7 @@ namespace Rtx::Testing
 
             const UpscaleFor native(mRenderer, Upscale::Native);
             const auto run = [&] {
-                shoot(scene, {}, camera, size, { .mFrames = 24, .mAverage = false, .mResetHistory = true });
+                shoot(scene, {}, camera, size, { .mFrames = 24, .mAverage = false, .mLoss = HistoryLoss::Cut });
                 std::vector<std::uint8_t> pixels;
                 mRenderer.readPixels(pixels);
                 return pixels;

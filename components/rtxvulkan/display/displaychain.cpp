@@ -128,7 +128,7 @@ namespace Rtx
             else
             {
                 const FrameLook::Measured& measured = std::get<FrameLook::Measured>(look->mExposure);
-                mExposure.record(commands, shown, measured.mSeconds, measured.mReset || mExposureStale, measured.mBias);
+                mExposure.record(commands, shown, measured.mSeconds, mExposureStale, measured.mBias);
                 mExposureStale = false;
             }
             closeZone(timer, commands);
@@ -142,7 +142,7 @@ namespace Rtx
         if (look != nullptr)
         {
             openZone(timer, commands, "glare");
-            mSunGlare.record(commands, look->mGlare.mSeconds, look->mGlare.mReset || mGlareStale);
+            mSunGlare.record(commands, look->mGlare.mSeconds, mGlareStale);
             mGlareStale = false;
             closeZone(timer, commands);
             share = &mSunGlare.getShare();
