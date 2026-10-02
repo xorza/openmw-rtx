@@ -600,8 +600,10 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
 
         // **The rim is put back on a disc and left alone on a quad.** What the taper restores is
         // a round blob the mip chain averaged into the square it was cut to; a rain streak is
-        // authored as that rectangle, and tapering it would round off the drop.
-        const float painted = texel.a * sprite.mAlpha * (oriented ? 1.0 : spriteTaper(crossing.mRadial, lod));
+        // authored as that rectangle, and tapering it would round off the drop. `ONE, ONE` reads
+        // no alpha, as `gatherAlong` reads none of a surface that adds whole.
+        const float read = (emitter.mFlags & EMITTER_ADD_WHOLE) != 0u ? 1.0 : texel.a;
+        const float painted = read * sprite.mAlpha * (oriented ? 1.0 : spriteTaper(crossing.mRadial, lod));
         if (!(painted > 0.0))
             continue;
 

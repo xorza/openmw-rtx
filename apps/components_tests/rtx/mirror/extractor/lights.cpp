@@ -187,6 +187,12 @@ namespace Rtx::Testing
         /// a lamp of `66^2 * 0.25 * pi = 3421.2` on white, reaching `66 * 2 + 128 = 260`, and no
         /// glow beside it. And the plume outside any effect is a flame the walk lights nothing
         /// with.
+        ///
+        /// **Under `ONE, ONE` the lamp is the map's mean read whole**, as a sheet's is: the same
+        /// flames over a map at half alpha, whose mean premultiplied is half of (1, 0.21586, 0) and
+        /// read whole is all of it. Both sprites are whole under that blend, so the sum is
+        /// `36 * (1, 0.046203, 0) + 4 * (1, 0.21586, 0) = (40, 2.526748, 0)` and the lamp is
+        /// `(1280, 80.856, 0)`; read premultiplied it was half that.
         TEST_F(RtxSceneExtractorTest, anEffectsFlamesLightTheWorldAsItsLampUnlessTheGameLitIt)
         {
             constexpr osg::Node::NodeMask sEffect = 1u << 1;
@@ -226,6 +232,37 @@ namespace Rtx::Testing
             EXPECT_EQ(lamp.mClearance, lamp.mSourceRadius);
             EXPECT_FLOAT_EQ(lamp.mReach, 128.0f);
             EXPECT_EQ(lamp.mFill, 1u);
+
+            {
+                osg::ref_ptr<osg::Image> half = new osg::Image;
+                half->setFileName("textures/vfx_fireglow_half.tga");
+                half->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                for (std::size_t texel = 0; texel < 4; ++texel)
+                {
+                    half->data()[texel * 4] = 255;
+                    half->data()[texel * 4 + 1] = 128;
+                    half->data()[texel * 4 + 2] = 0;
+                    half->data()[texel * 4 + 3] = 128;
+                }
+
+                const Plume whole = makePlume(
+                    osg::Matrix::scale(2.0, 2.0, 2.0) * osg::Matrix::translate(100.0, 0.0, 0.0), true, half);
+                whole.mRoot->getOrCreateStateSet()->setAttributeAndModes(
+                    new osg::BlendFunc(osg::BlendFunc::ONE, osg::BlendFunc::ONE), osg::StateAttribute::ON);
+                emit(*whole.mParticles, osg::Vec3f(0.0f, 0.0f, 5.0f), 3.0f, osg::Vec4f(1.0f, 0.5f, 0.25f, 0.5f));
+                emit(*whole.mParticles, osg::Vec3f(0.0f, 0.0f, 9.0f), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+
+                osg::ref_ptr<osg::Group> wholeEffect = new osg::Group;
+                wholeEffect->setNodeMask(sEffect);
+                wholeEffect->addChild(whole.mRoot);
+
+                mScene.clearPlacement();
+                walk(*wholeEffect);
+                ASSERT_EQ(mScene.lights().size(), 1u);
+                EXPECT_NEAR(mScene.lights().front().mIntensity.x(), 1280.0f, 1e-1f)
+                    << "a flame that adds whole lit by its mean premultiplied";
+                EXPECT_NEAR(mScene.lights().front().mIntensity.y(), 80.856f, 1e-2f);
+            }
 
             osg::ref_ptr<osg::Group> bolt = new osg::Group;
             bolt->setNodeMask(sEffect);

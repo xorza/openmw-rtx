@@ -1083,15 +1083,15 @@ namespace Rtx
                 .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                 .mAlpha = 1.0f } };
 
-            scene.addEmitter(sPlume, texture, true, 0.0f, lighting);
+            scene.addEmitter(sPlume, texture, BlendKind::Add, 0.0f, lighting);
             ASSERT_EQ(scene.emitters().size(), 1u);
 
             // An emitter with nothing alive in it is not an emitter, and the next one that has
             // something starts where the first left off rather than where a placeholder would have.
-            scene.addEmitter({}, texture, false);
+            scene.addEmitter({}, texture, BlendKind::Over);
             EXPECT_EQ(scene.emitters().size(), 1u);
 
-            scene.addEmitter(sSmoke, texture, false);
+            scene.addEmitter(sSmoke, texture, BlendKind::Over);
             ASSERT_EQ(scene.emitters().size(), 2u);
 
             // Named once the adds are done, for the reason `SceneDesc`'s spans give.
@@ -1163,9 +1163,9 @@ namespace Rtx
             // **Every add before any read**, for the reason `SceneDesc`'s spans give: a row named
             // while another emitter is still to come is a row the next `addEmitter` moves out from
             // under the name.
-            scene.addEmitter(disc, texture, false);
-            scene.addEmitter(streak, texture, false, 0.1f);
-            scene.addEmitter(leant, texture, false, 0.1f);
+            scene.addEmitter(disc, texture, BlendKind::Over);
+            scene.addEmitter(streak, texture, BlendKind::Over, 0.1f);
+            scene.addEmitter(leant, texture, BlendKind::Over, 0.1f);
 
             ASSERT_EQ(scene.emitters().size(), 3u);
             const std::span<const SpriteEmitter> made = scene.emitters();

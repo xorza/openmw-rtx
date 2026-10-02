@@ -504,11 +504,15 @@ namespace Rtx::Shaders
     const uint MATERIAL_EMISSIVE_UNIT_SHIFT = 12u;
     const uint MATERIAL_UNIT_MASK = 0x0Fu;
 
-    /// A sprite emitter that adds — `Rtx::BlendKind::Add`, or `AddWhole` with its sprites' alpha
-    /// settled at one by the resolver — and one whose sprites fall from the sky:
-    /// `spriteshelter.rgen` drops those that stand under cover.
+    /// A sprite emitter that adds — `Rtx::BlendKind::Add` or `AddWhole` — and one whose sprites
+    /// fall from the sky: `spriteshelter.rgen` drops those that stand under cover.
     const uint EMITTER_ADDITIVE = 0x01u;
     const uint EMITTER_FALLS = 0x02u;
+
+    /// An emitter that adds whole, `ONE, ONE`, beside `EMITTER_ADDITIVE`: its texels add their
+    /// colour with their alpha unread, as `MATERIAL_ADD_WHOLE` says of a surface. The resolver
+    /// settles its sprites' own alpha at one.
+    const uint EMITTER_ADD_WHOLE = 0x04u;
 
     /// The content doubled every triangle of this mesh for its back — `Rtx::FoldedShape::mSheet`.
     /// With a mask on its material that is a leaf, and `SHEET_TRANSMISSION` says what the light on

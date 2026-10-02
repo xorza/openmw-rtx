@@ -5,10 +5,12 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
 
+#include <osg/BlendFunc>
 #include <osg/Geode>
 #include <osg/Geometry>
 #include <osg/Group>
@@ -45,6 +47,7 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/texturetable.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -233,22 +236,39 @@ namespace Rtx::Testing
         /// The blend sits on the transform above the emitter, where `NifOsg` puts it, and the
         /// emitter carries a state set of its own that says nothing about blending — so an answer
         /// read off the drawable is "covers" both times.
+        ///
+        /// **And `ONE, ONE` is a flame whose texels add whole**, which the emitter says beside its
+        /// being additive, as a surface's material says `MATERIAL_ADD_WHOLE`: the sprite walk then
+        /// reads no alpha of its texture, and the flame's sprites carry an alpha of one whatever
+        /// their ramps say — a particle whose two ramps stand at a quarter is a whole one.
         TEST_F(RtxSceneExtractorTest, theBlendTellsAFlameFromSmoke)
         {
-            const auto extractOne = [](bool additive) {
-                const Plume plume = makePlume(osg::Matrix::identity(), additive);
-                emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f));
+            const auto extractOne = [](osg::BlendFunc::BlendFuncMode source, osg::BlendFunc::BlendFuncMode destination) {
+                const Plume plume = makePlume(osg::Matrix::identity(), false);
+                plume.mRoot->getOrCreateStateSet()->setAttributeAndModes(
+                    new osg::BlendFunc(source, destination), osg::StateAttribute::ON);
+                emit(*plume.mParticles, osg::Vec3f(), 1.0f, osg::Vec4f(1.0f, 1.0f, 1.0f, 0.25f));
 
                 Rtx::SceneDesc scene;
                 SceneExtractor extractor(scene);
                 extractor.extract(*plume.mRoot, osg::Matrixf::identity(), 0);
 
                 EXPECT_EQ(scene.emitters().size(), 1u);
-                return scene.emitters().front().isAdditive();
+                EXPECT_EQ(scene.sprites().size(), 1u);
+                return std::pair(scene.emitters().front().mFlags, scene.sprites().front().mAlpha);
             };
 
-            EXPECT_TRUE(extractOne(true));
-            EXPECT_FALSE(extractOne(false));
+            const auto [flame, flameAlpha] = extractOne(osg::BlendFunc::SRC_ALPHA, osg::BlendFunc::ONE);
+            EXPECT_EQ(flame, Shaders::EMITTER_ADDITIVE);
+            EXPECT_FLOAT_EQ(flameAlpha, 0.0625f) << "the colour's alpha and the alpha ramp, a quarter each";
+
+            const auto [smoke, smokeAlpha] = extractOne(osg::BlendFunc::SRC_ALPHA, osg::BlendFunc::ONE_MINUS_SRC_ALPHA);
+            EXPECT_EQ(smoke, 0u);
+            EXPECT_FLOAT_EQ(smokeAlpha, 0.0625f);
+
+            const auto [whole, wholeAlpha] = extractOne(osg::BlendFunc::ONE, osg::BlendFunc::ONE);
+            EXPECT_EQ(whole, Shaders::EMITTER_ADDITIVE | Shaders::EMITTER_ADD_WHOLE);
+            EXPECT_FLOAT_EQ(wholeAlpha, 1.0f);
         }
 
         /// A rain box with one quad of our own under it, which is all the walk can tell from a storm.
