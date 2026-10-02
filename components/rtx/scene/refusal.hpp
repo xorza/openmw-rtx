@@ -34,9 +34,11 @@ namespace Rtx
         /// Part of a surface's state, the rest of the surface drawn: `UnreadState`. Named by the
         /// surface's diffuse texture.
         Surface,
+
+        Count,
     };
 
-    inline constexpr std::size_t sRefusedKinds = static_cast<std::size_t>(Refused::Surface) + 1;
+    inline constexpr std::size_t sRefusedKinds = static_cast<std::size_t>(Refused::Count);
 
     /// One refusal, held by what made it until it can be reported: a reader thread hands its own to
     /// the frame with what it read, a describe that a read-only caller also runs hands them to the

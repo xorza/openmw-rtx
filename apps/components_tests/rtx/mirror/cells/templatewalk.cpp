@@ -174,6 +174,12 @@ namespace Rtx::Testing
         {
             using enum NightDayMode;
 
+            // **Every mode is the four of them, counted from the enum**: a mode added and left out
+            // of a hand-written mask would read every unswitched part as switched.
+            EXPECT_EQ(modesOf({ Default, ExteriorNight, InteriorDay, Authored }).mBits, NightDayModes::sEvery);
+            EXPECT_TRUE(modesOf({ Default, ExteriorNight, InteriorDay, Authored }).isEvery());
+            EXPECT_FALSE(modesOf({ Default, ExteriorNight, InteriorDay }).isEvery());
+
             const auto dayNight = [](std::initializer_list<osg::Node*> children, unsigned int opensOn) {
                 osg::ref_ptr<osg::Switch> branches = new osg::Switch;
                 branches->setName(Constants::NightDayLabel);
