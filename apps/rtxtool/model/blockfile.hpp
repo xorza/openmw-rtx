@@ -88,8 +88,8 @@ namespace RtxTool
     {
     public:
         /// Reads `in`, which `source` names in whatever is refused: blank lines and `#` comments
-        /// are passed over, and anything else that is neither a `[name]` nor a `field = value`, or
-        /// a field before the first section, is refused.
+        /// are passed over, and anything else that is neither a `[name]` nor a `field = value`, a
+        /// field before the first section, or a field a section sets twice, is refused.
         BlockFile(std::istream& in, std::string source);
 
         /// The same, from the file at `path`, which is refused where it cannot be read.
