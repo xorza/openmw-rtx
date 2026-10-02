@@ -87,8 +87,9 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint key, uint lamps, ui
     const vec3 direction = ray.mAlong;
 
     // Drawn, because a reflection is a picture of the world and shows the faces the world shows.
-    const Surface hit
-        = trace(ray, SHADOW_BIAS, Cone(cone.mWidth, cone.mSpread + lobe), solidMask(frame.mRayMask), true);
+    // From where it left and no further: the origin already stands off the plane (`leaving`), and a
+    // `tmin` beside that skipped whatever stood within a unit of the surface along the ray.
+    const Surface hit = trace(ray, 0.0, Cone(cone.mWidth, cone.mSpread + lobe), solidMask(frame.mRayMask), true);
 
     WaterPath path;
     path.mFound = hit.mHit;
@@ -286,11 +287,18 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     // `WATER_SHORE_FADE`, so a bed further down and a bed nowhere at all are the same answer — which
     // makes that length the ray's own limit, and stops every pixel of open water crossing the sea to
     // be told it is deep.
+    //
+    // **Measured from the surface**, though the ray leaves from above it: the depth is what the ray
+    // travelled less what `leaving` stands over the surface, straight down.
     shaded.mShore = 1.0;
     if (!fromBelow)
+    {
+        const float clearing = SHADOW_BIAS * plane.z;
         shaded.mShore = smoothstep(0.0, WATER_SHORE_FADE,
-            solidWithin(WorldRay(leaving, vec3(0.0, 0.0, -1.0)), SHADOW_BIAS, WATER_SHORE_FADE,
-                Cone(surface.mFootprint, cone.mSpread)));
+            solidWithin(WorldRay(leaving, vec3(0.0, 0.0, -1.0)), 0.0, WATER_SHORE_FADE + clearing,
+                Cone(surface.mFootprint, cone.mSpread))
+                - clearing);
+    }
 
     // How far the eye's own ray had come, which a leg leaving into the air carries on from and
     // what the images stand past: the hit's own distance, and not one taken back off six-figure
