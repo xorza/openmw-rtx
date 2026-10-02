@@ -25,12 +25,11 @@
 // replaced every frame rather than a thousand terms added into one, and no pixel of the bounce
 // comes near the 65504 a half holds.
 //
-// **What the mean pays for it is a floor on how slowly it may move.** The average is exponential
-// with `alpha = 1 / ACCUMULATE_FRAMES`, so a frame moves the stored value by a sixteenth of the
-// difference — and where that sixteenth falls under half a quantisation step it rounds back to where
-// it was. A half's step is between 2^-12 and 2^-11 of the value, so the average stalls on
-// differences under 0.4 to 0.8 per cent of it, which the cascade's error against a converged
-// reference does not show; `filter.cpp` carries the pair.
+// **What the mean pays for it is a drift.** The average is exponential with
+// `alpha = 1 / ACCUMULATE_FRAMES`, so a frame moves the stored value by a sixteenth of the
+// difference — and a half store rounds toward nought on this card (`RtxHalfStoreTest`), so every
+// store takes up to one step off: a half's step is 2^-11 to 2^-10 of the value, which the blend's
+// weight keeps at up to sixteen steps, about 0.8 per cent under the mean of the same frames.
 //
 // **And the moments stay full floats whatever the other two do.** `E[l²] - E[l]²` is a difference of
 // two numbers that are nearly equal once a pixel has settled, and a format that rounds each of them
