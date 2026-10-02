@@ -120,11 +120,15 @@ Implemented on the branch `refactor`, one commit per item. This section says whe
   reads no layout; `FrameContext` holds the mirror unconst, because the reader's memory is asked
   under its lock; and `RtxRenderer::getBackend` stays for the host that made it, which asks the
   device's PCI address before the first frame.
-- **Phase 2, W3:** under way — the digest's one name, a field a block sets twice refused, the noise
-  source's default, the exposure rule as a variant, the held identity alone, the `Count`
-  enumerators and the moons indexed by `Moon` are done. `SceneHeld::mTextureCount` stays: it is
-  the one view of the array's length, which a GPU test holds against the table.
-- **Now:** Phase 2, the rest of W3, then W4 and W5. Phase 1's remaining lows wait for something
+- **Phase 2, W3:** done — every row of the table. *Done differently:* `SceneHeld::mTextureCount`
+  stays, because it is the one view of the array's length, which a GPU test holds against the
+  table. A composite's row has the kinds `GroundAlbedo` and `GroundGloss` and names its chunk's
+  material (`TextureRow::mGroundOf`), because the key alone does not give the material back without
+  a parse. The upscaler hands its output from `record`, not from `getOutput`, because the use is
+  true only after a record; `getOutput` is gone. The hand-over found one wrong statement: the
+  display took the trace's frame as the composite left it where no composite ran (both `GENERAL`,
+  so no picture moved). `Files::getHash` is upstream's and keeps its own state.
+- **Now:** Phase 2, W4 and W5. Phase 1's remaining lows wait for something
   outside the tree: BC7 and groundcover (see below), Night-Eye (D8), the in-memory particle image (a
   key for an image no file names, which the material reader lacks too), the distant statics'
   animation and the post-processing package.
