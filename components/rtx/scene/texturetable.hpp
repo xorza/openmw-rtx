@@ -15,6 +15,7 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/image/formatcensus.hpp>
+#include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/shaders/scene.h>
@@ -61,6 +62,10 @@ namespace Rtx
         /// A file's image, which the upload reads: the one the adder held, so the frame that
         /// uploads it opens nothing. Null for a bake, and for a file nothing reads at.
         osg::ref_ptr<const osg::Image> mImage{};
+
+        /// `mImage`'s format as `mEncoding` reads it, read once when the slot is taken.
+        /// `TextureFormat::Unnamed` where there is no image.
+        TextureFormat mFormat = TextureFormat::Unnamed;
     };
 
     /// Every texture the scene names, what still names each one, and which slots changed. A slot

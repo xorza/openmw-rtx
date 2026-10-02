@@ -7,6 +7,7 @@
 #include <utility>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/rtx/image/texels.hpp>
 
 namespace Rtx
 {
@@ -48,16 +49,18 @@ namespace Rtx
         if (!hasRoom())
             return sNoIndex;
 
+        const TextureFormat format = image != nullptr ? readFormat(*image, encoding) : TextureFormat::Unnamed;
         const Index index = takeSlot(TextureRow{
             .mKind = TextureKind::File,
             .mPath = VFS::Path::Normalized(path),
             .mWrap = wrap,
             .mEncoding = encoding,
             .mImage = image,
+            .mFormat = format,
         });
 
         if (image != nullptr)
-            mFormats.count(*image, encoding);
+            mFormats.count(format, image->getNumMipmapLevels() > 1, image->getPixelFormat());
 
         if (known == mPathIndex.end())
         {
@@ -152,7 +155,7 @@ namespace Rtx
                     }))
                     mPathIndex.erase(known);
                 if (row.mImage != nullptr)
-                    mFormats.discount(*row.mImage, row.mEncoding);
+                    mFormats.discount(row.mFormat, row.mImage->getNumMipmapLevels() > 1);
                 break;
             }
             case TextureKind::Baked:

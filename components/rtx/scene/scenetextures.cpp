@@ -13,7 +13,6 @@
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/mipchain.hpp>
 #include <components/rtx/image/spritelight.hpp>
-#include <components/rtx/image/texels.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "refusal.hpp"
@@ -56,7 +55,7 @@ namespace Rtx
             if (row.mKind == TextureKind::File && row.mImage != nullptr)
             {
                 kept.mImage = row.mImage;
-                kept.mFormat = readFormat(*row.mImage, kept.mEncoding);
+                kept.mFormat = row.mFormat;
             }
             else if (row.mKind == TextureKind::File)
                 kept.mImage = Misc::Err{ std::string(sNoImage) };
