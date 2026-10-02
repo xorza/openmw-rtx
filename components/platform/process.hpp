@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 /// What this process does with itself that the operating systems spell differently: what it says
 /// to its environment, which process it is, where it was started from, and the commands it runs. One header over
@@ -24,6 +25,11 @@ namespace Platform::Process
     /// The file this process runs: the running file itself, not `argv[0]`, which a shell may have
     /// given as a bare name or a relative path. Nothing where the system would not say.
     std::optional<std::filesystem::path> executable();
+
+    /// This process's command line as UTF-8, from the `argc` and `argv` its `main` was handed: on
+    /// Windows from the wide line the system keeps, because `argv` is in the system's code page
+    /// there.
+    std::vector<std::string> commandLine(int argc, char** argv);
 
     /// This process's id, as the system numbers processes: what a reading that names processes
     /// tells this one from the rest by.

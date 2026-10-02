@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
-#include <ctime>
 #include <span>
 #include <string>
 #include <string_view>
@@ -63,12 +62,6 @@ namespace Crash::Monitor
     /// raised by a fault. `process` is the game's id, by which a signal it sent itself is told from
     /// one another process sent.
     std::string describeException(const crashpad::ExceptionSnapshot& exception, std::uint32_t process);
-
-    /// The command line as UTF-8, which is what Crashpad's own entry hands `HandlerMain`: on Windows
-    /// from the wide one, because `argv` is in the system's code page there.
-    std::vector<std::string> commandLine(int argc, char** argv);
-
-    std::tm localTime(std::time_t seconds);
 
     /// The folder in Crashpad's database that each system's handler leaves a finished dump in.
     std::string_view dumpFolder();

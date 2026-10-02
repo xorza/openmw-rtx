@@ -4,7 +4,6 @@
 #include <cerrno>
 #include <csignal>
 #include <cstdint>
-#include <ctime>
 #include <string>
 #include <utility>
 #include <vector>
@@ -117,18 +116,6 @@ namespace Crash::Monitor
             text += " at " + hex(exception.ExceptionAddress());
         return text;
 #endif
-    }
-
-    std::vector<std::string> commandLine(int argc, char** argv)
-    {
-        return std::vector<std::string>(argv, argv + argc);
-    }
-
-    std::tm localTime(std::time_t seconds)
-    {
-        std::tm local{};
-        localtime_r(&seconds, &local);
-        return local;
     }
 
     std::string_view dumpFolder()

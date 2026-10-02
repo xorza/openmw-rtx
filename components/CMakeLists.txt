@@ -578,6 +578,7 @@ add_component_dir(platform
 if (WIN32)
     add_component_dir(platform
         filewin32
+        localtimewin32
         processwin32
         memorywin32
         sharedmemorywin32
@@ -588,6 +589,7 @@ if (WIN32)
 elseif (UNIX)
     add_component_dir(platform
         fileposix
+        localtimeposix
         processposix
         memoryposix
         sharedmemoryposix
