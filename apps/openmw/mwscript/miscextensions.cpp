@@ -86,10 +86,17 @@
 
 namespace
 {
-    /// What the renderer the game runs honours, which a toggle asks before it toggles.
-    const MWRender::RenderSupport& renderSupport()
+    /// Whether the renderer the game runs declines `mode`, which a toggle asks before it toggles,
+    /// and the reason reported as `what`'s answer where it does.
+    bool declines(Interpreter::Runtime& runtime, MWRender::RenderMode mode, std::string_view what)
     {
-        return MWBase::Environment::get().getWorld()->getRenderingManager()->getRenderer().support();
+        const std::string_view declined
+            = MWBase::Environment::get().getWorld()->getRenderingManager()->getRenderer().support().declinedMode(mode);
+        if (declined.empty())
+            return false;
+
+        runtime.getContext().report(MWRender::notAvailable(what, declined));
+        return true;
     }
 
     // Matches ESM::PartReferenceType order
@@ -458,12 +465,8 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
-                if (const std::string_view declined = renderSupport().declinedMode(MWRender::Render_CollisionDebug);
-                    !declined.empty())
-                {
-                    runtime.getContext().report(MWRender::notAvailable("Collision Mesh Rendering", declined));
+                if (declines(runtime, MWRender::Render_CollisionDebug, "Collision Mesh Rendering"))
                     return;
-                }
 
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_CollisionDebug);
 
@@ -477,12 +480,8 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
-                if (const std::string_view declined = renderSupport().declinedMode(MWRender::Render_CollisionDebug);
-                    !declined.empty())
-                {
-                    runtime.getContext().report(MWRender::notAvailable("Collision Mesh Rendering", declined));
+                if (declines(runtime, MWRender::Render_CollisionDebug, "Collision Mesh Rendering"))
                     return;
-                }
 
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_CollisionDebug);
 
@@ -496,12 +495,8 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
-                if (const std::string_view declined = renderSupport().declinedMode(MWRender::Render_Wireframe);
-                    !declined.empty())
-                {
-                    runtime.getContext().report(MWRender::notAvailable("Wireframe Rendering", declined));
+                if (declines(runtime, MWRender::Render_Wireframe, "Wireframe Rendering"))
                     return;
-                }
 
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_Wireframe);
 
@@ -525,12 +520,8 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
-                if (const std::string_view declined = renderSupport().declinedMode(MWRender::Render_Pathgrid);
-                    !declined.empty())
-                {
-                    runtime.getContext().report(MWRender::notAvailable("Path Grid Rendering", declined));
+                if (declines(runtime, MWRender::Render_Pathgrid, "Path Grid Rendering"))
                     return;
-                }
 
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_Pathgrid);
 
@@ -1748,12 +1739,8 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
-                if (const std::string_view declined = renderSupport().declinedMode(MWRender::Render_NavMesh);
-                    !declined.empty())
-                {
-                    runtime.getContext().report(MWRender::notAvailable("Navigation Mesh Rendering", declined));
+                if (declines(runtime, MWRender::Render_NavMesh, "Navigation Mesh Rendering"))
                     return;
-                }
 
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_NavMesh);
 
@@ -1767,12 +1754,8 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
-                if (const std::string_view declined = renderSupport().declinedMode(MWRender::Render_ActorsPaths);
-                    !declined.empty())
-                {
-                    runtime.getContext().report(MWRender::notAvailable("Agents Paths Rendering", declined));
+                if (declines(runtime, MWRender::Render_ActorsPaths, "Agents Paths Rendering"))
                     return;
-                }
 
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_ActorsPaths);
 
@@ -1815,12 +1798,8 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
-                if (const std::string_view declined = renderSupport().declinedMode(MWRender::Render_RecastMesh);
-                    !declined.empty())
-                {
-                    runtime.getContext().report(MWRender::notAvailable("Recast Mesh Rendering", declined));
+                if (declines(runtime, MWRender::Render_RecastMesh, "Recast Mesh Rendering"))
                     return;
-                }
 
                 bool enabled = MWBase::Environment::get().getWorld()->toggleRenderMode(MWRender::Render_RecastMesh);
 

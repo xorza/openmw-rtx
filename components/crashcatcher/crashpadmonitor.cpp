@@ -110,7 +110,7 @@ namespace Crash
 
             /// **What the main thread is asked to do, in order.** It is the one thread that shows a
             /// dialog: on macOS a message box waits for the main dispatch queue, which Crashpad's
-            /// Mach loop never drains, so the watch's box deadlocked the monitor whenever the
+            /// Mach loop never drains, so the watch's box would deadlock the monitor whenever the
             /// handler held the main thread. The handler runs on a worker and the watch asks here.
             struct Request
             {

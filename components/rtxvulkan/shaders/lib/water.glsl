@@ -88,7 +88,7 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint key, uint lamps, ui
 
     // Drawn, because a reflection is a picture of the world and shows the faces the world shows.
     // From where it left and no further: the origin already stands off the plane (`leaving`), and a
-    // `tmin` beside that skipped whatever stood within a unit of the surface along the ray.
+    // `tmin` beside that would skip whatever stood within a unit of the surface along the ray.
     const Surface hit = trace(ray, 0.0, Cone(cone.mWidth, cone.mSpread + lobe), solidMask(frame.mRayMask), true);
 
     WaterPath path;

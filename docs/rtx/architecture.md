@@ -345,8 +345,9 @@ GUI, the present.
 
 Four clocks drive a frame, each with one source: host time (the wall in play, the frame count
 times a stated step in a measured run), simulation time, game time (the hour), and the sky's
-clock. The wall is read only to measure. A cut (a teleport, a worldspace change, a time skip the
-game makes: a rest, a wait, travel) resets every history. A script's write to the clock is not one. A setting that changes the extent or the upscaler takes effect at once.
+clock. The wall is read only to measure. A cut (a teleport, a worldspace change, a time skip: a
+rest, a wait, travel, or a script's write that moves the hour past the frame's step) resets every
+history. A setting that changes the extent or the upscaler takes effect at once.
 
 ## 11. Threads
 

@@ -19,12 +19,8 @@ namespace osg
 
 namespace Rtx
 {
-    class Renderer;
-}
-
-namespace Rtx
-{
     class CellRing;
+    class Renderer;
 }
 
 namespace MWRender

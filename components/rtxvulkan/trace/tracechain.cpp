@@ -104,7 +104,7 @@ namespace Rtx
         // Binned on the device into this trace's own bin, ahead of the trace that reads it. **For a
         // camera that draws no sprites as well**, with none of them in it: the bin is also where the
         // tiles learn which media and additive surfaces a ray through them can meet, and a camera
-        // told nothing walked both at every pixel.
+        // told nothing would walk both at every pixel.
         //
         // **Taken, then the block, then the shelter, then the bin.** The block carries the bin's
         // table by address, which it has once the table is taken; the shelter launch reads the
@@ -150,7 +150,7 @@ namespace Rtx
         // Where the bounce, the lobe's light and the layers' ended up: the filters' answers, or the
         // channels the trace wrote where nothing filtered them. **An unfiltered frame still turns
         // the histories**, with nothing running, so every filter is fresh at its next run: without
-        // the turn, that run read the history of the frame before this one as last frame's.
+        // the turn, that run would read the history of the frame before this one as last frame's.
         if (!denoised)
             mDenoise.turn(TemporalFlags{});
         const Denoised resolved = denoised ? mPasses.mDenoise.record(commands, mDenoise, *mChannels, what.mSampled,

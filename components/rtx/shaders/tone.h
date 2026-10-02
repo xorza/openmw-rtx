@@ -138,7 +138,7 @@ namespace Rtx::Shaders
     // reads them are different compilers.
 #ifdef RTX_HOST
     // The host rounds the block up to eight for the addresses at its head, which the last member
-    // now ends on: the push is the shader's 176 bytes and nothing the shader ignores.
+    // ends on: the push is the shader's 176 bytes and nothing the shader ignores.
     static_assert(offsetof(ToneConstants, mInverseGamma) + sizeof(float) == 176,
         "ToneConstants must be scalar-packed on every side");
 #endif

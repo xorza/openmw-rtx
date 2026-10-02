@@ -83,30 +83,37 @@ float skyVisible(vec3 position, uint source, vec2 draw)
 ///
 /// **By cell rather than by point, because a walk along a ray has the cell already.** The stretch a
 /// ray spends inside one cell is one list asked once, which is what `weighLamps` is built on.
-uvec2 lampsInCell(vec3 cell)
+///
+/// @param key nought for the lamps that light, one for those that take light away: each cell keeps
+///        the two runs one after the other — `Rtx::LightGrid::getList`.
+uvec2 lightRunInCell(vec3 cell, uint key)
 {
     if (any(lessThan(cell, vec3(0.0))) || any(greaterThanEqual(cell, vec3(frame.mLightGrid.mSize))))
         return uvec2(0u, 0u);
 
     const uvec3 at = uvec3(cell);
     // `flat` is what this wants to be called, and GLSL reserves it for interpolation.
-    const uint index = 2u * lightGridCell(at.x, at.y, at.z, frame.mLightGrid.mSize.x, frame.mLightGrid.mSize.y);
+    const uint index
+        = 2u * lightGridCell(at.x, at.y, at.z, frame.mLightGrid.mSize.x, frame.mLightGrid.mSize.y) + key;
 
     return uvec2(lightListAt(index), lightListAt(index + 1u));
 }
 
-/// The lamps that take light away in the cell at `position`: the run under the key after the
-/// cell's own — `Rtx::LightGrid::getList`.
+/// The grid cell `position` stands in, which may lie outside the grid.
+vec3 lightCellOf(vec3 position)
+{
+    return floor((position - frame.mLightGrid.mOrigin) * frame.mLightGrid.mInverseCell);
+}
+
+uvec2 lampsInCell(vec3 cell)
+{
+    return lightRunInCell(cell, 0u);
+}
+
+/// The lamps that take light away in the cell at `position`.
 uvec2 darkeningReaching(vec3 position)
 {
-    const vec3 cell = floor((position - frame.mLightGrid.mOrigin) * frame.mLightGrid.mInverseCell);
-    if (any(lessThan(cell, vec3(0.0))) || any(greaterThanEqual(cell, vec3(frame.mLightGrid.mSize))))
-        return uvec2(0u, 0u);
-
-    const uvec3 at = uvec3(cell);
-    const uint index = 2u * ((at.z * frame.mLightGrid.mSize.y + at.y) * frame.mLightGrid.mSize.x + at.x) + 1u;
-
-    return uvec2(lightListAt(index), lightListAt(index + 1u));
+    return lightRunInCell(lightCellOf(position), 1u);
 }
 
 /// How many lamps one point may weigh before it stops.
@@ -134,14 +141,14 @@ uvec2 lampsWithin(uvec2 near)
 /// The same, for a caller holding a place instead of a cell.
 uvec2 lampsReaching(vec3 position)
 {
-    return lampsInCell(floor((position - frame.mLightGrid.mOrigin) * frame.mLightGrid.mInverseCell));
+    return lampsInCell(lightCellOf(position));
 }
 
 /// The size a lamp's singularity is softened by: its own extent, and one unit where it carries less.
 ///
 /// **The lamp's own extent, because that is what a lamp is.** An inverse square is the field of a
 /// point, and a point has no field at itself: within a flame's own radius the arithmetic runs away,
-/// and what it drew was a hard bright bead hanging in the air wherever the fog sampled beside a
+/// and what it draws is a hard bright bead hanging in the air wherever the fog samples beside a
 /// lamp — a firefly, and not the glow of the thing it belongs to. A sphere's irradiance flattens
 /// inside its own surface instead. One unit is the floor, which is what a lamp carrying no size
 /// behaves as. One function, because `falloffAlong` is exact only while it integrates the same

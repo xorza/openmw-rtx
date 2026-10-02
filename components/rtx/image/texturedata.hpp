@@ -24,6 +24,19 @@ namespace Rtx
         std::uint32_t mOffset = 0;
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
+
+        /// Where texel `x`, `y` of a loose level begins, at `bytes` a texel.
+        constexpr std::size_t texelOffset(std::uint32_t x, std::uint32_t y, std::size_t bytes) const
+        {
+            return mOffset + (std::size_t{ y } * mWidth + x) * bytes;
+        }
+
+        /// Where the block at `column` and `band` of a block-compressed level begins, counted in
+        /// blocks of four texels a side from the level's corner, at `bytes` a block.
+        constexpr std::size_t blockOffset(std::uint32_t column, std::uint32_t band, std::size_t bytes) const
+        {
+            return mOffset + (std::size_t{ band } * ((mWidth + 3) / 4) + column) * bytes;
+        }
     };
 
     /// How many levels a chain from `width` by `height` down to one texel has: what
@@ -62,7 +75,7 @@ namespace Rtx
             const MipLevel& which = getLevel(level);
             assert(x < which.mWidth && y < which.mHeight && "a texel outside its level");
 
-            return which.mOffset + (std::size_t{ y } * which.mWidth + x) * stride;
+            return which.texelOffset(x, y, stride);
         }
 
         /// Lays out a chain from `width` by `height` down to one texel, and answers how many bytes

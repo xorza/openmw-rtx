@@ -579,7 +579,7 @@ namespace Rtx::Testing
 
             // **And a new world loses it, whatever frame comes first**: a held frame after the world
             // is handed over spends nothing of the eye's loss, and the measured frame after it takes
-            // the dim sky outright, as a cut's frame did, rather than easing from the old world's eye.
+            // the dim sky outright, as a cut's frame does, rather than easing from the old world's eye.
             mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc{}, {});
             held(bright);
             EXPECT_EQ(shot(dim), adapted) << "the measured frame eased from the old world's eye";

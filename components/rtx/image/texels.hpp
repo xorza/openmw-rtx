@@ -20,13 +20,6 @@ namespace Rtx
 {
     struct AlphaScratch;
 
-    /// Where the block at `column` and `band` of a block-compressed `level` begins, counted in blocks
-    /// from the level's corner.
-    std::size_t blockOffset(const MipLevel& level, const TexelLayout& layout, std::uint32_t column, std::uint32_t band);
-
-    /// Where texel `x`, `y` of a loose `level` begins.
-    std::size_t looseOffset(const MipLevel& level, const TexelLayout& layout, std::uint32_t x, std::uint32_t y);
-
     /// The colour half of the block that begins at `block`: its last eight bytes whichever format it
     /// is, because BC2 and BC3 put their alpha in front of it and BC1 has none.
     std::span<const std::byte, 8> colourHalfAt(

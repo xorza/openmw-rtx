@@ -14,7 +14,6 @@
 
 #include "colourblock.hpp"
 #include "imagedescription.hpp"
-#include "texels.hpp"
 
 namespace Rtx
 {
@@ -122,7 +121,7 @@ namespace Rtx
                 for (std::uint32_t y = 0; y < height; ++y)
                     for (std::uint32_t x = 0; x < width; ++x)
                     {
-                        const std::size_t at = looseOffset(level, layout, x, y) + 3;
+                        const std::size_t at = level.texelOffset(x, y, layout.mBytes) + 3;
                         if (at < bytes.size() && visit(x, y, static_cast<std::uint8_t>(bytes[at])))
                             return true;
                     }
@@ -137,7 +136,7 @@ namespace Rtx
             for (std::uint32_t row = 0; row < blocksDown; ++row)
                 for (std::uint32_t column = 0; column < blocksAcross; ++column)
                 {
-                    const std::size_t block = blockOffset(level, layout, column, row);
+                    const std::size_t block = level.blockOffset(column, row, layout.mBytes);
                     if (block + bytesPerBlock > bytes.size())
                         continue;
 

@@ -228,7 +228,7 @@ namespace MWRender
 
         /// Nothing here: the trace and the surface follow at the next frame's fit, which waits for a
         /// window being dragged to settle, and the projection is `RenderingManager`'s to follow.
-        void applyPresentation() noexcept override;
+        void applyPresentation() noexcept override {}
 
         void applyChangedSettings(const Settings::CategorySettingVector& changed) noexcept override;
 

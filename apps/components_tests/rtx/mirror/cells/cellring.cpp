@@ -1317,9 +1317,9 @@ namespace Rtx::Testing
         }
 
         /// **The ring's request follows its inputs, the reach among them.** A reach that grows
-        /// under an eye standing still asks for the cells it now takes in, which a request rebuilt
-        /// only where the eye moved never asked for. And a walk indoors has nothing to stand, where
-        /// an exterior band left short before it kept its shortfall.
+        /// under an eye standing still asks for the cells it takes in, which a request rebuilt only
+        /// where the eye moved would never ask for. And a walk indoors has nothing to stand, where
+        /// an exterior band left short before it would keep its shortfall.
         TEST_F(RtxCellRingTest, aReachThatGrowsUnderAStillEyeAsksForItsNewCellsAndIndoorsHasNoneToStand)
         {
             start();

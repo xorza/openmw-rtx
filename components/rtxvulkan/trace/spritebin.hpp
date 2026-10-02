@@ -89,8 +89,8 @@ namespace Rtx
         /// landed — and copies `source`'s sprites into this bin's own, on the queue, left where a
         /// launch or a dispatch may read and write them. First, and apart from `record`, because
         /// what stands between the two is the frame block: `getTables` names them only once they
-        /// are grown, the block carries them, and the shelter launch that zeroes the sheltered sprites reads the block
-        /// before the shade reads the sprites.
+        /// are grown, the block carries them, and the shelter launch that zeroes the sheltered
+        /// sprites reads the block before the shade reads the sprites.
         void take(const SpriteSource& source, const Shaders::Camera& camera, VkCommandBuffer commands);
 
         /// Shades the sprites `take` copied against the sun in place, and records the bin of them

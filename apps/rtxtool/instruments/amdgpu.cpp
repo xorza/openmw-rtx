@@ -3,10 +3,8 @@
 #include <array>
 #include <charconv>
 #include <cstddef>
-#include <format>
 #include <fstream>
 #include <ios>
-#include <string>
 #include <string_view>
 #include <system_error>
 #include <utility>
@@ -53,7 +51,7 @@ namespace RtxTool
     std::optional<AmdGpu> AmdGpu::find(const Rtx::PciAddress& address, const std::filesystem::path& devices)
     {
         std::array<char, 512> text;
-        const std::filesystem::path device = devices / sysfsNameOf(address);
+        const std::filesystem::path device = devices / address.describe();
         const std::optional<std::string_view> vendor = readSmall(device / "vendor", text);
         if (!vendor.has_value() || !vendor->starts_with(sAmdVendor))
             return std::nullopt;
@@ -70,12 +68,6 @@ namespace RtxTool
             }
         }
         return AmdGpu(device, std::move(temperature));
-    }
-
-    std::string AmdGpu::sysfsNameOf(const Rtx::PciAddress& address)
-    {
-        return std::format(
-            "{:04x}:{:02x}:{:02x}.{:x}", address.mDomain, address.mBus, address.mDevice, address.mFunction);
     }
 
     GpuClock AmdGpu::readClock() const

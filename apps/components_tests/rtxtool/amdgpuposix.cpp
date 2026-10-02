@@ -23,8 +23,7 @@ namespace RtxTool
         /// vendor's device, and an address where nothing stands.
         TEST(RtxAmdGpuTest, theCardIsTheOneAtTheRenderersAddress)
         {
-            EXPECT_EQ(
-                AmdGpu::sysfsNameOf(Rtx::PciAddress{ .mDomain = 0x10, .mBus = 0x3, .mDevice = 0x1f, .mFunction = 1 }),
+            EXPECT_EQ((Rtx::PciAddress{ .mDomain = 0x10, .mBus = 0x3, .mDevice = 0x1f, .mFunction = 1 }.describe()),
                 "0010:03:1f.1");
 
             const std::filesystem::path devices = TestingOpenMW::outputFilePath("amdgpu-devices");

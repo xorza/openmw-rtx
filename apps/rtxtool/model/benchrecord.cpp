@@ -236,7 +236,7 @@ namespace RtxTool
     int minuteOfDay(const float hour)
     {
         // In double, where a float times sixty is exact: rounded in float first, an hour a hair
-        // under a half minute was rounded up to it and then to the minute after.
+        // under a half minute would round up to it and then to the minute after.
         return static_cast<int>(std::lround(static_cast<double>(hour) * 60.0)) % (24 * 60);
     }
 

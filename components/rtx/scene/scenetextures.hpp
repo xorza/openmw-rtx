@@ -55,13 +55,14 @@ namespace Rtx
         std::span<const Refusal> getRefusals() const { return mRefusals; }
 
     private:
-        /// One slot `describe` decided to describe, and what resolving it found.
+        /// The chunk a composite slot flattens, and which of its two layers the slot holds.
         struct Ground
         {
             Index mMaterial = sNoIndex;
             bool mGloss = false;
         };
 
+        /// One slot `describe` decided to describe, and what resolving it found.
         struct Kept
         {
             Index mSlot = sNoIndex;
@@ -79,8 +80,8 @@ namespace Rtx
             /// The row's `TextureRow::mFormat`, which the reserve and the description both read.
             TextureFormat mFormat = TextureFormat::Unnamed;
 
-            /// For a chunk's flattened ground, the material it flattens and which of its two
-            /// layers the slot holds. Nothing for a slot that is no composite.
+            /// For a chunk's flattened ground, which chunk and which layer. Nothing for a slot that
+            /// is no composite.
             std::optional<Ground> mGround{};
         };
 

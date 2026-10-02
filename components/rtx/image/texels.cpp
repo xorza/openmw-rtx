@@ -23,7 +23,7 @@ namespace Rtx
         osg::Vec3f looseTexel(const TextureData& texture, const MipLevel& level, const TexelLayout& layout,
             const std::uint32_t x, const std::uint32_t y)
         {
-            return looseColourAt(texture, looseOffset(level, layout, x, y));
+            return looseColourAt(texture, level.texelOffset(x, y, layout.mBytes));
         }
 
         /// The block at `column` and `band`, counted in blocks.
@@ -31,21 +31,9 @@ namespace Rtx
             const std::uint32_t column, const std::uint32_t band)
         {
             return ColourBlock::read(
-                colourHalfAt(texture.mBytes, blockOffset(level, layout, column, band), layout), isBc1(texture.mFormat));
+                colourHalfAt(texture.mBytes, level.blockOffset(column, band, layout.mBytes), layout),
+                isBc1(texture.mFormat));
         }
-    }
-
-    std::size_t blockOffset(
-        const MipLevel& level, const TexelLayout& layout, const std::uint32_t column, const std::uint32_t band)
-    {
-        const std::uint32_t columns = (level.mWidth + 3) / 4;
-        return level.mOffset + (std::size_t{ band } * columns + column) * layout.mBytes;
-    }
-
-    std::size_t looseOffset(
-        const MipLevel& level, const TexelLayout& layout, const std::uint32_t x, const std::uint32_t y)
-    {
-        return level.mOffset + (std::size_t{ y } * level.mWidth + x) * layout.mBytes;
     }
 
     std::span<const std::byte, 8> colourHalfAt(

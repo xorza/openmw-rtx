@@ -268,8 +268,8 @@ namespace RtxTool
     {
         // **The body is hidden from a camera this stands inside it**, through the seam's view mask
         // that both renderers read: a stop flies the player to its route's point so that cells load
-        // around it and stands the camera on the same coordinates, and what that traced was a boot
-        // thirteen units from the eye. A free camera is the player's own again.
+        // around it and stands the camera on the same coordinates, and would trace a boot thirteen
+        // units from the eye. A free camera is the player's own again.
         if (stop.mSchedule.mFreeCamera)
             showPlayer(true);
         if (stop.mSchedule.mFreeCamera || !stop.mStand.mEye.has_value())

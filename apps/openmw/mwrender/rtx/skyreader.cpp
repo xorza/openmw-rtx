@@ -38,8 +38,8 @@ namespace MWRender
         {
             // The content's water colour at its weight, and not the air's share `FogManager` mixes in
             // beside it: that share tints the rasterizer's picture under water, and read as the water's
-            // own albedo it turned a clear noon's sea a muddy grey and undid the pairing `look.h` states
-            // with `WATER_EXTINCTION`.
+            // own albedo it would turn a clear noon's sea a muddy grey and undo the pairing `look.h`
+            // states with `WATER_EXTINCTION`.
             const osg::Vec4f colour = Fallback::Map::getColour("Water_UnderwaterColor");
             return osg::Vec3f(colour.r(), colour.g(), colour.b())
                 * Fallback::Map::getFloat("Water_UnderwaterColorWeight");

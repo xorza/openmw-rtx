@@ -63,7 +63,7 @@ namespace Rtx::Shaders
     /// The camera's image-plane axes, unit, beside the half-extents they were scaled by: what the
     /// binning maps a sprite to the screen with. `makeCameraFromView` builds the right and the up
     /// orthogonal, so the two lengths are all that separates a direction from a screen coordinate.
-    /// Worked out once on the host per bin, where every lane of every sprite once took two lengths
+    /// Worked out once on the host per bin, where every lane of every sprite would take two lengths
     /// and four divisions of it.
     struct SpriteBinFrame
     {

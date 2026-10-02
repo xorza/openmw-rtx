@@ -347,15 +347,6 @@ float normalMapSlopes(uint slot, TexturePoint point)
     return roughness * roughness * roughness * roughness;
 }
 
-/// A `_spec` map's metalness and perceptual roughness — `GpuMaterial::mSpecular`. **The occlusion
-/// in blue is not read**, because the traced bounce and `ambientReaching` already find what real
-/// geometry occludes and the map would count it twice; nor the scattering in alpha, which the BC1
-/// maps most of the content ships cannot carry.
-vec2 sampleSpecularMap(uint slot, TexturePoint point)
-{
-    return sampleDiffuse(slot, point).rg;
-}
-
 /// The albedo a hit landed on, read as `sampleDiffuse` reads it, with the light painted into the
 /// texture divided back out by the run's `mDelight` — `delitTexel` says why.
 vec3 sampleAlbedo(uint slot, TexturePoint point)

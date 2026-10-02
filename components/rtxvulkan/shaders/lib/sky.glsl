@@ -28,7 +28,8 @@
 /// hemisphere and a ray is a direction — `NightSky::mGlow` carries that argument.
 vec3 skyGlow(vec3 direction)
 {
-    return skyGradient(frame.mSkyHorizon, frame.mSkyZenith, frame.mSkyRamp, direction) + frame.mStars.mGlow + frame.mSkyFill;
+    return skyGradient(frame.mSkyHorizon, frame.mSkyZenith, frame.mSkyRamp, direction) + frame.mStars.mGlow
+        + frame.mSkyFill;
 }
 
 /// Where a point on the layer sits on the sheet, in texture coordinates.
@@ -40,8 +41,9 @@ vec3 skyGlow(vec3 direction)
 /// **The turn is about the frame's eye**, as the rasterizer turns its cloud mesh about the
 /// camera, and one point for every ray of a frame, so a ray from the eye and a ray from a shading
 /// point reach one answer. An ash or blight storm blows off Red Mountain at the player, so its
-/// bearing changes as the player walks; turned about the world's origin, the deck overhead slid
-/// by the walk times the player's distance from the origin over their distance from the mountain.
+/// bearing changes as the player walks; turned about the world's origin, the deck overhead would
+/// slide by the walk times the player's distance from the origin over their distance from the
+/// mountain.
 vec2 cloudUvAt(vec2 crossing, vec2 bearing)
 {
     const vec2 from = crossing - frame.mOrigin.xy;

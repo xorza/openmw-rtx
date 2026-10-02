@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
@@ -22,12 +23,13 @@
 #include <osg/Vec3f>
 
 #include <apps/openmw/mwrender/rtx/rtxsettings.hpp>
-#include <apps/openmw/startup.hpp>
+#include <components/crashcatcher/crash.hpp>
+#include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
-#include <components/misc/strings/conversion.hpp>
 #include <components/platform/platform.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/common/error.hpp>
@@ -41,7 +43,9 @@
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtxvulkan/createrenderer.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
+#include <components/settings/settings.hpp>
 #include <components/settings/values.hpp>
+#include <components/version/version.hpp>
 
 #include "compare.hpp"
 #include "film.hpp"
@@ -62,6 +66,21 @@ namespace RtxTool
         namespace bpo = boost::program_options;
 
         constexpr std::string_view applicationName = "RtxTool";
+
+        /// Opens the log, loads the settings and hands the crash catcher what it reads of both: the
+        /// version every report carries and how long without a frame is a hang. The game's own
+        /// sequence, `parseOptions` in `apps/openmw/main.cpp`, restated, so a hang in the harness is
+        /// reported as one in the game is.
+        void startLogAndSettings(const Files::ConfigurationManager& config)
+        {
+            Debug::setupLogging(config.getLogPath(), applicationName);
+            Debug::setCrashReports(config.getUserDataPath());
+            Log(Debug::Info) << Version::getOpenmwVersionDescription();
+            Crash::annotate("version", Version::getOpenmwVersionDescription());
+
+            Settings::Manager::load(config);
+            Crash::setHangLimit(std::chrono::seconds(Settings::general().mCrashHangSeconds));
+        }
 
         /// Which layers a run wants, from what the command line asked for.
         ///
@@ -1247,7 +1266,7 @@ namespace RtxTool
 
             config.processPaths(variables, std::filesystem::current_path());
             config.readConfiguration(variables, options.mDescription);
-            OpenMW::startLogAndSettings(config, applicationName);
+            startLogAndSettings(config);
 
             const std::filesystem::path resources = variables["resources"].as<Files::MaybeQuotedPath>();
 
