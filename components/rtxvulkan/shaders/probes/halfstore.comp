@@ -11,12 +11,12 @@
 
 layout(local_size_x = HALF_STORE_WORKGROUP) in;
 
-layout(set = SET_PASS, binding = 0, scalar) readonly buffer Values
+layout(set = SET_PASS, binding = HALF_STORE_BIND_VALUES, scalar) readonly buffer Values
 {
     float values[];
 };
 
-layout(set = SET_PASS, binding = 1, STORAGE_RGBA16F) uniform writeonly image2D stored;
+layout(set = SET_PASS, binding = HALF_STORE_BIND_STORED, STORAGE_RGBA16F) uniform writeonly image2D stored;
 
 layout(push_constant, scalar) uniform Push
 {

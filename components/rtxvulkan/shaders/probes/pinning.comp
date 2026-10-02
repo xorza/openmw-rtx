@@ -11,12 +11,12 @@
 
 layout(local_size_x = PINNING_WORKGROUP) in;
 
-layout(set = SET_PASS, binding = 0, scalar) readonly buffer Cases
+layout(set = SET_PASS, binding = PINNING_BIND_CASES, scalar) readonly buffer Cases
 {
     PinningCase cases[];
 };
 
-layout(set = SET_PASS, binding = 1, scalar) writeonly buffer Results
+layout(set = SET_PASS, binding = PINNING_BIND_RESULTS, scalar) writeonly buffer Results
 {
     float results[];
 };
@@ -38,8 +38,8 @@ void main()
     const vec3 c = one.mC.xyz;
     const uint into = at * PINNING_RESULTS;
 
-    results[into] = dot(a, b);
-    results[into + 1u] = dot(one.mA, one.mB);
+    results[into + PINNING_DOT] = dot(a, b);
+    results[into + PINNING_DOT_OF_FOUR] = dot(one.mA, one.mB);
 
     const vec3 crossed = cross(a, b);
     const vec3 mixed = mix(a, b, one.mC.w);
@@ -48,14 +48,14 @@ void main()
     const vec3 facing = faceforward(a, b, c);
     for (uint axis = 0u; axis < 3u; ++axis)
     {
-        results[into + 2u + axis] = crossed[axis];
-        results[into + 5u + axis] = mixed[axis];
-        results[into + 8u + axis] = turned[axis];
-        results[into + 11u + axis] = reflected[axis];
-        results[into + 15u + axis] = facing[axis];
+        results[into + PINNING_CROSS + axis] = crossed[axis];
+        results[into + PINNING_MIX + axis] = mixed[axis];
+        results[into + PINNING_MATRIX + axis] = turned[axis];
+        results[into + PINNING_REFLECT + axis] = reflected[axis];
+        results[into + PINNING_FACEFORWARD + axis] = facing[axis];
     }
 
-    results[into + 14u] = one.mA.x * one.mB.x + one.mC.x;
+    results[into + PINNING_PRODUCT_AND_SUM] = one.mA.x * one.mB.x + one.mC.x;
 
     // Each of these beside the core the device computes inside it, from the same steps: the inverse
     // square root, the division, the square root and the floor.
@@ -64,13 +64,13 @@ void main()
     const vec3 refracted = refract(a, b, one.mC.w);
     for (uint axis = 0u; axis < 3u; ++axis)
     {
-        results[into + 18u + axis] = normalized[axis];
-        results[into + 24u + axis] = refracted[axis];
+        results[into + PINNING_NORMALIZE + axis] = normalized[axis];
+        results[into + PINNING_REFRACT + axis] = refracted[axis];
     }
-    results[into + 21u] = inversesqrt(dot(a, a));
-    results[into + 22u] = smoothstep(a.x, b.x, c.x);
-    results[into + 23u] = (c.x - a.x) / (b.x - a.x);
-    results[into + 27u] = sqrt(max(1.0 - one.mC.w * one.mC.w * (1.0 - cosine * cosine), 0.0));
-    results[into + 28u] = mod(a.y, b.y);
-    results[into + 29u] = floor(a.y / b.y);
+    results[into + PINNING_INVERSE_LENGTH] = inversesqrt(dot(a, a));
+    results[into + PINNING_SMOOTHSTEP] = smoothstep(a.x, b.x, c.x);
+    results[into + PINNING_QUOTIENT] = (c.x - a.x) / (b.x - a.x);
+    results[into + PINNING_ROOT] = sqrt(max(1.0 - one.mC.w * one.mC.w * (1.0 - cosine * cosine), 0.0));
+    results[into + PINNING_MOD] = mod(a.y, b.y);
+    results[into + PINNING_FLOOR] = floor(a.y / b.y);
 }

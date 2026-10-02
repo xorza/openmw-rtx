@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <cstring>
 #include <span>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -28,10 +30,10 @@ namespace Rtx
     namespace
     {
         constexpr std::array<VkDescriptorSetLayoutBinding, 2> sBindings{
-            VkDescriptorSetLayoutBinding{
-                0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{
-                1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::PINNING_BIND_CASES, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+            VkDescriptorSetLayoutBinding{ Shaders::PINNING_BIND_RESULTS, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
+                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
         };
 
         constexpr std::uint32_t sCount = 4096;
@@ -138,8 +140,8 @@ namespace Rtx
             const Vec3 c = xyz(one.mC);
 
             std::array<float, Shaders::PINNING_RESULTS> results{};
-            results[0] = Pinned::dot(a, b);
-            results[1] = Pinned::dot4(one.mA, one.mB);
+            results[Shaders::PINNING_DOT] = Pinned::dot(a, b);
+            results[Shaders::PINNING_DOT_OF_FOUR] = Pinned::dot4(one.mA, one.mB);
             const Vec3 crossed = Pinned::cross(a, b);
             const Vec3 mixed = Pinned::mix(a, b, one.mC.w());
             const Vec3 turned = Pinned::turn(a, b, c, { one.mA.w(), one.mB.w(), one.mC.w() });
@@ -147,27 +149,27 @@ namespace Rtx
             const Vec3 facing = Pinned::faceforward(a, b, c);
             for (std::size_t axis = 0; axis < 3; ++axis)
             {
-                results[2 + axis] = crossed[axis];
-                results[5 + axis] = mixed[axis];
-                results[8 + axis] = turned[axis];
-                results[11 + axis] = reflected[axis];
-                results[15 + axis] = facing[axis];
+                results[Shaders::PINNING_CROSS + axis] = crossed[axis];
+                results[Shaders::PINNING_MIX + axis] = mixed[axis];
+                results[Shaders::PINNING_MATRIX + axis] = turned[axis];
+                results[Shaders::PINNING_REFLECT + axis] = reflected[axis];
+                results[Shaders::PINNING_FACEFORWARD + axis] = facing[axis];
             }
-            results[14] = std::fma(one.mA.x(), one.mB.x(), one.mC.x());
+            results[Shaders::PINNING_PRODUCT_AND_SUM] = std::fma(one.mA.x(), one.mB.x(), one.mC.x());
 
-            const Vec3 normalized = Pinned::normalize(a, device[21]);
-            const Vec3 refracted = Pinned::refract(a, b, one.mC.w(), device[27]);
+            const Vec3 normalized = Pinned::normalize(a, device[Shaders::PINNING_INVERSE_LENGTH]);
+            const Vec3 refracted = Pinned::refract(a, b, one.mC.w(), device[Shaders::PINNING_ROOT]);
             for (std::size_t axis = 0; axis < 3; ++axis)
             {
-                results[18 + axis] = normalized[axis];
-                results[24 + axis] = refracted[axis];
+                results[Shaders::PINNING_NORMALIZE + axis] = normalized[axis];
+                results[Shaders::PINNING_REFRACT + axis] = refracted[axis];
             }
-            results[21] = device[21];
-            results[22] = Pinned::smoothstep(device[23]);
-            results[23] = device[23];
-            results[27] = device[27];
-            results[28] = Pinned::mod(one.mA.y(), one.mB.y(), device[29]);
-            results[29] = device[29];
+            results[Shaders::PINNING_INVERSE_LENGTH] = device[Shaders::PINNING_INVERSE_LENGTH];
+            results[Shaders::PINNING_SMOOTHSTEP] = Pinned::smoothstep(device[Shaders::PINNING_QUOTIENT]);
+            results[Shaders::PINNING_QUOTIENT] = device[Shaders::PINNING_QUOTIENT];
+            results[Shaders::PINNING_ROOT] = device[Shaders::PINNING_ROOT];
+            results[Shaders::PINNING_MOD] = Pinned::mod(one.mA.y(), one.mB.y(), device[Shaders::PINNING_FLOOR]);
+            results[Shaders::PINNING_FLOOR] = device[Shaders::PINNING_FLOOR];
             return results;
         }
 
@@ -227,8 +229,9 @@ namespace Rtx
                 device, sizeof(float) * sCount * Shaders::PINNING_RESULTS, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "test");
 
             DescriptorWrites writes(pipeline);
-            writes.buffer(0, VkDescriptorBufferInfo{ source.getHandle(), 0, VK_WHOLE_SIZE });
-            writes.buffer(1, VkDescriptorBufferInfo{ written.getHandle(), 0, VK_WHOLE_SIZE });
+            writes.buffer(Shaders::PINNING_BIND_CASES, VkDescriptorBufferInfo{ source.getHandle(), 0, VK_WHOLE_SIZE });
+            writes.buffer(
+                Shaders::PINNING_BIND_RESULTS, VkDescriptorBufferInfo{ written.getHandle(), 0, VK_WHOLE_SIZE });
 
             pool.submitAndWait([&](VkCommandBuffer commands) {
                 dispatch(commands, pipeline, writes, Shaders::PinningConstants{ .mCount = sCount },
@@ -241,12 +244,27 @@ namespace Rtx
             std::vector<float> results(static_cast<std::size_t>(sCount) * Shaders::PINNING_RESULTS);
             std::memcpy(results.data(), written.map(), results.size() * sizeof(float));
 
-            constexpr std::array<const char*, Shaders::PINNING_RESULTS> sNames{ "dot", "dot of four", "cross.x",
-                "cross.y", "cross.z", "mix.x", "mix.y", "mix.z", "matrix.x", "matrix.y", "matrix.z", "reflect.x",
-                "reflect.y", "reflect.z", "a product and a sum", "faceforward.x", "faceforward.y", "faceforward.z",
-                "normalize.x", "normalize.y", "normalize.z", "the device's inverse length", "smoothstep",
-                "the device's quotient", "refract.x", "refract.y", "refract.z", "the device's root", "mod",
-                "the device's floor" };
+            // By slot, so a slot moved in `pinning.h` keeps its name.
+            std::array<std::string, Shaders::PINNING_RESULTS> names;
+            names[Shaders::PINNING_DOT] = "dot";
+            names[Shaders::PINNING_DOT_OF_FOUR] = "dot of four";
+            names[Shaders::PINNING_PRODUCT_AND_SUM] = "a product and a sum";
+            names[Shaders::PINNING_INVERSE_LENGTH] = "the device's inverse length";
+            names[Shaders::PINNING_SMOOTHSTEP] = "smoothstep";
+            names[Shaders::PINNING_QUOTIENT] = "the device's quotient";
+            names[Shaders::PINNING_ROOT] = "the device's root";
+            names[Shaders::PINNING_MOD] = "mod";
+            names[Shaders::PINNING_FLOOR] = "the device's floor";
+            for (const auto& [slot, vector] :
+                { std::pair{ Shaders::PINNING_CROSS, "cross" }, std::pair{ Shaders::PINNING_MIX, "mix" },
+                    std::pair{ Shaders::PINNING_MATRIX, "matrix" }, std::pair{ Shaders::PINNING_REFLECT, "reflect" },
+                    std::pair{ Shaders::PINNING_FACEFORWARD, "faceforward" },
+                    std::pair{ Shaders::PINNING_NORMALIZE, "normalize" },
+                    std::pair{ Shaders::PINNING_REFRACT, "refract" } })
+                for (std::uint32_t axis = 0; axis < 3; ++axis)
+                    names[slot + axis] = std::string(vector) + "." + "xyz"[axis];
+            for (std::uint32_t slot = 0; slot < Shaders::PINNING_RESULTS; ++slot)
+                ASSERT_FALSE(names[slot].empty()) << "slot " << slot << " has no name";
 
             // Counted, with the first few named: a device that differs at all differs on thousands.
             constexpr std::size_t sNamed = 8;
@@ -266,7 +284,7 @@ namespace Rtx
                     if (std::bit_cast<std::uint32_t>(got) == std::bit_cast<std::uint32_t>(want[result]))
                         continue;
                     if (++differing <= sNamed)
-                        ADD_FAILURE() << sNames[result] << " of case " << at << ": the device wrote " << got
+                        ADD_FAILURE() << names[result] << " of case " << at << ": the device wrote " << got
                                       << " and the pinned order " << want[result];
                 }
 
@@ -277,7 +295,7 @@ namespace Rtx
                 const float products[3] = { a[0] * b[0], a[1] * b[1], a[2] * b[2] };
                 if (products[0] + products[1] + products[2] != want[0])
                     ++unfused;
-                if (results[static_cast<std::size_t>(at) * Shaders::PINNING_RESULTS + 27] > 0.0f)
+                if (results[static_cast<std::size_t>(at) * Shaders::PINNING_RESULTS + Shaders::PINNING_ROOT] > 0.0f)
                     ++bent;
             }
 

@@ -20,6 +20,10 @@ namespace Rtx::Shaders
     /// Threads in the probe's workgroup.
     const uint HALF_STORE_WORKGROUP = 64;
 
+    /// The probe's bindings: the floats in, the half-float image out.
+    const uint HALF_STORE_BIND_VALUES = 0;
+    const uint HALF_STORE_BIND_STORED = 1;
+
     struct HalfStoreConstants
     {
         /// How many floats are stored, one a texel along the image's first row.
