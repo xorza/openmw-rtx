@@ -44,9 +44,11 @@ namespace Rtx
                 case SceneUtil::VertexColorModes::Emission:
                     return VertexColour::Glow;
                 case SceneUtil::VertexColorModes::AmbientAndDiffuse:
-                case SceneUtil::VertexColorModes::Ambient:
-                case SceneUtil::VertexColorModes::Diffuse:
                     return VertexColour::Tint;
+                case SceneUtil::VertexColorModes::Diffuse:
+                    return VertexColour::Diffuse;
+                case SceneUtil::VertexColorModes::Ambient:
+                    return VertexColour::Ambient;
                 case SceneUtil::VertexColorModes::None:
                 case SceneUtil::VertexColorModes::Specular:
                     break;

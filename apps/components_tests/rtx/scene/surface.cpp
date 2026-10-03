@@ -188,17 +188,30 @@ namespace Rtx
 
             // Where the vertex colour is the diffuse, its alpha is the opacity, and every vertex
             // alpha reads as one. A vertex ambient leaves the material's diffuse, alpha and all.
-            constexpr std::array<std::pair<SceneUtil::VertexColorModes, float>, 3> opacities{ {
-                { SceneUtil::VertexColorModes::AmbientAndDiffuse, 1.0f },
-                { SceneUtil::VertexColorModes::Diffuse, 1.0f },
-                { SceneUtil::VertexColorModes::Ambient, 0.5f },
-            } };
-            for (const auto& [mode, opacity] : opacities)
+            // **And which of the rasterizer's colours each mode replaces**: both under
+            // `AmbientAndDiffuse`, one each under `Diffuse` and `Ambient`, the glow under `Emission`,
+            // and none under `None` or `Specular`, which nothing here reads.
+            struct ModeRead
             {
-                colours->setVertexColorMode(mode);
+                SceneUtil::VertexColorModes mMode;
+                float mOpacity;
+                VertexColour mReplaces;
+            };
+            constexpr std::array<ModeRead, 6> modes{ {
+                { SceneUtil::VertexColorModes::AmbientAndDiffuse, 1.0f, VertexColour::Tint },
+                { SceneUtil::VertexColorModes::Diffuse, 1.0f, VertexColour::Diffuse },
+                { SceneUtil::VertexColorModes::Ambient, 0.5f, VertexColour::Ambient },
+                { SceneUtil::VertexColorModes::Emission, 0.5f, VertexColour::Glow },
+                { SceneUtil::VertexColorModes::None, 0.5f, VertexColour::None },
+                { SceneUtil::VertexColorModes::Specular, 0.5f, VertexColour::None },
+            } };
+            for (const ModeRead& read : modes)
+            {
+                colours->setVertexColorMode(read.mMode);
                 SurfaceDescription tinted;
                 describeStateSet(*state, tinted);
-                EXPECT_FLOAT_EQ(tinted.mOpacity, opacity) << static_cast<int>(mode);
+                EXPECT_FLOAT_EQ(tinted.mOpacity, read.mOpacity) << static_cast<int>(read.mMode);
+                EXPECT_EQ(tinted.mVertexColour, read.mReplaces) << static_cast<int>(read.mMode);
             }
             colours->setVertexColorMode(SceneUtil::VertexColorModes::Emission);
 

@@ -96,7 +96,7 @@ struct PaneStack
     float mThrough;
     vec3 mScattered;
 
-    /// What was drawn for the layers, `SeenPane`'s albedo times its drawn light and its lobe's, and
+    /// What was drawn for the layers, `SeenPane`'s drawn light and its lobe's, and
     /// their albedos, each by what reaches the eye of that layer: `CHANNEL_PANE` before it is
     /// divided, and `CHANNEL_PANE_ALBEDO` before the floor. Kept out of `mRadiance`, which holds
     /// what they glow with and the air between them.
@@ -119,7 +119,7 @@ PaneStack noPanes()
 void stackLayer(inout PaneStack stack, MediumAhead ahead, Answer layer)
 {
     const vec3 reaching = stack.mThrough * ahead.mThrough * layer.mOpacity;
-    stack.mDrawn += reaching * (layer.mResponse.mDiffuse * layer.mBounced + layer.mSpecular);
+    stack.mDrawn += reaching * (layer.mBounced + layer.mSpecular);
     stack.mAlbedo += reaching * layer.mResponse.mDiffuse;
     stack.mGlow += reaching * layer.mRadiance;
 
