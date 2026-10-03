@@ -96,10 +96,10 @@ struct PaneStack
     float mThrough;
     vec3 mScattered;
 
-    /// What was drawn for the layers, `SeenPane`'s drawn light and its lobe's, and
-    /// their albedos, each by what reaches the eye of that layer: `CHANNEL_PANE` before it is
-    /// divided, and `CHANNEL_PANE_ALBEDO` before the floor. Kept out of `mRadiance`, which holds
-    /// what they glow with and the air between them.
+    /// What was drawn for the layers, `SeenPane`'s drawn light and its lobe's, and their albedos,
+    /// each by what reaches the eye of that layer: `CHANNEL_PANE` before it is divided, and
+    /// `CHANNEL_PANE_ALBEDO` before the floor. Kept out of `mRadiance`, which holds what they glow
+    /// with and the air between them.
     vec3 mDrawn;
     vec3 mAlbedo;
 

@@ -137,9 +137,9 @@ namespace RtxTool
                 return "null";
 
             return std::format(
-                R"({{"cycles": {}, "instructions": {}, "cacheMisses": {}, "runningNs": {}, "counted": {:.4f}, "kernelCounted": {}}})",
-                counts.mCycles, counts.mInstructions, counts.mCacheMisses, counts.mRunningNs, counts.mCounted,
-                counts.mKernelCounted);
+                R"({{"cycles": {}, "instructions": {}, "cacheMisses": {}, "runningNs": {}, "efficiencyNs": {}, "counted": {:.4f}, "kernelCounted": {}, "twoKinds": {}}})",
+                counts.mCycles, counts.mInstructions, counts.mCacheMisses, counts.mRunningNs, counts.mEfficiencyNs,
+                counts.mCounted, counts.mKernelCounted, counts.mTwoKinds);
         }
 
         /// Everything a scene came to, so the record can compare what a change cost in memory as

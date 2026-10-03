@@ -12,7 +12,7 @@ namespace RtxTool
             return "host thread not counted: it ran nothing the counters saw";
 
         std::string line = "host thread";
-        if (counts.mKernelCounted && counts.mRunningNs > 0)
+        if (counts.mKernelCounted)
             line += std::format(
                 " {:.2f} GHz,", static_cast<double>(counts.mCycles) / static_cast<double>(counts.mRunningNs));
         line += std::format(" {:.2f} instructions a cycle, {:.2f} cache misses a thousand instructions",

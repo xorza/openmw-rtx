@@ -52,7 +52,7 @@ namespace MWRender
         class DistantAnswer final : public osg::Node
         {
         public:
-            using Answer = void (TracedTerrain::*)(osgUtil::IntersectionVisitor&);
+            using Answer = void (TracedTerrain::*)(osgUtil::IntersectionVisitor&, osgUtil::LineSegmentIntersector&);
 
             DistantAnswer(TracedTerrain& terrain, Answer answer)
                 : mTerrain(terrain)
@@ -63,8 +63,18 @@ namespace MWRender
 
             void traverse(osg::NodeVisitor& visitor) override
             {
-                if (visitor.getVisitorType() == osg::NodeVisitor::INTERSECTION_VISITOR)
-                    (mTerrain.*mAnswer)(static_cast<osgUtil::IntersectionVisitor&>(visitor));
+                if (visitor.getVisitorType() != osg::NodeVisitor::INTERSECTION_VISITOR)
+                    return;
+                auto& intersecting = static_cast<osgUtil::IntersectionVisitor&>(visitor);
+                osgUtil::Intersector* const asked = intersecting.getIntersector();
+                if (asked == nullptr)
+                    return;
+
+                // In this node's frame, which the visitor clones its intersector into for every frame
+                // it enters: a ray cast from the camera starts in its projection.
+                const osg::ref_ptr<osgUtil::Intersector> here = asked->clone(intersecting);
+                if (auto* const segment = dynamic_cast<osgUtil::LineSegmentIntersector*>(here.get()))
+                    (mTerrain.*mAnswer)(intersecting, *segment);
             }
 
         private:
@@ -139,6 +149,24 @@ namespace MWRender
                 cell[axis] += step[axis];
                 crossing[axis] += across[axis];
             }
+        }
+
+        /// `walkCells` over the plane in cells, for `segment`, over the land `storage` has in
+        /// `worldspace` and `margin` cells past it on every side.
+        template <class Visit>
+        void walkLand(Terrain::Storage& storage, ESM::RefId worldspace, const osgUtil::LineSegmentIntersector& segment,
+            const double margin, Visit visit)
+        {
+            const double cellSize = storage.getCellWorldSize(worldspace);
+            const osg::Vec2d from(segment.getStart().x() / cellSize, segment.getStart().y() / cellSize);
+            const osg::Vec2d to(segment.getEnd().x() / cellSize, segment.getEnd().y() / cellSize);
+            float minX = 0.0f;
+            float maxX = 0.0f;
+            float minY = 0.0f;
+            float maxY = 0.0f;
+            storage.getBounds(minX, maxX, minY, maxY, worldspace);
+            walkCells(from, to, osg::Vec2d(double{ minX } - margin, double{ minY } - margin),
+                osg::Vec2d(double{ maxX } + margin, double{ maxY } + margin), visit);
         }
     }
 
@@ -293,32 +321,12 @@ namespace MWRender
         return mCarriers[mCarried++];
     }
 
-    void TracedTerrain::meet(osgUtil::IntersectionVisitor& visitor)
+    void TracedTerrain::meet(osgUtil::IntersectionVisitor& visitor, osgUtil::LineSegmentIntersector& segment)
     {
-        osgUtil::Intersector* const asked = visitor.getIntersector();
-        if (asked == nullptr)
-            return;
-
-        // In this node's frame, which the visitor clones its intersector into for every frame it
-        // enters: a ray cast from the camera starts in its projection.
-        const osg::ref_ptr<osgUtil::Intersector> here = asked->clone(visitor);
-        auto* const segment = dynamic_cast<osgUtil::LineSegmentIntersector*>(here.get());
-        if (segment == nullptr)
-            return;
-
-        // The segment on the plane in cells, clipped to the land the storage has, so a segment
-        // of any length crosses no more cells than the land holds.
-        const double cellSize = mStorage->getCellWorldSize(mWorldspace);
-        const osg::Vec2d from(segment->getStart().x() / cellSize, segment->getStart().y() / cellSize);
-        const osg::Vec2d to(segment->getEnd().x() / cellSize, segment->getEnd().y() / cellSize);
-        float minX = 0.0f;
-        float maxX = 0.0f;
-        float minY = 0.0f;
-        float maxY = 0.0f;
-        mStorage->getBounds(minX, maxX, minY, maxY, mWorldspace);
-
-        const bool nearestOnly = segment->getIntersectionLimit() != osgUtil::Intersector::NO_LIMIT;
-        walkCells(from, to, osg::Vec2d(minX, minY), osg::Vec2d(maxX, maxY), [&](const osg::Vec2i& cell) {
+        // Clipped to the land the storage has, so a segment of any length crosses no more cells than
+        // the land holds.
+        const bool nearestOnly = segment.getIntersectionLimit() != osgUtil::Intersector::NO_LIMIT;
+        walkLand(*mStorage, mWorldspace, segment, 0.0, [&](const osg::Vec2i& cell) {
             if (findGrid(cell) != nullptr || !mDistance.standsGround(cell))
                 return true;
 
@@ -329,62 +337,43 @@ namespace MWRender
             }
 
             // A hit in a nearer cell is nearer than any in a cell after it.
-            const std::size_t before = segment->getIntersections().size();
+            const std::size_t before = segment.getIntersections().size();
             mFar.mRoot->accept(visitor);
-            return !nearestOnly || segment->getIntersections().size() == before;
+            return !nearestOnly || segment.getIntersections().size() == before;
         });
     }
 
-    void TracedTerrain::meetStatics(osgUtil::IntersectionVisitor& visitor)
+    void TracedTerrain::meetStatics(osgUtil::IntersectionVisitor& visitor, osgUtil::LineSegmentIntersector& segment)
     {
-        osgUtil::Intersector* const asked = visitor.getIntersector();
-        if (asked == nullptr)
-            return;
-
-        const osg::ref_ptr<osgUtil::Intersector> here = asked->clone(visitor);
-        auto* const segment = dynamic_cast<osgUtil::LineSegmentIntersector*>(here.get());
-        if (segment == nullptr)
-            return;
-
         // **Every crossed cell and the eight beside it, and none cut short**: a static stands in the
         // cell of its reference and its parts reach into the next, so a part a nearer cell's ground
         // hides is not nearer than a tower whose reference stands a cell on. Over the land the
         // storage has and a cell past it, where a reference stands in the sea.
-        const double cellSize = mStorage->getCellWorldSize(mWorldspace);
-        const osg::Vec2d from(segment->getStart().x() / cellSize, segment->getStart().y() / cellSize);
-        const osg::Vec2d to(segment->getEnd().x() / cellSize, segment->getEnd().y() / cellSize);
-        float minX = 0.0f;
-        float maxX = 0.0f;
-        float minY = 0.0f;
-        float maxY = 0.0f;
-        mStorage->getBounds(minX, maxX, minY, maxY, mWorldspace);
-
         mCarried = 0;
         mAsked.clear();
-        walkCells(from, to, osg::Vec2d(double{ minX } - 1.0, double{ minY } - 1.0),
-            osg::Vec2d(double{ maxX } + 1.0, double{ maxY } + 1.0), [&](const osg::Vec2i& crossed) {
-                for (int dy = -1; dy <= 1; ++dy)
-                    for (int dx = -1; dx <= 1; ++dx)
+        walkLand(*mStorage, mWorldspace, segment, 1.0, [&](const osg::Vec2i& crossed) {
+            for (int dy = -1; dy <= 1; ++dy)
+                for (int dx = -1; dx <= 1; ++dx)
+                {
+                    const osg::Vec2i cell(crossed.x() + dx, crossed.y() + dy);
+                    // A loaded cell's statics are the game's own nodes, which the visitor meets.
+                    if (findGrid(cell) != nullptr || std::ranges::find(mAsked, cell) != mAsked.end())
+                        continue;
+                    mAsked.push_back(cell);
+
+                    for (const Rtx::Placement& placement : mDistance.placementsIn(cell))
                     {
-                        const osg::Vec2i cell(crossed.x() + dx, crossed.y() + dy);
-                        // A loaded cell's statics are the game's own nodes, which the visitor meets.
-                        if (findGrid(cell) != nullptr || std::ranges::find(mAsked, cell) != mAsked.end())
+                        if (!placement.mStood.isStanding() || placement.mDrawable == nullptr)
                             continue;
-                        mAsked.push_back(cell);
 
-                        for (const Rtx::Placement& placement : mDistance.placementsIn(cell))
-                        {
-                            if (!placement.mStood.isStanding() || placement.mDrawable == nullptr)
-                                continue;
-
-                            Carrier& carrier = nextCarrier();
-                            carrier.mPlace->setMatrix(placement.mStood.mTransform);
-                            carrier.mPart->show(*placement.mDrawable);
-                            carrier.mMarker->mRefnum = placement.mState.mRefNum;
-                            carrier.mPlace->accept(visitor);
-                        }
+                        Carrier& carrier = nextCarrier();
+                        carrier.mPlace->setMatrix(placement.mStood.mTransform);
+                        carrier.mPart->show(*placement.mDrawable);
+                        carrier.mMarker->mRefnum = placement.mState.mRefNum;
+                        carrier.mPlace->accept(visitor);
                     }
-                return true;
-            });
+                }
+            return true;
+        });
     }
 }

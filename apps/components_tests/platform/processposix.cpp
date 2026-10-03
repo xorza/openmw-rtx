@@ -9,6 +9,7 @@
 #include <iterator>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <thread>
 #include <vector>
@@ -81,6 +82,7 @@ namespace
         EXPECT_FALSE(Platform::Process::isRunning(0));
         EXPECT_FALSE(Platform::Process::isRunning(0xFFFFFFFFu));
     }
+
     /// **Every thread keeps to the performance cores where sysfs lists them apart**, one started
     /// before the call and one after it alike, and nothing is done where it does not list them. Read
     /// back as the kernel states each thread's mask, in its `status`; where there is no such file

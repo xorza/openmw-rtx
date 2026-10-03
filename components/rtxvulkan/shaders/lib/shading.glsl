@@ -586,7 +586,7 @@ struct SeenPane
 /// not: the pane filter averages the one over time, and the glow is exact as it stands.
 ///
 /// **The same terms, so a pane composed from these is the pane `shadeAtPathEnd` shades**: the glow
-/// plus the drawn light plus the lobe is `shadeSurface`'s light, to its rounding.
+/// plus the drawn light plus the lobe is its light, to its rounding.
 ///
 /// **At `AMBIENT_EXTERIOR_RATE`**, because the pane filter takes what it draws, as the glossy filter
 /// takes what a lobe's path end draws at the same rate.
@@ -797,7 +797,7 @@ Arriving bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pi
 ///
 /// **Traced only from the hit the eye found.** A shader with no recursion cannot bounce a bounce, and
 /// it should not: what the second hit gathers is `pathEnd`, the flat ambient that stands in for the
-/// rest of the path. That is also what keeps `shadeSurface` from calling itself — the water's
+/// rest of the path. That is also what keeps `lightAtPathEnd` from calling itself — the water's
 /// reflections already shade through it, and a bounce inside it would have no bottom.
 ///
 /// A ray that finds nothing takes `bounceEscape`, which is what makes the sky an emitter rather than

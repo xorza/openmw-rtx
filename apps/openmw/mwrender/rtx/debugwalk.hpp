@@ -25,10 +25,10 @@ namespace MWRender
     /// a class the view hides goes with it: the cell borders stand under a `Mask_Terrain` group, and
     /// `tws` takes them with the ground. Less `Mask_Scene`, the root of the world itself, which holds
     /// no debug node and which a walk each frame would otherwise enter whole. The mirror's walk never
-    /// enters `Mask_Debug`: a line is nothing for a ray to meet. Every
-    /// primitive set is taken apart into lines and triangles — a strip, a fan and a quad included
-    /// — by the world transform in force at the drawable, with the colour the drawer painted at
-    /// each vertex or over the whole. Points are not drawn: nothing here has a size for one.
+    /// enters `Mask_Debug`: a line is nothing for a ray to meet. Every primitive set is taken apart
+    /// into lines and triangles — a strip, a fan and a quad included — by the world transform in
+    /// force at the drawable, with the colour the drawer painted at each vertex or over the whole.
+    /// Points are not drawn: nothing here has a size for one.
     ///
     /// **The polygon mode and the blend mode along the path are kept**, as the rasterizer's state
     /// stack keeps them: under `PolygonMode::LINE`, which the collision drawer and the cell borders

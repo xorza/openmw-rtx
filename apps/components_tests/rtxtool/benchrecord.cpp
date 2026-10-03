@@ -1,3 +1,4 @@
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <optional>
@@ -156,15 +157,28 @@ namespace RtxTool
         /// so two records say whether they ran at one clock; and what the instrument could not
         /// read is null, not nought. Core (1785 + 2070 + 1980) / 3 = 1945 over 3, memory
         /// (9001 + 8000) / 2 = 8500 over 2.
-        TEST(RtxBenchRecordTest, theRecordWritesTheClockAsTheReportReadsIt)
+        ///
+        /// **And the frame thread's counts, every one of them**, which the report's line reads as
+        /// ratios: null where nothing was counted.
+        TEST(RtxBenchRecordTest, theRecordWritesTheClockAndTheThreadsCountsAsTheReportReadsThem)
         {
-            BenchPlace place;
+            std::array<BenchPlace, 2> places;
+            BenchPlace& place = places[0];
             place.mClock = GpuClock::reading(1785, 9001, std::nullopt, std::nullopt);
             place.mClock.add(GpuClock::reading(2070, 8000, std::nullopt, std::nullopt));
             place.mClock.add(GpuClock::reading(1980, std::nullopt, std::nullopt, std::nullopt));
+            place.mThread = ThreadCounts{ .mCycles = 5000,
+                .mInstructions = 8000,
+                .mCacheMisses = 24,
+                .mRunningNs = 1000,
+                .mEfficiencyNs = 250,
+                .mCounted = 0.5,
+                .mKernelCounted = true,
+                .mTwoKinds = true,
+                .mRead = true };
 
             const std::filesystem::path path = TestingOpenMW::outputFilePath("clock-record.json");
-            ASSERT_TRUE(writeJson(path, BenchHeader{}, std::span(&place, 1)).isOk());
+            ASSERT_TRUE(writeJson(path, BenchHeader{}, places).isOk());
 
             std::ostringstream read;
             read << std::ifstream(path).rdbuf();
@@ -176,6 +190,13 @@ namespace RtxTool
                                                R"("lowestMhz": 8000, "highestMhz": 9001, "readings": 2}, )"
                                                R"("temperatureC": null, "throttle": null})";
             EXPECT_NE(json.find(clock), std::string::npos) << json;
+
+            constexpr std::string_view counted = R"("thread": {"cycles": 5000, "instructions": 8000, )"
+                                                 R"("cacheMisses": 24, "runningNs": 1000, "efficiencyNs": 250, )"
+                                                 R"("counted": 0.5000, "kernelCounted": true, "twoKinds": true}})";
+            constexpr std::string_view uncounted = R"("thread": null})";
+            EXPECT_NE(json.find(counted), std::string::npos) << json;
+            EXPECT_NE(json.find(uncounted), std::string::npos) << json;
         }
     }
 }

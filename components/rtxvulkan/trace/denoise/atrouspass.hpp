@@ -14,10 +14,10 @@ namespace Rtx
     class GBuffer;
     class Image;
 
-    /// The denoiser: a few edge-stopping wavelet levels over the indirect channel and its fill, borrowing
-    /// samples sideways from neighbours on the same surface because there is no time for enough
-    /// bounces per pixel. Legitimate because the trace demodulated: this filters light, and the
-    /// texture is multiplied back in afterwards. The sky, water and fog were resolved into
+    /// The denoiser: a few edge-stopping wavelet levels over the indirect channel and its fill,
+    /// borrowing samples sideways from neighbours on the same surface because there is no time for
+    /// enough bounces per pixel. Legitimate because the trace demodulated: this filters light, and
+    /// the texture is multiplied back in afterwards. The sky, water and fog were resolved into
     /// `direct` and pass this by.
     class AtrousPass
     {

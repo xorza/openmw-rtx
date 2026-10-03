@@ -372,11 +372,17 @@ namespace CrashTests
             return std::nullopt;
         }
 
+        /// Whether a run of a mode ended saying it was not given the case it tests, `sInconclusive`.
+        bool inconclusive(const Platform::Process::CommandEnd& ended)
+        {
+            return ended.mSignal == 0 && ended.mExitCode == static_cast<std::uint32_t>(sInconclusive);
+        }
+
         /// Whether `mode` left what it must in `folder`, and what it did not where it did not.
         std::optional<std::string> check(
             const Mode& mode, const std::filesystem::path& folder, const Platform::Process::CommandEnd& ended)
         {
-            if (ended.mSignal == 0 && ended.mExitCode == static_cast<std::uint32_t>(sInconclusive))
+            if (inconclusive(ended))
                 return "no run of " + std::to_string(sInconclusiveRuns) + " gave it the case it tests";
             if (ended.succeeded() == mode.mHeadline.starts_with("Crash: "))
                 return "it ended with " + ended.describe();
@@ -440,20 +446,18 @@ namespace CrashTests
                     return mode.mAlso.empty() ? "not one summary but several" : "not two summaries";
 
                 // The headline up to its thread, which a dump's own summary carries, and the thread.
-                std::vector<std::string> headlines{ first->substr(0, first->find(" in thread")) };
+                const auto threadAt
+                    = [](const std::string& line) { return std::min(line.find(" in thread"), line.size()); };
+                std::vector<std::string> headlines{ first->substr(0, threadAt(*first)) };
                 if (!mode.mAlso.empty())
                 {
                     const auto also = std::find_if(said.begin(), said.end(),
                         [&](const std::string& line) { return line.starts_with(mode.mAlso); });
                     if (also == said.end())
                         return "no summary begins \"" + std::string(mode.mAlso) + "\"";
-                    const auto threadOf = [](const std::string& line) {
-                        const std::size_t at = line.find(" in thread");
-                        return at == std::string::npos ? std::string() : line.substr(at);
-                    };
-                    if (threadOf(*also) == threadOf(*first))
+                    if (also->substr(threadAt(*also)) == first->substr(threadAt(*first)))
                         return "the two summaries name one thread: " + *first;
-                    headlines.push_back(also->substr(0, also->find(" in thread")));
+                    headlines.push_back(also->substr(0, threadAt(*also)));
                 }
                 const std::string note = "running the mode \"" + std::string(mode.mName) + "\"";
                 const auto noted = std::find_if(said.begin(), said.end(),
@@ -526,7 +530,7 @@ namespace CrashTests
                 std::filesystem::create_directories(folder);
                 ended = Platform::Process::runShell(word(self) + " " + std::string(mode.mName) + " " + word(folder)
                     + " >" + word(folder / "stdout.txt") + " 2>" + word(errorsIn(folder)));
-                if (ended.mSignal != 0 || ended.mExitCode != static_cast<std::uint32_t>(sInconclusive))
+                if (!inconclusive(ended))
                     break;
             }
 

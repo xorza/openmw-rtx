@@ -18,7 +18,6 @@
 namespace osg
 {
     class Geometry;
-    class Group;
     class MatrixTransform;
     class Node;
     class PositionAttitudeTransform;
@@ -27,6 +26,7 @@ namespace osg
 namespace osgUtil
 {
     class IntersectionVisitor;
+    class LineSegmentIntersector;
 }
 
 namespace Resource
@@ -111,14 +111,14 @@ namespace MWRender
         /// Takes the cell's grid down and keeps it for the next cell to arrive.
         void unloadCell(int x, int y) override;
 
-        /// What `visitor`'s segment meets of the distance's ground, inserted into its intersections
-        /// as a loaded grid's would be. Called by the node this hangs under the terrain root, which
-        /// the visitor enters whatever the segment.
-        void meet(osgUtil::IntersectionVisitor& visitor);
+        /// What `segment`, `visitor`'s in this node's frame, meets of the distance's ground, inserted
+        /// into its intersections as a loaded grid's would be. Called by the node this hangs under the
+        /// terrain root, which the visitor enters whatever the segment.
+        void meet(osgUtil::IntersectionVisitor& visitor, osgUtil::LineSegmentIntersector& segment);
 
-        /// What `visitor`'s segment meets of the statics the ring stands past the loaded cells, as
-        /// `meet` answers for the ground. Called by the node this hangs under the scene root.
-        void meetStatics(osgUtil::IntersectionVisitor& visitor);
+        /// What `segment` meets of the statics the ring stands past the loaded cells, as `meet`
+        /// answers for the ground. Called by the node this hangs under the scene root.
+        void meetStatics(osgUtil::IntersectionVisitor& visitor, osgUtil::LineSegmentIntersector& segment);
 
     private:
         class StandingPart;
