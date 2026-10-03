@@ -3,13 +3,15 @@
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 
+#include "shadercode.hpp"
+
 namespace Rtx
 {
     Owned<VkPipeline, vkDestroyPipeline> makeComputePipeline(const Device& device, const VkPipelineLayout layout,
         const std::string_view module, const std::string_view name, const std::span<const std::uint32_t> specialization)
     {
         PipelineCreation creation(device, name);
-        const ShaderModule compiled = loadShaderModule(device, module);
+        ShaderCode code(device);
         const Specialization constants(specialization);
 
         const VkComputePipelineCreateInfo pipeline{
@@ -18,10 +20,10 @@ namespace Rtx
             .flags = PipelineCreation::sFlags,
             .stage = {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .pNext = nullptr,
+                .pNext = code.stage(module),
                 .flags = 0,
                 .stage = VK_SHADER_STAGE_COMPUTE_BIT,
-                .module = compiled.get(),
+                .module = VK_NULL_HANDLE,
                 .pName = "main",
                 .pSpecializationInfo = constants.getInfo(),
             },

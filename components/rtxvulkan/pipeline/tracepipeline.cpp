@@ -13,6 +13,7 @@
 #include <components/rtxvulkan/device/result.hpp>
 
 #include "pipeline.hpp"
+#include "shadercode.hpp"
 
 namespace Rtx
 {
@@ -40,9 +41,9 @@ namespace Rtx
 
         // A stage is not a group: one any-hit is compiled and every hit group names it, and one
         // closest-hit stage stands behind a run of groups. The handles come back in group order,
-        // which is the order `ShaderBindingTable` fills its records in.
-        std::vector<ShaderModule> compiled;
-        compiled.reserve(1 + shaders.mMiss.size() + (anyHitWanted ? 1 : 0) + shaders.mHit.size());
+        // which is the order `ShaderBindingTable` fills its records in. Nor is a stage a file: the
+        // closest-hit stages may all run one module under their own constants.
+        ShaderCode code(device);
 
         const Specialization constants(specialization);
 
@@ -53,19 +54,18 @@ namespace Rtx
 
         std::vector<VkPipelineShaderStageCreateInfo> stages;
         std::vector<VkRayTracingShaderGroupCreateInfoKHR> groups;
-        stages.reserve(compiled.capacity());
+        stages.reserve(1 + shaders.mMiss.size() + (anyHitWanted ? 1 : 0) + shaders.mHit.size());
         groups.reserve(groupsOf(shaders));
 
         const auto addStage
             = [&](VkShaderStageFlagBits stage, const std::string_view module, const VkSpecializationInfo* specialized) {
                   const auto at = static_cast<std::uint32_t>(stages.size());
-                  compiled.push_back(loadShaderModule(device, module));
                   stages.push_back(VkPipelineShaderStageCreateInfo{
                       .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                      .pNext = nullptr,
+                      .pNext = code.stage(module),
                       .flags = 0,
                       .stage = stage,
-                      .module = compiled.back().get(),
+                      .module = VK_NULL_HANDLE,
                       .pName = "main",
                       .pSpecializationInfo = specialized,
                   });

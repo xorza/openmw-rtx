@@ -186,6 +186,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/gui/guipass.cpp
     rtxvulkan/gui/guitextures.cpp
     rtxvulkan/pipeline/computepipeline.cpp
+    rtxvulkan/pipeline/shadercode.cpp
     rtxvulkan/pipeline/tracepipeline.cpp
     rtxvulkan/scene/bottomlevelstore.cpp
     rtxvulkan/scene/skinpass.cpp

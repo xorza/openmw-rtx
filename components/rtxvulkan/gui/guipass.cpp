@@ -14,6 +14,7 @@
 #include <components/rtxvulkan/display/tonepass.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
+#include <components/rtxvulkan/pipeline/shadercode.hpp>
 
 namespace Rtx
 {
@@ -75,12 +76,18 @@ namespace Rtx
     }
 
     GuiPass::GuiPass(const Device& device)
-        : mReplace(device, describePipeline(TonePass::sTargetFormat, Blend::None, AlphaForm::Straight))
-        , mOver(device, describePipeline(TonePass::sTargetFormat, Blend::Over, AlphaForm::Straight))
-        , mAdditive(device, describePipeline(TonePass::sTargetFormat, Blend::Additive, AlphaForm::Straight))
-        , mOverPremultiplied(device, describePipeline(TonePass::sTargetFormat, Blend::Over, AlphaForm::Premultiplied))
+        : GuiPass(device, ShaderCode(device))
+    {
+    }
+
+    GuiPass::GuiPass(const Device& device, ShaderCode&& code)
+        : mReplace(device, describePipeline(TonePass::sTargetFormat, Blend::None, AlphaForm::Straight), code)
+        , mOver(device, describePipeline(TonePass::sTargetFormat, Blend::Over, AlphaForm::Straight), code)
+        , mAdditive(device, describePipeline(TonePass::sTargetFormat, Blend::Additive, AlphaForm::Straight), code)
+        , mOverPremultiplied(
+              device, describePipeline(TonePass::sTargetFormat, Blend::Over, AlphaForm::Premultiplied), code)
         , mAdditivePremultiplied(
-              device, describePipeline(TonePass::sTargetFormat, Blend::Additive, AlphaForm::Premultiplied))
+              device, describePipeline(TonePass::sTargetFormat, Blend::Additive, AlphaForm::Premultiplied), code)
         , mSampler(makeTargetSampler(device, "gui"))
     {
     }

@@ -286,6 +286,8 @@ set(RTX_VULKAN_FILES
     pipeline/graphicspipeline.hpp
     pipeline/pipeline.cpp
     pipeline/pipeline.hpp
+    pipeline/shadercode.cpp
+    pipeline/shadercode.hpp
     pipeline/tracepipeline.cpp
     pipeline/tracepipeline.hpp
     present/presenter.cpp
