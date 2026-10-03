@@ -506,6 +506,10 @@ namespace Rtx
         Shaders::VisibilityConstants described = constants;
 
         described.mComposed = composed ? 1u : 0u;
+        static_assert(static_cast<std::uint32_t>(BounceReuse::Off) == Shaders::BOUNCE_REUSE_OFF
+            && static_cast<std::uint32_t>(BounceReuse::Own) == Shaders::BOUNCE_REUSE_OWN
+            && static_cast<std::uint32_t>(BounceReuse::Temporal) == Shaders::BOUNCE_REUSE_TEMPORAL
+            && static_cast<std::uint32_t>(BounceReuse::Spatiotemporal) == Shaders::BOUNCE_REUSE_SPATIOTEMPORAL);
         described.mBounceReuse = static_cast<std::uint32_t>(inputs.mBounceReuse);
         described.mBounceStride = inputs.mReservoirs.getStride();
         described.mBounceHistory = inputs.mBounceHistory ? 1u : 0u;
