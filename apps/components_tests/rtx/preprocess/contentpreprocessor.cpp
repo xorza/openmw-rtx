@@ -107,7 +107,7 @@ namespace Rtx
         }
 
         /// The texture passes through the preprocessor answer what the readings of the described
-        /// level do, for an image they read and for one they cannot: an alpha-only file, which is
+        /// level do, for an image they read and for one they cannot: a file in RGB 3-3-2, which is
         /// solid by the rule that changes nothing, and worth nothing.
         TEST(RtxContentPreprocessorTest, theTexturePassesAnswerWhatTheDirectReadingsDo)
         {
@@ -126,11 +126,11 @@ namespace Rtx
             EXPECT_EQ(asked.mWhole, direct.mWhole);
             EXPECT_EQ(asked.mAlpha, direct.mAlpha);
 
-            osg::ref_ptr<osg::Image> alphaOnly = new osg::Image;
-            alphaOnly->setFileName("odd.dds");
-            alphaOnly->allocateImage(2, 2, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
-            EXPECT_TRUE(content.reachesSolid(*alphaOnly));
-            EXPECT_EQ(content.meanTexel(*alphaOnly).mColour, osg::Vec3f());
+            osg::ref_ptr<osg::Image> odd = new osg::Image;
+            odd->setFileName("odd.dds");
+            odd->allocateImage(2, 2, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
+            EXPECT_TRUE(content.reachesSolid(*odd));
+            EXPECT_EQ(content.meanTexel(*odd).mColour, osg::Vec3f());
 
             const ContentStats stats = content.takeStats();
             EXPECT_EQ(stats.at(ContentPassId::SolidReach).mAsked, 3u);
@@ -178,9 +178,9 @@ namespace Rtx
             EXPECT_FALSE(finest.describes(*held));
             EXPECT_FALSE(finest.get().has_value());
 
-            osg::ref_ptr<osg::Image> alphaOnly = new osg::Image;
-            alphaOnly->allocateImage(2, 2, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
-            finestKeyOf(*alphaOnly, finest);
+            osg::ref_ptr<osg::Image> odd = new osg::Image;
+            odd->allocateImage(2, 2, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
+            finestKeyOf(*odd, finest);
             EXPECT_FALSE(finest.get().has_value()) << "an image no reader decodes is described as none";
         }
 

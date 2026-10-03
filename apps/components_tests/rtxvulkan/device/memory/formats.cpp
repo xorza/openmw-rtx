@@ -50,7 +50,7 @@ namespace Rtx
         /// bends every direction toward one corner, and nothing downstream could tell.
         TEST(RtxFormatsTest, anUploadedFormatIsItsFilesBlockWithTheCurveOnlyForAColour)
         {
-            constexpr std::array<std::pair<TextureFormat, VkFormat>, 11> sTable{ {
+            constexpr std::array<std::pair<TextureFormat, VkFormat>, 12> sTable{ {
                 { TextureFormat::Bc1RgbaSrgb, VK_FORMAT_BC1_RGBA_SRGB_BLOCK },
                 { TextureFormat::Bc2Srgb, VK_FORMAT_BC2_SRGB_BLOCK },
                 { TextureFormat::Bc3Srgb, VK_FORMAT_BC3_SRGB_BLOCK },
@@ -62,6 +62,7 @@ namespace Rtx
                 { TextureFormat::Bc3Unorm, VK_FORMAT_BC3_UNORM_BLOCK },
                 { TextureFormat::Bgra8Unorm, VK_FORMAT_B8G8R8A8_UNORM },
                 { TextureFormat::Bc5Unorm, VK_FORMAT_BC5_UNORM_BLOCK },
+                { TextureFormat::Bc4Unorm, VK_FORMAT_BC4_UNORM_BLOCK },
             } };
 
             std::size_t uploadable = 0;
