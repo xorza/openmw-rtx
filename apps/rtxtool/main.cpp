@@ -1328,14 +1328,12 @@ namespace RtxTool
 
 int main(int argc, char* argv[])
 {
-    // **Never a box.** This is a developer harness: it is run from a shell or a task runner, its
-    // output is read, and a dialog waiting for a click is a run that never finishes — which for
-    // something whose whole point is to be run in a loop is the tool not working. `run` catches
-    // its own exceptions, so the one box left is the crash catcher's, and upstream's own switch
-    // turns that off — at the price of its report on a crash, which a debugger gives back.
-    // Not overwritten, so that a shell can still ask for the catcher; and without its box when it
-    // does, which is the same box.
-    Platform::Process::setEnvironmentDefault("OPENMW_DISABLE_CRASH_CATCHER", "1");
+    // **The catcher, and never a box.** This is a developer harness: it is run from a shell or a
+    // task runner, its output is read, and a dialog waiting for a click is a run that never
+    // finishes — which for something whose whole point is to be run in a loop is the tool not
+    // working. So the catcher's box is off, and the catcher is on: a measured run that crashes or
+    // hangs leaves the report a player's game would. Not overwritten, so that a shell can still
+    // ask for the box, or turn the catcher off.
     Platform::Process::setEnvironmentDefault("OPENMW_CRASH_DIALOG", "0");
 
     return Debug::wrapApplication(RtxTool::run, argc, argv, RtxTool::applicationName);
