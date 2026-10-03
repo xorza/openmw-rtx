@@ -259,8 +259,6 @@ An item that carries `kind: bug` gives a wrong result for an input the tree can 
 
 ## Barriers that order nothing, and barrier batches that can lose what they hold
 
-- [ ] **A `Barriers` that goes out of scope unflushed drops its dependencies silently** — `components/rtxvulkan/device/memory/barriers.hpp:93-149`. The class has no destructor. A caller that adds and forgets `flush` records nothing. A missing barrier shows only under synchronization validation, or as a picture that differs between runs. `TextureArrival` hands one `Barriers` across five phases (`texturearrival.cpp:102-112`), where the risk is highest. Better shape: a destructor that asserts (debug-only) that nothing is pending. *(kind: design; severity: low; benefit: a forgotten flush is an assert and not a race)*
-
 ## The driver, CI and CMake restate facts that each other hold
 
 - [ ] **The listing check passes silently on a Windows debug build, under a comment that says debug has Qt** — `tools/omw/listing.py:59-61`, `CMakePresets.json:15-26`, `CMakePresets.json:74`. `common` turns off the CS and the wizard, and `windows` turns off the launcher, so `debug-windows` builds no `components_qt`. `check` then returns 0 without a word, after `omw build` and inside `omw gate`. Refusing beats a pass that checked nothing. Better: say in one line that the check was skipped and why, and correct the comment to "Linux debug, full and package". *(severity: low; benefit: a skipped check says so)*
