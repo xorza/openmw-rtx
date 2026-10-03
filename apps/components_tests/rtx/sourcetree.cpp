@@ -18,6 +18,8 @@
 #include <gtest/gtest.h>
 
 #include <components/files/conversion.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 namespace Rtx
 {
@@ -404,6 +406,41 @@ namespace Rtx
             EXPECT_TRUE(found.empty()) << "a compute shader traces a ray, which answers differently under another "
                                           "process's preemption — make the pass a launch:\n"
                                        << joined(found);
+        }
+
+        /// Every zone the backend can open in a frame fits the timer.
+        ///
+        /// **A zone past `sMaxGpuZones` is dropped without a word**: the timer keeps the label and
+        /// times nothing. The bounce's reuse added three zones to the twenty-three a crossing frame
+        /// opened, and the queue hold's zone, opened last, went unmeasured on three frames in four,
+        /// which only the gate's `queue-held` check saw. So what is counted here is every name an
+        /// `openZone` call in the backend spells, and the hold's own; a name opened twice in a frame
+        /// is two zones, which this does not see.
+        TEST(RtxSourceTreeTest, everyZoneAFrameOpensFitsTheTimer)
+        {
+            std::set<std::string> names{ std::string(RenderProfile::sHoldZone) };
+            for (const std::filesystem::directory_entry& entry :
+                std::filesystem::recursive_directory_iterator(sBackend))
+            {
+                if (entry.path().extension() != ".cpp")
+                    continue;
+
+                std::string text;
+                for (const std::string& line : linesOf(entry.path()))
+                    text += line + '\n';
+
+                for (std::size_t at = text.find("openZone("); at != std::string::npos;
+                     at = text.find("openZone(", at + 1))
+                {
+                    const std::size_t end = text.find(';', at);
+                    const std::size_t open = text.find('"', at);
+                    ASSERT_LT(open, end) << "a zone named by no literal in "
+                                         << Files::pathToUnicodeString(entry.path().filename());
+                    names.insert(text.substr(open + 1, text.find('"', open + 1) - open - 1));
+                }
+            }
+
+            EXPECT_LE(names.size(), sMaxGpuZones) << names.size() << " zones a frame can open";
         }
 
         /// One library's folders in the order they may include each other: a folder includes only

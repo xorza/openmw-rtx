@@ -215,8 +215,9 @@ namespace Rtx
         double mMs = 0.0;
     };
 
-    /// The most zones one frame may open. Sixteen are used; the rest is room to bisect one.
-    inline constexpr std::uint32_t sMaxGpuZones = 24;
+    /// The most zones one frame may open. Thirty-one are named (`RtxSourceTreeTest` counts them);
+    /// the rest is room to bisect one.
+    inline constexpr std::uint32_t sMaxGpuZones = 40;
 
     /// Where the device spent a frame, in the order the work was recorded, or nothing where it
     /// cannot write timestamps. Owned by the report rather than borrowed from the timer that
