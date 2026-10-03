@@ -21,8 +21,19 @@ namespace RtxTool
         constexpr std::uint64_t sDriverCacheBytes = sDriverCacheGibibytes << 30;
     }
 
+    namespace
+    {
+        /// Where a shader set's caches go: beside it, named after it.
+        std::filesystem::path cacheRootOf(const std::filesystem::path& shaders)
+        {
+            std::filesystem::path name = shaders.filename();
+            name += "-driver-cache";
+            return shaders.parent_path() / name;
+        }
+    }
+
     DriverCache::DriverCache(const std::filesystem::path& shaders)
-        : mRoot(shaders.parent_path() / (shaders.filename().string() + "-driver-cache"))
+        : mRoot(cacheRootOf(shaders))
         , mDirectory(mRoot / spellHash(Rtx::digestShaders(shaders)))
     {
         std::filesystem::create_directories(mDirectory);
@@ -31,14 +42,14 @@ namespace RtxTool
     void DriverCache::applyToDriver() const
     {
         Platform::Process::setEnvironment("__GL_SHADER_DISK_CACHE", "1");
-        Platform::Process::setEnvironment("__GL_SHADER_DISK_CACHE_PATH", mDirectory.string().c_str());
+        Platform::Process::setEnvironmentPath("__GL_SHADER_DISK_CACHE_PATH", mDirectory);
         Platform::Process::setEnvironment("__GL_SHADER_DISK_CACHE_SIZE", std::to_string(sDriverCacheBytes).c_str());
         Platform::Process::setEnvironment("__GL_SHADER_DISK_CACHE_SKIP_CLEANUP", "1");
 
         // Mesa's, for RADV, ANV and NVK: its cache goes in a directory of its own name under this
         // one, so the two drivers' files never meet.
         Platform::Process::setEnvironment("MESA_SHADER_CACHE_DISABLE", "false");
-        Platform::Process::setEnvironment("MESA_SHADER_CACHE_DIR", mDirectory.string().c_str());
+        Platform::Process::setEnvironmentPath("MESA_SHADER_CACHE_DIR", mDirectory);
         Platform::Process::setEnvironment(
             "MESA_SHADER_CACHE_MAX_SIZE", (std::to_string(sDriverCacheGibibytes) + "G").c_str());
     }

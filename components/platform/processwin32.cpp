@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -29,6 +30,28 @@ namespace Platform::Process
     void setEnvironment(const char* name, const char* value)
     {
         _putenv_s(name, value);
+    }
+
+    namespace
+    {
+        /// A variable's name, which is ASCII, in the wide spelling the wide calls take.
+        std::wstring wideName(const char* name)
+        {
+            return std::wstring(name, name + std::strlen(name));
+        }
+    }
+
+    void setEnvironmentPath(const char* name, const std::filesystem::path& value)
+    {
+        _wputenv_s(wideName(name).c_str(), value.c_str());
+    }
+
+    std::optional<std::filesystem::path> environmentPath(const char* name)
+    {
+        const wchar_t* const value = _wgetenv(wideName(name).c_str());
+        if (value == nullptr)
+            return std::nullopt;
+        return std::filesystem::path(value);
     }
 
     std::optional<std::filesystem::path> executable()

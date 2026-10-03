@@ -15,6 +15,7 @@
 #include <vector>
 
 #include <components/debug/debuglog.hpp>
+#include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 
@@ -164,8 +165,8 @@ namespace Rtx
         if (read.isOk())
             mLoaded = std::move(read.value());
         else
-            Log(Debug::Info) << "Rtx: the pipeline cache starts empty: " << mPath.filename().string() << ' '
-                             << read.error();
+            Log(Debug::Info) << "Rtx: the pipeline cache starts empty: " << Files::pathToUnicodeString(mPath.filename())
+                             << ' ' << read.error();
 
         const VkPipelineCacheCreateInfo describe{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,

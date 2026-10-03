@@ -16,6 +16,7 @@
 #include <volk.h>
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
+#include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
@@ -71,7 +72,7 @@ namespace Rtx
             {
                 std::vector<std::string> names;
                 for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(directory))
-                    names.push_back(entry.path().filename().string());
+                    names.push_back(Files::pathToUnicodeString(entry.path().filename()));
 
                 std::sort(names.begin(), names.end());
                 return names;
@@ -251,7 +252,8 @@ namespace Rtx
 
             after = filesIn(cacheDirectory);
             EXPECT_EQ(after.size(), 6u) << "this run's cache, the four kept beside it, and the file that is not ours";
-            EXPECT_EQ(std::find(after.begin(), after.end(), crashed.filename().string()), after.end())
+            EXPECT_EQ(
+                std::find(after.begin(), after.end(), Files::pathToUnicodeString(crashed.filename())), after.end())
                 << "a partial write was left for good";
             EXPECT_NE(std::find(after.begin(), after.end(), "keep-me.txt"), after.end())
                 << "a file this renderer did not write is left alone";

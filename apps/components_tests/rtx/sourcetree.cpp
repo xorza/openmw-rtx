@@ -17,10 +17,19 @@
 
 #include <gtest/gtest.h>
 
+#include <components/files/conversion.hpp>
+
 namespace Rtx
 {
     namespace
     {
+        /// `path` with forward slashes and as UTF-8, as a tree path is written in a list.
+        std::string genericName(const std::filesystem::path& path)
+        {
+            const std::u8string spelled = path.generic_u8string();
+            return std::string(spelled.begin(), spelled.end());
+        }
+
         /// What the tree says about itself, asked of the sources rather than of a build, so a rule
         /// holds on every run and not only when somebody remembers to check it.
         const std::filesystem::path sRoot{ OPENMW_PROJECT_SOURCE_DIR };
@@ -168,7 +177,7 @@ namespace Rtx
                     const std::filesystem::path& file = entry.path();
                     if (file.extension() != ".cpp" && file.extension() != ".hpp")
                         continue;
-                    if (exempt.contains(file.filename().string()))
+                    if (exempt.contains(Files::pathToUnicodeString(file.filename())))
                         continue;
 
                     const std::vector<std::string> lines = linesOf(file);
@@ -176,8 +185,8 @@ namespace Rtx
                     {
                         const std::string_view code = codeOf(lines[at]);
                         if (match(code))
-                            found.push_back(
-                                file.filename().string() + ':' + std::to_string(at + 1) + ": " + std::string(code));
+                            found.push_back(Files::pathToUnicodeString(file.filename()) + ':' + std::to_string(at + 1)
+                                + ": " + std::string(code));
                     }
                 }
             }
@@ -346,8 +355,8 @@ namespace Rtx
                 {
                     const std::string_view code = std::string_view(lines[at]).substr(0, lines[at].find('#'));
                     if (code.find("Vulkan::Vulkan") != std::string_view::npos)
-                        found.push_back(std::filesystem::relative(file, sRoot).string() + ':' + std::to_string(at + 1)
-                            + ": " + lines[at]);
+                        found.push_back(Files::pathToUnicodeString(std::filesystem::relative(file, sRoot)) + ':'
+                            + std::to_string(at + 1) + ": " + lines[at]);
                 }
             };
 
@@ -387,8 +396,8 @@ namespace Rtx
                     const bool queries = std::any_of(lines.begin(), lines.end(),
                         [](const std::string& line) { return line.find("rayQueryEXT") != std::string::npos; });
                     if (queries)
-                        found.push_back(entry.path().filename().string() + " reaches "
-                            + std::filesystem::relative(file, shaders).string());
+                        found.push_back(Files::pathToUnicodeString(entry.path().filename()) + " reaches "
+                            + Files::pathToUnicodeString(std::filesystem::relative(file, shaders)));
                 }
             }
 
@@ -448,7 +457,7 @@ namespace Rtx
                     if (file.extension() != ".cpp" && file.extension() != ".hpp")
                         continue;
 
-                    const std::string relative = file.lexically_relative(sRoot).generic_string();
+                    const std::string relative = genericName(file.lexically_relative(sRoot));
                     const std::string folder = topFolderOf(file.lexically_relative(root));
                     const std::optional<std::size_t> from = rankOf(folder);
                     if (!from.has_value())
@@ -520,7 +529,7 @@ namespace Rtx
                 std::set<std::filesystem::path> reached;
                 reachedBy(file, reached);
                 return std::any_of(reached.begin(), reached.end(), [](const std::filesystem::path& one) {
-                    return one.generic_string().find("/rtx/support/device/") != std::string::npos;
+                    return genericName(one).find("/rtx/support/device/") != std::string::npos;
                 });
             };
 
@@ -532,14 +541,15 @@ namespace Rtx
                 if (file.extension() != ".cpp")
                     continue;
                 if (!reachesDevice(file))
-                    found.push_back(file.filename().string() + " opens no device: list it in RTX_TEST_FILES");
+                    found.push_back(
+                        Files::pathToUnicodeString(file.filename()) + " opens no device: list it in RTX_TEST_FILES");
 
                 const std::vector<std::string> lines = linesOf(file);
                 for (std::size_t at = 0; at < lines.size(); ++at)
                 {
                     const std::string_view code = codeOf(lines[at]).substr(skipSpace(lines[at], 0));
                     if (code.starts_with("TEST(") || code.starts_with("TEST_P("))
-                        found.push_back(file.filename().string() + ':' + std::to_string(at + 1)
+                        found.push_back(Files::pathToUnicodeString(file.filename()) + ':' + std::to_string(at + 1)
                             + ": a test over no device fixture, which CI never runs here");
                 }
             }
@@ -547,7 +557,7 @@ namespace Rtx
             for (const std::string_view list : { "RTX_TEST_FILES", "RTX_TEST_SUPPORT" })
                 for (const std::filesystem::path& file : listedIn(list))
                     if (reachesDevice(file))
-                        found.push_back(file.filename().string() + " reaches the device's support: list it in "
+                        found.push_back(Files::pathToUnicodeString(file.filename()) + " reaches the device's support: list it in "
                                                                    "RTX_GPU_TEST_FILES");
 
             EXPECT_TRUE(found.empty()) << joined(found);
@@ -564,7 +574,7 @@ namespace Rtx
         {
             static const std::set<std::string, std::less<>> sExtensions{ ".cpp", ".hpp", ".h", ".glsl", ".comp",
                 ".rgen", ".rchit", ".rahit", ".rmiss", ".vert", ".frag" };
-            return sExtensions.contains(file.extension().string());
+            return sExtensions.contains(Files::pathToUnicodeString(file.extension()));
         }
 
         /// Every span between two backticks on `line`.
@@ -781,7 +791,7 @@ namespace Rtx
         /// Where a finding is: the file under the source root, and the line.
         std::string placeOf(const std::filesystem::path& file, const std::size_t line)
         {
-            return std::filesystem::relative(file, sRoot).generic_string() + ':' + std::to_string(line + 1);
+            return genericName(std::filesystem::relative(file, sRoot)) + ':' + std::to_string(line + 1);
         }
 
         /// Every `@param` names a parameter of what its comment documents.

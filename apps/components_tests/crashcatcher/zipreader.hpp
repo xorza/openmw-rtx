@@ -11,6 +11,8 @@
 #include <utility>
 #include <vector>
 
+#include <components/files/conversion.hpp>
+
 #include <zlib.h>
 
 namespace CrashTests
@@ -36,7 +38,7 @@ namespace CrashTests
         into.clear();
         std::ifstream file(path, std::ios::binary);
         if (!file)
-            return "no zip at " + path.string();
+            return "no zip at " + Files::pathToUnicodeString(path);
         const std::string bytes((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
         bool inside = true;

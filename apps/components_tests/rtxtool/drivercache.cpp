@@ -10,6 +10,7 @@
 
 #include <apps/rtxtool/instruments/digest.hpp>
 #include <apps/rtxtool/instruments/drivercache.hpp>
+#include <components/platform/process.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/testing/util.hpp>
 
@@ -53,13 +54,28 @@ namespace RtxTool
 
             cache.applyToDriver();
             EXPECT_EQ(variable("__GL_SHADER_DISK_CACHE"), "1");
-            EXPECT_EQ(variable("__GL_SHADER_DISK_CACHE_PATH"), cache.getDirectory().string());
+            EXPECT_EQ(Platform::Process::environmentPath("__GL_SHADER_DISK_CACHE_PATH"), cache.getDirectory());
             EXPECT_EQ(variable("__GL_SHADER_DISK_CACHE_SIZE"), "8589934592") << "eight gibibytes, 8 << 30";
             EXPECT_EQ(variable("__GL_SHADER_DISK_CACHE_SKIP_CLEANUP"), "1");
 
             EXPECT_EQ(variable("MESA_SHADER_CACHE_DISABLE"), "false");
-            EXPECT_EQ(variable("MESA_SHADER_CACHE_DIR"), cache.getDirectory().string());
+            EXPECT_EQ(Platform::Process::environmentPath("MESA_SHADER_CACHE_DIR"), cache.getDirectory());
             EXPECT_EQ(variable("MESA_SHADER_CACHE_MAX_SIZE"), "8G") << "the same eight gibibytes, in Mesa's unit";
+        }
+
+        /// **A cache under a folder named outside every code page reaches the driver whole.** Cyrillic
+        /// and CJK together, which no single Windows code page holds: a narrowed path is refused or
+        /// becomes another folder there, and the variable is read back as the driver reads it.
+        TEST(RtxDriverCacheTest, aCacheUnderAFolderNamedOutsideTheCodePageReachesTheDriverWhole)
+        {
+            const std::filesystem::path root
+                = TestingOpenMW::currentTestDirPath() / std::filesystem::path(u8"\u043a\u044d\u0448-\u7f13\u5b58");
+            const DriverCache cache(writeShaders(root));
+
+            cache.applyToDriver();
+            EXPECT_EQ(Platform::Process::environmentPath("__GL_SHADER_DISK_CACHE_PATH"), cache.getDirectory());
+            EXPECT_EQ(Platform::Process::environmentPath("MESA_SHADER_CACHE_DIR"), cache.getDirectory());
+            EXPECT_TRUE(std::filesystem::is_directory(cache.getDirectory()));
         }
 
         /// **A build that changed a shader has one cache, the new one.** The old cache is of modules
