@@ -114,6 +114,12 @@ namespace Rtx::Shaders
     const float BOUNCE_RADIUS_SHARE = 0.03f;
     const float BOUNCE_RADIUS_LEAST = 3.0f;
 
+    /// Whether what the spatial reuse kept is the history the next frame merges, rather than the
+    /// temporal reservoir it was merged over. Fed back, a pixel's history carries its neighbours'
+    /// samples, so the reservoirs stand for more candidates than one pixel ever drew; kept apart, as
+    /// Ouyang et al. keep it, an error the spatial merge makes is not merged again.
+    const bool BOUNCE_SPATIAL_FEEDBACK = true;
+
     /// How nearly two visible points must face alike, and how near their distances, for one to
     /// reuse the other's samples: RTXDI's defaults, the cosine and a share of the distance.
     const float BOUNCE_FACING = 0.6f;

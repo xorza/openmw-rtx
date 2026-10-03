@@ -62,7 +62,7 @@ Held heldBefore(uvec2 pixel, BounceOrigin origin)
         was.mOffset -= frame.mCameraMotion;
 
         best = share;
-        held = Held(unpackBounce(bounceReservoirsBefore[at]), was);
+        held = Held(unpackBounce(bounceHistory[at]), was);
     }
 
     return held;
