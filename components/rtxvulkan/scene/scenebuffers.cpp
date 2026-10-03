@@ -32,7 +32,11 @@ namespace Rtx
             switch (colour)
             {
                 case VertexColour::Tint:
+                    return Shaders::MATERIAL_VERTEX_TINT | Shaders::MATERIAL_VERTEX_AMBIENT;
+                case VertexColour::Diffuse:
                     return Shaders::MATERIAL_VERTEX_TINT;
+                case VertexColour::Ambient:
+                    return Shaders::MATERIAL_VERTEX_AMBIENT;
                 case VertexColour::Glow:
                     return Shaders::MATERIAL_VERTEX_GLOW;
                 case VertexColour::None:
@@ -71,6 +75,7 @@ namespace Rtx
                 .mLayerCount = material.mLayers.mCount,
                 .mEmissive = material.mEmissive,
                 .mDiffuseColour = material.mDiffuseColour,
+                .mAmbientColour = material.getAmbientColour(),
                 .mEmissiveColour = material.mEmissiveColour,
                 .mTextureTransform = material.mTextureTransform,
                 .mEnvironment = material.mEnvironment,
@@ -104,6 +109,7 @@ namespace Rtx
                 .mLayerCount = 0,
                 .mEmissive = Shaders::NO_TEXTURE,
                 .mDiffuseColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                .mAmbientColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                 .mEmissiveColour = osg::Vec3f(0.0f, 0.0f, 0.0f),
                 .mTextureTransform = osg::Vec4f(1.0f, 1.0f, 0.0f, 0.0f),
                 .mEnvironment = Shaders::NO_TEXTURE,

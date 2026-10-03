@@ -444,13 +444,17 @@ namespace Rtx::Shaders
     const uint MATERIAL_MEDIUM = 0x01u;
 
     /// The mesh's per-vertex colour replaces this material's diffuse tint —
-    /// `Rtx::VertexColour::Tint`, which is every piece of ground and over half of the models
-    /// the game ships.
+    /// `Rtx::VertexColour::Tint` and `Diffuse`, which are every piece of ground and over half of the
+    /// models the game ships.
     ///
     /// **A bit and not a second colour on the row.** The two are exclusive, a mesh that brought no
     /// colour holds white, and what the shader does with either is one `mix` against a weight of
     /// nought or one — so a surface that carries neither pays no branch and no extra load.
     const uint MATERIAL_VERTEX_TINT = 0x02u;
+
+    /// The same colour replaces this material's ambient colour — `Rtx::VertexColour::Tint` and
+    /// `Ambient`. Above the alpha test's sides, which have the bits under it.
+    const uint MATERIAL_VERTEX_AMBIENT = 0x80000u;
 
     /// The same colour replaces this material's glow instead — `Rtx::VertexColour::Glow`. The
     /// light mode that goes with it already took the diffuse and the ambient to nought, so such a
@@ -1134,6 +1138,10 @@ namespace Rtx::Shaders
         /// be a number the shader never reads.
         vec3 mDiffuseColour;
 
+        /// What the texture is tinted by under the fill and at a path's end — `Rtx::Material::
+        /// mAmbientColour`.
+        vec3 mAmbientColour;
+
         /// How much the surface glows regardless of what falls on it, with the material's own
         /// multiplier already folded in.
         ///
@@ -1183,7 +1191,7 @@ namespace Rtx::Shaders
     static_assert(sizeof(GpuLight) == 40, "GpuLight must be scalar-packed on every side");
     static_assert(sizeof(GpuLightGrid) == 28, "GpuLightGrid must be scalar-packed on every side");
     static_assert(sizeof(GpuLayer) == 64, "GpuLayer must be scalar-packed on every side");
-    static_assert(sizeof(GpuMaterial) == 96, "GpuMaterial must be scalar-packed on every side");
+    static_assert(sizeof(GpuMaterial) == 108, "GpuMaterial must be scalar-packed on every side");
     static_assert(sizeof(GpuSprite) == 56, "GpuSprite must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitter) == 40, "GpuEmitter must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitterFrame) == 16, "GpuEmitterFrame must be scalar-packed on every side");

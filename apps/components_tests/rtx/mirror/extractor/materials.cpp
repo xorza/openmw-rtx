@@ -407,6 +407,9 @@ namespace Rtx::Testing
         ///
         /// The numbers: `decodeColour` undoes the sRGB curve, so 0.5 is 0.2140411, 1 is 1 and
         /// 0.25 is 0.0508761; an emission of 0.25 with a multiplier of two is 0.1017522.
+        ///
+        /// **And the row carries the ambient, decoded, either way**: what the fill is reflected by,
+        /// `Material::mAmbientColour`.
         TEST_F(RtxSceneExtractorTest, theAmbientTheGameOverridesJoinsTheGlowByTheMaterialsAmbient)
         {
             const auto extractOne = [](bool overridden) {
@@ -426,15 +429,24 @@ namespace Rtx::Testing
                 SceneExtractor extractor(scene, context);
                 extractor.extract(*quad, osg::Matrixf::identity(), 0);
                 EXPECT_EQ(scene.materials().getRows().size(), 1u);
-                return scene.materials().getRows().front().mEmissiveColour;
+                return scene.materials().getRows().front();
             };
 
-            const osg::Vec3f lit = extractOne(true);
+            for (const bool overridden : { true, false })
+            {
+                const std::optional<osg::Vec3f> ambient = extractOne(overridden).mAmbientColour;
+                ASSERT_TRUE(ambient.has_value()) << "the content stated one";
+                EXPECT_NEAR(ambient->x(), 0.2140411f, 1.0e-6f);
+                EXPECT_FLOAT_EQ(ambient->y(), 1.0f);
+                EXPECT_NEAR(ambient->z(), 0.0508761f, 1.0e-6f);
+            }
+
+            const osg::Vec3f lit = extractOne(true).mEmissiveColour;
             EXPECT_NEAR(lit.x(), 0.1017522f + 0.2140411f, 1.0e-6f);
             EXPECT_NEAR(lit.y(), 0.1017522f + 1.0f, 1.0e-6f);
             EXPECT_NEAR(lit.z(), 0.1017522f + 0.0508761f, 1.0e-6f);
 
-            const osg::Vec3f unlit = extractOne(false);
+            const osg::Vec3f unlit = extractOne(false).mEmissiveColour;
             EXPECT_NEAR(unlit.x(), 0.1017522f, 1.0e-6f);
             EXPECT_NEAR(unlit.y(), 0.1017522f, 1.0e-6f);
             EXPECT_NEAR(unlit.z(), 0.1017522f, 1.0e-6f);

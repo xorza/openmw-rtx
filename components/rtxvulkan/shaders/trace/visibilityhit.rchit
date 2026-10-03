@@ -105,7 +105,7 @@ void answerPane(inout Answer answer, Surface surface)
     answer.mPane = true;
     answer.mOpacity = surface.mOpacity;
     answer.mRadiance = seen.mGlow;
-    answer.mBounced = seen.mDiffuse;
+    answer.mBounced = seen.mDrawn;
     answer.mSpecular = seen.mSpecular;
     answer.mResponse = seen.mResponse;
 }

@@ -39,8 +39,8 @@ struct Answer
 
     /// The diffuse light this hit gathered from its one bounce, kept apart because the
     /// filter runs over it demodulated by the albedo in `mResponse`, and the composite multiplies the
-    /// two back together afterwards. A pane's is what its path end drew, `SeenPane::mDiffuse`, which
-    /// the pane filter takes the same way.
+    /// two back together afterwards. A pane's is what its path end drew, whole, `SeenPane::mDrawn`,
+    /// which the launch stacks as it stands.
     vec3 mBounced;
 
     /// What the sky's source and the lamps add to what the eye sees — the solid it found, or what

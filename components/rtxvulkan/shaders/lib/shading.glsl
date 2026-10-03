@@ -387,7 +387,11 @@ SplitLight mixSplit(SplitLight a, SplitLight b, float t, float draw)
 }
 
 /// `litSurface` over the whole of `gather`'s light, with the shadowed sources apart where `split`
-/// asks.
+/// asks, and the fill by the ambient albedo.
+///
+/// **The lights by the albedo and the fill by the ambient albedo**, as the rasterizer lights a
+/// fragment `texture × (D × lit + A × ambient)`: `incoming` stands in for the rest of the path, which
+/// is the ambient's place in the rasterizer's sum.
 ///
 /// @param gloss the surface's specular half, `glossOf`.
 /// @param incoming what arrives from everything that is not a light, `pathEnd` at the hit a
@@ -396,8 +400,8 @@ SplitLight mixSplit(SplitLight a, SplitLight b, float t, float draw)
 SplitLight shadeSurface(Surface surface, Gloss gloss, vec3 incoming, uint key, uint lamps, uint path, bool split)
 {
     const DirectLight lit = gather(surface, gloss, key, lamps, path, split);
-    return SplitLight(
-        litSurface(surface, incoming + lit.mDiffuse, lit.mSpecular), shadowedLight(surface, lit), lit.mOpen);
+    return SplitLight(litSurface(surface, lit.mDiffuse, lit.mSpecular) + surface.mAmbientAlbedo * incoming,
+        shadowedLight(surface, lit), lit.mOpen);
 }
 
 /// Which face of a surface a diffuse sample leaves by, and what the sample is then worth.
@@ -536,9 +540,11 @@ struct SeenPane
     /// What it glows with, which nothing drew: `litSurface` with no light arriving.
     vec3 mGlow;
 
-    /// What a path end drew for it, per unit albedo — `pathEnd` under its one occlusion ray, and
-    /// `gather`'s diffuse half — and what its lobe reflects of that, whole.
-    vec3 mDiffuse;
+    /// What a path end drew for it, whole — `gather`'s diffuse half by the albedo, and `pathEnd`
+    /// under its one occlusion ray by the ambient albedo — and what its lobe reflects of that.
+    /// **Whole and not per unit albedo**, because the two halves take two albedos, and the pane
+    /// filter averages a layer over time alone, so nothing needs the light apart from them.
+    vec3 mDrawn;
     vec3 mSpecular;
 
     SurfaceResponse mResponse;
@@ -548,7 +554,7 @@ struct SeenPane
 /// not: the pane filter averages the one over time, and the glow is exact as it stands.
 ///
 /// **The same terms, so a pane composed from these is the pane `shadeAtPathEnd` shades**: the glow
-/// plus the albedo times the drawn light plus the lobe is `litSurface` of the two, to its rounding.
+/// plus the drawn light plus the lobe is `shadeSurface`'s light, to its rounding.
 ///
 /// **At `AMBIENT_EXTERIOR_RATE`**, because the pane filter takes what it draws, as the glossy filter
 /// takes what a lobe's path end draws at the same rate.
@@ -560,8 +566,9 @@ SeenPane shadePane(Surface hit, uint key, uint ambient, uint lamps)
         hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, key + ambient, AMBIENT_EXTERIOR_RATE);
     const DirectLight lit = gather(hit, glossOf(hit), key, lamps, PATH_SEEN, false);
 
-    return SeenPane(litSurface(hit, vec3(0.0), vec3(0.0)), pathEnd(hit.mPosition, reaching) + lit.mDiffuse,
-        lit.mSpecular, responseOf(hit));
+    return SeenPane(litSurface(hit, vec3(0.0), vec3(0.0)),
+        hit.mAlbedo * lit.mDiffuse + hit.mAmbientAlbedo * pathEnd(hit.mPosition, reaching), lit.mSpecular,
+        responseOf(hit));
 }
 
 /// What one bounce brings back, in the two halves `shadeSolid` hands on apart.

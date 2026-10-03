@@ -746,6 +746,11 @@ struct Surface
     /// authored base colour for one with a specular map.
     vec3 mAlbedo;
 
+    /// The same texture under the ambient colour, `GpuMaterial::mAmbientColour`: what the fill and
+    /// the ambient at a path's end are reflected by, as the rasterizer reflects its ambient term.
+    /// Changed after the tint wherever `mAlbedo` is, so the two part only by their colours.
+    vec3 mAmbientAlbedo;
+
     /// The reflectance at normal incidence, `F0`: nought for a vanilla surface, which reflects
     /// nothing — `DIELECTRIC_F0` says why — and the base colour's mix toward `DIELECTRIC_F0` by the
     /// map's metalness for one with a specular map.
@@ -816,6 +821,7 @@ Surface noSurface(vec3 origin)
     surface.mIncident = vec3(0.0, 0.0, -1.0);
     surface.mGeometric = vec3(0.0, 0.0, 1.0);
     surface.mAlbedo = vec3(0.0);
+    surface.mAmbientAlbedo = vec3(0.0);
     surface.mSpecular = vec3(0.0);
     surface.mRoughness = 1.0;
     surface.mEmissiveColour = vec3(0.0);
@@ -913,6 +919,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     // ground carry a colour, so a branch would be taken by most of the frame anyway.
     const vec3 vertexColour = triangleColour(corner, hit.mBary);
     const float tinted = float((material.mFlags & MATERIAL_VERTEX_TINT) != 0u);
+    const float ambientTinted = float((material.mFlags & MATERIAL_VERTEX_AMBIENT) != 0u);
     const float glowing = float((material.mFlags & MATERIAL_VERTEX_GLOW) != 0u);
 
     surface.mEmissiveColour = mix(material.mEmissiveColour, vertexColour, glowing);
@@ -1073,6 +1080,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     // game's own shader. Multiplying the two together would tint a surface twice.
     const vec3 tint = mix(material.mDiffuseColour, vertexColour, tinted);
     surface.mAlbedo = albedo * tint;
+    surface.mAmbientAlbedo = albedo * mix(material.mAmbientColour, vertexColour, ambientTinted);
 
     // **A specular map says the diffuse was authored as a base colour**, which is why it was read
     // above with nothing divided out of it: glTF's metal and roughness, the base colour split
@@ -1119,6 +1127,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
         surface.mSpecular = (classic ? painted.rgb : mix(vec3(DIELECTRIC_F0), albedo, metal)) * tint;
         surface.mRoughness = classic ? roughnessOfExponent(painted.a * 255.0) : painted.y;
         surface.mAlbedo *= 1.0 - metal;
+        surface.mAmbientAlbedo *= 1.0 - metal;
     }
 
     // **Widened by what the footprint averages away**, before anything reads the roughness: the
@@ -1142,6 +1151,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     // the durzog its first. White where there is none, so no surface asks twice.
     const vec4 dark = darkAt(material, mesh, corner, hit.mBary, point, cone, surface.mFootprint, detailed);
     surface.mAlbedo *= dark.rgb;
+    surface.mAmbientAlbedo *= dark.rgb;
 
     // And the lobe, for the tint's reason: a dark map is light painted in.
     if (HAS_MAPS)
@@ -1170,6 +1180,8 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
     const bool lit = frame.mLitEnvironmentMaps != 0u;
     surface.mEmitted += lit ? vec3(0.0) : sheet;
     surface.mAlbedo = lit ? min(surface.mAlbedo + sheet / SUNLIT_WHITE, vec3(1.0)) : surface.mAlbedo;
+    surface.mAmbientAlbedo
+        = lit ? min(surface.mAmbientAlbedo + sheet / SUNLIT_WHITE, vec3(1.0)) : surface.mAmbientAlbedo;
 
     return surface;
 }

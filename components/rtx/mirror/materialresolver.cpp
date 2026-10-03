@@ -453,6 +453,8 @@ namespace Rtx
         // colour is written in the space the artist saw and everything past this is light.
         material.mDiffuseColour = decodeColour(described->mDiffuseColour);
 
+        material.mAmbientColour = decodeColour(described->mAmbientColour);
+
         // The multiplier is applied past the decode: it is a gain on the light and not a colour of
         // its own. Folded in because the game's own shader only ever uses their product.
         material.mEmissiveColour = decodeColour(described->mEmissiveColour) * described->mEmissiveMult;
