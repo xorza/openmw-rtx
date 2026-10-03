@@ -13,6 +13,7 @@ namespace Rtx
 {
     class Buffer;
     class Device;
+    class ShaderCode;
     class Image;
 
     /// One run of vertices drawn with one texture. A run and not an index range, because MyGUI
@@ -54,6 +55,9 @@ namespace Rtx
             std::span<const GuiDraw> draws) const;
 
     private:
+        /// The pipelines made of one read of their two files, which `code` holds until they are.
+        GuiPass(const Device& device, ShaderCode&& code);
+
         const GraphicsPipeline<NoConstants>& pipelineFor(const GuiDraw& draw) const;
 
         /// Five, because a blend mode is baked into a pipeline: over or added, of a straight texture
