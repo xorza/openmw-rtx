@@ -49,6 +49,7 @@ namespace MWRender
         struct NoDistance final : StandingGround
         {
             bool standsGround(const osg::Vec2i&) const override { return false; }
+            std::span<const Rtx::Placement> placementsIn(const osg::Vec2i&) const override { return {}; }
         };
 
         struct TwoBodyFrame
