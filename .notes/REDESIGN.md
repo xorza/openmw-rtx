@@ -17,7 +17,7 @@ notes cite.
 | W15 Groundcover stands in the ring | the measurement again with a real mod | 8 |
 | W16 A mask's soft texels are layers to the eye | the layer's light from its leaf, a design to make; the first shape failed | 8 |
 | W19 The walk visits what can change | the drift between legs, cause still to find | after Phase 5 |
-| §16 Smaller workstreams | the upstream diff, the device, layering, Vulkan, tooling | 5 (§16.6), 6 |
+| §16 Smaller workstreams | the upstream diff, the device, layering, tooling | 6 |
 | §17 Fixes in place | the local groups; the frame constants | 5, 7 |
 
 **Waiting for you:** the keys' clock reads the session's own `timescale` (`sky.lua` takes it at
@@ -305,20 +305,6 @@ support, and the `#ifdef _WIN32` in `glrenderer.cpp`. The core's prose names no 
 (swapchains, descriptor sets, command buffers, `VkInstance`): it states each cost in its own terms,
 and the backend's comment carries the Vulkan reason.
 
-### 16.6 Vulkan lifetimes and barriers
-
-*(REVIEW: Vulkan objects are waited on or rebuilt by a side effect …)*
-
-Staging blocks retire through `Retiring<std::size_t>` like every other retired object. The
-presenter compares against the extent it was last asked for. The two GUI `finish` calls before a
-present-mode change go, or state the reason that remains. A trace pipeline reads each named module
-once per build and chains the words (`maintenance5`), and the GUI pass's four pipelines load their
-two modules once.
-
-The present target states its resting use once (`PresentTarget::sResting`), and every user
-transitions from it and back; the five literals go. `Barriers` asserts in debug that nothing is
-pending when it goes out of scope.
-
 ### 16.7 Tooling single sources
 
 *(REVIEW: The driver, CI and CMake restate facts that each other hold)*
@@ -351,7 +337,6 @@ in one sweep per group.
 | Canaries that no report reads | the stop report prints the `NodeKinds` overflow and `mWornBeyondKept` |
 | Includes that name nothing they use | delete them |
 | Smaller defects | each as written |
-| Where an image was left … ; Barriers that order nothing … | §16.6 |
 | Options a verb takes and does nothing with | an `sPictures` verb set owns the picture-only knobs; every contradictory pair is refused at parse time, and `--accumulate` with an upscaler is refused |
 
 **Tests** follow each workstream. The groups *(Tests that cannot fail …)*, *(Behaviour with no
@@ -380,7 +365,7 @@ so its validation errors are reported.
 
 Each phase ends green on `./omw gate`.
 
-1. **Phase 5, frame cost:** W9's last row, the barrier rows of §16.6, and §17's frame constants. Each with a `./omw release bench` before and after. A change that does
+1. **Phase 5, frame cost:** W9's last row and §17's frame constants. Each with a `./omw release bench` before and after. A change that does
    not improve the worst frame or the p99 does not go in. W8 step 3 follows its own measurement.
 2. **Phase 6, the upstream diff:** §16.1, then §16.2, §16.5 and §16.7.
 3. **Phase 7, tests and docs:** the test groups in §17, and every doc item, `architecture.md` §1 and
