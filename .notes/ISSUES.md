@@ -16,9 +16,6 @@ the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the
 - The driver takes macOS for Linux: `bootstrap` downloads the Linux SDK, `build` asks for a disabled
   preset, and `setup` writes `openmw.cfg` to a folder the game never reads.
   `tools/omw/system.py:10-13`, `:125-137`.
-- On Apple, `cmake/Tests.cmake` reads `RUNTIME_OUTPUT_DIRECTORY`, which the top level never sets
-  there: every test's working directory is empty and the crash matrix writes to `/crash-matrix`.
-  `cmake/Tests.cmake:20`, `:32`.
 - The harness's driver cache path goes through `path.string()`, which throws on Windows for a
   character outside the ANSI code page, so the harness fails at start from such a checkout.
   `apps/rtxtool/instruments/drivercache.cpp:78`, `:85`.
