@@ -2,6 +2,8 @@
 
 #include <string>
 
+#include <osg/FrontFace>
+#include <osg/StateAttribute>
 #include <osg/StateSet>
 #include <osg/Uniform>
 
@@ -22,12 +24,24 @@ namespace Rtx
     Shading Shading::under(const std::span<const Shading> chain, const osg::StateSet& stateSet, const bool animated)
     {
         const Shading* const above = chain.empty() ? nullptr : &chain.back();
-        return Shading{
+        Shading link{
             .mStateSet = &stateSet,
             .mFade = fadeThrough(stateSet, above != nullptr ? above->mFade : Fade{}),
             .mAnimated = animated,
             .mAnimatedThrough = animated || (above != nullptr && above->mAnimatedThrough),
+            .mClockwise = above != nullptr && above->mClockwise,
+            .mClockwiseLocked = above != nullptr && above->mClockwiseLocked,
         };
+
+        if (const osg::StateSet::RefAttributePair* front = stateSet.getAttributePair(osg::StateAttribute::FRONTFACE);
+            front != nullptr && (!link.mClockwiseLocked || (front->second & osg::StateAttribute::PROTECTED) != 0))
+        {
+            link.mClockwise
+                = static_cast<const osg::FrontFace*>(front->first.get())->getMode() == osg::FrontFace::CLOCKWISE;
+            link.mClockwiseLocked = link.mClockwiseLocked || (front->second & osg::StateAttribute::OVERRIDE) != 0;
+        }
+
+        return link;
     }
 
     Fade fadeThrough(const osg::StateSet& stateSet, const Fade& inherited)

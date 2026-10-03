@@ -262,6 +262,10 @@ namespace Rtx
         /// folds back into one triangle and records as `FoldedShape::mFolded`, whether it doubled
         /// the whole shape or a hem of it. A leaf culled after that fold would be gone from one
         /// side, so either says both faces.
+        ///
+        /// **And a row is flipped where clockwise and mirrored disagree**, `InstanceRecord::mFlipFacing`:
+        /// a scale of minus one along x is a determinant of minus one, and a turn of a half about z is
+        /// a determinant of one, which mirrors nothing.
         TEST(RtxInstanceRecordTest, aRowSaysWhichFacesItIsDrawnFrom)
         {
             SceneDesc scene;
@@ -287,6 +291,24 @@ namespace Rtx
             EXPECT_TRUE(records[stated].mTwoSided) << "a material the content turned culling off for";
             EXPECT_TRUE(records[leaf].mTwoSided) << "a shape the content doubled and the fold halved";
             EXPECT_TRUE(records[awning].mTwoSided) << "and one the fold took a twin from anywhere at all";
+
+            const osg::Matrixf mirror = osg::Matrixf::scale(-1.0f, 1.0f, 1.0f);
+            const osg::Matrixf halfTurn = osg::Matrixf::rotate(osg::PI, osg::Vec3f(0.0f, 0.0f, 1.0f));
+            const auto place = [&](const osg::Matrixf& transform, bool clockwise) {
+                return scene.addInstance(MeshInstance{
+                    .mTransform = transform, .mMesh = plain, .mMaterial = opaque, .mClockwise = clockwise });
+            };
+            const Index mirrored = place(mirror, false);
+            const Index stencilled = place(osg::Matrixf::identity(), true);
+            const Index leftArm = place(mirror, true);
+            const Index turned = place(halfTurn, true);
+
+            const std::vector<InstanceRecord> placed = whole(scene);
+            EXPECT_FALSE(placed[solid].mFlipFacing) << "neither clockwise nor mirrored";
+            EXPECT_TRUE(placed[mirrored].mFlipFacing) << "a mirror turns the rasterizer's front round";
+            EXPECT_TRUE(placed[stencilled].mFlipFacing) << "a content file's clockwise front";
+            EXPECT_FALSE(placed[leftArm].mFlipFacing) << "a rigid left part, clockwise over its mirror";
+            EXPECT_TRUE(placed[turned].mFlipFacing) << "a half turn mirrors nothing";
         }
 
         /// OpenSceneGraph's transform and an instance descriptor's must move a point to the same

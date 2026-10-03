@@ -52,6 +52,15 @@ namespace Rtx
         /// is what this is asked for.
         bool mAnimatedThrough = false;
 
+        /// Whether the front is the face wound clockwise here, the nearest `osg::FrontFace` on the
+        /// chain unless one above it overrides, as the rasterizer's state stack resolves it.
+        /// `MeshInstance::mClockwise` says why it is the placement's and not the material's.
+        bool mClockwise = false;
+
+        /// Whether an `osg::FrontFace` above stated `OVERRIDE`, which only a `PROTECTED` one below
+        /// may change.
+        bool mClockwiseLocked = false;
+
         /// The link `stateSet` makes at the near end of `chain`: its fade resolved through the link
         /// above it, and whether it or anything above it is a controller's. The one construction of
         /// a link, so a field added here is set by every walk that builds a chain.

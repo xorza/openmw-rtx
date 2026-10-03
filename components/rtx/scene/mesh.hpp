@@ -114,6 +114,14 @@ namespace Rtx
         /// innermost node on its path that stated a class; `Static` where none did.
         InstanceClass mClass = InstanceClass::Static;
 
+        /// Whether the face this shows is the one wound clockwise, as the state stack above it
+        /// says: a content file's `NiStencilProperty`, or `SceneUtil::attach` over a left body part
+        /// it mirrors. **On the placement and never on the material**, for the reason `mOpacity`
+        /// gives: the left part and the right one share the state set a material is keyed on, and
+        /// the clockwise front hangs above it on the left one alone. `InstanceRecord::mFlipFacing`
+        /// is where it meets the placement's own mirror.
+        bool mClockwise = false;
+
         /// Who stood it, which is who may move it or drop it. The walk's unless the ring says so.
         Stander mStander = Stander::Walk;
 
