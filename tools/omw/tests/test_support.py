@@ -6,7 +6,7 @@ from pathlib import Path
 
 from omw.build import CONFIGURED_FROM, configured_from
 from omw.fetch import build_beside, download, partial_of, settle
-from omw.package import used_osg_plugins
+from omw.package import harness_files, prune_empty, used_osg_plugins
 from omw.system import Refusal, environment_key, parse_set_output
 
 
@@ -107,3 +107,35 @@ class UsedOsgPluginsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class InstallTest(unittest.TestCase):
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root)
+
+    def touch(self, name: str) -> None:
+        (self.root / name).parent.mkdir(parents=True, exist_ok=True)
+        (self.root / name).write_text("")
+
+    def test_the_harness_files_are_named_wherever_they_land_and_the_games_are_not(self):
+        for name in ("openmw.exe", "openmw-rtxtool", "resources/rtx/shaders/a.spv", "resources/vfs/scripts/a.lua",
+                     "rtxtool/views.cfg", "rtxtool/vfs/rtxtool.omwscripts", "resources/rtx/views.cfg",
+                     "resources/rtx/shaders-driver-cache/abc/entry", "test-output/crash-matrix/abort/log.txt"):
+            self.touch(name)
+        self.assertEqual(harness_files(self.root), [
+            "resources/rtx/shaders-driver-cache/abc/entry",
+            "resources/rtx/views.cfg",
+            "rtxtool/vfs/rtxtool.omwscripts",
+            "rtxtool/views.cfg",
+            "test-output/crash-matrix/abort/log.txt",
+        ])
+
+    def test_pruning_takes_every_folder_without_a_file_and_keeps_the_rest(self):
+        self.touch("resources/a.txt")
+        (self.root / "rtxtool" / "vfs" / "scripts").mkdir(parents=True)
+        (self.root / "test-output").mkdir()
+        prune_empty(self.root)
+        self.assertEqual(sorted(p.relative_to(self.root).as_posix() for p in self.root.rglob("*")),
+                         ["resources", "resources/a.txt"])
+

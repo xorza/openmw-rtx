@@ -751,7 +751,7 @@ else()
     set(RTX_RESOURCES_ROOT "${OPENMW_RESOURCES_ROOT}")
 endif()
 set(RTX_SPIRV_DIR "${RTX_RESOURCES_ROOT}/resources/rtx/shaders")
-set(RTX_SPIRV_SOURCE_DIR "${RTX_RESOURCES_ROOT}/resources/rtx/shaders-source")
+set(RTX_SPIRV_SOURCE_DIR "${RTX_RESOURCES_ROOT}/rtxtool/shaders-source")
 add_subdirectory (components/rtxvulkan)
 
 # Apps and tools
@@ -1142,12 +1142,7 @@ elseif(NOT APPLE)
         install(CODE "configure_file(\"${OpenMW_SOURCE_DIR}/files/openmw.cfg\" \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SYSCONFDIR}/openmw.cfg\")")
     endif ()
 
-    # The ray tracer's harness keeps the driver's cache of each shader set beside it
-    # (`RtxTool::DriverCache`), and a cache is this machine's and nobody else's. The shaders with their
-    # source in them are the harness's too (`--shader-source`), and no install carries the harness.
-    install(DIRECTORY "${RUNTIME_OUTPUT_DIRECTORY}/resources" TYPE DATA
-        PATTERN "*-driver-cache" EXCLUDE
-        PATTERN "shaders-source" EXCLUDE)
+    install(DIRECTORY "${RUNTIME_OUTPUT_DIRECTORY}/resources" TYPE DATA)
 endif(APPLE)
 
 # what is necessary to build documentation

@@ -102,13 +102,13 @@ target_link_libraries(openmw-rtxtool-lib PUBLIC
     components
 )
 
-# Named viewpoints and the suites that visit them, beside the shaders so one `--resources` finds
-# both.
-copy_all_resource_files("${OpenMW_SOURCE_DIR}/files/rtx" "${RTX_RESOURCES_ROOT}" "resources/rtx" "views.cfg;benches.cfg")
+# Named viewpoints and the suites that visit them, in the harness's folder beside the resources,
+# `Rtx::harnessDirectory`: one `--resources` finds it, and no install rule names it.
+copy_all_resource_files("${OpenMW_SOURCE_DIR}/files/rtx" "${RTX_RESOURCES_ROOT}" "rtxtool" "views.cfg;benches.cfg")
 
 # The keys a watched run answers to, as the harness's own data directory: `hosted.cpp` adds it
 # wherever there is a window, and the played game never does.
-copy_all_resource_files("${OpenMW_SOURCE_DIR}/files/rtx/vfs" "${RTX_RESOURCES_ROOT}" "resources/rtx/vfs"
+copy_all_resource_files("${OpenMW_SOURCE_DIR}/files/rtx/vfs" "${RTX_RESOURCES_ROOT}" "rtxtool/vfs"
                         "rtxtool.omwscripts;scripts/rtx/hour.lua;scripts/rtx/keys.lua;scripts/rtx/sky.lua")
 
 # The harness links the game, so a picture taken here is the picture played. Only the executable

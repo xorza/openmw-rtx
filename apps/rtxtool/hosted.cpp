@@ -16,6 +16,7 @@
 #include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/multidircollection.hpp>
+#include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/settings/values.hpp>
 #include <components/settings/windowmode.hpp>
 #include <components/toutf8/toutf8.hpp>
@@ -137,7 +138,7 @@ namespace RtxTool
             // directory, and Home with where it stands, through the session; the played game names
             // neither the directory nor the file.
             if (played)
-                dataDirs.push_back(resources / "rtx" / "vfs");
+                dataDirs.push_back(Rtx::harnessDirectory(resources) / "vfs");
 
             engine.setDataDirs(dataDirs);
 

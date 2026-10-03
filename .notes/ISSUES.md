@@ -8,9 +8,9 @@ the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the
   banner, rope and sail has a hard edge where the rasterizer's is soft, and a cobweb, a Telvanni
   crystal or Bloodmoon ice whose texture reaches 255 anywhere loses the coverage under the cut.
   `components/rtx/scene/material.hpp` (`Material::isTranslucent`).
-- Every install ships the harness's `views.cfg`, `benches.cfg` and `rtx/vfs/` scripts, under a
-  comment that says no install carries the harness. `CMakeLists.txt:1143-1149`,
-  `apps/rtxtool/CMakeLists.txt:91-98`.
+- On macOS the harness's folder, `rtxtool/`, stands inside the app bundle (`RTX_RESOURCES_ROOT` is the
+  bundle's `Contents/Resources`), and the bundle is installed whole, so a macOS install carries the
+  harness's places, suites, scripts and the shaders with their source.
 - Night-Eye's lift goes into the ambient, which geometry occludes and the exposure meter adapts to, so
   a cave lifted 133 times shows about 3.4 times brighter. `components/rtx/environment/skylight.cpp:210`.
 - Groundcover is never drawn under the ray tracer; only a log line says so.
