@@ -260,6 +260,10 @@ namespace Rtx
         openZone(timer, commands, "refit");
         mDevice.getFunctions().mCmdBuildAccelerationStructures(commands,
             static_cast<std::uint32_t>(mRefit.mBuilds.size()), mRefit.mBuilds.data(), mRefit.mRangePointers.data());
+
+        // A barrier between the refit and the top level, and not a fence: the top level is built
+        // over structures the refit has just rewritten, which is a dependency inside a command
+        // buffer rather than a reason to go round the driver twice.
         barrierAfterBuild(commands);
         closeZone(timer, commands);
     }
@@ -285,10 +289,10 @@ namespace Rtx
 
         prepareTopLevel(scene, placing.mSlot);
 
-        // A barrier between the refit and the top level, and not a fence: the top level is built
-        // over structures the refit has just rewritten, which is a dependency inside a command
-        // buffer rather than a reason to go round the driver twice.
-        barrierBeforeBuild(placing.mCommands);
+        // **No barrier ahead of the builds**: the trace that may still walk these structures, two
+        // frames in flight, is behind the head barrier every command buffer opens with
+        // (`CommandPool::begin`), and the pose the refit reads is behind the barrier the skin pass
+        // ends in.
         if (compacting)
             mBottomLevel.recordCompaction(placing.mCommands, placing.mTimer);
 

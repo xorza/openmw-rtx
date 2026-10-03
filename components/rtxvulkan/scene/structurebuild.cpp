@@ -33,18 +33,6 @@ namespace Rtx
         };
     }
 
-    void barrierBeforeBuild(const VkCommandBuffer commands)
-    {
-        constexpr BufferUse built{ VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-            VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR };
-
-        handOver(commands,
-            BufferUse{ VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR
-                    | VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-                built.mAccess },
-            built);
-    }
-
     void barrierAfterBuild(const VkCommandBuffer commands)
     {
         handOver(commands,
