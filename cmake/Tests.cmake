@@ -17,7 +17,7 @@ function(openmw_add_test name target)
         target_compile_options(${target} PRIVATE ${OPENMW_TEST_COMPILE_OPTIONS})
         set_target_properties(${target} PROPERTIES OPENMW_TEST_OPTIONED ON)
     endif()
-    add_test(NAME ${name} COMMAND ${target} ${TEST_ARGS} WORKING_DIRECTORY "${RUNTIME_OUTPUT_DIRECTORY}")
+    add_test(NAME ${name} COMMAND ${target} ${TEST_ARGS} WORKING_DIRECTORY "$<TARGET_FILE_DIR:${target}>")
     # The target, by name, for whatever builds before it runs: CTest names no command for a test
     # whose binary is not built yet.
     set_tests_properties(${name} PROPERTIES LABELS "${TEST_LABELS}" OPENMW_TARGET ${target})
@@ -29,7 +29,7 @@ openmw_add_test(cs openmw-cs-tests)
 
 # Every way a game ends, each in a process of its own with the real catcher. The reports stay in the
 # build after a run, so a failed mode leaves what it wrote; each mode empties its own folder first.
-openmw_add_test(crash.matrix crash-tests ARGS --matrix "${RUNTIME_OUTPUT_DIRECTORY}/crash-matrix")
+openmw_add_test(crash.matrix crash-tests ARGS --matrix "${CMAKE_BINARY_DIR}/test-output/crash-matrix")
 
 # Two processes on one device, so one's host work overlaps the other's device work: 17 s rather than
 # 23, and three shards were no faster than two.

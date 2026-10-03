@@ -86,4 +86,4 @@ jobs:
           path: |
             build-${{ matrix.flavour }}/CMakeCache.txt
             build-${{ matrix.flavour }}/**/*.log
-            build-${{ matrix.flavour }}/crash-matrix/
+            build-${{ matrix.flavour }}/test-output/crash-matrix/
