@@ -7,6 +7,7 @@
 #include <system_error>
 #include <thread>
 #include <utility>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -16,6 +17,8 @@
 #include <unistd.h>
 
 #include <apps/rtxtool/instruments/frametimes.hpp>
+#include <components/platform/fifo.hpp>
+#include <components/platform/file.hpp>
 #include <components/testing/util.hpp>
 
 // What `PerfControl` sends down a fifo, read off the fifo's other end. POSIX's alone, because a
@@ -63,6 +66,28 @@ namespace RtxTool
             std::filesystem::path mPath;
             int mHandle = -1;
         };
+
+        /// **A write the fifo takes part of is named by what it took**: a reader that reads nothing
+        /// leaves the fifo's buffer to fill, and a write past it is short, which sets no `errno` —
+        /// so the message is the count, not whatever failed before it.
+        TEST(RtxPerfControlTest, aShortWriteIsNamedByWhatItWrote)
+        {
+            const Reader listening(TestingOpenMW::outputFilePath("perf-control-short-test"));
+            const Platform::File::ScopedHandle fifo(Platform::Fifo::openForWriting(listening.getPath()));
+
+            const std::vector<char> flood(std::size_t{ 1 } << 20, 'x');
+            try
+            {
+                Platform::Fifo::write(fifo, flood.data(), flood.size());
+                FAIL() << "a fifo took a mebibyte nobody read";
+            }
+            catch (const std::system_error& error)
+            {
+                EXPECT_EQ(error.code(), std::make_error_code(std::errc::no_buffer_space));
+                EXPECT_NE(std::string(error.what()).find(" of 1048576 bytes were written"), std::string::npos)
+                    << error.what();
+            }
+        }
 
         TEST(RtxPerfControlTest, aBracketedRunSendsPerfTheTwoWordsItListensFor)
         {
