@@ -330,6 +330,25 @@ says is reverted and recorded in this file, as W8 and the radiance cache are.
 - `./omw release bench` at the same places, a warm-up leg first, from the background.
 - `./omw kernels > before.txt`.
 
+**Done, 2026-10-03.** The places: `ahemmusa-yurt` (two lanterns that pulse slowly, two candles) and
+the suite `[bounce]`: the guild, the planter, the yurt, the pier and the pond at noon. The guild's
+own lamps flicker too: 20 of its 30 flicker slowly and one pulses. No PBR replacer is installed, so
+no place has a glossy `x_s`. The baseline is in `~/.cache/omw-restir/base/` (release `noise`, debug
+`shot --views=all --map --upscale=off`, `kernels`). The bench waits for a quiet card.
+
+`./omw release noise --suite=bounce`, the frame's noise and its bias, in levels of 255:
+
+| Place | Still | `--strafe=150` | `--walk=150` |
+|---|---|---|---|
+| balmora-mages-guild | 0.79, 1.67 | 1.57, 1.98 | 1.82, 2.42 |
+| probe-guild-planter | 0.96, 2.33 | 2.17, 2.29 | 1.79, 3.43 |
+| ahemmusa-yurt | 0.76, 1.78 | 2.47, 2.62 | 2.96, 3.12 |
+| seyda-neen-pier | 0.50, 1.71 | 1.18, 1.44 | 1.18, 2.07 |
+| seyda-neen-pond | 0.47, 1.53 | 1.19, 1.75 | 1.14, 1.63 |
+
+These are higher than §1's figures from the session before: §1 was measured under another
+build of the denoiser. This table is the one the steps are held to.
+
 ### Step 1 — The plumbing, with the reuse off
 
 - `BounceReuse` in the core, the rule in `resolve`, the harness option, the names table.
