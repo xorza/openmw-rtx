@@ -21,7 +21,7 @@ namespace Rtx
         {
             for (const RadianceWidth radiance : { RadianceWidth::Summed, RadianceWidth::Shown })
             {
-                TraceChain chain(mRenderer.getDevice(), mRenderer.getTracePasses(), 1, radiance);
+                TraceChain chain(mRenderer.getDevice(), mRenderer.getTracePasses(), 1, radiance, true);
 
                 chain.resize(64, 32);
                 const GBuffer* const built = &chain.getChannels();

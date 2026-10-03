@@ -567,7 +567,8 @@ namespace Rtx::Testing
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = 0,
                         .mLoss = loss,
-                        .mReconstruction = ReconstructionRequest{ .mDenoise = filter },
+                        .mReconstruction
+                        = ReconstructionRequest{ .mDenoise = filter, .mBounceReuse = BounceReuse::Off },
                         .mExposure = FixedExposure{ 1.0f } });
             };
 

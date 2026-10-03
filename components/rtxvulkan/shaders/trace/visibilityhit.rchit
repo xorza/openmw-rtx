@@ -28,6 +28,7 @@
 #include "lib/random.glsl"
 #include "lib/reproject.glsl"
 #include "lib/shading.glsl"
+#include "lib/surfacematch.glsl"
 #include "lib/traversal.glsl"
 #include "lib/variants.glsl"
 #include "lib/water.glsl"
@@ -120,6 +121,28 @@ void answerLight(inout Answer answer, SplitLight light)
     answer.mOpen = light.mOpen > 0.0;
 }
 
+/// Writes the pixel's bounce as the reuse keeps it, where a frame reuses: `seen`'s draw as a
+/// reservoir of one candidate, worth one over its chance, and the visible point it left from,
+/// `along` this stage's ray.
+///
+/// **Here and not in the launch**, because the shader that shaded the point is the one that holds
+/// it; the launch writes a reservoir of nothing where no shader did (`Answer::mBounceKept`).
+void keepBounce(inout Answer answer, SeenSolid seen, float along)
+{
+    if (frame.mBounceReuse == BOUNCE_REUSE_OFF)
+        return;
+
+    const uvec2 pixel = stagePixel();
+    const uint at = pixel.y * frame.mBounceStride + pixel.x;
+
+    BounceOrigin origin = seen.mOrigin;
+    origin.mOffset = positionAlong(eyeOf(record.mArms), ivec2(pixel), along);
+    bounceOrigins[at] = packOrigin(origin);
+    bounceReservoirs[at] = packBounce(BounceReservoir(
+        seen.mBounceSample, seen.mBounceChance > 0.0 ? 1.0 / seen.mBounceChance : 0.0, 1u, 0u));
+    answer.mBounceKept = true;
+}
+
 /// Fills the payload in for an ordinary lit surface.
 void answerSolid(inout Answer answer, Surface surface)
 {
@@ -146,6 +169,7 @@ void answerSolid(inout Answer answer, Surface surface)
     }
 
     const SeenSolid seen = shadeSolid(surface, stagePixel(), stageCone());
+    keepBounce(answer, seen, gl_HitTEXT);
     answerLight(answer, seen.mLight);
     answer.mBounced = seen.mBounce;
     answer.mFilled = seen.mFill;
@@ -220,6 +244,7 @@ WaterImages answerWater(inout Answer answer, Surface surface)
         return images;
 
     const SeenSolid seen = shadeSolid(bed, pixel, cone);
+    keepBounce(answer, seen, bed.mDistance);
 
     // The direct light and the response as a blend, and the bounce whole, since the albedos it is put
     // back against carry the share. The two normals arrive as codes and leave as one, so a shore

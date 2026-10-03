@@ -34,15 +34,16 @@ namespace Rtx
         /// The kernels are counted as they land, the count never goes back, and it reaches the
         /// whole only once the compile is over. The whole is every tuple and the froxels' launch
         /// for each tuple without maps, 16 + 8, or the full tuple and its froxels alone, 1 + 1 —
-        /// and beside either the 5 launches no tuple changes.
+        /// and beside either the 7 kernels no tuple changes: the air's two, the sprites' three and
+        /// the bounce reuse's two.
         ///
         /// **The full tuple alone is watched as it compiles, and the table read off the suite's
         /// renderer**, which made it before any test ran: 36 kernels made again under the layers
-        /// were four seconds of this binary for an answer the 7 already give.
+        /// were four seconds of this binary for an answer the 9 already give.
         TEST_F(RtxVisibilityKernelsTest, theKernelsAreCountedAsTheyLandAndTheCountEndsWithTheCompile)
         {
             const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, false);
-            constexpr std::uint32_t expected = 1 + 1 + 5;
+            constexpr std::uint32_t expected = 1 + 1 + 7;
 
             JobProgress progress = pass.awaitKernels(std::chrono::milliseconds::zero());
             while (!progress.isDone())
@@ -61,8 +62,8 @@ namespace Rtx
 
             ASSERT_TRUE(Testing::getRenderer().getProfile().mSpecializeLaunches);
             const JobProgress table = Testing::getRenderer().awaitKernels(std::chrono::milliseconds::zero());
-            EXPECT_EQ(table.mMade, 16u + 8u + 5u);
-            EXPECT_EQ(table.mCount, 16u + 8u + 5u);
+            EXPECT_EQ(table.mMade, 16u + 8u + 7u);
+            EXPECT_EQ(table.mCount, 16u + 8u + 7u);
         }
 
         /// A kernel that cannot be made is thrown to every ask, the bounded one included, and not

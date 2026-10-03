@@ -4,6 +4,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/shaders/visibility.h>
 
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -37,6 +38,10 @@ namespace Rtx
         /// Whether the denoisers put this trace back together, the one thing the chain reads of
         /// what reconstructs it.
         bool mDenoised = false;
+
+        /// What the trace makes of its bounce before anything filters it, the other thing the chain
+        /// reads of what reconstructs it.
+        BounceReuse mBounceReuse = BounceReuse::Off;
 
         /// How many frames the chain's running total holds, this one included, or nought where
         /// nothing is averaging (`FrameOptions::mAccumulate`).

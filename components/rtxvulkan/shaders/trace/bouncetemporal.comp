@@ -1,0 +1,126 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+// Last frame's reservoir merged into this frame's candidate: the temporal half of the bounce's
+// reuse, a thread a traced pixel, in place over the reservoir the trace wrote.
+//
+// **The candidate is canonical and last frame's reservoir is shifted to it.** Last frame's sample
+// was found from last frame's visible point; reconnected to this one, the solid angle around it
+// changes by `shiftJacobian`, and the weights are the defensive pairwise MIS of the two inputs
+// (`canonicalWeight`, `neighbourWeight`), each by its confidence. Last frame's reservoir is found
+// at the pixel the motion vector names, among the four a bilinear fetch spans, and taken only where
+// it is the same surface (`heldSurfaceMatches`): the tree's one rule for a history.
+//
+// **No visibility ray in the weights.** Whether last frame's point could have found this frame's
+// candidate is a question about last frame's geometry, which no structure here keeps; this frame's
+// would answer it approximately, and for a still eye the two points are one. The resolve's final
+// ray is what stops a sample hidden now.
+
+#include "bouncereuse.h"
+#include "gbuffer.h"
+#include "scene.h"
+
+#include "lib/bindings.glsl"
+#include "lib/bouncereservoir.glsl"
+#include "lib/pixels.glsl"
+#include "lib/random.glsl"
+#include "lib/surfacematch.glsl"
+
+layout(local_size_x = BOUNCE_TEMPORAL_WORKGROUP, local_size_y = BOUNCE_TEMPORAL_WORKGROUP) in;
+
+/// Last frame's reservoir at the pixel the motion vector names, or nothing where none of the four
+/// a fetch spans is the surface in front of this one. The tap the fetch weighs most, of those
+/// that match, so a still eye takes its own pixel's.
+struct Held
+{
+    BounceReservoir mReservoir;
+    BounceOrigin mOrigin;
+};
+
+Held heldBefore(uvec2 pixel, BounceOrigin origin)
+{
+    const vec3 moved = imageLoad(motion, ivec2(pixel)).xyz;
+    const HistoryFootprint before = historyFootprint(ivec2(pixel), frame.mEyes.mWorld.mJitter, moved);
+    const float away = length(origin.mOffset);
+
+    Held held = Held(noBounce(), noOrigin());
+    float best = 0.0;
+    for (int corner = 0; corner < 4; ++corner)
+    {
+        const ivec2 tap = historyTap(before, corner);
+        const float share = historyShare(before, corner);
+        if (outsideOf(uvec2(tap), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)) || !(share > best))
+            continue;
+
+        const uint at = uint(tap.y) * frame.mBounceStride + uint(tap.x);
+        BounceOrigin was = unpackOrigin(bounceOriginsBefore[at]);
+        if (!was.mKept || !heldSurfaceMatches(vec4(was.mNormal, length(was.mOffset)), origin.mNormal, away, moved, 1.0))
+            continue;
+
+        // Carried to this frame's eye, which every offset this pass compares is from.
+        was.mOffset -= frame.mCameraMotion;
+
+        best = share;
+        held = Held(unpackBounce(bounceReservoirsBefore[at]), was);
+    }
+
+    return held;
+}
+
+void main()
+{
+    const uvec2 pixel = gl_GlobalInvocationID.xy;
+    if (outsideOf(pixel, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
+        return;
+
+    const uint at = pixel.y * frame.mBounceStride + pixel.x;
+    const BounceOrigin origin = unpackOrigin(bounceOrigins[at]);
+    if (!origin.mKept || frame.mBounceHistory == 0u)
+        return;
+
+    const Held held = heldBefore(pixel, origin);
+    BounceReservoir before = held.mReservoir;
+    before.mConfidence = min(before.mConfidence, BOUNCE_CONFIDENCE_CAP);
+    ++before.mAge;
+    if (!holdsBounce(before) || before.mAge > BOUNCE_AGE_CAP)
+        return;
+
+    const BounceReservoir candidate = unpackBounce(bounceReservoirs[at]);
+
+    // The candidate at this point, and at last frame's: shifted there and back, `p̂←j`.
+    const BounceReach candidateHere = reachOf(candidate.mSample, origin.mOffset, origin.mOffset);
+    const float candidateTarget = bounceTarget(origin, candidate.mSample, candidateHere);
+    const float candidateThere
+        = bounceTarget(held.mOrigin, candidate.mSample, reachOf(candidate.mSample, origin.mOffset, held.mOrigin.mOffset))
+        * shiftJacobian(candidate.mSample, origin.mOffset, held.mOrigin.mOffset);
+
+    // Last frame's sample at its own point, over the Jacobian of its shift to this one, and here.
+    const float jacobian = shiftJacobian(before.mSample, held.mOrigin.mOffset, origin.mOffset);
+    const BounceReach beforeHere = reachOf(before.mSample, held.mOrigin.mOffset, origin.mOffset);
+    const float beforeTarget = bounceTarget(origin, before.mSample, beforeHere);
+    const float beforeThere = jacobian > 0.0
+        ? bounceTarget(held.mOrigin, before.mSample,
+              reachOf(before.mSample, held.mOrigin.mOffset, held.mOrigin.mOffset))
+            / jacobian
+        : 0.0;
+
+    const float total = float(candidate.mConfidence + before.mConfidence);
+    const float candidateMis = canonicalWeight(candidateTarget, candidate.mConfidence, total,
+        vec4(candidateThere, 0.0, 0.0, 0.0), vec4(float(before.mConfidence), 0.0, 0.0, 0.0));
+    const float beforeMis
+        = neighbourWeight(beforeThere, beforeTarget, before.mConfidence, total, candidate.mConfidence);
+
+    // Last frame's sample from this frame's point: its offset is this point's from here on.
+    BounceSample shifted = before.mSample;
+    shifted.mOffset = shifted.mSky ? shifted.mOffset : beforeHere.mTowards * beforeHere.mDistance;
+
+    uint draws = randomSeed(pixelKey(pixel) + SEED_BOUNCE_TEMPORAL);
+    BounceMerge merge = startMerge();
+    offer(merge, candidate.mSample, candidateMis * candidateTarget * candidate.mWeight, candidateTarget,
+        candidate.mConfidence, 0u, randomNext(draws));
+    offer(merge, shifted, beforeMis * beforeTarget * before.mWeight * jacobian, beforeTarget, before.mConfidence,
+        before.mAge, randomNext(draws));
+
+    bounceReservoirs[at] = packBounce(finishMerge(merge));
+}

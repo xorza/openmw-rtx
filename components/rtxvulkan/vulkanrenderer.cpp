@@ -80,7 +80,7 @@ namespace Rtx
         , mRing(mDevice, mCounting || mStress != nullptr, mStress != nullptr ? mStress->getTickMs() : 0.0)
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
-        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth)
+        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth, true)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get())
         , mMedia(mDevice)
         , mGui(mDevice)
@@ -574,6 +574,7 @@ namespace Rtx
                 .mAsked = BinCamera::of(camera),
                 .mSampled = sampled,
                 .mDenoised = reconstruction.mDenoised,
+                .mBounceReuse = reconstruction.mBounceReuse,
                 .mAccumulate = options.mAccumulate,
                 .mPastLost = past.mReprojectionLost,
                 .mTimer = &timer,

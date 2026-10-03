@@ -149,6 +149,7 @@ namespace Rtx
             EXPECT_EQ(picture.mJitterPhases, 0u);
             EXPECT_EQ(picture.mNoise, NoiseSource::BlueNoiseTile);
             EXPECT_EQ(picture.mLevelBias, 0.0f);
+            EXPECT_EQ(picture.mBounceReuse, BounceReuse::Off) << "a picture has no past to reuse";
 
             const Reconstruction asked = Reconstruction::resolve(
                 Upscale::Off, ReconstructionRequest{ .mDenoise = true, .mJitter = false }, sUnscaled);
@@ -156,6 +157,31 @@ namespace Rtx
             EXPECT_EQ(picture.mJitter, asked.mJitter);
             EXPECT_EQ(picture.mLevelBias, asked.mLevelBias);
             EXPECT_NE(picture.mDenoised, Reconstruction{}.mDenoised) << "the default is the raw light";
+        }
+
+        /// **The bounce is reused as it was asked, whatever the filter and the upscaler**, because the
+        /// reservoirs are a history of their own; and the whole reuse is what a request that says
+        /// nothing asks, as the filter is. **The trace composes the frame only where nothing comes
+        /// after it**: no filter, and no resolve of a reused bounce either.
+        TEST(RtxReconstructionTest, theBounceIsReusedAsAskedAndATraceComposesOnlyWhereNothingFollows)
+        {
+            EXPECT_EQ(ReconstructionRequest{}.mBounceReuse, BounceReuse::Spatiotemporal);
+
+            for (const BounceReuse reuse :
+                { BounceReuse::Off, BounceReuse::Own, BounceReuse::Temporal, BounceReuse::Spatiotemporal })
+                for (const bool denoise : { false, true })
+                    for (const Upscale upscale : { Upscale::Off, Upscale::Quality })
+                    {
+                        const Reconstruction resolved = Reconstruction::resolve(upscale,
+                            ReconstructionRequest{ .mDenoise = denoise, .mBounceReuse = reuse },
+                            upscale == Upscale::Off ? sUnscaled : sHalved);
+                        EXPECT_EQ(resolved.mBounceReuse, reuse) << sBounceReuseNames.name(reuse);
+                        EXPECT_EQ(resolved.composedByTrace(), !denoise && reuse == BounceReuse::Off)
+                            << sBounceReuseNames.name(reuse) << (denoise ? " filtered" : " unfiltered");
+                    }
+
+            EXPECT_EQ(sBounceReuseNames.name(BounceReuse::Spatiotemporal), "spatiotemporal");
+            EXPECT_EQ(sBounceReuseNames.named("own"), BounceReuse::Own);
         }
 
         /// The spellings a report and a command line write, and `auto` left to the harness as its

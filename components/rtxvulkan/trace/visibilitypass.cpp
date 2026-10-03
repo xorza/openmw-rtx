@@ -23,6 +23,7 @@
 #include <components/rtx/scene/lightgrid.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/shaders/bindings.h>
+#include <components/rtx/shaders/bouncereuse.h>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
@@ -41,6 +42,7 @@
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 
+#include "bouncereservoirs.hpp"
 #include "fogvolume.hpp"
 #include "gbuffer.hpp"
 #include "ripplepass.hpp"
@@ -111,6 +113,12 @@ namespace Rtx
                 = VkDescriptorSetLayoutBinding{ Shaders::BIND_COUNTS, sStorage, 1, sStages, nullptr };
             declared[Shaders::BIND_SUN_GLARE]
                 = VkDescriptorSetLayoutBinding{ Shaders::BIND_SUN_GLARE, sStorage, 1, sStages, nullptr };
+
+            // The bounce's reservoirs, which turn every frame and so are pushed with it.
+            for (const std::uint32_t binding :
+                { Shaders::BIND_BOUNCE_RESERVOIRS, Shaders::BIND_BOUNCE_RESERVOIRS_BEFORE, Shaders::BIND_BOUNCE_ORIGINS,
+                    Shaders::BIND_BOUNCE_ORIGINS_BEFORE, Shaders::BIND_BOUNCE_THROUGH })
+                declared[binding] = VkDescriptorSetLayoutBinding{ binding, sStorage, 1, sStages, nullptr };
 
             declared[Shaders::BIND_FRAME] = VkDescriptorSetLayoutBinding{ Shaders::BIND_FRAME,
                 VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, sStages, nullptr };
@@ -223,7 +231,7 @@ namespace Rtx
         // a hand takes up whatever is next, and a tuple taken last is the whole batch waiting on
         // one hand.
         constexpr std::array singles{ Kernel::Depth, Kernel::Integrate, Kernel::SpriteComposite, Kernel::SpriteShelter,
-            Kernel::SpriteEmitters };
+            Kernel::SpriteEmitters, Kernel::BounceTemporal, Kernel::BounceResolve };
 
         std::vector<Wanted> wanted;
         wanted.reserve(2 * VisibilityVariant::sCount + singles.size());
@@ -350,6 +358,14 @@ namespace Rtx
                 mKernels.mSpriteEmitters = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
                     sharedSets(textureLayout), TraceShaders{ .mRaygen = "spriteemitters.rgen.spv" }, "sprite emitters");
                 return;
+            case Kernel::BounceTemporal:
+                mKernels.mBounceTemporal = std::make_unique<ComputePipeline<NoConstants>>(
+                    mDevice, sBindings, sharedSets(textureLayout), "bouncetemporal.comp.spv", "bounce temporal");
+                return;
+            case Kernel::BounceResolve:
+                mKernels.mBounceResolve = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
+                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "bounceresolve.rgen.spv" }, "bounce resolve");
+                return;
         }
     }
 
@@ -453,6 +469,13 @@ namespace Rtx
             && "a trace with no glare query to count into");
         writes.buffer(Shaders::BIND_SUN_GLARE, inputs.mSubject.mSunGlare->describe());
 
+        const BounceReservoirs& reservoirs = inputs.mReservoirs;
+        writes.buffer(Shaders::BIND_BOUNCE_RESERVOIRS, reservoirs.getReservoirs().describe());
+        writes.buffer(Shaders::BIND_BOUNCE_RESERVOIRS_BEFORE, reservoirs.getReservoirsBefore().describe());
+        writes.buffer(Shaders::BIND_BOUNCE_ORIGINS, reservoirs.getOrigins().describe());
+        writes.buffer(Shaders::BIND_BOUNCE_ORIGINS_BEFORE, reservoirs.getOriginsBefore().describe());
+        writes.buffer(Shaders::BIND_BOUNCE_THROUGH, reservoirs.getThrough().describe());
+
         if (shown != nullptr)
         {
             assert(!shown->isEmpty() && "a composite over no frame");
@@ -480,6 +503,9 @@ namespace Rtx
         Shaders::VisibilityConstants described = constants;
 
         described.mComposed = composed ? 1u : 0u;
+        described.mBounceReuse = static_cast<std::uint32_t>(inputs.mBounceReuse);
+        described.mBounceStride = inputs.mReservoirs.getStride();
+        described.mBounceHistory = inputs.mBounceHistory ? 1u : 0u;
 
         described.mScreen = screenBasisOf(described.mEyes.mWorld.mBasis);
         described.mPreviousScreen = screenBasisOf(described.mPrevious);
@@ -653,6 +679,45 @@ namespace Rtx
         // The host's read of the count is ordered by whoever reads it: `renderFrame` records
         // `Buffer::orderForHostRead` after every pass that could add to it, and a picture's count
         // is read by nobody.
+    }
+
+    void VisibilityPass::recordBounceReuse(const VkCommandBuffer commands, const VisibilityInputs& inputs,
+        const Shaders::VisibilityConstants& constants, GpuTimer* const timer) const
+    {
+        if (inputs.mBounceReuse == BounceReuse::Off)
+            return;
+
+        const std::uint32_t width = constants.mEyes.mWorld.mWidth;
+        const std::uint32_t height = constants.mEyes.mWorld.mHeight;
+        assert(inputs.mReservoirs.getStride() >= width && "a reuse over reservoirs narrower than the trace");
+
+        // The trace's reservoirs and its motion vectors, written by the launch, read and merged into
+        // by the dispatch and read by the launch after it.
+        handOver(commands, Use::sBufferShaderReadWrite, Use::sBufferShaderReadWrite);
+
+        if (inputs.mBounceReuse >= BounceReuse::Temporal)
+        {
+            openZone(timer, commands, "bounce temporal");
+
+            const auto& temporal = *kernels().mBounceTemporal;
+            bind(commands, temporal);
+            pushInputs(commands, temporal, inputs);
+            vkCmdDispatch(commands, groupsFor(width, Shaders::BOUNCE_TEMPORAL_WORKGROUP),
+                groupsFor(height, Shaders::BOUNCE_TEMPORAL_WORKGROUP), 1);
+
+            closeZone(timer, commands);
+
+            handOver(commands, Use::sBufferShaderReadWrite, Use::sBufferShaderReadWrite);
+        }
+
+        openZone(timer, commands, "bounce resolve");
+
+        const auto& resolve = *kernels().mBounceResolve;
+        bind(commands, resolve);
+        pushInputs(commands, resolve, inputs);
+        resolve.traceRays(commands, width, height);
+
+        closeZone(timer, commands);
     }
 
     void VisibilityPass::recordSpriteComposite(const VkCommandBuffer commands, const VisibilityInputs& inputs,
