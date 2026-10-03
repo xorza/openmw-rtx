@@ -15,8 +15,9 @@ the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the
   a cave lifted 133 times shows about 3.4 times brighter. `components/rtx/environment/skylight.cpp:210`.
 - Groundcover is never drawn under the ray tracer; only a log line says so.
   `apps/openmw/mwrender/rtx/rtxrenderer.cpp:214-219`.
-- Textures in BC4, BC6H, BC7 and other formats outside the list draw as the grey
-  stand-in, and a sky deck in one is left out. `components/rtx/image/texels.cpp:145-204`.
+- A texture the engine loads in a format the reader does not name — alpha-only `A8`, a sixteen- or
+  thirty-two-bit float format, or BC4 — draws as the grey stand-in, and a sky deck in one is left
+  out, where the rasterizer samples it. `components/rtx/image/texels.cpp` `readFormat`.
 - The tracer reads `SceneUtil::VertexColorModes::Ambient` as `VertexColour::Tint`, which replaces
   the diffuse colour with the vertex colour. The rasterizer's `getDiffuseColor` keeps the material's
   diffuse under that mode, and only the ambient takes the vertex colour.
