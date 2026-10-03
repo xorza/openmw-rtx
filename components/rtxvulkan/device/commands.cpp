@@ -206,9 +206,9 @@ namespace Rtx
         mFreeHolds.push_back(hold);
     }
 
-    void CommandPool::giveStaging(std::size_t block, const std::uint64_t readUntil)
+    void CommandPool::giveStaging(const std::size_t block, const std::uint64_t readUntil)
     {
-        mRetiringStaging.hold(readUntil, std::move(block));
+        mRetiringStaging.hold(readUntil, std::size_t{ block });
     }
 
     void CommandPool::begin(VkCommandBuffer commands)

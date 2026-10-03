@@ -47,7 +47,7 @@ namespace Rtx
     /// which is also the scene everything here stands in and the walk's counts it adds to, and
     /// holds by `Reach::mHolds` rather than being named again on every walk. Everything the
     /// thread reads is lent and given back — `Spares` says why an address and not a shared count,
-    /// and `giveBackHolds` why a hold is a cell's.
+    /// and `letGo` why a hold is a cell's.
     ///
     /// **The lamps of the cells the game has not loaded are the ring's too.** `REC_LIGH` is not a
     /// paged type and must not become one, because both renderers read the paging's type filter;
@@ -186,15 +186,10 @@ namespace Rtx
         /// where the world has no groundcover.
         float grassBand() const;
 
-        /// Hands the supply a cell's holds on its models and its ground's textures, for a cell the
-        /// frame is letting go of — one it adopted, or one handed over that it never did. A hold
-        /// is a cell's, which is what makes a return exact whatever the thread read in between.
-        void giveBackHolds(const HeldCell& cell);
-        void giveBackHolds(const PreparedCell& cell);
-
         /// What a held cell the ring lets go of owes: its hold on each model, and the reader's
-        /// holds on its models and its ground's images. A cell's grass, held or handed, owes the
-        /// same of its models.
+        /// holds on its models and its ground's images, handed to the supply. A cell's grass, held
+        /// or handed, owes the same of its models, and so does a handed cell (`discard`). A hold is
+        /// a cell's, which is what makes a return exact whatever the thread read in between.
         void letGo(const HeldCell& cell);
         void letGo(std::span<PreparedModel* const> models);
 

@@ -605,12 +605,15 @@ namespace Rtx
             if (shown == grass.mShown)
                 continue;
 
+            if (!shown)
+            {
+                dropSlots(grass);
+                continue;
+            }
+
             for (Placement& placement : grass.mPlacements)
-                if (!shown)
-                    drop(placement.mStood, mGrassPlaced);
-                else if (stands(placement))
-                    stand(placement.mStood, mGrassPlaced);
-            grass.mShown = shown;
+                restand(placement, true, mGrassPlaced);
+            grass.mShown = true;
         }
 
         return lit;

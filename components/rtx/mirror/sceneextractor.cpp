@@ -165,6 +165,12 @@ namespace Rtx
         /// not before, so a placement lands on the bits `computeLocalToWorld` would have landed it.
         osg::Matrixf placed() const { return osg::Matrixf(mHere) * mRoot; }
 
+        /// Whether `node` jumped, or stands under a node that did.
+        bool jumps(const osg::Node& node) const
+        {
+            return mJumping || std::ranges::find(mJumped, &node) != mJumped.end();
+        }
+
         SceneExtractor& mExtractor;
 
         /// The extractor's own classifier, which answers for a node here and for a drawable there:
@@ -323,7 +329,7 @@ namespace Rtx
         const bool root = mFreezes && mDepth == mStampDepth;
         if (root)
         {
-            const bool jumped = mJumping || std::ranges::find(mJumped, &node) != mJumped.end();
+            const bool jumped = jumps(node);
             if (!jumped && mExtractor.passFrozen(node, mHere))
                 return;
 
@@ -394,7 +400,7 @@ namespace Rtx
         const InstanceClass outerClass = mClass;
         const std::optional<std::size_t> outerGlow = mGlow;
         const bool outerJumping = mJumping;
-        mJumping = mJumping || std::ranges::find(mJumped, &node) != mJumped.end();
+        mJumping = jumps(node);
         // **A first-person root keeps its subtree whatever is marked inside it**: the rasterizer
         // draws everything under the arms at their field of view and over everything, a spell's
         // swirl on the hands included, and the arms' eye is what traces that class.

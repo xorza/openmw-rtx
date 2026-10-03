@@ -160,7 +160,7 @@ namespace Rtx
                 .mExtent = sWaveTiles[index].mExtent,
                 .mTime = seconds,
             };
-            dispatch(commands, mRowsPipeline, rows, shaped, Groups{ .mX = grid, .mY = 1 });
+            dispatch(commands, mRowsPipeline, rows, shaped, Groups{ .mX = grid });
         }
         handOver(commands);
 
@@ -175,7 +175,7 @@ namespace Rtx
             columns.image(Shaders::WAVE_COLUMNS_BIND_CURVATURE, tile.mCurvature.describeStorage());
 
             const Shaders::WaveColumnsConstants unpacked{ .mCount = grid };
-            dispatch(commands, mColumnsPipeline, columns, unpacked, Groups{ .mX = grid, .mY = 1 });
+            dispatch(commands, mColumnsPipeline, columns, unpacked, Groups{ .mX = grid });
         }
 
         Image::buildMips(commands, images);
