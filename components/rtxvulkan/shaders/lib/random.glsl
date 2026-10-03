@@ -128,6 +128,12 @@ const uint SEED_SHADOWED_SHORE = SEED_SHADOWED_LEGS + 1u;
 const uint SEED_BOUNCE_TEMPORAL = SEED_SHADOWED_SHORE + 1u;
 const uint SEED_BOUNCE_SPATIAL = SEED_BOUNCE_TEMPORAL + 1u;
 
+/// And the lamp and the occlusion ray of a kept sample shaded again (`bouncevalidate.rgen`), for
+/// the reason `SEED_AMBIENT_REACHING` gives, and apart from the trace's own: the pixel asked
+/// draws a candidate of its own in the same frame, at another point.
+const uint SEED_LAMPS_VALIDATED = SEED_BOUNCE_SPATIAL + 1u;
+const uint SEED_AMBIENT_VALIDATED = SEED_LAMPS_VALIDATED + 1u;
+
 /// How far each stream's sequence advances between frames.
 ///
 /// **An additive recurrence with an irrational step**, which is the cheapest sequence whose every

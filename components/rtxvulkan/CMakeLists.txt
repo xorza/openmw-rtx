@@ -73,6 +73,7 @@ set(RTX_SHADERS
     shaders/upscale/fsrreactivity.comp
     shaders/trace/bounceresolve.rgen
     shaders/trace/bouncetemporal.comp
+    shaders/trace/bouncevalidate.rgen
     shaders/trace/fogdepth.rgen
     shaders/trace/fogintegrate.comp
     shaders/trace/fogscatter.rgen

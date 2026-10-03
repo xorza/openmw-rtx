@@ -228,6 +228,7 @@ namespace Rtx
             SpriteComposite,
             SpriteShelter,
             SpriteEmitters,
+            BounceValidate,
             BounceTemporal,
             BounceResolve,
         };
@@ -340,8 +341,10 @@ namespace Rtx
             /// answered by the pass that filled the froxels.
             std::unique_ptr<ComputePipeline<NoConstants>> mIntegrate;
 
-            /// The bounce's reuse, which takes no tuple: the temporal merge, a dispatch because it
-            /// traces nothing, and the resolve, a launch because it traces the visibility rays.
+            /// The bounce's reuse, which takes no tuple: the validation, a launch because it traces and
+            /// shades again what last frame kept; the temporal merge, a dispatch because it traces
+            /// nothing; and the resolve, a launch because it traces the visibility rays.
+            std::unique_ptr<TracePipeline<NoConstants>> mBounceValidate;
             std::unique_ptr<ComputePipeline<NoConstants>> mBounceTemporal;
             std::unique_ptr<TracePipeline<NoConstants>> mBounceResolve;
         };
