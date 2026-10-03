@@ -13,7 +13,7 @@ notes cite.
 |---|---|---|
 | W6 Scene tables change by the row | block growth, running totals, the refit, the presence rows | 5 |
 | W8 The denoisers share one surface test | step 3 after its probe (steps 1 and 2 measured and declined) | 5 |
-| W9 Passes run only over what is new | the ocean transform, the receiver words, the two measured first | 5 |
+| W9 Passes run only over what is new | the ocean transform, the two measured first | 5 |
 | W14 The ray tracer shows what the rasterizer shows | the items that wait for an input outside the tree | after its inputs |
 | W15 Groundcover stands in the ring | the measurement again with a real mod | 8 |
 | W16 A mask's soft texels are layers to the eye | the layer's light from its leaf, a design to make; the first shape failed | 8 |
@@ -161,16 +161,18 @@ not move a denoised picture beyond `sDenoiserNoiseLevels`.
 | Pass | Change | Expected gain |
 |---|---|---|
 | ocean transform (`waveform`, `waveline` ×6, `wavecompose`) | two dispatches and one barrier: the row pass computes the spectrum of its row for all three pairs in shared memory and transforms; the column pass transforms and stores into the tiles | about 36 MiB less traffic a frame, four queue drains fewer; the 128 cascade stops running 256 threads with 64 working |
-| `shadowtiles.comp` | the mask pass writes a receiver word per tile; the classification reads words | two full-frame reads off the cleared tiles |
 | skinning and morphing | measure first: one dispatch over a table of rows in place of one per mesh | hundreds of tiny dispatches become one, if the command processor shows the cost |
 | histogram on the bloom's first halving; last wavelet level into the composite | measure first | up to two frame-sized round trips |
 
 Each row has its own commit and its own `bench` figure. A change that shows no gain on a hot card
 does not go in.
 
-**Declined on its figure** (2026-10-03): `spriteruns.comp` leaving a workgroup none of whose tiles
-any sprite reaches — the `sprites` zone stood at 0.047 ms at `balmora-storm-night` either way,
-three legs each. **Already so, and now held by a test**: a sprite the shelter zeroed has no radius,
+**Declined on their figures** (2026-10-03, three legs each): `spriteruns.comp` leaving a workgroup
+none of whose tiles any sprite reaches — the `sprites` zone stood at 0.047 ms at
+`balmora-storm-night` either way; and the mask pass packing a receiver word a tile for the
+classification (the branch `w9-receiver-words`) — `shadow` 0.228 → 0.229 ms at `seyda-neen-ship`
+and 0.237 → 0.239 ms at `balmora-mages-guild`, the surface read it added to the mask pass costing
+what the two it took off the classification saved. **Already so, and now held by a test**: a sprite the shelter zeroed has no radius,
 which `capsuleSpan` gives an empty arc, so it was in no tile; and the medium and additive walks run
 only in tiles a presence of a shown class marks, each crossing's class tested against the ray mask.
 
