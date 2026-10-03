@@ -15,7 +15,7 @@ notes cite.
 | W8 The denoisers share one surface test | steps 1 and 2; step 3 after its probe | 5 |
 | W9 Passes run only over what is new | every row, each with its bench | 5 |
 | W14 The ray tracer shows what the rasterizer shows | the items that wait for an input outside the tree | after its inputs |
-| W15 Groundcover stands in the ring | point lighting; the measurement again with a real mod | 8 |
+| W15 Groundcover stands in the ring | the measurement again with a real mod | 8 |
 | W16 A mask's soft texels are layers to the eye | the whole of it, behind its measurement | 8 |
 | W19 The walk visits what can change | the probe, then the frozen subtrees | 5 |
 | §16 Smaller workstreams | the upstream diff, the device, layering, Vulkan, tooling | 5 (§16.6), 6 |
@@ -191,20 +191,16 @@ Each carries a test with hand-computed values, on the GPU where the fact is a pi
 reader)*. The ring reads and stands it (`Rtx::GroundcoverSource`, `MWRender::TracedGroundcover`);
 what is left is below.
 
-1. **Point lighting.** Where `[Groundcover] point lighting` is off, the material carries
-   `MATERIAL_NO_LAMPS`, and the lamp walk's weight is multiplied by a factor of nought for it — one
-   path, no branch, as `lightShown` does for a hidden class. Until then `rtxsupport` declines the
-   key. `./omw kernels --against` and `./omw shot --against` with it.
-2. **The acceptance measurement, again with a real mod.** Taken on 2026-10-03 with a generated
-   plugin (60 593 plants over 49 cells, five vanilla flora models, about 1 240 plants a cell),
-   `./omw release bench`, the trace zone's median normalised to the clock, four legs with grass
-   off against two with it on: `seyda-neen-ship` +13.0%, `seyda-neen-pond` +15.1%,
-   `seyda-neen-ship-dawn` +8.6% (two legs off); `tlas` +0.05 to 0.07 ms. Under the fifth, so an
-   instance a plant stays. **The cost is the geometry and not the cut**: the same plants opaque
-   cost +7.2% and +13.5%. The legs with grass off spread 3.00 to 3.64 ms at the pond, as wide as
-   the threshold, so a real mod's density on a quiet desktop decides again before the merge is
-   ruled out; the merge per cell and model, built on the reader thread, is what goes in if it
-   crosses.
+**The acceptance measurement, again with a real mod.** Taken on 2026-10-03 with a generated
+plugin (60 593 plants over 49 cells, five vanilla flora models, about 1 240 plants a cell),
+`./omw release bench`, the trace zone's median normalised to the clock, four legs with grass
+off against two with it on: `seyda-neen-ship` +13.0%, `seyda-neen-pond` +15.1%,
+`seyda-neen-ship-dawn` +8.6% (two legs off); `tlas` +0.05 to 0.07 ms. Under the fifth, so an
+instance a plant stays. **The cost is the geometry and not the cut**: the same plants opaque
+cost +7.2% and +13.5%. The legs with grass off spread 3.00 to 3.64 ms at the pond, as wide as
+the threshold, so a real mod's density on a quiet desktop decides again before the merge is
+ruled out; the merge per cell and model, built on the reader thread, is what goes in if it
+crosses.
 
 ---
 
@@ -434,7 +430,7 @@ Each phase ends green on `./omw gate`.
 2. **Phase 6, the upstream diff:** §16.1, then §16.2, §16.5 and §16.7.
 3. **Phase 7, tests and docs:** the test groups in §17, and every doc item, `architecture.md` §1 and
    §13 included.
-4. **Phase 8, the open issues:** W15's point lighting and its measurement, W16 behind its measurement.
+4. **Phase 8, the open issues:** W15's measurement with a real mod, W16 behind its measurement.
    W19's probe goes with Phase 5, and its frozen subtrees with W6.
 
 W14 goes as each input arrives.

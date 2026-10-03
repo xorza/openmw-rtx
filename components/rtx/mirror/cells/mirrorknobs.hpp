@@ -7,7 +7,7 @@
 namespace Rtx
 {
     /// What the mirror is handed of the settings, and never reads for itself: the two knobs the
-    /// paging read for the distance's statics, which this renderer stands itself, the two the
+    /// paging read for the distance's statics, which this renderer stands itself, the three the
     /// groundcover read, and how far out the world is built. Handed once, because a frame reads what it was handed: the
     /// reach is one number for the ground, the air, the distant lights and the checks, and a host that asked the
     /// registry per frame could answer it differently in each. A run's, in `RunSetup`, so the harness and the played
@@ -30,6 +30,9 @@ namespace Rtx
 
         /// `[Groundcover] density`: the share of each cell's plants that stand.
         float mGroundcoverDensity = 0.0f;
+
+        /// `[Groundcover] point lighting`: whether the lamps light a plant.
+        bool mGroundcoverLampLit = true;
 
         /// `[RTX] specular map layout`: what the content's `_spec` maps mean, for every scene the
         /// mirror and the pictures inside the interface read materials into.

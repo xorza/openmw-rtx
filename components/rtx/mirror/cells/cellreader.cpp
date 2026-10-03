@@ -137,7 +137,8 @@ namespace Rtx
                 return;
 
             // At or above a half, and no blend: the alpha test upstream's groundcover chunk
-            // overrides every state set below it with. A cut has no use for the blend's facts.
+            // overrides every state set below it with. A cut has no use for the blend's facts. And
+            // the lamps only where its chunk gathers them.
             for (PreparedPart& part : into.mParts)
             {
                 MaterialReading& reading = part.mMaterial;
@@ -149,6 +150,7 @@ namespace Rtx
                     .mReference = 128.0f / 255.0f,
                     .mPasses = Shaders::ALPHA_PASSES_AT | Shaders::ALPHA_PASSES_ABOVE,
                 };
+                reading.mDescribed->mLampLit = mGroundcover->lampLit();
                 reading.mDiffuseFacts.reset();
                 part.mOwnKey = new osg::StateSet;
                 reading.mKey = part.mOwnKey.get();

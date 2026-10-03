@@ -656,28 +656,35 @@ namespace Rtx::Testing
 
             // A sky rather than the cell's ambient, for the reason the sun's own test gives: what
             // fills a wall the eye can see is the hemisphere it gathers.
-            const auto render
-                = [&](const std::optional<Light>& light, const osg::Vec3f& sky, bool blocked, std::uint32_t noLamps = 0,
-                      std::span<const Light> more = {}, std::optional<std::uint32_t> rayMask = std::nullopt) {
-                      SceneDesc scene = makeWall();
-                      if (light.has_value())
-                          scene.addLight(*light);
-                      for (const Light& also : more)
-                          scene.addLight(also);
-                      if (blocked)
-                          addQuad(scene, occluder);
+            const auto render = [&](const std::optional<Light>& light, const osg::Vec3f& sky, bool blocked,
+                                    std::uint32_t noLamps = 0, std::span<const Light> more = {},
+                                    std::optional<std::uint32_t> rayMask = std::nullopt, bool lampLit = true) {
+                SceneDesc scene = makeWall();
+                if (!lampLit)
+                {
+                    const Index wall = scene.placements().getRows()[0].mInstance.mMaterial;
+                    Material unlit = scene.materials().getRows()[wall];
+                    unlit.mLampLit = false;
+                    scene.setMaterial(wall, unlit);
+                }
+                if (light.has_value())
+                    scene.addLight(*light);
+                for (const Light& also : more)
+                    scene.addLight(also);
+                if (blocked)
+                    addQuad(scene, occluder);
 
-                      Shaders::VisibilityConstants camera = base;
-                      camera.mNoLamps = noLamps;
-                      camera.mRayMask = rayMask.value_or(base.mRayMask);
-                      camera.mSkyHorizon = sky;
-                      camera.mSkyZenith = sky;
-                      camera.mAmbientFromSky = 1.0f;
+                Shaders::VisibilityConstants camera = base;
+                camera.mNoLamps = noLamps;
+                camera.mRayMask = rayMask.value_or(base.mRayMask);
+                camera.mSkyHorizon = sky;
+                camera.mSkyZenith = sky;
+                camera.mAmbientFromSky = 1.0f;
 
-                      const Frame frame = shoot(scene, {}, camera, size);
-                      EXPECT_GT(frame.mHits, 0u);
-                      return frame.byte(centre);
-                  };
+                const Frame frame = shoot(scene, {}, camera, size);
+                EXPECT_GT(frame.mHits, 0u);
+                return frame.byte(centre);
+            };
 
             const Light lamp{
                 .mPosition = osg::Vec3f(0.0f, -50.0f, 0.0f),
@@ -724,6 +731,12 @@ namespace Rtx::Testing
             // none: the sky's 124 with the lamp there, as without it.
             EXPECT_EQ(render(lamp, sky, false, 1), 124) << "a lamp lit a picture that asked for none";
 
+            // **A surface the lamps do not light**, groundcover under `[Groundcover] point lighting`
+            // off: the sky's 124 with the lamp there, black under the lamp alone, and a lamp that
+            // takes light away takes none of the sky's.
+            EXPECT_EQ(render(lamp, sky, false, 0, {}, std::nullopt, false), 124) << "a lamp lit an unlit surface";
+            EXPECT_EQ(render(lamp, osg::Vec3f(), false, 0, {}, std::nullopt, false), 0);
+
             // **A lamp lights only a view that shows its class**, as the rasterizer's light manager
             // collects none from a node its cull does not reach: under a view of the statics alone,
             // an actor's lamp lights nothing and a static's lights the wall as before. And under one
@@ -755,6 +768,8 @@ namespace Rtx::Testing
 
             // It takes from the lamps and no further, floored at nought: with no lamp the sky stays.
             EXPECT_EQ(render(std::nullopt, sky, false, 0, std::span(&taking, 1)), 124) << "it darkened the sky";
+            EXPECT_EQ(render(lamp, sky, false, 0, std::span(&taking, 1), std::nullopt, false), 124)
+                << "it darkened a surface no lamp lights";
 
             // And it casts no shadow, as the rasterizer's casts none: the quad between it and the wall
             // leaves the darkening whole. The lamp it darkens stands clear of the quad, its ray

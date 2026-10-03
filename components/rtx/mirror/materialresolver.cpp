@@ -447,6 +447,7 @@ namespace Rtx
         material.mVertexColour = described->mVertexColour;
 
         material.mTwoSided = described->mTwoSided;
+        material.mLampLit = described->mLampLit;
         material.mOpacity = described->mOpacity;
 
         // Decoded here, because this is where the game's numbers enter the trace. A record's

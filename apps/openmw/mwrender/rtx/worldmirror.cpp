@@ -140,6 +140,7 @@ namespace MWRender
         : mWalk{ .mSpecular = knobs.mSpecularLayout }
         , mGroundcoverReach(knobs.mGroundcoverReach)
         , mGroundcoverDensity(knobs.mGroundcoverDensity)
+        , mGroundcoverLampLit(knobs.mGroundcoverLampLit)
         , mExtractor(mScene, mWalk)
         , mTraversal(worldTraversal(~0u))
         , mReach(knobs.mReach)
@@ -208,7 +209,7 @@ namespace MWRender
         assert(mGroundcover == nullptr && "the default worldspace's ground made twice for one world");
 
         if (mGroundcoverReach > 0.0f)
-            mGroundcover = std::make_unique<TracedGroundcover>(store, mGroundcoverDensity);
+            mGroundcover = std::make_unique<TracedGroundcover>(store, mGroundcoverDensity, mGroundcoverLampLit);
     }
 
     Rtx::ContentMemory WorldMirror::getContentMemory()

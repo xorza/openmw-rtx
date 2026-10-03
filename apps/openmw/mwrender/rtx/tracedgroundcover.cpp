@@ -42,9 +42,11 @@ namespace MWRender
         };
     }
 
-    TracedGroundcover::TracedGroundcover(const MWWorld::GroundcoverStore& store, const float density)
+    TracedGroundcover::TracedGroundcover(
+        const MWWorld::GroundcoverStore& store, const float density, const bool lampLit)
         : mStore(store)
         , mDensity(density)
+        , mLampLit(lampLit)
     {
     }
 
