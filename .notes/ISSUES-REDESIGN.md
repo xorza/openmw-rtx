@@ -487,6 +487,12 @@ need the same gate.
 report is in progress. The expectation is two dumps, each summarised as its own kind on its own
 thread.
 
+**Outcome.** On Linux the report's dump was the fault's in 3 of 3 runs before the handler, and is
+its own in every run since. On macOS the mode passed with no handler. On Windows it failed another
+way: the fault's dump ended the process before the report's was written, which left one summary,
+the crash's. The same wait, through Crashpad's Windows first-chance filter, is in
+`crashpadclientwin32.cpp`.
+
 ### 4.3 The harness's catcher is on
 
 **Root cause.** `apps/rtxtool/main.cpp` defaults `OPENMW_DISABLE_CRASH_CATCHER` to `1` "because a
