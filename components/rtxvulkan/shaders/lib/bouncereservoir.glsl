@@ -219,16 +219,8 @@ float bounceTarget(BounceOrigin origin, BounceSample held, BounceReach reach)
     return dot(diffuseShare(origin, reach.mTowards) * held.mRadiance, LUMINANCE_WEIGHTS);
 }
 
-/// The Jacobian of reconnecting `held`, found at `foundAt`, to `seenAt` instead (Ouyang et al. 2021,
-/// eq. 11): how much the solid angle around the sample changes between the two points. One for the
-/// sky, whose direction is the same from anywhere. Nought where the shift is refused —
-/// `BOUNCE_JACOBIAN_LIMIT`, a sample met edge-on from either point, or a point on the other side of
-/// the sample's surface.
-///
-/// **The light a sample holds left one face of it**, the one the point that found it stands in
-/// front of. Morrowind's walls are sheets of no thickness, so a sample on a lit face is the same
-/// point as the dark face behind it, and a ray from the dark side reaches it: the side, and not the
-/// ray, is what keeps one room's bounce out of the next.
+/// `reconnectionJacobian` of shifting `held`, found at `foundAt`, to `seenAt` instead. One for the
+/// sky, whose direction is the same from anywhere.
 float shiftJacobian(BounceSample held, vec3 foundAt, vec3 seenAt)
 {
     if (held.mSky)
@@ -236,17 +228,8 @@ float shiftJacobian(BounceSample held, vec3 foundAt, vec3 seenAt)
 
     const vec3 fromFound = -held.mOffset;
     const vec3 fromSeen = seenAt - (foundAt + held.mOffset);
-    const float found = dot(fromFound, fromFound);
-    const float seen = dot(fromSeen, fromSeen);
-    const float foundFacing = dot(held.mNormal, fromFound);
-    const float seenFacing = dot(held.mNormal, fromSeen);
-    const float foundCosine = abs(foundFacing) * inversesqrt(max(found, 1e-12));
-    const float seenCosine = abs(seenFacing) * inversesqrt(max(seen, 1e-12));
-
-    const float jacobian = (seenCosine * found) / max(foundCosine * seen, 1e-12);
-    const bool refused = !(jacobian >= 1.0 / BOUNCE_JACOBIAN_LIMIT && jacobian <= BOUNCE_JACOBIAN_LIMIT)
-        || !(foundFacing * seenFacing > 0.0);
-    return refused ? 0.0 : jacobian;
+    return reconnectionJacobian(dot(held.mNormal, fromFound), dot(fromFound, fromFound),
+        dot(held.mNormal, fromSeen), dot(fromSeen, fromSeen));
 }
 
 /// A reservoir merged one candidate at a time, with the target its kept sample has at the visible

@@ -157,6 +157,27 @@ namespace Rtx::Shaders
     /// variance it adds is larger than what the sample brings (Wyman et al. 2023, §6.4).
     const float BOUNCE_JACOBIAN_LIMIT = 10.0f;
 
+    /// The Jacobian of reconnecting a sample to another visible point (Ouyang et al. 2021, eq. 11),
+    /// `cos φ_seen |found|² / (cos φ_found |seen|²)`: how much the solid angle around the sample
+    /// changes between the point that found it and the point it is shifted to. Each point is given
+    /// by its squared distance from the sample and the sample's normal dotted with the way from the
+    /// sample to it. Nought where the shift is refused: `BOUNCE_JACOBIAN_LIMIT`, a sample met edge-on
+    /// from either point, or a point on the other side of the sample's surface.
+    ///
+    /// **The light a sample holds left one face of it**, the one the point that found it stands in
+    /// front of. Morrowind's walls are sheets of no thickness, so a sample on a lit face is the same
+    /// point as the dark face behind it, and a ray from the dark side reaches it: the side, and not
+    /// the ray, is what keeps one room's bounce out of the next.
+    RTX_SHADER float reconnectionJacobian(float foundFacing, float found, float seenFacing, float seen)
+    {
+        const float foundCosine = abs(foundFacing) / sqrt(max(found, 1e-12f));
+        const float seenCosine = abs(seenFacing) / sqrt(max(seen, 1e-12f));
+        const float jacobian = (seenCosine * found) / max(foundCosine * seen, 1e-12f);
+        const bool refused = !(jacobian >= 1.0f / BOUNCE_JACOBIAN_LIMIT && jacobian <= BOUNCE_JACOBIAN_LIMIT)
+            || !(foundFacing * seenFacing > 0.0f);
+        return refused ? 0.0f : jacobian;
+    }
+
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST

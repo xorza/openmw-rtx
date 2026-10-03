@@ -478,5 +478,67 @@ namespace Rtx::Testing
                         EXPECT_EQ(after[frame], 0u) << sBounceReuseNames.name(reuse) << ", frame " << frame;
             }
         }
+
+        /// **A pixel whose surface went keeps only its candidate.** A red pillar stands before the
+        /// corner's wall; after sixteen frames of the temporal reuse it is moved behind the eye, and
+        /// the wall and the floor it stood in front of are pixels whose last reservoirs were the
+        /// pillar's. `heldSurfaceMatches` refuses those, so each shows its own candidate: the frame
+        /// the reuse `own` shows, bit for bit, wherever the pillar stood a pixel in from its edge,
+        /// where the fetch's nearest tap can be a pixel beside it. Everywhere else the history is
+        /// kept, and the frame is not the candidate's.
+        TEST_F(RtxBounceReuseTest, aPixelWhoseSurfaceWentKeepsOnlyItsCandidate)
+        {
+            constexpr std::uint32_t size = 64;
+            std::vector<float> albedo;
+            const auto after = [&](BounceReuse reuse) {
+                SceneDesc scene = makeCorner();
+                const Index red = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.8f, 0.1f, 0.1f) });
+                const Index pillar = addQuad(scene, uprightQuadAt(60.0f, 100.0f, osg::Vec2f(0.0f, -40.0f)), red);
+                shoot(scene, {}, cornerCamera(size), size,
+                    Shot{ .mFrames = 16,
+                        .mAverage = false,
+                        .mFirstFrame = 300,
+                        .mBounceReuse = reuse,
+                        .mLoss = HistoryLoss::Cut });
+                mRenderer.readChannel(Channel::Albedo, albedo);
+
+                scene.placements().move(pillar, osg::Matrixf::translate(0.0f, -1000.0f, 0.0f));
+                Shaders::VisibilityConstants camera = cornerCamera(size);
+                camera.mFrame = 316;
+                shoot(scene, {}, camera, size, Shot{ .mBounceReuse = reuse, .mSetScene = false });
+                std::vector<float> indirect;
+                mRenderer.readChannel(Channel::Indirect, indirect);
+                return indirect;
+            };
+
+            const std::vector<float> own = after(BounceReuse::Own);
+            const std::vector<float> temporal = after(BounceReuse::Temporal);
+            ASSERT_EQ(own.size(), temporal.size());
+
+            const auto wasPillar = [&](std::uint32_t x, std::uint32_t y) {
+                const float* const at = &albedo[(std::size_t{ y } * size + x) * 4];
+                return at[0] > 0.7f && at[1] < 0.2f;
+            };
+            std::size_t went = 0;
+            std::size_t kept = 0;
+            for (std::uint32_t y = 1; y + 1 < size; ++y)
+                for (std::uint32_t x = 1; x + 1 < size; ++x)
+                {
+                    const std::size_t pixel = std::size_t{ y } * size + x;
+                    const bool inside = wasPillar(x, y) && wasPillar(x - 1, y) && wasPillar(x + 1, y)
+                        && wasPillar(x, y - 1) && wasPillar(x, y + 1);
+                    const bool same = std::equal(&own[pixel * 4], &own[pixel * 4 + 4], &temporal[pixel * 4]);
+                    if (inside)
+                    {
+                        ++went;
+                        EXPECT_TRUE(same) << "the pillar's history reached " << x << ", " << y;
+                    }
+                    else if (!wasPillar(x, y))
+                        kept += same ? 0 : 1;
+                }
+
+            ASSERT_GT(went, std::size_t{ size } * size / 16) << "the pillar covered too little";
+            EXPECT_GT(kept, std::size_t{ size } * size / 2) << "the history went everywhere";
+        }
     }
 }
