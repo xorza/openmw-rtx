@@ -15,6 +15,11 @@ notes cite.
 | W8 The denoisers share one surface test | steps 1 and 2; step 3 after its probe | 5 |
 | W9 Passes run only over what is new | every row, each with its bench | 5 |
 | W14 The ray tracer shows what the rasterizer shows | the items that wait for an input outside the tree | after its inputs |
+| W15 Groundcover stands in the ring | the whole of it, test plugin first | 8 |
+| W16 A mask's soft texels are layers to the eye | the whole of it, behind its measurement | 8 |
+| W17 One row per texture format | the table, then A8, the float formats and BC4 | 8 |
+| W18 The harness's folder is the build tree's | the whole of it | 6 |
+| W19 The walk visits what can change | the probe, then the frozen subtrees | 5 |
 | §16 Smaller workstreams | the upstream diff, the device, layering, Vulkan, tooling | 5 (§16.6), 6 |
 | §17 Fixes in place | the local groups; the frame constants | 5, 7 |
 
@@ -167,16 +172,7 @@ does not go in.
 
 **Closes:** what is left of *(Content the rasterizer draws reaches the ray tracer with no reader)*.
 
-- **Groundcover is one merged mesh per cell**, as the rasterizer's chunks merge it: the ring's
-  reader builds it from `GroundcoverStore` under `rendering distance` and `density`, with a copy of
-  the density rule that names `Groundcover`'s `DensityCalculator`, which stays where upstream keeps
-  it (P9). One instance per cell keeps the top-level structure's row count what it is today, where
-  an instance per plant would add about a hundred thousand rows. Stomp is a later deformer. **The
-  content to check it against is made by the tree**: a test plugin written with `ESM::ESMWriter`,
-  which declares vanilla `flora_*` statics as groundcover in two cells near Seyda Neen at known
-  positions, loaded through `groundcover=` as a player's `openmw.cfg` does. The reader is checked
-  against it under both renderers (`shot` of one view, and the count of placed plants against
-  `GroundcoverStore`'s at the same density), and against a real mod where one is installed.
+- **Groundcover** is W15, which has a design of its own.
 - **A generated particle image** enters the table under a key made from its address, as the
   composites do; the material reader needs the same key.
 - **A distant static's texture animation**: a prepared part whose chain carries an AutoPlay
@@ -189,6 +185,308 @@ does not go in.
 
 Each carries a test with hand-computed values, on the GPU where the fact is a picture, and a
 `./omw shot --against` that moves the pictures of its own content and nothing else.
+
+---
+
+## 15a. W15 — Groundcover stands in the ring
+
+**Closes:** *Groundcover is never drawn under the ray tracer* (`ISSUES.md`), and the groundcover
+item of *(Content the rasterizer draws reaches the ray tracer with no reader)*.
+
+### What the rasterizer does
+
+- `MWWorld::GroundcoverStore` keeps, per exterior cell, the ESM contexts of the groundcover files
+  (`groundcover=` in `openmw.cfg`), and the model of every static whose model is under `grass/`.
+  It holds no reference: they are read off the files when a chunk is made.
+- `MWRender::Groundcover`, a `QuadTreeWorld` chunk manager, reads a chunk's references cell by
+  cell (`collectInstances`): a later file's reference replaces an earlier one's by `RefNum`, and
+  `DensityCalculator` keeps one reference in `1 / density`, in content order, from a count that
+  starts again in every cell. Each model is one clone, instanced over its references.
+- What it draws: alpha tested at `128 / 255` with blending off, both `OVERRIDE` (MGE's content
+  states no alpha it can be trusted with); swayed by the wind and pressed by the player
+  (`groundcover.vert`); lit by the lamps only where `[Groundcover] point lighting` is on (it is by
+  default); shown per chunk where the chunk's box is within `rendering distance` of the eye (6144
+  units by default); in the default worldspace alone; class `Mask_Groundcover`, which
+  `classmasks.hpp` already counts among the statics.
+- The game's loaded cells hold no groundcover reference, so groundcover stands in the active grid
+  too, where the ring stands no static.
+
+### Target shape: an instance per plant, through the ring's static path
+
+**Measured first:** `seyda-neen-ship` stands 64 179 instances today, 57 054 of them the ring's
+distant statics, over 3 074 553 triangles in 97.4 MiB of structures (`./omw scene`, 2026-10-03).
+6144 units are three quarters of a cell (8192), so the plants of 4 to 9 cells stand at once. **Not
+measured, because no grass mod is installed here:** at an estimated 1 000 to 4 000 plants a cell,
+an instance per plant adds 4 000 to 36 000 rows, under the ring's statics today; one mesh merged
+per cell and model, the plan's first shape, adds their triangles instead, at an estimated 30 to 100
+a plant 0.1 to 3.6 million, up to today's whole geometry again. So a plant is an instance of its
+model's mesh, as a distant static is, and the merge is the fallback the measurement below decides.
+The fixture and a real mod replace both estimates with counts.
+
+1. **A source of groundcover references, in the core** (`components/rtx/mirror/cells/`):
+   ```cpp
+   /// The groundcover references of one exterior cell, as the game's groundcover reads them.
+   class GroundcoverSource
+   {
+   public:
+       virtual ~GroundcoverSource() = default;
+       /// Appends the cell's references the density keeps, in content order. Called on the
+       /// ring's reader thread alone.
+       virtual void collect(const osg::Vec2i& cell, std::vector<Terrain::PagedCellRef>& into) = 0;
+       /// The model a groundcover record names, empty where it names none.
+       virtual VFS::Path::NormalizedView modelOf(ESM::RefId record) const = 0;
+   };
+   ```
+   `CellWorld` gains `GroundcoverSource* mGroundcover` (null where groundcover is off, or the
+   worldspace is not the default one), and `WorldAround` gains `float mGroundcoverReach`
+   (`[Groundcover] rendering distance`, nought where off).
+2. **The game's source** (`apps/openmw/mwrender/rtx/tracedgroundcover.{hpp,cpp}`), over
+   `GroundcoverStore`: `initCell`, a `ESM::ReadersCache` of its own (the reader thread is its one
+   caller), and the refs read as `collectInstances` reads them. **The density rule is a copy**,
+   `Rtx::GroundcoverDensity`, which names `MWRender::Groundcover`'s `DensityCalculator` and stays
+   apart from it (P9); a host test holds it to hand-computed keeps: at 0.25, the 4th, 8th and
+   12th of twelve references; at 1, every one; the count restarts each cell.
+3. **The reader reads a cell's groundcover beside its statics.** `CellReader::read` fills
+   `PreparedCell::mGroundcover`, a `std::vector<PreparedRef>` beside `mRefs`, through the same
+   `readModel` (a grass model is read once and lent to every cell). Its material is overridden as
+   upstream's state set does: cut at a half, no blend (`MaterialReading` gains the override, which
+   the extractor's `describeStateSet` would otherwise read off the NIF). No size rule: a plant is
+   small everywhere.
+4. **The placer stands it by its own rule.** `CellPlacer` places `mGroundcover` where the cell's
+   box is within `mGroundcoverReach` of the eye, **in the active grid as well**, and takes it down
+   past it; class `Static`. The cell is prepared where either reach holds it, so a grass cell near
+   the eye is read even with distant statics off.
+5. **Point lighting.** Where `[Groundcover] point lighting` is off, the material carries
+   `MATERIAL_NO_LAMPS`, and the lamp walk's weight is multiplied by a factor of nought for it — one
+   path, no branch, as `lightShown` does for a hidden class.
+6. **Not in this workstream:** the wind's sway and the player's stomp. Both move vertices every
+   frame, which is a deformer over a shared mesh; the trace stands the plants still, and the
+   difference is named in `rtxsupport` as a declined part of the setting.
+7. **The seam:** `rtxSupport().declinedSetting("Groundcover", "enabled")` goes; the log line in
+   `RtxRenderer` keeps naming stereo and post processing.
+
+### The test content, generated
+
+A fixture the tree writes: `Rtx::Testing::writeGroundcoverPlugin` with `ESM::ESMWriter`, two
+exterior cells near Seyda Neen (−2,−9 and −3,−9), each with groundcover references to vanilla
+`flora_*` statics whose models are copied under `grass/` in a test VFS, at known positions, scales
+and rotations. Loaded through `groundcover=`, as a player's configuration loads it.
+
+### Tests
+
+- Host: the density copy's keeps; `TracedGroundcover::collect` over the fixture: the count, the
+  replacement by `RefNum` across two files, and the positions read back.
+- Host: the ring over the fixture with a test `ContentSource`: plants stand in the active grid and
+  out of it, stand within the reach and go past it, and none stands with groundcover off.
+- GPU: one plant, a quad with a soft alpha, met by the eye where its alpha passes 128 and not
+  where it does not.
+- The harness: `shot` of a fixture view under both renderers, and the placed count against
+  `GroundcoverStore`'s at density 1 and 0.5.
+
+### Acceptance
+
+`./omw release bench` with a groundcover mod at its default density: the trace zone, the top-level
+build, the frame's p99 and its worst against the same run with groundcover off. **If the trace
+zone grows more than a fifth** from the instances' overlap (many small boxes along every ray near
+the ground), the merge per cell and model goes in instead, built on the reader thread from the
+same prepared references, and its memory is the figure that decides between the two.
+
+---
+
+## 15b. W16 — A mask's soft texels are layers to the eye
+
+**Closes:** *An alpha-blended surface … is cut at alpha 0.5* (`ISSUES.md`).
+
+### What two trials showed
+
+- **Every soft texel a pane** (2026-10-02): at `seyda-neen-pier` the panes went from 3 to 91, and
+  52 of 60 pictures turned to grain. The grain was the light: every sun and sky ray through a pane
+  is attenuated by it, so every surface under foliage had a noisy shadow.
+- **A hashed alpha test for every ray** (the second trial): the fringe's error against the converged
+  blend fell at the pier (8.55 → 2.37) and rose under the canopy at `seyda-neen-pond` (21.57 →
+  23.67, noise mean 1.19 → 1.90, p99 10 → 24). A texel met in one frame and missed in the next is
+  a different surface to the eye each frame, so the accumulator dropped its history there.
+
+Both failed by what the coverage did to rays other than the one the rasterizer blends for, and by
+making the eye's surface change between frames. The rasterizer blends a soft texel into the
+picture and nothing else: its shadow casters are alpha tested at a half (`shadowcasting.frag`,
+"this replaces alpha blending").
+
+### Target shape
+
+**A mask's soft texel is a layer to the eye ray, and a cut to every other ray.** Deterministic, so
+the surface identity is the same every frame, and limited to the one ray that draws the picture:
+
+1. **Which texels.** A blended mask (`isBlended() && !isTranslucent() && !isAdditive()`) carries
+   `MATERIAL_SOFT_MASK`. At the eye's candidate, the cone-filtered alpha `a` decides: `a ≥
+   SOFT_SOLID` (254.5 / 255) is the surface, `a < SOFT_EMPTY` (0.5 / 255) is passed, and between
+   them it is a layer of opacity `a × material opacity`. Every other ray keeps the cut at a half.
+2. **The eye's traversal** stops on the layer as it stops on a pane today, and the existing peel
+   (`PEEL_LAYERS`, four) composites it over what is behind, in the pane channels, with the pane
+   filter. `answerPane` takes the soft texel through the same `shadePane`, which is the leaf's own
+   light: its sun ray and its lamps are the leaf's, and the light through it is a cut's.
+3. **The budget.** A ray that peeled four layers takes the next soft texel as a cut, as a pane
+   past the budget is taken today; foliage in front of foliage keeps its nearest four.
+4. **The surface behind** is the G-buffer surface, unchanged from frame to frame, so the
+   accumulator's history holds through a canopy.
+
+### Implementation
+
+`scene.h` (`MATERIAL_SOFT_MASK`, `SOFT_SOLID`, `SOFT_EMPTY`), `scenebuffers.cpp` (the bit),
+`traversal.glsl` (`candidateStops` takes the eye's literal `detailed`, which already says the ray
+draws the picture, and answers *layer* for a soft texel), `visibilityhit.rchit` (`answerPane` for a
+soft texel), `visibility.rgen` (no change: the peel loop takes any pane answer).
+
+### Measurement before it goes in
+
+Release, hot card, back to back: the trace zone at `seyda-neen-pond`, `seyda-neen-pier` and a
+Bitter Coast canopy, before and after; `noise --strafe=150` at the same three; the fringe's error
+against 1 000-frame references taken under the rasterizer's rule. **Accepted** where the fringe's
+error falls at all three, the frame's noise does not rise, and the trace zone grows by less than a
+tenth. Where the cost is over, the layer's light is taken from the leaf's own surface behind the
+fringe and not shaded again — a design of its own, measured the same way.
+
+---
+
+## 15c. W17 — One row per texture format
+
+**Closes:** *A texture the engine loads in a format the reader does not name …* (`ISSUES.md`).
+
+### What is wrong
+
+A format is spread over six switches: `readFormat` and `nameOf` (`texels.cpp`), the layout
+(`texturedata.hpp`), the widening on the way in (`imagedescription.cpp`), the alpha and colour
+decoders (`alphaimage.cpp`), and the device's format (`rtxvulkan/device/memory/formats.cpp`). A
+format the content files use and no switch names is `Unnamed`: the grey stand-in, and a sky deck
+left out, where the rasterizer samples it. Alpha-only `A8`, the half and full float formats and
+BC4 are those today. BC6H and BC7 never load at all (OSG's DDS reader refuses them), so they are
+no reader's question.
+
+### Target shape
+
+**One table, one row a format**, in the core (`components/rtx/image/formattable.hpp`):
+
+```cpp
+struct FormatRow
+{
+    GLenum mPixelFormat;          // the image's pixel format
+    GLenum mDataType;             // GL_NONE for a block
+    TextureFormat mFormat;        // the trace's name for it
+    std::string_view mName;       // for a log and a refusal
+    TexelLayout mLayout;          // block side and bytes
+    Widen mWiden;                 // None, or the RGBA8 / RGBA16F it is laid as on the way in
+    Decode mDecode;               // how the host reads a texel: Unorm8 channels, Half, Float, Bc1..Bc5
+    bool mColour;                 // whether a colour slot takes it
+};
+inline constexpr std::array sFormats{ ... };
+```
+
+`readFormat` finds the row; `nameOf`, the layout, the widening and the decoders read it. The
+backend keeps its own map from `TextureFormat` to `VkFormat`, because Vulkan is the backend's, and
+a `static_assert` over the table holds that every row whose `mWiden` is `None` has a device
+format.
+
+### The rows the issue adds
+
+| File | Pixel format, type | Row | On the device | Host decode |
+|---|---|---|---|---|
+| alpha-only | `GL_ALPHA`, `GL_UNSIGNED_BYTE` | `Alpha8` | widened to RGBA8 `(0, 0, 0, a)`, as GL samples it | `a` |
+| half float | `GL_RGBA`/`GL_RGB`/`GL_LUMINANCE`, `GL_HALF_FLOAT` | `Rgba16f` | `R16G16B16A16_SFLOAT`, a three- or one-channel file widened | half |
+| full float | the same, `GL_FLOAT` | `Rgba32f` | `R32G32B32A32_SFLOAT`, widened the same way | float |
+| BC4 | `GL_COMPRESSED_RED_RGTC1_EXT` | `Bc4Unorm` | `BC4_UNORM_BLOCK` | the red channel's block |
+
+**A decision for you: BC4 in a colour slot.** GL samples it as `(r, 0, 0, 1)`, red. A colour slot
+refuses BC5 by name today rather than drawing it yellow. Recommended: the same rule for BC4, so a
+data slot takes it and a colour slot names it.
+
+### Tests
+
+The table against itself (every row has a layout, a name and a decode; no pixel format and type
+twice), each new row's host decode against hand-written texels, and a GPU probe that samples each
+new format's upload and reads back what GL would show, to the byte.
+
+---
+
+## 15d. W18 — The harness's folder is the build tree's
+
+**Closes:** *On macOS the harness's folder, `rtxtool/`, stands inside the app bundle* (`ISSUES.md`).
+
+### What is wrong
+
+`Rtx::harnessDirectory(resources)` is `resources/../rtxtool`. On Linux and Windows the resources
+are in the build tree, so the harness's folder is too. On macOS the resources are the bundle's
+(`RTX_RESOURCES_ROOT` is `Contents/Resources`), `openmw-rtxtool` itself is built into
+`Contents/MacOS` (`CMAKE_RUNTIME_OUTPUT_DIRECTORY`), and the bundle is installed whole, so neither
+the resources nor the executable is a place to derive it from.
+
+### Target shape
+
+**One CMake variable names it, outside any bundle**: `RTX_HARNESS_DIR` is
+`${OpenMW_BINARY_DIR}/rtxtool` on every system (on Linux and Windows the folder it is today). The
+views, the suites, the VFS scripts and the shaders with their source are copied there, and the
+harness and the tests are compiled with `OPENMW_RTX_HARNESS_DIR`. The core knows no harness folder:
+
+1. `Rtx::harnessDirectory` goes. `RtxTool::harnessDirectory()` answers the compiled path, for
+   `main.cpp`, `hosted.cpp` and the driver cache.
+2. `Rtx::shaderDirectory(resources, withSource)` becomes `shaderDirectory(resources)`, the modules
+   without source. The harness hands the renderer the folder with source as a path
+   (`Setup::mShaderSourceDirectory`, an optional path that replaces `mShaderSource`), so the game
+   side asks no harness question.
+3. The tests read `OPENMW_RTX_HARNESS_DIR` in place of their walk up from `OPENMW_RTX_SHADER_DIR`.
+
+The harness only ever runs from its build tree — no install carries it, and `omw archive` refuses
+a package that holds any of it — so a compiled build path is correct by construction.
+
+### Tests
+
+The shader directory test loses its harness half; `run.cpp`'s suite test reads the compiled
+folder; a configure on macOS (CI's `macos` job) lists the bundle and finds no `rtxtool/` in it —
+a CI step after the build, as `omw archive` checks the other two systems' installs.
+
+---
+
+## 15e. W19 — The walk visits what can change
+
+**Closes:** *A measured run's host rows move as a whole between runs of one build* (`ISSUES.md`),
+with W6.
+
+### Evidence
+
+Six legs of one build at `one-cell-walk`, held to the performance cores at a steady clock: walk
+medians 1.02 to 1.53 ms, and the frame thread's cache misses a thousand instructions 3.14 to 4.75,
+moving together. A leg is slow from its first frame to its last. The walk reaches every node of
+every loaded cell on every frame (`SceneExtractor`'s traversal skips nothing), and an identity met
+again is resolved through maps keyed on the node: a frame is a walk of pointers through OSG's heap,
+whose layout is set by the order the loader threads finished in, which differs in every process.
+
+### Target shape
+
+**A subtree that cannot change between frames stands, and the walk goes past it.**
+
+1. **The probe first.** Count, per frame at `one-cell-walk` and `balmora-mages-guild`, the nodes the
+   walk visits and the share of them under a subtree with no update callback, no controller, no
+   `Switch`, `LOD` or `Sequence`, no skin, no particle system and no light: the frozen share. The
+   design goes on only where that share is most of the walk.
+2. **Frozen at arrival.** Where the walk first meets a subtree, it records whether the subtree is
+   frozen (the test above, over the subtree once). A frozen subtree's rows — its placements, their
+   materials and their transforms — go into a flat run on the extractor
+   (`FrozenRun { std::uint32_t mFirst, mCount; }` over one `std::vector<Index>`).
+3. **Passed after.** On every later walk the traversal meets the subtree's root, stamps its run's
+   rows as reached in one pass over contiguous indices — the sweep's contract, kept without the
+   graph — and does not descend.
+4. **Thawed by what moves it.** A frozen subtree changes in three ways the game says: its object
+   is moved (`RenderingManager::moveObject`, `notifyJumped`), a child is added or removed (the
+   walk sees the root's child count change), or a state set's updater runs on it (`StateSetUpdater`'s
+   generation, which the fork already reads). Each drops the run, and the next walk descends
+   again.
+5. **The rest is W6's**: the rows themselves change by the row, so a frozen subtree costs one
+   stamp pass and nothing else.
+
+### Measurement
+
+The six-leg drift at `one-cell-walk`: the walk's median and the cache-miss rate must stay within a
+tenth across legs (the acceptance W6 states), and the walk's median must fall. `./omw repeat
+--pairs=10`, because a stamp that misses a row is a row swept from a frame that still shows it.
 
 ---
 
@@ -318,6 +616,9 @@ Each phase ends green on `./omw gate`.
 2. **Phase 6, the upstream diff:** §16.1, then §16.2, §16.5 and §16.7.
 3. **Phase 7, tests and docs:** the test groups in §17, and every doc item, `architecture.md` §1 and
    §13 included.
+4. **Phase 8, the open issues:** W15 (the test plugin first), W16 behind its measurement, W17.
+   W18 goes with Phase 6, because it moves what the harness reads; W19's probe goes with Phase 5,
+   and its frozen subtrees with W6.
 
 W14 goes as each input arrives.
 
