@@ -329,6 +329,8 @@ namespace CrashTests
         std::optional<std::string> check(
             const Mode& mode, const std::filesystem::path& folder, const Platform::Process::CommandEnd& ended)
         {
+            if (ended.mSignal == 0 && ended.mExitCode == static_cast<std::uint32_t>(sInconclusive))
+                return "no run of " + std::to_string(sInconclusiveRuns) + " gave it the case it tests";
             if (ended.succeeded() == mode.mHeadline.starts_with("Crash: "))
                 return "it ended with " + ended.describe();
 
@@ -438,16 +440,21 @@ namespace CrashTests
         Outcome runMode(const std::filesystem::path& self, const std::filesystem::path& root, const Mode& mode)
         {
             const std::filesystem::path folder = root / std::string(mode.mName);
-            std::filesystem::remove_all(folder);
-            std::filesystem::create_directories(folder);
-
-            const auto start = std::chrono::steady_clock::now();
             const auto word = [](const std::filesystem::path& path) {
                 return Platform::Process::shellWord(Files::pathToUnicodeString(path));
             };
-            const Platform::Process::CommandEnd ended
-                = Platform::Process::runShell(word(self) + " " + std::string(mode.mName) + " " + word(folder) + " >"
-                    + word(folder / "stdout.txt") + " 2>" + word(errorsIn(folder)));
+
+            const auto start = std::chrono::steady_clock::now();
+            Platform::Process::CommandEnd ended;
+            for (int run = 0; run < sInconclusiveRuns; ++run)
+            {
+                std::filesystem::remove_all(folder);
+                std::filesystem::create_directories(folder);
+                ended = Platform::Process::runShell(word(self) + " " + std::string(mode.mName) + " " + word(folder)
+                    + " >" + word(folder / "stdout.txt") + " 2>" + word(errorsIn(folder)));
+                if (ended.mSignal != 0 || ended.mExitCode != static_cast<std::uint32_t>(sInconclusive))
+                    break;
+            }
 
             const auto took
                 = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);

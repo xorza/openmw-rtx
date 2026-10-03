@@ -58,4 +58,10 @@ namespace CrashTests
     /// What a mode the game lives through ends with: the line saying so, and nought. The shared
     /// file's.
     int livedOn();
+
+    /// What a mode exits with where the run did not give it the case it tests, which a mode that
+    /// races two threads cannot promise: the matrix empties its folder and runs it again, up to
+    /// `sInconclusiveRuns` times. `EX_TEMPFAIL`'s number, which no mode's own end shares.
+    constexpr int sInconclusive = 75;
+    constexpr int sInconclusiveRuns = 8;
 }
