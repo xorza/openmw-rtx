@@ -120,7 +120,7 @@ namespace CrashTests
         }
 
         /// **Started the way the game starts**: `wrapApplication` starts the catcher with its reports in
-        /// `<folder>/crashes`, and `setupLogging` opens the log and hands it over, so what a mode writes
+        /// `<folder>/user data/crashes`, and `setupLogging` opens the log and hands it over, so what a mode writes
         /// afterwards goes through the stream the game writes its log with, the one the monitor's
         /// summaries have to survive.
         int run(std::string_view mode, const std::filesystem::path& folder)
@@ -272,7 +272,8 @@ namespace CrashTests
 
         std::vector<std::filesystem::path> dumpsIn(const std::filesystem::path& folder)
         {
-            return filesIn(folder, { "crashes/pending", "crashes/reports", "crashes/completed" }, ".dmp");
+            return filesIn(folder,
+                { "user data/crashes/pending", "user data/crashes/reports", "user data/crashes/completed" }, ".dmp");
         }
 
         /// Whether the log in `folder` says `text`, read again for a few seconds where it does not yet:
@@ -303,7 +304,7 @@ namespace CrashTests
             if (!follows(folder, "Crash package: "))
                 return "no package was written";
 
-            const std::vector<std::filesystem::path> packages = filesIn(folder, { "crashes" }, ".zip");
+            const std::vector<std::filesystem::path> packages = filesIn(folder, { "user data/crashes" }, ".zip");
             if (packages.size() != 1)
                 return std::to_string(packages.size()) + " packages where one was due";
 
@@ -365,7 +366,7 @@ namespace CrashTests
             {
                 if (first != said.end())
                     return "reported what it should not: " + *first;
-                if (!filesIn(folder, { "crashes" }, ".zip").empty())
+                if (!filesIn(folder, { "user data/crashes" }, ".zip").empty())
                     return "packaged a session that reported nothing";
             }
             else
@@ -522,7 +523,9 @@ int main(int argc, char* argv[])
         // no box, and for the modes that answer one, End after a while.
         const std::string_view mode = argv[1];
         const std::filesystem::path folder = std::filesystem::absolute(argv[2]);
-        Platform::Process::setEnvironmentPath("OPENMW_CRASH_REPORTS", folder / "crashes");
+        // **Under a folder that is not there yet**, as the game's first start on a fresh box has it:
+        // every mode then also proves the catcher makes the whole path before its monitor needs it.
+        Platform::Process::setEnvironmentPath("OPENMW_CRASH_REPORTS", folder / "user data" / "crashes");
         Platform::Process::setEnvironment("OPENMW_CRASH_DIALOG", CrashTests::answersEnd(mode) ? "1" : "0");
         if (CrashTests::answersEnd(mode))
             Platform::Process::setEnvironment(
