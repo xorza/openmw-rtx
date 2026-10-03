@@ -133,7 +133,7 @@ namespace MWRender
             /// The numbers of the references `density` keeps in `cell`, in the order handed on.
             std::vector<std::uint32_t> kept(float density, const osg::Vec2i& cell)
             {
-                TracedGroundcover groundcover(mStore, density);
+                TracedGroundcover groundcover(mStore, density, true);
                 std::vector<Terrain::PagedCellRef> refs;
                 groundcover.collect(cell, refs);
 
@@ -162,7 +162,7 @@ namespace MWRender
             EXPECT_EQ(kept(0.5f, osg::Vec2i(2, 3)), (std::vector<std::uint32_t>{ 2, 5 }));
             EXPECT_EQ(kept(0.0f, osg::Vec2i(2, 3)), std::vector<std::uint32_t>{});
 
-            TracedGroundcover groundcover(mStore, 0.5f);
+            TracedGroundcover groundcover(mStore, 0.5f, true);
             std::vector<Terrain::PagedCellRef> refs;
             groundcover.collect(osg::Vec2i(2, 3), refs);
             refs.clear();
@@ -178,7 +178,7 @@ namespace MWRender
         /// corrected under `meshes/`; a record outside `grass/` names none.
         TEST_F(TracedGroundcoverTest, aPlantKeepsItsPlacementAndItsRecordItsModel)
         {
-            TracedGroundcover groundcover(mStore, 1.0f);
+            TracedGroundcover groundcover(mStore, 1.0f, true);
             std::vector<Terrain::PagedCellRef> refs;
             groundcover.collect(osg::Vec2i(2, 3), refs);
             ASSERT_EQ(refs.size(), 5u);

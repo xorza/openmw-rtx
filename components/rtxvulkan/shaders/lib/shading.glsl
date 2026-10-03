@@ -238,7 +238,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     // where the cosine was. A glossy surface weighs each lamp by both — `surfaceCandidate` says why —
     // and either estimate is unbiased under any weight positive where its term is.
     Reservoir kept = noLamps();
-    weighLamps(kept, state, position, facing, INV_PI, gloss);
+    weighLamps(kept, state, position, facing, INV_PI, gloss, surface.mLampLit);
     kept.mFrom = leaving;
 
     const Passage lampPass = kept.mWeight > 0.0 ? lampPassage(kept, lampDraw) : Passage(1.0, 1.0);
@@ -259,7 +259,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     // nought as the rasterizer clamps its lighting: the sun, the sky and the bounce stay whole.
     // Split, that is still exact: a lamp's ray that was stopped leaves `max(-darkening, 0)`,
     // nought.
-    const vec3 lampDiffuse = max(lampsArriving - darkeningAt(position, facing, INV_PI), vec3(0.0));
+    const vec3 lampDiffuse = max(lampsArriving - darkeningAt(position, facing, INV_PI, surface.mLampLit), vec3(0.0));
 
     if (gloss.mGlossy)
         specular += kept.mSpecular * (held * lampSeen);

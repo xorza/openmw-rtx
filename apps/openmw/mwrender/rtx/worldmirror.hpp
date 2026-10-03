@@ -173,6 +173,7 @@ namespace MWRender
         std::unique_ptr<TracedGroundcover> mGroundcover;
         float mGroundcoverReach = 0.0f;
         float mGroundcoverDensity = 0.0f;
+        bool mGroundcoverLampLit = true;
 
         Rtx::SceneExtractor mExtractor;
 

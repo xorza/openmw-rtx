@@ -230,6 +230,11 @@ namespace Rtx::Testing
                                                                   : VFS::Path::NormalizedView();
             }
 
+            bool lampLit() const override { return mLampLit; }
+
+            /// `[Groundcover] point lighting`.
+            bool mLampLit = true;
+
         private:
             VFS::Path::Normalized mFern{ "meshes/fern.nif" };
         };
@@ -1454,6 +1459,7 @@ namespace Rtx::Testing
             EXPECT_EQ(cut.mAlphaTest,
                 (AlphaTest{ .mReference = 128.0f / 255.0f,
                     .mPasses = Shaders::ALPHA_PASSES_AT | Shaders::ALPHA_PASSES_ABOVE }));
+            EXPECT_TRUE(cut.mLampLit);
 
             // Ten cells east, past every plant: the grass goes with its cells, and the band there
             // holds cells of none.
@@ -1471,6 +1477,41 @@ namespace Rtx::Testing
             EXPECT_EQ(walk(mWalked++).mGroundcover, 0u);
             EXPECT_EQ(mRing.getHeldGrassCount(), 0u);
             EXPECT_EQ(lifted(), std::vector<float>{ 405.0f });
+        }
+
+        /// **Groundcover under `[Groundcover] point lighting` off wears a material no lamp lights**,
+        /// and the same model read as a static is lit as before.
+        TEST_F(RtxCellRingTest, groundcoverWithoutPointLightingIsAMaterialNoLampLights)
+        {
+            mStorage.mPlaced = { Placed{ .mCell = osg::Vec2i(3, 0),
+                .mModel = "fern.nif",
+                .mRefNum = ESM::RefNum{ 1, 0 },
+                .mPosition = osg::Vec3f(3.5f * sCellSize, 0.5f * sCellSize, 400.0f) } };
+            FewPlants plants;
+            plants.mLampLit = false;
+            plants.mGrown = { { .mCell = osg::Vec2i(0, 0),
+                .mPosition = osg::Vec3f(0.5f * sCellSize, 0.5f * sCellSize, 100.0f),
+                .mIndex = 1 } };
+            mGroundcover = &plants;
+            mAround.mGroundcoverReach = 2.0f * sCellSize;
+            start();
+            ASSERT_EQ(fill().mGroundcover, 1u);
+
+            std::optional<bool> grass;
+            std::optional<bool> fern;
+            for (const PlacementRow& row : mScene.placements().getRows())
+            {
+                if (!row.mInstance.isPlaced())
+                    continue;
+                const bool lit = mScene.materials().getRows()[row.mInstance.mMaterial].mLampLit;
+                const auto height = static_cast<float>(row.mInstance.mTransform.getTrans().z());
+                if (height == 105.0f)
+                    grass = lit;
+                else if (height == 405.0f)
+                    fern = lit;
+            }
+            EXPECT_EQ(grass, std::optional(false));
+            EXPECT_EQ(fern, std::optional(true));
         }
 
         /// **A reader that throws ends the process where it threw**, and says what it threw.

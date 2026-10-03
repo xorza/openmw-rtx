@@ -34,15 +34,19 @@ namespace MWRender
     {
     public:
         /// @param density `[Groundcover] density`.
-        TracedGroundcover(const MWWorld::GroundcoverStore& store, float density);
+        /// @param lampLit `[Groundcover] point lighting`.
+        TracedGroundcover(const MWWorld::GroundcoverStore& store, float density, bool lampLit);
 
         void collect(const osg::Vec2i& cell, std::vector<Terrain::PagedCellRef>& into) override;
 
         VFS::Path::NormalizedView modelOf(const ESM::RefId& record) const override;
 
+        bool lampLit() const override { return mLampLit; }
+
     private:
         const MWWorld::GroundcoverStore& mStore;
         float mDensity;
+        bool mLampLit;
 
         /// The ring's reader thread's own, which is the one thread `collect` is called on: the
         /// files stay open from one cell to the next.

@@ -806,6 +806,10 @@ struct Surface
     /// tabard is doubled and has none, and is cloth lit from the side it is seen from; a pane
     /// carries a mask and is not doubled, and passes light by its opacity rather than by this.
     float mTransmission;
+
+    /// Whether the lamps light this surface: false under `MATERIAL_NO_LAMPS`, where `weighLamps`
+    /// and `darkeningAt` walk an empty run.
+    bool mLampLit;
 };
 
 /// A ray that met nothing, as far away as anything can be: what `resolveFor` answers with for a
@@ -833,6 +837,7 @@ Surface noSurface(vec3 origin)
     surface.mSheet = false;
     surface.mLift = vec3(0.0);
     surface.mTransmission = 0.0;
+    surface.mLampLit = true;
 
     return surface;
 }
@@ -926,6 +931,7 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
 
     surface.mSheet = (mesh.mShape & MESH_SHEET) != 0u;
     surface.mTransmission = surface.mSheet && hasMask(material) ? SHEET_TRANSMISSION : 0.0;
+    surface.mLampLit = (material.mFlags & MATERIAL_NO_LAMPS) == 0u;
 
     // The corner normals back out of what the traversal carried — the interpolated one and the other
     // two corners' difference from the first — turned as `mNormal` was, so no vertex is fetched

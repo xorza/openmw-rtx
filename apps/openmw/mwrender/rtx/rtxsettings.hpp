@@ -25,6 +25,7 @@ namespace MWRender
         bool mGroundcover = false;
         float mGroundcoverDistance = 0.0f;
         float mGroundcoverDensity = 0.0f;
+        bool mGroundcoverPointLighting = true;
         std::string_view mSpecularMapLayout;
         int mAnisotropy = 0;
         float mGamma = 1.0f;

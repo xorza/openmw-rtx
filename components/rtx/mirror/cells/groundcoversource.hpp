@@ -25,5 +25,8 @@ namespace Rtx
 
         /// The model `record` names, empty where it names none. The reader thread's as well.
         virtual VFS::Path::NormalizedView modelOf(const ESM::RefId& record) const = 0;
+
+        /// Whether the lamps light a plant — `[Groundcover] point lighting`.
+        virtual bool lampLit() const = 0;
     };
 }

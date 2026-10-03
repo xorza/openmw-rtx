@@ -358,6 +358,9 @@ namespace RtxTool
                     : shippedDefault<float>(command.mConfig, "Groundcover", "rendering distance"),
                 .mGroundcoverDensity = watched ? Settings::groundcover().mDensity.get()
                                                : shippedDefault<float>(command.mConfig, "Groundcover", "density"),
+                .mGroundcoverPointLighting = watched
+                    ? Settings::groundcover().mPointLighting.get()
+                    : shippedDefault<bool>(command.mConfig, "Groundcover", "point lighting"),
                 .mSpecularMapLayout = watched
                     ? Settings::rtx().mSpecularMapLayout.get()
                     : shippedDefault<std::string>(command.mConfig, "RTX", "specular map layout"),

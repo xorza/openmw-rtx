@@ -19,7 +19,6 @@ namespace MWRender
         constexpr std::string_view sFiltering = "The ray tracer filters every texture trilinearly.";
         constexpr std::string_view sStillGrass
             = "The ray tracer stands each plant still: no wind and no step bends it.";
-        constexpr std::string_view sGrassLamps = "The ray tracer lights each plant from every lamp in reach.";
         constexpr std::string_view sDrawThreads = "This sets the rasterizer's draw threads.";
         constexpr std::string_view sPostProcessing
             = "Shader post-processing runs on the rasterizer. The ray tracer has its own exposure, bloom and tone "
@@ -65,7 +64,7 @@ namespace MWRender
             { "General", "texture mipmap", sFiltering },
             { "Groundcover", "density", {} },
             { "Groundcover", "enabled", {} },
-            { "Groundcover", "point lighting", sGrassLamps },
+            { "Groundcover", "point lighting", {} },
             { "Groundcover", "rendering distance", {} },
             { "Groundcover", "stomp intensity", sStillGrass },
             { "Groundcover", "stomp mode", sStillGrass },

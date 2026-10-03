@@ -93,7 +93,6 @@ Settings
 * ``[General] texture mag filter``: The ray tracer filters every texture trilinearly.
 * ``[General] texture min filter``: The ray tracer filters every texture trilinearly.
 * ``[General] texture mipmap``: The ray tracer filters every texture trilinearly.
-* ``[Groundcover] point lighting``: The ray tracer lights each plant from every lamp in reach.
 * ``[Groundcover] stomp intensity``: The ray tracer stands each plant still: no wind and no step bends it.
 * ``[Groundcover] stomp mode``: The ray tracer stands each plant still: no wind and no step bends it.
 * ``[Physics] async num threads``: This sets the rasterizer's draw threads.

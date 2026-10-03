@@ -364,6 +364,11 @@ namespace Rtx
         /// wound the other way, which is `Rtx::ShapeFold`'s business.
         bool mTwoSided = false;
 
+        /// Whether the lamps light this surface. Every surface the content describes is lit by
+        /// them; upstream's groundcover alone takes them away, where `[Groundcover] point lighting`
+        /// is off (`Rtx::CellReader::readModel`).
+        bool mLampLit = true;
+
         /// Three of the four colours a `NiMaterialProperty` states for a surface, display-encoded.
         /// The specular and the glossiness beside them are not read: `NifOsg` sets the specular to
         /// black on every Morrowind NIF, because the game had specular lighting disabled. A surface's
