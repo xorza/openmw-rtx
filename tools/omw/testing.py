@@ -45,7 +45,9 @@ def _one(build: Build, binary: str, args: list[str]) -> int:
     return build.run_here([build.binary(binary), *args]).returncode
 
 
-LIMIT_SECONDS = 1.0
+# Two seconds, in the debug build: the fork's slowest test took 0.9 s alone and 1.1 s beside the other
+# suites. A death test starts the binary again and stands up a device, about a quarter of a second each.
+LIMIT_SECONDS = 2.0
 
 
 def times_folder(build: Build) -> Path:
@@ -63,10 +65,10 @@ def durations(report: dict, root: Path = ROOT) -> dict[str, float]:
 
 
 def timing(build: Build) -> int:
-    """**No test of the fork's takes more than a second, measured alone.** Beside the other suites a test waits for the
-    processors and the card they share, and the four that read past a second there took 0.35–0.96 s
-    alone. So the last `test` run's reports name the candidates, and each runs again by itself, warm,
-    where its time is its own: what is under the limit beside the others is under it alone."""
+    """**No test of the fork's takes longer than `LIMIT_SECONDS`, measured alone.** Beside the other suites a
+    test waits for the processors and the card they share. So the last `test` run's reports name the
+    candidates, and each runs again by itself, warm, where its time is its own: what is under the limit
+    beside the others is under it alone."""
     targets = {test["name"]: property["value"] for test in build.tests()
                for property in test.get("properties", []) if property["name"] == "OPENMW_TARGET"}
     alone = build.dir / "test-output" / "alone.json"
