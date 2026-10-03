@@ -13,8 +13,6 @@ the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the
   banner, rope and sail has a hard edge where the rasterizer's is soft, and a cobweb, a Telvanni
   crystal or Bloodmoon ice whose texture reaches 255 anywhere loses the coverage under the cut.
   `components/rtx/scene/material.hpp` (`Material::isTranslucent`).
-- `shadow.h` admits a 32-pixel classification square, where `shadowtiles.comp:206` would shift by 32,
-  which is undefined. The width is 24 today. `components/rtx/shaders/shadow.h:111`.
 - The driver takes macOS for Linux: `bootstrap` downloads the Linux SDK, `build` asks for a disabled
   preset, and `setup` writes `openmw.cfg` to a folder the game never reads.
   `tools/omw/system.py:10-13`, `:125-137`.

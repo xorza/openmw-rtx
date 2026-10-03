@@ -106,6 +106,17 @@ namespace Rtx::Shaders
         Eyes mEyes;
     };
 
+    /// A word with its `count` low bits set, for `count` from one to the whole word.
+    ///
+    /// **A full word shifted right, and not one shifted left less one**: `(1u << count) - 1u` shifts
+    /// by 32 for a full word, which both languages leave undefined, and a classification row as wide
+    /// as its word is a row `SHADOW_REACH` allows. Nought is the one count it does not take, and a row
+    /// holds at least the workgroup's own pixels.
+    RTX_SHADER uint lowBits(uint count)
+    {
+        return ~0u >> (32u - count);
+    }
+
 #ifdef RTX_HOST
     static_assert(SHADOW_WORKGROUP + 2 * SHADOW_REACH <= 32, "a row of the classification's square past a word");
     static_assert(SHADOW_REACH % SHADOW_MASK_WIDTH == 0 && SHADOW_WORKGROUP % SHADOW_MASK_WIDTH == 0,

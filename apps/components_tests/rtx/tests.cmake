@@ -75,6 +75,7 @@ set(RTX_TEST_FILES
     rtx/shaders/exposure.cpp
     rtx/shaders/hitrecords.cpp
     rtx/shaders/pixelgrid.cpp
+    rtx/shaders/shadow.cpp
     rtx/shaders/sharedconstants.cpp
     rtx/shaders/tangent.cpp
     rtx/sourcetree.cpp
