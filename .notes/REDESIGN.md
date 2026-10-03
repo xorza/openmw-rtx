@@ -11,7 +11,6 @@ notes cite.
 
 | Workstream | What is left | Phase |
 |---|---|---|
-| W6 Scene tables change by the row | block growth, the presence rows | 5 |
 | W8 The denoisers share one surface test | step 3 after its probe (steps 1 and 2 measured and declined) | 5 |
 | W9 Passes run only over what is new | the last wavelet level into the composite, measured first | 5 |
 | W14 The ray tracer shows what the rasterizer shows | the items that wait for an input outside the tree | after its inputs |
@@ -64,32 +63,16 @@ These come from `AGENTS.md` and the owner's posture. Each workstream below appli
 
 ## 7. W6 — Scene tables change by the row
 
-**Closes:** *(REVIEW: Scene tables redo work for rows that did not change)* and *(Work is batched
-behind a threshold …)*.
+**Done, and its last two rows measured and declined** (2026-10-03). The refit rota and the running
+totals are in. What was left would not pay:
 
-### What is wrong
-
-| Where | Defect |
-|---|---|
-| `GrowableBuffer::outgrow`, `SlotTable::sync` | the frame that crosses a power of two remakes the table and writes every row |
-| `SceneBuffers::place` | every medium and additive box is transformed on every placement, standing rows included |
-
-### Target shape
-
-- **Per-frame device tables grow by the block.** `SlotTable`, the skin tables and the sprite bin
-  move onto `BlockedBuffer`'s shape: fixed blocks behind one address table. Growth costs one block
-  and owes only its new rows. `SlotTable::mRows` reserves by the block too. `GrowableBuffer` stays
-  only for start-up and resize paths, and `outgrow` goes.
-- **Presence rows in a `SlotTable`**, driven by the same `changed` list as the instance table.
-
-### Verification
-
-`./omw repeat --pairs=10`. `./omw release bench` on a hot card, back to back, with a warm-up leg:
-`one-cell-walk` and a crowd view for the movers, `island-crossing` for growth. Report the median,
-the p99 and the worst frame before and after. The worst frame must not rise. The frame thread's
-cache misses a thousand instructions (the report's `host thread` line) must stay within a tenth of
-each other across six legs: the walk's spread between legs follows them, and a table read as
-arrays is what stops it depending on the heap's layout.
+- **Block growth for the per-frame tables.** Over `island-crossing` the tables grew 212 times, every
+  one before the world stood whole and none in the measured flight; the slowest made its buffer in
+  0.97 ms (the top level's storage, 32 MiB) and all of them together took 3.8 ms. Tables on blocks
+  would put an address table between the trace and every instance and material row it reads, on
+  every ray, to spare a growth a session sees a handful of times, at load.
+- **Presence rows in a `SlotTable`.** The placement that moves every medium and additive box moved
+  at most 64 of them over the same flight: microseconds a placement.
 
 ---
 
@@ -265,8 +248,7 @@ tenth.
 
 ## 15e. W19 — The walk visits what can change
 
-**Closes:** *A measured run's host rows move as a whole between runs of one build* (`ISSUES.md`),
-with W6.
+**Closes:** *A measured run's host rows move as a whole between runs of one build* (`ISSUES.md`).
 
 ### Evidence
 
@@ -300,13 +282,14 @@ whose layout is set by the order the loader threads finished in, which differs i
    walk sees the root's child count change), or a state set's updater runs on it (`StateSetUpdater`'s
    generation, which the fork already reads). Each drops the run, and the next walk descends
    again.
-5. **The rest is W6's**: the rows themselves change by the row, so a frozen subtree costs one
-   stamp pass and nothing else.
+5. **The rows themselves already change by the row** (`PlacementTable`'s change lists, the
+   tables' debts), so a frozen subtree costs one stamp pass and nothing else.
 
 ### Measurement
 
 The six-leg drift at `one-cell-walk`: the walk's median and the cache-miss rate must stay within a
-tenth across legs (the acceptance W6 states), and the walk's median must fall. `./omw repeat
+tenth across legs, which is what a walk that stops chasing pointers through the loader's heap
+promises, and the walk's median must fall. `./omw repeat
 --pairs=10`, because a stamp that misses a row is a row swept from a frame that still shows it.
 
 ---
@@ -431,14 +414,13 @@ so its validation errors are reported.
 
 Each phase ends green on `./omw gate`.
 
-1. **Phase 5, frame cost:** W6, W8 steps 1 and 2, W9, the barrier rows of §16.6, and §17's frame
-   constants. Each with a `./omw release bench` before and after. A change that does not improve
-   the worst frame or the p99 does not go in. W8 step 3 follows its own measurement.
+1. **Phase 5, frame cost:** W9's last row, W19's frozen subtrees, the barrier rows of §16.6, and
+   §17's frame constants. Each with a `./omw release bench` before and after. A change that does
+   not improve the worst frame or the p99 does not go in. W8 step 3 follows its own measurement.
 2. **Phase 6, the upstream diff:** §16.1, then §16.2, §16.5 and §16.7.
 3. **Phase 7, tests and docs:** the test groups in §17, and every doc item, `architecture.md` §1 and
    §13 included.
 4. **Phase 8, the open issues:** W15's measurement with a real mod, W16's lit layer behind its measurement.
-   W19's probe goes with Phase 5, and its frozen subtrees with W6.
 
 W14 goes as each input arrives.
 
