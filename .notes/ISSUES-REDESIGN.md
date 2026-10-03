@@ -201,6 +201,22 @@ The steps:
 read in both channels. The direct channel holds `D × lamp`, and the indirect channel's remodulation
 holds `A`. A host test of `vertexColourOf` over all six modes.
 
+**Census (vanilla Morrowind, Tribunal, Bloodmoon).**
+- `ColorMode_Ambient` comes only from an OSG model's own material (`SceneManager`'s
+  `fromOSGColorMode`); no NIF sets it, so vanilla content has none.
+- Of 19 416 `NiMaterialProperty` records, 2 758 (14.2%) have an ambient that differs from the
+  diffuse, worn by 3 295 of 34 567 shapes (9.5%) in 871 files. Most differ by a few per cent
+  (A/D 0.95–0.99), but 919 materials have A/D under a half: 538 at 0.10, 136 at 0.33, 68 at 0.18,
+  38 at nought. They are whole interiors — the Redoran, Telvanni, Daedric and Vivec halls — and the
+  hair meshes.
+
+**Decision needed before step 3.** Step 3 multiplies *all* indirect light by A/D, so those halls'
+bounce falls to a tenth. The rasterizer's ambient is the cell's flat fill and nothing else; the
+trace's indirect also carries lamp light bounced off other surfaces, which the rasterizer does not
+have and which a physical reflectance would return by D. Two readings: A for the fill and the path
+end only, D for bounced lamp light (needs the indirect channel split); or A for all indirect, as
+written. Not built until the user chooses.
+
 ### 2.2 Night-Eye is a view term, added after the meter
 
 **Root cause.** In the game, Night-Eye adds `0.7 × magnitude` to the ambient of every lit fragment.
