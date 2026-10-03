@@ -29,6 +29,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
+#include <components/files/fixedpath.hpp>
 #include <components/misc/result.hpp>
 #include <components/platform/platform.hpp>
 #include <components/platform/process.hpp>
@@ -674,6 +675,14 @@ namespace RtxTool
 
         int commandInfo(const Command& command)
         {
+            if (command.mVariables["folders"].as<bool>())
+            {
+                const Files::FixedPath<> game("openmw");
+                out() << "config " << Files::pathToUnicodeString(game.getUserConfigPath()) << '\n'
+                      << "data " << Files::pathToUnicodeString(game.getUserDataPath()) << '\n';
+                return 0;
+            }
+
             const Rtx::ValidationOptions validation = validationFrom(command.mVariables);
 
             return runInfo(command, validation);

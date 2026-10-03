@@ -178,6 +178,11 @@ namespace RtxTool
 
         option(Verbs::Every, "list-views", bpo::bool_switch(), "print the named viewpoints and quit");
 
+        option(Verbs::Info, "folders", bpo::bool_switch(),
+            "print where the game reads its openmw.cfg and where it keeps its saves, one to a line as "
+            "`config <path>` and `data <path>`, and quit, before any device: the answer `Files` gives "
+            "on this system, which the driver's `setup` and `game` read rather than restating");
+
         option(sFramed, "delight", number(between(0.0f, 1.0f))->default_value(byDefault.mSetup.mRun.mProfile.mDelight),
             "how much of the lighting painted into each texture to divide back out, from 0 to 1. "
             "Zero is the A/B that says what it did");

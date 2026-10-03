@@ -13,9 +13,6 @@ the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the
   banner, rope and sail has a hard edge where the rasterizer's is soft, and a cobweb, a Telvanni
   crystal or Bloodmoon ice whose texture reaches 255 anywhere loses the coverage under the cut.
   `components/rtx/scene/material.hpp` (`Material::isTranslucent`).
-- The driver takes macOS for Linux: `bootstrap` downloads the Linux SDK, `build` asks for a disabled
-  preset, and `setup` writes `openmw.cfg` to a folder the game never reads.
-  `tools/omw/system.py:10-13`, `:125-137`.
 - Every install ships the harness's `views.cfg`, `benches.cfg` and `rtx/vfs/` scripts, under a
   comment that says no install carries the harness. `CMakeLists.txt:1143-1149`,
   `apps/rtxtool/CMakeLists.txt:91-98`.
@@ -50,3 +47,7 @@ the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the
   culls. The material reader cannot tell it from the clockwise front `SceneUtil::attach` states over a
   mirrored body part, whose mirror lives in the skinning and not in the placement.
 - Four tests run past one second on a warm driver cache: `RtxVisibilityKernelsTest.theKernelsAreCountedAsTheyLandAndTheCountEndsWithTheCompile` (1.5 s), `RtxFogNoiseTest.everyLevelAMarchMayReadClearsTheShareTheDensityIsDividedBy` (1.2 s), `RtxFrameCostTest.aWarmRendererDrawsAStillFrameWithoutTheHeap` (1.1 s) and `RtxVisibilityTest.aLobeKeepsItsHistoryOverATurnOfTheViewAsWideAsTheLobe` (1.05 s).
+- On a box whose user data folder does not exist yet, the crash catcher does not start: Crashpad's
+  handler creates `<user data>/crashes` without its parents, fails, and the log says "No crash
+  catcher: its monitor did not start". The game's first start on a fresh box runs without a catcher.
+  `components/crashcatcher/crashpadclient.cpp` `install`.
