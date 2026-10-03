@@ -8,7 +8,7 @@
 #include "storageformat.h"
 
 // What the shadow denoiser needs: a port of AMD's FidelityFX Shadow Denoiser (SDK v1.1.4), over the
-// one bit `CHANNEL_SUNLIT` holds per pixel. Included verbatim by both sides, for the reason
+// one bit `CHANNEL_SHADOWED` holds per pixel. Included verbatim by both sides, for the reason
 // `visibility.h` is. `shadowtiles.comp` and `shadowfilter.comp` each say what their half of the port
 // keeps and what it changes.
 
@@ -55,7 +55,7 @@ namespace Rtx::Shaders
     const uint SHADOW_REACH = 8;
 
     /// Where `shadowmask.comp` binds what it reads and writes in set 0, and how many there are.
-    const uint SHADOW_MASK_BIND_SUNLIT = 0;
+    const uint SHADOW_MASK_BIND_SHADOWED = 0;
     const uint SHADOW_MASK_BIND_MASK = 1;
     const uint SHADOW_MASK_BINDINGS = 2;
 
@@ -68,7 +68,7 @@ namespace Rtx::Shaders
     const uint SHADOW_SPEC_COUNT = 1u;
 
     /// Where `shadowtiles.comp` binds what it reads and writes in set 0, and how many there are.
-    const uint SHADOW_TILES_BIND_SUNLIT = 0;
+    const uint SHADOW_TILES_BIND_SHADOWED = 0;
     const uint SHADOW_TILES_BIND_SURFACE = 1;
     const uint SHADOW_TILES_BIND_MOTION = 2;
     const uint SHADOW_TILES_BIND_HELD_SURFACE = 3;

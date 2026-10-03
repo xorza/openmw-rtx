@@ -535,9 +535,10 @@ Hit committedHit(
 /// What a ray toward a light met: whether a surface stopped it outright, and what the surfaces it
 /// crossed let through.
 ///
-/// **Two numbers, because two filters want them apart.** Whether the ray was stopped is the one bit a
-/// shadow denoiser filters (`CHANNEL_SUNLIT`), and what a leaf or a pane let through is a fraction the
-/// same ray measures exactly — so it stays in the light the bit multiplies, and nothing blurs it.
+/// **Two numbers, because two filters want them apart.** Whether the ray was stopped is the one bit
+/// a shadow denoiser filters (`CHANNEL_SHADOWED`), and what a leaf or a pane let through is a
+/// fraction the same ray measures exactly — so it stays in the light the bit multiplies, and
+/// nothing blurs it.
 struct Passage
 {
     /// One where nothing opaque stood in the way, and nought where something did.

@@ -68,7 +68,7 @@ layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_SURFACE, GBUFFER_SURFACE) un
 layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_TILES, SHADOW_TILES) uniform readonly image2D tiles;
 
 /// The level before's mean and variance, or the temporal pass's: `SHADOW_NO_RECEIVER` for the
-/// variance of a pixel the sky's source does not light.
+/// variance of a pixel the shadowed sources do not light.
 layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_SOURCE, SHADOW_REPROJECTED) uniform readonly image2D source;
 layout(set = SET_PASS, binding = SHADOW_FILTER_BIND_FILTERED, SHADOW_REPROJECTED) uniform writeonly image2D filtered;
 

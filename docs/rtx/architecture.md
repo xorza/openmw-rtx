@@ -262,8 +262,9 @@ at the top, over all of them.
   (`CHANNEL_UPSCALE_MASKS`): the share of a pixel's light whose image moves apart from the pixel's
   motion vector — the see-through layers', and what the water's rays show.
 - **The denoiser** (`trace/denoise/`) runs where the frame is filtered. The accumulator averages
-  the diffuse light over time and the wavelet spreads it across the screen. The shadow denoiser
-  filters the one bit a pixel's sun ray came back with, where the sky has a source that lights.
+  the bounce's diffuse light over time and the wavelet spreads it across the screen. The shadow
+  denoiser filters the one bit a pixel kept of its rays to the sky's source and to a lamp, under
+  the light both would add unshadowed, where the sky has a source that lights or the scene a lamp.
   The glossy filter averages the lobe's light over time, where the scene wears a map. The pane
   filter averages what was drawn for the see-through layers over time, against a history of the
   nearest layer's own surface and motion. The accumulator, the shadow denoiser and the glossy filter

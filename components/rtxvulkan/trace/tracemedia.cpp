@@ -34,6 +34,7 @@ namespace Rtx
             .mSunGlare = &sunGlare,
             .mSea = held.getCounts().mWater > 0 || !std::isinf(camera.mWaterLevel),
             .mMapped = held.getCounts().mMapped > 0,
+            .mLamps = held.getBuffers().getLightGrid().getLightCount() > 0,
         };
     }
 

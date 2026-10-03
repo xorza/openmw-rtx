@@ -147,6 +147,8 @@ namespace Rtx
         constants.mSunDiscColour = light.mSun.mDiscColour;
         constants.mAmbient = light.mAmbient;
         constants.mAmbientFromSky = reading.mOutdoors ? 1.0f : 0.0f;
+        assert(Shaders::BOUNCE_RATE > 0.0f && Shaders::BOUNCE_RATE <= 1.0f
+            && "BOUNCE_RATE is a share of the hits, and the bounce is divided by it");
         constants.mBounceRate = Shaders::BOUNCE_RATE;
         constants.mDaylightGain = gain;
 

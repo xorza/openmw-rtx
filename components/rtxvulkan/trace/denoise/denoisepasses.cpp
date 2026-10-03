@@ -24,11 +24,13 @@ namespace Rtx
     }
 
     Denoised DenoisePasses::record(VkCommandBuffer commands, DenoiseHistory& history, const GBuffer& buffer,
-        const Shaders::VisibilityConstants& sampled, const bool mapped, GpuTimer* const timer) const
+        const Shaders::VisibilityConstants& sampled, const bool mapped, const bool lamps, GpuTimer* const timer) const
     {
-        // **The shadow denoiser only where a source in the sky lights anything.** A room has none,
-        // and every tile of it would be classified, found to receive nothing and copied through:
-        // 0.34 ms of a guild's frame, measured, for a factor of one on a light of nought.
+        // **The shadow denoiser only where a source in the sky or a lamp can light anything.** A
+        // room with no lamp has neither, and every tile of it would be classified, found to receive
+        // nothing and copied through: 0.34 ms of a guild's frame, measured, for a factor of one on
+        // a light of nought. With its lamps, the guild pays 0.28 ms in the pass and 0.38 ms of the
+        // median frame, release, two alternated rounds: 4.24 to 4.62 ms.
         //
         // **The glossy filter only where a surface can have a lobe**, which a vanilla scene has
         // nowhere: its channel is nought, and the composite reads the channel itself for the nought
@@ -46,7 +48,7 @@ namespace Rtx
         // which read the surface it holds, need no freshness but their own.
         TemporalFlags runs;
         runs[Temporal::Accumulate] = true;
-        runs[Temporal::Shadow] = Shaders::skySourceLights(sampled);
+        runs[Temporal::Shadow] = Shaders::skySourceLights(sampled) || (lamps && sampled.mNoLamps == 0u);
         runs[Temporal::Specular] = mapped;
         runs[Temporal::Pane] = true;
 

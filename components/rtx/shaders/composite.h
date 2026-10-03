@@ -20,7 +20,7 @@ namespace Rtx::Shaders
     const uint COMPOSITE_BIND_INDIRECT = 1;
     const uint COMPOSITE_BIND_ALBEDO = 2;
     const uint COMPOSITE_BIND_SUM = 3;
-    const uint COMPOSITE_BIND_SUNLIT = 4;
+    const uint COMPOSITE_BIND_SHADOWED = 4;
     const uint COMPOSITE_BIND_SHADOW = 5;
     const uint COMPOSITE_BIND_SPECULAR = 6;
     const uint COMPOSITE_BIND_PANE = 7;
@@ -59,9 +59,10 @@ namespace Rtx::Shaders
         /// the sum. A composite runs on such a frame only to take one.
         uint mComposed;
 
-        /// Non-zero where the shadow denoiser ran, so the sun is scaled by what it made of the rays'
-        /// bits, and nought where the frame had no sky source to shadow and the pass was not
-        /// recorded — where the bits themselves stand, and `sunlit` is nought under them.
+        /// Non-zero where the shadow denoiser ran, so the shadowed light is scaled by what it made
+        /// of the rays' bits, and nought where the frame had no sky source and no lamp to shadow
+        /// and the pass was not recorded — where the bits themselves stand, and the shadowed light
+        /// is nought under them.
         uint mShadowed RTX_ZERO;
     };
 

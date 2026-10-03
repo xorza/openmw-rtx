@@ -40,13 +40,28 @@ struct DirectLight
     /// diffuse albedo.
     vec3 mSpecular;
 
-    /// The sky's source, kept out of the two above where `gather` was asked to split it: its diffuse
-    /// half per unit albedo and net of the lobe's share, and its lobe whole, each as though its rays
-    /// got through — and whether they did, one or nought. Nought and one where it was not split.
-    vec3 mSkyDiffuse;
-    vec3 mSkySpecular;
-    float mSkyOpen;
+    /// The shadowed sources, kept out of the two above where `gather` was asked to split them: the
+    /// sky's diffuse half and every lamp's, per unit albedo and net of the lobe's share, and the
+    /// sky's lobe whole, each as though its rays got through — and whether the kept ray did, one or
+    /// nought. Nought and one where nothing was split.
+    vec3 mShadowedDiffuse;
+    vec3 mShadowedSpecular;
+    float mOpen;
 };
+
+/// Which of two shadowed lights' bits a pixel keeps, drawn in proportion to the luminance each
+/// adds.
+///
+/// **Exact in luminance on average**: the pixel's light is the sum of both times the bit kept, and
+/// the bit is `openB` with chance `shareB / (shareA + shareB)`, so the mean is `shareA * openA +
+/// shareB * openB`. `mixSplit` says what it costs in hue and what keeping the brighter one lost.
+/// `openA` where neither adds anything.
+///
+/// @param draw one number in `[0, 1)`, from a sequence of the caller's own.
+float drawnOpen(float shareA, float openA, float shareB, float openB, float draw)
+{
+    return draw * (shareA + shareB) < shareB ? openB : openA;
+}
 
 /// The *direct* light arriving at a point and turning back out of it: per unit albedo for the
 /// diffuse half, and whole for the specular.
@@ -81,8 +96,9 @@ struct DirectLight
 ///        keep correlated lamps at both ends of it.
 /// @param path `PATH_SEEN` or `PATH_INDIRECT`. It decides whether the moons are asked at all, and
 ///        whether the rest of this is drawn at `INDIRECT_LIGHT_RATE` or spent on every hit.
-/// @param split whether the sky's source is handed back apart, `DirectLight::mSkyDiffuse` and the
-///        two beside it, for the shadow denoiser (`CHANNEL_SUNLIT`). **A literal at every call**:
+/// @param split whether the sky's source and the lamps' diffuse half are handed back apart,
+///        `DirectLight::mShadowedDiffuse` and the two beside it, for the shadow denoiser
+///        (`CHANNEL_SHADOWED`). **A literal at every call**:
 ///        what the eye sees splits — its own solid, and what the water's legs find — and the pane and
 ///        the bounce compose. Only with `PATH_SEEN`: the split terms do not carry the rate that
 ///        `PATH_INDIRECT` draws at.
@@ -123,10 +139,13 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     // does not depend on how many lamps the cell happened to hold: the two pairs sit at a fixed
     // place in the sequence and the reservoir's own draws follow them. Otherwise a lamp arriving in
     // the next cell along would move the penumbra of the one already there.
-    // A pair aims the sky's one ray and a draw picks which of its sources the ray goes to.
+    // A pair aims the sky's one ray and a draw picks which of its sources the ray goes to. Split,
+    // one more picks whose bit the pixel keeps, the sky's or the lamps' — drawn only there, so a
+    // path that composes steps the sequence it stepped.
     const vec2 sunDraw = vec2(randomNext(state), randomNext(state));
     const float skyPick = randomNext(state);
     const vec2 lampDraw = vec2(randomNext(state), randomNext(state));
+    const float shadowedPick = split ? randomNext(state) : 0.0;
 
     // **The sky's sources are weighed and drawn the way the lamps are.** What each would deliver
     // unshadowed is its weight — its cosine and its irradiance, which is everything about it that can
@@ -186,9 +205,9 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
 
         if (split)
         {
-            lit.mSkyDiffuse = skyDiffuse - skyTaken;
-            lit.mSkySpecular = skySpecular;
-            lit.mSkyOpen = passage.mOpen;
+            lit.mShadowedDiffuse = skyDiffuse - skyTaken;
+            lit.mShadowedSpecular = skySpecular;
+            lit.mOpen = passage.mOpen;
         }
         else
         {
@@ -222,17 +241,42 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     weighLamps(kept, state, position, facing, INV_PI, gloss);
     kept.mFrom = leaving;
 
+    const Passage lampPass = kept.mWeight > 0.0 ? lampPassage(kept, lampDraw) : Passage(1.0, 1.0);
+    const float lampSeen = lampPass.mOpen * lampPass.mThrough;
+    const float held = heldShare(kept);
+
+    // **Split, every lamp's light as though its ray got through, and the held lamp's bit**: Heitz
+    // et al. 2018's ratio estimator, the unshadowed light exact and only its visibility drawn. The
+    // bit is the held lamp's, which the reservoir drew in proportion to its weight. On a surface
+    // with no lobe the weight is the light's luminance, so the sum times the bit is exact in
+    // luminance on average; a lobe weighs a lamp by its reflection as well, so where the lamps'
+    // rays disagree the bit leans toward the lamps the lobe reflects most. Exact wherever every ray
+    // agrees. Correcting the sum by the held lamp's own estimate would lean nowhere, and put the
+    // reservoir's speckle back into a light nothing filters.
+    const vec3 lampsArriving = split ? kept.mUnshadowed * lampPass.mThrough : kept.mRadiance * held * lampSeen;
+
     // **The lamps that take light away take it off the lamps' term and no further**, floored at
     // nought as the rasterizer clamps its lighting: the sun, the sky and the bounce stay whole.
-    float lampShare;
-    const vec3 lampDiffuse
-        = max(lampsThrough(kept, lampDraw, lampShare) - darkeningAt(position, facing, INV_PI), vec3(0.0));
-    radiance += lampDiffuse;
+    // Split, that is still exact: a lamp's ray that was stopped leaves `max(-darkening, 0)`,
+    // nought.
+    const vec3 lampDiffuse = max(lampsArriving - darkeningAt(position, facing, INV_PI), vec3(0.0));
 
     if (gloss.mGlossy)
+        specular += kept.mSpecular * (held * lampSeen);
+
+    if (split)
     {
-        specular += kept.mSpecular * lampShare;
-        taken += lampDiffuse * kept.mFresnel;
+        // **One bit for both, drawn by the light each adds**, `drawnOpen`'s rule: the shadow
+        // denoiser filters one bit a pixel. The sum is already net of each lamp's lobe.
+        lit.mOpen = drawnOpen(dot(surface.mAlbedo * lit.mShadowedDiffuse + lit.mShadowedSpecular, LUMINANCE_WEIGHTS),
+            lit.mOpen, dot(surface.mAlbedo * lampDiffuse, LUMINANCE_WEIGHTS), lampPass.mOpen, shadowedPick);
+        lit.mShadowedDiffuse += lampDiffuse;
+    }
+    else
+    {
+        radiance += lampDiffuse;
+        if (gloss.mGlossy)
+            taken += lampDiffuse * kept.mFresnel;
     }
 
     lit.mDiffuse = (radiance - taken) * rated;
@@ -290,30 +334,30 @@ vec3 litSurface(Surface surface, vec3 diffuse, vec3 specular)
     return surface.mAlbedo * (diffuse + surface.mEmissiveColour * EMISSIVE_INTENSITY) + surface.mEmitted + specular;
 }
 
-/// What a surface sends back, with the sky's source kept apart: `CHANNEL_SUNLIT`'s two halves
+/// What a surface sends back, with the shadowed sources kept apart: `CHANNEL_SHADOWED`'s two halves
 /// beside everything else.
 struct SplitLight
 {
-    /// Everything but the sky's source.
+    /// Everything but the shadowed sources.
     vec3 mRest;
 
-    /// What the sky's source adds as though its rays got through, albedo and lobe included, and
-    /// whether they did, one or nought. Nought and one where nothing split it off.
-    vec3 mSunlit;
-    float mSunOpen;
+    /// What the shadowed sources add as though their rays got through, albedo and lobe included,
+    /// and whether the kept ray did, one or nought. Nought and one where nothing split them off.
+    vec3 mShadowed;
+    float mOpen;
 };
 
-/// The whole of a split light, with the sky's source as its own ray found it.
+/// The whole of a split light, with the shadowed sources as the kept ray found them.
 vec3 composed(SplitLight light)
 {
-    return light.mRest + light.mSunlit * light.mSunOpen;
+    return light.mRest + light.mShadowed * light.mOpen;
 }
 
-/// What the sky's source adds to a surface as though its rays got through, out of what `gather`
-/// split off.
-vec3 skyLight(Surface surface, DirectLight lit)
+/// What the shadowed sources add to a surface as though their rays got through, out of what
+/// `gather` split off.
+vec3 shadowedLight(Surface surface, DirectLight lit)
 {
-    return surface.mAlbedo * lit.mSkyDiffuse + lit.mSkySpecular;
+    return surface.mAlbedo * lit.mShadowedDiffuse + lit.mShadowedSpecular;
 }
 
 /// Two split lights that one pixel shows, `mix(a, b, t)`, with one bit between them.
@@ -335,16 +379,15 @@ vec3 skyLight(Surface surface, DirectLight lit)
 /// @param draw one number in `[0, 1)`, from a sequence of the caller's own.
 SplitLight mixSplit(SplitLight a, SplitLight b, float t, float draw)
 {
-    const vec3 fromA = a.mSunlit * (1.0 - t);
-    const vec3 fromB = b.mSunlit * t;
-    const float shareA = dot(fromA, LUMINANCE_WEIGHTS);
-    const float shareB = dot(fromB, LUMINANCE_WEIGHTS);
+    const vec3 fromA = a.mShadowed * (1.0 - t);
+    const vec3 fromB = b.mShadowed * t;
 
-    return SplitLight(
-        mix(a.mRest, b.mRest, t), fromA + fromB, draw * (shareA + shareB) < shareB ? b.mSunOpen : a.mSunOpen);
+    return SplitLight(mix(a.mRest, b.mRest, t), fromA + fromB,
+        drawnOpen(dot(fromA, LUMINANCE_WEIGHTS), a.mOpen, dot(fromB, LUMINANCE_WEIGHTS), b.mOpen, draw));
 }
 
-/// `litSurface` over the whole of `gather`'s light, with the sky's source apart where `split` asks.
+/// `litSurface` over the whole of `gather`'s light, with the shadowed sources apart where `split`
+/// asks.
 ///
 /// @param gloss the surface's specular half, `glossOf`.
 /// @param incoming what arrives from everything that is not a light, `pathEnd` at the hit a
@@ -354,7 +397,7 @@ SplitLight shadeSurface(Surface surface, Gloss gloss, vec3 incoming, uint key, u
 {
     const DirectLight lit = gather(surface, gloss, key, lamps, path, split);
     return SplitLight(
-        litSurface(surface, incoming + lit.mDiffuse, lit.mSpecular), skyLight(surface, lit), lit.mSkyOpen);
+        litSurface(surface, incoming + lit.mDiffuse, lit.mSpecular), shadowedLight(surface, lit), lit.mOpen);
 }
 
 /// Which face of a surface a diffuse sample leaves by, and what the sample is then worth.
@@ -468,9 +511,10 @@ float ambientReaching(vec3 position, vec3 normal, vec3 plane, float transmission
 /// **One statement of the tail the paths share**: the far end of a water ray, and the hit the eye's
 /// bounce found. A pane ends its path in `shadePane`, the same terms kept apart for its filter.
 ///
-/// **The water's legs split the sky's source off**, because what they find is what the pixel shows:
-/// under a canopy, one shadow ray a pixel speckles a reflection that the same rock seen directly
-/// hands to the shadow denoiser. The bounce composes it, since the wavelet filters its whole light.
+/// **The water's legs split the shadowed sources off**, because what they find is what the pixel
+/// shows: under a canopy, one shadow ray a pixel speckles a reflection that the same rock seen
+/// directly hands to the shadow denoiser. The bounce composes it, since the wavelet filters its
+/// whole light.
 ///
 /// @param key the pixel's own, `pixelKey`, and `ambient` and `lamps` the `SEED_` the occlusion ray
 ///        and the lamp reservoir draw from with it. Two, for the reason `SEED_AMBIENT_REACHING`
@@ -728,11 +772,11 @@ Bounce bounceLight(Surface surface, Gloss gloss, uvec2 pixel, Cone cone)
 /// What a solid the eye found sends back, in the channels' pieces.
 struct SeenSolid
 {
-    /// Everything resolved but what a filter takes, the glow, in `mRest`, and what the sky's source
-    /// adds and whether its rays got through: `CHANNEL_SUNLIT`'s two halves.
+    /// Everything resolved but what a filter takes, the glow, in `mRest`, and what the shadowed
+    /// sources add and whether the kept ray got through: `CHANNEL_SHADOWED`'s two halves.
     SplitLight mLight;
 
-    /// The diffuse light the wavelet filters, per unit albedo: the one bounce, and the lamps.
+    /// The diffuse light the wavelet filters, per unit albedo: the one bounce.
     vec3 mBounce;
 
     /// What the solid is in the filter's terms.
@@ -745,7 +789,7 @@ struct SeenSolid
     float mRoughness;
 };
 
-/// What a solid the eye found is: its direct light, the one bounce it gathers, the sky's source
+/// What a solid the eye found is: its direct light, the one bounce it gathers, the shadowed sources
 /// apart for the shadow denoiser, the lobe's light apart for the glossy filter, and what it is in the
 /// filter's terms.
 ///
@@ -760,14 +804,16 @@ SeenSolid shadeSolid(Surface hit, uvec2 pixel, Cone cone)
     const DirectLight lit = gather(hit, gloss, pixelKey(pixel), SEED_LAMPS_EYE, PATH_SEEN, true);
     const Bounce bounced = bounceLight(hit, gloss, pixel, cone);
 
-    // **The lamps' diffuse half joins the bounce, and the filter takes both**, which is what a
-    // shipped path tracer does with its direct lights (RTXDI's diffuse beside the indirect, under
-    // ReLAX): one lamp drawn a pixel is as noisy as one bounce, and both are demodulated the same way.
-    // Split, `gather`'s diffuse half holds the lamps alone, and its specular half their lobe, which
-    // joins the bounce's lobe for the glossy filter.
+    // **The lamps' diffuse half goes to the shadow denoiser with the sky's, and not to the wavelet
+    // with the bounce**: direct light and indirect apart, as NRD has them. A lamp's shadow is sharp
+    // and a bounce is not, and one filter over both blurred the one or left the other noisy. At the
+    // guild's planter at night the leaf shadows smeared flat under a long history and the bounce's
+    // bright samples stood as speckle under a short one; apart, the bounce takes a longer history
+    // (`ACCUMULATE_FRAMES`) and the shadows keep their edge. Split, `gather`'s specular half holds
+    // the lamps' lobe, which joins the bounce's for the glossy filter.
     SeenSolid seen;
-    seen.mLight = SplitLight(litSurface(hit, vec3(0.0), vec3(0.0)), skyLight(hit, lit), lit.mSkyOpen);
-    seen.mBounce = bounced.mDiffuse + lit.mDiffuse;
+    seen.mLight = SplitLight(litSurface(hit, vec3(0.0), vec3(0.0)), shadowedLight(hit, lit), lit.mOpen);
+    seen.mBounce = bounced.mDiffuse;
     seen.mSpecular = lit.mSpecular + bounced.mSpecular;
     seen.mRoughness = gloss.mGlossy ? hit.mRoughness : SPECULAR_NO_LOBE;
     seen.mResponse = responseOf(hit);

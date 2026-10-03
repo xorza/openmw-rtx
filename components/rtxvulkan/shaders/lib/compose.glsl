@@ -6,16 +6,16 @@
 // filter or a running sum.
 
 /// The picture a pixel's channels make: what the trace resolved on its own, the bounce with the
-/// surface's albedo multiplied back in, the sky's source by how much of it got through, the lobe's
-/// light, and what was drawn for the see-through layers with theirs.
+/// surface's albedo multiplied back in, the shadowed sources by how much of them got through, the
+/// lobe's light, and what was drawn for the see-through layers with theirs.
 ///
 /// @param shadow the ray's own bit where nothing filters it, and the shadow denoiser's answer
 ///        where something does.
 /// @param paneAlbedo,pane `CHANNEL_PANE_ALBEDO`, and `CHANNEL_PANE` or the pane filter's mean.
-vec3 composedLight(vec3 direct, vec3 albedo, vec3 indirect, vec3 sunlit, float shadow, vec3 specular,
+vec3 composedLight(vec3 direct, vec3 albedo, vec3 indirect, vec3 shadowed, float shadow, vec3 specular,
     vec3 paneAlbedo, vec3 pane)
 {
-    return direct + albedo * indirect + sunlit * shadow + specular + paneAlbedo * pane;
+    return direct + albedo * indirect + shadowed * shadow + specular + paneAlbedo * pane;
 }
 
 #endif

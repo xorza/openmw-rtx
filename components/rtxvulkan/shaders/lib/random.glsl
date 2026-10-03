@@ -115,12 +115,12 @@ const uint SEED_WATER_SHAFT = SEED_BOUNCE_LOBE + 1u;
 const uint SEED_AMBIENT_MIRROR = SEED_WATER_SHAFT + 1u;
 const uint SEED_AMBIENT_THROUGH = SEED_AMBIENT_MIRROR + 1u;
 
-/// And which sky's source a pixel of water keeps the bit of, `mixSplit`'s draw: once between the
-/// water's two rays, and once between the water and the bed under a waterline. **Two**, since a
-/// waterline pixel draws both, and one number deciding both would tie which ray the water keeps to
-/// whether the bed was kept.
-const uint SEED_SUN_LEGS = SEED_AMBIENT_THROUGH + 1u;
-const uint SEED_SUN_SHORE = SEED_SUN_LEGS + 1u;
+/// And which ray's shadowed sources a pixel of water keeps the bit of, `mixSplit`'s draw: once
+/// between the water's two rays, and once between the water and the bed under a waterline.
+/// **Two**, since a waterline pixel draws both, and one number deciding both would tie which ray
+/// the water keeps to whether the bed was kept.
+const uint SEED_SHADOWED_LEGS = SEED_AMBIENT_THROUGH + 1u;
+const uint SEED_SHADOWED_SHORE = SEED_SHADOWED_LEGS + 1u;
 
 /// How far each stream's sequence advances between frames.
 ///

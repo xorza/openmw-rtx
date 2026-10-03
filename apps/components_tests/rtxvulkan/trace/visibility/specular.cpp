@@ -1,9 +1,11 @@
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -17,6 +19,7 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
@@ -32,21 +35,22 @@ namespace Rtx::Testing
     {
         constexpr std::uint32_t sSize = 64;
 
-        /// A grey diffuse texel, and a specular map's: a metal at a roughness of `roughness / 255`,
-        /// so the surface returns its lobe and nothing else.
+        /// A grey diffuse texel.
         constexpr std::array<std::uint8_t, 4> sBaseTexel{ 128, 128, 128, 255 };
 
-        /// A metal floor under four lamps of four colours and a black sky: the lamps' one draw a
-        /// pixel, weighed by its luminance, is the whole of the noise, and all of it is in the lobe.
-        struct MetalFloor
+        /// A glossy floor under four lamps of four colours and a black sky: the lamps' one draw a
+        /// pixel, weighed by its luminance, is the whole of the noise. Its specular map's texel is a
+        /// metalness of `metal / 255` at a roughness of `roughness / 255`: a metal returns its lobe
+        /// and nothing else, so all of the noise is in the lobe, and a dielectric has both halves.
+        struct GlossyFloor
         {
-            std::array<std::uint8_t, 4> mMetalTexel;
+            std::array<std::uint8_t, 4> mMapTexel;
             std::array<TextureData, 2> mTextures;
             SceneDesc mScene;
 
-            explicit MetalFloor(std::uint8_t roughness)
-                : mMetalTexel{ 255, roughness, 0, 255 }
-                , mTextures{ describeTexel(sBaseTexel, 0), describeTexel(mMetalTexel, 1) }
+            explicit GlossyFloor(std::uint8_t roughness, std::uint8_t metal = 255)
+                : mMapTexel{ metal, roughness, 0, 255 }
+                , mTextures{ describeTexel(sBaseTexel, 0), describeTexel(mMapTexel, 1) }
             {
                 const std::array positions = sheetAt(4000.0f, 0.0f);
                 const Index mesh = mScene.addMesh(
@@ -92,7 +96,7 @@ namespace Rtx::Testing
         /// glossy filter's.
         TEST_F(RtxVisibilityTest, overAStillEyeTheGlossyFilterIsTheMeanOfItsFrames)
         {
-            const MetalFloor floor(128);
+            const GlossyFloor floor(128);
             Shaders::VisibilityConstants camera = darkCameraAt(osg::Vec3f(0.0f, -200.0f, 300.0f));
 
             const Frame averaged
@@ -115,6 +119,43 @@ namespace Rtx::Testing
             }
         }
 
+        /// **The lamps' split light on a glossy floor is the same in every frame.** A dielectric at
+        /// half roughness, under the four lamps, where nothing stands between a lamp and the floor:
+        /// the shadow denoiser's channel holds every lamp's light, each less the share its own lobe
+        /// took, and the held lamp's bit, which is one. A lobe's share taken off the whole sum by the
+        /// held lamp's Fresnel term, or the sum scaled by the held lamp's own estimate, would change
+        /// with the lamp each pixel holds, in a light nothing filters.
+        TEST_F(RtxVisibilityTest, theLampsSplitLightOnAGlossyFloorIsTheSameInEveryFrame)
+        {
+            const GlossyFloor floor(128, 0);
+            Shaders::VisibilityConstants camera = darkCameraAt(osg::Vec3f(0.0f, -200.0f, 300.0f));
+
+            const auto shadowedAt = [&](std::uint32_t frame) {
+                camera.mFrame = frame;
+                shoot(floor.mScene, floor.mTextures, camera, sSize);
+                std::vector<float> read;
+                mRenderer.readChannel(Channel::Shadowed, read);
+                return read;
+            };
+
+            const std::vector<float> first = shadowedAt(1000);
+            const std::vector<float> second = shadowedAt(1001);
+            ASSERT_EQ(first.size(), std::size_t{ sSize } * sSize * 4);
+
+            float brightest = 0.0f;
+            for (std::size_t value = 0; value < first.size(); ++value)
+            {
+                if (value % 4 == 3)
+                {
+                    ASSERT_EQ(first[value], 1.0f) << "every lamp reaches pixel " << value / 4;
+                    continue;
+                }
+                brightest = std::max(brightest, first[value]);
+                ASSERT_EQ(first[value], second[value]) << "value " << value << " moved between two frames";
+            }
+            ASSERT_GT(brightest, 0.0f) << "a floor the lamps leave dark proves nothing";
+        }
+
         /// **A lobe keeps its history over a turn of the view as wide as the lobe, and no wider.**
         /// Sixteen filtered frames from one eye, then one from an eye 150 units to the side, which
         /// turns the direction the middle of the floor is seen from by
@@ -129,7 +170,7 @@ namespace Rtx::Testing
         TEST_F(RtxVisibilityTest, aLobeKeepsItsHistoryOverATurnOfTheViewAsWideAsTheLobe)
         {
             const auto turnedRawAndReference = [&](std::uint8_t roughness) {
-                const MetalFloor floor(roughness);
+                const GlossyFloor floor(roughness);
                 const Shaders::VisibilityConstants before = darkCameraAt(osg::Vec3f(0.0f, -200.0f, 300.0f));
                 Shaders::VisibilityConstants after = darkCameraAt(osg::Vec3f(150.0f, -200.0f, 300.0f));
                 after.mFrame = 5000;

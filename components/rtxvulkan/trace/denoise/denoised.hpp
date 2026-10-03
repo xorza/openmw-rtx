@@ -15,8 +15,9 @@ namespace Rtx
         const Image& mSpecular;
         const Image& mPane;
 
-        /// What the shadow denoiser made of the sky's source's rays, or null where it did not run:
-        /// a frame nothing filters, and a frame with no source in the sky to shadow.
+        /// What the shadow denoiser made of the shadowed sources' rays, or null where it did not
+        /// run: a frame nothing filters, and a frame with no source in the sky and no lamp to
+        /// shadow.
         const Image* mShadow;
 
         /// The channels themselves, which is where the light is when nothing filtered it.

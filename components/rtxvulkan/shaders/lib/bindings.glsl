@@ -113,10 +113,11 @@ layout(set = SET_CHANNELS, binding = CHANNEL_BACKDROP, GBUFFER_BACKDROP) uniform
 /// Read back by `spritecomposite.rgen`, which is why it is not `writeonly`.
 layout(set = SET_CHANNELS, binding = CHANNEL_PUFFS, GBUFFER_LAYER) uniform image2D puffs;
 
-/// What the sky's source adds to the solid the eye found, as though its rays got through, times what
-/// the path took off it, and in `a` whether they got through — `CHANNEL_SUNLIT`. No format, for the
+/// What the sky's source and the lamps add to the solid the eye found, as though their rays got
+/// through, times what the path took off it, and in `a` whether the kept ray got through —
+/// `CHANNEL_SHADOWED`. No format, for the
 /// reason `direct` has none: it is radiance, as wide as the run keeps radiance.
-layout(set = SET_CHANNELS, binding = CHANNEL_SUNLIT) uniform writeonly image2D sunlit;
+layout(set = SET_CHANNELS, binding = CHANNEL_SHADOWED) uniform writeonly image2D shadowed;
 
 /// What the lobe reflects of the lamps and the bounce, times what the path took off it —
 /// `CHANNEL_SPECULAR`. No format, as radiance has none here.

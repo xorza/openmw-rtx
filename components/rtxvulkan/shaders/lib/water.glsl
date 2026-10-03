@@ -40,7 +40,8 @@ const float WATER_UNBOUNDED_PATH = 40000.0;
 /// What a ray sent out from the water surface found.
 struct WaterPath
 {
-    /// The light coming back along it, already shaded, with the sky's source apart on what it found.
+    /// The light coming back along it, already shaded, with the shadowed sources apart on what it
+    /// found.
     SplitLight mLight;
 
     /// How far it went to find that, or `WATER_MAX_PATH` where it found nothing.
@@ -148,7 +149,7 @@ float airSpan(WaterPath path)
 ///        `fogAlongLeg` says why it asks.
 SplitLight alongLeg(WaterPath path, WorldRay leg, bool underwater, float footprint, uvec2 pixel, float before)
 {
-    // The sky's source is taken down by what the medium lets through and gains none of what it
+    // The shadowed sources are taken down by what the medium lets through and gains none of what it
     // scatters, which stays with the rest: each medium is `radiance * through + scattered`.
     const SplitLight light = path.mLight;
     if (underwater)
@@ -159,11 +160,11 @@ SplitLight alongLeg(WaterPath path, WorldRay leg, bool underwater, float footpri
         // into the air instead, drew the bright world over the water as specks along the horizon.
         const WaterColumn column = waterColumn(leg.mFrom, leg.mAlong, path.mDistance, footprint, pixel);
         return SplitLight(
-            throughWater(light.mRest, column), light.mSunlit * column.mTransmittance, light.mSunOpen);
+            throughWater(light.mRest, column), light.mShadowed * column.mTransmittance, light.mOpen);
     }
 
     const vec4 air = fogAlongLeg(leg.mFrom, leg.mAlong, airSpan(path), before);
-    return SplitLight(throughAir(light.mRest, air), light.mSunlit * air.w, light.mSunOpen);
+    return SplitLight(throughAir(light.mRest, air), light.mShadowed * air.w, light.mOpen);
 }
 
 /// Where the images the water's two rays found appear to stand along the eye's own ray, and what
@@ -203,8 +204,9 @@ WaterImage imageOf(WaterPath path, WorldRay leg, float share, float before, floa
 /// filter's terms, what it reflects, and how much of the pixel is water at all.
 struct WaterShading
 {
-    /// The water's whole answer, as if there were water all the way down, with the sky's source of
-    /// what its two rays found apart: both sources, and one of their bits, as `mixSplit` says.
+    /// The water's whole answer, as if there were water all the way down, with the shadowed sources
+    /// of what its two rays found apart: both rays' light, and one of their bits, as `mixSplit`
+    /// says.
     SplitLight mLight;
 
     SurfaceResponse mResponse;
@@ -336,15 +338,16 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
         refractedConeWidth(lobe, WATER_IOR, fromBelow), key, SEED_LAMPS_THROUGH, SEED_AMBIENT_THROUGH);
     const SplitLight refracted = alongLeg(behind, across, !fromBelow, surface.mFootprint, pixel, before);
 
-    // **Shared by the luminance each ray adds**, as `mixSplit` shares the sun's bit. A ray that went
-    // down and found nothing brought the column's own colour, which has no image to move.
+    // **Shared by the luminance each ray adds**, as `mixSplit` shares the shadowed sources' bit. A
+    // ray that went down and found nothing brought the column's own colour, which has no image to
+    // move.
     const float fromMirror = dot(composed(reflected) * fresnel, LUMINANCE_WEIGHTS);
     const float fromBed = dot(composed(refracted) * (1.0 - fresnel), LUMINANCE_WEIGHTS);
     const float whole = max(fromMirror + fromBed, 1e-6);
     shaded.mImages = WaterImages(imageOf(bounced, mirrored, fromMirror / whole, before, 1.0),
         imageOf(behind, across, fromBed / whole, before, fromBelow ? WATER_IOR : 1.0 / WATER_IOR));
 
-    uint legs = randomSeed(key + SEED_SUN_LEGS);
+    uint legs = randomSeed(key + SEED_SHADOWED_LEGS);
     shaded.mLight = mixSplit(refracted, reflected, fresnel, randomNext(legs));
     return shaded;
 }

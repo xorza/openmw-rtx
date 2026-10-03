@@ -306,12 +306,19 @@ struct Reservoir
     /// The held lamp's own weight, and the weight of every candidate including it.
     float mWeight;
     float mTotal;
+
+    /// What every lamp `weighLamps` offered would deliver to the diffuse half with nothing in the
+    /// way, summed: each candidate's `LightCandidate::mRadiance`, less the share its own lobe took.
+    /// **Exact where the held lamp's estimate is not**: one lamp a pixel hands its neighbours the
+    /// colours of different lamps, and the Fresnel terms of different directions, and a light
+    /// nothing filters keeps that speckle. Nought from the air's walk, which has no use for it.
+    vec3 mUnshadowed;
 };
 
 /// A reservoir that has weighed nothing, which buys no ray and delivers nothing.
 Reservoir noLamps()
 {
-    return Reservoir(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), 0u, 0.0, 0.0);
+    return Reservoir(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), 0u, 0.0, 0.0, vec3(0.0));
 }
 
 /// What a surface's diffuse half needs to take a light: which way it faces, which side a light has
@@ -570,11 +577,11 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
             : 0.0;
         const float cosine = mix(faced, 1.0, depth);
         const vec3 unshadowed = held.mIntensity * (cosine * lamp.mReaching * scale);
+        const LightCandidate candidate = surfaceCandidate(unshadowed, dot(unshadowed, LUMINANCE_WEIGHTS),
+            held.mIntensity * lamp.mReaching, lamp.mTowards, gloss, facing.mSide);
 
-        considerLamp(kept, state, from,
-            surfaceCandidate(unshadowed, dot(unshadowed, LUMINANCE_WEIGHTS), held.mIntensity * lamp.mReaching,
-                lamp.mTowards, gloss, facing.mSide),
-            row);
+        kept.mUnshadowed += candidate.mRadiance * (1.0 - candidate.mFresnel);
+        considerLamp(kept, state, from, candidate, row);
     }
 }
 
@@ -597,7 +604,7 @@ vec3 darkeningAt(vec3 from, Facing facing, float scale)
     return taken;
 }
 
-/// What the world leaves of the lamp a reservoir held, from none of it to all.
+/// What the world leaves of the lamp a reservoir held, in `Passage`'s two halves.
 ///
 /// **The one ray**, aimed somewhere on the lamp. Asked only of a reservoir that holds one: both
 /// callers refuse an empty one before this, and most of the frame is empty.
@@ -614,7 +621,7 @@ vec3 darkeningAt(vec3 from, Facing facing, float scale)
 /// for both draws a black speckle over every lamp-lit wall in the game: aimed across the flame and
 /// stopped at the flame, half the rays a wall sends end among the fitting and charge the whole
 /// lamp to the pixel.
-float lampVisible(Reservoir kept, vec2 draw)
+Passage lampPassage(Reservoir kept, vec2 draw)
 {
     // Aimed from where the ray leaves and not from where the lamp was weighed, with no reach test:
     // a caller that moved its origin after weighing — a lifted surface and the air both do — still
@@ -623,7 +630,7 @@ float lampVisible(Reservoir kept, vec2 draw)
     const vec3 offset = lamp.mPosition - kept.mFrom;
     const float distance = length(offset);
     if (!(distance > 0.0))
-        return 1.0;
+        return Passage(1.0, 1.0);
 
     const vec3 axis = offset / distance;
     const vec3 towards = coneDirection(axis, min(lamp.mSourceRadius / distance, 1.0), draw);
@@ -632,27 +639,22 @@ float lampVisible(Reservoir kept, vec2 draw)
     // the lamp and so where the clearance has to be measured from.
     const float along = distance * dot(towards, axis);
 
-    return lightThrough(kept.mFrom, towards, along - max(lamp.mClearance, SHADOW_BIAS));
+    return lightPassage(kept.mFrom, towards, along - max(lamp.mClearance, SHADOW_BIAS));
 }
 
-/// What every lamp a reservoir stands for delivers, once the one it held has been traced to.
-///
-/// @param share what the held lamp's own light is worth to the estimate: the reservoir's weight over
-///        the held one's, times what the world left of it. Nought where nothing was held. What the
-///        held lamp's lobe, `Reservoir::mSpecular`, is multiplied by, which keeps that estimate the
-///        unbiased one this is.
-vec3 lampsThrough(Reservoir kept, vec2 draw, out float share)
+/// `lampPassage`'s two halves as one number, from none of the lamp to all: `throughToward`'s
+/// product, exact for the reason it gives.
+float lampVisible(Reservoir kept, vec2 draw)
 {
-    share = 0.0;
-    if (!(kept.mWeight > 0.0))
-        return vec3(0.0);
+    const Passage passage = lampPassage(kept, draw);
+    return passage.mOpen * passage.mThrough;
+}
 
-    const float visible = lampVisible(kept, draw);
-    share = (kept.mTotal / kept.mWeight) * visible;
-
-    // Not `mRadiance * share`, which rounds differently. The share is dead code in a frame with no
-    // specular half — every vanilla frame — and this is then the product vanilla pictures are held to.
-    return kept.mRadiance * (kept.mTotal / kept.mWeight) * visible;
+/// What the lamp a reservoir held is worth to the estimate of every lamp it stands for: the
+/// reservoir's weight over the held one's. Nought where nothing was held, which buys no ray.
+float heldShare(Reservoir kept)
+{
+    return kept.mWeight > 0.0 ? kept.mTotal / kept.mWeight : 0.0;
 }
 
 #endif
