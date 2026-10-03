@@ -24,13 +24,12 @@ namespace Rtx
         mStride = reuses ? width : 1;
         const VkDeviceSize pixels = reuses ? VkDeviceSize{ width } * height : 1;
 
+        mReservoirs
+            = Buffer::deviceLocal(mDevice, pixels * sizeof(Shaders::GpuBounceReservoir), sUsage, "bounce-reservoirs");
+        mHistory = Buffer::deviceLocal(mDevice, pixels * sizeof(Shaders::GpuBounceReservoir), sUsage, "bounce-history");
         for (std::size_t half = 0; half < 2; ++half)
-        {
-            mReservoirs[half] = Buffer::deviceLocal(mDevice, pixels * sizeof(Shaders::GpuBounceReservoir), sUsage,
-                half == 0 ? "bounce-reservoirs-0" : "bounce-reservoirs-1");
             mOrigins[half] = Buffer::deviceLocal(mDevice, pixels * sizeof(Shaders::GpuBounceOrigin), sUsage,
                 half == 0 ? "bounce-origins-0" : "bounce-origins-1");
-        }
         mThrough = Buffer::deviceLocal(mDevice, pixels * sizeof(std::uint32_t), sUsage, "bounce-through");
 
         reset();
@@ -38,9 +37,9 @@ namespace Rtx
 
     bool BounceReservoirs::turn(const bool reuses)
     {
-        const bool history = mHistory && reuses;
+        const bool history = mHistoryKept && reuses;
         mNow = 1 - mNow;
-        mHistory = reuses;
+        mHistoryKept = reuses;
         return history;
     }
 }

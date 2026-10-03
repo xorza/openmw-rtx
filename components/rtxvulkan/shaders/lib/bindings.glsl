@@ -164,16 +164,18 @@ layout(set = SET_PASS, binding = BIND_SUN_GLARE, scalar) buffer SunGlare
 };
 
 /// The bounce's reservoirs and visible points, a traced pixel each, row by row at
-/// `VisibilityConstants::mBounceStride` — this frame's, which the trace writes and the reuse reads
-/// and merges into, and last frame's, which the temporal pass reads — and the path's transmittance
-/// in front of each pixel, `RGB9E5`, which the resolve puts back over the bounce it shades.
+/// `VisibilityConstants::mBounceStride`: this frame's reservoirs, which the trace writes and the
+/// temporal pass merges into and the resolve reads, and the history, which the temporal pass reads
+/// last frame's off and the resolve writes the next frame's into; this frame's visible points and
+/// last frame's; and the path's transmittance in front of each pixel, `RGB9E5`, which the resolve
+/// puts back over the bounce it shades.
 layout(set = SET_PASS, binding = BIND_BOUNCE_RESERVOIRS, scalar) buffer BounceReservoirs
 {
     GpuBounceReservoir bounceReservoirs[];
 };
-layout(set = SET_PASS, binding = BIND_BOUNCE_RESERVOIRS_BEFORE, scalar) readonly buffer BounceReservoirsBefore
+layout(set = SET_PASS, binding = BIND_BOUNCE_HISTORY, scalar) buffer BounceHistory
 {
-    GpuBounceReservoir bounceReservoirsBefore[];
+    GpuBounceReservoir bounceHistory[];
 };
 layout(set = SET_PASS, binding = BIND_BOUNCE_ORIGINS, scalar) buffer BounceOrigins
 {

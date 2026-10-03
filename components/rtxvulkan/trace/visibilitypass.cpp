@@ -115,9 +115,8 @@ namespace Rtx
                 = VkDescriptorSetLayoutBinding{ Shaders::BIND_SUN_GLARE, sStorage, 1, sStages, nullptr };
 
             // The bounce's reservoirs, which turn every frame and so are pushed with it.
-            for (const std::uint32_t binding :
-                { Shaders::BIND_BOUNCE_RESERVOIRS, Shaders::BIND_BOUNCE_RESERVOIRS_BEFORE, Shaders::BIND_BOUNCE_ORIGINS,
-                    Shaders::BIND_BOUNCE_ORIGINS_BEFORE, Shaders::BIND_BOUNCE_THROUGH })
+            for (const std::uint32_t binding : { Shaders::BIND_BOUNCE_RESERVOIRS, Shaders::BIND_BOUNCE_HISTORY,
+                     Shaders::BIND_BOUNCE_ORIGINS, Shaders::BIND_BOUNCE_ORIGINS_BEFORE, Shaders::BIND_BOUNCE_THROUGH })
                 declared[binding] = VkDescriptorSetLayoutBinding{ binding, sStorage, 1, sStages, nullptr };
 
             declared[Shaders::BIND_FRAME] = VkDescriptorSetLayoutBinding{ Shaders::BIND_FRAME,
@@ -471,7 +470,7 @@ namespace Rtx
 
         const BounceReservoirs& reservoirs = inputs.mReservoirs;
         writes.buffer(Shaders::BIND_BOUNCE_RESERVOIRS, reservoirs.getReservoirs().describe());
-        writes.buffer(Shaders::BIND_BOUNCE_RESERVOIRS_BEFORE, reservoirs.getReservoirsBefore().describe());
+        writes.buffer(Shaders::BIND_BOUNCE_HISTORY, reservoirs.getHistory().describe());
         writes.buffer(Shaders::BIND_BOUNCE_ORIGINS, reservoirs.getOrigins().describe());
         writes.buffer(Shaders::BIND_BOUNCE_ORIGINS_BEFORE, reservoirs.getOriginsBefore().describe());
         writes.buffer(Shaders::BIND_BOUNCE_THROUGH, reservoirs.getThrough().describe());

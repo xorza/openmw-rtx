@@ -51,11 +51,12 @@ namespace Rtx::Shaders
     /// The two counts the eye's rays take of the sun's quad, for the glare fader — `glare.h`.
     const uint BIND_SUN_GLARE = 8;
 
-    /// The bounce's reservoirs and visible points, this frame's and last frame's, and the path's
-    /// transmittance in front of each pixel — `bouncereuse.h`. Pushed and not a set of their own,
-    /// because which half is this frame's turns every frame and the push already does.
+    /// The bounce's reservoirs, this frame's and the history the next frame merges, its visible
+    /// points, this frame's and last frame's, and the path's transmittance in front of each pixel —
+    /// `bouncereuse.h`. Pushed and not a set of their own, because which half of the points is this
+    /// frame's turns every frame and the push already does.
     const uint BIND_BOUNCE_RESERVOIRS = 9;
-    const uint BIND_BOUNCE_RESERVOIRS_BEFORE = 10;
+    const uint BIND_BOUNCE_HISTORY = 10;
     const uint BIND_BOUNCE_ORIGINS = 11;
     const uint BIND_BOUNCE_ORIGINS_BEFORE = 12;
     const uint BIND_BOUNCE_THROUGH = 13;

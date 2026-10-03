@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdio>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -57,8 +56,8 @@ namespace Rtx::Testing
             /// The bounce's luminance at every pixel of the corner, one vector a frame, over a run of
             /// `frames` from the sampler's frame `first` on with the history let build from nothing,
             /// past the first `skipped`.
-            std::vector<std::vector<float>> bounceRun(BounceReuse reuse, std::uint32_t size, std::uint32_t frames,
-                std::uint32_t skipped, std::uint32_t first)
+            std::vector<std::vector<float>> bounceRun(
+                BounceReuse reuse, std::uint32_t size, std::uint32_t frames, std::uint32_t skipped, std::uint32_t first)
             {
                 std::vector<std::vector<float>> kept;
                 std::vector<float> read;
@@ -210,8 +209,8 @@ namespace Rtx::Testing
             constexpr std::uint32_t size = 64;
             SceneDesc scene;
             addQuad(scene, sheetAt(400.0f, 0.0f));
-            const Index twoSided = scene.addMaterial(
-                Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mTwoSided = true });
+            const Index twoSided
+                = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mTwoSided = true });
             const std::array<osg::Vec3f, 4> wall{ osg::Vec3f(0.0f, -400.0f, 0.0f), osg::Vec3f(0.0f, 400.0f, 0.0f),
                 osg::Vec3f(0.0f, 400.0f, 300.0f), osg::Vec3f(0.0f, -400.0f, 300.0f) };
             addQuad(scene, wall, twoSided);
@@ -221,8 +220,8 @@ namespace Rtx::Testing
                 .mReach = 1000.0f,
             });
 
-            Shaders::VisibilityConstants camera = makeCamera(
-                osg::Vec3f(0.0f, 0.0f, 900.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            Shaders::VisibilityConstants camera
+                = makeCamera(osg::Vec3f(0.0f, 0.0f, 900.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 60.0f, size, size, 10000.0f);
             camera.mAmbientFromSky = 0.0f;
 
             const auto lightest = [&](BounceReuse reuse) {
@@ -261,7 +260,8 @@ namespace Rtx::Testing
             const bool darkLeft = litIn(0, size / 2) < litIn(size / 2, size);
             const std::uint32_t from = darkLeft ? 0 : size / 2 + 1;
             const std::uint32_t to = darkLeft ? size / 2 - 1 : size;
-            ASSERT_GT(litIn(darkLeft ? size / 2 + 1 : 0, darkLeft ? size : size / 2 - 1), std::size_t{ size } * size / 8)
+            ASSERT_GT(
+                litIn(darkLeft ? size / 2 + 1 : 0, darkLeft ? size : size / 2 - 1), std::size_t{ size } * size / 8)
                 << "the lamp's side is not lit";
 
             for (std::uint32_t y = 0; y < size; ++y)

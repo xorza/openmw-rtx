@@ -11,11 +11,11 @@ namespace Rtx
 {
     class Device;
 
-    /// What one camera's bounce reuse keeps, at one extent: a reservoir and an origin a traced
-    /// pixel, this frame's and last frame's, and the path's transmittance in front of each pixel,
-    /// which only this frame reads (`bouncereuse.h`). A chain's and not the passes', as the
-    /// denoiser's history is (`DenoiseHistory`): the kernels are every chain's, and the history is
-    /// as big as the camera it follows.
+    /// What one camera's bounce reuse keeps, at one extent: a traced pixel's reservoir this frame,
+    /// the history the next frame merges, its visible point this frame and last frame, and the path's
+    /// transmittance in front of it, which only this frame reads (`bouncereuse.h`). A chain's and not the passes', as
+    /// the denoiser's history is (`DenoiseHistory`): the kernels are every chain's, and the history is as big as the
+    /// camera it follows.
     ///
     /// **Buffers and not images**, because a reservoir is a record of six words, read whole.
     class BounceReservoirs
@@ -28,19 +28,20 @@ namespace Rtx
         void resize(std::uint32_t width, std::uint32_t height, bool reuses);
 
         /// Says last frame's half is worthless, until a frame that reuses writes it again.
-        void reset() { mHistory = false; }
+        void reset() { mHistoryKept = false; }
 
-        /// Turns to the other half for the frame being recorded, and says whether the half it now
-        /// reads holds last frame's reservoirs: a frame that does not reuse writes none, and the
+        /// Turns the visible points to the other half for the frame being recorded, and says whether
+        /// the history holds last frame's reservoirs: a frame that does not reuse writes none, and the
         /// next one that does starts afresh.
         bool turn(bool reuses);
 
         /// How many reservoirs a row holds, which every reader indexes by.
         std::uint32_t getStride() const { return mStride; }
 
-        /// The halves this frame writes and last frame wrote, and the transmittance.
-        const Buffer& getReservoirs() const { return mReservoirs[mNow]; }
-        const Buffer& getReservoirsBefore() const { return mReservoirs[1 - mNow]; }
+        /// This frame's reservoirs and the history; the visible points this frame writes and last
+        /// frame wrote; and the transmittance.
+        const Buffer& getReservoirs() const { return mReservoirs; }
+        const Buffer& getHistory() const { return mHistory; }
         const Buffer& getOrigins() const { return mOrigins[mNow]; }
         const Buffer& getOriginsBefore() const { return mOrigins[1 - mNow]; }
         const Buffer& getThrough() const { return mThrough; }
@@ -48,14 +49,18 @@ namespace Rtx
     private:
         const Device& mDevice;
 
-        std::array<Buffer, 2> mReservoirs;
+        /// **One of each and not a pair**, because the history is written last, by the resolve, after
+        /// every reader of last frame's is done: the trace and the temporal pass fill this frame's,
+        /// and the resolve leaves in the history what the next frame merges.
+        Buffer mReservoirs;
+        Buffer mHistory;
         std::array<Buffer, 2> mOrigins;
         Buffer mThrough;
 
         std::uint32_t mStride = 0;
         std::size_t mNow = 0;
 
-        /// Whether the half last frame wrote holds reservoirs a frame may read.
-        bool mHistory = false;
+        /// Whether the history holds reservoirs a frame may read.
+        bool mHistoryKept = false;
     };
 }
