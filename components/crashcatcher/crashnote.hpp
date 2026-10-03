@@ -112,6 +112,25 @@ namespace Crash
     /// Whether a report is being written, or the process is ending on one.
     bool isReporting();
 
+    /// What a fault finds at the gate.
+    enum class FaultGate : std::uint8_t
+    {
+        /// Free or ending, and now the fault's: no report starts after it.
+        Taken,
+
+        /// Held by a report the faulting thread itself is writing, which cannot end before it.
+        Own,
+
+        /// Held by a report another thread is writing, whose dump the fault's would write over.
+        Other,
+    };
+
+    /// **For a fault's signal handler, on the faulting thread**: takes the gate as `finalReport` does
+    /// where it can, and says where it cannot. A dump in progress and a fault's share one exception
+    /// record in Crashpad's Linux client, so a fault that wrote it then would be read as the report's.
+    /// Allocates nothing and locks nothing.
+    FaultGate takeForFault();
+
     /// The table's bytes where they lie, for the monitor to read out of this process.
     std::span<const std::byte> noteTable();
 

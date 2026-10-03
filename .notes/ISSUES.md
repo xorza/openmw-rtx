@@ -25,12 +25,6 @@ the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the
   held to the performance cores read walk medians of 1.02 to 1.53 ms at a steady clock, and the
   frame thread's cache misses a thousand instructions moved with them, 3.14 to 4.75. The per-frame
   walk reads the OSG graph, whose heap layout differs from one process to the next.
-- A fault on one thread while another thread's `Crash::report` or hang report is being written
-  leaves two dumps on Linux, and the report's dump is summarised as the fault: Crashpad's Linux client
-  keeps one exception record, which `DumpWithoutCrash` and the crash signal handler both write
-  (`extern/fetched/crashpad/client/crashpad_client_linux.cc:170-180`), so the report's dump reads
-  "Crash: SIGSEGV at 0x10 in thread <the reporting thread>, which crashed". Seen in 8 of 8 runs of a
-  thread that faults once `Crash::isReporting()` holds. `components/crashcatcher/crashpadclient.cpp:47-54`.
 - Under `tws` the ray tracer still lights the sea and the player from the lamps of the statics and the
   objects it hides. The rasterizer's light manager collects no light from a culled node, so under the
   rasterizer those lamps go dark.
