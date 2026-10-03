@@ -1,7 +1,7 @@
 # ReSTIR GI for the bounce: research and plan
 
 Status: built on the branch `restir-gi`, which §10 records against the plan. The plan was written
-2026-10-03; the cost bench of Step 7 is still to run.
+2026-10-03. The cost misses §7's limit (§10, Step 7), and §7's noise target is met at one frame.
 
 This file says why the bounce is the noise that is left at the Balmora Mages Guild, what the
 field does about such noise, and how ReSTIR GI fits into this tree. The last sections give the
@@ -550,8 +550,11 @@ On the branch `restir-gi`. Each point says what changed against §4 and §5, and
 - **The temporal MIS traces no ray** (D8 is the spatial merge's): last frame's geometry is gone.
 - **A hidden kept sample leaves the history empty** (D7), written by the resolve.
 - **Not built:** the uniform-hemisphere and target A/Bs (Step 3), the sweep of the confidence cap,
-  and the denoiser's history length and variance (Step 5). Each needs a knob that the frame does
-  not have, and the gains measured so far came from the reuse's own structure.
+  and the wavelet's variance (Step 5). Each needs a knob that the frame does not have, and the
+  gains measured so far came from the reuse's own structure.
+- **The history length stays 32** (Step 5). Under the reuse, the still frames were noisier by a
+  third to four fifths at 16 and by three fifths to two and a half times at 8, and the walked
+  frames no cleaner; `ACCUMULATE_FRAMES` holds the sweep.
 
 **What the tests hold** (`rtxvulkan/trace/visibility/reuse.cpp`, `rtx/shaders/bouncereuse.cpp`):
 - `own` equals the plain bounce to what a reservoir stores, and differs from it bit for bit.
@@ -587,9 +590,25 @@ pair; `shot --views=all --map --upscale=off --bounce-reuse=off` against Step 0 m
 past the denoiser's noise; `kernels --against` names the three new kernels and every kernel that
 reads `bindings.glsl`, which declares the reuse's buffers; the gate is clean; CI passes on the
 branch. The gate found the GPU timer's cap of 24 zones dropping the queue hold's zone once the
-reuse added three: the cap is 40, and a source-tree test counts the zones against it. **The cost
-bench is not run**: the card was in use for the whole session, and §7's cost limit is not yet
-checked.
+reuse added three: the cap is 40, and a source-tree test counts the zones against it.
+
+**The cost** (2026-10-04, `release bench --suite=bounce`, 1280×720 traced under `quality`, a
+warm-up leg, then off and on twice, back to back; `~/.cache/omw-restir/step7/`). **§7's limit of
+1.0 ms is missed**: the three zones take 1.6 ms median at the guild, and the frame grows by 2.0 ms.
+
+| Place | Zones, median: validate + temporal + resolve | Zones' p99 | Frame median, off → on | Frame p99, off → on |
+|---|---|---|---|---|
+| Guild | 0.16 + 0.31 + 1.17 = 1.64 | 2.48 | 5.11 → 7.15 | 5.99 → 8.96 |
+| Planter | 0.17 + 0.31 + 1.69 = 2.16 | 2.88 | 5.21 → 7.45 | 6.56 → 8.40 |
+| Yurt | 0.14 + 0.31 + 1.16 = 1.61 | 2.89 | 4.78 → 6.81 | 5.77 → 7.84 |
+| Pier | 0.12 + 0.31 + 1.61 = 2.04 | 3.08 | 6.40 → 8.75 | 7.24 → 9.68 |
+| Pond | 0.10 + 0.20 + 1.03 = 1.33 | 2.07 | 7.18 → 8.81 | 7.94 → 9.77 |
+
+The two legs agree within 0.03 ms on every zone's median. The trace itself grows by 0.06 to 0.31 ms,
+for the reservoir and the visible point it writes. **The resolve is most of it**: it traces up to
+five rays a pixel, the two neighbours' MIS rays (D8), the two shifts' and the final one, against
+the trace's one bounce. The basic MIS without the ray, D8's A/B leg, is the first lever, and the
+neighbour count the second (§7 names both).
 
 ## Sources
 
