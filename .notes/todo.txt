@@ -1,1 +1,2 @@
 lamps strobing
+groundcover reader: a generated ESMWriter plugin as the fixture, then one merged mesh per cell and plant model under the game's density rule (.notes/ISSUES-REDESIGN.md §2.8, .notes/REDESIGN.md W14)
