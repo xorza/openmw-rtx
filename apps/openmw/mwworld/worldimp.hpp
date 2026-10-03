@@ -1,6 +1,8 @@
 #ifndef GAME_MWWORLD_WORLDIMP_H
 #define GAME_MWWORLD_WORLDIMP_H
 
+#include <memory>
+
 #include <osg/Timer>
 #include <osg/ref_ptr>
 
@@ -217,7 +219,7 @@ namespace MWWorld
 
         // Must be called after `loadData`.
         void init(Debug::Level maxRecastLogLevel, MWRender::Renderer& renderer, osg::ref_ptr<osg::Group> rootNode,
-            SceneUtil::WorkQueue* workQueue, SceneUtil::UnrefQueue& unrefQueue);
+            const std::shared_ptr<SceneUtil::WorkQueue>& workQueue, SceneUtil::UnrefQueue& unrefQueue);
 
         virtual ~World();
 

@@ -41,7 +41,7 @@ namespace MWRender
     {
     public:
         /// @param renderer which makes the overlay the explored cells are painted into
-        GlobalMap(Renderer& renderer, SceneUtil::WorkQueue* workQueue);
+        GlobalMap(Renderer& renderer, const std::shared_ptr<SceneUtil::WorkQueue>& workQueue);
         ~GlobalMap();
 
         void render();
@@ -78,9 +78,9 @@ namespace MWRender
         // The explored cells over the base, as whichever renderer draws paints them
         std::unique_ptr<MapOverlay> mOverlay;
 
-        osg::ref_ptr<SceneUtil::WorkQueue> mWorkQueue;
-        osg::ref_ptr<CreateMapWorkItem> mWorkItem;
-        osg::ref_ptr<WritePng> mWritePng;
+        std::shared_ptr<SceneUtil::WorkQueue> mWorkQueue;
+        std::shared_ptr<CreateMapWorkItem> mWorkItem;
+        std::shared_ptr<WritePng> mWritePng;
 
         int mWidth;
         int mHeight;

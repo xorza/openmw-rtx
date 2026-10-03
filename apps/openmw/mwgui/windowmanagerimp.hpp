@@ -131,9 +131,9 @@ namespace MWGui
         typedef std::vector<Faction> FactionList;
 
         WindowManager(MWRender::Renderer& renderer, Resource::ResourceSystem* resourceSystem,
-            SceneUtil::WorkQueue* workQueue, const std::filesystem::path& logpath, bool consoleOnlyScripts,
-            Translation::Storage& translationDataStorage, ToUTF8::FromType encoding, bool exportFonts,
-            const std::string& versionDescription, Files::ConfigurationManager& cfgMgr);
+            const std::shared_ptr<SceneUtil::WorkQueue>& workQueue, const std::filesystem::path& logpath,
+            bool consoleOnlyScripts, Translation::Storage& translationDataStorage, ToUTF8::FromType encoding,
+            bool exportFonts, const std::string& versionDescription, Files::ConfigurationManager& cfgMgr);
         virtual ~WindowManager();
 
         /// Set the ESMStore to use for retrieving of GUI-related strings.
@@ -429,7 +429,7 @@ namespace MWGui
     private:
         const MWWorld::ESMStore* mStore;
         Resource::ResourceSystem* mResourceSystem;
-        osg::ref_ptr<SceneUtil::WorkQueue> mWorkQueue;
+        std::shared_ptr<SceneUtil::WorkQueue> mWorkQueue;
 
         std::unique_ptr<MyGUIPlatform::Platform> mGuiPlatform;
         MWRender::Renderer& mRenderer;

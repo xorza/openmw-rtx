@@ -5,7 +5,6 @@
 #include <map>
 #include <string>
 
-#include <osg/Object>
 #include <osg/ref_ptr>
 
 #include "../mwworld/ptr.hpp"
@@ -13,7 +12,6 @@
 namespace osg
 {
     class Group;
-    class Node;
 }
 
 namespace Resource
@@ -35,32 +33,6 @@ namespace MWRender
 {
 
     class Animation;
-
-    class PtrHolder : public osg::Object
-    {
-    public:
-        PtrHolder(const MWWorld::Ptr& ptr)
-            : mPtr(ptr)
-        {
-        }
-
-        PtrHolder() {}
-
-        PtrHolder(const PtrHolder& copy, const osg::CopyOp& copyop)
-            : mPtr(copy.mPtr)
-        {
-        }
-
-        META_Object(MWRender, PtrHolder)
-
-        /// Makes `node` carry `ptr`, in place of whatever holder it carried. The container is
-        /// kept and the holder swapped, because the node's user data slot is the
-        /// `SceneUtil::StableIdentity` a mirror knows the node by, and a container made afresh
-        /// took the stamp with it.
-        static void hold(osg::Node& node, const MWWorld::Ptr& ptr);
-
-        MWWorld::Ptr mPtr;
-    };
 
     class Objects
     {

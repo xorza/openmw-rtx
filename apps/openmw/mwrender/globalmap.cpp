@@ -151,7 +151,7 @@ namespace MWRender
         void doWork() override { mImageData = writePng(*mOverlayImage); }
     };
 
-    GlobalMap::GlobalMap(Renderer& renderer, SceneUtil::WorkQueue* workQueue)
+    GlobalMap::GlobalMap(Renderer& renderer, const std::shared_ptr<SceneUtil::WorkQueue>& workQueue)
         : mRenderer(renderer)
         , mWorkQueue(workQueue)
         , mWidth(0)
@@ -204,7 +204,7 @@ namespace MWRender
                 + std::to_string(colorLut ? colorLut->s() : 0) + "x" + std::to_string(colorLut ? colorLut->t() : 0));
         }
 
-        mWorkItem = new CreateMapWorkItem(
+        mWorkItem = std::make_shared<CreateMapWorkItem>(
             mWidth, mHeight, mMinX, mMinY, mMaxX, mMaxY, cellSize, esmStore.get<ESM::Land>(), colorLut);
         mWorkQueue->addWorkItem(mWorkItem);
     }
@@ -394,7 +394,7 @@ namespace MWRender
         if (mOverlay == nullptr)
             return;
         // Use deep copy to avoid any sychronization
-        mWritePng = new WritePng(new osg::Image(mOverlay->getImage(), osg::CopyOp::DEEP_COPY_ALL));
+        mWritePng = std::make_shared<WritePng>(new osg::Image(mOverlay->getImage(), osg::CopyOp::DEEP_COPY_ALL));
         mWorkQueue->addWorkItem(mWritePng, /*front=*/true);
     }
 }
