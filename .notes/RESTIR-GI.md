@@ -497,6 +497,99 @@ Asked and answered on 2026-10-03.
 
 ---
 
+## 10. What was built, and where it left the plan
+
+On the branch `restir-gi`. Each point says what changed against §4 and §5, and why.
+
+**The shape** (§5.1, §5.3):
+- **No set of its own.** The reservoirs bind in the trace's pushed set (`BIND_BOUNCE_*` in
+  `bindings.h`): the push already turns every frame, and a fifth shared set would pass Vulkan's
+  guaranteed four.
+- **No `trace/reuse/` folder.** The owner is one class, `trace/bouncereservoirs.{hpp,cpp}`, and
+  the three passes are kernels of `VisibilityPass`, beside the fog's and the sprites': they read
+  what every launch reads (the frame block, the structure, the tables).
+- **Three passes, not two**: the validation (a launch, it traces and shades), the temporal merge (a
+  dispatch, it traces nothing) and the resolve (a launch).
+- **The hit shader writes the candidate**, the shader that shaded the point; the launch writes a
+  reservoir of nothing where none did (`Answer::mBounceKept`). The payload gained one flag bit and
+  no word.
+- **Reservoirs: one working buffer and one history**, not a pair (§5.2). The trace and the temporal
+  pass fill this frame's; the resolve writes the history the next frame merges. The origins stay a
+  pair.
+- **The origin holds an offset from the eye** (28 bytes), not a distance: last frame's point is read
+  against this frame's eye through `mCameraMotion`, where a distance would need last frame's ray.
+  So a pixel keeps 32 + 32 + 2 × 28 + 4 = 124 bytes, not 100.
+
+**The method** (§4):
+- **The history is the pixel's own temporal reservoir**, not the spatial merge's result. Fed back,
+  as RTXDI and Kajiya do, the still guild was 0.62 against 0.66 now; but validation could not keep
+  up with it: a sample it found dark came back the frame after from a neighbour not yet asked, and
+  the bounce of a lamp that went out lasted to the age cap, 30 frames, where it now lasts 8.
+- **Last frame's reservoir is the nearest matching tap.** Drawn among the four taps by bilinear
+  share, a walk kept more history, but a still eye under the upscaler's jitter took its neighbours'
+  reservoirs at random, and the still guild rose from 0.68 to 0.74.
+- **The neighbours' disc is 3% of the traced height**, not 32 pixels: at a quarter of the frame
+  the spatial half raised the error. **Two neighbours**: four gained 0.01 for four more rays.
+  **RTXDI's facing test, 0.6**, not the accumulator's 0.9: 0.01 to 0.02 less noise.
+- **Each neighbour's shift traces its own visibility ray**, as the paper's unbiased variant does,
+  beside the MIS ray to the canonical sample (D8). A sample taken from a neighbour then needs no
+  final ray, and neither does the pixel's own fresh candidate.
+- **A shift to the other side of the sample's surface is refused** (`reconnectionJacobian`): a
+  sample on a wall of no thickness is the same point as the dark face behind it.
+- **The boiling filter lets go of carried samples only**, past 41 times the workgroup's mean
+  (RTXDI's strength 0.2). On fresh candidates too, as RTXDI does, the still guild fell to 0.55, but
+  where the eye moves most pixels hold a candidate alone, and the yurt's bias rose by 0.9 walked.
+- **Validation (D10): one pixel of each 4 × 2 block a frame, each in turn**, in a launch ahead of the
+  temporal pass. It traces last frame's kept sample again from the point that kept it and shades it
+  as the trace did. A sample the point no longer meets is let go; one whose light fell by more than
+  half takes the light it has now and stands for one candidate. **A tolerance and not a replay**:
+  the far end's light is one draw of a lamp and one occlusion ray, and a replay would need the
+  draw's frame and pixel in the reservoir and the frame threaded through every draw of the shading.
+  A fall of 4 was as noisy as 2; with no light rule at all, the yurt was 0.02 less noisy.
+- **The temporal MIS traces no ray** (D8 is the spatial merge's): last frame's geometry is gone.
+- **A hidden kept sample leaves the history empty** (D7), written by the resolve.
+- **Not built:** the uniform-hemisphere and target A/Bs (Step 3), the sweep of the confidence cap,
+  and the denoiser's history length and variance (Step 5). Each needs a knob that the frame does
+  not have, and the gains measured so far came from the reuse's own structure.
+
+**What the tests hold** (`rtxvulkan/trace/visibility/reuse.cpp`, `rtx/shaders/bouncereuse.cpp`):
+- `own` equals the plain bounce to what a reservoir stores, and differs from it bit for bit.
+- Over a sunlit corner, every mode averages to the plain bounce within 2%, and one frame's error
+  falls with the temporal half and again with the spatial one.
+- With the eye walking 2 units a frame, the temporal half keeps the error under two thirds of none.
+- No light reaches the dark side of a wall of no thickness; without the side test, 96 pixels.
+- A rare bright sample is not carried: 18 pixel-frames past the limit, against 24 the plain bounce
+  draws and 37 without the filter.
+- A lamp's bounce is gone on the eighth frame after the lamp goes, in both reuses.
+- A pixel whose surface went shows its own candidate, bit for bit; without the surface test, 319
+  pixels take the old surface's history.
+- The Jacobian, by hand: a set geometry, the identity, the far side, edge-on and the limit.
+
+**Where the denoised frame stands** (frame noise and bias, `noise`, levels of 255):
+
+| Place | Still: base → now | Strafed: base → now | Walked: base → now |
+|---|---|---|---|
+| Guild | 0.79 → 0.65 | 1.57 → 1.37 | 1.82 → 1.50 |
+| Planter | 0.96 → 0.70 | 2.17 → 1.83 | 1.79 → 1.48 |
+| Yurt | 0.76 → 0.74 | 2.47 → 2.26 | 2.96 → 2.66 |
+| Pier | 0.50 → 0.49 | 1.18 → 1.18 | 1.18 → 1.18 |
+| Pond | 0.47 → 0.46 | 1.19 → 1.19 | 1.14 → 1.14 |
+
+The bias stays within 0.09 of the base at every place (`~/.cache/omw-restir/final/`). §7's noise target, a third off the still
+and the strafed frames at the guild and the planter, is met at the planter's still frame only: the
+raw bounce loses three quarters of its error, the denoised frame much less, because a reservoir
+keeps a sample for many frames, so the accumulator's 32 frames average fewer independent samples
+than before.
+
+**Step 7** (2026-10-04): `repeat --pairs=10` with the spatiotemporal reuse is identical over every
+pair; `shot --views=all --map --upscale=off --bounce-reuse=off` against Step 0 moves no picture
+past the denoiser's noise; `kernels --against` names the three new kernels and every kernel that
+reads `bindings.glsl`, which declares the reuse's buffers; the gate is clean; CI passes on the
+branch. The gate found the GPU timer's cap of 24 zones dropping the queue hold's zone once the
+reuse added three: the cap is 40, and a source-tree test counts the zones against it. **The cost
+bench is not run**: the card was in use for the whole session, and §7's cost limit is not yet
+checked.
+
 ## Sources
 
 - [Ouyang et al. 2021, *ReSTIR GI: Path Resampling for Real-Time Path Tracing* (NVIDIA)](https://research.nvidia.com/publication/2021-06_restir-gi-path-resampling-real-time-path-tracing) — the method, eq. 9–11, Algorithms 2–4, §5's parameters
