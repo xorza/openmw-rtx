@@ -77,9 +77,11 @@ layout(push_constant, scalar) uniform Push
     ShadowFilterConstants level;
 };
 
-/// How far past the workgroup the square reaches on every side: the widest level's step, which is
-/// how far its taps reach. And the side of the square a workgroup reads.
-const int APRON = 1 << (SHADOW_FILTER_LEVELS - 1u);
+/// How far past the workgroup the square reaches on every side: this level's step, which is how far
+/// its taps reach and never less than the variance's one pixel. And the side of the square a
+/// workgroup reads. **Sized by the level, which a specialization constant is**: sized for the widest
+/// level, the first read a square of 16 a side to use one of 10, and the second one of 12.
+const int APRON = 1 << SHADOW_LEVEL;
 const uint SPAN = SHADOW_WORKGROUP + 2u * uint(APRON);
 
 /// The level's input as two halves in a word, the surface's normal code — `SURFACE_NO_NORMAL` where
