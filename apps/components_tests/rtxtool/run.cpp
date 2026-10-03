@@ -22,6 +22,7 @@
 #include <apps/rtxtool/run.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/environment/frameworld.hpp>
+#include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories/video.hpp>
 #include <components/settings/values.hpp>
@@ -279,10 +280,11 @@ namespace RtxTool
 
     namespace
     {
-        /// Where the resource files the tool reads are copied to: beside the compiled shaders.
-        std::filesystem::path resources()
+        /// Where the build copies the harness's places and suites: its folder beside the resources
+        /// the compiled shaders stand in, `resources/rtx/shaders`.
+        std::filesystem::path harness()
         {
-            return std::filesystem::path(OPENMW_RTX_SHADER_DIR).parent_path();
+            return Rtx::harnessDirectory(std::filesystem::path(OPENMW_RTX_SHADER_DIR).parent_path().parent_path());
         }
 
         /// **A watched window keeps the player's pacing whole**: the vertical sync and the frame-rate
@@ -374,8 +376,8 @@ namespace RtxTool
         /// finds out is the one somebody started and walked away from.
         TEST(RtxBenchSuiteTest, everySuiteNamesViewsThatExist)
         {
-            const std::vector<RtxTool::Stop> views = loadViews(resources() / "views.cfg");
-            const std::vector<BenchSuite> suites = loadSuites(resources() / "benches.cfg");
+            const std::vector<RtxTool::Stop> views = loadViews(harness() / "views.cfg");
+            const std::vector<BenchSuite> suites = loadSuites(harness() / "benches.cfg");
 
             EXPECT_NE(findSuite(suites, "default"), nullptr) << "`bench` with no arguments runs [default]";
 
