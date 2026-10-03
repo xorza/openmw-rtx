@@ -104,8 +104,9 @@ namespace MWRender
         /// **The ground answers upstream's callers as a world with no chunks**, and draws
         /// upstream's cell borders. The preloader asks for a view and resets it on a worker thread.
         /// `tb` stands a line strip over each loaded cell's south and east edges, ten units over the
-        /// storage's height, straight under the world root and under `Mask_Debug`, where
-        /// `DebugWalk` reads it: forty segments a side, so eighty lines of two vertices.
+        /// storage's height, under `Mask_Debug` in a group of the terrain's mask straight under the
+        /// world root, where `DebugWalk` reads it: forty segments a side, so eighty lines of two
+        /// vertices.
         TEST(RtxTracedTerrainTest, aViewIsHandedOutAndTheBordersStandOverEachLoadedCell)
         {
             Making making;
@@ -119,15 +120,19 @@ namespace MWRender
             ASSERT_NE(view, nullptr);
             view->reset();
 
+            ASSERT_EQ(making.mWorldRoot->getNumChildren(), 1u);
+            osg::Group& borders = *making.mWorldRoot->getChild(0)->asGroup();
+            EXPECT_EQ(borders.getNodeMask(), static_cast<unsigned int>(Mask_Terrain));
+
             ground.loadCell(0, 0);
-            EXPECT_EQ(making.mWorldRoot->getNumChildren(), 0u) << "a border before `tb`";
+            EXPECT_EQ(borders.getNumChildren(), 0u) << "a border before `tb`";
             ground.setBordersVisible(true);
             EXPECT_TRUE(ground.getBordersVisible());
-            ASSERT_EQ(making.mWorldRoot->getNumChildren(), 1u);
-            EXPECT_EQ(making.mWorldRoot->getChild(0)->getNodeMask(), static_cast<unsigned int>(Mask_Debug));
+            ASSERT_EQ(borders.getNumChildren(), 1u);
+            EXPECT_EQ(borders.getChild(0)->getNodeMask(), static_cast<unsigned int>(Mask_Debug));
 
             DebugWalk walk;
-            const Rtx::DebugLines lines = walk.walk(*making.mWorldRoot);
+            const Rtx::DebugLines lines = walk.walk(*making.mWorldRoot, ~0u);
             ASSERT_EQ(lines.mLines.size(), 160u);
             EXPECT_TRUE(lines.mTriangles.empty());
 
@@ -143,13 +148,13 @@ namespace MWRender
 
             // A cell that arrives under `tb` brings its border, and one that leaves takes its own.
             ground.loadCell(1, 0);
-            EXPECT_EQ(making.mWorldRoot->getNumChildren(), 2u);
+            EXPECT_EQ(borders.getNumChildren(), 2u);
             ground.unloadCell(0, 0);
-            EXPECT_EQ(making.mWorldRoot->getNumChildren(), 1u);
+            EXPECT_EQ(borders.getNumChildren(), 1u);
 
             ground.setBordersVisible(false);
             EXPECT_FALSE(ground.getBordersVisible());
-            EXPECT_EQ(making.mWorldRoot->getNumChildren(), 0u);
+            EXPECT_EQ(borders.getNumChildren(), 0u);
         }
 
         /// A loaded cell stands ground for the intersector at the storage's own height, and an

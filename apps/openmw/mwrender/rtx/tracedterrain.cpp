@@ -99,14 +99,21 @@ namespace MWRender
         , mNormals(new osg::Vec3Array)
         , mColours(new osg::Vec4ubArray)
         , mDistance(distance)
+        , mBorders(new osg::Group)
     {
-        mCellBorder = std::make_unique<Terrain::CellBorder>(this, &worldRoot, Mask_Debug, &scenes);
+        mBorders->setNodeMask(nodeMask);
+        worldRoot.addChild(mBorders);
+        mCellBorder = std::make_unique<Terrain::CellBorder>(this, mBorders.get(), Mask_Debug, &scenes);
         mFar = takeGrid();
         mAnswer = new DistantAnswer(*this);
         mTerrainRoot->addChild(mAnswer);
     }
 
-    TracedTerrain::~TracedTerrain() = default;
+    TracedTerrain::~TracedTerrain()
+    {
+        while (mBorders->getNumParents() > 0)
+            mBorders->getParent(0)->removeChild(mBorders);
+    }
 
     Terrain::View* TracedTerrain::createView()
     {

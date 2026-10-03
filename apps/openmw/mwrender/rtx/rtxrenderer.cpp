@@ -1009,7 +1009,7 @@ namespace MWRender
         // What the debug modes drew, read off the world root here, after the game's own update
         // has rebuilt them for this frame and before the frame is recorded.
         if (mWorldRoot != nullptr)
-            options.mDebug = mDebugWalk.walk(*mWorldRoot);
+            options.mDebug = mDebugWalk.walk(*mWorldRoot, worldViewMask());
 
         report.mFrame = mRenderer->getFrameCount();
         mRenderer->renderFrame(constants, options);

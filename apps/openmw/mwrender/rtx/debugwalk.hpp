@@ -17,11 +17,15 @@ namespace osg
 namespace MWRender
 {
     /// Reads what the game's debug modes drew this frame off the world root — every
-    /// `osg::Geometry` under `Mask_Debug` — into the flat lists the ray tracer's line pass draws:
-    /// the navmesh, the pathgrid, the actors' paths, the recast mesh, the collision shapes.
+    /// `osg::Geometry` under a node of `Mask_Debug` — into the flat lists the ray tracer's line pass
+    /// draws: the navmesh, the pathgrid, the actors' paths, the recast mesh, the collision shapes,
+    /// the cell borders.
     ///
-    /// **Under `Mask_Debug` and no other**, which is what the rasterizer's own cull draws them by,
-    /// and which the mirror's walk never enters: a line is nothing for a ray to meet. Every
+    /// **Culled by the view's own mask, as the rasterizer culls them**, so debug geometry hung under
+    /// a class the view hides goes with it: the cell borders stand under a `Mask_Terrain` group, and
+    /// `tws` takes them with the ground. Less `Mask_Scene`, the root of the world itself, which holds
+    /// no debug node and which a walk each frame would otherwise enter whole. The mirror's walk never
+    /// enters `Mask_Debug`: a line is nothing for a ray to meet. Every
     /// primitive set is taken apart into lines and triangles — a strip, a fan and a quad included
     /// — by the world transform in force at the drawable, with the colour the drawer painted at
     /// each vertex or over the whole. Points are not drawn: nothing here has a size for one.
@@ -39,9 +43,10 @@ namespace MWRender
     public:
         DebugWalk();
 
-        /// Walks `root` and answers what stands under its debug nodes. Empty on every frame no
-        /// mode is on, at the cost of visiting the root's own children and entering none.
-        Rtx::DebugLines walk(osg::Node& root);
+        /// Walks `root` under the view mask `view` and answers what stands under its debug nodes.
+        /// Empty on every frame no mode is on, at the cost of visiting the root's own children and
+        /// entering few.
+        Rtx::DebugLines walk(osg::Node& root, unsigned int view);
 
         void apply(osg::Node& node) override;
         void apply(osg::Transform& transform) override;
@@ -61,7 +66,14 @@ namespace MWRender
         /// What `stateSet` states of the two, over what is above where it leaves either alone.
         void take(const osg::StateSet* stateSet);
 
+        /// Takes what `node` states into what is in force: its state set, and its mask.
+        void enter(const osg::Node& node);
+
         Drawn mDrawn;
+
+        /// Whether the walk stands under a node of `Mask_Debug` alone, where what is drawn is a
+        /// debug mode's.
+        bool mUnderDebug = false;
 
         /// The transform in force at the node being applied, world from local.
         osg::Matrixf mHere;
