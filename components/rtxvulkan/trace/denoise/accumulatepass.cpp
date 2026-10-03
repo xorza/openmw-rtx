@@ -14,10 +14,10 @@ namespace Rtx
     namespace
     {
         /// The channel being blended, the two the frame describes it with, the three a history
-        /// arrives in, the two of those this pass writes back, and the blend the cascade reads; and
-        /// the fill's channel, history and blend. The colour histories are read and not written,
-        /// because the first wavelet level writes the history this reads next frame — SVGF's
-        /// feedback.
+        /// arrives in, the two of those this pass writes back, and the blend the cascade reads; the
+        /// fill's channel, history and blend; and the fast means, read and written. The slow colour
+        /// histories are read and not written, because the first wavelet level writes the history
+        /// this reads next frame — SVGF's feedback.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_BINDINGS> sBindings
             = computeBindings<Shaders::ACCUMULATE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     }
@@ -46,6 +46,10 @@ namespace Rtx
         writes.image(Shaders::ACCUMULATE_BIND_FILL, buffer.get(Channel::Fill).describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_HISTORY_FILL, images.mFillBefore.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_FILL_BLENDED_OUT, images.mFillBlended.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_FAST, images.mFastBefore.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_FAST_FILL, images.mFastFillBefore.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_FAST_OUT, images.mFast.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_FAST_FILL_OUT, images.mFastFill.describeStorage());
 
         const Shaders::HistoryConstants constants{
             .mEyes = frame.mSampled.mEyes,

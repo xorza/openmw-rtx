@@ -99,6 +99,13 @@ namespace Rtx
             const Image& mFillBlended;
             const Image& mFillScratch;
 
+            /// The fast means of the bounce and the fill (`ACCUMULATE_FAST_FRAMES`), last frame's and
+            /// this one's: the accumulator's own, which the cascade never writes.
+            const Image& mFastBefore;
+            const Image& mFast;
+            const Image& mFastFillBefore;
+            const Image& mFastFill;
+
             bool mFresh;
         };
 
@@ -167,6 +174,8 @@ namespace Rtx
         ImagePair mFill;
         Image mFillBlended;
         Image mFillScratch;
+        ImagePair mFast;
+        ImagePair mFastFill;
 
         ImagePair mShadowMoments;
         Image mShadowHistory;

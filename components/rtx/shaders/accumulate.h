@@ -58,7 +58,11 @@ namespace Rtx::Shaders
     const uint ACCUMULATE_BIND_FILL = 9;
     const uint ACCUMULATE_BIND_HISTORY_FILL = 10;
     const uint ACCUMULATE_BIND_FILL_BLENDED_OUT = 11;
-    const uint ACCUMULATE_BINDINGS = 12;
+    const uint ACCUMULATE_BIND_HISTORY_FAST = 12;
+    const uint ACCUMULATE_BIND_HISTORY_FAST_FILL = 13;
+    const uint ACCUMULATE_BIND_FAST_OUT = 14;
+    const uint ACCUMULATE_BIND_FAST_FILL_OUT = 15;
+    const uint ACCUMULATE_BINDINGS = 16;
 
     /// Threads along each edge of the accumulator's workgroup.
     const uint ACCUMULATE_WORKGROUP = 8;
