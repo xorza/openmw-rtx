@@ -915,6 +915,18 @@ namespace Rtx
         mScene.placements().fade(slot, fade);
     }
 
+    SceneExtractor::FrozenFace SceneExtractor::FrozenFace::of(const osg::Node& root, const osg::Matrix& world)
+    {
+        const osg::Group* group = root.asGroup();
+        const unsigned int children = group != nullptr ? group->getNumChildren() : 0;
+        return FrozenFace{
+            .mWorld = world,
+            .mStateSet = root.getStateSet(),
+            .mFirstChild = children > 0 ? group->getChild(0) : nullptr,
+            .mChildren = children,
+        };
+    }
+
     bool SceneExtractor::passFrozen(const osg::Node& root, const osg::Matrix& world)
     {
         const auto frozen = mFrozen.find(&root);
@@ -926,11 +938,7 @@ namespace Rtx
         // the one the game hangs. A change deeper down is a controller's, and a controller never
         // let it freeze.
         FrozenRun& run = frozen->second;
-        const osg::Group* group = root.asGroup();
-        const unsigned int children = group != nullptr ? group->getNumChildren() : 0;
-        const osg::Node* first = children > 0 ? group->getChild(0) : nullptr;
-        if (run.mWorld != world || run.mStateSet != root.getStateSet() || run.mChildren != children
-            || run.mFirstChild != first)
+        if (run.mFace != FrozenFace::of(root, world))
         {
             thaw(run);
             mFrozen.erase(frozen);
@@ -966,14 +974,9 @@ namespace Rtx
             mMaterials.hold(key.mMaterial);
         }
 
-        const osg::Group* group = root.asGroup();
-        const unsigned int children = group != nullptr ? group->getNumChildren() : 0;
         mFrozen.emplace(osg::ref_ptr<const osg::Node>(&root),
             FrozenRun{
-                .mWorld = world,
-                .mStateSet = root.getStateSet(),
-                .mFirstChild = children > 0 ? group->getChild(0) : nullptr,
-                .mChildren = children,
+                .mFace = FrozenFace::of(root, world),
                 .mKeys = mFrozenKeys.allocate(std::span<const FrozenKey>(mRecorded)),
                 .mInstances = mPass.getStats().mInstances - mRecordedFrom,
                 .mMet = mWorldWalk,

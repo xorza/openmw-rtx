@@ -193,9 +193,10 @@ namespace Rtx
         void giveBackHolds(const PreparedCell& cell);
 
         /// What a held cell the ring lets go of owes: its hold on each model, and the reader's
-        /// holds on its models and its ground's images. A cell's grass owes the same of its models.
+        /// holds on its models and its ground's images. A cell's grass, held or handed, owes the
+        /// same of its models.
         void letGo(const HeldCell& cell);
-        void letGo(const HeldGrass& grass);
+        void letGo(std::span<PreparedModel* const> models);
 
         /// The whole of what a walk does to the rings: what `collect` wraps in the walk it is inside.
         void walkRings(ExtractionStats& stats, std::size_t frame);

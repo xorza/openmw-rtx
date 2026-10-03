@@ -5,7 +5,7 @@
 // traced grid.
 //
 // **Nothing is bound here on purpose.** A standalone pass reaches this file without reaching the
-// descriptor set, which is what lets `wavecompose.comp` and `histogram.comp` read it beside
+// descriptor set, which is what lets `ripplecompose.comp` and `histogram.comp` read it beside
 // `fogintegrate.comp`.
 
 #include "camera.h"

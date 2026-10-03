@@ -119,7 +119,6 @@ namespace Rtx::Testing
             mCell->removeChild(reference);
             frame();
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, 0u) << "a frozen reference outlived its node";
-            EXPECT_TRUE(mScene.isEmpty() || mScene.placements().getCounts().mPlaced == 0u);
         }
 
         /// **A reference that changes on its own is walked on every frame**: a controller on its

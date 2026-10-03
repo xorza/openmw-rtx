@@ -142,9 +142,9 @@ namespace Rtx
 
         // **Two dispatches a cascade and one barrier between them.** The rows form the spectrum
         // where they transform it, a row a workgroup and the three fields together; the columns
-        // transform it and write the texels, a column a workgroup. What stood between the two
-        // halves and either end of them — a pass forming the fields and one unpacking them, each a
-        // trip of all three through memory — is shared memory now.
+        // transform it and write the texels, a column a workgroup. The fields go through memory
+        // once, between the halves: a pass of its own forming them or unpacking them would be
+        // another trip of all three.
         for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
         {
             const Tile& tile = mTiles[index];
@@ -155,7 +155,7 @@ namespace Rtx
             rows.buffer(Shaders::WAVE_ROWS_BIND_TURN_RATES, tile.mTurnRates.describe());
             rows.buffer(Shaders::WAVE_ROWS_BIND_FIELD, tile.mField.describe());
 
-            const Shaders::WaveFormConstants shaped{
+            const Shaders::WaveRowsConstants shaped{
                 .mCount = grid,
                 .mExtent = sWaveTiles[index].mExtent,
                 .mTime = seconds,
@@ -174,7 +174,7 @@ namespace Rtx
             columns.image(Shaders::WAVE_COLUMNS_BIND_SURFACE, tile.mSurface.describeStorage());
             columns.image(Shaders::WAVE_COLUMNS_BIND_CURVATURE, tile.mCurvature.describeStorage());
 
-            const Shaders::WaveComposeConstants unpacked{ .mCount = grid };
+            const Shaders::WaveColumnsConstants unpacked{ .mCount = grid };
             dispatch(commands, mColumnsPipeline, columns, unpacked, Groups{ .mX = grid, .mY = 1 });
         }
 

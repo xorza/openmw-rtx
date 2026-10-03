@@ -75,8 +75,8 @@ namespace Rtx
         /// The two the chain runs through, built once for a whole test.
         struct Passes
         {
-            ComputePipeline<Shaders::WaveFormConstants> mRows;
-            ComputePipeline<Shaders::WaveComposeConstants> mColumns;
+            ComputePipeline<Shaders::WaveRowsConstants> mRows;
+            ComputePipeline<Shaders::WaveColumnsConstants> mColumns;
 
             explicit Passes(const Device& device)
                 : mRows(device, sRowsBindings, {}, "waverows.comp.spv", "test-waverows")
@@ -90,8 +90,8 @@ namespace Rtx
         std::vector<Sampled> run(const Device& device, CommandPool& pool, const Passes& passes,
             std::span<const osg::Vec2f> amplitudes, std::span<const float> turnRates, const osg::Vec2f& time)
         {
-            const ComputePipeline<Shaders::WaveFormConstants>& rows = passes.mRows;
-            const ComputePipeline<Shaders::WaveComposeConstants>& columns = passes.mColumns;
+            const ComputePipeline<Shaders::WaveRowsConstants>& rows = passes.mRows;
+            const ComputePipeline<Shaders::WaveColumnsConstants>& columns = passes.mColumns;
 
             const Buffer table
                 = Buffer::staging(device, amplitudes.size_bytes(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "test");
@@ -122,7 +122,7 @@ namespace Rtx
                 formed.buffer(0, whole[0]);
                 formed.buffer(1, whole[1]);
                 formed.buffer(2, whole[2]);
-                const Shaders::WaveFormConstants shaped{ .mCount = sCount, .mExtent = sExtent, .mTime = time };
+                const Shaders::WaveRowsConstants shaped{ .mCount = sCount, .mExtent = sExtent, .mTime = time };
 
                 // A row a workgroup, and then a column a workgroup, as `WavePass` records them.
                 dispatch(commands, rows, formed, shaped, Groups{ .mX = sCount });
@@ -132,7 +132,7 @@ namespace Rtx
                 unpacking.buffer(0, whole[2]);
                 unpacking.image(1, images[0]);
                 unpacking.image(2, images[1]);
-                const Shaders::WaveComposeConstants unpacked{ .mCount = sCount };
+                const Shaders::WaveColumnsConstants unpacked{ .mCount = sCount };
 
                 dispatch(commands, columns, unpacking, unpacked, Groups{ .mX = sCount });
             });

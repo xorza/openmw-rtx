@@ -3,45 +3,13 @@
 #include <cstddef>
 #include <exception>
 
+#include <apps/openmw/mwrender/groundcoverdensity.hpp>
 #include <apps/openmw/mwworld/groundcoverstore.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/esmreader.hpp>
 
 namespace MWRender
 {
-    namespace
-    {
-        /// Which of a cell's references `[Groundcover] density` keeps: every one at one, and
-        /// otherwise each whose turn takes the running sum to a whole. A copy of
-        /// `MWRender::Groundcover`'s `DensityCalculator`, which its chunk's file keeps to itself,
-        /// so a density stands the same plants under either renderer.
-        class GroundcoverDensity
-        {
-        public:
-            explicit GroundcoverDensity(float density)
-                : mDensity(density)
-            {
-            }
-
-            bool keeps()
-            {
-                if (mDensity >= 1.0f)
-                    return true;
-
-                mSum += mDensity;
-                if (mSum < 1.0f)
-                    return false;
-
-                mSum -= 1.0f;
-                return true;
-            }
-
-        private:
-            float mDensity;
-            float mSum = 0.0f;
-        };
-    }
-
     TracedGroundcover::TracedGroundcover(
         const MWWorld::GroundcoverStore& store, const float density, const bool lampLit)
         : mStore(store)
@@ -58,7 +26,7 @@ namespace MWRender
         mStore.initCell(mCell, cell.x(), cell.y());
         mKept.clear();
 
-        GroundcoverDensity density(mDensity);
+        DensityCalculator density(mDensity);
         for (std::size_t at = 0; at < mCell.mContextList.size(); ++at)
         {
             // A file this cannot read is the files' to answer for, and the cell keeps what the
@@ -77,7 +45,7 @@ namespace MWRender
 
                     // Counted only where the reference is not kept already: a later file that moves
                     // a plant does not take another's turn.
-                    if (deleted || (!known && !density.keeps()))
+                    if (deleted || (!known && !density.isInstanceEnabled()))
                     {
                         if (known)
                             mKept.erase(said);

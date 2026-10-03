@@ -14,6 +14,7 @@
 #include <components/esm/refid.hpp>
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/common/slots.hpp>
+#include <components/rtx/scene/refusal.hpp>
 #include <components/terrain/objectstorage.hpp>
 #include <components/terrain/pagedcellref.hpp>
 #include <components/terrain/storage.hpp>
@@ -103,7 +104,11 @@ namespace Rtx
         /// every model it draws, `OVERRIDE` both, because MGE's content states no alpha it can be
         /// trusted with (`MWRender::Groundcover`). Each part wears that reading under a key of its
         /// own (`PreparedPart::mOwnKey`).
-        PreparedModel* readModel(VFS::Path::NormalizedView path, bool groundcover = false);
+        PreparedModel* readModel(VFS::Path::NormalizedView path, bool groundcover);
+
+        /// `readModel` for a reference: null where it stands nothing, no model or one with no part,
+        /// and the model's refusal added to `refusals` where it has one.
+        PreparedModel* readStanding(VFS::Path::NormalizedView path, bool groundcover, std::vector<Refusal>& refusals);
 
         /// Appends a reference of `model` to `models` and `refs`, the model lent once to the list
         /// however many of its references stand: what a cell's statics and its grass both keep.

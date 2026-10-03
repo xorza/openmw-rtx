@@ -325,17 +325,27 @@ namespace Rtx
             bool mPlaced = false;
         };
 
-        /// A subtree under a reference root whose walk met nothing that changes between frames
-        /// on its own — `Traversal::enter` says what does — and which the world walk passes rather
-        /// than descends while what can still change it from outside stands: where the root is in
-        /// the world, its children and its state set. Its entries are held, so every sweep it is
-        /// not walked in keeps them, and nothing in it is read again until it thaws.
-        struct FrozenRun
+        /// What can change a frozen subtree from outside it, as its root stands: where the root is
+        /// in the world, its state set, and its children, by their count and the first of them.
+        struct FrozenFace
         {
             osg::Matrix mWorld;
             const osg::StateSet* mStateSet = nullptr;
             const osg::Node* mFirstChild = nullptr;
             unsigned int mChildren = 0;
+
+            static FrozenFace of(const osg::Node& root, const osg::Matrix& world);
+
+            bool operator==(const FrozenFace& other) const = default;
+        };
+
+        /// A subtree under a reference root whose walk met nothing that changes between frames
+        /// on its own — `Traversal::enter` says what does — and which the world walk passes rather
+        /// than descends while its `FrozenFace` stands. Its entries are held, so every sweep it is
+        /// not walked in keeps them, and nothing in it is read again until it thaws.
+        struct FrozenRun
+        {
+            FrozenFace mFace;
             Run mKeys;
 
             /// What its walk counted, which every walk that passes it counts again.

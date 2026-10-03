@@ -361,21 +361,17 @@ namespace Rtx
 
     void CellRing::discard(PreparedGrass& grass)
     {
-        for (PreparedModel* model : grass.mModels)
-            mHolds.release(*model);
-
-        CellReturns& back = mSupply.giveBack();
-        back.mModels.insert(back.mModels.end(), grass.mModels.begin(), grass.mModels.end());
-        back.mGrass.push_back(&grass);
+        letGo(grass.mModels);
+        mSupply.giveBack().mGrass.push_back(&grass);
     }
 
-    void CellRing::letGo(const HeldGrass& grass)
+    void CellRing::letGo(const std::span<PreparedModel* const> models)
     {
-        for (PreparedModel* model : grass.mModels)
+        for (PreparedModel* model : models)
             mHolds.release(*model);
 
         CellReturns& back = mSupply.giveBack();
-        back.mModels.insert(back.mModels.end(), grass.mModels.begin(), grass.mModels.end());
+        back.mModels.insert(back.mModels.end(), models.begin(), models.end());
     }
 
     void CellRing::discard(PreparedCell& cell)
@@ -497,7 +493,7 @@ namespace Rtx
             [&](const HeldGrass& held) {
                 return grass > 0.0f && mAround.mWorld.mGrid.withinReach(held.mCell, eye, grass);
             },
-            [&](const HeldGrass& held) { letGo(held); });
+            [&](const HeldGrass& held) { letGo(held.mModels); });
 
         sift(eye, band, grass);
 

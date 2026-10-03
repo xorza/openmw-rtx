@@ -13,8 +13,8 @@ namespace Rtx
 {
     class Buffer;
     class Device;
-    class ShaderCode;
     class Image;
+    class ShaderCode;
 
     /// One run of vertices drawn with one texture. A run and not an index range, because MyGUI
     /// hands over triangle lists and no indices: a batch is a stretch of the vertex buffer and a
