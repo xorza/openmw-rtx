@@ -626,6 +626,10 @@ namespace Rtx::Shaders
         vec4 mMotion[3];
     };
 
+    /// `GpuLight::mTraits`' fill bit, and where the class bits start above it.
+    const uint LIGHT_FILL = 1u;
+    const uint LIGHT_CLASS_SHIFT = 8u;
+
     /// One light placed in the world — a lamp, or the fill a magic effect glows with — with
     /// everything a shader needs already derived: a `LIGH` record carries a colour and a radius and
     /// no intensity at all, and `Rtx::makeLight` settles both on the way in, so the shader has one
@@ -665,12 +669,38 @@ namespace Rtx::Shaders
         /// fitting and a ray that runs all the way ends among it.
         float mClearance RTX_ZERO;
 
-        /// One where this light is a fill and nought where it is a lamp. A fill is a lamp whose
-        /// flame is a ball `mSourceRadius` wide, lit from every side inside it: a magic effect's
-        /// glow, which `Rtx::Glow::makeLight` builds. A word and not a bool, because the record is
-        /// hashed whole and a bool leaves three bytes nothing wrote.
-        uint mFill RTX_ZERO;
+        /// Whether this light is a fill, and the classes it answers to, as `lightTraits` packs
+        /// them: one word, so the row stays its size, and not a bool, because the record is hashed
+        /// whole and a bool leaves three bytes nothing wrote.
+        ///
+        /// **A fill** is a lamp whose flame is a ball `mSourceRadius` wide, lit from every side
+        /// inside it: a magic effect's glow, which `Rtx::Glow::makeLight` builds.
+        ///
+        /// **A lamp lights only a view that shows its class**, `lightShown`: the rasterizer's light
+        /// manager collects no light from a node its cull does not reach, so under `tws` the lamps
+        /// of the statics go dark with them. A light made by hand answers to every class.
+        uint mTraits RTX_INIT(MASK_EVERY_CLASS << LIGHT_CLASS_SHIFT);
     };
+
+    /// A light's traits: whether it is a fill, and the class bits of the placement it hangs under.
+    RTX_SHADER uint lightTraits(bool fill, uint classes)
+    {
+        return (fill ? LIGHT_FILL : 0u) | (classes << LIGHT_CLASS_SHIFT);
+    }
+
+    /// One for a fill and nought for a lamp: a factor, so a lamp's arithmetic stays a lamp's.
+    RTX_SHADER float lightFill(uint traits)
+    {
+        return float(traits & LIGHT_FILL);
+    }
+
+    /// One where a view with the ray mask `rayMask` shows a class the light answers to, and nought
+    /// where it hides every one: a factor on the light's intensity, so a hidden lamp weighs nothing
+    /// and no walk branches on it.
+    RTX_SHADER float lightShown(uint traits, uint rayMask)
+    {
+        return ((traits >> LIGHT_CLASS_SHIFT) & rayMask) != 0u ? 1.0f : 0.0f;
+    }
 
     /// Where the lamps were binned, so a shader can find the few that reach a point.
     ///

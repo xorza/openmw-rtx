@@ -653,26 +653,28 @@ namespace Rtx::Testing
 
             // A sky rather than the cell's ambient, for the reason the sun's own test gives: what
             // fills a wall the eye can see is the hemisphere it gathers.
-            const auto render = [&](const std::optional<Light>& light, const osg::Vec3f& sky, bool blocked,
-                                    std::uint32_t noLamps = 0, std::span<const Light> more = {}) {
-                SceneDesc scene = makeWall();
-                if (light.has_value())
-                    scene.addLight(*light);
-                for (const Light& also : more)
-                    scene.addLight(also);
-                if (blocked)
-                    addQuad(scene, occluder);
+            const auto render
+                = [&](const std::optional<Light>& light, const osg::Vec3f& sky, bool blocked, std::uint32_t noLamps = 0,
+                      std::span<const Light> more = {}, std::optional<std::uint32_t> rayMask = std::nullopt) {
+                      SceneDesc scene = makeWall();
+                      if (light.has_value())
+                          scene.addLight(*light);
+                      for (const Light& also : more)
+                          scene.addLight(also);
+                      if (blocked)
+                          addQuad(scene, occluder);
 
-                Shaders::VisibilityConstants camera = base;
-                camera.mNoLamps = noLamps;
-                camera.mSkyHorizon = sky;
-                camera.mSkyZenith = sky;
-                camera.mAmbientFromSky = 1.0f;
+                      Shaders::VisibilityConstants camera = base;
+                      camera.mNoLamps = noLamps;
+                      camera.mRayMask = rayMask.value_or(base.mRayMask);
+                      camera.mSkyHorizon = sky;
+                      camera.mSkyZenith = sky;
+                      camera.mAmbientFromSky = 1.0f;
 
-                const Frame frame = shoot(scene, {}, camera, size);
-                EXPECT_GT(frame.mHits, 0u);
-                return frame.byte(centre);
-            };
+                      const Frame frame = shoot(scene, {}, camera, size);
+                      EXPECT_GT(frame.mHits, 0u);
+                      return frame.byte(centre);
+                  };
 
             const Light lamp{
                 .mPosition = osg::Vec3f(0.0f, -50.0f, 0.0f),
@@ -718,6 +720,27 @@ namespace Rtx::Testing
             // **A picture no lamp lights**, a map tile, which the rasterizer's light manager hands
             // none: the sky's 124 with the lamp there, as without it.
             EXPECT_EQ(render(lamp, sky, false, 1), 124) << "a lamp lit a picture that asked for none";
+
+            // **A lamp lights only a view that shows its class**, as the rasterizer's light manager
+            // collects none from a node its cull does not reach: under a view of the statics alone,
+            // an actor's lamp lights nothing and a static's lights the wall as before. And under one
+            // with the actors too, the actor's lamp is back. The wall is a static.
+            Light carried = lamp;
+            carried.mTraits = Shaders::lightTraits(false, Shaders::MASK_STATIC);
+            const std::uint32_t statics = Shaders::MASK_STATIC;
+            EXPECT_EQ(render(carried, osg::Vec3f(), false, 0, {}, statics), 138) << "a static's lamp went dark";
+            carried.mTraits = Shaders::lightTraits(false, Shaders::MASK_ACTOR);
+            EXPECT_EQ(render(carried, osg::Vec3f(), false, 0, {}, statics), 0) << "a hidden actor's lamp lit the wall";
+            EXPECT_EQ(render(carried, osg::Vec3f(), false, 0, {}, statics | Shaders::MASK_ACTOR), 138)
+                << "a shown actor's lamp went dark";
+
+            // A hidden lamp that takes light away takes none: the static's lamp keeps its 138.
+            Light hiddenTaking = lamp;
+            hiddenTaking.mIntensity = osg::Vec3f(-2000.0f, -2000.0f, -2000.0f);
+            hiddenTaking.mTraits = Shaders::lightTraits(false, Shaders::MASK_ACTOR);
+            carried.mTraits = Shaders::lightTraits(false, Shaders::MASK_STATIC);
+            EXPECT_EQ(render(carried, osg::Vec3f(), false, 0, std::span(&hiddenTaking, 1), statics), 138)
+                << "a hidden lamp took light away";
 
             // **A lamp that takes light away takes its unshadowed share off the lamps' term**, as
             // the rasterizer subtracts a negative light. Half the lamp's intensity, negated, beside
@@ -1710,7 +1733,7 @@ namespace Rtx::Testing
             Light fill = makeLamp();
             fill.mSourceRadius = 200.0f;
             fill.mClearance = 200.0f;
-            fill.mFill = 1;
+            fill.mTraits = Shaders::lightTraits(true, Shaders::MASK_EVERY_CLASS);
             const Shaders::VisibilityConstants camera = lookAtTheWall();
             constexpr float depth = -100.0f;
 
@@ -1760,7 +1783,7 @@ namespace Rtx::Testing
                     .mReach = 1600.0f,
                     .mSourceRadius = 400.0f,
                     .mClearance = 400.0f,
-                    .mFill = fill ? 1u : 0u,
+                    .mTraits = Shaders::lightTraits(fill, Shaders::MASK_EVERY_CLASS),
                 });
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
@@ -1802,7 +1825,7 @@ namespace Rtx::Testing
                     .mReach = 1600.0f,
                     .mSourceRadius = 400.0f,
                     .mClearance = 400.0f,
-                    .mFill = fill ? 1u : 0u,
+                    .mTraits = Shaders::lightTraits(fill, Shaders::MASK_EVERY_CLASS),
                 });
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(

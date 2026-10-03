@@ -264,14 +264,16 @@ namespace Rtx
         /// record, and neither is a lamp something picked up and put down.
         ///
         /// @param glow the effect the light hangs on, where the walk is inside one.
+        /// @param owner the class of the placement the light hangs under, which a view hides it with.
         void addLight(const SceneUtil::LightSource& source, const osg::Matrixf& place, double simulationTime,
-            std::optional<std::size_t> glow);
+            std::optional<std::size_t> glow, InstanceClass owner);
 
         /// Opens the glow of a magic effect the walk has entered — `Rtx::Glow` — and returns its
         /// index, which the walk carries down the effect's subtree. Not yet a lamp, because the
         /// effect's flames are read after the walk, with the other emitters; `walk` makes the
-        /// lamps once they are.
-        std::size_t openGlow();
+        /// lamps once they are. `owner` is the class the effect stands under, which its lamp answers
+        /// to.
+        std::size_t openGlow(InstanceClass owner);
 
         /// Resolves one drawable and places it. `place` is handed over rather than worked out from
         /// `path`, because `osg::computeLocalToWorld` rebuilds the whole chain from the root for

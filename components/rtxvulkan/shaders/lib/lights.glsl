@@ -536,6 +536,16 @@ void considerLamp(inout Reservoir kept, inout uint state, vec3 from, LightCandid
     }
 }
 
+/// The light at `row` of the table, its intensity nought where this frame's view hides every class
+/// it answers to: the one read of a lamp every walk makes, so no walk can forget the class.
+/// `GpuLight::mTraits` says why a hidden lamp is dark.
+GpuLight shownLightAt(uint row)
+{
+    GpuLight held = lightAt(row);
+    held.mIntensity *= lightShown(held.mTraits, frame.mRayMask);
+    return held;
+}
+
 /// Weighs every lamp reaching `from` into `kept`.
 ///
 /// **The surface's walk of the grid, about a point.** The air's — `lampsInAir` — walks the same grid
@@ -557,7 +567,7 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
     for (uint i = near.x; i < near.y; ++i)
     {
         const uint row = lightListAt(i);
-        const GpuLight held = lightAt(row);
+        const GpuLight held = shownLightAt(row);
         const Lamp lamp = lampAt(held, from);
 
         // **Inside a fill's ball the cosine to the centre is blended out**, by how deep the point
@@ -573,7 +583,7 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
         // distance is nought over a source that may be a point.
         const float faced = sided ? litCosine(facing, lamp.mTowards) : 1.0;
         const float depth = lamp.mReaching > 0.0
-            ? float(held.mFill) * clamp(1.0 - lamp.mDistance / held.mSourceRadius, 0.0, 1.0)
+            ? lightFill(held.mTraits) * clamp(1.0 - lamp.mDistance / held.mSourceRadius, 0.0, 1.0)
             : 0.0;
         const float cosine = mix(faced, 1.0, depth);
         const vec3 unshadowed = held.mIntensity * (cosine * lamp.mReaching * scale);
@@ -596,7 +606,7 @@ vec3 darkeningAt(vec3 from, Facing facing, float scale)
     const uvec2 near = frame.mNoLamps != 0u ? uvec2(0u) : lampsWithin(darkeningReaching(from));
     for (uint i = near.x; i < near.y; ++i)
     {
-        const GpuLight held = lightAt(lightListAt(i));
+        const GpuLight held = shownLightAt(lightListAt(i));
         const Lamp lamp = lampAt(held, from);
         taken -= held.mIntensity * (litCosine(facing, lamp.mTowards) * lamp.mReaching * scale);
     }

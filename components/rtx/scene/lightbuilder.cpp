@@ -309,7 +309,7 @@ namespace Rtx
 
         // **A fill.** The ball is the source, so the shadow ray opens to the whole of it, and the
         // clearance too, so the ray stops at the ball and nothing inside it casts a shadow;
-        // `weighLamps` reads `mFill` to light what is inside from every side.
+        // `weighLamps` reads the fill to light what is inside from every side.
         const float radius = mBall.radius();
         return finiteOnly(Light{
             .mPosition = mBall.center(),
@@ -317,7 +317,7 @@ namespace Rtx
             .mReach = radius * sGlowReachScale,
             .mSourceRadius = radius,
             .mClearance = radius,
-            .mFill = 1,
+            .mTraits = Shaders::lightTraits(true, mClasses),
         });
     }
 
