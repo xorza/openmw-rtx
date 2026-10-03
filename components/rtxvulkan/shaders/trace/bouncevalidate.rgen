@@ -69,30 +69,23 @@ void main()
         ? !hit.mHit
         : hit.mHit && abs(hit.mDistance - reach.mDistance) <= BOUNCE_VALIDATION_REACH * reach.mDistance;
 
-    vec3 radiance = vec3(0.0);
-    vec3 fill = vec3(0.0);
+    Arriving now = Arriving(vec3(0.0), vec3(0.0));
     if (met && held.mSample.mSky)
     {
-        const BounceDraw drawn = BounceDraw(reach.mTowards, vec3(1.0), false, BOUNCE_SPREAD, 0.0);
-        bounceEscape(position, drawn, vec3(1.0), radiance);
-        fill = radiance;
+        BounceSample escaped;
+        now = bounceEscape(
+            position, BounceDraw(reach.mTowards, vec3(1.0), false, BOUNCE_SPREAD, 0.0), vec3(1.0), escaped);
     }
     else if (met)
-    {
-        const PathEnd end = lightAtPathEnd(hit, pixelKey(pixel), SEED_AMBIENT_VALIDATED, SEED_LAMPS_VALIDATED,
-            PATH_INDIRECT, false, AMBIENT_EXTERIOR_RATE);
-        radiance = composed(joinedLight(end));
-        fill = fillOf(end);
-    }
+        now = bounceLanding(hit, pixelKey(pixel), SEED_AMBIENT_VALIDATED, SEED_LAMPS_VALIDATED, PATH_INDIRECT);
 
-    const float now = dot(radiance, LUMINANCE_WEIGHTS);
-    const float was = dot(held.mSample.mRadiance, LUMINANCE_WEIGHTS);
     if (!met)
         held = noBounce();
-    else if (now * BOUNCE_VALIDATION_FALL < was)
+    else if (dot(now.mWhole, LUMINANCE_WEIGHTS) * BOUNCE_VALIDATION_FALL
+        < dot(held.mSample.mRadiance, LUMINANCE_WEIGHTS))
     {
-        held.mSample.mRadiance = radiance;
-        held.mSample.mFill = fill;
+        held.mSample.mRadiance = now.mWhole;
+        held.mSample.mFill = now.mFill;
         held.mConfidence = 1u;
     }
     else

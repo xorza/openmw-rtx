@@ -691,19 +691,28 @@ struct Arriving
 /// discs, which `gather` asks the lobe for already. A branch and not a factor, because the halves
 /// are the draw's own split and the reflected sky is a deck's reading the diffuse half never needs.
 ///
-/// @param light what arrives along the ray, unweighted: the reuse's sample at infinity.
-Arriving bounceEscape(vec3 position, BounceDraw drawn, vec3 weight, out vec3 light)
+/// @param landed the same, unweighted, as the reuse keeps it: a sample at infinity.
+Arriving bounceEscape(vec3 position, BounceDraw drawn, vec3 weight, out BounceSample landed)
 {
-    light = vec3(0.0);
+    landed = skySample(drawn.mTowards, vec3(0.0));
     if (!skyLights())
         return Arriving(vec3(0.0), vec3(0.0));
 
     const vec3 sky = drawn.mSpecular ? reflectedSky(position, drawn.mTowards, 0.5 * drawn.mSpread, false)
                                      : skyGlow(drawn.mTowards);
     const vec3 daylight = daylightReaching(position);
-    light = sky * daylight;
+    landed = skySample(drawn.mTowards, sky * daylight);
     const vec3 escaped = weight * sky * daylight;
     return Arriving(escaped, escaped);
+}
+
+/// What leaves the surface a bounce landed on toward the surface that drew it, unweighted: the
+/// end of the path, whole, and its fill. **The one shading of a bounce's far end**, which
+/// `bouncevalidate.rgen` asks again of a kept sample, so the two cannot disagree.
+Arriving bounceLanding(Surface hit, uint key, uint ambient, uint lamps, uint path)
+{
+    const PathEnd end = lightAtPathEnd(hit, key, ambient, lamps, path, false, AMBIENT_EXTERIOR_RATE);
+    return Arriving(composed(joinedLight(end)), fillOf(end));
 }
 
 /// Which way the eye's bounce leaves a surface, and what the light that arrives along it is worth.
@@ -779,21 +788,15 @@ BounceDraw bounceDraw(Surface surface, Gloss gloss, float face, uvec2 pixel, Con
 Arriving bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pixel, out BounceSample landed,
     out float rate)
 {
-    vec3 light;
     rate = 1.0;
-    landed = BounceSample(drawn.mTowards, vec3(0.0, 0.0, 1.0), true, vec3(0.0), vec3(0.0));
+    landed = skySample(drawn.mTowards, vec3(0.0));
 
     // **Far ground out of doors is handed the escape rather than asked whether it escaped**, which
     // is the same answer the miss below arrives at by tracing for it. `BOUNCE_REACH` says what that
     // costs and why the room is not in it.
     const vec3 fromEye = surface.mPosition - frame.mOrigin;
     if (skyLights() && surface.mGround && dot(fromEye, fromEye) > BOUNCE_REACH * BOUNCE_REACH)
-    {
-        const Arriving escaped = bounceEscape(surface.mPosition, drawn, weight, light);
-        landed.mRadiance = light;
-        landed.mFill = light;
-        return escaped;
-    }
+        return bounceEscape(surface.mPosition, drawn, weight, landed);
 
     // Drawn last, so the side, the direction and the escape are the numbers they were. One path
     // at a rate of one: no draw reaches it, and the weight is divided by one.
@@ -814,12 +817,7 @@ Arriving bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pi
         Cone(surface.mFootprint, drawn.mSpread), solidMask(frame.mRayMask), drawn.mSpecular);
 
     if (!hit.mHit)
-    {
-        const Arriving escaped = bounceEscape(surface.mPosition, drawn, weight, light);
-        landed.mRadiance = light;
-        landed.mFill = light;
-        return escaped;
-    }
+        return bounceEscape(surface.mPosition, drawn, weight, landed);
 
     // **Its glow is counted here, because this is the only path it takes.** Nothing gives a glowing
     // surface a lamp of its own — `EMISSIVE_INTENSITY` says what measuring that showed — so a ray
@@ -828,16 +826,14 @@ Arriving bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pi
     // **One call with the path chosen, and not one per half.** Written out twice, the whole end of
     // the path is two copies, and a warp whose lanes drew both halves runs them one after the
     // other. Chosen at run time, the diffuse half's hit asks the moons and finds they weigh nought.
-    const PathEnd end = lightAtPathEnd(hit, pixelKey(pixel), SEED_AMBIENT_REACHING, SEED_LAMPS_BOUNCE,
-        drawn.mSpecular ? PATH_SEEN : PATH_INDIRECT, false, AMBIENT_EXTERIOR_RATE);
-    const vec3 whole = composed(joinedLight(end));
-    const vec3 filled = fillOf(end);
+    const Arriving left = bounceLanding(hit, pixelKey(pixel), SEED_AMBIENT_REACHING, SEED_LAMPS_BOUNCE,
+        drawn.mSpecular ? PATH_SEEN : PATH_INDIRECT);
 
     // The triangle's normal where there is one, which is what the solid angle around the point
     // changes by when another point reconnects to it (`shiftJacobian`).
     landed = BounceSample(drawn.mTowards * hit.mDistance,
-        dot(hit.mGeometric, hit.mGeometric) > 0.0 ? hit.mGeometric : hit.mNormal, false, whole, filled);
-    return Arriving(weight * whole, weight * filled);
+        dot(hit.mGeometric, hit.mGeometric) > 0.0 ? hit.mGeometric : hit.mNormal, false, left.mWhole, left.mFill);
+    return Arriving(weight * left.mWhole, weight * left.mFill);
 }
 
 /// What reaches a surface from everything that is not a light: one bounce, off the half
@@ -866,7 +862,7 @@ Bounce bounceLight(Surface surface, Gloss gloss, uvec2 pixel, Cone cone)
 
     const BounceDraw drawn = bounceDraw(surface, gloss, face, pixel, cone);
 
-    const BounceSample nothing = BounceSample(drawn.mTowards, vec3(0.0, 0.0, 1.0), true, vec3(0.0), vec3(0.0));
+    const BounceSample nothing = skySample(drawn.mTowards, vec3(0.0));
 
     // A reflection below the shading normal's horizon brings nothing back, and is not traced to
     // find that out.

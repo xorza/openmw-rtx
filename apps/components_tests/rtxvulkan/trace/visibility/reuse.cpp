@@ -18,13 +18,13 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/bouncereuse.h>
+#include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/visibility.h>
 
 namespace Rtx::Testing
 {
     namespace
     {
-
         constexpr std::uint32_t sSize = 32;
 
         /// A corner in the sun: a floor at z = -100 and a wall across the view at y = 300, both
@@ -51,6 +51,16 @@ namespace Rtx::Testing
             return camera;
         }
 
+        /// The luminance of every pixel of a channel read back.
+        std::vector<float> luminanceOf(const std::vector<float>& read)
+        {
+            std::vector<float> luminance(read.size() / 4);
+            for (std::size_t pixel = 0; pixel < luminance.size(); ++pixel)
+                luminance[pixel] = osg::Vec3f(read[pixel * 4], read[pixel * 4 + 1], read[pixel * 4 + 2])
+                    * Shaders::LUMINANCE_WEIGHTS;
+            return luminance;
+        }
+
         class RtxBounceReuseTest : public RtxVisibilityTest
         {
         protected:
@@ -73,10 +83,7 @@ namespace Rtx::Testing
                             if (at++ < skipped)
                                 return;
                             mRenderer.readChannel(Channel::Indirect, read);
-                            std::vector<float>& luminance = kept.emplace_back(read.size() / 4);
-                            for (std::size_t pixel = 0; pixel < luminance.size(); ++pixel)
-                                luminance[pixel] = 0.2126f * read[pixel * 4] + 0.7152f * read[pixel * 4 + 1]
-                                    + 0.0722f * read[pixel * 4 + 2];
+                            kept.push_back(luminanceOf(read));
                         } });
                 return kept;
             }
@@ -317,11 +324,7 @@ namespace Rtx::Testing
             };
             const auto bounce = [&] {
                 mRenderer.readChannel(Channel::Indirect, read);
-                std::vector<float> luminance(read.size() / 4);
-                for (std::size_t pixel = 0; pixel < luminance.size(); ++pixel)
-                    luminance[pixel]
-                        = 0.2126f * read[pixel * 4] + 0.7152f * read[pixel * 4 + 1] + 0.0722f * read[pixel * 4 + 2];
-                return luminance;
+                return luminanceOf(read);
             };
 
             std::vector<std::vector<float>> plain;

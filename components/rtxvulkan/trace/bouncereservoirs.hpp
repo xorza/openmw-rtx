@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 
 #include <vulkan/vulkan_core.h>
@@ -12,10 +13,10 @@ namespace Rtx
     class Device;
 
     /// What one camera's bounce reuse keeps, at one extent: a traced pixel's reservoir this frame,
-    /// the history the next frame merges, its visible point this frame and last frame, and the path's
-    /// transmittance in front of it, which only this frame reads (`bouncereuse.h`). A chain's and not the passes', as
-    /// the denoiser's history is (`DenoiseHistory`): the kernels are every chain's, and the history is as big as the
-    /// camera it follows.
+    /// the history the next frame merges, its visible point this frame and last frame, and the
+    /// path's transmittance in front of it, which only this frame reads (`bouncereuse.h`). A
+    /// chain's and not the passes', as the denoiser's history is (`DenoiseHistory`): the kernels
+    /// are every chain's, and the history is as big as the camera it follows.
     ///
     /// **Buffers and not images**, because a reservoir is a record of six words, read whole.
     class BounceReservoirs

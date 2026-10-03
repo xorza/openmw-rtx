@@ -83,16 +83,16 @@ namespace Rtx
             mReservoirs.reset();
         }
 
-        assert(
-            (mReuses || what.mBounceReuse == BounceReuse::Off) && "a reuse asked of a chain that keeps no reservoirs");
-        const bool history = mReservoirs.turn(what.mBounceReuse != BounceReuse::Off);
+        const BounceReuse reuse = what.mReconstruction.mBounceReuse;
+        assert((mReuses || reuse == BounceReuse::Off) && "a reuse asked of a chain that keeps no reservoirs");
+        const bool history = mReservoirs.turn(reuse != BounceReuse::Off);
 
         mFogVolume->turn();
         const VisibilityInputs inputs{ .mSubject = what.mSubject,
             .mChannels = *mChannels,
             .mFogVolume = *mFogVolume,
             .mReservoirs = mReservoirs,
-            .mBounceReuse = what.mBounceReuse,
+            .mBounceReuse = reuse,
             .mBounceHistory = history };
 
         // Made by the first trace that averages, and that trace is the one that fills it: the first
@@ -140,10 +140,8 @@ namespace Rtx
         // display's `puffsCoverNothing` read the one set.
         const SpriteTables tables = bin.getTables();
 
-        // Composed by the trace where nothing filters the bounce and nothing resolves it after the
-        // trace either: `VisibilityConstants::mComposed`, `Reconstruction::composedByTrace`.
-        const bool denoised = what.mDenoised;
-        const bool composed = !denoised && what.mBounceReuse == BounceReuse::Off;
+        const bool denoised = what.mReconstruction.mDenoised;
+        const bool composed = what.mReconstruction.composedByTrace();
 
         mPasses.mVisibility.writeFrame(commands, inputs, tables, what.mSampled, composed);
 
@@ -174,9 +172,9 @@ namespace Rtx
                                       inputs.mSubject.mMapped, inputs.mSubject.mLamps, what.mTimer)
                                            : Denoised::unfiltered(*mChannels);
 
-        // **Only where something is left to do**: a filter to put the albedo back in behind, or a sum
-        // to add the frame to. Anything else was composed by the trace, into the channel that is
-        // the frame, and every pass after it reads the channel as `handOver` left it.
+        // **Only where something is left to do**: a filter to put the albedo back in behind, a reused
+        // bounce to put back, or a sum to add the frame to. Anything else was composed by the trace, into the channel
+        // that is the frame, and every pass after it reads the channel as `handOver` left it.
         const Image& frame = mChannels->get(Channel::Direct);
         ImageUse leftAs = Use::sAnyShaderRead;
         if (!composed || what.mAccumulate > 0)
