@@ -54,7 +54,7 @@ namespace RtxTool
             EXPECT_EQ(share.mHolders[2].mSamples, 1u);
 
             EXPECT_EQ(describeCard(share),
-                "card held by another process in 4 of 7 samples over 2.5 s: kwin_wayland 2, brave 1, zed-editor 1");
+                "card ran another process's work in 4 of 7 samples over 2.5 s: kwin_wayland 2, brave 1, zed-editor 1");
 
             // A process is named by its first sample, so one that is gone by the report — which
             // the driver then calls by number — is still the name it had.
@@ -69,9 +69,9 @@ namespace RtxTool
             EXPECT_EQ(alone.mSamples, 1u);
             EXPECT_EQ(alone.mOthers, 0u);
             EXPECT_TRUE(alone.mHolders.empty());
-            EXPECT_EQ(describeCard(alone), "card held by no other process, 1 sample over 1.0 s");
+            EXPECT_EQ(describeCard(alone), "card ran no other process's work, 1 sample over 1.0 s");
 
-            // A window the driver took no sample in claims nothing about who held the card.
+            // A window the driver took no sample in claims nothing about whose work the card ran.
             tally.clear();
             EXPECT_EQ(describeCard(tally.summarise(0.03)), "card not sampled over 0.0 s");
 

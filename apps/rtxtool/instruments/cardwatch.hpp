@@ -26,15 +26,16 @@ namespace RtxTool
         std::uint32_t mSamples = 0;
     };
 
-    /// Who held the card across a window of a run, by the driver's own samples.
+    /// Whose work the card ran across a window of a run, by the driver's own samples.
     ///
-    /// **What says whether a place's figures are the renderer's.** A compositor's frame, an
-    /// editor's redraw, a browser's tab: each preempts the card for milliseconds, lands on
-    /// whichever pass is running, and the frame that carries it reads as the renderer's. Every
-    /// figure moves with it, the median of a host row as readily as the tail of the frame. The
-    /// driver samples five times a second which process has the card, and this counts the
-    /// samples that were somebody else's — one in twenty at a four per cent share, so a short
-    /// place under a light load may see none, and a run that saw any was under a load.
+    /// **Another process's work, and not the time it took the card from the renderer.** An editor's
+    /// redraw or a browser's tab lands on whichever pass is running, and the frame that carries it
+    /// reads as the renderer's. The driver samples five times a second which processes kept the
+    /// shader cores busy, and this counts the samples that were somebody else's — one in twenty at
+    /// a four per cent share, so a short place under a light load may see none, and a run that saw
+    /// any was under a load. **A context switch is not in them**: under `nsys`, KWin took the card
+    /// 789 times for 1.48 s in a run of `balmora-mages-guild` whose 28 samples were all this
+    /// process's, because a compositor's slice is the switch and little work.
     struct CardShare
     {
         /// How long the window was.

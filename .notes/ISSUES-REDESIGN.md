@@ -90,6 +90,20 @@ another process inside them, and the 98th percentile of workload time. A bench A
 **Risk.** A high-priority render queue can make the desktop stutter while the game runs in a window.
 The bench measures KWin's frame time beside ours with both priorities.
 
+**Outcome (measured on this box).**
+- The driver refuses `HIGH`: `vkCreateDevice` returns `VK_ERROR_NOT_PERMITTED` to a process
+  without `CAP_SYS_NICE`. A player's game does not have it, and `kwin_wayland` does
+  (`cap_sys_nice=ep`). So step 1 changes nothing here, and it is not built: no device where it
+  is accepted (Windows, or a process with the capability) is at hand to measure the desktop's
+  stutter against.
+- Step 2 was there already, but its line claimed more than its source sees. NVML's process samples
+  count shader-core work. In a run where `nsys` showed KWin take the card 789 times for 1.48 s, all
+  28 samples were ours. The `card` line now says "ran no other process's work", and `CardShare`
+  and `AGENTS.md` say that a compositor's slices are not in it.
+- Step 3 is in `AGENTS.md`: an A/B reads medians and the p99, the zones' from `--json`.
+- The issue is closed as the environment's: the share of our workloads with another slice inside
+  was 11.9% and 11.6% in two legs with Zed and KWin alone.
+
 ### 1.2 Host rows move with the walk's cache misses and with the core it runs on
 
 **Evidence.** `one-cell-walk`, release, legs back to back:
