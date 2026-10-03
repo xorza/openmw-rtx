@@ -21,7 +21,8 @@ namespace RtxTool
         if (counts.mTwoKinds)
             line += std::format(", {:.0f}% on efficiency cores",
                 100.0 * static_cast<double>(counts.mEfficiencyNs) / static_cast<double>(counts.mRunningNs));
-        // Where the share shows at all: the kinds' groups start a microsecond apart.
+        // Where the share shows at all: the kinds' groups start a microsecond apart, and each move
+        // between the two kinds loses a sliver.
         if (counts.mCounted < 0.995)
             line += std::format(", counted {:.0f}% of the time", 100.0 * counts.mCounted);
 
