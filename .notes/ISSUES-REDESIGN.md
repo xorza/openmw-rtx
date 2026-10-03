@@ -338,6 +338,21 @@ by measurement:
   past the reference's own error;
 - `shot --against`: the fringes must move toward a 1 000-frame reference.
 
+**Outcome: measured and declined.** Built as written — a material bit for a blend's mask, a draw
+hashed from the placement, the diffuse's texel and the frame, held by every ray — and measured
+against 1 000-frame references taken under each rule:
+- `seyda-neen-pier`: the fringe's error against the converged blend fell from 8.55 to 2.37 (mean of
+  a byte over the 1.0% of pixels the two rules part on), and the frame's noise did not move.
+- `seyda-neen-pond`, under the canopy: the fringe's error rose from 21.57 to 23.67, the frame's
+  noise mean from 1.19 to 1.90 and its p99 from 10 to 24. The leaves came out grained: a texel met
+  this frame and missed the next is another surface each frame to the eye, so the accumulator's
+  history is rejected there instead of averaged.
+
+The draw itself converges (the two GPU tests, rewritten for it, held each seam column to its alpha
+over 256 frames); what fails is the eye's reprojection over a stochastic primary surface. A future
+attempt needs the coverage kept out of the eye's surface identity, or applied to the shadow and
+bounce rays alone. The issue stays open.
+
 ### 2.7 The ring answers the game's rays for what it stands
 
 **Root cause.** `RenderingManager::castRay` walks the OSG graph. Past the loaded cells, the
