@@ -125,9 +125,10 @@ namespace Crash
         Other,
     };
 
-    /// **For a fault's signal handler, on the faulting thread**: takes the gate as `finalReport` does
-    /// where it can, and says where it cannot. A dump in progress and a fault's share one exception
-    /// record in Crashpad's Linux client, so a fault that wrote it then would be read as the report's.
+    /// **For a fault's first-chance handler, on the faulting thread**: takes the gate as `finalReport`
+    /// does where it can, and says where it cannot. A dump in progress and a fault's share one
+    /// exception record in Crashpad's Linux client, so a fault that wrote it then was read as the
+    /// report's; on Windows the fault's dump ended the process before the report's was written.
     /// Allocates nothing and locks nothing.
     FaultGate takeForFault();
 

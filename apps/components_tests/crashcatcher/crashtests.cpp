@@ -300,8 +300,10 @@ namespace CrashTests
             // Without throwing: the monitor moves a dump from `pending` on while the check reads.
             std::vector<std::filesystem::path> found;
             std::error_code unread;
+            // In the system's own separator, as the monitor writes the paths the log names.
             for (const char* place : places)
-                for (const auto& entry : std::filesystem::directory_iterator(folder / place, unread))
+                for (const auto& entry :
+                    std::filesystem::directory_iterator(folder / std::filesystem::path(place).make_preferred(), unread))
                     if (entry.path().extension() == extension)
                         found.push_back(entry.path());
             return found;
