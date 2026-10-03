@@ -34,8 +34,8 @@ layout(local_size_x = COMPOSITE_WORKGROUP, local_size_y = COMPOSITE_WORKGROUP) i
 /// run decides its width too, and a load and a store with no format both convert.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_DIRECT) uniform image2D direct;
 
-/// The lamps and the one bounce with the albedo divided out, times whatever the water and the air
-/// took off them on the way to the eye — the channel the wavelet filters.
+/// The one bounce with the albedo divided out, times whatever the water and the air took off it on
+/// the way to the eye — the channel the wavelet filters.
 ///
 /// **Declared with no format, because this is two images.** A denoised frame hands over the
 /// cascade's last level and an undenoised one hands over `CHANNEL_INDIRECT` itself, and those are
@@ -47,9 +47,9 @@ layout(set = SET_PASS, binding = COMPOSITE_BIND_INDIRECT) uniform readonly image
 /// What to put back: the surface's own albedo, and nothing of the path.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_ALBEDO, GBUFFER_ALBEDO) uniform readonly image2D albedo;
 
-/// What the sky's source adds as though its rays got through, and whether they did —
-/// `CHANNEL_SUNLIT`. No format, as `direct` has none.
-layout(set = SET_PASS, binding = COMPOSITE_BIND_SUNLIT) uniform readonly image2D sunlit;
+/// What the shadowed sources add as though their rays got through, and whether the kept one did —
+/// `CHANNEL_SHADOWED`. No format, as `direct` has none.
+layout(set = SET_PASS, binding = COMPOSITE_BIND_SHADOWED) uniform readonly image2D shadowed;
 
 /// How much of it got through, as the shadow denoiser filtered the rays' bits: its mean in `r`.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_SHADOW, SHADOW_REPROJECTED) uniform readonly image2D shadow;
@@ -82,9 +82,9 @@ void main()
     vec3 resolved = imageLoad(direct, at).rgb;
     if (frame.mComposed == 0u)
     {
-        const vec4 sun = imageLoad(sunlit, at);
-        const float seen = frame.mShadowed != 0u ? imageLoad(shadow, at).r : sun.a;
-        resolved = composedLight(resolved, imageLoad(albedo, at).rgb, imageLoad(indirect, at).rgb, sun.rgb, seen,
+        const vec4 unshadowed = imageLoad(shadowed, at);
+        const float seen = frame.mShadowed != 0u ? imageLoad(shadow, at).r : unshadowed.a;
+        resolved = composedLight(resolved, imageLoad(albedo, at).rgb, imageLoad(indirect, at).rgb, unshadowed.rgb, seen,
             imageLoad(specular, at).rgb, imageLoad(paneAlbedo, at).rgb, imageLoad(pane, at).rgb);
     }
 

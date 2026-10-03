@@ -29,7 +29,8 @@ namespace Rtx
         ///        its direct channel made writable by compute, which is where the frame goes. Its
         ///        indirect, specular and pane channels are read only where `denoised` names them.
         /// @param denoised where the bounce, the lobe's light and the layers' light are, and the
-        ///        shadow denoiser's answer, which scales the buffer's sunlit channel where it ran.
+        ///        shadow denoiser's answer, which scales the buffer's shadowed channel where it
+        ///        ran.
         /// @param sum the running total a reference is built out of, at least as large as
         ///        the frame and in `VK_IMAGE_LAYOUT_GENERAL`. Null where `mAccumulate` is zero, which
         ///        is every frame that is not building a reference.

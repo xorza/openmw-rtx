@@ -102,75 +102,14 @@ namespace Rtx::Testing
             EXPECT_EQ(summed.mRadiance, raw.mRadiance) << "the sum of one unfiltered frame is that frame";
         }
 
-        /// **The lamps' light is the filter's as well, and it comes out quieter and where it was.** Four
-        /// lamps of four colours over a floor under a black sky, so the reservoir's one draw a pixel
-        /// is the whole of the noise: each pixel holds one lamp, weighed against the other three,
-        /// and a neighbour holds another. The lamps' diffuse half rides the indirect channel
-        /// demodulated, as the bounce does, so the wavelet takes the draw's noise off it. Measured
-        /// against 256 unfiltered frames, a raw frame and a filtered one after sixteen of history.
-        TEST_F(RtxVisibilityTest, theFilterTakesTheLampsNoiseOffAFloorAndLeavesTheirLightWhereItWas)
-        {
-            constexpr std::uint32_t size = 64;
-
-            SceneDesc scene;
-            addQuad(scene, sheetAt(4000.0f, 0.0f));
-            const std::array<std::pair<osg::Vec2f, osg::Vec3f>, 4> lamps{ {
-                { osg::Vec2f(-100.0f, -100.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f) },
-                { osg::Vec2f(100.0f, -100.0f), osg::Vec3f(0.0f, 4000.0f, 0.0f) },
-                { osg::Vec2f(-100.0f, 100.0f), osg::Vec3f(0.0f, 0.0f, 4000.0f) },
-                { osg::Vec2f(100.0f, 100.0f), osg::Vec3f(4000.0f, 4000.0f, 0.0f) },
-            } };
-            for (const auto& [place, intensity] : lamps)
-                scene.addLight(Light{
-                    .mPosition = osg::Vec3f(place.x(), place.y(), 60.0f),
-                    .mIntensity = intensity,
-                    .mReach = 500.0f,
-                });
-
-            Shaders::VisibilityConstants camera = Testing::makeCamera(
-                osg::Vec3f(0.0f, -1.0f, 300.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
-            camera.mSkyHorizon = osg::Vec3f();
-            camera.mSkyZenith = osg::Vec3f();
-            camera.mSun.mIrradiance = osg::Vec3f();
-
-            const Frame reference = shoot(scene, {}, camera, size, { .mFrames = 256 });
-
-            camera.mFrame = 1000;
-            const Frame raw = shoot(scene, {}, camera, size);
-            const Frame filtered = shoot(scene, {}, camera, size,
-                { .mFrames = 16, .mAverage = false, .mFirstFrame = 2000, .mFilter = true, .mLoss = HistoryLoss::Cut });
-
-            for (std::size_t channel = 0; channel < 3; ++channel)
-            {
-                const float rawError = raw.errorFrom(reference, channel);
-                const float filteredError = filtered.errorFrom(reference, channel);
-                ASSERT_GT(rawError, 0.005f) << "channel " << channel << ": four lamps drawn one a pixel are noisy";
-                // Measured at 0.21 to 0.23 of the raw error, channel by channel.
-                EXPECT_LT(filteredError, rawError * 0.3f)
-                    << "channel " << channel << ": raw " << rawError << ", filtered " << filteredError;
-
-                // Measured within 0.2 to 0.7 per cent: what the accumulator's half-float history takes
-                // off a mean, which `accumulate.h` says of it.
-                EXPECT_NEAR(filtered.mean(channel), reference.mean(channel), reference.mean(channel) * 0.01f)
-                    << "channel " << channel << " keeps its light";
-            }
-
-            // A floor with no specular map has no lobe, and the lobe's channel holds nought light.
-            std::vector<float> lobe;
-            mRenderer.readChannel(Channel::Specular, lobe);
-            ASSERT_EQ(lobe.size(), std::size_t{ size } * size * 4);
-            for (std::size_t value = 0; value < lobe.size(); value += 4)
-                ASSERT_EQ(osg::Vec3f(lobe[value], lobe[value + 1], lobe[value + 2]), osg::Vec3f())
-                    << "pixel " << value / 4 << " of a floor with no lobe";
-        }
-
-        /// **A lamp that goes out leaves the history within a few frames.** One lamp over a floor for
+        /// **A lamp that goes out leaves the picture on the frame it goes.** One lamp over a floor for
         /// 32 frames, then the same floor without it, placed and not handed over, so every history
-        /// carries on. Measured eight frames on, at the pixel under the lamp: 24% of the lamp's light
-        /// is left. A fast history the long one is clamped to took that to 8%, and was not kept:
-        /// clamped to a per-pixel fast mean, the four-lamp floor came out noisier and a lone pixel's
-        /// history darker (`.notes/denoise-progress.md`, phase 6a). This holds the lag to where it is.
-        TEST_F(RtxVisibilityTest, aLampThatGoesOutLeavesTheHistoryWithinAFewFrames)
+        /// carries on. The lamp's light is the shadow denoiser's unshadowed sum times a filtered bit,
+        /// and only the bit has a history: the sum is nought on the first frame without the lamp, and
+        /// so is the light. Under a black sky the floor's bounce finds nothing, so the pixel under
+        /// the lamp is the unlit floor's exactly. Through the accumulator, as the lamps' light went
+        /// before, 24% of it was left eight frames on.
+        TEST_F(RtxVisibilityTest, aLampThatGoesOutLeavesThePictureOnTheFrameItGoes)
         {
             constexpr std::uint32_t size = 32;
             constexpr std::size_t centre = centreValueOf(size);
@@ -203,9 +142,9 @@ namespace Rtx::Testing
             // The lamp goes: the per-frame lists are emptied and the floor placed again.
             scene.clearPlacement();
             const float after = shoot(scene, {}, camera, size,
-                { .mFrames = 8, .mAverage = false, .mFirstFrame = 32, .mFilter = true, .mSetScene = false })
+                { .mFrames = 1, .mAverage = false, .mFirstFrame = 32, .mFilter = true, .mSetScene = false })
                                     .at(centre);
-            EXPECT_LT(after - dark, (lit - dark) * 0.3f) << "lit " << lit << ", dark " << dark << ", after " << after;
+            EXPECT_EQ(after, dark) << "lit " << lit;
         }
 
         /// **The filter rebuilds an arm's pixels through the arms' own eye**, as the trace cast them,

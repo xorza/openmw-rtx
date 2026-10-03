@@ -154,7 +154,7 @@ namespace Rtx
         if (!denoised)
             mDenoise.turn(TemporalFlags{});
         const Denoised resolved = denoised ? mPasses.mDenoise.record(commands, mDenoise, *mChannels, what.mSampled,
-                                      inputs.mSubject.mMapped, what.mTimer)
+                                      inputs.mSubject.mMapped, inputs.mSubject.mLamps, what.mTimer)
                                            : Denoised::unfiltered(*mChannels);
 
         // **Only where something is left to do**: a filter to put the albedo back in behind, or a sum

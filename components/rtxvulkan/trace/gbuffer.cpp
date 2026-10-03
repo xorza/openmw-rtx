@@ -66,7 +66,7 @@ namespace Rtx
                 every[bindingOf(Channel::Motion)] = { sMotion, sReadable };
                 every[bindingOf(Channel::Backdrop)] = { sBackdrop, sUsage };
                 every[bindingOf(Channel::Puffs)] = { sLayer, sUsage };
-                every[bindingOf(Channel::Sunlit)] = { VK_FORMAT_UNDEFINED, sReadable };
+                every[bindingOf(Channel::Shadowed)] = { VK_FORMAT_UNDEFINED, sReadable };
                 every[bindingOf(Channel::Specular)] = { VK_FORMAT_UNDEFINED, sReadable };
                 every[bindingOf(Channel::Pane)] = { VK_FORMAT_UNDEFINED, sReadable };
                 every[bindingOf(Channel::PaneAlbedo)] = { sAlbedo, sReadable };

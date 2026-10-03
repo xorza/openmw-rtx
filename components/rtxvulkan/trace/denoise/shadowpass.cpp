@@ -69,7 +69,7 @@ namespace Rtx
 
         {
             DescriptorWrites writes(mMask);
-            writes.image(Shaders::SHADOW_MASK_BIND_SUNLIT, buffer.get(Channel::Sunlit).describeStorage());
+            writes.image(Shaders::SHADOW_MASK_BIND_SHADOWED, buffer.get(Channel::Shadowed).describeStorage());
             writes.image(Shaders::SHADOW_MASK_BIND_MASK, images.mMask.describeStorage());
 
             dispatch(commands, mMask, writes, Shaders::ShadowMaskConstants{ .mWidth = width, .mHeight = height },
@@ -80,7 +80,7 @@ namespace Rtx
 
         {
             DescriptorWrites writes(mTiles);
-            writes.image(Shaders::SHADOW_TILES_BIND_SUNLIT, buffer.get(Channel::Sunlit).describeStorage());
+            writes.image(Shaders::SHADOW_TILES_BIND_SHADOWED, buffer.get(Channel::Shadowed).describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_HELD_SURFACE, images.mHeldSurface.describeStorage());

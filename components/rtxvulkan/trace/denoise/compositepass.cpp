@@ -57,7 +57,7 @@ namespace Rtx
         writes.image(Shaders::COMPOSITE_BIND_INDIRECT, indirect.describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_ALBEDO, buffer.get(Channel::Albedo).describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_SUM, bound.describeStorage());
-        writes.image(Shaders::COMPOSITE_BIND_SUNLIT, buffer.get(Channel::Sunlit).describeStorage());
+        writes.image(Shaders::COMPOSITE_BIND_SHADOWED, buffer.get(Channel::Shadowed).describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_SHADOW, shadowBound.describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_SPECULAR, specular.describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_PANE, pane.describeStorage());

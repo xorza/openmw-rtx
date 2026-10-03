@@ -459,32 +459,33 @@ namespace Rtx::Shaders
     /// a warp waits out anyway, so the half stays.
     const float INDIRECT_LIGHT_RATE = 0.5f;
 
-    /// What share of the eye's hits trace their bounce at all, the rest paying by weight.
+    /// What share of the eye's hits trace their bounce at all, the rest paying by weight: every
+    /// one.
     ///
     /// **The bounce is the one ray whose hit is shaded**, so what a skipped lane drops is the
     /// traversal and the whole of `shadeSurface` behind it: the lamp walk, the sun ray and the
-    /// ambient ray. That is why it is worth more than the two rates beside it, which each drop one
-    /// ray — and why it is not out of doors only, as they are: a room's lamp walk is the largest
-    /// part of what it drops. Release, three alternated rounds, the `trace` zone: 1.97–2.05 ms to
-    /// 1.77–1.82 at the ship and 1.45–1.47 to 1.20–1.23 in the guild; at 4K performance 4.33–4.36
-    /// to 3.83–3.84 and 3.38–3.41 to 2.76. Four to six per cent of the frame.
+    /// ambient ray. Half of them saved four to six per cent of the frame — release, three
+    /// alternated rounds, the `trace` zone: 1.97–2.05 ms to 1.77–1.82 at the ship and 1.45–1.47 to
+    /// 1.20–1.23 in the guild; at 4K performance 4.33–4.36 to 3.83–3.84 and 3.38–3.41 to 2.76.
     ///
-    /// **Drawn and divided, so the estimate is unbiased by construction.** What it hands the filter
-    /// is the indirect term at nought or twice itself, which is the reason it is judged on a moving
-    /// camera: a denoised still moves by under half a part in 255 on average, at either place. A third is untested, and
-    /// would hand the filter the term at three times itself.
+    /// **Every bounce, because what a half saves it pays for in noise at every place measured.**
+    /// Frame noise against sixteen frames averaged, standing and strafing in, and bias against a
+    /// converged reference standing, in levels of 255, at a half and at one:
     ///
-    /// **Drawn after the escape and not before it**, so a pixel `BOUNCE_REACH` handed the sky keeps
-    /// the sky: that pixel paid for nothing, and rating it would add noise and save no time.
+    ///     guild's planter at night   1.21  2.26  2.50    0.96  2.18  2.30
+    ///     mages' guild               0.94  1.68  1.80    0.79  1.56  1.67
+    ///     Seyda Neen's pier          0.59  1.27  1.86    0.51  1.19  1.70
+    ///     Seyda Neen's pond          0.54  1.21  1.61    0.47  1.19  1.53
+    ///
+    /// **A rate draws and divides, so the estimate is unbiased by construction**: what it hands the
+    /// filter is the indirect term at nought or `1 / rate` times itself. Drawn after the escape and
+    /// not before it, so a pixel `BOUNCE_REACH` handed the sky keeps the sky: that pixel paid for
+    /// nothing, and rating it would add noise and save no time. A rate over one is no rate: no draw
+    /// reaches it and the bounce is still divided by it, which `Rtx::describeWorld` asserts
+    /// against.
     ///
     /// Reaches the shader as `VisibilityConstants::mBounceRate` and not by name, which says why.
-    ///
-    /// **Judged again under the accumulator, the wavelet and FSR at `native`.** Tracing every bounce
-    /// is cleaner — the pier strafed in 2.05 against 2.32, the PBR guild 6.67 against 6.99 — for half
-    /// a millisecond of trace, and by less than the reference's own error, about a sixteenth of a raw
-    /// frame's. A quarter falls outside it: the PBR guild still 6.86 against 6.01, with a spread of
-    /// 0.76. So the half stays.
-    const float BOUNCE_RATE = 0.5f;
+    const float BOUNCE_RATE = 1.0f;
 
     /// How fast a bounce ray's cone widens, against a primary ray's.
     ///
@@ -1124,12 +1125,29 @@ namespace Rtx::Shaders
     /// shrinking while the lag it costs is not — and lag on a bounce shows up as light sliding off
     /// a wall a moment after the lamp that lit it moved.
     ///
-    /// **Sixteen is chosen for the lag and not yet measured for the noise**, and saying so is the
-    /// point: it is a quarter of a second at sixty frames, which is inside what a player reads as
-    /// "the light is on the wall" rather than as a fade. What it is worth against the noise wants a
-    /// sweep nobody has run, and until one is this is a number picked from the half of the trade
-    /// that can be reasoned about.
-    const float ACCUMULATE_FRAMES = 16.0f;
+    /// **Thirty-two, half a second at sixty frames, and only the bounce pays the lag.** The lamps'
+    /// direct light and the sky's are the shadow denoiser's, so a lamp that moves or goes out moves
+    /// its own light at once; what slides is the light it bounced. The history is the cascade's own
+    /// output, so each frame it keeps is blurred again, and a longer one is quieter standing and
+    /// further from the truth. Frame noise against sixteen frames averaged, then bias against a
+    /// converged reference, in levels of 255, at 16, 32 and 64 frames:
+    ///
+    ///     guild's planter at night   1.28 / 2.14   0.96 / 2.30   0.72 / 2.42
+    ///     mages' guild               1.15 / 1.53   0.79 / 1.67   0.57 / 1.82
+    ///     Seyda Neen's pier          0.75 / 1.55   0.51 / 1.70   0.41 / 1.80
+    ///     Seyda Neen's pond          0.72 / 1.44   0.47 / 1.53   0.35 / 1.61
+    ///
+    /// Thirty-two is under the bias the rooms had at sixteen while the lamps rode the wavelet —
+    /// 2.35 at the planter and 2.02 in the guild — at two thirds of their noise. Strafing in, where
+    /// a history is short anyway, the noise barely moves: 2.23, 2.18 and 2.11 at the planter.
+    ///
+    /// **A reach that narrows as the history grows did not get out of that trade.** ReBLUR's `1 /
+    /// (1 + N)` (Zhdan, GTC 2020) of 28 pixels, and the same over `sqrt(N)`, each weighing the
+    /// cascade's taps by `exp(-d² / r²)`: at sixteen frames, with the lamps still in the wavelet,
+    /// the planter was 1.94 and 1.39 noisy and 1.90 and 2.25 biased, against 1.28 and 2.35 under
+    /// the fixed reach, the noise of the first in sparse bright points the narrowed cascade no
+    /// longer spread. Both lie on the curve the history length draws.
+    const float ACCUMULATE_FRAMES = 32.0f;
 
     /// How squarely two normals must agree before their pixels are the same surface, and the
     /// history at one may be carried to the other.

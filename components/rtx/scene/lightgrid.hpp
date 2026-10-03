@@ -64,6 +64,9 @@ namespace Rtx
         /// a shaded point reads are three words together.
         const RunList& getList() const { return mList; }
 
+        /// How many lights the grid bins, those that take light away among them.
+        std::size_t getLightCount() const { return mBinnedOn.size(); }
+
     private:
         /// Makes the grid for `lights` from nothing: its extent, its cell and every lamp's box.
         void build(std::span<const Light> lights);

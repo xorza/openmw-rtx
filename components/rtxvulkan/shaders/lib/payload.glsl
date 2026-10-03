@@ -37,23 +37,23 @@ struct Answer
     /// the sprites the launch composites in front of it.
     vec3 mRadiance;
 
-    /// The diffuse light this hit gathered from its lamps and its one bounce, kept apart because the
+    /// The diffuse light this hit gathered from its one bounce, kept apart because the
     /// filter runs over it demodulated by the albedo in `mResponse`, and the composite multiplies the
     /// two back together afterwards. A pane's is what its path end drew, `SeenPane::mDiffuse`, which
     /// the pane filter takes the same way.
     vec3 mBounced;
 
-    /// What the sky's source adds to what the eye sees — the solid it found, or what the water's
-    /// legs found — as though its rays got through, and whether they did: a `SplitLight`'s two
-    /// halves. Nought and open wherever nothing split it off — a pane, the sky — so a shadow
-    /// denoiser reads such a pixel as lit and as nothing to filter.
-    vec3 mSunlit;
-    bool mSunOpen;
+    /// What the sky's source and the lamps add to what the eye sees — the solid it found, or what
+    /// the water's legs found — as though their rays got through, and whether the kept one did: a
+    /// `SplitLight`'s two halves. Nought and open wherever nothing split it off — a pane, the sky —
+    /// so a shadow denoiser reads such a pixel as lit and as nothing to filter.
+    vec3 mShadowed;
+    bool mOpen;
 
     /// What the lobe of the solid the eye found reflects of its lamps and its one bounce, and the
     /// lobe's roughness: `SeenSolid::mSpecular` and `mRoughness`. Nought and `SPECULAR_NO_LOBE`
-    /// wherever nothing split it off, as `mSunlit` is nought there. A pane's lobe light is here too,
-    /// `SeenPane::mSpecular`, with no roughness: the pane filter keeps no lobe's rule.
+    /// wherever nothing split it off, as `mShadowed` is nought there. A pane's lobe light is here
+    /// too, `SeenPane::mSpecular`, with no roughness: the pane filter keeps no lobe's rule.
     vec3 mSpecular;
     float mRoughness;
 
@@ -104,8 +104,8 @@ Answer noAnswer()
     Answer answer;
     answer.mRadiance = vec3(0.0);
     answer.mBounced = vec3(0.0);
-    answer.mSunlit = vec3(0.0);
-    answer.mSunOpen = true;
+    answer.mShadowed = vec3(0.0);
+    answer.mOpen = true;
     answer.mSpecular = vec3(0.0);
     answer.mRoughness = SPECULAR_NO_LOBE;
     answer.mResponse = noResponse();
@@ -126,12 +126,12 @@ Answer noAnswer()
 /// The flags word carries the backdrop's share as a half in its high bits — or a hit's
 /// `mMisMoved`, since only a miss shows the backdrop and only a hit moves — the lobe's roughness in
 /// the byte under them, and four facts in its low bits: whether the ray hit, whether the launch
-/// peels the surface, whether it is water, and whether the sky's source reached it.
+/// peels the surface, whether it is water, and whether the shadowed sources' kept ray got through.
 struct VisibilityPayload
 {
     vec3 mRadiance;
     vec3 mBounced;
-    vec3 mSunlit;
+    vec3 mShadowed;
     vec3 mSpecular;
 
     /// The response's diffuse, then the opacity: four halves in two words.
@@ -153,7 +153,7 @@ struct VisibilityPayload
 const uint ANSWER_WATER = 1u << 0u;
 const uint ANSWER_PANE = 1u << 1u;
 const uint ANSWER_HIT = 1u << 2u;
-const uint ANSWER_SUN_OPEN = 1u << 3u;
+const uint ANSWER_OPEN = 1u << 3u;
 
 /// Where the roughness sits in the flags word, as a byte: nought to one in steps of 1/254, and
 /// `ANSWER_NO_LOBE` for `SPECULAR_NO_LOBE`.
@@ -169,7 +169,7 @@ VisibilityPayload packAnswer(Answer answer)
     VisibilityPayload packed;
     packed.mRadiance = answer.mRadiance;
     packed.mBounced = answer.mBounced;
-    packed.mSunlit = answer.mSunlit;
+    packed.mShadowed = answer.mShadowed;
     packed.mSpecular = answer.mSpecular;
     packed.mHalves = uvec2(packHalf2x16(answer.mResponse.mDiffuse.rg),
         packHalf2x16(vec2(answer.mResponse.mDiffuse.b, answer.mOpacity)));
@@ -179,7 +179,7 @@ VisibilityPayload packAnswer(Answer answer)
     packed.mFlags = packHalf2x16(vec2(0.0, answer.mHit ? answer.mMisMoved : answer.mBackdropShown))
         | (answer.mWater ? ANSWER_WATER : 0u)
         | (answer.mPane ? ANSWER_PANE : 0u) | (answer.mHit ? ANSWER_HIT : 0u)
-        | (answer.mSunOpen ? ANSWER_SUN_OPEN : 0u)
+        | (answer.mOpen ? ANSWER_OPEN : 0u)
         | ((answer.mRoughness < 0.0 ? ANSWER_NO_LOBE
                                      : uint(round(min(answer.mRoughness, 1.0) * float(ANSWER_ROUGHNESS_STEPS))))
             << ANSWER_ROUGHNESS_SHIFT);
@@ -195,12 +195,12 @@ Answer unpackAnswer(VisibilityPayload packed)
     Answer answer;
     answer.mRadiance = packed.mRadiance;
     answer.mBounced = packed.mBounced;
-    answer.mSunlit = packed.mSunlit;
+    answer.mShadowed = packed.mShadowed;
     answer.mSpecular = packed.mSpecular;
     const uint roughness = (packed.mFlags >> ANSWER_ROUGHNESS_SHIFT) & 0xffu;
     answer.mRoughness
         = roughness == ANSWER_NO_LOBE ? SPECULAR_NO_LOBE : float(roughness) / float(ANSWER_ROUGHNESS_STEPS);
-    answer.mSunOpen = (packed.mFlags & ANSWER_SUN_OPEN) != 0u;
+    answer.mOpen = (packed.mFlags & ANSWER_OPEN) != 0u;
     answer.mResponse = SurfaceResponse(uintBitsToFloat(packed.mNormal), vec3(diffuseRg, diffuseBOpacity.x));
     answer.mMotion = vec3(unpackHalf2x16(packed.mMotion.x), unpackHalf2x16(packed.mMotion.y).x);
     answer.mOpacity = diffuseBOpacity.y;

@@ -48,8 +48,8 @@
 //   as last frame", and no depth history beside it.
 // - **The frame's edge is not a shadow.** The local mean is taken over the pixels the frame holds,
 //   where the SDK counts those off it as shadowed; `horizontalNeighbourhood` says what that cost.
-// - **Who receives.** A receiver is a surface the sky's source lights at all — `sunlit.rgb` not
-//   nought — so a room, which has none, skips every tile here.
+// - **Who receives.** A receiver is a surface the shadowed sources light at all — `shadowed.rgb`
+//   not nought — so a stretch no lamp reaches in a room skips every tile here.
 
 #include "accumulate.h"
 #include "colour.h"
@@ -62,9 +62,9 @@
 
 layout(local_size_x = SHADOW_WORKGROUP, local_size_y = SHADOW_WORKGROUP) in;
 
-/// The light the sky's source would add and the bit that says whether its rays got through —
-/// `CHANNEL_SUNLIT`. No format, because it is as wide as the run keeps radiance.
-layout(set = SET_PASS, binding = SHADOW_TILES_BIND_SUNLIT) uniform readonly image2D sunlit;
+/// The light the shadowed sources would add and the bit that says whether the kept ray got through
+/// — `CHANNEL_SHADOWED`. No format, because it is as wide as the run keeps radiance.
+layout(set = SET_PASS, binding = SHADOW_TILES_BIND_SHADOWED) uniform readonly image2D shadowed;
 
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MOTION, GBUFFER_MOTION) uniform readonly image2D motion;
@@ -127,11 +127,11 @@ float kernelWeight(float offset)
     return exp(-3.0 * offset * offset / (width * width));
 }
 
-/// Whether the sky's source lights the surface at `at` at all.
+/// Whether the shadowed sources light the surface at `at` at all.
 bool receives(ivec2 at)
 {
     return imageLoad(surfaceChannel, at).r != SURFACE_NO_NORMAL
-        && dot(imageLoad(sunlit, at).rgb, LUMINANCE_WEIGHTS) > 0.0;
+        && dot(imageLoad(shadowed, at).rgb, LUMINANCE_WEIGHTS) > 0.0;
 }
 
 /// The horizontal half of the kernel over row `row` of the square, centred on column

@@ -110,13 +110,13 @@ void answerPane(inout Answer answer, Surface surface)
     answer.mResponse = seen.mResponse;
 }
 
-/// Fills the payload in with what the pixel shows but the filtered channels, and the sky's source
-/// apart for the shadow denoiser.
+/// Fills the payload in with what the pixel shows but the filtered channels, and the shadowed
+/// sources apart for the shadow denoiser.
 void answerLight(inout Answer answer, SplitLight light)
 {
     answer.mRadiance = light.mRest;
-    answer.mSunlit = light.mSunlit;
-    answer.mSunOpen = light.mSunOpen > 0.0;
+    answer.mShadowed = light.mShadowed;
+    answer.mOpen = light.mOpen > 0.0;
 }
 
 /// Fills the payload in for an ordinary lit surface.
@@ -223,7 +223,7 @@ WaterImages answerWater(inout Answer answer, Surface surface)
     // crosses.
     const vec3 normal = normalize(mix(unpackSurfaceNormal(seen.mResponse.mNormal),
         unpackSurfaceNormal(answer.mResponse.mNormal), shore));
-    uint kept = randomSeed(pixelKey(pixel) + SEED_SUN_SHORE);
+    uint kept = randomSeed(pixelKey(pixel) + SEED_SHADOWED_SHORE);
     answerLight(answer, mixSplit(seen.mLight, water.mLight, shore, randomNext(kept)));
     answer.mBounced = seen.mBounce;
     answer.mSpecular = seen.mSpecular * (1.0 - shore);

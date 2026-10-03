@@ -17,12 +17,12 @@ namespace Rtx
     class GBuffer;
     class Image;
 
-    /// The shadow denoiser: a port of AMD's FidelityFX Shadow Denoiser over the one bit a pixel's
-    /// rays to the sun or a moon came back with, `CHANNEL_SUNLIT`'s alpha. A pass that packs the
-    /// bits, a temporal pass that also classifies the tiles every receiver of which is lit alike,
-    /// and three levels of a spatial filter over the rest — `shadowtiles.comp` and
+    /// The shadow denoiser: a port of AMD's FidelityFX Shadow Denoiser over the one bit a pixel
+    /// kept of its rays to the sun or a moon and to a lamp, `CHANNEL_SHADOWED`'s alpha. A pass that
+    /// packs the bits, a temporal pass that also classifies the tiles every receiver of which is
+    /// lit alike, and three levels of a spatial filter over the rest — `shadowtiles.comp` and
     /// `shadowfilter.comp` say what the port keeps and what it changes. It runs where the wavelet
-    /// does and the sky has a source that lights.
+    /// does and the sky has a source that lights or the scene a lamp.
     class ShadowPass
     {
     public:
