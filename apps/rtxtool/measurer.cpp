@@ -129,6 +129,7 @@ namespace RtxTool
             // **Asked for and not opened here**: the worker begins the window on its next turn, so
             // this frame pays one store and no driver call (`CardWatch::start`).
             mCardWatch.start();
+            mCounters.start();
             mProfiling.enable();
 
             // The backend's number of the first measured frame: what says of a result that comes
@@ -294,9 +295,10 @@ namespace RtxTool
         const float step = worldStep(mRequest.mStep);
 
         mProfiling.disable();
+        BenchPlace& place = mProgress.mPlace;
+        place.mThread = mCounters.stop();
 
         const CardWindows card = mCardWatch.stop();
-        BenchPlace& place = mProgress.mPlace;
         place.mClock = card.mPlace.mClock;
         place.mCard = card.mPlace.mShare;
 
