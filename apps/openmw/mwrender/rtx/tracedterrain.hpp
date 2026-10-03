@@ -42,7 +42,7 @@ namespace Terrain
 
 namespace MWRender
 {
-    class RefnumMarker;
+    struct RefnumMarker;
 
     /// Which cells past the loaded ones stand ground the trace draws, and what statics: the ring's
     /// word, which the ground that owns both forwards. Asked by a ray cast, and by nothing else.
@@ -130,7 +130,8 @@ namespace MWRender
         {
             osg::ref_ptr<osg::MatrixTransform> mPlace;
             osg::ref_ptr<StandingPart> mPart;
-            osg::ref_ptr<RefnumMarker> mMarker;
+            // Points into the user data `mPlace` carries, which owns the marker.
+            RefnumMarker* mMarker = nullptr;
         };
 
         /// The next carrier of this cast, made where the pool has none spare.
