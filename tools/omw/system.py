@@ -14,6 +14,19 @@ SYSTEMS = {"linux": "linux", "win32": "windows"}
 WINDOWS = sys.platform == "win32"
 SYSTEM = SYSTEMS.get(sys.platform, "")
 EXE = ".exe" if WINDOWS else ""
+# The fork's own folders, which the fork's checks hold: upstream's code is upstream's to change.
+FORK = (
+    "components/rtx/",
+    "components/rtxvulkan/",
+    "components/myguirtx/",
+    "components/crashcatcher/",
+    "apps/rtxtool/",
+    "apps/openmw/mwrender/rtx/",
+    "apps/components_tests/rtx/",
+    "apps/components_tests/rtxvulkan/",
+    "apps/components_tests/rtxtool/",
+    "apps/components_tests/crashcatcher/",
+)
 # Set by GitHub Actions, as by every CI service: CI checks what the desk rewrites.
 CI = os.environ.get("CI", "").lower() in ("true", "1")
 

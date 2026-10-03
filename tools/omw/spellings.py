@@ -3,25 +3,11 @@
 **A path narrowed with `.string()` or `.generic_string()`.** On Windows it goes through the ANSI
 code page, which throws for a name outside it, so a checkout or a profile under such a name failed
 the harness at start. `Files::pathToUnicodeString` spells a path as UTF-8, and
-`Platform::Process::setEnvironmentPath` hands one to the environment whole. The fork's folders
-alone: upstream's code is upstream's to change."""
+`Platform::Process::setEnvironmentPath` hands one to the environment whole."""
 
 import re
 
-from omw.system import ROOT, output
-
-FORK = (
-    "components/rtx/",
-    "components/rtxvulkan/",
-    "components/myguirtx/",
-    "components/crashcatcher/",
-    "apps/rtxtool/",
-    "apps/openmw/mwrender/rtx/",
-    "apps/components_tests/rtx/",
-    "apps/components_tests/rtxvulkan/",
-    "apps/components_tests/rtxtool/",
-    "apps/components_tests/crashcatcher/",
-)
+from omw.system import FORK, ROOT, output
 
 NARROWED = re.compile(r"\.(generic_)?string\(\)")
 
