@@ -13,9 +13,6 @@ the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the
   the harness's executable.
 - Groundcover is never drawn under the ray tracer; only a log line says so.
   `apps/openmw/mwrender/rtx/rtxrenderer.cpp:214-219`.
-- A texture the engine loads in a format the reader does not name — alpha-only `A8`, a sixteen- or
-  thirty-two-bit float format, or BC4 — draws as the grey stand-in, and a sky deck in one is left
-  out, where the rasterizer samples it. `components/rtx/image/texels.cpp` `readFormat`.
 - A measured run's host rows move as a whole between runs of one build: at `one-cell-walk` six legs
   held to the performance cores read walk medians of 1.02 to 1.53 ms at a steady clock, and the
   frame thread's cache misses a thousand instructions moved with them, 3.14 to 4.75.

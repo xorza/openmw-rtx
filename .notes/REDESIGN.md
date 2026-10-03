@@ -17,7 +17,6 @@ notes cite.
 | W14 The ray tracer shows what the rasterizer shows | the items that wait for an input outside the tree | after its inputs |
 | W15 Groundcover stands in the ring | the whole of it, test plugin first | 8 |
 | W16 A mask's soft texels are layers to the eye | the whole of it, behind its measurement | 8 |
-| W17 One row per texture format | the table, then A8, the float formats and BC4 | 8 |
 | W19 The walk visits what can change | the probe, then the frozen subtrees | 5 |
 | §16 Smaller workstreams | the upstream diff, the device, layering, Vulkan, tooling | 5 (§16.6), 6 |
 | §17 Fixes in place | the local groups; the frame constants | 5, 7 |
@@ -347,65 +346,6 @@ fringe and not shaded again — a design of its own, measured the same way.
 
 ---
 
-## 15c. W17 — One row per texture format
-
-**Closes:** *A texture the engine loads in a format the reader does not name …* (`ISSUES.md`).
-
-### What is wrong
-
-A format is spread over six switches: `readFormat` and `nameOf` (`texels.cpp`), the layout
-(`texturedata.hpp`), the widening on the way in (`imagedescription.cpp`), the alpha and colour
-decoders (`alphaimage.cpp`), and the device's format (`rtxvulkan/device/memory/formats.cpp`). A
-format the content files use and no switch names is `Unnamed`: the grey stand-in, and a sky deck
-left out, where the rasterizer samples it. Alpha-only `A8`, the half and full float formats and
-BC4 are those today. BC6H and BC7 never load at all (OSG's DDS reader refuses them), so they are
-no reader's question.
-
-### Target shape
-
-**One table, one row a format**, in the core (`components/rtx/image/formattable.hpp`):
-
-```cpp
-struct FormatRow
-{
-    GLenum mPixelFormat;          // the image's pixel format
-    GLenum mDataType;             // GL_NONE for a block
-    TextureFormat mFormat;        // the trace's name for it
-    std::string_view mName;       // for a log and a refusal
-    TexelLayout mLayout;          // block side and bytes
-    Widen mWiden;                 // None, or the RGBA8 / RGBA16F it is laid as on the way in
-    Decode mDecode;               // how the host reads a texel: Unorm8 channels, Half, Float, Bc1..Bc5
-    bool mColour;                 // whether a colour slot takes it
-};
-inline constexpr std::array sFormats{ ... };
-```
-
-`readFormat` finds the row; `nameOf`, the layout, the widening and the decoders read it. The
-backend keeps its own map from `TextureFormat` to `VkFormat`, because Vulkan is the backend's, and
-a `static_assert` over the table holds that every row whose `mWiden` is `None` has a device
-format.
-
-### The rows the issue adds
-
-| File | Pixel format, type | Row | On the device | Host decode |
-|---|---|---|---|---|
-| alpha-only | `GL_ALPHA`, `GL_UNSIGNED_BYTE` | `Alpha8` | widened to RGBA8 `(0, 0, 0, a)`, as GL samples it | `a` |
-| half float | `GL_RGBA`/`GL_RGB`/`GL_LUMINANCE`, `GL_HALF_FLOAT` | `Rgba16f` | `R16G16B16A16_SFLOAT`, a three- or one-channel file widened | half |
-| full float | the same, `GL_FLOAT` | `Rgba32f` | `R32G32B32A32_SFLOAT`, widened the same way | float |
-| BC4 | `GL_COMPRESSED_RED_RGTC1_EXT` | `Bc4Unorm` | `BC4_UNORM_BLOCK` | the red channel's block |
-
-**A decision for you: BC4 in a colour slot.** GL samples it as `(r, 0, 0, 1)`, red. A colour slot
-refuses BC5 by name today rather than drawing it yellow. Recommended: the same rule for BC4, so a
-data slot takes it and a colour slot names it.
-
-### Tests
-
-The table against itself (every row has a layout, a name and a decode; no pixel format and type
-twice), each new row's host decode against hand-written texels, and a GPU probe that samples each
-new format's upload and reads back what GL would show, to the byte.
-
----
-
 ## 15e. W19 — The walk visits what can change
 
 **Closes:** *A measured run's host rows move as a whole between runs of one build* (`ISSUES.md`),
@@ -577,7 +517,7 @@ Each phase ends green on `./omw gate`.
 2. **Phase 6, the upstream diff:** §16.1, then §16.2, §16.5 and §16.7.
 3. **Phase 7, tests and docs:** the test groups in §17, and every doc item, `architecture.md` §1 and
    §13 included.
-4. **Phase 8, the open issues:** W15 (the test plugin first), W16 behind its measurement, W17.
+4. **Phase 8, the open issues:** W15 (the test plugin first), W16 behind its measurement.
    W19's probe goes with Phase 5, and its frozen subtrees with W6.
 
 W14 goes as each input arrives.
