@@ -543,7 +543,8 @@ namespace RtxTool
             Stop staged;
             if (found == nullptr && cell.empty() && startsFromSave(variables))
             {
-                staged.mName = variables["load-savegame"].as<Files::MaybeQuotedPath>().stem().string();
+                staged.mName
+                    = Files::pathToUnicodeString(variables["load-savegame"].as<Files::MaybeQuotedPath>().stem());
                 staged.mSky.mHour = hourGiven(variables);
                 staged.mSky.mWeather = weatherGiven(variables);
                 staged.mSky.mAir = airGiven(variables);
@@ -1147,7 +1148,8 @@ namespace RtxTool
                 status != 0)
                 return status;
 
-            const std::filesystem::path video = directory / (keys.stem().string() + ".mp4");
+            std::filesystem::path video = directory / keys.stem();
+            video += ".mp4";
             const std::string encode = encodeCommand(frames, video, pacing.getRate());
             if (!variables["encode"].as<bool>())
             {

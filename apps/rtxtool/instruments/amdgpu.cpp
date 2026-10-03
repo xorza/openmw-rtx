@@ -10,6 +10,8 @@
 #include <system_error>
 #include <utility>
 
+#include <components/files/conversion.hpp>
+
 namespace RtxTool
 {
     namespace
@@ -58,7 +60,7 @@ namespace RtxTool
         {
             // `card0` and not a connector of it, `card0-HDMI-A-1`, which holds no `device/vendor`
             // of its own but a link back to the card's.
-            const std::string name = card.path().filename().string();
+            const std::string name = Files::pathToUnicodeString(card.path().filename());
             if (!name.starts_with("card") || name.find('-') != std::string::npos)
                 continue;
 

@@ -6,7 +6,7 @@ at the first failure — so a formatting slip is found in seconds and not after 
 
 import unittest
 
-from omw import formatting, listing, testing
+from omw import formatting, listing, spellings, testing
 from omw.build import Build
 from omw.repeat import repeat
 from omw.system import ROOT, Refusal
@@ -23,6 +23,8 @@ def gate(build: Build, args: list[str]) -> int:
     if args:
         raise Refusal("gate takes no arguments")
     if formatting.format_tree(["--check"]) != 0:
+        return 1
+    if spellings.check() != 0:
         return 1
     if not self_test():
         return 1

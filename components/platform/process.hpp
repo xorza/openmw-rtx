@@ -22,6 +22,15 @@ namespace Platform::Process
     /// Gives `name` the value `value` in this process's environment, over whatever it had.
     void setEnvironment(const char* name, const char* value);
 
+    /// Gives `name` the path `value`, over whatever it had: in the system's own spelling of a path,
+    /// which on Windows is wide. A path narrowed to a `char` value there goes through the code page,
+    /// and a folder named outside it is either refused or another folder.
+    void setEnvironmentPath(const char* name, const std::filesystem::path& value);
+
+    /// The path `name` holds in this process's environment, read as `setEnvironmentPath` writes
+    /// one, or nothing where it holds none.
+    std::optional<std::filesystem::path> environmentPath(const char* name);
+
     /// The file this process runs: the running file itself, not `argv[0]`, which a shell may have
     /// given as a bare name or a relative path. Nothing where the system would not say.
     std::optional<std::filesystem::path> executable();

@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <components/debug/debuglog.hpp>
+#include <components/files/conversion.hpp>
 #include <components/files/hash.hpp>
 #include <components/rtx/common/hashstate.hpp>
 
@@ -39,7 +40,7 @@ namespace Rtx
 
             // The name as well as the contents, so that renaming a shader is a change and two files
             // trading contents is not the same set.
-            const std::string name = file.filename().string();
+            const std::string name = Files::pathToUnicodeString(file.filename());
             digest.add(std::span<const char>(name));
 
             // `Files::getHash` throws where a read fails, and this may not: a digest is a key, and a

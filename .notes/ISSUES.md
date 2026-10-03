@@ -16,9 +16,6 @@ the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the
 - The driver takes macOS for Linux: `bootstrap` downloads the Linux SDK, `build` asks for a disabled
   preset, and `setup` writes `openmw.cfg` to a folder the game never reads.
   `tools/omw/system.py:10-13`, `:125-137`.
-- The harness's driver cache path goes through `path.string()`, which throws on Windows for a
-  character outside the ANSI code page, so the harness fails at start from such a checkout.
-  `apps/rtxtool/instruments/drivercache.cpp:78`, `:85`.
 - Every install ships the harness's `views.cfg`, `benches.cfg` and `rtx/vfs/` scripts, under a
   comment that says no install carries the harness. `CMakeLists.txt:1143-1149`,
   `apps/rtxtool/CMakeLists.txt:91-98`.

@@ -45,6 +45,19 @@ namespace Platform::Process
         setenv(name, value, 1);
     }
 
+    void setEnvironmentPath(const char* name, const std::filesystem::path& value)
+    {
+        setenv(name, value.c_str(), 1);
+    }
+
+    std::optional<std::filesystem::path> environmentPath(const char* name)
+    {
+        const char* const value = std::getenv(name);
+        if (value == nullptr)
+            return std::nullopt;
+        return std::filesystem::path(value);
+    }
+
     std::optional<std::filesystem::path> executable()
     {
         std::error_code error;

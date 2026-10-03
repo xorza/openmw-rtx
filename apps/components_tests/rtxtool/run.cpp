@@ -20,6 +20,7 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/run.hpp>
+#include <components/files/conversion.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories/video.hpp>
@@ -254,9 +255,9 @@ namespace RtxTool
         {
             sol::state lua;
             lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string);
-            const sol::table spelling = lua.script_file((std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files"
-                / "rtx" / "vfs" / "scripts" / "rtx" / "hour.lua")
-                                                            .string());
+            const sol::table spelling
+                = lua.script_file(Files::pathToUnicodeString(std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR }
+                    / "files" / "rtx" / "vfs" / "scripts" / "rtx" / "hour.lua"));
             const sol::function describe = spelling["describe"];
 
             std::size_t parted = 0;

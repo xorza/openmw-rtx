@@ -2,9 +2,11 @@
 
 #include <chrono>
 #include <deque>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string_view>
 
 #ifdef _MSC_VER
@@ -467,10 +469,10 @@ namespace Debug
             Crash::Settings settings;
             settings.mApplication = std::string(appName);
             settings.mIssues = "https://github.com/xorza/openmw-rtx/issues";
-            const char* const reports = std::getenv("OPENMW_CRASH_REPORTS");
-            sReportsNamed = reports != nullptr;
-            settings.mReportFolder = reports != nullptr ? Files::pathFromUnicodeString(reports)
-                                                        : Files::FixedPath<>("openmw").getUserDataPath() / "crashes";
+            const std::optional<std::filesystem::path> reports
+                = Platform::Process::environmentPath("OPENMW_CRASH_REPORTS");
+            sReportsNamed = reports.has_value();
+            settings.mReportFolder = reports.value_or(Files::FixedPath<>("openmw").getUserDataPath() / "crashes");
             // As the fatal error box below: none for whoever started the game from a shell.
             settings.mDialog = !Platform::Process::startedFromTerminal();
             // And none where a harness asks, which a box waiting for a click would stop.

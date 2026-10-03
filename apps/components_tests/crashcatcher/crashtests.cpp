@@ -522,8 +522,7 @@ int main(int argc, char* argv[])
         // no box, and for the modes that answer one, End after a while.
         const std::string_view mode = argv[1];
         const std::filesystem::path folder = std::filesystem::absolute(argv[2]);
-        Platform::Process::setEnvironment(
-            "OPENMW_CRASH_REPORTS", Files::pathToUnicodeString(folder / "crashes").c_str());
+        Platform::Process::setEnvironmentPath("OPENMW_CRASH_REPORTS", folder / "crashes");
         Platform::Process::setEnvironment("OPENMW_CRASH_DIALOG", CrashTests::answersEnd(mode) ? "1" : "0");
         if (CrashTests::answersEnd(mode))
             Platform::Process::setEnvironment(
