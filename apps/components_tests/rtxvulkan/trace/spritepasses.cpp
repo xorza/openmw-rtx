@@ -470,6 +470,31 @@ namespace Rtx
             EXPECT_GT(runs, 0u) << "no tile held more than one sprite, so nothing was ordered";
         }
 
+        /// **A sprite the shelter zeroed is in no tile.** A drop under a roof keeps its place and loses
+        /// its radius, and a ball of no radius fills no angle, so `capsuleSpan`'s arc is empty and
+        /// the march never walks it. Two sprites at one place, one of them zeroed: the other is
+        /// listed, and the zeroed one nowhere.
+        TEST_F(RtxSpriteBinPassTest, aSpriteTheShelterZeroedIsInNoTile)
+        {
+            Layer layer;
+            layer.addEmitter(0.0f, osg::Vec3f());
+            layer.addSprite(osg::Vec3f(40.0f, 0.0f, 0.0f), 3.0f);
+            layer.addSprite(osg::Vec3f(40.0f, 0.0f, 0.0f), 0.0f);
+
+            const Binned tiles = bin(layer, lookingAlongX(), sPlenty);
+            ASSERT_FALSE(tiles.isUnbinned());
+
+            std::uint32_t listed = 0;
+            for (std::size_t tile = 0; tile < tiles.getTileCount(); ++tile)
+                for (const std::uint32_t sprite : tiles.getRun(tile))
+                {
+                    EXPECT_EQ(sprite, 0u) << "tile " << tile << " lists the sheltered drop";
+                    ++listed;
+                }
+            EXPECT_GT(listed, 0u) << "the drop in the open is listed nowhere";
+            EXPECT_EQ(tiles.getEntryCount(), listed);
+        }
+
         /// A sprite the eye is inside covers whatever it likes, and there are no tangent lines to work
         /// that out from — so it goes in every tile rather than being reasoned about.
         TEST_F(RtxSpriteBinPassTest, aSpriteAroundTheEyeIsInEveryTile)
