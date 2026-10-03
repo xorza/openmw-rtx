@@ -152,10 +152,6 @@ the same class. The estimate is under 0.1 ms at 1280×720; step A.6 measures it.
 
 Each step ends with `./omw test` and the gates it names.
 
-**Step A.2 — the fast history alone.** `accumulate.comp` blends and stores the fast pair, and
-nothing reads it yet. **Gate:** `shot --views=all --map --upscale=off` against the baseline moves no
-picture; `repeat --pairs=10` identical.
-
 **Step A.3 — the clamp.** `accumulateclamp.comp` clamps the slow bounce and fill by AD3, with the
 second-moment correction.
 

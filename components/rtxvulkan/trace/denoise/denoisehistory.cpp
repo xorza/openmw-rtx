@@ -62,6 +62,9 @@ namespace Rtx
             = Image(mDevice, width, height, toVulkanFormat(ATROUS_CHANNEL), sReadAndWrite, "accumulate-fill-blended");
         mFillScratch
             = Image(mDevice, width, height, toVulkanFormat(ATROUS_CHANNEL), sReadAndWrite, "atrous-fill-scratch");
+        mFast = ImagePair::make(mDevice, width, height, toVulkanFormat(ACCUMULATE_COLOUR), sStorage, "accumulate-fast");
+        mFastFill = ImagePair::make(
+            mDevice, width, height, toVulkanFormat(ACCUMULATE_COLOUR), sStorage, "accumulate-fast-fill");
 
         constexpr VkFormat reprojected = toVulkanFormat(SHADOW_REPROJECTED);
         mShadowMoments
@@ -108,9 +111,10 @@ namespace Rtx
         const AccumulateImages accumulated = accumulate(step);
         discardFor(Temporal::Accumulate,
             { &accumulated.mColour, &accumulated.mSurface, &accumulated.mMoments, &accumulated.mBlended,
-                &accumulated.mScratch, &accumulated.mFill, &accumulated.mFillBlended, &accumulated.mFillScratch },
+                &accumulated.mScratch, &accumulated.mFill, &accumulated.mFillBlended, &accumulated.mFillScratch,
+                &accumulated.mFast, &accumulated.mFastFill },
             { &accumulated.mColourBefore, &accumulated.mSurfaceBefore, &accumulated.mMomentsBefore,
-                &accumulated.mFillBefore });
+                &accumulated.mFillBefore, &accumulated.mFastBefore, &accumulated.mFastFillBefore });
 
         // The history the temporal pass reads is the first level's answer from the frame before,
         // so it is one of what a fresh history discards and not one of what the frame writes whole.
@@ -143,6 +147,10 @@ namespace Rtx
             .mFill = mFill.now(step),
             .mFillBlended = mFillBlended,
             .mFillScratch = mFillScratch,
+            .mFastBefore = mFast.before(step),
+            .mFast = mFast.now(step),
+            .mFastFillBefore = mFastFill.before(step),
+            .mFastFill = mFastFill.now(step),
             .mFresh = step.mFresh[Temporal::Accumulate],
         };
     }

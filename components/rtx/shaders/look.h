@@ -1158,6 +1158,11 @@ namespace Rtx::Shaders
     ///     Ahemmusa's yurt            1.96 / 2.58 / 1.52   1.32 / 2.69 / 1.53   0.74 / 2.66 / 1.67
     const float ACCUMULATE_FRAMES = 32.0f;
 
+    /// The longest history the accumulator's fast mean keeps, which the slow one is clamped to: the
+    /// mean that follows a change of the light on a surface that did not move, as an actor's darkness
+    /// dragged over a floor. ReLAX's default (NVIDIA NRD, `diffuseMaxFastAccumulatedFrameNum`).
+    const float ACCUMULATE_FAST_FRAMES = 6.0f;
+
     /// How squarely two normals must agree before their pixels are the same surface, and the
     /// history at one may be carried to the other.
     ///
