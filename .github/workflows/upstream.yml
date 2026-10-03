@@ -82,42 +82,26 @@ jobs:
           # with. What is kept is this job's own token, which is the three permissions above and
           # expires with the job.
 
-      # **The branches of merges that are over.** A merge `github-actions` made keeps its branch:
-      # "Automatically delete head branches" acts on a merge a user made, and an auto-merge is the
-      # merge of whoever turned it on, and a merge made with `GITHUB_TOKEN` starts no workflow that
-      # could. So every run starts by deleting each `upstream-merge/` branch whose pull requests are
-      # all merged or closed — it is done. A branch with no pull request at all is a merge the agent
-      # did not finish, which `Keep what the agent left` pushed for a human, and it stays.
-      - name: Delete the branches of finished merges
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          finished=$(gh pr list --state all --limit 1000 --json headRefName,isCrossRepository,state \
-            --jq '[.[] | select(.isCrossRepository | not)] | group_by(.headRefName)
-              | map(select(all(.state != "OPEN")) | .[0].headRefName)')
-
-          gh api --paginate "repos/$GH_REPO/git/matching-refs/heads/upstream-merge/" --jq '.[].ref' |
-            while read -r ref; do
-              branch=${ref#refs/heads/}
-              if jq -e --arg branch "$branch" 'index($branch)' <<< "$finished" > /dev/null; then
-                gh api -X DELETE "repos/$GH_REPO/git/$ref"
-                echo "deleted $branch"
-              fi
-            done
-
       # Deterministic, so the shell does it and not the agent: fetching, counting, naming the
       # branch and asking whether there is already a merge to read need no judgement, and what is
       # not in the prompt is not a command the agent has to be trusted with. A run with nothing to
       # do costs this step alone.
       #
-      # **A run is skipped while an earlier merge is still open** — one that failed CI, one held
-      # for a human below, or one the agent did not finish. Unconditional, this opens a pull
-      # request a day whether or not the last one landed, and a pile of them is worse than a week
-      # of drift: the merge after the pile is cleared takes everything anyway. Counted as the
-      # `upstream-merge/` branches the step above left, which are exactly those; a branch is this
-      # repository's, so a fork's pull request named like one cannot stop the merge.
-      - name: What upstream has, and whether a merge is already waiting
+      # **Each `upstream-merge/` branch is one of three**, by its pull requests in this repository;
+      # a branch is this repository's, so a fork's pull request named like one changes nothing:
+      #
+      # - **Every pull request merged or closed: done, and deleted.** A merge `github-actions` made
+      #   keeps its branch: "Automatically delete head branches" acts on a merge a user made, an
+      #   auto-merge is the merge of whoever turned it on, and a merge made with `GITHUB_TOKEN`
+      #   starts no workflow that could.
+      # - **One open: the run waits.** It failed CI or is held for a human below. Unconditional, this
+      #   opens a pull request a day whether or not the last one landed, and a pile of them is worse
+      #   than a week of drift: the merge after the pile is cleared takes everything anyway.
+      # - **None at all: the run fails, naming it.** It is a merge the agent did not finish, which
+      #   `Keep what the agent left` pushed for a human. A wait on it would show nowhere, since a
+      #   run that skips every step is green, so every run fails until a human finishes it or
+      #   deletes it.
+      - name: What upstream has, and what earlier merges left
         id: upstream
         env:
           GH_TOKEN: ${{ github.token }}
@@ -129,20 +113,47 @@ jobs:
 
           git remote add upstream https://github.com/OpenMW/openmw.git
           git fetch --no-tags upstream master
-
           behind=$(git rev-list --count HEAD..upstream/master)
-          waiting=$(gh api --paginate "repos/$GH_REPO/git/matching-refs/heads/upstream-merge/" --jq '.[].ref' | wc -l)
+
+          # Each branch with pull requests, and whether one of them is open.
+          pulls=$(gh pr list --state all --limit 1000 --json headRefName,isCrossRepository,state \
+            --jq '[.[] | select(.isCrossRepository | not)] | group_by(.headRefName)
+              | map({ key: .[0].headRefName, value: any(.state == "OPEN") }) | from_entries')
+          refs=$(gh api --paginate "repos/$GH_REPO/git/matching-refs/heads/upstream-merge/" --jq '.[].ref')
+
+          waiting=0
+          unfinished=""
+          while read -r ref; do
+            if [ -z "$ref" ]; then
+              continue
+            fi
+            branch=${ref#refs/heads/}
+            case $(jq -r --arg branch "$branch" 'if has($branch) then .[$branch] else "none" end' <<< "$pulls") in
+              true) waiting=$((waiting + 1)) ;;
+              false)
+                gh api -X DELETE "repos/$GH_REPO/git/$ref"
+                echo "deleted $branch"
+                ;;
+              *) unfinished="$unfinished $branch" ;;
+            esac
+          done <<< "$refs"
+
+          if [ -n "$unfinished" ]; then
+            echo "::error::an upstream merge nobody finished waits on a branch with no pull request:$unfinished. Finish it by hand, or delete it so the daily merges start again"
+            exit 1
+          fi
 
           # The run's own number beside the date, so a merge asked for by hand on the day of a
           # scheduled one is a branch of its own.
           echo "branch=upstream-merge/$(date -u +%F)-$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
-          echo "behind=$behind" >> "$GITHUB_OUTPUT"
-          echo "waiting=$waiting" >> "$GITHUB_OUTPUT"
-          echo "$behind commits behind upstream/master, $waiting merge branches already open"
+          if [ "$behind" != 0 ] && [ "$waiting" = 0 ]; then
+            echo "merge=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "$behind commits behind upstream/master, $waiting merges already open"
 
       - name: clang-format 14, the version ci.yml checks with
         # No runner carries it, and the agent is told below to run the tree's own check with it.
-        if: steps.upstream.outputs.behind != '0' && steps.upstream.outputs.waiting == '0'
+        if: steps.upstream.outputs.merge == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-format-14
@@ -160,7 +171,7 @@ jobs:
       # takes a read of its conflicts, of what surrounds them, and an edit or two.
       - name: The merge, as far as git takes it
         id: merge
-        if: steps.upstream.outputs.behind != '0' && steps.upstream.outputs.waiting == '0'
+        if: steps.upstream.outputs.merge == 'true'
         env:
           BRANCH: ${{ steps.upstream.outputs.branch }}
         run: |
@@ -192,7 +203,7 @@ jobs:
       # version beside it is what says how old the pin has grown.
       - uses: anthropics/claude-code-action@cfc3eb22bfed5c26ef66e3223c982af27e4524de # v1.0.231
         id: agent
-        if: steps.upstream.outputs.behind != '0' && steps.upstream.outputs.waiting == '0'
+        if: steps.upstream.outputs.merge == 'true'
         # Named for the agent as for the steps around it: `gh` in a checkout with a remote called
         # `upstream` takes that remote's repository, so a `gh pr create` without `--repo` asks
         # OpenMW's repository for the pull request and not this one. The action hands its own
@@ -307,12 +318,10 @@ jobs:
       # work away so. Whatever the agent left — resolved, half-resolved, still marked — is committed
       # as the merge and pushed to the run's branch, and the job fails naming it. No pull request:
       # this job's token may not open one (the repository does not let Actions create pull
-      # requests), and a merge nobody finished is a human's anyway. The branch stands, and later
-      # runs wait, until a human finishes it or deletes it.
+      # requests), and a merge nobody finished is a human's anyway. The branch stands, and every
+      # later run fails naming it, until a human finishes it or deletes it.
       - name: Keep what the agent left
-        if: >-
-          always() && steps.merge.outcome == 'success'
-          && steps.upstream.outputs.behind != '0' && steps.upstream.outputs.waiting == '0'
+        if: always() && steps.merge.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -335,7 +344,7 @@ jobs:
           if files=$(git grep -lE '^(<<<<<<<|>>>>>>>) ' HEAD -- .); then
             marked=$(wc -l <<< "$files")
           fi
-          echo "::error::the merge stopped before its pull request; $BRANCH holds it as the agent left it, with $marked files still marked, and later runs wait until a human finishes it or deletes the branch"
+          echo "::error::the merge stopped before its pull request; $BRANCH holds it as the agent left it, with $marked files still marked, and every later run fails naming it until a human finishes it or deletes the branch"
           exit 1
 
       # **Auto-merge, from the shell and not from the agent**: which pull request, and whether it
@@ -352,7 +361,7 @@ jobs:
       # **Merged by `github-actions`, whose pushes start no workflow**: the checks ran on the pull
       # request's merge ref, and `master` itself is not built again until the next push to it.
       - name: Auto-merge once CI passes
-        if: steps.upstream.outputs.behind != '0' && steps.upstream.outputs.waiting == '0'
+        if: steps.upstream.outputs.merge == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

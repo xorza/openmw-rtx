@@ -1,13 +1,20 @@
 # What every build of the tree takes from its system before `omw` configures it: the Python `omw` runs
 # on, upstream's package list on Linux with what `omw` asks for there, the cache of what `omw` fetches
-# into deps/, and `omw bootstrap`: the Vulkan SDK, fetched the way a fresh desk fetches it.
+# into deps/, the compiler cache, and `omw bootstrap`: the Vulkan SDK, fetched the way a fresh desk
+# fetches it.
 name: OpenMW dependencies
 description: The packages and SDKs a build of the tree needs, per system.
 
 inputs:
   cache:
-    description: Whether to restore and save the deps/ cache; false for a release.
+    description: Whether to restore and save the deps/ cache and the compiler cache; false for a release.
     default: "true"
+  ccache-key:
+    description: The compiler cache's name, which begins no other job's; none, and the job keeps none.
+    default: ""
+  ccache-size:
+    description: How large the compiler cache may grow.
+    default: 1000M
 
 runs:
   using: composite
@@ -57,3 +64,15 @@ runs:
     - name: The Vulkan SDK
       shell: bash
       run: python omw bootstrap
+
+    - name: Compiler cache
+      if: inputs.ccache-key != '' && inputs.cache == 'true'
+      uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+      with:
+        key: ${{ inputs.ccache-key }}
+        max-size: ${{ inputs.ccache-size }}
+        # Saved on master alone, and read by every other ref: a branch's own copies would evict
+        # master's. Each run saves a new entry and keeps the old ones, so the repository's ten
+        # gigabytes hold every master cache once only after `gh cache delete` has cleared the older
+        # copies by hand.
+        save: ${{ github.ref == 'refs/heads/master' }}

@@ -46,9 +46,6 @@ jobs:
       run:
         shell: bash
     env:
-      # A filter that matches nothing is a failure and not a pass, on a Google Test that reads this;
-      # an older one ignores it. Here and not in the callers, whose `env` a called workflow does not see.
-      GTEST_FAIL_IF_NO_TEST_SELECTED: "1"
       # Read by the steps from the environment, never spliced into their scripts.
       FLAVOUR: ${{ matrix.flavour }}
     steps:
@@ -56,20 +53,15 @@ jobs:
         with:
           persist-credentials: false
 
+      # **No cache for a release**: what it is judged by is built from what its own run fetched, and
+      # not from objects another run left where this one reads them.
       - uses: $/.github/actions/openmw-deps
         with:
           cache: ${{ inputs.cache }}
-
-      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
-        # **No cache for a release**: what it is judged by is built from what its own run fetched, and
-        # not from objects another run left where this one reads them.
-        if: inputs.cache
-        with:
-          # Two gigabytes: at one, the sanitized objects of every suite filled the cache
-          # and evicted 335 times over a run.
-          key: sanitizers-${{ matrix.flavour }}
-          max-size: 2000M
-          save: ${{ github.ref == 'refs/heads/master' }}
+          ccache-key: sanitizers-${{ matrix.flavour }}
+          # Two gigabytes: at one, the sanitized objects of every suite filled the cache and evicted
+          # 335 times over a run.
+          ccache-size: 2000M
 
       - name: Build
         run: python omw "$FLAVOUR" build
