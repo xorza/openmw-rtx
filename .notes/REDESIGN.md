@@ -16,7 +16,7 @@ notes cite.
 | W9 Passes run only over what is new | every row, each with its bench | 5 |
 | W14 The ray tracer shows what the rasterizer shows | the items that wait for an input outside the tree | after its inputs |
 | W15 Groundcover stands in the ring | the measurement again with a real mod | 8 |
-| W16 A mask's soft texels are layers to the eye | the whole of it, behind its measurement | 8 |
+| W16 A mask's soft texels are layers to the eye | the layer's light from its leaf, a design to make; the first shape failed | 8 |
 | W19 The walk visits what can change | the frozen subtrees (the probe says most of the walk is) | 5 |
 | §16 Smaller workstreams | the upstream diff, the device, layering, Vulkan, tooling | 5 (§16.6), 6 |
 | §17 Fixes in place | the local groups; the frame constants | 5, 7 |
@@ -208,7 +208,7 @@ crosses.
 
 **Closes:** *An alpha-blended surface … is cut at alpha 0.5* (`ISSUES.md`).
 
-### What two trials showed
+### What three trials showed
 
 - **Every soft texel a pane** (2026-10-02): at `seyda-neen-pier` the panes went from 3 to 91, and
   52 of 60 pictures turned to grain. The grain was the light: every sun and sky ray through a pane
@@ -217,45 +217,41 @@ crosses.
   blend fell at the pier (8.55 → 2.37) and rose under the canopy at `seyda-neen-pond` (21.57 →
   23.67, noise mean 1.19 → 1.90, p99 10 → 24). A texel met in one frame and missed in the next is
   a different surface to the eye each frame, so the accumulator dropped its history there.
+- **A soft texel a layer to the eye alone, shaded as a pane** (2026-10-03, the target shape below
+  as first written; the branch `w16-soft-layers` has it): the sun's rays kept the cut, and the
+  picture still broke. Under the canopy each fringe texel was a pane shaded by `shadePane` — one
+  unfiltered sun ray, one ambient ray that reads the sky blue, into the pane channel, whose filter
+  is guided by the nearest layer, which changes from pixel to pixel through foliage — so the leaves
+  came out speckled blue with bright contours. `noise --strafe=150`: the pond's frame noise 1.19 →
+  1.95 (p99 10 → 29), its bias 1.76 → 3.67; the ship's noise 1.59 → 2.52 (p99 21 → 35), bias
+  1.82 → 3.55; the pier unchanged. The pond's trace zone over the noise run's frames 2.61 → 3.48
+  ms, +33%.
 
-Both failed by what the coverage did to rays other than the one the rasterizer blends for, and by
-making the eye's surface change between frames. The rasterizer blends a soft texel into the
-picture and nothing else: its shadow casters are alpha tested at a half (`shadowcasting.frag`,
-"this replaces alpha blending").
+The first two failed by what the coverage did to rays other than the one the rasterizer blends for,
+and by making the eye's surface change between frames. The third kept the light rays whole and
+failed by the light it gave the layer itself: a fringe is not a pane, and shading it as one is
+what broke it. The rasterizer blends a soft texel into the picture and nothing else: its shadow
+casters are alpha tested at a half (`shadowcasting.frag`, "this replaces alpha blending").
 
 ### Target shape
 
-**A mask's soft texel is a layer to the eye ray, and a cut to every other ray.** Deterministic, so
-the surface identity is the same every frame, and limited to the one ray that draws the picture:
-
-1. **Which texels.** A blended mask (`isBlended() && !isTranslucent() && !isAdditive()`) carries
-   `MATERIAL_SOFT_MASK`. At the eye's candidate, the cone-filtered alpha `a` decides: `a ≥
-   SOFT_SOLID` (254.5 / 255) is the surface, `a < SOFT_EMPTY` (0.5 / 255) is passed, and between
-   them it is a layer of opacity `a × material opacity`. Every other ray keeps the cut at a half.
-2. **The eye's traversal** stops on the layer as it stops on a pane today, and the existing peel
-   (`PEEL_LAYERS`, four) composites it over what is behind, in the pane channels, with the pane
-   filter. `answerPane` takes the soft texel through the same `shadePane`, which is the leaf's own
-   light: its sun ray and its lamps are the leaf's, and the light through it is a cut's.
-3. **The budget.** A ray that peeled four layers takes the next soft texel as a cut, as a pane
-   past the budget is taken today; foliage in front of foliage keeps its nearest four.
-4. **The surface behind** is the G-buffer surface, unchanged from frame to frame, so the
-   accumulator's history holds through a canopy.
-
-### Implementation
-
-`scene.h` (`MATERIAL_SOFT_MASK`, `SOFT_SOLID`, `SOFT_EMPTY`), `scenebuffers.cpp` (the bit),
-`traversal.glsl` (`candidateStops` takes the eye's literal `detailed`, which already says the ray
-draws the picture, and answers *layer* for a soft texel), `visibilityhit.rchit` (`answerPane` for a
-soft texel), `visibility.rgen` (no change: the peel loop takes any pane answer).
+**The layer's light is the leaf's, and not shaded again.** What the third trial shows is that a
+fringe texel wants the light its own leaf already has, not a path of its own: the same sun, the
+same filtered shadow and the same bounce as the solid texels a pixel away. So the soft texel is a
+layer to the eye ray, as the trial had it (`MATERIAL_SOFT_MASK`, the `peeling` literal through
+`candidateStops`, `cutAt`, and `resolveFor`, all on `w16-soft-layers`), and what it is lit by is
+the solid channels' light at the layer's own pixel, demodulated by the leaf's albedo — no shadow
+ray, no ambient ray, nothing in the pane channel. Where the pixel's solid surface is not the same
+leaf, the nearest pixel that is lends it. That lookup is the design still to make, and it is
+measured as the trial was.
 
 ### Measurement before it goes in
 
-Release, hot card, back to back: the trace zone at `seyda-neen-pond`, `seyda-neen-pier` and a
-Bitter Coast canopy, before and after; `noise --strafe=150` at the same three; the fringe's error
+Release, hot card, back to back: the trace zone at `seyda-neen-pond`, `seyda-neen-pier` and
+`seyda-neen-ship`, before and after; `noise --strafe=150` at the same three; the fringe's error
 against 1 000-frame references taken under the rasterizer's rule. **Accepted** where the fringe's
 error falls at all three, the frame's noise does not rise, and the trace zone grows by less than a
-tenth. Where the cost is over, the layer's light is taken from the leaf's own surface behind the
-fringe and not shaded again — a design of its own, measured the same way.
+tenth.
 
 ---
 
@@ -433,7 +429,7 @@ Each phase ends green on `./omw gate`.
 2. **Phase 6, the upstream diff:** §16.1, then §16.2, §16.5 and §16.7.
 3. **Phase 7, tests and docs:** the test groups in §17, and every doc item, `architecture.md` §1 and
    §13 included.
-4. **Phase 8, the open issues:** W15's measurement with a real mod, W16 behind its measurement.
+4. **Phase 8, the open issues:** W15's measurement with a real mod, W16's lit layer behind its measurement.
    W19's probe goes with Phase 5, and its frozen subtrees with W6.
 
 W14 goes as each input arrives.
