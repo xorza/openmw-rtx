@@ -59,7 +59,7 @@ namespace Rtx
         assert(mBottomLevel.size() == 0 && mTopLevel.isEmpty() && "a scene built twice");
 
         // The rows after the structures, because a row names the address of the structure it places.
-        mBottomLevel.build(batch, scene, everyMesh, mPoses.at(FrameSlot{}), mIndices, mPlacements, refused);
+        mBottomLevel.build(batch, scene, everyMesh, mPoses.at(FrameSlot{}), mIndices, mPlacements + 1, refused);
         sizeRefitScratch();
         writeRows(records, {});
         prepareTopLevel(scene, FrameSlot{});
@@ -112,8 +112,10 @@ namespace Rtx
         // frame whose report says nothing about what made it slow.
         openZone(timer, batch.getCommands(), "blas");
 
+        // Noted as built on the next posed placement, which is the one that brings them: built whole
+        // here, nothing on it builds them whole again.
         mBottomLevel.build(
-            batch, scene, scene.meshes().getArrived(), mPoses.at(FrameSlot{}), mIndices, mPlacements, refused);
+            batch, scene, scene.meshes().getArrived(), mPoses.at(FrameSlot{}), mIndices, mPlacements + 1, refused);
         sizeRefitScratch();
 
         closeZone(timer, batch.getCommands());
@@ -174,11 +176,13 @@ namespace Rtx
         // **One of them is built whole again, on a rota.** A refit keeps the tree the first pose
         // was built over and moves its boxes, and the boxes of a body met crouched fit it badly
         // once it stands: every ray through it pays for the mismatch, for as long as the body
-        // lives. So the posed mesh that was built whole longest ago is rebuilt this placement, if
-        // that was `sRebuildEvery` placements or more ago — one a placement, so a crowd comes
-        // round in as many placements as it has bodies and no frame carries two. Into the same
-        // room and handle, which every top-level row already names, with the flags the first build
-        // used, so the refits after it are updates of a structure built to allow them.
+        // lives. So the posed mesh that was built whole longest ago is rebuilt on every placement
+        // that poses anything — one a placement, so a crowd comes round in as many placements as it
+        // has bodies, no frame carries two, and every frame carries the same. A threshold of
+        // placements before a rebuild made the frames alternate between one and none. Not one built
+        // whole on this placement's own arrival. Into the same room and handle, which every
+        // top-level row already names, with the flags the first build used, so the refits after it
+        // are updates of a structure built to allow them.
         ++mPlacements;
         mRebuilt = sNoIndex;
         for (const Index mesh : deformed)
@@ -186,8 +190,7 @@ namespace Rtx
             assert(mBottomLevel.isUpdatable(mesh) && "a mesh posed that was not built to be refitted");
 
             const std::uint64_t builtAt = mBottomLevel.getRebuiltAt(mesh);
-            if (mPlacements - builtAt >= sRebuildEvery
-                && (mRebuilt == sNoIndex || builtAt < mBottomLevel.getRebuiltAt(mRebuilt)))
+            if (builtAt < mPlacements && (mRebuilt == sNoIndex || builtAt < mBottomLevel.getRebuiltAt(mRebuilt)))
                 mRebuilt = mesh;
         }
         if (mRebuilt != sNoIndex)
