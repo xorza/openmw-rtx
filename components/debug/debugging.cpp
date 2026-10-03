@@ -486,13 +486,21 @@ namespace Debug
                 Log(Debug::Info) << "Crash reports go to " << settings.mReportFolder;
         }
 
+        // **No frame is due once the application is over**, so the hang watch ends there, as it
+        // begins at the first frame: what follows — the fatal error box, the statics' destructors,
+        // a sanitizer's leak check — draws nothing, and under the address sanitizer the end of a
+        // crash test outlasted its two-second limit and was reported as a second hang.
+        const auto framesEnd = [] { Crash::setHangLimit(std::chrono::seconds(0)); };
+
         int ret = 0;
         try
         {
             ret = innerApplication(argc, argv);
+            framesEnd();
         }
         catch (const std::exception& e)
         {
+            framesEnd();
 #if (defined(__APPLE__) || defined(__linux) || defined(__unix) || defined(__posix))
             if (!isatty(fileno(stdin)))
 #endif

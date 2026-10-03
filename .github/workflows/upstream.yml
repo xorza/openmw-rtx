@@ -54,7 +54,8 @@ jobs:
     # By name, as every job in this fork is: `ubuntu-latest` moves, and what moves with it is
     # which `clang-format-14` the format check below gets.
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # Six seconds a turn in the runs so far: room for the turns of ninety conflicted files.
+    timeout-minutes: 120
 
     # The three the job uses and nothing else. `contents: write` pushes the branch,
     # `pull-requests: write` opens the pull request and turns on its auto-merge, and
@@ -84,21 +85,22 @@ jobs:
       # **The branches of merges that are over.** A merge `github-actions` made keeps its branch:
       # "Automatically delete head branches" acts on a merge a user made, and an auto-merge is the
       # merge of whoever turned it on, and a merge made with `GITHUB_TOKEN` starts no workflow that
-      # could. So every run starts by deleting each `upstream-merge/` branch no open pull request
-      # stands on — merged, or closed by hand, it is done. The one cleanup there is: a branch closed
-      # by hand stands until the next day's run, which costs nothing.
+      # could. So every run starts by deleting each `upstream-merge/` branch whose pull requests are
+      # all merged or closed — it is done. A branch with no pull request at all is a merge the agent
+      # did not finish, which `Keep what the agent left` pushed for a human, and it stays.
       - name: Delete the branches of finished merges
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          open=$(gh pr list --state open --limit 1000 --json headRefName,isCrossRepository \
-            --jq '[.[] | select(.isCrossRepository | not) | .headRefName]')
+          finished=$(gh pr list --state all --limit 1000 --json headRefName,isCrossRepository,state \
+            --jq '[.[] | select(.isCrossRepository | not)] | group_by(.headRefName)
+              | map(select(all(.state != "OPEN")) | .[0].headRefName)')
 
           gh api --paginate "repos/$GH_REPO/git/matching-refs/heads/upstream-merge/" --jq '.[].ref' |
             while read -r ref; do
               branch=${ref#refs/heads/}
-              if ! jq -e --arg branch "$branch" 'index($branch)' <<< "$open" > /dev/null; then
+              if jq -e --arg branch "$branch" 'index($branch)' <<< "$finished" > /dev/null; then
                 gh api -X DELETE "repos/$GH_REPO/git/$ref"
                 echo "deleted $branch"
               fi
@@ -109,18 +111,16 @@ jobs:
       # not in the prompt is not a command the agent has to be trusted with. A run with nothing to
       # do costs this step alone.
       #
-      # **A run is skipped while an earlier merge is still open** — one that failed CI, or one held
-      # for a human below. Unconditional, this opens a pull request a day whether or not the last
-      # one landed, and a pile of them is worse than a week of drift: the merge after the pile is
-      # cleared takes everything anyway. Only this repository's branches count, so a fork's pull
-      # request named like one cannot stop the merge.
+      # **A run is skipped while an earlier merge is still open** — one that failed CI, one held
+      # for a human below, or one the agent did not finish. Unconditional, this opens a pull
+      # request a day whether or not the last one landed, and a pile of them is worse than a week
+      # of drift: the merge after the pile is cleared takes everything anyway. Counted as the
+      # `upstream-merge/` branches the step above left, which are exactly those; a branch is this
+      # repository's, so a fork's pull request named like one cannot stop the merge.
       - name: What upstream has, and whether a merge is already waiting
         id: upstream
         env:
           GH_TOKEN: ${{ github.token }}
-          # Named, because `gh` asks a checkout with a remote called `upstream` about that
-          # remote's repository and not `origin`'s: the count below read OpenMW's pull requests
-          # and found no merge waiting, every time.
           GH_REPO: ${{ github.repository }}
         run: |
           # A merge commit needs an author, and a runner's git has none.
@@ -131,9 +131,7 @@ jobs:
           git fetch --no-tags upstream master
 
           behind=$(git rev-list --count HEAD..upstream/master)
-          # Past `gh`'s default of thirty, so a run of forks' pull requests cannot hide one.
-          waiting=$(gh pr list --state open --limit 1000 --json headRefName,isCrossRepository \
-            --jq '[.[] | select((.isCrossRepository | not) and (.headRefName | startswith("upstream-merge/")))] | length')
+          waiting=$(gh api --paginate "repos/$GH_REPO/git/matching-refs/heads/upstream-merge/" --jq '.[].ref' | wc -l)
 
           # The run's own number beside the date, so a merge asked for by hand on the day of a
           # scheduled one is a branch of its own.
@@ -151,12 +149,17 @@ jobs:
 
       # **The merge, as far as git takes it, from the shell and not from the agent.** Branching and
       # merging need no judgement, and every call the agent spends on them is a turn it does not
-      # spend on a conflict: the run of 2026-09-26 used all sixty of its turns on one conflict and
-      # the search around it, two of them refused. What git cannot merge is left in the tree with
-      # its markers, for the agent. The list of those files is not handed over as an output,
-      # because a file name is upstream's and a name with a newline in it writes a line of its own
-      # into `GITHUB_OUTPUT`; the agent asks git for it.
+      # spend on a conflict. What git cannot merge is left in the tree with its markers, for the
+      # agent. The list of those files is not handed over as an output, because a file name is
+      # upstream's and a name with a newline in it writes a line of its own into `GITHUB_OUTPUT`;
+      # the agent asks git for it. Their count is handed over, as the agent's turns.
+      #
+      # **Turns by the work, and not one figure for every merge.** A merge with nothing to resolve
+      # took 31 turns; three runs of 2026-10-02 and 03 met fourteen conflicted files, spent a fixed
+      # sixty on them, and ended mid-resolution with nothing pushed. Forty, and twelve a file: a file
+      # takes a read of its conflicts, of what surrounds them, and an edit or two.
       - name: The merge, as far as git takes it
+        id: merge
         if: steps.upstream.outputs.behind != '0' && steps.upstream.outputs.waiting == '0'
         env:
           BRANCH: ${{ steps.upstream.outputs.branch }}
@@ -181,7 +184,9 @@ jobs:
               echo "kept $path deleted"
             fi
           done
-          echo "files git could not merge: $(git diff --name-only --diff-filter=U | wc -l)"
+          conflicted=$(git diff --name-only --diff-filter=U | wc -l)
+          echo "files git could not merge: $conflicted"
+          echo "turns=$((40 + 12 * conflicted))" >> "$GITHUB_OUTPUT"
 
       # Pinned to a commit like every other action here. This one ships most days, so the
       # version beside it is what says how old the pin has grown.
@@ -228,7 +233,9 @@ jobs:
             anything: the step before this one did it.
 
             Every command you run is one command: no `&&`, `;` or pipe. Your allowed tools refuse
-            every joined form, and a refused call still spends one of your turns.
+            every joined form, and a refused call still spends one of your turns. The shell runs
+            `git`, `gh pr create` and the format check and nothing else: search and read with the
+            Grep, Glob and Read tools, not with `grep`, `sed`, `find` or `ls`.
 
             1. You are on branch `${{ steps.upstream.outputs.branch }}`, made off master by the
                step before you, with `upstream/master` merged into it `--no-ff --no-commit`: what
@@ -259,9 +266,12 @@ jobs:
                Do not edit anything under `.github/`: a merge that changes what CI runs is a
                merge a human reads first, so leave the conflict and say so.
 
-            If a conflict defeats you, commit it with its markers in place (`git commit -a
-            --no-edit`), push the branch and open the pull request anyway. Put what is unresolved in the first line of the body. A branch
-            somebody can take over beats a run that threw its work away.
+            Your turns are counted from the conflicted files, twelve a file. Resolve one file at a
+            time and finish it before you open the next. If a conflict defeats you, commit it with
+            its markers in place (`git commit -a --no-edit`), push the branch and open the pull
+            request anyway, with what is unresolved in the first line of the body. If your turns
+            run out first, a step after you commits the tree as you left it and pushes the branch
+            for a human, so a file left half-done costs more than one not begun.
 
           # The newest Opus, where the account's default is whatever its plan names: a merge that
           # needs judgement gets the strongest model. The alias is resolved by the Claude Code the
@@ -269,7 +279,7 @@ jobs:
           # `claude-opus-5`, a release behind the newest.
           claude_args: |
             --model opus
-            --max-turns 60
+            --max-turns ${{ steps.merge.outputs.turns }}
             --allowedTools "Bash(git:*),Bash(gh pr create:*),Bash(clang-format-14:*),Bash(CI/check_clang_format.sh:*),Read,Edit,Write,Grep,Glob"
 
       # **What the agent said last, and every call it was refused**, because the action hides its
@@ -291,6 +301,42 @@ jobs:
                 | "refused \(.tool_name): \(.tool_input.command // .tool_input.file_path // (.tool_input | tostring))")' \
             "$EXECUTION_FILE"
           echo "::$stop::"
+
+      # **What the agent did not finish, kept.** Its turns can run out mid-resolution, and the action
+      # then fails with the tree on a runner that is about to go: three runs threw fourteen files'
+      # work away so. Whatever the agent left — resolved, half-resolved, still marked — is committed
+      # as the merge and pushed to the run's branch, and the job fails naming it. No pull request:
+      # this job's token may not open one (the repository does not let Actions create pull
+      # requests), and a merge nobody finished is a human's anyway. The branch stands, and later
+      # runs wait, until a human finishes it or deletes it.
+      - name: Keep what the agent left
+        if: >-
+          always() && steps.merge.outcome == 'success'
+          && steps.upstream.outputs.behind != '0' && steps.upstream.outputs.waiting == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ steps.upstream.outputs.branch }}
+        run: |
+          opened=$(gh pr list --state open --head "$BRANCH" --json isCrossRepository \
+            --jq '[.[] | select(.isCrossRepository | not)] | length')
+          if [ "$opened" != "0" ]; then
+            exit 0
+          fi
+
+          if git rev-parse -q --verify MERGE_HEAD > /dev/null; then
+            git add --update
+            git commit --quiet --no-edit
+          fi
+          git push --quiet origin "HEAD:refs/heads/$BRANCH"
+
+          # `git grep` answers 1 where it finds nothing, which `pipefail` would take for a failure.
+          marked=0
+          if files=$(git grep -lE '^(<<<<<<<|>>>>>>>) ' HEAD -- .); then
+            marked=$(wc -l <<< "$files")
+          fi
+          echo "::error::the merge stopped before its pull request; $BRANCH holds it as the agent left it, with $marked files still marked, and later runs wait until a human finishes it or deletes the branch"
+          exit 1
 
       # **Auto-merge, from the shell and not from the agent**: which pull request, and whether it
       # may land with nobody reading it, are facts a script establishes. The pull request is the

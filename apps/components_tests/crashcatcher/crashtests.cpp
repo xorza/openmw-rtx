@@ -69,6 +69,7 @@ namespace CrashTests
                 { "report", "Report: crash-tests asked", {}, "crash-tests lived on", true, ", which asked" },
                 { "hang", "Hang: no frame for", {}, "Hang: frames again after" },
                 { "short-stall", "", {}, "crash-tests lived on", false },
+                { "slow-end", "", {}, "crash-tests lived on", false },
                 { "no-frames", "", {}, "crash-tests lived on", false },
                 { "hang-off", "", {}, "crash-tests lived on", false },
                 { "recovers-before-end", "Hang: no frame for", {},
@@ -214,6 +215,13 @@ namespace CrashTests
             if (mode == "hang")
             {
                 stall(std::chrono::milliseconds(4500));
+                return livedOn();
+            }
+            if (mode == "slow-end")
+            {
+                // Frames, and then an end that outlasts the limit after the application returned:
+                // `main` waits it out, as a slow teardown or a sanitizer's leak check does.
+                stall(std::chrono::milliseconds(0));
                 return livedOn();
             }
             if (mode == "short-stall")
@@ -622,11 +630,14 @@ int main(int argc, char* argv[])
             Platform::Process::setEnvironment(
                 "OPENMW_CRASH_END_AFTER_MS", std::string(CrashTests::sEndAfterMs).c_str());
 
-        return Debug::wrapApplication(
+        const int ended = Debug::wrapApplication(
             [](int, char* arguments[]) {
                 return CrashTests::run(arguments[1], std::filesystem::absolute(arguments[2]));
             },
             argc, argv, "crash-tests");
+        if (mode == "slow-end")
+            std::this_thread::sleep_for(std::chrono::milliseconds(3500));
+        return ended;
     }
 
     std::cerr << "usage: crash-tests <mode> <folder> | --matrix <folder>\n";
