@@ -16,11 +16,6 @@ namespace Rtx
     VkAccelerationStructureGeometryKHR describeTriangles(
         const MeshRange& mesh, VkDeviceAddress positions, VkDeviceAddress indices);
 
-    /// Orders a build after the trace before it on the queue, which with two frames in flight may
-    /// still be walking the structure the build is about to write. A barrier and not a fence,
-    /// because an execution dependency is all a write-after-read needs.
-    void barrierBeforeBuild(VkCommandBuffer commands);
-
     /// Everything between a build and whatever reads the structure it wrote.
     void barrierAfterBuild(VkCommandBuffer commands);
 
