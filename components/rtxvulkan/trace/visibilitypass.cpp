@@ -230,7 +230,7 @@ namespace Rtx
         // a hand takes up whatever is next, and a tuple taken last is the whole batch waiting on
         // one hand.
         constexpr std::array singles{ Kernel::Depth, Kernel::Integrate, Kernel::SpriteComposite, Kernel::SpriteShelter,
-            Kernel::SpriteEmitters, Kernel::BounceTemporal, Kernel::BounceResolve };
+            Kernel::SpriteEmitters, Kernel::BounceValidate, Kernel::BounceTemporal, Kernel::BounceResolve };
 
         std::vector<Wanted> wanted;
         wanted.reserve(2 * VisibilityVariant::sCount + singles.size());
@@ -356,6 +356,10 @@ namespace Rtx
             case Kernel::SpriteEmitters:
                 mKernels.mSpriteEmitters = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
                     sharedSets(textureLayout), TraceShaders{ .mRaygen = "spriteemitters.rgen.spv" }, "sprite emitters");
+                return;
+            case Kernel::BounceValidate:
+                mKernels.mBounceValidate = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
+                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "bouncevalidate.rgen.spv" }, "bounce validate");
                 return;
             case Kernel::BounceTemporal:
                 mKernels.mBounceTemporal = std::make_unique<ComputePipeline<NoConstants>>(
@@ -689,6 +693,22 @@ namespace Rtx
         const std::uint32_t width = constants.mEyes.mWorld.mWidth;
         const std::uint32_t height = constants.mEyes.mWorld.mHeight;
         assert(inputs.mReservoirs.getStride() >= width && "a reuse over reservoirs narrower than the trace");
+
+        // **Ahead of the hand-over, beside the trace's tail**: it reads and writes last frame's
+        // history and origins alone, which the trace neither reads nor writes, and the hand-over
+        // orders its writes before the temporal pass reads them.
+        if (inputs.mBounceReuse >= BounceReuse::Temporal && inputs.mBounceHistory)
+        {
+            openZone(timer, commands, "bounce validate");
+
+            const auto& validate = *kernels().mBounceValidate;
+            bind(commands, validate);
+            pushInputs(commands, validate, inputs);
+            validate.traceRays(commands, groupsFor(width, Shaders::BOUNCE_VALIDATION_ACROSS),
+                groupsFor(height, Shaders::BOUNCE_VALIDATION_DOWN));
+
+            closeZone(timer, commands);
+        }
 
         // The trace's reservoirs and its motion vectors, written by the launch, read and merged into
         // by the dispatch and read by the launch after it.

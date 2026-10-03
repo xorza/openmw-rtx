@@ -1,0 +1,102 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_ray_tracing : require
+
+// Last frame's kept bounce asked again under this frame's light, at one pixel in eight: the reuse's
+// validation, ahead of the temporal pass that merges what it leaves.
+//
+// **A kept sample holds the light that left its point when it was traced, and resampling keeps a
+// bright one.** A lamp that went out left 87% of its bounce lit the frame after, and the last of it
+// lit until the age cap let the samples go thirty frames on. Traced again from the point that kept
+// it and shaded as the trace shaded it, a sample the point no longer meets is let go, and one whose
+// light fell past `BOUNCE_VALIDATION_FALL` takes the light it has now, standing for one candidate.
+// **A fall and not a rise**: a brighter light is what the trace's next candidates find and win with,
+// and a kept sample made brighter is a firefly where one rare candidate made it.
+//
+// **One pixel in eight, a different eighth each frame**, of every block of four by two: each pixel
+// is asked every eighth frame, and every frame asks as many (D10). **A launch over that share and
+// not a branch in the resolve**, whose every pixel would hold the registers the shading takes.
+
+#include "bouncereuse.h"
+#include "camera.h"
+#include "gbuffer.h"
+#include "scene.h"
+
+#include "lib/bindings.glsl"
+#include "lib/bouncereservoir.glsl"
+#include "lib/pixels.glsl"
+#include "lib/random.glsl"
+#include "lib/shading.glsl"
+#include "lib/traversal.glsl"
+
+/// The pixel of a block of `BOUNCE_VALIDATION_ACROSS` by `BOUNCE_VALIDATION_DOWN` that frame `index`
+/// asks: each of the eight once in eight frames, and two frames in a row never side by side.
+uvec2 askedIn(uint index)
+{
+    const uvec2 order[8] = uvec2[8](uvec2(0u, 0u), uvec2(2u, 1u), uvec2(1u, 0u), uvec2(3u, 1u), uvec2(0u, 1u),
+        uvec2(2u, 0u), uvec2(1u, 1u), uvec2(3u, 0u));
+    return order[index & 7u];
+}
+
+void main()
+{
+    const uvec2 pixel
+        = gl_LaunchIDEXT.xy * uvec2(BOUNCE_VALIDATION_ACROSS, BOUNCE_VALIDATION_DOWN) + askedIn(frame.mFrame);
+    if (outsideOf(pixel, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
+        return;
+
+    const uint at = pixel.y * frame.mBounceStride + pixel.x;
+    BounceReservoir held = unpackBounce(bounceHistory[at]);
+    const BounceOrigin before = unpackOrigin(bounceOriginsBefore[at]);
+    if (!before.mKept || !holdsBounce(held))
+        return;
+
+    // Last frame's point from this frame's eye, which the scene is now placed about.
+    const vec3 offset = before.mOffset - frame.mCameraMotion;
+    const vec3 position = frame.mOrigin + offset;
+    const BounceReach reach = reachOf(held.mSample, offset, offset);
+
+    // **The cone the trace's bounce left with**: the eye's footprint at the point and the bounce's
+    // spread, so the far surface is read at the level the candidate read it.
+    const Cone eye = coneAt(frame.mEyes.mWorld);
+    const Surface hit = trace(WorldRay(position, reach.mTowards), SHADOW_BIAS,
+        Cone(eye.mWidth + eye.mSpread * length(offset), BOUNCE_SPREAD), solidMask(frame.mRayMask), false);
+
+    // The same point, to what the offset kept of it; anything nearer stands in front of it now,
+    // and anything farther is where it was moved from.
+    const bool met = held.mSample.mSky
+        ? !hit.mHit
+        : hit.mHit && abs(hit.mDistance - reach.mDistance) <= BOUNCE_VALIDATION_REACH * reach.mDistance;
+
+    vec3 radiance = vec3(0.0);
+    vec3 fill = vec3(0.0);
+    if (met && held.mSample.mSky)
+    {
+        const BounceDraw drawn = BounceDraw(reach.mTowards, vec3(1.0), false, BOUNCE_SPREAD, 0.0);
+        bounceEscape(position, drawn, vec3(1.0), radiance);
+        fill = radiance;
+    }
+    else if (met)
+    {
+        const PathEnd end = lightAtPathEnd(hit, pixelKey(pixel), SEED_AMBIENT_VALIDATED, SEED_LAMPS_VALIDATED,
+            PATH_INDIRECT, false, AMBIENT_EXTERIOR_RATE);
+        radiance = composed(joinedLight(end));
+        fill = fillOf(end);
+    }
+
+    const float now = dot(radiance, LUMINANCE_WEIGHTS);
+    const float was = dot(held.mSample.mRadiance, LUMINANCE_WEIGHTS);
+    if (!met)
+        held = noBounce();
+    else if (now * BOUNCE_VALIDATION_FALL < was)
+    {
+        held.mSample.mRadiance = radiance;
+        held.mSample.mFill = fill;
+        held.mConfidence = 1u;
+    }
+    else
+        return;
+
+    bounceHistory[at] = packBounce(held);
+}

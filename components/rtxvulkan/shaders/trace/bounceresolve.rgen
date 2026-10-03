@@ -152,11 +152,15 @@ void main()
     // neighbour's was asked by its shift's ray; what the pixel kept from another frame is asked here.
     const bool fresh = frame.mBounceReuse == BOUNCE_REUSE_OWN;
     const bool seen = fresh || asked || !holdsBounce(chosen) || bounceSeen(origin, chosenReach);
-    // **What the next frame merges**, `BOUNCE_SPATIAL_FEEDBACK`: the sample shown or the pixel's own
-    // temporal reservoir, and nothing where what was kept is hidden from here now — a sample behind a
-    // door that closed is let go of at once rather than held to the age cap.
-    const bool hidden = !seen && (BOUNCE_SPATIAL_FEEDBACK || !asked);
-    bounceHistory[at] = packBounce(hidden ? noBounce() : (BOUNCE_SPATIAL_FEEDBACK ? chosen : own));
+    // **What the next frame merges is the pixel's own temporal reservoir**, and nothing where it is
+    // hidden from here now: a sample behind a door that closed is let go of at once rather than held
+    // to the age cap.
+    //
+    // **Not the sample shown**, as RTXDI and Kajiya feed the spatial merge back. Fed back, the still
+    // guild stood at 0.62 against 0.66; but a sample that validation found dark was taken again from
+    // a neighbour not yet asked the frame after, and the bounce of a lamp that went out lasted to the
+    // age cap, thirty frames, where kept apart it lasts eight (`bouncevalidate.rgen`).
+    bounceHistory[at] = packBounce(!seen && !asked ? noBounce() : own);
 
     const vec3 share = diffuseShare(origin, chosenReach.mTowards) * (seen ? chosen.mWeight : 0.0);
     const vec3 through = unpackRgb9e5(bounceThrough[at]);

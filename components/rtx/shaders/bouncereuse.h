@@ -114,12 +114,6 @@ namespace Rtx::Shaders
     const float BOUNCE_RADIUS_SHARE = 0.03f;
     const float BOUNCE_RADIUS_LEAST = 3.0f;
 
-    /// Whether what the spatial reuse kept is the history the next frame merges, rather than the
-    /// temporal reservoir it was merged over. Fed back, a pixel's history carries its neighbours'
-    /// samples, so the reservoirs stand for more candidates than one pixel ever drew; kept apart, as
-    /// Ouyang et al. keep it, an error the spatial merge makes is not merged again.
-    const bool BOUNCE_SPATIAL_FEEDBACK = true;
-
     /// How nearly two visible points must face alike, and how near their distances, for one to
     /// reuse the other's samples: RTXDI's defaults, the cosine and a share of the distance.
     const float BOUNCE_FACING = 0.6f;
@@ -137,6 +131,23 @@ namespace Rtx::Shaders
     /// yurt's bias against the converged frame rose by 0.9 walked; carried samples alone, no place's
     /// bias rose past what it was without the reuse.
     const float BOUNCE_BOILING_LIMIT = 41.0f;
+
+    /// The block the validation asks one pixel of each frame, a different one each frame: an eighth
+    /// of the frame (D10). `askedIn` in `bouncevalidate.rgen` walks a block of this shape.
+    const uint BOUNCE_VALIDATION_ACROSS = 4u;
+    const uint BOUNCE_VALIDATION_DOWN = 2u;
+
+    /// How far the light a kept sample holds may fall, as a ratio, before the validation hands it
+    /// the light it has now (`bouncevalidate.rgen`). **A ratio and not any change**, because the
+    /// far end's light is itself one draw of a lamp and one occlusion ray: shaded twice, a point
+    /// reads two values even where nothing moved. At four, the still frames of the guild, the
+    /// planter and the yurt were as noisy as at two, and with no light rule at all the yurt, whose
+    /// lanterns pulse, 0.02 less.
+    const float BOUNCE_VALIDATION_FALL = 2.0f;
+
+    /// How far, as a share of the distance, the point a validation's ray meets may stand from the
+    /// kept sample and still be it: what an offset from the eye keeps of a point, many times over.
+    const float BOUNCE_VALIDATION_REACH = 0.01f;
 
     /// How far from one the Jacobian of a shift may stand before the shift is refused. A
     /// reconnection of a very different length puts a ratio of squares into the weight, and the

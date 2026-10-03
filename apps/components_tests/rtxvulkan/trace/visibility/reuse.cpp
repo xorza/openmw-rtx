@@ -410,5 +410,73 @@ namespace Rtx::Testing
             EXPECT_LE(reused.mBright, plain.mBright) << "the reuse carried a firefly";
             EXPECT_NEAR(reused.mMean / plain.mMean, 1.0, 0.02);
         }
+
+        /// **A bounce from a lamp that went out is gone in eight frames.** The corner with no sky and
+        /// no sun, lit by a lamp before the wall, so the floor's bounce is the wall's lamplight and
+        /// nothing else; the lamp goes, and the bounce is nought exactly once every sample a reservoir
+        /// kept from it is gone.
+        ///
+        /// Resampling keeps them: no candidate the dark frames draw outweighs one, and without the
+        /// validation 87% of the bounce was left the frame after and the last of it lasted to the age
+        /// cap, thirty frames. The validation asks one pixel of each block of
+        /// `BOUNCE_VALIDATION_ACROSS` × `BOUNCE_VALIDATION_DOWN` a frame, each in turn, and a sample
+        /// whose light is gone takes nought: **the eighth frame after is dark**, and the seventh,
+        /// with one pixel in eight not yet asked, is not. The plain bounce is dark on the first.
+        TEST_F(RtxBounceReuseTest, aBounceFromALampThatWentOutIsGoneInEightFrames)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::uint32_t asked = Shaders::BOUNCE_VALIDATION_ACROSS * Shaders::BOUNCE_VALIDATION_DOWN;
+            Shaders::VisibilityConstants camera = cornerCamera(size);
+            camera.mSun.mIrradiance = osg::Vec3f();
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mAmbientFromSky = 0.0f;
+
+            for (const BounceReuse reuse : { BounceReuse::Off, BounceReuse::Temporal, BounceReuse::Spatiotemporal })
+            {
+                SceneDesc scene = makeCorner();
+                scene.addLight(Light{
+                    .mPosition = osg::Vec3f(0.0f, 250.0f, 0.0f),
+                    .mIntensity = osg::Vec3f(40000.0f, 40000.0f, 40000.0f),
+                    .mReach = 1000.0f,
+                });
+
+                std::vector<float> read;
+                const auto lit = [&] {
+                    mRenderer.readChannel(Channel::Indirect, read);
+                    std::size_t pixels = 0;
+                    for (std::size_t pixel = 0; pixel < read.size() / 4; ++pixel)
+                        pixels
+                            += std::max({ read[pixel * 4], read[pixel * 4 + 1], read[pixel * 4 + 2] }) > 0.0f ? 1 : 0;
+                    return pixels;
+                };
+
+                shoot(scene, {}, camera, size,
+                    Shot{ .mFrames = 48,
+                        .mAverage = false,
+                        .mFirstFrame = 100,
+                        .mBounceReuse = reuse,
+                        .mLoss = HistoryLoss::Cut });
+                ASSERT_GT(lit(), std::size_t{ size } * size / 4) << sBounceReuseNames.name(reuse);
+
+                // The lamp goes: the per-frame lists are emptied and the corner placed again.
+                scene.clearPlacement();
+                std::vector<std::size_t> after;
+                shoot(scene, {}, camera, size,
+                    Shot{ .mFrames = asked,
+                        .mAverage = false,
+                        .mFirstFrame = 148,
+                        .mBounceReuse = reuse,
+                        .mSetScene = false,
+                        .mEachFrame = [&](const Frame&) { after.push_back(lit()); } });
+
+                const std::size_t darkFrom = reuse == BounceReuse::Off ? 0 : asked - 1;
+                for (std::size_t frame = 0; frame < after.size(); ++frame)
+                    if (frame < darkFrom)
+                        EXPECT_GT(after[frame], 0u) << sBounceReuseNames.name(reuse) << ", frame " << frame;
+                    else
+                        EXPECT_EQ(after[frame], 0u) << sBounceReuseNames.name(reuse) << ", frame " << frame;
+            }
+        }
     }
 }
