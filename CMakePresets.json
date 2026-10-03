@@ -295,9 +295,11 @@
                 "wait out its three hours and say nothing. Every suite runs in a new order each time, so a test",
                 "that leans on what an earlier one left fails at once: a test that captured stderr and never",
                 "gave it back broke every later death test in its binary, and ran in upstream's order for years.",
-                "The run prints its seed, and `GTEST_RANDOM_SEED` repeats it."
+                "The run prints its seed, and `GTEST_RANDOM_SEED` repeats it. A filter that matches no test is a",
+                "failure and not a pass, on a Google Test that reads `GTEST_FAIL_IF_NO_TEST_SELECTED`; an older",
+                "one ignores it."
             ],
-            "environment": { "GTEST_SHUFFLE": "1" },
+            "environment": { "GTEST_SHUFFLE": "1", "GTEST_FAIL_IF_NO_TEST_SELECTED": "1" },
             "output": { "outputOnFailure": true },
             "execution": { "noTestsAction": "error", "timeout": 300 }
         },

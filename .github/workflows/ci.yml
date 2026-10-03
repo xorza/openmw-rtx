@@ -9,9 +9,9 @@
 # **Each system on its newest image, Linux apart**: Ubuntu 24.04 is the base the AppImage is built on,
 # and an AppImage runs on no system older than its own, so CI tests the base the package ships from.
 #
-# **Job names are the `master` ruleset's required checks**: rename one and the ruleset waits for a
-# check that never reports. Actions are pinned to a commit, the token only reads, and a newer push
-# cancels the run it supersedes.
+# **Job names are the `master` ruleset's required checks**, the build legs' by their `name` in the
+# matrix: rename one and the ruleset waits for a check that never reports. Actions are pinned to a
+# commit, the token only reads, and a newer push cancels the run it supersedes.
 name: CI
 
 on:
@@ -22,11 +22,6 @@ on:
 
 # Nothing by default, and each job names what it needs.
 permissions: {}
-
-env:
-  # A filter that matches nothing is a failure and not a pass, on a Google Test that reads this;
-  # an older one ignores it.
-  GTEST_FAIL_IF_NO_TEST_SELECTED: "1"
 
 # A push supersedes the push before it on the same ref. A run asked for by hand stands alone: it is
 # wanted whole, and a push in the meantime must neither cancel it nor be cancelled by it.
@@ -82,54 +77,83 @@ jobs:
         # zizmor, pinned and offline. A finding is a failure.
         run: pipx run zizmor==1.30.1 --offline .
 
-  linux:
-    name: linux
-    runs-on: ubuntu-24.04
+  build:
+    # One leg per toolchain, each reporting under its own name, which the ruleset requires.
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
     timeout-minutes: 180
+    # Each toolchain finds what the others cannot, so one failing says nothing about the others.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-24.04
+            # No key may begin another: the cache action restores the newest cache whose name begins
+            # with the key, so `linux` would take `linux-clang`'s.
+            ccache: linux-gcc
+            ccache-size: 2000M
+            tested: true
+          - name: linux-clang
+            os: ubuntu-24.04
+            ccache: linux-clang
+            ccache-size: 1000M
+            # Compiled and not run, for Clang's warnings.
+            tested: false
+            cc: clang
+            cxx: clang++
+          - name: windows
+            os: windows-2025
+            ccache: windows-msvc
+            # Three gigabytes: at two, every program's objects, SDL's own among them, filled the cache
+            # and a run hit nothing.
+            ccache-size: 3000M
+            tested: true
     defaults:
       run:
+        # Git Bash on Windows, so every `run` is the one script on every system.
         shell: bash
+    env:
+      # Empty on the legs that take the system's compiler, which CMake reads as unset.
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - uses: $/.github/actions/openmw-deps
-
-      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
-          # No key may begin another: the action restores the newest cache whose name begins with the
-          # key, so `linux` would take `linux-clang`'s.
-          key: linux-gcc
-          max-size: 2000M
-          # Saved on master alone, and read by every other ref: a branch's own copies would evict
-          # master's. Each run saves a new entry and keeps the old ones, so the repository's ten
-          # gigabytes hold every master cache once — CI's seven, the sanitizers' two and the
-          # dependencies — only after `gh cache delete` has cleared the older copies by hand.
-          save: ${{ github.ref == 'refs/heads/master' }}
+          ccache-key: ${{ matrix.ccache }}
+          ccache-size: ${{ matrix.ccache-size }}
 
       - name: Build every program
         run: python omw full build
 
       - name: Test
+        if: matrix.tested
         run: python omw full test --without-device
 
       - name: Benchmarks, run once each as upstream runs them
+        if: matrix.tested
         working-directory: build-full
+        # Without `.exe`, which Git Bash finds on its own.
         run: |
           ./openmw_detournavigator_navmeshtilescache_benchmark
           ./openmw_esm_refid_benchmark
           ./openmw_settings_access_benchmark
 
       - name: Install
+        if: matrix.tested
         run: cmake --install build-full --prefix "$RUNNER_TEMP/install"
 
       - name: Integration tests
         # Upstream's, from its GitLab pipeline, on the example suite at the revision it pins. The ray
         # tracer is off by default, so this runs the OpenGL renderer. No crash dialog: under Xvfb it
         # would wait for a click forever.
+        if: matrix.tested && runner.os == 'Linux'
         env:
           EXAMPLE_SUITE_REVISION: a1ba6fc9d7315c2158ef4c60349fc4e71b7ca343
           OPENMW_CRASH_DIALOG: "0"
@@ -157,7 +181,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: logs-linux-${{ github.sha }}
+          name: logs-${{ matrix.name }}-${{ github.sha }}
           # The crash matrix keeps each mode's reports in the build, which go with the runner.
           path: |
             build-full/CMakeCache.txt
@@ -165,103 +189,6 @@ jobs:
             build-full/test-output/crash-matrix/
             integration_tests_output/**/*.log
             integration_tests_output/**/*.cfg
-
-  linux-clang:
-    name: linux-clang
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    timeout-minutes: 150
-    defaults:
-      run:
-        shell: bash
-    env:
-      CC: clang
-      CXX: clang++
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: $/.github/actions/openmw-deps
-
-      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
-        with:
-          key: linux-clang
-          max-size: 1000M
-          # Saved on master alone, and read by every other ref: a branch's own copies would evict
-          # master's. Each run saves a new entry and keeps the old ones, so the repository's ten
-          # gigabytes hold every master cache once — CI's seven, the sanitizers' two and the
-          # dependencies — only after `gh cache delete` has cleared the older copies by hand.
-          save: ${{ github.ref == 'refs/heads/master' }}
-
-      - name: Build every program
-        # Compiled and not run, for Clang's warnings.
-        run: python omw full build
-
-      - name: Logs
-        if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: logs-linux-clang-${{ github.sha }}
-          path: |
-            build-full/CMakeCache.txt
-            build-full/**/*.log
-
-  windows:
-    name: windows
-    runs-on: windows-2025
-    permissions:
-      contents: read
-    timeout-minutes: 180
-    defaults:
-      run:
-        # Git Bash, so every `run` is the one script on both systems.
-        shell: bash
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: $/.github/actions/openmw-deps
-
-      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
-        with:
-          key: windows-msvc
-          # Three gigabytes: at two, every program's objects, SDL's own among them, filled the cache
-          # and a run hit nothing.
-          max-size: 3000M
-          # Saved on master alone, and read by every other ref: a branch's own copies would evict
-          # master's. Each run saves a new entry and keeps the old ones, so the repository's ten
-          # gigabytes hold every master cache once — CI's seven, the sanitizers' two and the
-          # dependencies — only after `gh cache delete` has cleared the older copies by hand.
-          save: ${{ github.ref == 'refs/heads/master' }}
-
-      - name: Build every program
-        run: python omw full build
-
-      - name: Test
-        run: python omw full test --without-device
-
-      - name: Benchmarks, run once each as upstream runs them
-        working-directory: build-full
-        run: |
-          ./openmw_detournavigator_navmeshtilescache_benchmark.exe
-          ./openmw_esm_refid_benchmark.exe
-          ./openmw_settings_access_benchmark.exe
-
-      - name: Install
-        run: cmake --install build-full --prefix "$RUNNER_TEMP/install"
-
-      - name: Logs
-        if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: logs-windows-${{ github.sha }}
-          path: |
-            build-full/CMakeCache.txt
-            build-full/**/*.log
-            build-full/test-output/crash-matrix/
 
   macos:
     name: macos
@@ -279,14 +206,12 @@ jobs:
       - name: Dependencies
         run: CI/before_install.macos.sh
 
+      # Its own, as macOS takes nothing of `openmw-deps`; saved on master alone, for the reason that
+      # action gives.
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
           key: macos
           max-size: 1000M
-          # Saved on master alone, and read by every other ref: a branch's own copies would evict
-          # master's. Each run saves a new entry and keeps the old ones, so the repository's ten
-          # gigabytes hold every master cache once — CI's seven, the sanitizers' two and the
-          # dependencies — only after `gh cache delete` has cleared the older copies by hand.
           save: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Configure
