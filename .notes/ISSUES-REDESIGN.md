@@ -155,6 +155,17 @@ The bench measures KWin's frame time beside ours with both priorities.
 **Verification.** Six legs, pinned, before and after step 3: the walk median's spread across legs,
 and its correlation with the miss rate.
 
+**Outcome of steps 1 and 2.**
+- Step 1: `ThreadCounters` counts the frame thread over each place's measured frames, one group
+  on each kind of core, and the report's `host thread` line gives the clock, the instructions a
+  cycle, the cache misses a thousand instructions and the share on efficiency cores. The record
+  carries the counts as `thread`.
+- Step 2: `Platform::Process::keepToPerformanceCores`, called by the harness before any thread of
+  the run. Eight legs of `one-cell-walk` in turn: the walk's p99 read 1.75 to 1.85 ms in three of
+  the four pinned legs and 2.42 to 2.96 ms in the four unpinned. The medians moved less, 1.05 to
+  1.11 against 1.08 to 1.39 ms. The game keeps the system's choice: a setting for it would change
+  upstream's settings for a measurement only the harness takes.
+
 ---
 
 ## 2. Light transport and parity with the rasterizer

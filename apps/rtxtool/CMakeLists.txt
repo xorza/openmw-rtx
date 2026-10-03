@@ -27,6 +27,8 @@ set(RTXTOOL_FILES
     instruments/nvml.hpp
     instruments/scenedigest.cpp
     instruments/scenedigest.hpp
+    instruments/threadcounters.cpp
+    instruments/threadcounters.hpp
     model/benchrecord.cpp
     model/benchrecord.hpp
     model/benchrun.cpp
@@ -77,6 +79,14 @@ set(RTXTOOL_HOSTED_FILES
     stopwriter.cpp
     stopwriter.hpp
 )
+
+# The processor's counters of a thread are Linux's `perf_event_open`, and no other system gives a
+# process its own.
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(APPEND RTXTOOL_FILES instruments/threadcounterslinux.cpp)
+else()
+    list(APPEND RTXTOOL_FILES instruments/threadcountersnone.cpp)
+endif()
 
 source_group(apps\\rtxtool FILES ${RTXTOOL_HOSTED_FILES} main.cpp)
 

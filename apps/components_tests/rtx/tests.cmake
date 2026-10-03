@@ -89,6 +89,7 @@ set(RTX_TEST_FILES
     rtxtool/camerapath.cpp
     rtxtool/cameratrack.cpp
     rtxtool/cardwatch.cpp
+    rtxtool/threadcounters.cpp
     rtxtool/compare.cpp
     rtxtool/contactsheet.cpp
     rtxtool/cruise.cpp

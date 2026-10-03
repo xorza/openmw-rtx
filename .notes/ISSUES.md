@@ -21,10 +21,10 @@ the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the
   the diffuse colour with the vertex colour. The rasterizer's `getDiffuseColor` keeps the material's
   diffuse under that mode, and only the ambient takes the vertex colour.
   `components/rtx/scene/surface.cpp` `vertexColourOf`.
-- A measured run's host rows move as a whole between runs of one build: at `one-cell-walk` the walk
-  median of one build read 0.92, 1.34 and 0.97 ms in three legs back to back, with `update` moving
-  beside it, and holding the run to the performance cores (`taskset -c 0-15`) did not settle it.
-  Nothing in the report says which state a leg ran in. `apps/rtxtool/instruments/`.
+- A measured run's host rows move as a whole between runs of one build: at `one-cell-walk` six legs
+  held to the performance cores read walk medians of 1.02 to 1.53 ms at a steady clock, and the
+  frame thread's cache misses a thousand instructions moved with them, 3.14 to 4.75. The per-frame
+  walk reads the OSG graph, whose heap layout differs from one process to the next.
 - A fault on one thread while another thread's `Crash::report` or hang report is being written
   leaves two dumps on Linux, and the report's dump is summarised as the fault: Crashpad's Linux client
   keeps one exception record, which `DumpWithoutCrash` and the crash signal handler both write
