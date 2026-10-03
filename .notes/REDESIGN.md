@@ -17,7 +17,7 @@ notes cite.
 | W14 The ray tracer shows what the rasterizer shows | the items that wait for an input outside the tree | after its inputs |
 | W15 Groundcover stands in the ring | the measurement again with a real mod | 8 |
 | W16 A mask's soft texels are layers to the eye | the whole of it, behind its measurement | 8 |
-| W19 The walk visits what can change | the probe, then the frozen subtrees | 5 |
+| W19 The walk visits what can change | the frozen subtrees (the probe says most of the walk is) | 5 |
 | §16 Smaller workstreams | the upstream diff, the device, layering, Vulkan, tooling | 5 (§16.6), 6 |
 | §17 Fixes in place | the local groups; the frame constants | 5, 7 |
 
@@ -277,10 +277,13 @@ whose layout is set by the order the loader threads finished in, which differs i
 
 **A subtree that cannot change between frames stands, and the walk goes past it.**
 
-1. **The probe first.** Count, per frame at `one-cell-walk` and `balmora-mages-guild`, the nodes the
-   walk visits and the share of them under a subtree with no update callback, no controller, no
-   `Switch`, `LOD` or `Sequence`, no skin, no particle system and no light: the frozen share. The
-   design goes on only where that share is most of the walk.
+1. **The probe, taken on 2026-10-03** (a local count beside the world walk, not kept): a node is
+   frozen where the reference root above it has no update callback, no state-set updater, no
+   `Switch`, `LOD` or `Sequence`, no skin or morph, no particle node and no light anywhere under
+   it. `one-cell-walk` walks 14 514 to 15 553 nodes a frame, 83.8% to 89.8% of them frozen (1 678
+   of about 1 760 reference roots, 6 247 of about 6 600 drawables); `seyda-neen-ship` 15 595, 83.5%;
+   `balmora-mages-guild` 3 671, 65.2% (269 of 306 roots, 970 of 1 240 drawables). Most of the
+   walk everywhere it was asked, so the design goes on.
 2. **Frozen at arrival.** Where the walk first meets a subtree, it records whether the subtree is
    frozen (the test above, over the subtree once). A frozen subtree's rows — its placements, their
    materials and their transforms — go into a flat run on the extractor
