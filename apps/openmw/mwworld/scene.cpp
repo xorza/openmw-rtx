@@ -910,10 +910,10 @@ namespace MWWorld
 
     Scene::~Scene()
     {
-        for (const osg::ref_ptr<SceneUtil::WorkItem>& v : mWorkItems)
+        for (const std::shared_ptr<SceneUtil::WorkItem>& v : mWorkItems)
             v->abort();
 
-        for (const osg::ref_ptr<SceneUtil::WorkItem>& v : mWorkItems)
+        for (const std::shared_ptr<SceneUtil::WorkItem>& v : mWorkItems)
             v->waitTillDone();
     }
 
@@ -1121,10 +1121,9 @@ namespace MWWorld
         if (mRendering.getResourceSystem()->getSceneManager()->checkLoaded(meshPath, mRendering.getReferenceTime()))
             return;
 
-        osg::ref_ptr<PreloadMeshItem> item(
-            new PreloadMeshItem(meshPath, mRendering.getResourceSystem()->getSceneManager()));
+        auto item = std::make_shared<PreloadMeshItem>(meshPath, mRendering.getResourceSystem()->getSceneManager());
         mRendering.getWorkQueue()->addWorkItem(item);
-        const auto isDone = [](const osg::ref_ptr<SceneUtil::WorkItem>& v) { return v->isDone(); };
+        const auto isDone = [](const std::shared_ptr<SceneUtil::WorkItem>& v) { return v->isDone(); };
         mWorkItems.erase(std::remove_if(mWorkItems.begin(), mWorkItems.end(), isDone), mWorkItems.end());
         mWorkItems.emplace_back(std::move(item));
     }

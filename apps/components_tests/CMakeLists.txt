@@ -110,6 +110,7 @@ file(GLOB UNITTEST_SRC_FILES
 
     sceneutil/osgacontroller.cpp
     sceneutil/paintedtexture.cpp
+    sceneutil/userdata.cpp
 
     bsa/testbsafile.cpp
     bsa/testcompressedbsafile.cpp

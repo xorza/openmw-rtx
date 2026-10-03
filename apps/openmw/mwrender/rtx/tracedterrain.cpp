@@ -14,7 +14,6 @@
 #include <osg/Node>
 #include <osg/NodeVisitor>
 #include <osg/PositionAttitudeTransform>
-#include <osg/UserDataContainer>
 #include <osg/Vec2d>
 #include <osg/Vec2f>
 #include <osg/Vec3d>
@@ -22,6 +21,7 @@
 #include <osgUtil/IntersectionVisitor>
 #include <osgUtil/LineSegmentIntersector>
 
+#include <components/sceneutil/userdata.hpp>
 #include <components/terrain/cellborder.hpp>
 #include <components/terrain/storage.hpp>
 #include <components/terrain/view.hpp>
@@ -313,9 +313,13 @@ namespace MWRender
     {
         if (mCarried == mCarriers.size())
         {
-            Carrier made{ .mPlace = new osg::MatrixTransform, .mPart = new StandingPart, .mMarker = new RefnumMarker };
+            Carrier made{ .mPlace = new osg::MatrixTransform, .mPart = new StandingPart };
             made.mPlace->addChild(made.mPart);
-            made.mPlace->getOrCreateUserDataContainer()->addUserObject(made.mMarker);
+            // The marker is attached once, with the carrier, and the refnum of whatever static the
+            // pool stands next written into the one the node already carries: the container owns it
+            // for the carrier's life, so the pointer the carrier keeps stays good.
+            SceneUtil::addUserData(*made.mPlace, RefnumMarker{});
+            made.mMarker = SceneUtil::findUserData<RefnumMarker>(*made.mPlace);
             mCarriers.push_back(std::move(made));
         }
         return mCarriers[mCarried++];
