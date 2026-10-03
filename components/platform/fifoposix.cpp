@@ -30,10 +30,18 @@ namespace Platform::Fifo
     void write(File::Handle handle, const void* data, std::size_t size)
     {
         const ssize_t written = ::write(static_cast<int>(handle), data, size);
-        if (written != static_cast<ssize_t>(size))
+        if (written == -1)
         {
             throw std::system_error(
                 errno, std::generic_category(), "An attempt to write " + std::to_string(size) + " bytes failed");
+        }
+
+        // A short write sets no `errno`, so the error before it would be the one named: a fifo
+        // whose reader is behind takes what its buffer holds and no more.
+        if (written != static_cast<ssize_t>(size))
+        {
+            throw std::system_error(std::make_error_code(std::errc::no_buffer_space),
+                "Only " + std::to_string(written) + " of " + std::to_string(size) + " bytes were written");
         }
     }
 }
