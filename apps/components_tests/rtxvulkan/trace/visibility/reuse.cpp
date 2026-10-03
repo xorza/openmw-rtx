@@ -272,5 +272,84 @@ namespace Rtx::Testing
                     EXPECT_EQ(reused[pixel], 0.0f) << "light reached the dark side at " << x << ", " << y;
                 }
         }
+
+        /// **The reuse keeps its history while the eye moves.** The eye walks along the corner two
+        /// units a frame, which carries the wall under it a little under half a pixel at a time and
+        /// the floor more: last frame's reservoir is at a point between pixels. Taken from the tap
+        /// nearest it, two pixels took one reservoir wherever the step neared half a pixel and the
+        /// one beside them lost its own, and the temporal half's error at this pace was two thirds of
+        /// no reuse at all; taken by the shares of a bilinear fetch, a third.
+        ///
+        /// The truth is 160 plain frames at the walk's end. Each run walks forty frames from a cut,
+        /// four times from four draws, and is held at its last frame.
+        TEST_F(RtxBounceReuseTest, theReuseKeepsItsHistoryWhileTheEyeMoves)
+        {
+            constexpr std::uint32_t size = 128;
+            constexpr std::uint32_t steps = 40;
+            constexpr std::uint32_t walks = 4;
+            constexpr float pace = 2.0f;
+            constexpr float end = 80.0f;
+            const SceneDesc scene = makeCorner();
+
+            const auto standing = [&](float x, std::uint32_t frame) {
+                Shaders::VisibilityConstants camera = makeCamera(
+                    osg::Vec3f(x, -200.0f, 50.0f), osg::Vec3f(x, 300.0f, -100.0f), 60.0f, size, size, 10000.0f);
+                const Shaders::VisibilityConstants lit = cornerCamera(size);
+                camera.mSun = lit.mSun;
+                camera.mSkyHorizon = lit.mSkyHorizon;
+                camera.mSkyZenith = lit.mSkyZenith;
+                camera.mAmbientFromSky = lit.mAmbientFromSky;
+                camera.mFrame = frame;
+                return camera;
+            };
+
+            mRenderer.resize(size, size);
+            mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+
+            std::vector<float> read;
+            const auto draw = [&](float x, std::uint32_t frame, BounceReuse reuse, bool cut) {
+                mRenderer.renderFrame(standing(x, frame),
+                    FrameOptions{ .mLoss = cut ? HistoryLoss::Cut : HistoryLoss::None,
+                        .mReconstruction = ReconstructionRequest{ .mDenoise = false, .mBounceReuse = reuse },
+                        .mExposure = FixedExposure{ 1.0f } });
+                ASSERT_TRUE(mRenderer.finishFrame().has_value());
+            };
+            const auto bounce = [&] {
+                mRenderer.readChannel(Channel::Indirect, read);
+                std::vector<float> luminance(read.size() / 4);
+                for (std::size_t pixel = 0; pixel < luminance.size(); ++pixel)
+                    luminance[pixel] = 0.2126f * read[pixel * 4] + 0.7152f * read[pixel * 4 + 1]
+                        + 0.0722f * read[pixel * 4 + 2];
+                return luminance;
+            };
+
+            std::vector<std::vector<float>> plain;
+            for (std::uint32_t frame = 0; frame < 160; ++frame)
+            {
+                draw(end, 9000 + frame, BounceReuse::Off, frame == 0);
+                plain.push_back(bounce());
+            }
+            const std::vector<float> truth = meanOf(plain);
+
+            float errors[3]{};
+            const BounceReuse reuses[3]{ BounceReuse::Own, BounceReuse::Temporal, BounceReuse::Spatiotemporal };
+            for (std::size_t at = 0; at < 3; ++at)
+            {
+                std::vector<std::vector<float>> ends;
+                for (std::uint32_t walk = 0; walk < walks; ++walk)
+                {
+                    for (std::uint32_t step = 0; step <= steps; ++step)
+                        draw(end - static_cast<float>(steps - step) * pace, 30000 + walk * 100 + step, reuses[at],
+                            step == 0);
+                    ends.push_back(bounce());
+                }
+                EXPECT_NEAR(wholeOf(meanOf(ends)) / wholeOf(truth), 1.0f, 0.02f) << sBounceReuseNames.name(reuses[at]);
+                errors[at] = errorOf(ends, truth);
+            }
+
+            EXPECT_LT(errors[1], 0.45f * errors[0]) << "the walk lost the temporal half's history: " << errors[1]
+                                                     << " against " << errors[0];
+            EXPECT_LT(errors[2], errors[1]) << "the neighbours took nothing off a walking frame";
+        }
     }
 }

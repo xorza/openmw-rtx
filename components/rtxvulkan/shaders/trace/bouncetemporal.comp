@@ -9,8 +9,9 @@
 // was found from last frame's visible point; reconnected to this one, the solid angle around it
 // changes by `shiftJacobian`, and the weights are the defensive pairwise MIS of the two inputs
 // (`canonicalWeight`, `neighbourWeight`), each by its confidence. Last frame's reservoir is found
-// at the pixel the motion vector names, among the four a bilinear fetch spans, and taken only where
-// it is the same surface (`heldSurfaceMatches`): the tree's one rule for a history.
+// at the pixel the motion vector names, among the four a bilinear fetch spans (`heldBefore`), and
+// taken only where it is the same surface (`heldSurfaceMatches`): the tree's one rule for a
+// history.
 //
 // **No visibility ray in the weights.** Whether last frame's point could have found this frame's
 // candidate is a question about last frame's geometry, which no structure here keeps; this frame's
@@ -30,27 +31,33 @@
 layout(local_size_x = BOUNCE_TEMPORAL_WORKGROUP, local_size_y = BOUNCE_TEMPORAL_WORKGROUP) in;
 
 /// Last frame's reservoir at the pixel the motion vector names, or nothing where none of the four
-/// a fetch spans is the surface in front of this one. The tap the fetch weighs most, of those
-/// that match, so a still eye takes its own pixel's.
+/// a fetch spans is the surface in front of this one.
+///
+/// **One of the four that match, drawn by its share of a bilinear fetch, and not the nearest.** A
+/// reservoir cannot be blended, so one tap is all a pixel can take; taken by rounding, two pixels
+/// take one reservoir wherever the step nears half a pixel, and the one beside them loses its own.
+/// Over a walk at that pace the temporal half's error was two thirds of no reuse at all, and drawn
+/// by the shares a third.
 struct Held
 {
     BounceReservoir mReservoir;
     BounceOrigin mOrigin;
 };
 
-Held heldBefore(uvec2 pixel, BounceOrigin origin)
+Held heldBefore(uvec2 pixel, BounceOrigin origin, inout uint draws)
 {
     const vec3 moved = imageLoad(motion, ivec2(pixel)).xyz;
     const HistoryFootprint before = historyFootprint(ivec2(pixel), frame.mEyes.mWorld.mJitter, moved);
     const float away = length(origin.mOffset);
 
     Held held = Held(noBounce(), noOrigin());
-    float best = 0.0;
+    float shares = 0.0;
+    const float draw = randomNext(draws);
     for (int corner = 0; corner < 4; ++corner)
     {
         const ivec2 tap = historyTap(before, corner);
         const float share = historyShare(before, corner);
-        if (outsideOf(uvec2(tap), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)) || !(share > best))
+        if (outsideOf(uvec2(tap), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)) || !(share > 0.0))
             continue;
 
         const uint at = uint(tap.y) * frame.mBounceStride + uint(tap.x);
@@ -61,8 +68,9 @@ Held heldBefore(uvec2 pixel, BounceOrigin origin)
         // Carried to this frame's eye, which every offset this pass compares is from.
         was.mOffset -= frame.mCameraMotion;
 
-        best = share;
-        held = Held(unpackBounce(bounceHistory[at]), was);
+        shares += share;
+        if (draw * shares < share)
+            held = Held(unpackBounce(bounceHistory[at]), was);
     }
 
     return held;
@@ -79,7 +87,8 @@ void main()
     if (!origin.mKept || frame.mBounceHistory == 0u)
         return;
 
-    const Held held = heldBefore(pixel, origin);
+    uint draws = randomSeed(pixelKey(pixel) + SEED_BOUNCE_TEMPORAL);
+    const Held held = heldBefore(pixel, origin, draws);
     BounceReservoir before = held.mReservoir;
     before.mConfidence = min(before.mConfidence, BOUNCE_CONFIDENCE_CAP);
     ++before.mAge;
@@ -115,7 +124,6 @@ void main()
     BounceSample shifted = before.mSample;
     shifted.mOffset = shifted.mSky ? shifted.mOffset : beforeHere.mTowards * beforeHere.mDistance;
 
-    uint draws = randomSeed(pixelKey(pixel) + SEED_BOUNCE_TEMPORAL);
     BounceMerge merge = startMerge();
     offer(merge, candidate.mSample, candidateMis * candidateTarget * candidate.mWeight, candidateTarget,
         candidate.mConfidence, 0u, randomNext(draws));
