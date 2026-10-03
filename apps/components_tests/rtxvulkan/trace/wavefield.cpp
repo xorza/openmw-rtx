@@ -42,8 +42,8 @@ namespace Rtx
         /// below are exact rather than nearly so.
         constexpr float sExtent = 256.0f;
 
-        /// The amplitudes, how fast each turns, and the three packed fields between them.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 3> sFormBindings{
+        /// The amplitudes, how fast each turns, and the three packed fields the rows leave.
+        constexpr std::array<VkDescriptorSetLayoutBinding, 3> sRowsBindings{
             VkDescriptorSetLayoutBinding{
                 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
             VkDescriptorSetLayoutBinding{
@@ -52,13 +52,8 @@ namespace Rtx
                 2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
         };
 
-        constexpr std::array<VkDescriptorSetLayoutBinding, 1> sLineBindings{
-            VkDescriptorSetLayoutBinding{
-                0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-        };
-
         /// The fields in, and the two textures out.
-        constexpr std::array<VkDescriptorSetLayoutBinding, 3> sComposeBindings{
+        constexpr std::array<VkDescriptorSetLayoutBinding, 3> sColumnsBindings{
             VkDescriptorSetLayoutBinding{
                 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
             VkDescriptorSetLayoutBinding{
@@ -77,28 +72,26 @@ namespace Rtx
             osg::Vec3f mCurve;
         };
 
-        /// The three the chain runs through, built once for a whole test.
+        /// The two the chain runs through, built once for a whole test.
         struct Passes
         {
-            ComputePipeline<Shaders::WaveFormConstants> mForming;
-            ComputePipeline<Shaders::WaveConstants> mLine;
-            ComputePipeline<Shaders::WaveComposeConstants> mComposing;
+            ComputePipeline<Shaders::WaveFormConstants> mRows;
+            ComputePipeline<Shaders::WaveComposeConstants> mColumns;
 
             explicit Passes(const Device& device)
-                : mForming(device, sFormBindings, {}, "waveform.comp.spv", "test-waveform")
-                , mLine(device, sLineBindings, {}, "waveline.comp.spv", "test-waveline")
-                , mComposing(device, sComposeBindings, {}, "wavecompose.comp.spv", "test-wavecompose")
+                : mRows(device, sRowsBindings, {}, "waverows.comp.spv", "test-waverows")
+                , mColumns(device, sColumnsBindings, {}, "wavecolumns.comp.spv", "test-wavecolumns")
             {
             }
         };
 
-        /// Runs the whole chain — form, transform along both axes, compose — over one spectrum.
+        /// Runs the whole chain — formed and transformed along the rows, transformed along the
+        /// columns and unpacked — over one spectrum.
         std::vector<Sampled> run(const Device& device, CommandPool& pool, const Passes& passes,
             std::span<const osg::Vec2f> amplitudes, std::span<const float> turnRates, const osg::Vec2f& time)
         {
-            const ComputePipeline<Shaders::WaveFormConstants>& forming = passes.mForming;
-            const ComputePipeline<Shaders::WaveConstants>& line = passes.mLine;
-            const ComputePipeline<Shaders::WaveComposeConstants>& composing = passes.mComposing;
+            const ComputePipeline<Shaders::WaveFormConstants>& rows = passes.mRows;
+            const ComputePipeline<Shaders::WaveComposeConstants>& columns = passes.mColumns;
 
             const Buffer table
                 = Buffer::staging(device, amplitudes.size_bytes(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "test");
@@ -125,43 +118,23 @@ namespace Rtx
                 for (const Image* image : { &surface, &curvature })
                     image->transition(commands, Use::sUndefined, Use::sComputeWrite);
 
-                DescriptorWrites forms(forming);
-                forms.buffer(0, whole[0]);
-                forms.buffer(1, whole[1]);
-                forms.buffer(2, whole[2]);
+                DescriptorWrites formed(rows);
+                formed.buffer(0, whole[0]);
+                formed.buffer(1, whole[1]);
+                formed.buffer(2, whole[2]);
                 const Shaders::WaveFormConstants shaped{ .mCount = sCount, .mExtent = sExtent, .mTime = time };
 
-                dispatch(
-                    commands, forming, forms, shaped, Groups::covering(sCount, sCount, Shaders::WAVE_TILE_WORKGROUP));
+                // A row a workgroup, and then a column a workgroup, as `WavePass` records them.
+                dispatch(commands, rows, formed, shaped, Groups{ .mX = sCount });
                 Testing::orderStorageWrites(commands);
 
-                DescriptorWrites lines(line);
-                lines.buffer(0, whole[2]);
-                bind(commands, line);
-                pushDescriptors(commands, line, lines);
-
-                // The three fields a dispatch, as `WavePass` records them: rows, then columns.
-                for (int pass = 0; pass < 2; ++pass)
-                {
-                    const Shaders::WaveConstants along{
-                        .mCount = sCount,
-                        .mStride = pass == 0 ? 1u : sCount,
-                        .mJump = pass == 0 ? sCount : 1u,
-                    };
-
-                    line.push(commands, along);
-                    vkCmdDispatch(commands, sCount, 3, 1);
-                    Testing::orderStorageWrites(commands);
-                }
-
-                DescriptorWrites composes(composing);
-                composes.buffer(0, whole[2]);
-                composes.image(1, images[0]);
-                composes.image(2, images[1]);
+                DescriptorWrites unpacking(columns);
+                unpacking.buffer(0, whole[2]);
+                unpacking.image(1, images[0]);
+                unpacking.image(2, images[1]);
                 const Shaders::WaveComposeConstants unpacked{ .mCount = sCount };
 
-                dispatch(commands, composing, composes, unpacked,
-                    Groups::covering(sCount, sCount, Shaders::WAVE_TILE_WORKGROUP));
+                dispatch(commands, columns, unpacking, unpacked, Groups{ .mX = sCount });
             });
 
             const std::vector<float> heights = Testing::readHalves(surface);

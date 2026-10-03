@@ -9,7 +9,6 @@
 #include <string_view>
 
 #include <osg/Vec2f>
-#include <volk.h>
 
 #include <components/rtx/shaders/wave.h>
 #include <components/rtxvulkan/device/commands.hpp>
@@ -19,24 +18,20 @@
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
-#include <components/rtxvulkan/pipeline/pipeline.hpp>
 
 namespace Rtx
 {
     namespace
     {
-        /// The amplitudes, how fast each turns, and the three packed fields between them.
-        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::WAVE_FORM_BINDINGS> sFormBindings
-            = computeBindings<Shaders::WAVE_FORM_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-
-        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::WAVE_LINE_BINDINGS> sLineBindings
-            = computeBindings<Shaders::WAVE_LINE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        /// The amplitudes, how fast each turns, and the three packed fields the rows leave.
+        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::WAVE_ROWS_BINDINGS> sRowsBindings
+            = computeBindings<Shaders::WAVE_ROWS_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 
         /// The fields in, and the two textures out.
-        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::WAVE_COMPOSE_BINDINGS> sComposeBindings{
-            computeBinding(Shaders::WAVE_COMPOSE_BIND_FIELD, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
-            computeBinding(Shaders::WAVE_COMPOSE_BIND_SURFACE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
-            computeBinding(Shaders::WAVE_COMPOSE_BIND_CURVATURE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::WAVE_COLUMNS_BINDINGS> sColumnsBindings{
+            computeBinding(Shaders::WAVE_COLUMNS_BIND_FIELD, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
+            computeBinding(Shaders::WAVE_COLUMNS_BIND_SURFACE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::WAVE_COLUMNS_BIND_CURVATURE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
         };
 
         /// How many complex numbers the transform runs over for one tile: three packed fields, each
@@ -64,9 +59,8 @@ namespace Rtx
 
     WavePass::WavePass(const Device& device)
         : mDevice(device)
-        , mFormPipeline(device, sFormBindings, {}, "waveform.comp.spv", "wave form")
-        , mLinePipeline(device, sLineBindings, {}, "waveline.comp.spv", "wave line")
-        , mComposePipeline(device, sComposeBindings, {}, "wavecompose.comp.spv", "wave compose")
+        , mRowsPipeline(device, sRowsBindings, {}, "waverows.comp.spv", "wave rows")
+        , mColumnsPipeline(device, sColumnsBindings, {}, "wavecolumns.comp.spv", "wave columns")
         , mSampler(makeContentSampler(device, "wave"))
     {
         constexpr VkImageUsageFlags usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
@@ -146,64 +140,42 @@ namespace Rtx
             image->addTransition(opened, Use::sUndefined, Use::sComputeWrite);
         opened.flush();
 
+        // **Two dispatches a cascade and one barrier between them.** The rows form the spectrum
+        // where they transform it, a row a workgroup and the three fields together; the columns
+        // transform it and write the texels, a column a workgroup. What stood between the two
+        // halves and either end of them — a pass forming the fields and one unpacking them, each a
+        // trip of all three through memory — is shared memory now.
         for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
         {
             const Tile& tile = mTiles[index];
             const std::uint32_t grid = gridOf(index);
 
-            DescriptorWrites forms(mFormPipeline);
-            forms.buffer(Shaders::WAVE_FORM_BIND_AMPLITUDES, tile.mAmplitudes.describe());
-            forms.buffer(Shaders::WAVE_FORM_BIND_TURN_RATES, tile.mTurnRates.describe());
-            forms.buffer(Shaders::WAVE_FORM_BIND_FIELD, tile.mField.describe());
+            DescriptorWrites rows(mRowsPipeline);
+            rows.buffer(Shaders::WAVE_ROWS_BIND_AMPLITUDES, tile.mAmplitudes.describe());
+            rows.buffer(Shaders::WAVE_ROWS_BIND_TURN_RATES, tile.mTurnRates.describe());
+            rows.buffer(Shaders::WAVE_ROWS_BIND_FIELD, tile.mField.describe());
 
             const Shaders::WaveFormConstants shaped{
                 .mCount = grid,
                 .mExtent = sWaveTiles[index].mExtent,
                 .mTime = seconds,
             };
-            dispatch(
-                commands, mFormPipeline, forms, shaped, Groups::covering(grid, grid, Shaders::WAVE_TILE_WORKGROUP));
+            dispatch(commands, mRowsPipeline, rows, shaped, Groups{ .mX = grid, .mY = 1 });
         }
         handOver(commands);
-
-        // Three packed fields, each transformed along its rows and then along its columns — which is
-        // the same shader with its two strides swapped, because a separable transform is the
-        // one-dimensional one run twice. The three fields are a dispatch's second dimension.
-        bind(commands, mLinePipeline);
-        for (int pass = 0; pass < 2; ++pass)
-        {
-            for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
-            {
-                const std::uint32_t count = gridOf(index);
-
-                DescriptorWrites writes(mLinePipeline);
-                writes.buffer(Shaders::WAVE_LINE_BIND_FIELD, mTiles[index].mField.describe());
-                pushDescriptors(commands, mLinePipeline, writes);
-
-                const Shaders::WaveConstants along{
-                    .mCount = count,
-                    .mStride = pass == 0 ? 1u : count,
-                    .mJump = pass == 0 ? count : 1u,
-                };
-                mLinePipeline.push(commands, along);
-                vkCmdDispatch(commands, count, 3, 1);
-            }
-            handOver(commands);
-        }
 
         for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
         {
             const Tile& tile = mTiles[index];
             const std::uint32_t grid = gridOf(index);
 
-            DescriptorWrites composes(mComposePipeline);
-            composes.buffer(Shaders::WAVE_COMPOSE_BIND_FIELD, tile.mField.describe());
-            composes.image(Shaders::WAVE_COMPOSE_BIND_SURFACE, tile.mSurface.describeStorage());
-            composes.image(Shaders::WAVE_COMPOSE_BIND_CURVATURE, tile.mCurvature.describeStorage());
+            DescriptorWrites columns(mColumnsPipeline);
+            columns.buffer(Shaders::WAVE_COLUMNS_BIND_FIELD, tile.mField.describe());
+            columns.image(Shaders::WAVE_COLUMNS_BIND_SURFACE, tile.mSurface.describeStorage());
+            columns.image(Shaders::WAVE_COLUMNS_BIND_CURVATURE, tile.mCurvature.describeStorage());
 
             const Shaders::WaveComposeConstants unpacked{ .mCount = grid };
-            dispatch(commands, mComposePipeline, composes, unpacked,
-                Groups::covering(grid, grid, Shaders::WAVE_TILE_WORKGROUP));
+            dispatch(commands, mColumnsPipeline, columns, unpacked, Groups{ .mX = grid, .mY = 1 });
         }
 
         Image::buildMips(commands, images);
