@@ -229,6 +229,13 @@ namespace Rtx
         mMeshes.drop(known);
     }
 
+    void MeshResolver::hold(const osg::Drawable& drawable)
+    {
+        const auto known = mMeshes.find(&drawable);
+        Crash::contract(known != mMeshes.end(), "a mesh held that the walk did not resolve");
+        mMeshes.hold(known);
+    }
+
     Index MeshResolver::refuse(const osg::Drawable& drawable, std::string_view why)
     {
         mScene.refusals().refuse(Refused::Mesh, drawable.getName(), why);

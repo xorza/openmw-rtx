@@ -9,9 +9,11 @@
 #include <vector>
 
 #include <boost/unordered/unordered_flat_map.hpp>
+#include <osg/Matrix>
 #include <osg/Matrixf>
 #include <osg/Node>
 #include <osg/Vec3f>
+#include <osg/ref_ptr>
 
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/stepped.hpp>
@@ -311,6 +313,57 @@ namespace Rtx
         ExtractionStats walk(const osg::Node& node, const osg::Matrixf& transform, std::size_t anchor,
             std::size_t frame, CellRing* ring, bool falls);
 
+        /// One placement of a frozen subtree, by what the walk resolved it under: the placement's
+        /// identity, the drawable its mesh is keyed on and its material's key, each held until the
+        /// subtree thaws. A drawable the mesh resolver refused stands nothing, and only its refusal
+        /// is held.
+        struct FrozenKey
+        {
+            std::size_t mPlacement = 0;
+            const osg::Drawable* mDrawable = nullptr;
+            const osg::StateSet* mMaterial = nullptr;
+            bool mPlaced = false;
+        };
+
+        /// A subtree under a reference root whose walk met nothing that changes between frames
+        /// on its own — `Traversal::enter` says what does — and which the world walk passes rather
+        /// than descends while what can still change it from outside stands: where the root is in
+        /// the world, its children and its state set. Its entries are held, so every sweep it is
+        /// not walked in keeps them, and nothing in it is read again until it thaws.
+        struct FrozenRun
+        {
+            osg::Matrix mWorld;
+            const osg::StateSet* mStateSet = nullptr;
+            const osg::Node* mFirstChild = nullptr;
+            unsigned int mChildren = 0;
+            Run mKeys;
+
+            /// What its walk counted, which every walk that passes it counts again.
+            std::uint32_t mInstances = 0;
+
+            /// The world walk that last met it.
+            unsigned int mMet = 0;
+        };
+
+        /// Whether the reference root `root`, standing at `world`, is frozen and still what it
+        /// froze as: counted as walked and passed where it is, and thawed where it is not, for the
+        /// walk to descend into it as any other.
+        bool passFrozen(const osg::Node& root, const osg::Matrix& world);
+
+        /// Starts recording what the world walk resolves under the reference root it is about to
+        /// descend into, and `endFrozen` freezes the root with it where `changeable` is false and
+        /// nothing it resolved said otherwise.
+        void recordFrozen();
+        void endFrozen(const osg::Node& root, const osg::Matrix& world, bool changeable);
+
+        /// Gives a frozen subtree's holds back, as the walk that thaws it or a sweep that missed it.
+        void thaw(FrozenRun& run);
+
+        /// Thaws every frozen subtree the world walk did not meet — gone from the graph, or masked
+        /// out — ahead of the sweep, which would otherwise keep its rows for ever.
+        void thawUnmet();
+        void thawAll();
+
         SceneDesc& mScene;
 
         /// What kind each class this walk meets is, node or drawable. A member because the
@@ -375,6 +428,27 @@ namespace Rtx
 
         /// The particle systems the walk met, and the sprite textures they hold.
         EmitterResolver mEmitters{ mScene, mPass, mContext.mContent.mFacts };
+
+        /// The frozen subtrees, by their roots, held so a root the game freed cannot be mistaken
+        /// for the one built where it stood; their keys in one buffer, a run a subtree; and what the
+        /// root being walked has resolved so far. Reserved and kept, never freed.
+        boost::unordered_flat_map<osg::ref_ptr<const osg::Node>, FrozenRun, ByAddress<const osg::Node>,
+            ByAddress<const osg::Node>>
+            mFrozen;
+        RunBuffer<FrozenKey> mFrozenKeys;
+        std::vector<FrozenKey> mRecorded;
+
+        /// Whether a root is being recorded, whether what it resolved can change on its own — the
+        /// sea's material, a particle system — and the instance count its walk began at.
+        bool mRecording = false;
+        bool mRecordedChangeable = false;
+        std::uint32_t mRecordedFrom = 0;
+
+        /// The number of the world walk in progress or last made, which a frozen run it met
+        /// carries, and the traversal mask the frozen subtrees were walked under: a mask that
+        /// changes is a view that sees another part of every subtree.
+        unsigned int mWorldWalk = 0;
+        osg::Node::NodeMask mFrozenMask = 0;
 
         /// How many meshes and materials the scene had freed at the last retire, which the next
         /// one counts what went from.
