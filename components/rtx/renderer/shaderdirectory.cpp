@@ -16,16 +16,9 @@
 
 namespace Rtx
 {
-    std::filesystem::path harnessDirectory(const std::filesystem::path& resources)
+    std::filesystem::path shaderDirectory(const std::filesystem::path& resources)
     {
-        // Through `..` and not `parent_path`, which answers the folder itself for a path that ends
-        // in a separator.
-        return (resources / "..").lexically_normal() / "rtxtool";
-    }
-
-    std::filesystem::path shaderDirectory(const std::filesystem::path& resources, const bool withSource)
-    {
-        return withSource ? harnessDirectory(resources) / "shaders-source" : resources / "rtx" / "shaders";
+        return resources / "rtx" / "shaders";
     }
 
     DigestWords digestShaders(const std::filesystem::path& directory)

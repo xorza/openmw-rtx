@@ -50,6 +50,7 @@
 
 #include "compare.hpp"
 #include "film.hpp"
+#include "harnessfolder.hpp"
 #include "instruments/drivercache.hpp"
 #include "model/benchrecord.hpp"
 #include "model/benchrun.hpp"
@@ -274,15 +275,15 @@ namespace RtxTool
         };
 
         /// The places a run can visit, in the harness's folder.
-        std::filesystem::path viewsFile(const std::filesystem::path& resources)
+        std::filesystem::path viewsFile()
         {
-            return Rtx::harnessDirectory(resources) / "views.cfg";
+            return harnessDirectory() / "views.cfg";
         }
 
         /// The suites, each a list of places in `viewsFile`.
-        std::filesystem::path suitesFile(const std::filesystem::path& resources)
+        std::filesystem::path suitesFile()
         {
-            return Rtx::harnessDirectory(resources) / "benches.cfg";
+            return harnessDirectory() / "benches.cfg";
         }
 
         /// Where a verb writes its pictures: `--out`, or a directory named for the verb.
@@ -359,7 +360,7 @@ namespace RtxTool
             // **The layers the command's row says, unless the line names some**: `VerbPolicy`.
             framed.mSetup.mRun.mValidation
                 = policyOf(command.mVerb).mMeasures ? validationForMeasuring(variables) : validationFrom(variables);
-            framed.mSetup.mShaderSource = variables["shader-source"].as<bool>();
+            framed.mSetup.mShaderDirectory = command.mShaders;
             if (variables.count("memory-budget") != 0)
                 framed.mSetup.mRun.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
 
@@ -423,8 +424,7 @@ namespace RtxTool
         }
 
         /// The view a run names, or null where it named none and gave a cell instead.
-        const Stop* findChosenView(
-            const bpo::variables_map& variables, const std::filesystem::path& resources, std::vector<Stop>& views)
+        const Stop* findChosenView(const bpo::variables_map& variables, std::vector<Stop>& views)
         {
             std::string name = variables["view"].as<std::string>();
             if (name.empty())
@@ -435,7 +435,7 @@ namespace RtxTool
                 name = sDefaultView;
             }
 
-            views = loadViews(viewsFile(resources));
+            views = loadViews(viewsFile());
             return &requireView(views, name);
         }
 
@@ -535,7 +535,7 @@ namespace RtxTool
 
             // Holds what the view below points into, for as long as this function needs it.
             std::vector<Stop> views;
-            const Stop* found = findChosenView(variables, command.mResources, views);
+            const Stop* found = findChosenView(variables, views);
             const std::string cell = variables["cell"].as<std::string>();
 
             // **A save is the place, unless the line names one over it.** The stop then stands
@@ -590,8 +590,7 @@ namespace RtxTool
                 stops.push_back(stageOnePlace(command, framed));
             else
             {
-                stops = stopsFrom(
-                    chooseViews(loadViews(viewsFile(command.mResources)), splitNames(named)), variables, framed);
+                stops = stopsFrom(chooseViews(loadViews(viewsFile()), splitNames(named)), variables, framed);
             }
 
             for (Stop& stop : stops)
@@ -620,10 +619,9 @@ namespace RtxTool
         ///
         /// @param ownSuite the suite the verb runs when neither `--views` nor `--suite` names one:
         ///        `bench` measures the frame budget's places and `check` walks a route as well.
-        SuiteRun chooseBenchViews(const bpo::variables_map& variables, const std::filesystem::path& resources,
-            const std::string_view ownSuite)
+        SuiteRun chooseBenchViews(const bpo::variables_map& variables, const std::string_view ownSuite)
         {
-            const std::vector<Stop> views = loadViews(viewsFile(resources));
+            const std::vector<Stop> views = loadViews(viewsFile());
             const std::string named = variables["views"].as<std::string>();
 
             SuiteRun run;
@@ -633,7 +631,7 @@ namespace RtxTool
                 run.mSuite
                     = variables["suite"].defaulted() ? std::string(ownSuite) : variables["suite"].as<std::string>();
 
-                const std::vector<BenchSuite> suites = loadSuites(suitesFile(resources));
+                const std::vector<BenchSuite> suites = loadSuites(suitesFile());
                 const BenchSuite* suite = findSuite(suites, run.mSuite);
                 if (suite == nullptr)
                 {
@@ -654,9 +652,9 @@ namespace RtxTool
             return run;
         }
 
-        int runListViews(const std::filesystem::path& resources)
+        int runListViews()
         {
-            for (const Stop& view : loadViews(viewsFile(resources)))
+            for (const Stop& view : loadViews(viewsFile()))
             {
                 out() << "  " << view.mName << "\n      " << view.mStand.mCell;
 
@@ -807,7 +805,7 @@ namespace RtxTool
             framed.mSetup.mRun.mProfile.mRadianceWidth = Rtx::RadianceWidth::Shown;
             framed.mSetup.mHeadless = !variables["window"].as<bool>();
 
-            const SuiteRun run = chooseBenchViews(variables, command.mResources, "default");
+            const SuiteRun run = chooseBenchViews(variables, "default");
             std::vector<Stop> stops = stopsFrom(run.mViews, variables, framed);
 
             const BenchSpec spec = specFrom(variables);
@@ -900,7 +898,7 @@ namespace RtxTool
             if (variables["hold"].defaulted())
                 framed.mSetup.mRun.mProfile.mStressOverlapMs = sCheckHoldMs;
 
-            const SuiteRun run = chooseBenchViews(variables, command.mResources, "check");
+            const SuiteRun run = chooseBenchViews(variables, "check");
             std::vector<Stop> stops = stopsFrom(run.mViews, variables, framed);
 
             const std::span<const Check> every = everyCheck();
@@ -968,7 +966,7 @@ namespace RtxTool
             const bpo::variables_map& variables = command.mVariables;
             const Framed framed = frameFrom(command);
 
-            const SuiteRun run = chooseBenchViews(variables, command.mResources, "noise");
+            const SuiteRun run = chooseBenchViews(variables, "noise");
             const std::vector<Stop> places = stopsFrom(run.mViews, variables, framed);
 
             const std::filesystem::path out = outOf(command);
@@ -1291,7 +1289,7 @@ namespace RtxTool
             // Before the verb, as `--help` is: a switch that answers instead of the command is one
             // the command never sees.
             if (variables["list-views"].as<bool>())
-                return runListViews(resources);
+                return runListViews();
 
             const Verbs chosen = verbNamed(command);
             const auto found = std::find_if(
@@ -1317,8 +1315,8 @@ namespace RtxTool
             // **Before any verb makes a device, because the driver reads where its cache is once.**
             // A cache of the shaders this run reads and of nothing else (`DriverCache`).
             const std::filesystem::path shaders
-                = Rtx::shaderDirectory(resources, variables["shader-source"].as<bool>());
-            const DriverCache driverCache(Rtx::harnessDirectory(resources), shaders);
+                = variables["shader-source"].as<bool>() ? shaderSourceDirectory() : Rtx::shaderDirectory(resources);
+            const DriverCache driverCache(harnessDirectory(), shaders);
             driverCache.applyToDriver();
             driverCache.sweep();
 

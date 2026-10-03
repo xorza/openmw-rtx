@@ -157,7 +157,7 @@ namespace MWRender
         adopt(*camera, *frameStamp, *stats);
 
         Rtx::RendererOptions options;
-        options.mShaderDirectory = Rtx::shaderDirectory(spec.mResourceDir, setup.mShaderSource);
+        options.mShaderDirectory = setup.mShaderDirectory.value_or(Rtx::shaderDirectory(spec.mResourceDir));
 
         // **A measured run keeps no pipeline cache of its own.** A pipeline out of the blob
         // starts on the compile's first code and is swapped for the driver's second all the same

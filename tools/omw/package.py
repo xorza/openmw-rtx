@@ -26,7 +26,7 @@ def used_osg_plugins(cmake_text: str) -> list[str]:
 
 
 # What the harness and the tests write under the build, which no install may carry: the harness's
-# folder (`Rtx::harnessDirectory`), the test output, and their files by name, wherever they land.
+# folder (`RTX_HARNESS_DIR`), the test output, and their files by name, wherever they land.
 HARNESS_NAMES = ("rtxtool", "test-output", "crash-matrix", "views.cfg", "benches.cfg", "shaders-source")
 
 
