@@ -148,10 +148,10 @@ void main()
         asked = merge.mKeptInput > 0u;
     }
 
-    // The sample shown, if this point can see it now: a fresh candidate was traced from here, and a
-    // neighbour's was asked by its shift's ray; what the pixel kept from another frame is asked here.
-    const bool fresh = frame.mBounceReuse == BOUNCE_REUSE_OWN;
-    const bool seen = fresh || asked || !holdsBounce(chosen) || bounceSeen(origin, chosenReach);
+    // The sample shown, if this point can see it now: the pixel's own candidate, of age nought, was
+    // traced from here this frame, and a neighbour's was asked by its shift's ray; what the pixel
+    // kept from another frame is asked here.
+    const bool seen = asked || !holdsBounce(chosen) || chosen.mAge == 0u || bounceSeen(origin, chosenReach);
     // **What the next frame merges is the pixel's own temporal reservoir**, and nothing where it is
     // hidden from here now: a sample behind a door that closed is let go of at once rather than held
     // to the age cap.
