@@ -25,8 +25,6 @@ the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the
   held to the performance cores read walk medians of 1.02 to 1.53 ms at a steady clock, and the
   frame thread's cache misses a thousand instructions moved with them, 3.14 to 4.75. The per-frame
   walk reads the OSG graph, whose heap layout differs from one process to the next.
-- Under `tws` the ray tracer still draws the cell borders. The rasterizer hangs them under the terrain root,
-  whose `Mask_Terrain` `tws` culls, so under it they go with the ground.
 - Past the loaded cells, a rendering ray under the ray tracer meets the ground the ring stands and none
   of the ring's statics. The rasterizer meets its paged statics there, with their reference numbers.
 - A content file's own clockwise `NiStencilProperty` shows, under the ray tracer, the face the rasterizer

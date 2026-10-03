@@ -4,6 +4,7 @@
 #include <vector>
 
 #include <osg/Array>
+#include <osg/Group>
 #include <osg/Vec2i>
 #include <osg/ref_ptr>
 
@@ -57,8 +58,11 @@ namespace MWRender
     /// run unchanged.
     ///
     /// **And upstream's cell borders**, which need no chunk: `ToggleBorders` stands a line strip
-    /// over each loaded cell's edge from the storage's heights, straight under the world root and
-    /// under `Mask_Debug`, where `DebugWalk` reads the debug modes' lines.
+    /// over each loaded cell's edge from the storage's heights, under `Mask_Debug`, where
+    /// `DebugWalk` reads the debug modes' lines. Under a group of the terrain's mask, as upstream
+    /// stands them under its terrain root, so `tws` takes them with the ground; straight under the
+    /// world root and not under the terrain root, which the scene root holds and the walk never
+    /// enters.
     ///
     /// **And a grid per loaded cell for the intersector**, under `Mask_Terrain` and nothing else.
     /// `RenderingManager::castRay` walks the scene graph, so `terrain obstructs focus`, dropping
@@ -139,5 +143,8 @@ namespace MWRender
 
         /// The node under the terrain root that hands an intersection visitor to `meet`.
         osg::ref_ptr<osg::Node> mAnswer;
+
+        /// The group the cell borders stand under, of the terrain's mask.
+        osg::ref_ptr<osg::Group> mBorders;
     };
 }
