@@ -41,7 +41,3 @@ the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the
 - A content file's own clockwise `NiStencilProperty` shows, under the ray tracer, the face the rasterizer
   culls. The material reader cannot tell it from the clockwise front `SceneUtil::attach` states over a
   mirrored body part, whose mirror lives in the skinning and not in the placement.
-- On a box whose user data folder does not exist yet, the crash catcher does not start: Crashpad's
-  handler creates `<user data>/crashes` without its parents, fails, and the log says "No crash
-  catcher: its monitor did not start". The game's first start on a fresh box runs without a catcher.
-  `components/crashcatcher/crashpadclient.cpp` `install`.
