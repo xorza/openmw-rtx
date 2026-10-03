@@ -44,6 +44,8 @@ def gate(build: Build, args: list[str]) -> int:
     if targets:
         if testing.test(build, []) != 0:
             return 1
+        if testing.timing(build) != 0:
+            return 1
     else:
         print(f"tests: the {build.flavour} build has none — `omw debug gate` runs them")
 

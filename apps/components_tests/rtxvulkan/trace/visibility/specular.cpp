@@ -3,7 +3,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -169,8 +168,9 @@ namespace Rtx::Testing
         ///   the two smoothsteps, and the frame stands apart from the raw one.
         TEST_F(RtxVisibilityTest, aLobeKeepsItsHistoryOverATurnOfTheViewAsWideAsTheLobe)
         {
-            const auto turnedRawAndReference = [&](std::uint8_t roughness) {
-                const GlossyFloor floor(roughness);
+            const GlossyFloor smooth(77);
+            const GlossyFloor rough(255);
+            const auto turnedAndRaw = [&](const GlossyFloor& floor) {
                 const Shaders::VisibilityConstants before = darkCameraAt(osg::Vec3f(0.0f, -200.0f, 300.0f));
                 Shaders::VisibilityConstants after = darkCameraAt(osg::Vec3f(150.0f, -200.0f, 300.0f));
                 after.mFrame = 5000;
@@ -179,8 +179,7 @@ namespace Rtx::Testing
                 Frame turned
                     = shoot(floor.mScene, floor.mTextures, after, sSize, { .mFilter = true, .mSetScene = false });
                 Frame raw = shoot(floor.mScene, floor.mTextures, after, sSize, { .mSetScene = false });
-                Frame reference = shoot(floor.mScene, floor.mTextures, after, sSize, { .mFrames = 256 });
-                return std::tuple{ std::move(turned), std::move(raw), std::move(reference) };
+                return std::pair{ std::move(turned), std::move(raw) };
             };
 
             // How many of the values stand further from the raw frame's than a half rounds by, 2^-11 of
@@ -195,17 +194,19 @@ namespace Rtx::Testing
                 return count;
             };
 
-            const auto [smoothTurned, smoothRaw, smoothReference] = turnedRawAndReference(77);
-            const auto [roughTurned, roughRaw, roughReference] = turnedRawAndReference(255);
+            const auto [smoothTurned, smoothRaw] = turnedAndRaw(smooth);
+            const auto [roughTurned, roughRaw] = turnedAndRaw(rough);
             ASSERT_GT(smoothRaw.mean(1), 0.0f) << "a floor that reflects nothing proves nothing";
             ASSERT_GT(roughRaw.mean(1), 0.0f) << "a floor that reflects nothing proves nothing";
 
             EXPECT_EQ(apart(smoothTurned, smoothRaw), 0u) << "the sharper lobe drops its history";
             EXPECT_GT(apart(roughTurned, roughRaw), 0u) << "the rough lobe keeps its history";
 
-            // Measured 11 and 12% nearer the reference than the raw frame in red and green, and level
-            // in blue: a turn this wide in one frame moves the highlights the history holds, which is
-            // why the rule lets a history go at all.
+            // Measured at 35, 35 and 30% of the raw frame's error against 1 024 frames. **64 frames are
+            // reference enough**: against them each error moves by 0.0007 at most, and in each channel
+            // by under a tenth of the 0.004 to 0.021 between the two.
+            const Shaders::VisibilityConstants after = darkCameraAt(osg::Vec3f(150.0f, -200.0f, 300.0f));
+            const Frame roughReference = shoot(rough.mScene, rough.mTextures, after, sSize, { .mFrames = 64 });
             for (std::size_t channel = 0; channel < 3; ++channel)
                 EXPECT_LE(roughTurned.errorFrom(roughReference, channel), roughRaw.errorFrom(roughReference, channel))
                     << "channel " << channel << ": what the rough lobe kept is no worse than a raw frame";

@@ -19,8 +19,10 @@ function(openmw_add_test name target)
     endif()
     add_test(NAME ${name} COMMAND ${target} ${TEST_ARGS} WORKING_DIRECTORY "$<TARGET_FILE_DIR:${target}>")
     # The target, by name, for whatever builds before it runs: CTest names no command for a test
-    # whose binary is not built yet.
-    set_tests_properties(${name} PROPERTIES LABELS "${TEST_LABELS}" OPENMW_TARGET ${target})
+    # whose binary is not built yet. Each test's times go to a report named after the test rather
+    # than the binary: two shards of one binary would otherwise both pick the same free name.
+    set_tests_properties(${name} PROPERTIES LABELS "${TEST_LABELS}" OPENMW_TARGET ${target}
+        ENVIRONMENT "GTEST_OUTPUT=json:${CMAKE_BINARY_DIR}/test-output/times/${name}.json")
 endfunction()
 
 openmw_add_test(components components-tests)
@@ -36,6 +38,6 @@ openmw_add_test(crash.matrix crash-tests ARGS --matrix "${CMAKE_BINARY_DIR}/test
 foreach (shard RANGE 1)
     openmw_add_test(rtx.gpu.${shard} rtx-gpu-tests LABELS device)
     if (TEST rtx.gpu.${shard})
-        set_tests_properties(rtx.gpu.${shard} PROPERTIES ENVIRONMENT "GTEST_TOTAL_SHARDS=2;GTEST_SHARD_INDEX=${shard}")
+        set_property(TEST rtx.gpu.${shard} APPEND PROPERTY ENVIRONMENT "GTEST_TOTAL_SHARDS=2;GTEST_SHARD_INDEX=${shard}")
     endif()
 endforeach()
