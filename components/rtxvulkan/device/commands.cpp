@@ -119,6 +119,7 @@ namespace Rtx
     void CommandPool::releaseRetired(const std::uint64_t finished)
     {
         mRetiring.releaseThrough(finished, [&](const VkCommandBuffer commands) { mSpare.push_back(commands); });
+        mRetiringStaging.releaseThrough(finished, [&](const std::size_t block) { mSpareStaging.push_back(block); });
     }
 
     void CommandPool::discard(VkCommandBuffer commands)
@@ -169,22 +170,18 @@ namespace Rtx
 
     std::size_t CommandPool::takeStaging(const VkDeviceSize bytes)
     {
-        const Timeline& timeline = mDevice.getTimeline();
-        for (std::size_t at = 0; at < mStaging.size(); ++at)
+        const auto fits = std::ranges::find_if(
+            mSpareStaging, [&](const std::size_t block) { return mStaging[block].getSize() >= bytes; });
+        if (fits != mSpareStaging.end())
         {
-            StagingBlock& block = mStaging[at];
-            if (block.mTaken || !timeline.hasFinished(block.mReadUntil) || block.mBuffer.getSize() < bytes)
-                continue;
-
-            block.mTaken = true;
-            return at;
+            const std::size_t block = *fits;
+            *fits = mSpareStaging.back();
+            mSpareStaging.pop_back();
+            return block;
         }
 
-        mStaging.push_back(StagingBlock{
-            .mBuffer = Buffer::staging(
-                mDevice, std::max(bytes, sStagingBlock), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "staging block"),
-            .mTaken = true,
-        });
+        mStaging.push_back(Buffer::staging(
+            mDevice, std::max(bytes, sStagingBlock), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "staging block"));
         return mStaging.size() - 1;
     }
 
@@ -209,12 +206,9 @@ namespace Rtx
         mFreeHolds.push_back(hold);
     }
 
-    void CommandPool::giveStaging(const std::size_t block, const std::uint64_t readUntil)
+    void CommandPool::giveStaging(std::size_t block, const std::uint64_t readUntil)
     {
-        assert(mStaging[block].mTaken && "a staging block given back twice");
-
-        mStaging[block].mReadUntil = readUntil;
-        mStaging[block].mTaken = false;
+        mRetiringStaging.hold(readUntil, std::move(block));
     }
 
     void CommandPool::begin(VkCommandBuffer commands)
