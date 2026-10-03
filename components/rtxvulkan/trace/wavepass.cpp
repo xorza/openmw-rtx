@@ -168,30 +168,28 @@ namespace Rtx
 
         // Three packed fields, each transformed along its rows and then along its columns — which is
         // the same shader with its two strides swapped, because a separable transform is the
-        // one-dimensional one run twice.
+        // one-dimensional one run twice. The three fields are a dispatch's second dimension.
         bind(commands, mLinePipeline);
-        for (std::uint32_t pair = 0; pair < 3; ++pair)
-            for (int pass = 0; pass < 2; ++pass)
+        for (int pass = 0; pass < 2; ++pass)
+        {
+            for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
             {
-                for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
-                {
-                    const std::uint32_t count = gridOf(index);
+                const std::uint32_t count = gridOf(index);
 
-                    DescriptorWrites writes(mLinePipeline);
-                    writes.buffer(Shaders::WAVE_LINE_BIND_FIELD, mTiles[index].mField.describe());
-                    pushDescriptors(commands, mLinePipeline, writes);
+                DescriptorWrites writes(mLinePipeline);
+                writes.buffer(Shaders::WAVE_LINE_BIND_FIELD, mTiles[index].mField.describe());
+                pushDescriptors(commands, mLinePipeline, writes);
 
-                    const Shaders::WaveConstants along{
-                        .mCount = count,
-                        .mStride = pass == 0 ? 1u : count,
-                        .mJump = pass == 0 ? count : 1u,
-                        .mOffset = pair * count * count,
-                    };
-                    mLinePipeline.push(commands, along);
-                    vkCmdDispatch(commands, count, 1, 1);
-                }
-                handOver(commands);
+                const Shaders::WaveConstants along{
+                    .mCount = count,
+                    .mStride = pass == 0 ? 1u : count,
+                    .mJump = pass == 0 ? count : 1u,
+                };
+                mLinePipeline.push(commands, along);
+                vkCmdDispatch(commands, count, 3, 1);
             }
+            handOver(commands);
+        }
 
         for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
         {

@@ -8,6 +8,11 @@
 // along the columns of the same buffer. So this is one shader dispatched twice with its two strides
 // swapped, and a workgroup is one line.
 //
+// **The three packed fields in one dispatch**, a field a row of workgroups: nothing orders one
+// field's transform against another's, so the rows of all three are one dispatch and one barrier,
+// and so are the columns. A dispatch and a barrier a field were four queue drains a frame that
+// ordered nothing.
+//
 // **Cooley-Tukey with the permutation done on the way in.** Stockham avoids the bit reversal by
 // carrying an extra buffer through every stage; reversing an index is one instruction here, and the
 // load is going to shared memory anyway. Nine stages at the largest grid, each a barrier apart.
@@ -41,8 +46,9 @@ void main()
     const uint count = frame.mCount;
     const uint stages = findMSB(count);
 
-    // Where this line starts, which for a row is a row's worth along and for a column is one across.
-    const uint start = frame.mOffset + gl_WorkGroupID.x * frame.mJump;
+    // Where this line starts: its field's grid, and in it a row's worth along for a row and one across
+    // for a column.
+    const uint start = gl_WorkGroupID.y * count * count + gl_WorkGroupID.x * frame.mJump;
 
     // **Reversed on the way in**, which is what puts a decimation-in-time transform in order coming
     // out. `bitfieldReverse` turns the whole word, so the address is the top `stages` bits of it.

@@ -140,20 +140,19 @@ namespace Rtx
                 bind(commands, line);
                 pushDescriptors(commands, line, lines);
 
-                for (std::uint32_t pair = 0; pair < 3; ++pair)
-                    for (int pass = 0; pass < 2; ++pass)
-                    {
-                        const Shaders::WaveConstants along{
-                            .mCount = sCount,
-                            .mStride = pass == 0 ? 1u : sCount,
-                            .mJump = pass == 0 ? sCount : 1u,
-                            .mOffset = pair * static_cast<std::uint32_t>(sCells),
-                        };
+                // The three fields a dispatch, as `WavePass` records them: rows, then columns.
+                for (int pass = 0; pass < 2; ++pass)
+                {
+                    const Shaders::WaveConstants along{
+                        .mCount = sCount,
+                        .mStride = pass == 0 ? 1u : sCount,
+                        .mJump = pass == 0 ? sCount : 1u,
+                    };
 
-                        line.push(commands, along);
-                        vkCmdDispatch(commands, sCount, 1, 1);
-                        Testing::orderStorageWrites(commands);
-                    }
+                    line.push(commands, along);
+                    vkCmdDispatch(commands, sCount, 3, 1);
+                    Testing::orderStorageWrites(commands);
+                }
 
                 DescriptorWrites composes(composing);
                 composes.buffer(0, whole[2]);
