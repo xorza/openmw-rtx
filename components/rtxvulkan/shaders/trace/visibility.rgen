@@ -449,6 +449,7 @@ void main()
     // Filtering the bounce with the transmittance already in it averages a quantity that varies as
     // slowly as fog does, which is to say it changes nothing.
     const vec3 bounce = answer.mBounced * transmittance;
+    const vec3 filled = answer.mFilled * transmittance;
 
     // **The shadowed sources ride the same path as the bounce**, and the light they would add is
     // taken down by what the path took, as the bounce is. Their bit is the one a shadow denoiser
@@ -471,7 +472,8 @@ void main()
     // shader measured against the surface. Each by its share of the whole pixel as the trace composed
     // it, the layers in front of the water taking theirs off it.
     const vec3 pixelLight
-        = composedLight(shaded, answer.mResponse.mDiffuse, bounce, unshadowed, open, lobe, paneModulation, paneLight);
+        = composedLight(shaded, answer.mResponse.mDiffuse, bounce, answer.mResponse.mAmbient, filled, unshadowed, open,
+            lobe, paneModulation, paneLight);
     const float pixelLit = max(dot(pixelLight, LUMINANCE_WEIGHTS), 1e-6);
     const vec3 paneOwn = armsStack.mGlow + armsStack.mThrough * panes.mGlow + paneDrawn;
     const float paneApart = motionsApart(nearest.mMotion.xy, answer.mMotion.xy);
@@ -488,9 +490,11 @@ void main()
     const vec3 light = frame.mComposed != 0u ? pixelLight : shaded;
     RTX_STORE_COUNTED(direct, at, BOUNDARY_COLOUR, vec4(light, 1.0))
     RTX_STORE_COUNTED(indirect, at, BOUNDARY_COLOUR, vec4(bounce, 1.0))
+    RTX_STORE_COUNTED(fill, at, BOUNDARY_COLOUR, vec4(filled, 1.0))
     RTX_STORE_COUNTED(shadowed, at, BOUNDARY_COLOUR, vec4(unshadowed, open))
     RTX_STORE_COUNTED(specular, at, BOUNDARY_COLOUR, vec4(lobe, answer.mRoughness))
     RTX_STORE_COUNTED(albedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mDiffuse, 1.0))
+    RTX_STORE_COUNTED(ambientAlbedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mAmbient, 1.0))
     RTX_STORE_COUNTED(pane, at, BOUNDARY_COLOUR, vec4(paneLight, 1.0))
     RTX_STORE_COUNTED(paneAlbedo, at, BOUNDARY_GUIDE, vec4(paneModulation, 1.0))
     RTX_STORE_COUNTED(paneSurface, at, BOUNDARY_GUIDE, vec4(nearest.mNormal, nearest.mDistance, 0.0, 0.0))

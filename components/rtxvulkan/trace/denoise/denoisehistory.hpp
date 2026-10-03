@@ -92,6 +92,13 @@ namespace Rtx
             /// The cascade's other half of the ping-pong.
             const Image& mScratch;
 
+            /// The share of the bounce that is the fill, through the same four: last frame's mean,
+            /// the mean the first level writes, the blend and the scratch.
+            const Image& mFillBefore;
+            const Image& mFill;
+            const Image& mFillBlended;
+            const Image& mFillScratch;
+
             bool mFresh;
         };
 
@@ -157,6 +164,9 @@ namespace Rtx
         ImagePair mMoments;
         Image mBlended;
         Image mScratch;
+        ImagePair mFill;
+        Image mFillBlended;
+        Image mFillScratch;
 
         ImagePair mShadowMoments;
         Image mShadowHistory;
