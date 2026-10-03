@@ -100,9 +100,8 @@ namespace Rtx
                     .mExtent = extent,
                     .mSampled = sampled,
                     .mTarget = mTarget,
+                    .mLeftAs = Use::sCopyRead,
                 });
-
-            mTarget.transition(commands, Use::sComputeWrite, Use::sCopyRead);
 
             // Borrowed rather than transitioned. Where a GUI texture rests between writes is
             // `GuiTextures`' to say, and a caller that said it here had to keep a barrier's scope in

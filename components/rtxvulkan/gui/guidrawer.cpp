@@ -6,10 +6,12 @@
 
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/graphicspipeline.hpp>
+#include <components/rtxvulkan/present/presenttarget.hpp>
 
 namespace Rtx
 {
@@ -77,10 +79,14 @@ namespace Rtx
 
         const VkCommandBuffer commands = slot.mCommands;
         mDevice.getPool().begin(commands);
-        picture.transition(commands, Use::sAnyGeneralWrite, Use::sFragmentGeneralSample);
+        picture.transition(commands, PresentTarget::sResting, Use::sFragmentGeneralSample);
         shown.transition(commands, Use::sUndefined, Use::sColourAttachment);
         mPass.record(commands, shown, slot.mVertices.get(), mDraws);
-        shown.transition(commands, Use::sColourAttachment, Use::sAnyGeneralRead);
+
+        Barriers rested(commands);
+        picture.addTransition(rested, Use::sFragmentGeneralSample, PresentTarget::sResting);
+        shown.addTransition(rested, Use::sColourAttachment, PresentTarget::sResting);
+        rested.flush();
         mDevice.getPool().submit(commands);
 
         ++mDrawn;

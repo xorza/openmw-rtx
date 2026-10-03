@@ -103,6 +103,10 @@ namespace Rtx
         /// the curve rewrites it whole.
         Image& mTarget;
 
+        /// What `mTarget` is left as, for whoever uses it next: where the owner's image rests
+        /// between its users (`PresentTarget::sResting`), or a copy's read.
+        const ImageUse& mLeftAs;
+
         /// Nothing for a picture inside the interface, which is a diagram: measured off nothing,
         /// mapped with no glare, spread by no lens, and not timed.
         std::optional<FrameLook> mFrame{};
@@ -136,8 +140,8 @@ namespace Rtx
         /// that measures. `FramePast::mEyeLost`, and the one route by which the eye hears it.
         void loseEye() { mExposureStale = mGlareStale = true; }
 
-        /// Records everything from the puffs to the target, and leaves `what.mTarget` in
-        /// `Use::sComputeWrite`, where the curve left it.
+        /// Records everything from the puffs to the target, and leaves `what.mTarget` as
+        /// `what.mLeftAs`.
         void record(VkCommandBuffer commands, const Display& what);
 
     private:
