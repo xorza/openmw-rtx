@@ -392,6 +392,13 @@ for these formats.
    whole blocks, and the solid reach comes from the alpha of the first level (BC7 modes 4–7; BC6H
    has no alpha).
 
+**Outcome: not built.** No BC6H or BC7 file reaches either renderer. OSG 3.6.5's DDS reader, and
+OpenMW's fork of it at the pinned commit (`extern/CMakeLists.txt`), refuse every DX10 format but BC4
+and BC5: "unhandled DX10 pixel format 0x62 in dds file, image not loaded". The image is null before
+`readFormat` is asked, in the game as in the rasterizer. BC4 loads, through `ATI1` and the fork's
+DX10 path, but no map the trace reads has one channel. What the issue still holds is narrower, and
+`ISSUES.md` now says it.
+
 **Tests.**
 - The decoder against the device, the tree's rule for a second implementation: upload a BC7 texture
   with every mode and partition, sample each texel in a compute probe, and compare with the host's
