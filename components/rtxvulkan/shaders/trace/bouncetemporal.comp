@@ -16,6 +16,9 @@
 // candidate is a question about last frame's geometry, which no structure here keeps; this frame's
 // would answer it approximately, and for a still eye the two points are one. The resolve's final
 // ray is what stops a sample hidden now.
+//
+// **Then the boiling filter**: a sample a history carried, worth far more than its workgroup's
+// mean, is let go (`BOUNCE_BOILING_LIMIT`).
 
 #include "bouncereuse.h"
 #include "gbuffer.h"
@@ -75,25 +78,16 @@ Held heldBefore(uvec2 pixel, BounceOrigin origin)
     return held;
 }
 
-void main()
+/// Last frame's reservoir merged into this pixel's candidate, or the candidate alone where last
+/// frame left nothing here to merge.
+BounceReservoir mergedWithHistory(uvec2 pixel, BounceOrigin origin, BounceReservoir candidate)
 {
-    const uvec2 pixel = gl_GlobalInvocationID.xy;
-    if (outsideOf(pixel, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
-        return;
-
-    const uint at = pixel.y * frame.mBounceStride + pixel.x;
-    const BounceOrigin origin = unpackOrigin(bounceOrigins[at]);
-    if (!origin.mKept || frame.mBounceHistory == 0u)
-        return;
-
     const Held held = heldBefore(pixel, origin);
     BounceReservoir before = held.mReservoir;
     before.mConfidence = min(before.mConfidence, BOUNCE_CONFIDENCE_CAP);
     ++before.mAge;
     if (!holdsBounce(before) || before.mAge > BOUNCE_AGE_CAP)
-        return;
-
-    const BounceReservoir candidate = unpackBounce(bounceReservoirs[at]);
+        return candidate;
 
     // The candidate at this point, and at last frame's: shifted there and back, `p̂←j`.
     const BounceReach candidateHere = reachOf(candidate.mSample, origin.mOffset, origin.mOffset);
@@ -129,5 +123,55 @@ void main()
     offer(merge, shifted, beforeMis * beforeTarget * before.mWeight * jacobian, beforeTarget, before.mConfidence,
         before.mAge, randomNext(draws));
 
-    bounceReservoirs[at] = packBounce(finishMerge(merge));
+    return finishMerge(merge);
+}
+
+const uint sGroupSize = BOUNCE_TEMPORAL_WORKGROUP * BOUNCE_TEMPORAL_WORKGROUP;
+shared float sWorth[sGroupSize];
+shared uint sHolding[sGroupSize];
+
+/// The mean of what the group's reservoirs that hold something are worth, the same at every thread.
+///
+/// **A tree in shared memory, in a fixed order, and not `subgroupAdd`**, whose order is the
+/// driver's: the sum is the build's arithmetic, as every other float the frame keeps is.
+float groupMeanWorth(float worth)
+{
+    const uint lane = gl_LocalInvocationIndex;
+    sWorth[lane] = worth;
+    sHolding[lane] = worth > 0.0 ? 1u : 0u;
+    barrier();
+    for (uint span = sGroupSize / 2u; span > 0u; span /= 2u)
+    {
+        if (lane < span)
+        {
+            sWorth[lane] += sWorth[lane + span];
+            sHolding[lane] += sHolding[lane + span];
+        }
+        barrier();
+    }
+    return sWorth[0] / float(max(sHolding[0], 1u));
+}
+
+void main()
+{
+    // **No thread leaves before the group's mean is taken**: a thread outside the frame or with no
+    // reservoir stands for nothing in it, and the barriers wait for every thread.
+    const uvec2 pixel = gl_GlobalInvocationID.xy;
+    const bool inside = !outsideOf(pixel, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight));
+    const uint at = inside ? pixel.y * frame.mBounceStride + pixel.x : 0u;
+    const BounceOrigin origin = inside ? unpackOrigin(bounceOrigins[at]) : noOrigin();
+
+    const BounceReservoir candidate = origin.mKept ? unpackBounce(bounceReservoirs[at]) : noBounce();
+    const bool merges = origin.mKept && frame.mBounceHistory != 0u;
+    const BounceReservoir kept = merges ? mergedWithHistory(pixel, origin, candidate) : candidate;
+
+    // What the pixel's estimate is worth, `p̂ W`: the bounce's luminance it shows. RTXDI weighs the
+    // light alone, without the surface's share of it; the estimate is what a blotch is made of.
+    const float worth = holdsBounce(kept)
+        ? bounceTarget(origin, kept.mSample, reachOf(kept.mSample, origin.mOffset, origin.mOffset)) * kept.mWeight
+        : 0.0;
+    const bool boils = worth > groupMeanWorth(worth) * BOUNCE_BOILING_LIMIT && kept.mAge > 0u;
+
+    if (merges || boils)
+        bounceReservoirs[at] = packBounce(boils ? noBounce() : kept);
 }

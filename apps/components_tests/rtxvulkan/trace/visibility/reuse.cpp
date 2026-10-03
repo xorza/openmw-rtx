@@ -17,6 +17,7 @@
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/shaders/bouncereuse.h>
 #include <components/rtx/shaders/visibility.h>
 
 namespace Rtx::Testing
@@ -168,11 +169,10 @@ namespace Rtx::Testing
         /// being what makes it one, so the run averages to what the plain bounce converges to; and a
         /// frame stands nearer it the more each pixel reuses, its own past and then its neighbours'.
         ///
-        /// The truth is 512 plain frames averaged. Each run is 96 frames from a cut, of which the
-        /// last 64 are read, so every reservoir has filled to its cap. **The mean is held to two per
-        /// cent**: the plain bounce's own run of 64 stands within a few parts in a thousand of the
-        /// truth over these thousand pixels, and the reuse's frames are correlated, which widens what
-        /// their mean wanders by. **The error of one frame falls by a fifth at least** with the
+        /// The truth is 256 plain frames averaged, over a corner 128 pixels square. Each run is 64
+        /// frames from a cut, of which the last 40 are read, so every reservoir has filled to its
+        /// cap. **The mean is held to two per cent**: the reuse's frames are correlated, which widens
+        /// what their mean wanders by. **The error of one frame falls by a fifth at least** with the
         /// temporal half and further with the spatial one, which is what the reuse is for.
         TEST_F(RtxBounceReuseTest, theReuseKeepsTheMeanAndTakesNoiseOffEachFrame)
         {
@@ -351,6 +351,64 @@ namespace Rtx::Testing
             EXPECT_LT(errors[1], 0.67f * errors[0])
                 << "the walk lost the temporal half's history: " << errors[1] << " against " << errors[0];
             EXPECT_LT(errors[2], errors[1]) << "the neighbours took nothing off a walking frame";
+        }
+
+        /// **The temporal reuse carries no firefly.** A lamp two units off the wall lights a spot of
+        /// it hundreds of times brighter than the rest of the corner, which a dim sky lights, so a
+        /// bounce that finds the spot is a rare and very bright candidate. Merged into the next
+        /// frame, a candidate like it keeps most of its weight for many frames; the boiling filter
+        /// lets a carried sample go past `BOUNCE_BOILING_LIMIT` times its workgroup's mean.
+        ///
+        /// Counted over a run, the pixels that stand past that multiple of the run's mean: the
+        /// plain bounce drew 24, and the temporal reuse showed 37 without the filter and 18 with it.
+        /// **Held at no more than the plain bounce draws**, and the run's mean within 2% of its own.
+        TEST_F(RtxBounceReuseTest, theTemporalReuseCarriesNoFirefly)
+        {
+            constexpr std::uint32_t size = 64;
+            Shaders::VisibilityConstants camera = cornerCamera(size);
+            camera.mSun.mIrradiance = osg::Vec3f();
+            camera.mSkyHorizon = osg::Vec3f(0.02f, 0.02f, 0.02f);
+            camera.mSkyZenith = osg::Vec3f(0.02f, 0.02f, 0.02f);
+
+            struct Run
+            {
+                double mMean = 0.0;
+                std::size_t mBright = 0;
+            };
+            const auto runOf = [&](BounceReuse reuse) {
+                SceneDesc scene = makeCorner();
+                scene.addLight(Light{
+                    .mPosition = osg::Vec3f(0.0f, 298.0f, 0.0f),
+                    .mIntensity = osg::Vec3f(400.0f, 400.0f, 400.0f),
+                    .mReach = 1000.0f,
+                });
+                std::vector<float> read;
+                std::vector<float> green;
+                shoot(scene, {}, camera, size,
+                    Shot{ .mFrames = 64,
+                        .mAverage = false,
+                        .mFirstFrame = 100,
+                        .mBounceReuse = reuse,
+                        .mLoss = HistoryLoss::Cut,
+                        .mEachFrame = [&](const Frame&) {
+                            mRenderer.readChannel(Channel::Indirect, read);
+                            for (std::size_t pixel = 0; pixel < read.size() / 4; ++pixel)
+                                green.push_back(read[pixel * 4 + 1]);
+                        } });
+
+                Run run;
+                for (const float value : green)
+                    run.mMean += double(value) / double(green.size());
+                for (const float value : green)
+                    run.mBright += double(value) > run.mMean * double(Shaders::BOUNCE_BOILING_LIMIT) ? 1 : 0;
+                return run;
+            };
+
+            const Run plain = runOf(BounceReuse::Off);
+            const Run reused = runOf(BounceReuse::Temporal);
+            ASSERT_GT(plain.mBright, 0u) << "the spot is no firefly";
+            EXPECT_LE(reused.mBright, plain.mBright) << "the reuse carried a firefly";
+            EXPECT_NEAR(reused.mMean / plain.mMean, 1.0, 0.02);
         }
     }
 }
