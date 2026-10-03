@@ -47,6 +47,7 @@ set(RTX_TEST_FILES
     rtx/mirror/extractor/lights.cpp
     rtx/mirror/extractor/materials.cpp
     rtx/mirror/extractor/particles.cpp
+    rtx/mirror/extractor/frozen.cpp
     rtx/mirror/extractor/retire.cpp
     rtx/mirror/extractor/skinning.cpp
     rtx/mirror/extractor/stats.cpp
