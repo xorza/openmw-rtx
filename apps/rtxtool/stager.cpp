@@ -14,6 +14,7 @@
 #include <apps/openmw/mwbase/windowmanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/magiceffects.hpp>
 #include <apps/openmw/mwmechanics/npcstats.hpp>
 #include <apps/openmw/mwmechanics/stat.hpp>
 #include <apps/openmw/mwrender/renderingmanager.hpp>
@@ -32,6 +33,7 @@
 #include <components/esm/position.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadglob.hpp>
+#include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/esm3/loadskil.hpp>
 #include <components/misc/rng.hpp>
@@ -144,6 +146,13 @@ namespace RtxTool
         // one. `tgm` is the same call, so a run stands where a player who typed it would.
         if (!world.getGodModeState())
             world.toggleGodMode();
+
+        // **The effect's base, as `ModNightEye` sets it**, which no spell's expiry takes away:
+        // `Player::update` turns the magnitude into the renderer's factor on every frame.
+        const MWWorld::Ptr player = world.getPlayerPtr();
+        MWMechanics::MagicEffects& effects = player.getClass().getCreatureStats(player).getMagicEffects();
+        const MWMechanics::EffectKey nightEye(ESM::MagicEffect::NightEye);
+        effects.modifyBase(nightEye, request.mNightEye - effects.getOrDefault(nightEye).getBase());
 
         MWBase::Environment::get().getWindowManager()->setHudVisibility(request.mHud);
 

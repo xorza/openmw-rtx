@@ -408,13 +408,6 @@ namespace Rtx
             EXPECT_EQ(unlit.mLight.mAmbient, decodeColour(0x000F0F0Fu));
             EXPECT_LT(unlit.mLight.mAmbient.x(), room.mLight.mAmbient.x()) << "and the sunlight is worth something";
 
-            // **Night-Eye is added where the game adds it**: to the file's own numbers, before the
-            // decode, and to the ambient alone. `15 / 255 + 0.35 = 0.40882`, and
-            // `((0.40882 + 0.055) / 1.055)^2.4 = 0.13914`, with the red channel's own share of the
-            // sunlight on top.
-            const Daylight seen = makeRoomLight(chamber, osg::Vec3f(0.35f, 0.35f, 0.35f));
-            EXPECT_NEAR(seen.mLight.mAmbient.x(), 0.13914f + 0.0019323f, 2e-4f);
-
             // **A cell that wrote no record is a black room**, in the game and here: its `mAmbi` is
             // the zeros the loader left, and both hosts hand those over rather than checking
             // `mHasAmbi` first.

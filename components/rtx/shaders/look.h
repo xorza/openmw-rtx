@@ -463,7 +463,7 @@ namespace Rtx::Shaders
     /// one.
     ///
     /// **The bounce is the one ray whose hit is shaded**, so what a skipped lane drops is the
-    /// traversal and the whole of `shadeSurface` behind it: the lamp walk, the sun ray and the
+    /// traversal and the whole of `lightAtPathEnd` behind it: the lamp walk, the sun ray and the
     /// ambient ray. Half of them saved four to six per cent of the frame — release, three
     /// alternated rounds, the `trace` zone: 1.97–2.05 ms to 1.77–1.82 at the ship and 1.45–1.47 to
     /// 1.20–1.23 in the guild; at 4K performance 4.33–4.36 to 3.83–3.84 and 3.38–3.41 to 2.76.

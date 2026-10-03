@@ -398,7 +398,7 @@ namespace Rtx::Testing
             const osg::Vec3f middle(0.0f, -0.5f * distance, 0.0f);
             const float delivered = lampDelivered((lamp - middle).length(), reach);
 
-            const auto look = [&](bool lit, bool shaded = false) {
+            const auto look = [&](bool lit, bool shaded = false, std::uint32_t lampClass = Shaders::MASK_EVERY_CLASS) {
                 SceneDesc scene = makeWall();
 
                 // A lid between the ray and the lamp, high enough to be nowhere near what the eye
@@ -413,11 +413,14 @@ namespace Rtx::Testing
                         // which is what lets the expectation below be written without it.
                         .mIntensity = osg::Vec3f(1.0f, 1.0f, 1.0f) / delivered,
                         .mReach = reach,
+                        .mTraits = Shaders::lightTraits(false, lampClass),
                     });
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -distance, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
                 litThroughFog(camera, extinction);
+                // The statics alone, which the wall is: the classes a lamp may hang under besides.
+                camera.mRayMask = Shaders::MASK_STATIC;
 
                 // Black air, so the lamp is the only thing in the frame the fog scatters and the
                 // expectation below needs no term for the haze `litThroughFog` would otherwise put
@@ -442,6 +445,12 @@ namespace Rtx::Testing
             // buys: every lamp at every step is weighed into one reservoir and the one held is
             // traced to, so a lantern behind something stops lighting the air in front of it.
             EXPECT_EQ(look(true, true), look(false)) << "a lamp behind a lid still lit the air";
+
+            // **And nothing from a lamp whose class the view hides**, as the surfaces' walk drops it:
+            // an actor's lamp under a view of the statics.
+            EXPECT_EQ(look(true, false, Shaders::MASK_ACTOR), look(false)) << "a hidden lamp lit the air";
+            EXPECT_NEAR(look(true, false, Shaders::MASK_STATIC), int{ encodeSrgb(0.5f * wall + scattered) }, 1)
+                << "a shown lamp left the air";
         }
 
         /// Where the volume's own air stands, how thick it is, and what lights it.

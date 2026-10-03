@@ -12,11 +12,12 @@ namespace Rtx
                 return FormatInfo{ 1, TexelDecode::Unorm8 };
             case VK_FORMAT_R8G8_UNORM:
                 return FormatInfo{ 2, TexelDecode::Unorm8 };
+            case VK_FORMAT_R8G8B8A8_UNORM:
+                return FormatInfo{ 4, TexelDecode::Unorm8 };
             case VK_FORMAT_R16_UNORM:
                 return FormatInfo{ 2, TexelDecode::Bytes };
             case VK_FORMAT_R16_SFLOAT:
                 return FormatInfo{ 2, TexelDecode::Half };
-            case VK_FORMAT_R8G8B8A8_UNORM:
             case VK_FORMAT_R8G8B8A8_SRGB:
             case VK_FORMAT_B8G8R8A8_UNORM:
             case VK_FORMAT_B8G8R8A8_SRGB:

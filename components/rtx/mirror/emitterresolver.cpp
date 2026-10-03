@@ -248,7 +248,7 @@ namespace Rtx
             // A blend that adds whole reads no alpha at all, so its sprite is all there whatever
             // its ramps say — one file in the game — and what it adds is its texture's colour,
             // with the texture's alpha unread too (`EMITTER_ADD_WHOLE`).
-            const bool tinted = held.mVertexColour == VertexColour::Tint;
+            const bool tinted = held.mVertexColour == VertexColour::Tint || held.mVertexColour == VertexColour::Diffuse;
             const osg::Vec4f vertex = particle.getCurrentColor();
             const osg::Vec3f colour = tinted ? decodeColour(vertex) : held.mDiffuseColour;
             // The material's own opacity under a tint as well: the vertex replaces its diffuse,

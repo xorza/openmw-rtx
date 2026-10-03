@@ -13,6 +13,7 @@
 #include <apps/rtxtool/instruments/cardwatch.hpp>
 #include <apps/rtxtool/instruments/frametimes.hpp>
 #include <apps/rtxtool/instruments/gpuclock.hpp>
+#include <apps/rtxtool/instruments/threadcounters.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -168,6 +169,10 @@ namespace RtxTool
         /// through carries that process's frames in every row above, and this is the line that
         /// says so.
         CardShare mCard;
+
+        /// What the processor counted of the frame thread through the place's measured frames: the
+        /// state the host rows above ran in.
+        ThreadCounts mThread;
 
         /// What fraction of primary rays hit something, as a percentage. A place profiled facing a
         /// wall is fast and means nothing, and this is what says so without opening a window.

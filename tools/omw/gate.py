@@ -6,7 +6,7 @@ at the first failure — so a formatting slip is found in seconds and not after 
 
 import unittest
 
-from omw import formatting, listing, testing
+from omw import formatting, listing, spellings, testing
 from omw.build import Build
 from omw.repeat import repeat
 from omw.system import ROOT, Refusal
@@ -24,6 +24,8 @@ def gate(build: Build, args: list[str]) -> int:
         raise Refusal("gate takes no arguments")
     if formatting.format_tree(["--check"]) != 0:
         return 1
+    if spellings.check() != 0:
+        return 1
     if not self_test():
         return 1
 
@@ -33,12 +35,16 @@ def gate(build: Build, args: list[str]) -> int:
         return 1
 
     # The release build too: without its asserts, the optimizer proves paths the debug build never
-    # shows a warning on, such as a lookup that can now reach a null.
+    # shows a warning on, such as a lookup that can now reach a null. **Every program the preset
+    # configures**, as CI's `full` builds every program the tree has: a tool only CI linked, such as
+    # `openmw-rtx-spirv-digest`, was a link error the gate passed and every CI platform failed.
     release = Build("release")
-    release.build(release.default_targets)
+    release.build(["all"])
 
     if targets:
         if testing.test(build, []) != 0:
+            return 1
+        if testing.timing(build) != 0:
             return 1
     else:
         print(f"tests: the {build.flavour} build has none — `omw debug gate` runs them")

@@ -10,6 +10,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 
 #include <base/files/file_path.h>
 #include <client/crashpad_client.h>
@@ -107,6 +108,16 @@ namespace Crash
         {
             sPage = SharedPage();
             return Misc::Err{ "the system would not say which file this process runs" };
+        }
+
+        // **The whole path, made here**: the monitor makes the last folder of it and no parent, and
+        // on a fresh box the game starts before anything made the user data folder above it.
+        std::error_code unmade;
+        std::filesystem::create_directories(settings.mReportFolder, unmade);
+        if (unmade)
+        {
+            sPage = SharedPage();
+            return Misc::Err{ "its report folder could not be made" };
         }
 
         if (!sClient.StartHandler(base::FilePath(self->native()), base::FilePath(settings.mReportFolder.native()),

@@ -7,6 +7,7 @@
 #include <exception>
 #include <string_view>
 
+#include <client/crashpad_client.h>
 #include <client/simulate_crash.h>
 
 #include <components/misc/windows.hpp>
@@ -24,6 +25,17 @@ namespace Crash::Client
             finalReport(ReportKind::Crash, reason);
             CRASHPAD_SIMULATE_CRASH();
             std::_Exit(3);
+        }
+
+        /// **A fault waits out a report another thread is writing**, as the POSIX half's does, and for
+        /// a worse reason here: the fault's dump ends the process, and took the report another
+        /// thread had begun with it, which then left no dump at all. Bounded at two seconds, for
+        /// the reason the POSIX half gives. Then Crashpad's own filter takes the fault.
+        bool onFault(EXCEPTION_POINTERS*)
+        {
+            for (int waited = 0; takeForFault() == FaultGate::Other && waited < 2000; ++waited)
+                Sleep(1);
+            return false;
         }
 
         // Three ways MSVC's runtime ends a process without an exception the filter sees: `abort`
@@ -91,6 +103,7 @@ namespace Crash::Client
         _set_purecall_handler(onPureCall);
         _set_invalid_parameter_handler(onInvalidParameter);
         std::atomic_ref(page.mHangEntry).store(reinterpret_cast<std::uint64_t>(&hangEntry), std::memory_order_release);
+        crashpad::CrashpadClient::SetFirstChanceExceptionHandler(onFault);
     }
 
     void endAsCrash(std::string_view reason)

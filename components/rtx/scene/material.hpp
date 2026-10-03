@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 #include <osg/Vec3f>
 #include <osg/Vec4f>
@@ -97,6 +98,17 @@ namespace Rtx
         /// What the texture is tinted by, in linear light. Three channels and not the record's
         /// four: the alpha beside it is `mOpacity` and is not a colour.
         osg::Vec3f mDiffuseColour{ 1.0f, 1.0f, 1.0f };
+
+        /// What the texture is tinted by under the fill, in linear light: the record's ambient
+        /// colour, which the rasterizer lights by the cell's ambient as it lights `mDiffuseColour` by
+        /// the lamps and the sun — `texture × (D × lit + A × ambient + E)`. Under it the trace's fill
+        /// and the ambient at a path's end; a bounce of a lamp's light stays the diffuse's. Nothing
+        /// where nothing stated one, as a material made by hand states none: its diffuse stands for
+        /// it, `getAmbientColour`.
+        std::optional<osg::Vec3f> mAmbientColour{};
+
+        /// What the fill is reflected by: the stated ambient colour, or the diffuse where none is.
+        osg::Vec3f getAmbientColour() const { return mAmbientColour.value_or(mDiffuseColour); }
 
         /// How much the surface glows on its own, with the material's own multiplier folded in,
         /// because the game's own shader only ever uses their product.

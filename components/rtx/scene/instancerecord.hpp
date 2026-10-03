@@ -97,6 +97,17 @@ namespace Rtx
         /// `FoldedShape::mPocketed`.
         bool mTwoSided = false;
 
+        /// Whether traversal shows the face its winding calls the back: `MeshInstance::mClockwise`
+        /// unless the placement mirrors, which turns it round again.
+        ///
+        /// **The rasterizer reads the winding on the screen and traversal in the mesh's own space**,
+        /// so a placement of a negative determinant turns the rasterizer's front round and leaves
+        /// traversal's alone. One rule covers both: flipped = clockwise XOR mirrored. A rigid left
+        /// body part, built mirrored and stated clockwise by `SceneUtil::attach`, shows its mesh's
+        /// face unflipped; a skinned one, whose mirror is in the skin and not in the placement, and
+        /// a content file's own clockwise front are both flipped.
+        bool mFlipFacing = false;
+
         /// Whether the slot this record sits in holds a placement. Records are addressed by slot
         /// and slots have gaps, because a slot index is what a hit reads back.
         bool mPlaced = false;

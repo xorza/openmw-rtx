@@ -127,10 +127,8 @@ namespace MWRender
 
         // A room's light out of the record the cell wrote and not the rasterizer's reading of it,
         // which lifts the ambient for its own falloff and points a directional light.
-        const std::optional<Rtx::Daylight> room = world.mRoom.has_value()
-            ? std::optional(Rtx::makeRoomLight(
-                *world.mRoom, osg::Vec3f(world.mNightEye.x(), world.mNightEye.y(), world.mNightEye.z())))
-            : std::nullopt;
+        const std::optional<Rtx::Daylight> room
+            = world.mRoom.has_value() ? std::optional(Rtx::makeRoomLight(*world.mRoom)) : std::nullopt;
 
         // The horizon is the fog and the zenith is the sky's own, which is the pair Morrowind
         // records. Decoded here, because the world does not know what a transport is.
@@ -157,7 +155,7 @@ namespace MWRender
             .mSunShare = Rtx::sunShareAt(world.mGameHour, sky.mTimes),
             .mSunShareAloft = Rtx::sunShareAloft(world.mGameHour, sky.mTimes),
             .mSunColour = Rtx::decodeColour(world.mSunColour),
-            .mAmbient = Rtx::decodeColour(world.mAmbientColour),
+            .mAmbient = Rtx::decodeColour(world.mAmbientColour - world.mNightEye),
             .mDiscColour = Rtx::decodeColour(weather.mSunDiscColor),
             .mGlare = weather.mGlareView,
         };
@@ -259,6 +257,10 @@ namespace MWRender
                 .mFader = mGlare,
                 .mFade = skyShown && sky.mSunUp ? sky.mGlareFade * weather.mGlareView * weather.mSunDiscColor.a() : 0.0f,
             },
+
+            // **Out of the world's light, both indoors and out**: the room's fill and the sky's
+            // ambient are read without it, and the display chain lays it over the picture.
+            .mNightEye = osg::Vec3f(world.mNightEye.x(), world.mNightEye.y(), world.mNightEye.z()),
         };
     }
 }

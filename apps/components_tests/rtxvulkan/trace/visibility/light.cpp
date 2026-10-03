@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
@@ -6,6 +7,8 @@
 #include <numbers>
 #include <optional>
 #include <span>
+#include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -653,26 +656,28 @@ namespace Rtx::Testing
 
             // A sky rather than the cell's ambient, for the reason the sun's own test gives: what
             // fills a wall the eye can see is the hemisphere it gathers.
-            const auto render = [&](const std::optional<Light>& light, const osg::Vec3f& sky, bool blocked,
-                                    std::uint32_t noLamps = 0, std::span<const Light> more = {}) {
-                SceneDesc scene = makeWall();
-                if (light.has_value())
-                    scene.addLight(*light);
-                for (const Light& also : more)
-                    scene.addLight(also);
-                if (blocked)
-                    addQuad(scene, occluder);
+            const auto render
+                = [&](const std::optional<Light>& light, const osg::Vec3f& sky, bool blocked, std::uint32_t noLamps = 0,
+                      std::span<const Light> more = {}, std::optional<std::uint32_t> rayMask = std::nullopt) {
+                      SceneDesc scene = makeWall();
+                      if (light.has_value())
+                          scene.addLight(*light);
+                      for (const Light& also : more)
+                          scene.addLight(also);
+                      if (blocked)
+                          addQuad(scene, occluder);
 
-                Shaders::VisibilityConstants camera = base;
-                camera.mNoLamps = noLamps;
-                camera.mSkyHorizon = sky;
-                camera.mSkyZenith = sky;
-                camera.mAmbientFromSky = 1.0f;
+                      Shaders::VisibilityConstants camera = base;
+                      camera.mNoLamps = noLamps;
+                      camera.mRayMask = rayMask.value_or(base.mRayMask);
+                      camera.mSkyHorizon = sky;
+                      camera.mSkyZenith = sky;
+                      camera.mAmbientFromSky = 1.0f;
 
-                const Frame frame = shoot(scene, {}, camera, size);
-                EXPECT_GT(frame.mHits, 0u);
-                return frame.byte(centre);
-            };
+                      const Frame frame = shoot(scene, {}, camera, size);
+                      EXPECT_GT(frame.mHits, 0u);
+                      return frame.byte(centre);
+                  };
 
             const Light lamp{
                 .mPosition = osg::Vec3f(0.0f, -50.0f, 0.0f),
@@ -718,6 +723,27 @@ namespace Rtx::Testing
             // **A picture no lamp lights**, a map tile, which the rasterizer's light manager hands
             // none: the sky's 124 with the lamp there, as without it.
             EXPECT_EQ(render(lamp, sky, false, 1), 124) << "a lamp lit a picture that asked for none";
+
+            // **A lamp lights only a view that shows its class**, as the rasterizer's light manager
+            // collects none from a node its cull does not reach: under a view of the statics alone,
+            // an actor's lamp lights nothing and a static's lights the wall as before. And under one
+            // with the actors too, the actor's lamp is back. The wall is a static.
+            Light carried = lamp;
+            carried.mTraits = Shaders::lightTraits(false, Shaders::MASK_STATIC);
+            const std::uint32_t statics = Shaders::MASK_STATIC;
+            EXPECT_EQ(render(carried, osg::Vec3f(), false, 0, {}, statics), 138) << "a static's lamp went dark";
+            carried.mTraits = Shaders::lightTraits(false, Shaders::MASK_ACTOR);
+            EXPECT_EQ(render(carried, osg::Vec3f(), false, 0, {}, statics), 0) << "a hidden actor's lamp lit the wall";
+            EXPECT_EQ(render(carried, osg::Vec3f(), false, 0, {}, statics | Shaders::MASK_ACTOR), 138)
+                << "a shown actor's lamp went dark";
+
+            // A hidden lamp that takes light away takes none: the static's lamp keeps its 138.
+            Light hiddenTaking = lamp;
+            hiddenTaking.mIntensity = osg::Vec3f(-2000.0f, -2000.0f, -2000.0f);
+            hiddenTaking.mTraits = Shaders::lightTraits(false, Shaders::MASK_ACTOR);
+            carried.mTraits = Shaders::lightTraits(false, Shaders::MASK_STATIC);
+            EXPECT_EQ(render(carried, osg::Vec3f(), false, 0, std::span(&hiddenTaking, 1), statics), 138)
+                << "a hidden lamp took light away";
 
             // **A lamp that takes light away takes its unshadowed share off the lamps' term**, as
             // the rasterizer subtracts a negative light. Half the lamp's intensity, negated, beside
@@ -1710,7 +1736,7 @@ namespace Rtx::Testing
             Light fill = makeLamp();
             fill.mSourceRadius = 200.0f;
             fill.mClearance = 200.0f;
-            fill.mFill = 1;
+            fill.mTraits = Shaders::lightTraits(true, Shaders::MASK_EVERY_CLASS);
             const Shaders::VisibilityConstants camera = lookAtTheWall();
             constexpr float depth = -100.0f;
 
@@ -1760,7 +1786,7 @@ namespace Rtx::Testing
                     .mReach = 1600.0f,
                     .mSourceRadius = 400.0f,
                     .mClearance = 400.0f,
-                    .mFill = fill ? 1u : 0u,
+                    .mTraits = Shaders::lightTraits(fill, Shaders::MASK_EVERY_CLASS),
                 });
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
@@ -1802,7 +1828,7 @@ namespace Rtx::Testing
                     .mReach = 1600.0f,
                     .mSourceRadius = 400.0f,
                     .mClearance = 400.0f,
-                    .mFill = fill ? 1u : 0u,
+                    .mTraits = Shaders::lightTraits(fill, Shaders::MASK_EVERY_CLASS),
                 });
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
@@ -1948,6 +1974,122 @@ namespace Rtx::Testing
             // asked the other question: the underside sees the floor and no sky, so out of doors the
             // floor goes dark where in a room it kept most of its fill.
             EXPECT_LT(floorUnderTheLid(open, 1.0f, 600.0f), 0.1f * clear) << "and the sky does not reach under a lid";
+        }
+
+        /// The fill by the ambient albedo and a lamp's bounce by the diffuse one, as the rasterizer
+        /// lights a fragment `texture × (D × lit + A × ambient)`.
+        ///
+        /// **A floor whose ambient colour is half its diffuse one, beside the floor that states none.**
+        /// Under an even sky with no sun every bounce escapes to the sky, which is the fill out of
+        /// doors; in a room with an ambient and no lamp every bounce ends on a lid, whose `pathEnd` is
+        /// the fill a path ends at. Either way the whole bounce is fill, so the fill channel is the
+        /// indirect channel to the bit; and with nothing direct the picture is the bounce by the
+        /// ambient albedo. The diffuse albedo is a half and the ambient a quarter, so the composite's
+        /// `D S + (A - D) S` is `0.5 S` rounded and then `0.25 S`, each exact in binary: the one
+        /// picture is half the other to the bit.
+        ///
+        /// **Through the cascade too**, which filters the fill by the whole bounce's weights: the two
+        /// inputs are one image, so the two means are one, and the picture is half the other's to the
+        /// bit again.
+        ///
+        /// **A lamp's light off the lid is not fill.** With the room's ambient off and a lamp under
+        /// the lid, the fill is nought and the bounce is not, and the floor's ambient colour moves
+        /// nothing.
+        TEST_F(RtxVisibilityTest, theFillIsReflectedByTheAmbientAlbedoAndALampsBounceByTheDiffuseOne)
+        {
+            constexpr std::uint32_t size = 32;
+            constexpr float lid = 70.0f;
+
+            struct Shaded
+            {
+                Frame mFrame;
+                std::vector<float> mIndirect{};
+                std::vector<float> mFill{};
+                std::vector<float> mAlbedo{};
+                std::vector<float> mAmbientAlbedo{};
+            };
+
+            const auto shade = [&](const Shaders::VisibilityConstants& camera, bool lidded, bool lamp, float ambient,
+                                   bool filter = false) {
+                SceneDesc scene;
+                const Index floor = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f),
+                    .mAmbientColour = osg::Vec3f(ambient, ambient, ambient) });
+                addQuad(scene, sheetAt(4000.0f, 0.0f), floor);
+                if (lidded)
+                    addQuad(scene, sheetAt(4000.0f, lid));
+                if (lamp)
+                    scene.addLight(Light{
+                        .mPosition = osg::Vec3f(0.0f, 0.0f, 0.75f * lid),
+                        .mIntensity = osg::Vec3f(4000.0f, 4000.0f, 4000.0f),
+                        .mReach = 500.0f,
+                    });
+
+                Shaded shaded{ .mFrame = shoot(scene, {}, camera, size, { .mFilter = filter }) };
+                EXPECT_EQ(shaded.mFrame.mHits, size * size);
+                mRenderer.readChannel(Channel::Indirect, shaded.mIndirect);
+                mRenderer.readChannel(Channel::Fill, shaded.mFill);
+                mRenderer.readChannel(Channel::Albedo, shaded.mAlbedo);
+                mRenderer.readChannel(Channel::AmbientAlbedo, shaded.mAmbientAlbedo);
+                return shaded;
+            };
+
+            Shaders::VisibilityConstants sky = Testing::makeCamera(
+                osg::Vec3f(0.0f, -1.0f, 300.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            sky.mSkyHorizon = osg::Vec3f(0.5f, 0.5f, 0.5f);
+            sky.mSkyZenith = osg::Vec3f(0.5f, 0.5f, 0.5f);
+            sky.mSun.mIrradiance = osg::Vec3f();
+            sky.mAmbientFromSky = 1.0f;
+
+            Shaders::VisibilityConstants room = Testing::makeCamera(
+                osg::Vec3f(0.0f, -1.0f, 0.5f * lid), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            room.mSkyHorizon = osg::Vec3f();
+            room.mSkyZenith = osg::Vec3f();
+            room.mSun.mIrradiance = osg::Vec3f();
+            room.mAmbient = osg::Vec3f(0.5f, 0.5f, 0.5f);
+            room.mAmbientFromSky = 0.0f;
+
+            // The brightest colour value of a channel, past its alpha of one.
+            const auto brightest = [](const std::vector<float>& values) {
+                float most = 0.0f;
+                for (std::size_t value = 0; value < values.size(); ++value)
+                    most = value % 4 == 3 ? most : std::max(most, values[value]);
+                return most;
+            };
+
+            const auto expectHalved = [](const Frame& half, const Frame& whole, const std::string& where) {
+                for (std::size_t value = 0; value < whole.mRadiance.size(); value += 4)
+                    for (std::size_t channel = 0; channel < 3; ++channel)
+                        ASSERT_EQ(half.at(value + channel), 0.5f * whole.at(value + channel))
+                            << where << ": value " << value + channel;
+            };
+
+            const std::size_t centre = centreValueOf(size);
+            for (const auto& [camera, lidded, where] :
+                { std::tuple{ sky, false, "under the sky" }, std::tuple{ room, true, "under the lid" } })
+            {
+                const Shaded whole = shade(camera, lidded, false, 0.5f);
+                const Shaded half = shade(camera, lidded, false, 0.25f);
+
+                ASSERT_GT(brightest(whole.mIndirect), 0.0f) << where;
+                EXPECT_EQ(whole.mFill, whole.mIndirect) << where << ": the whole bounce is fill";
+                EXPECT_EQ(half.mFill, whole.mFill) << where << ": and the ambient colour moves no light";
+
+                EXPECT_EQ(half.mAlbedo[centre], 0.5f) << where;
+                EXPECT_EQ(half.mAmbientAlbedo[centre], 0.25f) << where;
+                EXPECT_EQ(whole.mAmbientAlbedo[centre], 0.5f) << where;
+
+                expectHalved(half.mFrame, whole.mFrame, where);
+                expectHalved(shade(camera, lidded, false, 0.25f, true).mFrame,
+                    shade(camera, lidded, false, 0.5f, true).mFrame, std::string(where) + ", filtered");
+            }
+
+            room.mAmbient = osg::Vec3f();
+            const Shaded lit = shade(room, true, true, 0.5f);
+            const Shaded litHalf = shade(room, true, true, 0.25f);
+
+            ASSERT_GT(brightest(lit.mIndirect), 0.0f) << "the lamp lights the lid the bounce finds";
+            EXPECT_EQ(brightest(lit.mFill), 0.0f) << "and a lamp is no fill";
+            EXPECT_EQ(litHalf.mFrame.mRadiance, lit.mFrame.mRadiance) << "so the ambient colour moves nothing";
         }
 
         /// Which side of a surface a light is on is its normal's answer, and a sheet's triangle's.

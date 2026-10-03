@@ -47,6 +47,12 @@ layout(set = SET_PASS, binding = COMPOSITE_BIND_INDIRECT) uniform readonly image
 /// What to put back: the surface's own albedo, and nothing of the path.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_ALBEDO, GBUFFER_ALBEDO) uniform readonly image2D albedo;
 
+/// The share of the bounce that is the fill: the cascade's mean of it where the bounce has one, and
+/// `CHANNEL_FILL` itself where it does not. No format, for the reason `indirect` has none. And what
+/// puts it back in place of `albedo`, `CHANNEL_AMBIENT_ALBEDO`.
+layout(set = SET_PASS, binding = COMPOSITE_BIND_FILL) uniform readonly image2D fill;
+layout(set = SET_PASS, binding = COMPOSITE_BIND_AMBIENT_ALBEDO, GBUFFER_ALBEDO) uniform readonly image2D ambientAlbedo;
+
 /// What the shadowed sources add as though their rays got through, and whether the kept one did —
 /// `CHANNEL_SHADOWED`. No format, as `direct` has none.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_SHADOWED) uniform readonly image2D shadowed;
@@ -84,8 +90,9 @@ void main()
     {
         const vec4 unshadowed = imageLoad(shadowed, at);
         const float seen = frame.mShadowed != 0u ? imageLoad(shadow, at).r : unshadowed.a;
-        resolved = composedLight(resolved, imageLoad(albedo, at).rgb, imageLoad(indirect, at).rgb, unshadowed.rgb, seen,
-            imageLoad(specular, at).rgb, imageLoad(paneAlbedo, at).rgb, imageLoad(pane, at).rgb);
+        resolved = composedLight(resolved, imageLoad(albedo, at).rgb, imageLoad(indirect, at).rgb,
+            imageLoad(ambientAlbedo, at).rgb, imageLoad(fill, at).rgb, unshadowed.rgb, seen, imageLoad(specular, at).rgb,
+            imageLoad(paneAlbedo, at).rgb, imageLoad(pane, at).rgb);
     }
 
     // In linear, which is what everything downstream of here now works in. Summing an encoded frame

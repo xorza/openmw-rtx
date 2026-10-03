@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -111,6 +112,10 @@ namespace Rtx
         /// is then the effect's light, and this glow lights nothing: a lamp made of the picture
         /// beside the lamp the game meant would count the bolt twice.
         bool mLit = false;
+
+        /// The class bits of the placement the effect stands under, which its lamp answers to as a
+        /// lamp hung there would: `Shaders::GpuLight::mTraits` says why.
+        std::uint32_t mClasses = Shaders::MASK_EFFECT;
 
         /// Adds one sheet of the effect: a mesh of `box` wearing `worn`, stood by `place` and shown
         /// at `fade`. Nothing where `worn` does not add.

@@ -304,11 +304,19 @@ vec3 pathEnd(vec3 position, float reaching)
     return frame.mAmbient * (daylightReaching(position) * reaching);
 }
 
-/// What a surface is in the filter's and the composite's terms: its shading normal and its diffuse
-/// albedo, whether or not it has a specular half.
+/// What a surface is in the filter's and the composite's terms: its shading normal and its two
+/// albedos, whether or not it has a specular half.
 SurfaceResponse responseOf(Surface surface)
 {
-    return SurfaceResponse(packSurfaceNormal(surface.mNormal), surface.mAlbedo);
+    return SurfaceResponse(packSurfaceNormal(surface.mNormal), surface.mAlbedo, surface.mAmbientAlbedo);
+}
+
+/// What Night-Eye's lift adds to a surface, per unit of lift, in display values: its ambient albedo
+/// encoded, as the rasterizer adds `texture × A × lift` to every fragment it lights — in the values
+/// it displays, with nothing to occlude it and no exposure to adapt it away. `CHANNEL_LIFT`.
+vec3 liftOf(Surface surface)
+{
+    return encodeSrgb(surface.mAmbientAlbedo);
 }
 
 /// What an ordinary lit surface sends back along the ray that found it. **One statement of what a
@@ -384,20 +392,6 @@ SplitLight mixSplit(SplitLight a, SplitLight b, float t, float draw)
 
     return SplitLight(mix(a.mRest, b.mRest, t), fromA + fromB,
         drawnOpen(dot(fromA, LUMINANCE_WEIGHTS), a.mOpen, dot(fromB, LUMINANCE_WEIGHTS), b.mOpen, draw));
-}
-
-/// `litSurface` over the whole of `gather`'s light, with the shadowed sources apart where `split`
-/// asks.
-///
-/// @param gloss the surface's specular half, `glossOf`.
-/// @param incoming what arrives from everything that is not a light, `pathEnd` at the hit a
-///        hemisphere found.
-/// @param split as `gather` takes it, and a literal at every call for the same reason.
-SplitLight shadeSurface(Surface surface, Gloss gloss, vec3 incoming, uint key, uint lamps, uint path, bool split)
-{
-    const DirectLight lit = gather(surface, gloss, key, lamps, path, split);
-    return SplitLight(
-        litSurface(surface, incoming + lit.mDiffuse, lit.mSpecular), shadowedLight(surface, lit), lit.mOpen);
 }
 
 /// Which face of a surface a diffuse sample leaves by, and what the sample is then worth.
@@ -505,11 +499,28 @@ float ambientReaching(vec3 position, vec3 normal, vec3 plane, float transmission
     return weight * ambientThrough(position, towards, frame.mReach) / rate;
 }
 
-/// What a surface a path ends at sends back: `pathEnd`, dimmed by one occlusion ray of its own,
-/// through `shadeSurface`.
+/// What a surface a path ends at sends back, with the fill apart from the lights.
+struct PathEnd
+{
+    /// `gather`'s light through `litSurface`, the glow with it, and the shadowed sources apart where
+    /// the caller split them off.
+    SplitLight mLit;
+
+    /// The fill's two factors: `pathEnd` under the surface's one occlusion ray, and the ambient
+    /// albedo that reflects it.
+    vec3 mAmbient;
+    vec3 mAmbientAlbedo;
+};
+
+/// What a surface a path ends at sends back: the lights `gather` finds, and `pathEnd`, dimmed by one
+/// occlusion ray of its own, for the rest of the path.
 ///
 /// **One statement of the tail the paths share**: the far end of a water ray, and the hit the eye's
 /// bounce found. A pane ends its path in `shadePane`, the same terms kept apart for its filter.
+///
+/// **The lights by the albedo and the fill by the ambient albedo**, as the rasterizer lights a
+/// fragment `texture × (D × lit + A × ambient)`: `pathEnd` stands in for the rest of the path, which
+/// is the ambient's place in the rasterizer's sum.
 ///
 /// **The water's legs split the shadowed sources off**, because what they find is what the pixel
 /// shows: under a canopy, one shadow ray a pixel speckles a reflection that the same rock seen
@@ -519,15 +530,40 @@ float ambientReaching(vec3 position, vec3 normal, vec3 plane, float transmission
 /// @param key the pixel's own, `pixelKey`, and `ambient` and `lamps` the `SEED_` the occlusion ray
 ///        and the lamp reservoir draw from with it. Two, for the reason `SEED_AMBIENT_REACHING`
 ///        gives.
-/// @param split as `gather` takes it.
+/// @param split as `gather` takes it, and a literal at every call for the same reason.
 /// @param ambientRate as `ambientReaching` takes it.
-SplitLight shadeAtPathEnd(
-    Surface hit, uint key, uint ambient, uint lamps, uint path, bool split, float ambientRate)
+PathEnd lightAtPathEnd(Surface hit, uint key, uint ambient, uint lamps, uint path, bool split, float ambientRate)
 {
     const float reaching = ambientReaching(
         hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, key + ambient, ambientRate);
+    const DirectLight lit = gather(hit, glossOf(hit), key, lamps, path, split);
 
-    return shadeSurface(hit, glossOf(hit), pathEnd(hit.mPosition, reaching), key, lamps, path, split);
+    return PathEnd(SplitLight(litSurface(hit, lit.mDiffuse, lit.mSpecular), shadowedLight(hit, lit), lit.mOpen),
+        pathEnd(hit.mPosition, reaching), hit.mAmbientAlbedo);
+}
+
+/// What a path end sends back by its ambient albedo.
+vec3 fillOf(PathEnd end)
+{
+    return end.mAmbientAlbedo * end.mAmbient;
+}
+
+/// A path end's light with the fill joined to the rest.
+///
+/// **One rounding, by an explicit `fma`.** The pinned module fuses a product that one add reads and
+/// no other (`pinFloatArithmetic`), and a bounce reads the fill twice, joined and apart: written as
+/// a sum, the bounce's whole rounds twice where a water leg's rounds once.
+SplitLight joinedLight(PathEnd end)
+{
+    return SplitLight(fma(end.mAmbientAlbedo, end.mAmbient, end.mLit.mRest), end.mLit.mShadowed, end.mLit.mOpen);
+}
+
+/// `lightAtPathEnd` with the fill joined to the lights, for a path whose end nothing reflects by a
+/// second albedo.
+SplitLight shadeAtPathEnd(
+    Surface hit, uint key, uint ambient, uint lamps, uint path, bool split, float ambientRate)
+{
+    return joinedLight(lightAtPathEnd(hit, key, ambient, lamps, path, split, ambientRate));
 }
 
 /// What a see-through layer sends back, in the pieces the pane filter takes apart.
@@ -536,9 +572,11 @@ struct SeenPane
     /// What it glows with, which nothing drew: `litSurface` with no light arriving.
     vec3 mGlow;
 
-    /// What a path end drew for it, per unit albedo — `pathEnd` under its one occlusion ray, and
-    /// `gather`'s diffuse half — and what its lobe reflects of that, whole.
-    vec3 mDiffuse;
+    /// What a path end drew for it, whole — `gather`'s diffuse half by the albedo, and `pathEnd`
+    /// under its one occlusion ray by the ambient albedo — and what its lobe reflects of that.
+    /// **Whole and not per unit albedo**, because the two halves take two albedos, and the pane
+    /// filter averages a layer over time alone, so nothing needs the light apart from them.
+    vec3 mDrawn;
     vec3 mSpecular;
 
     SurfaceResponse mResponse;
@@ -548,7 +586,7 @@ struct SeenPane
 /// not: the pane filter averages the one over time, and the glow is exact as it stands.
 ///
 /// **The same terms, so a pane composed from these is the pane `shadeAtPathEnd` shades**: the glow
-/// plus the albedo times the drawn light plus the lobe is `litSurface` of the two, to its rounding.
+/// plus the drawn light plus the lobe is its light, to its rounding.
 ///
 /// **At `AMBIENT_EXTERIOR_RATE`**, because the pane filter takes what it draws, as the glossy filter
 /// takes what a lobe's path end draws at the same rate.
@@ -560,8 +598,9 @@ SeenPane shadePane(Surface hit, uint key, uint ambient, uint lamps)
         hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, key + ambient, AMBIENT_EXTERIOR_RATE);
     const DirectLight lit = gather(hit, glossOf(hit), key, lamps, PATH_SEEN, false);
 
-    return SeenPane(litSurface(hit, vec3(0.0), vec3(0.0)), pathEnd(hit.mPosition, reaching) + lit.mDiffuse,
-        lit.mSpecular, responseOf(hit));
+    return SeenPane(litSurface(hit, vec3(0.0), vec3(0.0)),
+        hit.mAlbedo * lit.mDiffuse + hit.mAmbientAlbedo * pathEnd(hit.mPosition, reaching), lit.mSpecular,
+        responseOf(hit));
 }
 
 /// What one bounce brings back, in the two halves `shadeSolid` hands on apart.
@@ -570,6 +609,10 @@ struct Bounce
     /// Per unit albedo, as the direct light's diffuse half is: the composite multiplies it by the
     /// diffuse albedo.
     vec3 mDiffuse;
+
+    /// The share of `mDiffuse` that is the fill, `Arriving::mFill`: the composite multiplies it by
+    /// the ambient albedo in place of the diffuse one.
+    vec3 mFill;
 
     /// Whole: what the lobe reflects toward the eye. **It stays out of the indirect channel, because
     /// it is not multiplied by the diffuse albedo** — a metal has none, and in the indirect term its
@@ -599,7 +642,22 @@ struct BounceDraw
     float mSpread;
 };
 
-/// What a bounce brings back when it reaches nothing.
+/// What arrives along a bounce, whole, and the part of it the surface that drew it reflects by its
+/// ambient albedo.
+///
+/// **The rest is reflected by the diffuse albedo**: the lights at the far hit and its glow, which
+/// is lamp light bounced off another surface. The rasterizer has no term for it, and a surface
+/// reflects it as it reflects a lamp.
+struct Arriving
+{
+    vec3 mWhole;
+
+    /// The rasterizer's ambient term: the sky the ray escaped to, which is the fill out of doors, or
+    /// the far hit's `pathEnd`, which is the fill a path ends at.
+    vec3 mFill;
+};
+
+/// What a bounce brings back when it reaches nothing: the fill, whole.
 ///
 /// The glow and not the disc: the sun is already a term of its own in `gather`, for the lobe as
 /// well as for the diffuse half, and a bounce that found it in the sky would be the same light
@@ -619,14 +677,15 @@ struct BounceDraw
 /// picture of the world: the deck, the sheets and the stars where they are, and no fill. With no
 /// discs, which `gather` asks the lobe for already. A branch and not a factor, because the halves
 /// are the draw's own split and the reflected sky is a deck's reading the diffuse half never needs.
-vec3 bounceEscape(vec3 position, BounceDraw drawn, vec3 weight)
+Arriving bounceEscape(vec3 position, BounceDraw drawn, vec3 weight)
 {
     if (!skyLights())
-        return vec3(0.0);
+        return Arriving(vec3(0.0), vec3(0.0));
 
     const vec3 sky = drawn.mSpecular ? reflectedSky(position, drawn.mTowards, 0.5 * drawn.mSpread, false)
                                      : skyGlow(drawn.mTowards);
-    return weight * sky * daylightReaching(position);
+    const vec3 escaped = weight * sky * daylightReaching(position);
+    return Arriving(escaped, escaped);
 }
 
 /// Which way the eye's bounce leaves a surface, and what the light that arrives along it is worth.
@@ -692,7 +751,7 @@ BounceDraw bounceDraw(Surface surface, Gloss gloss, float face, uvec2 pixel, Con
 
 /// What arrives along a bounce's direction, times `weight`: the sky it escapes to, or the surface it
 /// lands on, shaded as the end of the path.
-vec3 bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pixel)
+Arriving bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pixel)
 {
     // **Far ground out of doors is handed the escape rather than asked whether it escaped**, which
     // is the same answer the miss below arrives at by tracing for it. `BOUNCE_REACH` says what that
@@ -705,7 +764,7 @@ vec3 bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pixel)
     // at a rate of one: no draw reaches it, and the weight is divided by one.
     uint traced = randomSeed(pixelKey(pixel) + SEED_BOUNCE_TRACED);
     if (randomNext(traced) >= frame.mBounceRate)
-        return vec3(0.0);
+        return Arriving(vec3(0.0), vec3(0.0));
 
     weight /= frame.mBounceRate;
 
@@ -728,9 +787,9 @@ vec3 bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pixel)
     // **One call with the path chosen, and not one per half.** Written out twice, the whole end of
     // the path is two copies, and a warp whose lanes drew both halves runs them one after the
     // other. Chosen at run time, the diffuse half's hit asks the moons and finds they weigh nought.
-    return weight
-        * composed(shadeAtPathEnd(hit, pixelKey(pixel), SEED_AMBIENT_REACHING, SEED_LAMPS_BOUNCE,
-            drawn.mSpecular ? PATH_SEEN : PATH_INDIRECT, false, AMBIENT_EXTERIOR_RATE));
+    const PathEnd end = lightAtPathEnd(hit, pixelKey(pixel), SEED_AMBIENT_REACHING, SEED_LAMPS_BOUNCE,
+        drawn.mSpecular ? PATH_SEEN : PATH_INDIRECT, false, AMBIENT_EXTERIOR_RATE);
+    return Arriving(weight * composed(joinedLight(end)), weight * fillOf(end));
 }
 
 /// What reaches a surface from everything that is not a light: one bounce, off the half
@@ -738,7 +797,7 @@ vec3 bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pixel)
 ///
 /// **Traced only from the hit the eye found.** A shader with no recursion cannot bounce a bounce, and
 /// it should not: what the second hit gathers is `pathEnd`, the flat ambient that stands in for the
-/// rest of the path. That is also what keeps `shadeSurface` from calling itself — the water's
+/// rest of the path. That is also what keeps `lightAtPathEnd` from calling itself — the water's
 /// reflections already shade through it, and a bounce inside it would have no bottom.
 ///
 /// A ray that finds nothing takes `bounceEscape`, which is what makes the sky an emitter rather than
@@ -762,11 +821,14 @@ Bounce bounceLight(Surface surface, Gloss gloss, uvec2 pixel, Cone cone)
     // A reflection below the shading normal's horizon brings nothing back, and is not traced to
     // find that out.
     if (behindTheFace(drawn.mTowards, surface.mGeometric, face) || !(brightest(drawn.mWeight) > 0.0))
-        return Bounce(vec3(0.0), vec3(0.0));
+        return Bounce(vec3(0.0), vec3(0.0), vec3(0.0));
 
-    const vec3 arriving = bounceArriving(surface, drawn, drawn.mWeight * sided, pixel);
+    const Arriving arriving = bounceArriving(surface, drawn, drawn.mWeight * sided, pixel);
 
-    return drawn.mSpecular ? Bounce(vec3(0.0), arriving) : Bounce(arriving, vec3(0.0));
+    // **The lobe takes the whole of it**: a reflection is a picture of the world, and nothing in the
+    // rasterizer's sum reflects one by the ambient colour.
+    return drawn.mSpecular ? Bounce(vec3(0.0), vec3(0.0), arriving.mWhole)
+                           : Bounce(arriving.mWhole, arriving.mFill, vec3(0.0));
 }
 
 /// What a solid the eye found sends back, in the channels' pieces.
@@ -776,8 +838,10 @@ struct SeenSolid
     /// sources add and whether the kept ray got through: `CHANNEL_SHADOWED`'s two halves.
     SplitLight mLight;
 
-    /// The diffuse light the wavelet filters, per unit albedo: the one bounce.
+    /// The diffuse light the wavelet filters, per unit albedo: the one bounce, and the share of it
+    /// that is the fill, `Bounce::mFill`.
     vec3 mBounce;
+    vec3 mFill;
 
     /// What the solid is in the filter's terms.
     SurfaceResponse mResponse;
@@ -814,6 +878,7 @@ SeenSolid shadeSolid(Surface hit, uvec2 pixel, Cone cone)
     SeenSolid seen;
     seen.mLight = SplitLight(litSurface(hit, vec3(0.0), vec3(0.0)), shadowedLight(hit, lit), lit.mOpen);
     seen.mBounce = bounced.mDiffuse;
+    seen.mFill = bounced.mFill;
     seen.mSpecular = lit.mSpecular + bounced.mSpecular;
     seen.mRoughness = gloss.mGlossy ? hit.mRoughness : SPECULAR_NO_LOBE;
     seen.mResponse = responseOf(hit);

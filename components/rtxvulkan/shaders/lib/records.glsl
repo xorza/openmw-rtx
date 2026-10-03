@@ -27,14 +27,18 @@ struct SurfaceResponse
     /// What the diffuse half is multiplied by, and nothing else: the surface's own albedo, with
     /// none of what the path took off it between here and the eye.
     vec3 mDiffuse;
+
+    /// What the fill is multiplied by: the ambient albedo, `Surface::mAmbientAlbedo`, with none of
+    /// the path either. `mDiffuse` wherever the material states no ambient colour of its own.
+    vec3 mAmbient;
 };
 
 /// A pixel with no surface behind it: the sky, or a ray that reached nothing.
 ///
-/// **No normal and no albedo.** Nothing reads the sky's albedo: the composite multiplies it into a
+/// **No normal and no albedo.** Nothing reads the sky's albedos: the composite multiplies them into a
 /// bounce of nought, and the filters know the sky by `SURFACE_NO_NORMAL`.
 SurfaceResponse noResponse()
 {
-    return SurfaceResponse(SURFACE_NO_NORMAL, vec3(0.0));
+    return SurfaceResponse(SURFACE_NO_NORMAL, vec3(0.0), vec3(0.0));
 }
 #endif

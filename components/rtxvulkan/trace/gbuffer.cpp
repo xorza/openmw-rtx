@@ -13,7 +13,7 @@ namespace Rtx
 {
     namespace
     {
-        /// Half floats, because an albedo is a fraction. The diffuse albedo takes it too, which
+        /// Half floats, because an albedo is a fraction. The diffuse albedos take it too, which
         /// needed measuring: quantising a per-pixel constant is a systematic error on the indirect
         /// term, but on a converged reference of a room the mean moves by a fiftieth of the
         /// tolerance the radiance channels are held to.
@@ -35,6 +35,9 @@ namespace Rtx
 
         /// A byte a mask, the width AMD stores its own at.
         constexpr VkFormat sUpscaleMasks = toVulkanFormat(GBUFFER_UPSCALE_MASKS);
+
+        /// A byte a channel, for the reason `gbuffer.h` gives.
+        constexpr VkFormat sLift = toVulkanFormat(GBUFFER_LIFT);
 
         /// `SAMPLED` on all of them: the cascade samples the surface and the puffs, an upscaler samples
         /// what it is handed, and the bit costs no memory, so every channel carries it.
@@ -73,6 +76,9 @@ namespace Rtx
                 every[bindingOf(Channel::PaneSurface)] = { sSurface, sReadable };
                 every[bindingOf(Channel::PaneMotion)] = { sMotion, sReadable };
                 every[bindingOf(Channel::UpscaleMasks)] = { sUpscaleMasks, sReadable };
+                every[bindingOf(Channel::Fill)] = { VK_FORMAT_UNDEFINED, sReadable };
+                every[bindingOf(Channel::AmbientAlbedo)] = { sAlbedo, sReadable };
+                every[bindingOf(Channel::Lift)] = { sLift, sReadable };
 
                 return every;
             }();

@@ -14,6 +14,7 @@
 #include "instruments/cardwatch.hpp"
 #include "instruments/frametimes.hpp"
 #include "instruments/scenedigest.hpp"
+#include "instruments/threadcounters.hpp"
 #include "model/benchrecord.hpp"
 #include "model/measurewindow.hpp"
 
@@ -170,6 +171,10 @@ namespace RtxTool
         /// frames, and who held it through every window of the run. Held rather than made per
         /// stop, because what it owns is a thread.
         CardWatch mCardWatch;
+
+        /// The processor's counters of the frame thread, which makes the measurer, over each stop's
+        /// measured frames.
+        ThreadCounters mCounters;
 
         /// What a hashed frame's scene columns come from, kept so a frame pays for what moved.
         SceneDigester mDigester;

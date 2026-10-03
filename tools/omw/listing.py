@@ -10,7 +10,7 @@ import os
 from pathlib import PurePosixPath
 
 from omw.build import Build
-from omw.system import ROOT, WINDOWS, output
+from omw.system import ROOT, WINDOWS, working_tree_files
 
 ELSEWHERE = {
     # Writes `tablesgen.hpp`, built by the `Makefile` beside it.
@@ -51,10 +51,7 @@ def unlisted(tracked: list[str], compiled: set[str], windows: bool) -> list[str]
 
 
 def check(build: Build) -> int:
-    # The working tree's files: an unstaged deletion still stands in the index.
-    listed = output(["git", "-C", ROOT, "ls-files", "--cached", "--others", "--exclude-standard", "--",
-                     "apps/*.cpp", "components/*.cpp"]).splitlines()
-    tracked = [name for name in listed if (ROOT / name).is_file()]
+    tracked = working_tree_files("apps/*.cpp", "components/*.cpp")
     database = json.loads((build.dir / "compile_commands.json").read_text())
     # Without Qt a build leaves out libraries no rule can name; debug, full and package have Qt.
     if not any("components_qt.dir" in entry.get("output", "") for entry in database):

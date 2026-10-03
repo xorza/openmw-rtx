@@ -183,8 +183,13 @@ backend ever arrives.
 - Measure on a quiet desktop. A bench started from this session's foreground runs under Claude
   Code's spinner, which Zed redraws and KWin composites nine times a second, and every figure
   moves with it — the host rows by half, the zone shares by a tenth, the tail by 4 ms. Start the
-  run in the background and end the turn; the report's `card` lines say whether that held, and
-  `--frame-times=<dir>` writes the series behind a tail.
+  run in the background and end the turn; the report's `card` lines name another process's work,
+  and `--frame-times=<dir>` writes the series behind a tail. KWin's slices are not in them: a slice
+  stops the queue for its switch and holds little work, and only `nsys profile --gpuctxsw=true`
+  shows them. The renderer cannot outrank them: the driver refuses a high-priority queue to a
+  process without `CAP_SYS_NICE`, which KWin holds. So an A/B reads medians and the p99, which a
+  slice in a few frames hardly moves, and never a mean, which takes all of it: the rows' own, and
+  the zones' from the record `--json` writes, since the `gpu` row is each zone's share of the mean.
 - Profiling: `./omw profile` for the CPU — the measured frames alone, at `seyda-neen-ship` unless
   `--view=` or `--suite=` names another, into `build-release/perf/`. `--offcpu` says where it
   waits, `--dwarf` unwinds without the frame pointers, and `--tui` walks the last recording.

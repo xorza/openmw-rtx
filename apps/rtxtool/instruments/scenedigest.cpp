@@ -87,9 +87,9 @@ namespace RtxTool
         void forEachMaterialField(const Rtx::Material& material, Texture texture, Layers layers, Value value)
         {
             const auto& [kind, diffuse, emissive, emissiveUnit, environment, environmentColour, dark, darkUnit, normal,
-                specular, specularClassic, parallax, diffuseColour, emissiveColour, opacity, alphaTest, alphaMode,
-                blend, vertexColour, twoSided, textureTransform, run, flatten, layersMapped, animated, neverSolid,
-                diffuseMean]
+                specular, specularClassic, parallax, diffuseColour, ambientColour, emissiveColour, opacity, alphaTest,
+                alphaMode, blend, vertexColour, twoSided, textureTransform, run, flatten, layersMapped, animated,
+                neverSolid, diffuseMean]
                 = material;
 
             texture(diffuse);
@@ -127,6 +127,7 @@ namespace RtxTool
             value(environmentColour);
             value(darkUnit);
             value(diffuseColour);
+            value(material.getAmbientColour());
             value(emissiveColour);
             value(opacity);
             value(alphaTest);
@@ -193,8 +194,8 @@ namespace RtxTool
 
         auto fieldsOf(const Rtx::MeshInstance& instance)
         {
-            const auto& [transform, mesh, material, opacity, instanceClass, stander] = instance;
-            return std::tie(transform, mesh, material, opacity, instanceClass, stander);
+            const auto& [transform, mesh, material, opacity, instanceClass, clockwise, stander] = instance;
+            return std::tie(transform, mesh, material, opacity, instanceClass, clockwise, stander);
         }
 
         /// Field by field, because the kind is a byte and the row carries padding after it.

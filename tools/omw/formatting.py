@@ -7,7 +7,7 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor
 
 from omw import deps
-from omw.system import ROOT, WINDOWS, Refusal, jobs, output
+from omw.system import ROOT, WINDOWS, Refusal, jobs, working_tree_files
 
 
 def format_tree(args: list[str]) -> int:
@@ -28,9 +28,7 @@ def format_tree(args: list[str]) -> int:
         raise Refusal("clang-format-14 is not on the PATH, and CI pins that version")
     clang_format: str = found
 
-    listed = output(["git", "-C", ROOT, "ls-files", "--cached", "--others", "--exclude-standard", "--",
-                     ":(exclude)extern/", "*.cpp", "*.hpp", "*.h"]).splitlines()
-    files = [name for name in listed if (ROOT / name).is_file()]
+    files = working_tree_files(":(exclude)extern/", "*.cpp", "*.hpp", "*.h")
     batches = [files[at:at + 64] for at in range(0, len(files), 64)]
 
     def formatted(batch: list[str]) -> int:

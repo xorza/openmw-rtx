@@ -129,6 +129,19 @@ namespace RtxTool
                 card.mSamples, card.mOthers, holders);
         }
 
+        /// Null where nothing was counted, for the same reason; and every count, so a record read
+        /// against another can tell a drift in the host rows from a layout that misses more.
+        std::string asJson(const ThreadCounts& counts)
+        {
+            if (!counts.mRead)
+                return "null";
+
+            return std::format(
+                R"({{"cycles": {}, "instructions": {}, "cacheMisses": {}, "runningNs": {}, "efficiencyNs": {}, "counted": {:.4f}, "kernelCounted": {}, "twoKinds": {}}})",
+                counts.mCycles, counts.mInstructions, counts.mCacheMisses, counts.mRunningNs, counts.mEfficiencyNs,
+                counts.mCounted, counts.mKernelCounted, counts.mTwoKinds);
+        }
+
         /// Everything a scene came to, so the record can compare what a change cost in memory as
         /// well as in time.
         ///
@@ -402,6 +415,7 @@ namespace RtxTool
         // Under the clock, because it is the other premise every figure above rests on: a place
         // another process drew through is the desktop's reading and not the renderer's.
         out += "  " + describeCard(place.mCard) + '\n';
+        out += "  " + describeCounts(place.mThread) + '\n';
 
         // **Only for a route, because a place that stands still has nothing to say here.** The
         // worst is the one to read: a crossing is a dropped frame, and an average over six hundred
@@ -500,8 +514,8 @@ namespace RtxTool
                 file << std::format(
                     R"({}{}: {})", zone == 0 ? "" : ", ", asJson(place.mGpu[zone].mName), asJson(place.mGpu[zone]));
 
-            file << "}, \"clock\": " << asJson(place.mClock) << ", \"card\": " << asJson(place.mCard) << "}"
-                 << (at + 1 < places.size() ? "," : "") << '\n';
+            file << "}, \"clock\": " << asJson(place.mClock) << ", \"card\": " << asJson(place.mCard)
+                 << ", \"thread\": " << asJson(place.mThread) << "}" << (at + 1 < places.size() ? "," : "") << '\n';
         }
 
         file << "  ]\n}\n";

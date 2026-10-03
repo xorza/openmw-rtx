@@ -105,8 +105,16 @@ namespace Rtx
         None,
 
         /// It replaces the material's diffuse and ambient colour, which is what the game's own
-        /// shader reads through `getDiffuseColor`. Every piece of ground is this.
+        /// shader reads through `getDiffuseColor` and `getAmbientColor` under
+        /// `AmbientAndDiffuse`. Every piece of ground is this.
         Tint,
+
+        /// It replaces the diffuse colour alone, and the ambient stays the material's.
+        Diffuse,
+
+        /// It replaces the ambient colour alone, and the diffuse stays the material's: what an
+        /// OSG model's `AMBIENT` colour mode asks.
+        Ambient,
 
         /// It replaces the material's emissive colour, and the light mode that goes with it takes
         /// the diffuse and the ambient to nought, so such a surface is its glow and nothing else.

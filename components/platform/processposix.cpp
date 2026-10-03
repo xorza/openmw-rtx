@@ -1,6 +1,8 @@
 #include "process.hpp"
 
 #include <cerrno>
+#include <charconv>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -8,15 +10,21 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <vector>
 
 #include <signal.h>
 #include <sys/resource.h>
 #include <unistd.h>
 
-// The system calls that are each system's own: a thread's id, the running file, and Linux's way to
-// leave no core.
+// The system calls that are each system's own: a thread's id, the running file, and Linux's ways to
+// leave no core and to keep the threads to the performance cores.
 #if defined(__linux__)
+#include <fstream>
+#include <iterator>
+#include <set>
+
+#include <sched.h>
 #include <sys/prctl.h>
 #include <sys/syscall.h>
 #elif defined(__APPLE__)
@@ -43,6 +51,19 @@ namespace Platform::Process
     void setEnvironment(const char* name, const char* value)
     {
         setenv(name, value, 1);
+    }
+
+    void setEnvironmentPath(const char* name, const std::filesystem::path& value)
+    {
+        setenv(name, value.c_str(), 1);
+    }
+
+    std::optional<std::filesystem::path> environmentPath(const char* name)
+    {
+        const char* const value = std::getenv(name);
+        if (value == nullptr)
+            return std::nullopt;
+        return std::filesystem::path(value);
     }
 
     std::optional<std::filesystem::path> executable()
@@ -103,6 +124,55 @@ namespace Platform::Process
         return static_cast<std::uint64_t>(pthread_getthreadid_np());
 #else
         return std::hash<std::thread::id>{}(std::this_thread::get_id()) | 1;
+#endif
+    }
+
+    std::size_t keepToPerformanceCores()
+    {
+#if defined(__linux__)
+        // The kernel lists each core type apart only on a hybrid part, which is the one case there is
+        // a choice to make.
+        std::ifstream file("/sys/devices/cpu_core/cpus");
+        const std::string text{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
+        const std::optional<std::vector<std::uint32_t>> cpus = parseCpuList(text);
+        if (!cpus.has_value())
+            return 0;
+
+        cpu_set_t set;
+        CPU_ZERO(&set);
+        for (const std::uint32_t cpu : *cpus)
+        {
+            if (cpu >= CPU_SETSIZE)
+                return 0;
+            CPU_SET(cpu, &set);
+        }
+
+        // **Every thread, and again until a pass finds none new**: the mask is a thread's own, and a
+        // thread started while the first pass ran took its maker's mask from before.
+        std::set<pid_t> kept;
+        for (bool found = true; found;)
+        {
+            found = false;
+            std::error_code error;
+            for (const auto& entry : std::filesystem::directory_iterator("/proc/self/task", error))
+            {
+                pid_t thread = 0;
+                const std::string name = entry.path().filename().native();
+                if (std::from_chars(name.data(), name.data() + name.size(), thread).ec != std::errc{}
+                    || !kept.insert(thread).second)
+                    continue;
+                found = true;
+                // A thread that ended since the listing is not an error.
+                if (sched_setaffinity(thread, sizeof(set), &set) != 0 && errno != ESRCH)
+                    return 0;
+            }
+            if (error)
+                return 0;
+        }
+
+        return cpus->size();
+#else
+        return 0;
 #endif
     }
 

@@ -6,16 +6,22 @@
 // filter or a running sum.
 
 /// The picture a pixel's channels make: what the trace resolved on its own, the bounce with the
-/// surface's albedo multiplied back in, the shadowed sources by how much of them got through, the
+/// surface's albedos multiplied back in, the shadowed sources by how much of them got through, the
 /// lobe's light, and what was drawn for the see-through layers with theirs.
 ///
+/// **The fill by the albedos' difference, over the whole bounce by the diffuse one**, which is
+/// `albedo × (indirect - fill) + ambientAlbedo × fill` written so a surface whose two albedos are
+/// one adds nought to the bounce it had: the same bits, and not the same sum rounded another way.
+///
+/// @param indirect,fill `CHANNEL_INDIRECT` and `CHANNEL_FILL`, or the cascade's means of both.
 /// @param shadow the ray's own bit where nothing filters it, and the shadow denoiser's answer
 ///        where something does.
 /// @param paneAlbedo,pane `CHANNEL_PANE_ALBEDO`, and `CHANNEL_PANE` or the pane filter's mean.
-vec3 composedLight(vec3 direct, vec3 albedo, vec3 indirect, vec3 shadowed, float shadow, vec3 specular,
-    vec3 paneAlbedo, vec3 pane)
+vec3 composedLight(vec3 direct, vec3 albedo, vec3 indirect, vec3 ambientAlbedo, vec3 fill, vec3 shadowed,
+    float shadow, vec3 specular, vec3 paneAlbedo, vec3 pane)
 {
-    return direct + albedo * indirect + shadowed * shadow + specular + paneAlbedo * pane;
+    return direct + albedo * indirect + (ambientAlbedo - albedo) * fill + shadowed * shadow + specular
+        + paneAlbedo * pane;
 }
 
 #endif

@@ -7,10 +7,10 @@
 // the launch's own, so its origin and direction stay there; whether it hit and how far it went are
 // the shader's to say, and travel here.
 //
-// **What crosses the trace is what it costs**, and this is it: nineteen words. Every field the
-// tail reads travels, and travels as small as the frame keeps it — the albedo, the scalars and
+// **What crosses the trace is what it costs**, and this is it: twenty-five words. Every field the
+// tail reads travels, and travels as small as the frame keeps it — the albedos, the scalars and
 // the motion vector as halves, which is the width of the channels they are stored in, and the
-// normal as the surface channel's own code. What stays whole is the four radiances, because a
+// normal as the surface channel's own code. What stays whole is the five radiances, because a
 // reference is a sum of a thousand frames and a term rounded to a half before the sum does not
 // average away. `Answer` is the same record unpacked, which is what the shaders write and the launch
 // reads; `packAnswer` and `unpackAnswer` are the whole of the boundary.
@@ -39,9 +39,13 @@ struct Answer
 
     /// The diffuse light this hit gathered from its one bounce, kept apart because the
     /// filter runs over it demodulated by the albedo in `mResponse`, and the composite multiplies the
-    /// two back together afterwards. A pane's is what its path end drew, `SeenPane::mDiffuse`, which
-    /// the pane filter takes the same way.
+    /// two back together afterwards. A pane's is what its path end drew, whole, `SeenPane::mDrawn`,
+    /// which the launch stacks as it stands.
     vec3 mBounced;
+
+    /// The share of `mBounced` that is the fill, `SeenSolid::mFill`, which the composite puts back by
+    /// the ambient albedo in `mResponse`. Nought for a pane, whose drawn light is whole.
+    vec3 mFilled;
 
     /// What the sky's source and the lamps add to what the eye sees — the solid it found, or what
     /// the water's legs found — as though their rays got through, and whether the kept one did: a
@@ -56,6 +60,10 @@ struct Answer
     /// too, `SeenPane::mSpecular`, with no roughness: the pane filter keeps no lobe's rule.
     vec3 mSpecular;
     float mRoughness;
+
+    /// What Night-Eye's lift adds to what was shaded, per unit of lift: `liftOf` the surface, and
+    /// the water's rays' by their shares (`WaterShading::mLift`). Nought for the sky.
+    vec3 mLift;
 
     /// What the shading model made of the surface, for the filter and the composite. `noResponse`
     /// where nothing was shaded. A pane's own, which the launch stacks into the pane's channels; the
@@ -104,10 +112,12 @@ Answer noAnswer()
     Answer answer;
     answer.mRadiance = vec3(0.0);
     answer.mBounced = vec3(0.0);
+    answer.mFilled = vec3(0.0);
     answer.mShadowed = vec3(0.0);
     answer.mOpen = true;
     answer.mSpecular = vec3(0.0);
     answer.mRoughness = SPECULAR_NO_LOBE;
+    answer.mLift = vec3(0.0);
     answer.mResponse = noResponse();
     answer.mMotion = vec3(0.0);
     answer.mBackdropShown = 0.0;
@@ -121,7 +131,7 @@ Answer noAnswer()
     return answer;
 }
 
-/// The record as it crosses the trace: nineteen words, laid out once here.
+/// The record as it crosses the trace: twenty-five words, laid out once here.
 ///
 /// The flags word carries the backdrop's share as a half in its high bits — or a hit's
 /// `mMisMoved`, since only a miss shows the backdrop and only a hit moves — the lobe's roughness in
@@ -131,17 +141,27 @@ struct VisibilityPayload
 {
     vec3 mRadiance;
     vec3 mBounced;
+    vec3 mFilled;
     vec3 mShadowed;
     vec3 mSpecular;
 
     /// The response's diffuse, then the opacity: four halves in two words.
     uvec2 mHalves;
 
+    /// The response's ambient albedo in green and blue. Its red is the half the motion's second word
+    /// leaves.
+    uint mAmbient;
+
+    /// The lift, three halves in two words: a display value, which a half holds finer than the
+    /// channel's byte.
+    uvec2 mLift;
+
     /// The response's normal code, `packSurfaceNormal`, as its bits: a whole number or minus one,
     /// never a NaN, so the word comes back as the float it went in as.
     uint mNormal;
 
-    /// The motion vector, three halves in two words: the width `GBUFFER_MOTION` stores it at.
+    /// The motion vector, three halves in two words: the width `GBUFFER_MOTION` stores it at. The
+    /// fourth half is the ambient albedo's red.
     uvec2 mMotion;
 
     /// Whole, because the launch places the layers, the water and the surface channel by it.
@@ -169,12 +189,15 @@ VisibilityPayload packAnswer(Answer answer)
     VisibilityPayload packed;
     packed.mRadiance = answer.mRadiance;
     packed.mBounced = answer.mBounced;
+    packed.mFilled = answer.mFilled;
     packed.mShadowed = answer.mShadowed;
     packed.mSpecular = answer.mSpecular;
     packed.mHalves = uvec2(packHalf2x16(answer.mResponse.mDiffuse.rg),
         packHalf2x16(vec2(answer.mResponse.mDiffuse.b, answer.mOpacity)));
     packed.mNormal = floatBitsToUint(answer.mResponse.mNormal);
-    packed.mMotion = uvec2(packHalf2x16(answer.mMotion.xy), packHalf2x16(vec2(answer.mMotion.z, 0.0)));
+    packed.mAmbient = packHalf2x16(answer.mResponse.mAmbient.gb);
+    packed.mLift = uvec2(packHalf2x16(answer.mLift.rg), packHalf2x16(vec2(answer.mLift.b, 0.0)));
+    packed.mMotion = uvec2(packHalf2x16(answer.mMotion.xy), packHalf2x16(vec2(answer.mMotion.z, answer.mResponse.mAmbient.r)));
     packed.mDistance = answer.mDistance;
     packed.mFlags = packHalf2x16(vec2(0.0, answer.mHit ? answer.mMisMoved : answer.mBackdropShown))
         | (answer.mWater ? ANSWER_WATER : 0u)
@@ -195,14 +218,18 @@ Answer unpackAnswer(VisibilityPayload packed)
     Answer answer;
     answer.mRadiance = packed.mRadiance;
     answer.mBounced = packed.mBounced;
+    answer.mFilled = packed.mFilled;
     answer.mShadowed = packed.mShadowed;
     answer.mSpecular = packed.mSpecular;
     const uint roughness = (packed.mFlags >> ANSWER_ROUGHNESS_SHIFT) & 0xffu;
     answer.mRoughness
         = roughness == ANSWER_NO_LOBE ? SPECULAR_NO_LOBE : float(roughness) / float(ANSWER_ROUGHNESS_STEPS);
     answer.mOpen = (packed.mFlags & ANSWER_OPEN) != 0u;
-    answer.mResponse = SurfaceResponse(uintBitsToFloat(packed.mNormal), vec3(diffuseRg, diffuseBOpacity.x));
-    answer.mMotion = vec3(unpackHalf2x16(packed.mMotion.x), unpackHalf2x16(packed.mMotion.y).x);
+    const vec2 motionZAmbientR = unpackHalf2x16(packed.mMotion.y);
+    answer.mResponse = SurfaceResponse(uintBitsToFloat(packed.mNormal), vec3(diffuseRg, diffuseBOpacity.x),
+        vec3(motionZAmbientR.y, unpackHalf2x16(packed.mAmbient)));
+    answer.mMotion = vec3(unpackHalf2x16(packed.mMotion.x), motionZAmbientR.x);
+    answer.mLift = vec3(unpackHalf2x16(packed.mLift.x), unpackHalf2x16(packed.mLift.y).x);
     answer.mOpacity = diffuseBOpacity.y;
     answer.mPane = (packed.mFlags & ANSWER_PANE) != 0u;
     answer.mWater = (packed.mFlags & ANSWER_WATER) != 0u;

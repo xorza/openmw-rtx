@@ -66,6 +66,7 @@
 #define GBUFFER_LAYER STORAGE_RGBA16F
 #define GBUFFER_BACKDROP STORAGE_RGBA8
 #define GBUFFER_UPSCALE_MASKS STORAGE_RG8
+#define GBUFFER_LIFT STORAGE_RGBA8
 
 // Which binding of `SET_CHANNELS` each channel is.
 //
@@ -86,7 +87,7 @@ namespace Rtx::Shaders
     /// The one bounce's diffuse light, demodulated — the channel the wavelet filters.
     const uint CHANNEL_INDIRECT = 1;
 
-    /// What the composite multiplies the bounce back in by.
+    /// What the composite multiplies the bounce back in by: the diffuse albedo.
     const uint CHANNEL_ALBEDO = 2;
 
     /// The shading normal, `packSurfaceNormal`, and the distance from the eye along the pixel's ray:
@@ -166,8 +167,24 @@ namespace Rtx::Shaders
     /// **A byte a mask**, the width AMD's own masks are stored at: a fraction the upscaler blends by.
     const uint CHANNEL_UPSCALE_MASKS = 13;
 
+    /// The share of `CHANNEL_INDIRECT` that is the fill, demodulated as it is, and the ambient
+    /// albedo it is multiplied back by in place of `CHANNEL_ALBEDO`: the rasterizer's ambient term,
+    /// `A × ambient` beside `D × lit`. The wavelet filters the fill with the weights it takes for the
+    /// whole bounce.
+    const uint CHANNEL_FILL = 14;
+    const uint CHANNEL_AMBIENT_ALBEDO = 15;
+
+    /// What Night-Eye's lift is multiplied by where the pixel shows it, in display values: each lit
+    /// surface the eye's paths end on, its ambient albedo encoded (`liftOf`), by the share of the
+    /// pixel that path is — a layer's opacity, a water ray's Fresnel share, and what the media in
+    /// front of it let through. The rasterizer adds `texture × A × lift` to every fragment it
+    /// lights, in display values, and the display pass adds it after the curve where the meter
+    /// never sees it. **A byte a channel**, because it is a fraction of a display value, and the
+    /// display pass reads it at the shown extent through the texture unit.
+    const uint CHANNEL_LIFT = 16;
+
     /// How many the set declares, which is the last of them and one more.
-    const uint CHANNEL_COUNT = 14;
+    const uint CHANNEL_COUNT = 17;
 
     /// How far apart, in traced pixels, an image and the motion vector its pixel is handed may move
     /// in one frame before the upscaler is told to trust none of that image's history: half a

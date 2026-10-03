@@ -8,16 +8,41 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DEPS = ROOT / "deps"
-WINDOWS = os.name == "nt"
-# The system's half of a preset's name.
-SYSTEM = "windows" if WINDOWS else "linux"
+# The systems the driver builds on, by `sys.platform`, each with its half of a preset's name. A third
+# system is refused before any verb (`refuse_unsupported`), rather than taking Linux's SDK and presets.
+SYSTEMS = {"linux": "linux", "win32": "windows"}
+WINDOWS = sys.platform == "win32"
+SYSTEM = SYSTEMS.get(sys.platform, "")
 EXE = ".exe" if WINDOWS else ""
+# The fork's own folders, which the fork's checks hold: upstream's code is upstream's to change.
+FORK = (
+    "components/rtx/",
+    "components/rtxvulkan/",
+    "components/myguirtx/",
+    "components/crashcatcher/",
+    "apps/rtxtool/",
+    "apps/openmw/mwrender/rtx/",
+    "apps/openmw_tests/mwrender/",
+    "apps/components_tests/rtx/",
+    "apps/components_tests/rtxvulkan/",
+    "apps/components_tests/rtxtool/",
+    "apps/components_tests/crashcatcher/",
+    "apps/components_tests/myguirtx/",
+    "apps/components_tests/platform/",
+)
 # Set by GitHub Actions, as by every CI service: CI checks what the desk rewrites.
 CI = os.environ.get("CI", "").lower() in ("true", "1")
 
 
 class Refusal(Exception):
     """A request refused, or a step that cannot go on, with the reason said to a person."""
+
+
+def refuse_unsupported(platform: str = sys.platform) -> None:
+    """Refuses a system the driver does not build on, before it downloads or configures anything."""
+    if platform not in SYSTEMS:
+        raise Refusal(f"the driver builds on Linux and Windows, and this system is {platform}; "
+                      "on macOS, CI/before_script.macos.sh is the route")
 
 
 def require(tool: str, why: str) -> str:
@@ -46,6 +71,15 @@ def output(command: list, **options) -> str:
     return subprocess.run(
         resolved(command, options.get("env")), check=True, capture_output=True, text=True, **options
     ).stdout
+
+
+def working_tree_files(*pathspecs: str) -> list[str]:
+    """The files `pathspecs` name in the working tree, from the root, `/`-separated: tracked or new and
+    not ignored. **The working tree's, and not the index's**: a file a move or a delete has taken
+    still stands in the index, and one a move has made is not in it yet."""
+    listed = output(["git", "-C", ROOT, "ls-files", "--cached", "--others", "--exclude-standard", "--",
+                     *pathspecs]).splitlines()
+    return [name for name in listed if (ROOT / name).is_file()]
 
 
 def jobs() -> int:
@@ -107,31 +141,3 @@ def msvc_environment(env: dict[str, str]) -> dict[str, str]:
     if not activated.get("VSCMD_VER") or shutil.which("cl", path=activated.get("PATH")) is None:
         raise Refusal("VsDevCmd.bat ran and left no compiler on the PATH")
     return activated
-
-
-def documents_folder() -> Path:
-    """The Documents folder the system names, which is not `~/Documents` on a box where OneDrive
-    has moved it."""
-    if sys.platform == "win32":
-        import ctypes
-
-        buffer = ctypes.create_unicode_buffer(260)
-        personal = 5  # CSIDL_PERSONAL
-        if ctypes.windll.shell32.SHGetFolderPathW(None, personal, None, 0, buffer) == 0:
-            return Path(buffer.value)
-    raise Refusal("the system names no Documents folder")
-
-
-def user_config_dir() -> Path:
-    """Where the game reads its own openmw.cfg and settings.cfg, answered the way
-    `Files::LinuxPath` and `Files::WindowsPath` answer it."""
-    if WINDOWS:
-        return documents_folder() / "My Games" / "OpenMW"
-    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "openmw"
-
-
-def user_data_dir() -> Path:
-    """Where the game keeps its saves: one directory with the configuration on Windows, two on Linux."""
-    if WINDOWS:
-        return user_config_dir()
-    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "openmw"

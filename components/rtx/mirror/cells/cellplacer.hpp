@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <utility>
 #include <vector>
 
@@ -101,6 +102,9 @@ namespace Rtx
         /// Whether the ground of the cell at `cell` stands in the top level: held, read with land,
         /// and in the reach.
         bool standsGround(const osg::Vec2i& cell) const;
+
+        /// The placements of the cell at `cell`, standing or not, and none where it is not held.
+        std::span<const Placement> placementsIn(const osg::Vec2i& cell) const;
 
         /// Lets go of every held cell `keep` refuses: its placements out of the top level, then
         /// `letGo(cell)` — for what the ring lent it — then its ground and its rows, whose sweep

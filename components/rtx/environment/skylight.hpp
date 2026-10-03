@@ -185,8 +185,7 @@ namespace Rtx
     /// got and aims the sunlight along `(-1, 45°, 45°)` — traced, hard shadows off nothing through
     /// every crack a room's shell is built from. So the sunlight is kept whole and its direction
     /// taken away, over `INV_FOUR_PI`. The sky is the fog colour at both ends and never a light.
-    /// `nightEye` is what the Night-Eye effect adds to the ambient, in the file's own space.
-    Daylight makeRoomLight(const ESM::Cell::AMBIstruct& room, const osg::Vec3f& nightEye = osg::Vec3f());
+    Daylight makeRoomLight(const ESM::Cell::AMBIstruct& room);
 
     /// What the air leaves of a body in the sky, per channel: Rayleigh optical depth at the three
     /// sRGB primaries — `0.008569 λ^-4` with its usual correction, 0.068, 0.097 and 0.221 at the

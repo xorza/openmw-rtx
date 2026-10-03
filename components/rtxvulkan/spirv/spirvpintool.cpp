@@ -23,7 +23,8 @@ namespace
     /// module `glslc` wrote or the pinned one and never part of either.
     void writeWords(const std::filesystem::path& path, const std::vector<std::uint32_t>& words)
     {
-        const std::filesystem::path written = path.string() + ".pinning";
+        std::filesystem::path written = path;
+        written += ".pinning";
         {
             std::ofstream stream(written, std::ios::binary | std::ios::trunc);
             stream.write(reinterpret_cast<const char*>(words.data()),
@@ -60,7 +61,7 @@ int main(int argc, char* argv[])
     }
     catch (const std::exception& error)
     {
-        std::cerr << path.string() << ": " << error.what() << '\n';
+        std::cerr << Rtx::spelledPath(path) << ": " << error.what() << '\n';
         return 1;
     }
 }
