@@ -1,0 +1,152 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_ray_tracing : require
+
+// The bounce a pixel shows, out of the reservoirs the trace and the temporal pass left: the spatial
+// half of the reuse, the final visibility ray, and the shade into `CHANNEL_INDIRECT` and
+// `CHANNEL_FILL`, a launch a traced pixel.
+//
+// **The pixel's own reservoir is canonical and each neighbour's is shifted to it**, weighed by the
+// defensive pairwise MIS of Wyman et al. 2023 (Algorithm 7) with a confidence each. **A neighbour's
+// weight for the pixel's own sample asks whether the neighbour can see it**: a point a neighbour
+// cannot see is one its reservoir never holds, and a weight that counted it there would take light
+// off every pixel near a contact shadow. One ray a neighbour, and one more for the sample kept.
+//
+// **What a pixel shows is never a sample it cannot see.** The kept sample's ray from this point to
+// it is the last thing traced; a wall of no thickness between a lit room and a dark one is the
+// first leak it stops.
+
+#include "bouncereuse.h"
+#include "colour.h"
+#include "gbuffer.h"
+#include "scene.h"
+
+#include "lib/bindings.glsl"
+#include "lib/bouncereservoir.glsl"
+#include "lib/pixels.glsl"
+#include "lib/counts.glsl"
+#include "lib/random.glsl"
+#include "lib/surfacematch.glsl"
+#include "lib/traversal.glsl"
+
+/// Whether `held` stands unobstructed from the visible point `origin`, along `reach`: a solid in
+/// between, or anything over the sky's direction within the world's reach, stops it.
+bool bounceSeen(BounceOrigin origin, BounceReach reach)
+{
+    const float distance = reach.mDistance > 0.0 ? reach.mDistance - SHADOW_BIAS : frame.mReach;
+    if (!(distance > SHADOW_BIAS))
+        return true;
+
+    const WorldRay ray = WorldRay(frame.mOrigin + origin.mOffset, reach.mTowards);
+    return solidWithin(ray, SHADOW_BIAS, distance, Cone(0.0, BOUNCE_SPREAD)) >= distance;
+}
+
+/// The golden angle as a share of a turn, `2 - φ`: what spaces a spiral's points so no two of them
+/// line up.
+const float GOLDEN_ANGLE_TURNS = 0.38196601;
+
+/// A neighbour of `pixel` to reuse from: the `index`th of `BOUNCE_NEIGHBOURS` on a spiral through
+/// the disc of `BOUNCE_RADIUS`, turned by `turn`.
+ivec2 neighbourOf(uvec2 pixel, uint index, float turn)
+{
+    const float share = (float(index) + 0.5) / float(BOUNCE_NEIGHBOURS);
+    const float angle = TAU * (turn + float(index) * GOLDEN_ANGLE_TURNS);
+    return ivec2(vec2(pixel) + BOUNCE_RADIUS * sqrt(share) * vec2(cos(angle), sin(angle)) + 0.5);
+}
+
+void main()
+{
+    const uvec2 pixel = gl_LaunchIDEXT.xy;
+    const ivec2 at2 = ivec2(pixel);
+    const uint at = pixel.y * frame.mBounceStride + pixel.x;
+    const BounceOrigin origin = unpackOrigin(bounceOrigins[at]);
+    if (!origin.mKept)
+    {
+        imageStore(indirect, at2, vec4(0.0, 0.0, 0.0, 1.0));
+        imageStore(fill, at2, vec4(0.0, 0.0, 0.0, 1.0));
+        return;
+    }
+
+    const BounceReservoir own = unpackBounce(bounceReservoirs[at]);
+    const BounceReach ownReach = reachOf(own.mSample, origin.mOffset, origin.mOffset);
+    const float ownTarget = bounceTarget(origin, own.mSample, ownReach);
+
+    BounceMerge merge = startMerge();
+    uint draws = randomSeed(pixelKey(pixel) + SEED_BOUNCE_SPATIAL);
+    const float turn = randomNext(draws);
+
+    BounceReservoir chosen = own;
+    BounceReach chosenReach = ownReach;
+
+    if (frame.mBounceReuse == BOUNCE_REUSE_SPATIOTEMPORAL)
+    {
+        BounceReservoir neighbours[BOUNCE_NEIGHBOURS];
+        BounceOrigin origins[BOUNCE_NEIGHBOURS];
+        vec4 there = vec4(0.0);
+        vec4 confidences = vec4(0.0);
+        float total = float(own.mConfidence);
+
+        // Each neighbour, taken where it is a surface of this one's kind: its reservoir, and this
+        // pixel's sample shifted into its domain, seen from there or not.
+        for (uint index = 0u; index < BOUNCE_NEIGHBOURS; ++index)
+        {
+            const ivec2 tap = neighbourOf(pixel, index, turn);
+            const bool inside = !outsideOf(uvec2(tap), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight));
+            const uint tapAt = inside ? uint(tap.y) * frame.mBounceStride + uint(tap.x) : at;
+
+            const BounceOrigin near = unpackOrigin(bounceOrigins[tapAt]);
+            const float distance = length(origin.mOffset);
+            const bool alike = inside && near.mKept && dot(near.mNormal, origin.mNormal) >= ACCUMULATE_FACING
+                && abs(length(near.mOffset) - distance) <= BOUNCE_DEPTH * distance;
+
+            BounceReservoir reservoir = unpackBounce(bounceReservoirs[tapAt]);
+            reservoir.mConfidence = alike ? reservoir.mConfidence : 0u;
+            neighbours[index] = reservoir;
+            origins[index] = near;
+
+            const BounceReach ownThere = reachOf(own.mSample, origin.mOffset, near.mOffset);
+            const float jacobian = shiftJacobian(own.mSample, origin.mOffset, near.mOffset);
+            const bool seen = alike && jacobian > 0.0 && bounceSeen(near, ownThere);
+            there[index] = seen ? bounceTarget(near, own.mSample, ownThere) * jacobian : 0.0;
+            confidences[index] = float(reservoir.mConfidence);
+            total += float(reservoir.mConfidence);
+        }
+
+        const float ownMis = canonicalWeight(ownTarget, own.mConfidence, total, there, confidences);
+        offer(merge, own.mSample, ownMis * ownTarget * own.mWeight, ownTarget, own.mConfidence, own.mAge,
+            randomNext(draws));
+
+        for (uint index = 0u; index < BOUNCE_NEIGHBOURS; ++index)
+        {
+            const BounceReservoir near = neighbours[index];
+            const BounceOrigin nearOrigin = origins[index];
+            const float jacobian = shiftJacobian(near.mSample, nearOrigin.mOffset, origin.mOffset);
+            const BounceReach here = reachOf(near.mSample, nearOrigin.mOffset, origin.mOffset);
+            const float target = bounceTarget(origin, near.mSample, here);
+            const float nearThere = jacobian > 0.0
+                ? bounceTarget(nearOrigin, near.mSample, reachOf(near.mSample, nearOrigin.mOffset, nearOrigin.mOffset))
+                    / jacobian
+                : 0.0;
+            const float mis = neighbourWeight(nearThere, target, near.mConfidence, total, own.mConfidence);
+
+            BounceSample shifted = near.mSample;
+            shifted.mOffset = shifted.mSky ? shifted.mOffset : here.mTowards * here.mDistance;
+            offer(merge, shifted, holdsBounce(near) ? mis * target * near.mWeight * jacobian : 0.0, target,
+                near.mConfidence, near.mAge, randomNext(draws));
+        }
+
+        chosen = finishMerge(merge);
+        chosenReach = reachOf(chosen.mSample, origin.mOffset, origin.mOffset);
+    }
+
+    // The sample shown, if this point can see it now: a fresh candidate was traced from here, and
+    // anything kept from another frame or another pixel is asked again.
+    const bool fresh = frame.mBounceReuse == BOUNCE_REUSE_OWN;
+    const bool seen = fresh || !holdsBounce(chosen) || bounceSeen(origin, chosenReach);
+    const vec3 share = diffuseShare(origin, chosenReach.mTowards) * (seen ? chosen.mWeight : 0.0);
+    const vec3 through = unpackRgb9e5(bounceThrough[at]);
+
+    RTX_STORE_COUNTED(indirect, at2, BOUNDARY_COLOUR, vec4(share * chosen.mSample.mRadiance * through, 1.0))
+    RTX_STORE_COUNTED(fill, at2, BOUNDARY_COLOUR, vec4(share * chosen.mSample.mFill * through, 1.0))
+}

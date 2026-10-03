@@ -357,6 +357,10 @@ namespace Rtx::Testing
         /// unless a test names the other.
         NoiseSource mNoise = NoiseSource::BlueNoiseTile;
 
+        /// What the trace makes of its bounce: none, for the reason the filter is off — a reused
+        /// bounce is what the neighbours and the frames before found. The tests of the reuse ask.
+        BounceReuse mBounceReuse = BounceReuse::Off;
+
         /// What the past of the run's frame `mLossAt` is worth (`FrameOptions::mLoss`). A shot that
         /// sets its scene has lost every history at its first frame already, as a new world does.
         ///
@@ -466,7 +470,8 @@ namespace Rtx::Testing
                         .mReconstruction = ReconstructionRequest{ .mDenoise = shot.mFilter,
                             .mJitter = shot.mJitter,
                             .mNoise = shot.mNoise,
-                            .mLevelEpsilon = shot.mLevelEpsilon },
+                            .mLevelEpsilon = shot.mLevelEpsilon,
+                            .mBounceReuse = shot.mBounceReuse },
                         .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })
                                                                 : ExposureRule(MeasuredExposure{}),
                         .mDelight = shot.mDelight,

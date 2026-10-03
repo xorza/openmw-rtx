@@ -122,6 +122,12 @@ const uint SEED_AMBIENT_THROUGH = SEED_AMBIENT_MIRROR + 1u;
 const uint SEED_SHADOWED_LEGS = SEED_AMBIENT_THROUGH + 1u;
 const uint SEED_SHADOWED_SHORE = SEED_SHADOWED_LEGS + 1u;
 
+/// The bounce's reuse: which reservoir the temporal pass keeps, and the turn of the resolve's
+/// neighbours and which reservoir it keeps of them. Each its own, so the merge a frame makes moves
+/// no draw the trace made.
+const uint SEED_BOUNCE_TEMPORAL = SEED_SHADOWED_SHORE + 1u;
+const uint SEED_BOUNCE_SPATIAL = SEED_BOUNCE_TEMPORAL + 1u;
+
 /// How far each stream's sequence advances between frames.
 ///
 /// **An additive recurrence with an irrational step**, which is the cheapest sequence whose every

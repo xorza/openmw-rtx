@@ -23,12 +23,14 @@
 
 namespace Rtx
 {
-    TraceChain::TraceChain(
-        const Device& device, const TracePasses& passes, const std::uint32_t bins, const RadianceWidth radiance)
+    TraceChain::TraceChain(const Device& device, const TracePasses& passes, const std::uint32_t bins,
+        const RadianceWidth radiance, const bool reuses)
         : mDevice(device)
         , mPasses(passes)
         , mRadiance(radiance)
+        , mReuses(reuses)
         , mDenoise(device)
+        , mReservoirs(device)
     {
         assert(bins >= 1 && bins <= sFrameSlots && "a sprite bin past the frames in flight");
         mBins.reserve(bins);
@@ -52,6 +54,7 @@ namespace Rtx
         mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance);
         mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight);
         mDenoise.resize(mWidth, mHeight);
+        mReservoirs.resize(mWidth, mHeight, mReuses);
 
         // Dropped rather than resized, because most runs never make one: sixteen bytes a pixel is
         // worth it to the reference mode and nothing to a window. The first averaging trace asks.
@@ -75,10 +78,22 @@ namespace Rtx
         // turn. The air's is read by every trace, and the basis of nothing the frame carries says
         // so to it.
         if (what.mPastLost)
+        {
             mDenoise.reset();
+            mReservoirs.reset();
+        }
+
+        assert(
+            (mReuses || what.mBounceReuse == BounceReuse::Off) && "a reuse asked of a chain that keeps no reservoirs");
+        const bool history = mReservoirs.turn(what.mBounceReuse != BounceReuse::Off);
 
         mFogVolume->turn();
-        const VisibilityInputs inputs{ .mSubject = what.mSubject, .mChannels = *mChannels, .mFogVolume = *mFogVolume };
+        const VisibilityInputs inputs{ .mSubject = what.mSubject,
+            .mChannels = *mChannels,
+            .mFogVolume = *mFogVolume,
+            .mReservoirs = mReservoirs,
+            .mBounceReuse = what.mBounceReuse,
+            .mBounceHistory = history };
 
         // Made by the first trace that averages, and that trace is the one that fills it: the first
         // write needs no contents and nothing to wait on, and every trace after reads what the last
@@ -125,9 +140,10 @@ namespace Rtx
         // display's `puffsCoverNothing` read the one set.
         const SpriteTables tables = bin.getTables();
 
-        // Composed by the trace where nothing filters the bounce: `VisibilityConstants::mComposed`.
+        // Composed by the trace where nothing filters the bounce and nothing resolves it after the
+        // trace either: `VisibilityConstants::mComposed`, `Reconstruction::composedByTrace`.
         const bool denoised = what.mDenoised;
-        const bool composed = !denoised;
+        const bool composed = !denoised && what.mBounceReuse == BounceReuse::Off;
 
         mPasses.mVisibility.writeFrame(commands, inputs, tables, what.mSampled, composed);
 
@@ -145,6 +161,7 @@ namespace Rtx
 
         mChannels->begin(commands);
         mPasses.mVisibility.record(commands, inputs, what.mSampled, what.mTimer);
+        mPasses.mVisibility.recordBounceReuse(commands, inputs, what.mSampled, what.mTimer);
         mChannels->handOver(commands);
 
         // Where the bounce, the lobe's light and the layers' ended up: the filters' answers, or the
@@ -162,7 +179,7 @@ namespace Rtx
         // the frame, and every pass after it reads the channel as `handOver` left it.
         const Image& frame = mChannels->get(Channel::Direct);
         ImageUse leftAs = Use::sAnyShaderRead;
-        if (denoised || what.mAccumulate > 0)
+        if (!composed || what.mAccumulate > 0)
         {
             // Written over, where the hand-over left it to be read: nothing has read it since, and
             // this is the dependency that keeps it so.

@@ -397,6 +397,8 @@ namespace RtxTool
             if (const std::string& noise = variables["noise"].as<std::string>(); noise != "auto")
                 profile.mReconstruction.mNoise = Rtx::sNoiseSourceNames.require(noise, "a noise source");
             profile.mReconstruction.mLevelEpsilon = variables["level-epsilon"].as<float>();
+            profile.mReconstruction.mBounceReuse
+                = Rtx::sBounceReuseNames.require(variables["bounce-reuse"].as<std::string>(), "a bounce reuse");
 
             return framed;
         }
@@ -999,8 +1001,12 @@ namespace RtxTool
             // epsilon: an epsilon is a knob on the frame, and a reference that moved with it would
             // take the frame's softness for its own and report no bias at all.
             reference.mLevelEpsilon = 0.0f;
+            // **And every frame of it a draw of its own**: a frame that reused the ones before it is
+            // not one more sample of the truth, and neither is a frame of the bar.
+            reference.mBounceReuse = Rtx::BounceReuse::Off;
             Rtx::ReconstructionRequest unfiltered = played;
             unfiltered.mDenoise = false;
+            unfiltered.mBounceReuse = Rtx::BounceReuse::Off;
             const Rtx::ExposureRule held = Rtx::HeldExposure{};
 
             // One picture of `place` after `frames` frames: their sum where `summed`, and the last of

@@ -30,7 +30,7 @@ namespace Rtx
         , mMedia(media)
         , mDisplay(display)
         , mTextures(textures)
-        , mChain(device, passes, 1, radiance)
+        , mChain(device, passes, 1, radiance, false)
         , mCounts(Buffer::deviceLocal(
               device, sizeof(Shaders::FrameCounts), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture counts"))
         , mGlareCounts(Buffer::deviceLocal(
@@ -85,6 +85,7 @@ namespace Rtx
                     .mAsked = BinCamera::of(camera),
                     .mSampled = sampled,
                     .mDenoised = reconstruction.mDenoised,
+                    .mBounceReuse = reconstruction.mBounceReuse,
                     .mPastLost = true,
                 });
 
