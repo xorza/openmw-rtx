@@ -367,15 +367,15 @@ namespace Rtx
         // where the rule is. Nothing here changes a picture until a ray that draws casts, which is
         // what lets this go in ahead of them.
         //
-        // **And no `VK_GEOMETRY_INSTANCE_TRIANGLE_FLIP_FACING_BIT_KHR`.** Traversal carries the ray
-        // into the mesh's own space and reads the winding there, so a placement of a negative
-        // determinant leaves facing alone — measured, and pinned by
-        // `aMirroredPlacementShowsTheFaceItsMeshShows`. That is the space `SceneUtil::attach`
-        // means when it builds a left body part under a scale of minus one and flips
-        // `osg::FrontFace` back over it for the rasterizer, which does carry the determinant.
+        // **And flipped where the rasterizer's front is the other face**, `InstanceRecord::mFlipFacing`:
+        // traversal reads the winding in the mesh's own space, so a placement of a negative
+        // determinant leaves its facing alone — measured, and pinned by
+        // `aPlacementShowsTheFaceTheRasterizerShowsMirroredOrClockwise`.
         VkGeometryInstanceFlagsKHR flags = 0;
         if (record.mTwoSided)
             flags |= VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+        if (record.mFlipFacing)
+            flags |= VK_GEOMETRY_INSTANCE_TRIANGLE_FLIP_FACING_BIT_KHR;
 
         assert(record.mMesh < mBottomLevel.size() && "a row placing a mesh nothing built");
 

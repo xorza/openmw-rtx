@@ -9,6 +9,8 @@
 #include <gtest/gtest.h>
 
 #include <osg/Array>
+#include <osg/FrontFace>
+#include <osg/Group>
 #include <osg/LOD>
 #include <osg/Math>
 #include <osg/Matrix>
@@ -18,6 +20,8 @@
 #include <osg/Node>
 #include <osg/NodeVisitor>
 #include <osg/Sequence>
+#include <osg/StateAttribute>
+#include <osg/StateSet>
 #include <osg/Switch>
 #include <osg/Transform>
 #include <osg/Vec2f>
@@ -541,6 +545,55 @@ namespace Rtx::Testing
 
             ASSERT_EQ(mScene.placements().getMoved().size(), 1u);
             EXPECT_EQ(mScene.placements().getMoved()[0], 0u);
+        }
+
+        /// **A clockwise front is the placement's and not the material's**, as a fade is: the left
+        /// body part and the right one share the state set a material is keyed on, and
+        /// `SceneUtil::attach` hangs the clockwise front above the left one alone. So the one quad
+        /// placed under it and beside it is one material and two faces. An `OVERRIDE` above keeps
+        /// its front over the one a node below states, unless that one is `PROTECTED`, as the
+        /// rasterizer's state stack resolves it.
+        TEST_F(RtxSceneExtractorTest, aClockwiseFrontIsThePlacementsAndNotTheSharedMaterials)
+        {
+            const osg::ref_ptr<osg::Node> quad = makeQuad();
+            quad->getOrCreateStateSet();
+
+            const auto statingFront = [](osg::FrontFace::Mode mode, unsigned int flags = osg::StateAttribute::ON) {
+                osg::ref_ptr<osg::Group> group = new osg::Group;
+                group->getOrCreateStateSet()->setAttribute(new osg::FrontFace(mode), flags);
+                return group;
+            };
+
+            osg::ref_ptr<osg::Group> left = statingFront(osg::FrontFace::CLOCKWISE);
+            left->addChild(quad);
+            osg::ref_ptr<osg::Group> right = new osg::Group;
+            right->addChild(quad);
+
+            osg::ref_ptr<osg::Group> overridden
+                = statingFront(osg::FrontFace::CLOCKWISE, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+            osg::ref_ptr<osg::Group> kept = statingFront(osg::FrontFace::COUNTER_CLOCKWISE);
+            kept->addChild(quad);
+            overridden->addChild(kept);
+
+            osg::ref_ptr<osg::Group> protectedAbove
+                = statingFront(osg::FrontFace::CLOCKWISE, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+            osg::ref_ptr<osg::Group> protectedBelow = statingFront(
+                osg::FrontFace::COUNTER_CLOCKWISE, osg::StateAttribute::ON | osg::StateAttribute::PROTECTED);
+            protectedBelow->addChild(quad);
+            protectedAbove->addChild(protectedBelow);
+
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            for (osg::Group* child : { left.get(), right.get(), overridden.get(), protectedAbove.get() })
+                root->addChild(child);
+            walk(*root);
+
+            const auto rows = mScene.placements().getRows();
+            ASSERT_EQ(rows.size(), 4u);
+            EXPECT_TRUE(rows[0].mInstance.mClockwise) << "under the clockwise front";
+            EXPECT_FALSE(rows[1].mInstance.mClockwise) << "beside it, sharing its state set";
+            EXPECT_EQ(rows[0].mInstance.mMaterial, rows[1].mInstance.mMaterial) << "one material, two faces";
+            EXPECT_TRUE(rows[2].mInstance.mClockwise) << "an override above wins";
+            EXPECT_FALSE(rows[3].mInstance.mClockwise) << "except over a protected front";
         }
 
         /// **Texture coordinates are read off the array's own type byte**, which is what

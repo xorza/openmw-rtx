@@ -773,6 +773,7 @@ namespace Rtx
             .mMaterial = material.mIndex,
             .mOpacity = fade,
             .mClass = what,
+            .mClockwise = !shading.empty() && shading.back().mClockwise,
         };
 
         ++stats.mInstances;
@@ -800,7 +801,7 @@ namespace Rtx
         Index& slot = held->second.mIndex;
         const MeshInstance& standing = mScene.placements().getRows()[slot].mInstance;
         if (standing.mMesh != resolved.mMesh || standing.mMaterial != resolved.mMaterial
-            || standing.mClass != resolved.mClass)
+            || standing.mClass != resolved.mClass || standing.mClockwise != resolved.mClockwise)
         {
             mScene.dropInstance(slot, Stander::Walk);
             slot = mScene.addInstance(resolved);

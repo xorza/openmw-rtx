@@ -1438,17 +1438,22 @@ namespace Rtx::Testing
             EXPECT_NEAR(bothWays, facing, 1.0e-4f) << "a sheet drawn both ways adds from either face";
         }
 
-        /// **A placement that turns a mesh over shows the same face of it.**
+        /// **The face a placement shows is the rasterizer's: clockwise XOR mirrored.**
         ///
         /// Traversal carries the ray into the mesh's own space and reads the winding there, so a
-        /// placement of a negative determinant leaves which face is drawn alone. That is the space
-        /// the engine means: `SceneUtil::attach` builds a left body part out of the right one under
-        /// a scale of minus one and flips `osg::FrontFace` back over it, because the rasterizer
-        /// does carry the determinant and traversal does not.
+        /// placement of a negative determinant leaves the face alone, where the rasterizer, reading
+        /// the winding on the screen, turns it round. `InstanceRecord::mFlipFacing` composes the two,
+        /// and the eye, which culls a single-sided back, meets the quad or the wall behind it:
         ///
-        /// Measured here rather than assumed, because the other reading would take every left arm
-        /// in the game out of the frame.
-        TEST_F(RtxVisibilityTest, aMirroredPlacementShowsTheFaceItsMeshShows)
+        /// - unmirrored and counter-clockwise, the mesh's own face: met;
+        /// - mirrored and counter-clockwise, which the rasterizer culls: the wall;
+        /// - unmirrored and clockwise, a content file's own `NiStencilProperty`: the wall;
+        /// - mirrored and clockwise, a rigid left body part, which `SceneUtil::attach` builds under
+        ///   a scale of minus one and states clockwise over: met — the case that, read the other
+        ///   way, takes every left arm in the game out of the frame;
+        /// - a mesh mirrored in its own vertices, wound the other way, unmirrored and clockwise, as
+        ///   a skinned left part stands once its skin mirrored it: met.
+        TEST_F(RtxVisibilityTest, aPlacementShowsTheFaceTheRasterizerShowsMirroredOrClockwise)
         {
             constexpr std::uint32_t size = 32;
 
@@ -1458,11 +1463,15 @@ namespace Rtx::Testing
             // A quad halfway to the wall and square about the axis, so a mirror about x leaves it
             // where it was and changes nothing but its winding.
             const std::array<osg::Vec3f, 4> held = uprightQuadAt(20.0f, -50.0f);
+            const osg::Matrixf mirror = osg::Matrixf::scale(-1.0f, 1.0f, 1.0f);
 
-            const auto metAt = [&](const osg::Matrixf& place) {
+            const auto metAt = [&](std::span<const osg::Vec3f, 4> quad, const osg::Matrixf& place, bool clockwise) {
                 SceneDesc scene;
                 addQuad(scene, sWallQuad);
-                addQuad(scene, held, sNoIndex, place);
+                scene.addInstance(MeshInstance{ .mTransform = place,
+                    .mMesh = addQuadMesh(scene, quad),
+                    .mMaterial = addGrey(scene),
+                    .mClockwise = clockwise });
 
                 EXPECT_EQ(shoot(scene, {}, camera, size).mHits, size * size);
 
@@ -1473,9 +1482,14 @@ namespace Rtx::Testing
                 return depth[centreOf(size) * 2 + 1];
             };
 
-            EXPECT_NEAR(metAt(osg::Matrixf::identity()), 50.0f, 0.1f) << "the quad stands halfway to the wall";
-            EXPECT_NEAR(metAt(osg::Matrixf::scale(-1.0f, 1.0f, 1.0f)), 50.0f, 0.1f)
-                << "and the eye met the wall behind the mirrored one";
+            EXPECT_NEAR(metAt(held, osg::Matrixf::identity(), false), 50.0f, 0.1f) << "the quad stands halfway";
+            EXPECT_NEAR(metAt(held, mirror, false), 100.0f, 0.1f) << "a mirror showed the face the rasterizer culls";
+
+            EXPECT_NEAR(metAt(held, osg::Matrixf::identity(), true), 100.0f, 0.1f)
+                << "a clockwise front showed the face its winding calls the front";
+            EXPECT_NEAR(metAt(held, mirror, true), 50.0f, 0.1f) << "a rigid left part lost its face";
+            EXPECT_NEAR(metAt(turned(held), osg::Matrixf::identity(), true), 50.0f, 0.1f)
+                << "a part its skin mirrored lost its face";
         }
 
         /// The mip chain a ray cone selects from, at a distance chosen so the answer is a whole

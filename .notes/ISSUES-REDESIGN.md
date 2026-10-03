@@ -285,6 +285,15 @@ The steps:
 clockwise material unmirrored, the same mirrored, and a mirrored skinned mesh. Each asserts the face
 a back-face-culling eye ray meets.
 
+**Outcome.** The rule holds, but its first home was wrong. Read into the material, the clockwise
+front reached the right body parts too: a left part and a right one share the state set a material
+is keyed on, and `SceneUtil::attach` hangs the front above the left one alone, so the guard's right
+greave at `seyda-neen-pier` showed its inside. The front is now resolved down the walk's chain of
+state sets (`Shading::mClockwise`, with the stack's `OVERRIDE` and `PROTECTED`) and kept on the
+placement (`MeshInstance::mClockwise`), as the fade is. `SceneUtil::attach` mirrors no skinned part,
+so the plan's skinned case does not arise in vanilla content. No view moved, and the walk's median
+did not move beyond the drift between legs.
+
 ### 2.6 Coverage is a probability
 
 **Root cause.** `candidateStops` decides a blended texel by `alphaPasses(…, painted, reference)`
