@@ -7,7 +7,7 @@
 // the launch's own, so its origin and direction stay there; whether it hit and how far it went are
 // the shader's to say, and travel here.
 //
-// **What crosses the trace is what it costs**, and this is it: twenty-three words. Every field the
+// **What crosses the trace is what it costs**, and this is it: twenty-five words. Every field the
 // tail reads travels, and travels as small as the frame keeps it — the albedos, the scalars and
 // the motion vector as halves, which is the width of the channels they are stored in, and the
 // normal as the surface channel's own code. What stays whole is the five radiances, because a
@@ -61,6 +61,10 @@ struct Answer
     vec3 mSpecular;
     float mRoughness;
 
+    /// What Night-Eye's lift adds to what was shaded, per unit of lift: `liftOf` the surface, and
+    /// the water's rays' by their shares (`WaterShading::mLift`). Nought for the sky.
+    vec3 mLift;
+
     /// What the shading model made of the surface, for the filter and the composite. `noResponse`
     /// where nothing was shaded. A pane's own, which the launch stacks into the pane's channels; the
     /// pixel's response is the surface's behind the stack.
@@ -113,6 +117,7 @@ Answer noAnswer()
     answer.mOpen = true;
     answer.mSpecular = vec3(0.0);
     answer.mRoughness = SPECULAR_NO_LOBE;
+    answer.mLift = vec3(0.0);
     answer.mResponse = noResponse();
     answer.mMotion = vec3(0.0);
     answer.mBackdropShown = 0.0;
@@ -126,7 +131,7 @@ Answer noAnswer()
     return answer;
 }
 
-/// The record as it crosses the trace: twenty-three words, laid out once here.
+/// The record as it crosses the trace: twenty-five words, laid out once here.
 ///
 /// The flags word carries the backdrop's share as a half in its high bits — or a hit's
 /// `mMisMoved`, since only a miss shows the backdrop and only a hit moves — the lobe's roughness in
@@ -146,6 +151,10 @@ struct VisibilityPayload
     /// The response's ambient albedo in green and blue. Its red is the half the motion's second word
     /// leaves.
     uint mAmbient;
+
+    /// The lift, three halves in two words: a display value, which a half holds finer than the
+    /// channel's byte.
+    uvec2 mLift;
 
     /// The response's normal code, `packSurfaceNormal`, as its bits: a whole number or minus one,
     /// never a NaN, so the word comes back as the float it went in as.
@@ -187,6 +196,7 @@ VisibilityPayload packAnswer(Answer answer)
         packHalf2x16(vec2(answer.mResponse.mDiffuse.b, answer.mOpacity)));
     packed.mNormal = floatBitsToUint(answer.mResponse.mNormal);
     packed.mAmbient = packHalf2x16(answer.mResponse.mAmbient.gb);
+    packed.mLift = uvec2(packHalf2x16(answer.mLift.rg), packHalf2x16(vec2(answer.mLift.b, 0.0)));
     packed.mMotion = uvec2(packHalf2x16(answer.mMotion.xy), packHalf2x16(vec2(answer.mMotion.z, answer.mResponse.mAmbient.r)));
     packed.mDistance = answer.mDistance;
     packed.mFlags = packHalf2x16(vec2(0.0, answer.mHit ? answer.mMisMoved : answer.mBackdropShown))
@@ -219,6 +229,7 @@ Answer unpackAnswer(VisibilityPayload packed)
     answer.mResponse = SurfaceResponse(uintBitsToFloat(packed.mNormal), vec3(diffuseRg, diffuseBOpacity.x),
         vec3(motionZAmbientR.y, unpackHalf2x16(packed.mAmbient)));
     answer.mMotion = vec3(unpackHalf2x16(packed.mMotion.x), motionZAmbientR.x);
+    answer.mLift = vec3(unpackHalf2x16(packed.mLift.x), unpackHalf2x16(packed.mLift.y).x);
     answer.mOpacity = diffuseBOpacity.y;
     answer.mPane = (packed.mFlags & ANSWER_PANE) != 0u;
     answer.mWater = (packed.mFlags & ANSWER_WATER) != 0u;

@@ -18,8 +18,9 @@ namespace Rtx
     namespace
     {
         /// The frame in, the picture out, what the star field is drawn through, the one float the
-        /// curve scales by, the bloom pyramid the lens is spread from, and the one float the glare
-        /// fader is laid on by. All pushed.
+        /// curve scales by, the bloom pyramid the lens is spread from, the one float the glare
+        /// fader is laid on by, the surface the puffs' test reads, and what Night-Eye's lift is
+        /// multiplied by. All pushed.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::TONE_BINDINGS> sBindings{
             computeBinding(Shaders::TONE_BIND_COLOUR, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
             computeBinding(Shaders::TONE_BIND_TARGET, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
@@ -28,6 +29,7 @@ namespace Rtx
             computeBinding(Shaders::TONE_BIND_BLOOM, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER),
             computeBinding(Shaders::TONE_BIND_SUN_GLARE, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
             computeBinding(Shaders::TONE_BIND_SURFACE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::TONE_BIND_LIFT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER),
         };
     }
 
@@ -68,6 +70,7 @@ namespace Rtx
         writes.image(Shaders::TONE_BIND_BLOOM, spread.describeSampled(mSampler.get()));
         writes.buffer(Shaders::TONE_BIND_SUN_GLARE, sunGlare.describe());
         writes.image(Shaders::TONE_BIND_SURFACE, surface.describeStorage());
+        writes.image(Shaders::TONE_BIND_LIFT, what.mLift.describeSampled(mSampler.get()));
 
         // The scene's textures before the launch and beside the pushed set, which the two are
         // independent of: a pushed set and a bound one only have to be in place by the dispatch.

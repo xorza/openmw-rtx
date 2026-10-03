@@ -315,6 +315,10 @@ namespace RtxTool
             "let the game's vanity camera orbit the player after thirty idle seconds, as the played "
             "game does. Off unless asked for: a run is idle by nature");
 
+        option(sFramed, "night-eye", number(between(0, 100))->default_value(0),
+            "the magnitude of Night-Eye the player wears at every place, as a potion or the Khajiit's "
+            "power puts it on them: the game lifts every lit surface by 0.7 of it over a hundred");
+
         option(sFramed, "memory-budget",
             number(between<std::uint64_t>(1, std::numeric_limits<std::uint64_t>::max() >> 20)),
             "run as though the card's video memory budget were this many MiB, where it is more: "

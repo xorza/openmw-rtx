@@ -629,6 +629,7 @@ namespace Rtx
             Display{
                 .mTrace = traced,
                 .mShown = shown,
+                .mUpscaled = reconstruction.upscaled(),
                 .mExtent = mTarget.getExtent(),
                 .mSampled = sampled,
                 .mTarget = target,
@@ -636,6 +637,7 @@ namespace Rtx
                     .mExposure = exposure,
                     .mGlare = FrameLook::Glare{ .mFader = options.mGlare, .mSeconds = options.mSinceLast },
                     .mInverseGamma = mInverseGamma,
+                    .mNightEye = options.mNightEye,
                     .mDebug = options.mDebug,
                     .mDebugVertices = frame.mDebugVertices,
                     .mTimer = timer,

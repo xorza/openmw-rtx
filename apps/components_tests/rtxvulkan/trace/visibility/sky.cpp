@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -10,6 +11,7 @@
 #include <osg/Math>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
+#include <osg/Vec4f>
 
 #include <apps/components_tests/rtx/support/displaycurve.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
@@ -18,11 +20,14 @@
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/frame/camera.hpp>
+#include <components/rtx/frame/framepast.hpp>
 #include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
@@ -671,6 +676,114 @@ namespace Rtx::Testing
             const Read armsWider = washed(0.4f, 0.0f, false, 90.0f);
             EXPECT_EQ(armsWider.mRed, 51) << "the disc counted along the arms' own eye";
             EXPECT_EQ(armsWider.mGreen, 0);
+        }
+
+        /// Night-Eye's lift is laid over the picture after the curve, by what each lit thing the pixel
+        /// shows reflects of an ambient, and the meter never sees it.
+        ///
+        /// **The rasterizer's rule, in its own values.** It adds `0.7 × magnitude / 100` to the
+        /// ambient of every fragment it lights, so a fragment shows `texture × A × lift` more, in the
+        /// values it displays. Here `CHANNEL_LIFT` holds the encoded ambient albedo of what the pixel
+        /// shows, by the share of the pixel each is, and the display pass adds the lift by it.
+        ///
+        /// - **A floor in the dark** shows the lift alone: its diffuse colour a half and its ambient
+        ///   a quarter, untextured, so its ambient albedo is 0.25 and the channel holds
+        ///   `encodeSrgb(0.25)` = 0.53709, a byte of 137. A lift of 0.2 shows `0.2 × 137` = 27.4, so
+        ///   27. The diffuse colour is not in it.
+        /// - **Half a white pane over it** shows half of each: `0.5 × 1 + 0.5 × 0.53709` = 0.76855,
+        ///   a byte of 196.
+        /// - **Lit, under an exposure the frame measures for itself**, the lift is the same sum on
+        ///   top of a picture the lift did not move: told no past, the eye arrives at once, and it
+        ///   arrives at what it would without the lift.
+        /// - **Flat water** shows what its two rays found by their shares. The eye grazing it at ten
+        ///   degrees reflects `0.02 + 0.98 (1 - sin 10°)^5` = 0.39745 of a grey wall, whose ambient
+        ///   albedo is its half, encoded 0.73536: 0.29227. The refraction finds nothing under it, and
+        ///   the sky the mirror shows without the wall is lit by no ambient.
+        TEST_F(RtxVisibilityTest, nightEyesLiftIsLaidOverThePictureByTheAmbientAlbedoAndTheMeterNeverSeesIt)
+        {
+            constexpr std::uint32_t size = 16;
+            constexpr std::size_t centre = centreValueOf(size);
+            const osg::Vec3f lift(0.2f, 0.2f, 0.2f);
+
+            Shaders::VisibilityConstants dark = Testing::makeCamera(
+                osg::Vec3f(0.0f, -1.0f, 300.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            dark.mSkyHorizon = osg::Vec3f();
+            dark.mSkyZenith = osg::Vec3f();
+            dark.mSun.mIrradiance = osg::Vec3f();
+            dark.mAmbient = osg::Vec3f();
+
+            const auto floor = [](bool paned) {
+                SceneDesc scene;
+                addQuad(scene, sheetAt(4000.0f, 0.0f),
+                    scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f),
+                        .mAmbientColour = osg::Vec3f(0.25f, 0.25f, 0.25f) }));
+                if (paned)
+                    addPane(scene, sheetAt(40.0f, 150.0f), osg::Vec4f(1.0f, 1.0f, 1.0f, 0.5f));
+                return scene;
+            };
+
+            // The channel's byte at the centre, and the picture's red byte there.
+            struct Read
+            {
+                long mChannel;
+                int mShown;
+            };
+            const auto read = [&](const SceneDesc& scene, const Shaders::VisibilityConstants& camera, Shot shot) {
+                shoot(scene, {}, camera, size, shot);
+
+                std::vector<float> lifted;
+                mRenderer.readChannel(Channel::Lift, lifted);
+                std::vector<std::uint8_t> pixels;
+                mRenderer.readPixels(pixels);
+                requireFrame(pixels, size);
+
+                return Read{ std::lround(lifted[centre] * 255.0f), pixels[centre] };
+            };
+
+            const long floorByte = std::lround(Shaders::encodeSrgb(0.25f) * 255.0f);
+            ASSERT_EQ(floorByte, 137);
+
+            const Read bare = read(floor(false), dark, Shot{ .mNightEye = lift });
+            EXPECT_EQ(bare.mChannel, floorByte);
+            EXPECT_EQ(bare.mShown, 27) << "the lift by the ambient albedo, and nothing else, in the dark";
+            EXPECT_EQ(read(floor(false), dark, Shot{}).mShown, 0) << "and the dark without it";
+
+            const Read paned = read(floor(true), dark, Shot{ .mNightEye = lift });
+            EXPECT_EQ(paned.mChannel, std::lround((0.5f + 0.5f * Shaders::encodeSrgb(0.25f)) * 255.0f));
+            EXPECT_EQ(paned.mShown, std::lround(0.2f * static_cast<float>(paned.mChannel)));
+
+            // Lit by a sky, and metered: the same picture and the lift on top, to the rounding of
+            // the two bytes.
+            Shaders::VisibilityConstants lit = dark;
+            lit.mSkyHorizon = osg::Vec3f(0.3f, 0.3f, 0.3f);
+            lit.mSkyZenith = lit.mSkyHorizon;
+            lit.mAmbientFromSky = 1.0f;
+            const Shot metered{ .mLoss = HistoryLoss::Cut, .mExposure = std::nullopt };
+            Shot meteredLifted = metered;
+            meteredLifted.mNightEye = lift;
+
+            const Read unlifted = read(floor(false), lit, metered);
+            const Read lifted = read(floor(false), lit, meteredLifted);
+            ASSERT_GT(unlifted.mShown, 20) << "the sky lit the floor";
+            EXPECT_NEAR(lifted.mShown - unlifted.mShown, 0.2 * static_cast<double>(floorByte), 1.0)
+                << "the meter took some of the lift back";
+
+            // The water's two rays, by their shares.
+            const float fresnel = Shaders::WATER_F0
+                + (1.0f - Shaders::WATER_F0) * std::pow(1.0f - std::sin(osg::DegreesToRadians(10.0f)), 5.0f);
+            SceneDesc mirrored = makeOpenWater(4000.0f);
+            addQuad(mirrored, sGrazedWall);
+            const Shaders::VisibilityConstants grazing = grazingTheWater(size);
+            const Shot flat{ .mSea = SeaState{ .mSignificantHeight = 0.0f } };
+
+            shoot(mirrored, {}, grazing, size, flat);
+            std::vector<float> water;
+            mRenderer.readChannel(Channel::Lift, water);
+            EXPECT_NEAR(water[centre], fresnel * Shaders::encodeSrgb(0.5f), 1.0f / 255.0f) << "the wall it reflects";
+
+            shoot(makeOpenWater(4000.0f), {}, grazing, size, flat);
+            mRenderer.readChannel(Channel::Lift, water);
+            EXPECT_EQ(water[centre], 0.0f) << "and the sky lit by no ambient";
         }
 
         /// The world's edge is nothing over the ground the player stands on and total at the last

@@ -44,6 +44,10 @@ struct WaterPath
     /// found.
     SplitLight mLight;
 
+    /// What Night-Eye's lift adds there, `liftOf` what it found: nought where it found nothing, as
+    /// the sky the rasterizer reflects is lit by no ambient.
+    vec3 mLift;
+
     /// How far it went to find that, or `WATER_MAX_PATH` where it found nothing.
     float mDistance;
 
@@ -94,6 +98,7 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint key, uint lamps, ui
 
     WaterPath path;
     path.mFound = hit.mHit;
+    path.mLift = liftOf(hit);
 
     if (hit.mHit)
     {
@@ -136,7 +141,8 @@ float airSpan(WaterPath path)
 }
 
 /// What a leg the surface sent out brings back to it: what it found, through the medium it crossed
-/// to find it — the water's own column under the surface, the air over it.
+/// to find it — the water's own column under the surface, the air over it. The lift is taken down by
+/// what the medium lets through, as the shadowed sources are, and gains nothing it scatters.
 ///
 /// **One statement for the reflection and the refraction, because which medium each crosses flips
 /// with the side.** Seen from above, the refraction dives in and the reflection leaves into air;
@@ -147,11 +153,12 @@ float airSpan(WaterPath path)
 ///        both legs, since both leave the same point.
 /// @param before how far the eye's own ray had come, which a leg into the air carries on from —
 ///        `fogAlongLeg` says why it asks.
-SplitLight alongLeg(WaterPath path, WorldRay leg, bool underwater, float footprint, uvec2 pixel, float before)
+WaterPath alongLeg(WaterPath path, WorldRay leg, bool underwater, float footprint, uvec2 pixel, float before)
 {
     // The shadowed sources are taken down by what the medium lets through and gains none of what it
     // scatters, which stays with the rest: each medium is `radiance * through + scattered`.
     const SplitLight light = path.mLight;
+    WaterPath arrived = path;
     if (underwater)
     {
         // **Water whole, and not split at the plane as the eye's own ray is** (`waterAlong`). A leg
@@ -159,12 +166,16 @@ SplitLight alongLeg(WaterPath path, WorldRay leg, bool underwater, float footpri
         // a reflection climbing — which the surface above it would turn back down, and which, sent
         // into the air instead, drew the bright world over the water as specks along the horizon.
         const WaterColumn column = waterColumn(leg.mFrom, leg.mAlong, path.mDistance, footprint, pixel);
-        return SplitLight(
+        arrived.mLight = SplitLight(
             throughWater(light.mRest, column), light.mShadowed * column.mTransmittance, light.mOpen);
+        arrived.mLift *= column.mTransmittance;
+        return arrived;
     }
 
     const vec4 air = fogAlongLeg(leg.mFrom, leg.mAlong, airSpan(path), before);
-    return SplitLight(throughAir(light.mRest, air), light.mShadowed * air.w, light.mOpen);
+    arrived.mLight = SplitLight(throughAir(light.mRest, air), light.mShadowed * air.w, light.mOpen);
+    arrived.mLift *= air.w;
+    return arrived;
 }
 
 /// Where the images the water's two rays found appear to stand along the eye's own ray, and what
@@ -213,6 +224,10 @@ struct WaterShading
 
     WaterImages mImages;
 
+    /// What Night-Eye's lift adds to what the two rays found, by the share of the water's light
+    /// each is: `CHANNEL_LIFT`'s water.
+    vec3 mLift;
+
     /// How much of the pixel is water at all, from nothing at the waterline to one over half a
     /// metre of depth. **The caller mixes the ground in, and not `shadeWater`**, because what a
     /// pixel with no water under it is is the ground the dry pixel beside it is — shaded the way
@@ -234,6 +249,7 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
 
     WaterShading shaded;
     shaded.mImages = WaterImages(WaterImage(0.0, 0.0, false), WaterImage(0.0, 0.0, false));
+    shaded.mLift = vec3(0.0);
 
     // **Which side of the water a ray is on is a question about the plane, not about a wave.** At a
     // glancing angle a facet can tilt far enough to face away from the ray, and reading that as "the
@@ -310,7 +326,8 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     const WorldRay mirrored = WorldRay(leaving, reflect(incident, normal));
     const WaterPath bounced = waterRay(
         mirrored, Cone(surface.mFootprint, cone.mSpread), lobe, key, SEED_LAMPS_MIRROR, SEED_AMBIENT_MIRROR);
-    const SplitLight reflected = alongLeg(bounced, mirrored, fromBelow, surface.mFootprint, pixel, before);
+    const WaterPath reflectedPath = alongLeg(bounced, mirrored, fromBelow, surface.mFootprint, pixel, before);
+    const SplitLight reflected = reflectedPath.mLight;
 
     const vec3 bent = refract(incident, normal, fromBelow ? WATER_IOR : 1.0 / WATER_IOR);
     if (dot(bent, bent) < 1e-6)
@@ -319,6 +336,7 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
         // there is nothing behind it to see: the reflection whole, which is the Fresnel term's own
         // answer there, and no refraction to trace.
         shaded.mLight = reflected;
+        shaded.mLift = reflectedPath.mLift;
         shaded.mImages = WaterImages(
             imageOf(bounced, mirrored, 1.0, before, 1.0), WaterImage(0.0, 0.0, false));
         return shaded;
@@ -335,7 +353,8 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     const WorldRay across = WorldRay(leaving, through);
     const WaterPath behind = waterRay(across, Cone(surface.mFootprint, cone.mSpread),
         refractedConeWidth(lobe, WATER_IOR, fromBelow), key, SEED_LAMPS_THROUGH, SEED_AMBIENT_THROUGH);
-    const SplitLight refracted = alongLeg(behind, across, !fromBelow, surface.mFootprint, pixel, before);
+    const WaterPath refractedPath = alongLeg(behind, across, !fromBelow, surface.mFootprint, pixel, before);
+    const SplitLight refracted = refractedPath.mLight;
 
     // **Shared by the luminance each ray adds**, as `mixSplit` shares the shadowed sources' bit. A
     // ray that went down and found nothing brought the column's own colour, which has no image to
@@ -348,6 +367,7 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
 
     uint legs = randomSeed(key + SEED_SHADOWED_LEGS);
     shaded.mLight = mixSplit(refracted, reflected, fresnel, randomNext(legs));
+    shaded.mLift = mix(refractedPath.mLift, reflectedPath.mLift, fresnel);
     return shaded;
 }
 

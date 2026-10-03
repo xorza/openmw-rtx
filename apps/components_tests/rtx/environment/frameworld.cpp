@@ -95,6 +95,7 @@ namespace Rtx
                     },
                     .mFade = 0.25f,
                 },
+                .mNightEye = osg::Vec3f(0.35f, 0.35f, 0.35f),
             };
         }
 
@@ -258,13 +259,14 @@ namespace Rtx
             EXPECT_EQ(constants.mRainOnWater, read.mRainOnWater);
             EXPECT_EQ(constants.mShelterHeight, read.mShelterHeight);
             EXPECT_EQ(constants.mWaterScatter, read.mWaterScatter);
-            // And beside the constants, what the display chain takes: the glare as the reading
-            // stated it, and the hour's bias.
+            // And beside the constants, what the display chain takes: the glare and Night-Eye's lift
+            // as the reading stated them, and the hour's bias.
             EXPECT_EQ(options.mGlare.mFader.mColour, read.mSunGlare.mFader.mColour);
             EXPECT_EQ(options.mGlare.mFader.mMax, read.mSunGlare.mFader.mMax);
             EXPECT_EQ(options.mGlare.mFader.mAngleMax, read.mSunGlare.mFader.mAngleMax);
             EXPECT_EQ(options.mGlare.mFade, read.mSunGlare.mFade);
             EXPECT_EQ(options.mExposureBias, light.mExposureBias);
+            EXPECT_EQ(options.mNightEye, read.mNightEye);
 
             // The deck and the stars come out of the builders both hosts share, and this is the one
             // place that says the frame is handed what those built rather than a second reading.

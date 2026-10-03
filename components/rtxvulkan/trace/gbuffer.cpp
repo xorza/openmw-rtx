@@ -36,6 +36,9 @@ namespace Rtx
         /// A byte a mask, the width AMD stores its own at.
         constexpr VkFormat sUpscaleMasks = toVulkanFormat(GBUFFER_UPSCALE_MASKS);
 
+        /// A byte a channel, for the reason `gbuffer.h` gives.
+        constexpr VkFormat sLift = toVulkanFormat(GBUFFER_LIFT);
+
         /// `SAMPLED` on all of them: the cascade samples the surface and the puffs, an upscaler samples
         /// what it is handed, and the bit costs no memory, so every channel carries it.
         constexpr VkImageUsageFlags sUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -75,6 +78,7 @@ namespace Rtx
                 every[bindingOf(Channel::UpscaleMasks)] = { sUpscaleMasks, sReadable };
                 every[bindingOf(Channel::Fill)] = { VK_FORMAT_UNDEFINED, sReadable };
                 every[bindingOf(Channel::AmbientAlbedo)] = { sAlbedo, sReadable };
+                every[bindingOf(Channel::Lift)] = { sLift, sReadable };
 
                 return every;
             }();

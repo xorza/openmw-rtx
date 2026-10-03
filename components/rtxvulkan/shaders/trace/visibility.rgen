@@ -106,11 +106,14 @@ struct PaneStack
     /// What they glow with by the same weights: with `mDrawn`, the light that moves as the layers
     /// do, where `mRadiance` has the air between them in it as well.
     vec3 mGlow;
+
+    /// What Night-Eye's lift adds to them by the same weights: `CHANNEL_LIFT`'s layers.
+    vec3 mLift;
 };
 
 PaneStack noPanes()
 {
-    return PaneStack(vec3(0.0), 1.0, vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0));
+    return PaneStack(vec3(0.0), 1.0, vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0));
 }
 
 /// One more layer, behind every one already in `stack`: the stretch of medium since the layer in
@@ -122,6 +125,7 @@ void stackLayer(inout PaneStack stack, MediumAhead ahead, Answer layer)
     stack.mDrawn += reaching * (layer.mBounced + layer.mSpecular);
     stack.mAlbedo += reaching * layer.mResponse.mDiffuse;
     stack.mGlow += reaching * layer.mRadiance;
+    stack.mLift += reaching * layer.mLift;
 
     stack.mRadiance
         += stack.mThrough * (ahead.mScattered - stack.mScattered + ahead.mThrough * (layer.mRadiance * layer.mOpacity));
@@ -495,6 +499,12 @@ void main()
     RTX_STORE_COUNTED(specular, at, BOUNDARY_COLOUR, vec4(lobe, answer.mRoughness))
     RTX_STORE_COUNTED(albedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mDiffuse, 1.0))
     RTX_STORE_COUNTED(ambientAlbedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mAmbient, 1.0))
+
+    // **The layers' lift, the world's behind the arms', and the surface's behind both**, by what the
+    // path let through — the layers, the water and the air: each lit thing the pixel shows, by the
+    // share of the pixel it is, as the rasterizer blends a lit layer over a lit wall.
+    const vec3 lifted = armsStack.mLift + armsStack.mThrough * panes.mLift + transmittance * answer.mLift;
+    RTX_STORE_COUNTED(lift, at, BOUNDARY_GUIDE, vec4(lifted, 1.0))
     RTX_STORE_COUNTED(pane, at, BOUNDARY_COLOUR, vec4(paneLight, 1.0))
     RTX_STORE_COUNTED(paneAlbedo, at, BOUNDARY_GUIDE, vec4(paneModulation, 1.0))
     RTX_STORE_COUNTED(paneSurface, at, BOUNDARY_GUIDE, vec4(nearest.mNormal, nearest.mDistance, 0.0, 0.0))

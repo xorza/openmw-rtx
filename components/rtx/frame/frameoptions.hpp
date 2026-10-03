@@ -4,6 +4,7 @@
 #include <optional>
 
 #include <osg/Vec2f>
+#include <osg/Vec3f>
 
 #include "debuglines.hpp"
 #include "framepast.hpp"
@@ -43,6 +44,11 @@ namespace Rtx
         /// The sun glare fader over the picture, which the display chain washes it with. None for a
         /// frame the world did not describe.
         SunGlare mGlare{};
+
+        /// What Night-Eye adds to the ambient, in the engine's colour values, which the display
+        /// chain lays over the picture after the curve (`ToneConstants::mNightEye`). None for a
+        /// frame the world did not describe.
+        osg::Vec3f mNightEye{};
 
         /// The water's clock in seconds, as the host keeps it, which the wake steps by: what the
         /// frame block carries split in two for a shader (`VisibilityConstants::mWaterTime`), here
