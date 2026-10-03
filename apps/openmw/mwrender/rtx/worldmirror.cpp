@@ -17,6 +17,7 @@
 #include <osg/ref_ptr>
 
 #include <components/esm/refid.hpp>
+#include <components/esm3/loadcell.hpp>
 #include <components/misc/result.hpp>
 #include <components/nifosg/nifloader.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -45,6 +46,7 @@
 #include "../sky.hpp"
 #include "../vismask.hpp"
 #include "classmasks.hpp"
+#include "tracedgroundcover.hpp"
 
 namespace MWRender
 {
@@ -136,6 +138,8 @@ namespace MWRender
 
     WorldMirror::WorldMirror(const Rtx::MirrorKnobs& knobs)
         : mWalk{ .mSpecular = knobs.mSpecularLayout }
+        , mGroundcoverReach(knobs.mGroundcoverReach)
+        , mGroundcoverDensity(knobs.mGroundcoverDensity)
         , mExtractor(mScene, mWalk)
         , mTraversal(worldTraversal(~0u))
         , mReach(knobs.mReach)
@@ -195,7 +199,16 @@ namespace MWRender
         if (std::uncaught_exceptions() == 0)
             mExtractor.detach(mRing);
 
+        mGroundcover.reset();
         mContent.reset();
+    }
+
+    void WorldMirror::growGroundcover(const MWWorld::GroundcoverStore& store)
+    {
+        assert(mGroundcover == nullptr && "the default worldspace's ground made twice for one world");
+
+        if (mGroundcoverReach > 0.0f)
+            mGroundcover = std::make_unique<TracedGroundcover>(store, mGroundcoverDensity);
     }
 
     Rtx::ContentMemory WorldMirror::getContentMemory()
@@ -274,6 +287,8 @@ namespace MWRender
                 .mStorage = &frame.mObjectStorage,
                 .mGround = ground,
                 .mContent = mContent.get(),
+                // The rasterizer grows grass in the default worldspace alone (`GlRenderer::createGround`).
+                .mGroundcover = worldspace == ESM::Cell::sDefaultWorldspaceId ? mGroundcover.get() : nullptr,
                 .mWorldspace = worldspace,
                 .mGrid = mGrid,
                 // The world's mask and never the walk's own: a mask that moves makes
@@ -283,6 +298,7 @@ namespace MWRender
             },
             .mEye = eye,
             .mReach = getReach(),
+            .mGroundcoverReach = mGroundcoverReach,
             .mActiveGrid = frame.mTerrain.getActiveGrid(),
             .mExterior = frame.mWorld.mLocation == Location::Exterior,
             .mSimulationTime = frame.mWhen.getSimulationTime(),

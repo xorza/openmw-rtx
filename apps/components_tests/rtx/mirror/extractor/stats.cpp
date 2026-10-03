@@ -140,6 +140,7 @@ namespace Rtx::Testing
             stats.mLights = from + 14;
             stats.mUnskinned = from + 17;
             stats.mGroundCells = from + 18;
+            stats.mGroundcover = from + 19;
             stats.mWornBeyondKept = from + 21;
             stats.mRestood = from + 22;
             stats.mPreprocessed.mOnFrame.at(ContentPassId::Shape).mAsked = from + 23;
@@ -172,6 +173,7 @@ namespace Rtx::Testing
             EXPECT_EQ(sum.mLights, 128u);
             EXPECT_EQ(sum.mUnskinned, 134u);
             EXPECT_EQ(sum.mGroundCells, 136u);
+            EXPECT_EQ(sum.mGroundcover, 138u);
             EXPECT_EQ(sum.mWornBeyondKept, 142u);
             EXPECT_EQ(sum.mRestood, 144u);
             EXPECT_EQ(sum.mPreprocessed.mOnFrame.at(ContentPassId::Shape).mAsked, 146u);

@@ -17,6 +17,7 @@ namespace Rtx
 {
     class CellReader;
     struct PreparedCell;
+    struct PreparedGrass;
     struct PreparedModel;
     struct PreparedTexture;
 
@@ -27,17 +28,25 @@ namespace Rtx
     {
         std::vector<osg::Vec2i> mCells;
 
+        /// The cells whose groundcover to read, apart from `mCells`: read first, because they are
+        /// the few cells around the eye.
+        std::vector<osg::Vec2i> mGrass;
+
         /// Whether to read each cell's references at all, which is the ring's statics switch as it
         /// stood when the ask was made.
         bool mStatics = true;
 
         bool operator==(const CellRequest& other) const = default;
 
-        bool empty() const { return mCells.empty(); }
+        bool empty() const { return mCells.empty() && mGrass.empty(); }
 
-        /// Empties the list and keeps the room it grew. The switch is left as it was, because a
+        /// Empties both lists and keeps the room they grew. The switch is left as it was, because a
         /// request with no cells in it says nothing about either.
-        void clear() { mCells.clear(); }
+        void clear()
+        {
+            mCells.clear();
+            mGrass.clear();
+        }
 
         /// Takes what `from` holds, leaving it empty and keeping the room both grew.
         void take(CellRequest& from);
@@ -48,12 +57,13 @@ namespace Rtx
     struct CellReturns
     {
         std::vector<PreparedCell*> mCells;
+        std::vector<PreparedGrass*> mGrass;
         std::vector<PreparedModel*> mModels;
         std::vector<PreparedTexture*> mTextures;
 
-        bool empty() const { return mCells.empty() && mModels.empty() && mTextures.empty(); }
+        bool empty() const { return mCells.empty() && mGrass.empty() && mModels.empty() && mTextures.empty(); }
 
-        /// Empties all three, keeping the room each grew.
+        /// Empties all four, keeping the room each grew.
         void clear();
 
         /// Appends everything `from` holds and empties it.
@@ -93,13 +103,14 @@ namespace Rtx
         /// Hands the thread `request`. Costs nothing where it equals the last one handed over.
         void ask(const CellRequest& request);
 
-        /// Moves what the thread has read into `into`, appended. Empty where it has read nothing.
-        void take(std::vector<PreparedCell*>& into);
+        /// Moves what the thread has read into `cells` and `grass`, appended. Empty where it has read
+        /// nothing.
+        void take(std::vector<PreparedCell*>& cells, std::vector<PreparedGrass*>& grass);
 
-        /// Blocks until the thread has read at least one more cell, for a settled run
-        /// (`CellRing::setSettled`), and says whether it did: false where the thread has nothing
-        /// left to read — its list finished or cancelled by a newer ask — so the wait ends rather
-        /// than waiting for a cell nobody is reading.
+        /// Blocks until the thread has read at least one more cell or one more cell's grass, for a
+        /// settled run (`CellRing::setSettled`), and says whether it did: false where the thread has
+        /// nothing left to read — its lists finished or cancelled by a newer ask — so the wait ends
+        /// rather than waiting for what nobody is reading.
         bool waitForOne();
 
         /// Where a caller puts what it has finished with. Handed over by `publish`.
@@ -155,6 +166,7 @@ namespace Rtx
 
         /// What the thread has read, under the lock.
         std::vector<PreparedCell*> mDone;
+        std::vector<PreparedGrass*> mDoneGrass;
 
         /// How many times the frame has taken what was read, and how many it had when it made the
         /// ask in `mWanted`, under the lock.
@@ -167,15 +179,23 @@ namespace Rtx
         /// `CellReader::measure` as the thread last finished a cell, under the lock.
         ReaderMemory mMeasured;
 
-        /// A cell the thread handed over, read with which statics, and how many takes the frame had
-        /// made by then: it reaches the ring with the next take, so an ask made before that take
-        /// names it still.
+        /// A cell or a cell's grass the thread handed over, the cell read with which statics, and how
+        /// many takes the frame had made by then: it reaches the ring with the next take, so an ask
+        /// made before that take names it still.
         struct Handed
         {
             osg::Vec2i mCell;
+            bool mGrass = false;
             bool mStatics = true;
             std::uint64_t mTakes = 0;
         };
+
+        /// Whether `cell`, of the kind `grass` says, is on its way already.
+        bool onTheWay(const osg::Vec2i& cell, bool grass, bool statics) const;
+
+        /// Whether a newer ask replaced the one being read, taking what the frame gave back as it
+        /// looks. On the thread.
+        bool superseded();
 
         /// The thread's own: the request it is working through, the ask it came from and the takes
         /// that ask knew of, what the frame gave back that it is putting away, and what it handed

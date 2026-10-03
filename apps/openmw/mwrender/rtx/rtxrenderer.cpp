@@ -33,6 +33,7 @@
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
+#include <components/esm3/loadcell.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/misc/frameclock.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
@@ -214,11 +215,10 @@ namespace MWRender
         Log(Debug::Info) << "Ray tracing: upscale " << Rtx::sUpscaleNames.name(setup.mRun.mProfile.mUpscale);
 
         // **A switch the player turned on for what this renderer declines is said once, with the
-        // declaration's reason**: grass, a second eye, a shader chain. Said and not refused, because
+        // declaration's reason**: a second eye, a shader chain. Said and not refused, because
         // the game plays the same without them; the content still loads, which is the world's to
         // decide.
         const std::pair<Settings::CategorySetting, bool> switches[] = {
-            { { "Groundcover", "enabled" }, Settings::groundcover().mEnabled },
             { { "Stereo", "stereo enabled" }, Settings::stereo().mStereoEnabled },
             { { "Post Processing", "enabled" }, Settings::postProcessing().mEnabled },
         };
@@ -322,6 +322,9 @@ namespace MWRender
 
     std::unique_ptr<Ground> RtxRenderer::createGround(const GroundSpec& spec) noexcept
     {
+        if (spec.mWorldspace == ESM::Cell::sDefaultWorldspaceId)
+            mMirror.growGroundcover(spec.mGroundcoverStore);
+
         return std::make_unique<TracedGround>(spec, *getResources().getSceneManager(), Mask_Terrain, mMirror);
     }
 

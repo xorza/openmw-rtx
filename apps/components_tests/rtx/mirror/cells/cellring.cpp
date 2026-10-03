@@ -57,6 +57,7 @@
 #include <components/rtx/mirror/cells/cellring.hpp>
 #include <components/rtx/mirror/cells/cellsupply.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
+#include <components/rtx/mirror/cells/groundcoversource.hpp>
 #include <components/rtx/mirror/cells/nightday.hpp>
 #include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/rtx/mirror/cells/readermemory.hpp>
@@ -195,6 +196,42 @@ namespace Rtx::Testing
 
             /// How many times `getModel` was asked, which a reader asks once a record.
             mutable int mModelsAsked = 0;
+        };
+
+        /// One plant a groundcover file places, a `grass` each.
+        struct Grown
+        {
+            osg::Vec2i mCell;
+            osg::Vec3f mPosition{};
+            std::uint32_t mIndex = 0;
+        };
+
+        /// Groundcover of a handful of plants, each in a cell of its own choosing. The record
+        /// `grass` names the fern's model, under `meshes/` as the store corrects it.
+        class FewPlants final : public GroundcoverSource
+        {
+        public:
+            std::vector<Grown> mGrown;
+
+            void collect(const osg::Vec2i& cell, std::vector<Terrain::PagedCellRef>& into) override
+            {
+                for (const Grown& grown : mGrown)
+                    if (grown.mCell == cell)
+                        into.push_back(Terrain::PagedCellRef{
+                            .mRefId = ESM::RefId::stringRefId("grass"),
+                            .mRefNum = ESM::RefNum{ grown.mIndex, 0 },
+                            .mPosition = grown.mPosition,
+                        });
+            }
+
+            VFS::Path::NormalizedView modelOf(const ESM::RefId& record) const override
+            {
+                return record == ESM::RefId::stringRefId("grass") ? VFS::Path::NormalizedView(mFern)
+                                                                  : VFS::Path::NormalizedView();
+            }
+
+        private:
+            VFS::Path::Normalized mFern{ "meshes/fern.nif" };
         };
 
         /// Templates by name — square sheets of a radius the size rule can be asked about, each
@@ -401,6 +438,7 @@ namespace Rtx::Testing
                     .mStorage = &mStorage,
                     .mGround = &mLand,
                     .mContent = &mContent,
+                    .mGroundcover = mGroundcover,
                     .mWorldspace = worldspace,
                     .mMask = ~0u,
                 };
@@ -453,6 +491,7 @@ namespace Rtx::Testing
                 total.mGroundCells = last.mGroundCells;
                 total.mInstances = last.mInstances;
                 total.mLights = last.mLights;
+                total.mGroundcover = last.mGroundcover;
                 return total;
             }
 
@@ -491,6 +530,9 @@ namespace Rtx::Testing
             std::size_t mWalked = 1;
 
             WorldAround mAround;
+
+            /// The world's groundcover, which `start` hands the world: none unless a test grows some.
+            GroundcoverSource* mGroundcover = nullptr;
 
             FewStatics mStorage;
             FakeLand mLand;
@@ -585,6 +627,8 @@ namespace Rtx::Testing
                 << "one mesh for the tree however many stand, one for the fern, and one a cell of ground";
             EXPECT_EQ(first.mMaterialsAdded, 2u + sPreparedCells);
             EXPECT_EQ(mRing.getHeldCellCount(), sPreparedCells);
+            EXPECT_EQ(first.mGroundcover, 0u);
+            EXPECT_EQ(mRing.getHeldGrassCount(), 0u) << "a world with no groundcover holds none";
             EXPECT_EQ(first.mPreprocessed.mOffFrame.at(ContentPassId::Shape).mAsked, 2u)
                 << "the tree and the fern shaped once each, on the reader's thread, however many stand";
             EXPECT_EQ(mExtractor.getContext().mContent.mPreprocessor.takeStats().at(ContentPassId::Shape).mAsked, 0u)
@@ -1350,6 +1394,85 @@ namespace Rtx::Testing
             EXPECT_FALSE(mRing.standsGround(osg::Vec2i(0, 0))) << "a room stands no ground";
         }
 
+        /// **Groundcover stands within its reach, the active grid's cells included, and goes whole
+        /// past it.** At a reach of two cells from the eye at (0.5, 0.5) cells, (0, 0) and (2, 0)
+        /// stand theirs, whose nearest points are nought and 1.5 cells out, and (6, 0) does not; the
+        /// game stands no grass for this renderer, so the active grid's cell is the ring's too. The
+        /// grass band is the reach and a cell past it, as the cells' band is.
+        ///
+        /// **A plant wears upstream's cut and not the model's own**: the fern read as grass is a
+        /// material apart from the fern read as a static, cut at half its alpha.
+        TEST_F(RtxCellRingTest, groundcoverStandsWithinItsReachAndGoesWholePastIt)
+        {
+            mStorage.mPlaced = { Placed{ .mCell = osg::Vec2i(3, 0),
+                .mModel = "fern.nif",
+                .mRefNum = ESM::RefNum{ 1, 0 },
+                .mPosition = osg::Vec3f(3.5f * sCellSize, 0.5f * sCellSize, 400.0f) } };
+            FewPlants plants;
+            plants.mGrown = {
+                { .mCell = osg::Vec2i(0, 0),
+                    .mPosition = osg::Vec3f(0.25f * sCellSize, 0.25f * sCellSize, 100.0f),
+                    .mIndex = 1 },
+                { .mCell = osg::Vec2i(0, 0),
+                    .mPosition = osg::Vec3f(0.75f * sCellSize, 0.75f * sCellSize, 200.0f),
+                    .mIndex = 2 },
+                { .mCell = osg::Vec2i(2, 0),
+                    .mPosition = osg::Vec3f(2.5f * sCellSize, 0.5f * sCellSize, 300.0f),
+                    .mIndex = 3 },
+                { .mCell = osg::Vec2i(6, 0),
+                    .mPosition = osg::Vec3f(6.5f * sCellSize, 0.5f * sCellSize, 500.0f),
+                    .mIndex = 4 },
+            };
+            mGroundcover = &plants;
+            mAround.mGroundcoverReach = 2.0f * sCellSize;
+            start();
+
+            const ExtractionStats stood = fill();
+            EXPECT_EQ(stood.mGroundcover, 3u) << "the two plants at home and the one two cells out";
+            EXPECT_EQ(stood.mDistantStatics, 1u);
+            EXPECT_EQ(stood.mInstances, 4u + sPlacedCells);
+            EXPECT_EQ(mRing.getHeldGrassCount(), cellsWithin(3.0f));
+            EXPECT_EQ(mRing.getCellsToStand(), 0u) << "what a stop waits out counts the grass too";
+            EXPECT_EQ(lifted(), (std::vector<float>{ 105.0f, 205.0f, 305.0f, 405.0f }))
+                << "each sheet five units over where its file placed it";
+
+            const auto materialAt = [&](const float height) {
+                for (const PlacementRow& row : mScene.placements().getRows())
+                    if (row.mInstance.isPlaced()
+                        && static_cast<float>(row.mInstance.mTransform.getTrans().z()) == height)
+                        return row.mInstance.mMaterial;
+                return sNoIndex;
+            };
+            const Index grass = materialAt(105.0f);
+            const Index fern = materialAt(405.0f);
+            ASSERT_NE(grass, sNoIndex);
+            ASSERT_NE(fern, sNoIndex);
+            EXPECT_NE(grass, fern) << "the grass wore the static's material";
+            EXPECT_EQ(materialAt(205.0f), grass) << "one material for every plant of one model";
+            const Material& cut = mScene.materials().getRows()[grass];
+            EXPECT_EQ(cut.mAlphaMode, AlphaMode::Cutout);
+            EXPECT_EQ(cut.mAlphaTest,
+                (AlphaTest{ .mReference = 128.0f / 255.0f,
+                    .mPasses = Shaders::ALPHA_PASSES_AT | Shaders::ALPHA_PASSES_ABOVE }));
+
+            // Ten cells east, past every plant: the grass goes with its cells, and the band there
+            // holds cells of none.
+            around(osg::Vec3f(10.5f * sCellSize, 0.5f * sCellSize, 0.0f), osg::Vec4i(9, -1, 12, 2));
+            const ExtractionStats away = fill();
+            EXPECT_EQ(away.mGroundcover, 0u);
+            EXPECT_EQ(mRing.getHeldGrassCount(), cellsWithin(3.0f));
+            EXPECT_EQ(lifted(), std::vector<float>{});
+
+            // Home again, read again; and a reach of nought stands none and holds none.
+            around(osg::Vec3f(0.5f * sCellSize, 0.5f * sCellSize, 0.0f), osg::Vec4i(-1, -1, 2, 2));
+            EXPECT_EQ(fill().mGroundcover, 3u);
+
+            mAround.mGroundcoverReach = 0.0f;
+            EXPECT_EQ(walk(mWalked++).mGroundcover, 0u);
+            EXPECT_EQ(mRing.getHeldGrassCount(), 0u);
+            EXPECT_EQ(lifted(), std::vector<float>{ 405.0f });
+        }
+
         /// **A reader that throws ends the process where it threw**, and says what it threw.
         /// Nothing catches it on the reader's thread, so the crash catcher's report keeps that
         /// thread's stack; a catch that carried it to the frame handed over the message alone. The
@@ -1418,7 +1541,7 @@ namespace Rtx::Testing
                     Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "face", .mRefNum = ESM::RefNum{ at, 0 } });
             ShortMorph content;
 
-            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u);
+            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr);
             for (int pass = 0; pass < 3; ++pass)
                 reader.giveBack(reader.read(osg::Vec2i(0, 0), true));
 
@@ -1437,7 +1560,7 @@ namespace Rtx::Testing
             land.mWithData = { osg::Vec2i(0, 0), osg::Vec2i(1, 0) };
             FewStatics storage;
             FewContent content;
-            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u);
+            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr);
 
             PreparedCell& west = reader.read(osg::Vec2i(0, 0), true);
             EXPECT_EQ(content.mImages.getOpened(), 3u) << "grass, rock and the rock's normal map";
@@ -1525,26 +1648,27 @@ namespace Rtx::Testing
                 .mMask = ~0u,
             });
 
-            supply.ask(CellRequest{ .mCells = { osg::Vec2i(0, 0), osg::Vec2i(1, 0), osg::Vec2i(2, 0) } });
+            supply.ask(CellRequest{ .mCells = { osg::Vec2i(0, 0), osg::Vec2i(1, 0), osg::Vec2i(2, 0) }, .mGrass = {} });
             content.mEntered.acquire();
             supply.ask(CellRequest{});
             content.mLetGo.release();
 
             std::vector<PreparedCell*> read;
+            std::vector<PreparedGrass*> grass;
             EXPECT_TRUE(supply.waitForOne());
-            supply.take(read);
+            supply.take(read, grass);
             ASSERT_EQ(read.size(), 1u);
             EXPECT_EQ(read[0]->mCell, osg::Vec2i(0, 0)) << "the cell in hand is finished";
 
             // Nothing is left to read, and the wait says so rather than waiting for ever.
             EXPECT_FALSE(supply.waitForOne());
 
-            supply.ask(CellRequest{ .mCells = { osg::Vec2i(5, 0) } });
+            supply.ask(CellRequest{ .mCells = { osg::Vec2i(5, 0) }, .mGrass = {} });
             while (std::none_of(
                 read.begin(), read.end(), [](const PreparedCell* cell) { return cell->mCell == osg::Vec2i(5, 0); }))
             {
                 supply.waitForOne();
-                supply.take(read);
+                supply.take(read, grass);
             }
 
             ASSERT_EQ(read.size(), 2u) << "a cell of the cancelled list was read";
@@ -1573,15 +1697,16 @@ namespace Rtx::Testing
             const osg::Vec2i a(0, 0);
             const osg::Vec2i b(1, 0);
             const osg::Vec2i c(2, 0);
-            supply.ask(CellRequest{ .mCells = { a, b } });
+            supply.ask(CellRequest{ .mCells = { a, b }, .mGrass = {} });
             content.mEntered.acquire();
-            supply.ask(CellRequest{ .mCells = { a, b, c } });
+            supply.ask(CellRequest{ .mCells = { a, b, c }, .mGrass = {} });
             content.mLetGo.release();
 
             std::vector<PreparedCell*> read;
+            std::vector<PreparedGrass*> grass;
             while (supply.waitForOne())
-                supply.take(read);
-            supply.take(read);
+                supply.take(read, grass);
+            supply.take(read, grass);
 
             std::vector<osg::Vec2i> cells;
             for (const PreparedCell* cell : read)
@@ -1589,9 +1714,9 @@ namespace Rtx::Testing
             EXPECT_EQ(cells, (std::vector<osg::Vec2i>{ a, b, c })) << "each cell once, in the order asked";
 
             read.clear();
-            supply.ask(CellRequest{ .mCells = { a } });
+            supply.ask(CellRequest{ .mCells = { a }, .mGrass = {} });
             ASSERT_TRUE(supply.waitForOne()) << "an ask made after the take that brought it is read";
-            supply.take(read);
+            supply.take(read, grass);
             ASSERT_EQ(read.size(), 1u);
             EXPECT_EQ(read[0]->mCell, a);
         }
@@ -1647,7 +1772,7 @@ namespace Rtx::Testing
             storage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "tree.nif" });
             storage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "broken.nif" });
             FewContent content;
-            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u);
+            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr);
 
             const ReaderMemory none = reader.measure();
             EXPECT_EQ(none.mLentModels + none.mSpareModels, 0u);
@@ -1689,7 +1814,7 @@ namespace Rtx::Testing
             storage.mPlaced.push_back(Placed{ .mCell = osg::Vec2i(0, 0), .mModel = "face" });
             ShortMorph content;
 
-            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u);
+            CellReader reader(storage, land, content, ESM::Cell::sDefaultWorldspaceId, ~0u, nullptr);
 
             const int held = content.mFace->referenceCount();
             for (int pass = 0; pass < 3; ++pass)

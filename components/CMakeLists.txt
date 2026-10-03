@@ -420,7 +420,7 @@ add_component_dir (rtx/mirror
     )
 
 add_component_dir (rtx/mirror/cells
-    cellgrid cellplacer cellreader cellring cellsupply cellworld groundreader held mirrorknobs nightday prepared
+    cellgrid cellplacer cellreader cellring cellsupply cellworld groundcoversource groundreader held mirrorknobs nightday prepared
     readermemory templatewalk
     )
 
