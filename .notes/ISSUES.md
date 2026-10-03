@@ -52,5 +52,4 @@ the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the
 - A content file's own clockwise `NiStencilProperty` shows, under the ray tracer, the face the rasterizer
   culls. The material reader cannot tell it from the clockwise front `SceneUtil::attach` states over a
   mirrored body part, whose mirror lives in the skinning and not in the placement.
-- `./omw gate` does not build `openmw-rtx-spirv-digest` or `openmw-rtx-spirv-pin` as linked programs in the flavours it builds, so a link error in them passes the gate and fails every CI platform (CI run 37011621948: `Rtx::HashState::add` undefined in `openmw-rtx-spirv-digest`).
 - Four tests run past one second on a warm driver cache: `RtxVisibilityKernelsTest.theKernelsAreCountedAsTheyLandAndTheCountEndsWithTheCompile` (1.5 s), `RtxFogNoiseTest.everyLevelAMarchMayReadClearsTheShareTheDensityIsDividedBy` (1.2 s), `RtxFrameCostTest.aWarmRendererDrawsAStillFrameWithoutTheHeap` (1.1 s) and `RtxVisibilityTest.aLobeKeepsItsHistoryOverATurnOfTheViewAsWideAsTheLobe` (1.05 s).

@@ -33,9 +33,11 @@ def gate(build: Build, args: list[str]) -> int:
         return 1
 
     # The release build too: without its asserts, the optimizer proves paths the debug build never
-    # shows a warning on, such as a lookup that can now reach a null.
+    # shows a warning on, such as a lookup that can now reach a null. **Every program the preset
+    # configures**, as CI's `full` builds every program the tree has: a tool only CI linked, such as
+    # `openmw-rtx-spirv-digest`, was a link error the gate passed and every CI platform failed.
     release = Build("release")
-    release.build(release.default_targets)
+    release.build(["all"])
 
     if targets:
         if testing.test(build, []) != 0:
