@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <string_view>
 
@@ -44,10 +45,11 @@ namespace MWRender
         /// draw one picture; a run timing the streaming path says no (`Rtx::CellRing::setSettled`).
         std::optional<bool> mSettled{};
 
-        /// Whether the renderer reads its shaders with their source in them, for a profiler that
-        /// shows a shader's lines (`Rtx::shaderDirectory`). The harness's, and never a played
-        /// session's: the driver's cache is keyed on the modules without it.
-        bool mShaderSource = false;
+        /// Where the renderer reads its shaders, where not under the resources
+        /// (`Rtx::shaderDirectory`): the harness's set with their source in them, for a profiler
+        /// that shows a shader's lines. Never a played session's: the driver's cache is keyed on the
+        /// modules without it.
+        std::optional<std::filesystem::path> mShaderDirectory{};
     };
 
     /// A run the harness drives through this renderer, as the renderer sees it per frame: what

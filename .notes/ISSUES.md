@@ -8,9 +8,9 @@ the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the
   banner, rope and sail has a hard edge where the rasterizer's is soft, and a cobweb, a Telvanni
   crystal or Bloodmoon ice whose texture reaches 255 anywhere loses the coverage under the cut.
   `components/rtx/scene/material.hpp` (`Material::isTranslucent`).
-- On macOS the harness's folder, `rtxtool/`, stands inside the app bundle (`RTX_RESOURCES_ROOT` is the
-  bundle's `Contents/Resources`), and the bundle is installed whole, so a macOS install carries the
-  harness's places, suites, scripts and the shaders with their source.
+- On macOS `openmw-rtxtool` is built into the app bundle's `Contents/MacOS`
+  (`CMAKE_RUNTIME_OUTPUT_DIRECTORY`), and the bundle is installed whole, so a macOS install carries
+  the harness's executable.
 - Groundcover is never drawn under the ray tracer; only a log line says so.
   `apps/openmw/mwrender/rtx/rtxrenderer.cpp:214-219`.
 - A texture the engine loads in a format the reader does not name — alpha-only `A8`, a sixteen- or

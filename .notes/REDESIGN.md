@@ -18,7 +18,6 @@ notes cite.
 | W15 Groundcover stands in the ring | the whole of it, test plugin first | 8 |
 | W16 A mask's soft texels are layers to the eye | the whole of it, behind its measurement | 8 |
 | W17 One row per texture format | the table, then A8, the float formats and BC4 | 8 |
-| W18 The harness's folder is the build tree's | the whole of it | 6 |
 | W19 The walk visits what can change | the probe, then the frozen subtrees | 5 |
 | §16 Smaller workstreams | the upstream diff, the device, layering, Vulkan, tooling | 5 (§16.6), 6 |
 | §17 Fixes in place | the local groups; the frame constants | 5, 7 |
@@ -407,44 +406,6 @@ new format's upload and reads back what GL would show, to the byte.
 
 ---
 
-## 15d. W18 — The harness's folder is the build tree's
-
-**Closes:** *On macOS the harness's folder, `rtxtool/`, stands inside the app bundle* (`ISSUES.md`).
-
-### What is wrong
-
-`Rtx::harnessDirectory(resources)` is `resources/../rtxtool`. On Linux and Windows the resources
-are in the build tree, so the harness's folder is too. On macOS the resources are the bundle's
-(`RTX_RESOURCES_ROOT` is `Contents/Resources`), `openmw-rtxtool` itself is built into
-`Contents/MacOS` (`CMAKE_RUNTIME_OUTPUT_DIRECTORY`), and the bundle is installed whole, so neither
-the resources nor the executable is a place to derive it from.
-
-### Target shape
-
-**One CMake variable names it, outside any bundle**: `RTX_HARNESS_DIR` is
-`${OpenMW_BINARY_DIR}/rtxtool` on every system (on Linux and Windows the folder it is today). The
-views, the suites, the VFS scripts and the shaders with their source are copied there, and the
-harness and the tests are compiled with `OPENMW_RTX_HARNESS_DIR`. The core knows no harness folder:
-
-1. `Rtx::harnessDirectory` goes. `RtxTool::harnessDirectory()` answers the compiled path, for
-   `main.cpp`, `hosted.cpp` and the driver cache.
-2. `Rtx::shaderDirectory(resources, withSource)` becomes `shaderDirectory(resources)`, the modules
-   without source. The harness hands the renderer the folder with source as a path
-   (`Setup::mShaderSourceDirectory`, an optional path that replaces `mShaderSource`), so the game
-   side asks no harness question.
-3. The tests read `OPENMW_RTX_HARNESS_DIR` in place of their walk up from `OPENMW_RTX_SHADER_DIR`.
-
-The harness only ever runs from its build tree — no install carries it, and `omw archive` refuses
-a package that holds any of it — so a compiled build path is correct by construction.
-
-### Tests
-
-The shader directory test loses its harness half; `run.cpp`'s suite test reads the compiled
-folder; a configure on macOS (CI's `macos` job) lists the bundle and finds no `rtxtool/` in it —
-a CI step after the build, as `omw archive` checks the other two systems' installs.
-
----
-
 ## 15e. W19 — The walk visits what can change
 
 **Closes:** *A measured run's host rows move as a whole between runs of one build* (`ISSUES.md`),
@@ -617,8 +578,7 @@ Each phase ends green on `./omw gate`.
 3. **Phase 7, tests and docs:** the test groups in §17, and every doc item, `architecture.md` §1 and
    §13 included.
 4. **Phase 8, the open issues:** W15 (the test plugin first), W16 behind its measurement, W17.
-   W18 goes with Phase 6, because it moves what the harness reads; W19's probe goes with Phase 5,
-   and its frozen subtrees with W6.
+   W19's probe goes with Phase 5, and its frozen subtrees with W6.
 
 W14 goes as each input arrives.
 
