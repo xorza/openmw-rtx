@@ -12,7 +12,7 @@ notes cite.
 | Workstream | What is left | Phase |
 |---|---|---|
 | W6 Scene tables change by the row | block growth, running totals, the refit, the presence rows | 5 |
-| W8 The denoisers share one surface test | steps 1 and 2; step 3 after its probe | 5 |
+| W8 The denoisers share one surface test | step 3 after its probe (steps 1 and 2 measured and declined) | 5 |
 | W9 Passes run only over what is new | every row, each with its bench | 5 |
 | W14 The ray tracer shows what the rasterizer shows | the items that wait for an input outside the tree | after its inputs |
 | W15 Groundcover stands in the ring | the measurement again with a real mod | 8 |
@@ -128,6 +128,16 @@ re-encoding is the only reason `mDistanceScale` exists.
    history. That deletes two full-frame writes, two image pairs and `mDistanceScale`.
    `accumulate.h` argues for a format of the pass's own. Both arguments are about precision. Write
    a probe that compares the match rate of both encodings over `one-cell-walk`, and choose by it.
+
+**Steps 1 and 2 were measured and declined** (2026-10-03, the branch `w8-held-taps`): the
+accumulator wrote its four bits into an image and the shadow denoiser and the glossy filter read
+them, pictures unmoved. `./omw release bench`, three legs each, clock-normalised medians:
+`accumulate` 0.205 → 0.210 ms and `shadow` 0.243 → 0.235 ms at `seyda-neen-ship`, 0.205 → 0.211
+and 0.286 → 0.277 at the dawn deck; the frame's p99 and worst moved both ways within the legs'
+spread. The test the two passes stopped making cost what the accumulator's extra write and the
+barrier before them cost; the glossy filter, the third asker, runs on no vanilla frame. Step 1
+without step 2 only moves the four loads into each pass. Step 3 stays, behind its probe: what it
+would delete is two full-frame writes, which is more than step 2 had to win.
 
 The merge of the glossy filter into the accumulator (one dispatch) is not in this plan:
 `DenoisePasses::record` records the shadow denoiser between them. Step 2 takes most of the gain
