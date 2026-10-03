@@ -6,6 +6,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -66,6 +67,31 @@ namespace Rtx
                 EXPECT_EQ(handed.getImageCount(), 2u);
                 EXPECT_EQ(handed.getMemory(), nullptr);
                 handed.flush();
+            });
+        }
+
+        /// **A batch dropped with a dependency in it is a forgotten `flush`**, asserted where it goes
+        /// rather than found as a race; one flushed, or never given anything, goes quietly.
+        TEST_F(RtxBarriersTest, aBatchDroppedWithADependencyInItDies)
+        {
+            const Device& device = *mHarness.mDevice;
+            const Image image(device, 4, 4, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_STORAGE_BIT, "dropped");
+
+            getPool().submitAndWait([&](VkCommandBuffer commands) {
+                {
+                    Barriers flushed(commands);
+                    image.addTransition(flushed, Use::sUndefined, Use::sComputeWrite);
+                    flushed.flush();
+                }
+                {
+                    Barriers empty(commands);
+                }
+                Testing::expectAssertDies(
+                    [&] {
+                        Barriers forgotten(commands);
+                        image.addTransition(forgotten, Use::sComputeWrite, Use::sComputeRead);
+                    },
+                    "a barrier batch went out of scope with dependencies it never recorded");
             });
         }
 
