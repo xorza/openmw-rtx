@@ -15,6 +15,8 @@
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 
+#include "presenttarget.hpp"
+
 namespace Rtx
 {
     namespace
@@ -199,7 +201,7 @@ namespace Rtx
         const VkCommandBuffer commands = image.mCommands;
         mDevice.getPool().begin(commands);
 
-        frame.transition(commands, Use::sAnyGeneralWrite, Use::sBlitRead);
+        frame.transition(commands, PresentTarget::sResting, Use::sBlitRead);
 
         const VkExtent2D extent = mSwapchain.getExtent();
         const osg::Vec2i frameSize(static_cast<int>(frame.getWidth()), static_cast<int>(frame.getHeight()));
@@ -249,7 +251,7 @@ namespace Rtx
         handed.add(imageBarrier(presented, 0, 1, Use::sBlitWrite, Use::sPresent));
 
         // Back where the next frame's passes expect to find it.
-        frame.addTransition(handed, Use::sBlitRead, Use::sAnyGeneralWrite);
+        frame.addTransition(handed, Use::sBlitRead, PresentTarget::sResting);
         handed.flush();
 
         // The pool's submit, so it signals the timeline and carries what was deferred ahead of the

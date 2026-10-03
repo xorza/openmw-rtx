@@ -636,6 +636,7 @@ namespace Rtx
                 .mExtent = mTarget.getExtent(),
                 .mSampled = sampled,
                 .mTarget = target,
+                .mLeftAs = PresentTarget::sResting,
                 .mFrame = FrameLook{
                     .mExposure = exposure,
                     .mGlare = FrameLook::Glare{ .mFader = options.mGlare, .mSeconds = options.mSinceLast },
