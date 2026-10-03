@@ -13,7 +13,7 @@ notes cite.
 |---|---|---|
 | W6 Scene tables change by the row | block growth, running totals, the refit, the presence rows | 5 |
 | W8 The denoisers share one surface test | step 3 after its probe (steps 1 and 2 measured and declined) | 5 |
-| W9 Passes run only over what is new | the ocean transform's fusion; the last wavelet level into the composite | 5 |
+| W9 Passes run only over what is new | the last wavelet level into the composite, measured first | 5 |
 | W14 The ray tracer shows what the rasterizer shows | the items that wait for an input outside the tree | after its inputs |
 | W15 Groundcover stands in the ring | the measurement again with a real mod | 8 |
 | W16 A mask's soft texels are layers to the eye | the layer's light from its leaf, a design to make; the first shape failed | 8 |
@@ -160,7 +160,7 @@ not move a denoised picture beyond `sDenoiserNoiseLevels`.
 
 | Pass | Change | Expected gain |
 |---|---|---|
-| ocean transform (`waveform`, `waveline`, `wavecompose`) | the form into the row pass and the compose into the column pass, in shared memory; the three fields already share a dispatch a direction | about 36 MiB less traffic a frame; the 128 cascade stops running 256 threads with 64 working |
+| the last wavelet level into the composite | measure first | a frame-sized round trip |
 
 Each row has its own commit and its own `bench` figure. A change that shows no gain on a hot card
 does not go in.
@@ -175,7 +175,7 @@ what the two it took off the classification saved.
 **Measured first and not built**: one dispatch for the skinning and morphing, whose whole `skin`
 zone is 0.018 to 0.028 ms at every place benched, and the histogram on the bloom's first halving,
 whose `exposure` zone is 0.023 to 0.028 ms — each could win at most its zone, under what a leg's
-spread resolves. The last wavelet level into the composite stays unmeasured. **Already so, and now held by a test**: a sprite the shelter zeroed has no radius,
+spread resolves. **Already so, and now held by a test**: a sprite the shelter zeroed has no radius,
 which `capsuleSpan` gives an empty arc, so it was in no tile; and the medium and additive walks run
 only in tiles a presence of a shown class marks, each crossing's class tested against the ray mask.
 
