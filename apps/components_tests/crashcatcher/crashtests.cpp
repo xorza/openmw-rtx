@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <initializer_list>
@@ -22,6 +23,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <thread>
 #include <vector>
 
@@ -295,12 +297,13 @@ namespace CrashTests
         std::vector<std::filesystem::path> filesIn(
             const std::filesystem::path& folder, std::initializer_list<const char*> places, std::string_view extension)
         {
+            // Without throwing: the monitor moves a dump from `pending` on while the check reads.
             std::vector<std::filesystem::path> found;
+            std::error_code unread;
             for (const char* place : places)
-                if (std::filesystem::is_directory(folder / place))
-                    for (const auto& entry : std::filesystem::directory_iterator(folder / place))
-                        if (entry.path().extension() == extension)
-                            found.push_back(entry.path());
+                for (const auto& entry : std::filesystem::directory_iterator(folder / place, unread))
+                    if (entry.path().extension() == extension)
+                        found.push_back(entry.path());
             return found;
         }
 
@@ -442,7 +445,10 @@ namespace CrashTests
                         [&](const std::string& line) { return line.starts_with(mode.mAlso); });
                     if (also == said.end())
                         return "no summary begins \"" + std::string(mode.mAlso) + "\"";
-                    const auto threadOf = [](const std::string& line) { return line.substr(line.find(" in thread")); };
+                    const auto threadOf = [](const std::string& line) {
+                        const std::size_t at = line.find(" in thread");
+                        return at == std::string::npos ? std::string() : line.substr(at);
+                    };
                     if (threadOf(*also) == threadOf(*first))
                         return "the two summaries name one thread: " + *first;
                     headlines.push_back(also->substr(0, also->find(" in thread")));
@@ -541,7 +547,21 @@ namespace CrashTests
                 std::vector<Platform::Thread> running;
                 running.reserve(modes.size());
                 for (std::size_t at = 0; at < modes.size(); ++at)
-                    running.emplace_back("crash mode", [&, at] { outcomes[at] = runMode(self, root, modes[at]); });
+                    running.emplace_back("crash mode", [&, at] {
+                        // **A check that throws fails its mode, and says what threw**: on a thread of
+                        // its own it would end the matrix with an abort that names nothing, which a
+                        // gate once saw and no run since has shown.
+                        try
+                        {
+                            outcomes[at] = runMode(self, root, modes[at]);
+                        }
+                        catch (const std::exception& thrown)
+                        {
+                            outcomes[at] = Outcome{ .mFolder = root / std::string(modes[at].mName),
+                                .mWrong = std::string("the check threw: ") + thrown.what(),
+                                .mTook = {} };
+                        }
+                    });
             }
 
             int failed = 0;
