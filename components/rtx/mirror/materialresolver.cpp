@@ -466,7 +466,7 @@ namespace Rtx
         if (described->mAmbientOverride.has_value())
         {
             const osg::Vec3f overridden = decodeColour(*described->mAmbientOverride);
-            const osg::Vec3f ambient = decodeColour(described->mAmbientColour);
+            const osg::Vec3f& ambient = *material.mAmbientColour;
             material.mEmissiveColour
                 += osg::Vec3f(overridden.x() * ambient.x(), overridden.y() * ambient.y(), overridden.z() * ambient.z());
         }
