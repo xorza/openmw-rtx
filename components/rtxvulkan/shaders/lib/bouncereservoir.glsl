@@ -222,7 +222,13 @@ float bounceTarget(BounceOrigin origin, BounceSample held, BounceReach reach)
 /// The Jacobian of reconnecting `held`, found at `foundAt`, to `seenAt` instead (Ouyang et al. 2021,
 /// eq. 11): how much the solid angle around the sample changes between the two points. One for the
 /// sky, whose direction is the same from anywhere. Nought where the shift is refused —
-/// `BOUNCE_JACOBIAN_LIMIT`, or a sample met edge-on from either point.
+/// `BOUNCE_JACOBIAN_LIMIT`, a sample met edge-on from either point, or a point on the other side of
+/// the sample's surface.
+///
+/// **The light a sample holds left one face of it**, the one the point that found it stands in
+/// front of. Morrowind's walls are sheets of no thickness, so a sample on a lit face is the same
+/// point as the dark face behind it, and a ray from the dark side reaches it: the side, and not the
+/// ray, is what keeps one room's bounce out of the next.
 float shiftJacobian(BounceSample held, vec3 foundAt, vec3 seenAt)
 {
     if (held.mSky)
@@ -232,11 +238,14 @@ float shiftJacobian(BounceSample held, vec3 foundAt, vec3 seenAt)
     const vec3 fromSeen = seenAt - (foundAt + held.mOffset);
     const float found = dot(fromFound, fromFound);
     const float seen = dot(fromSeen, fromSeen);
-    const float foundCosine = abs(dot(held.mNormal, fromFound)) * inversesqrt(max(found, 1e-12));
-    const float seenCosine = abs(dot(held.mNormal, fromSeen)) * inversesqrt(max(seen, 1e-12));
+    const float foundFacing = dot(held.mNormal, fromFound);
+    const float seenFacing = dot(held.mNormal, fromSeen);
+    const float foundCosine = abs(foundFacing) * inversesqrt(max(found, 1e-12));
+    const float seenCosine = abs(seenFacing) * inversesqrt(max(seen, 1e-12));
 
     const float jacobian = (seenCosine * found) / max(foundCosine * seen, 1e-12);
-    const bool refused = !(jacobian >= 1.0 / BOUNCE_JACOBIAN_LIMIT && jacobian <= BOUNCE_JACOBIAN_LIMIT);
+    const bool refused = !(jacobian >= 1.0 / BOUNCE_JACOBIAN_LIMIT && jacobian <= BOUNCE_JACOBIAN_LIMIT)
+        || !(foundFacing * seenFacing > 0.0);
     return refused ? 0.0 : jacobian;
 }
 
@@ -247,11 +256,15 @@ struct BounceMerge
     BounceReservoir mKept;
     float mSum;
     float mKeptTarget;
+
+    /// Which input the kept sample came from, in the order they were offered.
+    uint mKeptInput;
+    uint mOffered;
 };
 
 BounceMerge startMerge()
 {
-    return BounceMerge(noBounce(), 0.0, 0.0);
+    return BounceMerge(noBounce(), 0.0, 0.0, 0u, 0u);
 }
 
 /// Offers one candidate of resampling weight `weight`, standing for `confidence` candidates, and
@@ -266,7 +279,9 @@ void offer(inout BounceMerge merge, BounceSample held, float weight, float targe
         merge.mKept.mSample = held;
         merge.mKept.mAge = age;
         merge.mKeptTarget = target;
+        merge.mKeptInput = merge.mOffered;
     }
+    ++merge.mOffered;
 }
 
 /// The merged reservoir: `W` is the sum over the kept sample's target, and the confidence is held

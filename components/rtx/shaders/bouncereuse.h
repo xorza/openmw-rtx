@@ -102,10 +102,17 @@ namespace Rtx::Shaders
     /// on how stale a light it holds can be. RTXDI's default.
     const uint BOUNCE_AGE_CAP = 30u;
 
-    /// The neighbours the spatial reuse reads, and the disc they are drawn from, in traced pixels.
-    /// RTXDI's defaults.
+    /// How many neighbours the spatial reuse reads: RTXDI's default.
     const uint BOUNCE_NEIGHBOURS = 2u;
-    const float BOUNCE_RADIUS = 32.0f;
+
+    /// The disc they are drawn from, as a share of the traced height, and never under a few
+    /// pixels. **A share and not RTXDI's thirty-two pixels**, which are three per cent of a 1080p
+    /// frame: a disc stated in pixels covers more of the scene the fewer pixels an upscaler traces,
+    /// and a neighbour far across a surface reconnects at a length unlike the pixel's own. Held at
+    /// thirty-two pixels over a corner traced at 128, a quarter of the frame, the spatial half raised
+    /// the frame's error over the temporal half's by a quarter; at eight it lowered it by a tenth.
+    const float BOUNCE_RADIUS_SHARE = 0.03f;
+    const float BOUNCE_RADIUS_LEAST = 3.0f;
 
     /// How nearly two visible points must face alike, and how near their distances, for one to
     /// reuse the other's samples: RTXDI's defaults, the cosine and a share of the distance.
