@@ -24,6 +24,13 @@ namespace Rtx
     class PresentTarget
     {
     public:
+        /// Where both images rest between their users, said once: the curve leaves the picture
+        /// here, the interface takes both from here and leaves them here, a present's blit and a
+        /// read back take the shown image and the picture from here and leave them here. The
+        /// general layout and any access, because a user meets what the last one, whichever it
+        /// was, left behind.
+        static constexpr const ImageUse& sResting = Use::sAnyGeneral;
+
         /// Makes both, black and in `VK_IMAGE_LAYOUT_GENERAL`, because the interface is drawn over
         /// the picture whether or not a frame was traced into it.
         void resize(const Device& device, std::uint32_t width, std::uint32_t height);

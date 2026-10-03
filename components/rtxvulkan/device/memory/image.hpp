@@ -128,6 +128,11 @@ namespace Rtx
         void clear(
             VkCommandBuffer commands, const ImageUse& from, const VkClearColorValue& colour, const ImageUse& to) const;
 
+        /// Clears every level to `colour` in `VK_IMAGE_LAYOUT_GENERAL`, which a storage image stands
+        /// in, and records no barrier: the caller orders the clear against what comes before and
+        /// after it, where one barrier orders several. Needs `TRANSFER_DST`.
+        void clearInGeneral(VkCommandBuffer commands, const VkClearColorValue& colour) const;
+
         /// Copies `extent` texels from this image's corner into `into`'s, this one in
         /// `TRANSFER_SRC_OPTIMAL` and `into` in `intoLayout`, which is the caller's to arrange
         /// either side.

@@ -115,6 +115,10 @@ namespace Rtx
         /// Gives one `adopt` back, by the state set the reading named. Nothing for null.
         void release(const osg::StateSet* key);
 
+        /// Takes one hold on the material the walk in progress resolved under `key`, until `release`
+        /// gives it back: a frozen subtree's, as `MeshResolver::hold`. Nothing for null.
+        void hold(const osg::StateSet* key);
+
         /// The sea's own, keyed on the state set it has not got because a node mask is what
         /// identifies it.
         Resolved resolveWater();

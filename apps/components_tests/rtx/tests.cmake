@@ -47,6 +47,7 @@ set(RTX_TEST_FILES
     rtx/mirror/extractor/lights.cpp
     rtx/mirror/extractor/materials.cpp
     rtx/mirror/extractor/particles.cpp
+    rtx/mirror/extractor/frozen.cpp
     rtx/mirror/extractor/retire.cpp
     rtx/mirror/extractor/skinning.cpp
     rtx/mirror/extractor/stats.cpp
@@ -185,6 +186,7 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/gui/guipass.cpp
     rtxvulkan/gui/guitextures.cpp
     rtxvulkan/pipeline/computepipeline.cpp
+    rtxvulkan/pipeline/shadercode.cpp
     rtxvulkan/pipeline/tracepipeline.cpp
     rtxvulkan/scene/bottomlevelstore.cpp
     rtxvulkan/scene/skinpass.cpp
@@ -217,7 +219,6 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/trace/visibility/upscale.cpp
     rtxvulkan/trace/visibility/water.cpp
     rtxvulkan/trace/wavefield.cpp
-    rtxvulkan/trace/waveline.cpp
     rtxvulkan/trace/wavepass.cpp
 )
 

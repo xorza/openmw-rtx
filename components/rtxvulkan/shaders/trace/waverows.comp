@@ -1,0 +1,114 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+// The sea's spectrum at a moment, and the five derivatives of it a surface needs, transformed along
+// the rows — the first half of the inverse transform, with the forming in front of it.
+//
+// **This is the whole of what a frame does to the wave table.** The amplitudes were drawn once for
+// the sea state; turning them to a time is a rotation, and every field the shading wants is that
+// same rotated spectrum times a power of `i k`. So a frame costs one pass over the grid and three
+// transforms, where the spectrum itself costs a Gaussian draw per wavevector and is never redone.
+//
+// **Six real fields in three complex transforms.** The spectrum of a real field is
+// conjugate-symmetric, so `A + iB` inverse-transforms to `a + ib` with `a` and `b` both real — one
+// in the real part of the answer and the other in the imaginary part.
+//
+// **Formed where it is transformed**, a row a workgroup: the spectrum is made straight into shared
+// memory and the transform reads it there. Formed in a pass of its own, the three fields went out to
+// memory whole and came straight back.
+
+#include "scene.h"
+#include "sets.h"
+#include "wave.h"
+
+#include "lib/turns.glsl"
+#include "lib/wavelines.glsl"
+
+layout(local_size_x = WAVE_WORKGROUP) in;
+
+/// The amplitudes drawn for this sea state, and how many turns a second each makes. Centred, so the
+/// entry at `(column, row)` carries the wavevector `TAU / mExtent * (column - n/2, row - n/2)`.
+layout(set = SET_PASS, binding = WAVE_ROWS_BIND_AMPLITUDES, scalar) readonly buffer Amplitudes
+{
+    vec2 amplitudes[];
+};
+
+layout(set = SET_PASS, binding = WAVE_ROWS_BIND_TURN_RATES, scalar) readonly buffer TurnRates
+{
+    float turnRates[];
+};
+
+/// The three fields, transformed along the rows: a grid each, one after the other.
+layout(set = SET_PASS, binding = WAVE_ROWS_BIND_FIELD, scalar) writeonly buffer Field
+{
+    vec2 field[];
+};
+
+layout(push_constant, scalar) uniform Push
+{
+    WaveRowsConstants frame;
+};
+
+/// Two real fields' spectra as one complex one: `A + iB`.
+vec2 pack(vec2 first, vec2 second)
+{
+    return vec2(first.x - second.y, first.y + second.x);
+}
+
+void main()
+{
+    const uint thread = gl_LocalInvocationID.x;
+    const uint row = gl_WorkGroupID.x;
+    const uint count = frame.mCount;
+    const uint stages = findMSB(count);
+    const int middle = int(count) / 2;
+    const float step = TAU / frame.mExtent;
+
+    for (uint column = thread; column < count; column += WAVE_WORKGROUP)
+    {
+        const uint at = row * count + column;
+
+        // **The partner at `-k`, and the entry that is its own.** A real field needs `H(-k)` to be
+        // the conjugate of `H(k)`, which the sum below gives for every pair — and along the edge the
+        // grid holds, where `-k` would fall outside it, the index maps to itself and the sum is twice
+        // a real part, which is the same statement.
+        const uint mirror = ((count - row) % count) * count + (count - column) % count;
+
+        const vec2 wavevector = step * vec2(int(column) - middle, int(row) - middle);
+
+        const float angle = TAU * turnsAt(turnRates[at], frame.mTime);
+        const vec2 ahead = turnedBy(amplitudes[at], angle);
+        const vec2 behind = turnedBy(vec2(amplitudes[mirror].x, -amplitudes[mirror].y), -angle);
+
+        const vec2 height = ahead + behind;
+
+        // A derivative is a multiply here: `d/dx` of `e^{i k x}` is `i k` times it, and a second
+        // derivative is `-k_i k_j`. Which is the whole reason the curvature the caustics need costs
+        // nothing beyond a transform it was already paying for.
+        const vec2 slopeX = vec2(-wavevector.x * height.y, wavevector.x * height.x);
+        const vec2 slopeY = vec2(-wavevector.y * height.y, wavevector.y * height.x);
+
+        const vec2 curveXX = -wavevector.x * wavevector.x * height;
+        const vec2 curveYY = -wavevector.y * wavevector.y * height;
+        const vec2 curveXY = -wavevector.x * wavevector.y * height;
+
+        const uint slot = reversedSlot(column, stages);
+        gLines[0][slot] = pack(height, slopeX);
+        gLines[1][slot] = pack(slopeY, curveXX);
+        gLines[2][slot] = pack(curveYY, curveXY);
+    }
+
+    barrier();
+
+    transformLines(count);
+
+    const uint grid = count * count;
+    for (uint column = thread; column < count; column += WAVE_WORKGROUP)
+    {
+        const uint at = row * count + column;
+        field[at] = gLines[0][column];
+        field[grid + at] = gLines[1][column];
+        field[2u * grid + at] = gLines[2][column];
+    }
+}

@@ -1,4 +1,3 @@
-#include <filesystem>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -9,9 +8,7 @@
 
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/device/harness.hpp>
-#include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/device.hpp>
-#include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
@@ -111,19 +108,6 @@ namespace Rtx
             findMissingFeatures(supported, missing);
 
             EXPECT_TRUE(missing.empty()) << "first missing: " << (missing.empty() ? "" : missing.front());
-        }
-
-        TEST_F(RtxDeviceTest, theShaderBuildStepProducesLoadableModules)
-        {
-            ASSERT_TRUE(std::filesystem::exists(mHarness.mDevice->getShaderDirectory() / "visibility.rgen.spv"));
-
-            const ShaderModule module = loadShaderModule(*mHarness.mDevice, "visibility.rgen.spv");
-            EXPECT_NE(module.get(), VK_NULL_HANDLE);
-        }
-
-        TEST_F(RtxDeviceTest, aFileThatIsNotSpirvIsRejectedRatherThanHandedToTheDriver)
-        {
-            EXPECT_THROW(loadShaderModule(*mHarness.mDevice, "there-is-no-such-shader.spv"), InputError);
         }
 
         TEST_F(RtxDeviceTest, theReportNamesTheDeviceAndItsRayTracingLimits)

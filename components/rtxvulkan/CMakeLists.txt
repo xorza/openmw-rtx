@@ -86,9 +86,8 @@ set(RTX_SHADERS
     shaders/trace/visibility.rmiss
     shaders/trace/visibilityhit.rchit
     shaders/trace/visibilityunshaded.rmiss
-    shaders/trace/wavecompose.comp
-    shaders/trace/waveform.comp
-    shaders/trace/waveline.comp
+    shaders/trace/wavecolumns.comp
+    shaders/trace/waverows.comp
 )
 
 # The device-behaviour probes, only where tests run them: an assumption about the hardware fails as
@@ -192,6 +191,7 @@ set(RTX_SHADER_LIB
     shaders/lib/underwater.glsl
     shaders/lib/variants.glsl
     shaders/lib/water.glsl
+    shaders/lib/wavelines.glsl
     shaders/lib/wavetile.glsl
     shaders/upscale/fsrcallbacks.glsl
 )
@@ -286,6 +286,8 @@ set(RTX_VULKAN_FILES
     pipeline/graphicspipeline.hpp
     pipeline/pipeline.cpp
     pipeline/pipeline.hpp
+    pipeline/shadercode.cpp
+    pipeline/shadercode.hpp
     pipeline/tracepipeline.cpp
     pipeline/tracepipeline.hpp
     present/presenter.cpp

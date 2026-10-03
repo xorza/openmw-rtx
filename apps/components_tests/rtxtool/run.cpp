@@ -16,13 +16,13 @@
 #include <osg/Vec2d>
 #include <osg/Vec3f>
 
+#include <apps/rtxtool/harnessfolder.hpp>
 #include <apps/rtxtool/model/benchrecord.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/run.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories/video.hpp>
 #include <components/settings/values.hpp>
@@ -280,13 +280,6 @@ namespace RtxTool
 
     namespace
     {
-        /// Where the build copies the harness's places and suites: its folder beside the resources
-        /// the compiled shaders stand in, `resources/rtx/shaders`.
-        std::filesystem::path harness()
-        {
-            return Rtx::harnessDirectory(std::filesystem::path(OPENMW_RTX_SHADER_DIR).parent_path().parent_path());
-        }
-
         /// **A watched window keeps the player's pacing whole**: the vertical sync and the frame-rate
         /// limit both. A window that kept the one and not the other drew as fast as the card could
         /// under a player who had asked for 60.
@@ -374,10 +367,22 @@ namespace RtxTool
         /// **The one way this pair can be wrong that nothing else catches.** A view renamed in
         /// `views.cfg` leaves `benches.cfg` naming something that no longer exists, and the run that
         /// finds out is the one somebody started and walked away from.
+        ///
+        /// **Read where the build put them**: the harness's folder, which holds its scripts and the
+        /// shaders with their source too, and stands apart from the resources an install carries.
         TEST(RtxBenchSuiteTest, everySuiteNamesViewsThatExist)
         {
-            const std::vector<RtxTool::Stop> views = loadViews(harness() / "views.cfg");
-            const std::vector<BenchSuite> suites = loadSuites(harness() / "benches.cfg");
+            const std::filesystem::path harness = harnessDirectory();
+            const std::filesystem::path resources
+                = std::filesystem::path(OPENMW_RTX_SHADER_DIR).parent_path().parent_path();
+            EXPECT_TRUE(std::filesystem::is_regular_file(harness / "vfs" / "rtxtool.omwscripts"));
+            EXPECT_TRUE(std::filesystem::is_directory(shaderSourceDirectory()));
+            EXPECT_EQ(shaderSourceDirectory().parent_path(), harness);
+            const std::filesystem::path within = harness.lexically_relative(resources);
+            EXPECT_TRUE(within.empty() || *within.begin() == "..") << "the harness's folder inside the resources";
+
+            const std::vector<RtxTool::Stop> views = loadViews(harness / "views.cfg");
+            const std::vector<BenchSuite> suites = loadSuites(harness / "benches.cfg");
 
             EXPECT_NE(findSuite(suites, "default"), nullptr) << "`bench` with no arguments runs [default]";
 

@@ -211,6 +211,7 @@ namespace RtxTool
                         "  instances:            {}\n"
                         "  distant statics:      {}\n"
                         "  ground cells:         {}\n"
+                        "  groundcover:          {}\n"
                         "  meshes:               {}\n"
                         "  materials:            {}\n"
                         "  textures:             {}\n"
@@ -218,7 +219,7 @@ namespace RtxTool
                         "  vertex+index bytes:   {} KiB, of which vertex colours {} KiB\n"
                         "  handed over:          {}\n"
                         "  laid out as:          {}\n",
-                scene.placements().getCounts().mPlaced, stats.mDistantStatics, stats.mGroundCells,
+                scene.placements().getCounts().mPlaced, stats.mDistantStatics, stats.mGroundCells, stats.mGroundcover,
                 scene.meshes().getRows().size(), scene.materials().getRows().size(), scene.textures().getRows().size(),
                 scene.meshes().getTriangleCount(), scene.meshes().getGeometryBytes() / 1024,
                 scene.meshes().getColours().size() * sizeof(osg::Vec3f) / 1024, spellHash(digestScene(scene)),

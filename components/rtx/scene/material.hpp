@@ -137,6 +137,9 @@ namespace Rtx
         /// where the two ways of saying it meet and a ray that draws reads them.
         bool mTwoSided = false;
 
+        /// Whether the lamps light this surface — `SurfaceDescription::mLampLit`.
+        bool mLampLit = true;
+
         /// Mesh texture coordinates to this material's, as `uv * xy + zw` — the same form the
         /// terrain layers use. Morrowind moves lava, waterfalls, banners and smoke by rewriting a
         /// texture matrix every frame — 432 surfaces in Vivec alone — so this is on the material,

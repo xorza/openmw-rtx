@@ -157,12 +157,12 @@ namespace Rtx
         /// that lights nothing rather than a renderer that will not start.
         TEST(RtxMeanTexelTest, anImageInAFormatNobodyShipsIsWorthNothing)
         {
-            osg::ref_ptr<osg::Image> luminance = new osg::Image;
-            luminance->setFileName("odd.dds");
-            luminance->allocateImage(2, 2, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> odd = new osg::Image;
+            odd->setFileName("odd.dds");
+            odd->allocateImage(2, 2, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
 
-            EXPECT_EQ(ContentPreprocessor().meanTexel(*luminance).mColour, osg::Vec3f());
-            EXPECT_EQ(ContentPreprocessor().meanTexel(*luminance).mAlpha, 0.0f);
+            EXPECT_EQ(ContentPreprocessor().meanTexel(*odd).mColour, osg::Vec3f());
+            EXPECT_EQ(ContentPreprocessor().meanTexel(*odd).mAlpha, 0.0f);
         }
 
         /// A sheet's paint is what its own alpha calls solid, and not what it adds to the sky behind it.
@@ -268,12 +268,12 @@ namespace Rtx
         /// **Both DXT1 spellings are one format**, because the header's alpha flag decides nothing:
         /// a BC1 block carries its punch-through bit either way.
         ///
-        /// **Data is the same blocks without the curve, and two channels are data alone**: a BC5
-        /// file bound as a colour has lost its blue, and is no format a colour slot takes.
+        /// **Data is the same blocks without the curve, and one or two channels are data alone**: a
+        /// BC4 or BC5 file bound as a colour has lost its blue, and is no format a colour slot takes.
         ///
-        /// `GL_ALPHA` stands for the formats nothing here names. `ESMTerrain` builds its blend maps
-        /// in it, which is a real format that reaches no uploader, so the count it lands in is the
-        /// canary rather than a hole.
+        /// **Every loose spelling the DDS loader makes is named**, alpha-only, one and two channels,
+        /// sixteen-bit and float ones among them, and widened on the way in. Signed and integer
+        /// channels stay unnamed: no slot here reads them as a fraction.
         ///
         /// **A loose format is its pixel format and its data type together.** OpenSceneGraph's DDS
         /// loader hands an A1R5G5B5 file over as `GL_BGRA` of `GL_UNSIGNED_SHORT_1_5_5_5_REV`, and
@@ -283,24 +283,28 @@ namespace Rtx
         TEST(RtxTextureFormatTest, everySpellingReadsAsItsFormatAndNamesItself)
         {
             using enum TextureEncoding;
-            constexpr std::array<FormatCase, 31> sCases{ {
+            constexpr std::array sCases{ std::to_array<FormatCase>({
                 { GL_COMPRESSED_RGB_S3TC_DXT1_EXT, Colour, TextureFormat::Bc1RgbaSrgb, "BC1 (DXT1)" },
                 { GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, Colour, TextureFormat::Bc1RgbaSrgb, "BC1 (DXT1)" },
                 { GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, Colour, TextureFormat::Bc2Srgb, "BC2 (DXT3)" },
                 { GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, Colour, TextureFormat::Bc3Srgb, "BC3 (DXT5)" },
                 { GL_COMPRESSED_RED_GREEN_RGTC2_EXT, Colour, TextureFormat::Unnamed, "an unnamed pixel format" },
+                { GL_COMPRESSED_RED_RGTC1_EXT, Colour, TextureFormat::Unnamed, "an unnamed pixel format" },
                 { GL_RGB, Colour, TextureFormat::Rgb8, "RGB8" },
                 { GL_BGR, Colour, TextureFormat::Bgr8, "BGR8" },
                 { GL_RGBA, Colour, TextureFormat::Rgba8Srgb, "RGBA8" },
                 { GL_BGRA, Colour, TextureFormat::Bgra8Srgb, "BGRA8" },
                 { GL_LUMINANCE, Colour, TextureFormat::Luminance, "L8" },
                 { GL_LUMINANCE_ALPHA, Colour, TextureFormat::LuminanceAlpha, "LA8" },
-                { GL_ALPHA, Colour, TextureFormat::Unnamed, "an unnamed pixel format" },
+                { GL_ALPHA, Colour, TextureFormat::Alpha8, "A8" },
+                { GL_RED, Colour, TextureFormat::Red8, "R8" },
+                { GL_RG, Data, TextureFormat::Rg8, "R8G8" },
                 { GL_COMPRESSED_RGB_S3TC_DXT1_EXT, Data, TextureFormat::Bc1RgbaUnorm, "BC1 (DXT1, linear)" },
                 { GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, Data, TextureFormat::Bc1RgbaUnorm, "BC1 (DXT1, linear)" },
                 { GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, Data, TextureFormat::Bc2Unorm, "BC2 (DXT3, linear)" },
                 { GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, Data, TextureFormat::Bc3Unorm, "BC3 (DXT5, linear)" },
                 { GL_COMPRESSED_RED_GREEN_RGTC2_EXT, Data, TextureFormat::Bc5Unorm, "BC5 (ATI2, linear)" },
+                { GL_COMPRESSED_RED_RGTC1_EXT, Data, TextureFormat::Bc4Unorm, "BC4 (ATI1, linear)" },
                 { GL_RGBA, Data, TextureFormat::Rgba8Unorm, "RGBA8 (linear)" },
                 { GL_BGRA, Data, TextureFormat::Bgra8Unorm, "BGRA8 (linear)" },
                 { GL_RGB, Data, TextureFormat::Rgb8, "RGB8" },
@@ -309,13 +313,25 @@ namespace Rtx
                 { GL_BGRA, Colour, TextureFormat::Xrgb1555, "X1R5G5B5", GL_UNSIGNED_SHORT_1_5_5_5_REV, GL_RGB },
                 { GL_BGRA, Data, TextureFormat::Argb4444, "A4R4G4B4", GL_UNSIGNED_SHORT_4_4_4_4_REV },
                 { GL_BGRA, Colour, TextureFormat::Xrgb4444, "X4R4G4B4", GL_UNSIGNED_SHORT_4_4_4_4_REV, GL_RGB },
+                { GL_RGBA, Data, TextureFormat::Rgba16, "RGBA16", GL_UNSIGNED_SHORT },
+                { GL_LUMINANCE, Colour, TextureFormat::Luminance16, "L16", GL_UNSIGNED_SHORT },
+                { GL_LUMINANCE_ALPHA, Colour, TextureFormat::LuminanceAlpha16, "LA16", GL_UNSIGNED_SHORT },
+                { GL_RED, Data, TextureFormat::Red16, "R16", GL_UNSIGNED_SHORT },
+                { GL_RG, Data, TextureFormat::Rg16, "R16G16", GL_UNSIGNED_SHORT },
+                { GL_RED, Colour, TextureFormat::Red16f, "R16F", GL_HALF_FLOAT },
+                { GL_RG, Data, TextureFormat::Rg16f, "R16G16F", GL_HALF_FLOAT },
+                { GL_RGB, Colour, TextureFormat::Rgb16f, "RGB16F", GL_HALF_FLOAT },
+                { GL_RGBA, Colour, TextureFormat::Rgba16f, "RGBA16F", GL_HALF_FLOAT },
+                { GL_RED, Data, TextureFormat::Red32f, "R32F", GL_FLOAT },
+                { GL_RG, Data, TextureFormat::Rg32f, "R32G32F", GL_FLOAT },
+                { GL_RGB, Colour, TextureFormat::Rgb32f, "RGB32F", GL_FLOAT },
+                { GL_RGBA, Colour, TextureFormat::Rgba32f, "RGBA32F", GL_FLOAT },
                 { GL_RGBA, Colour, TextureFormat::Unnamed, "an unnamed pixel format", GL_UNSIGNED_SHORT_4_4_4_4 },
                 { GL_BGRA, Colour, TextureFormat::Unnamed, "an unnamed pixel format", GL_UNSIGNED_INT_2_10_10_10_REV },
-                { GL_RGBA, Data, TextureFormat::Unnamed, "an unnamed pixel format", GL_UNSIGNED_SHORT },
-                { GL_RGBA, Colour, TextureFormat::Unnamed, "an unnamed pixel format", GL_HALF_FLOAT },
-                { GL_LUMINANCE, Colour, TextureFormat::Unnamed, "an unnamed pixel format", GL_UNSIGNED_SHORT },
+                { GL_RGBA, Data, TextureFormat::Unnamed, "an unnamed pixel format", GL_SHORT },
+                { GL_RG, Data, TextureFormat::Unnamed, "an unnamed pixel format", GL_UNSIGNED_INT },
                 { GL_RGB, Colour, TextureFormat::Unnamed, "an unnamed pixel format", GL_UNSIGNED_BYTE_3_3_2 },
-            } };
+            }) };
 
             std::array<bool, sTextureFormatCount> met{};
             for (const FormatCase& one : sCases)

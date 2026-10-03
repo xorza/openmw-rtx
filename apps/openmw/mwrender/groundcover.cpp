@@ -24,6 +24,7 @@
 
 #include "../mwworld/groundcoverstore.hpp"
 
+#include "groundcoverdensity.hpp"
 #include "vismask.hpp"
 
 namespace MWRender
@@ -259,34 +260,6 @@ namespace MWRender
         private:
             std::span<const Groundcover::GroundcoverEntry> mInstances;
             osg::Vec3f mChunkPosition;
-        };
-
-        class DensityCalculator
-        {
-        public:
-            DensityCalculator(float density)
-                : mDensity(density)
-            {
-            }
-
-            bool isInstanceEnabled()
-            {
-                if (mDensity >= 1.f)
-                    return true;
-
-                mCurrentGroundcover += mDensity;
-                if (mCurrentGroundcover < 1.f)
-                    return false;
-
-                mCurrentGroundcover -= 1.f;
-
-                return true;
-            }
-            void reset() { mCurrentGroundcover = 0.f; }
-
-        private:
-            float mCurrentGroundcover = 0.f;
-            float mDensity = 0.f;
         };
 
         class ViewDistanceCallback : public SceneUtil::NodeCallback<ViewDistanceCallback>

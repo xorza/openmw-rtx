@@ -79,9 +79,11 @@ namespace Rtx
         // Nothing is given back — what the reader lent dies with it — but the rows are the frame's
         // own, and a worldspace change is the one time this runs while the game plays.
         mPlacer.dropUnless([](const HeldCell&) { return false; }, [](const HeldCell&) {});
+        mPlacer.dropGrassUnless([](const HeldGrass&) { return false; }, [](const HeldGrass&) {});
 
         mHolds.forget();
         mHanded.clear();
+        mHandedGrass.clear();
     }
 
     void CellRing::setStaticsEnabled(const bool enabled)
@@ -103,7 +105,9 @@ namespace Rtx
             return 0;
 
         assert(getHeldCellCount() <= mBandCells && "a cell held outside the band the last walk asked over");
-        return mBandCells - static_cast<std::uint32_t>(getHeldCellCount());
+        assert(getHeldGrassCount() <= mGrassBandCells && "grass held outside the band the last walk asked over");
+        return mBandCells - static_cast<std::uint32_t>(getHeldCellCount()) + mGrassBandCells
+            - static_cast<std::uint32_t>(getHeldGrassCount());
     }
 
     bool CellRing::waitsUnder(const osg::Vec2f& low, const osg::Vec2f& high) const
@@ -134,24 +138,25 @@ namespace Rtx
             mHanded.begin(), mHanded.end(), [&](const PreparedCell* held) { return held->mCell == cell; });
     }
 
-    void CellRing::giveBackHolds(const HeldCell& cell)
+    bool CellRing::handedGrass(const osg::Vec2i& cell) const
     {
-        CellReturns& back = mSupply.giveBack();
-        back.mModels.insert(back.mModels.end(), cell.mModels.begin(), cell.mModels.end());
-        back.mTextures.insert(back.mTextures.end(), cell.mGround.mTextures.begin(), cell.mGround.mTextures.end());
+        return std::any_of(
+            mHandedGrass.begin(), mHandedGrass.end(), [&](const PreparedGrass* held) { return held->mCell == cell; });
     }
 
-    void CellRing::giveBackHolds(const PreparedCell& cell)
+    float CellRing::grassBand() const
     {
-        CellReturns& back = mSupply.giveBack();
-        back.mModels.insert(back.mModels.end(), cell.mModels.begin(), cell.mModels.end());
-        cell.mGround.collectTextures(back.mTextures);
+        if (mAround.mWorld.mGroundcover == nullptr || !(mAround.mGroundcoverReach > 0.0f))
+            return 0.0f;
+
+        return mAround.mGroundcoverReach + mAround.mWorld.mGrid.getCellSize();
     }
 
     void CellRing::takeDone()
     {
         mDoneScratch.clear();
-        mSupply.take(mDoneScratch);
+        mDoneGrassScratch.clear();
+        mSupply.take(mDoneScratch, mDoneGrassScratch);
 
         for (PreparedCell* cell : mDoneScratch)
         {
@@ -172,10 +177,22 @@ namespace Rtx
             ++mTaken;
         }
 
+        for (PreparedGrass* grass : mDoneGrassScratch)
+        {
+            for (PreparedModel* model : grass->mModels)
+                ++mHolds.know(*model).mNamed;
+
+            Crash::contract(!handedGrass(grass->mCell) && !mPlacer.holdsGrass(grass->mCell),
+                "the supply handed over a cell's grass the ring already had");
+            mHandedGrass.push_back(grass);
+            ++mTaken;
+        }
+
         mDoneScratch.clear();
+        mDoneGrassScratch.clear();
     }
 
-    void CellRing::ask(const osg::Vec3f& eye, const float band)
+    void CellRing::ask(const osg::Vec3f& eye, const float band, const float grassBand)
     {
         // Rebuilt only when what it is made from moved. Otherwise it is the list the supply already
         // has. Any move of the eye, because the disc is measured from the eye itself and a cell at
@@ -184,9 +201,12 @@ namespace Rtx
         const AskInputs inputs{
             .mEye = eye,
             .mBand = band,
+            .mGrassBand = grassBand,
             .mStatics = mStatics,
             .mHeld = getHeldCellCount(),
             .mHanded = mHanded.size(),
+            .mGrassHeld = getHeldGrassCount(),
+            .mGrassHanded = mHandedGrass.size(),
             .mTaken = mTaken,
             .mFollowed = mFollowed,
         };
@@ -194,7 +214,7 @@ namespace Rtx
             return;
         mAsked = inputs;
 
-        mAsking.mCells.clear();
+        mAsking.clear();
         mAsking.mStatics = mStatics;
 
         const CellGrid& grid = mAround.mWorld.mGrid;
@@ -207,10 +227,20 @@ namespace Rtx
 
         std::sort(mAsking.mCells.begin(), mAsking.mCells.end(), Nearer{ .mGrid = grid, .mEye = eye });
 
+        mGrassBandCells = 0;
+        if (grassBand > 0.0f)
+            grid.forEachCellWithin(eye, grassBand, [&](const osg::Vec2i& cell) {
+                ++mGrassBandCells;
+                if (!mPlacer.holdsGrass(cell) && !handedGrass(cell))
+                    mAsking.mGrass.push_back(cell);
+            });
+
+        std::sort(mAsking.mGrass.begin(), mAsking.mGrass.end(), Nearer{ .mGrid = grid, .mEye = eye });
+
         mSupply.ask(mAsking);
     }
 
-    void CellRing::sift(const osg::Vec3f& eye, const float band)
+    void CellRing::sift(const osg::Vec3f& eye, const float band, const float grassBand)
     {
         std::erase_if(mHanded, [&](PreparedCell* cell) {
             if (mAround.mWorld.mGrid.withinReach(cell->mCell, eye, band))
@@ -219,18 +249,29 @@ namespace Rtx
             discard(*cell);
             return true;
         });
+
+        std::erase_if(mHandedGrass, [&](PreparedGrass* grass) {
+            if (grassBand > 0.0f && mAround.mWorld.mGrid.withinReach(grass->mCell, eye, grassBand))
+                return false;
+
+            discard(*grass);
+            return true;
+        });
     }
 
-    void CellRing::waitForNext(const osg::Vec3f& eye, const float band)
+    void CellRing::waitForNext(const osg::Vec3f& eye, const float band, const float grassBand)
     {
         // A cell read under the other answer to the statics switch, or one of a band that left, is
         // not what the wait waited for: the first thing the reader hands over after a move is
-        // usually a cell nothing wants any more.
-        while (mHanded.empty())
+        // usually a cell nothing wants any more. The grass the same: a settled walk adopts its one
+        // cell's grass on the frame two runs agree on, or their pictures part.
+        const bool cells = !mAsking.mCells.empty();
+        const bool grass = !mAsking.mGrass.empty();
+        while ((cells && mHanded.empty()) || (grass && mHandedGrass.empty()))
         {
             const bool read = mSupply.waitForOne();
             takeDone();
-            sift(eye, band);
+            sift(eye, band, grassBand);
 
             // The reader has nothing left to read: what it read was sifted away, or the ask that
             // would have brought more equalled the one before. The walk adopts nothing this time.
@@ -245,12 +286,19 @@ namespace Rtx
         // into the scene and its structures built by the hand-over that follows; two on one frame
         // would be the batch behind a threshold this renderer never takes. A settled walk keeps the
         // rule and waits for its one cell, which is what `setSettled` says.
-        if (mHanded.empty() || mAdoptedFrame == frame)
-            return;
+        if (!mHanded.empty() && mAdoptedFrame != frame)
+        {
+            mAdoptedFrame = frame;
+            adopt(*mHanded.front());
+            mHanded.erase(mHanded.begin());
+        }
 
-        mAdoptedFrame = frame;
-        adopt(*mHanded.front());
-        mHanded.erase(mHanded.begin());
+        if (!mHandedGrass.empty() && mGrassAdoptedFrame != frame)
+        {
+            mGrassAdoptedFrame = frame;
+            adopt(*mHandedGrass.front());
+            mHandedGrass.erase(mHandedGrass.begin());
+        }
     }
 
     void CellRing::adopt(PreparedCell& cell)
@@ -277,23 +325,56 @@ namespace Rtx
         mSupply.giveBack().mCells.push_back(&cell);
     }
 
-    void CellRing::discard(PreparedCell& cell)
+    void CellRing::adopt(PreparedGrass& grass)
     {
-        for (PreparedModel* model : cell.mModels)
+        const Crash::NoteScope noted("adopting the groundcover of the cell {}, {}", grass.mCell.x(), grass.mCell.y());
+
+        ExtractionStats& stats = mAdopter.getStats();
+        mAdopter.getScene().refusals().refuse(grass.mRefusals);
+        stats.mPreprocessed.mOffFrame += grass.mPreprocessed;
+
+        for (PreparedModel* model : grass.mModels)
+        {
+            CellHolds::HeldModel& known = mHolds.knownOf(*model);
+            if (known.mParts.empty())
+                mHolds.adoptParts(known, mAdopter);
+        }
+
+        mPlacer.holdGrass(grass, mHolds);
+
+        mSupply.giveBack().mGrass.push_back(&grass);
+    }
+
+    void CellRing::discard(PreparedGrass& grass)
+    {
+        letGo(grass.mModels);
+        mSupply.giveBack().mGrass.push_back(&grass);
+    }
+
+    void CellRing::letGo(const std::span<PreparedModel* const> models)
+    {
+        for (PreparedModel* model : models)
             mHolds.release(*model);
 
+        CellReturns& back = mSupply.giveBack();
+        back.mModels.insert(back.mModels.end(), models.begin(), models.end());
+    }
+
+    void CellRing::discard(PreparedCell& cell)
+    {
         // Every hold the reader counted for the cell goes back with it: the models, and the
         // images its ground names.
-        giveBackHolds(cell);
-        mSupply.giveBack().mCells.push_back(&cell);
+        letGo(cell.mModels);
+        CellReturns& back = mSupply.giveBack();
+        cell.mGround.collectTextures(back.mTextures);
+        back.mCells.push_back(&cell);
     }
 
     void CellRing::letGo(const HeldCell& cell)
     {
-        for (PreparedModel* model : cell.mModels)
-            mHolds.release(*model);
-
-        giveBackHolds(cell);
+        letGo(cell.mModels);
+        CellReturns& back = mSupply.giveBack();
+        back.mTextures.insert(back.mTextures.end(), cell.mGround.mTextures.begin(), cell.mGround.mTextures.end());
     }
 
     void CellRing::setReferenceEnabled(const ESM::RefNum refnum, const bool enabled)
@@ -347,9 +428,10 @@ namespace Rtx
 
         // What stands, counted off the slots and not off a tally: a world with no reader and an
         // interior have both dropped every slot by now, and stand nothing.
-        stats.mInstances += mPlacer.getPlaced() + mPlacer.getGroundPlaced();
+        stats.mInstances += mPlacer.getPlaced() + mPlacer.getGroundPlaced() + mPlacer.getGrassPlaced();
         stats.mDistantStatics += mPlacer.getPlaced();
         stats.mGroundCells += mPlacer.getGroundPlaced();
+        stats.mGroundcover += mPlacer.getGrassPlaced();
     }
 
     void CellRing::walkRings(ExtractionStats& stats, const std::size_t frame)
@@ -359,6 +441,7 @@ namespace Rtx
         if (!mSupply.hasReader())
         {
             mBandCells = 0;
+            mGrassBandCells = 0;
             return;
         }
 
@@ -369,6 +452,7 @@ namespace Rtx
         if (!mAround.mExterior)
         {
             mBandCells = 0;
+            mGrassBandCells = 0;
             mPlacer.dropSlots();
             mSupply.publish();
             return;
@@ -387,15 +471,24 @@ namespace Rtx
             },
             [&](const HeldCell& cell) { letGo(cell); });
 
-        sift(eye, band);
+        // A cell's grass past the grass band goes whole, and all of it where the world has none.
+        const float grass = grassBand();
+        mPlacer.dropGrassUnless(
+            [&](const HeldGrass& held) {
+                return grass > 0.0f && mAround.mWorld.mGrid.withinReach(held.mCell, eye, grass);
+            },
+            [&](const HeldGrass& held) { letGo(held.mModels); });
 
-        ask(eye, band);
+        sift(eye, band, grass);
+
+        ask(eye, band, grass);
 
         // Waited for after the ask that names it and never before, because what the reader is
         // about to hand back is what that ask asked for. Nothing was asked for where the band is
         // whole, and then there is nothing to wait for.
-        if (mSettled && mHanded.empty() && !mAsking.mCells.empty())
-            waitForNext(eye, band);
+        if (mSettled
+            && ((mHanded.empty() && !mAsking.mCells.empty()) || (mHandedGrass.empty() && !mAsking.mGrass.empty())))
+            waitForNext(eye, band, grass);
 
         adoptHanded(frame);
 

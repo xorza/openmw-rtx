@@ -40,6 +40,7 @@ namespace Resource
 namespace MWWorld
 {
     class CellStore;
+    class GroundcoverStore;
 }
 
 namespace Rtx
@@ -50,6 +51,7 @@ namespace Rtx
 namespace MWRender
 {
     struct SceneFrame;
+    class TracedGroundcover;
 
     /// The engine's scene graph mirrored into what a ray can meet.
     ///
@@ -80,6 +82,11 @@ namespace MWRender
         /// every row the world stood is swept — so a detached world is an empty scene, which the
         /// destructor asserts. `SkyReader::detach` gives the sky's own back before this.
         void detach();
+
+        /// The world's groundcover, which the default worldspace's ground is made with
+        /// (`RtxRenderer::createGround`): what the ring stands within `[Groundcover] rendering
+        /// distance` of the eye. Nothing where `[Groundcover] enabled` is off. Once a world.
+        void growGroundcover(const MWWorld::GroundcoverStore& store);
 
         /// Walks this frame's world into the scene, drops what the walk did not find, and says
         /// what the walk found. The sweep is here and not after the frame, so what `hand` hands
@@ -161,6 +168,12 @@ namespace MWRender
         /// attached, because that is when there is a scene manager. Before the ring, whose reader
         /// thread reads it: the members below die first, and the thread with them.
         std::unique_ptr<Rtx::ContentSource> mContent;
+
+        /// The world's groundcover, or null where it has none. Before the ring, as the content is.
+        std::unique_ptr<TracedGroundcover> mGroundcover;
+        float mGroundcoverReach = 0.0f;
+        float mGroundcoverDensity = 0.0f;
+        bool mGroundcoverLampLit = true;
 
         Rtx::SceneExtractor mExtractor;
 

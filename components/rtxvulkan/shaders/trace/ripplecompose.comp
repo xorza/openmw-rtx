@@ -5,7 +5,7 @@
 // The ripple field unpacked into the textures the sea reads, in the wave tiles' own layout: the two
 // slopes with their second moment and the height squared, and the three curvatures the caustic
 // differentiates. Central differences, because the field is a grid of heights and not a spectrum;
-// `wavecompose.comp` has the derivatives analytically and this has to take them.
+// `waverows.comp` has the derivatives analytically and this has to take them.
 
 #include "ripple.h"
 #include "sets.h"

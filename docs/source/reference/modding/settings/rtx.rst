@@ -93,7 +93,8 @@ Settings
 * ``[General] texture mag filter``: The ray tracer filters every texture trilinearly.
 * ``[General] texture min filter``: The ray tracer filters every texture trilinearly.
 * ``[General] texture mipmap``: The ray tracer filters every texture trilinearly.
-* ``[Groundcover]`` every key: The ray tracer does not draw groundcover yet.
+* ``[Groundcover] stomp intensity``: The ray tracer stands each plant still: no wind and no step bends it.
+* ``[Groundcover] stomp mode``: The ray tracer stands each plant still: no wind and no step bends it.
 * ``[Physics] async num threads``: This sets the rasterizer's draw threads.
 * ``[Post Processing]`` every key: Shader post-processing runs on the rasterizer. The ray tracer has its own exposure, bloom and tone curve.
 * ``[Shaders] adjust coverage for alpha test``: The trace cuts an alpha-tested surface for each ray, with no coverage to adjust.

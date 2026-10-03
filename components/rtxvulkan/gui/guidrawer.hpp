@@ -30,9 +30,8 @@ namespace Rtx
         GuiTextures& getTextures() { return mTextures; }
         const GuiTextures& getTextures() const { return mTextures; }
 
-        /// Draws `picture` into `shown` whole, and `batches` of `vertices` over it. `picture` rests
-        /// in `GENERAL` and is left there; `shown` is rewritten whole and left in
-        /// `Use::sAnyGeneralRead`, where the presenter blits and a read back copies. Its own submit,
+        /// Draws `picture` into `shown` whole, and `batches` of `vertices` over it. Both are taken
+        /// from `PresentTarget::sResting` and left there, `shown` rewritten whole. Its own submit,
         /// and not waited for.
         void draw(std::span<const GuiVertex> vertices, std::span<const GuiBatch> batches, const Image& picture,
             const Image& shown);

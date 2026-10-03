@@ -20,7 +20,6 @@ namespace Rtx
 
     /// The handles this renderer makes in one place and holds in many, each as its `Owned`: the
     /// type already says what it owns and when it ends, so what is left to say is how one is made.
-    using ShaderModule = Owned<VkShaderModule, vkDestroyShaderModule>;
     using Sampler = Owned<VkSampler, vkDestroySampler>;
     using Semaphore = Owned<VkSemaphore, vkDestroySemaphore>;
     using Fence = Owned<VkFence, vkDestroyFence>;
@@ -55,11 +54,6 @@ namespace Rtx
 
     /// A fence that starts signalled, so the first wait on it returns at once.
     Fence makeSignalledFence(const Device& device);
-
-    /// A `VkShaderModule` built from the SPIR-V file the build wrote as `module` in the device's
-    /// shader directory; what this checks is that the file is the one the build wrote, because a
-    /// truncated `.spv` is otherwise a driver crash with no explanation.
-    ShaderModule loadShaderModule(const Device& device, std::string_view module);
 
     /// A descriptor set layout, for `GBuffer::describeLayout` and its siblings to build theirs
     /// through. `flags` is what a push descriptor set needs; `next` is binding flags for a bindless

@@ -446,7 +446,10 @@ namespace Rtx
 
         /// **A deck's sheet this cannot upload is left out, and not drawn as the stand-in**, which
         /// is an opaque grey and over a deck the whole sky. The seed names Clear's and Overcast's;
-        /// the archive holds Clear's as an alpha alone, which no upload takes, and not Overcast's.
+        /// the archive holds Clear's in RGB 3-3-2, which no upload takes, and not Overcast's.
+        ///
+        /// **An alpha-only sheet is taken**, as GL samples it: black at its alpha, widened on the way
+        /// in. The same archive with Clear's as `A8` gives the deck a slot, and one refusal fewer.
         TEST(RtxSkyBuilderTest, aDeckSheetThisCannotUploadIsLeftOutRatherThanDrawnGrey)
         {
             const std::unique_ptr<VFS::Manager> vfs
@@ -458,7 +461,7 @@ namespace Rtx
 
             osg::ref_ptr<osg::Image> rgb = new osg::Image;
             rgb->setFileName("textures/tx_sky_clear.dds");
-            rgb->allocateImage(4, 4, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
+            rgb->allocateImage(4, 4, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
             images.hold(VFS::Path::NormalizedView("textures/tx_sky_clear.dds"), rgb);
 
             SceneDesc scene;
@@ -481,6 +484,25 @@ namespace Rtx
 
             scene.drop(holds);
             EXPECT_TRUE(scene.isEmpty());
+
+            osg::ref_ptr<osg::Image> alpha = new osg::Image;
+            alpha->setFileName("textures/tx_sky_clear.dds");
+            alpha->allocateImage(4, 4, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
+            images.hold(VFS::Path::NormalizedView("textures/tx_sky_clear.dds"), alpha);
+
+            SceneDesc taken;
+            std::vector<TextureHold> takenHolds;
+            const SkyContent takenContent = addSkyContent(taken, scenes,
+                SkyMeshes{ .mClouds = VFS::Path::Normalized("meshes/sky_clouds_01.nif"),
+                    .mAtmosphere = VFS::Path::Normalized("meshes/sky_atmosphere.nif"),
+                    .mStars = VFS::Path::Normalized("meshes/sky_night_02.nif"),
+                    .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif") },
+                thread.mFacts, takenHolds);
+            EXPECT_NE(taken.textures().findFile(VFS::Path::NormalizedView("textures/tx_sky_clear.dds")), sNoIndex)
+                << "an alpha-only deck left out";
+            EXPECT_EQ(taken.refusals().count(Refused::SkyLayer), 4u)
+                << "Overcast's, the cap, the atmosphere, the stars";
+            taken.drop(takenHolds);
         }
 
         /// **A sheet a script names is opened once and drawn**, with its mean and cover read off it,
@@ -568,7 +590,7 @@ namespace Rtx
 
             osg::ref_ptr<osg::Image> rgb = new osg::Image;
             rgb->setFileName("textures/star_rgb.dds");
-            rgb->allocateImage(4, 4, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
+            rgb->allocateImage(4, 4, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
             osg::ref_ptr<osg::Image> rgba = new osg::Image;
             rgba->setFileName("textures/star_rgba.dds");
             rgba->allocateImage(4, 4, 1, GL_RGBA, GL_UNSIGNED_BYTE);

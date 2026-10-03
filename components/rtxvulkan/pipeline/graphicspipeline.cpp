@@ -10,33 +10,32 @@
 #include <components/rtxvulkan/device/result.hpp>
 
 #include "pipeline.hpp"
+#include "shadercode.hpp"
 
 namespace Rtx
 {
     Owned<VkPipeline, vkDestroyPipeline> makeGraphicsPipeline(
-        const Device& device, const VkPipelineLayout layout, const GraphicsPipelineOptions& options)
+        const Device& device, const VkPipelineLayout layout, const GraphicsPipelineOptions& options, ShaderCode& code)
     {
         PipelineCreation creation(device, options.mName);
-        const ShaderModule vertex = loadShaderModule(device, options.mVertexModule);
-        const ShaderModule fragment = loadShaderModule(device, options.mFragmentModule);
         const Specialization constants(options.mSpecialization);
 
         const std::array<VkPipelineShaderStageCreateInfo, 2> stages{
             VkPipelineShaderStageCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .pNext = nullptr,
+                .pNext = code.stage(options.mVertexModule),
                 .flags = 0,
                 .stage = VK_SHADER_STAGE_VERTEX_BIT,
-                .module = vertex.get(),
+                .module = VK_NULL_HANDLE,
                 .pName = "main",
                 .pSpecializationInfo = constants.getInfo(),
             },
             VkPipelineShaderStageCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .pNext = nullptr,
+                .pNext = code.stage(options.mFragmentModule),
                 .flags = 0,
                 .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-                .module = fragment.get(),
+                .module = VK_NULL_HANDLE,
                 .pName = "main",
                 .pSpecializationInfo = constants.getInfo(),
             },

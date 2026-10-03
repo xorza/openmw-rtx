@@ -22,12 +22,16 @@ namespace MWRender
         float mViewingDistance = 0.0f;
         bool mObjectPaging = true;
         float mObjectPagingMinSize = 0.0f;
+        bool mGroundcover = false;
+        float mGroundcoverDistance = 0.0f;
+        float mGroundcoverDensity = 0.0f;
+        bool mGroundcoverPointLighting = true;
         std::string_view mSpecularMapLayout;
         int mAnisotropy = 0;
         float mGamma = 1.0f;
         bool mLitEnvironmentMaps = false;
 
-        /// `[RTX]`, `[Camera] viewing distance`, `[Terrain]`'s paging, `[General] anisotropy`,
+        /// `[RTX]`, `[Camera] viewing distance`, `[Terrain]`'s paging, `[Groundcover]`, `[General] anisotropy`,
         /// `[Video] gamma` and `[Shaders] apply lighting to environment maps`: the one place the
         /// game reads these settings.
         static RtxSettingValues fromRegistry();

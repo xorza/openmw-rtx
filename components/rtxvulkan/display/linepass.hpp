@@ -12,6 +12,7 @@ namespace Rtx
     class Buffer;
     class Device;
     class Image;
+    class ShaderCode;
 
     /// What one draw of the debug lines is over. A record and not an argument list, because two
     /// of the fields are an `Image` and two more a count, and either pair takes the other's value
@@ -48,6 +49,9 @@ namespace Rtx
         void record(VkCommandBuffer commands, const Lines& what) const;
 
     private:
+        /// The pipelines made of one read of their two files, which `code` holds until they are.
+        LinePass(const Device& device, ShaderCode&& code);
+
         /// Two, because a topology is baked into a pipeline: the navmesh is triangles and its
         /// edges, the pathgrid its lines, the collision shapes both.
         GraphicsPipeline<Shaders::LineConstants> mLines;

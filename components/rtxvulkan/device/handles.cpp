@@ -3,33 +3,11 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
-#include <vector>
-
-#include <components/rtxvulkan/spirv/spirvfile.hpp>
 
 #include "device.hpp"
 
 namespace Rtx
 {
-    ShaderModule loadShaderModule(const Device& device, const std::string_view module)
-    {
-        const std::vector<std::uint32_t> words = readSpirv(device.getShaderDirectory() / module);
-
-        const VkShaderModuleCreateInfo createInfo{
-            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = 0,
-            .codeSize = words.size() * sizeof(std::uint32_t),
-            .pCode = words.data(),
-        };
-
-        ShaderModule handle = ShaderModule::make(device, vkCreateShaderModule, createInfo, "vkCreateShaderModule");
-
-        device.setName(handle.get(), module);
-
-        return handle;
-    }
-
     Semaphore makeSemaphore(const Device& device)
     {
         const VkSemaphoreCreateInfo create{

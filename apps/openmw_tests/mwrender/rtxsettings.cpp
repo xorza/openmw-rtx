@@ -22,6 +22,10 @@ namespace MWRender
                 .mViewingDistance = 7168.0f,
                 .mObjectPaging = false,
                 .mObjectPagingMinSize = 0.025f,
+                .mGroundcover = true,
+                .mGroundcoverDistance = 3072.0f,
+                .mGroundcoverDensity = 0.5f,
+                .mGroundcoverPointLighting = false,
                 .mSpecularMapLayout = "metal roughness",
                 .mAnisotropy = 8,
                 .mGamma = 1.5f,
@@ -54,6 +58,9 @@ namespace MWRender
             EXPECT_EQ(Rtx::CellGrid().reachOf(derived.mMirror.mReach), 49152.0f);
             EXPECT_FALSE(derived.mMirror.mDistantStatics);
             EXPECT_EQ(derived.mMirror.mMinSize, 0.025f);
+            EXPECT_EQ(derived.mMirror.mGroundcoverReach, 3072.0f);
+            EXPECT_EQ(derived.mMirror.mGroundcoverDensity, 0.5f);
+            EXPECT_FALSE(derived.mMirror.mGroundcoverLampLit);
             EXPECT_EQ(derived.mMirror.mSpecularLayout, Rtx::SpecularLayout::MetalRoughness);
             EXPECT_EQ(derived.mAnisotropy, 8u);
             EXPECT_EQ(derived.mGamma, 1.5f);
@@ -63,6 +70,11 @@ namespace MWRender
             handedBack.mDistantLandCells = 0.0f;
             EXPECT_EQ(Rtx::CellGrid().reachOf(RtxSettings::derive(handedBack).mMirror.mReach), 7168.0f)
                 << "nought cells hands the reach to the viewing distance";
+
+            RtxSettingValues bare = valid();
+            bare.mGroundcover = false;
+            EXPECT_EQ(RtxSettings::derive(bare).mMirror.mGroundcoverReach, 0.0f)
+                << "groundcover switched off stands none, whatever its distance";
 
             RtxSettingValues unfiltered = valid();
             unfiltered.mAnisotropy = 0;

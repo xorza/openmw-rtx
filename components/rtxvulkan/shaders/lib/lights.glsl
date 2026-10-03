@@ -558,12 +558,15 @@ GpuLight shownLightAt(uint row)
 ///        `INV_FOUR_PI` times a step's weight for the air.
 /// @param gloss the surface's specular half, with its diffuse albedo, which weigh a lamp as
 ///        `surfaceCandidate` says.
-void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing, float scale, Gloss gloss)
+/// @param lampLit whether the lamps light the surface at all — `Surface::mLampLit`.
+void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing, float scale, Gloss gloss,
+    bool lampLit)
 {
     const bool sided = dot(facing.mNormal, facing.mNormal) > 0.0;
 
-    // None, for a picture no lamp lights: an empty run, selected, and the loop is over.
-    const uvec2 near = frame.mNoLamps != 0u ? uvec2(0u) : lampsWithin(lampsReaching(from));
+    // None, for a picture no lamp lights or a surface none lights: an empty run, selected, and the
+    // loop is over.
+    const uvec2 near = frame.mNoLamps != 0u || !lampLit ? uvec2(0u) : lampsWithin(lampsReaching(from));
     for (uint i = near.x; i < near.y; ++i)
     {
         const uint row = lightListAt(i);
@@ -600,10 +603,11 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
 /// rasterizer casts none from a point light, and nothing from the far side of a solid.
 ///
 /// @param scale the asker's own share of a lamp, as `weighLamps` takes it: `INV_PI` for a surface.
-vec3 darkeningAt(vec3 from, Facing facing, float scale)
+/// @param lampLit whether the lamps light the surface at all, as `weighLamps` takes it.
+vec3 darkeningAt(vec3 from, Facing facing, float scale, bool lampLit)
 {
     vec3 taken = vec3(0.0);
-    const uvec2 near = frame.mNoLamps != 0u ? uvec2(0u) : lampsWithin(darkeningReaching(from));
+    const uvec2 near = frame.mNoLamps != 0u || !lampLit ? uvec2(0u) : lampsWithin(darkeningReaching(from));
     for (uint i = near.x; i < near.y; ++i)
     {
         const GpuLight held = shownLightAt(lightListAt(i));

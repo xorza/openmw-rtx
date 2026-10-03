@@ -12,6 +12,7 @@
 #include <osg/Image>
 #include <osg/Matrixf>
 #include <osg/Node>
+#include <osg/StateSet>
 #include <osg/Vec2f>
 #include <osg/Vec2i>
 #include <osg/Vec3f>
@@ -167,6 +168,11 @@ namespace Rtx
         /// The modes the part is shown in: every branch of a `NightDaySwitch` is read, because
         /// which one the world shows is the frame's to say (`CellPlacer::setNightDay`).
         NightDayModes mModes;
+
+        /// The key `mMaterial` is held under where the part is groundcover's: an object of the
+        /// reader's own, because the reading is the template's with upstream's override on it, and
+        /// the template's own state set keys the material a static of the same model wears.
+        osg::ref_ptr<const osg::StateSet> mOwnKey;
     };
 
     /// A model read whole on a thread that is not the frame's: its parts, the folded geometry of
@@ -176,8 +182,13 @@ namespace Rtx
     /// because a cell names hundreds of models of a handful of parts each.
     struct PreparedModel : Lent
     {
-        /// The corrected path the model was read under, which is what the reader finds it by.
+        /// The corrected path the model was read under, which is what the reader finds it by
+        /// beside `mGroundcover`.
         std::string mPath;
+
+        /// Whether it was read as groundcover, with the alpha test upstream's groundcover states
+        /// over every model it draws (`CellReader::readModel`).
+        bool mGroundcover = false;
 
         /// Held, because every part's drawable and state set are the template's own.
         osg::ref_ptr<const osg::Node> mTemplate;
@@ -332,5 +343,27 @@ namespace Rtx
             reuseKeeping(*this, &PreparedCell::mGround, &PreparedCell::mModels, &PreparedCell::mRefs,
                 &PreparedCell::mLights, &PreparedCell::mRefusals);
         }
+    };
+
+    /// What a thread hands the frame for one cell's groundcover: a reference a plant, and the
+    /// models they name, read as groundcover. **Apart from the cell**, because grass stands near the
+    /// eye alone while a cell stands across the whole reach: a cell read again for its grass would
+    /// take its ground away until it was back. Owned by the reader and lent to the frame, as a cell is.
+    struct PreparedGrass : Lent
+    {
+        osg::Vec2i mCell;
+
+        /// Every model the references name, once each.
+        std::vector<PreparedModel*> mModels;
+
+        std::vector<PreparedRef> mRefs;
+
+        /// The models this renderer cannot take, which only the frame's thread reports.
+        std::vector<Refusal> mRefusals;
+
+        /// What reading the grass computed from the content on the reader's thread.
+        ContentStats mPreprocessed;
+
+        void reuse() { reuseKeeping(*this, &PreparedGrass::mModels, &PreparedGrass::mRefs, &PreparedGrass::mRefusals); }
     };
 }

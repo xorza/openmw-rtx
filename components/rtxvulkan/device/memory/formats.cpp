@@ -66,6 +66,8 @@ namespace Rtx
                 return VK_FORMAT_B8G8R8A8_UNORM;
             case TextureFormat::Bc5Unorm:
                 return VK_FORMAT_BC5_UNORM_BLOCK;
+            case TextureFormat::Bc4Unorm:
+                return VK_FORMAT_BC4_UNORM_BLOCK;
 
             // Never uploaded: `describeImage` widens these to RGBA8 and refuses the rest, so one
             // arriving here is a contract broken and not a file.
@@ -78,6 +80,22 @@ namespace Rtx
             case TextureFormat::Bgr8:
             case TextureFormat::Luminance:
             case TextureFormat::LuminanceAlpha:
+            case TextureFormat::Alpha8:
+            case TextureFormat::Red8:
+            case TextureFormat::Rg8:
+            case TextureFormat::Rgba16:
+            case TextureFormat::Luminance16:
+            case TextureFormat::LuminanceAlpha16:
+            case TextureFormat::Red16:
+            case TextureFormat::Rg16:
+            case TextureFormat::Red16f:
+            case TextureFormat::Rg16f:
+            case TextureFormat::Rgb16f:
+            case TextureFormat::Rgba16f:
+            case TextureFormat::Red32f:
+            case TextureFormat::Rg32f:
+            case TextureFormat::Rgb32f:
+            case TextureFormat::Rgba32f:
             case TextureFormat::Unnamed:
                 break;
         }
