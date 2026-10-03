@@ -78,6 +78,11 @@ namespace Rtx
         /// The modes its part is shown in — `PreparedPart::mModes`.
         NightDayModes mModes;
 
+        /// The template's drawable the part was read from, which a game's ray meets in the part's
+        /// place where no loaded cell holds it — `CellRing::placementsIn`. Held by the cell's model,
+        /// `HeldCell::mModels`, for as long as the cell is.
+        const osg::Drawable* mDrawable = nullptr;
+
         ReferenceState mState;
     };
 

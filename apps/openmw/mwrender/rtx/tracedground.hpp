@@ -39,6 +39,8 @@ namespace MWRender
         /// The ring's word: whether the trace draws the cell's ground.
         bool standsGround(const osg::Vec2i& cell) const override;
 
+        std::span<const Rtx::Placement> placementsIn(const osg::Vec2i& cell) const override;
+
     private:
         TracedTerrain mTerrain;
 

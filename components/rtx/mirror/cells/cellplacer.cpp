@@ -362,6 +362,7 @@ namespace Rtx
                     },
                     .mRadius = ref.mRadius,
                     .mModes = model.mParts[at].mModes,
+                    .mDrawable = model.mParts[at].mDrawable.get(),
                     .mState = state,
                 });
         }
@@ -506,6 +507,14 @@ namespace Rtx
             return false;
 
         return true;
+    }
+
+    std::span<const Placement> CellPlacer::placementsIn(const osg::Vec2i& cell) const
+    {
+        const auto found = mCells.find(cell);
+        if (found == mCells.end())
+            return {};
+        return found->mPlacements;
     }
 
     bool CellPlacer::standsGround(const osg::Vec2i& cell) const

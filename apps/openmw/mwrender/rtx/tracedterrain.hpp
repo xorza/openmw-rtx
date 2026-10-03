@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstddef>
 #include <optional>
+#include <span>
 #include <vector>
 
 #include <osg/Array>
@@ -9,6 +11,7 @@
 #include <osg/ref_ptr>
 
 #include <components/esm/refid.hpp>
+#include <components/rtx/mirror/cells/held.hpp>
 #include <components/terrain/buffercache.hpp>
 #include <components/terrain/world.hpp>
 
@@ -16,6 +19,7 @@ namespace osg
 {
     class Geometry;
     class Group;
+    class MatrixTransform;
     class Node;
     class PositionAttitudeTransform;
 }
@@ -38,12 +42,17 @@ namespace Terrain
 
 namespace MWRender
 {
-    /// Which cells past the loaded ones stand ground the trace draws: the ring's word, which the
-    /// ground that owns both forwards. Asked by a ray cast, and by nothing else.
+    class RefnumMarker;
+
+    /// Which cells past the loaded ones stand ground the trace draws, and what statics: the ring's
+    /// word, which the ground that owns both forwards. Asked by a ray cast, and by nothing else.
     class StandingGround
     {
     public:
         virtual bool standsGround(const osg::Vec2i& cell) const = 0;
+
+        /// The placements the ring holds in `cell`, standing or not — `Rtx::CellRing::placementsIn`.
+        virtual std::span<const Rtx::Placement> placementsIn(const osg::Vec2i& cell) const = 0;
 
     protected:
         ~StandingGround() = default;
@@ -75,6 +84,11 @@ namespace MWRender
     /// answers with its chunks: a cell the segment crosses whose ground `distance` says stands is
     /// filled into one scratch grid of the same triangles and met by the same intersector, nearest
     /// cell first, so a cast toward a hill four cells away meets the hill the trace draws.
+    ///
+    /// **And the statics the ring stands there**, which the rasterizer's object paging answers with
+    /// its merged chunks: each part the segment's cells hold is met in the template's own triangles
+    /// at the part's place, with its reference number, as a paged chunk's hit names it. Under a node
+    /// of `Mask_Static`, as the paging stands, so a cast that leaves statics out leaves these out.
     class TracedTerrain final : public Terrain::World
     {
     public:
@@ -102,7 +116,26 @@ namespace MWRender
         /// the visitor enters whatever the segment.
         void meet(osgUtil::IntersectionVisitor& visitor);
 
+        /// What `visitor`'s segment meets of the statics the ring stands past the loaded cells, as
+        /// `meet` answers for the ground. Called by the node this hangs under the scene root.
+        void meetStatics(osgUtil::IntersectionVisitor& visitor);
+
     private:
+        class StandingPart;
+
+        /// One part handed to the visitor: its place, the part, and the reference number a hit on it
+        /// names. A pool and not one, because every hit keeps the path it was met on until the
+        /// caller reads it.
+        struct Carrier
+        {
+            osg::ref_ptr<osg::MatrixTransform> mPlace;
+            osg::ref_ptr<StandingPart> mPart;
+            osg::ref_ptr<RefnumMarker> mMarker;
+        };
+
+        /// The next carrier of this cast, made where the pool has none spare.
+        Carrier& nextCarrier();
+
         /// One cell's grid: which cell it stands, the transform at the cell's middle, and the
         /// geometry under it whose positions are the storage's.
         struct CellGrid
@@ -143,6 +176,18 @@ namespace MWRender
 
         /// The node under the terrain root that hands an intersection visitor to `meet`.
         osg::ref_ptr<osg::Node> mAnswer;
+
+        /// The node under the scene root that hands one to `meetStatics`, of `Mask_Static`.
+        osg::ref_ptr<osg::Node> mStaticsAnswer;
+
+        /// The carriers, and how many this cast has used. Kept across casts, so a cast allocates
+        /// nothing after the most hits one has met.
+        std::vector<Carrier> mCarriers;
+        std::size_t mCarried = 0;
+
+        /// The cells this cast has asked for statics, so a cell beside two crossed ones is asked
+        /// once.
+        std::vector<osg::Vec2i> mAsked;
 
         /// The group the cell borders stand under, of the terrain's mask.
         osg::ref_ptr<osg::Group> mBorders;
