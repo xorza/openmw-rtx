@@ -275,10 +275,11 @@ namespace Rtx::Testing
 
         /// **The reuse keeps its history while the eye moves.** The eye walks along the corner two
         /// units a frame, which carries the wall under it a little under half a pixel at a time and
-        /// the floor more: last frame's reservoir is at a point between pixels. Taken from the tap
-        /// nearest it, two pixels took one reservoir wherever the step neared half a pixel and the
-        /// one beside them lost its own, and the temporal half's error at this pace was two thirds of
-        /// no reuse at all; taken by the shares of a bilinear fetch, a third.
+        /// the floor more: last frame's reservoir is at a point between pixels, and the nearest tap
+        /// holds it (`heldBefore` says why not one drawn by its share). Rounding loses a reservoir
+        /// wherever the step nears half a pixel, which this pace does, so the temporal half keeps
+        /// the error to three fifths of no reuse and not to the quarter a still eye's is: held under
+        /// two thirds, which a history lost at every step would not be.
         ///
         /// The truth is 160 plain frames at the walk's end. Each run walks forty frames from a cut,
         /// four times from four draws, and is held at its last frame.
@@ -318,8 +319,8 @@ namespace Rtx::Testing
                 mRenderer.readChannel(Channel::Indirect, read);
                 std::vector<float> luminance(read.size() / 4);
                 for (std::size_t pixel = 0; pixel < luminance.size(); ++pixel)
-                    luminance[pixel] = 0.2126f * read[pixel * 4] + 0.7152f * read[pixel * 4 + 1]
-                        + 0.0722f * read[pixel * 4 + 2];
+                    luminance[pixel]
+                        = 0.2126f * read[pixel * 4] + 0.7152f * read[pixel * 4 + 1] + 0.0722f * read[pixel * 4 + 2];
                 return luminance;
             };
 
@@ -347,8 +348,8 @@ namespace Rtx::Testing
                 errors[at] = errorOf(ends, truth);
             }
 
-            EXPECT_LT(errors[1], 0.45f * errors[0]) << "the walk lost the temporal half's history: " << errors[1]
-                                                     << " against " << errors[0];
+            EXPECT_LT(errors[1], 0.67f * errors[0])
+                << "the walk lost the temporal half's history: " << errors[1] << " against " << errors[0];
             EXPECT_LT(errors[2], errors[1]) << "the neighbours took nothing off a walking frame";
         }
     }
