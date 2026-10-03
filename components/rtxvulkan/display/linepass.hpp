@@ -11,8 +11,8 @@ namespace Rtx
 {
     class Buffer;
     class Device;
-    class ShaderCode;
     class Image;
+    class ShaderCode;
 
     /// What one draw of the debug lines is over. A record and not an argument list, because two
     /// of the fields are an `Image` and two more a count, and either pair takes the other's value

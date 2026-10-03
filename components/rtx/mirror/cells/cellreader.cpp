@@ -279,18 +279,8 @@ namespace Rtx
         if (model.empty())
             return;
 
-        // A model this cannot read is a reference left out and refused, and never a cell
-        // left out: a settled walk waits for every cell of the ring, and one that never came
-        // would hold it for ever.
-        PreparedModel* read = readModel(model);
+        PreparedModel* read = readStanding(model, false, prepared.mRefusals);
         if (read == nullptr)
-            return;
-
-        if (!read->mRefused.empty())
-            prepared.mRefusals.push_back(
-                Refusal{ .mKind = Refused::Model, .mName = read->mPath, .mWhy = read->mRefused });
-
-        if (read->mParts.empty())
             return;
 
         addReference(*read,
@@ -302,6 +292,22 @@ namespace Rtx
                 .mGate = ref.mGate,
             },
             prepared.mModels, prepared.mRefs);
+    }
+
+    PreparedModel* CellReader::readStanding(
+        const VFS::Path::NormalizedView path, const bool groundcover, std::vector<Refusal>& refusals)
+    {
+        // A model this cannot read is a reference left out and refused, and never a cell
+        // left out: a settled walk waits for every cell of the ring, and one that never came
+        // would hold it for ever.
+        PreparedModel* read = readModel(path, groundcover);
+        if (read == nullptr)
+            return nullptr;
+
+        if (!read->mRefused.empty())
+            refusals.push_back(Refusal{ .mKind = Refused::Model, .mName = read->mPath, .mWhy = read->mRefused });
+
+        return read->mParts.empty() ? nullptr : read;
     }
 
     void CellReader::addReference(PreparedModel& model, const PreparedRef& ref, std::vector<PreparedModel*>& models,
@@ -338,15 +344,8 @@ namespace Rtx
                 if (path.empty())
                     continue;
 
-                PreparedModel* const read = readModel(path, true);
+                PreparedModel* const read = readStanding(path, true, into.mRefusals);
                 if (read == nullptr)
-                    continue;
-
-                if (!read->mRefused.empty())
-                    into.mRefusals.push_back(
-                        Refusal{ .mKind = Refused::Model, .mName = read->mPath, .mWhy = read->mRefused });
-
-                if (read->mParts.empty())
                     continue;
 
                 // No size rule and no gate: a plant is small everywhere it stands, and no script

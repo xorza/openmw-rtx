@@ -27,13 +27,23 @@ layout(set = SET_PASS, binding = WAVE_COLUMNS_BIND_FIELD, scalar) readonly buffe
     vec2 field[];
 };
 
+/// The two slopes, their own second moment, and the elevation squared.
+///
+/// **Both of the slope's moments in one image, so that reading them is one fetch.** What LEAN
+/// mapping wants is `E[|s|^2] - |E[s]|^2` off a level of a chain, and a mean beside a mean square is
+/// a subtraction rather than a second opinion about the same field — so the two belong together.
+///
+/// **The elevation squared rides in the last channel**, where the coarsest level makes it the sea's
+/// own variance — the amplitude the whole spectrum is normalised to, and the one thing a test can
+/// hold the transform's scale to. Nothing shades from it.
 layout(set = SET_PASS, binding = WAVE_COLUMNS_BIND_SURFACE, WAVE_TILE_FORMAT) uniform writeonly image2D surface;
 
+/// The three curvatures, which is what the caustic differentiates the height field twice for.
 layout(set = SET_PASS, binding = WAVE_COLUMNS_BIND_CURVATURE, WAVE_TILE_FORMAT) uniform writeonly image2D curvature;
 
 layout(push_constant, scalar) uniform Push
 {
-    WaveComposeConstants frame;
+    WaveColumnsConstants frame;
 };
 
 void main()

@@ -47,7 +47,7 @@ layout(set = SET_PASS, binding = WAVE_ROWS_BIND_FIELD, scalar) writeonly buffer 
 
 layout(push_constant, scalar) uniform Push
 {
-    WaveFormConstants frame;
+    WaveRowsConstants frame;
 };
 
 /// Two real fields' spectra as one complex one: `A + iB`.

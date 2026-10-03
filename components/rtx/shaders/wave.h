@@ -86,7 +86,7 @@ namespace Rtx::Shaders
     /// **One thread a wavevector, and it forms all three pairs.** Every pair is the same `H(k, t)`
     /// times a different power of `ik`, so forming them together reads the amplitude once where
     /// three would read it three times.
-    struct WaveFormConstants
+    struct WaveRowsConstants
     {
         /// Points along each axis of this tile's grid.
         uint mCount;
@@ -100,7 +100,7 @@ namespace Rtx::Shaders
     };
 
     /// What the column pass, which transforms the fields along the columns and unpacks them, is told.
-    struct WaveComposeConstants
+    struct WaveColumnsConstants
     {
         /// Points along each axis of this tile's grid.
         uint mCount;
@@ -109,8 +109,8 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(WaveFormConstants) == 16, "WaveFormConstants must be scalar-packed on every side");
-    static_assert(sizeof(WaveComposeConstants) == 4, "WaveComposeConstants must be scalar-packed on every side");
+    static_assert(sizeof(WaveRowsConstants) == 16, "WaveRowsConstants must be scalar-packed on every side");
+    static_assert(sizeof(WaveColumnsConstants) == 4, "WaveColumnsConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

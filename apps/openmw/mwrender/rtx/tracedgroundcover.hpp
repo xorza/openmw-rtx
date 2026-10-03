@@ -23,8 +23,8 @@ namespace MWWorld
 namespace MWRender
 {
     /// The world's groundcover as the ray tracer's ring reads it: the references the groundcover
-    /// files place in an exterior cell, kept by the rasterizer's density rule and reduced over the
-    /// files as its chunk reduces them, and the model `GroundcoverStore` names
+    /// files place in an exterior cell, kept by the rasterizer's density rule (`DensityCalculator`)
+    /// and reduced over the files as its chunk reduces them, and the model `GroundcoverStore` names
     /// for each record.
     ///
     /// **Read per cell where the rasterizer reads per chunk.** Its chunk resets the density at

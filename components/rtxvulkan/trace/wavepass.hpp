@@ -93,8 +93,8 @@ namespace Rtx
 
         const Device& mDevice;
 
-        ComputePipeline<Shaders::WaveFormConstants> mRowsPipeline;
-        ComputePipeline<Shaders::WaveComposeConstants> mColumnsPipeline;
+        ComputePipeline<Shaders::WaveRowsConstants> mRowsPipeline;
+        ComputePipeline<Shaders::WaveColumnsConstants> mColumnsPipeline;
 
         Sampler mSampler;
 
