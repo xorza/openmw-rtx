@@ -80,12 +80,12 @@ set(RTXTOOL_HOSTED_FILES
     stopwriter.hpp
 )
 
-# The processor's counters of a thread are Linux's `perf_event_open`, and no other system gives a
-# process its own.
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    list(APPEND RTXTOOL_FILES instruments/threadcounterslinux.cpp)
+# The processor's counters of a thread are Linux's `perf_event_open`, which the POSIX half reads;
+# no other system gives a process its own.
+if (WIN32)
+    list(APPEND RTXTOOL_FILES instruments/threadcounterswin32.cpp)
 else()
-    list(APPEND RTXTOOL_FILES instruments/threadcountersnone.cpp)
+    list(APPEND RTXTOOL_FILES instruments/threadcountersposix.cpp)
 endif()
 
 source_group(apps\\rtxtool FILES ${RTXTOOL_HOSTED_FILES} main.cpp)

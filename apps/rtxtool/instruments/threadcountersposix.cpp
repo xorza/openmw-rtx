@@ -10,11 +10,15 @@
 #include <optional>
 #include <vector>
 
+// Linux's `perf_event_open`; macOS gives a process no counters of its own threads.
+#if defined(__linux__)
 #include <linux/perf_event.h>
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#endif
 
+#if defined(__linux__)
 namespace RtxTool
 {
     namespace
@@ -216,3 +220,25 @@ namespace RtxTool
         return counts;
     }
 }
+#else
+namespace RtxTool
+{
+    struct ThreadCounters::Events
+    {
+    };
+
+    ThreadCounters::ThreadCounters()
+        : mWhyNot("this system gives a process no counters of its own threads")
+    {
+    }
+
+    ThreadCounters::~ThreadCounters() = default;
+
+    void ThreadCounters::start() {}
+
+    ThreadCounts ThreadCounters::stop()
+    {
+        return ThreadCounts{ .mWhyNot = mWhyNot };
+    }
+}
+#endif
