@@ -7,6 +7,7 @@
 //                                   checks the log and the dump each left; nought where all hold
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -58,6 +59,11 @@ namespace CrashTests
                 { "terminate", "Crash: std::terminate on an uncaught exception: crash-tests threw", {} },
                 { "fatal", "Crash: crash-tests gave up", {}, "crash-tests: what the reason leaves out", true, crashed },
                 { "two-threads", "Crash: ", raised.mFault },
+                { .mName = "fault-under-report",
+                    .mHeadline = "Crash: ",
+                    .mRaised = raised.mFault,
+                    .mFollows = "which crashed: faulting under a report",
+                    .mAlso = "Report: crash-tests asked under a fault" },
                 { "report", "Report: crash-tests asked", {}, "crash-tests lived on", true, ", which asked" },
                 { "hang", "Hang: no frame for", {}, "Hang: frames again after" },
                 { "short-stall", "", {}, "crash-tests lived on", false },
@@ -169,6 +175,34 @@ namespace CrashTests
                 sReadAt(reinterpret_cast<const volatile int*>(static_cast<std::uintptr_t>(0x10)));
                 other.join();
                 return 0;
+            }
+            if (mode == "fault-under-report")
+            {
+                // **A fault on a second thread while the main thread's report is being written**,
+                // which the report's dump took for its own: two dumps are due, each of its own kind
+                // on its own thread. Ordered as `report-under-hang` is, for its reason: a run whose
+                // report ended before the fault came says so, and the matrix runs it again.
+                std::atomic<bool> waiting{ false };
+                std::atomic<bool> ended{ false };
+                Platform::Thread faulter("crash-tests", [&] {
+                    const Crash::NoteScope faulting("faulting under a report");
+                    waiting.store(true, std::memory_order_release);
+                    while (!Crash::isReporting())
+                    {
+                        if (ended.load(std::memory_order_acquire))
+                            return;
+                        std::this_thread::yield();
+                    }
+                    sReadAt(reinterpret_cast<const volatile int*>(static_cast<std::uintptr_t>(0x10)));
+                });
+
+                while (!waiting.load(std::memory_order_acquire))
+                    std::this_thread::yield();
+                Crash::report("crash-tests asked under a fault");
+                ended.store(true, std::memory_order_release);
+                faulter.stop();
+                Log(Debug::Warning) << "crash-tests: the fault missed the report";
+                return sInconclusive;
             }
             if (mode == "report")
             {
@@ -295,9 +329,9 @@ namespace CrashTests
         }
 
         /// Whether the package the monitor wrote once the game was gone holds the log, with the
-        /// summary `headline` begins, and `dump` byte for byte, and nothing else.
-        std::optional<std::string> checkPackage(
-            const std::filesystem::path& folder, const std::filesystem::path& dump, const std::string& headline)
+        /// summary `headline` begins, and every one of `dumps` byte for byte, and nothing else.
+        std::optional<std::string> checkPackage(const std::filesystem::path& folder,
+            const std::vector<std::filesystem::path>& dumps, const std::string& headline)
         {
             // Written once the game is gone, which the monitor outlives: the line that names the
             // package follows the package.
@@ -311,14 +345,21 @@ namespace CrashTests
             std::vector<CrashTests::ZipEntry> entries;
             if (const std::optional<std::string> why = CrashTests::readZip(packages.front(), entries))
                 return "the package does not read: " + *why;
-            if (entries.size() != 2 || entries[0].mName != "crash-tests.log"
-                || entries[1].mName != Files::pathToUnicodeString(dump.filename()))
-                return "the package does not hold the log and the dump alone";
+            if (entries.size() != 1 + dumps.size() || entries[0].mName != "crash-tests.log")
+                return "the package does not hold the log and the dumps alone";
             if (entries[0].mContent.find(headline) == std::string::npos)
                 return "the package's log does not carry the summary";
 
-            if (entries[1].mContent != contentsOf(dump))
-                return "the package's dump is not the dump";
+            for (const std::filesystem::path& dump : dumps)
+            {
+                const std::string name = Files::pathToUnicodeString(dump.filename());
+                const auto packed = std::find_if(entries.begin() + 1, entries.end(),
+                    [&](const CrashTests::ZipEntry& entry) { return entry.mName == name; });
+                if (packed == entries.end())
+                    return "the package does not hold the dump " + name;
+                if (packed->mContent != contentsOf(dump))
+                    return "the package's " + name + " is not the dump";
+            }
 
             const std::string named = "Crash package: " + Files::pathToUnicodeString(packages.front());
             if (!follows(folder, named))
@@ -353,7 +394,13 @@ namespace CrashTests
             const auto headed = [](const std::string& line) {
                 return line.starts_with("Crash: ") || line.starts_with("Hang: ") || line.starts_with("Report: ");
             };
-            const auto first = std::find_if(said.begin(), said.end(), headed);
+            // The mode's own summary is the first of its kind: a report it leaves beside it, of
+            // another kind, may come first.
+            const auto kindOf = [](std::string_view line) { return line.substr(0, line.find(": ") + 2); };
+            const auto own = [&](const std::string& line) {
+                return headed(line) && (mode.mAlso.empty() || kindOf(line) != kindOf(mode.mAlso));
+            };
+            const auto first = std::find_if(said.begin(), said.end(), own);
 
             // `setupLogging` says so in the log and carries on, as the game does, where a mode that
             // reports nothing would then pass without a catcher to have kept quiet.
@@ -379,12 +426,27 @@ namespace CrashTests
                     && std::none_of(mode.mRaised.begin(), mode.mRaised.end(),
                         [&](std::string_view raised) { return first->find(raised) != std::string::npos; }))
                     return "the summary names none of the exceptions this mode raises: " + *first;
+                const std::size_t due = mode.mAlso.empty() ? 1 : 2;
                 if (std::count_if(said.begin(), said.end(),
                         [&](const std::string& line) {
                             return headed(line) && line.find("in thread") != std::string::npos;
                         })
-                    != 1)
-                    return "not one summary but several";
+                    != static_cast<std::ptrdiff_t>(due))
+                    return mode.mAlso.empty() ? "not one summary but several" : "not two summaries";
+
+                // The headline up to its thread, which a dump's own summary carries, and the thread.
+                std::vector<std::string> headlines{ first->substr(0, first->find(" in thread")) };
+                if (!mode.mAlso.empty())
+                {
+                    const auto also = std::find_if(said.begin(), said.end(),
+                        [&](const std::string& line) { return line.starts_with(mode.mAlso); });
+                    if (also == said.end())
+                        return "no summary begins \"" + std::string(mode.mAlso) + "\"";
+                    const auto threadOf = [](const std::string& line) { return line.substr(line.find(" in thread")); };
+                    if (threadOf(*also) == threadOf(*first))
+                        return "the two summaries name one thread: " + *first;
+                    headlines.push_back(also->substr(0, also->find(" in thread")));
+                }
                 const std::string note = "running the mode \"" + std::string(mode.mName) + "\"";
                 const auto noted = std::find_if(said.begin(), said.end(),
                     [&](const std::string& line) { return line.find(note) != std::string::npos; });
@@ -400,11 +462,14 @@ namespace CrashTests
                         return "no annotation \"" + annotation + "\" in the summary";
 
                 const std::vector<std::filesystem::path> dumps = dumpsIn(folder);
-                if (dumps.size() != 1)
-                    return std::to_string(dumps.size()) + " dumps where one was due";
-                const std::optional<std::string> summary = summaryOf(dumps.front());
-                if (!summary || summary->find(first->substr(0, first->find(" in thread"))) == std::string::npos)
-                    return "the dump does not carry the summary";
+                if (dumps.size() != due)
+                    return std::to_string(dumps.size()) + " dumps where " + std::to_string(due) + " were due";
+                for (const std::string& headline : headlines)
+                    if (std::none_of(dumps.begin(), dumps.end(), [&](const std::filesystem::path& dump) {
+                            const std::optional<std::string> summary = summaryOf(dump);
+                            return summary.has_value() && summary->find(headline) != std::string::npos;
+                        }))
+                        return "no dump carries the summary " + headline;
 
                 if (mode.mHeap)
                 {
@@ -412,7 +477,7 @@ namespace CrashTests
                         return "the heap the crashing stack points at is not in the dump";
                 }
 
-                if (const std::optional<std::string> wrong = checkPackage(folder, dumps.front(), *first))
+                if (const std::optional<std::string> wrong = checkPackage(folder, dumps, *first))
                     return wrong;
             }
 

@@ -28,6 +28,10 @@ namespace CrashTests
         /// Whether the dump must carry `sHeapMarker`, which lies on the heap and which only the
         /// crashing stack points at.
         bool mHeap = false;
+
+        /// A report the mode leaves beside its own, by the start of its summary, of another kind and
+        /// on another thread: a second summary and a second dump are then due, each its own.
+        std::string_view mAlso = {};
     };
 
     /// How this system names what the modes every system has raise, one of each list.
