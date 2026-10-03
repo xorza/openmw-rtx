@@ -16,7 +16,7 @@ notes cite.
 | W14 The ray tracer shows what the rasterizer shows | the items that wait for an input outside the tree | after its inputs |
 | W15 Groundcover stands in the ring | the measurement again with a real mod | 8 |
 | W16 A mask's soft texels are layers to the eye | the layer's light from its leaf, a design to make; the first shape failed | 8 |
-| W19 The walk visits what can change | the frozen subtrees (the probe says most of the walk is) | 5 |
+| W19 The walk visits what can change | the drift between legs, cause still to find | after Phase 5 |
 | §16 Smaller workstreams | the upstream diff, the device, layering, Vulkan, tooling | 5 (§16.6), 6 |
 | §17 Fixes in place | the local groups; the frame constants | 5, 7 |
 
@@ -248,49 +248,15 @@ tenth.
 
 ## 15e. W19 — The walk visits what can change
 
-**Closes:** *A measured run's host rows move as a whole between runs of one build* (`ISSUES.md`).
+**The frozen subtrees are in** (2026-10-03): the world walk passes a reference root that changes
+nothing on its own, held through every sweep. The walk's median halved — 1.13 to 0.54 ms at
+`one-cell-walk`, 1.32 to 0.58 ms at `seyda-neen-ship`, six legs each — and its p99 with it.
 
-### Evidence
-
-Six legs of one build at `one-cell-walk`, held to the performance cores at a steady clock: walk
-medians 1.02 to 1.53 ms, and the frame thread's cache misses a thousand instructions 3.14 to 4.75,
-moving together. A leg is slow from its first frame to its last. The walk reaches every node of
-every loaded cell on every frame (`SceneExtractor`'s traversal skips nothing), and an identity met
-again is resolved through maps keyed on the node: a frame is a walk of pointers through OSG's heap,
-whose layout is set by the order the loader threads finished in, which differs in every process.
-
-### Target shape
-
-**A subtree that cannot change between frames stands, and the walk goes past it.**
-
-1. **The probe, taken on 2026-10-03** (a local count beside the world walk, not kept): a node is
-   frozen where the reference root above it has no update callback, no state-set updater, no
-   `Switch`, `LOD` or `Sequence`, no skin or morph, no particle node and no light anywhere under
-   it. `one-cell-walk` walks 14 514 to 15 553 nodes a frame, 83.8% to 89.8% of them frozen (1 678
-   of about 1 760 reference roots, 6 247 of about 6 600 drawables); `seyda-neen-ship` 15 595, 83.5%;
-   `balmora-mages-guild` 3 671, 65.2% (269 of 306 roots, 970 of 1 240 drawables). Most of the
-   walk everywhere it was asked, so the design goes on.
-2. **Frozen at arrival.** Where the walk first meets a subtree, it records whether the subtree is
-   frozen (the test above, over the subtree once). A frozen subtree's rows — its placements, their
-   materials and their transforms — go into a flat run on the extractor
-   (`FrozenRun { std::uint32_t mFirst, mCount; }` over one `std::vector<Index>`).
-3. **Passed after.** On every later walk the traversal meets the subtree's root, stamps its run's
-   rows as reached in one pass over contiguous indices — the sweep's contract, kept without the
-   graph — and does not descend.
-4. **Thawed by what moves it.** A frozen subtree changes in three ways the game says: its object
-   is moved (`RenderingManager::moveObject`, `notifyJumped`), a child is added or removed (the
-   walk sees the root's child count change), or a state set's updater runs on it (`StateSetUpdater`'s
-   generation, which the fork already reads). Each drops the run, and the next walk descends
-   again.
-5. **The rows themselves already change by the row** (`PlacementTable`'s change lists, the
-   tables' debts), so a frozen subtree costs one stamp pass and nothing else.
-
-### Measurement
-
-The six-leg drift at `one-cell-walk`: the walk's median and the cache-miss rate must stay within a
-tenth across legs, which is what a walk that stops chasing pointers through the loader's heap
-promises, and the walk's median must fall. `./omw repeat
---pairs=10`, because a stamp that misses a row is a row swept from a frame that still shows it.
+**What is left is the drift it was also meant to close**, *A measured run's host rows move as a
+whole between runs of one build* (`ISSUES.md`): over the same six legs the walk's medians still
+spread 0.41 to 0.73 ms and the frame thread's cache misses 5.4 to 16.9 a thousand instructions,
+the spread they had before in proportion. The pointer chase the frozen roots took away was not
+its cause, or not the whole of it; what moves a leg as a whole is still to be found.
 
 ---
 
@@ -414,8 +380,7 @@ so its validation errors are reported.
 
 Each phase ends green on `./omw gate`.
 
-1. **Phase 5, frame cost:** W9's last row, W19's frozen subtrees, the barrier rows of §16.6, and
-   §17's frame constants. Each with a `./omw release bench` before and after. A change that does
+1. **Phase 5, frame cost:** W9's last row, the barrier rows of §16.6, and §17's frame constants. Each with a `./omw release bench` before and after. A change that does
    not improve the worst frame or the p99 does not go in. W8 step 3 follows its own measurement.
 2. **Phase 6, the upstream diff:** §16.1, then §16.2, §16.5 and §16.7.
 3. **Phase 7, tests and docs:** the test groups in §17, and every doc item, `architecture.md` §1 and
