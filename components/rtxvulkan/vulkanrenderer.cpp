@@ -370,8 +370,11 @@ namespace Rtx
         if (mPresenter == nullptr)
             return;
 
-        // A handed-over batch is submitted first, exactly as a resize does.
-        mGui.getTextures().finish();
+        // A handed-over batch is submitted first where a rebuild follows, exactly as a resize does,
+        // and only there: most settings change no present mode, and the drain is a submit and a
+        // wait.
+        if (mPresenter->rebuildsFor(mode))
+            mGui.getTextures().finish();
         mPresenter->setVerticalSync(mode);
     }
 
