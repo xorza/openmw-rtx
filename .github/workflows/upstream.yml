@@ -265,10 +265,12 @@ jobs:
                tree's own check and exactly what the `checks` job of `ci.yml` runs, so a branch
                that passes it here passes it there.
             4. Commit the merge with `git commit --no-edit`, which keeps git's own merge message.
-               Push the branch. Open a pull request against master with `gh pr create`, not a
-               draft, titled "Merge upstream/master". Write the body to a file and pass
-               `--body-file`: it is long, and a shell argument that long is a shell argument that
-               breaks. Put in it:
+               Then run `git fetch origin master` and `git merge --no-edit origin/master`: master
+               may have moved since this run began, and GitHub refuses your push where the branch's
+               workflow files differ from master's. Push the branch. Open a pull request against
+               master with `gh pr create`, not a draft, titled "Merge upstream/master". Write the
+               body to a file and pass `--body-file`: it is long, and a shell argument that long is
+               a shell argument that breaks. Put in it:
                   - the upstream commits taken, one line each;
                   - every file that conflicted, with one line on how you resolved it and why;
                   - anything you were unsure of, named plainly;
@@ -336,6 +338,15 @@ jobs:
           if git rev-parse -q --verify MERGE_HEAD > /dev/null; then
             git add --update
             git commit --quiet --no-edit
+          fi
+
+          # **Onto master as it stands now.** GitHub refuses a push by an app where the branch's
+          # workflow files differ from master's, and run 37120193891 lost a whole resolution so: master's
+          # workflows moved while it merged. A merge of master that conflicts is left out, and the
+          # push says what is refused.
+          git fetch --quiet origin master
+          if ! git merge --quiet --no-edit origin/master; then
+            git merge --abort
           fi
           git push --quiet origin "HEAD:refs/heads/$BRANCH"
 
