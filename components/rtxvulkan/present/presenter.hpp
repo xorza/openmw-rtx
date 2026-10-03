@@ -57,6 +57,10 @@ namespace Rtx
         /// the mode the surface will actually run in.
         void setVerticalSync(SDLUtil::VSyncMode mode);
 
+        /// Whether `setVerticalSync(mode)` rebuilds, which frees what `wantsResize` says a rebuild
+        /// frees: asked first by a caller with a batch to drain.
+        bool rebuildsFor(SDLUtil::VSyncMode mode) const { return mSwapchain.changesPresentMode(mode); }
+
         VkExtent2D getExtent() const;
 
     private:
@@ -75,6 +79,11 @@ namespace Rtx
         void remake(VkExtent2D extent);
 
         const Device& mDevice;
+
+        /// The extent the swapchain was last made for, as the window asked and not as the surface
+        /// granted: a surface that fixes or clamps its own extent grants another, and compared with
+        /// that, every frame the two differed waited the device idle and made the swapchain again.
+        VkExtent2D mAsked;
 
         /// Before the swapchain, which is made on it and goes first.
         Surface mSurface;
