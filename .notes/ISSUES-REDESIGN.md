@@ -1,0 +1,547 @@
+# Open issues: root causes and structural fixes
+
+This plan answers every entry of `.notes/ISSUES.md` as it stood on 2026-10-03. For each issue it
+gives the root cause, the evidence for it, the structural fix, the steps, and the test that holds
+the fix. Where the code alone did not show the cause, an experiment did; the experiment and its
+numbers are stated, and its records are in the scratch folder of the session that wrote this plan.
+
+Three entries of `ISSUES.md` state a cause that the investigation did not confirm. This plan
+corrects them (§1.1, §1.2, §4.1), and `ISSUES.md` takes the corrected cause when the fix lands.
+
+`REDESIGN.md` stays the plan for the review's structural work. Where an issue here is an item of
+`REDESIGN.md` (groundcover, BC7, Night-Eye's D8), this plan adds the root cause and removes the
+block that held the item, and `REDESIGN.md`'s item points here.
+
+## Contents
+
+| § | Issue (`ISSUES.md`) | Root cause, one line | Size |
+|---|---|---|---|
+| 1.1 | GPU stall of about 1.5 ms | The card time-slices with the compositor, the browser and the editor | S |
+| 1.2 | Host rows move between legs | Cache misses of the per-frame walk, set by the heap layout; and efficiency cores | M |
+| 2.1 | `Ambient` vertex colour read as `Tint` | The trace keeps one reflectance; the rasterizer keeps two | M |
+| 2.2 | Night-Eye metered away | A view term is added as a world light | M |
+| 2.3 | `tws` keeps the hidden statics' lamps | A lamp row carries no class | S |
+| 2.4 | `tws` keeps the cell borders | The debug walk does not cull by the view's mask | S |
+| 2.5 | A content file's clockwise front is dropped | The reader drops the front-face state instead of composing it | S |
+| 2.6 | Blended fringes and soft regions cut at 0.5 | Coverage is a fixed threshold, not a probability | M |
+| 2.7 | Rendering rays miss the ring's statics | Nothing answers a CPU ray for what only the trace holds | M |
+| 2.8 | Groundcover not drawn | No reader; the block is a missing test plugin, which the tree can generate | L |
+| 2.9 | BC4, BC6H, BC7 draw grey | A closed format list, and no host decoder for the facts | M |
+| 3.1 | `shadow.h` admits a shift by 32 | A low-bits mask built by a shift that is undefined at the word's width | XS |
+| 4.1 | `report-under-hang` can hang | The test waits with no bound for a state that lasts a few ms | XS |
+| 4.2 | A fault during a report leaves a mislabelled dump | Two writers of one exception record, with nothing ordering them | S |
+| 4.3 | The harness starts with the catcher off | A default whose reason is gone | XS |
+| 5.1 | The driver takes macOS for Linux | The system is a two-way test, not a table | S |
+| 5.2 | `Tests.cmake` on Apple | A test's folder comes from a variable set in one branch only | XS |
+| 5.3 | Narrow path spellings on Windows | The environment call takes `const char*`, so callers narrow their paths | S |
+| 5.4 | The install ships harness and test files | The install copies working folders with a deny-list | M |
+| 5.5 | The gate does not link every program | The gate builds a hand-picked target list | XS |
+| 5.6 | Tests past one second | Parallel suites, and two tests that do more than their tolerance needs | S |
+
+Sizes: XS under an hour, S a day, M a few days, L a week or more.
+
+---
+
+## 1. Measurement and the runtime environment
+
+### 1.1 The GPU stall is time-slicing with other processes
+
+**Evidence.** One bench leg at `balmora-mages-guild` under Nsight Systems with GPU context
+switches traced (`nsys profile --gpuctxsw=true`):
+
+| Process | Slices | Time on the card in 7.5 s |
+|---|---|---|
+| `kwin_wayland` | 919 | 1 187 ms |
+| Brave's GPU process | 917 | 405 ms |
+| `zed-editor` | 216 | 234 ms |
+
+- 836 of our 5 323 GPU workloads (15.7%) have another process's slice inside them. The time
+  added is 0.34 ms at the median, 1.38 ms at the 90th percentile, and 3.2 ms at most.
+- **Every one of the longest 2% of workloads** holds such a slice. Without it they fall from
+  5.7 ms to 4.0 ms on average.
+- That explains every fact in the issue: the stall lands in whichever pass runs, it is about
+  1.5 ms, and a headless run keeps most of it, because the compositor, the browser and the editor
+  draw whatever the harness does.
+
+**Root cause.** The device schedules contexts by time slice, and our queue has the same priority
+as the desktop's.
+
+**Fix.**
+1. **The renderer asks for a high-priority queue** where the device offers one. This card offers
+   `VK_KHR_global_priority` and `globalPriorityQuery`. `Device` queries the family's priorities
+   (`VkQueueFamilyGlobalPriorityPropertiesKHR`), asks for `HIGH`, and takes `MEDIUM` where
+   creation answers `VK_ERROR_NOT_PERMITTED` (a Linux driver can refuse `HIGH` to a process without
+   `CAP_SYS_NICE`). It is
+   an optional extension in `requirements.cpp`, and `info` prints which priority the queue got. It
+   is the game's fix as well as the harness's: a windowed game composited by KWin has the same
+   preemption.
+2. **The bench says when the card was shared.** The card watch already samples which processes hold
+   the card. The report adds one line per place: the share of measured frames with another process
+   active on the card (NVML `nvmlDeviceGetProcessUtilization` on NVIDIA, `amdgpu`'s fdinfo on AMD).
+   A leg with sharing is marked, as the clock is marked today.
+3. **A/B decisions read zone medians and p99, not means.** A slice adds time to a few frames. The
+   mean takes all of it, and the median takes almost none. `AGENTS.md`'s measuring rule names the
+   statistic.
+
+**Verification.** The same `nsys` record before and after step 1: the share of our workloads with
+another process inside them, and the 98th percentile of workload time. A bench A/B on a busy desktop
+(Brave and Zed open).
+
+**Risk.** A high-priority render queue can make the desktop stutter while the game runs in a window.
+The bench measures KWin's frame time beside ours with both priorities.
+
+### 1.2 Host rows move with the walk's cache misses and with the core it runs on
+
+**Evidence.** `one-cell-walk`, release, legs back to back:
+
+- **Unpinned**, four legs under `perf stat`: walk medians 1.58, 1.17, 1.67, 1.51 ms. The share of
+  the process's instructions run on the efficiency cores (CPUs 16–31) moved from 32.8 to 55.3
+  billion between legs.
+- **Pinned to one thread per performance core** (`taskset -c 0,2,…,14`), alternated with pins to
+  all of 0–15: walk medians near 1.0 ms in both. One pinned leg drifted to 1.46 ms. So hyperthread
+  sharing is not the cause, but core type is a large part of the unpinned spread.
+- **Six pinned legs under `perf stat`**: the clock was steady (4.86–5.15 GHz, and the slowest leg
+  ran at 5.01 GHz). The cache-miss rate tracks the walk time:
+
+| Leg | Walk median | Misses per 1 000 instructions | IPC |
+|---|---|---|---|
+| 1 | 1.02 ms | 3.14 | 1.65 |
+| 3 | 1.03 ms | 3.36 | 1.59 |
+| 6 | 1.07 ms | 3.50 | 1.63 |
+| 5 | 1.16 ms | 4.11 | 1.59 |
+| 4 | 1.23 ms | 3.64 | 1.61 |
+| 2 | 1.53 ms | 4.75 | 1.53 |
+
+**Root cause.** Two causes, of different weight:
+
+1. **The OS places the game's threads on either core type.** An efficiency core runs the walk about
+   half as fast. The issue's `taskset -c 0-15` left this cause out, but it also left the second.
+2. **The per-frame walk chases pointers through the OSG graph**, and the graph's heap layout is set
+   by the order in which the loader threads finished. That order differs in each process. A layout
+   with worse locality costs up to half again, from the first frame of a leg to its last, which is
+   why a leg moves "as a whole".
+
+**Fix.**
+1. **The report states each leg's machine state.** The harness's instruments already own perf's
+   FIFO. A leg opens per-thread counters for the main thread with `perf_event_open`: cycles,
+   instructions, cache misses and the core type of each sample. The report prints them beside the
+   host rows: clock, IPC, misses per 1 000 instructions, and the share of time on efficiency cores.
+   A drift is then visible and named, which closes the issue's "nothing in the report says which
+   state a leg ran in".
+2. **The harness keeps its frame thread on the performance cores** where the system has two core
+   types: an affinity mask from `/sys/devices/cpu_core/cpus` on Linux, and the CPU set from
+   `GetSystemCpuSetInformation`'s efficiency class on Windows. The game makes the same choice by a
+   setting that defaults to the system's own choice.
+3. **The walk stops depending on heap layout.** This is `REDESIGN.md`'s W6 and W9 (tables changed by
+   the row, passes over what is new): the mirror keeps its per-frame inputs in contiguous tables
+   that change only where a node changed, so a frame reads arrays and not the graph. This plan adds
+   the measurement that proves it: after W6 and W9, the misses per 1 000 instructions of the walk
+   must stay within 10% across six legs.
+
+**Verification.** Six legs, pinned, before and after step 3: the walk median's spread across legs,
+and its correlation with the miss rate.
+
+---
+
+## 2. Light transport and parity with the rasterizer
+
+### 2.1 Two reflectances, as the rasterizer has
+
+**Root cause.** The rasterizer lights a fragment as `texture × (D × lit + A × ambient + E)`, with
+the diffuse colour `D` and the ambient colour `A` as separate reflectances
+(`files/shaders/lib/material/vertexcolors.glsl`). Under `ColorMode_Ambient` the vertex colour
+replaces `A` alone. The trace keeps one reflectance, `D` (`MaterialResolver` decodes `A` only for
+the ambient override). So `vertexColourOf` has no target for `Ambient`, and it falls into `Tint`,
+which replaces `D`.
+
+**Fix.** The trace keeps both reflectances, with the same split of light as the rasterizer:
+- **Direct light** (the lamps, the sun, the moons) is the rasterizer's `lit` term, and takes `D`.
+- **Indirect light** (the traced bounce and the path end's ambient) is the rasterizer's `ambient`
+  term, and takes `A`.
+
+The steps:
+1. **`VertexColour` gains `Ambient`**, and `vertexColourOf` maps `ColorMode_Ambient` to it.
+   `AmbientAndDiffuse` stays `Tint`.
+2. **`GpuMaterial` carries the ambient ratio `A / D`**, per channel, where `D` is not nought, and
+   one where it is or where they are equal. A material bit says that the vertex colour replaces `A`.
+3. **The surface's response gets a second albedo.** `SurfaceResponse::mDiffuse` is what the
+   composite multiplies the bounce by (`CHANNEL_ALBEDO`). It becomes `albedo × A / D`, so the
+   bounce takes `A`. `pathEnd` at a bounce's far hit takes the same ratio. The direct terms keep
+   `albedo`.
+4. **A census first.** Count the materials in vanilla content and in the PBR packs where `A ≠ D`,
+   and the meshes under `ColorMode_Ambient`. The census decides whether step 3 waits for its own
+   `shot --against`, because every such material's picture moves.
+
+**Tests.** A GPU test: a floor whose material has `A = 0.5 D`, under one lamp and an ambient,
+read in both channels. The direct channel holds `D × lamp`, and the indirect channel's remodulation
+holds `A`. A host test of `vertexColourOf` over all six modes.
+
+### 2.2 Night-Eye is a view term, added after the meter
+
+**Root cause.** In the game, Night-Eye adds `0.7 × magnitude` to the ambient of every lit fragment.
+Nothing occludes it, and the rasterizer has no exposure to adapt it away. The trace adds the lift to
+the cell's fill (`makeRoomLight` and the exterior ambient), so it becomes a world light:
+- it reaches the eye only through a bounce and a path end, which geometry occludes twice;
+- and the meter, which reads the upscaled frame, adapts most of it away.
+
+**Fix.** Night-Eye leaves the world's light and becomes a term of the view, in display-referred
+light after the exposure, as the rasterizer applies it:
+1. **`WorldState::mNightEye` stops adding to the fill and the ambient.** `describeWorld` carries it
+   to the frame's look as a colour.
+2. **The tone pass adds `albedo × lift × A`** to the exposed frame before the curve. That is the
+   rasterizer's `ambientColor × lift × texture`, with `A` from §2.1. The meter never sees it, so
+   nothing adapts it away.
+3. **The albedo at the output extent:** without an upscaler, the albedo channel itself. With one,
+   the albedo at the traced extent, read bilinearly at the output pixel's place. The lift term then
+   has the traced extent's texture detail, which is the cost of this shape. The step measures it:
+   a `shot` at `quality` with the lift, against the same view at `native`.
+
+D8's measurement stays the acceptance: the brightness ratio with and without the lift, at magnitudes
+25 and 100, in a cave and at `seyda-neen-ship` at night, against the rasterizer's ratio.
+
+**Tests.** A GPU test: a uniform floor and a known lift. The shown value rises by exactly
+`albedo × lift` after the exposure, and the measured exposure is the same with and without the lift.
+
+### 2.3 A lamp carries its owner's class
+
+**Root cause.** The rasterizer's light manager collects a light only from a node its cull reaches,
+so `tws` darkens the lamps of the statics and objects it hides. A `GpuLight` row carries no class,
+and the lamp walk (`weighLamps`, `darkeningAt`, the fog's `lampsInAir`) takes every lamp in the grid,
+whatever the frame's ray mask.
+
+**Fix.**
+1. The light extractor knows the reference a light hangs under. `GpuLight` takes its class bit
+   (`classBit(InstanceClass)`), packed beside `mFill` in one word, so the row stays its size.
+2. The three lamp walks test `(lamp.mClass & frame.mRayMask) != 0` before they weigh a lamp. That is
+   a bit test on a row already loaded, so a frame with no toggle pays one AND per lamp.
+3. The light grid is unchanged: a mask change is a console command, and a test in the walk serves
+   every camera, the map's and the pictures' included, with no grid per mask.
+
+**Tests.** A GPU test: a lamp placed as a static's light and one as an actor's, under a mask with and
+without the static class. The first goes dark and the second stays.
+
+### 2.4 The debug walk culls by the view's mask
+
+**Root cause.** Upstream hangs the cell borders under the terrain root (`Mask_Terrain`), so a cull
+without the terrain class drops them. `DebugWalk` traverses with `Mask_Debug` alone, so it never
+enters a node of another class. For that reason `TracedTerrain` hangs the borders under the world
+root, where `tws` cannot reach them.
+
+**Fix.** `DebugWalk` traverses with the view's own mask, `worldViewMask()`, as the rasterizer culls,
+and keeps only drawables under `Mask_Debug`. `TracedTerrain` hangs the borders under a group with
+`Mask_Terrain`, as upstream does. Any debug geometry under a hidden class then goes with it.
+
+**Tests.** A host test of `DebugWalk` over a small graph: a `Mask_Debug` line under a
+`Mask_Terrain` group, walked with and without the terrain bit.
+
+### 2.5 The front face composes with the placement's mirror
+
+**Root cause.** The rasterizer shows the face that `FrontFace` names, in window space, so a placement
+with a negative determinant reverses it. `SceneUtil::attach` builds a left body part under a scale of
+−1 and states `CLOCKWISE` to undo that. Traversal reads the winding in the mesh's own space, so it
+ignores the placement's determinant but keeps a mirror that the skinning applied to the vertices.
+The reader therefore drops `FRONTFACE` (`surface.cpp`), which is right for a rigid mirrored part and
+wrong for a content file's own `NiStencilProperty` and for a skinned mirrored part.
+
+**Fix.** One rule, `shown face flipped = (state is CLOCKWISE) XOR (placement is mirrored)`:
+- a rigid left part: clockwise and mirrored, so no flip;
+- a skinned left part: clockwise, and the placement is not mirrored (the mirror is in the skin), so
+  a flip;
+- content's own clockwise face: clockwise and not mirrored, so a flip.
+
+The steps:
+1. The reader keeps `FRONTFACE` as `SurfaceDescription::mClockwise` and stops dropping it.
+2. `InstanceRecord` keeps whether the placement's transform has a negative determinant, computed
+   where the row's transform is written.
+3. `SceneAcceleration::placeRow` sets `VK_GEOMETRY_INSTANCE_TRIANGLE_FLIP_FACING_BIT_KHR` when the
+   two disagree. The comment there that refuses the bit states the rule instead.
+
+**Tests.** The existing `aMirroredPlacementShowsTheFaceItsMeshShows`, plus three GPU cases: a
+clockwise material unmirrored, the same mirrored, and a mirrored skinned mesh. Each asserts the face
+a back-face-culling eye ray meets.
+
+### 2.6 Coverage is a probability
+
+**Root cause.** `candidateStops` decides a blended texel by `alphaPasses(…, painted, reference)`
+against a fixed reference: `sBlendCutoff` for a mask, `sPaneCutoff` for a pane. So any coverage
+between nought and one is quantised to nought or one. The rasterizer composites the fraction:
+`objects.frag` blends every texel at its alpha. A soft fringe becomes a hard edge, and a soft region
+in a texture that reaches solid somewhere loses everything under 0.5.
+
+**Fix.** For a blended mask (not a pane, not a medium), the candidate stops where
+`painted × opacity > u`, with `u` a draw in `[0, 1)` per ray and per candidate. The mean over draws
+is the blend's own coverage, so the fringe and the soft regions converge to the rasterizer's
+picture, and a ray costs the same as today.
+1. **The draw.** Wyman and McGuire's hashed alpha test (2017): a hash of the candidate's position at
+   the texture's scale, so the pattern stays on the surface under motion, mixed with the frame for
+   the eye's rays, so the accumulator and the upscaler average it. Shadow rays and bounces take a
+   per-ray draw, as their other draws do.
+2. **One rule for every ray.** `candidateStops` takes the draw from its caller, so the eye, a shadow
+   ray and a bounce agree on what a texel covers on average.
+3. **The pane path stays** for a texture that never reaches solid (glass, lantern panes). Its light
+   needs the attenuation that a stochastic hit would turn to grain.
+
+**Measurement before the decision.** The 2026-10-02 trial turned every fringe into a pane and grained
+52 of 60 pictures. This fix adds no ray, but it adds sampling noise at fringes. So it is accepted only
+by measurement:
+- `noise --strafe=150` at `seyda-neen-pier` and in a canopy view: the frame's noise may not rise
+  past the reference's own error;
+- `shot --against`: the fringes must move toward a 1 000-frame reference.
+
+### 2.7 The ring answers the game's rays for what it stands
+
+**Root cause.** `RenderingManager::castRay` walks the OSG graph. Past the loaded cells, the
+rasterizer's paged statics are in that graph with their reference numbers. Under the trace, the
+ring's statics live only in the trace's tables. The ring's ground already answers through
+`TracedTerrain::meet`, but nothing answers for its statics.
+
+**Fix.** The pattern that answers for the ground answers for the statics:
+1. `CellRing` keeps, per standing cell, its placed statics: the template node and the
+   placement's matrix and reference number. The step first reads what the ring holds once a row is
+   placed, and keeps the rest in the cell's own record, refilled in place as the ring's buffers are.
+2. A node under the terrain root, as `meet`'s is, hands the intersection visitor to the ring. For
+   each static whose bounding sphere the segment crosses (a per-cell list, nearest cell first), it
+   carries the segment into the template's space, runs the template's `KdTree`, and inserts each
+   hit with its reference number, as an object pager's hit is inserted.
+3. The statics are not added to the graph: the mirror's walk would read them as loaded content.
+
+**Tests.** A host test of the ring's ray answer against a synthetic cell: a box static four cells
+out. The cast meets it at the hand-computed distance, with the placement's reference number.
+
+### 2.8 Groundcover: the tree generates the plugin it waits for
+
+**Root cause.** The ray tracer has no reader for groundcover. `REDESIGN.md` W14 holds the design: one
+merged mesh per cell and plant model, from `GroundcoverStore`, under the game's density rule. The
+work waited for a groundcover mod to check it against.
+
+**Fix of the block.** The tree writes its own plugin: a test fixture made with
+`ESM::ESMWriter`, which declares vanilla flora statics (`flora_*` models from Morrowind.esm) as
+groundcover in two cells near Seyda Neen, at known positions. The harness loads it through
+`groundcover=`, as a player's `openmw.cfg` does. That checks the reader against the rasterizer's own
+placement of the same records, with no third-party content. Then W14's groundcover item is built as
+designed, and checked twice: against the fixture, and against a real mod where one is installed.
+
+**Tests.** The fixture's cells under both renderers: `shot` of the same view, and the count of
+placed plants against `GroundcoverStore`'s count at the same density.
+
+### 2.9 Every block format the device samples, and a decoder for the facts
+
+**Root cause.** `readFormat` maps a closed list of GL formats. BPTC (BC6H, BC7) and RGTC1 (BC4) are
+not in it, so a texture in one is `Unnamed` and draws as the grey stand-in. The upload path could take
+them, because the Vulkan formats are core on every target device. The host must also read a colour
+texture's facts (the mean, whether alpha reaches solid) and the contact sheet, and it has no decoder
+for these formats.
+
+**Fix.**
+1. **`readFormat` and `TextureFormat` take BC7 and BC6H** (colour and data), **and BC4** where a
+   slot is one channel. A colour slot refuses BC4 by name, as it refuses BC5.
+2. **A BPTC decoder in `components/rtx/image`**, written from the Khronos Data Format Specification
+   (BPTC section, CC BY 4.0), which publishes the partition and anchor tables. The tables carry
+   their licence note in `files/licenses/`. Mesa's MIT decoder is the cross-check, not the source.
+3. **The facts decode the levels they need.** The mean comes from the coarsest level that holds
+   whole blocks, and the solid reach comes from the alpha of the first level (BC7 modes 4–7; BC6H
+   has no alpha).
+
+**Tests.**
+- The decoder against the device, the tree's rule for a second implementation: upload a BC7 texture
+  with every mode and partition, sample each texel in a compute probe, and compare with the host's
+  decode bit for bit.
+- A `shot` of a view that wears a BC7 replacer.
+
+---
+
+## 3. Shader integer safety
+
+### 3.1 A low-bits mask that is defined at the word's width
+
+**Root cause.** `shadowtiles.comp:206` builds a mask of `n` low bits as `(1u << n) - 1u`, which is
+undefined at `n = 32`. `shadow.h` asserts `SHADOW_WORKGROUP + 2 * SHADOW_REACH <= 32`, so the
+assert admits the undefined case. A search of every shader finds no other shift whose amount can
+reach 32 (the other two are bit indices below 32 by construction).
+
+**Fix.** A shared function `lowBits(uint count)` in a portable header, `~0u >> (32u - count)`, which
+is defined for `count` from 1 to 32. It has a debug assert for nought on the host, and the call site
+documents why its count is never nought. `shadowtiles.comp` calls it, and the assert keeps `<= 32`,
+which is now true.
+
+**Tests.** A host test of `lowBits` at 1, 8, 24, 31 and 32, against hand-written masks.
+
+---
+
+## 4. The crash catcher
+
+### 4.1 The `report-under-hang` mode waits with no bound
+
+**Correction to `ISSUES.md`.** The entry points at Crashpad's POSIX client. The CI artifact of run
+36963270110 shows a simpler cause:
+- the report began 7 ms after the start, and its summary is stamped at once (04:30:26.088);
+- nothing happened after that until CTest's kill at 04:35:25;
+- the components suite ran on the same runner at the same time, for 13.7 s.
+
+The asker thread waits in `while (!Crash::isReporting()) yield();` for a state that lasts only while
+the dump is written, a few milliseconds there. On a busy runner the asker can first run after the
+report ended. It then waits forever, and the main thread waits for it in `join`. That gives exactly
+the record: a written dump, and no "crash-tests lived on".
+
+A second hypothesis, a `ptrace` attach race in Crashpad's `PtraceAttach`, was tested and not found:
+100 local runs, 40 of them under a stream of `SIGUSR2` to every thread every 20 µs during the dump,
+and no run stopped.
+
+**Fix.** A handshake with a bound. The asker waits until the report is in progress or the main
+thread says the report ended. It records whether its request landed. The mode repeats the report
+until a request lands, up to a fixed count, and fails with a message where none did. The mode always
+ends, and it still asserts what it was written for.
+
+### 4.2 One exception record, one writer at a time
+
+**Root cause.** Crashpad's Linux client keeps one exception record. `DumpWithoutCrash`, which a
+report calls, and the crash signal handler both write it. Nothing orders a report on one thread and
+a fault on another, so the report's dump can carry the fault's record.
+
+**Fix.** The report gate (`beginReport` and `endReport` in `crashnote.cpp`) orders every dump:
+1. `Crash::install` registers a first-chance handler (`CrashpadClient::SetFirstChanceExceptionHandler`,
+   present in the vendored client). It runs before the client writes the record.
+2. On a fault, the first-chance handler waits while a report is in progress on another thread. The
+   wait is async-signal-safe (an atomic load and `nanosleep`), and bounded at two seconds, so a stuck
+   report cannot hold a crash. A report in progress on the faulting thread itself does not wait.
+3. A fault takes the gate as a final report does (`Ending`), so a report that starts during a crash
+   dump is refused.
+
+The handler is in `crashpadclientposix.cpp`, for Linux, whose client is the one shown to share the
+record. The new matrix mode runs on Windows and macOS too, and its result there decides whether they
+need the same gate.
+
+**Tests.** The crash matrix gains the mode the plan once refused: a fault on a second thread while a
+report is in progress. The expectation is two dumps, each summarised as its own kind on its own
+thread.
+
+### 4.3 The harness's catcher is on
+
+**Root cause.** `apps/rtxtool/main.cpp` defaults `OPENMW_DISABLE_CRASH_CATCHER` to `1` "because a
+dialog waiting for a click is a run that never finishes". The next line defaults the dialog to off,
+so the reason no longer holds. The hang limit is safe too: the harness sets it, and the watch starts
+at the first heartbeat, after the cold compile.
+
+**Fix.** Delete the line, and replace the comment with the policy: catcher on, no dialog. A
+`omw` driver test runs `openmw-rtxtool` with a forced fault and expects a report folder.
+
+---
+
+## 5. Build, tools and install
+
+### 5.1 The driver states the systems it supports
+
+**Root cause.** `system.py` sets `SYSTEM = "windows" if WINDOWS else "linux"`, a two-way test, so a
+third system silently takes Linux's paths, presets and SDK.
+
+**Fix.**
+1. `SYSTEM` comes from `sys.platform` through a table of the systems the driver supports. An
+   unsupported system is refused at the driver's entry, before any verb runs, in one line that names
+   `CI/before_script.macos.sh` as the macOS route.
+2. `user_config_dir` and `user_data_dir` go. The harness's `info` prints the two folders through
+   `Files`, which answers for every system, and `omw setup` reads them (`REVIEW.md` names this shape).
+
+**Tests.** The driver's own tests (`tools/omw/tests`) with `sys.platform` patched to `darwin` and to
+an unknown name: both are refused, and Linux and Windows are unchanged.
+
+### 5.2 A test's folder is its binary's folder
+
+**Root cause.** `cmake/Tests.cmake` uses `RUNTIME_OUTPUT_DIRECTORY` as every test's working folder,
+and the top level sets that variable only outside the Apple branch.
+
+**Fix.** `WORKING_DIRECTORY $<TARGET_FILE_DIR:${target}>`, which every generator and every system
+answers. The crash matrix writes under `${CMAKE_BINARY_DIR}/test-output/crash-matrix` (see §5.4).
+
+### 5.3 Paths stay paths up to the system call
+
+**Root cause.** `Platform::Process::setEnvironment` takes `const char*`, and the Windows half calls
+`_putenv_s`. So a caller narrows its path with `path.string()`, which converts through the ANSI code
+page and throws for a character outside it. A search finds six more `path.string()` calls in fork
+code: `apps/rtxtool/main.cpp:546`, `:1150`, `film.cpp:687`, `shaderdirectory.cpp:42`,
+`pipelinecache.cpp:167` and `spirvpintool.cpp:26`, `:63`.
+
+**Fix.**
+1. `setEnvironment` and `setEnvironmentDefault` take the value as `const std::filesystem::path&`
+   where the value is a path. The Windows half calls `_wputenv_s` with the path's native wide string.
+2. Each listed call spells the path with `Files::pathToUnicodeString`, or keeps it a path.
+3. **A check, so the class of fault does not come back:** `omw`'s listing check refuses
+   `.string()` on a `std::filesystem::path` in fork code, with the reason in its message.
+
+**Tests.** A host test on Windows CI: a cache folder under a name outside the code page (Cyrillic or
+CJK) set through `setEnvironment` and read back by `_wgetenv`.
+
+### 5.4 The install takes an allow-list, and working folders stay out of it
+
+**Root cause.** The Windows rule installs the whole runtime folder with a deny-list, and the other
+systems install `resources/` with two excludes. The tests and the harness write into those same
+folders. So each new working folder leaks into the package. The CI log of run 36963270110 shows the
+crash matrix's folders in the Windows install, and every install carries `views.cfg`, `benches.cfg`
+and `rtx/vfs/`.
+
+**Fix.** Each owner writes where the install does not read:
+1. **The harness's data goes under one root, `${RUNTIME_OUTPUT_DIRECTORY}/rtxtool/`:** the views, the
+   suites, the VFS scripts, the shader set with source, and the driver caches. The harness's
+   `--resources` default resolves both roots. No install rule names `rtxtool/`, so none carries it.
+2. **Test output goes under `${CMAKE_BINARY_DIR}/test-output/`**, outside the runtime folder.
+3. The two excludes in the `resources` rule go, because nothing they excluded is there any more.
+
+This changes no upstream install rule, which keeps the upstream diff where it is.
+
+**Tests.** A CI check after `install`: the installed tree holds no `rtxtool/`, `crash-matrix/`,
+`views.cfg` or `*-driver-cache`.
+
+### 5.5 The gate links every program the flavour configures
+
+**Root cause.** `gate.py` builds `default_targets` (`openmw-rtxtool`, `openmw`) and the test
+targets, and the release leg builds the same two. CI builds `all`. So a program outside that list,
+such as `openmw-rtx-spirv-digest`, is never linked by the gate.
+
+**Fix.** The gate's release leg builds `all`: every program the release preset configures, the tools
+and the SPIR-V programs among them. The Qt programs stay with the `full` flavour, as today. The cost
+is one build of the tools in release, under ccache.
+
+### 5.6 Tests past one second
+
+**Correction to `ISSUES.md`.** Run alone, the four tests take 0.96 s (kernels), 0.70 s (the lobe
+test), 0.80 s (frame cost) and 0.35–0.61 s (fog noise). They pass one second only in `omw test`,
+where both GPU shards, the components suite and the crash matrix run at the same time.
+
+**Fix.**
+1. **The rule is measured where it means something:** `omw test` records each test's time from a
+   serial run of the binary (`--gtest_filter`, alone), and the gate fails a test over one second
+   there.
+2. **`RtxFogNoiseTest.everyLevelAMarchMayReadClearsTheShareTheDensityIsDividedBy`** takes 200 000
+   Halton samples per level against a 5% tolerance. The step measures the coverage of every level at
+   20 000 and at 200 000 samples. Where the two agree within a tenth of the tolerance, the test takes
+   20 000 and states the measured difference as its reason.
+3. **`aLobeKeepsItsHistoryOverATurnOfTheViewAsWideAsTheLobe`** builds two 256-frame references,
+   against which it compares a turned frame's error with a raw frame's. The step measures the
+   reference's own error at 64 and at 256 frames against a 1 024-frame one. Where 64 keeps the
+   reference's error under a tenth of the margin between the two compared errors, the test takes 64
+   and states that.
+4. The kernel test's cost is its compile of seven pipelines, which is what it tests. It stays, and
+   the serial measurement holds it under one second.
+
+---
+
+## 6. Order of work
+
+Each step ends on a clean `./omw gate`, with its test, and with `shot --against` where a picture can
+move. The order puts the cheap fixes that unblock or protect measurements first.
+
+1. **Phase A, safety and tooling (XS and S):** §3.1, §4.1, §4.3, §5.2, §5.5, §5.3, §5.1, §5.6.
+2. **Phase B, measurement:** §1.1 (queue priority, the sharing line), then §1.2's steps 1 and 2.
+   Every later A/B reads these lines.
+3. **Phase C, crash catcher:** §4.2.
+4. **Phase D, parity, the small ones:** §2.3, §2.4, §2.5. Each moves only the pictures of its own
+   content.
+5. **Phase E, install:** §5.4, which moves files the harness reads, so it lands with the harness's
+   `--resources` change in one commit.
+6. **Phase F, light transport:** §2.1 (census first), then §2.2, which uses §2.1's `A`.
+7. **Phase G, content readers:** §2.9, §2.7, §2.8.
+8. **Phase H, coverage:** §2.6, behind its measurement.
+9. **§1.2 step 3** lands with `REDESIGN.md`'s W6 and W9, and its acceptance (the miss rate's spread
+   across legs) is added to theirs.
+
+When each fix lands, its entry leaves `ISSUES.md`, and `REDESIGN.md`'s matching item points to the
+commit.
