@@ -260,7 +260,7 @@ namespace Rtx
             EXPECT_EQ(spell->mReach, lamp->mReach);
             EXPECT_EQ(spell->mSourceRadius, lamp->mSourceRadius);
             EXPECT_EQ(spell->mClearance, lamp->mClearance);
-            EXPECT_EQ(spell->mFill, 0u) << "the spell lights its bearer from every side";
+            EXPECT_EQ(Shaders::lightFill(spell->mTraits), 0.0f) << "the spell lights its bearer from every side";
 
             const std::optional<Light> faded
                 = makeSpellLight(osg::Vec3f(0.5f, 2.0f, 0.0f), 440.0f, osg::Vec3f(1, 2, 3)).value();
@@ -579,7 +579,7 @@ namespace Rtx
             EXPECT_FLOAT_EQ(lamp->mSourceRadius, 5.0f);
             EXPECT_EQ(lamp->mClearance, lamp->mSourceRadius);
             EXPECT_FLOAT_EQ(lamp->mReach, 80.0f);
-            EXPECT_EQ(lamp->mFill, 1u);
+            EXPECT_EQ(Shaders::lightFill(lamp->mTraits), 1.0f);
 
             // The instance's fade weighs the sheet as the material's opacity does.
             Glow faded;
@@ -673,7 +673,7 @@ namespace Rtx
             EXPECT_FLOAT_EQ(lamp->mSourceRadius, 8.0f);
             EXPECT_EQ(lamp->mClearance, lamp->mSourceRadius);
             EXPECT_FLOAT_EQ(lamp->mReach, 128.0f);
-            EXPECT_EQ(lamp->mFill, 1u);
+            EXPECT_EQ(Shaders::lightFill(lamp->mTraits), 1.0f);
 
             Material sheet;
             sheet.mAlphaMode = AlphaMode::Blend;

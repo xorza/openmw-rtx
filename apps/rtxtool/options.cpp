@@ -173,10 +173,15 @@ namespace RtxTool
             "the leading minus reads as an option. Left out, the default view decides.");
 
         option(sPlaces, "view", bpo::value<std::string>()->default_value(""),
-            "a named viewpoint from resources/rtx/views.cfg, which supplies the cell and usually the "
+            "a named viewpoint from rtxtool/views.cfg, which supplies the cell and usually the "
             "camera. Overrides --cell. A run of places names them with --views instead.");
 
         option(Verbs::Every, "list-views", bpo::bool_switch(), "print the named viewpoints and quit");
+
+        option(Verbs::Info, "folders", bpo::bool_switch(),
+            "print where the game reads its openmw.cfg and where it keeps its saves, one to a line as "
+            "`config <path>` and `data <path>`, and quit, before any device: the answer `Files` gives "
+            "on this system, which the driver's `setup` and `game` read rather than restating");
 
         option(sFramed, "delight", number(between(0.0f, 1.0f))->default_value(byDefault.mSetup.mRun.mProfile.mDelight),
             "how much of the lighting painted into each texture to divide back out, from 0 to 1. "
@@ -267,7 +272,7 @@ namespace RtxTool
             "--seconds");
 
         option(Verbs::Bench | Verbs::Check | Verbs::Noise, "suite", bpo::value<std::string>()->default_value(""),
-            "which list of places in resources/rtx/benches.cfg to visit: [default] for `bench`, "
+            "which list of places in rtxtool/benches.cfg to visit: [default] for `bench`, "
             "[check] for `check` and [noise] for `noise` unless named. Overridden by --views");
 
         option(Verbs::Noise, "strafe", number(atLeast(0.0f))->default_value(0.0f),
@@ -309,6 +314,10 @@ namespace RtxTool
         option(sFramed, "vanity", bpo::value<bool>()->default_value(false)->implicit_value(true),
             "let the game's vanity camera orbit the player after thirty idle seconds, as the played "
             "game does. Off unless asked for: a run is idle by nature");
+
+        option(sFramed, "night-eye", number(between(0, 100))->default_value(0),
+            "the magnitude of Night-Eye the player wears at every place, as a potion or the Khajiit's "
+            "power puts it on them: the game lifts every lit surface by 0.7 of it over a hundred");
 
         option(sFramed, "memory-budget",
             number(between<std::uint64_t>(1, std::numeric_limits<std::uint64_t>::max() >> 20)),

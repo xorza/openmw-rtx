@@ -405,6 +405,10 @@ namespace Rtx::Testing
         /// The sun glare fader over the picture. None, for every test not about it.
         SunGlare mGlare{};
 
+        /// What Night-Eye adds to the ambient (`FrameOptions::mNightEye`). None, for every test not
+        /// about it.
+        osg::Vec3f mNightEye{};
+
         /// Run once each frame of the run is finished, with that frame, for a caller measuring what
         /// moves between two frames rather than what a run of them averages to.
         std::function<void(const Frame&)> mEachFrame{};
@@ -456,6 +460,7 @@ namespace Rtx::Testing
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = shot.mFrames > 0 && shot.mAverage ? at + 1 : 0,
                         .mGlare = shot.mGlare,
+                        .mNightEye = shot.mNightEye,
                         .mWaterSeconds = waterSeconds,
                         .mLoss = at == shot.mLossAt ? shot.mLoss : HistoryLoss::None,
                         .mReconstruction = ReconstructionRequest{ .mDenoise = shot.mFilter,

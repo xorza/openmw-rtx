@@ -19,10 +19,18 @@ namespace RtxTool
         /// unit Mesa's `MESA_SHADER_CACHE_MAX_SIZE` reads a bare `G` as, for Mesa's.
         constexpr std::uint64_t sDriverCacheGibibytes = 8;
         constexpr std::uint64_t sDriverCacheBytes = sDriverCacheGibibytes << 30;
+
+        /// Where a shader set's caches go: in the harness's folder, named after the set.
+        std::filesystem::path cacheRootOf(const std::filesystem::path& harness, const std::filesystem::path& shaders)
+        {
+            std::filesystem::path name = shaders.filename();
+            name += "-driver-cache";
+            return harness / name;
+        }
     }
 
-    DriverCache::DriverCache(const std::filesystem::path& shaders)
-        : mRoot(shaders.parent_path() / (shaders.filename().string() + "-driver-cache"))
+    DriverCache::DriverCache(const std::filesystem::path& harness, const std::filesystem::path& shaders)
+        : mRoot(cacheRootOf(harness, shaders))
         , mDirectory(mRoot / spellHash(Rtx::digestShaders(shaders)))
     {
         std::filesystem::create_directories(mDirectory);
@@ -31,14 +39,14 @@ namespace RtxTool
     void DriverCache::applyToDriver() const
     {
         Platform::Process::setEnvironment("__GL_SHADER_DISK_CACHE", "1");
-        Platform::Process::setEnvironment("__GL_SHADER_DISK_CACHE_PATH", mDirectory.string().c_str());
+        Platform::Process::setEnvironmentPath("__GL_SHADER_DISK_CACHE_PATH", mDirectory);
         Platform::Process::setEnvironment("__GL_SHADER_DISK_CACHE_SIZE", std::to_string(sDriverCacheBytes).c_str());
         Platform::Process::setEnvironment("__GL_SHADER_DISK_CACHE_SKIP_CLEANUP", "1");
 
         // Mesa's, for RADV, ANV and NVK: its cache goes in a directory of its own name under this
         // one, so the two drivers' files never meet.
         Platform::Process::setEnvironment("MESA_SHADER_CACHE_DISABLE", "false");
-        Platform::Process::setEnvironment("MESA_SHADER_CACHE_DIR", mDirectory.string().c_str());
+        Platform::Process::setEnvironmentPath("MESA_SHADER_CACHE_DIR", mDirectory);
         Platform::Process::setEnvironment(
             "MESA_SHADER_CACHE_MAX_SIZE", (std::to_string(sDriverCacheGibibytes) + "G").c_str());
     }

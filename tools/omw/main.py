@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from omw import crash, deps, formatting, game, gate, kernels, listing, package, perf, repeat, testing
 from omw.build import FLAVOURS, Build
-from omw.system import CI, Refusal
+from omw.system import CI, Refusal, refuse_unsupported
 
 USAGE = """\
 omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI, on Linux and Windows.
@@ -157,6 +157,7 @@ def dispatch(line: Line) -> int:
 
 def main(argv: list[str]) -> int:
     try:
+        refuse_unsupported()
         return dispatch(parse(argv))
     except Refusal as refusal:
         message = str(refusal)

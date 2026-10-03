@@ -140,7 +140,7 @@ def kernels(build: Build, args: list[str]) -> int:
     program_digest = build.dir / "components" / "rtxvulkan" / f"openmw-rtx-spirv-digest{EXE}"
 
     shaders = build.dir / "resources" / "rtx" / "shaders"
-    sources = build.dir / "resources" / "rtx" / "shaders-source"
+    sources = build.dir / "rtxtool" / "shaders-source"
     work: list[tuple[Path, Setting]] = []
     for module in sorted(shaders.glob("*.spv")):
         # The constants off the module the driver is handed, their names off the same module with its

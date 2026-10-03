@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <vector>
 
 #include <osg/Vec2f>
@@ -136,6 +137,10 @@ namespace Rtx
         /// Whether the ground of the cell at `cell` stands in the top level, which is whether the
         /// trace draws it — `CellPlacer::standsGround`.
         bool standsGround(const osg::Vec2i& cell) const { return mPlacer.standsGround(cell); }
+
+        /// The placements of the cell at `cell`, standing or not, which a game's ray meets where the
+        /// trace draws them — `CellPlacer::placementsIn`. Valid until the next walk.
+        std::span<const Placement> placementsIn(const osg::Vec2i& cell) const { return mPlacer.placementsIn(cell); }
 
     private:
         bool handed(const osg::Vec2i& cell) const;

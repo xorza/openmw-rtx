@@ -19,6 +19,11 @@ namespace MWRender
         return mMirror.getRing().standsGround(cell);
     }
 
+    std::span<const Rtx::Placement> TracedGround::placementsIn(const osg::Vec2i& cell) const
+    {
+        return mMirror.getRing().placementsIn(cell);
+    }
+
     bool TracedGround::enableReference(int type, const MWWorld::ConstPtr& ptr, const bool enabled)
     {
         mMirror.getRing().setReferenceEnabled(ptr.getCellRef().getRefNum(), enabled);

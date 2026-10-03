@@ -733,16 +733,19 @@ namespace Rtx::Testing
             EXPECT_NEAR(albedo[at + 2], 40.0f / 255.0f, 1e-3f);
         }
 
-        /// The vertex colour a hit lands on, and what the content's mode says it replaces.
+        /// The vertex colour a hit lands on, and which of the two albedos the content's mode says it
+        /// replaces.
         ///
         /// **The tint replaces the material's own colour rather than multiplying it**, which is
         /// what `glColorMaterial(GL_AMBIENT_AND_DIFFUSE)` does and what the game's own shader reads
-        /// through `getDiffuseColor`.
+        /// through `getDiffuseColor` and `getAmbientColor`. `Diffuse` and `Ambient` replace one of
+        /// the two, and the other stays the material's, white here.
         ///
         /// The texture is a linear 128, which is 0.50196 and encodes to 188. A quad whose four
         /// vertices carry one colour interpolates to that colour everywhere, so the arithmetic is
         /// one multiply a channel: 0.5, 1 and 0.25 of 0.50196 are 0.25098, 0.50196 and 0.12549,
-        /// which encode to 137, 188 and 99.
+        /// which encode to 137, 188 and 99. The diffuse albedo is read off the picture and the
+        /// ambient one off its channel, encoded the same way.
         TEST_F(RtxVisibilityTest, aVertexColourTintsTheAlbedoWhereTheContentAsksAndNowhereElse)
         {
             constexpr std::uint32_t size = 32;
@@ -767,12 +770,17 @@ namespace Rtx::Testing
                     = shoot(scene, std::span(&grey, 1), camera, size, Shot{ .mShow = SurfaceView::Albedo });
                 EXPECT_EQ(frame.mHits, size * size);
 
-                return std::array<int, 3>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2) };
+                std::vector<float> ambient;
+                mRenderer.readChannel(Channel::AmbientAlbedo, ambient);
+                return std::array<int, 6>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2),
+                    encodeSrgb(ambient[centre]), encodeSrgb(ambient[centre + 1]), encodeSrgb(ambient[centre + 2]) };
             };
 
-            const std::array<int, 3> plain{ 188, 188, 188 };
+            const std::array<int, 6> plain{ 188, 188, 188, 188, 188, 188 };
             EXPECT_EQ(albedoUnder(VertexColour::None, tint), plain) << "the content said the colours mean nothing";
-            EXPECT_EQ(albedoUnder(VertexColour::Tint, tint), (std::array<int, 3>{ 137, 188, 99 }));
+            EXPECT_EQ(albedoUnder(VertexColour::Tint, tint), (std::array<int, 6>{ 137, 188, 99, 137, 188, 99 }));
+            EXPECT_EQ(albedoUnder(VertexColour::Diffuse, tint), (std::array<int, 6>{ 137, 188, 99, 188, 188, 188 }));
+            EXPECT_EQ(albedoUnder(VertexColour::Ambient, tint), (std::array<int, 6>{ 188, 188, 188, 137, 188, 99 }));
             EXPECT_EQ(albedoUnder(VertexColour::Glow, tint), plain) << "a glow is not a tint";
 
             // A mesh that brought no colour is white in the shared buffer, so the tint the shader
@@ -1438,17 +1446,22 @@ namespace Rtx::Testing
             EXPECT_NEAR(bothWays, facing, 1.0e-4f) << "a sheet drawn both ways adds from either face";
         }
 
-        /// **A placement that turns a mesh over shows the same face of it.**
+        /// **The face a placement shows is the rasterizer's: clockwise XOR mirrored.**
         ///
         /// Traversal carries the ray into the mesh's own space and reads the winding there, so a
-        /// placement of a negative determinant leaves which face is drawn alone. That is the space
-        /// the engine means: `SceneUtil::attach` builds a left body part out of the right one under
-        /// a scale of minus one and flips `osg::FrontFace` back over it, because the rasterizer
-        /// does carry the determinant and traversal does not.
+        /// placement of a negative determinant leaves the face alone, where the rasterizer, reading
+        /// the winding on the screen, turns it round. `InstanceRecord::mFlipFacing` composes the two,
+        /// and the eye, which culls a single-sided back, meets the quad or the wall behind it:
         ///
-        /// Measured here rather than assumed, because the other reading would take every left arm
-        /// in the game out of the frame.
-        TEST_F(RtxVisibilityTest, aMirroredPlacementShowsTheFaceItsMeshShows)
+        /// - unmirrored and counter-clockwise, the mesh's own face: met;
+        /// - mirrored and counter-clockwise, which the rasterizer culls: the wall;
+        /// - unmirrored and clockwise, a content file's own `NiStencilProperty`: the wall;
+        /// - mirrored and clockwise, a rigid left body part, which `SceneUtil::attach` builds under
+        ///   a scale of minus one and states clockwise over: met — the case that, read the other
+        ///   way, takes every left arm in the game out of the frame;
+        /// - a mesh mirrored in its own vertices, wound the other way, unmirrored and clockwise, as
+        ///   a skinned left part stands once its skin mirrored it: met.
+        TEST_F(RtxVisibilityTest, aPlacementShowsTheFaceTheRasterizerShowsMirroredOrClockwise)
         {
             constexpr std::uint32_t size = 32;
 
@@ -1458,11 +1471,15 @@ namespace Rtx::Testing
             // A quad halfway to the wall and square about the axis, so a mirror about x leaves it
             // where it was and changes nothing but its winding.
             const std::array<osg::Vec3f, 4> held = uprightQuadAt(20.0f, -50.0f);
+            const osg::Matrixf mirror = osg::Matrixf::scale(-1.0f, 1.0f, 1.0f);
 
-            const auto metAt = [&](const osg::Matrixf& place) {
+            const auto metAt = [&](std::span<const osg::Vec3f, 4> quad, const osg::Matrixf& place, bool clockwise) {
                 SceneDesc scene;
                 addQuad(scene, sWallQuad);
-                addQuad(scene, held, sNoIndex, place);
+                scene.addInstance(MeshInstance{ .mTransform = place,
+                    .mMesh = addQuadMesh(scene, quad),
+                    .mMaterial = addGrey(scene),
+                    .mClockwise = clockwise });
 
                 EXPECT_EQ(shoot(scene, {}, camera, size).mHits, size * size);
 
@@ -1473,9 +1490,14 @@ namespace Rtx::Testing
                 return depth[centreOf(size) * 2 + 1];
             };
 
-            EXPECT_NEAR(metAt(osg::Matrixf::identity()), 50.0f, 0.1f) << "the quad stands halfway to the wall";
-            EXPECT_NEAR(metAt(osg::Matrixf::scale(-1.0f, 1.0f, 1.0f)), 50.0f, 0.1f)
-                << "and the eye met the wall behind the mirrored one";
+            EXPECT_NEAR(metAt(held, osg::Matrixf::identity(), false), 50.0f, 0.1f) << "the quad stands halfway";
+            EXPECT_NEAR(metAt(held, mirror, false), 100.0f, 0.1f) << "a mirror showed the face the rasterizer culls";
+
+            EXPECT_NEAR(metAt(held, osg::Matrixf::identity(), true), 100.0f, 0.1f)
+                << "a clockwise front showed the face its winding calls the front";
+            EXPECT_NEAR(metAt(held, mirror, true), 50.0f, 0.1f) << "a rigid left part lost its face";
+            EXPECT_NEAR(metAt(turned(held), osg::Matrixf::identity(), true), 50.0f, 0.1f)
+                << "a part its skin mirrored lost its face";
         }
 
         /// The mip chain a ray cone selects from, at a distance chosen so the answer is a whole

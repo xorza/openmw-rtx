@@ -29,6 +29,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
+#include <components/files/fixedpath.hpp>
 #include <components/misc/result.hpp>
 #include <components/platform/platform.hpp>
 #include <components/platform/process.hpp>
@@ -272,16 +273,16 @@ namespace RtxTool
             Verbs mVerb;
         };
 
-        /// The places a run can visit, among the resources.
+        /// The places a run can visit, in the harness's folder.
         std::filesystem::path viewsFile(const std::filesystem::path& resources)
         {
-            return resources / "rtx" / "views.cfg";
+            return Rtx::harnessDirectory(resources) / "views.cfg";
         }
 
         /// The suites, each a list of places in `viewsFile`.
         std::filesystem::path suitesFile(const std::filesystem::path& resources)
         {
-            return resources / "rtx" / "benches.cfg";
+            return Rtx::harnessDirectory(resources) / "benches.cfg";
         }
 
         /// Where a verb writes its pictures: `--out`, or a directory named for the verb.
@@ -497,6 +498,7 @@ namespace RtxTool
             request.mHud = variables["hud"].as<bool>();
             request.mSetup.mInterface = request.mPlayed || request.mHud;
             request.mVanity = variables["vanity"].as<bool>();
+            request.mNightEye = variables["night-eye"].as<int>();
             request.mRandomSeed = variables["random-seed"].as<unsigned int>();
 
             return request;
@@ -543,7 +545,8 @@ namespace RtxTool
             Stop staged;
             if (found == nullptr && cell.empty() && startsFromSave(variables))
             {
-                staged.mName = variables["load-savegame"].as<Files::MaybeQuotedPath>().stem().string();
+                staged.mName
+                    = Files::pathToUnicodeString(variables["load-savegame"].as<Files::MaybeQuotedPath>().stem());
                 staged.mSky.mHour = hourGiven(variables);
                 staged.mSky.mWeather = weatherGiven(variables);
                 staged.mSky.mAir = airGiven(variables);
@@ -673,6 +676,14 @@ namespace RtxTool
 
         int commandInfo(const Command& command)
         {
+            if (command.mVariables["folders"].as<bool>())
+            {
+                const Files::FixedPath<> game("openmw");
+                out() << "config " << Files::pathToUnicodeString(game.getUserConfigPath()) << '\n'
+                      << "data " << Files::pathToUnicodeString(game.getUserDataPath()) << '\n';
+                return 0;
+            }
+
             const Rtx::ValidationOptions validation = validationFrom(command.mVariables);
 
             return runInfo(command, validation);
@@ -1147,7 +1158,8 @@ namespace RtxTool
                 status != 0)
                 return status;
 
-            const std::filesystem::path video = directory / (keys.stem().string() + ".mp4");
+            std::filesystem::path video = directory / keys.stem();
+            video += ".mp4";
             const std::string encode = encodeCommand(frames, video, pacing.getRate());
             if (!variables["encode"].as<bool>())
             {
@@ -1268,6 +1280,12 @@ namespace RtxTool
             config.readConfiguration(variables, options.mDescription);
             startLogAndSettings(config);
 
+            // **Every verb on one kind of core**, before any thread of the run starts. Eight legs of
+            // `one-cell-walk` in turn: the walk's p99 read 1.75 to 1.85 ms in three of the four held
+            // to the performance cores, and 2.42 to 2.96 ms in the four the system placed.
+            if (const std::size_t kept = Platform::Process::keepToPerformanceCores(); kept > 0)
+                Log(Debug::Info) << "Kept to the " << kept << " logical CPUs of the performance cores";
+
             const std::filesystem::path resources = variables["resources"].as<Files::MaybeQuotedPath>();
 
             // Before the verb, as `--help` is: a switch that answers instead of the command is one
@@ -1297,11 +1315,10 @@ namespace RtxTool
             }
 
             // **Before any verb makes a device, because the driver reads where its cache is once.**
-            // A cache of the shaders this run reads and of nothing else, beside them
-            // (`DriverCache`).
+            // A cache of the shaders this run reads and of nothing else (`DriverCache`).
             const std::filesystem::path shaders
                 = Rtx::shaderDirectory(resources, variables["shader-source"].as<bool>());
-            const DriverCache driverCache(shaders);
+            const DriverCache driverCache(Rtx::harnessDirectory(resources), shaders);
             driverCache.applyToDriver();
             driverCache.sweep();
 
@@ -1328,14 +1345,12 @@ namespace RtxTool
 
 int main(int argc, char* argv[])
 {
-    // **Never a box.** This is a developer harness: it is run from a shell or a task runner, its
-    // output is read, and a dialog waiting for a click is a run that never finishes — which for
-    // something whose whole point is to be run in a loop is the tool not working. `run` catches
-    // its own exceptions, so the one box left is the crash catcher's, and upstream's own switch
-    // turns that off — at the price of its report on a crash, which a debugger gives back.
-    // Not overwritten, so that a shell can still ask for the catcher; and without its box when it
-    // does, which is the same box.
-    Platform::Process::setEnvironmentDefault("OPENMW_DISABLE_CRASH_CATCHER", "1");
+    // **The catcher, and never a box.** This is a developer harness: it is run from a shell or a
+    // task runner, its output is read, and a dialog waiting for a click is a run that never
+    // finishes — which for something whose whole point is to be run in a loop is the tool not
+    // working. So the catcher's box is off, and the catcher is on: a measured run that crashes or
+    // hangs leaves the report a player's game would. Not overwritten, so that a shell can still
+    // ask for the box, or turn the catcher off.
     Platform::Process::setEnvironmentDefault("OPENMW_CRASH_DIALOG", "0");
 
     return Debug::wrapApplication(RtxTool::run, argc, argv, RtxTool::applicationName);

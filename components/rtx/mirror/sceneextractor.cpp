@@ -306,7 +306,7 @@ namespace Rtx
         }
         else if (auto* source = as<SceneUtil::LightSource>(kind, NodeKind::LightSource, node))
         {
-            mExtractor.addLight(*source, placed(), mStamp->getSimulationTime(), mGlow);
+            mExtractor.addLight(*source, placed(), mStamp->getSimulationTime(), mGlow, mClass);
         }
         else if (stepParticles(node, kind))
         {
@@ -349,7 +349,7 @@ namespace Rtx
         // The root of a magic effect, whose sheets and flames light the world as one lamp, on the
         // arms as anywhere. Whatever is stated under it is still inside it.
         if ((mClass == InstanceClass::Effect || stated == InstanceClass::Effect) && !mGlow.has_value())
-            mGlow = mExtractor.openGlow();
+            mGlow = mExtractor.openGlow(mClass);
 
         descend(node, kind);
 
@@ -682,7 +682,7 @@ namespace Rtx
     }
 
     void SceneExtractor::addLight(const SceneUtil::LightSource& source, const osg::Matrixf& place,
-        double simulationTime, const std::optional<std::size_t> glow)
+        double simulationTime, const std::optional<std::size_t> glow, const InstanceClass owner)
     {
         // The recorded colours and this frame's scalars, never the colours the rasterizer draws
         // from (`lightColour`). `LightSource::getEmpty` is not asked: it means the model this light
@@ -710,13 +710,15 @@ namespace Rtx
         if (glow.has_value())
             mGlows[*glow].mLit = true;
 
-        mScene.addLight(*made.value());
+        Light lamp = *made.value();
+        lamp.mTraits = Shaders::lightTraits(false, classBit(owner));
+        mScene.addLight(lamp);
         ++mPass.getStats().mLights;
     }
 
-    std::size_t SceneExtractor::openGlow()
+    std::size_t SceneExtractor::openGlow(const InstanceClass owner)
     {
-        mGlows.emplace_back();
+        mGlows.emplace_back().mClasses = classBit(owner);
         return mGlows.size() - 1;
     }
 
@@ -771,6 +773,7 @@ namespace Rtx
             .mMaterial = material.mIndex,
             .mOpacity = fade,
             .mClass = what,
+            .mClockwise = !shading.empty() && shading.back().mClockwise,
         };
 
         ++stats.mInstances;
@@ -798,7 +801,7 @@ namespace Rtx
         Index& slot = held->second.mIndex;
         const MeshInstance& standing = mScene.placements().getRows()[slot].mInstance;
         if (standing.mMesh != resolved.mMesh || standing.mMaterial != resolved.mMaterial
-            || standing.mClass != resolved.mClass)
+            || standing.mClass != resolved.mClass || standing.mClockwise != resolved.mClockwise)
         {
             mScene.dropInstance(slot, Stander::Walk);
             slot = mScene.addInstance(resolved);

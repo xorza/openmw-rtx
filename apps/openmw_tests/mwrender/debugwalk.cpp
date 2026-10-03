@@ -24,6 +24,9 @@ namespace MWRender
 {
     namespace
     {
+        /// The view mask the game culls its world by.
+        constexpr unsigned int sView = ~(Mask_UpdateVisitor | Mask_SimpleWater);
+
         /// A geometry of `positions`, painted `colours` per vertex where there are as many, or the
         /// first over the whole where there is one, drawn as `mode`.
         osg::ref_ptr<osg::Geometry> drawn(
@@ -43,9 +46,11 @@ namespace MWRender
         /// is read only under `GL_BLEND`, as the rasterizer reads it: the cell borders paint at an
         /// alpha of nought and draw opaque, and the navmesh blends.
         ///
-        /// **`Mask_Debug` and no other**, which is what the rasterizer's cull draws them by: a
-        /// scene root beside the debug nodes holds the world, and a walk that entered it would read
-        /// every mesh in the cell as a line drawing.
+        /// **Under a node of `Mask_Debug` alone, culled by the view's mask**, as the rasterizer's
+        /// cull draws them: a scene root beside the debug nodes holds the world, and a walk that
+        /// read it would read every mesh in the cell as a line drawing. A border's line under a
+        /// `Mask_Terrain` group is read where the view keeps the ground, and not under `tws`,
+        /// which takes it; the ground's own geometry beside it is no debug node and is never read.
         TEST(RtxDebugWalkTest, theWalkReadsDebugGeometryByItsTransformAndNothingElse)
         {
             osg::ref_ptr<osg::Group> root = new osg::Group;
@@ -75,8 +80,26 @@ namespace MWRender
             scene->setNodeMask(Mask_Scene);
             root->addChild(scene);
 
+            // A cell border under the terrain's group, beside the ground's own mesh.
+            osg::ref_ptr<osg::Group> terrain = new osg::Group;
+            terrain->setNodeMask(Mask_Terrain);
+            osg::ref_ptr<osg::Geometry> border = drawn({ osg::Vec3f(0.0f, 0.0f, 5.0f), osg::Vec3f(8.0f, 0.0f, 5.0f) },
+                { osg::Vec4f(1.0f, 1.0f, 0.0f, 1.0f) }, GL_LINES);
+            border->setNodeMask(Mask_Debug);
+            terrain->addChild(border);
+            terrain->addChild(drawn(
+                { osg::Vec3f(), osg::Vec3f(), osg::Vec3f() }, { osg::Vec4f(1.0f, 1.0f, 1.0f, 1.0f) }, GL_TRIANGLES));
+
+            osg::ref_ptr<osg::Group> bordered = new osg::Group;
+            bordered->addChild(terrain);
             DebugWalk walk;
-            const Rtx::DebugLines lines = walk.walk(*root);
+            const Rtx::DebugLines shown = walk.walk(*bordered, sView);
+            ASSERT_EQ(shown.mLines.size(), 2u) << "the border under the ground the view keeps";
+            EXPECT_EQ(shown.mLines[1].mPosition, osg::Vec3f(8.0f, 0.0f, 5.0f));
+            EXPECT_TRUE(shown.mTriangles.empty()) << "the ground's own mesh is no debug node";
+            EXPECT_TRUE(walk.walk(*bordered, sView & ~Mask_Terrain).empty()) << "a border under `tws`";
+
+            const Rtx::DebugLines lines = walk.walk(*root, sView);
 
             // A strip of three is two lines of two vertices, each where the transform put it and
             // each its own colour, opaque where nothing blends.
@@ -99,14 +122,14 @@ namespace MWRender
                 EXPECT_EQ(vertex.mColour, osg::Vec4f(0.5f, 0.5f, 0.5f, 0.25f));
 
             // And the next walk starts over rather than adding to the last.
-            const Rtx::DebugLines again = walk.walk(*root);
+            const Rtx::DebugLines again = walk.walk(*root, sView);
             EXPECT_EQ(again.mLines.size(), 4u);
             EXPECT_EQ(again.mTriangles.size(), 6u);
 
             // With no debug node under it, a root answers nothing.
             osg::ref_ptr<osg::Group> plain = new osg::Group;
             plain->addChild(scene);
-            EXPECT_TRUE(walk.walk(*plain).empty());
+            EXPECT_TRUE(walk.walk(*plain, sView).empty());
         }
 
         /// **Under `PolygonMode::LINE` a polygon is its edges**, as the collision drawer's shapes
@@ -134,7 +157,7 @@ namespace MWRender
             shapes->addChild(filled);
 
             DebugWalk walk;
-            const Rtx::DebugLines lines = walk.walk(*shapes);
+            const Rtx::DebugLines lines = walk.walk(*shapes, sView);
 
             ASSERT_EQ(lines.mLines.size(), 14u) << "three edges and four sides";
             EXPECT_EQ(lines.mLines[4].mPosition, osg::Vec3f(0.0f, 1.0f, 0.0f)) << "the triangle closes";

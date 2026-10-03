@@ -177,7 +177,7 @@ Passage skyPassageThrough(SkySource sky, vec3 position, BentPath bent, vec2 draw
 /// the pattern leans down-sun as it descends instead of standing as a column.
 ///
 /// **And it asks whether the sun reaches that point of entry at all**, which the closed form has no
-/// way to. A submerged surface is shadowed because `shadeSurface` traces its own ray and water
+/// way to. A submerged surface is shadowed because `gather` traces its own ray and water
 /// carries a mask bit that keeps it out of occlusion — so a rock over the sea darkened the bed under
 /// it and left the water in front of the bed as bright as ever. The ray goes from where the light
 /// met the surface, which the march has already worked out to read the lens at, and it is the

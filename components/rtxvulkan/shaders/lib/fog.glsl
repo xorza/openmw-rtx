@@ -652,7 +652,7 @@ vec3 lampsInAir(inout Reservoir kept, inout uint state, vec3 origin, vec3 direct
         for (uint i = near.x; i < near.y; ++i)
         {
             const uint row = lightListAt(i);
-            const GpuLight held = lightAt(row);
+            const GpuLight held = shownLightAt(row);
 
             // The lamp's distance off the ray from what is left of the offset past its closest
             // approach, and not `|offset|² - closest²`: that difference cancels for a lamp nearly on

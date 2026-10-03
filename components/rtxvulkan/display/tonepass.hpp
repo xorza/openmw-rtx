@@ -39,6 +39,10 @@ namespace Rtx
         /// reads — `packSurfaceDistance`.
         const Image& mSurface;
 
+        /// What Night-Eye's lift is multiplied by at the same extent, `CHANNEL_LIFT`, which the pass
+        /// samples bilinearly.
+        const Image& mLift;
+
         /// The pyramid's finest level, in `VK_IMAGE_LAYOUT_GENERAL`, or null where nothing built
         /// one — a doll, a map tile, a frame too small to halve.
         const Image* mBloom = nullptr;

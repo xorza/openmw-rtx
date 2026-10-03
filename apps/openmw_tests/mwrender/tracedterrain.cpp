@@ -1,10 +1,14 @@
 #include <algorithm>
 #include <optional>
+#include <span>
 #include <vector>
 
 #include <gtest/gtest.h>
 
+#include <osg/Geometry>
 #include <osg/Group>
+#include <osg/PrimitiveSet>
+#include <osg/UserDataContainer>
 #include <osg/Vec2i>
 #include <osg/Vec3d>
 #include <osg/Vec3f>
@@ -14,6 +18,7 @@
 #include <osgUtil/LineSegmentIntersector>
 
 #include <apps/components_tests/rtx/support/fakeland.hpp>
+#include <apps/openmw/mwrender/objectpaging.hpp>
 #include <apps/openmw/mwrender/rtx/debugwalk.hpp>
 #include <apps/openmw/mwrender/rtx/tracedterrain.hpp>
 #include <apps/openmw/mwrender/vismask.hpp>
@@ -49,16 +54,56 @@ namespace MWRender
             return intersector->getFirstIntersection().getWorldIntersectPoint();
         }
 
-        /// The ring's word, as a list of the cells it stands ground at.
+        /// The ring's word, as a list of the cells it stands ground at, and the placements of one
+        /// cell.
         struct Stood final : StandingGround
         {
             std::vector<osg::Vec2i> mCells;
+            osg::Vec2i mPlacedCell;
+            std::vector<Rtx::Placement> mPlacements;
 
             bool standsGround(const osg::Vec2i& cell) const override
             {
                 return std::find(mCells.begin(), mCells.end(), cell) != mCells.end();
             }
+
+            std::span<const Rtx::Placement> placementsIn(const osg::Vec2i& cell) const override
+            {
+                if (cell != mPlacedCell)
+                    return {};
+                return mPlacements;
+            }
         };
+
+        /// What a cast from `from` to `to` under `mask` meets: where, and the reference number its
+        /// path names, as `RenderingManager::castRay` reads one.
+        struct Met
+        {
+            osg::Vec3d mWhere;
+            std::optional<ESM::RefNum> mRefNum;
+        };
+
+        std::vector<Met> metAlong(osg::Group& root, const osg::Vec3d& from, const osg::Vec3d& to, unsigned int mask)
+        {
+            osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector
+                = new osgUtil::LineSegmentIntersector(osgUtil::LineSegmentIntersector::MODEL, from, to);
+            osgUtil::IntersectionVisitor visitor(intersector);
+            visitor.setTraversalMask(mask);
+            root.accept(visitor);
+
+            std::vector<Met> met;
+            for (const osgUtil::LineSegmentIntersector::Intersection& hit : intersector->getIntersections())
+            {
+                Met one{ .mWhere = hit.getWorldIntersectPoint(), .mRefNum = std::nullopt };
+                for (osg::Node* node : hit.nodePath)
+                    if (const osg::UserDataContainer* data = node->getUserDataContainer())
+                        for (unsigned int at = 0; at < data->getNumUserObjects(); ++at)
+                            if (const auto* marker = dynamic_cast<const RefnumMarker*>(data->getUserObject(at)))
+                                one.mRefNum = marker->mRefnum;
+                met.push_back(one);
+            }
+            return met;
+        }
 
         /// Where a segment from `from` to `to` meets what stands under `root` with `sTerrainMask`,
         /// nearest first: every meeting, or the nearest alone.
@@ -104,8 +149,9 @@ namespace MWRender
         /// **The ground answers upstream's callers as a world with no chunks**, and draws
         /// upstream's cell borders. The preloader asks for a view and resets it on a worker thread.
         /// `tb` stands a line strip over each loaded cell's south and east edges, ten units over the
-        /// storage's height, straight under the world root and under `Mask_Debug`, where
-        /// `DebugWalk` reads it: forty segments a side, so eighty lines of two vertices.
+        /// storage's height, under `Mask_Debug` in a group of the terrain's mask straight under the
+        /// world root, where `DebugWalk` reads it: forty segments a side, so eighty lines of two
+        /// vertices.
         TEST(RtxTracedTerrainTest, aViewIsHandedOutAndTheBordersStandOverEachLoadedCell)
         {
             Making making;
@@ -113,21 +159,25 @@ namespace MWRender
             making.mLand.mWithData.push_back(osg::Vec2i(1, 0));
             TracedTerrain ground = making.make();
 
-            EXPECT_EQ(making.mSceneRoot->getNumChildren(), 1u) << "the terrain root the game masks and finds";
+            EXPECT_EQ(making.mSceneRoot->getNumChildren(), 2u) << "the terrain root and the statics' answer";
 
             const osg::ref_ptr<Terrain::View> view = ground.createView();
             ASSERT_NE(view, nullptr);
             view->reset();
 
+            ASSERT_EQ(making.mWorldRoot->getNumChildren(), 1u);
+            osg::Group& borders = *making.mWorldRoot->getChild(0)->asGroup();
+            EXPECT_EQ(borders.getNodeMask(), static_cast<unsigned int>(Mask_Terrain));
+
             ground.loadCell(0, 0);
-            EXPECT_EQ(making.mWorldRoot->getNumChildren(), 0u) << "a border before `tb`";
+            EXPECT_EQ(borders.getNumChildren(), 0u) << "a border before `tb`";
             ground.setBordersVisible(true);
             EXPECT_TRUE(ground.getBordersVisible());
-            ASSERT_EQ(making.mWorldRoot->getNumChildren(), 1u);
-            EXPECT_EQ(making.mWorldRoot->getChild(0)->getNodeMask(), static_cast<unsigned int>(Mask_Debug));
+            ASSERT_EQ(borders.getNumChildren(), 1u);
+            EXPECT_EQ(borders.getChild(0)->getNodeMask(), static_cast<unsigned int>(Mask_Debug));
 
             DebugWalk walk;
-            const Rtx::DebugLines lines = walk.walk(*making.mWorldRoot);
+            const Rtx::DebugLines lines = walk.walk(*making.mWorldRoot, ~0u);
             ASSERT_EQ(lines.mLines.size(), 160u);
             EXPECT_TRUE(lines.mTriangles.empty());
 
@@ -143,13 +193,13 @@ namespace MWRender
 
             // A cell that arrives under `tb` brings its border, and one that leaves takes its own.
             ground.loadCell(1, 0);
-            EXPECT_EQ(making.mWorldRoot->getNumChildren(), 2u);
+            EXPECT_EQ(borders.getNumChildren(), 2u);
             ground.unloadCell(0, 0);
-            EXPECT_EQ(making.mWorldRoot->getNumChildren(), 1u);
+            EXPECT_EQ(borders.getNumChildren(), 1u);
 
             ground.setBordersVisible(false);
             EXPECT_FALSE(ground.getBordersVisible());
-            EXPECT_EQ(making.mWorldRoot->getNumChildren(), 0u);
+            EXPECT_EQ(borders.getNumChildren(), 0u);
         }
 
         /// A loaded cell stands ground for the intersector at the storage's own height, and an
@@ -260,6 +310,57 @@ namespace MWRender
             EXPECT_TRUE(hitsAlong(*making.mSceneRoot, osg::Vec3d(-1.0e9, -1.0e9, 700.0),
                 osg::Vec3d(-1.0e9, 1.0e9, 700.0), osgUtil::Intersector::NO_LIMIT)
                             .empty());
+        }
+
+        /// **Past the loaded cells, a cast meets the statics the ring stands, with their reference
+        /// numbers**, as it meets the rasterizer's paged chunks. A quad two hundred units across,
+        /// four and a half cells out at a height of 300, cast straight down near its middle: met at
+        /// z = 300 and named 42. Not where it does not stand, not by a cast that leaves statics
+        /// out, and not from the ring once its cell is loaded, whose own nodes answer then.
+        TEST(RtxTracedTerrainTest, pastTheLoadedCellsARayMeetsTheStaticsTheRingStands)
+        {
+            Making making;
+            for (int x = 0; x <= 4; ++x)
+                making.mLand.mWithData.push_back(osg::Vec2i(x, 0));
+            TracedTerrain ground = making.make();
+
+            constexpr double cell = static_cast<double>(Rtx::Testing::FakeLand::sCellSize);
+            osg::ref_ptr<osg::Geometry> quad = new osg::Geometry;
+            osg::ref_ptr<osg::Vec3Array> corners = new osg::Vec3Array;
+            for (const osg::Vec3f& corner : { osg::Vec3f(-100.0f, -100.0f, 0.0f), osg::Vec3f(100.0f, -100.0f, 0.0f),
+                     osg::Vec3f(100.0f, 100.0f, 0.0f), osg::Vec3f(-100.0f, 100.0f, 0.0f) })
+                corners->push_back(corner);
+            quad->setVertexArray(corners);
+            quad->addPrimitiveSet(new osg::DrawArrays(GL_QUADS, 0, 4));
+
+            Rtx::Placement placed;
+            placed.mStood.mTransform
+                = osg::Matrixf::translate(static_cast<float>(4.5 * cell), static_cast<float>(0.5 * cell), 300.0f);
+            placed.mStood.mSlot = 0;
+            placed.mDrawable = quad.get();
+            placed.mState.mRefNum = ESM::RefNum{ 42, 0 };
+            making.mStood.mPlacedCell = osg::Vec2i(4, 0);
+            making.mStood.mPlacements = { placed };
+
+            // Off the diagonal the quad's two triangles share, which a cast down it meets twice.
+            const osg::Vec3d from(4.5 * cell + 30.0, 0.5 * cell + 10.0, 10000.0);
+            const osg::Vec3d to(4.5 * cell + 30.0, 0.5 * cell + 10.0, -10000.0);
+            const std::vector<Met> met = metAlong(*making.mSceneRoot, from, to, Mask_Static);
+            ASSERT_EQ(met.size(), 1u);
+            EXPECT_NEAR(met[0].mWhere.z(), 300.0, 1e-3);
+            EXPECT_EQ(met[0].mRefNum, ESM::RefNum({ 42, 0 }));
+
+            EXPECT_TRUE(metAlong(*making.mSceneRoot, from, to, sTerrainMask).empty())
+                << "a cast that leaves statics out";
+
+            making.mStood.mPlacements[0].mStood.mSlot = Rtx::sNoIndex;
+            EXPECT_TRUE(metAlong(*making.mSceneRoot, from, to, Mask_Static).empty())
+                << "a static the ring does not stand";
+
+            making.mStood.mPlacements[0].mStood.mSlot = 0;
+            ground.loadCell(4, 0);
+            EXPECT_TRUE(metAlong(*making.mSceneRoot, from, to, Mask_Static).empty())
+                << "the ring answered a loaded cell";
         }
     }
 }

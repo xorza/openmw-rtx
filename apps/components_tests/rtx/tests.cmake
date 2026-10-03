@@ -4,6 +4,7 @@
 set(RTX_TEST_FILES
     rtx/scene/nifsurface.cpp
     myguirtx/sharedtexture.cpp
+    platform/process.cpp
     rtx/common/hashstate.cpp
     rtx/common/job.cpp
     rtx/common/monitor.cpp
@@ -74,7 +75,9 @@ set(RTX_TEST_FILES
     rtx/shaders/brdf.cpp
     rtx/shaders/exposure.cpp
     rtx/shaders/hitrecords.cpp
+    rtx/shaders/lights.cpp
     rtx/shaders/pixelgrid.cpp
+    rtx/shaders/shadow.cpp
     rtx/shaders/sharedconstants.cpp
     rtx/shaders/tangent.cpp
     rtx/sourcetree.cpp
@@ -87,6 +90,7 @@ set(RTX_TEST_FILES
     rtxtool/camerapath.cpp
     rtxtool/cameratrack.cpp
     rtxtool/cardwatch.cpp
+    rtxtool/threadcounters.cpp
     rtxtool/compare.cpp
     rtxtool/contactsheet.cpp
     rtxtool/cruise.cpp

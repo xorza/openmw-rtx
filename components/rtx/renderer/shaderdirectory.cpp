@@ -10,14 +10,22 @@
 #include <vector>
 
 #include <components/debug/debuglog.hpp>
+#include <components/files/conversion.hpp>
 #include <components/files/hash.hpp>
 #include <components/rtx/common/hashstate.hpp>
 
 namespace Rtx
 {
+    std::filesystem::path harnessDirectory(const std::filesystem::path& resources)
+    {
+        // Through `..` and not `parent_path`, which answers the folder itself for a path that ends
+        // in a separator.
+        return (resources / "..").lexically_normal() / "rtxtool";
+    }
+
     std::filesystem::path shaderDirectory(const std::filesystem::path& resources, const bool withSource)
     {
-        return resources / "rtx" / (withSource ? "shaders-source" : "shaders");
+        return withSource ? harnessDirectory(resources) / "shaders-source" : resources / "rtx" / "shaders";
     }
 
     DigestWords digestShaders(const std::filesystem::path& directory)
@@ -39,7 +47,7 @@ namespace Rtx
 
             // The name as well as the contents, so that renaming a shader is a change and two files
             // trading contents is not the same set.
-            const std::string name = file.filename().string();
+            const std::string name = Files::pathToUnicodeString(file.filename());
             digest.add(std::span<const char>(name));
 
             // `Files::getHash` throws where a read fails, and this may not: a digest is a key, and a

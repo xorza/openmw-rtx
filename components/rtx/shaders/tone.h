@@ -30,7 +30,8 @@ namespace Rtx::Shaders
     const uint TONE_BIND_BLOOM = 4;
     const uint TONE_BIND_SUN_GLARE = 5;
     const uint TONE_BIND_SURFACE = 6;
-    const uint TONE_BINDINGS = 7;
+    const uint TONE_BIND_LIFT = 7;
+    const uint TONE_BINDINGS = 8;
 
 /// What the curve writes the picture as: bytes a display understands. `PresentTarget` makes its
 /// image in it.
@@ -132,14 +133,27 @@ namespace Rtx::Shaders
         /// it lifts are still float and do not band. One for a picture inside the interface, which
         /// keeps the interface's values as the interface drawn over the frame does.
         float mInverseGamma;
+
+        /// What Night-Eye adds to the ambient, in the engine's colour values, as the rasterizer adds
+        /// it to every fragment it lights: `0.7 × magnitude / 100`. Laid over the picture in display
+        /// values after the curve, by `CHANNEL_LIFT`, so the meter never sees it. Nought for a
+        /// picture inside the interface, which the rasterizer lights by a light of its own.
+        vec3 mNightEye;
+
+        /// Where `CHANNEL_LIFT` is read for a pixel of the picture, in traced pixels past where the
+        /// pixel's centre lands on the traced grid. **The jitter taken back off where an upscaler
+        /// reconstructed the picture at the pixels' centres**, since the trace's samples stand at
+        /// the jitter inside theirs; and nought where the picture is the trace's own composite,
+        /// whose pixels are those samples.
+        vec2 mLiftOffset;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    // The host rounds the block up to eight for the addresses at its head, which the last member
-    // ends on: the push is the shader's 176 bytes and nothing the shader ignores.
-    static_assert(offsetof(ToneConstants, mInverseGamma) + sizeof(float) == 176,
+    // The host rounds the block up to eight for the addresses at its head, past the 196 bytes the
+    // shader reads, as `hosttypes.h` says a push may.
+    static_assert(offsetof(ToneConstants, mLiftOffset) + sizeof(vec2) == 196,
         "ToneConstants must be scalar-packed on every side");
 #endif
 

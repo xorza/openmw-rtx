@@ -136,6 +136,15 @@ layout(set = SET_CHANNELS, binding = CHANNEL_PANE_MOTION, GBUFFER_MOTION) unifor
 layout(set = SET_CHANNELS, binding = CHANNEL_UPSCALE_MASKS, GBUFFER_UPSCALE_MASKS) uniform writeonly image2D
     upscaleMasks;
 
+/// The share of the bounce that is the fill, demodulated and taken down by the path as `indirect`
+/// is, and the ambient albedo that puts it back — `CHANNEL_FILL` and `CHANNEL_AMBIENT_ALBEDO`. The
+/// light has no format, as radiance has none here.
+layout(set = SET_CHANNELS, binding = CHANNEL_FILL) uniform writeonly image2D fill;
+layout(set = SET_CHANNELS, binding = CHANNEL_AMBIENT_ALBEDO, GBUFFER_ALBEDO) uniform writeonly image2D ambientAlbedo;
+
+/// What Night-Eye's lift is multiplied by — `CHANNEL_LIFT`.
+layout(set = SET_CHANNELS, binding = CHANNEL_LIFT, GBUFFER_LIFT) uniform writeonly image2D lift;
+
 // The frame's counts, added to one atomic at a time where a ray ends: `FrameCounts::mMisses` and
 // `COUNTING` say why the misses and not the hits, which a room of nothing but hits made cost.
 layout(set = SET_PASS, binding = BIND_COUNTS, scalar) buffer Counted

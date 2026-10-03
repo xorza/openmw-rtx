@@ -684,7 +684,7 @@ namespace RtxTool
 
         std::vector<std::filesystem::path> doomed;
         for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(frames))
-            if (entry.is_regular_file() && written(entry.path().filename().string()))
+            if (entry.is_regular_file() && written(Files::pathToUnicodeString(entry.path().filename())))
                 doomed.push_back(entry.path());
 
         for (const std::filesystem::path& path : doomed)

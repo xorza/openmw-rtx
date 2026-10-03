@@ -85,6 +85,12 @@ namespace Rtx
         /// The sun glare fader as the game states it this frame, which the frame's options carry
         /// to the display chain.
         SunGlare mSunGlare;
+
+        /// What Night-Eye adds to the ambient, in the engine's colour values, which the frame's
+        /// options carry to the display chain. **Never a light of the world**: the rasterizer adds
+        /// it to every fragment it lights, where nothing occludes it and no exposure adapts it away,
+        /// and the display chain adds it after the meter for that reason.
+        osg::Vec3f mNightEye{};
     };
 
     /// How far the air has been carried downwind since a run began, in world units: the integral

@@ -251,10 +251,11 @@ at the top, over all of them.
   volume, the sprite bins, the denoiser's history. The world has one, and `PictureTracer` has one
   for the pictures inside the interface. The passes are shared.
 - **`DisplayChain`** runs after the trace and the upscaler: bloom, exposure, glare, tone, debug
-  lines. The tone pass applies the player's `[Video] gamma` before it stores the picture. The GUI
-  draws after it, in display values, at the frame's size, so the gamma does not reach it. The renderer blits the
-  frame to the swapchain, scaled to fit the window with black beside it (`Misc::present`), and never
-  draws into it.
+  lines. The tone pass adds the glare fader and Night-Eye's lift in display values after the curve,
+  where the meter never sees them, as the rasterizer adds both, and applies the player's
+  `[Video] gamma` before it stores the picture. The GUI draws after it, in display values, at the
+  frame's size, so the gamma does not reach it. The renderer blits the frame to the swapchain,
+  scaled to fit the window with black beside it (`Misc::present`), and never draws into it.
 - **`Upscaler`** is FSR 3.1.4's seven passes, from AMD's own headers in `extern/fidelityfx/`, with
   the renderer's callbacks (`shaders/upscale/fsrcallbacks.glsl`). It needs no extension, so it
   runs on every device the renderer does. `FsrFrame` holds its per-frame constants, with no
@@ -262,8 +263,10 @@ at the top, over all of them.
   (`CHANNEL_UPSCALE_MASKS`): the share of a pixel's light whose image moves apart from the pixel's
   motion vector — the see-through layers', and what the water's rays show.
 - **The denoiser** (`trace/denoise/`) runs where the frame is filtered. The accumulator averages
-  the bounce's diffuse light over time and the wavelet spreads it across the screen. The shadow
-  denoiser filters the one bit a pixel kept of its rays to the sky's source and to a lamp, under
+  the bounce's diffuse light over time and the wavelet spreads it across the screen, with the share
+  of it that is fill beside it by the same weights: the composite puts the bounce back by the
+  diffuse albedo and the fill by the ambient one, as the rasterizer has `D × lit + A × ambient`. The
+  shadow denoiser filters the one bit a pixel kept of its rays to the sky's source and to a lamp, under
   the light both would add unshadowed, where the sky has a source that lights or the scene a lamp.
   The glossy filter averages the lobe's light over time, where the scene wears a map. The pane
   filter averages what was drawn for the see-through layers over time, against a history of the

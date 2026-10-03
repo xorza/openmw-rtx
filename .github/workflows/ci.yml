@@ -162,7 +162,7 @@ jobs:
           path: |
             build-full/CMakeCache.txt
             build-full/**/*.log
-            build-full/crash-matrix/
+            build-full/test-output/crash-matrix/
             integration_tests_output/**/*.log
             integration_tests_output/**/*.cfg
 
@@ -261,7 +261,7 @@ jobs:
           path: |
             build-full/CMakeCache.txt
             build-full/**/*.log
-            build-full/crash-matrix/
+            build-full/test-output/crash-matrix/
 
   macos:
     name: macos

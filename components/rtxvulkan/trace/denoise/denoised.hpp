@@ -12,6 +12,7 @@ namespace Rtx
     struct Denoised
     {
         const Image& mIndirect;
+        const Image& mFill;
         const Image& mSpecular;
         const Image& mPane;
 
@@ -24,6 +25,7 @@ namespace Rtx
         static Denoised unfiltered(const GBuffer& channels)
         {
             return Denoised{ .mIndirect = channels.get(Channel::Indirect),
+                .mFill = channels.get(Channel::Fill),
                 .mSpecular = channels.get(Channel::Specular),
                 .mPane = channels.get(Channel::Pane),
                 .mShadow = nullptr };

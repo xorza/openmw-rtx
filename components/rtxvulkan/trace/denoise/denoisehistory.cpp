@@ -56,6 +56,12 @@ namespace Rtx
             mDevice, width, height, toVulkanFormat(ACCUMULATE_MOMENTS), sReadAndWrite, "accumulate-moments");
         mBlended = Image(mDevice, width, height, toVulkanFormat(ATROUS_CHANNEL), sReadAndWrite, "accumulate-blended");
         mScratch = Image(mDevice, width, height, toVulkanFormat(ATROUS_CHANNEL), sReadAndWrite, "atrous-scratch");
+        mFill = ImagePair::make(
+            mDevice, width, height, toVulkanFormat(ACCUMULATE_COLOUR), sReadAndWrite, "accumulate-fill");
+        mFillBlended
+            = Image(mDevice, width, height, toVulkanFormat(ATROUS_CHANNEL), sReadAndWrite, "accumulate-fill-blended");
+        mFillScratch
+            = Image(mDevice, width, height, toVulkanFormat(ATROUS_CHANNEL), sReadAndWrite, "atrous-fill-scratch");
 
         constexpr VkFormat reprojected = toVulkanFormat(SHADOW_REPROJECTED);
         mShadowMoments
@@ -102,8 +108,9 @@ namespace Rtx
         const AccumulateImages accumulated = accumulate(step);
         discardFor(Temporal::Accumulate,
             { &accumulated.mColour, &accumulated.mSurface, &accumulated.mMoments, &accumulated.mBlended,
-                &accumulated.mScratch },
-            { &accumulated.mColourBefore, &accumulated.mSurfaceBefore, &accumulated.mMomentsBefore });
+                &accumulated.mScratch, &accumulated.mFill, &accumulated.mFillBlended, &accumulated.mFillScratch },
+            { &accumulated.mColourBefore, &accumulated.mSurfaceBefore, &accumulated.mMomentsBefore,
+                &accumulated.mFillBefore });
 
         // The history the temporal pass reads is the first level's answer from the frame before,
         // so it is one of what a fresh history discards and not one of what the frame writes whole.
@@ -132,6 +139,10 @@ namespace Rtx
             .mMoments = mMoments.now(step),
             .mBlended = mBlended,
             .mScratch = mScratch,
+            .mFillBefore = mFill.before(step),
+            .mFill = mFill.now(step),
+            .mFillBlended = mFillBlended,
+            .mFillScratch = mFillScratch,
             .mFresh = step.mFresh[Temporal::Accumulate],
         };
     }

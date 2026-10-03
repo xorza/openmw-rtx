@@ -123,15 +123,16 @@ namespace MWRender
     DebugWalk::DebugWalk()
         : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
     {
-        setTraversalMask(Mask_Debug);
     }
 
-    Rtx::DebugLines DebugWalk::walk(osg::Node& root)
+    Rtx::DebugLines DebugWalk::walk(osg::Node& root, const unsigned int view)
     {
+        setTraversalMask(view & ~Mask_Scene);
         mLines.clear();
         mTriangles.clear();
         mHere.makeIdentity();
         mDrawn = {};
+        mUnderDebug = false;
 
         root.accept(*this);
 
@@ -156,16 +157,27 @@ namespace MWRender
     void DebugWalk::apply(osg::Node& node)
     {
         const Drawn above = mDrawn;
-        take(node.getStateSet());
+        const bool underAbove = mUnderDebug;
+        enter(node);
         traverse(node);
         mDrawn = above;
+        mUnderDebug = underAbove;
+    }
+
+    void DebugWalk::enter(const osg::Node& node)
+    {
+        take(node.getStateSet());
+        // A node of `Mask_Debug` and no other bit: one whose mask is left at its all-ones default
+        // carries the bit too, as every group of the world does.
+        mUnderDebug = mUnderDebug || (node.getNodeMask() & ~Mask_Debug) == 0;
     }
 
     void DebugWalk::apply(osg::Transform& transform)
     {
         const osg::Matrixf above = mHere;
         const Drawn drawnAbove = mDrawn;
-        take(transform.getStateSet());
+        const bool underAbove = mUnderDebug;
+        enter(transform);
 
         // In the graph's own precision, as `computeLocalToWorldMatrix` takes it — `osg::Matrix`
         // is double on this box and single on a distribution's OSG — and back to the single the
@@ -177,6 +189,7 @@ namespace MWRender
         traverse(transform);
         mHere = above;
         mDrawn = drawnAbove;
+        mUnderDebug = underAbove;
     }
 
     void DebugWalk::apply(osg::Drawable& drawable)
@@ -190,7 +203,14 @@ namespace MWRender
             return;
 
         const Drawn above = mDrawn;
-        take(drawable.getStateSet());
+        const bool underAbove = mUnderDebug;
+        enter(drawable);
+        if (!mUnderDebug)
+        {
+            mDrawn = above;
+            mUnderDebug = underAbove;
+            return;
+        }
 
         const Painted painted(*geometry);
         osg::TemplatePrimitiveIndexFunctor<Taker> taker;
@@ -205,5 +225,6 @@ namespace MWRender
             primitives->accept(taker);
 
         mDrawn = above;
+        mUnderDebug = underAbove;
     }
 }

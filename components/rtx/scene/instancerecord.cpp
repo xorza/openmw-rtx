@@ -58,6 +58,16 @@ namespace Rtx
 
     namespace
     {
+        /// Whether `placement` turns space inside out: a negative determinant of its linear part.
+        bool mirrors(const osg::Matrixf& placement)
+        {
+            const auto at = [&](int row, int column) { return double{ placement(row, column) }; };
+            const double determinant = at(0, 0) * (at(1, 1) * at(2, 2) - at(1, 2) * at(2, 1))
+                - at(0, 1) * (at(1, 0) * at(2, 2) - at(1, 2) * at(2, 0))
+                + at(0, 2) * (at(1, 0) * at(2, 1) - at(1, 1) * at(2, 0));
+            return determinant < 0.0;
+        }
+
         /// The row for `slot` as it stands, still: the motion is the frame's question and is asked
         /// afterwards.
         InstanceRecord recordOf(const SceneDesc& scene, const Index slot)
@@ -103,6 +113,7 @@ namespace Rtx
                 .mTranslucent = traversed.mTranslucent,
                 .mAdditive = traversed.mAdditive,
                 .mTwoSided = worn.mTwoSided || shape.mFolded || shape.mPocketed,
+                .mFlipFacing = instance.mClockwise != mirrors(placement),
                 .mPlaced = true,
             };
         }

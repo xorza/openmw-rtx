@@ -5,7 +5,8 @@
 // `texelFetch` without a sampler, which is what the four read-only inputs below are declared as.
 #extension GL_EXT_samplerless_texture_functions : require
 
-// One level of an edge-stopping à-trous wavelet, over the indirect channel alone.
+// One level of an edge-stopping à-trous wavelet, over the indirect channel and the share of it that
+// is the fill.
 //
 // **The first level writes where the accumulator will look for its history**, which is SVGF's
 // feedback: what a pixel carries into the next frame is the filtered light rather than the single
@@ -63,6 +64,17 @@ layout(set = SET_PASS, binding = ATROUS_BIND_FILTERED, ATROUS_CHANNEL) uniform w
 /// left `SURFACE_NO_NORMAL`, which no surface can match, so the sky neither contributes nor gets
 /// filtered.
 layout(set = SET_PASS, binding = ATROUS_BIND_SURFACE) uniform texture2D surfaceChannel;
+
+/// The share of `source` that is the fill, as the last level left it, and where this level puts
+/// what it made of it.
+///
+/// **Taken by the weights the whole bounce's taps earn**, and by no luminance test of its own: a
+/// level is linear in what it averages, so the fill's answer stays the share of the bounce's answer
+/// that it was going in. What the composite takes off the bounce by the diffuse albedo and puts back
+/// by the ambient one is then the same light, and a surface whose two albedos are one is shown as
+/// the bounce alone would show it.
+layout(set = SET_PASS, binding = ATROUS_BIND_FILL_SOURCE) uniform texture2D fillSource;
+layout(set = SET_PASS, binding = ATROUS_BIND_FILL_FILTERED, ATROUS_CHANNEL) uniform writeonly image2D fillFiltered;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -132,6 +144,7 @@ void main()
     if (seen.x == SURFACE_NO_NORMAL)
     {
         imageStore(filtered, at, texelFetch(source, at, 0));
+        imageStore(fillFiltered, at, texelFetch(fillSource, at, 0));
         return;
     }
 
@@ -155,6 +168,7 @@ void main()
     // its weight, over the square of the whole — the variance of a weighted mean of independent
     // samples.
     vec3 sum = vec3(0.0);
+    vec3 sumFill = vec3(0.0);
     float weight = 0.0;
     float variance = 0.0;
 
@@ -183,10 +197,12 @@ void main()
 
             const float w = kernelAt(x) * kernelAt(y) * facing * coplanar * lit;
             sum += light.rgb * w;
+            sumFill += texelFetch(fillSource, tap, 0).rgb * w;
             weight += w;
             variance += light.a * w * w;
         }
 
     // The centre always passes its own tests, so the weight can only be zero if it underflowed.
     imageStore(filtered, at, weight > 0.0 ? vec4(sum / weight, variance / (weight * weight)) : texelFetch(source, at, 0));
+    imageStore(fillFiltered, at, weight > 0.0 ? vec4(sumFill / weight, 0.0) : texelFetch(fillSource, at, 0));
 }

@@ -55,6 +55,11 @@ namespace Crash
         std::atomic<std::uint32_t> sGate{ Idle };
         static_assert(std::atomic<std::uint32_t>::is_always_lock_free);
 
+        /// The thread writing the report in progress, as `Platform::Process::currentThreadId` gives
+        /// it: what tells a fault inside a report from a fault beside one.
+        std::atomic<std::uint64_t> sReporter{ 0 };
+        static_assert(std::atomic<std::uint64_t>::is_always_lock_free);
+
         /// What the table said before the report in progress, for `endReport` to put back. Touched
         /// only by whoever holds the gate.
         std::uint32_t sSavedKind = 0;
@@ -164,6 +169,7 @@ namespace Crash
         if (!sGate.compare_exchange_strong(idle, Busy, std::memory_order_acq_rel))
             return false;
 
+        sReporter.store(Platform::Process::currentThreadId(), std::memory_order_release);
         sSavedKind = Sequence(sTable.mKind).load(std::memory_order_relaxed);
         std::memcpy(sSavedReason, sTable.mReason, sNoteCapacity);
         setReport(kind, reason);
@@ -174,6 +180,7 @@ namespace Crash
     {
         std::memcpy(sTable.mReason, sSavedReason, sNoteCapacity);
         Sequence(sTable.mKind).store(sSavedKind, std::memory_order_release);
+        sReporter.store(0, std::memory_order_release);
 
         std::uint32_t busy = Busy;
         [[maybe_unused]] const bool ended = sGate.compare_exchange_strong(busy, Idle, std::memory_order_acq_rel);
@@ -193,6 +200,16 @@ namespace Crash
         }
 
         setReport(kind, reason);
+    }
+
+    FaultGate takeForFault()
+    {
+        std::uint32_t found = Idle;
+        if (sGate.compare_exchange_strong(found, Ending, std::memory_order_acq_rel) || found == Ending)
+            return FaultGate::Taken;
+
+        return sReporter.load(std::memory_order_acquire) == Platform::Process::currentThreadId() ? FaultGate::Own
+                                                                                                 : FaultGate::Other;
     }
 
     bool isReporting()

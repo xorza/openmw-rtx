@@ -2,10 +2,36 @@
 quicksave, and the openmw.cfg a fresh box has none of."""
 
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 from omw.build import CONFIGURED_FROM, Build
-from omw.system import Refusal, run, user_config_dir, user_data_dir
+from omw.system import Refusal, run
+
+
+@dataclass(frozen=True)
+class GameFolders:
+    """Where the game reads its openmw.cfg, and where it keeps its saves."""
+
+    config: Path
+    data: Path
+
+
+def parse_folders(printed: str) -> GameFolders:
+    """`openmw-rtxtool info --folders`'s two lines, among whatever else the run printed."""
+    named = dict(line.split(" ", 1) for line in printed.splitlines() if line.startswith(("config ", "data ")))
+    if set(named) != {"config", "data"}:
+        raise Refusal("openmw-rtxtool info --folders named no config and data folders")
+    return GameFolders(config=Path(named["config"]), data=Path(named["data"]))
+
+
+def game_folders(build: Build) -> GameFolders:
+    """**The game's own answer and not a copy of it**: `Files` answers where the game reads its
+    configuration on every system, and a restatement here had already gone wrong on macOS."""
+    build.build(["openmw-rtxtool"])
+    printed = build.run_here([build.binary("openmw-rtxtool"), "info", "--folders"], check=True,
+                             capture_output=True, encoding="utf-8").stdout
+    return parse_folders(printed)
 
 
 def game(build: Build, args: list[str]) -> int:
@@ -14,9 +40,10 @@ def game(build: Build, args: list[str]) -> int:
     build.build(["openmw"])
     save: list[str | Path] = []
     if not any(arg.startswith("--load-savegame") for arg in args):
-        saves = list((user_data_dir() / "saves").rglob("Quicksave.omwsave"))
+        saved = game_folders(build).data / "saves"
+        saves = list(saved.rglob("Quicksave.omwsave"))
         if not saves:
-            raise Refusal(f"no Quicksave.omwsave under {user_data_dir() / 'saves'}; name one with --load-savegame")
+            raise Refusal(f"no Quicksave.omwsave under {saved}; name one with --load-savegame")
         save = ["--load-savegame", max(saves, key=lambda found: found.stat().st_mtime)]
     return build.run_here([build.binary("openmw"), "--skip-menu", *save, *args]).returncode
 
@@ -35,7 +62,7 @@ def setup(build: Build, args: list[str]) -> int:
     if not (install / "Morrowind.ini").is_file() or not (install / "Data Files").is_dir():
         raise Refusal("setup takes the Morrowind directory: the one holding Morrowind.ini and Data Files")
 
-    cfg = user_config_dir() / "openmw.cfg"
+    cfg = game_folders(build).config / "openmw.cfg"
     if cfg.exists():
         raise Refusal(f"{cfg} is already there; move it away to start over")
 

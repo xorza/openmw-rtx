@@ -105,9 +105,10 @@ void answerPane(inout Answer answer, Surface surface)
     answer.mPane = true;
     answer.mOpacity = surface.mOpacity;
     answer.mRadiance = seen.mGlow;
-    answer.mBounced = seen.mDiffuse;
+    answer.mBounced = seen.mDrawn;
     answer.mSpecular = seen.mSpecular;
     answer.mResponse = seen.mResponse;
+    answer.mLift = liftOf(surface);
 }
 
 /// Fills the payload in with what the pixel shows but the filtered channels, and the shadowed
@@ -123,6 +124,7 @@ void answerLight(inout Answer answer, SplitLight light)
 void answerSolid(inout Answer answer, Surface surface)
 {
     answer.mOpacity = surface.mOpacity;
+    answer.mLift = liftOf(surface);
 
     // **The colour is replaced and the surface is not.** What these views change is what a pixel is
     // painted with; the guides still describe a surface there, and saying otherwise hands every
@@ -146,6 +148,7 @@ void answerSolid(inout Answer answer, Surface surface)
     const SeenSolid seen = shadeSolid(surface, stagePixel(), stageCone());
     answerLight(answer, seen.mLight);
     answer.mBounced = seen.mBounce;
+    answer.mFilled = seen.mFill;
     answer.mResponse = seen.mResponse;
     answer.mSpecular = seen.mSpecular;
     answer.mRoughness = seen.mRoughness;
@@ -203,6 +206,7 @@ WaterImages answerWater(inout Answer answer, Surface surface)
     const WaterShading water = shadeWater(surface, direction, pixel, cone);
     answerLight(answer, water.mLight);
     answer.mResponse = water.mResponse;
+    answer.mLift = water.mLift;
     WaterImages images = water.mImages;
 
     const float shore = water.mShore;
@@ -217,8 +221,8 @@ WaterImages answerWater(inout Answer answer, Surface surface)
 
     const SeenSolid seen = shadeSolid(bed, pixel, cone);
 
-    // The direct light and the response as a blend, and the bounce whole, since the albedo it is put
-    // back against carries the share. The two normals arrive as codes and leave as one, so a shore
+    // The direct light and the response as a blend, and the bounce whole, since the albedos it is put
+    // back against carry the share. The two normals arrive as codes and leave as one, so a shore
     // pixel's is rounded twice — within twice the code's bound, on the few pixels a waterline
     // crosses.
     const vec3 normal = normalize(mix(unpackSurfaceNormal(seen.mResponse.mNormal),
@@ -226,9 +230,12 @@ WaterImages answerWater(inout Answer answer, Surface surface)
     uint kept = randomSeed(pixelKey(pixel) + SEED_SHADOWED_SHORE);
     answerLight(answer, mixSplit(seen.mLight, water.mLight, shore, randomNext(kept)));
     answer.mBounced = seen.mBounce;
+    answer.mFilled = seen.mFill;
     answer.mSpecular = seen.mSpecular * (1.0 - shore);
     answer.mRoughness = seen.mRoughness;
-    answer.mResponse = SurfaceResponse(packSurfaceNormal(normal), seen.mResponse.mDiffuse * (1.0 - shore));
+    answer.mResponse = SurfaceResponse(packSurfaceNormal(normal), seen.mResponse.mDiffuse * (1.0 - shore),
+        seen.mResponse.mAmbient * (1.0 - shore));
+    answer.mLift = mix(liftOf(bed), water.mLift, shore);
     images.mMirror.mShare *= shore;
     images.mBed.mShare *= shore;
     return images;

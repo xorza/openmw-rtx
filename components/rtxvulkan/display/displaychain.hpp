@@ -4,6 +4,7 @@
 #include <optional>
 #include <variant>
 
+#include <osg/Vec3f>
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/frame/debuglines.hpp>
@@ -62,6 +63,9 @@ namespace Rtx
         /// One over the player's gamma, `ToneConstants::mInverseGamma`.
         float mInverseGamma;
 
+        /// What Night-Eye adds to the ambient, `ToneConstants::mNightEye`.
+        osg::Vec3f mNightEye;
+
         /// The debug modes' lines and triangles over the picture, and the slot's own buffer they
         /// are drawn from: the frame behind read its own slot's, so nothing here is written under
         /// a submit.
@@ -82,6 +86,10 @@ namespace Rtx
         /// upscaler's output where one runs, the trace's own composite where none does, and a
         /// picture's own colour inside the interface.
         HandedImage mShown;
+
+        /// Whether `mShown` is the upscaler's, reconstructed at the pixels' centres, and not the
+        /// trace's own samples: `ToneConstants::mLiftOffset`.
+        bool mUpscaled;
 
         /// How much of the shown frame the picture is, from its corner: the whole of a frame's,
         /// and a picture's own size inside an image that may be larger. The curve encodes as much
