@@ -62,16 +62,26 @@ namespace Rtx::Testing
         /// `100 * 2 + 128 = 328` with an intensity of `100^2 * 0.25 * pi = 7853.98` on white. A
         /// magic bolt's light is the game's sixty-six and nothing else, reaching `66 * 2 + 128 =
         /// 260`, whatever area its spell covers: the burst's own glow lights that.
+        ///
+        /// **And each answers to the class of what it hangs under**, as the rasterizer's light
+        /// manager collects a light only where its cull reaches: the glow under no stated class is
+        /// a static's, and the bolt under an actor is the actor's.
         TEST_F(RtxSceneExtractorTest, aLightIsSizedByTheRadiusTheContentStates)
         {
+            constexpr osg::Node::NodeMask sActor = 1u << 3;
+            mExtractor.setClassMask(Rtx::InstanceClass::Actor, sActor);
+
             osg::ref_ptr<SceneUtil::LightSource> glow = makeLightSource(300.0f, osg::Vec4f(1, 1, 1, 1));
             glow->setSourceRadius(100.0f);
 
             osg::ref_ptr<SceneUtil::LightSource> bolt = makeLightSource(66.0f, osg::Vec4f(1, 1, 1, 1));
+            osg::ref_ptr<osg::Group> actor = new osg::Group;
+            actor->setNodeMask(sActor);
+            actor->addChild(bolt);
 
             osg::ref_ptr<osg::Group> lit = new osg::Group;
             lit->addChild(glow);
-            lit->addChild(bolt);
+            lit->addChild(actor);
             walk(*lit);
 
             ASSERT_EQ(mScene.lights().size(), 2u);
@@ -79,6 +89,9 @@ namespace Rtx::Testing
             EXPECT_NEAR(lights[0].mReach, 328.0f, 0.01f);
             EXPECT_FLOAT_EQ(lights[0].mIntensity.x(), sWhiteLampAtHundred);
             EXPECT_NEAR(lights[1].mReach, 260.0f, 0.01f) << "the bolt's own sixty-six";
+
+            EXPECT_EQ(lights[0].mTraits, Shaders::lightTraits(false, Shaders::MASK_STATIC));
+            EXPECT_EQ(lights[1].mTraits, Shaders::lightTraits(false, Shaders::MASK_ACTOR));
         }
 
         /// A magic effect's glowing sheets light the world as one fill lamp of their own size and
@@ -146,7 +159,7 @@ namespace Rtx::Testing
             EXPECT_FLOAT_EQ(lamp.mSourceRadius, 50.0f);
             EXPECT_EQ(lamp.mClearance, lamp.mSourceRadius);
             EXPECT_FLOAT_EQ(lamp.mReach, 800.0f);
-            EXPECT_EQ(lamp.mFill, 1u);
+            EXPECT_EQ(lamp.mTraits, Shaders::lightTraits(true, Shaders::MASK_EFFECT)) << "a fill, the effect's";
 
             // The map was averaged once and every sheet that adds reads that mean, the one
             // outside the effect included, which lights nothing with it.
@@ -231,7 +244,7 @@ namespace Rtx::Testing
             EXPECT_FLOAT_EQ(lamp.mSourceRadius, 8.0f);
             EXPECT_EQ(lamp.mClearance, lamp.mSourceRadius);
             EXPECT_FLOAT_EQ(lamp.mReach, 128.0f);
-            EXPECT_EQ(lamp.mFill, 1u);
+            EXPECT_EQ(Shaders::lightFill(lamp.mTraits), 1.0f);
 
             {
                 osg::ref_ptr<osg::Image> half = new osg::Image;
@@ -275,7 +288,7 @@ namespace Rtx::Testing
             ASSERT_EQ(mScene.lights().size(), 1u);
             EXPECT_NEAR(mScene.lights().front().mIntensity.x(), 3421.2f, 0.1f) << "the bolt's own, and no glow";
             EXPECT_NEAR(mScene.lights().front().mReach, 260.0f, 0.01f);
-            EXPECT_EQ(mScene.lights().front().mFill, 0u);
+            EXPECT_EQ(Shaders::lightFill(mScene.lights().front().mTraits), 0.0f);
 
             mScene.clearPlacement();
             stats = walk(*flames.mRoot);
@@ -345,12 +358,12 @@ namespace Rtx::Testing
             // the ambient is the whole of what it radiates and so it is a Light spell's: stood 64
             // up, inside its bearer. `makeSpellLight` says why.
             EXPECT_EQ(lights[2].mIntensity, lights[0].mIntensity);
-            EXPECT_EQ(lights[2].mFill, 0u);
+            EXPECT_EQ(Shaders::lightFill(lights[2].mTraits), 0.0f);
             EXPECT_EQ(lights[2].mPosition, osg::Vec3f(10.0f, 20.0f, 94.0f)) << "the lamp stands inside the bearer";
             EXPECT_EQ(lights[2].mSourceRadius, lights[0].mSourceRadius);
             EXPECT_EQ(lights[2].mReach, lights[0].mReach);
 
-            EXPECT_EQ(lights[0].mFill, 0u) << "a lamp with a diffuse is no fill";
+            EXPECT_EQ(Shaders::lightFill(lights[0].mTraits), 0.0f) << "a lamp with a diffuse is no fill";
             EXPECT_EQ(lights[0].mSourceRadius, 100.0f / 16.0f);
         }
 

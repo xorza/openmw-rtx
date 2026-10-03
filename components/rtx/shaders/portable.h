@@ -56,4 +56,12 @@
 #define RTX_ZERO
 #endif
 
+// A member the host starts at `value` where an initialiser does not name it: `RTX_ZERO` for the one
+// member whose nought would mean something else.
+#ifdef RTX_HOST
+#define RTX_INIT(value) = value
+#else
+#define RTX_INIT(value)
+#endif
+
 #endif
