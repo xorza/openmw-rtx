@@ -136,10 +136,22 @@ not move a denoised picture beyond `sDenoiserNoiseLevels`.
 
 | Pass | Change | Expected gain |
 |---|---|---|
-| the last wavelet level into the composite | measure first | a frame-sized round trip |
+| the last wavelet level into the composite | build or decline on the bound below | a frame-sized round trip |
 
 Each row has its own commit and its own `bench` figure. A change that shows no gain on a hot card
 does not go in.
+
+**The wavelet row's bound** (2026-10-03, three legs each, branch-free probe that kept the last
+level's arithmetic and dropped its two stores and the composite's two loads of them; the pictures
+it drew are wrong by design). At 1920x1080 (traced 1280x720) the `composite` zone fell 0.080 →
+0.068 ms at `seyda-neen-ship` and 0.083 → 0.063 ms at `balmora-mages-guild`, `filter` did not move,
+and the frame median moved 0.02 to 0.05 ms, inside a leg's spread: the two channels stay in the
+card's cache at that size. At 7680x2160, the monitor's own size, `composite` fell 0.75 → 0.38 ms and
+0.78 → 0.38 ms, but `filter` rose 5.66 → 5.82 ms and 6.67 → 6.83 ms, so the net was 0.2 ms of a
+35–41 ms frame, and the p99 of the probe legs was worse (49.6 → 62.1 ms, 39.4 → 51.6 ms), which
+three legs do not resolve. A fused level also does the composite's ten loads inside the wavelet, so
+the real gain is below this bound. Open: the rise in `filter`, and a repeat with more legs at the
+large size before the row is built or declined.
 
 **Declined on their figures** (2026-10-03, three legs each): `spriteruns.comp` leaving a workgroup
 none of whose tiles any sprite reaches — the `sprites` zone stood at 0.047 ms at
