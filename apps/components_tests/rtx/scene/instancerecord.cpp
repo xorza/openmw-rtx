@@ -293,7 +293,7 @@ namespace Rtx
             EXPECT_TRUE(records[awning].mTwoSided) << "and one the fold took a twin from anywhere at all";
 
             const osg::Matrixf mirror = osg::Matrixf::scale(-1.0f, 1.0f, 1.0f);
-            const osg::Matrixf halfTurn = osg::Matrixf::rotate(osg::PI, osg::Vec3f(0.0f, 0.0f, 1.0f));
+            const osg::Matrixf halfTurn = osg::Matrixf::rotate(osg::PIf, osg::Vec3f(0.0f, 0.0f, 1.0f));
             const auto place = [&](const osg::Matrixf& transform, bool clockwise) {
                 return scene.addInstance(MeshInstance{
                     .mTransform = transform, .mMesh = plain, .mMaterial = opaque, .mClockwise = clockwise });
