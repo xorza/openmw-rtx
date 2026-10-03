@@ -28,6 +28,7 @@ namespace Rtx
             &ExtractionStats::mLights,
             &ExtractionStats::mDistantStatics,
             &ExtractionStats::mGroundCells,
+            &ExtractionStats::mGroundcover,
         };
     }
 

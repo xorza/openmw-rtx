@@ -330,6 +330,15 @@ namespace RtxTool
             // measured run's, the file's default, every one of them — but for the upscaler, whose
             // default for a run is the harness's own (`sUpscaleByDefault`). So two machines that
             // differ only in their `settings.cfg` measure one scene under one line.
+            const bool grass = given("grass") ? variables["grass"].as<bool>()
+                : watched                     ? Settings::groundcover().mEnabled.get()
+                                              : shippedDefault<bool>(command.mConfig, "Groundcover", "enabled");
+
+            // The world reads the groundcover files only where `[Groundcover] enabled` says
+            // (`World::loadGroundcoverFiles`), so the run's answer is written where the world reads
+            // it, as the companion maps' rules are.
+            Settings::groundcover().mEnabled.set(grass);
+
             const MWRender::RtxSettings derived = MWRender::RtxSettings::derive(MWRender::RtxSettingValues{
                 .mUpscale = typed("upscale") ? spelled("upscale") : Settings::rtx().mUpscale.get(),
                 .mDistantLandCells = given("distant-cells") ? variables["distant-cells"].as<float>()
@@ -343,6 +352,12 @@ namespace RtxTool
                 .mObjectPagingMinSize = watched
                     ? Settings::terrain().mObjectPagingMinSize.get()
                     : shippedDefault<float>(command.mConfig, "Terrain", "object paging min size"),
+                .mGroundcover = grass,
+                .mGroundcoverDistance = watched
+                    ? Settings::groundcover().mRenderingDistance.get()
+                    : shippedDefault<float>(command.mConfig, "Groundcover", "rendering distance"),
+                .mGroundcoverDensity = watched ? Settings::groundcover().mDensity.get()
+                                               : shippedDefault<float>(command.mConfig, "Groundcover", "density"),
                 .mSpecularMapLayout = watched
                     ? Settings::rtx().mSpecularMapLayout.get()
                     : shippedDefault<std::string>(command.mConfig, "RTX", "specular map layout"),

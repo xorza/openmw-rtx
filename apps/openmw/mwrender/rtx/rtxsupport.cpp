@@ -17,7 +17,9 @@ namespace MWRender
         constexpr std::string_view sFog
             = "The ray tracer integrates the air along each ray, as dense as the weather's own fog depth makes it.";
         constexpr std::string_view sFiltering = "The ray tracer filters every texture trilinearly.";
-        constexpr std::string_view sGroundcover = "The ray tracer does not draw groundcover yet.";
+        constexpr std::string_view sStillGrass
+            = "The ray tracer stands each plant still: no wind and no step bends it.";
+        constexpr std::string_view sGrassLamps = "The ray tracer lights each plant from every lamp in reach.";
         constexpr std::string_view sDrawThreads = "This sets the rasterizer's draw threads.";
         constexpr std::string_view sPostProcessing
             = "Shader post-processing runs on the rasterizer. The ray tracer has its own exposure, bloom and tone "
@@ -61,7 +63,12 @@ namespace MWRender
             { "General", "texture mag filter", sFiltering },
             { "General", "texture min filter", sFiltering },
             { "General", "texture mipmap", sFiltering },
-            { "Groundcover", "", sGroundcover },
+            { "Groundcover", "density", {} },
+            { "Groundcover", "enabled", {} },
+            { "Groundcover", "point lighting", sGrassLamps },
+            { "Groundcover", "rendering distance", {} },
+            { "Groundcover", "stomp intensity", sStillGrass },
+            { "Groundcover", "stomp mode", sStillGrass },
             { "Map", "global map cell size", {} },
             { "Map", "local map resolution", {} },
             { "Models", "baseanim", {} },

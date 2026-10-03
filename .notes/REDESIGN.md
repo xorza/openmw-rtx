@@ -15,7 +15,7 @@ notes cite.
 | W8 The denoisers share one surface test | steps 1 and 2; step 3 after its probe | 5 |
 | W9 Passes run only over what is new | every row, each with its bench | 5 |
 | W14 The ray tracer shows what the rasterizer shows | the items that wait for an input outside the tree | after its inputs |
-| W15 Groundcover stands in the ring | the whole of it, test plugin first | 8 |
+| W15 Groundcover stands in the ring | point lighting; the acceptance measurement | 8 |
 | W16 A mask's soft texels are layers to the eye | the whole of it, behind its measurement | 8 |
 | W19 The walk visits what can change | the probe, then the frozen subtrees | 5 |
 | §16 Smaller workstreams | the upstream diff, the device, layering, Vulkan, tooling | 5 (§16.6), 6 |
@@ -170,7 +170,6 @@ does not go in.
 
 **Closes:** what is left of *(Content the rasterizer draws reaches the ray tracer with no reader)*.
 
-- **Groundcover** is W15, which has a design of its own.
 - **A generated particle image** enters the table under a key made from its address, as the
   composites do; the material reader needs the same key.
 - **A distant static's texture animation**: a prepared part whose chain carries an AutoPlay
@@ -188,106 +187,21 @@ Each carries a test with hand-computed values, on the GPU where the fact is a pi
 
 ## 15a. W15 — Groundcover stands in the ring
 
-**Closes:** *Groundcover is never drawn under the ray tracer* (`ISSUES.md`), and the groundcover
-item of *(Content the rasterizer draws reaches the ray tracer with no reader)*.
+**Closes:** the groundcover item of *(Content the rasterizer draws reaches the ray tracer with no
+reader)*. The ring reads and stands it (`Rtx::GroundcoverSource`, `MWRender::TracedGroundcover`);
+what is left is below.
 
-### What the rasterizer does
-
-- `MWWorld::GroundcoverStore` keeps, per exterior cell, the ESM contexts of the groundcover files
-  (`groundcover=` in `openmw.cfg`), and the model of every static whose model is under `grass/`.
-  It holds no reference: they are read off the files when a chunk is made.
-- `MWRender::Groundcover`, a `QuadTreeWorld` chunk manager, reads a chunk's references cell by
-  cell (`collectInstances`): a later file's reference replaces an earlier one's by `RefNum`, and
-  `DensityCalculator` keeps one reference in `1 / density`, in content order, from a count that
-  starts again in every cell. Each model is one clone, instanced over its references.
-- What it draws: alpha tested at `128 / 255` with blending off, both `OVERRIDE` (MGE's content
-  states no alpha it can be trusted with); swayed by the wind and pressed by the player
-  (`groundcover.vert`); lit by the lamps only where `[Groundcover] point lighting` is on (it is by
-  default); shown per chunk where the chunk's box is within `rendering distance` of the eye (6144
-  units by default); in the default worldspace alone; class `Mask_Groundcover`, which
-  `classmasks.hpp` already counts among the statics.
-- The game's loaded cells hold no groundcover reference, so groundcover stands in the active grid
-  too, where the ring stands no static.
-
-### Target shape: an instance per plant, through the ring's static path
-
-**Measured first:** `seyda-neen-ship` stands 64 179 instances today, 57 054 of them the ring's
-distant statics, over 3 074 553 triangles in 97.4 MiB of structures (`./omw scene`, 2026-10-03).
-6144 units are three quarters of a cell (8192), so the plants of 4 to 9 cells stand at once. **Not
-measured, because no grass mod is installed here:** at an estimated 1 000 to 4 000 plants a cell,
-an instance per plant adds 4 000 to 36 000 rows, under the ring's statics today; one mesh merged
-per cell and model, the plan's first shape, adds their triangles instead, at an estimated 30 to 100
-a plant 0.1 to 3.6 million, up to today's whole geometry again. So a plant is an instance of its
-model's mesh, as a distant static is, and the merge is the fallback the measurement below decides.
-The fixture and a real mod replace both estimates with counts.
-
-1. **A source of groundcover references, in the core** (`components/rtx/mirror/cells/`):
-   ```cpp
-   /// The groundcover references of one exterior cell, as the game's groundcover reads them.
-   class GroundcoverSource
-   {
-   public:
-       virtual ~GroundcoverSource() = default;
-       /// Appends the cell's references the density keeps, in content order. Called on the
-       /// ring's reader thread alone.
-       virtual void collect(const osg::Vec2i& cell, std::vector<Terrain::PagedCellRef>& into) = 0;
-       /// The model a groundcover record names, empty where it names none.
-       virtual VFS::Path::NormalizedView modelOf(ESM::RefId record) const = 0;
-   };
-   ```
-   `CellWorld` gains `GroundcoverSource* mGroundcover` (null where groundcover is off, or the
-   worldspace is not the default one), and `WorldAround` gains `float mGroundcoverReach`
-   (`[Groundcover] rendering distance`, nought where off).
-2. **The game's source** (`apps/openmw/mwrender/rtx/tracedgroundcover.{hpp,cpp}`), over
-   `GroundcoverStore`: `initCell`, a `ESM::ReadersCache` of its own (the reader thread is its one
-   caller), and the refs read as `collectInstances` reads them. **The density rule is a copy**,
-   `Rtx::GroundcoverDensity`, which names `MWRender::Groundcover`'s `DensityCalculator` and stays
-   apart from it (P9); a host test holds it to hand-computed keeps: at 0.25, the 4th, 8th and
-   12th of twelve references; at 1, every one; the count restarts each cell.
-3. **The reader reads a cell's groundcover beside its statics.** `CellReader::read` fills
-   `PreparedCell::mGroundcover`, a `std::vector<PreparedRef>` beside `mRefs`, through the same
-   `readModel` (a grass model is read once and lent to every cell). Its material is overridden as
-   upstream's state set does: cut at a half, no blend (`MaterialReading` gains the override, which
-   the extractor's `describeStateSet` would otherwise read off the NIF). No size rule: a plant is
-   small everywhere.
-4. **The placer stands it by its own rule.** `CellPlacer` places `mGroundcover` where the cell's
-   box is within `mGroundcoverReach` of the eye, **in the active grid as well**, and takes it down
-   past it; class `Static`. The cell is prepared where either reach holds it, so a grass cell near
-   the eye is read even with distant statics off.
-5. **Point lighting.** Where `[Groundcover] point lighting` is off, the material carries
+1. **Point lighting.** Where `[Groundcover] point lighting` is off, the material carries
    `MATERIAL_NO_LAMPS`, and the lamp walk's weight is multiplied by a factor of nought for it — one
-   path, no branch, as `lightShown` does for a hidden class.
-6. **Not in this workstream:** the wind's sway and the player's stomp. Both move vertices every
-   frame, which is a deformer over a shared mesh; the trace stands the plants still, and the
-   difference is named in `rtxsupport` as a declined part of the setting.
-7. **The seam:** `rtxSupport().declinedSetting("Groundcover", "enabled")` goes; the log line in
-   `RtxRenderer` keeps naming stereo and post processing.
-
-### The test content, generated
-
-A fixture the tree writes: `Rtx::Testing::writeGroundcoverPlugin` with `ESM::ESMWriter`, two
-exterior cells near Seyda Neen (−2,−9 and −3,−9), each with groundcover references to vanilla
-`flora_*` statics whose models are copied under `grass/` in a test VFS, at known positions, scales
-and rotations. Loaded through `groundcover=`, as a player's configuration loads it.
-
-### Tests
-
-- Host: the density copy's keeps; `TracedGroundcover::collect` over the fixture: the count, the
-  replacement by `RefNum` across two files, and the positions read back.
-- Host: the ring over the fixture with a test `ContentSource`: plants stand in the active grid and
-  out of it, stand within the reach and go past it, and none stands with groundcover off.
-- GPU: one plant, a quad with a soft alpha, met by the eye where its alpha passes 128 and not
-  where it does not.
-- The harness: `shot` of a fixture view under both renderers, and the placed count against
-  `GroundcoverStore`'s at density 1 and 0.5.
-
-### Acceptance
-
-`./omw release bench` with a groundcover mod at its default density: the trace zone, the top-level
-build, the frame's p99 and its worst against the same run with groundcover off. **If the trace
-zone grows more than a fifth** from the instances' overlap (many small boxes along every ray near
-the ground), the merge per cell and model goes in instead, built on the reader thread from the
-same prepared references, and its memory is the figure that decides between the two.
+   path, no branch, as `lightShown` does for a hidden class. Until then `rtxsupport` declines the
+   key. `./omw kernels --against` and `./omw shot --against` with it.
+2. **The acceptance measurement.** `./omw release bench` with groundcover at its default density:
+   the trace zone, the top-level build, the frame's p99 and its worst against the same run with
+   groundcover off. **If the trace zone grows more than a fifth** from the instances' overlap (many
+   small boxes along every ray near the ground), the merge per cell and model goes in instead,
+   built on the reader thread from the same prepared references, and its memory is the figure that
+   decides between the two. No grass mod is installed here: a generated plugin over vanilla flora,
+   loaded with `--groundcover` and `--data`, stands in for one.
 
 ---
 
@@ -517,7 +431,7 @@ Each phase ends green on `./omw gate`.
 2. **Phase 6, the upstream diff:** §16.1, then §16.2, §16.5 and §16.7.
 3. **Phase 7, tests and docs:** the test groups in §17, and every doc item, `architecture.md` §1 and
    §13 included.
-4. **Phase 8, the open issues:** W15 (the test plugin first), W16 behind its measurement.
+4. **Phase 8, the open issues:** W15's point lighting and its measurement, W16 behind its measurement.
    W19's probe goes with Phase 5, and its frozen subtrees with W6.
 
 W14 goes as each input arrives.

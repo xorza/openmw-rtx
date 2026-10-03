@@ -27,6 +27,7 @@ namespace Rtx
     class CellHolds;
     class SceneDesc;
     struct PreparedCell;
+    struct PreparedGrass;
 
     /// What a gate that decided says of one reference: whether it stands.
     struct GateVerdict
@@ -99,6 +100,19 @@ namespace Rtx
         /// Whether a cell at `cell` is held.
         bool holds(const osg::Vec2i& cell) const { return mCells.contains(cell); }
 
+        /// Holds the groundcover of `grass.mCell` from now on: a placement a part of each plant, as
+        /// `holds` adopted its models. Nothing stands until a `place`.
+        void holdGrass(const PreparedGrass& grass, CellHolds& holds);
+
+        /// Whether the groundcover of the cell at `cell` is held.
+        bool holdsGrass(const osg::Vec2i& cell) const { return mGrass.contains(cell); }
+
+        /// `dropUnless` for the cells' groundcover: its placements out of the top level, then
+        /// `letGo(grass)`, and its vectors kept for the next.
+        /// @return how many went.
+        template <class Keep, class LetGo>
+        std::size_t dropGrassUnless(Keep keep, LetGo letGo);
+
         /// Whether the ground of the cell at `cell` stands in the top level: held, read with land,
         /// and in the reach.
         bool standsGround(const osg::Vec2i& cell) const;
@@ -113,13 +127,15 @@ namespace Rtx
         template <class Keep, class LetGo>
         std::size_t dropUnless(Keep keep, LetGo letGo);
 
-        /// Takes every held cell's placements out of the top level, keeping the cells.
+        /// Takes every held cell's placements and groundcover out of the top level, keeping the cells.
         void dropSlots();
 
         /// Places and drops every held cell by the reach and the size rule, flattens its ground by
         /// the grid, and stands the lamps nothing the game says keeps down, where the cell is in
         /// reach and outside the grid — the game's own graph carries the lamps inside it, and a
-        /// lantern must not be counted twice.
+        /// lantern must not be counted twice. Stands a cell's groundcover whole where the cell is
+        /// within `WorldAround::mGroundcoverReach`, the active grid included, whose cells the game
+        /// stands no grass in for this renderer, and drops it whole past it.
         /// @return how many lamps were stood.
         std::uint32_t place(const WorldAround& around);
 
@@ -133,11 +149,13 @@ namespace Rtx
         /// it loads.
         void collectGateVerdicts(const osg::Vec4i& activeGrid, std::vector<GateVerdict>& into) const;
 
-        /// How many statics and how many grounds stand in the top level.
+        /// How many statics, how many grounds and how many plants' parts stand in the top level.
         std::uint32_t getPlaced() const { return mPlaced; }
         std::uint32_t getGroundPlaced() const { return mGroundPlaced; }
+        std::uint32_t getGrassPlaced() const { return mGrassPlaced; }
 
         std::size_t getHeldCount() const { return mCells.size(); }
+        std::size_t getGrassHeldCount() const { return mGrass.size(); }
 
         /// Whether the top level holds exactly what the held cells say it should, by the rings and
         /// the size rule as `around` stands now: every placement the rule admits and no script
@@ -148,12 +166,13 @@ namespace Rtx
         bool standsAsHeld(const WorldAround& around) const;
 
     private:
-        /// What the cell table is ordered by, stated once so that no search can disagree with the
+        /// What the cell tables are ordered by, stated once so that no search can disagree with the
         /// insertion it is looking for. `osg::Vec2i` orders lexicographically already, which is the
         /// order a walk over the held cells wants: the same walk on every machine.
         struct CellAt
         {
             const osg::Vec2i& operator()(const HeldCell& held) const { return held.mCell; }
+            const osg::Vec2i& operator()(const HeldGrass& held) const { return held.mCell; }
         };
 
         /// Adopts a cell's ground into the scene, on rows held on the scene.
@@ -171,6 +190,19 @@ namespace Rtx
 
         /// `standsAsHeld` for one cell.
         bool standsAsHeld(const HeldCell& cell, const WorldAround& around) const;
+
+        /// `standsAsHeld` for one cell's groundcover.
+        bool standsAsHeld(const HeldGrass& grass, const WorldAround& around) const;
+
+        /// Whether a cell's groundcover stands where the eye is now.
+        static bool showsGrass(const osg::Vec2i& cell, const WorldAround& around);
+
+        /// Takes a cell's groundcover out of the top level, keeping it.
+        void dropSlots(HeldGrass& grass);
+
+        /// Whether `stood` stands exactly where it says, under the ring's own name, or stands nowhere
+        /// where `wanted` is false.
+        bool standsAs(const Stood& stood, bool wanted) const;
 
         /// Whether the top level holds exactly `getPlaced() + getGroundPlaced()` slots under the
         /// ring's name: a slot the ring stood and lost track of would stand for ever, and only a
@@ -208,8 +240,9 @@ namespace Rtx
         /// What the game has said of `refnum` so far, for a reference of a cell being adopted.
         ReferenceState heard(ESM::RefNum refnum, std::uint32_t gate) const;
 
-        /// Stands or drops the placement by `stands`, where the size rule has it `shown`.
-        void restand(Placement& placement, bool shown);
+        /// Stands or drops the placement by `stands`, where the size rule or the groundcover's reach
+        /// has it `shown`, counting it in `standing`.
+        void restand(Placement& placement, bool shown, std::uint32_t& standing);
 
         /// Puts `stood` in the top level under the ring's name and counts it in `standing`, and
         /// takes it out again. Dropping what does not stand is nothing.
@@ -240,6 +273,7 @@ namespace Rtx
 
         std::uint32_t mPlaced = 0;
         std::uint32_t mGroundPlaced = 0;
+        std::uint32_t mGrassPlaced = 0;
 
         // Refilled per ground adopted.
         std::vector<MaterialLayer> mLayerScratch;
@@ -247,6 +281,10 @@ namespace Rtx
         /// The cells held, in `CellAt`'s order, and the room a dropped cell's vectors grew.
         boost::container::flat_set<HeldCell, KeyedLess<osg::Vec2i, CellAt>, std::vector<HeldCell>> mCells;
         Recycled<HeldCell> mSpareCells;
+
+        /// The cells' groundcover held, the same way.
+        boost::container::flat_set<HeldGrass, KeyedLess<osg::Vec2i, CellAt>, std::vector<HeldGrass>> mGrass;
+        Recycled<HeldGrass> mSpareGrass;
     };
 
     template <class Keep, class LetGo>
@@ -270,6 +308,29 @@ namespace Rtx
             cell->reuse();
             mSpareCells.give(std::move(*cell));
             cell = mCells.erase(cell);
+            ++dropped;
+        }
+
+        return dropped;
+    }
+
+    template <class Keep, class LetGo>
+    std::size_t CellPlacer::dropGrassUnless(Keep keep, LetGo letGo)
+    {
+        std::size_t dropped = 0;
+        for (auto grass = mGrass.begin(); grass != mGrass.end();)
+        {
+            if (keep(*grass))
+            {
+                ++grass;
+                continue;
+            }
+
+            dropSlots(*grass);
+            letGo(*grass);
+            grass->reuse();
+            mSpareGrass.give(std::move(*grass));
+            grass = mGrass.erase(grass);
             ++dropped;
         }
 

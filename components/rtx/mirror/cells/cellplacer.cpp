@@ -76,7 +76,11 @@ namespace Rtx
         // One frame restands every switched placement held, as the game turns every switch of its
         // own cells on that frame.
         forEachPlacementWhere([](const Placement& placement) { return !placement.mModes.isEvery(); },
-            [&](Placement& placement, bool shown) { restand(placement, shown); });
+            [&](Placement& placement, bool shown) { restand(placement, shown, mPlaced); });
+        for (HeldGrass& grass : mGrass)
+            for (Placement& placement : grass.mPlacements)
+                if (!placement.mModes.isEvery())
+                    restand(placement, grass.mShown, mGrassPlaced);
     }
 
     template <class Match, class Visit>
@@ -97,7 +101,7 @@ namespace Rtx
         forEachPlacementWhere([&](const Placement& placement) { return match(placement.mState); },
             [&](Placement& placement, bool shown) {
                 change(placement.mState);
-                restand(placement, shown);
+                restand(placement, shown, mPlaced);
             });
 
         // Nothing to restand: `place` builds every lamp's light again on every walk, and reads
@@ -125,7 +129,7 @@ namespace Rtx
 
                 Placement& placement = cell.mPlacements[spot.mAt];
                 change(placement.mState);
-                restand(placement, spot.mAt < cell.mShown);
+                restand(placement, spot.mAt < cell.mShown, mPlaced);
             }
         }
     }
@@ -171,16 +175,16 @@ namespace Rtx
         return !reference.mDisabled;
     }
 
-    void CellPlacer::restand(Placement& placement, const bool shown)
+    void CellPlacer::restand(Placement& placement, const bool shown, std::uint32_t& standing)
     {
         if (!shown)
             return;
 
         const bool wanted = stands(placement);
         if (wanted && !placement.mStood.isStanding())
-            stand(placement.mStood, mPlaced);
+            stand(placement.mStood, standing);
         else if (!wanted)
-            drop(placement.mStood, mPlaced);
+            drop(placement.mStood, standing);
     }
 
     void CellPlacer::collectStanding(std::vector<ESM::RefNum>& into) const
@@ -447,10 +451,52 @@ namespace Rtx
         ground.reuse();
     }
 
+    void CellPlacer::holdGrass(const PreparedGrass& grass, CellHolds& holds)
+    {
+        HeldGrass held = mSpareGrass.take();
+        held.mCell = grass.mCell;
+
+        for (const PreparedRef& ref : grass.mRefs)
+        {
+            const PreparedModel& model = *grass.mModels[ref.mModel];
+            const CellHolds::HeldModel& adopted = holds.knownOf(model);
+            for (std::size_t at = 0; at < adopted.mParts.size(); ++at)
+                held.mPlacements.push_back(Placement{
+                    .mStood = {
+                        .mMesh = adopted.mParts[at].mMesh,
+                        .mMaterial = adopted.mParts[at].mMaterial,
+                        .mTransform = model.mParts[at].mLocal * ref.mTransform,
+                    },
+                    .mModes = model.mParts[at].mModes,
+                    .mDrawable = model.mParts[at].mDrawable.get(),
+                    .mState = ReferenceState{ .mRefNum = ref.mRefNum },
+                });
+        }
+        held.mModels.assign(grass.mModels.begin(), grass.mModels.end());
+
+        [[maybe_unused]] const auto [at, fresh] = mGrass.insert(std::move(held));
+        assert(fresh && "a cell's grass adopted twice");
+    }
+
     void CellPlacer::dropSlots()
     {
         for (HeldCell& cell : mCells)
             dropSlots(cell);
+        for (HeldGrass& grass : mGrass)
+            dropSlots(grass);
+    }
+
+    void CellPlacer::dropSlots(HeldGrass& grass)
+    {
+        for (Placement& placement : grass.mPlacements)
+            drop(placement.mStood, mGrassPlaced);
+        grass.mShown = false;
+    }
+
+    bool CellPlacer::showsGrass(const osg::Vec2i& cell, const WorldAround& around)
+    {
+        return around.mExterior && around.mGroundcoverReach > 0.0f
+            && around.mWorld.mGrid.withinReach(cell, around.mEye, around.mGroundcoverReach);
     }
 
     void CellPlacer::dropSlots(HeldCell& cell)
@@ -468,28 +514,41 @@ namespace Rtx
         for (const HeldCell& cell : mCells)
             if (!standsAsHeld(cell, around))
                 return false;
+        for (const HeldGrass& grass : mGrass)
+            if (!standsAsHeld(grass, around))
+                return false;
 
         return standsNoMore();
     }
 
+    bool CellPlacer::standsAs(const Stood& stood, const bool wanted) const
+    {
+        if (wanted != stood.isStanding())
+            return false;
+        if (!wanted)
+            return true;
+
+        const std::span<const PlacementRow> placed = mScene.placements().getRows();
+        if (stood.mSlot >= placed.size())
+            return false;
+
+        const MeshInstance& standing = placed[stood.mSlot].mInstance;
+        return standing.isPlaced() && standing.mStander == Stander::Ring && standing.mMesh == stood.mMesh
+            && standing.mMaterial == stood.mMaterial;
+    }
+
+    bool CellPlacer::standsAsHeld(const HeldGrass& grass, const WorldAround& around) const
+    {
+        const bool shown = showsGrass(grass.mCell, around);
+        if (shown != grass.mShown)
+            return false;
+
+        return std::all_of(grass.mPlacements.begin(), grass.mPlacements.end(),
+            [&](const Placement& placement) { return standsAs(placement.mStood, shown && stands(placement)); });
+    }
+
     bool CellPlacer::standsAsHeld(const HeldCell& cell, const WorldAround& around) const
     {
-        const std::span<const PlacementRow> placed = mScene.placements().getRows();
-
-        // Whether `stood` stands exactly where it says, or stands nowhere where `wanted` is false.
-        const auto standsAs = [&](const Stood& stood, const bool wanted) {
-            if (wanted != stood.isStanding())
-                return false;
-            if (!wanted)
-                return true;
-            if (stood.mSlot >= placed.size())
-                return false;
-
-            const MeshInstance& standing = placed[stood.mSlot].mInstance;
-            return standing.isPlaced() && standing.mStander == Stander::Ring && standing.mMesh == stood.mMesh
-                && standing.mMaterial == stood.mMaterial;
-        };
-
         const bool inReach
             = around.mExterior && around.mWorld.mGrid.withinReach(cell.mCell, around.mEye, around.mReach);
         const bool shown = inReach && !inActiveGrid(cell.mCell, around.mActiveGrid);
@@ -530,7 +589,7 @@ namespace Rtx
             if (row.mInstance.isPlaced() && row.mInstance.mStander == Stander::Ring)
                 ++standing;
 
-        return standing == getPlaced() + getGroundPlaced();
+        return standing == getPlaced() + getGroundPlaced() + getGrassPlaced();
     }
 
     std::uint32_t CellPlacer::place(const WorldAround& around)
@@ -538,6 +597,21 @@ namespace Rtx
         std::uint32_t lit = 0;
         for (HeldCell& cell : mCells)
             lit += place(cell, around);
+
+        // What a walk touches is a cell's grass crossing the reach, and nothing on a standing frame.
+        for (HeldGrass& grass : mGrass)
+        {
+            const bool shown = showsGrass(grass.mCell, around);
+            if (shown == grass.mShown)
+                continue;
+
+            for (Placement& placement : grass.mPlacements)
+                if (!shown)
+                    drop(placement.mStood, mGrassPlaced);
+                else if (stands(placement))
+                    stand(placement.mStood, mGrassPlaced);
+            grass.mShown = shown;
+        }
 
         return lit;
     }

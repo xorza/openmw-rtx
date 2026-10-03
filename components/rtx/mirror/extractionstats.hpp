@@ -78,10 +78,11 @@ namespace Rtx
         std::uint32_t mLights = 0;
 
         /// Placements the cell ring stood this walk: the distant statics, as instances of their
-        /// templates rather than as the paging's merged chunks, and the cells' ground, one
-        /// placement a cell. Among `mInstances` as well.
+        /// templates rather than as the paging's merged chunks, the cells' ground, one placement a
+        /// cell, and the groundcover, one placement a part of each plant. Among `mInstances` as well.
         std::uint32_t mDistantStatics = 0;
         std::uint32_t mGroundCells = 0;
+        std::uint32_t mGroundcover = 0;
 
         ExtractionStats& operator+=(const ExtractionStats& other);
     };

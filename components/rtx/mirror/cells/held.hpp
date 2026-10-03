@@ -172,6 +172,32 @@ namespace Rtx
         }
     };
 
+    /// A cell's groundcover the frame has adopted: a placement a part of a plant, stood all
+    /// together while the cell is within the groundcover's reach and dropped all together past it.
+    /// No size rule, no gate and no script: a plant is small everywhere, and no script names a
+    /// reference of a groundcover file. Its vectors are kept when it is dropped, as a cell's are.
+    struct HeldGrass
+    {
+        osg::Vec2i mCell;
+
+        std::vector<Placement> mPlacements;
+
+        std::vector<PreparedModel*> mModels;
+
+        /// Whether `mPlacements` stand, which `CellPlacer::place` decides on every walk.
+        bool mShown = false;
+
+        /// Empties it for the next cell, keeping the room every list grew.
+        void reuse()
+        {
+            assert(std::none_of(mPlacements.begin(), mPlacements.end(), [](const Placement& placement) {
+                return placement.mStood.isStanding();
+            }) && "a cell's grass reused with something still standing");
+
+            reuseKeeping(*this, &HeldGrass::mPlacements, &HeldGrass::mModels);
+        }
+    };
+
     /// What the frame holds of the models and the images the reader lent it, and what it adopted
     /// them as — the bookkeeping half of the cell ring. The count here is the frame's, and the
     /// reader keeps one of its own, because it lends to cells the frame has not seen yet.
