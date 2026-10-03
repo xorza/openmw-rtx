@@ -163,13 +163,13 @@ namespace RtxTool
         const char* const samples = share.mSamples == 1 ? "sample" : "samples";
         if (share.mOthers == 0)
             return std::format(
-                "card held by no other process, {} {} over {:.1f} s", share.mSamples, samples, share.mSeconds);
+                "card ran no other process's work, {} {} over {:.1f} s", share.mSamples, samples, share.mSeconds);
 
         std::string named;
         for (const CardHolder& holder : share.mHolders)
             named += std::format("{}{} {}", named.empty() ? "" : ", ", holder.mName, holder.mSamples);
 
-        return std::format("card held by another process in {} of {} {} over {:.1f} s: {}", share.mOthers,
+        return std::format("card ran another process's work in {} of {} {} over {:.1f} s: {}", share.mOthers,
             share.mSamples, samples, share.mSeconds, named);
     }
 }

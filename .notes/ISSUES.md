@@ -3,11 +3,6 @@
 Open defects that give a wrong or missing result for an input the tree can produce. Most come from
 the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the same title.
 
-- A GPU stall of about 1.5 ms hits some frames of every bench place, in master as in the
-  `refactor` branch, and lands in whichever pass runs at the time: upscale, shadow, filter, trace or
-  accumulate, a different one from run to run. It adds 0.3–0.5 ms to the summed zone means at
-  each place of the default suite, and a headless run (`--window=0`) still has about three
-  quarters of it. `~/.cache/omw-refactor/merge-bench/` holds the records.
 - An alpha-blended surface whose material alpha is one and whose texture reaches solid is cut at
   alpha 0.5, where the rasterizer blends its soft texels by the texture's alpha. Every DXT3 leaf,
   banner, rope and sail has a hard edge where the rasterizer's is soft, and a cobweb, a Telvanni
