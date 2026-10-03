@@ -151,7 +151,7 @@ namespace Rtx
                 cascade.mTurnRates[at] = static_cast<float>(static_cast<double>(frequency) / (2.0 * std::numbers::pi));
 
                 // Twice, because a wavevector and its opposite both carry it and the two draws
-                // are independent — the convention `wavecompose.comp` is written against.
+                // are independent — the convention `wavecolumns.comp` is written against.
                 variance += 2.0 * double{ cascade.mAmplitudes[at].length2() };
             }
         }

@@ -81,7 +81,7 @@ namespace Rtx
             Buffer mAmplitudes;
             Buffer mTurnRates;
 
-            /// The three packed spectra laid end to end, transformed in place.
+            /// The three packed fields laid end to end, as the row pass leaves them for the columns.
             Buffer mField;
 
             Image mSurface;
@@ -93,9 +93,8 @@ namespace Rtx
 
         const Device& mDevice;
 
-        ComputePipeline<Shaders::WaveFormConstants> mFormPipeline;
-        ComputePipeline<Shaders::WaveConstants> mLinePipeline;
-        ComputePipeline<Shaders::WaveComposeConstants> mComposePipeline;
+        ComputePipeline<Shaders::WaveFormConstants> mRowsPipeline;
+        ComputePipeline<Shaders::WaveComposeConstants> mColumnsPipeline;
 
         Sampler mSampler;
 

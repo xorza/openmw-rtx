@@ -217,7 +217,6 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/trace/visibility/upscale.cpp
     rtxvulkan/trace/visibility/water.cpp
     rtxvulkan/trace/wavefield.cpp
-    rtxvulkan/trace/waveline.cpp
     rtxvulkan/trace/wavepass.cpp
 )
 
