@@ -1,7 +1,9 @@
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <optional>
 #include <span>
 #include <string>
@@ -117,8 +119,8 @@ namespace Rtx
         }
 
         /// **A companion map is described as data: its blocks without the curve, and no painted light
-        /// taken out of it**, because a normal map is no picture of anything lit. A two-channel file is
-        /// taken as data and refused as a colour, where it has lost its blue. Taken as a normal map, it
+        /// taken out of it**, because a normal map is no picture of anything lit. A file of one or two
+        /// channels is taken as data and refused as a colour, where it has lost its blue. Taken as a normal map, it
         /// is stored as data is and measured for the spread of its levels instead.
         TEST(RtxSceneTexturesTest, dataIsDescribedWithoutTheCurveAndWithNeutralShading)
         {
@@ -151,6 +153,15 @@ namespace Rtx
                 Rtx::TextureFormat::Bc5Unorm);
             EXPECT_FALSE(describeImage(*makeBlock(GL_COMPRESSED_RED_GREEN_RGTC2_EXT), levels, texels).isOk())
                 << "two channels are no colour";
+
+            // One channel the same, its 4 × 4 block the eight bytes OpenSceneGraph counts too.
+            const Rtx::TextureData single
+                = describeImage(*makeBlock(GL_COMPRESSED_RED_RGTC1_EXT), levels, texels, Rtx::TextureEncoding::Data)
+                      .value();
+            EXPECT_EQ(single.mFormat, Rtx::TextureFormat::Bc4Unorm);
+            EXPECT_EQ(single.mBytes.size(), 8u);
+            EXPECT_FALSE(describeImage(*makeBlock(GL_COMPRESSED_RED_RGTC1_EXT), levels, texels).isOk())
+                << "one channel is no colour";
         }
 
         /// Two images into one level table, each description still naming only its own.
@@ -218,11 +229,12 @@ namespace Rtx
         {
             std::vector<Rtx::MipLevel> levels;
             std::vector<std::byte> texels;
-            const Misc::Result<Rtx::TextureData, std::string> alpha
-                = describeImage(*makeBlock(GL_ALPHA), levels, texels);
-            ASSERT_FALSE(alpha.isOk());
-            EXPECT_EQ(
-                alpha.error(), "its format is an unnamed pixel format (6406), which this renderer does not upload");
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->setFileName("textures/tx_odd.dds");
+            image->allocateImage(4, 4, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
+            const Misc::Result<Rtx::TextureData, std::string> odd = describeImage(*image, levels, texels);
+            ASSERT_FALSE(odd.isOk());
+            EXPECT_EQ(odd.error(), "its format is an unnamed pixel format (6407), which this renderer does not upload");
 
             // A format that uploads, so what is refused is the size alone.
             osg::ref_ptr<osg::Image> empty = new osg::Image;
@@ -315,19 +327,19 @@ namespace Rtx
             // the gathering lays down, and the other volume is refused by name rather than asked
             // for a layout it has none of.
             constexpr VFS::Path::NormalizedView rgbaPath("textures/tx_volume.dds");
-            constexpr VFS::Path::NormalizedView alphaPath("textures/tx_alpha_volume.dds");
-            const osg::ref_ptr<osg::Image> alpha = makeVolume(GL_ALPHA, GL_UNSIGNED_BYTE, 1);
-            alpha->setFileName(std::string(alphaPath.value()));
-            EXPECT_EQ(Rtx::laidBytes(*alpha, Rtx::readFormat(*alpha)), 0u) << "a format with no layout was counted";
+            constexpr VFS::Path::NormalizedView oddPath("textures/tx_odd_volume.dds");
+            const osg::ref_ptr<osg::Image> odd = makeVolume(GL_RGB, GL_UNSIGNED_BYTE_3_3_2, 1);
+            odd->setFileName(std::string(oddPath.value()));
+            EXPECT_EQ(Rtx::laidBytes(*odd, Rtx::readFormat(*odd)), 0u) << "a format with no layout was counted";
 
             Rtx::SceneDesc scene;
             Testing::addModel(scene, rgbaPath, rgba);
-            Testing::addModel(scene, alphaPath, alpha);
+            Testing::addModel(scene, oddPath, odd);
 
             SceneTextures described;
             described.describeAll(scene);
             ASSERT_EQ(described.getRefusals().size(), 1u);
-            EXPECT_EQ(described.getRefusals()[0].mName, alphaPath.value());
+            EXPECT_EQ(described.getRefusals()[0].mName, oddPath.value());
             ASSERT_EQ(described.getDescriptions().size(), 2u);
             EXPECT_EQ(described.getDescriptions()[0].mBytes.size(), 84u);
         }
@@ -436,29 +448,83 @@ namespace Rtx
                 Rtx::TextureFormat::Rgba8Unorm);
         }
 
-        /// A file a byte a channel with channels missing is widened to RGBA8 too: an alpha of one
-        /// where it has none, blue and red put back in their places for BGR, and a luminance read in
-        /// all three colours. A two-by-two image and its one-texel level, packed tight; the widened
-        /// levels begin at nought and sixteen bytes, four a texel.
+        /// The little-endian bytes of sixteen-bit words, as a file holds them.
+        std::vector<std::uint8_t> wordBytes(std::initializer_list<std::uint16_t> words)
+        {
+            std::vector<std::uint8_t> bytes;
+            for (const std::uint16_t word : words)
+            {
+                bytes.push_back(static_cast<std::uint8_t>(word & 0xFF));
+                bytes.push_back(static_cast<std::uint8_t>(word >> 8));
+            }
+            return bytes;
+        }
+
+        /// The little-endian bytes of floats, as a file holds them.
+        std::vector<std::uint8_t> floatBytes(std::initializer_list<float> values)
+        {
+            std::vector<std::uint8_t> bytes;
+            for (const float value : values)
+            {
+                const auto bits = std::bit_cast<std::uint32_t>(value);
+                for (std::uint32_t at = 0; at < 4; ++at)
+                    bytes.push_back(static_cast<std::uint8_t>(bits >> (8 * at)));
+            }
+            return bytes;
+        }
+
+        /// A file of loose channels short of four bytes is widened to RGBA8 too: every channel it
+        /// lacks filled as GL samples it — nought for a colour and one for alpha — blue and red put
+        /// back in their places for BGR, and a luminance read in all three colours. A two-by-two
+        /// image and its one-texel level, packed tight; the widened levels begin at nought and
+        /// sixteen bytes, four a texel.
+        ///
+        /// **Wider channels are rounded to the nearest byte and held to nought and one.** Sixteen
+        /// bits: 0x8000 is (32768 × 255 + 32767) / 65535 = 128, 0x0101 a byte repeated and 1 back,
+        /// 0x7F7F 127. A half: 0x3800 is 0.5, and 127.5 rounds away to 128; 0x4000 is 2 and 0xBC00
+        /// is -1, held to 255 and nought; 0x7E00 is no number and reads nought. A float: 0.25 is
+        /// 63.75, so 64, 0.75 is 191.25, so 191, and 1.5 and -0.5 are held.
         TEST(RtxSceneTexturesTest, aFileOfMissingChannelsIsWidenedToRgba8)
         {
             struct Case
             {
                 GLenum mPixelFormat;
+                GLenum mType;
                 std::size_t mBytes;
                 std::vector<std::uint8_t> mFile;
                 std::array<std::uint8_t, 20> mTexels;
             };
-            const std::array<Case, 4> cases{ {
-                { GL_RGB, 3, { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 1, 2, 3 },
+            const std::vector<Case> cases{
+                { GL_RGB, GL_UNSIGNED_BYTE, 3, { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 1, 2, 3 },
                     { 10, 20, 30, 255, 40, 50, 60, 255, 70, 80, 90, 255, 100, 110, 120, 255, 1, 2, 3, 255 } },
-                { GL_BGR, 3, { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 1, 2, 3 },
+                { GL_BGR, GL_UNSIGNED_BYTE, 3, { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 1, 2, 3 },
                     { 30, 20, 10, 255, 60, 50, 40, 255, 90, 80, 70, 255, 120, 110, 100, 255, 3, 2, 1, 255 } },
-                { GL_LUMINANCE, 1, { 0, 64, 128, 255, 7 },
+                { GL_LUMINANCE, GL_UNSIGNED_BYTE, 1, { 0, 64, 128, 255, 7 },
                     { 0, 0, 0, 255, 64, 64, 64, 255, 128, 128, 128, 255, 255, 255, 255, 255, 7, 7, 7, 255 } },
-                { GL_LUMINANCE_ALPHA, 2, { 0, 1, 64, 2, 128, 3, 255, 4, 7, 5 },
+                { GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, 2, { 0, 1, 64, 2, 128, 3, 255, 4, 7, 5 },
                     { 0, 0, 0, 1, 64, 64, 64, 2, 128, 128, 128, 3, 255, 255, 255, 4, 7, 7, 7, 5 } },
-            } };
+                { GL_ALPHA, GL_UNSIGNED_BYTE, 1, { 0, 64, 128, 255, 7 },
+                    { 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 128, 0, 0, 0, 255, 0, 0, 0, 7 } },
+                { GL_RED, GL_UNSIGNED_BYTE, 1, { 0, 64, 128, 255, 7 },
+                    { 0, 0, 0, 255, 64, 0, 0, 255, 128, 0, 0, 255, 255, 0, 0, 255, 7, 0, 0, 255 } },
+                { GL_RG, GL_UNSIGNED_BYTE, 2, { 0, 1, 64, 2, 128, 3, 255, 4, 7, 5 },
+                    { 0, 1, 0, 255, 64, 2, 0, 255, 128, 3, 0, 255, 255, 4, 0, 255, 7, 5, 0, 255 } },
+                { GL_LUMINANCE, GL_UNSIGNED_SHORT, 2, wordBytes({ 0, 0xFFFF, 0x8000, 0x0101, 0x7F7F }),
+                    { 0, 0, 0, 255, 255, 255, 255, 255, 128, 128, 128, 255, 1, 1, 1, 255, 127, 127, 127, 255 } },
+                { GL_RGBA, GL_UNSIGNED_SHORT, 8,
+                    wordBytes({ 0, 0xFFFF, 0x8000, 0x0101, 0x7F7F, 0, 0, 0xFFFF, 0, 0, 0, 0, 0xFFFF, 0xFFFF, 0xFFFF,
+                        0xFFFF, 0x0101, 0x0101, 0x0101, 0x0101 }),
+                    { 0, 255, 128, 1, 127, 0, 0, 255, 0, 0, 0, 0, 255, 255, 255, 255, 1, 1, 1, 1 } },
+                { GL_RED, GL_HALF_FLOAT, 2, wordBytes({ 0x3800, 0x3C00, 0x4000, 0xBC00, 0x7E00 }),
+                    { 128, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255 } },
+                { GL_RGBA, GL_FLOAT, 16,
+                    floatBytes({ 0.25f, 0.75f, 1.5f, -0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f,
+                        0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f }),
+                    { 64, 191, 255, 0, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128,
+                        128 } },
+                { GL_RGB, GL_FLOAT, 12, floatBytes({ 0.25f, 0.5f, 1.0f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }),
+                    { 64, 128, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255 } },
+            };
 
             for (const Case& one : cases)
             {
@@ -466,8 +532,8 @@ namespace Rtx
                 std::copy(one.mFile.begin(), one.mFile.end(), bytes);
                 osg::ref_ptr<osg::Image> image = new osg::Image;
                 image->setFileName("textures/tx_bytes.tga");
-                image->setImage(2, 2, 1, static_cast<GLint>(one.mPixelFormat), one.mPixelFormat, GL_UNSIGNED_BYTE,
-                    bytes, osg::Image::USE_NEW_DELETE, 1);
+                image->setImage(2, 2, 1, static_cast<GLint>(one.mPixelFormat), one.mPixelFormat, one.mType, bytes,
+                    osg::Image::USE_NEW_DELETE, 1);
                 image->setMipmapLevels(osg::Image::MipmapDataType{ static_cast<unsigned int>(4 * one.mBytes) });
 
                 std::vector<Rtx::MipLevel> levels;

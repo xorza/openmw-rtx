@@ -67,12 +67,13 @@ namespace Rtx
         VkBuffer getBuffer(const StructureRoom& room) const { return mBlocks.at(room.mBlock).mBuffer.getHandle(); }
         VkDeviceSize getOffset(const StructureRoom& room) const;
 
-        /// How much storage exists, which is what the device was asked for.
-        VkDeviceSize getBytes() const;
+        /// How much storage exists, which is what the device was asked for. Kept as blocks are made
+        /// and given back, as the next is kept as rooms are, so neither is a walk of the blocks.
+        VkDeviceSize getBytes() const { return mBytes; }
 
         /// What the structures standing in it occupy, beside the room asked for, because the two
         /// part company once anything is compacted.
-        VkDeviceSize getLiveBytes() const;
+        VkDeviceSize getLiveBytes() const { return VkDeviceSize{ mLiveUnits } * sAlignment; }
 
     private:
         /// One buffer and what has been handed out inside it. The allocator has no block boundary
@@ -93,13 +94,16 @@ namespace Rtx
             }
         };
 
-        /// How many places hold a block, which is what says whether this is the last one.
-        std::size_t countLive() const;
-
         /// Makes `room` free again, and gives its block to the device where it was the last.
         void give(const StructureRoom& room);
 
         BlockList<Block> mBlocks;
+
+        /// What the live blocks come to, how many units of them are handed out, and how many
+        /// blocks are live, which is what says whether one is the last.
+        VkDeviceSize mBytes = 0;
+        std::uint64_t mLiveUnits = 0;
+        std::size_t mLiveBlocks = 0;
 
         /// Rooms given back and not yet out of the queue's reach, in stamp order.
         Retiring<StructureRoom> mCooling;

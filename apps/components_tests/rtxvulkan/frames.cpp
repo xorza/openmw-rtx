@@ -430,14 +430,14 @@ namespace Rtx
         }
 
         /// A refitted structure is built whole again on a rota: the posed body built longest ago,
-        /// once `sRebuildEvery` posed placements have passed, one a placement.
+        /// on every placement that poses anything, one a placement, and never one built whole on
+        /// its own arrival.
         ///
         /// **Counted through the scene's report and driven through the placements a frame makes**,
-        /// so the rule is read where a run reads it. The wall arrived on placement nought; the
-        /// first sixty-three posed placements refit it and the sixty-fourth builds it whole. A
-        /// second body then shares the rota with it and the two alternate, sixty-four apart each,
-        /// so no placement builds two. A body posed once and left standing is not in a placement's
-        /// `deformed` and is never picked, however long it stands.
+        /// so the rule is read where a run reads it. The wall alone is built whole on every posed
+        /// placement after the one it arrived on. A second body arriving is not built again on the
+        /// placement that brings it; the two then share the rota, each placement building exactly
+        /// one of them. A placement that poses neither is not a tick of the rota at all.
         TEST_F(RtxFramesTest, aRefittedStructureIsBuiltWholeAgainOnARota)
         {
             // The fixture's `setScene` left the wall among the arrivals, as the uploader would not
@@ -447,33 +447,34 @@ namespace Rtx
 
             const auto rebuilt = [&] { return mRenderer.getSceneStats().mRebuilt; };
 
-            for (std::uint64_t placement = 1; placement < SceneAcceleration::sRebuildEvery; ++placement)
+            // Past the placement the wall arrived for: a pose that moves, because one the wall
+            // already holds poses nothing and is no tick of the rota.
+            deformTo(199.0f);
+            const std::uint64_t alone = rebuilt();
+            for (std::uint64_t placement = 1; placement <= 3; ++placement)
             {
-                deformTo(200.0f + static_cast<float>(placement % 4));
-                ASSERT_EQ(rebuilt(), 0u) << "built whole on placement " << placement << ", short of the rota";
+                deformTo(200.0f + static_cast<float>(placement));
+                EXPECT_EQ(rebuilt(), alone + placement) << "the wall alone, built whole on every posed placement";
             }
-            deformTo(201.0f);
-            EXPECT_EQ(rebuilt(), 1u) << "the sixty-fourth posed placement builds it whole";
-            deformTo(202.0f);
-            EXPECT_EQ(rebuilt(), 1u) << "and the one after refits again";
 
             // Frames, so the placements above are drawn and the rebuilt structure is traced: a
             // structure built whole in place of a refit is the same wall to a ray.
             mRenderer.renderFrame(ahead(), FrameOptions{});
             EXPECT_EQ(finishedHits(), sEveryPixel);
 
-            // A second body, arriving now: its arrival builds it whole and the rota counts from
-            // there, so the placement that brings it builds nothing whole again, and neither do the
-            // sixty-two after — the wall's turn comes first, sixty-four placements after its own.
+            // A second body, arriving now and posed alone on the placement that brings it: its
+            // arrival built it whole for that placement, so the placement builds nothing whole.
             const Index second = Testing::addOneBoneBody(
                 mScene, MeshArrays{ .mPositions = Testing::wallAt(300.0f), .mIndices = Testing::sQuadIndices })
                                      .mMesh;
             mScene.addInstance(MeshInstance{ .mMesh = second });
+            mScene.clearPlacement();
             Testing::poseByOneBone(mScene, second, osg::Matrixf::identity());
             mRenderer.extendScene(Rtx::SceneSlot::world(), mScene, {});
             mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
             mScene.clearArrivals();
-            EXPECT_EQ(rebuilt(), 1u) << "an arrival is not built twice on the placement that brings it";
+            const std::uint64_t arrived = rebuilt();
+            EXPECT_EQ(arrived, alone + 3) << "an arrival is built again on the placement that brings it";
 
             const auto deformBoth = [&](float x) {
                 mScene.clearPlacement();
@@ -481,24 +482,17 @@ namespace Rtx
                 Testing::poseByOneBone(mScene, second, osg::Matrixf::translate(-x, 0.0f, 0.0f));
                 mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
             };
-            // The wall was built whole on the sixty-fourth posed placement and the arrival on the
-            // sixty-fifth, and the extension's own placement was the sixty-sixth. Sixty-one more
-            // bring the clock to one short of the wall's turn.
-            for (std::uint64_t placement = 0; placement < SceneAcceleration::sRebuildEvery - 3; ++placement)
+            for (std::uint64_t placement = 1; placement <= 4; ++placement)
+            {
                 deformBoth(static_cast<float>(placement % 3));
-            EXPECT_EQ(rebuilt(), 1u) << "neither is due yet";
-            deformBoth(1.0f);
-            EXPECT_EQ(rebuilt(), 2u) << "the wall's turn, sixty-four placements after its last";
-            deformBoth(2.0f);
-            EXPECT_EQ(rebuilt(), 3u) << "and the second body's the placement after: one a placement";
-            deformBoth(0.0f);
-            EXPECT_EQ(rebuilt(), 3u) << "and then neither, for another sixty-three";
+                EXPECT_EQ(rebuilt(), arrived + placement) << "one built whole a placement, and never two";
+            }
 
             // And a placement that poses neither is not a placement of the rota at all, however
             // long it has been.
             mScene.clearPlacement();
             mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
-            EXPECT_EQ(rebuilt(), 3u);
+            EXPECT_EQ(rebuilt(), arrived + 4);
 
             // A frame over the placements above, because the zones a placement opens are the next
             // frame's report: drawn here they are this test's, and the shared renderer's next

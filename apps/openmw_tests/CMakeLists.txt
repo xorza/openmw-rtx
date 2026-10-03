@@ -40,6 +40,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/rtxsettings.cpp
     mwrender/rtxsupport.cpp
     mwrender/searules.cpp
+    mwrender/tracedgroundcover.cpp
     mwrender/tracedterrain.cpp
     mwrender/waterstate.cpp
     mwrender/worldmirror.cpp

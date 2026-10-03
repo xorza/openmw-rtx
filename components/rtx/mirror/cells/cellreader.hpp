@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <boost/container/flat_map.hpp>
@@ -13,6 +14,7 @@
 #include <components/esm/refid.hpp>
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/common/slots.hpp>
+#include <components/rtx/scene/refusal.hpp>
 #include <components/terrain/objectstorage.hpp>
 #include <components/terrain/pagedcellref.hpp>
 #include <components/terrain/storage.hpp>
@@ -26,6 +28,7 @@
 namespace Rtx
 {
     class ContentSource;
+    class GroundcoverSource;
 
     /// Reads one cell — its ground and its paged references — into a `PreparedCell`, on whichever
     /// thread owns this: what `Terrain::ObjectPaging::createChunk` reads through
@@ -38,8 +41,9 @@ namespace Rtx
     public:
         /// @param mask which nodes the walk of a template may descend into — the frame walk's own
         ///        traversal mask, so the two reach the same drawables.
+        /// @param groundcover the world's groundcover, or null for a world with none.
         CellReader(const Terrain::ObjectStorage& storage, Terrain::Storage& ground, ContentSource& content,
-            ESM::RefId worldspace, osg::Node::NodeMask mask);
+            ESM::RefId worldspace, osg::Node::NodeMask mask, GroundcoverSource* groundcover);
 
         /// Reads the cell at `cell`: its ground, the lights of its `LIGH` references, and — where
         /// `statics` — every reference that names a model with something to trace, a lamp's
@@ -50,6 +54,14 @@ namespace Rtx
 
         /// Takes a cell back, once the frame has copied what it wanted of it.
         void giveBack(PreparedCell& cell);
+
+        /// Reads the groundcover of the cell at `cell`: a `PreparedRef` a plant, of a model read as
+        /// groundcover (`readModel`). Lent as a cell is, its models lent to it a hold each; nothing
+        /// for a world with no groundcover. `giveBack` is where it returns.
+        PreparedGrass& readGrass(const osg::Vec2i& cell);
+
+        /// Takes a cell's groundcover back, once the frame has copied what it wanted of it.
+        void giveBack(PreparedGrass& grass);
 
         /// Takes back one cell's hold on a model. The model goes where it was the last, and its
         /// images with it where nothing else names them.
@@ -86,7 +98,22 @@ namespace Rtx
         /// The model at `path`, read whole where this holds none under that path. Null where
         /// nothing stands for the path. Refused, with no part and `PreparedModel::mRefused` saying
         /// why, where the template describes a mesh this renderer cannot take.
-        PreparedModel* readModel(VFS::Path::NormalizedView path);
+        ///
+        /// **Read as groundcover where `groundcover` says**, and filed apart from the same file read
+        /// as a static: upstream's groundcover states an alpha test of 128 / 255 with no blend over
+        /// every model it draws, `OVERRIDE` both, because MGE's content states no alpha it can be
+        /// trusted with (`MWRender::Groundcover`). Each part wears that reading under a key of its
+        /// own (`PreparedPart::mOwnKey`).
+        PreparedModel* readModel(VFS::Path::NormalizedView path, bool groundcover);
+
+        /// `readModel` for a reference: null where it stands nothing, no model or one with no part,
+        /// and the model's refusal added to `refusals` where it has one.
+        PreparedModel* readStanding(VFS::Path::NormalizedView path, bool groundcover, std::vector<Refusal>& refusals);
+
+        /// Appends a reference of `model` to `models` and `refs`, the model lent once to the list
+        /// however many of its references stand: what a cell's statics and its grass both keep.
+        void addReference(PreparedModel& model, const PreparedRef& ref, std::vector<PreparedModel*>& models,
+            std::vector<PreparedRef>& refs);
 
         /// The reading of a layer's texture at `path`, made where this holds none under that path,
         /// and one more holder counted on it: its diffuse, and its normal map where it has one. The
@@ -98,6 +125,7 @@ namespace Rtx
         ContentSource& mContent;
         ESM::RefId mWorldspace;
         osg::Node::NodeMask mMask;
+        GroundcoverSource* mGroundcover;
 
         GroundReader mGround;
         TemplateWalk mWalk;
@@ -109,20 +137,24 @@ namespace Rtx
         std::vector<Terrain::PagedCellRef> mRefScratch;
 
         Spares<PreparedCell> mCells;
+        Spares<PreparedGrass> mGrass;
         Spares<PreparedModel> mModels;
         Spares<PreparedTexture> mTextures;
+
+        /// What a model is filed under: its path, and whether it was read as groundcover.
+        using ModelKey = std::pair<std::string_view, bool>;
 
         /// What the two tables are ordered by: the path each is filed under.
         struct PathOf
         {
-            std::string_view operator()(const PreparedModel* held) const { return held->mPath; }
+            ModelKey operator()(const PreparedModel* held) const { return { held->mPath, held->mGroundcover }; }
             std::string_view operator()(const PreparedTexture* held) const { return held->mPath.value(); }
         };
 
         /// Every model and every ground texture lent, sorted by path — searched rather than keyed,
         /// because a lookup then costs no node and no string. By path and not by image, because a
         /// texture that does not read has no image and still stands, as the stand-in.
-        boost::container::flat_set<PreparedModel*, KeyedLess<std::string_view, PathOf>, std::vector<PreparedModel*>>
+        boost::container::flat_set<PreparedModel*, KeyedLess<ModelKey, PathOf>, std::vector<PreparedModel*>>
             mModelsByPath;
         boost::container::flat_set<PreparedTexture*, KeyedLess<std::string_view, PathOf>, std::vector<PreparedTexture*>>
             mTexturesByPath;

@@ -456,6 +456,10 @@ namespace Rtx::Shaders
     /// `Ambient`. Above the alpha test's sides, which have the bits under it.
     const uint MATERIAL_VERTEX_AMBIENT = 0x80000u;
 
+    /// No lamp lights the surface — `Rtx::Material::mLampLit` false, which is groundcover where
+    /// `[Groundcover] point lighting` is off. The sun, the sky and the bounce light it as before.
+    const uint MATERIAL_NO_LAMPS = 0x100000u;
+
     /// The same colour replaces this material's glow instead — `Rtx::VertexColour::Glow`. The
     /// light mode that goes with it already took the diffuse and the ambient to nought, so such a
     /// surface is its glow and nothing else.

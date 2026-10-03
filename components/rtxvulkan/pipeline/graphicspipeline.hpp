@@ -16,6 +16,7 @@ namespace Rtx
 {
     class Device;
     class Image;
+    class ShaderCode;
 
     /// How what a pipeline draws reaches what is already in the attachment.
     enum class Blend
@@ -84,7 +85,7 @@ namespace Rtx
     /// A graphics pipeline's handle against `layout`: the part of `GraphicsPipeline` its constants
     /// do not decide.
     Owned<VkPipeline, vkDestroyPipeline> makeGraphicsPipeline(
-        const Device& device, VkPipelineLayout layout, const GraphicsPipelineOptions& options);
+        const Device& device, VkPipelineLayout layout, const GraphicsPipelineOptions& options, ShaderCode& code);
 
     /// A graphics pipeline and its layout, pushed a `Constants` to both stages. The one thing in
     /// this backend that is not compute, because there is nothing to be gained by tracing a font
@@ -93,18 +94,21 @@ namespace Rtx
     class GraphicsPipeline : public TypedPipeline<Constants>
     {
     public:
-        GraphicsPipeline(const Device& device, const GraphicsPipelineOptions& options)
+        /// @param code where the stages' files are read, shared by the pipelines a pass makes of
+        ///        one pair of modules.
+        GraphicsPipeline(const Device& device, const GraphicsPipelineOptions& options, ShaderCode& code)
             : GraphicsPipeline(device,
                 PipelineLayout(device, options.mBindings,
                     pushRangeOf<Constants>(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT), {}),
-                options)
+                options, code)
         {
         }
 
     private:
-        GraphicsPipeline(const Device& device, PipelineLayout&& layout, const GraphicsPipelineOptions& options)
-            : TypedPipeline<Constants>(std::move(layout), makeGraphicsPipeline(device, layout.getHandle(), options),
-                VK_PIPELINE_BIND_POINT_GRAPHICS)
+        GraphicsPipeline(
+            const Device& device, PipelineLayout&& layout, const GraphicsPipelineOptions& options, ShaderCode& code)
+            : TypedPipeline<Constants>(std::move(layout),
+                makeGraphicsPipeline(device, layout.getHandle(), options, code), VK_PIPELINE_BIND_POINT_GRAPHICS)
         {
         }
     };

@@ -1,7 +1,9 @@
 #pragma once
 
 #include <array>
+#include <cassert>
 #include <cstddef>
+#include <exception>
 #include <span>
 
 #include <vulkan/vulkan_core.h>
@@ -30,6 +32,16 @@ namespace Rtx
             : mCommands(commands)
             , mImages(images)
         {
+        }
+
+        /// **A batch dropped with dependencies in it recorded none of them**, which shows only under
+        /// synchronization validation or as a picture that differs between runs: asserted here,
+        /// where it is a forgotten `flush` and not yet a race. Not while an exception unwinds, where
+        /// the commands being recorded are thrown away with it.
+        ~Barriers()
+        {
+            assert((std::uncaught_exceptions() > 0 || (mImageCount == 0 && mBufferCount == 0 && !mHasMemory))
+                && "a barrier batch went out of scope with dependencies it never recorded");
         }
 
         /// Not copied or moved: the default's room is its own, and a copy would name the original's.

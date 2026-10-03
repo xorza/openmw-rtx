@@ -23,6 +23,8 @@ namespace Terrain
 
 namespace Rtx
 {
+    class GroundcoverSource;
+
     /// Where a cell's content is read from, by path: a model's template, and an image. An
     /// interface, so that a ring can be handed a model by a test that has no loader. The game
     /// answers out of `Resource::SceneManager`, whose template is the one node every clone is
@@ -56,6 +58,10 @@ namespace Rtx
         /// The loader the models and the images come out of.
         ContentSource* mContent = nullptr;
 
+        /// The world's groundcover, or null where it has none: `[Groundcover] enabled` off, or a
+        /// worldspace other than the default one, which is the only one upstream grows grass in.
+        GroundcoverSource* mGroundcover = nullptr;
+
         ESM::RefId mWorldspace;
 
         /// The worldspace's own grid, which every ring measures its cells by — the width the land
@@ -83,6 +89,11 @@ namespace Rtx
         /// How far out anything is stood, in units — `CellGrid::reachOf`. Told rather than asked,
         /// so this library reads no settings. Nought stands nothing.
         float mReach = 0.0f;
+
+        /// How far out groundcover is stood, in units: `[Groundcover] rendering distance`, measured
+        /// from the eye to a cell's square as the rasterizer measures a chunk's box. Nought stands
+        /// none.
+        float mGroundcoverReach = 0.0f;
 
         /// The cells the game has stood for itself, as `Terrain::World` states them: minimum
         /// inclusive, maximum exclusive.

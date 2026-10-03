@@ -85,7 +85,7 @@ namespace Rtx::Shaders
 // and left standing, a translation unit cannot get it wrong.
 //
 // **A shader that spells no 64-bit type gains nothing by it.** `composite.comp` and
-// `wavecompose.comp` reach this header and neither declares `OpCapability Int64`: the extension
+// `wavecolumns.comp` reach this header and neither declares `OpCapability Int64`: the extension
 // permits the type and the compiler emits the capability only where one is used.
 //
 // **The scalar layout and the reference type travel with it, for the same reason.** Every shared

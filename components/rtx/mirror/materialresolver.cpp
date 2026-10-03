@@ -259,6 +259,16 @@ namespace Rtx
         mMaterials.drop(known);
     }
 
+    void MaterialResolver::hold(const osg::StateSet* const key)
+    {
+        if (key == nullptr)
+            return;
+
+        const auto known = mMaterials.find(key);
+        Crash::contract(known != mMaterials.end(), "a material held that the walk did not resolve");
+        mMaterials.hold(known);
+    }
+
     MaterialResolver::Resolved MaterialResolver::resolve(std::span<const Shading> shading)
     {
         if (shading.empty())
@@ -447,6 +457,7 @@ namespace Rtx
         material.mVertexColour = described->mVertexColour;
 
         material.mTwoSided = described->mTwoSided;
+        material.mLampLit = described->mLampLit;
         material.mOpacity = described->mOpacity;
 
         // Decoded here, because this is where the game's numbers enter the trace. A record's

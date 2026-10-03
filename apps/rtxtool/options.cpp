@@ -393,6 +393,12 @@ namespace RtxTool
             "by the same ring. Not given, `settings-default.cfg`'s `[Terrain] object paging`, or "
             "the player's own under `view`");
 
+        option(sFramed, "grass", bpo::value<bool>()->implicit_value(true),
+            "stand the plants the `--groundcover` files place, each an instance of its model, within "
+            "`[Groundcover] rendering distance` of the eye; it is the game's `[Groundcover] enabled`. "
+            "**On is the A/B that says what they cost**: the same world with grass on it. Not given, "
+            "`settings-default.cfg`'s, which is off, or the player's own under `view`");
+
         option(sFramed, "gamma", number(atLeast(0.0f, true)),
             "the player's display gamma over the finished picture, after the display curve: each "
             "encoded value to the power of one over this, so more than one lifts the darks and black "

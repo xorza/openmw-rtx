@@ -15,6 +15,7 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
+#include <components/rtxvulkan/present/presenttarget.hpp>
 
 namespace Rtx
 {
@@ -106,7 +107,7 @@ namespace Rtx
         const VkDeviceSize bytes = target.getReadBytes();
         GrowableBuffer& picture = pictureOf(mFrame);
         picture.growTo(bytes);
-        target.recordRead(commands, Use::sComputeWrite, Use::sComputeWrite, picture.get());
+        target.recordRead(commands, PresentTarget::sResting, PresentTarget::sResting, picture.get());
         frame.mReadBackBytes = bytes;
     }
 

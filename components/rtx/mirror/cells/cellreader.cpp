@@ -12,6 +12,7 @@
 
 #include <osg/Matrixf>
 #include <osg/Node>
+#include <osg/StateSet>
 #include <osg/Transform>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
@@ -25,11 +26,14 @@
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/refusal.hpp>
+#include <components/rtx/scene/surface.hpp>
+#include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/sceneutil/visitor.hpp>
 #include <components/terrain/pagedcellref.hpp>
 
 #include "cellworld.hpp"
+#include "groundcoversource.hpp"
 #include "prepared.hpp"
 
 namespace Rtx
@@ -67,11 +71,12 @@ namespace Rtx
     }
 
     CellReader::CellReader(const Terrain::ObjectStorage& storage, Terrain::Storage& ground, ContentSource& content,
-        const ESM::RefId worldspace, const osg::Node::NodeMask mask)
+        const ESM::RefId worldspace, const osg::Node::NodeMask mask, GroundcoverSource* const groundcover)
         : mStorage(storage)
         , mContent(content)
         , mWorldspace(worldspace)
         , mMask(mask)
+        , mGroundcover(groundcover)
         , mGround(ground, worldspace)
         , mCollector(storage.makeCollector())
     {
@@ -100,9 +105,9 @@ namespace Rtx
         return texture;
     }
 
-    PreparedModel* CellReader::readModel(const VFS::Path::NormalizedView path)
+    PreparedModel* CellReader::readModel(const VFS::Path::NormalizedView path, const bool groundcover)
     {
-        if (const auto known = mModelsByPath.find(path.value()); known != mModelsByPath.end())
+        if (const auto known = mModelsByPath.find(ModelKey{ path.value(), groundcover }); known != mModelsByPath.end())
             return *known;
 
         // The loader's parse and the walk after it, both over content a mod may have written wrong.
@@ -126,6 +131,30 @@ namespace Rtx
             // the next reference to it is not walked again, and nothing reads the graph of it.
             if (into.mParts.empty())
                 into.mTemplate = nullptr;
+
+            into.mGroundcover = groundcover;
+            if (!groundcover)
+                return;
+
+            // At or above a half, and no blend: the alpha test upstream's groundcover chunk
+            // overrides every state set below it with. A cut has no use for the blend's facts. And
+            // the lamps only where its chunk gathers them.
+            for (PreparedPart& part : into.mParts)
+            {
+                MaterialReading& reading = part.mMaterial;
+                if (!reading.mDescribed.has_value())
+                    continue;
+
+                reading.mDescribed->mAlphaMode = AlphaMode::Cutout;
+                reading.mDescribed->mAlphaTest = AlphaTest{
+                    .mReference = 128.0f / 255.0f,
+                    .mPasses = Shaders::ALPHA_PASSES_AT | Shaders::ALPHA_PASSES_ABOVE,
+                };
+                reading.mDescribed->mLampLit = mGroundcover->lampLit();
+                reading.mDiffuseFacts.reset();
+                part.mOwnKey = new osg::StateSet;
+                reading.mKey = part.mOwnKey.get();
+            }
         });
 
         [[maybe_unused]] const bool fresh = mModelsByPath.insert(&model).second;
@@ -250,39 +279,84 @@ namespace Rtx
         if (model.empty())
             return;
 
-        // A model this cannot read is a reference left out and refused, and never a cell
-        // left out: a settled walk waits for every cell of the ring, and one that never came
-        // would hold it for ever.
-        PreparedModel* read = readModel(model);
+        PreparedModel* read = readStanding(model, false, prepared.mRefusals);
         if (read == nullptr)
             return;
 
+        addReference(*read,
+            PreparedRef{
+                .mRefNum = ref.mRefNum,
+                .mTransform = transformOf(ref),
+                .mRadius
+                = givesLight || read->mEmits ? std::numeric_limits<float>::infinity() : read->mRadius * ref.mScale,
+                .mGate = ref.mGate,
+            },
+            prepared.mModels, prepared.mRefs);
+    }
+
+    PreparedModel* CellReader::readStanding(
+        const VFS::Path::NormalizedView path, const bool groundcover, std::vector<Refusal>& refusals)
+    {
+        // A model this cannot read is a reference left out and refused, and never a cell
+        // left out: a settled walk waits for every cell of the ring, and one that never came
+        // would hold it for ever.
+        PreparedModel* read = readModel(path, groundcover);
+        if (read == nullptr)
+            return nullptr;
+
         if (!read->mRefused.empty())
-            prepared.mRefusals.push_back(
-                Refusal{ .mKind = Refused::Model, .mName = read->mPath, .mWhy = read->mRefused });
+            refusals.push_back(Refusal{ .mKind = Refused::Model, .mName = read->mPath, .mWhy = read->mRefused });
 
-        if (read->mParts.empty())
-            return;
+        return read->mParts.empty() ? nullptr : read;
+    }
 
+    void CellReader::addReference(PreparedModel& model, const PreparedRef& ref, std::vector<PreparedModel*>& models,
+        std::vector<PreparedRef>& refs)
+    {
         std::uint32_t index = 0;
-        for (; index < prepared.mModels.size(); ++index)
-            if (prepared.mModels[index] == read)
+        for (; index < models.size(); ++index)
+            if (models[index] == &model)
                 break;
 
-        // One hold for the cell, however many of its references stand the model.
-        if (index == prepared.mModels.size())
+        // One hold for the list, however many of its references stand the model.
+        if (index == models.size())
         {
-            prepared.mModels.push_back(read);
-            mModels.lend(*read);
+            models.push_back(&model);
+            mModels.lend(model);
         }
 
-        prepared.mRefs.push_back(PreparedRef{
-            .mModel = index,
-            .mRefNum = ref.mRefNum,
-            .mTransform = transformOf(ref),
-            .mRadius = givesLight || read->mEmits ? std::numeric_limits<float>::infinity() : read->mRadius * ref.mScale,
-            .mGate = ref.mGate,
+        refs.push_back(ref);
+        refs.back().mModel = index;
+    }
+
+    PreparedGrass& CellReader::readGrass(const osg::Vec2i& cell)
+    {
+        PreparedGrass& prepared = mGrass.take([&](PreparedGrass& into) {
+            into.mCell = cell;
+            if (mGroundcover == nullptr)
+                return;
+
+            mRefScratch.clear();
+            mGroundcover->collect(cell, mRefScratch);
+            for (const Terrain::PagedCellRef& ref : mRefScratch)
+            {
+                const VFS::Path::NormalizedView path = mGroundcover->modelOf(ref.mRefId);
+                if (path.empty())
+                    continue;
+
+                PreparedModel* const read = readStanding(path, true, into.mRefusals);
+                if (read == nullptr)
+                    continue;
+
+                // No size rule and no gate: a plant is small everywhere it stands, and no script
+                // names a reference of a groundcover file.
+                addReference(*read, PreparedRef{ .mRefNum = ref.mRefNum, .mTransform = transformOf(ref) }, into.mModels,
+                    into.mRefs);
+            }
+            into.mPreprocessed = mWalk.takeStats();
         });
+        mGrass.lend(prepared);
+        return prepared;
     }
 
     void CellReader::giveBack(PreparedCell& cell)
@@ -292,6 +366,15 @@ namespace Rtx
 
         cell.reuse();
         mCells.give(cell);
+    }
+
+    void CellReader::giveBack(PreparedGrass& grass)
+    {
+        if (!mGrass.release(grass))
+            return;
+
+        grass.reuse();
+        mGrass.give(grass);
     }
 
     void CellReader::giveBack(PreparedTexture& texture)
@@ -324,8 +407,8 @@ namespace Rtx
         if (!mModels.release(model))
             return;
 
-        // Erased under the path it is still filed under, before `reuse` clears it.
-        const auto filed = mModelsByPath.find(std::string_view(model.mPath));
+        // Erased under the key it is still filed under, before `reuse` clears it.
+        const auto filed = mModelsByPath.find(ModelKey{ model.mPath, model.mGroundcover });
         Crash::contract(filed != mModelsByPath.end(), "a model given back that was never filed");
         mModelsByPath.erase(filed);
 

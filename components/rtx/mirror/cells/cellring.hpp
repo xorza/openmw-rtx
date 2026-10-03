@@ -47,7 +47,7 @@ namespace Rtx
     /// which is also the scene everything here stands in and the walk's counts it adds to, and
     /// holds by `Reach::mHolds` rather than being named again on every walk. Everything the
     /// thread reads is lent and given back — `Spares` says why an address and not a shared count,
-    /// and `giveBackHolds` why a hold is a cell's.
+    /// and `letGo` why a hold is a cell's.
     ///
     /// **The lamps of the cells the game has not loaded are the ring's too.** `REC_LIGH` is not a
     /// paged type and must not become one, because both renderers read the paging's type filter;
@@ -82,13 +82,14 @@ namespace Rtx
 
         /// Whether a walk waits for the cell it is about to adopt, so which frame a cell is adopted
         /// on is the schedule's answer and not the thread's. The order is what makes it so: one
-        /// reader takes the cells `ask` sorted and hands them back in that order. One cell a frame
-        /// either way.
+        /// reader takes the cells `ask` sorted and hands them back in that order. One cell and one
+        /// cell's groundcover a frame either way.
         void setSettled(bool settled);
 
-        /// How many cells of its band the ring still has to stand after the last walk: asked for and
-        /// not yet read, or read and waiting for the frame that adopts them. What a harness stop
-        /// waits out before it measures, settled or not.
+        /// How many cells of its band the ring still has to stand after the last walk, and how many
+        /// cells' groundcover of the grass band: asked for and not yet read, or read and waiting for
+        /// the frame that adopts them. What a harness stop waits out before it measures, settled or
+        /// not.
         std::uint32_t getCellsToStand() const;
 
         /// Whether a cell under the square from `low` to `high`, world units on the plane, is in the
@@ -134,6 +135,9 @@ namespace Rtx
         /// How many cells the prepared ring holds.
         std::size_t getHeldCellCount() const { return mPlacer.getHeldCount(); }
 
+        /// How many cells' groundcover the ring holds.
+        std::size_t getHeldGrassCount() const { return mPlacer.getGrassHeldCount(); }
+
         /// Whether the ground of the cell at `cell` stands in the top level, which is whether the
         /// trace draws it — `CellPlacer::standsGround`.
         bool standsGround(const osg::Vec2i& cell) const { return mPlacer.standsGround(cell); }
@@ -149,36 +153,45 @@ namespace Rtx
         /// cell read with the statics the other way is let go of here.
         void takeDone();
 
-        /// Hands the supply the cells the prepared disc lacks, nearest first. `band` is the disc's
-        /// radius in units, which is the reach and the prepared band past it.
-        void ask(const osg::Vec3f& eye, float band);
+        /// Hands the supply the cells the prepared disc lacks and the cells whose groundcover the
+        /// grass disc lacks, nearest first. `band` is the disc's radius in units, which is the reach
+        /// and the prepared band past it, and `grassBand` the grass disc's, nought for none.
+        void ask(const osg::Vec3f& eye, float band, float grassBand);
 
-        /// Gives back every handed cell outside the band. Run after every `takeDone`, because a cell
-        /// handed over during the wait was asked for from where the eye stood before.
-        void sift(const osg::Vec3f& eye, float band);
+        /// Gives back every handed cell outside the band, and every handed cell's grass outside the
+        /// grass band. Run after every `takeDone`, because what was handed over during the wait was
+        /// asked for from where the eye stood before.
+        void sift(const osg::Vec3f& eye, float band, float grassBand);
 
-        /// Blocks until the supply has read a cell this walk can adopt (`setSettled`), or until the
-        /// reader has nothing left to read, which returns with nothing handed. Only where the last
-        /// `ask` named something, because nothing is coming otherwise.
-        void waitForNext(const osg::Vec3f& eye, float band);
+        /// Blocks until the supply has read a cell, and a cell's grass, of each kind the last `ask`
+        /// named, that this walk can adopt (`setSettled`), or until the reader has nothing left to
+        /// read, which returns with what was handed.
+        void waitForNext(const osg::Vec3f& eye, float band, float grassBand);
 
-        /// Adopts the next cell the supply read, which is one cell and `frame`'s worth.
+        /// Adopts the next cell the supply read and the next cell's grass, one of each and
+        /// `frame`'s worth.
         void adoptHanded(std::size_t frame);
 
         void adopt(PreparedCell& cell);
+        void adopt(PreparedGrass& grass);
 
-        /// Lets go of a handed cell the frame will not adopt.
+        /// Lets go of a handed cell, or a handed cell's grass, the frame will not adopt.
         void discard(PreparedCell& cell);
+        void discard(PreparedGrass& grass);
 
-        /// Hands the supply a cell's holds on its models and its ground's textures, for a cell the
-        /// frame is letting go of — one it adopted, or one handed over that it never did. A hold
-        /// is a cell's, which is what makes a return exact whatever the thread read in between.
-        void giveBackHolds(const HeldCell& cell);
-        void giveBackHolds(const PreparedCell& cell);
+        /// Whether a cell's grass the supply handed over and the frame has not adopted is `cell`'s.
+        bool handedGrass(const osg::Vec2i& cell) const;
+
+        /// The grass disc's radius: the groundcover's reach and the prepared band past it, nought
+        /// where the world has no groundcover.
+        float grassBand() const;
 
         /// What a held cell the ring lets go of owes: its hold on each model, and the reader's
-        /// holds on its models and its ground's images.
+        /// holds on its models and its ground's images, handed to the supply. A cell's grass, held
+        /// or handed, owes the same of its models, and so does a handed cell (`discard`). A hold is
+        /// a cell's, which is what makes a return exact whatever the thread read in between.
         void letGo(const HeldCell& cell);
+        void letGo(std::span<PreparedModel* const> models);
 
         /// The whole of what a walk does to the rings: what `collect` wraps in the walk it is inside.
         void walkRings(ExtractionStats& stats, std::size_t frame);
@@ -223,9 +236,12 @@ namespace Rtx
         {
             osg::Vec3f mEye;
             float mBand = 0.0f;
+            float mGrassBand = 0.0f;
             bool mStatics = true;
             std::size_t mHeld = 0;
             std::size_t mHanded = 0;
+            std::size_t mGrassHeld = 0;
+            std::size_t mGrassHanded = 0;
 
             /// How many cells were ever taken from the supply, and how many worlds followed: a cell
             /// discarded on arrival and a new reader change no set, and are asked for again.
@@ -242,18 +258,23 @@ namespace Rtx
         /// How many cells the band held when `ask` last walked it, the reach and the band past it,
         /// or nought where the last walk stood nothing — indoors, or with no reader. Every held cell
         /// of an exterior walk is one of them once it has dropped what left, so what is left to stand
-        /// is this less what is held.
+        /// is this less what is held. The grass band's the same way.
         std::uint32_t mBandCells = 0;
+        std::uint32_t mGrassBandCells = 0;
 
-        /// The frame a cell was last adopted on, so a frame walked twice adopts once.
+        /// The frame a cell, and a cell's grass, was last adopted on, so a frame walked twice
+        /// adopts once.
         std::size_t mAdoptedFrame = ~std::size_t{ 0 };
+        std::size_t mGrassAdoptedFrame = ~std::size_t{ 0 };
 
         /// What the thread read and handed over, and the frame has not adopted yet, in the order it
         /// arrived.
         std::vector<PreparedCell*> mHanded;
+        std::vector<PreparedGrass*> mHandedGrass;
 
         // Refilled per frame.
         std::vector<PreparedCell*> mDoneScratch;
+        std::vector<PreparedGrass*> mDoneGrassScratch;
 
         /// What the supply is asked for, refilled per walk and never freed.
         CellRequest mAsking;

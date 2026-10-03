@@ -11,6 +11,7 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
+#include <components/rtxvulkan/pipeline/shadercode.hpp>
 
 #include "tonepass.hpp"
 
@@ -50,8 +51,13 @@ namespace Rtx
     }
 
     LinePass::LinePass(const Device& device)
-        : mLines(device, describePipeline(TonePass::sTargetFormat, VK_PRIMITIVE_TOPOLOGY_LINE_LIST))
-        , mTriangles(device, describePipeline(TonePass::sTargetFormat, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST))
+        : LinePass(device, ShaderCode(device))
+    {
+    }
+
+    LinePass::LinePass(const Device& device, ShaderCode&& code)
+        : mLines(device, describePipeline(TonePass::sTargetFormat, VK_PRIMITIVE_TOPOLOGY_LINE_LIST), code)
+        , mTriangles(device, describePipeline(TonePass::sTargetFormat, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST), code)
     {
     }
 

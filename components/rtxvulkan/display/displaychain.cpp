@@ -176,6 +176,8 @@ namespace Rtx
 
         if (look != nullptr)
             recordDebugLines(commands, what, *look);
+
+        what.mTarget.transition(commands, Use::sComputeWrite, what.mLeftAs);
     }
 
     void DisplayChain::recordDebugLines(const VkCommandBuffer commands, const Display& what, const FrameLook& look)
@@ -197,8 +199,8 @@ namespace Rtx
 
         openZone(&look.mTimer, commands, "lines");
 
-        // Drawn over what the curve wrote, and left where the curve left it: the interface and
-        // the presenter both take the target from there.
+        // Drawn over what the curve wrote, and left where the curve left it, for the chain's last
+        // transition to take it from.
         Image& target = what.mTarget;
         target.transition(commands, Use::sComputeWrite, Use::sColourAttachment);
 

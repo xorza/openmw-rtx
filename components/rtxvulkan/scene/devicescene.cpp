@@ -191,7 +191,7 @@ namespace Rtx
         };
     }
 
-    void DeviceScene::readPlacedStats(SceneStats& stats) const
+    void DeviceScene::readStats(SceneStats& stats) const
     {
         stats.mInstances = mCounts;
         stats.mTableBytes = mBuffers.getBytes() + mSkinTables.getBytes();
@@ -203,16 +203,11 @@ namespace Rtx
         stats.mCompactableBytes = mAcceleration.getCompactableBytes();
         stats.mCompactableNowBytes = mAcceleration.getCompactableNowBytes();
         stats.mRebuilt = mAcceleration.getRebuildCount();
-    }
-
-    void DeviceScene::readStats(SceneStats& stats) const
-    {
-        readPlacedStats(stats);
 
         stats.mStructureBytes = mAcceleration.getStructureBytes();
         stats.mStructureLiveBytes = mAcceleration.getStructureLiveBytes();
 
-        const TexturesHeld textures = mTextures.getHeld();
+        const TexturesHeld& textures = mTextures.getHeld();
         stats.mTextureCount = textures.mCount;
         stats.mTextureBytes = textures.mBytes;
         stats.mReducedTextureCount = textures.mReduced;

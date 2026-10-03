@@ -73,6 +73,11 @@ namespace Rtx
         /// anything holds it.
         void release(const osg::Drawable& drawable);
 
+        /// Takes one hold on what the walk in progress resolved `drawable` to, a refusal included,
+        /// until `release` gives it back: what keeps a frozen subtree's meshes through every sweep
+        /// the walk no longer reaches them in.
+        void hold(const osg::Drawable& drawable);
+
         /// Drops every entry neither this epoch nor a hold keeps, and with it the entry's hold on
         /// its mesh.
         void retire();

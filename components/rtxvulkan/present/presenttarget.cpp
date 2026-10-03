@@ -23,8 +23,8 @@ namespace Rtx
 
         device.getPool().submitAndWait([&](VkCommandBuffer commands) {
             const VkClearColorValue black{ .float32 = { 0.0f, 0.0f, 0.0f, 1.0f } };
-            mPicture.clear(commands, Use::sUndefined, black, Use::sAnyGeneral);
-            mShown.clear(commands, Use::sUndefined, black, Use::sAnyGeneral);
+            mPicture.clear(commands, Use::sUndefined, black, sResting);
+            mShown.clear(commands, Use::sUndefined, black, sResting);
         });
     }
 }

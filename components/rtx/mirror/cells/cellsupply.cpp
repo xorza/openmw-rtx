@@ -15,6 +15,7 @@ namespace Rtx
         // Swapped rather than copied: what this hands back is the room the last request grew, which
         // the next one to reach the frame's side refills.
         mCells.swap(from.mCells);
+        mGrass.swap(from.mGrass);
         mStatics = from.mStatics;
 
         from.clear();
@@ -23,6 +24,7 @@ namespace Rtx
     void CellReturns::clear()
     {
         mCells.clear();
+        mGrass.clear();
         mModels.clear();
         mTextures.clear();
     }
@@ -30,6 +32,7 @@ namespace Rtx
     void CellReturns::take(CellReturns& from)
     {
         mCells.insert(mCells.end(), from.mCells.begin(), from.mCells.end());
+        mGrass.insert(mGrass.end(), from.mGrass.begin(), from.mGrass.end());
         mModels.insert(mModels.end(), from.mModels.begin(), from.mModels.end());
         mTextures.insert(mTextures.end(), from.mTextures.begin(), from.mTextures.end());
 
@@ -53,6 +56,7 @@ namespace Rtx
         mRequested.clear();
         mReading.clear();
         mDone.clear();
+        mDoneGrass.clear();
         mReturned.clear();
         mReturning.clear();
         mRecycling.clear();
@@ -69,7 +73,7 @@ namespace Rtx
             return;
 
         mReader = std::make_unique<CellReader>(
-            *mWorld.mStorage, *mWorld.mGround, *mWorld.mContent, mWorld.mWorldspace, mWorld.mMask);
+            *mWorld.mStorage, *mWorld.mGround, *mWorld.mContent, mWorld.mWorldspace, mWorld.mMask, mWorld.mGroundcover);
         mWorker.start("cell reader", [this](const Platform::StopToken& stop) { work(stop); });
     }
 
@@ -89,13 +93,15 @@ namespace Rtx
         });
     }
 
-    void CellSupply::take(std::vector<PreparedCell*>& into)
+    void CellSupply::take(std::vector<PreparedCell*>& cells, std::vector<PreparedGrass*>& grass)
     {
         mOnFrame.check();
 
         mMonitor.under([&] {
-            into.insert(into.end(), mDone.begin(), mDone.end());
+            cells.insert(cells.end(), mDone.begin(), mDone.end());
+            grass.insert(grass.end(), mDoneGrass.begin(), mDoneGrass.end());
             mDone.clear();
+            mDoneGrass.clear();
             ++mTakes;
         });
     }
@@ -104,7 +110,7 @@ namespace Rtx
     {
         mOnFrame.check();
 
-        return mMonitor.await([&] { return !mDone.empty(); });
+        return mMonitor.await([&] { return !mDone.empty() || !mDoneGrass.empty(); });
     }
 
     void CellSupply::publish()
@@ -128,6 +134,9 @@ namespace Rtx
     {
         for (PreparedCell* cell : mRecycling.mCells)
             mReader->giveBack(*cell);
+
+        for (PreparedGrass* grass : mRecycling.mGrass)
+            mReader->giveBack(*grass);
 
         for (PreparedTexture* texture : mRecycling.mTextures)
             mReader->giveBack(*texture);
@@ -157,26 +166,53 @@ namespace Rtx
             });
     }
 
+    bool CellSupply::onTheWay(const osg::Vec2i& cell, const bool grass, const bool statics) const
+    {
+        return std::any_of(mOnTheWay.begin(), mOnTheWay.end(), [&](const Handed& handed) {
+            return handed.mCell == cell && handed.mGrass == grass && (grass || handed.mStatics == statics);
+        });
+    }
+
+    bool CellSupply::superseded()
+    {
+        // A newer ask replaces this one: the eye has moved and what it lacks has changed. An ask
+        // for nothing too, which says the lists in flight are no longer wanted.
+        const bool newer = mMonitor.under([&] {
+            mRecycling.take(mReturned);
+            return mAsked != mReadingAsked;
+        });
+        recycle();
+        return newer;
+    }
+
     void CellSupply::read(const Platform::StopToken& stop)
     {
+        // The grass first: the cells around the eye, where a plant missing is seen at once.
+        for (const osg::Vec2i& cell : mReading.mGrass)
+        {
+            if (stop.stopRequested() || superseded())
+                return;
+
+            if (onTheWay(cell, true, mReading.mStatics))
+                continue;
+
+            const Crash::NoteScope noted("reading the groundcover of the cell {}, {}", cell.x(), cell.y());
+            PreparedGrass& made = mReader->readGrass(cell);
+            const ReaderMemory measured = mReader->measure();
+
+            mMonitor.hand([&] {
+                mDoneGrass.push_back(&made);
+                mMeasured = measured;
+                mOnTheWay.push_back(Handed{ .mCell = cell, .mGrass = true, .mTakes = mTakes });
+            });
+        }
+
         for (const osg::Vec2i& cell : mReading.mCells)
         {
-            if (stop.stopRequested())
+            if (stop.stopRequested() || superseded())
                 return;
 
-            // A newer ask replaces this one: the eye has moved and what it lacks has changed. An ask
-            // for nothing too, which says the list in flight is no longer wanted.
-            const bool newer = mMonitor.under([&] {
-                mRecycling.take(mReturned);
-                return mAsked != mReadingAsked;
-            });
-            recycle();
-
-            if (newer)
-                return;
-
-            if (std::any_of(mOnTheWay.begin(), mOnTheWay.end(),
-                    [&](const Handed& handed) { return handed.mCell == cell && handed.mStatics == mReading.mStatics; }))
+            if (onTheWay(cell, false, mReading.mStatics))
                 continue;
 
             const Crash::NoteScope noted("reading the cell {}, {}", cell.x(), cell.y());

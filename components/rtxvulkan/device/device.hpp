@@ -62,12 +62,6 @@ namespace Rtx
     };
 
     template <>
-    struct ObjectTypeOf<VkShaderModule>
-    {
-        static constexpr VkObjectType value = VK_OBJECT_TYPE_SHADER_MODULE;
-    };
-
-    template <>
     struct ObjectTypeOf<VkSemaphore>
     {
         static constexpr VkObjectType value = VK_OBJECT_TYPE_SEMAPHORE;
@@ -218,6 +212,10 @@ namespace Rtx
                 setNameImpl(
                     ObjectTypeOf<Handle>::value, reinterpret_cast<std::uint64_t>(handle), std::string(name).c_str());
         }
+
+        /// Whether `setName` reaches the driver, which is what says a name may be chained into a
+        /// create info that has no object of its own to name.
+        bool namesObjects() const { return sDebugNames && mSetObjectName != nullptr; }
 
         /// Opens a named region in `commands`, so a capture or a profile shows what each stretch of
         /// the frame is. Kept in release, which is the build a profiler reads; `name` arrives

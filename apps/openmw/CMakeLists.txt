@@ -21,7 +21,7 @@ add_openmw_dir (mwrender
     actors objects renderingmanager animation rotatecontroller sky skyutil npcanimation esm4npcanimation vismask
     creatureanimation effectmanager util renderinginterface pathgrid rendermode weaponanimation screenshotmanager
     bulletdebugdraw globalmap characterpreview camera localmap water terrainstorage ripplesimulation
-    renderbin actoranimation landmanager navmesh actorspaths recastmesh fogmanager objectpaging groundcover
+    renderbin actoranimation landmanager navmesh actorspaths recastmesh fogmanager objectpaging groundcover groundcoverdensity
     postprocessor pingpongcull luminancecalculator pingpongcanvas transparentpass opaqueblit waterawaretransparentbin precipitationocclusion ripples
     actorutil distortion animationpriority bonegroup blendmask animblendcontroller
     )
@@ -33,7 +33,7 @@ add_openmw_dir (mwrender
     )
 add_openmw_dir (mwrender/rtx
     classmasks debugwalk framereport frametimer rippleemitters rtxrenderer rtxrun rtxsettings rtxsupport rtxwindow skyreader
-    tracedground tracedoverlay tracedterrain tracedview viewqueue worldmirror
+    tracedground tracedgroundcover tracedoverlay tracedterrain tracedview viewqueue worldmirror
     )
 
 add_openmw_dir (mwinput

@@ -557,14 +557,19 @@ namespace Rtx
         // SPD mips and an unmeasured exposure; every frame, the reconstructed depth its atomics take
         // the largest into, the SPD counter, and the SPD mips again, which the SDK clears so a level
         // is never read where nothing wrote it.
+        //
+        // **In the general layout the passes use, and ordered by the one barrier after them**: the
+        // last frame's passes over these images are behind the head barrier the buffer opens with
+        // (`CommandPool::begin`), so a transition into a clear's own layout and back out of it was
+        // two barriers an image ordering nothing `between` does not.
         if (reset)
         {
-            targets.mAccumulation[read].clear(commands, Use::sComputeReadWrite, sNought, Use::sComputeReadWrite);
-            targets.mFrameInfo.clear(commands, Use::sComputeReadWrite, sFreshFrameInfo, Use::sComputeReadWrite);
+            targets.mAccumulation[read].clearInGeneral(commands, sNought);
+            targets.mFrameInfo.clearInGeneral(commands, sFreshFrameInfo);
         }
-        targets.mPreviousDepth.clear(commands, Use::sComputeReadWrite, sNought, Use::sComputeReadWrite);
-        targets.mSpdAtomic.clear(commands, Use::sComputeReadWrite, sNought, Use::sComputeReadWrite);
-        targets.mSpdMips.clear(commands, Use::sComputeReadWrite, sNought, Use::sComputeReadWrite);
+        targets.mPreviousDepth.clearInGeneral(commands, sNought);
+        targets.mSpdAtomic.clearInGeneral(commands, sNought);
+        targets.mSpdMips.clearInGeneral(commands, sNought);
         between();
 
         const VkExtent2D render = targets.mRender;

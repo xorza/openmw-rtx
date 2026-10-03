@@ -183,6 +183,12 @@ namespace Rtx
         create(extent);
     }
 
+    bool Swapchain::changesPresentMode(const SDLUtil::VSyncMode mode) const
+    {
+        return mode != mVerticalSync
+            && presentModeFor(mSurface, mDevice.getPhysicalDevice().getHandle(), mode) != mPresentMode;
+    }
+
     bool Swapchain::setVerticalSync(SDLUtil::VSyncMode mode)
     {
         if (mode == mVerticalSync)

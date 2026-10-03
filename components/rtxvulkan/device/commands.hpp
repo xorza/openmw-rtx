@@ -114,7 +114,7 @@ namespace Rtx
         std::size_t takeStaging(VkDeviceSize bytes);
 
         /// The block behind an index.
-        const Buffer& stagingAt(std::size_t block) const { return mStaging[block].mBuffer; }
+        const Buffer& stagingAt(std::size_t block) const { return mStaging[block]; }
 
         /// Gives a block back, read until the timeline has passed `readUntil`.
         void giveStaging(std::size_t block, std::uint64_t readUntil);
@@ -154,18 +154,14 @@ namespace Rtx
         /// Given back and not yet taken again.
         std::vector<VkCommandBuffer> mSpare;
 
-        /// The pool's staging: blocks a batch writes uploads into and copies out of, each stamped
-        /// by the submit that last read it and taken again once the timeline has passed that. An
-        /// arrival then costs no staging buffer of its own, and a frame with nothing arriving
-        /// allocates nothing. The ring settles at the busiest stretch so far — as many blocks as
-        /// the arrivals in flight together wrote — and is never shrunk.
-        struct StagingBlock
-        {
-            Buffer mBuffer;
-            std::uint64_t mReadUntil = 0;
-            bool mTaken = false;
-        };
-        std::vector<StagingBlock> mStaging;
+        /// The pool's staging: blocks a batch writes uploads into and copies out of, retired under
+        /// the submit that last read them as the command buffers are, and free once a wait passes
+        /// it. An arrival then costs no staging buffer of its own, and a frame with nothing
+        /// arriving allocates nothing. The ring settles at the busiest stretch so far — as many
+        /// blocks as the arrivals in flight together wrote — and is never shrunk.
+        std::vector<Buffer> mStaging;
+        Retiring<std::size_t> mRetiringStaging;
+        std::vector<std::size_t> mSpareStaging;
 
         std::vector<BatchHold> mHolds;
         std::vector<std::size_t> mFreeHolds;

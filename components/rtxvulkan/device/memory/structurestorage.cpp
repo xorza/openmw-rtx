@@ -40,7 +40,7 @@ namespace Rtx
         // Every live block may hold a structure, so the list is asked for the first that fits,
         // and a new block is as large as the caller asked or as the structure needs — as the
         // structure needs and no more, where the device has no room for what the caller asked.
-        return mBlocks.take(
+        Misc::Result<StructureRoom, std::string_view> taken = mBlocks.take(
             unitsFor(bytes), [](const Block&) { return true; },
             [&](const std::uint32_t units, const std::uint32_t slot) -> Misc::Result<Block, std::string_view> {
                 // Named only where a capture could read it: a release build names nothing, and
@@ -68,8 +68,15 @@ namespace Rtx
                 Block block;
                 block.mCapacity = made;
                 block.mBuffer = std::move(buffer.value());
+                mBytes += block.mBuffer.getSize();
+                ++mLiveBlocks;
                 return block;
             });
+
+        if (taken.isOk())
+            mLiveUnits += taken.value().mRun.mCount;
+
+        return taken;
     }
 
     void StructureStorage::retire(const StructureRoom& room, const std::uint64_t until)
@@ -91,40 +98,21 @@ namespace Rtx
         // A block that empties goes back to the device, one at a time and never a sweep. A
         // refitted structure stays for the life of its mesh and pins its block. The last one
         // standing stays, so a scene that empties and fills does not ask for it back on the next
-        // arrival.
-        mBlocks.give(room, [&](const Block&) { return countLive() > 1; });
-    }
+        // arrival. Asked only of a block that emptied, and what it answers yes to is retired.
+        assert(mLiveUnits >= room.mRun.mCount && "a room given back that was never counted");
+        mLiveUnits -= room.mRun.mCount;
+        mBlocks.give(room, [&](const Block& block) {
+            if (mLiveBlocks <= 1)
+                return false;
 
-    std::size_t StructureStorage::countLive() const
-    {
-        std::size_t live = 0;
-        for (const Block& block : mBlocks)
-            if (block.mCapacity > 0)
-                ++live;
-
-        return live;
+            mBytes -= block.mBuffer.getSize();
+            --mLiveBlocks;
+            return true;
+        });
     }
 
     VkDeviceSize StructureStorage::getOffset(const StructureRoom& room) const
     {
         return VkDeviceSize{ room.mRun.mOffset } * sAlignment;
-    }
-
-    VkDeviceSize StructureStorage::getBytes() const
-    {
-        VkDeviceSize total = 0;
-        for (const Block& block : mBlocks)
-            total += block.mBuffer.getSize();
-
-        return total;
-    }
-
-    VkDeviceSize StructureStorage::getLiveBytes() const
-    {
-        VkDeviceSize total = 0;
-        for (const Block& block : mBlocks)
-            total += VkDeviceSize{ block.mRuns.getUsed() } * sAlignment;
-
-        return total;
     }
 }

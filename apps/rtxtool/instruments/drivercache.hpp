@@ -9,7 +9,7 @@ namespace RtxTool
     ///
     /// **Of its own**, because the driver otherwise shares one cache with every program on the
     /// machine and prunes it at a size limit, so another program's shaders evict these. **In the
-    /// harness's folder**, `Rtx::harnessDirectory`, so it goes with the build that made them and no
+    /// harness's folder**, `RtxTool::harnessDirectory`, so it goes with the build that made them and no
     /// install carries it. **One per set of shaders**, named by
     /// `digestShaders` of the modules the renderer reads, because the driver keys its entries on the
     /// bytes it is handed and never drops one: a directory each build kept across its shader edits

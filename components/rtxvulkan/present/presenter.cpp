@@ -15,6 +15,8 @@
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 
+#include "presenttarget.hpp"
+
 namespace Rtx
 {
     namespace
@@ -32,8 +34,9 @@ namespace Rtx
     Presenter::Presenter(
         const Device& device, const Instance& instance, SDL_Window* window, const SDLUtil::VSyncMode verticalSync)
         : mDevice(device)
+        , mAsked(drawableSize(window))
         , mSurface(instance, window)
-        , mSwapchain(device, mSurface, drawableSize(window), verticalSync)
+        , mSwapchain(device, mSurface, mAsked, verticalSync)
     {
         try
         {
@@ -114,7 +117,7 @@ namespace Rtx
 
     bool Presenter::wantsResize(const VkExtent2D extent)
     {
-        if (!mStale && extent.width == getExtent().width && extent.height == getExtent().height)
+        if (!mStale && extent.width == mAsked.width && extent.height == mAsked.height)
             return false;
 
         // A window that is not on screen is left alone. Its surface reports no extent, a
@@ -132,6 +135,7 @@ namespace Rtx
 
     void Presenter::rebuild(const VkExtent2D extent)
     {
+        mAsked = extent;
         remake(extent);
         mStale = false;
     }
@@ -141,7 +145,7 @@ namespace Rtx
         // A present mode is a property of the swapchain object. Not `rebuild`, because that
         // clears a staleness a window that changed size meanwhile still owes.
         if (mSwapchain.setVerticalSync(mode))
-            remake(getExtent());
+            remake(mAsked);
     }
 
     void Presenter::remake(const VkExtent2D extent)
@@ -197,7 +201,7 @@ namespace Rtx
         const VkCommandBuffer commands = image.mCommands;
         mDevice.getPool().begin(commands);
 
-        frame.transition(commands, Use::sAnyGeneralWrite, Use::sBlitRead);
+        frame.transition(commands, PresentTarget::sResting, Use::sBlitRead);
 
         const VkExtent2D extent = mSwapchain.getExtent();
         const osg::Vec2i frameSize(static_cast<int>(frame.getWidth()), static_cast<int>(frame.getHeight()));
@@ -247,7 +251,7 @@ namespace Rtx
         handed.add(imageBarrier(presented, 0, 1, Use::sBlitWrite, Use::sPresent));
 
         // Back where the next frame's passes expect to find it.
-        frame.addTransition(handed, Use::sBlitRead, Use::sAnyGeneralWrite);
+        frame.addTransition(handed, Use::sBlitRead, PresentTarget::sResting);
         handed.flush();
 
         // The pool's submit, so it signals the timeline and carries what was deferred ahead of the

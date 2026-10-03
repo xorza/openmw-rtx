@@ -751,7 +751,13 @@ else()
     set(RTX_RESOURCES_ROOT "${OPENMW_RESOURCES_ROOT}")
 endif()
 set(RTX_SPIRV_DIR "${RTX_RESOURCES_ROOT}/resources/rtx/shaders")
-set(RTX_SPIRV_SOURCE_DIR "${RTX_RESOURCES_ROOT}/rtxtool/shaders-source")
+
+# The harness's folder: its places, suites and scripts, the shaders with their source and the
+# driver's caches. In the build tree and outside any bundle, because no install carries the harness
+# and the macOS bundle is installed whole. The harness and the tests are built with it
+# (`OPENMW_RTX_HARNESS_DIR`), since the harness only ever runs from the tree that built it.
+set(RTX_HARNESS_DIR "${OpenMW_BINARY_DIR}/rtxtool")
+set(RTX_SPIRV_SOURCE_DIR "${RTX_HARNESS_DIR}/shaders-source")
 add_subdirectory (components/rtxvulkan)
 
 # Apps and tools

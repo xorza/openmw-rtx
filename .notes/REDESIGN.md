@@ -11,16 +11,13 @@ notes cite.
 
 | Workstream | What is left | Phase |
 |---|---|---|
-| W6 Scene tables change by the row | block growth, running totals, the refit, the presence rows | 5 |
-| W8 The denoisers share one surface test | steps 1 and 2; step 3 after its probe | 5 |
-| W9 Passes run only over what is new | every row, each with its bench | 5 |
+| W8 The denoisers share one surface test | step 3 after its probe (steps 1 and 2 measured and declined) | 5 |
+| W9 Passes run only over what is new | the last wavelet level into the composite, measured first | 5 |
 | W14 The ray tracer shows what the rasterizer shows | the items that wait for an input outside the tree | after its inputs |
-| W15 Groundcover stands in the ring | the whole of it, test plugin first | 8 |
-| W16 A mask's soft texels are layers to the eye | the whole of it, behind its measurement | 8 |
-| W17 One row per texture format | the table, then A8, the float formats and BC4 | 8 |
-| W18 The harness's folder is the build tree's | the whole of it | 6 |
-| W19 The walk visits what can change | the probe, then the frozen subtrees | 5 |
-| §16 Smaller workstreams | the upstream diff, the device, layering, Vulkan, tooling | 5 (§16.6), 6 |
+| W15 Groundcover stands in the ring | the measurement again with a real mod | 8 |
+| W16 A mask's soft texels are layers to the eye | the layer's light from its leaf, a design to make; the first shape failed | 8 |
+| W19 The walk visits what can change | the drift between legs, cause still to find | after Phase 5 |
+| §16 Smaller workstreams | the upstream diff, the device, layering, tooling | 6 |
 | §17 Fixes in place | the local groups; the frame constants | 5, 7 |
 
 **Waiting for you:** the keys' clock reads the session's own `timescale` (`sky.lua` takes it at
@@ -66,39 +63,16 @@ These come from `AGENTS.md` and the owner's posture. Each workstream below appli
 
 ## 7. W6 — Scene tables change by the row
 
-**Closes:** *(REVIEW: Scene tables redo work for rows that did not change)* and *(Work is batched
-behind a threshold …)*.
+**Done, and its last two rows measured and declined** (2026-10-03). The refit rota and the running
+totals are in. What was left would not pay:
 
-### What is wrong
-
-| Where | Defect |
-|---|---|
-| `GrowableBuffer::outgrow`, `SlotTable::sync` | the frame that crosses a power of two remakes the table and writes every row |
-| `SceneAcceleration::prepareRefit` | a posed body is rebuilt only every 64 placements (`sRebuildEvery`), so frames alternate between a rebuild and none |
-| `readPlacedStats` | the texture and structure figures are loops, so they are left out of the per-placement stats and go stale; `extendScene` pays a 4096-slot walk on the frame path |
-| `SceneBuffers::place` | every medium and additive box is transformed on every placement, standing rows included |
-
-### Target shape
-
-- **Per-frame device tables grow by the block.** `SlotTable`, the skin tables and the sprite bin
-  move onto `BlockedBuffer`'s shape: fixed blocks behind one address table. Growth costs one block
-  and owes only its new rows. `SlotTable::mRows` reserves by the block too. `GrowableBuffer` stays
-  only for start-up and resize paths, and `outgrow` goes.
-- **The refit rebuilds the oldest posed mesh on every placement that poses anything.** No threshold.
-  The worst frame stays one rebuild, and every frame costs the same.
-- **Running totals.** `TextureArray` keeps count, bytes and reduced count, updated in `stand` and
-  `drop`. `StructureStorage` keeps its two totals as rooms are taken and given back. One
-  `readStats` runs at every placement, and `readPlacedStats` goes.
-- **Presence rows in a `SlotTable`**, driven by the same `changed` list as the instance table.
-
-### Verification
-
-`./omw repeat --pairs=10`. `./omw release bench` on a hot card, back to back, with a warm-up leg:
-`one-cell-walk` and a crowd view for the movers, `island-crossing` for growth. Report the median,
-the p99 and the worst frame before and after. The worst frame must not rise. The frame thread's
-cache misses a thousand instructions (the report's `host thread` line) must stay within a tenth of
-each other across six legs: the walk's spread between legs follows them, and a table read as
-arrays is what stops it depending on the heap's layout.
+- **Block growth for the per-frame tables.** Over `island-crossing` the tables grew 212 times, every
+  one before the world stood whole and none in the measured flight; the slowest made its buffer in
+  0.97 ms (the top level's storage, 32 MiB) and all of them together took 3.8 ms. Tables on blocks
+  would put an address table between the trace and every instance and material row it reads, on
+  every ray, to spare a growth a session sees a handful of times, at load.
+- **Presence rows in a `SlotTable`.** The placement that moves every medium and additive box moved
+  at most 64 of them over the same flight: microseconds a placement.
 
 ---
 
@@ -131,6 +105,16 @@ re-encoding is the only reason `mDistanceScale` exists.
    `accumulate.h` argues for a format of the pass's own. Both arguments are about precision. Write
    a probe that compares the match rate of both encodings over `one-cell-walk`, and choose by it.
 
+**Steps 1 and 2 were measured and declined** (2026-10-03, the branch `w8-held-taps`): the
+accumulator wrote its four bits into an image and the shadow denoiser and the glossy filter read
+them, pictures unmoved. `./omw release bench`, three legs each, clock-normalised medians:
+`accumulate` 0.205 → 0.210 ms and `shadow` 0.243 → 0.235 ms at `seyda-neen-ship`, 0.205 → 0.211
+and 0.286 → 0.277 at the dawn deck; the frame's p99 and worst moved both ways within the legs'
+spread. The test the two passes stopped making cost what the accumulator's extra write and the
+barrier before them cost; the glossy filter, the third asker, runs on no vanilla frame. Step 1
+without step 2 only moves the four loads into each pass. Step 3 stays, behind its probe: what it
+would delete is two full-frame writes, which is more than step 2 had to win.
+
 The merge of the glossy filter into the accumulator (one dispatch) is not in this plan:
 `DenoisePasses::record` records the shadow denoiser between them. Step 2 takes most of the gain
 without changing the order.
@@ -152,19 +136,36 @@ not move a denoised picture beyond `sDenoiserNoiseLevels`.
 
 | Pass | Change | Expected gain |
 |---|---|---|
-| ocean transform (`waveform`, `waveline` ×6, `wavecompose`) | two dispatches and one barrier: the row pass computes the spectrum of its row for all three pairs in shared memory and transforms; the column pass transforms and stores into the tiles | about 36 MiB less traffic a frame, four queue drains fewer; the 128 cascade stops running 256 threads with 64 working |
-| `spriteruns.comp` | count non-empty tiles of the workgroup into shared memory before the first barrier; return uniformly at zero | scales with occupied tiles, not all tiles |
-| `shadowfilter.comp` | `APRON = 1 << SHADOW_LEVEL` | 61% and 44% fewer loads at levels 0 and 1 |
-| `shadowtiles.comp` | the mask pass writes a receiver word per tile; the classification reads words | two full-frame reads off the cleared tiles |
-| skinning and morphing | measure first: one dispatch over a table of rows in place of one per mesh | hundreds of tiny dispatches become one, if the command processor shows the cost |
-| histogram on the bloom's first halving; last wavelet level into the composite | measure first | up to two frame-sized round trips |
-| `spriterects.comp` | a sprite the shelter zeroed gets `noTiles()` | sheltered rain costs nothing after the shelter launch |
-| the medium and additive walks | run only where the view casts against their classes (`describeView`); additive placements keep their class bit | a map tile stops paying three traversals a pixel (and stops drawing absent actors' spell sheets) |
-| the upscaler's clears | one `Barriers` into `TRANSFER_DST` for all of them, one back merged into `between()` | two barrier commands a frame instead of up to eleven |
-| `barrierBeforeBuild` | deleted; its comment moves to `recordRefit`'s `barrierAfterBuild` | one drain fewer per moving frame |
+| the last wavelet level into the composite | build or decline on the bound below | a frame-sized round trip |
 
 Each row has its own commit and its own `bench` figure. A change that shows no gain on a hot card
 does not go in.
+
+**The wavelet row's bound** (2026-10-03, three legs each, branch-free probe that kept the last
+level's arithmetic and dropped its two stores and the composite's two loads of them; the pictures
+it drew are wrong by design). At 1920x1080 (traced 1280x720) the `composite` zone fell 0.080 →
+0.068 ms at `seyda-neen-ship` and 0.083 → 0.063 ms at `balmora-mages-guild`, `filter` did not move,
+and the frame median moved 0.02 to 0.05 ms, inside a leg's spread: the two channels stay in the
+card's cache at that size. At 7680x2160, the monitor's own size, `composite` fell 0.75 → 0.38 ms and
+0.78 → 0.38 ms, but `filter` rose 5.66 → 5.82 ms and 6.67 → 6.83 ms, so the net was 0.2 ms of a
+35–41 ms frame, and the p99 of the probe legs was worse (49.6 → 62.1 ms, 39.4 → 51.6 ms), which
+three legs do not resolve. A fused level also does the composite's ten loads inside the wavelet, so
+the real gain is below this bound. Open: the rise in `filter`, and a repeat with more legs at the
+large size before the row is built or declined.
+
+**Declined on their figures** (2026-10-03, three legs each): `spriteruns.comp` leaving a workgroup
+none of whose tiles any sprite reaches — the `sprites` zone stood at 0.047 ms at
+`balmora-storm-night` either way; and the mask pass packing a receiver word a tile for the
+classification (the branch `w9-receiver-words`) — `shadow` 0.228 → 0.229 ms at `seyda-neen-ship`
+and 0.237 → 0.239 ms at `balmora-mages-guild`, the surface read it added to the mask pass costing
+what the two it took off the classification saved.
+
+**Measured first and not built**: one dispatch for the skinning and morphing, whose whole `skin`
+zone is 0.018 to 0.028 ms at every place benched, and the histogram on the bloom's first halving,
+whose `exposure` zone is 0.023 to 0.028 ms — each could win at most its zone, under what a leg's
+spread resolves. **Already so, and now held by a test**: a sprite the shelter zeroed has no radius,
+which `capsuleSpan` gives an empty arc, so it was in no tile; and the medium and additive walks run
+only in tiles a presence of a shown class marks, each crossing's class tested against the ray mask.
 
 ---
 
@@ -172,7 +173,6 @@ does not go in.
 
 **Closes:** what is left of *(Content the rasterizer draws reaches the ray tracer with no reader)*.
 
-- **Groundcover** is W15, which has a design of its own.
 - **A generated particle image** enters the table under a key made from its address, as the
   composites do; the material reader needs the same key.
 - **A distant static's texture animation**: a prepared part whose chain carries an AutoPlay
@@ -190,106 +190,20 @@ Each carries a test with hand-computed values, on the GPU where the fact is a pi
 
 ## 15a. W15 — Groundcover stands in the ring
 
-**Closes:** *Groundcover is never drawn under the ray tracer* (`ISSUES.md`), and the groundcover
-item of *(Content the rasterizer draws reaches the ray tracer with no reader)*.
+**Closes:** the groundcover item of *(Content the rasterizer draws reaches the ray tracer with no
+reader)*. The ring reads and stands it (`Rtx::GroundcoverSource`, `MWRender::TracedGroundcover`);
+what is left is below.
 
-### What the rasterizer does
-
-- `MWWorld::GroundcoverStore` keeps, per exterior cell, the ESM contexts of the groundcover files
-  (`groundcover=` in `openmw.cfg`), and the model of every static whose model is under `grass/`.
-  It holds no reference: they are read off the files when a chunk is made.
-- `MWRender::Groundcover`, a `QuadTreeWorld` chunk manager, reads a chunk's references cell by
-  cell (`collectInstances`): a later file's reference replaces an earlier one's by `RefNum`, and
-  `DensityCalculator` keeps one reference in `1 / density`, in content order, from a count that
-  starts again in every cell. Each model is one clone, instanced over its references.
-- What it draws: alpha tested at `128 / 255` with blending off, both `OVERRIDE` (MGE's content
-  states no alpha it can be trusted with); swayed by the wind and pressed by the player
-  (`groundcover.vert`); lit by the lamps only where `[Groundcover] point lighting` is on (it is by
-  default); shown per chunk where the chunk's box is within `rendering distance` of the eye (6144
-  units by default); in the default worldspace alone; class `Mask_Groundcover`, which
-  `classmasks.hpp` already counts among the statics.
-- The game's loaded cells hold no groundcover reference, so groundcover stands in the active grid
-  too, where the ring stands no static.
-
-### Target shape: an instance per plant, through the ring's static path
-
-**Measured first:** `seyda-neen-ship` stands 64 179 instances today, 57 054 of them the ring's
-distant statics, over 3 074 553 triangles in 97.4 MiB of structures (`./omw scene`, 2026-10-03).
-6144 units are three quarters of a cell (8192), so the plants of 4 to 9 cells stand at once. **Not
-measured, because no grass mod is installed here:** at an estimated 1 000 to 4 000 plants a cell,
-an instance per plant adds 4 000 to 36 000 rows, under the ring's statics today; one mesh merged
-per cell and model, the plan's first shape, adds their triangles instead, at an estimated 30 to 100
-a plant 0.1 to 3.6 million, up to today's whole geometry again. So a plant is an instance of its
-model's mesh, as a distant static is, and the merge is the fallback the measurement below decides.
-The fixture and a real mod replace both estimates with counts.
-
-1. **A source of groundcover references, in the core** (`components/rtx/mirror/cells/`):
-   ```cpp
-   /// The groundcover references of one exterior cell, as the game's groundcover reads them.
-   class GroundcoverSource
-   {
-   public:
-       virtual ~GroundcoverSource() = default;
-       /// Appends the cell's references the density keeps, in content order. Called on the
-       /// ring's reader thread alone.
-       virtual void collect(const osg::Vec2i& cell, std::vector<Terrain::PagedCellRef>& into) = 0;
-       /// The model a groundcover record names, empty where it names none.
-       virtual VFS::Path::NormalizedView modelOf(ESM::RefId record) const = 0;
-   };
-   ```
-   `CellWorld` gains `GroundcoverSource* mGroundcover` (null where groundcover is off, or the
-   worldspace is not the default one), and `WorldAround` gains `float mGroundcoverReach`
-   (`[Groundcover] rendering distance`, nought where off).
-2. **The game's source** (`apps/openmw/mwrender/rtx/tracedgroundcover.{hpp,cpp}`), over
-   `GroundcoverStore`: `initCell`, a `ESM::ReadersCache` of its own (the reader thread is its one
-   caller), and the refs read as `collectInstances` reads them. **The density rule is a copy**,
-   `Rtx::GroundcoverDensity`, which names `MWRender::Groundcover`'s `DensityCalculator` and stays
-   apart from it (P9); a host test holds it to hand-computed keeps: at 0.25, the 4th, 8th and
-   12th of twelve references; at 1, every one; the count restarts each cell.
-3. **The reader reads a cell's groundcover beside its statics.** `CellReader::read` fills
-   `PreparedCell::mGroundcover`, a `std::vector<PreparedRef>` beside `mRefs`, through the same
-   `readModel` (a grass model is read once and lent to every cell). Its material is overridden as
-   upstream's state set does: cut at a half, no blend (`MaterialReading` gains the override, which
-   the extractor's `describeStateSet` would otherwise read off the NIF). No size rule: a plant is
-   small everywhere.
-4. **The placer stands it by its own rule.** `CellPlacer` places `mGroundcover` where the cell's
-   box is within `mGroundcoverReach` of the eye, **in the active grid as well**, and takes it down
-   past it; class `Static`. The cell is prepared where either reach holds it, so a grass cell near
-   the eye is read even with distant statics off.
-5. **Point lighting.** Where `[Groundcover] point lighting` is off, the material carries
-   `MATERIAL_NO_LAMPS`, and the lamp walk's weight is multiplied by a factor of nought for it — one
-   path, no branch, as `lightShown` does for a hidden class.
-6. **Not in this workstream:** the wind's sway and the player's stomp. Both move vertices every
-   frame, which is a deformer over a shared mesh; the trace stands the plants still, and the
-   difference is named in `rtxsupport` as a declined part of the setting.
-7. **The seam:** `rtxSupport().declinedSetting("Groundcover", "enabled")` goes; the log line in
-   `RtxRenderer` keeps naming stereo and post processing.
-
-### The test content, generated
-
-A fixture the tree writes: `Rtx::Testing::writeGroundcoverPlugin` with `ESM::ESMWriter`, two
-exterior cells near Seyda Neen (−2,−9 and −3,−9), each with groundcover references to vanilla
-`flora_*` statics whose models are copied under `grass/` in a test VFS, at known positions, scales
-and rotations. Loaded through `groundcover=`, as a player's configuration loads it.
-
-### Tests
-
-- Host: the density copy's keeps; `TracedGroundcover::collect` over the fixture: the count, the
-  replacement by `RefNum` across two files, and the positions read back.
-- Host: the ring over the fixture with a test `ContentSource`: plants stand in the active grid and
-  out of it, stand within the reach and go past it, and none stands with groundcover off.
-- GPU: one plant, a quad with a soft alpha, met by the eye where its alpha passes 128 and not
-  where it does not.
-- The harness: `shot` of a fixture view under both renderers, and the placed count against
-  `GroundcoverStore`'s at density 1 and 0.5.
-
-### Acceptance
-
-`./omw release bench` with a groundcover mod at its default density: the trace zone, the top-level
-build, the frame's p99 and its worst against the same run with groundcover off. **If the trace
-zone grows more than a fifth** from the instances' overlap (many small boxes along every ray near
-the ground), the merge per cell and model goes in instead, built on the reader thread from the
-same prepared references, and its memory is the figure that decides between the two.
+**The acceptance measurement, again with a real mod.** Taken on 2026-10-03 with a generated
+plugin (60 593 plants over 49 cells, five vanilla flora models, about 1 240 plants a cell),
+`./omw release bench`, the trace zone's median normalised to the clock, four legs with grass
+off against two with it on: `seyda-neen-ship` +13.0%, `seyda-neen-pond` +15.1%,
+`seyda-neen-ship-dawn` +8.6% (two legs off); `tlas` +0.05 to 0.07 ms. Under the fifth, so an
+instance a plant stays. **The cost is the geometry and not the cut**: the same plants opaque
+cost +7.2% and +13.5%. The legs with grass off spread 3.00 to 3.64 ms at the pond, as wide as
+the threshold, so a real mod's density on a quiet desktop decides again before the merge is
+ruled out; the merge per cell and model, built on the reader thread, is what goes in if it
+crosses.
 
 ---
 
@@ -297,7 +211,7 @@ same prepared references, and its memory is the figure that decides between the 
 
 **Closes:** *An alpha-blended surface … is cut at alpha 0.5* (`ISSUES.md`).
 
-### What two trials showed
+### What three trials showed
 
 - **Every soft texel a pane** (2026-10-02): at `seyda-neen-pier` the panes went from 3 to 91, and
   52 of 60 pictures turned to grain. The grain was the light: every sun and sky ray through a pane
@@ -306,187 +220,55 @@ same prepared references, and its memory is the figure that decides between the 
   blend fell at the pier (8.55 → 2.37) and rose under the canopy at `seyda-neen-pond` (21.57 →
   23.67, noise mean 1.19 → 1.90, p99 10 → 24). A texel met in one frame and missed in the next is
   a different surface to the eye each frame, so the accumulator dropped its history there.
+- **A soft texel a layer to the eye alone, shaded as a pane** (2026-10-03, the target shape below
+  as first written; the branch `w16-soft-layers` has it): the sun's rays kept the cut, and the
+  picture still broke. Under the canopy each fringe texel was a pane shaded by `shadePane` — one
+  unfiltered sun ray, one ambient ray that reads the sky blue, into the pane channel, whose filter
+  is guided by the nearest layer, which changes from pixel to pixel through foliage — so the leaves
+  came out speckled blue with bright contours. `noise --strafe=150`: the pond's frame noise 1.19 →
+  1.95 (p99 10 → 29), its bias 1.76 → 3.67; the ship's noise 1.59 → 2.52 (p99 21 → 35), bias
+  1.82 → 3.55; the pier unchanged. The pond's trace zone over the noise run's frames 2.61 → 3.48
+  ms, +33%.
 
-Both failed by what the coverage did to rays other than the one the rasterizer blends for, and by
-making the eye's surface change between frames. The rasterizer blends a soft texel into the
-picture and nothing else: its shadow casters are alpha tested at a half (`shadowcasting.frag`,
-"this replaces alpha blending").
+The first two failed by what the coverage did to rays other than the one the rasterizer blends for,
+and by making the eye's surface change between frames. The third kept the light rays whole and
+failed by the light it gave the layer itself: a fringe is not a pane, and shading it as one is
+what broke it. The rasterizer blends a soft texel into the picture and nothing else: its shadow
+casters are alpha tested at a half (`shadowcasting.frag`, "this replaces alpha blending").
 
 ### Target shape
 
-**A mask's soft texel is a layer to the eye ray, and a cut to every other ray.** Deterministic, so
-the surface identity is the same every frame, and limited to the one ray that draws the picture:
-
-1. **Which texels.** A blended mask (`isBlended() && !isTranslucent() && !isAdditive()`) carries
-   `MATERIAL_SOFT_MASK`. At the eye's candidate, the cone-filtered alpha `a` decides: `a ≥
-   SOFT_SOLID` (254.5 / 255) is the surface, `a < SOFT_EMPTY` (0.5 / 255) is passed, and between
-   them it is a layer of opacity `a × material opacity`. Every other ray keeps the cut at a half.
-2. **The eye's traversal** stops on the layer as it stops on a pane today, and the existing peel
-   (`PEEL_LAYERS`, four) composites it over what is behind, in the pane channels, with the pane
-   filter. `answerPane` takes the soft texel through the same `shadePane`, which is the leaf's own
-   light: its sun ray and its lamps are the leaf's, and the light through it is a cut's.
-3. **The budget.** A ray that peeled four layers takes the next soft texel as a cut, as a pane
-   past the budget is taken today; foliage in front of foliage keeps its nearest four.
-4. **The surface behind** is the G-buffer surface, unchanged from frame to frame, so the
-   accumulator's history holds through a canopy.
-
-### Implementation
-
-`scene.h` (`MATERIAL_SOFT_MASK`, `SOFT_SOLID`, `SOFT_EMPTY`), `scenebuffers.cpp` (the bit),
-`traversal.glsl` (`candidateStops` takes the eye's literal `detailed`, which already says the ray
-draws the picture, and answers *layer* for a soft texel), `visibilityhit.rchit` (`answerPane` for a
-soft texel), `visibility.rgen` (no change: the peel loop takes any pane answer).
+**The layer's light is the leaf's, and not shaded again.** What the third trial shows is that a
+fringe texel wants the light its own leaf already has, not a path of its own: the same sun, the
+same filtered shadow and the same bounce as the solid texels a pixel away. So the soft texel is a
+layer to the eye ray, as the trial had it (`MATERIAL_SOFT_MASK`, the `peeling` literal through
+`candidateStops`, `cutAt`, and `resolveFor`, all on `w16-soft-layers`), and what it is lit by is
+the solid channels' light at the layer's own pixel, demodulated by the leaf's albedo — no shadow
+ray, no ambient ray, nothing in the pane channel. Where the pixel's solid surface is not the same
+leaf, the nearest pixel that is lends it. That lookup is the design still to make, and it is
+measured as the trial was.
 
 ### Measurement before it goes in
 
-Release, hot card, back to back: the trace zone at `seyda-neen-pond`, `seyda-neen-pier` and a
-Bitter Coast canopy, before and after; `noise --strafe=150` at the same three; the fringe's error
+Release, hot card, back to back: the trace zone at `seyda-neen-pond`, `seyda-neen-pier` and
+`seyda-neen-ship`, before and after; `noise --strafe=150` at the same three; the fringe's error
 against 1 000-frame references taken under the rasterizer's rule. **Accepted** where the fringe's
 error falls at all three, the frame's noise does not rise, and the trace zone grows by less than a
-tenth. Where the cost is over, the layer's light is taken from the leaf's own surface behind the
-fringe and not shaded again — a design of its own, measured the same way.
-
----
-
-## 15c. W17 — One row per texture format
-
-**Closes:** *A texture the engine loads in a format the reader does not name …* (`ISSUES.md`).
-
-### What is wrong
-
-A format is spread over six switches: `readFormat` and `nameOf` (`texels.cpp`), the layout
-(`texturedata.hpp`), the widening on the way in (`imagedescription.cpp`), the alpha and colour
-decoders (`alphaimage.cpp`), and the device's format (`rtxvulkan/device/memory/formats.cpp`). A
-format the content files use and no switch names is `Unnamed`: the grey stand-in, and a sky deck
-left out, where the rasterizer samples it. Alpha-only `A8`, the half and full float formats and
-BC4 are those today. BC6H and BC7 never load at all (OSG's DDS reader refuses them), so they are
-no reader's question.
-
-### Target shape
-
-**One table, one row a format**, in the core (`components/rtx/image/formattable.hpp`):
-
-```cpp
-struct FormatRow
-{
-    GLenum mPixelFormat;          // the image's pixel format
-    GLenum mDataType;             // GL_NONE for a block
-    TextureFormat mFormat;        // the trace's name for it
-    std::string_view mName;       // for a log and a refusal
-    TexelLayout mLayout;          // block side and bytes
-    Widen mWiden;                 // None, or the RGBA8 / RGBA16F it is laid as on the way in
-    Decode mDecode;               // how the host reads a texel: Unorm8 channels, Half, Float, Bc1..Bc5
-    bool mColour;                 // whether a colour slot takes it
-};
-inline constexpr std::array sFormats{ ... };
-```
-
-`readFormat` finds the row; `nameOf`, the layout, the widening and the decoders read it. The
-backend keeps its own map from `TextureFormat` to `VkFormat`, because Vulkan is the backend's, and
-a `static_assert` over the table holds that every row whose `mWiden` is `None` has a device
-format.
-
-### The rows the issue adds
-
-| File | Pixel format, type | Row | On the device | Host decode |
-|---|---|---|---|---|
-| alpha-only | `GL_ALPHA`, `GL_UNSIGNED_BYTE` | `Alpha8` | widened to RGBA8 `(0, 0, 0, a)`, as GL samples it | `a` |
-| half float | `GL_RGBA`/`GL_RGB`/`GL_LUMINANCE`, `GL_HALF_FLOAT` | `Rgba16f` | `R16G16B16A16_SFLOAT`, a three- or one-channel file widened | half |
-| full float | the same, `GL_FLOAT` | `Rgba32f` | `R32G32B32A32_SFLOAT`, widened the same way | float |
-| BC4 | `GL_COMPRESSED_RED_RGTC1_EXT` | `Bc4Unorm` | `BC4_UNORM_BLOCK` | the red channel's block |
-
-**A decision for you: BC4 in a colour slot.** GL samples it as `(r, 0, 0, 1)`, red. A colour slot
-refuses BC5 by name today rather than drawing it yellow. Recommended: the same rule for BC4, so a
-data slot takes it and a colour slot names it.
-
-### Tests
-
-The table against itself (every row has a layout, a name and a decode; no pixel format and type
-twice), each new row's host decode against hand-written texels, and a GPU probe that samples each
-new format's upload and reads back what GL would show, to the byte.
-
----
-
-## 15d. W18 — The harness's folder is the build tree's
-
-**Closes:** *On macOS the harness's folder, `rtxtool/`, stands inside the app bundle* (`ISSUES.md`).
-
-### What is wrong
-
-`Rtx::harnessDirectory(resources)` is `resources/../rtxtool`. On Linux and Windows the resources
-are in the build tree, so the harness's folder is too. On macOS the resources are the bundle's
-(`RTX_RESOURCES_ROOT` is `Contents/Resources`), `openmw-rtxtool` itself is built into
-`Contents/MacOS` (`CMAKE_RUNTIME_OUTPUT_DIRECTORY`), and the bundle is installed whole, so neither
-the resources nor the executable is a place to derive it from.
-
-### Target shape
-
-**One CMake variable names it, outside any bundle**: `RTX_HARNESS_DIR` is
-`${OpenMW_BINARY_DIR}/rtxtool` on every system (on Linux and Windows the folder it is today). The
-views, the suites, the VFS scripts and the shaders with their source are copied there, and the
-harness and the tests are compiled with `OPENMW_RTX_HARNESS_DIR`. The core knows no harness folder:
-
-1. `Rtx::harnessDirectory` goes. `RtxTool::harnessDirectory()` answers the compiled path, for
-   `main.cpp`, `hosted.cpp` and the driver cache.
-2. `Rtx::shaderDirectory(resources, withSource)` becomes `shaderDirectory(resources)`, the modules
-   without source. The harness hands the renderer the folder with source as a path
-   (`Setup::mShaderSourceDirectory`, an optional path that replaces `mShaderSource`), so the game
-   side asks no harness question.
-3. The tests read `OPENMW_RTX_HARNESS_DIR` in place of their walk up from `OPENMW_RTX_SHADER_DIR`.
-
-The harness only ever runs from its build tree — no install carries it, and `omw archive` refuses
-a package that holds any of it — so a compiled build path is correct by construction.
-
-### Tests
-
-The shader directory test loses its harness half; `run.cpp`'s suite test reads the compiled
-folder; a configure on macOS (CI's `macos` job) lists the bundle and finds no `rtxtool/` in it —
-a CI step after the build, as `omw archive` checks the other two systems' installs.
+tenth.
 
 ---
 
 ## 15e. W19 — The walk visits what can change
 
-**Closes:** *A measured run's host rows move as a whole between runs of one build* (`ISSUES.md`),
-with W6.
+**The frozen subtrees are in** (2026-10-03): the world walk passes a reference root that changes
+nothing on its own, held through every sweep. The walk's median halved — 1.13 to 0.54 ms at
+`one-cell-walk`, 1.32 to 0.58 ms at `seyda-neen-ship`, six legs each — and its p99 with it.
 
-### Evidence
-
-Six legs of one build at `one-cell-walk`, held to the performance cores at a steady clock: walk
-medians 1.02 to 1.53 ms, and the frame thread's cache misses a thousand instructions 3.14 to 4.75,
-moving together. A leg is slow from its first frame to its last. The walk reaches every node of
-every loaded cell on every frame (`SceneExtractor`'s traversal skips nothing), and an identity met
-again is resolved through maps keyed on the node: a frame is a walk of pointers through OSG's heap,
-whose layout is set by the order the loader threads finished in, which differs in every process.
-
-### Target shape
-
-**A subtree that cannot change between frames stands, and the walk goes past it.**
-
-1. **The probe first.** Count, per frame at `one-cell-walk` and `balmora-mages-guild`, the nodes the
-   walk visits and the share of them under a subtree with no update callback, no controller, no
-   `Switch`, `LOD` or `Sequence`, no skin, no particle system and no light: the frozen share. The
-   design goes on only where that share is most of the walk.
-2. **Frozen at arrival.** Where the walk first meets a subtree, it records whether the subtree is
-   frozen (the test above, over the subtree once). A frozen subtree's rows — its placements, their
-   materials and their transforms — go into a flat run on the extractor
-   (`FrozenRun { std::uint32_t mFirst, mCount; }` over one `std::vector<Index>`).
-3. **Passed after.** On every later walk the traversal meets the subtree's root, stamps its run's
-   rows as reached in one pass over contiguous indices — the sweep's contract, kept without the
-   graph — and does not descend.
-4. **Thawed by what moves it.** A frozen subtree changes in three ways the game says: its object
-   is moved (`RenderingManager::moveObject`, `notifyJumped`), a child is added or removed (the
-   walk sees the root's child count change), or a state set's updater runs on it (`StateSetUpdater`'s
-   generation, which the fork already reads). Each drops the run, and the next walk descends
-   again.
-5. **The rest is W6's**: the rows themselves change by the row, so a frozen subtree costs one
-   stamp pass and nothing else.
-
-### Measurement
-
-The six-leg drift at `one-cell-walk`: the walk's median and the cache-miss rate must stay within a
-tenth across legs (the acceptance W6 states), and the walk's median must fall. `./omw repeat
---pairs=10`, because a stamp that misses a row is a row swept from a frame that still shows it.
+**What is left is the drift it was also meant to close**, *A measured run's host rows move as a
+whole between runs of one build* (`ISSUES.md`): over the same six legs the walk's medians still
+spread 0.41 to 0.73 ms and the frame thread's cache misses 5.4 to 16.9 a thousand instructions,
+the spread they had before in proportion. The pointer chase the frozen roots took away was not
+its cause, or not the whole of it; what moves a leg as a whole is still to be found.
 
 ---
 
@@ -535,20 +317,6 @@ support, and the `#ifdef _WIN32` in `glrenderer.cpp`. The core's prose names no 
 (swapchains, descriptor sets, command buffers, `VkInstance`): it states each cost in its own terms,
 and the backend's comment carries the Vulkan reason.
 
-### 16.6 Vulkan lifetimes and barriers
-
-*(REVIEW: Vulkan objects are waited on or rebuilt by a side effect …)*
-
-Staging blocks retire through `Retiring<std::size_t>` like every other retired object. The
-presenter compares against the extent it was last asked for. The two GUI `finish` calls before a
-present-mode change go, or state the reason that remains. A trace pipeline reads each named module
-once per build and chains the words (`maintenance5`), and the GUI pass's four pipelines load their
-two modules once.
-
-The present target states its resting use once (`PresentTarget::sResting`), and every user
-transitions from it and back; the five literals go. `Barriers` asserts in debug that nothing is
-pending when it goes out of scope.
-
 ### 16.7 Tooling single sources
 
 *(REVIEW: The driver, CI and CMake restate facts that each other hold)*
@@ -581,7 +349,6 @@ in one sweep per group.
 | Canaries that no report reads | the stop report prints the `NodeKinds` overflow and `mWornBeyondKept` |
 | Includes that name nothing they use | delete them |
 | Smaller defects | each as written |
-| Where an image was left … ; Barriers that order nothing … | §16.6 |
 | Options a verb takes and does nothing with | an `sPictures` verb set owns the picture-only knobs; every contradictory pair is refused at parse time, and `--accumulate` with an upscaler is refused |
 
 **Tests** follow each workstream. The groups *(Tests that cannot fail …)*, *(Behaviour with no
@@ -610,15 +377,12 @@ so its validation errors are reported.
 
 Each phase ends green on `./omw gate`.
 
-1. **Phase 5, frame cost:** W6, W8 steps 1 and 2, W9, the barrier rows of §16.6, and §17's frame
-   constants. Each with a `./omw release bench` before and after. A change that does not improve
-   the worst frame or the p99 does not go in. W8 step 3 follows its own measurement.
+1. **Phase 5, frame cost:** W9's last row and §17's frame constants. Each with a `./omw release bench` before and after. A change that does
+   not improve the worst frame or the p99 does not go in. W8 step 3 follows its own measurement.
 2. **Phase 6, the upstream diff:** §16.1, then §16.2, §16.5 and §16.7.
 3. **Phase 7, tests and docs:** the test groups in §17, and every doc item, `architecture.md` §1 and
    §13 included.
-4. **Phase 8, the open issues:** W15 (the test plugin first), W16 behind its measurement, W17.
-   W18 goes with Phase 6, because it moves what the harness reads; W19's probe goes with Phase 5,
-   and its frozen subtrees with W6.
+4. **Phase 8, the open issues:** W15's measurement with a real mod, W16's lit layer behind its measurement.
 
 W14 goes as each input arrives.
 

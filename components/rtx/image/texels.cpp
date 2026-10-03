@@ -1,6 +1,7 @@
 #include "texels.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -11,6 +12,8 @@
 #include <osg/Image>
 #include <osg/Texture> // The S3TC and RGTC formats, which Windows's and Apple's gl.h lack.
 #include <osg/Vec3d>
+
+#include <components/sceneutil/util.hpp>
 
 #include "alphaimage.hpp"
 #include "colour.hpp"
@@ -57,8 +60,7 @@ namespace Rtx
 
     bool readsColour(const TextureData& texture)
     {
-        return !texture.mBytes.empty() && !texture.mLevels.empty() && isUploadable(texture.mFormat)
-            && texture.mFormat != TextureFormat::Bc5Unorm;
+        return !texture.mBytes.empty() && !texture.mLevels.empty() && traitsOf(texture.mFormat).mColour;
     }
 
     osg::Vec3f texelAt(const TextureData& texture, const MipLevel& level, std::uint32_t x, std::uint32_t y)
@@ -156,122 +158,102 @@ namespace Rtx
         };
     }
 
-    TextureFormat readFormat(const osg::Image& image, const TextureEncoding encoding)
+    namespace
     {
-        const bool colour = encoding == TextureEncoding::Colour;
-
-        // **A loose format is its pixel format and its data type together.** The pixel format says
-        // which channels and the data type how many bits they take: `GL_BGRA` is four bytes a texel
-        // under `GL_UNSIGNED_BYTE` and two under `GL_UNSIGNED_SHORT_1_5_5_5_REV`, and naming both
-        // BGRA8 created every A1R5G5B5 file at twice its size. A pair not listed is `Unnamed`. A
-        // block states its own size, and its data type means nothing.
-        const GLenum type = image.getDataType();
-        const bool bytes = type == GL_UNSIGNED_BYTE;
-
-        // A sixteen-bit file whose header gave its spare bit no mask: OpenSceneGraph keeps the
-        // four-channel pixel format and says so in the internal one.
-        const bool opaque = image.getInternalTextureFormat() == GL_RGB;
-
-        switch (image.getPixelFormat())
+        /// A pixel format and a data type a loaded image names, and the format each encoding reads
+        /// it as. **A loose format is the two together**: the pixel format says which channels and
+        /// the data type how many bits they take, so `GL_BGRA` is four bytes a texel under
+        /// `GL_UNSIGNED_BYTE` and two under `GL_UNSIGNED_SHORT_1_5_5_5_REV`, and naming both BGRA8
+        /// created every A1R5G5B5 file at twice its size. A block states its own size, and its data
+        /// type means nothing (`sAnyType`). A pair not listed is `Unnamed`.
+        struct GlFormat
         {
+            GLenum mPixelFormat;
+            GLenum mType;
+            TextureFormat mColour;
+            TextureFormat mData;
+        };
+
+        constexpr GLenum sAnyType = 0;
+
+        constexpr GlFormat both(GLenum pixelFormat, GLenum type, TextureFormat format)
+        {
+            return GlFormat{ pixelFormat, type, format, format };
+        }
+
+        constexpr std::array sGlFormats{
             // One format for both spellings: whether the file's header claimed alpha decides
             // nothing, since a BC1 block carries its punch-through bit either way — every mask in
             // the game is a punch-through BC1 block, and almost none of Morrowind's files set
             // `DDPF_ALPHAPIXELS`, so believing the header would leave every canopy a solid card.
-            case GL_COMPRESSED_RGB_S3TC_DXT1_EXT:
-            case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT:
-                return colour ? TextureFormat::Bc1RgbaSrgb : TextureFormat::Bc1RgbaUnorm;
-            case GL_COMPRESSED_RGBA_S3TC_DXT3_EXT:
-                return colour ? TextureFormat::Bc2Srgb : TextureFormat::Bc2Unorm;
-            case GL_COMPRESSED_RGBA_S3TC_DXT5_EXT:
-                return colour ? TextureFormat::Bc3Srgb : TextureFormat::Bc3Unorm;
-            // Two channels are no colour: MVR PBR ships three neck diffuse maps as BC5, with their
-            // blue gone, and a colour slot refuses them by name rather than drawing them yellow.
-            case GL_COMPRESSED_RED_GREEN_RGTC2_EXT:
-                return colour ? TextureFormat::Unnamed : TextureFormat::Bc5Unorm;
-            case GL_RGB:
-                return bytes                          ? TextureFormat::Rgb8
-                    : type == GL_UNSIGNED_SHORT_5_6_5 ? TextureFormat::Rgb565
-                                                      : TextureFormat::Unnamed;
+            GlFormat{
+                GL_COMPRESSED_RGB_S3TC_DXT1_EXT, sAnyType, TextureFormat::Bc1RgbaSrgb, TextureFormat::Bc1RgbaUnorm },
+            GlFormat{
+                GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, sAnyType, TextureFormat::Bc1RgbaSrgb, TextureFormat::Bc1RgbaUnorm },
+            GlFormat{ GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, sAnyType, TextureFormat::Bc2Srgb, TextureFormat::Bc2Unorm },
+            GlFormat{ GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, sAnyType, TextureFormat::Bc3Srgb, TextureFormat::Bc3Unorm },
+            // One and two channels are no colour: MVR PBR ships three neck diffuse maps as BC5, with
+            // their blue gone, and a colour slot refuses them by name rather than drawing them yellow.
+            GlFormat{ GL_COMPRESSED_RED_GREEN_RGTC2_EXT, sAnyType, TextureFormat::Unnamed, TextureFormat::Bc5Unorm },
+            GlFormat{ GL_COMPRESSED_RED_RGTC1_EXT, sAnyType, TextureFormat::Unnamed, TextureFormat::Bc4Unorm },
             // Not every file the game ships is a block. The sky's cloud decks are plain 32-bit
             // `DDPF_RGB`, which is what a texture painted for a full-screen dome would be, and
             // taking only the compressed formats would draw every weather's clouds grey.
-            case GL_RGBA:
-                if (!bytes)
-                    return TextureFormat::Unnamed;
-                return colour ? TextureFormat::Rgba8Srgb : TextureFormat::Rgba8Unorm;
-            case GL_BGRA:
-                if (type == GL_UNSIGNED_SHORT_1_5_5_5_REV)
-                    return opaque ? TextureFormat::Xrgb1555 : TextureFormat::Argb1555;
-                if (type == GL_UNSIGNED_SHORT_4_4_4_4_REV)
-                    return opaque ? TextureFormat::Xrgb4444 : TextureFormat::Argb4444;
-                if (!bytes)
-                    return TextureFormat::Unnamed;
-                return colour ? TextureFormat::Bgra8Srgb : TextureFormat::Bgra8Unorm;
-            case GL_BGR:
-                return bytes ? TextureFormat::Bgr8 : TextureFormat::Unnamed;
-            case GL_LUMINANCE:
-                return bytes ? TextureFormat::Luminance : TextureFormat::Unnamed;
-            case GL_LUMINANCE_ALPHA:
-                return bytes ? TextureFormat::LuminanceAlpha : TextureFormat::Unnamed;
-            default:
-                return TextureFormat::Unnamed;
+            GlFormat{ GL_RGBA, GL_UNSIGNED_BYTE, TextureFormat::Rgba8Srgb, TextureFormat::Rgba8Unorm },
+            GlFormat{ GL_BGRA, GL_UNSIGNED_BYTE, TextureFormat::Bgra8Srgb, TextureFormat::Bgra8Unorm },
+            both(GL_RGB, GL_UNSIGNED_BYTE, TextureFormat::Rgb8),
+            both(GL_RGB, GL_UNSIGNED_SHORT_5_6_5, TextureFormat::Rgb565),
+            both(GL_BGR, GL_UNSIGNED_BYTE, TextureFormat::Bgr8),
+            both(GL_LUMINANCE, GL_UNSIGNED_BYTE, TextureFormat::Luminance),
+            both(GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, TextureFormat::LuminanceAlpha),
+            both(GL_ALPHA, GL_UNSIGNED_BYTE, TextureFormat::Alpha8),
+            both(GL_RED, GL_UNSIGNED_BYTE, TextureFormat::Red8),
+            both(GL_RG, GL_UNSIGNED_BYTE, TextureFormat::Rg8),
+            both(GL_RGBA, GL_UNSIGNED_SHORT, TextureFormat::Rgba16),
+            both(GL_LUMINANCE, GL_UNSIGNED_SHORT, TextureFormat::Luminance16),
+            both(GL_LUMINANCE_ALPHA, GL_UNSIGNED_SHORT, TextureFormat::LuminanceAlpha16),
+            both(GL_RED, GL_UNSIGNED_SHORT, TextureFormat::Red16),
+            both(GL_RG, GL_UNSIGNED_SHORT, TextureFormat::Rg16),
+            both(GL_RED, GL_HALF_FLOAT, TextureFormat::Red16f),
+            both(GL_RG, GL_HALF_FLOAT, TextureFormat::Rg16f),
+            both(GL_RGB, GL_HALF_FLOAT, TextureFormat::Rgb16f),
+            both(GL_RGBA, GL_HALF_FLOAT, TextureFormat::Rgba16f),
+            both(GL_RED, GL_FLOAT, TextureFormat::Red32f),
+            both(GL_RG, GL_FLOAT, TextureFormat::Rg32f),
+            both(GL_RGB, GL_FLOAT, TextureFormat::Rgb32f),
+            both(GL_RGBA, GL_FLOAT, TextureFormat::Rgba32f),
+        };
+    }
+
+    TextureFormat readFormat(const osg::Image& image, const TextureEncoding encoding)
+    {
+        const GLenum pixelFormat = image.getPixelFormat();
+        const GLenum type = image.getDataType();
+
+        // A sixteen-bit file whose header gave its spare bit no mask: OpenSceneGraph keeps the
+        // four-channel pixel format and says so in the internal one.
+        if (pixelFormat == GL_BGRA && (type == GL_UNSIGNED_SHORT_1_5_5_5_REV || type == GL_UNSIGNED_SHORT_4_4_4_4_REV))
+        {
+            const bool opaque = image.getInternalTextureFormat() == GL_RGB;
+            if (type == GL_UNSIGNED_SHORT_1_5_5_5_REV)
+                return opaque ? TextureFormat::Xrgb1555 : TextureFormat::Argb1555;
+            return opaque ? TextureFormat::Xrgb4444 : TextureFormat::Argb4444;
         }
+
+        for (const GlFormat& row : sGlFormats)
+            if (row.mPixelFormat == pixelFormat && (row.mType == sAnyType || row.mType == type))
+                return encoding == TextureEncoding::Colour ? row.mColour : row.mData;
+
+        return TextureFormat::Unnamed;
     }
 
     bool carriesHeight(const osg::Image& normalMap)
     {
-        return readFormat(normalMap, TextureEncoding::Data) != TextureFormat::Bc5Unorm;
+        return SceneUtil::computeUnsizedPixelFormat(normalMap.getPixelFormat()) != GL_RG;
     }
 
     std::string_view nameOf(TextureFormat format)
     {
-        switch (format)
-        {
-            case TextureFormat::Bc1RgbaSrgb:
-                return "BC1 (DXT1)";
-            case TextureFormat::Bc2Srgb:
-                return "BC2 (DXT3)";
-            case TextureFormat::Bc3Srgb:
-                return "BC3 (DXT5)";
-            case TextureFormat::Rgba8Unorm:
-                return "RGBA8 (linear)";
-            case TextureFormat::Rgb8:
-                return "RGB8";
-            case TextureFormat::Bgr8:
-                return "BGR8";
-            case TextureFormat::Rgba8Srgb:
-                return "RGBA8";
-            case TextureFormat::Bgra8Srgb:
-                return "BGRA8";
-            case TextureFormat::Bc1RgbaUnorm:
-                return "BC1 (DXT1, linear)";
-            case TextureFormat::Bc2Unorm:
-                return "BC2 (DXT3, linear)";
-            case TextureFormat::Bc3Unorm:
-                return "BC3 (DXT5, linear)";
-            case TextureFormat::Bgra8Unorm:
-                return "BGRA8 (linear)";
-            case TextureFormat::Bc5Unorm:
-                return "BC5 (ATI2, linear)";
-            case TextureFormat::Rgb565:
-                return "R5G6B5";
-            case TextureFormat::Argb1555:
-                return "A1R5G5B5";
-            case TextureFormat::Xrgb1555:
-                return "X1R5G5B5";
-            case TextureFormat::Argb4444:
-                return "A4R4G4B4";
-            case TextureFormat::Xrgb4444:
-                return "X4R4G4B4";
-            case TextureFormat::Luminance:
-                return "L8";
-            case TextureFormat::LuminanceAlpha:
-                return "LA8";
-            case TextureFormat::Unnamed:
-                break;
-        }
-
-        return "an unnamed pixel format";
+        return traitsOf(format).mName;
     }
 }

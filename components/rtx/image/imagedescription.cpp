@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
@@ -16,6 +18,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/resource/imagemanager.hpp>
+#include <components/rtx/common/halffloat.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "texels.hpp"
@@ -33,37 +36,6 @@ namespace Rtx
                 levelsTo1x1(static_cast<std::uint32_t>(image.s()), static_cast<std::uint32_t>(image.t())));
         }
 
-        /// How many bits each channel of a sixteen-bit format takes, from the high bit down: alpha,
-        /// red, green and blue. Nought alpha bits is an opaque texel.
-        struct ChannelBits
-        {
-            std::uint32_t mAlpha = 0;
-            std::uint32_t mRed = 0;
-            std::uint32_t mGreen = 0;
-            std::uint32_t mBlue = 0;
-        };
-
-        ChannelBits channelBitsOf(TextureFormat format)
-        {
-            switch (format)
-            {
-                case TextureFormat::Rgb565:
-                    return ChannelBits{ .mRed = 5, .mGreen = 6, .mBlue = 5 };
-                case TextureFormat::Argb1555:
-                    return ChannelBits{ .mAlpha = 1, .mRed = 5, .mGreen = 5, .mBlue = 5 };
-                case TextureFormat::Xrgb1555:
-                    return ChannelBits{ .mRed = 5, .mGreen = 5, .mBlue = 5 };
-                case TextureFormat::Argb4444:
-                    return ChannelBits{ .mAlpha = 4, .mRed = 4, .mGreen = 4, .mBlue = 4 };
-                case TextureFormat::Xrgb4444:
-                    return ChannelBits{ .mRed = 4, .mGreen = 4, .mBlue = 4 };
-                default:
-                    break;
-            }
-
-            Crash::fatal("a format widened that is not sixteen bits a texel");
-        }
-
         /// The byte nearest what a device samples from a `bits`-bit unsigned normalized channel,
         /// `value / (2^bits - 1)`. Not the bits repeated down the byte, which a BC1 endpoint is
         /// decoded by and which lands a step off that for fourteen of the five- and six-bit values.
@@ -76,7 +48,7 @@ namespace Rtx
         /// Every texel of `from`, little-endian sixteen-bit words of `format`, into `into` as RGBA8.
         void widenWords(TextureFormat format, std::span<const std::byte> from, std::span<std::byte> into)
         {
-            const ChannelBits bits = channelBitsOf(format);
+            const ChannelBits bits = traitsOf(format).mPacked;
             const std::uint32_t greenAt = bits.mBlue;
             const std::uint32_t redAt = greenAt + bits.mGreen;
             const std::uint32_t alphaAt = redAt + bits.mRed;
@@ -98,46 +70,72 @@ namespace Rtx
             }
         }
 
-        /// Every texel of `from`, laid out as `format`, into `into` as RGBA8: the missing channels
-        /// filled as a device samples a format that lacks them, an alpha of one and a luminance
-        /// read in all three colours.
+        /// One channel of a loose texel as the byte nearest what a device samples from it, held to
+        /// nought and one: `LooseTexel` says why. A channel that is no number reads nought.
+        std::byte channelByte(const ChannelType type, const std::byte* at)
+        {
+            const auto unit = [](float value) {
+                const float held = std::isnan(value) ? 0.0f : std::clamp(value, 0.0f, 1.0f);
+                return static_cast<std::byte>(std::lround(held * 255.0f));
+            };
+            const auto word = [&](std::size_t byte) { return std::to_integer<std::uint32_t>(at[byte]) << (8 * byte); };
+
+            switch (type)
+            {
+                case ChannelType::Unorm8:
+                    return at[0];
+                case ChannelType::Unorm16:
+                    return static_cast<std::byte>(((word(0) | word(1)) * 255 + 32767) / 65535);
+                case ChannelType::Half:
+                    return unit(fromHalf(static_cast<std::uint16_t>(word(0) | word(1))));
+                case ChannelType::Float:
+                    return unit(std::bit_cast<float>(word(0) | word(1) | word(2) | word(3)));
+            }
+
+            Crash::fatal("a loose channel of no type");
+        }
+
+        /// Every texel of `from`, loose channels as `loose` states them, into `into` as RGBA8: each of
+        /// the four read from the channel `LooseTexel::mFrom` names, and one the file lacks filled as
+        /// a device samples a format that lacks it, nought for a colour and one for alpha.
+        void widenLoose(
+            const LooseTexel& loose, std::size_t bytes, std::span<const std::byte> from, std::span<std::byte> into)
+        {
+            const std::size_t channelBytes = bytes / loose.mCount;
+            const std::size_t texels = from.size() / bytes;
+            assert(into.size() == texels * 4 && "RGBA8 is four bytes a texel");
+
+            for (std::size_t texel = 0; texel < texels; ++texel)
+            {
+                const std::byte* in = &from[texel * bytes];
+                std::byte* out = &into[texel * 4];
+                for (std::size_t channel = 0; channel < 4; ++channel)
+                {
+                    const std::int8_t source = loose.mFrom[channel];
+                    out[channel] = source == LooseTexel::sMissing
+                        ? (channel == 3 ? std::byte{ 0xFF } : std::byte{ 0 })
+                        : channelByte(loose.mType, in + static_cast<std::size_t>(source) * channelBytes);
+                }
+            }
+        }
+
+        /// Every texel of `from`, laid out as `format`, into `into` as RGBA8.
         void widen(TextureFormat format, std::span<const std::byte> from, std::span<std::byte> into)
         {
-            const std::size_t bytes = layoutOf(format).mBytes;
-            assert(into.size() == from.size() / bytes * 4 && "RGBA8 is four bytes a texel");
-
-            const std::size_t texels = from.size() / bytes;
-            switch (format)
+            const FormatTraits& traits = traitsOf(format);
+            switch (traits.mWidening)
             {
-                case TextureFormat::Rgb8:
-                case TextureFormat::Bgr8:
-                {
-                    const std::size_t red = format == TextureFormat::Bgr8 ? 2 : 0;
-                    for (std::size_t texel = 0; texel < texels; ++texel)
-                    {
-                        const std::byte* in = &from[texel * 3];
-                        std::byte* out = &into[texel * 4];
-                        out[0] = in[red];
-                        out[1] = in[1];
-                        out[2] = in[2 - red];
-                        out[3] = std::byte{ 0xFF };
-                    }
-                    return;
-                }
-                case TextureFormat::Luminance:
-                case TextureFormat::LuminanceAlpha:
-                    for (std::size_t texel = 0; texel < texels; ++texel)
-                    {
-                        const std::byte* in = &from[texel * bytes];
-                        std::byte* out = &into[texel * 4];
-                        out[0] = out[1] = out[2] = in[0];
-                        out[3] = bytes == 2 ? in[1] : std::byte{ 0xFF };
-                    }
-                    return;
-                default:
+                case Widening::Packed:
                     widenWords(format, from, into);
                     return;
+                case Widening::Loose:
+                    widenLoose(traits.mLoose, traits.mLayout.mBytes, from, into);
+                    return;
+                case Widening::None:
+                    break;
             }
+
+            Crash::fatal("a format widened that this does not widen");
         }
 
         /// Whether the first slices of an image's first `levels` lie back to back, which is what a

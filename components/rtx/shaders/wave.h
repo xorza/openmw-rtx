@@ -22,27 +22,20 @@ namespace Rtx::Shaders
 {
 #endif
 
-    /// Where `waveform.comp` binds what it reads and writes in set 0, and how many there are. The
+    /// Where `waverows.comp` binds what it reads and writes in set 0, and how many there are. The
     /// shader's layout and the pass's own layout and writes are numbered by these and by nothing
     /// else, so the two cannot drift apart.
-    const uint WAVE_FORM_BIND_AMPLITUDES = 0;
-    const uint WAVE_FORM_BIND_TURN_RATES = 1;
-    const uint WAVE_FORM_BIND_FIELD = 2;
-    const uint WAVE_FORM_BINDINGS = 3;
+    const uint WAVE_ROWS_BIND_AMPLITUDES = 0;
+    const uint WAVE_ROWS_BIND_TURN_RATES = 1;
+    const uint WAVE_ROWS_BIND_FIELD = 2;
+    const uint WAVE_ROWS_BINDINGS = 3;
 
-    /// Where `wavecompose.comp` binds what it reads and writes in set 0, and how many there are.
-    /// The shader's layout and the pass's own layout and writes are numbered by these and by
-    /// nothing else, so the two cannot drift apart.
-    const uint WAVE_COMPOSE_BIND_FIELD = 0;
-    const uint WAVE_COMPOSE_BIND_SURFACE = 1;
-    const uint WAVE_COMPOSE_BIND_CURVATURE = 2;
-    const uint WAVE_COMPOSE_BINDINGS = 3;
-
-    /// Where `waveline.comp` binds what it reads and writes in set 0, and how many there are. The
-    /// shader's layout and the pass's own layout and writes are numbered by these and by nothing
-    /// else, so the two cannot drift apart.
-    const uint WAVE_LINE_BIND_FIELD = 0;
-    const uint WAVE_LINE_BINDINGS = 1;
+    /// Where `wavecolumns.comp` binds what it reads and writes in set 0, and how many there are, by
+    /// the same rule.
+    const uint WAVE_COLUMNS_BIND_FIELD = 0;
+    const uint WAVE_COLUMNS_BIND_SURFACE = 1;
+    const uint WAVE_COLUMNS_BIND_CURVATURE = 2;
+    const uint WAVE_COLUMNS_BINDINGS = 3;
 
     /// The largest grid any tile is sampled on, along each axis.
     ///
@@ -81,48 +74,19 @@ namespace Rtx::Shaders
     static_assert((1u << (WAVE_LEVELS - 1u)) == WAVE_GRID, "WAVE_LEVELS must be the widest grid's own chain");
 #endif
 
-    /// The side of the square workgroup the form and compose passes run on, which is what their
-    /// dispatches are counted in.
-    const uint WAVE_TILE_WORKGROUP = 8u;
-
     /// Threads in a transform workgroup, one per butterfly.
     ///
     /// A radix-2 pass over `n` points is `n / 2` butterflies, so the largest grid wants half its own
     /// width. Vulkan promises a thousand and twenty-four threads to a workgroup and thirty-two
-    /// kibibytes of shared memory, against the four this holds.
+    /// kibibytes of shared memory, against the twelve its three lines hold.
     const uint WAVE_WORKGROUP = WAVE_GRID / 2u;
 
-    /// What one pass of the transform is told.
+    /// What the row pass, which forms the spectra and transforms them along the rows, is told.
     ///
-    /// **One shader for the rows and the columns**, because a two-dimensional transform is the
-    /// one-dimensional one run twice over the same buffer along different strides. Naming the
-    /// strides rather than the axis is what lets the second pass be the first with two numbers
-    /// swapped.
-    ///
-    /// **Nothing here says what is being transformed**, and that is the separation the pass is built
-    /// on: the field arrives already formed, so six real fields become three complex transforms —
-    /// the spectrum of a real field is conjugate-symmetric, so `A + iB` inverse-transforms to
-    /// `a + ib` and one pass carries two of them.
-    struct WaveConstants
-    {
-        /// Points along the line being transformed, which is the tile's own grid.
-        uint mCount;
-
-        /// How far apart two points of one line are, and how far apart two lines are. `1` and
-        /// `mCount` reads the rows, `mCount` and `1` reads the columns.
-        uint mStride;
-        uint mJump;
-
-        /// Where in the buffer this cascade's grid starts, in complex numbers.
-        uint mOffset;
-    };
-
-    /// What the pass that forms the spectra is told.
-    ///
-    /// **One thread a wavevector, and it writes all three pairs.** Every pair is the same `H(k, t)`
+    /// **One thread a wavevector, and it forms all three pairs.** Every pair is the same `H(k, t)`
     /// times a different power of `ik`, so forming them together reads the amplitude once where
-    /// three dispatches would read it three times.
-    struct WaveFormConstants
+    /// three would read it three times.
+    struct WaveRowsConstants
     {
         /// Points along each axis of this tile's grid.
         uint mCount;
@@ -135,8 +99,8 @@ namespace Rtx::Shaders
         vec2 mTime;
     };
 
-    /// What the pass that unpacks the fields is told.
-    struct WaveComposeConstants
+    /// What the column pass, which transforms the fields along the columns and unpacks them, is told.
+    struct WaveColumnsConstants
     {
         /// Points along each axis of this tile's grid.
         uint mCount;
@@ -145,9 +109,8 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(WaveConstants) == 16, "WaveConstants must be scalar-packed on every side");
-    static_assert(sizeof(WaveFormConstants) == 16, "WaveFormConstants must be scalar-packed on every side");
-    static_assert(sizeof(WaveComposeConstants) == 4, "WaveComposeConstants must be scalar-packed on every side");
+    static_assert(sizeof(WaveRowsConstants) == 16, "WaveRowsConstants must be scalar-packed on every side");
+    static_assert(sizeof(WaveColumnsConstants) == 4, "WaveColumnsConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST
