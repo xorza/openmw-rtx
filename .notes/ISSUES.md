@@ -18,5 +18,4 @@ the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the
   out, where the rasterizer samples it. `components/rtx/image/texels.cpp` `readFormat`.
 - A measured run's host rows move as a whole between runs of one build: at `one-cell-walk` six legs
   held to the performance cores read walk medians of 1.02 to 1.53 ms at a steady clock, and the
-  frame thread's cache misses a thousand instructions moved with them, 3.14 to 4.75. The per-frame
-  walk reads the OSG graph, whose heap layout differs from one process to the next.
+  frame thread's cache misses a thousand instructions moved with them, 3.14 to 4.75.

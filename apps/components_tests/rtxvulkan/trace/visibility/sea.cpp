@@ -139,7 +139,7 @@ namespace Rtx::Testing
         /// A shaft is blocked by what stands over the water, and the gap is where the sun enters.
         ///
         /// **The half the closed form has no way to ask.** A submerged surface is shadowed because
-        /// `shadeSurface` traces its own ray, and water carries a mask bit that keeps it out of
+        /// `gather` traces its own ray, and water carries a mask bit that keeps it out of
         /// occlusion — so a rock over the sea darkened the bed under it and left the water in front
         /// of the bed as bright as ever. The march is where the volume gets the same question.
         ///

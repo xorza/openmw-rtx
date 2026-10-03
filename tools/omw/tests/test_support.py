@@ -105,10 +105,6 @@ class UsedOsgPluginsTest(unittest.TestCase):
             used_osg_plugins("set(OTHER y)\n")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class InstallTest(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
@@ -139,3 +135,6 @@ class InstallTest(unittest.TestCase):
         self.assertEqual(sorted(p.relative_to(self.root).as_posix() for p in self.root.rglob("*")),
                          ["resources", "resources/a.txt"])
 
+
+if __name__ == "__main__":
+    unittest.main()

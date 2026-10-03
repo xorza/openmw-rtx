@@ -19,10 +19,7 @@ namespace RtxTool
         /// unit Mesa's `MESA_SHADER_CACHE_MAX_SIZE` reads a bare `G` as, for Mesa's.
         constexpr std::uint64_t sDriverCacheGibibytes = 8;
         constexpr std::uint64_t sDriverCacheBytes = sDriverCacheGibibytes << 30;
-    }
 
-    namespace
-    {
         /// Where a shader set's caches go: in the harness's folder, named after the set.
         std::filesystem::path cacheRootOf(const std::filesystem::path& harness, const std::filesystem::path& shaders)
         {

@@ -22,10 +22,13 @@ FORK = (
     "components/crashcatcher/",
     "apps/rtxtool/",
     "apps/openmw/mwrender/rtx/",
+    "apps/openmw_tests/mwrender/",
     "apps/components_tests/rtx/",
     "apps/components_tests/rtxvulkan/",
     "apps/components_tests/rtxtool/",
     "apps/components_tests/crashcatcher/",
+    "apps/components_tests/myguirtx/",
+    "apps/components_tests/platform/",
 )
 # Set by GitHub Actions, as by every CI service: CI checks what the desk rewrites.
 CI = os.environ.get("CI", "").lower() in ("true", "1")
