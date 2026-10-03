@@ -11,8 +11,6 @@ the reviews of 2026-10-02, and `.notes/REVIEW.md` holds their evidence under the
 - On macOS the harness's folder, `rtxtool/`, stands inside the app bundle (`RTX_RESOURCES_ROOT` is the
   bundle's `Contents/Resources`), and the bundle is installed whole, so a macOS install carries the
   harness's places, suites, scripts and the shaders with their source.
-- Night-Eye's lift goes into the ambient, which geometry occludes and the exposure meter adapts to, so
-  a cave lifted 133 times shows about 3.4 times brighter. `components/rtx/environment/skylight.cpp:210`.
 - Groundcover is never drawn under the ray tracer; only a log line says so.
   `apps/openmw/mwrender/rtx/rtxrenderer.cpp:214-219`.
 - A texture the engine loads in a format the reader does not name — alpha-only `A8`, a sixteen- or

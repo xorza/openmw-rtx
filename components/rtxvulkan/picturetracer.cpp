@@ -96,6 +96,7 @@ namespace Rtx
                 Display{
                     .mTrace = picture,
                     .mShown = picture.mColour,
+                    .mUpscaled = false,
                     .mExtent = extent,
                     .mSampled = sampled,
                     .mTarget = mTarget,

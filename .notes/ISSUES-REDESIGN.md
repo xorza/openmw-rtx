@@ -264,6 +264,37 @@ D8's measurement stays the acceptance: the brightness ratio with and without the
 **Tests.** A GPU test: a uniform floor and a known lift. The shown value rises by exactly
 `albedo × lift` after the exposure, and the measured exposure is the same with and without the lift.
 
+**Outcome.**
+- The lift leaves the world's light, indoors and out (`makeRoomLight` takes no lift, and the sky's
+  ambient is read less `WorldState::mNightEye`), and reaches the tone pass through
+  `FrameOptions::mNightEye`. The rasterizer keeps its own ambient with the lift, as before.
+- **Added after the curve, in display values, and not before it.** The rasterizer adds
+  `texture × A × lift` to every lit fragment in the values it displays, so the display increment is
+  that product whatever else lights the fragment; added before the curve, it would shrink wherever
+  the picture is bright. The same place the glare fader is added.
+- `CHANNEL_LIFT` (a byte a channel) holds the encoded ambient albedo of each lit thing the pixel
+  shows by its share: the layers by what reaches the eye of each, the surface by the path's
+  transmittance, and the water's two rays by their Fresnel shares and their legs' media. The tone
+  pass reads it bilinearly at the place each shown pixel shows, the jitter taken off where the
+  upscaler reconstructed the picture. Behind the puffs as the backdrop is.
+- Measured, mean shown byte against magnitude 0, 25, 100 (debug, `--upscale=off`; the harness's new
+  `--night-eye` puts the effect's base on the player):
+  - `addamasartus` (a cave): before 60.6 → 62.1 → 65.5 (1.02×, 1.08×: the meter took it back);
+    after 60.6 → 69.1 → 93.9 (1.14×, 1.55×).
+  - `seyda-neen-ship` at 23:00: before 24.4 → 36.9 → 63.4 (1.51×, 2.60×: outdoors the lift was an
+    ambient under the exterior's bias); after 24.4 → 30.1 → 47.3 (1.24×, 1.94×).
+- **The rasterizer's own ratio was not measured**: the harness has no rasterizer, and the game window
+  is not opened. The increment is the rasterizer's by construction. The ratio is lower than the
+  rasterizer's wherever this renderer's unlifted picture is brighter, which the exposure makes it in
+  the dark: the same increment over a brighter base.
+- At `quality` against `native`, the added lift agrees to 0.1 of a byte on average at the cave (33.3
+  against 33.2), and differs by 2.9 a pixel: the traced extent's texture detail, which is this shape's
+  cost.
+- With no Night-Eye, no picture of `shot --views=all` moved past the denoiser's noise, and every
+  channel before the denoiser matched the last commit. The composed frame's hash moved on 173 of 248
+  frames, and on 168 between two runs of this build: the denoiser's known run-to-run difference
+  (`architecture.md`), more frequent than before the change.
+
 ### 2.3 A lamp carries its owner's class
 
 **Root cause.** The rasterizer's light manager collects a light only from a node its cull reaches,

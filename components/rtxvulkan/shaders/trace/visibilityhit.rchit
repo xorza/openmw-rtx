@@ -108,6 +108,7 @@ void answerPane(inout Answer answer, Surface surface)
     answer.mBounced = seen.mDrawn;
     answer.mSpecular = seen.mSpecular;
     answer.mResponse = seen.mResponse;
+    answer.mLift = liftOf(surface);
 }
 
 /// Fills the payload in with what the pixel shows but the filtered channels, and the shadowed
@@ -123,6 +124,7 @@ void answerLight(inout Answer answer, SplitLight light)
 void answerSolid(inout Answer answer, Surface surface)
 {
     answer.mOpacity = surface.mOpacity;
+    answer.mLift = liftOf(surface);
 
     // **The colour is replaced and the surface is not.** What these views change is what a pixel is
     // painted with; the guides still describe a surface there, and saying otherwise hands every
@@ -204,6 +206,7 @@ WaterImages answerWater(inout Answer answer, Surface surface)
     const WaterShading water = shadeWater(surface, direction, pixel, cone);
     answerLight(answer, water.mLight);
     answer.mResponse = water.mResponse;
+    answer.mLift = water.mLift;
     WaterImages images = water.mImages;
 
     const float shore = water.mShore;
@@ -232,6 +235,7 @@ WaterImages answerWater(inout Answer answer, Surface surface)
     answer.mRoughness = seen.mRoughness;
     answer.mResponse = SurfaceResponse(packSurfaceNormal(normal), seen.mResponse.mDiffuse * (1.0 - shore),
         seen.mResponse.mAmbient * (1.0 - shore));
+    answer.mLift = mix(liftOf(bed), water.mLift, shore);
     images.mMirror.mShare *= shore;
     images.mBed.mShare *= shore;
     return images;

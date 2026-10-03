@@ -30,6 +30,7 @@ namespace Rtx
         UpscaleMasks = Shaders::CHANNEL_UPSCALE_MASKS,
         Fill = Shaders::CHANNEL_FILL,
         AmbientAlbedo = Shaders::CHANNEL_AMBIENT_ALBEDO,
+        Lift = Shaders::CHANNEL_LIFT,
     };
 
     inline constexpr std::uint32_t sChannelCount = Shaders::CHANNEL_COUNT;
@@ -58,6 +59,7 @@ namespace Rtx
         { Channel::UpscaleMasks, "g-upscale-masks" },
         { Channel::Fill, "g-fill" },
         { Channel::AmbientAlbedo, "g-ambient-albedo" },
+        { Channel::Lift, "g-lift" },
     } } };
 
     /// Every channel in binding order, for a walk that wants them all.

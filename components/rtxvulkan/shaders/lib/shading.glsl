@@ -311,6 +311,14 @@ SurfaceResponse responseOf(Surface surface)
     return SurfaceResponse(packSurfaceNormal(surface.mNormal), surface.mAlbedo, surface.mAmbientAlbedo);
 }
 
+/// What Night-Eye's lift adds to a surface, per unit of lift, in display values: its ambient albedo
+/// encoded, as the rasterizer adds `texture × A × lift` to every fragment it lights — in the values
+/// it displays, with nothing to occlude it and no exposure to adapt it away. `CHANNEL_LIFT`.
+vec3 liftOf(Surface surface)
+{
+    return encodeSrgb(surface.mAmbientAlbedo);
+}
+
 /// What an ordinary lit surface sends back along the ray that found it. **One statement of what a
 /// diffuse surface does with light, used at every depth** — writing it twice is how two would come
 /// to disagree.

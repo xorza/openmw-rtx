@@ -498,6 +498,7 @@ namespace RtxTool
             request.mHud = variables["hud"].as<bool>();
             request.mSetup.mInterface = request.mPlayed || request.mHud;
             request.mVanity = variables["vanity"].as<bool>();
+            request.mNightEye = variables["night-eye"].as<int>();
             request.mRandomSeed = variables["random-seed"].as<unsigned int>();
 
             return request;

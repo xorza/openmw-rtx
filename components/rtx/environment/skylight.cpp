@@ -4,7 +4,6 @@
 #include <cmath>
 
 #include <osg/Math>
-#include <osg/Vec4f>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/esm/refid.hpp>
@@ -14,7 +13,6 @@
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
-#include <components/sceneutil/util.hpp>
 #include <components/sky/sundisc.hpp>
 
 namespace Rtx
@@ -204,10 +202,10 @@ namespace Rtx
         return named->getValue();
     }
 
-    Daylight makeRoomLight(const ESM::Cell::AMBIstruct& room, const osg::Vec3f& nightEye)
+    Daylight makeRoomLight(const ESM::Cell::AMBIstruct& room)
     {
         const osg::Vec3f haze = decodeColour(room.mFog);
-        const osg::Vec3f fill = decodeColour(SceneUtil::colourFromRGB(room.mAmbient) + osg::Vec4f(nightEye, 0.0f));
+        const osg::Vec3f fill = decodeColour(room.mAmbient);
 
         // The record's sunlight, kept whole and put where light with no direction belongs, by the
         // factor `makeSkylight` spreads a dusk's sun with: a room has no sky to take a direction from.

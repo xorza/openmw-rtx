@@ -398,6 +398,11 @@ namespace RtxTool
         /// nature, and a window somebody is reading must not start turning on its own.
         bool mVanity = false;
 
+        /// The magnitude of Night-Eye the player wears at every stop, as a constant effect would put
+        /// it on them: what the game turns into `0.7 × magnitude / 100` over the ambient. Nought, the
+        /// effect off, by default.
+        int mNightEye = 0;
+
         /// Whether the run ends the session when its last stop does. False is a window somebody
         /// keeps flying after the schedule has run out.
         bool mQuitAtEnd = true;

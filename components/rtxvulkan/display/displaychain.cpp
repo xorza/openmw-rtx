@@ -6,6 +6,9 @@
 #include <span>
 #include <variant>
 
+#include <osg/Vec2f>
+#include <osg/Vec3f>
+
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/camera.h>
@@ -33,7 +36,8 @@ namespace Rtx
         /// corner of its channels: read at the channels' size, the pass looked for a pixel's backdrop
         /// and its sprite tile under another pixel altogether.
         Shaders::ToneConstants toneFor(const Shaders::VisibilityConstants& frame, const SunGlare& fader,
-            const float inverseGamma, const VkDeviceAddress spriteTileList, const VkDeviceAddress spritePresence,
+            const float inverseGamma, const osg::Vec3f& nightEye, const bool upscaled,
+            const VkDeviceAddress spriteTileList, const VkDeviceAddress spritePresence,
             const VkDeviceAddress textureTexels, std::uint32_t width, std::uint32_t height)
         {
             assert(spriteTileList != 0 && spritePresence != 0 && "a curve told no tiles to test the puffs by");
@@ -51,6 +55,8 @@ namespace Rtx
                 .mGlareColour = fader.mFader.mColour,
                 .mGlareAmount = fader.amountFor(frame),
                 .mInverseGamma = inverseGamma,
+                .mNightEye = nightEye,
+                .mLiftOffset = upscaled ? -frame.mEyes.mWorld.mJitter : osg::Vec2f(),
             };
         }
     }
@@ -157,13 +163,14 @@ namespace Rtx
                 .mSunGlare = *share,
                 .mBackdrop = channels.get(Channel::Backdrop),
                 .mSurface = channels.get(Channel::Surface),
+                .mLift = channels.get(Channel::Lift),
                 .mBloom = look != nullptr ? mBloom.getPyramid() : nullptr,
                 .mTextures = inputs.mSubject.mScene->getTextures(),
                 .mTarget = what.mTarget,
                 .mConstants = toneFor(what.mSampled, look != nullptr ? look->mGlare.mFader : SunGlare{},
-                    look != nullptr ? look->mInverseGamma : 1.0f, what.mTrace.mSprites.mTileList,
-                    what.mTrace.mSprites.mPresence, inputs.mSubject.mScene->getTextureTexels(), what.mExtent.width,
-                    what.mExtent.height),
+                    look != nullptr ? look->mInverseGamma : 1.0f, look != nullptr ? look->mNightEye : osg::Vec3f(),
+                    what.mUpscaled, what.mTrace.mSprites.mTileList, what.mTrace.mSprites.mPresence,
+                    inputs.mSubject.mScene->getTextureTexels(), what.mExtent.width, what.mExtent.height),
             });
         closeZone(timer, commands);
 
