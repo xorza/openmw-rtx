@@ -128,11 +128,6 @@ namespace Rtx
         VkDeviceSize getCompactableBytes() const { return mBottomLevel.getCompactableBytes(); }
         VkDeviceSize getCompactableNowBytes() const { return mBottomLevel.getCompactableNowBytes(); }
 
-        /// How many placements a refitted structure is left to its refits before the rota builds
-        /// it whole again. Sixty-four is about a second of a walking crowd at the frame rates this
-        /// runs at, and a crowd of that many bodies comes round in as many.
-        static constexpr std::uint64_t sRebuildEvery = 64;
-
         /// How many structures the rota has built whole again since the scene was made, for the
         /// scene's report.
         std::uint64_t getRebuildCount() const { return mRebuildCount; }

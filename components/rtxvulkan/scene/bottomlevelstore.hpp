@@ -68,8 +68,8 @@ namespace Rtx
         /// @param poses the first copy of the deforming vertices, which is what a deforming mesh's
         ///        structure is built over — `SkinPass` has written the pose into it.
         /// @param indices the shared index blocks, which every structure is built through.
-        /// @param placement which placement this is, on the clock the rebuild rota reads: what
-        ///        `getRebuiltAt` answers for each of `meshes` until the rota comes round.
+        /// @param placement which posed placement brings these, on the clock the rebuild rota reads:
+        ///        what `getRebuiltAt` answers for each of `meshes` until the rota comes round.
         void build(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes, const BlockedBuffer& poses,
             const BlockedBuffer& indices, std::uint64_t placement, std::vector<Refusal>& refused);
 
