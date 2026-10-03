@@ -67,7 +67,23 @@ namespace RtxTool
             /// The kind's number in the events' upper half, nought on a part with one kind.
             std::uint64_t mKind = 0;
             bool mEfficiency = false;
+
+            /// The group's enabled and running times at the window's start. **A reset zeroes the
+            /// counts and not the times**, which run on from the group's opening, so a window's are
+            /// what its end read less these.
+            std::uint64_t mEnabledAt = 0;
+            std::uint64_t mRunningAt = 0;
         };
+
+        /// One read of `group`, or nothing where the kernel's came back short.
+        std::optional<GroupRead> readGroup(const Group& group)
+        {
+            GroupRead read{};
+            if (::read(group.mFds[0], &read, sizeof(read)) != static_cast<ssize_t>(sizeof(read))
+                || read.mCount != sEvents)
+                return std::nullopt;
+            return read;
+        }
     }
 
     struct ThreadCounters::Events
@@ -166,9 +182,12 @@ namespace RtxTool
             return;
 
         assert(static_cast<pid_t>(syscall(SYS_gettid)) == mEvents->mThread && "counted on another thread");
-        for (const Group& group : mEvents->mGroups)
+        for (Group& group : mEvents->mGroups)
         {
             ioctl(group.mFds[0], PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP);
+            const std::optional<GroupRead> before = readGroup(group);
+            group.mEnabledAt = before.has_value() ? before->mEnabled : 0;
+            group.mRunningAt = before.has_value() ? before->mRunning : 0;
             ioctl(group.mFds[0], PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP);
         }
     }
@@ -185,20 +204,20 @@ namespace RtxTool
         std::uint64_t enabled = 0;
         for (const Group& group : mEvents->mGroups)
         {
-            GroupRead read{};
-            if (::read(group.mFds[0], &read, sizeof(read)) != static_cast<ssize_t>(sizeof(read))
-                || read.mCount != sEvents)
+            const std::optional<GroupRead> read = readGroup(group);
+            if (!read.has_value())
                 return ThreadCounts{ .mWhyNot = "the kernel's read of the counters came back short" };
 
             // Every group is enabled for as long as the thread runs, on whichever kind of core, from
             // its own start: the first started is the window.
-            enabled = std::max(enabled, read.mEnabled);
-            counts.mCycles += read.mValues[0];
-            counts.mInstructions += read.mValues[1];
-            counts.mCacheMisses += read.mValues[2];
-            counts.mRunningNs += read.mRunning;
+            const std::uint64_t running = read->mRunning - group.mRunningAt;
+            enabled = std::max(enabled, read->mEnabled - group.mEnabledAt);
+            counts.mCycles += read->mValues[0];
+            counts.mInstructions += read->mValues[1];
+            counts.mCacheMisses += read->mValues[2];
+            counts.mRunningNs += running;
             if (group.mEfficiency)
-                counts.mEfficiencyNs = read.mRunning;
+                counts.mEfficiencyNs = running;
         }
         if (counts.mRunningNs == 0)
             return ThreadCounts{ .mWhyNot = "the processor never counted the thread" };

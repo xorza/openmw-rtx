@@ -1,3 +1,4 @@
+#include <chrono>
 #include <cstdint>
 
 #include <gtest/gtest.h>
@@ -67,27 +68,43 @@ namespace RtxTool
         TEST(RtxThreadCountersTest, aLoopTwiceAsLongCountsTwiceTheInstructions)
         {
             ThreadCounters counters;
+            std::uint64_t wallNs = 0;
             const auto counted = [&](const std::uint64_t turns) {
+                const auto began = std::chrono::steady_clock::now();
                 counters.start();
                 spin(turns);
-                return counters.stop();
+                const ThreadCounts counts = counters.stop();
+                wallNs = static_cast<std::uint64_t>(
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - began)
+                        .count());
+                return counts;
             };
 
-            const ThreadCounts once = counted(1'000'000);
-            if (!once.mRead)
-                GTEST_SKIP() << once.mWhyNot;
-            const ThreadCounts twice = counted(2'000'000);
+            // A window thrown away first, so neither measured one starts with the core still
+            // climbing to its clock; and windows of milliseconds, so a tick of the scheduler is a
+            // small part of either.
+            if (const ThreadCounts warm = counted(10'000'000); !warm.mRead)
+                GTEST_SKIP() << warm.mWhyNot;
+            const ThreadCounts once = counted(10'000'000);
+            const ThreadCounts twice = counted(20'000'000);
+            const std::uint64_t twiceWallNs = wallNs;
+            ASSERT_TRUE(once.mRead);
             ASSERT_TRUE(twice.mRead);
 
             // **To a twentieth, and to a hundredth of the time counted**: beside the other suites the
             // kernel's interrupts land in the thread's count, and each move between the two kinds of
             // core loses a sliver of it — measured at a ratio of 2.021 and 99.7% counted, against
             // 2.000 and all of it on a quiet machine.
-            EXPECT_GT(once.mInstructions, 1'000'000u) << "a turn is more than one instruction";
+            EXPECT_GT(once.mInstructions, 10'000'000u) << "a turn is more than one instruction";
             EXPECT_NEAR(static_cast<double>(twice.mInstructions) / static_cast<double>(once.mInstructions), 2.0, 0.1);
             EXPECT_GT(once.mCycles, 0u);
             EXPECT_GT(once.mRunningNs, 0u);
             EXPECT_NEAR(once.mCounted, 1.0, 0.01) << "no other process counts on this thread's cores";
+
+            // **Each window's time is its own**, and no longer than the wall clock around it: a reset
+            // zeroes the counts and not the times, and without the start's subtracted a window read
+            // every window's before it as well.
+            EXPECT_LE(twice.mRunningNs, twiceWallNs) << "the window carried an earlier one's time";
             EXPECT_LE(once.mEfficiencyNs, once.mRunningNs);
         }
     }
