@@ -152,20 +152,6 @@ namespace Rtx
         return mAround.mGroundcoverReach + mAround.mWorld.mGrid.getCellSize();
     }
 
-    void CellRing::giveBackHolds(const HeldCell& cell)
-    {
-        CellReturns& back = mSupply.giveBack();
-        back.mModels.insert(back.mModels.end(), cell.mModels.begin(), cell.mModels.end());
-        back.mTextures.insert(back.mTextures.end(), cell.mGround.mTextures.begin(), cell.mGround.mTextures.end());
-    }
-
-    void CellRing::giveBackHolds(const PreparedCell& cell)
-    {
-        CellReturns& back = mSupply.giveBack();
-        back.mModels.insert(back.mModels.end(), cell.mModels.begin(), cell.mModels.end());
-        cell.mGround.collectTextures(back.mTextures);
-    }
-
     void CellRing::takeDone()
     {
         mDoneScratch.clear();
@@ -376,21 +362,19 @@ namespace Rtx
 
     void CellRing::discard(PreparedCell& cell)
     {
-        for (PreparedModel* model : cell.mModels)
-            mHolds.release(*model);
-
         // Every hold the reader counted for the cell goes back with it: the models, and the
         // images its ground names.
-        giveBackHolds(cell);
-        mSupply.giveBack().mCells.push_back(&cell);
+        letGo(cell.mModels);
+        CellReturns& back = mSupply.giveBack();
+        cell.mGround.collectTextures(back.mTextures);
+        back.mCells.push_back(&cell);
     }
 
     void CellRing::letGo(const HeldCell& cell)
     {
-        for (PreparedModel* model : cell.mModels)
-            mHolds.release(*model);
-
-        giveBackHolds(cell);
+        letGo(cell.mModels);
+        CellReturns& back = mSupply.giveBack();
+        back.mTextures.insert(back.mTextures.end(), cell.mGround.mTextures.begin(), cell.mGround.mTextures.end());
     }
 
     void CellRing::setReferenceEnabled(const ESM::RefNum refnum, const bool enabled)

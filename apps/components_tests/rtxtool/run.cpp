@@ -280,7 +280,6 @@ namespace RtxTool
 
     namespace
     {
-
         /// **A watched window keeps the player's pacing whole**: the vertical sync and the frame-rate
         /// limit both. A window that kept the one and not the other drew as fast as the card could
         /// under a player who had asked for 60.
