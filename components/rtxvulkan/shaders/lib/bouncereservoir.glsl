@@ -74,6 +74,12 @@ struct BounceSample
     vec3 mFill;
 };
 
+/// A sample at infinity along `towards`, whose light is the fill whole, as the sky's is.
+BounceSample skySample(vec3 towards, vec3 light)
+{
+    return BounceSample(towards, vec3(0.0, 0.0, 1.0), true, light, light);
+}
+
 /// One sample kept, its unbiased contribution weight, how many candidates it stands for and how
 /// many frames it was kept.
 struct BounceReservoir

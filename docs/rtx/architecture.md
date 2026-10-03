@@ -248,8 +248,9 @@ at the top, over all of them.
 - **`FrameRing`** keeps two frames in flight. The host places frame N+1 while the device traces
   N.
 - **`TraceChain`** is everything one camera's trace writes at one extent: the G-buffer, the fog
-  volume, the sprite bins, the denoiser's history, and the bounce's reservoirs where it reuses. The world has one, and `PictureTracer` has one
-  for the pictures inside the interface. The passes are shared.
+  volume, the sprite bins, the denoiser's history, and the bounce's reservoirs where it reuses.
+  The world has one, and `PictureTracer` has one for the pictures inside the interface. The passes
+  are shared.
 - **`DisplayChain`** runs after the trace and the upscaler: bloom, exposure, glare, tone, debug
   lines. The tone pass adds the glare fader and Night-Eye's lift in display values after the curve,
   where the meter never sees them, as the rasterizer adds both, and applies the player's
@@ -294,13 +295,12 @@ at the top, over all of them.
   to within `sDenoiserNoiseLevels`. The evidence is in `.notes/denoiser-nondeterminism.md`.
 
 **The shaders** (`shaders/`, in the folders of the passes that dispatch them, shared pieces in
-`shaders/lib/`). One ray generation shader traces
-one ray per pixel and composes the path. Closest-hit shaders are picked by the shader table per
-material kind. Secondary visibility in a hit uses ray queries. The rest are compute passes: the
-fog, the sprites, the bounce's temporal merge, the denoiser, the composite, the display chain,
-skinning, texture preparation, the sea and the ripples. The bounce's validation and resolve trace,
-and are ray generation shaders of their own. Specialization constants, not branches, remove what a frame cannot use
-(`lib/variants.glsl`).
+`shaders/lib/`). One ray generation shader traces one ray per pixel and composes the path.
+Closest-hit shaders are picked by the shader table per material kind. Secondary visibility in a hit
+uses ray queries. The rest are compute passes: the fog, the sprites, the bounce's temporal merge,
+the denoiser, the composite, the display chain, skinning, texture preparation, the sea and the
+ripples. The bounce's validation and resolve trace, and are ray generation shaders of their own.
+Specialization constants, not branches, remove what a frame cannot use (`lib/variants.glsl`).
 
 ## 9. Ownership
 
@@ -352,10 +352,9 @@ On the host, in order:
 
 On the device, in record order: the sea and the ripples, the sprites, the fog, the trace, the
 bounce's reuse where it runs (the validation, the temporal merge, the resolve), the denoiser where
-it runs (the accumulator, the shadow denoiser, the glossy filter, the pane filter, the
-wavelet), the
-composite where a denoiser, the reuse or a sum needs one, the upscaler where one runs, the display chain, the
-GUI, the present.
+it runs (the accumulator, the shadow denoiser, the glossy filter, the pane filter, the wavelet),
+the composite where a denoiser, the reuse or a sum needs one, the upscaler where one runs, the
+display chain, the GUI, the present.
 
 Four clocks drive a frame, each with one source: host time (the wall in play, the frame count
 times a stated step in a measured run), simulation time, game time (the hour), and the sky's

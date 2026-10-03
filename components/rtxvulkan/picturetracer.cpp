@@ -84,8 +84,7 @@ namespace Rtx
                     .mSubject = subject,
                     .mAsked = BinCamera::of(camera),
                     .mSampled = sampled,
-                    .mDenoised = reconstruction.mDenoised,
-                    .mBounceReuse = reconstruction.mBounceReuse,
+                    .mReconstruction = reconstruction,
                     .mPastLost = true,
                 });
 

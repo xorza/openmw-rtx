@@ -1147,7 +1147,7 @@ namespace Rtx::Shaders
     /// the planter was 1.94 and 1.39 noisy and 1.90 and 2.25 biased, against 1.28 and 2.35 under
     /// the fixed reach, the noise of the first in sparse bright points the narrowed cascade no
     /// longer spread. Both lie on the curve the history length draws.
-    const float ACCUMULATE_FRAMES = 32.0f;
+    const float ACCUMULATE_FRAMES = 16.0f;
 
     /// How squarely two normals must agree before their pixels are the same surface, and the
     /// history at one may be carried to the other.

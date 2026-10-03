@@ -1,6 +1,7 @@
 # ReSTIR GI for the bounce: research and plan
 
-Status: a proposal. Nothing in this file is implemented. Written 2026-10-03.
+Status: built on the branch `restir-gi`, which §10 records against the plan. The plan was written
+2026-10-03; the cost bench of Step 7 is still to run.
 
 This file says why the bounce is the noise that is left at the Balmora Mages Guild, what the
 field does about such noise, and how ReSTIR GI fits into this tree. The last sections give the

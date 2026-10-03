@@ -24,8 +24,8 @@
 
 #include "lib/bindings.glsl"
 #include "lib/bouncereservoir.glsl"
-#include "lib/pixels.glsl"
 #include "lib/counts.glsl"
+#include "lib/pixels.glsl"
 #include "lib/random.glsl"
 #include "lib/surfacematch.glsl"
 #include "lib/traversal.glsl"
@@ -84,6 +84,7 @@ void main()
     if (frame.mBounceReuse == BOUNCE_REUSE_SPATIOTEMPORAL)
     {
         const float radius = max(BOUNCE_RADIUS_SHARE * float(frame.mEyes.mWorld.mHeight), BOUNCE_RADIUS_LEAST);
+        const float distance = length(origin.mOffset);
         BounceReservoir neighbours[BOUNCE_NEIGHBOURS];
         BounceOrigin origins[BOUNCE_NEIGHBOURS];
         vec4 there = vec4(0.0);
@@ -99,7 +100,6 @@ void main()
             const uint tapAt = inside ? uint(tap.y) * frame.mBounceStride + uint(tap.x) : at;
 
             const BounceOrigin near = unpackOrigin(bounceOrigins[tapAt]);
-            const float distance = length(origin.mOffset);
             const bool alike = inside && near.mKept && dot(near.mNormal, origin.mNormal) >= BOUNCE_FACING
                 && abs(length(near.mOffset) - distance) <= BOUNCE_DEPTH * distance;
 

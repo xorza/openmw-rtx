@@ -92,8 +92,8 @@ BounceReservoir mergedWithHistory(uvec2 pixel, BounceOrigin origin, BounceReserv
     // The candidate at this point, and at last frame's: shifted there and back, `p̂←j`.
     const BounceReach candidateHere = reachOf(candidate.mSample, origin.mOffset, origin.mOffset);
     const float candidateTarget = bounceTarget(origin, candidate.mSample, candidateHere);
-    const float candidateThere
-        = bounceTarget(held.mOrigin, candidate.mSample, reachOf(candidate.mSample, origin.mOffset, held.mOrigin.mOffset))
+    const BounceReach candidateThereReach = reachOf(candidate.mSample, origin.mOffset, held.mOrigin.mOffset);
+    const float candidateThere = bounceTarget(held.mOrigin, candidate.mSample, candidateThereReach)
         * shiftJacobian(candidate.mSample, origin.mOffset, held.mOrigin.mOffset);
 
     // Last frame's sample at its own point, over the Jacobian of its shift to this one, and here.
