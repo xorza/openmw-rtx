@@ -73,6 +73,15 @@ def output(command: list, **options) -> str:
     ).stdout
 
 
+def working_tree_files(*pathspecs: str) -> list[str]:
+    """The files `pathspecs` name in the working tree, from the root, `/`-separated: tracked or new and
+    not ignored. **The working tree's, and not the index's**: a file a move or a delete has taken
+    still stands in the index, and one a move has made is not in it yet."""
+    listed = output(["git", "-C", ROOT, "ls-files", "--cached", "--others", "--exclude-standard", "--",
+                     *pathspecs]).splitlines()
+    return [name for name in listed if (ROOT / name).is_file()]
+
+
 def jobs() -> int:
     return os.cpu_count() or 1
 

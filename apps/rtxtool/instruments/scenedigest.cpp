@@ -127,7 +127,7 @@ namespace RtxTool
             value(environmentColour);
             value(darkUnit);
             value(diffuseColour);
-            value(ambientColour.value_or(diffuseColour));
+            value(material.getAmbientColour());
             value(emissiveColour);
             value(opacity);
             value(alphaTest);
