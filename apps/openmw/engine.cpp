@@ -461,7 +461,7 @@ void OMW::Engine::prepareEngine()
         static_cast<float>(Settings::general().mAnisotropy));
     mEnvironment.setResourceSystem(*mResourceSystem);
 
-    mWorkQueue = new SceneUtil::WorkQueue(Settings::cells().mPreloadNumThreads);
+    mWorkQueue = std::make_shared<SceneUtil::WorkQueue>(Settings::cells().mPreloadNumThreads);
     mUnrefQueue = std::make_unique<SceneUtil::UnrefQueue>();
 
     mScreenCaptureOperation = new SceneUtil::AsyncScreenCaptureOperation(mWorkQueue,
@@ -517,7 +517,7 @@ void OMW::Engine::prepareEngine()
     // gui needs our shaders path before everything else
     mResourceSystem->getSceneManager()->setShaderPath(mResDir / "shaders");
 
-    mWindowManager = std::make_unique<MWGui::WindowManager>(*mRenderer, mResourceSystem.get(), mWorkQueue.get(),
+    mWindowManager = std::make_unique<MWGui::WindowManager>(*mRenderer, mResourceSystem.get(), mWorkQueue,
         mCfgMgr.getLogPath(), mScriptConsoleMode, mTranslationDataStorage, mEncoding, mExportFonts,
         Version::getOpenmwVersionDescription(), mCfgMgr);
     if (mHost != nullptr)
@@ -607,7 +607,7 @@ void OMW::Engine::prepareEngine()
     if (mRenderer->groundReadsGates())
         mScriptManager->buildVisibilityGates();
 
-    mWorld->init(mMaxRecastLogLevel, *mRenderer, std::move(rootNode), mWorkQueue.get(), *mUnrefQueue);
+    mWorld->init(mMaxRecastLogLevel, *mRenderer, std::move(rootNode), mWorkQueue, *mUnrefQueue);
     mEnvironment.setWorldScene(mWorld->getWorldScene());
     mWorld->setupPlayer();
     mWorld->setRandomSeed(mRandomSeed);

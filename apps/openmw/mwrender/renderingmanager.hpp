@@ -105,7 +105,7 @@ namespace MWRender
     {
     public:
         RenderingManager(Renderer& renderer, osg::ref_ptr<osg::Group> rootNode,
-            Resource::ResourceSystem* resourceSystem, SceneUtil::WorkQueue* workQueue,
+            Resource::ResourceSystem* resourceSystem, const std::shared_ptr<SceneUtil::WorkQueue>& workQueue,
             DetourNavigator::Navigator& navigator, const MWWorld::GroundcoverStore& groundcoverStore,
             SceneUtil::UnrefQueue& unrefQueue);
         ~RenderingManager();
@@ -116,7 +116,7 @@ namespace MWRender
 
         Resource::ResourceSystem* getResourceSystem();
 
-        SceneUtil::WorkQueue* getWorkQueue();
+        const std::shared_ptr<SceneUtil::WorkQueue>& getWorkQueue() const;
         Terrain::World* getTerrain();
 
         void preloadCommonAssets();
@@ -328,7 +328,7 @@ namespace MWRender
         osg::ref_ptr<osg::Group> mSceneRoot;
         Resource::ResourceSystem* mResourceSystem;
 
-        osg::ref_ptr<SceneUtil::WorkQueue> mWorkQueue;
+        std::shared_ptr<SceneUtil::WorkQueue> mWorkQueue;
 
         osg::ref_ptr<SceneUtil::Light> mSunLight;
 

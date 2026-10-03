@@ -155,9 +155,9 @@ namespace MWGui
     }
 
     WindowManager::WindowManager(MWRender::Renderer& renderer, Resource::ResourceSystem* resourceSystem,
-        SceneUtil::WorkQueue* workQueue, const std::filesystem::path& logpath, bool consoleOnlyScripts,
-        Translation::Storage& translationDataStorage, ToUTF8::FromType encoding, bool exportFonts,
-        const std::string& versionDescription, Files::ConfigurationManager& cfgMgr)
+        const std::shared_ptr<SceneUtil::WorkQueue>& workQueue, const std::filesystem::path& logpath,
+        bool consoleOnlyScripts, Translation::Storage& translationDataStorage, ToUTF8::FromType encoding,
+        bool exportFonts, const std::string& versionDescription, Files::ConfigurationManager& cfgMgr)
         : mStore(nullptr)
         , mResourceSystem(resourceSystem)
         , mWorkQueue(workQueue)

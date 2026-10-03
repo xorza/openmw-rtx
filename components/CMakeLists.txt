@@ -142,7 +142,7 @@ add_component_dir (sceneutil
     lightmanager lightutil positionattitudetransform workqueue pathgridutil waterutil writescene serialize optimizer
     detourdebugdraw navmesh agentpath animblendrules shadow mwshadowtechnique recastmesh shadowsbin osgacontroller rtt
     screencapture depth color riggeometryosgaextension extradata unrefqueue lightcommon clearcolor
-    cullsafeboundsvisitor keyframe nodecallback templateref textkeymap glextensions fog texmat material
+    cullsafeboundsvisitor keyframe nodecallback templateref textkeymap userdata glextensions fog texmat material
     offscreenframing imageregion paintedtexture stableidentity
     )
 

@@ -2,13 +2,13 @@
 
 #include <osg/Group>
 #include <osg/Node>
-#include <osg/UserDataContainer>
 
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/sceneutil/stableidentity.hpp>
 #include <components/sceneutil/unrefqueue.hpp>
+#include <components/sceneutil/userdata.hpp>
 
 #include "../mwworld/class.hpp"
 #include "../mwworld/ptr.hpp"
@@ -39,21 +39,6 @@ namespace MWRender
         mCellSceneNodes.clear();
     }
 
-    void PtrHolder::hold(osg::Node& node, const MWWorld::Ptr& ptr)
-    {
-        osg::UserDataContainer& held = *node.getOrCreateUserDataContainer();
-        for (unsigned int i = 0; i < held.getNumUserObjects(); ++i)
-        {
-            if (dynamic_cast<PtrHolder*>(held.getUserObject(i)) != nullptr)
-            {
-                held.setUserObject(i, new PtrHolder(ptr));
-                return;
-            }
-        }
-
-        held.addUserObject(new PtrHolder(ptr));
-    }
-
     void Objects::insertBegin(const MWWorld::Ptr& ptr)
     {
         assert(mObjects.find(ptr.mRef) == mObjects.end());
@@ -75,7 +60,7 @@ namespace MWRender
         osg::ref_ptr<SceneUtil::PositionAttitudeTransform> insert(new SceneUtil::PositionAttitudeTransform);
         cellnode->addChild(insert);
 
-        insert->getOrCreateUserDataContainer()->addUserObject(new PtrHolder(ptr));
+        SceneUtil::addUserData(*insert, ptr);
         SceneUtil::StableIdentity::stamp(*insert, mNextIdentity++);
 
         const float* f = ptr.getRefData().getPosition().pos;
@@ -235,7 +220,8 @@ namespace MWRender
             cellnode = mCellSceneNodes[newCell];
         }
 
-        PtrHolder::hold(*objectNode, cur);
+        if (MWWorld::Ptr* ptr = SceneUtil::findUserData<MWWorld::Ptr>(*objectNode))
+            *ptr = cur;
 
         if (objectNode->getNumParents())
             objectNode->getParent(0)->removeChild(objectNode);

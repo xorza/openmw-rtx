@@ -8,7 +8,6 @@
 #include <osg/Geometry>
 #include <osg/Group>
 #include <osg/PrimitiveSet>
-#include <osg/UserDataContainer>
 #include <osg/Vec2i>
 #include <osg/Vec3d>
 #include <osg/Vec3f>
@@ -29,6 +28,7 @@
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/frame/debuglines.hpp>
+#include <components/sceneutil/userdata.hpp>
 #include <components/terrain/view.hpp>
 #include <components/vfs/manager.hpp>
 
@@ -96,10 +96,8 @@ namespace MWRender
             {
                 Met one{ .mWhere = hit.getWorldIntersectPoint(), .mRefNum = std::nullopt };
                 for (osg::Node* node : hit.nodePath)
-                    if (const osg::UserDataContainer* data = node->getUserDataContainer())
-                        for (unsigned int at = 0; at < data->getNumUserObjects(); ++at)
-                            if (const auto* marker = dynamic_cast<const RefnumMarker*>(data->getUserObject(at)))
-                                one.mRefNum = marker->mRefnum;
+                    SceneUtil::forEachUserData<RefnumMarker>(
+                        *node, [&](const RefnumMarker& marker) { one.mRefNum = marker.mRefnum; });
                 met.push_back(one);
             }
             return met;
