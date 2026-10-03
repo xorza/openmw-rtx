@@ -210,12 +210,33 @@ holds `A`. A host test of `vertexColourOf` over all six modes.
   38 at nought. They are whole interiors — the Redoran, Telvanni, Daedric and Vivec halls — and the
   hair meshes.
 
-**Decision needed before step 3.** Step 3 multiplies *all* indirect light by A/D, so those halls'
-bounce falls to a tenth. The rasterizer's ambient is the cell's flat fill and nothing else; the
-trace's indirect also carries lamp light bounced off other surfaces, which the rasterizer does not
-have and which a physical reflectance would return by D. Two readings: A for the fill and the path
-end only, D for bounced lamp light (needs the indirect channel split); or A for all indirect, as
-written. Not built until the user chooses.
+**Decision.** Step 3 as written multiplies *all* indirect light by A/D, so those halls' bounce
+falls to a tenth. The rasterizer's ambient is the cell's flat fill and nothing else; the trace's
+indirect also carries lamp light bounced off other surfaces, which the rasterizer does not have and
+which a physical reflectance returns by D. The user chose A for the fill and the path end only, and
+D for bounced lamp light.
+
+**Outcome.**
+- The material carries `A` itself (`GpuMaterial::mAmbientColour`) and not a ratio, and the surface
+  has `mAmbientAlbedo` beside `mAlbedo`. A path end reflects its `pathEnd` by `A`.
+- The eye's bounce is split: `CHANNEL_INDIRECT` keeps the whole bounce, and `CHANNEL_FILL` holds the
+  share that is fill (the sky a ray escapes to, and the far hit's `pathEnd` by its `A`).
+  `CHANNEL_AMBIENT_ALBEDO` holds the eye's `A`. The accumulator and the cascade filter the fill by
+  the whole bounce's weights, and the composite adds `D × S + (A − D) × F`.
+- Where `A = D` the picture is the same to the bit: the trace's bounce channel matched the last
+  commit on all 248 frames of `shot --views=all`, once the joined sum was written as an explicit
+  `fma` (the pinning fuses a product that only one add reads, and the fill is read twice). Three
+  pictures moved past the denoiser's run-to-run noise: an arm in `seyda-neen-customs` (10 of 255 on
+  0.15% of the pixels), flowers at `dagon-fel` (13 on 0.03%), and one pixel of `ald-ruhn-map`.
+- Cost, release, three legs each, frame medians: `seyda-neen-ship` 5.95–6.09 to 6.20–6.35 ms,
+  `balmora-mages-guild` 4.55–4.59 to 4.90–4.98 ms, `vivec` 5.86–5.87 to 6.17–6.20 ms — about 0.3 ms
+  a frame. The p99 moved with it at the guild (5.14–5.24 to 5.53–5.69 ms) and at `vivec` (6.67–7.31
+  to 7.08–7.17 ms). It is the second filtered signal: the accumulator and the cascade read and write
+  three more full-float images, the composite reads two more channels, and the payload is 23 words.
+- Tests: `theFillIsReflectedByTheAmbientAlbedoAndALampsBounceByTheDiffuseOne` (a floor with
+  `A = 0.5 D` under a sky and in a room: the picture is half the other floor's to the bit, unfiltered
+  and filtered, and a lamp's bounce off the lid is no fill), and the vertex colour test reads both
+  albedos under every mode.
 
 ### 2.2 Night-Eye is a view term, added after the meter
 

@@ -268,9 +268,8 @@ WaterShading shadeWater(Surface surface, vec3 incident, uvec2 pixel, Cone cone)
     const float fresnel = fresnelSchlick(WATER_F0, 1.0, schlickWeight(cosine));
 
     // **The wave's normal and not the quad's**: what the filter tells this surface apart by. No
-    // diffuse albedo, since water answers a ray with a reflection and a refraction and no Lambert
-    // term.
-    shaded.mResponse = SurfaceResponse(packSurfaceNormal(normal), vec3(0.0));
+    // albedo, since water answers a ray with a reflection and a refraction and no Lambert term.
+    shaded.mResponse = SurfaceResponse(packSurfaceNormal(normal), vec3(0.0), vec3(0.0));
 
     // Offset along the *plane*, not the facet: what a ray has to clear to avoid finding this surface
     // again is the quad, and only the plane's normal is guaranteed to take it off that.

@@ -4,6 +4,7 @@
 
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
+#include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
@@ -94,12 +95,20 @@ namespace Rtx
         // — so the dependency names the sampled access and not only the storage one. The history
         // the cascade writes for the next frame is ordered by the discard, which named a compute
         // write as what would come next.
-        accumulated.mBlended.transition(commands, Use::sComputeWrite, Use::sComputeReadOrSample);
+        Barriers blends(commands);
+        for (const Image* image : { &accumulated.mBlended, &accumulated.mFillBlended })
+            image->addTransition(blends, Use::sComputeWrite, Use::sComputeReadOrSample);
+
+        blends.flush();
 
         openZone(timer, commands, "filter");
-        const Image& indirect = mFilter.record(commands, accumulated, buffer, frame);
+        const AtrousPass::Filtered filtered = mFilter.record(commands, accumulated, buffer, frame);
         closeZone(timer, commands);
 
-        return Denoised{ .mIndirect = indirect, .mSpecular = *specular, .mPane = pane, .mShadow = shadow };
+        return Denoised{ .mIndirect = filtered.mIndirect,
+            .mFill = filtered.mFill,
+            .mSpecular = *specular,
+            .mPane = pane,
+            .mShadow = shadow };
     }
 }

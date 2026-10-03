@@ -146,6 +146,7 @@ void answerSolid(inout Answer answer, Surface surface)
     const SeenSolid seen = shadeSolid(surface, stagePixel(), stageCone());
     answerLight(answer, seen.mLight);
     answer.mBounced = seen.mBounce;
+    answer.mFilled = seen.mFill;
     answer.mResponse = seen.mResponse;
     answer.mSpecular = seen.mSpecular;
     answer.mRoughness = seen.mRoughness;
@@ -217,8 +218,8 @@ WaterImages answerWater(inout Answer answer, Surface surface)
 
     const SeenSolid seen = shadeSolid(bed, pixel, cone);
 
-    // The direct light and the response as a blend, and the bounce whole, since the albedo it is put
-    // back against carries the share. The two normals arrive as codes and leave as one, so a shore
+    // The direct light and the response as a blend, and the bounce whole, since the albedos it is put
+    // back against carry the share. The two normals arrive as codes and leave as one, so a shore
     // pixel's is rounded twice — within twice the code's bound, on the few pixels a waterline
     // crosses.
     const vec3 normal = normalize(mix(unpackSurfaceNormal(seen.mResponse.mNormal),
@@ -226,9 +227,11 @@ WaterImages answerWater(inout Answer answer, Surface surface)
     uint kept = randomSeed(pixelKey(pixel) + SEED_SHADOWED_SHORE);
     answerLight(answer, mixSplit(seen.mLight, water.mLight, shore, randomNext(kept)));
     answer.mBounced = seen.mBounce;
+    answer.mFilled = seen.mFill;
     answer.mSpecular = seen.mSpecular * (1.0 - shore);
     answer.mRoughness = seen.mRoughness;
-    answer.mResponse = SurfaceResponse(packSurfaceNormal(normal), seen.mResponse.mDiffuse * (1.0 - shore));
+    answer.mResponse = SurfaceResponse(packSurfaceNormal(normal), seen.mResponse.mDiffuse * (1.0 - shore),
+        seen.mResponse.mAmbient * (1.0 - shore));
     images.mMirror.mShare *= shore;
     images.mBed.mShare *= shore;
     return images;

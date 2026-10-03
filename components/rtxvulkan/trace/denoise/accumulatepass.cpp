@@ -14,9 +14,10 @@ namespace Rtx
     namespace
     {
         /// The channel being blended, the two the frame describes it with, the three a history
-        /// arrives in, the two of those this pass writes back, and the blend the cascade reads.
-        /// Nine and not ten, because the first wavelet level writes the history this reads next
-        /// frame — SVGF's feedback.
+        /// arrives in, the two of those this pass writes back, and the blend the cascade reads; and
+        /// the fill's channel, history and blend. The colour histories are read and not written,
+        /// because the first wavelet level writes the history this reads next frame — SVGF's
+        /// feedback.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_BINDINGS> sBindings
             = computeBindings<Shaders::ACCUMULATE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     }
@@ -42,6 +43,9 @@ namespace Rtx
         writes.image(Shaders::ACCUMULATE_BIND_SURFACE_OUT, images.mSurface.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_MOMENTS_OUT, images.mMoments.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_BLENDED_OUT, images.mBlended.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_FILL, buffer.get(Channel::Fill).describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_FILL, images.mFillBefore.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_FILL_BLENDED_OUT, images.mFillBlended.describeStorage());
 
         const Shaders::HistoryConstants constants{
             .mEyes = frame.mSampled.mEyes,

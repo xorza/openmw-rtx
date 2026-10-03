@@ -733,16 +733,19 @@ namespace Rtx::Testing
             EXPECT_NEAR(albedo[at + 2], 40.0f / 255.0f, 1e-3f);
         }
 
-        /// The vertex colour a hit lands on, and what the content's mode says it replaces.
+        /// The vertex colour a hit lands on, and which of the two albedos the content's mode says it
+        /// replaces.
         ///
         /// **The tint replaces the material's own colour rather than multiplying it**, which is
         /// what `glColorMaterial(GL_AMBIENT_AND_DIFFUSE)` does and what the game's own shader reads
-        /// through `getDiffuseColor`.
+        /// through `getDiffuseColor` and `getAmbientColor`. `Diffuse` and `Ambient` replace one of
+        /// the two, and the other stays the material's, white here.
         ///
         /// The texture is a linear 128, which is 0.50196 and encodes to 188. A quad whose four
         /// vertices carry one colour interpolates to that colour everywhere, so the arithmetic is
         /// one multiply a channel: 0.5, 1 and 0.25 of 0.50196 are 0.25098, 0.50196 and 0.12549,
-        /// which encode to 137, 188 and 99.
+        /// which encode to 137, 188 and 99. The diffuse albedo is read off the picture and the
+        /// ambient one off its channel, encoded the same way.
         TEST_F(RtxVisibilityTest, aVertexColourTintsTheAlbedoWhereTheContentAsksAndNowhereElse)
         {
             constexpr std::uint32_t size = 32;
@@ -767,12 +770,17 @@ namespace Rtx::Testing
                     = shoot(scene, std::span(&grey, 1), camera, size, Shot{ .mShow = SurfaceView::Albedo });
                 EXPECT_EQ(frame.mHits, size * size);
 
-                return std::array<int, 3>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2) };
+                std::vector<float> ambient;
+                mRenderer.readChannel(Channel::AmbientAlbedo, ambient);
+                return std::array<int, 6>{ frame.byte(centre), frame.byte(centre + 1), frame.byte(centre + 2),
+                    encodeSrgb(ambient[centre]), encodeSrgb(ambient[centre + 1]), encodeSrgb(ambient[centre + 2]) };
             };
 
-            const std::array<int, 3> plain{ 188, 188, 188 };
+            const std::array<int, 6> plain{ 188, 188, 188, 188, 188, 188 };
             EXPECT_EQ(albedoUnder(VertexColour::None, tint), plain) << "the content said the colours mean nothing";
-            EXPECT_EQ(albedoUnder(VertexColour::Tint, tint), (std::array<int, 3>{ 137, 188, 99 }));
+            EXPECT_EQ(albedoUnder(VertexColour::Tint, tint), (std::array<int, 6>{ 137, 188, 99, 137, 188, 99 }));
+            EXPECT_EQ(albedoUnder(VertexColour::Diffuse, tint), (std::array<int, 6>{ 137, 188, 99, 188, 188, 188 }));
+            EXPECT_EQ(albedoUnder(VertexColour::Ambient, tint), (std::array<int, 6>{ 188, 188, 188, 137, 188, 99 }));
             EXPECT_EQ(albedoUnder(VertexColour::Glow, tint), plain) << "a glow is not a tint";
 
             // A mesh that brought no colour is white in the shared buffer, so the tint the shader

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 
 #include <components/rtx/renderer/channel.hpp>
@@ -18,14 +19,16 @@ namespace Rtx
     namespace
     {
         /// The channel coming in with its variance, which says where the edges in the light are,
-        /// the channel going out, and the one that says where the edges in the surface are and
-        /// which eye each pixel's ray left. All pushed. Sampled on the two this pass only reads,
-        /// because a twenty-five tap gather wants the texture unit's cache — a few per cent of the
-        /// cascade — and legal from `VK_IMAGE_LAYOUT_GENERAL`.
+        /// the channel going out, the one that says where the edges in the surface are and which
+        /// eye each pixel's ray left, and the fill in and out. All pushed. Sampled on the three this
+        /// pass only reads, because a twenty-five tap gather wants the texture unit's cache — a few
+        /// per cent of the cascade — and legal from `VK_IMAGE_LAYOUT_GENERAL`.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ATROUS_BINDINGS> sBindings{
             computeBinding(Shaders::ATROUS_BIND_SOURCE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_FILTERED, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_SURFACE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
+            computeBinding(Shaders::ATROUS_BIND_FILL_SOURCE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
+            computeBinding(Shaders::ATROUS_BIND_FILL_FILTERED, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
         };
 
         /// Both reads, because a level's inputs are sampled and its target is storage. An image
@@ -52,14 +55,11 @@ namespace Rtx
     {
     }
 
-    const Image& AtrousPass::record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
+    AtrousPass::Filtered AtrousPass::record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
         const GBuffer& buffer, const DenoiseFrame& frame) const
     {
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
-        const Image& blended = images.mBlended;
-        const Image& history = images.mColour;
-        const Image& scratch = images.mScratch;
-        assert(scratch.getWidth() >= camera.mWidth && scratch.getHeight() >= camera.mHeight);
+        assert(images.mScratch.getWidth() >= camera.mWidth && images.mScratch.getHeight() >= camera.mHeight);
         assert(buffer.getWidth() >= camera.mWidth && buffer.getHeight() >= camera.mHeight);
 
         // One assignment and not eight, so the filter's rays and the trace's cannot come to
@@ -74,9 +74,15 @@ namespace Rtx
 
         // Three images take turns and not two, because the first level's answer is the mean the
         // accumulator reads next frame — SVGF's feedback — so the levels after it ping-pong between
-        // the blend and the scratch and leave it alone.
-        const Image* source = &blended;
-        const Image* target = &history;
+        // the blend and the scratch and leave it alone. The bounce's three and the fill's take the
+        // same turns.
+        constexpr std::size_t blended = 0;
+        constexpr std::size_t history = 1;
+        constexpr std::size_t scratch = 2;
+        const std::array<const Image*, 3> bounce{ &images.mBlended, &images.mColour, &images.mScratch };
+        const std::array<const Image*, 3> fill{ &images.mFillBlended, &images.mFill, &images.mFillScratch };
+        std::size_t source = blended;
+        std::size_t target = history;
 
         for (std::uint32_t pass = 0; pass < Shaders::ATROUS_LEVELS; ++pass)
         {
@@ -86,7 +92,7 @@ namespace Rtx
                 // so both channels have to be ordered against it — the second is a write after a
                 // read, which needs the stages named and nothing made visible.
                 Barriers between(commands);
-                for (const Image* image : { source, target })
+                for (const Image* image : { bounce[source], bounce[target], fill[source], fill[target] })
                     image->addTransition(between,
                         ImageUse{ VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                             VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | sReads },
@@ -99,9 +105,11 @@ namespace Rtx
             // Sampled from `GENERAL` on the three this pass only reads. A `SAMPLED_IMAGE`
             // descriptor names the image alone and no sampler, which is what `sBindings` declares.
             DescriptorWrites writes(mPipeline);
-            writes.image(Shaders::ATROUS_BIND_SOURCE, source->describeSampled(VK_NULL_HANDLE));
-            writes.image(Shaders::ATROUS_BIND_FILTERED, target->describeStorage());
+            writes.image(Shaders::ATROUS_BIND_SOURCE, bounce[source]->describeSampled(VK_NULL_HANDLE));
+            writes.image(Shaders::ATROUS_BIND_FILTERED, bounce[target]->describeStorage());
             writes.image(Shaders::ATROUS_BIND_SURFACE, buffer.get(Channel::Surface).describeSampled(VK_NULL_HANDLE));
+            writes.image(Shaders::ATROUS_BIND_FILL_SOURCE, fill[source]->describeSampled(VK_NULL_HANDLE));
+            writes.image(Shaders::ATROUS_BIND_FILL_FILTERED, fill[target]->describeStorage());
 
             level.mStep = 1u << pass;
 
@@ -112,16 +120,20 @@ namespace Rtx
             // not reading — the blend after the first level, and the scratch and the blend by turns
             // after that.
             source = target;
-            target = pass == 0 ? &blended : (source == &blended ? &scratch : &blended);
+            target = pass == 0 ? blended : (source == blended ? scratch : blended);
         }
 
         // The cascade hands over what it wrote, because nothing after it does: with the last level
         // ordered against nothing, the composite ran beside the dispatch still writing it, and two
         // runs of one doll wrote different bytes over a thousand of its pixels.
-        source->transition(commands, Use::sComputeWrite,
-            ImageUse{ VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, sReads });
+        Barriers handed(commands);
+        for (const Image* image : { bounce[source], fill[source] })
+            image->addTransition(handed, Use::sComputeWrite,
+                ImageUse{ VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, sReads });
+
+        handed.flush();
 
         // One swap past the last dispatch, so this is what that dispatch wrote.
-        return *source;
+        return Filtered{ .mIndirect = *bounce[source], .mFill = *fill[source] };
     }
 }

@@ -13,7 +13,7 @@ namespace Rtx
 {
     namespace
     {
-        /// Half floats, because an albedo is a fraction. The diffuse albedo takes it too, which
+        /// Half floats, because an albedo is a fraction. The diffuse albedos take it too, which
         /// needed measuring: quantising a per-pixel constant is a systematic error on the indirect
         /// term, but on a converged reference of a room the mean moves by a fiftieth of the
         /// tolerance the radiance channels are held to.
@@ -73,6 +73,8 @@ namespace Rtx
                 every[bindingOf(Channel::PaneSurface)] = { sSurface, sReadable };
                 every[bindingOf(Channel::PaneMotion)] = { sMotion, sReadable };
                 every[bindingOf(Channel::UpscaleMasks)] = { sUpscaleMasks, sReadable };
+                every[bindingOf(Channel::Fill)] = { VK_FORMAT_UNDEFINED, sReadable };
+                every[bindingOf(Channel::AmbientAlbedo)] = { sAlbedo, sReadable };
 
                 return every;
             }();
