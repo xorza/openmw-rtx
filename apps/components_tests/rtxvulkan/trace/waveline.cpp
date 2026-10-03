@@ -66,7 +66,6 @@ namespace Rtx
                         .mCount = sCount,
                         .mStride = pass == 0 ? 1u : sCount,
                         .mJump = pass == 0 ? sCount : 1u,
-                        .mOffset = 0,
                     };
 
                     pipeline.push(commands, constants);

@@ -112,9 +112,6 @@ namespace Rtx::Shaders
         /// `mCount` reads the rows, `mCount` and `1` reads the columns.
         uint mStride;
         uint mJump;
-
-        /// Where in the buffer this cascade's grid starts, in complex numbers.
-        uint mOffset;
     };
 
     /// What the pass that forms the spectra is told.
@@ -145,7 +142,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(WaveConstants) == 16, "WaveConstants must be scalar-packed on every side");
+    static_assert(sizeof(WaveConstants) == 12, "WaveConstants must be scalar-packed on every side");
     static_assert(sizeof(WaveFormConstants) == 16, "WaveFormConstants must be scalar-packed on every side");
     static_assert(sizeof(WaveComposeConstants) == 4, "WaveComposeConstants must be scalar-packed on every side");
 #endif
