@@ -247,6 +247,15 @@ namespace Rtx
             // side is half the row by the one texel a level never goes under.
             EXPECT_EQ(textures.getExtent(0), Shaders::uvec2((limit + 1) >> 1, 1u)) << "the level that stands";
             EXPECT_EQ(textures.getExtent(1), Shaders::uvec2(4u, 4u)) << "the stand-in's, past the side";
+
+            // **The totals follow a slot given back**, which they are kept by and not walked for:
+            // the one texture that stood is dropped, and nothing stands, nothing is smaller, and
+            // nothing costs. Dropping the stand-in's slot as well takes nothing off.
+            textures.drop(std::array{ 0u, 1u });
+            const TexturesHeld dropped = textures.getHeld();
+            EXPECT_EQ(dropped.mCount, 0u);
+            EXPECT_EQ(dropped.mBytes, 0u);
+            EXPECT_EQ(dropped.mReduced, 0u);
         }
 
         /// A texture the device has no room for comes down a level at a time, and one it has room

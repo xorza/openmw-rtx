@@ -702,6 +702,7 @@ namespace Rtx
         // themselves, so it stays valid until the timeline says nothing reads it. Let go of before
         // the new one is made, because the new one is made where it stays: the arrival's work names
         // its images.
+        forget(slot);
         slot.mTexture = Texture();
 
         std::string why;
@@ -718,6 +719,7 @@ namespace Rtx
         slot.mStandIn = made.isEmpty();
         slot.mReduced = texture.mSource == TextureSource::File && !made.isEmpty()
             && (made.getImage().getWidth() < texture.mWidth || made.getImage().getHeight() < texture.mHeight);
+        count(slot);
 
         if (!why.empty())
             refused.push_back(Refusal{ .mKind = Refused::Texture, .mName = std::string(texture.mName), .mWhy = why });
@@ -863,6 +865,7 @@ namespace Rtx
 
             // Emptied rather than erased, so the slot stays where it is and the images go under the
             // frame that may still name them.
+            forget(mSlots[slot]);
             mSlots[slot].mTexture = Texture();
             mSlots[slot].mStandIn = false;
             mSlots[slot].mReduced = false;
@@ -910,23 +913,29 @@ namespace Rtx
         return Shaders::uvec2(image.getWidth(), image.getHeight());
     }
 
-    TexturesHeld TextureArray::getHeld() const
+    void TextureArray::forget(const Slot& slot)
     {
-        TexturesHeld held;
+        // Whether it is there and not its size: a slot stands a texture or it does not, and a
+        // content file carrying an empty level is a texture that exists.
+        if (slot.mTexture.isEmpty())
+            return;
 
-        for (const Slot& slot : mSlots)
-        {
-            // Whether it is there and not its size: a slot stands a texture or it does not, and a
-            // content file carrying an empty level is a texture that exists.
-            if (slot.mTexture.isEmpty())
-                continue;
+        assert(mHeld.mCount > 0 && mHeld.mBytes >= slot.mTexture.getBytes() && (!slot.mReduced || mHeld.mReduced > 0)
+            && "a slot taken off the totals that were never counted");
+        --mHeld.mCount;
+        mHeld.mBytes -= slot.mTexture.getBytes();
+        if (slot.mReduced)
+            --mHeld.mReduced;
+    }
 
-            ++held.mCount;
-            held.mBytes += slot.mTexture.getBytes();
-            if (slot.mReduced)
-                ++held.mReduced;
-        }
+    void TextureArray::count(const Slot& slot)
+    {
+        if (slot.mTexture.isEmpty())
+            return;
 
-        return held;
+        ++mHeld.mCount;
+        mHeld.mBytes += slot.mTexture.getBytes();
+        if (slot.mReduced)
+            ++mHeld.mReduced;
     }
 }

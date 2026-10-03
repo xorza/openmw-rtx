@@ -53,6 +53,7 @@ namespace Rtx
             EXPECT_EQ(storage.getOffset(second), 1024u);
             EXPECT_EQ(storage.getOffset(third), 3072u);
             EXPECT_EQ(storage.getBytes(), sBlock) << "three structures that fit one block asked for one block";
+            EXPECT_EQ(storage.getLiveBytes(), sBlock) << "and stand in every unit of it";
 
             // The block is full to the last unit, so this one starts another — and the buffers
             // already handed out are untouched, which is the whole reason the list grows rather than
@@ -72,6 +73,7 @@ namespace Rtx
             const StructureRoom early = storage.take(device, 2048, sBlock).value();
             EXPECT_EQ(early.mBlock, 1u);
             EXPECT_EQ(storage.getOffset(early), 256u) << "a room was handed out under the submit it was retired for";
+            EXPECT_EQ(storage.getLiveBytes(), sBlock + 256 + 2048) << "a room cooling is still a room";
 
             // Once a submit carrying that stamp has run, the next of exactly that size takes the
             // hole rather than being appended past everything.
@@ -80,6 +82,17 @@ namespace Rtx
             EXPECT_EQ(again.mBlock, 0u);
             EXPECT_EQ(storage.getOffset(again), 1024u);
             EXPECT_EQ(storage.getBytes(), 2 * sBlock) << "reuse costs no new storage";
+            EXPECT_EQ(storage.getLiveBytes(), sBlock + 256 + 2048) << "the hole given back and taken again";
+
+            // **The totals follow a block given back.** The second block's two rooms cool and come
+            // back, and the block empties: it goes to the device, the first still standing, and
+            // the storage is the first block, every unit of it live.
+            storage.retire(fourth, device.getTimeline().getNext());
+            storage.retire(early, device.getTimeline().getNext());
+            getPool().submitAndWait([](VkCommandBuffer) {});
+            storage.reclaim(device.getTimeline().getKnownFinished());
+            EXPECT_EQ(storage.getBytes(), sBlock);
+            EXPECT_EQ(storage.getLiveBytes(), sBlock);
         }
 
         /// A structure larger than the block a caller asked for gets a block that holds it.

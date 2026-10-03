@@ -107,12 +107,8 @@ namespace Rtx
         /// side the device does not take — `Renderer::getRefusals`.
         std::span<const Refusal> getRefusals() const { return mRefusals; }
 
-        /// Reads into `stats` what a placement can have moved, which is every figure but the three
-        /// a build settles — one of which is a loop over every texture, and a placement runs on the
-        /// frame path.
-        void readPlacedStats(SceneStats& stats) const;
-
-        /// Reads all of `stats`, for a scene that has just been built or extended.
+        /// Reads all of `stats`: at every placement, a build and an extension. Every figure is a
+        /// total kept as it changes, so a placement on the frame path reads them all.
         void readStats(SceneStats& stats) const;
 
         /// What the copy the last placement wrote counts as, as the scene counted it then: the
