@@ -115,7 +115,10 @@ namespace Rtx::Shaders
     const float BOUNCE_RADIUS_LEAST = 3.0f;
 
     /// How nearly two visible points must face alike, and how near their distances, for one to
-    /// reuse the other's samples: RTXDI's defaults, the cosine and a share of the distance.
+    /// reuse the other's samples: RTXDI's defaults, the cosine and a share of the distance. **Wider
+    /// than the accumulator's 0.9** (`ACCUMULATE_FACING`), since the target and the shift weigh a
+    /// neighbour's sample at this point where the accumulator takes its colour whole: at 0.9 the
+    /// guild's still and strafed frames were 0.01 to 0.02 noisier.
     const float BOUNCE_FACING = 0.6f;
     const float BOUNCE_DEPTH = 0.1f;
 

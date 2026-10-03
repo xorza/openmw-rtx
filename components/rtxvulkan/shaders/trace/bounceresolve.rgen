@@ -100,7 +100,7 @@ void main()
 
             const BounceOrigin near = unpackOrigin(bounceOrigins[tapAt]);
             const float distance = length(origin.mOffset);
-            const bool alike = inside && near.mKept && dot(near.mNormal, origin.mNormal) >= ACCUMULATE_FACING
+            const bool alike = inside && near.mKept && dot(near.mNormal, origin.mNormal) >= BOUNCE_FACING
                 && abs(length(near.mOffset) - distance) <= BOUNCE_DEPTH * distance;
 
             BounceReservoir reservoir = unpackBounce(bounceReservoirs[tapAt]);
