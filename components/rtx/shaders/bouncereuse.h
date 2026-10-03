@@ -125,6 +125,19 @@ namespace Rtx::Shaders
     const float BOUNCE_FACING = 0.6f;
     const float BOUNCE_DEPTH = 0.1f;
 
+    /// How many times the mean of its workgroup's estimates a pixel's estimate may stand before the
+    /// temporal pass lets its reservoir go: RTXDI's boiling filter at its default strength of 0.2,
+    /// which states the multiple as `10 / strength - 9`. **Resampling keeps a sample that is rare
+    /// and bright** for many frames and lends it to the pixels around, and the blotch it makes is too
+    /// wide for the denoiser to take as noise. Letting it go is a bias, and only past this multiple.
+    ///
+    /// **Only a sample a history carried, and not a fresh candidate**, which is what boils: RTXDI
+    /// filters both. Filtering both, the denoised still frames fell further (the guild 0.68 to 0.55,
+    /// against 0.62), but where the eye moves most pixels hold a fresh candidate alone, and the
+    /// yurt's bias against the converged frame rose by 0.9 walked; carried samples alone, no place's
+    /// bias rose past what it was without the reuse.
+    const float BOUNCE_BOILING_LIMIT = 41.0f;
+
     /// How far from one the Jacobian of a shift may stand before the shift is refused. A
     /// reconnection of a very different length puts a ratio of squares into the weight, and the
     /// variance it adds is larger than what the sample brings (Wyman et al. 2023, §6.4).
