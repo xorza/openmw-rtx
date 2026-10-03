@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <optional>
 
+#include <osg/ref_ptr>
+
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
@@ -26,28 +28,40 @@ namespace Rtx
     /// counts the whole image at, which differs between its builds for a block format with no
     /// chain. An image that does not describe is keyed as that, because what a pass answers for it
     /// does not depend on its bytes.
+    ///
+    /// **The image is held as long as its description**, because the description spans the image's
+    /// own bytes wherever they need no laying out (`describeImage`), and a key and the run after it
+    /// are two calls apart: a caller that let go of its image between them left the key reading
+    /// freed memory. Held, its address also names it, so a run knows whether the description is of
+    /// the image it was handed. A key the cache answers runs nothing, and leaves its image held
+    /// until the pass is next asked: one image a pass, on a loader's thread.
     class FinestTexels
     {
     public:
-        explicit FinestTexels(AlphaScratch& scratch)
-            : mScratch(scratch)
-        {
-        }
+        explicit FinestTexels(AlphaScratch& scratch);
+        ~FinestTexels();
 
-        /// Describes `image` into the scratch.
+        /// Describes `image` into the scratch, and holds it until the next `describe` or `clear`.
         void describe(const osg::Image& image);
+
+        /// Whether the last `describe` was of `image`.
+        bool describes(const osg::Image& image) const { return mImage.get() == &image; }
 
         /// Adds what the last `describe` came to to `digest`.
         void addTo(ContentDigest& digest) const;
 
-        /// What the last `describe` found, spanning the scratch: nothing for an image no reader
-        /// here decodes.
+        /// What the last `describe` found, spanning the scratch or the held image: nothing for an
+        /// image no reader here decodes.
         const std::optional<TextureData>& get() const { return mFinest; }
 
         AlphaScratch& getScratch() const { return mScratch; }
 
+        /// Lets go of the image and its description.
+        void clear();
+
     private:
         AlphaScratch& mScratch;
+        osg::ref_ptr<const osg::Image> mImage;
         std::optional<TextureData> mFinest;
     };
 
@@ -69,16 +83,16 @@ namespace Rtx
         {
             mFinest.describe(image);
             mFinest.addTo(digest);
-            mDigested = true;
         }
 
-        /// Answers for `image`, described by the `digest` before it where there was one.
+        /// Answers for `image`, described by the `digest` before it where that was of `image`, and
+        /// lets go of it.
         void run(const osg::Image& image, Result& result)
         {
-            if (!mDigested)
+            if (!mFinest.describes(image))
                 mFinest.describe(image);
-            mDigested = false;
             result = Answer(mFinest.get(), mFinest.getScratch());
+            mFinest.clear();
         }
 
     private:
@@ -90,10 +104,6 @@ namespace Rtx
         }
 
         FinestTexels mFinest;
-
-        /// Whether `mFinest` describes the image the next `run` is handed: set by `digest`, which
-        /// the preprocessor calls on the same input just before, and spent by `run`.
-        bool mDigested = false;
     };
 
     /// Whether a texture's alpha ever reaches solid — `reachesSolid`. True for an image no reader

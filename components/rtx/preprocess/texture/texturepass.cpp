@@ -5,14 +5,30 @@
 #include <optional>
 #include <span>
 
+#include <osg/Image>
+
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/preprocess/contentkey.hpp>
 
 namespace Rtx
 {
+    FinestTexels::FinestTexels(AlphaScratch& scratch)
+        : mScratch(scratch)
+    {
+    }
+
+    FinestTexels::~FinestTexels() = default;
+
     void FinestTexels::describe(const osg::Image& image)
     {
+        mImage = &image;
         mFinest = describeFinest(image, mScratch);
+    }
+
+    void FinestTexels::clear()
+    {
+        mFinest.reset();
+        mImage = nullptr;
     }
 
     void FinestTexels::addTo(ContentDigest& digest) const

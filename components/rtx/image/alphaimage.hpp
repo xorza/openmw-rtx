@@ -79,7 +79,9 @@ namespace Rtx
     /// neither question needs more than the finest. Nothing for an image this cannot describe,
     /// which is the same image whose arrival in the texture table refuses it by name.
     ///
-    /// @param scratch cleared and refilled here; the description spans it until the next reading.
+    /// @param scratch cleared and refilled here. The description spans it, or `image`'s own bytes
+    ///        where they need no laying out (`describeImage`), so it lasts until the next reading and
+    ///        no longer than `image` does.
     std::optional<TextureData> describeFinest(const osg::Image& image, AlphaScratch& scratch);
 
     /// Whether any texel of a finest level `describeFinest` gave is fully opaque — what tells a wisp

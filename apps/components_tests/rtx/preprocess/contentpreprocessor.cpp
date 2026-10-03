@@ -161,11 +161,22 @@ namespace Rtx
             moved[7] = 129;
             EXPECT_NE(finestKeyOf(*makeImage(moved, "painted.dds"), finest), key) << "one texel's alpha";
 
+            // The caller's image gone before the key reads it, which the description's hold keeps:
+            // an RGBA8 level is spanned where the image holds it.
             ContentDigest digest("solid reach", 1);
             finest.describe(*makeImage(sPaint, "painted.dds"));
             finest.addTo(digest);
             EXPECT_EQ(digest.getBytes(),
                 sizeof(bool) + sizeof(TextureFormat) + sizeof(TextureEncoding) + 2 * sizeof(std::uint32_t) + 16);
+            EXPECT_EQ(digest.getKey(), key) << "the description outlived the caller's image";
+
+            const osg::ref_ptr<osg::Image> held = makeImage(sPaint, "painted.dds");
+            finest.describe(*held);
+            EXPECT_TRUE(finest.describes(*held));
+            EXPECT_FALSE(finest.describes(*makeImage(sPaint, "painted.dds"))) << "the same texels, another image";
+            finest.clear();
+            EXPECT_FALSE(finest.describes(*held));
+            EXPECT_FALSE(finest.get().has_value());
 
             osg::ref_ptr<osg::Image> alphaOnly = new osg::Image;
             alphaOnly->allocateImage(2, 2, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
