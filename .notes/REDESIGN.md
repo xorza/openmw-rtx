@@ -11,7 +11,7 @@ notes cite.
 
 | Workstream | What is left | Phase |
 |---|---|---|
-| W6 Scene tables change by the row | block growth, running totals, the presence rows | 5 |
+| W6 Scene tables change by the row | block growth, the presence rows | 5 |
 | W8 The denoisers share one surface test | step 3 after its probe (steps 1 and 2 measured and declined) | 5 |
 | W9 Passes run only over what is new | the last wavelet level into the composite, measured first | 5 |
 | W14 The ray tracer shows what the rasterizer shows | the items that wait for an input outside the tree | after its inputs |
@@ -72,7 +72,6 @@ behind a threshold …)*.
 | Where | Defect |
 |---|---|
 | `GrowableBuffer::outgrow`, `SlotTable::sync` | the frame that crosses a power of two remakes the table and writes every row |
-| `readPlacedStats` | the texture and structure figures are loops, so they are left out of the per-placement stats and go stale; `extendScene` pays a 4096-slot walk on the frame path |
 | `SceneBuffers::place` | every medium and additive box is transformed on every placement, standing rows included |
 
 ### Target shape
@@ -81,9 +80,6 @@ behind a threshold …)*.
   move onto `BlockedBuffer`'s shape: fixed blocks behind one address table. Growth costs one block
   and owes only its new rows. `SlotTable::mRows` reserves by the block too. `GrowableBuffer` stays
   only for start-up and resize paths, and `outgrow` goes.
-- **Running totals.** `TextureArray` keeps count, bytes and reduced count, updated in `stand` and
-  `drop`. `StructureStorage` keeps its two totals as rooms are taken and given back. One
-  `readStats` runs at every placement, and `readPlacedStats` goes.
 - **Presence rows in a `SlotTable`**, driven by the same `changed` list as the instance table.
 
 ### Verification
