@@ -232,6 +232,16 @@ namespace Rtx
         transition(commands, Use::sClearWrite, to);
     }
 
+    void Image::clearInGeneral(VkCommandBuffer commands, const VkClearColorValue& colour) const
+    {
+        assert(!isEmpty() && "a clear of an image nobody made");
+        assert((mUsage & VK_IMAGE_USAGE_TRANSFER_DST_BIT) != 0 && "a clear of an image not made to be written");
+
+        nameForNext();
+        const VkImageSubresourceRange whole{ VK_IMAGE_ASPECT_COLOR_BIT, 0, mMipLevels, 0, 1 };
+        vkCmdClearColorImage(commands, mHandle.get(), VK_IMAGE_LAYOUT_GENERAL, &colour, 1, &whole);
+    }
+
     void Image::copyTo(
         VkCommandBuffer commands, const Image& into, const VkImageLayout intoLayout, const VkExtent2D extent) const
     {
