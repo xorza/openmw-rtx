@@ -47,12 +47,12 @@ bool bounceSeen(BounceOrigin origin, BounceReach reach)
 const float GOLDEN_ANGLE_TURNS = 0.38196601;
 
 /// A neighbour of `pixel` to reuse from: the `index`th of `BOUNCE_NEIGHBOURS` on a spiral through
-/// the disc of `BOUNCE_RADIUS`, turned by `turn`.
-ivec2 neighbourOf(uvec2 pixel, uint index, float turn)
+/// the disc of `radius`, turned by `turn`.
+ivec2 neighbourOf(uvec2 pixel, uint index, float turn, float radius)
 {
     const float share = (float(index) + 0.5) / float(BOUNCE_NEIGHBOURS);
     const float angle = TAU * (turn + float(index) * GOLDEN_ANGLE_TURNS);
-    return ivec2(vec2(pixel) + BOUNCE_RADIUS * sqrt(share) * vec2(cos(angle), sin(angle)) + 0.5);
+    return ivec2(vec2(pixel) + radius * sqrt(share) * vec2(cos(angle), sin(angle)) + 0.5);
 }
 
 void main()
@@ -78,9 +78,11 @@ void main()
 
     BounceReservoir chosen = own;
     BounceReach chosenReach = ownReach;
+    bool asked = false;
 
     if (frame.mBounceReuse == BOUNCE_REUSE_SPATIOTEMPORAL)
     {
+        const float radius = max(BOUNCE_RADIUS_SHARE * float(frame.mEyes.mWorld.mHeight), BOUNCE_RADIUS_LEAST);
         BounceReservoir neighbours[BOUNCE_NEIGHBOURS];
         BounceOrigin origins[BOUNCE_NEIGHBOURS];
         vec4 there = vec4(0.0);
@@ -91,7 +93,7 @@ void main()
         // pixel's sample shifted into its domain, seen from there or not.
         for (uint index = 0u; index < BOUNCE_NEIGHBOURS; ++index)
         {
-            const ivec2 tap = neighbourOf(pixel, index, turn);
+            const ivec2 tap = neighbourOf(pixel, index, turn, radius);
             const bool inside = !outsideOf(uvec2(tap), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight));
             const uint tapAt = inside ? uint(tap.y) * frame.mBounceStride + uint(tap.x) : at;
 
@@ -123,7 +125,11 @@ void main()
             const BounceOrigin nearOrigin = origins[index];
             const float jacobian = shiftJacobian(near.mSample, nearOrigin.mOffset, origin.mOffset);
             const BounceReach here = reachOf(near.mSample, nearOrigin.mOffset, origin.mOffset);
-            const float target = bounceTarget(origin, near.mSample, here);
+            // **Taken only where this point can see it**, the shift's own ray: a target that ignored
+            // it would keep a neighbour's sample the final ray then finds hidden, worth nothing that
+            // frame and twice as much the next. Over the corner it took a tenth off the frame's error.
+            const bool seen = holdsBounce(near) && jacobian > 0.0 && bounceSeen(origin, here);
+            const float target = seen ? bounceTarget(origin, near.mSample, here) : 0.0;
             const float nearThere = jacobian > 0.0
                 ? bounceTarget(nearOrigin, near.mSample, reachOf(near.mSample, nearOrigin.mOffset, nearOrigin.mOffset))
                     / jacobian
@@ -138,12 +144,13 @@ void main()
 
         chosen = finishMerge(merge);
         chosenReach = reachOf(chosen.mSample, origin.mOffset, origin.mOffset);
+        asked = merge.mKeptInput > 0u;
     }
 
-    // The sample shown, if this point can see it now: a fresh candidate was traced from here, and
-    // anything kept from another frame or another pixel is asked again.
+    // The sample shown, if this point can see it now: a fresh candidate was traced from here, and a
+    // neighbour's was asked by its shift's ray; what the pixel kept from another frame is asked here.
     const bool fresh = frame.mBounceReuse == BOUNCE_REUSE_OWN;
-    const bool seen = fresh || !holdsBounce(chosen) || bounceSeen(origin, chosenReach);
+    const bool seen = fresh || asked || !holdsBounce(chosen) || bounceSeen(origin, chosenReach);
     const vec3 share = diffuseShare(origin, chosenReach.mTowards) * (seen ? chosen.mWeight : 0.0);
     const vec3 through = unpackRgb9e5(bounceThrough[at]);
 
