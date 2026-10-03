@@ -4,12 +4,13 @@
 
 namespace RtxTool
 {
-    /// Where the driver keeps its compiled code of one set of shaders: a directory of its own beside
-    /// them, and only the current one.
+    /// Where the driver keeps its compiled code of one set of shaders: a directory of its own in the
+    /// harness's folder, and only the current one.
     ///
     /// **Of its own**, because the driver otherwise shares one cache with every program on the
-    /// machine and prunes it at a size limit, so another program's shaders evict these. **Beside the
-    /// shaders**, so it goes with the build that made them. **One per set of shaders**, named by
+    /// machine and prunes it at a size limit, so another program's shaders evict these. **In the
+    /// harness's folder**, `Rtx::harnessDirectory`, so it goes with the build that made them and no
+    /// install carries it. **One per set of shaders**, named by
     /// `digestShaders` of the modules the renderer reads, because the driver keys its entries on the
     /// bytes it is handed and never drops one: a directory each build kept across its shader edits
     /// grew past a gigabyte. A changed set is a new directory, and `sweep` removes the old one.
@@ -21,8 +22,9 @@ namespace RtxTool
     class DriverCache
     {
     public:
-        /// The cache of the modules in `shaders`, its directory made where there is none.
-        explicit DriverCache(const std::filesystem::path& shaders);
+        /// The cache of the modules in `shaders`, in `harness`, its directory made where there is
+        /// none.
+        DriverCache(const std::filesystem::path& harness, const std::filesystem::path& shaders);
 
         const std::filesystem::path& getDirectory() const { return mDirectory; }
 

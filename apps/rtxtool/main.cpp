@@ -273,16 +273,16 @@ namespace RtxTool
             Verbs mVerb;
         };
 
-        /// The places a run can visit, among the resources.
+        /// The places a run can visit, in the harness's folder.
         std::filesystem::path viewsFile(const std::filesystem::path& resources)
         {
-            return resources / "rtx" / "views.cfg";
+            return Rtx::harnessDirectory(resources) / "views.cfg";
         }
 
         /// The suites, each a list of places in `viewsFile`.
         std::filesystem::path suitesFile(const std::filesystem::path& resources)
         {
-            return resources / "rtx" / "benches.cfg";
+            return Rtx::harnessDirectory(resources) / "benches.cfg";
         }
 
         /// Where a verb writes its pictures: `--out`, or a directory named for the verb.
@@ -1314,11 +1314,10 @@ namespace RtxTool
             }
 
             // **Before any verb makes a device, because the driver reads where its cache is once.**
-            // A cache of the shaders this run reads and of nothing else, beside them
-            // (`DriverCache`).
+            // A cache of the shaders this run reads and of nothing else (`DriverCache`).
             const std::filesystem::path shaders
                 = Rtx::shaderDirectory(resources, variables["shader-source"].as<bool>());
-            const DriverCache driverCache(shaders);
+            const DriverCache driverCache(Rtx::harnessDirectory(resources), shaders);
             driverCache.applyToDriver();
             driverCache.sweep();
 

@@ -30,11 +30,21 @@ namespace Rtx
             writeModule(directory / second, { 4 });
         }
 
+        /// **The shaders with their source are the harness's**, beside the resources and not among
+        /// them, where an install would carry them; the harness's folder is the same however the
+        /// resources were spelled.
         TEST(RtxShaderDirectoryTest, theShadersAreReadWithoutTheirSourceUnlessAsked)
         {
-            const std::filesystem::path resources("resources");
+            const std::filesystem::path build("build");
+            const std::filesystem::path resources = build / "resources";
             EXPECT_EQ(shaderDirectory(resources, false), resources / "rtx" / "shaders");
-            EXPECT_EQ(shaderDirectory(resources, true), resources / "rtx" / "shaders-source");
+            EXPECT_EQ(shaderDirectory(resources, true), build / "rtxtool" / "shaders-source");
+
+            EXPECT_EQ(harnessDirectory(resources), build / "rtxtool");
+            EXPECT_EQ(harnessDirectory(build / "resources" / ""), build / "rtxtool") << "a trailing separator";
+            EXPECT_EQ(
+                harnessDirectory(std::filesystem::path(".") / "resources"), std::filesystem::path(".") / "rtxtool");
+            EXPECT_EQ(harnessDirectory("resources"), std::filesystem::path(".") / "rtxtool");
         }
 
         /// **The digest is the modules and nothing else.** The same modules anywhere are the same

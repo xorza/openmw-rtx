@@ -25,6 +25,35 @@ def used_osg_plugins(cmake_text: str) -> list[str]:
     return match.group(1).split()
 
 
+# What the harness and the tests write under the build, which no install may carry: the harness's
+# folder (`Rtx::harnessDirectory`), the test output, and their files by name, wherever they land.
+HARNESS_NAMES = ("rtxtool", "test-output", "crash-matrix", "views.cfg", "benches.cfg", "shaders-source")
+
+
+def harness_files(installed: Path) -> list[str]:
+    """The files under `installed` that are the harness's or the tests', from its root, `/`-separated."""
+    found = []
+    for path in installed.rglob("*"):
+        parts = path.relative_to(installed).parts
+        if path.is_file() and any(part in HARNESS_NAMES or part.endswith("-driver-cache") for part in parts):
+            found.append(path.relative_to(installed).as_posix())
+    return sorted(found)
+
+
+def _refuse_harness(installed: Path) -> None:
+    if found := harness_files(installed):
+        raise Refusal("the install carries what the harness or the tests wrote: " + ", ".join(found[:5]))
+
+
+def prune_empty(folder: Path) -> None:
+    """Removes every folder under `folder` that holds no file, deepest first. Upstream's Windows rule
+    installs the runtime folder through `FILES_MATCHING`, which makes every folder of it, the
+    harness's and the tests' among them, empty."""
+    for path in sorted((p for p in folder.rglob("*") if p.is_dir()), key=lambda p: len(p.parts), reverse=True):
+        if not any(path.iterdir()):
+            path.rmdir()
+
+
 def archive(build: Build, args: list[str]) -> int:
     if len(args) > 1:
         raise Refusal("archive takes one name at most")
@@ -73,6 +102,7 @@ def _archive_linux(build: Build, name: str) -> None:
     appdir = ROOT / "AppDir"
     shutil.rmtree(appdir, ignore_errors=True)
     run(["cmake", "--install", build.dir, "--prefix", appdir / "usr" / "bin"], env=build.env, stdout=subprocess.DEVNULL)
+    _refuse_harness(appdir)
     (appdir / "usr" / "bin" / "share").rename(appdir / "usr" / "share")
     shutil.copy2(ROOT / "files" / "licenses" / "Vulkan-Loader.txt", appdir / "usr" / "bin" / "licenses")
 
@@ -118,6 +148,8 @@ def _archive_windows(build: Build, name: str) -> None:
     folder = DIST / f"openmw-{name}-windows-x64"
     shutil.rmtree(folder, ignore_errors=True)
     run(["cmake", "--install", build.dir, "--prefix", folder], env=build.env, stdout=subprocess.DEVNULL)
+    prune_empty(folder)
+    _refuse_harness(folder)
 
 
 def symbols(build: Build, name: str) -> None:

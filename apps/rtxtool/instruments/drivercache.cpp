@@ -23,17 +23,17 @@ namespace RtxTool
 
     namespace
     {
-        /// Where a shader set's caches go: beside it, named after it.
-        std::filesystem::path cacheRootOf(const std::filesystem::path& shaders)
+        /// Where a shader set's caches go: in the harness's folder, named after the set.
+        std::filesystem::path cacheRootOf(const std::filesystem::path& harness, const std::filesystem::path& shaders)
         {
             std::filesystem::path name = shaders.filename();
             name += "-driver-cache";
-            return shaders.parent_path() / name;
+            return harness / name;
         }
     }
 
-    DriverCache::DriverCache(const std::filesystem::path& shaders)
-        : mRoot(cacheRootOf(shaders))
+    DriverCache::DriverCache(const std::filesystem::path& harness, const std::filesystem::path& shaders)
+        : mRoot(cacheRootOf(harness, shaders))
         , mDirectory(mRoot / spellHash(Rtx::digestShaders(shaders)))
     {
         std::filesystem::create_directories(mDirectory);

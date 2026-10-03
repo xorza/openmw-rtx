@@ -173,7 +173,7 @@ namespace RtxTool
             "the leading minus reads as an option. Left out, the default view decides.");
 
         option(sPlaces, "view", bpo::value<std::string>()->default_value(""),
-            "a named viewpoint from resources/rtx/views.cfg, which supplies the cell and usually the "
+            "a named viewpoint from rtxtool/views.cfg, which supplies the cell and usually the "
             "camera. Overrides --cell. A run of places names them with --views instead.");
 
         option(Verbs::Every, "list-views", bpo::bool_switch(), "print the named viewpoints and quit");
@@ -272,7 +272,7 @@ namespace RtxTool
             "--seconds");
 
         option(Verbs::Bench | Verbs::Check | Verbs::Noise, "suite", bpo::value<std::string>()->default_value(""),
-            "which list of places in resources/rtx/benches.cfg to visit: [default] for `bench`, "
+            "which list of places in rtxtool/benches.cfg to visit: [default] for `bench`, "
             "[check] for `check` and [noise] for `noise` unless named. Overridden by --views");
 
         option(Verbs::Noise, "strafe", number(atLeast(0.0f))->default_value(0.0f),
