@@ -1,2 +1,1 @@
-bounce rate config
 lamps strobing
