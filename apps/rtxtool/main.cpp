@@ -1279,6 +1279,12 @@ namespace RtxTool
             config.readConfiguration(variables, options.mDescription);
             startLogAndSettings(config);
 
+            // **Every verb on one kind of core**, before any thread of the run starts. Eight legs of
+            // `one-cell-walk` in turn: the walk's p99 read 1.75 to 1.85 ms in three of the four held
+            // to the performance cores, and 2.42 to 2.96 ms in the four the system placed.
+            if (const std::size_t kept = Platform::Process::keepToPerformanceCores(); kept > 0)
+                Log(Debug::Info) << "Kept to the " << kept << " logical CPUs of the performance cores";
+
             const std::filesystem::path resources = variables["resources"].as<Files::MaybeQuotedPath>();
 
             // Before the verb, as `--help` is: a switch that answers instead of the command is one

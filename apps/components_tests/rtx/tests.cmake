@@ -4,6 +4,7 @@
 set(RTX_TEST_FILES
     rtx/scene/nifsurface.cpp
     myguirtx/sharedtexture.cpp
+    platform/process.cpp
     rtx/common/hashstate.cpp
     rtx/common/job.cpp
     rtx/common/monitor.cpp

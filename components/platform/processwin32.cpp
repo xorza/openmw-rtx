@@ -128,5 +128,52 @@ namespace Platform::Process
         return CommandEnd{ .mExitCode = static_cast<std::uint32_t>(std::system(('"' + line + '"').c_str())) };
     }
 
+    std::size_t keepToPerformanceCores()
+    {
+        const HANDLE process = GetCurrentProcess();
+        ULONG length = 0;
+        GetSystemCpuSetInformation(nullptr, 0, &length, process, 0);
+        std::vector<std::byte> buffer(length);
+        if (length == 0
+            || !GetSystemCpuSetInformation(
+                reinterpret_cast<PSYSTEM_CPU_SET_INFORMATION>(buffer.data()), length, &length, process, 0))
+            return 0;
+
+        // The entries are of their own sizes, each saying its own. The highest efficiency class is
+        // the fastest core, and a system with one class has no choice to make.
+        const auto forEachSet = [&](auto&& visit) {
+            for (std::size_t at = 0; at < length;)
+            {
+                const auto* const entry = reinterpret_cast<const SYSTEM_CPU_SET_INFORMATION*>(buffer.data() + at);
+                if (entry->Size == 0)
+                    return;
+                if (entry->Type == CpuSetInformation)
+                    visit(entry->CpuSet);
+                at += entry->Size;
+            }
+        };
+        BYTE lowest = 255;
+        BYTE highest = 0;
+        forEachSet([&](const auto& set) {
+            lowest = std::min(lowest, set.EfficiencyClass);
+            highest = std::max(highest, set.EfficiencyClass);
+        });
+        if (lowest >= highest)
+            return 0;
+
+        std::vector<ULONG> fastest;
+        forEachSet([&](const auto& set) {
+            if (set.EfficiencyClass == highest)
+                fastest.push_back(set.Id);
+        });
+
+        // The process's default, which every thread without a set of its own runs on, those started
+        // before this call among them.
+        if (!SetProcessDefaultCpuSets(process, fastest.data(), static_cast<ULONG>(fastest.size())))
+            return 0;
+
+        return fastest.size();
+    }
+
     void disableCoreDump() {}
 }

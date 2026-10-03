@@ -1,10 +1,13 @@
 #pragma once
 
+#include <charconv>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <vector>
 
 /// What this process does with itself that the operating systems spell differently: what it says
@@ -86,6 +89,51 @@ namespace Platform::Process
     /// Runs `line` through the system's shell and waits for it. `cmd /c` takes a line in one more
     /// pair of quotes, which this adds, so a line of `shellWord`s means the same on either.
     CommandEnd runShell(const std::string& line);
+
+    /// Keeps every thread of this process, those running now and those started after, on the
+    /// performance cores where the system has two core types, and answers how many logical CPUs that
+    /// is: nought where it has one type, or does not say which is which, and the system's own choice
+    /// stands. **For a measured run**: an efficiency core runs the walk at about half the speed,
+    /// and which core the system picks changes from one run to the next.
+    std::size_t keepToPerformanceCores();
+
+    /// The CPUs a Linux CPU list names — `0-7,16-19`, as sysfs writes it with its line break — in
+    /// the list's order, or nothing where the text is not one. A number past the kernel's own limit
+    /// of 8192 CPUs is not one either, so a range cannot ask for billions of entries.
+    inline std::optional<std::vector<std::uint32_t>> parseCpuList(std::string_view text)
+    {
+        constexpr std::uint32_t limit = 8192;
+        const auto number = [](std::string_view digits, std::uint32_t& into) {
+            const char* const end = digits.data() + digits.size();
+            const std::from_chars_result read = std::from_chars(digits.data(), end, into);
+            return !digits.empty() && read.ec == std::errc{} && read.ptr == end && into < limit;
+        };
+
+        while (!text.empty() && (text.back() == '\n' || text.back() == ' '))
+            text.remove_suffix(1);
+
+        std::vector<std::uint32_t> cpus;
+        while (true)
+        {
+            const std::size_t comma = text.find(',');
+            const std::string_view range = text.substr(0, comma);
+            const std::size_t dash = range.find('-');
+            std::uint32_t first = 0;
+            std::uint32_t last = 0;
+            if (!number(range.substr(0, dash), first))
+                return std::nullopt;
+            if (dash == std::string_view::npos)
+                last = first;
+            else if (!number(range.substr(dash + 1), last) || last < first)
+                return std::nullopt;
+
+            for (std::uint32_t cpu = first; cpu <= last; ++cpu)
+                cpus.push_back(cpu);
+            if (comma == std::string_view::npos)
+                return cpus;
+            text.remove_prefix(comma + 1);
+        }
+    }
 
     /// Leaves the system nothing to keep of this process when it aborts: for a process that dies on
     /// purpose, as a death test's child does, whose core nobody wants.
