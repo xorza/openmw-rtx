@@ -32,8 +32,9 @@ namespace Rtx
     Presenter::Presenter(
         const Device& device, const Instance& instance, SDL_Window* window, const SDLUtil::VSyncMode verticalSync)
         : mDevice(device)
+        , mAsked(drawableSize(window))
         , mSurface(instance, window)
-        , mSwapchain(device, mSurface, drawableSize(window), verticalSync)
+        , mSwapchain(device, mSurface, mAsked, verticalSync)
     {
         try
         {
@@ -114,7 +115,7 @@ namespace Rtx
 
     bool Presenter::wantsResize(const VkExtent2D extent)
     {
-        if (!mStale && extent.width == getExtent().width && extent.height == getExtent().height)
+        if (!mStale && extent.width == mAsked.width && extent.height == mAsked.height)
             return false;
 
         // A window that is not on screen is left alone. Its surface reports no extent, a
@@ -132,6 +133,7 @@ namespace Rtx
 
     void Presenter::rebuild(const VkExtent2D extent)
     {
+        mAsked = extent;
         remake(extent);
         mStale = false;
     }
@@ -141,7 +143,7 @@ namespace Rtx
         // A present mode is a property of the swapchain object. Not `rebuild`, because that
         // clears a staleness a window that changed size meanwhile still owes.
         if (mSwapchain.setVerticalSync(mode))
-            remake(getExtent());
+            remake(mAsked);
     }
 
     void Presenter::remake(const VkExtent2D extent)
