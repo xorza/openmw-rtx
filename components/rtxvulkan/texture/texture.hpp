@@ -128,8 +128,8 @@ namespace Rtx
     };
 
     /// What a texture array stands: how many of its slots hold a texture, and what those come to,
-    /// out of one walk, so the two cannot disagree about which slots they counted. A slot that
-    /// draws the stand-in holds none.
+    /// kept as each slot changes, so neither is a walk of the array. A slot that draws the stand-in
+    /// holds none.
     struct TexturesHeld
     {
         std::uint32_t mCount = 0;
@@ -235,7 +235,7 @@ namespace Rtx
 
         /// What the array actually stands. A slot the scene gave back holds nothing and costs
         /// nothing, and neither is counted here.
-        TexturesHeld getHeld() const;
+        const TexturesHeld& getHeld() const { return mHeld; }
 
         /// The side the last `write` held its files to, which is `getSideLimit` where the room took
         /// nothing off. Read by the tests and by nothing else.
@@ -267,6 +267,10 @@ namespace Rtx
 
             bool isEmpty() const { return mTexture.isEmpty() && !mStandIn; }
         };
+
+        /// Takes what `slot` stands off `mHeld`, before it changes, and counts what it stands after.
+        void forget(const Slot& slot);
+        void count(const Slot& slot);
 
         /// What `slot` is sampled through: its texture, or the stand-in.
         const Texture& standingIn(const Slot& slot) const { return slot.mStandIn ? mStandIn : slot.mTexture; }
@@ -318,6 +322,9 @@ namespace Rtx
         /// `drop` buries the image it had, and the descriptor is left naming what has gone for the
         /// reason `drop` gives.
         std::vector<Slot> mSlots;
+
+        /// What the slots stand, kept by `forget` and `count` around every change to one.
+        TexturesHeld mHeld;
 
         /// One per `TextureWrap`, indexed by it: the sampler a slot is bound through is the one its
         /// file's wrap names, for the texture and for its shading map alike.

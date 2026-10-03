@@ -354,7 +354,7 @@ namespace Rtx
 
         held.placed(into);
 
-        held.readPlacedStats(mStats);
+        held.readStats(mStats);
         mMedia.keepRipples(scene);
     }
 
