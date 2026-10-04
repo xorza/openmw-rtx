@@ -27,9 +27,14 @@
 // the bounce's luminance decides is made of the fill by the same share, and the fill stays the share
 // of the bounce it was.
 //
-// **In place** for the slow means and the moments, which each pixel alone reads and writes. The fast
-// means are read from the blend the accumulator left and written to the history, since a neighbour
-// reads a pixel's blend while the pixel writes its mean.
+// **In place** for the slow means, which each pixel alone reads and writes. The fast means are read
+// from the blend the accumulator left and written to the history, since a neighbour reads a pixel's
+// blend while the pixel writes its mean.
+//
+// **The luminance moments are not moved with the mean**, as ReLAX moves its second moment. Moved,
+// they kept the variance the next frame reads where it was, and left alone they leave it all but
+// there: every place of the bounce suite was as noisy to the hundredth, still, strafed and walked,
+// and the sky's trail as long, where reading and writing them cost the clamp 0.08 ms of 0.25.
 
 #include "accumulate.h"
 #include "atrous.h"
@@ -46,17 +51,15 @@ layout(local_size_x = ACCUMULATE_WORKGROUP, local_size_y = ACCUMULATE_WORKGROUP)
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
 
 /// The fast means as the accumulator blended them, and the frame's samples of the bounce and the
-/// fill, whose mean over the square the push goes toward. No format on the samples, for the reason `accumulate.comp` gives: the run decides their width.
+/// fill, whose mean over the square the push goes toward. No format on the samples, for the reason
+/// `accumulate.comp` gives: the run decides their width.
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST, ACCUMULATE_FAST) uniform readonly uimage2D fast;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SAMPLED) uniform readonly image2D sampled;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SAMPLED_FILL) uniform readonly image2D sampledFill;
 
-/// The slow means as the accumulator blended them, the variance in the bounce's `a`, and the
-/// luminance moments in `rg`, which move with the mean so the variance they give stays the
-/// variance of what is kept.
+/// The slow means as the accumulator blended them, the variance in the bounce's `a`.
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_BLENDED, ATROUS_CHANNEL) uniform image2D blended;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FILL_BLENDED, ATROUS_CHANNEL) uniform image2D fillBlended;
-layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_MOMENTS, ACCUMULATE_MOMENTS) uniform image2D moments;
 
 /// This frame's fast means, which the next frame's accumulator reads.
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST_OUT, ACCUMULATE_FAST) uniform writeonly uimage2D fastOut;
@@ -148,12 +151,7 @@ void main()
     const vec3 followed = fastHere + pushed * toward;
     const vec3 followedFill = fastFillHere + pushed * towardFill;
 
-    const float heldHere = dot(held, LUMINANCE_WEIGHTS);
     imageStore(blended, at, vec4(held, slow.a));
     imageStore(fillBlended, at, vec4(heldFill, 0.0));
     imageStore(fastOut, at, uvec4(packRgb9e5(followed), packRgb9e5(followedFill), 0u, 0u));
-
-    const vec4 kept = imageLoad(moments, at);
-    imageStore(moments, at,
-        vec4(kept.x + (heldHere - slowHere), kept.y + (heldHere * heldHere - slowHere * slowHere), kept.zw));
 }

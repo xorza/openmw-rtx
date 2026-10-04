@@ -124,3 +124,9 @@ on master, which has no such test; its accumulator is the start's without the re
 - **The paired reuse** takes 0.30–0.63 ms off the reuse's zones and 0.32–0.87 ms off the
   median frame, for noise within 0.02 still and 0.04 in motion of the anti-lag's, and at or under the
   start's everywhere. The guild's zones stand at 1.28 ms against the plan's 1.0 (Q3).
+- **After these runs**, the clamp dropped ReLAX's second-moment correction: 0.08 ms less at the
+  guild and the pier (0.25 → 0.17, 0.24 → 0.16), every noise figure and the sky's trail the same.
+  The anti-lag then costs about 0.2 ms over the start. Shading with every candidate's colour, not the
+  chosen one's (ReSTIR PT Enhanced §6.3), was measured and not kept: noise within 0.01 for 0.02–0.06
+  ms more in the resolve, since this bounce has little colour to lose.
+

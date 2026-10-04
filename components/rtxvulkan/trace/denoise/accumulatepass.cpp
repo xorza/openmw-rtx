@@ -23,8 +23,8 @@ namespace Rtx
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_BINDINGS> sBindings
             = computeBindings<Shaders::ACCUMULATE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
-        /// The surface, the fast blends and the frame's samples read, the slow means and the moments
-        /// rewritten in place, and the fast means written.
+        /// The surface, the fast blends and the frame's samples read, the slow means rewritten in
+        /// place, and the fast means written.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_CLAMP_BINDINGS> sClampBindings
             = computeBindings<Shaders::ACCUMULATE_CLAMP_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     }
@@ -74,7 +74,7 @@ namespace Rtx
 
         // The clamp reads a neighbour's fast blend and samples, so every pixel's blend is behind it.
         Barriers blended(commands);
-        for (const Image* image : { &images.mBlended, &images.mFillBlended, &images.mMoments, &images.mFastBlended })
+        for (const Image* image : { &images.mBlended, &images.mFillBlended, &images.mFastBlended })
             image->addTransition(blended, Use::sComputeWrite, Use::sComputeReadWrite);
         blended.flush();
 
@@ -83,7 +83,6 @@ namespace Rtx
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST, images.mFastBlended.describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_BLENDED, images.mBlended.describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FILL_BLENDED, images.mFillBlended.describeStorage());
-        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_MOMENTS, images.mMoments.describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SAMPLED, buffer.get(Channel::Indirect).describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SAMPLED_FILL, buffer.get(Channel::Fill).describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST_OUT, images.mFast.describeStorage());
