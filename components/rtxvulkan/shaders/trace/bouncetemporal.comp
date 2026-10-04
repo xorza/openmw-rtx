@@ -32,6 +32,13 @@
 
 layout(local_size_x = BOUNCE_TEMPORAL_WORKGROUP, local_size_y = BOUNCE_TEMPORAL_WORKGROUP) in;
 
+/// Last frame's reservoir and the visible point it was kept at.
+struct Held
+{
+    BounceReservoir mReservoir;
+    BounceOrigin mOrigin;
+};
+
 /// Last frame's reservoir at the pixel the motion vector names, or nothing where none of the four
 /// a fetch spans is the surface in front of this one. The tap the fetch weighs most, of those
 /// that match, so a still eye takes its own pixel's.
@@ -42,12 +49,6 @@ layout(local_size_x = BOUNCE_TEMPORAL_WORKGROUP, local_size_y = BOUNCE_TEMPORAL_
 /// reuse where the nearest keeps it at three fifths; but every frame under an upscaler is
 /// jittered, so a still eye's pixels took their neighbours' reservoirs at random, neighbours came
 /// to share their ancestors, and the denoised guild stood at 0.74 where the nearest leaves 0.68.
-struct Held
-{
-    BounceReservoir mReservoir;
-    BounceOrigin mOrigin;
-};
-
 Held heldBefore(uvec2 pixel, BounceOrigin origin)
 {
     const vec3 moved = imageLoad(motion, ivec2(pixel)).xyz;

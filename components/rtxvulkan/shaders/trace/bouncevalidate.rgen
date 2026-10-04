@@ -15,7 +15,7 @@
 // and a kept sample made brighter is a firefly where one rare candidate made it.
 //
 // **One pixel in eight, a different eighth each frame**, of every block of four by two: each pixel
-// is asked every eighth frame, and every frame asks as many (D10). **A launch over that share and
+// is asked every eighth frame, and every frame asks as many. **A launch over that share and
 // not a branch in the resolve**, whose every pixel would hold the registers the shading takes.
 
 #include "bouncereuse.h"
