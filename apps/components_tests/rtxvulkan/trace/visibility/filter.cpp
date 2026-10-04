@@ -679,8 +679,9 @@ namespace Rtx::Testing
         /// the frame holds thirty-two. The strip is the twelve columns at that edge.
         ///
         /// Pooled over four draws, against 128 unfiltered frames where the eye ends: the strip's error,
-        /// and its mean. **The clamp is off in every run**, since what it makes of a light this rare
-        /// is a question of its own (`.notes/ISSUES.md`), and this one is about the history fix alone.
+        /// and its mean. **The clamp is off in every run**: with no reuse, its box of fifty samples
+        /// mostly holds none of a light this rare and holds the strip near nought, which is
+        /// `ACCUMULATE_FAST_FRAMES`'s trade and not this test's question.
         ///
         /// Measured: the strip's error 0.0266 without the fix and 0.0079 with it, where the settled
         /// edge's is 0.0134; its mean 0.61 of the truth without the fix and 1.17 with it, where 32
