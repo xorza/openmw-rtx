@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -28,26 +29,25 @@ namespace
             EXPECT_EQ(Platform::Process::parseCpuList(text), std::nullopt) << '"' << text << '"';
     }
 
-    /// **`malloc` is on huge pages where glibc was asked and the kernel grants it**: the tunable at
-    /// one under a mode of `always` or `madvise`, which the kernel writes in brackets among the
-    /// three; at two whatever the mode, since it takes reserved pages; the last setting of the name
-    /// among other tunables; and neither where the tunable is absent, at nought, or at one under
-    /// `never`.
-    TEST(RtxPlatformProcessTest, mallocIsOnHugePagesWhereGlibcWasAskedAndTheKernelGrantsIt)
+    /// **The share of anonymous memory on huge pages, by hand from a rollup**: 6144 kB of 8192 on
+    /// transparent ones is 0.75; 2048 kB reserved beside 2048 anonymous, none of it transparent, is
+    /// half; none on huge pages is nought. Nothing where there is no anonymous memory, where a
+    /// field the share needs is not a number of kilobytes, or where the rollup is empty.
+    TEST(RtxPlatformProcessTest, theHugePageShareIsWhatTheKernelGaveOfTheAnonymousMemory)
     {
-        constexpr std::string_view madvise = "always [madvise] never\n";
-        constexpr std::string_view always = "[always] madvise never\n";
-        constexpr std::string_view never = "always madvise [never]\n";
+        const auto rollup = [](std::string_view anonymous, std::string_view transparent, std::string_view reserved) {
+            return "556796d45000-7fff9e1d9000 ---p 00000000 00:00 0                          [rollup]\n"
+                   "Rss:                2292 kB\nAnonymous:     "
+                + std::string(anonymous)
+                + " kB\nKSM:                   0 kB\nAnonHugePages:  " + std::string(transparent)
+                + " kB\nShmemPmdMapped:        0 kB\nPrivate_Hugetlb:  " + std::string(reserved) + " kB\n";
+        };
 
-        EXPECT_TRUE(Platform::Process::mallocOnHugePages("glibc.malloc.hugetlb=1", madvise));
-        EXPECT_TRUE(Platform::Process::mallocOnHugePages("glibc.malloc.hugetlb=1", always));
-        EXPECT_FALSE(Platform::Process::mallocOnHugePages("glibc.malloc.hugetlb=1", never));
-        EXPECT_TRUE(Platform::Process::mallocOnHugePages("glibc.malloc.hugetlb=2", never));
-        EXPECT_FALSE(Platform::Process::mallocOnHugePages("glibc.malloc.hugetlb=0", madvise));
-        EXPECT_FALSE(Platform::Process::mallocOnHugePages("", madvise));
-        EXPECT_FALSE(Platform::Process::mallocOnHugePages("glibc.malloc.arena_max=1", madvise));
-        EXPECT_TRUE(Platform::Process::mallocOnHugePages("glibc.malloc.arena_max=1:glibc.malloc.hugetlb=1", madvise));
-        EXPECT_FALSE(Platform::Process::mallocOnHugePages("glibc.malloc.hugetlb=1:glibc.malloc.hugetlb=0", madvise))
-            << "the last setting is the one glibc keeps";
+        EXPECT_EQ(Platform::Process::hugePageShare(rollup("8192", "6144", "0")), 0.75f);
+        EXPECT_EQ(Platform::Process::hugePageShare(rollup("2048", "0", "2048")), 0.5f);
+        EXPECT_EQ(Platform::Process::hugePageShare(rollup("8192", "0", "0")), 0.0f);
+        EXPECT_EQ(Platform::Process::hugePageShare(rollup("0", "0", "0")), std::nullopt);
+        EXPECT_EQ(Platform::Process::hugePageShare(rollup("8192", "lots", "0")), std::nullopt);
+        EXPECT_EQ(Platform::Process::hugePageShare(""), std::nullopt);
     }
 }

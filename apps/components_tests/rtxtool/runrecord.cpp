@@ -90,8 +90,6 @@ namespace RtxTool
                 .mIndirect = Rtx::IndirectLight::Off,
                 .mAntilag = true };
             header.mValidating = true;
-            // Set by `begin` from this process, and stated here so the line does not depend on it.
-            header.mHugePages = true;
 
             BenchPlace place;
             place.mView = "seyda-neen";
@@ -104,9 +102,17 @@ namespace RtxTool
                   "level bias -1.000, indirect off, bounce reuse temporal, antilag on\n"
                   "     delight 0.50, gamma 2.20, show albedo, exposure fixed at 1.500, variants off, hold 8.0 ms\n"
                   "     land 4.0 cells, viewing distance 7168, distant statics off, step 0.0625 s, walks streamed, "
-                  "memory budget 512 MiB, host pages huge\n"
-                  "\nseyda-neen\n";
+                  "memory budget 512 MiB, host pages ";
             EXPECT_EQ(record.getReport().substr(0, expected.size()), expected) << record.getReport();
+
+            // **This process's own share**, read as the first place is added: a share in whole per
+            // cent, or the words for a system that does not say.
+            const std::string_view pages = std::string_view(record.getReport()).substr(expected.size());
+            const std::string_view word = pages.substr(0, pages.find('\n'));
+            EXPECT_TRUE(word == "not said" || (word.ends_with("% huge") && word.size() >= 7)) << word;
+            EXPECT_EQ(pages.substr(word.size(), 13), "\n\nseyda-neen\n") << record.getReport();
+            const std::optional<float> share = record.getHeader().mHugePageShare;
+            EXPECT_EQ(word == "not said", !share.has_value());
             EXPECT_NE(record.getReport().find("  not a measurement: this command draws its frames"), std::string::npos);
 
             record.finish(request);
@@ -117,7 +123,7 @@ namespace RtxTool
 
             const std::string json = read.str();
             constexpr std::string_view premises
-                = R"("measures": false, "hashed": true, "turnsWeather": true, "hugePages": true,)";
+                = R"("measures": false, "hashed": true, "turnsWeather": true, "hugePageShare": )";
             constexpr std::string_view setup
                 = R"(  "filter": false, "jitter": false, "delight": 0.500, "gamma": 2.200, "show": "albedo", )"
                   R"("exposure": 1.5, "exposureHeld": false, "variants": false, "holdMs": 8.000,)";

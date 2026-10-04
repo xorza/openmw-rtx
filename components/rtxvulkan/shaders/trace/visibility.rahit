@@ -45,7 +45,8 @@ void main()
     // A soft edge's dither, a pixel, a frame and a triangle apart (`cutAt`).
     uint draws = randomSeed(pixelKey(gl_LaunchIDEXT.xy) + SEED_SOFT_EDGE + candidate.mInstance * 0x9E3779B9u
         + candidate.mPrimitive * 0x85EBCA6Bu);
-    if (!candidateStops(candidate, gl_WorldRayDirectionEXT, cone.mWidth + cone.mSpread * candidate.mAt, false, true,
-            randomNext(draws), blocked))
+    const float dither = frame.mSoftEdgeDither != 0u ? randomNext(draws) : 1.0;
+    if (!candidateStops(
+            candidate, gl_WorldRayDirectionEXT, cone.mWidth + cone.mSpread * candidate.mAt, false, true, dither, blocked))
         ignoreIntersectionEXT;
 }

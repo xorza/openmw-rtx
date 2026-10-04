@@ -180,6 +180,13 @@ namespace Rtx
         /// filtered.
         bool mAntilag = false;
 
+        /// Whether frames come after this one to average it with — a world's, which the eye, the
+        /// upscaler and the filters each take over time — and not a picture, which stands alone.
+        /// **What a draw that is right only on average needs**: the eye meets a soft edge's texels
+        /// under the cut by their alpha only where this holds (`VisibilityConstants::mSoftEdgeDither`),
+        /// since alone such a draw is stipple on a doll's hair.
+        bool mAveraged = false;
+
         /// Whether an upscaler reconstructed the frame.
         bool upscaled() const { return upscales(mUpscale); }
 
@@ -211,13 +218,14 @@ namespace Rtx
                 .mBounceReuse = asked.mIndirect == IndirectLight::Traced ? asked.mBounceReuse : BounceReuse::Off,
                 .mIndirect = asked.mIndirect,
                 .mAntilag = asked.mAntilag,
+                .mAveraged = true,
             };
         }
 
         /// What reconstructs a doll or a map tile: one frame with nothing before it and nothing to
         /// put it together across frames, so denoised as a single frame is, with no jitter, the
-        /// tile's noise, no level bias and no reuse. Its indirect light is the world's, so a doll is
-        /// lit as the player's settings light the world.
+        /// tile's noise, no level bias, no reuse and no draw that is right only on average. Its
+        /// indirect light is the world's, so a doll is lit as the player's settings light the world.
         static Reconstruction forPicture(const IndirectLight indirect)
         {
             return Reconstruction{ .mDenoised = true, .mIndirect = indirect };

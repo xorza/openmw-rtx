@@ -22,13 +22,16 @@ namespace RtxTool
             [](const Stop& stop) { return !stop.mSky.mTurnThrough.empty(); });
         mHeader.mSetup = request.mSetup;
         mHeader.mStep = request.mStep;
-        mHeader.mHugePages = Platform::Process::mallocOnHugePages();
     }
 
     void RunRecord::add(BenchPlace place)
     {
+        // Read once the first place has loaded, which is the memory the frames walk.
         if (mPlaces.empty())
+        {
+            mHeader.mHugePageShare = Platform::Process::hugePageShare();
             mReport += describeHeader(mHeader);
+        }
         mPlaces.push_back(std::move(place));
         mReport += describePlace(mPlaces.back(), mHeader.mMeasures);
     }

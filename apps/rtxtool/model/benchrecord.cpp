@@ -312,6 +312,11 @@ namespace RtxTool
         {
             return budget.has_value() ? std::format("{} MiB", *budget / (1024 * 1024)) : std::string("none");
         }
+
+        std::string describeHugePages(const std::optional<float>& share)
+        {
+            return share.has_value() ? std::format("{:.0f}% huge", *share * 100.0f) : std::string("not said");
+        }
     }
 
     std::string describeHeader(const BenchHeader& header)
@@ -343,7 +348,7 @@ namespace RtxTool
             "memory budget {}, host pages {}\n",
             mirror.mReach.mCells, mirror.mReach.mViewingDistance, mirror.mDistantStatics ? "on" : "off",
             describeStep(header.mStep), describeSettled(header.mSetup.mSettled),
-            describeBudget(header.mSetup.mRun.mMemoryBudget), header.mHugePages ? "huge" : "small");
+            describeBudget(header.mSetup.mRun.mMemoryBudget), describeHugePages(header.mHugePageShare));
         return out;
     }
 
@@ -493,8 +498,10 @@ namespace RtxTool
              << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", header.mMeasured, header.mWarmup,
                     header.mValidating)
              << '\n'
-             << std::format(R"(  "asserts": {}, "measures": {}, "hashed": {}, "turnsWeather": {}, "hugePages": {},)",
-                    header.mAsserts, header.mMeasures, header.mHashed, header.mTurnsWeather, header.mHugePages)
+             << std::format(
+                    R"(  "asserts": {}, "measures": {}, "hashed": {}, "turnsWeather": {}, "hugePageShare": {},)",
+                    header.mAsserts, header.mMeasures, header.mHashed, header.mTurnsWeather,
+                    asJson(header.mHugePageShare))
              << '\n'
              << asJson(header.mSetup, header.mStep) << '\n'
              << R"(  "places": [)" << '\n';

@@ -94,14 +94,17 @@ namespace Rtx
             std::span<const std::size_t> spare, SizeOf&& sizeOf, const VkDeviceSize bytes)
         {
             std::optional<std::size_t> best;
+            VkDeviceSize bestSize = 0;
             for (std::size_t at = 0; at < spare.size(); ++at)
             {
                 const VkDeviceSize size = sizeOf(spare[at]);
                 if (size < bytes)
                     continue;
-                if (!best.has_value() || size < sizeOf(spare[*best])
-                    || (size == sizeOf(spare[*best]) && spare[at] < spare[*best]))
+                if (!best.has_value() || size < bestSize || (size == bestSize && spare[at] < spare[*best]))
+                {
                     best = at;
+                    bestSize = size;
+                }
             }
             return best;
         }
