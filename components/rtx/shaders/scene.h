@@ -460,6 +460,17 @@ namespace Rtx::Shaders
     /// `[Groundcover] point lighting` is off. The sun, the sky and the bounce light it as before.
     const uint MATERIAL_NO_LAMPS = 0x100000u;
 
+    /// The surface is a blended mask — `Rtx::Material::isSoftEdged`: a blend over what is behind it,
+    /// with no test of its own, whose texture reaches solid. The eye meets a texel its
+    /// `mAlphaReference` would drop with a chance of its alpha (`cutAt`), so the frames average to
+    /// the blend `objects.frag` draws, and every other ray keeps the cut.
+    const uint MATERIAL_SOFT_EDGE = 0x200000u;
+
+    /// What a pane is cut at, and the least a soft edge's dither cuts at: half a step of an 8-bit alpha.
+    /// **A blend draws a texel of alpha nought as nothing**, so such a texel is a hole to every ray,
+    /// exactly; a filtered sample below half a step covers less than the display resolves.
+    const float ALPHA_PANE_CUTOFF = 0.5f / 255.0f;
+
     /// The same colour replaces this material's glow instead — `Rtx::VertexColour::Glow`. The
     /// light mode that goes with it already took the diffuse and the ambient to nought, so such a
     /// surface is its glow and nothing else.

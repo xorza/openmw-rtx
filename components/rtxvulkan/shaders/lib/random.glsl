@@ -138,6 +138,10 @@ const uint SEED_AMBIENT_VALIDATED = SEED_LAMPS_VALIDATED + 1u;
 /// as every pixel and its partner must read the same turn.
 const uint SEED_BOUNCE_PAIRS = SEED_AMBIENT_VALIDATED + 1u;
 
+/// Which texels under the cut of a soft edge the eye meets (`cutAt`): one draw a candidate, keyed on
+/// its triangle as well, so two soft layers on one pixel are met apart.
+const uint SEED_SOFT_EDGE = SEED_BOUNCE_PAIRS + 1u;
+
 /// How far each stream's sequence advances between frames.
 ///
 /// **An additive recurrence with an irrational step**, which is the cheapest sequence whose every

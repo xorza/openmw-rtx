@@ -3,14 +3,6 @@
 Open defects that give a wrong or missing result for an input the tree can produce. Most come from
 the reviews of 2026-10-02.
 
-- An alpha-blended surface whose material alpha is one and whose texture reaches solid is cut at
-  alpha 0.5, where the rasterizer blends its soft texels by the texture's alpha. Every DXT3 leaf,
-  banner, rope and sail has a hard edge where the rasterizer's is soft, and a cobweb, a Telvanni
-  crystal or Bloodmoon ice whose texture reaches 255 anywhere loses the coverage under the cut.
-  `components/rtx/scene/material.hpp` (`Material::isTranslucent`).
-- On macOS `openmw-rtxtool` is built into the app bundle's `Contents/MacOS`
-  (`CMAKE_RUNTIME_OUTPUT_DIRECTORY`), and the bundle is installed whole, so a macOS install carries
-  the harness's executable.
 - Upstream's groundcover places a plant in its shapes' own space: `groundcover.vert` turns, scales
   and moves the vertex before the model's transforms apply, where every other reference stands
   above them. A groundcover model whose shapes stand under a transform other than the identity
