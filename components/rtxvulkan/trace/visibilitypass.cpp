@@ -116,7 +116,8 @@ namespace Rtx
 
             // The bounce's reservoirs, which turn every frame and so are pushed with it.
             for (const std::uint32_t binding : { Shaders::BIND_BOUNCE_RESERVOIRS, Shaders::BIND_BOUNCE_HISTORY,
-                     Shaders::BIND_BOUNCE_ORIGINS, Shaders::BIND_BOUNCE_ORIGINS_BEFORE, Shaders::BIND_BOUNCE_THROUGH })
+                     Shaders::BIND_BOUNCE_ORIGINS, Shaders::BIND_BOUNCE_ORIGINS_BEFORE, Shaders::BIND_BOUNCE_THROUGH,
+                     Shaders::BIND_BOUNCE_PAIRING, Shaders::BIND_BOUNCE_PAIRED })
                 declared[binding] = VkDescriptorSetLayoutBinding{ binding, sStorage, 1, sStages, nullptr };
 
             declared[Shaders::BIND_FRAME] = VkDescriptorSetLayoutBinding{ Shaders::BIND_FRAME,
@@ -230,7 +231,8 @@ namespace Rtx
         // a hand takes up whatever is next, and a tuple taken last is the whole batch waiting on
         // one hand.
         constexpr std::array singles{ Kernel::Depth, Kernel::Integrate, Kernel::SpriteComposite, Kernel::SpriteShelter,
-            Kernel::SpriteEmitters, Kernel::BounceValidate, Kernel::BounceTemporal, Kernel::BounceResolve };
+            Kernel::SpriteEmitters, Kernel::BounceValidate, Kernel::BounceTemporal, Kernel::BouncePairs,
+            Kernel::BounceResolve };
 
         std::vector<Wanted> wanted;
         wanted.reserve(2 * VisibilityVariant::sCount + singles.size());
@@ -365,6 +367,10 @@ namespace Rtx
                 mKernels.mBounceTemporal = std::make_unique<ComputePipeline<NoConstants>>(
                     mDevice, sBindings, sharedSets(textureLayout), "bouncetemporal.comp.spv", "bounce temporal");
                 return;
+            case Kernel::BouncePairs:
+                mKernels.mBouncePairs = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
+                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "bouncepairs.rgen.spv" }, "bounce pairs");
+                return;
             case Kernel::BounceResolve:
                 mKernels.mBounceResolve = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
                     sharedSets(textureLayout), TraceShaders{ .mRaygen = "bounceresolve.rgen.spv" }, "bounce resolve");
@@ -478,6 +484,8 @@ namespace Rtx
         writes.buffer(Shaders::BIND_BOUNCE_ORIGINS, reservoirs.getOrigins().describe());
         writes.buffer(Shaders::BIND_BOUNCE_ORIGINS_BEFORE, reservoirs.getOriginsBefore().describe());
         writes.buffer(Shaders::BIND_BOUNCE_THROUGH, reservoirs.getThrough().describe());
+        writes.buffer(Shaders::BIND_BOUNCE_PAIRING, reservoirs.getPairing().describe());
+        writes.buffer(Shaders::BIND_BOUNCE_PAIRED, reservoirs.getPaired().describe());
 
         if (shown != nullptr)
         {
@@ -727,6 +735,21 @@ namespace Rtx
             pushInputs(commands, temporal, inputs);
             vkCmdDispatch(commands, groupsFor(width, Shaders::BOUNCE_TEMPORAL_WORKGROUP),
                 groupsFor(height, Shaders::BOUNCE_TEMPORAL_WORKGROUP), 1);
+
+            closeZone(timer, commands);
+
+            handOver(commands, Use::sBufferShaderReadWrite, Use::sBufferShaderReadWrite);
+        }
+
+        // The pairs' bits, for the resolve to read at this pixel and at its partners.
+        if (inputs.mBounceReuse == BounceReuse::Spatiotemporal)
+        {
+            openZone(timer, commands, "bounce pairs");
+
+            const auto& pairs = *kernels().mBouncePairs;
+            bind(commands, pairs);
+            pushInputs(commands, pairs, inputs);
+            pairs.traceRays(commands, width, height);
 
             closeZone(timer, commands);
 

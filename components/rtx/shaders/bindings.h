@@ -61,8 +61,13 @@ namespace Rtx::Shaders
     const uint BIND_BOUNCE_ORIGINS_BEFORE = 12;
     const uint BIND_BOUNCE_THROUGH = 13;
 
+    /// The spatial reuse's pairings, both textures' steps one after the other (`BouncePairing`), and
+    /// the bits the pairs' pass writes: whether each link's partner sees this pixel's sample.
+    const uint BIND_BOUNCE_PAIRING = 14;
+    const uint BIND_BOUNCE_PAIRED = 15;
+
     /// How many every launch's set declares, which is the last of them and one more.
-    const uint BIND_COUNT = 14;
+    const uint BIND_COUNT = 16;
 
     /// The frame as it will be shown, at the output's own extent: what `spritecomposite.rgen`
     /// composites the puffs over, in place. Past the others, because that launch's set alone

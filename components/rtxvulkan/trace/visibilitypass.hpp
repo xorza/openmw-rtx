@@ -196,7 +196,8 @@ namespace Rtx
             const Shaders::VisibilityConstants& constants, GpuTimer* timer) const;
 
         /// The bounce's reuse over what the trace left: last frame's reservoirs merged into this
-        /// frame's candidates, the neighbours' merged into each pixel's, the final visibility ray and
+        /// frame's candidates, the pairs' shift rays traced once for both ends, the partners' merged
+        /// into each pixel's, the final visibility ray and
         /// the shade into `Channel::Indirect` and `Channel::Fill` — as much of that as
         /// `VisibilityInputs::mBounceReuse` asks. After `record` and before the channels are
         /// handed over, since the resolve writes two of them. Nothing where no reuse runs, and the
@@ -230,6 +231,7 @@ namespace Rtx
             SpriteEmitters,
             BounceValidate,
             BounceTemporal,
+            BouncePairs,
             BounceResolve,
         };
 
@@ -343,9 +345,11 @@ namespace Rtx
 
             /// The bounce's reuse, which takes no tuple: the validation, a launch because it traces and
             /// shades again what last frame kept; the temporal merge, a dispatch because it traces
-            /// nothing; and the resolve, a launch because it traces the visibility rays.
+            /// nothing; the pairs, a launch because it traces a pair's shift rays once for both; and
+            /// the resolve, a launch because it traces the final visibility ray.
             std::unique_ptr<TracePipeline<NoConstants>> mBounceValidate;
             std::unique_ptr<ComputePipeline<NoConstants>> mBounceTemporal;
+            std::unique_ptr<TracePipeline<NoConstants>> mBouncePairs;
             std::unique_ptr<TracePipeline<NoConstants>> mBounceResolve;
         };
 

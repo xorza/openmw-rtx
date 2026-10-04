@@ -134,6 +134,10 @@ const uint SEED_BOUNCE_SPATIAL = SEED_BOUNCE_TEMPORAL + 1u;
 const uint SEED_LAMPS_VALIDATED = SEED_BOUNCE_SPATIAL + 1u;
 const uint SEED_AMBIENT_VALIDATED = SEED_LAMPS_VALIDATED + 1u;
 
+/// How the frame turns the spatial reuse's pairings (`pairingTexel`): one draw for the whole frame,
+/// as every pixel and its partner must read the same turn.
+const uint SEED_BOUNCE_PAIRS = SEED_AMBIENT_VALIDATED + 1u;
+
 /// How far each stream's sequence advances between frames.
 ///
 /// **An additive recurrence with an irrational step**, which is the cheapest sequence whose every
