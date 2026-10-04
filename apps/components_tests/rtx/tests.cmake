@@ -26,6 +26,7 @@ set(RTX_TEST_FILES
     rtx/environment/wavecascade.cpp
     rtx/environment/wavespectrum.cpp
     rtx/frame/bluenoise.cpp
+    rtx/frame/bouncepairing.cpp
     rtx/frame/camera.cpp
     rtx/frame/framepast.cpp
     rtx/frame/framesampling.cpp

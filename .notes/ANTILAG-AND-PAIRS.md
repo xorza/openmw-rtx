@@ -291,6 +291,11 @@ run twice. The cost is about `n_σ × 254² / 4` block shuffles: at 720 traced r
 `n_σ` ≈ 67, about a million; at 1440 rows, σ ≈ 23 and `n_σ` ≈ 265. Step B.2 measures it. If it is
 more than a few milliseconds, it moves off the frame path into a job, as the kernels' compile is.
 
+*Landed* (`BouncePairing`, `components/rtx/frame/`): both textures in 15 ms at 720 traced rows
+and 52 ms at 1440, in the debug build, made where the chain is resized. The shuffles stop at the
+measured deviation, not at the paper's count: the PDF's fit (Eq. 3) does not survive text
+extraction with its signs, and the measured stop is exact by construction.
+
 **BD5. The frame's transform, one for the whole frame.** From `frame.mFrame` and `SEED_BOUNCE_PAIRS`:
 a flip in x, a flip in y, a transpose, and an offset. With `M` the flips and the transpose
 (orthogonal) and `o` the offset, pixel `p` reads the delta `d = tex[(M p + o) mod S]`, and its
@@ -331,17 +336,6 @@ rest needs one of these, each measured as its own step:
   measurement in §10 (D10).
 
 ## B5. Steps
-
-**Step B.2 — the pairing textures (BD4, BD5).** Host code only, in `components/rtx/` (a core fact,
-no graphics API): `BouncePairing`, which makes one self-inverting texture of a given size and σ.
-
-- **Host tests:**
-  - every texel's partner's partner is itself;
-  - every delta's partner is inside the texture after the wrap;
-  - the deviation of the deltas is σ to 5%, over σ = 0.8, 4, 11.5 and 23;
-  - two seeds give two different textures, and one seed gives the same one twice;
-  - BD5's transform keeps the inverse, over all eight transforms and an offset.
-- **Measured:** the time to make both textures at 720 and 1440 traced rows, in the test's output.
 
 **Step B.3 — the pre-pass and the bits (BD2, BD3, BD6, BD7).** The kernel, the buffer, the
 bindings, the zone. The resolve still traces its own rays, and **a debug comparison** checks that
