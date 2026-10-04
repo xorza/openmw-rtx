@@ -112,15 +112,15 @@ on master, which has no such test; its accumulator is the start's without the re
 
 ## Reading it
 
-- **Against master, the branch as it ends** takes 1.6–2.2 ms more a frame at the median: the
+- **Against master, the branch as it ends** takes 1.3–1.9 ms more a frame at the median: the
   bounce reuse, 0.96–1.43 ms, and the accumulator's anti-lag, about 0.3 ms. In return, every frame
   of the suite is as clean or cleaner: the still guild 0.79 → 0.62, the still planter 0.96 → 0.67,
-  the strafed planter 2.17 → 1.71, the walked guild 1.82 → 1.41. The bias stands within 0.13 of
-  master's, at the guild still.
+  the strafed planter 2.17 → 1.71, the walked guild 1.82 → 1.41. The bias stands within 0.15 of
+  master's, at the strafed planter (2.29 → 2.44), and within 0.13 still, at the guild.
 - **The anti-lag** halves the trail an actor's darkness leaves in the sky's fill (16.6 → 7.7
   pixels) and takes noise off every place still, strafed and walked, for about 0.3 ms
   (`ANTILAG-AND-PAIRS_QUESTIONS.md`, Q1). The sun's shadow does not change: its 0.27 pixels are the
   shadow denoiser's, and under FSR the upscaler's band (`ANTILAG-AND-PAIRS.md`, A1).
-- **The paired reuse** takes 0.25–0.62 ms off the reuse's zones and 0.3–0.6 ms off the median
-  frame, for noise within 0.02 still and 0.04 in motion of the anti-lag's, and at or under the
+- **The paired reuse** takes 0.30–0.63 ms off the reuse's zones and 0.32–0.87 ms off the
+  median frame, for noise within 0.02 still and 0.04 in motion of the anti-lag's, and at or under the
   start's everywhere. The guild's zones stand at 1.28 ms against the plan's 1.0 (Q3).
