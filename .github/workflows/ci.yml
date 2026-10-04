@@ -221,14 +221,17 @@ jobs:
         run: CI/macos/build.sh
 
       - name: The bundle carries none of the harness
-        # The bundle is installed whole, so the harness's folder stands beside it in the build tree
-        # (`RTX_HARNESS_DIR`). The renderer's own shaders are looked for first, so a bundle moved
-        # elsewhere fails here rather than passing a search of nothing.
+        # The bundle is installed whole, so the harness's folder and its executable stand beside it
+        # in the build tree (`RTX_HARNESS_DIR`, `apps/rtxtool`'s output directory), and the GPU tests'
+        # with them. The renderer's own shaders are looked for first, and the harness beside the
+        # bundle, so a build that moved either fails here rather than passing a search of nothing.
         run: |
           bundle=build/OpenMW.app
           test -d "$bundle/Contents/Resources/resources/rtx/shaders"
-          found=$(find "$bundle" \( -name rtxtool -o -name shaders-source -o -name views.cfg \
-            -o -name benches.cfg -o -name '*-driver-cache' \) -print)
+          test -x build/openmw-rtxtool
+          build/openmw-rtxtool --help > /dev/null
+          found=$(find "$bundle" \( -name rtxtool -o -name openmw-rtxtool -o -name rtx-gpu-tests \
+            -o -name shaders-source -o -name views.cfg -o -name benches.cfg -o -name '*-driver-cache' \) -print)
           if [ -n "$found" ]; then
             echo "::error::the bundle carries the harness's files: $found"
             exit 1
