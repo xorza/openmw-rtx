@@ -266,11 +266,12 @@ at the top, over all of them.
 - **The bounce's reuse** (`BounceReservoirs`, ReSTIR GI) runs where the reconstruction asks for it
   (`Reconstruction::mBounceReuse`): the world's chain, never a picture's. The trace's bounce is each
   pixel's candidate, which the hit shader writes as a reservoir beside the visible point it left.
-  Three kernels of `VisibilityPass` follow the trace: the validation traces and shades again last
+  Four kernels of `VisibilityPass` follow the trace: the validation traces and shades again last
   frame's kept sample at one pixel in eight, the temporal merge takes last frame's reservoir into
-  the candidate, and the resolve merges two neighbours, traces the final visibility ray and shades
-  the kept sample into the channels the trace would have written. The reuse keeps its own
-  history, so it runs with or without the denoiser after it.
+  the candidate, the pairs' pass traces the shift rays of each pair of pixels the pairings link
+  once for both (`BouncePairing`), and the resolve merges the two partners by those rays, traces the
+  final visibility ray and shades the kept sample into the channels the trace would have written.
+  The reuse keeps its own history, so it runs with or without the denoiser after it.
 - **The denoiser** (`trace/denoise/`) runs where the frame is filtered. The accumulator averages
   the bounce's diffuse light over time and the wavelet spreads it across the screen, with the share
   of it that is fill beside it by the same weights: the composite puts the bounce back by the
@@ -301,7 +302,8 @@ at the top, over all of them.
 Closest-hit shaders are picked by the shader table per material kind. Secondary visibility in a hit
 uses ray queries. The rest are compute passes: the fog, the sprites, the bounce's temporal merge,
 the denoiser, the composite, the display chain, skinning, texture preparation, the sea and the
-ripples. The bounce's validation and resolve trace, and are ray generation shaders of their own.
+ripples. The bounce's validation, pairs and resolve trace, and are ray generation shaders of their
+own.
 Specialization constants, not branches, remove what a frame cannot use (`lib/variants.glsl`).
 
 ## 9. Ownership
@@ -353,10 +355,10 @@ On the host, in order:
 6. **GUI and present.** The host returns without waiting for the device.
 
 On the device, in record order: the sea and the ripples, the sprites, the fog, the trace, the
-bounce's reuse where it runs (the validation, the temporal merge, the resolve), the denoiser where
-it runs (the accumulator, the shadow denoiser, the glossy filter, the pane filter, the wavelet),
-the composite where a denoiser, the reuse or a sum needs one, the upscaler where one runs, the
-display chain, the GUI, the present.
+bounce's reuse where it runs (the validation, the temporal merge, the pairs, the resolve), the
+denoiser where it runs (the accumulator and its clamp, the shadow denoiser, the glossy filter, the
+pane filter, the wavelet), the composite where a denoiser, the reuse or a sum needs one, the
+upscaler where one runs, the display chain, the GUI, the present.
 
 Four clocks drive a frame, each with one source: host time (the wall in play, the frame count
 times a stated step in a measured run), simulation time, game time (the hour), and the sky's
