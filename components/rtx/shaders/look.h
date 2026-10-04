@@ -1160,8 +1160,21 @@ namespace Rtx::Shaders
 
     /// The longest history the accumulator's fast mean keeps, which the slow one is clamped to: the
     /// mean that follows a change of the light on a surface that did not move, as an actor's darkness
-    /// dragged over a floor. ReLAX's default (NVIDIA NRD, `diffuseMaxFastAccumulatedFrameNum`).
-    const float ACCUMULATE_FAST_FRAMES = 6.0f;
+    /// dragged over a floor.
+    ///
+    /// **Two, and not ReLAX's six** (NVIDIA NRD, `diffuseMaxFastAccumulatedFrameNum`). The sky's
+    /// trail behind a moving bar under the reuse, in pixels (`RtxBounceTrailTest`), then the still
+    /// frames' noise at the guild, the planter and the yurt (`noise --suite=bounce`):
+    ///
+    ///     2    7.66    0.61 / 0.65 / 0.72        6    13.07    0.63 / 0.67 / 0.73
+    ///     3    8.43    0.62 / 0.65 / 0.73        8    15.55    0.63 / 0.67 / 0.73
+    ///     4    9.88    0.62 / 0.66 / 0.73
+    ///
+    /// A shorter fast mean is a wider box around the pixel's own light, so it holds the slow mean
+    /// to the change sooner and to noise no more. At two the frames strafed and walked in were
+    /// cleaner than before the clamp at every place, the guild walked 1.50 to 1.41, and the bias rose
+    /// by at most 0.06. One would be the sample itself, which the clamp's comment says why not.
+    const float ACCUMULATE_FAST_FRAMES = 2.0f;
 
     /// How many deviations of the fast mean, over a 5×5 square, the slow mean may stand from the
     /// square's mean of it before it is held to that edge: ReLAX's `fastHistoryClampingSigmaScale`.
