@@ -1,6 +1,7 @@
 # Anti-lag in the accumulator, and paired spatial reuse: research and plan
 
-Status: a proposal. Nothing in this file is implemented. Written 2026-10-04.
+Status: built on `restir-gi`, 2026-10-04. What is left waits on `ANTILAG-AND-PAIRS_QUESTIONS.md`,
+and `ANTILAG-AND-PAIRS_RESULTS.md` compares master, the start and both parts.
 
 This file has two parts. Part A removes the trail that a moving actor leaves in the bounce and the
 sky's fill. Part B makes the bounce's spatial reuse cheaper (ReSTIR GI, `.notes/RESTIR-GI.md` §10).
