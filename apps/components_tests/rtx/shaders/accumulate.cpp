@@ -39,5 +39,23 @@ namespace Rtx
             EXPECT_EQ(Shaders::antilagAcceleration(0.2f, 0.0f, 1.0f), 0.0f);
             EXPECT_EQ(Shaders::antilagAcceleration(0.2f, 0.5f, 0.0f), 0.0f);
         }
+
+        /// **The ring's ceiling, by hand**: 72 fast means, half at 1 and half at 3, are a mean of 2, a
+        /// mean square of `(1 + 9) / 2 = 5` and a deviation of `sqrt(5 - 4) = 1`, so the ceiling at two
+        /// deviations is 4.
+        ///
+        /// - A slow mean of 10 is held to 4, and one of 3.5 keeps all of it.
+        /// - One of nought stays at nought: the ring holds a pixel down and lifts nothing.
+        /// - A ring with no surface in it holds nothing down.
+        TEST(RtxAccumulateClampTest, aSlowMeanIsHeldUnderItsRing)
+        {
+            const float sum = 36.0f * 1.0f + 36.0f * 3.0f;
+            const float squares = 36.0f * 1.0f + 36.0f * 9.0f;
+
+            EXPECT_FLOAT_EQ(Shaders::ringHeldLuminance(10.0f, sum, squares, 72.0f), 4.0f);
+            EXPECT_EQ(Shaders::ringHeldLuminance(3.5f, sum, squares, 72.0f), 3.5f);
+            EXPECT_EQ(Shaders::ringHeldLuminance(0.0f, sum, squares, 72.0f), 0.0f);
+            EXPECT_EQ(Shaders::ringHeldLuminance(5.0f, 0.0f, 0.0f, 0.0f), 5.0f);
+        }
     }
 }

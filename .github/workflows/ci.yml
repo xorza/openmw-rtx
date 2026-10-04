@@ -46,9 +46,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang-format-14 qt6-l10n-tools
 
-      - name: clang-format
-        run: CLANG_FORMAT=clang-format-14 CI/check_clang_format.sh
-
       - name: CMake files indented with spaces
         run: CI/check_cmake_format.sh
 
@@ -62,6 +59,10 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
+
+      - name: clang-format
+        # The driver's own check, and the one in CI: the build jobs leave the formatting to this one.
+        run: python omw format --check
 
       - name: The driver, linted and type-checked
         # Ruff's default rules at the tree's 120 columns, and mypy, both pinned, both against the oldest

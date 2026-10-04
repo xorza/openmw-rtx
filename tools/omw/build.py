@@ -58,6 +58,7 @@ class Build:
         self.preset = f"{flavour}-{SYSTEM}"
         self._env: dict[str, str] | None = None
         self._configured = False
+        self._harness_built = False
 
     @property
     def default_targets(self) -> list[str]:
@@ -189,6 +190,18 @@ class Build:
 
     def binary(self, name: str) -> Path:
         return self.dir / f"{name}{EXE}"
+
+    def harness_line(self, verb: str, *args: str | Path) -> list[str | Path]:
+        """`openmw-rtxtool <verb> [args]`, for a caller that runs it under another program — perf —
+        with the binary built first, once a run."""
+        if not self._harness_built:
+            self.build(["openmw-rtxtool"])
+            self._harness_built = True
+        return [self.binary("openmw-rtxtool"), verb, *args]
+
+    def harness(self, verb: str, *args: str | Path, **options) -> subprocess.CompletedProcess:
+        """The harness's `verb`, from the build directory: the one way the driver starts it."""
+        return self.run_here(self.harness_line(verb, *args), **options)
 
     def run_here(self, command: list, cwd: Path | None = None, check: bool = False,
                  **options) -> subprocess.CompletedProcess:

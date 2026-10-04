@@ -138,8 +138,8 @@ backend ever arrives.
 ## Verification
 
 - Build the targets you touched and run the covering test binary with a filter. `./omw build`
-  formats the tree first, and on CI checks it instead; `./omw format` rewrites the tree alone, and
-  `./omw format --check` changes nothing and is what the gate runs.
+  formats the tree first, except on CI, whose checks job checks it once; `./omw format` rewrites
+  the tree alone, and `./omw format --check` changes nothing and is what the gate and CI run.
   Compiling is not verifying.
 - `./omw` at the root is the one way in, `omw [flavour] <verb>`, and `./omw help` lists both. The
   flavour is `debug` unless named: every assert and the tests. `release` is the build a number is
@@ -170,15 +170,19 @@ backend ever arrives.
   frame's noise — its distance from the mean of its own independent draws — against sixteen frames
   averaged, and fails a frame noisier; beside it, each one's bias against a converged reference;
   `--strafe=150` takes the frame after the eye flew in from the side, and `--walk=150` from
-  behind, which is what a history length or a filter's reach shows in.
+  behind, which is what a history length or a filter's reach shows in. A run is five minutes a
+  suite with the card at 99%, so an A/B is `./omw release noise --ab=<switch>`: the strafe and the
+  walk legs, both sides back to back and side by side, and the still leg with `--still`, which a
+  switch that touches short histories still moves, since the upscaler's jitter keeps edges short.
+  Two runs at once only share the card.
 - `./omw kernels > before.txt` ahead of a shader change and `--against=before.txt` after
   it names the kernels the change moved, per tuple of their constants; a tuple it did not name
   draws what it drew.
 - `./omw repeat --pairs=10` after touching anything a frame reads: two processes walk
   `one-cell-walk` for six seconds with the upscaler and the denoiser off, the second with the queue
-  held behind the host, and must agree frame for frame; `--views=` and `--seconds=` move the walk.
-  A run is the same run twice, and a pair that finds nothing has found nothing. Read a difference
-  with `--exposure=1` and `--pictures=<dir>`.
+  held behind the host, and must agree frame for frame. The walk is always the same one, so every
+  repeat compares with every other. A run is the same run twice, and a pair that finds nothing has
+  found nothing. Read a difference with `--exposure=1` and `--pictures=<dir>`.
 - Measure with `./omw release bench`, on a hot card, back to back, never with a sleep between
   runs. Take a throwaway warm-up leg first. No frame times until the renderer draws everything the
   game has.
@@ -193,8 +197,9 @@ backend ever arrives.
   slice in a few frames hardly moves, and never a mean, which takes all of it: the rows' own, and
   the zones' from the record `--json` writes, since the `gpu` row is each zone's share of the mean.
 - Profiling: `./omw profile` for the CPU — the measured frames alone, at `seyda-neen-ship` unless
-  `--view=` or `--suite=` names another, into `build-release/perf/`. `--offcpu` says where it
-  waits, `--dwarf` unwinds without the frame pointers, and `--tui` walks the last recording.
+  `--views=` or `--suite=` names another, into `build-release/perf/`: a summary by total and by self
+  time, and the full reports beside it as text — by library, by source line, the callers — which
+  are what to read. `--offcpu` says where it waits.
   `./omw release exec nsys profile ./openmw-rtxtool bench ...` for the GPU. `ncu` is not installed.
 - `./omw crash <dump>` reads a player's crash dump against a release's `-symbols.zip`, or the
   newest in `dist/`. `./omw game` is the game on the newest quicksave. A fresh box takes

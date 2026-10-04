@@ -681,7 +681,10 @@ namespace Rtx::Testing
         /// Pooled over four draws, against 128 unfiltered frames where the eye ends: the strip's error,
         /// and its mean. **The clamp is off in every run**: with no reuse, its box of fifty samples
         /// mostly holds none of a light this rare and holds the strip near nought, which is
-        /// `ACCUMULATE_FAST_FRAMES`'s trade and not this test's question.
+        /// `ACCUMULATE_FAST_FRAMES`'s trade and not this test's question. So is the ring, which holds
+        /// the fresh strip down before the fix borrows: with it the strip's error is 0.0136 without
+        /// the fix and 0.0139 with it, at 0.99 of the truth either way — `ACCUMULATE_RING_FRAMES`'s
+        /// trade, and not this test's question either.
         ///
         /// Measured: the strip's error 0.0266 without the fix and 0.0079 with it, where the settled
         /// edge's is 0.0134; its mean 0.61 of the truth without the fix and 1.17 with it, where 32
@@ -740,7 +743,8 @@ namespace Rtx::Testing
                                 .mReconstruction = ReconstructionRequest{ .mDenoise = true,
                                     .mBounceReuse = BounceReuse::Off,
                                     .mAntilag = false,
-                                    .mHistoryFix = fix },
+                                    .mHistoryFix = fix,
+                                    .mAntiFirefly = false },
                                 .mExposure = FixedExposure{ 1.0f } });
                         EXPECT_TRUE(mRenderer.finishFrame().has_value());
                     }
@@ -790,6 +794,90 @@ namespace Rtx::Testing
             EXPECT_LT(std::abs(fixedShare - 1.0), std::abs(unfixedShare - 1.0))
                 << "the history fix took the strip's light from " << unfixedShare << " of the truth to " << fixedShare;
             EXPECT_NEAR(fixedShare, 1.0, 0.25) << "the history fix moved the strip's light off the truth";
+        }
+
+        /// **A rare bright bounce on a history of a few frames is held to the light around it, and a
+        /// settled history keeps it** (`ACCUMULATE_RING_FRAMES`).
+        ///
+        /// A floor under an open sky, and 300 units over it a sheet 40 units square glowing at `50 ×
+        /// EMISSIVE_INTENSITY`, 400: a bounce off the floor beneath finds it at a chance of about
+        /// `40² / 300² / π`, 0.0057, and brings back near two hundred times the floor's mean — the
+        /// lanterns' paper over the M[FR] guild's tree, on a surface that holds still.
+        ///
+        /// After a cut every history is fresh, and three frames on a pixel whose bounce found the sheet
+        /// stands far over the truth: counted where the green stands four times over 64 unfiltered
+        /// frames', pooled over four draws. With the ring, a tenth of them at most. Then 160 still
+        /// frames, whose means with and without the ring stand within a hundredth: a mean of more than
+        /// eight frames keeps what it took in, and the first eight frames, a quarter of a mean of 32,
+        /// are `(31/32)^128` of that quarter 128 frames later, under half a hundredth of the mean
+        /// however much of their light the ring took.
+        ///
+        /// Measured: 8080 fireflies without the ring, the history fix having spread each over its
+        /// taps, and 391 with it; the settled means 0.7021 and 0.7009.
+        TEST_F(RtxVisibilityTest, theRingHoldsAFreshFireflyAndLeavesASettledMeanItsLight)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::uint32_t fresh = 3;
+            constexpr std::uint32_t draws = 4;
+            constexpr std::uint32_t settled = 160;
+
+            SceneDesc scene;
+            addQuad(scene, sheetAt(4000.0f, 0.0f));
+            addQuad(scene, sheetAt(20.0f, 300.0f),
+                scene.addMaterial(Material{ .mEmissiveColour = osg::Vec3f(50.0f, 50.0f, 50.0f), .mTwoSided = true }));
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -200.0f, 150.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f(0.2f, 0.2f, 0.2f);
+            camera.mSkyZenith = osg::Vec3f(0.2f, 0.2f, 0.2f);
+            camera.mSun.mIrradiance = osg::Vec3f();
+            camera.mAmbientFromSky = 1.0f;
+
+            const std::vector<float> reference = shoot(scene, {}, camera, size, { .mFrames = 64 }).mRadiance;
+
+            // The composite after `frames` frames from a cut, each its own draw from `first` on.
+            std::vector<float> read;
+            const auto run = [&](bool ring, std::uint32_t frames, std::uint32_t first) {
+                for (std::uint32_t at = 0; at < frames; ++at)
+                {
+                    camera.mFrame = first + at;
+                    mRenderer.renderFrame(camera,
+                        FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
+                            .mReconstruction = ReconstructionRequest{ .mDenoise = true,
+                                .mBounceReuse = BounceReuse::Off,
+                                .mAntilag = false,
+                                .mAntiFirefly = ring },
+                            .mExposure = FixedExposure{ 1.0f } });
+                    EXPECT_TRUE(mRenderer.finishFrame().has_value());
+                }
+                mRenderer.readComposite(read);
+            };
+
+            const auto firefliesOf = [&](bool ring) {
+                std::uint32_t count = 0;
+                for (std::uint32_t draw = 0; draw < draws; ++draw)
+                {
+                    run(ring, fresh, 1000 + 100 * draw);
+                    for (std::size_t at = 1; at < read.size(); at += 4)
+                        count += read[at] > 4.0f * reference[at] ? 1u : 0u;
+                }
+                return count;
+            };
+            const std::uint32_t without = firefliesOf(false);
+            ASSERT_GT(without, 20u) << "three frames from a cut stand under the sheet's fireflies nowhere, so this "
+                                       "proves nothing";
+            const std::uint32_t with = firefliesOf(true);
+            EXPECT_LT(10 * with, without) << "the ring left " << with << " of " << without << " fireflies";
+
+            const auto meanOf = [&](bool ring) {
+                run(ring, settled, 5000);
+                double sum = 0.0;
+                for (std::size_t at = 1; at < read.size(); at += 4)
+                    sum += static_cast<double>(read[at]);
+                return sum / static_cast<double>(size * size);
+            };
+            const double unheld = meanOf(false);
+            EXPECT_NEAR(meanOf(true) / unheld, 1.0, 0.01) << "the ring kept a settled mean's light from it";
         }
 
         /// What the history is worth where the cascade has nothing to borrow from.

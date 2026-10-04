@@ -1,8 +1,8 @@
 import re
 import unittest
 
-from omw.main import HARNESS_VERBS, USAGE, Line, parse
-from omw.system import ROOT, Refusal
+from omw.main import BUILD_VERBS, BUILDLESS_VERBS, HARNESS_VERBS, USAGE, Line, parse
+from omw.system import FORK, ROOT, Refusal
 from omw.testing import ctest_arguments
 
 
@@ -46,6 +46,16 @@ class ParseTest(unittest.TestCase):
                 with self.assertRaises(Refusal) as refused:
                     parse(argv)
                 self.assertIn(f"no verb or flavour is called {word!r}", str(refused.exception))
+
+    def test_the_usage_names_every_verb(self):
+        for verb in [*BUILD_VERBS, *HARNESS_VERBS, *BUILDLESS_VERBS]:
+            with self.subTest(verb=verb):
+                self.assertRegex(USAGE, rf"(?m)^  (\w+, )*{verb}\b")
+
+    def test_every_fork_folder_is_a_folder(self):
+        for folder in FORK:
+            with self.subTest(folder=folder):
+                self.assertTrue((ROOT / folder).is_dir())
 
     def test_the_harness_verbs_are_the_harness_own(self):
         text = (ROOT / "apps" / "rtxtool" / "verbs.cpp").read_text()

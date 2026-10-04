@@ -1,8 +1,9 @@
 import re
 import unittest
 
-from omw.repeat import DIFFERED_STATUS
-from omw.system import ROOT
+from omw.build import Build
+from omw.repeat import DIFFERED_STATUS, repeat
+from omw.system import ROOT, Refusal
 
 
 class RepeatTest(unittest.TestCase):
@@ -12,6 +13,21 @@ class RepeatTest(unittest.TestCase):
         self.assertIsNotNone(stated)
         self.assertEqual(int(stated.group(1)), DIFFERED_STATUS)
         self.assertNotIn(DIFFERED_STATUS, (0, 1), "a run that differed must not read as passed or as failed")
+
+    def test_a_line_that_moves_the_walk_is_refused_before_anything_builds(self):
+        walk = "repeat walks `one-cell-walk` for six seconds, always, and {} would move it"
+        cases = [
+            (["--views=seyda-neen-ship"], walk.format("--views=seyda-neen-ship")),
+            (["--suite", "bounce"], walk.format("--suite")),
+            (["--seconds=2"], walk.format("--seconds=2")),
+            (["--frames=60"], walk.format("--frames=60")),
+            (["--pairs=0"], "--pairs=0 is not a count of one or more"),
+        ]
+        for args, message in cases:
+            with self.subTest(args=args):
+                with self.assertRaises(Refusal) as refused:
+                    repeat(Build("debug"), args)
+                self.assertEqual(str(refused.exception), message)
 
 
 if __name__ == "__main__":

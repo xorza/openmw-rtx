@@ -49,7 +49,7 @@ def gate(build: Build, args: list[str]) -> int:
     else:
         print(f"tests: the {build.flavour} build has none — `omw debug gate` runs them")
 
-    if build.run_here([build.binary("openmw-rtxtool"), "check"]).returncode != 0:
+    if build.harness("check").returncode != 0:
         return 1
     if repeat(build, ["--pairs=1"]) != 0:
         return 1

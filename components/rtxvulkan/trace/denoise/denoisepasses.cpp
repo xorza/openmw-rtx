@@ -72,6 +72,7 @@ namespace Rtx
             .mDistanceScale = DenoiseHistory::distanceScaleFor(sampled.mFar),
             .mAntilag = reconstruction.mAntilag,
             .mHistoryFix = reconstruction.mHistoryFix,
+            .mAntiFirefly = reconstruction.mAntiFirefly,
         };
 
         // The temporal half first: the accumulator hands on the variance of its mean, which is

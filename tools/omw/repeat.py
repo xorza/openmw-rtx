@@ -1,4 +1,7 @@
-"""`omw [flavour] repeat [--pairs=N] [bench args]`: two runs of one binary walk one place and must agree.
+"""`omw [flavour] repeat [--pairs=N] [bench args]`: two runs of one binary walk `one-cell-walk` for
+six seconds and must agree.
+
+**One walk, always the same**, so every repeat is comparable to every other.
 
 **Two processes and not two stops of one.** A second stop starts from the world the first one left,
 so the two cannot be compared frame for frame. What this asks is whether a run of the binary is a
@@ -32,9 +35,13 @@ import tempfile
 from pathlib import Path
 
 from omw.build import Build
+from omw.system import Refusal, Switches
 
 # `RtxTool::sDifferedStatus`: the run's one fault is a frame that differed from its reference.
 DIFFERED_STATUS = 3
+
+# What `bench` would walk instead: named twice, `bench` refuses the line and the run reads as failed.
+WALK_SWITCHES = ("--views", "--suite", "--seconds", "--frames")
 
 
 def _tail(log: Path) -> str:
@@ -42,38 +49,28 @@ def _tail(log: Path) -> str:
 
 
 def repeat(build: Build, args: list[str]) -> int:
-    pairs = 1
-    place: list[str] = []
-    length: list[str] = []
-    extra: list[str] = []
-    for arg in args:
-        if arg.startswith("--pairs="):
-            spelled = arg.split("=", 1)[1]
-            if not spelled.isdigit() or int(spelled) < 1:
-                print(f"--pairs={spelled} is not a count of one or more", file=sys.stderr)
-                return 2
-            pairs = int(spelled)
-        elif arg.startswith(("--views=", "--suite=")):
-            place.append(arg)
-        elif arg.startswith(("--seconds=", "--frames=")):
-            length.append(arg)
-        else:
-            extra.append(arg)
-    place = place or ["--views=one-cell-walk"]
-    length = length or ["--seconds=6"]
+    switches = Switches("repeat", "two runs of one binary walk one place and must agree; the rest of the "
+                                  "line goes to every run of `bench`, `--exposure=1 --pictures=<dir>` to read one")
+    switches.add_argument("--pairs", type=int, default=1, help="comparisons, over one more run than this")
+    asked, extra = switches.parse_known_args(args)
+    pairs: int = asked.pairs
+    if pairs < 1:
+        raise Refusal(f"--pairs={pairs} is not a count of one or more")
+    moved = next((arg for arg in extra if arg.split("=", 1)[0] in WALK_SWITCHES), None)
+    if moved is not None:
+        raise Refusal(f"repeat walks `one-cell-walk` for six seconds, always, and {moved} would move it")
 
-    build.build(["openmw-rtxtool"])
     out = Path(tempfile.mkdtemp(prefix="omw-repeat-"))
-    bench = [build.binary("openmw-rtxtool"), "bench", *place, *length, "--window=false", "--upscale=off",
-             "--filter=false", "--validation=off", *extra]
+    bench = ["--views=one-cell-walk", "--seconds=6", "--window=false", "--upscale=off", "--filter=false",
+             "--validation=off", *extra]
 
     def run(index: int) -> tuple[Path, int]:
         log = out / f"{index}.log"
         held = ["--hold"] if index % 2 else []
         against = [f"--against={out / f'{index - 1}.csv'}"] if index else []
         with open(log, "w") as written:
-            ended = build.run_here([*bench, *held, f"--hashes={out / f'{index}.csv'}", *against], stdout=written,
-                                   stderr=written)
+            ended = build.harness("bench", *bench, *held, f"--hashes={out / f'{index}.csv'}", *against,
+                                  stdout=written, stderr=written)
         return log, ended.returncode
 
     first, code = run(0)
