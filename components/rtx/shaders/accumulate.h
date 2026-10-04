@@ -77,11 +77,10 @@ namespace Rtx::Shaders
     const uint ACCUMULATE_CLAMP_BIND_FAST = 1;
     const uint ACCUMULATE_CLAMP_BIND_BLENDED = 2;
     const uint ACCUMULATE_CLAMP_BIND_FILL_BLENDED = 3;
-    const uint ACCUMULATE_CLAMP_BIND_MOMENTS = 4;
-    const uint ACCUMULATE_CLAMP_BIND_SAMPLED = 5;
-    const uint ACCUMULATE_CLAMP_BIND_SAMPLED_FILL = 6;
-    const uint ACCUMULATE_CLAMP_BIND_FAST_OUT = 7;
-    const uint ACCUMULATE_CLAMP_BINDINGS = 8;
+    const uint ACCUMULATE_CLAMP_BIND_SAMPLED = 4;
+    const uint ACCUMULATE_CLAMP_BIND_SAMPLED_FILL = 5;
+    const uint ACCUMULATE_CLAMP_BIND_FAST_OUT = 6;
+    const uint ACCUMULATE_CLAMP_BINDINGS = 7;
 
     /// How far either way of a pixel the clamp's square reaches: ReLAX's 5×5.
     const uint ACCUMULATE_CLAMP_REACH = 2;

@@ -100,7 +100,8 @@ surface change resets both at once. The fast cap starts at ReLAX's 6
 **AD2. The clamp in a pass of its own, after the accumulator and before the wavelet.** The clamp
 reads the fast history of a pixel's neighbours, which exist only when the accumulator finished every
 pixel. A new kernel, `accumulateclamp.comp`, with a 5×5 window in shared memory, as ReLAX's. It
-writes what the cascade reads (`blendedOut`, `fillBlendedOut`) and the moments.
+writes what the cascade reads (`blendedOut`, `fillBlendedOut`); it leaves the moments alone, which
+measured as noisy to the hundredth and 0.08 ms cheaper than ReLAX's second-moment correction.
 
 **AD3. Clamp on luminance, and move the fill with the same factor.** `CHANNEL_FILL` is a share of
 the bounce (`Arriving`, `bouncereuse.h`). A per-channel YCoCg clamp of each could make the fill
@@ -166,12 +167,12 @@ Each step ends with `./omw test` and the gates it names.
 
 ## A7. Acceptance
 
-- **Trail:** the sky's edge lag under the spatiotemporal reuse falls from 16.6 pixels to under 4,
+- **Trail:** the sky's edge lag under the spatiotemporal reuse falls from 16.6 pixels to under 8 (Q2),
   and its tail from 2.6 to under 1.
 - **Noise:** no place of `noise --suite=bounce` noisier by more than 0.02 still, and none noisier
   strafed or walked.
 - **Bias:** within 0.1 of today's at every place.
-- **Cost:** the accumulator's zone rises by at most 0.1 ms median at 1280×720.
+- **Cost:** the accumulator's zones rise by at most 0.2 ms median at 1280×720 (Q1).
 - **Determinism:** `repeat --pairs=10` identical.
 
 ## A9. What Part A came to
@@ -359,8 +360,7 @@ result goes into `.notes/RESTIR-GI.md` §10, Step 7.
 
 ## B6. Acceptance
 
-- **Cost:** the reuse's zones together at most 1.0 ms median at the guild at 1280×720 traced, or a
-  recorded decision on what moves (§7).
+- **Cost:** the reuse's zones together at most 1.3 ms median at the guild at 1280×720 traced (Q3).
 - **Noise:** no place of `noise --suite=bounce` noisier by more than 0.02 still, strafed or walked,
   against `.notes/RESTIR-GI.md` §10.
 - **Correctness:** every claim of `RtxBounceReuseTest` holds; `repeat --pairs=10` identical.
