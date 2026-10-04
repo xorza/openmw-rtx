@@ -18,8 +18,8 @@ namespace Rtx::Shaders
     /// a history or hands to the denoiser, each a word of `FrameCounts::mNotFinite`. The fog
     /// volume's froxel, which is blended with its own history and read by its neighbours; the
     /// colour, which the denoiser accumulates and the wavelet path filters; and the guides beside
-    /// it — albedo, specular, normal and roughness, motion, reflection motion, depth — which steer
-    /// the denoiser's history.
+    /// it — albedo, specular, normal and roughness, motion, reflection motion, depth, the shadow's
+    /// penumbra — which steer the denoiser's history and reach.
     const uint BOUNDARY_FOG = 0u;
     const uint BOUNDARY_COLOUR = 1u;
     const uint BOUNDARY_GUIDE = 2u;

@@ -30,8 +30,8 @@
 // which a filter level's step must not pass (`shadowfilter.comp`). The value a cleared tile stands
 // at is the temporal pass's own answer, which it wrote as exactly nought or one.
 //
-// **And a half a tile for the penumbra**: the widest the mask pass found among the tile's stopped
-// rays (`CHANNEL_PENUMBRA`), which the temporal pass widens to the tiles around it.
+// **And a half a tile for the penumbra**: the widest the mask pass found in the tile
+// (`CHANNEL_PENUMBRA`), which the temporal pass widens to the tiles around it.
 
 #define SHADOW_MASK STORAGE_R32UI
 #define SHADOW_REPROJECTED STORAGE_RG16F

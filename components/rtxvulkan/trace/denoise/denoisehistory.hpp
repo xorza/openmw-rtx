@@ -134,7 +134,7 @@ namespace Rtx
             const Image& mVisibility;
 
             /// One texel a tile of the classification, `SHADOW_WORKGROUP` pixels on a side, and one
-            /// of the widest penumbra the tile's stopped rays found, which the mask pass writes.
+            /// of the widest penumbra in the tile, which the mask pass writes.
             const Image& mTiles;
             const Image& mPenumbra;
 
