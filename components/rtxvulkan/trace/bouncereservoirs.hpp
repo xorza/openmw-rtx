@@ -18,7 +18,7 @@ namespace Rtx
     /// chain's and not the passes', as the denoiser's history is (`DenoiseHistory`): the kernels
     /// are every chain's, and the history is as big as the camera it follows.
     ///
-    /// **Buffers and not images**, because a reservoir is a record of six words, read whole.
+    /// **Buffers and not images**, because a reservoir is a record of eight words, read whole.
     class BounceReservoirs
     {
     public:

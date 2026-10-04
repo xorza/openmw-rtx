@@ -175,13 +175,11 @@ namespace
     } };
     static_assert(Rtx::followsMenu(sUpscaleLabels, Rtx::sUpscaleMenu));
 
-    constexpr std::array<std::string_view, Rtx::sIndirectLightNames.mNames.size()> sIndirectLightMenu
-        = Rtx::sIndirectLightNames.spellings();
-    constexpr std::array<Rtx::MenuLabel, sIndirectLightMenu.size()> sIndirectLightLabels{ {
+    constexpr std::array<Rtx::MenuLabel, Rtx::sIndirectLightMenu.size()> sIndirectLightLabels{ {
         { "traced", "#{OMWEngine:RayTracingIndirectLightTraced}" },
         { "off", "#{OMWEngine:RayTracingIndirectLightOff}" },
     } };
-    static_assert(Rtx::followsMenu(sIndirectLightLabels, sIndirectLightMenu));
+    static_assert(Rtx::followsMenu(sIndirectLightLabels, Rtx::sIndirectLightMenu));
 
     void addMenuItems(MyGUI::ComboBox* box, std::span<const Rtx::MenuLabel> labels)
     {
@@ -645,7 +643,7 @@ namespace MWGui
 
     void SettingsWindow::onRayTracingIndirectLightChanged(MyGUI::ComboBox* sender, size_t pos)
     {
-        const std::optional<std::string_view> chosen = Rtx::menuName(sIndirectLightMenu, pos);
+        const std::optional<std::string_view> chosen = Rtx::menuName(Rtx::sIndirectLightMenu, pos);
         if (!chosen.has_value())
             return;
 
@@ -987,7 +985,7 @@ namespace MWGui
         mRayTracingUpscale->setIndexSelected(offered.value_or(MyGUI::ITEM_NONE));
 
         const std::optional<std::size_t> indirect
-            = Rtx::menuIndex(sIndirectLightMenu, Settings::rtx().mIndirectLight.get());
+            = Rtx::menuIndex(Rtx::sIndirectLightMenu, Settings::rtx().mIndirectLight.get());
         mRayTracingIndirectLight->setIndexSelected(indirect.value_or(MyGUI::ITEM_NONE));
     }
 

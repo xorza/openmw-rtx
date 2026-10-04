@@ -85,6 +85,12 @@ namespace Rtx
         std::pair{ IndirectLight::Off, std::string_view("off") },
     } };
 
+    /// The indirect lights the launcher and the settings window offer, in the order both list them,
+    /// spelled as `[RTX] indirect light` takes them: every one `sIndirectLightNames` spells, so one
+    /// added there stops the build until each menu gives it a label.
+    inline constexpr std::array<std::string_view, sIndirectLightNames.mNames.size()> sIndirectLightMenu
+        = sIndirectLightNames.spellings();
+
     /// What a frame asks of the reconstruction, before the upscaler has its say.
     struct ReconstructionRequest
     {

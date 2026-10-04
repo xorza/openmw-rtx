@@ -400,6 +400,7 @@ namespace Rtx
     {
         mProfile.mReconstruction.mIndirect = indirect;
         mFrame.setIndirect(indirect);
+        mPictures.setIndirect(indirect);
     }
 
     void VulkanRenderer::skipFrame()

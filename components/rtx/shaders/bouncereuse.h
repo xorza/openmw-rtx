@@ -179,7 +179,7 @@ namespace Rtx::Shaders
     const float BOUNCE_BOILING_LIMIT = 41.0f;
 
     /// The block the validation asks one pixel of each frame, a different one each frame: an eighth
-    /// of the frame (D10). `askedIn` in `bouncevalidate.rgen` walks a block of this shape.
+    /// of the frame. `askedIn` in `bouncevalidate.rgen` walks a block of this shape.
     const uint BOUNCE_VALIDATION_ACROSS = 4u;
     const uint BOUNCE_VALIDATION_DOWN = 2u;
 
