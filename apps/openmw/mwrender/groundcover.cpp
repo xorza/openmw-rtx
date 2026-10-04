@@ -228,7 +228,7 @@ namespace MWRender
                 osg::ref_ptr<osg::Vec4Array> transforms = new osg::Vec4Array(static_cast<unsigned>(mInstances.size()));
                 osg::BoundingBox box;
                 osg::BoundingBox originalBox = geom.getBoundingBox();
-                float radius = originalBox.radius();
+                float radius = GroundcoverShapes::reach(originalBox);
                 for (unsigned int i = 0; i < transforms->getNumElements(); i++)
                 {
                     osg::Vec3f pos(mInstances[i].mPos.asVec3());

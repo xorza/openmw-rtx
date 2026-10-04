@@ -103,7 +103,7 @@ layout(set = SET_PASS, binding = SHADOW_TILES_BIND_TILES, SHADOW_TILES) uniform 
 /// The rays' bits, a word an 8×4 tile — `shadowmask.comp`.
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MASK, SHADOW_MASK) uniform readonly uimage2D mask;
 
-/// The widest penumbra of each tile's stopped rays — `shadowmask.comp`.
+/// The widest penumbra in each tile — `shadowmask.comp`.
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_PENUMBRA_TILES, SHADOW_PENUMBRA_TILES)
     uniform readonly image2D penumbraTiles;
 

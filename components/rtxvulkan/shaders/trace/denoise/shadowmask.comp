@@ -36,10 +36,10 @@
 // laid out as the tile: AMD's are 32 or 64 and Intel's 8 to 32. A pixel off the frame is nought; the
 // classification knows the frame's extent and does not read it as a shadow.
 //
-// **And the widest penumbra among the stopped rays, a half a workgroup**: the workgroup's two words
-// are one tile of the classification, which reads the nine around its own rather than the 576
-// texels of `CHANNEL_PENUMBRA` they stand for. An open ray has none, and neither has a tile with no
-// ray stopped: nought.
+// **And the widest penumbra of the workgroup's bits, a half a workgroup**: the workgroup's two
+// words are one tile of the classification, which reads the nine around its own rather than the 576
+// texels of `CHANNEL_PENUMBRA` they stand for. A ray that got through has none unless its source
+// was drawn (`SHADOW_PENUMBRA_DRAWN`), and a tile where no bit has one stands at nought.
 
 #include "gbuffer.h"
 #include "sets.h"
@@ -55,7 +55,7 @@ layout(set = SET_PASS, binding = SHADOW_MASK_BIND_SHADOWED) uniform readonly ima
 
 layout(set = SET_PASS, binding = SHADOW_MASK_BIND_MASK, SHADOW_MASK) uniform writeonly uimage2D mask;
 
-/// `CHANNEL_PENUMBRA`, and the widest of it among the workgroup's stopped rays.
+/// `CHANNEL_PENUMBRA`, and the widest of it in the workgroup.
 layout(set = SET_PASS, binding = SHADOW_MASK_BIND_PENUMBRA, GBUFFER_PENUMBRA) uniform readonly image2D penumbra;
 layout(set = SET_PASS, binding = SHADOW_MASK_BIND_PENUMBRA_TILES, SHADOW_PENUMBRA_TILES)
     uniform writeonly image2D penumbraTiles;
@@ -68,8 +68,8 @@ layout(push_constant, scalar) uniform Push
 /// The two tiles one workgroup covers, the upper and the lower.
 shared uint gTiles[2];
 
-/// The widest penumbra of the workgroup's stopped rays, as the bits of a float that is never below
-/// nought, which order as the float does.
+/// The widest penumbra in the workgroup, as the bits of a float that is never below nought, which
+/// order as the float does.
 shared uint gWidest;
 
 void main()
