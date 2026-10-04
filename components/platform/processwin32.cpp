@@ -130,9 +130,9 @@ namespace Platform::Process
 
     void restartOnHugePages(char** /*argv*/) {}
 
-    bool mallocOnHugePages()
+    std::optional<float> hugePageShare()
     {
-        return false;
+        return std::nullopt;
     }
 
     std::size_t keepToPerformanceCores()

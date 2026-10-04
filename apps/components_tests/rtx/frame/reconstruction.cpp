@@ -156,6 +156,10 @@ namespace Rtx
             EXPECT_EQ(picture.mNoise, NoiseSource::BlueNoiseTile);
             EXPECT_EQ(picture.mLevelBias, 0.0f);
             EXPECT_EQ(picture.mBounceReuse, BounceReuse::Off) << "a picture has no past to reuse";
+            EXPECT_FALSE(picture.mAveraged) << "nor a frame after it to average it with";
+            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mAveraged)
+                << "a world's frames are averaged, the upscaler on or off";
+            EXPECT_TRUE(Reconstruction::resolve(Upscale::Quality, ReconstructionRequest{}, sHalved).mAveraged);
 
             const Reconstruction asked = Reconstruction::resolve(
                 Upscale::Off, ReconstructionRequest{ .mDenoise = true, .mJitter = false }, sUnscaled);

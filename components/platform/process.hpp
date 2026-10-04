@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
@@ -110,32 +111,45 @@ namespace Platform::Process
     /// randomization they spread as far, and with one `malloc` arena further.
     void restartOnHugePages(char** argv);
 
-    /// Whether `malloc` is on huge pages, from glibc's tunables `tunables` and the kernel's
-    /// transparent huge page mode as `/sys/kernel/mm/transparent_hugepage/enabled` writes it,
-    /// the one in brackets chosen: `glibc.malloc.hugetlb` at one, which asks the kernel to back the
-    /// heap by `madvise` and takes where the mode is `always` or `madvise`; or at two, which takes
-    /// reserved huge pages. The last setting of the name is the one glibc keeps.
-    inline bool mallocOnHugePages(std::string_view tunables, std::string_view transparentMode)
+    /// The share of a process's anonymous memory that stands on huge pages, from the memory rollup
+    /// as `/proc/<pid>/smaps_rollup` writes it: transparent ones (`AnonHugePages`) over `Anonymous`,
+    /// and reserved ones (`Private_Hugetlb`), which `Anonymous` leaves out, on both sides. **What
+    /// the kernel gave, and not what was asked**: a tunable glibc does not know, a mode of `never`
+    /// or memory too broken up for a huge page all leave the share low. Nothing where the rollup
+    /// names no anonymous memory, or a field is not a number of kilobytes.
+    inline std::optional<float> hugePageShare(std::string_view rollup)
     {
-        constexpr std::string_view name = "glibc.malloc.hugetlb=";
-        std::string_view asked;
-        while (!tunables.empty())
-        {
-            const std::size_t end = tunables.find(':');
-            const std::string_view tunable = tunables.substr(0, end);
-            if (tunable.starts_with(name))
-                asked = tunable.substr(name.size());
-            tunables = end == std::string_view::npos ? std::string_view() : tunables.substr(end + 1);
-        }
+        const auto kilobytes = [&](std::string_view field) -> std::optional<std::uint64_t> {
+            for (std::string_view rest = rollup; !rest.empty();)
+            {
+                const std::size_t end = rest.find('\n');
+                std::string_view line = rest.substr(0, end);
+                rest = end == std::string_view::npos ? std::string_view() : rest.substr(end + 1);
+                if (!line.starts_with(field))
+                    continue;
 
-        const bool granted = transparentMode.find("[always]") != std::string_view::npos
-            || transparentMode.find("[madvise]") != std::string_view::npos;
-        return asked == "2" || (asked == "1" && granted);
+                line.remove_prefix(field.size());
+                line.remove_prefix(std::min(line.find_first_not_of(' '), line.size()));
+                std::uint64_t value = 0;
+                const std::from_chars_result read = std::from_chars(line.data(), line.data() + line.size(), value);
+                if (read.ec != std::errc{} || std::string_view(read.ptr, line.data() + line.size()) != " kB")
+                    return std::nullopt;
+                return value;
+            }
+            return std::uint64_t{ 0 };
+        };
+
+        const std::optional<std::uint64_t> anonymous = kilobytes("Anonymous:");
+        const std::optional<std::uint64_t> transparent = kilobytes("AnonHugePages:");
+        const std::optional<std::uint64_t> reserved = kilobytes("Private_Hugetlb:");
+        if (!anonymous.has_value() || !transparent.has_value() || !reserved.has_value() || *anonymous + *reserved == 0)
+            return std::nullopt;
+        return static_cast<float>(
+            static_cast<double>(*transparent + *reserved) / static_cast<double>(*anonymous + *reserved));
     }
 
-    /// `mallocOnHugePages` of this process: its environment and the kernel's mode. Never on a
-    /// system that is not Linux.
-    bool mallocOnHugePages();
+    /// `hugePageShare` of this process, now. Nothing on a system that is not Linux.
+    std::optional<float> hugePageShare();
 
     /// The CPUs a Linux CPU list names — `0-7,16-19`, as sysfs writes it with its line break — in
     /// the list's order, or nothing where the text is not one. A number past the kernel's own limit

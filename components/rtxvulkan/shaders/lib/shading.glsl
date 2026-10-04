@@ -407,15 +407,21 @@ vec3 shadowedLight(Surface surface, DirectLight lit)
 /// and to 5.3 drawn. And it is not exact once filtered either, because a neighbour that kept the
 /// other source's bit is averaged in.
 ///
+/// **A bit drawn between two that both add light is noise however hard either shadow is**, so its
+/// penumbra is `SHADOW_PENUMBRA_DRAWN`, as `gather`'s is for a bit drawn between the sky and a lamp.
+///
 /// @param draw one number in `[0, 1)`, from a sequence of the caller's own.
 SplitLight mixSplit(SplitLight a, SplitLight b, float t, float draw)
 {
     const vec3 fromA = a.mShadowed * (1.0 - t);
     const vec3 fromB = b.mShadowed * t;
 
-    const bool second = keepsSecond(dot(fromA, LUMINANCE_WEIGHTS), dot(fromB, LUMINANCE_WEIGHTS), draw);
+    const float shareA = dot(fromA, LUMINANCE_WEIGHTS);
+    const float shareB = dot(fromB, LUMINANCE_WEIGHTS);
+    const bool second = keepsSecond(shareA, shareB, draw);
+    const bool drawn = shareA > 0.0 && shareB > 0.0;
     return SplitLight(mix(a.mRest, b.mRest, t), fromA + fromB, second ? b.mOpen : a.mOpen,
-        second ? b.mPenumbra : a.mPenumbra);
+        drawn ? SHADOW_PENUMBRA_DRAWN : (second ? b.mPenumbra : a.mPenumbra));
 }
 
 /// Which face of a surface a diffuse sample leaves by, and what the sample is then worth.
