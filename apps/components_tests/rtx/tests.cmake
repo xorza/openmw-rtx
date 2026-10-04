@@ -119,6 +119,7 @@ set(RTX_TEST_FILES
     rtxvulkan/device/memory/memorytypes.cpp
     rtxvulkan/device/physicaldevice.cpp
     rtxvulkan/device/requirements.cpp
+    rtxvulkan/device/stagingfit.cpp
     rtxvulkan/pipeline/dispatch.cpp
     rtxvulkan/scene/sceneslots.cpp
     rtxvulkan/spirv/spirvdigest.cpp

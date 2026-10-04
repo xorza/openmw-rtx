@@ -23,10 +23,3 @@ the reviews of 2026-10-02.
   floor under an overhead sun, casts a shadow 7 to 9 pixels wide at 96 pixels square; in a still
   frame after 96 frames, the denoised umbra stands at 32 to 48 of 255 where the raw frame's stands
   at 17 to 22, and under the upscaler at `quality` at 52 to 66.
-- `RtxBatchTest.oneBlockTakesUploadAfterUploadAndAnotherOnlyWhereOneWillNotFit` fails in some
-  shuffled orders (`rtx.gpu.0` at seeds 11627 and 76126). Where an earlier test left a spare
-  staging block larger than `sStagingBlock` plus the first two uploads, the first upload takes that
-  block, the upload past `sStagingBlock` lands in it at offset 176, and the test expects a block of
-  its own at offset nought. The tests that left one at those seeds stage 9 MiB and 36 MiB:
-  `RtxGuiDrawTest.lendsOfOneFrameSitEndToEndAndALendPastABlockTakesItsOwn` and
-  `RtxTextureArrayTest.aTextureTheDeviceHasNoRoomForComesDownALevelOrDrawsTheStandIn`.
