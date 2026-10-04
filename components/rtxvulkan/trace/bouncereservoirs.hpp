@@ -25,7 +25,8 @@ namespace Rtx
         explicit BounceReservoirs(const Device& device);
 
         /// Makes room for a frame this size, anew, or for one pixel where the chain never reuses —
-        /// a picture's, whose trace still binds them. A resize is a reset.
+        /// a picture's, whose trace still binds them — and makes the spatial reuse's pairings for its
+        /// height, waiting for their upload. A resize is a reset.
         void resize(std::uint32_t width, std::uint32_t height, bool reuses);
 
         /// Says last frame's half is worthless, until a frame that reuses writes it again.
@@ -47,6 +48,10 @@ namespace Rtx
         const Buffer& getOriginsBefore() const { return mOrigins[1 - mNow]; }
         const Buffer& getThrough() const { return mThrough; }
 
+        /// Both pairing textures' steps, one after the other (`BouncePairing`), and the pairs' bits.
+        const Buffer& getPairing() const { return mPairing; }
+        const Buffer& getPaired() const { return mPaired; }
+
     private:
         const Device& mDevice;
 
@@ -57,6 +62,8 @@ namespace Rtx
         Buffer mHistory;
         std::array<Buffer, 2> mOrigins;
         Buffer mThrough;
+        Buffer mPairing;
+        Buffer mPaired;
 
         std::uint32_t mStride = 0;
         std::size_t mNow = 0;

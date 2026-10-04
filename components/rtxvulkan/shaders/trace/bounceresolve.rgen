@@ -11,7 +11,12 @@
 // defensive pairwise MIS of Wyman et al. 2023 (Algorithm 7) with a confidence each. **A neighbour's
 // weight for the pixel's own sample asks whether the neighbour can see it**: a point a neighbour
 // cannot see is one its reservoir never holds, and a weight that counted it there would take light
-// off every pixel near a contact shadow. One ray a neighbour, and one more for the sample kept.
+// off every pixel near a contact shadow.
+//
+// **The neighbours are the pixel's partners** (`partnerOf`), and the rays of a pair were traced once
+// for both by `bouncepairs.rgen`: whether the partner sees this pixel's sample is this pixel's bit
+// for the link, and whether this pixel sees the partner's is the partner's bit for the same link,
+// since its link leads back here. Only the final ray is traced here, for the sample kept.
 //
 // **What a pixel shows is never a sample it cannot see.** The kept sample's ray from this point to
 // it is the last thing traced; a wall of no thickness between a lit room and a dark one is the
@@ -23,36 +28,11 @@
 #include "scene.h"
 
 #include "lib/bindings.glsl"
+#include "lib/bouncepairs.glsl"
 #include "lib/bouncereservoir.glsl"
 #include "lib/counts.glsl"
 #include "lib/pixels.glsl"
 #include "lib/random.glsl"
-#include "lib/surfacematch.glsl"
-#include "lib/traversal.glsl"
-
-/// Whether `held` stands unobstructed from the visible point `origin`, along `reach`: a solid in
-/// between, or anything over the sky's direction within the world's reach, stops it.
-bool bounceSeen(BounceOrigin origin, BounceReach reach)
-{
-    const float distance = reach.mDistance > 0.0 ? reach.mDistance - SHADOW_BIAS : frame.mReach;
-    if (!(distance > SHADOW_BIAS))
-        return true;
-
-    return !solidBetween(WorldRay(frame.mOrigin + origin.mOffset, reach.mTowards), SHADOW_BIAS, distance);
-}
-
-/// The golden angle as a share of a turn, `2 - φ`: what spaces a spiral's points so no two of them
-/// line up.
-const float GOLDEN_ANGLE_TURNS = 0.38196601;
-
-/// A neighbour of `pixel` to reuse from: the `index`th of `BOUNCE_NEIGHBOURS` on a spiral through
-/// the disc of `radius`, turned by `turn`.
-ivec2 neighbourOf(uvec2 pixel, uint index, float turn, float radius)
-{
-    const float share = (float(index) + 0.5) / float(BOUNCE_NEIGHBOURS);
-    const float angle = TAU * (turn + float(index) * GOLDEN_ANGLE_TURNS);
-    return ivec2(vec2(pixel) + radius * sqrt(share) * vec2(cos(angle), sin(angle)) + 0.5);
-}
 
 void main()
 {
@@ -74,7 +54,6 @@ void main()
 
     BounceMerge merge = startMerge();
     uint draws = randomSeed(pixelKey(pixel) + SEED_BOUNCE_SPATIAL);
-    const float turn = randomNext(draws);
 
     BounceReservoir chosen = own;
     BounceReach chosenReach = ownReach;
@@ -82,34 +61,34 @@ void main()
 
     if (frame.mBounceReuse == BOUNCE_REUSE_SPATIOTEMPORAL)
     {
-        const float radius = max(BOUNCE_RADIUS_SHARE * float(frame.mEyes.mWorld.mHeight), BOUNCE_RADIUS_LEAST);
-        const float distance = length(origin.mOffset);
+        const uint paired = bouncePaired[at];
         BounceReservoir neighbours[BOUNCE_NEIGHBOURS];
         BounceOrigin origins[BOUNCE_NEIGHBOURS];
+        uint partnersPaired[BOUNCE_NEIGHBOURS];
         vec4 there = vec4(0.0);
         vec4 confidences = vec4(0.0);
         float total = float(own.mConfidence);
 
-        // Each neighbour, taken where it is a surface of this one's kind: its reservoir, and this
-        // pixel's sample shifted into its domain, seen from there or not.
+        // Each partner, taken where it is a surface of this one's kind: its reservoir, and this
+        // pixel's sample shifted into its domain, seen from there or not, as this pixel's bit says.
         for (uint index = 0u; index < BOUNCE_NEIGHBOURS; ++index)
         {
-            const ivec2 tap = neighbourOf(pixel, index, turn, radius);
-            const bool inside = !outsideOf(uvec2(tap), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight));
-            const uint tapAt = inside ? uint(tap.y) * frame.mBounceStride + uint(tap.x) : at;
+            const ivec2 partner = partnerOf(pixel, index);
+            const bool inside = !outsideOf(partner, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight));
+            const uint tapAt = inside ? uint(partner.y) * frame.mBounceStride + uint(partner.x) : at;
 
             const BounceOrigin near = unpackOrigin(bounceOrigins[tapAt]);
-            const bool alike = inside && near.mKept && dot(near.mNormal, origin.mNormal) >= BOUNCE_FACING
-                && abs(length(near.mOffset) - distance) <= BOUNCE_DEPTH * distance;
+            const bool alike = inside && originsAlike(origin, near);
 
             BounceReservoir reservoir = unpackBounce(bounceReservoirs[tapAt]);
             reservoir.mConfidence = alike ? reservoir.mConfidence : 0u;
             neighbours[index] = reservoir;
             origins[index] = near;
+            partnersPaired[index] = bouncePaired[tapAt];
 
             const BounceReach ownThere = reachOf(own.mSample, origin.mOffset, near.mOffset);
             const float jacobian = shiftJacobian(own.mSample, origin.mOffset, near.mOffset);
-            const bool seen = alike && jacobian > 0.0 && bounceSeen(near, ownThere);
+            const bool seen = alike && jacobian > 0.0 && ((paired >> index) & 1u) != 0u;
             there[index] = seen ? bounceTarget(near, own.mSample, ownThere) * jacobian : 0.0;
             confidences[index] = float(reservoir.mConfidence);
             total += float(reservoir.mConfidence);
@@ -125,10 +104,11 @@ void main()
             const BounceOrigin nearOrigin = origins[index];
             const float jacobian = shiftJacobian(near.mSample, nearOrigin.mOffset, origin.mOffset);
             const BounceReach here = reachOf(near.mSample, nearOrigin.mOffset, origin.mOffset);
-            // **Taken only where this point can see it**, the shift's own ray: a target that ignored
-            // it would keep a neighbour's sample the final ray then finds hidden, worth nothing that
-            // frame and twice as much the next. Over the corner it took a tenth off the frame's error.
-            const bool seen = holdsBounce(near) && jacobian > 0.0 && bounceSeen(origin, here);
+            // **Taken only where this point can see it**, the partner's bit for the link that leads
+            // back here: a target that ignored it would keep a neighbour's sample the final ray then
+            // finds hidden, worth nothing that frame and twice as much the next. Over the corner it
+            // took a tenth off the frame's error.
+            const bool seen = holdsBounce(near) && jacobian > 0.0 && ((partnersPaired[index] >> index) & 1u) != 0u;
             const float target = seen ? bounceTarget(origin, near.mSample, here) : 0.0;
             const float nearThere = jacobian > 0.0
                 ? bounceTarget(nearOrigin, near.mSample, reachOf(near.mSample, nearOrigin.mOffset, nearOrigin.mOffset))

@@ -337,21 +337,14 @@ rest needs one of these, each measured as its own step:
 
 ## B5. Steps
 
-**Step B.3 — the pre-pass and the bits (BD2, BD3, BD6, BD7).** The kernel, the buffer, the
-bindings, the zone. The resolve still traces its own rays, and **a debug comparison** checks that
-every bit the pre-pass wrote is the answer the resolve's own ray gives for the same link (a GPU test,
-which then goes). **Host test:** the symmetric similarity (BD3).
-
-**Step B.4 — the resolve reads the bits (BD8).** Its shift and MIS rays go.
-
-- **GPU tests:** the existing `RtxBounceReuseTest` suite passes unchanged in its claims:
-  - the mean of every mode within 2% of the plain bounce;
-  - the spatial half lowers the error below the temporal half;
-  - no light through a wall of no thickness;
-  - the lamp's bounce gone on the eighth frame.
-- **Gates:** `repeat --pairs=10` identical. `noise --suite=bounce` still, strafed and walked: no
-  place noisier by more than 0.02 against §10, and the paper's lower error is expected, not assumed.
-  `kernels --against` names `bounceresolve` and the new kernel only.
+*B.3 and B.4 landed together*: the debug comparison of B.3 needed the resolve to export its own
+rays for one test, and the suite's own claims catch a bit read from the wrong partner (light
+through the wall of no thickness) or a wrong weight (a mean off the plain bounce). The reuse's
+zones (validate, temporal, pairs, resolve), median ms, item B.1 → paired: the guild 1.53 → 1.28
+(0.15 + 0.31 + 0.39 + 0.43), the planter 1.82 → 1.42, the yurt 1.57 → 1.34, the pier 1.87 → 1.43,
+the pond 1.21 → 0.96; the frame median 0.30 to 0.58 ms faster. Noise against §10's figures the same
+or lower everywhere; against B.1, up to 0.02 still and 0.03–0.04 strafed or walked at the yurt and
+the planter, which the Gaussian's nearer neighbours did not buy back here.
 
 **Step B.5 — the cost, and the next lever.** `release bench --suite=bounce`, warm-up leg, off and
 on, back to back, from the background: the four zones' medians and p99. If the guild is over

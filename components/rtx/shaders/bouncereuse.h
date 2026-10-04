@@ -105,8 +105,9 @@ namespace Rtx::Shaders
     /// How many neighbours the spatial reuse reads: RTXDI's default.
     const uint BOUNCE_NEIGHBOURS = 2u;
 
-    /// The disc they are drawn from, as a share of the traced height, and never under a few
-    /// pixels. **A share and not RTXDI's thirty-two pixels**, which are three per cent of a 1080p
+    /// The disc whose mean distance the pairings' steps match (`BouncePairing`, a normal
+    /// distribution of deviation `√(8 / 9π)` times the radius), as a share of the traced height, and
+    /// never under a few pixels. **A share and not RTXDI's thirty-two pixels**, which are three per cent of a 1080p
     /// frame: a disc stated in pixels covers more of the scene the fewer pixels an upscaler traces,
     /// and a neighbour far across a surface reconnects at a length unlike the pixel's own. Held at
     /// thirty-two pixels over a corner traced at 128, a quarter of the frame, the spatial half raised
@@ -145,12 +146,23 @@ namespace Rtx::Shaders
     }
 
     /// How nearly two visible points must face alike, and how near their distances, for one to
-    /// reuse the other's samples: RTXDI's defaults, the cosine and a share of the distance. **Wider
+    /// reuse the other's samples: RTXDI's defaults, the cosine and a share of the nearer distance. **Wider
     /// than the accumulator's 0.9** (`ACCUMULATE_FACING`), since the target and the shift weigh a
     /// neighbour's sample at this point where the accumulator takes its colour whole: at 0.9 the
     /// guild's still and strafed frames were 0.01 to 0.02 noisier.
     const float BOUNCE_FACING = 0.6f;
     const float BOUNCE_DEPTH = 0.1f;
+
+    /// Whether two visible points, `facing` the cosine between their normals and `distance` and
+    /// `other` how far each stands from the eye, are alike enough to reuse each other's samples.
+    /// **The same answer both ways round**: a pixel reads its partner's bit for a link only where it
+    /// takes the partner, and the partner traced it only where it took the pixel, so a test of one
+    /// against the other alone would read a bit nobody traced. RTXDI's depth test is a share of the
+    /// centre's distance; this is a share of the nearer one.
+    RTX_SHADER bool bounceAlike(float facing, float distance, float other)
+    {
+        return facing >= BOUNCE_FACING && abs(distance - other) <= BOUNCE_DEPTH * min(distance, other);
+    }
 
     /// How many times the mean of its workgroup's estimates a pixel's estimate may stand before the
     /// temporal pass lets its reservoir go: RTXDI's boiling filter at its default strength of 0.2,

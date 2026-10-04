@@ -190,6 +190,18 @@ layout(set = SET_PASS, binding = BIND_BOUNCE_THROUGH, scalar) buffer BounceThrou
     uint bounceThrough[];
 };
 
+/// The spatial reuse's two pairing textures, one after the other, a step a texel as two signed
+/// sixteen-bit halves; and a word a traced pixel at `VisibilityConstants::mBounceStride` whose bit `i`
+/// says whether link `i`'s partner sees the pixel's sample (`bouncepairs.rgen`).
+layout(set = SET_PASS, binding = BIND_BOUNCE_PAIRING, scalar) readonly buffer BouncePairing
+{
+    uint bouncePairing[];
+};
+layout(set = SET_PASS, binding = BIND_BOUNCE_PAIRED, scalar) buffer BouncePaired
+{
+    uint bouncePaired[];
+};
+
 // **A buffer and not a push constant.** The frame's description passed 256 bytes, which is every
 // byte `maxPushConstantsSize` promises on this hardware; `VisibilityPass` writes it into a buffer of
 // its own instead. The name and the fields are the ones the push block had, so nothing that reads

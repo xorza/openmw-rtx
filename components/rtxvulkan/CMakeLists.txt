@@ -72,6 +72,7 @@ set(RTX_SHADERS
     shaders/upscale/fsrinstability.comp
     shaders/upscale/fsrlumapyramid.comp
     shaders/upscale/fsrreactivity.comp
+    shaders/trace/bouncepairs.rgen
     shaders/trace/bounceresolve.rgen
     shaders/trace/bouncetemporal.comp
     shaders/trace/bouncevalidate.rgen
@@ -161,6 +162,7 @@ set(RTX_SHADER_LIB
     shaders/lib/basis.glsl
     shaders/lib/bindings.glsl
     shaders/lib/bloom.glsl
+    shaders/lib/bouncepairs.glsl
     shaders/lib/bouncereservoir.glsl
     shaders/lib/compose.glsl
     shaders/lib/counts.glsl
