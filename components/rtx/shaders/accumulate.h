@@ -38,6 +38,13 @@
 #define ACCUMULATE_SURFACE STORAGE_RGBA16F
 #define ACCUMULATE_MOMENTS STORAGE_RGBA32F
 
+// **The fast means of the bounce and the fill in one texel of two words**, each in shared-exponent
+// `RGB9E5` (`lib/sharedexponent.glsl`), which rounds to nearest. They are read at four taps and over
+// a 5×5 square a frame, and four full floats each made the accumulator and its clamp 0.54 ms of a
+// guild's frame where they had been 0.25; what a fast mean needs is to follow the light, which a
+// part in a thousand of its brightest channel does not move.
+#define ACCUMULATE_FAST STORAGE_RG32UI
+
 #ifdef RTX_HOST
 namespace Rtx::Shaders
 {
@@ -59,10 +66,8 @@ namespace Rtx::Shaders
     const uint ACCUMULATE_BIND_HISTORY_FILL = 10;
     const uint ACCUMULATE_BIND_FILL_BLENDED_OUT = 11;
     const uint ACCUMULATE_BIND_HISTORY_FAST = 12;
-    const uint ACCUMULATE_BIND_HISTORY_FAST_FILL = 13;
-    const uint ACCUMULATE_BIND_FAST_OUT = 14;
-    const uint ACCUMULATE_BIND_FAST_FILL_OUT = 15;
-    const uint ACCUMULATE_BINDINGS = 16;
+    const uint ACCUMULATE_BIND_FAST_OUT = 13;
+    const uint ACCUMULATE_BINDINGS = 14;
 
     /// Threads along each edge of the accumulator's workgroup, and of the clamp's.
     const uint ACCUMULATE_WORKGROUP = 8;
@@ -70,15 +75,13 @@ namespace Rtx::Shaders
     /// Where `accumulateclamp.comp` binds what it reads and writes in set 0, and how many there are.
     const uint ACCUMULATE_CLAMP_BIND_SURFACE = 0;
     const uint ACCUMULATE_CLAMP_BIND_FAST = 1;
-    const uint ACCUMULATE_CLAMP_BIND_FAST_FILL = 2;
-    const uint ACCUMULATE_CLAMP_BIND_BLENDED = 3;
-    const uint ACCUMULATE_CLAMP_BIND_FILL_BLENDED = 4;
-    const uint ACCUMULATE_CLAMP_BIND_MOMENTS = 5;
-    const uint ACCUMULATE_CLAMP_BIND_SAMPLED = 6;
-    const uint ACCUMULATE_CLAMP_BIND_SAMPLED_FILL = 7;
-    const uint ACCUMULATE_CLAMP_BIND_FAST_OUT = 8;
-    const uint ACCUMULATE_CLAMP_BIND_FAST_FILL_OUT = 9;
-    const uint ACCUMULATE_CLAMP_BINDINGS = 10;
+    const uint ACCUMULATE_CLAMP_BIND_BLENDED = 2;
+    const uint ACCUMULATE_CLAMP_BIND_FILL_BLENDED = 3;
+    const uint ACCUMULATE_CLAMP_BIND_MOMENTS = 4;
+    const uint ACCUMULATE_CLAMP_BIND_SAMPLED = 5;
+    const uint ACCUMULATE_CLAMP_BIND_SAMPLED_FILL = 6;
+    const uint ACCUMULATE_CLAMP_BIND_FAST_OUT = 7;
+    const uint ACCUMULATE_CLAMP_BINDINGS = 8;
 
     /// How far either way of a pixel the clamp's square reaches: ReLAX's 5×5.
     const uint ACCUMULATE_CLAMP_REACH = 2;

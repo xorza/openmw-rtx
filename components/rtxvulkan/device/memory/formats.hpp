@@ -64,6 +64,8 @@ namespace Rtx
                 return VK_FORMAT_R16G16_SFLOAT;
             case Shaders::StorageFormat::Rg32f:
                 return VK_FORMAT_R32G32_SFLOAT;
+            case Shaders::StorageFormat::Rg32ui:
+                return VK_FORMAT_R32G32_UINT;
             case Shaders::StorageFormat::Rgba16f:
                 return VK_FORMAT_R16G16B16A16_SFLOAT;
             case Shaders::StorageFormat::Rgba32f:
@@ -90,6 +92,7 @@ namespace Rtx
             case Shaders::StorageFormat::Rg16f:
                 return 4;
             case Shaders::StorageFormat::Rg32f:
+            case Shaders::StorageFormat::Rg32ui:
             case Shaders::StorageFormat::Rgba16f:
                 return 8;
             case Shaders::StorageFormat::Rgba32f:
