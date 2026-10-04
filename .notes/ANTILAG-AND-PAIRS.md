@@ -346,13 +346,15 @@ the pond 1.21 → 0.96; the frame median 0.30 to 0.58 ms faster. Noise against �
 or lower everywhere; against B.1, up to 0.02 still and 0.03–0.04 strafed or walked at the yurt and
 the planter, which the Gaussian's nearer neighbours did not buy back here.
 
+**Step B.5 — the cost, and the next lever.** *Measured and waiting:* see
+`ANTILAG-AND-PAIRS_QUESTIONS.md`, Q3. One neighbour takes the guild's zones to 0.99 ms and the yurt
+0.06 noisier strafed and 0.08 walked; the temporal merge, tried by share with one record read where
+four were, stood at 0.31 ms and was reverted.
+
 **Step B.5 — the cost, and the next lever.** `release bench --suite=bounce`, warm-up leg, off and
 on, back to back, from the background: the four zones' medians and p99. If the guild is over
 1.0 ms: one neighbour (B4), measured on noise and cost, then the temporal merge's profile. The
 result goes into `.notes/RESTIR-GI.md` §10, Step 7.
-
-**Step B.6 — `docs/rtx/architecture.md`** names the pre-pass in the bounce's paragraph and in the
-record order.
 
 ## B6. Acceptance
 

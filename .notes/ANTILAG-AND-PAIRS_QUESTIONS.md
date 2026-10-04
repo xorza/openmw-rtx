@@ -40,3 +40,28 @@ the feedback as well 6.5.
 Under the reuse a reservoir carries samples from frames before, and the wavelet spreads what the
 history keeps. **Recommendation:** take 8 pixels as the target for this plan, and record what is
 left as a question for the reuse (`RESTIR-GI.md`), whose spatial half spreads old samples too.
+
+## Q3. The reuse's cost against §7's 1.0 ms (step B.5, B6 acceptance)
+
+**Measured** (release, `bench --suite=bounce`, the four zones validate + temporal + pairs +
+resolve, median ms; then noise strafed and walked at the yurt, against the start's 2.26 and 2.66):
+
+| | Guild | Planter | Yurt | Pier | Pond | Yurt strafed / walked |
+|---|---|---|---|---|---|---|
+| Start (4a59dcb) | 1.66 | 1.97 | 1.64 | 2.06 | 1.36 | 2.26 / 2.66 |
+| Paired, two neighbours (landed) | 1.28 | 1.42 | 1.34 | 1.43 | 0.96 | 2.26 / 2.65 |
+| Paired, one neighbour | 0.99 | 1.09 | 0.99 | 1.10 | 0.75 | 2.32 / 2.74 |
+
+**Options:**
+
+1. Keep two neighbours and move §7's limit to 1.3 ms at the guild.
+2. One neighbour: the limit met at four of five places, the yurt 0.06 and 0.08 noisier in motion,
+   past the plan's gate.
+3. Profile the temporal merge (0.31 ms for a dispatch that traces nothing) inside the kernel, which
+   needs `ncu` (Nsight Compute), not installed here: `sudo pacman -S nsight-compute` or NVIDIA's
+   installer.
+
+**Recommendation:** 1 now, and 3 if the limit matters: the merge is a quarter of what is left.
+
+**Waits on it:** B6's cost acceptance.
+
