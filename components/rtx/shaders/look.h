@@ -1214,6 +1214,38 @@ namespace Rtx::Shaders
     /// samples has a variance, and it is not one anybody should filter by.
     const float ACCUMULATE_SETTLED = 4.0f;
 
+    /// The longest history the wavelet's first level rebuilds from the surface around it, in
+    /// frames: NVIDIA NRD's history fix (`historyFixFrameNum`, `RELAX_HistoryFix`,
+    /// `REBLUR_HistoryFix`), whose three this is.
+    ///
+    /// **Where the eye uncovers a surface or brings it in at the frame's edge**, its mean is one
+    /// bounce, and the cascade's fourteen pixels spread that one bounce into blotches that settle
+    /// over the frames after it. Rebuilt instead from the surface around it, under ReLAX's flat
+    /// kernel, a pixel shows the light of that surface and starts its history from it. No weight on
+    /// the brightness, since a history of one has no spread to judge a neighbour by. The frames
+    /// strafed and walked into the bounce suite's rooms, noise against the fix off (`noise
+    /// --suite=bounce`, the guild, the planter and the yurt):
+    ///
+    ///     strafed   1.30 / 1.65 / 2.11  against  1.34 / 1.81 / 2.41
+    ///     walked    1.38 / 1.46 / 2.37  against  1.42 / 1.47 / 2.78
+    ///
+    /// with the pier and the pond within 0.01, and the still frames no noisier: the yurt's 0.76 is
+    /// 0.70, and every other place within 0.01. The frame's bias rose by 0.05 at the yurt strafed
+    /// and 0.10 walked, and by 0.02 at most anywhere else.
+    ///
+    /// **Not ReBLUR's weight of each tap by the frames its own mean holds.** Its noise was the flat
+    /// kernel's to 0.01 at every place, and where the uncovered strip is the frame's edge its
+    /// settled neighbours all stand on one side: under a lamp's spot on a wall it held the strip at
+    /// 1.69 times its reference where the flat kernel holds 1.17
+    /// (`theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo`). Eight frames in place of NRD's three
+    /// moved no place by more than 0.03.
+    const float ACCUMULATE_FIX_FRAMES = 3.0f;
+
+    /// How far apart the history fix's 5×5 taps stand for a history of `n` frames, in pixels:
+    /// `ACCUMULATE_FIX_STRIDE / (1 + n)` rounded, NRD's `historyFixBasePixelStride` and its rule —
+    /// seven pixels for a new pixel, so its taps reach fourteen, and four once three frames hold.
+    const float ACCUMULATE_FIX_STRIDE = 14.0f;
+
     /// Where the far plane lands once a distance has been scaled for `ACCUMULATE_SURFACE`.
     ///
     /// **A half float is precise in proportion rather than in steps, so what a distance wants from

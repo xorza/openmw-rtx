@@ -332,13 +332,13 @@ namespace RtxTool
         const Rtx::Reconstruction& resolved = header.mReconstruction;
         out += std::format(
             "     {}x{} from {}x{}, upscale {}, filter {}, jitter {}, noise {}, level bias {:.3f}, indirect {}, "
-            "bounce reuse {}, antilag {}\n",
+            "bounce reuse {}, antilag {}, history fix {}\n",
             header.mExtents.mOutputWidth, header.mExtents.mOutputHeight, header.mExtents.mRenderWidth,
             header.mExtents.mRenderHeight, Rtx::sUpscaleNames.name(resolved.mUpscale),
             resolved.mDenoised ? "on" : "off", resolved.mJitter ? "on" : "off",
             Rtx::sNoiseSourceNames.name(resolved.mNoise), resolved.mLevelBias,
             Rtx::sIndirectLightNames.name(resolved.mIndirect), Rtx::sBounceReuseNames.name(resolved.mBounceReuse),
-            resolved.mAntilag ? "on" : "off");
+            resolved.mAntilag ? "on" : "off", resolved.mHistoryFix ? "on" : "off");
         out += std::format("     delight {:.2f}, gamma {:.2f}, show {}, exposure {}, variants {}, hold {}\n",
             profile.mDelight, profile.mGamma, Rtx::sSurfaceViewNames.name(profile.mShow),
             describeExposure(profile.mExposure), profile.mSpecializeLaunches ? "on" : "off",
@@ -490,10 +490,12 @@ namespace RtxTool
                     header.mReconstruction.mJitter)
              << '\n'
              << std::format(
-                    R"(  "noise": "{}", "levelBias": {:.3f}, "indirect": "{}", "bounceReuse": "{}", "antilag": {},)",
+                    R"(  "noise": "{}", "levelBias": {:.3f}, "indirect": "{}", "bounceReuse": "{}", "antilag": {}, )"
+                    R"("historyFix": {},)",
                     Rtx::sNoiseSourceNames.name(header.mReconstruction.mNoise), header.mReconstruction.mLevelBias,
                     Rtx::sIndirectLightNames.name(header.mReconstruction.mIndirect),
-                    Rtx::sBounceReuseNames.name(header.mReconstruction.mBounceReuse), header.mReconstruction.mAntilag)
+                    Rtx::sBounceReuseNames.name(header.mReconstruction.mBounceReuse), header.mReconstruction.mAntilag,
+                    header.mReconstruction.mHistoryFix)
              << '\n'
              << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", header.mMeasured, header.mWarmup,
                     header.mValidating)

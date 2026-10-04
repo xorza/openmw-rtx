@@ -3,6 +3,7 @@
 
 #include "accumulate.h"
 #include "camera.h"
+#include "gbuffer.h"
 #include "hosttypes.h"
 #include "portable.h"
 #include "storageformat.h"
@@ -20,9 +21,16 @@
 // and are full floats here: they are a running mean, and a half store rounds toward nought on this
 // card (`RtxHalfStoreTest`), so a mean kept in halves falls a little at every store.
 //
-// **The rays' bits, packed**: one word an 8×4 tile of pixels, bit `(y % 4) * 8 + x % 8` of it one
-// where that pixel's rays got through — the SDK's layout. The classification reads the eighteen
-// words around its tile rather than the 576 texels they stand for.
+// **The rays' bits, packed**: two words an 8×4 tile of pixels, bit `(y % 4) * 8 + x % 8` of each
+// for that pixel — the SDK's layout. The first is one where the pixel receives and its rays got
+// through, and the second one where it receives at all (`receivesShadowed`). The classification
+// reads the eighteen texels around its tile rather than the 576 pixels they stand for.
+//
+// **The second word is not the SDK's**, which has the first alone. A pixel the shadowed sources do
+// not light keeps a bit of one, since nothing was split off it, and the classification's local
+// mean counted it as lit: a receiver in a hard shadow beside a face turned from the lamp was held
+// up to that mean, and showed a seam of lamp light the shadow should have hidden. At the mages'
+// guild's planter one such pixel stood at 76 of 255 where 256 raw frames hold 3.
 //
 // **Two halves a tile for the classification**: one where the tile was cleared — every receiver in
 // it and around it lit alike, so its value is exact and nothing filters it — and nought where the
@@ -33,7 +41,7 @@
 // **And a half a tile for the penumbra**: the widest the mask pass found in the tile
 // (`CHANNEL_PENUMBRA`), which the temporal pass widens to the tiles around it.
 
-#define SHADOW_MASK STORAGE_R32UI
+#define SHADOW_MASK STORAGE_RG32UI
 #define SHADOW_REPROJECTED STORAGE_RG16F
 #define SHADOW_MOMENTS STORAGE_RGBA32F
 #define SHADOW_TILES STORAGE_RG16F
@@ -54,17 +62,18 @@ namespace Rtx::Shaders
 
     /// How far either way of a pixel the SDK's local neighbourhood kernel reaches — its radius, and
     /// the apron the classification reads past its tile on every side, so a square of
-    /// `SHADOW_WORKGROUP + 2 * SHADOW_REACH` bits: three words across and six down. Held whole in a
-    /// word a row and started on a tile's corner, which the asserts below say of it. The three
-    /// filter levels reach one, two and four pixels, seven in all, inside it.
+    /// `SHADOW_WORKGROUP + 2 * SHADOW_REACH` bits: three texels of the mask across and six down.
+    /// Held whole in a word a row and started on a tile's corner, which the asserts below say of
+    /// it. The three filter levels reach one, two and four pixels, seven in all, inside it.
     const uint SHADOW_REACH = 8;
 
     /// Where `shadowmask.comp` binds what it reads and writes in set 0, and how many there are.
     const uint SHADOW_MASK_BIND_SHADOWED = 0;
-    const uint SHADOW_MASK_BIND_MASK = 1;
-    const uint SHADOW_MASK_BIND_PENUMBRA = 2;
-    const uint SHADOW_MASK_BIND_PENUMBRA_TILES = 3;
-    const uint SHADOW_MASK_BINDINGS = 4;
+    const uint SHADOW_MASK_BIND_SURFACE = 1;
+    const uint SHADOW_MASK_BIND_MASK = 2;
+    const uint SHADOW_MASK_BIND_PENUMBRA = 3;
+    const uint SHADOW_MASK_BIND_PENUMBRA_TILES = 4;
+    const uint SHADOW_MASK_BINDINGS = 5;
 
     /// The three levels the spatial filter runs at: the level is the filter module's one
     /// specialization constant, and its taps stand `1 << level` pixels apart.
@@ -75,18 +84,17 @@ namespace Rtx::Shaders
     const uint SHADOW_SPEC_COUNT = 1u;
 
     /// Where `shadowtiles.comp` binds what it reads and writes in set 0, and how many there are.
-    const uint SHADOW_TILES_BIND_SHADOWED = 0;
-    const uint SHADOW_TILES_BIND_SURFACE = 1;
-    const uint SHADOW_TILES_BIND_MOTION = 2;
-    const uint SHADOW_TILES_BIND_HELD_SURFACE = 3;
-    const uint SHADOW_TILES_BIND_HISTORY = 4;
-    const uint SHADOW_TILES_BIND_MOMENTS_BEFORE = 5;
-    const uint SHADOW_TILES_BIND_MOMENTS = 6;
-    const uint SHADOW_TILES_BIND_REPROJECTED = 7;
-    const uint SHADOW_TILES_BIND_TILES = 8;
-    const uint SHADOW_TILES_BIND_MASK = 9;
-    const uint SHADOW_TILES_BIND_PENUMBRA_TILES = 10;
-    const uint SHADOW_TILES_BINDINGS = 11;
+    const uint SHADOW_TILES_BIND_SURFACE = 0;
+    const uint SHADOW_TILES_BIND_MOTION = 1;
+    const uint SHADOW_TILES_BIND_HELD_SURFACE = 2;
+    const uint SHADOW_TILES_BIND_HISTORY = 3;
+    const uint SHADOW_TILES_BIND_MOMENTS_BEFORE = 4;
+    const uint SHADOW_TILES_BIND_MOMENTS = 5;
+    const uint SHADOW_TILES_BIND_REPROJECTED = 6;
+    const uint SHADOW_TILES_BIND_TILES = 7;
+    const uint SHADOW_TILES_BIND_MASK = 8;
+    const uint SHADOW_TILES_BIND_PENUMBRA_TILES = 9;
+    const uint SHADOW_TILES_BINDINGS = 10;
 
     /// Where `shadowfilter.comp` binds what it reads and writes in set 0, and how many there are.
     const uint SHADOW_FILTER_BIND_SURFACE = 0;
@@ -113,6 +121,15 @@ namespace Rtx::Shaders
     {
         Eyes mEyes;
     };
+
+    /// Whether the shadowed sources light a pixel at all: a surface stands there, `normalCode` its
+    /// `CHANNEL_SURFACE` code, and the light they would add unshadowed, `CHANNEL_SHADOWED`'s, has a
+    /// luminance `unshadowed` over nought. **The one rule for who receives**, which the mask pass
+    /// packs and every later pass reads from it.
+    RTX_SHADER bool receivesShadowed(float normalCode, float unshadowed)
+    {
+        return normalCode != SURFACE_NO_NORMAL && unshadowed > 0.0f;
+    }
 
     /// A word with its `count` low bits set, for `count` from one to the whole word.
     ///

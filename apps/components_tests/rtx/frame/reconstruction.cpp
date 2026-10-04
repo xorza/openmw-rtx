@@ -209,6 +209,11 @@ namespace Rtx
             EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mAntilag);
             EXPECT_FALSE(
                 Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mAntilag = false }, sUnscaled).mAntilag);
+            EXPECT_TRUE(ReconstructionRequest{}.mHistoryFix);
+            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mHistoryFix);
+            EXPECT_FALSE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mHistoryFix = false }, sUnscaled)
+                             .mHistoryFix);
+            EXPECT_FALSE(Reconstruction::forPicture(IndirectLight::Traced).mHistoryFix);
 
             EXPECT_EQ(sBounceReuseNames.name(BounceReuse::Spatiotemporal), "spatiotemporal");
             EXPECT_EQ(sBounceReuseNames.named("own"), BounceReuse::Own);

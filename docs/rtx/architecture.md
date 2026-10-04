@@ -284,9 +284,12 @@ at the top, over all of them.
   of it that is fill beside it by the same weights: the composite puts the bounce back by the
   diffuse albedo and the fill by the ambient one, as the rasterizer has `D × lit + A × ambient`. A
   clamp holds the accumulator's slow mean to a fast one of a few frames (`accumulateclamp.comp`,
-  ReLAX's), so light that changes on a surface that did not move is followed and not dragged. The
+  ReLAX's), so light that changes on a surface that did not move is followed and not dragged. Where
+  a mean holds three frames or fewer — what the eye just uncovered or brought in at the frame's
+  edge — the wavelet's first level rebuilds it from the surface around it (NRD's history fix). The
   shadow denoiser filters the one bit a pixel kept of its rays to the sky's source and to a lamp, under
-  the light both would add unshadowed, where the sky has a source that lights or the scene a lamp.
+  the light both would add unshadowed, where the sky has a source that lights or the scene a lamp,
+  and counts in its local mean only the pixels those sources light.
   Its reach is the penumbra's (`CHANNEL_PENUMBRA`, NVIDIA SIGMA's rule): a bit whose penumbra is
   under a pixel and whose source was not drawn is handed on as it is, and a filter level runs only
   where its step fits the penumbra.

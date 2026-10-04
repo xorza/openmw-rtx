@@ -32,6 +32,14 @@
 // no rasterizer to hand it. The luminance term is SVGF's whole: it weighs by the variance of the
 // accumulated history, prefiltered 3x3 at each level, and each level carries what averaging left of
 // that variance to the next in the alpha beside its colour.
+//
+// **The first level is also NRD's history fix** (`ACCUMULATE_FIX_FRAMES`): at a pixel whose mean
+// holds that few frames, its taps stand `ACCUMULATE_FIX_STRIDE / (1 + n)` apart under ReLAX's flat
+// kernel, with no brightness test, so the pixel takes the light of the surface around it.
+// **Here and not in a pass of its own**, because the first level already reads the accumulator's
+// mean and writes the history: a pass before it would copy every pixel of every frame to rebuild
+// the few the eye just uncovered, and the history starts from the rebuilt mean either way. One path,
+// with the step and the weights selected.
 
 #include "accumulate.h"
 #include "atrous.h"
@@ -75,6 +83,11 @@ layout(set = SET_PASS, binding = ATROUS_BIND_SURFACE) uniform texture2D surfaceC
 /// the bounce alone would show it.
 layout(set = SET_PASS, binding = ATROUS_BIND_FILL_SOURCE) uniform texture2D fillSource;
 layout(set = SET_PASS, binding = ATROUS_BIND_FILL_FILTERED, ATROUS_CHANNEL) uniform writeonly image2D fillFiltered;
+
+/// The accumulator's moments, for how many frames each pixel's mean holds in `a`: whether the history
+/// fix rebuilds it, and how far apart its taps stand. Read only where `AtrousConstants::mFixFrames`
+/// asks.
+layout(set = SET_PASS, binding = ATROUS_BIND_MOMENTS) uniform texture2D moments;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -158,10 +171,17 @@ void main()
     // every level of this and coming out exactly as it went in.
     const float footprint = footprintAlong(eyeOfPixel(seen.y, level.mEyes), away);
 
+    // Whether this level rebuilds the pixel's history, and how far apart its taps stand. A pixel
+    // with a surface holds one frame at least.
+    const float held = level.mFixFrames > 0.0 ? texelFetch(moments, at, 0).a : 0.0;
+    const bool fixing = held > 0.0 && held <= level.mFixFrames;
+    const int step = fixing ? int(floor(ACCUMULATE_FIX_STRIDE / (1.0 + held) + 0.5)) : int(level.mStep);
+
     // **How noisy this pixel still is, which is what makes the brightness test mean anything.** A
     // difference of one against a variance of four is nothing; the same difference against a settled
-    // pixel is an edge. The epsilon is a divide guard and nothing else.
-    const float spread = ATROUS_LUMINANCE_SIGMA * sqrt(varianceAround(at)) + 1e-4;
+    // pixel is an edge. The epsilon is a divide guard and nothing else. The history fix has no
+    // brightness test, and does not pay the nine loads of the variance's prefilter.
+    const float spread = fixing ? 1.0 : ATROUS_LUMINANCE_SIGMA * sqrt(varianceAround(at)) + 1e-4;
     const float here = dot(texelFetch(source, at, 0).rgb, LUMINANCE_WEIGHTS);
 
     // What the average leaves of the variance, for the next level: each tap's own, by the square of
@@ -175,7 +195,7 @@ void main()
     for (int y = -2; y <= 2; ++y)
         for (int x = -2; x <= 2; ++x)
         {
-            const ivec2 tap = at + ivec2(x, y) * int(level.mStep);
+            const ivec2 tap = at + ivec2(x, y) * step;
             if (outsideOf(tap, uvec2(level.mEyes.mWorld.mWidth, level.mEyes.mWorld.mHeight)))
                 continue;
 
@@ -192,10 +212,12 @@ void main()
             const float coplanar = coplanarWeight(normal, position, positionAt(tap, there.y), footprint);
 
             // The third of SVGF's three, and the only one about the light rather than the surface.
+            // **None in the history fix**, whose centre holds too few frames to have a spread.
             const vec4 light = texelFetch(source, tap, 0);
-            const float lit = exp(-abs(here - dot(light.rgb, LUMINANCE_WEIGHTS)) / spread);
+            const float lit = fixing ? 1.0 : exp(-abs(here - dot(light.rgb, LUMINANCE_WEIGHTS)) / spread);
+            const float kernel = fixing ? 1.0 : kernelAt(x) * kernelAt(y);
 
-            const float w = kernelAt(x) * kernelAt(y) * facing * coplanar * lit;
+            const float w = kernel * facing * coplanar * lit;
             sum += light.rgb * w;
             sumFill += texelFetch(fillSource, tap, 0).rgb * w;
             weight += w;

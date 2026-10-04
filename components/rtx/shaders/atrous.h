@@ -40,7 +40,8 @@ namespace Rtx::Shaders
     const uint ATROUS_BIND_SURFACE = 2;
     const uint ATROUS_BIND_FILL_SOURCE = 3;
     const uint ATROUS_BIND_FILL_FILTERED = 4;
-    const uint ATROUS_BINDINGS = 5;
+    const uint ATROUS_BIND_MOMENTS = 5;
+    const uint ATROUS_BINDINGS = 6;
 
     /// Threads along each edge of a level's workgroup.
     const uint ATROUS_WORKGROUP = 8;
@@ -61,12 +62,18 @@ namespace Rtx::Shaders
         /// The spacing of this level's taps, in pixels. The three sigmas the taps are weighed by
         /// are `look.h`'s, because nothing varies them per level or per frame.
         uint mStep;
+
+        /// The longest history this level rebuilds from the surface around it rather than filters
+        /// (`ACCUMULATE_FIX_FRAMES`): the first level's, where the run asks for the history fix, and
+        /// nought at every other level and in a picture, which has no settled neighbour to borrow
+        /// from.
+        float mFixFrames;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(AtrousConstants) == 140, "AtrousConstants must be scalar-packed on every side");
+    static_assert(sizeof(AtrousConstants) == 144, "AtrousConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

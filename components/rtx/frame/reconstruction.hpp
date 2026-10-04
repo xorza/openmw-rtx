@@ -123,6 +123,11 @@ namespace Rtx
         /// a run names it off, which is the A/B.
         bool mAntilag = true;
 
+        /// Whether the wavelet's first level rebuilds a history of a few frames from the surface
+        /// around it (`ACCUMULATE_FIX_FRAMES`), so a surface the eye uncovers shows the light beside
+        /// it and not one bounce spread into blotches. On unless a run names it off, which is the A/B.
+        bool mHistoryFix = true;
+
         bool operator==(const ReconstructionRequest& other) const = default;
     };
 
@@ -180,6 +185,11 @@ namespace Rtx
         /// filtered.
         bool mAntilag = false;
 
+        /// Whether the wavelet's first level rebuilt the short histories. Read only where the bounce
+        /// is filtered, and off for a picture, where every pixel's history is one frame and none has
+        /// a settled neighbour to borrow from.
+        bool mHistoryFix = false;
+
         /// Whether frames come after this one to average it with — a world's, which the eye, the
         /// upscaler and the filters each take over time — and not a picture, which stands alone.
         /// **What a draw that is right only on average needs**: the eye meets a soft edge's texels
@@ -218,6 +228,7 @@ namespace Rtx
                 .mBounceReuse = asked.mIndirect == IndirectLight::Traced ? asked.mBounceReuse : BounceReuse::Off,
                 .mIndirect = asked.mIndirect,
                 .mAntilag = asked.mAntilag,
+                .mHistoryFix = asked.mHistoryFix,
                 .mAveraged = true,
             };
         }

@@ -81,6 +81,51 @@ namespace Rtx::Testing
                         { .mSea = SeaState{ .mSignificantHeight = 0.0f }, .mFilter = true, .mLoss = HistoryLoss::Cut });
                     EXPECT_EQ(filtered.mRadiance, raw.mRadiance);
                 }
+
+            // **And the roofed floor beside a wall the sun does not light stays dark.** The wall
+            // faces the eye square to the overhead sun, so the sun adds nothing to it and its bit is
+            // one, since nothing was split off it. Counted in the temporal pass's local mean, those
+            // bits held the floor at the wall's foot up to a seam of sunlight the roof hides. The
+            // roof's penumbra is `2000 * 0.0349` = 70 units, fourteen pixels of the floor, so the
+            // temporal pass blends rather than handing each bit on. No indirect light, so the sun is
+            // the frame and every value of it is nought.
+            // The eye looks 20 degrees down at the wall's foot, so the frame's top edge meets the
+            // wall 150 + 300 tan 10° = 203 units up, under its top, and its bottom edge the floor.
+            SCOPED_TRACE("beside a wall");
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -300.0f, 150.0f), osg::Vec3f(0.0f, 0.0f, 40.0f), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(2.0f, 2.0f, 2.0f));
+            SceneDesc scene;
+            addQuad(scene, sheetAt(4000.0f, 0.0f));
+            addQuad(scene, roofOver(-4000.0f, 4000.0f, 2000.0f));
+            addQuad(scene,
+                std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, 0.0f, 0.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f),
+                    osg::Vec3f(4000.0f, 0.0f, 400.0f), osg::Vec3f(-4000.0f, 0.0f, 400.0f) });
+
+            const Frame raw = shoot(scene, {}, camera, size, { .mIndirect = IndirectLight::Off });
+
+            std::vector<float> sunlit;
+            mRenderer.readChannel(Channel::Shadowed, sunlit);
+            std::size_t floor = 0;
+            std::size_t wall = 0;
+            for (std::size_t value = 0; value < sunlit.size(); value += 4)
+            {
+                const bool lit = sunlit[value] > 0.0f;
+                ASSERT_EQ(sunlit[value + 3], lit ? 0.0f : 1.0f) << "pixel " << value / 4;
+                ++(lit ? floor : wall);
+            }
+            ASSERT_GT(floor, std::size_t{ 8 * size }) << "no floor under the wall, or this proves nothing";
+            ASSERT_GT(wall, std::size_t{ 8 * size }) << "no wall over the floor, or this proves nothing";
+
+            const Frame filtered = shoot(scene, {}, camera, size,
+                { .mFrames = 16,
+                    .mAverage = false,
+                    .mFilter = true,
+                    .mIndirect = IndirectLight::Off,
+                    .mLoss = HistoryLoss::Cut });
+            EXPECT_EQ(filtered.mRadiance, raw.mRadiance);
         }
 
         /// **A thin hard shadow keeps its depth through the denoiser, and a bit's penumbra is its

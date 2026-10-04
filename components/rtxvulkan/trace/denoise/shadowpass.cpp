@@ -70,6 +70,7 @@ namespace Rtx
         {
             DescriptorWrites writes(mMask);
             writes.image(Shaders::SHADOW_MASK_BIND_SHADOWED, buffer.get(Channel::Shadowed).describeStorage());
+            writes.image(Shaders::SHADOW_MASK_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
             writes.image(Shaders::SHADOW_MASK_BIND_MASK, images.mMask.describeStorage());
             writes.image(Shaders::SHADOW_MASK_BIND_PENUMBRA, buffer.get(Channel::Penumbra).describeStorage());
             writes.image(Shaders::SHADOW_MASK_BIND_PENUMBRA_TILES, images.mPenumbra.describeStorage());
@@ -85,7 +86,6 @@ namespace Rtx
 
         {
             DescriptorWrites writes(mTiles);
-            writes.image(Shaders::SHADOW_TILES_BIND_SHADOWED, buffer.get(Channel::Shadowed).describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_HELD_SURFACE, images.mHeldSurface.describeStorage());

@@ -670,6 +670,127 @@ namespace Rtx::Testing
                 << "the frame after a reset threw the reset's sample away";
         }
 
+        /// **The history fix takes the noise off what the eye turns to.** A floor and a
+        /// wall standing on it under a black sky, and a lamp twenty units off the wall whose reach
+        /// lights a spot of it: the floor's bounce is that spot, which a ray finds now and then, so
+        /// one frame of it is noisy after the wavelet, as a lamp's bounce in a room is. The eye stands
+        /// still for 32 frames, then turns 14 degrees in one: the edge it turns toward brings in
+        /// `(tan 30° - tan 16°) / (tan 30° / 32)` = 16 columns that hold one frame, and the rest of
+        /// the frame holds thirty-two. The strip is the twelve columns at that edge.
+        ///
+        /// Pooled over four draws, against 128 unfiltered frames where the eye ends: the strip's error,
+        /// and its mean. **The clamp is off in every run**, since what it makes of a light this rare
+        /// is a question of its own (`.notes/ISSUES.md`), and this one is about the history fix alone.
+        ///
+        /// Measured: the strip's error 0.0266 without the fix and 0.0079 with it, where the settled
+        /// edge's is 0.0134; its mean 0.61 of the truth without the fix and 1.17 with it, where 32
+        /// still frames settle it at 0.81. The fix's excess is the edge's: every neighbour it borrows
+        /// from stands on the lamp's side.
+        TEST_F(RtxVisibilityTest, theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::uint32_t still = 32;
+            constexpr std::uint32_t draws = 4;
+            constexpr std::uint32_t strip = 12;
+            const float turn = osg::DegreesToRadians(14.0f);
+
+            SceneDesc scene;
+            addQuad(scene, sheetAt(4000.0f, -100.0f));
+            addQuad(scene, uprightQuadAt(4000.0f, 300.0f));
+            scene.addLight(Light{
+                .mPosition = osg::Vec3f(0.0f, 280.0f, -40.0f),
+                .mIntensity = osg::Vec3f(40000.0f, 40000.0f, 40000.0f),
+                .mReach = 150.0f,
+            });
+
+            const osg::Vec3f eye(0.0f, -200.0f, 50.0f);
+            const osg::Vec3f ahead(0.0f, 500.0f, -150.0f);
+            const auto standing = [&](float yaw, std::uint32_t frame) {
+                const osg::Vec3f looking(ahead.x() * std::cos(yaw) - ahead.y() * std::sin(yaw),
+                    ahead.x() * std::sin(yaw) + ahead.y() * std::cos(yaw), ahead.z());
+                Shaders::VisibilityConstants camera
+                    = Testing::makeCamera(eye, eye + looking, 60.0f, size, size, 10000.0f);
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mFrame = frame;
+                return camera;
+            };
+
+            const std::vector<float> reference
+                = shoot(scene, {}, standing(turn, 0), size, { .mFrames = 128 }).mRadiance;
+
+            // Each column's green channel over the rows and the draws, at the last frame of a run of
+            // `still` frames standing at `from` and one at the turn: its squared error, and its sum.
+            struct Columns
+            {
+                std::vector<double> mSquares;
+                std::vector<double> mSums;
+            };
+            std::vector<float> read;
+            const auto columnsOf = [&](float from, bool fix, std::uint32_t first) {
+                Columns columns{ std::vector<double>(size, 0.0), std::vector<double>(size, 0.0) };
+                for (std::uint32_t draw = 0; draw < draws; ++draw)
+                {
+                    for (std::uint32_t at = 0; at <= still; ++at)
+                    {
+                        mRenderer.renderFrame(standing(at == still ? turn : from, first + 100 * draw + at),
+                            FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
+                                .mReconstruction = ReconstructionRequest{ .mDenoise = true,
+                                    .mBounceReuse = BounceReuse::Off,
+                                    .mAntilag = false,
+                                    .mHistoryFix = fix },
+                                .mExposure = FixedExposure{ 1.0f } });
+                        EXPECT_TRUE(mRenderer.finishFrame().has_value());
+                    }
+                    mRenderer.readComposite(read);
+                    for (std::uint32_t y = 0; y < size; ++y)
+                        for (std::uint32_t x = 0; x < size; ++x)
+                        {
+                            const std::size_t at = (std::size_t{ y } * size + x) * 4 + 1;
+                            const double error = static_cast<double>(read[at]) - static_cast<double>(reference[at]);
+                            columns.mSquares[x] += error * error;
+                            columns.mSums[x] += static_cast<double>(read[at]);
+                        }
+                }
+                return columns;
+            };
+            const auto overStrip = [&](const std::vector<double>& column, std::uint32_t from) {
+                double sum = 0.0;
+                for (std::uint32_t x = from; x < from + strip; ++x)
+                    sum += column[x];
+                return sum / static_cast<double>(strip * size * draws);
+            };
+
+            // The strip is at whichever edge the turn brought in, and the fix off says which.
+            const Columns without = columnsOf(0.0f, false, 1000);
+            const std::uint32_t edge
+                = overStrip(without.mSquares, 0) > overStrip(without.mSquares, size - strip) ? 0 : size - strip;
+            const double fresh = std::sqrt(overStrip(without.mSquares, edge));
+            const double settled = std::sqrt(overStrip(without.mSquares, size - strip - edge));
+            ASSERT_GT(fresh, 1.5 * settled)
+                << "the strip the eye turned to is no noisier than the settled edge, so this proves nothing: " << fresh
+                << " against " << settled;
+
+            const Columns with = columnsOf(0.0f, true, 1000);
+            const double fixed = std::sqrt(overStrip(with.mSquares, edge));
+            EXPECT_LT(fixed, 0.5 * fresh) << "the history fix left " << fixed << " of the strip's " << fresh
+                                          << ", where the settled edge holds " << settled;
+
+            // **And it brings the light nearer the truth**, where the brightness test darkened a
+            // history of one by passing over its bright draws.
+            double truth = 0.0;
+            for (std::uint32_t y = 0; y < size; ++y)
+                for (std::uint32_t x = edge; x < edge + strip; ++x)
+                    truth += static_cast<double>(reference[(std::size_t{ y } * size + x) * 4 + 1]);
+            truth /= static_cast<double>(strip * size);
+            const double unfixedShare = overStrip(without.mSums, edge) / truth;
+            const double fixedShare = overStrip(with.mSums, edge) / truth;
+            EXPECT_LT(std::abs(fixedShare - 1.0), std::abs(unfixedShare - 1.0))
+                << "the history fix took the strip's light from " << unfixedShare << " of the truth to " << fixedShare;
+            EXPECT_NEAR(fixedShare, 1.0, 0.25) << "the history fix moved the strip's light off the truth";
+        }
+
         /// What the history is worth where the cascade has nothing to borrow from.
         ///
         /// **The grazing sheet above is the wavelet's best case and cannot answer this.** Every pixel
