@@ -148,15 +148,15 @@ namespace Rtx::Testing
             EXPECT_LT(trail.mTail, 0.25f);
         }
 
-        /// **The clamp shortens the trail the sky's fill leaves**, under the reuse the game runs with:
-        /// measured at 16.61 pixels of lag without it, 14.24 with the clamp alone and 13.07 with its
-        /// push toward the samples. The steps after it in `.notes/ANTILAG-AND-PAIRS.md` tighten it.
+        /// **The clamp halves the trail the sky's fill leaves**, under the reuse the game runs with:
+        /// measured at 16.61 pixels of lag without it and 7.66 with it (`ACCUMULATE_FAST_FRAMES`
+        /// gives the sweep), and the darkness left behind at 2.61 and 1.51 columns.
         TEST_F(RtxBounceTrailTest, theClampShortensTheSkysTrail)
         {
             const Trail held = trailOf(Blocked::Sky, BounceReuse::Spatiotemporal, true);
             const Trail dragged = trailOf(Blocked::Sky, BounceReuse::Spatiotemporal, false);
-            EXPECT_LT(held.mLag, 13.5f);
-            EXPECT_LT(held.mLag, 0.9f * dragged.mLag) << "the clamp took nothing off the trail: " << dragged.mLag;
+            EXPECT_LT(held.mLag, 8.5f);
+            EXPECT_LT(held.mLag, 0.6f * dragged.mLag) << "the clamp took little off the trail: " << dragged.mLag;
             EXPECT_LT(held.mTail, dragged.mTail);
         }
 
@@ -219,8 +219,8 @@ namespace Rtx::Testing
 
         /// **The floor follows a sky whose light halves.** Every term the floor's light holds is
         /// linear in the sky, so the new level is half the old one exactly. With the clamp the mean
-        /// came within a tenth of it on frame 36 (0.1597 against 0.1449); without it, it stood at
-        /// 0.172 after 64. Held at frame 40.
+        /// came within a tenth of it on frame 31 (0.1588 against 0.1449); without it, it stood at
+        /// 0.201 on frame 40, where both are held.
         TEST_F(RtxBounceClampTest, theFloorFollowsASkyWhoseLightHalves)
         {
             for (const bool antilag : { true, false })

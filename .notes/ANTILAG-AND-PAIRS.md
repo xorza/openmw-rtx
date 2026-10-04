@@ -120,6 +120,12 @@ against samples of one bounce each. **The acceleration is kept, the reset is rem
 keeps the clamped accumulation. The feedback makes a quieter history and a wider trail. Step A.5
 measures both. The default is the feedback, as now, until the measurement says otherwise.
 
+*Measured* (the sky's trail under the reuse; still noise at the guild, the planter and the yurt):
+with the feedback and a fast cap of 6, 13.07 pixels and 0.63 / 0.67 / 0.73; without it, 8.11 and
+0.66 / 0.70 / 0.77, the yurt 0.03 to 0.05 noisier in every case. With the feedback and the fast cap
+of 2 (step A.6), 7.66 and 0.61 / 0.65 / 0.72. **The feedback stays**: dropping it would buy about
+another pixel for noise the plan's gate forbids.
+
 **AD6. The math in a header both sides read.** The clamp factor, the acceleration and the reset are
 small pure functions in `accumulate.h` (`RTX_SHADER`), as `reconnectionJacobian` is in
 `bouncereuse.h`. A host test holds each to hand-computed values.
@@ -156,17 +162,6 @@ the same class. The estimate is under 0.1 ms at 1280×720; step A.6 measures it.
 ## A6. Steps
 
 Each step ends with `./omw test` and the gates it names.
-
-**Step A.5 — the history: feedback or not (AD5).** *Measured and waiting:* see
-`ANTILAG-AND-PAIRS_QUESTIONS.md`, Q1. The feedback stays until the answer.
-
-**Step A.5 — the history: feedback or not (AD5).** The cascade's first level writes the history
-(today), against the clamp's output as the history (ReLAX). Measured on `RtxBounceTrailTest`,
-`noise --suite=bounce` still, strafed and walked, and `--walk=150`, which is where a history's lag
-shows.
-
-**Step A.6 — the fast cap.** A sweep of `ACCUMULATE_FAST_FRAMES` over 4, 6 and 8 against the trail
-and the still noise. The value and its measurement go into `look.h`.
 
 **Step A.7 — the cost and the record.** `./omw release bench --suite=bounce` from the background,
 a warm-up leg, off and on back to back: the `accumulate` zone's median and p99. `repeat --pairs=10`,
