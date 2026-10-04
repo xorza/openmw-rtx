@@ -18,12 +18,18 @@
 // to follow the light: where the slow mean stands outside the fast one's mean ± two deviations over
 // a 5×5 square, it is moved to that edge.
 //
-// **The fill moves by the bounce's share.** `CHANNEL_FILL` is a share of the bounce, so both slow
-// means move toward their fast ones by the one factor the bounce's luminance gives, and the fill
-// stays the share of the bounce it was.
+// **Then ReLAX's push**, on both means: where the clamp moved the slow mean, both go on toward the
+// square's mean of samples in proportion (`antilagAcceleration`). The fast mean follows the light
+// only as fast as its six frames do, and this takes it further. ReLAX's reset is not taken, and
+// `ACCUMULATE_ACCELERATION` says why.
 //
-// **In place**: each pixel reads and writes only its own slow means and moments, and reads its
-// neighbours' fast means, which this does not write.
+// **The fill moves by the bounce's shares.** `CHANNEL_FILL` is a share of the bounce, so every move
+// the bounce's luminance decides is made of the fill by the same share, and the fill stays the share
+// of the bounce it was.
+//
+// **In place** for the slow means and the moments, which each pixel alone reads and writes. The fast
+// means are read from the blend the accumulator left in the cascade's scratch and written to the
+// history, since a neighbour reads a pixel's blend while the pixel writes its mean.
 
 #include "accumulate.h"
 #include "atrous.h"
@@ -38,8 +44,12 @@ layout(local_size_x = ACCUMULATE_WORKGROUP, local_size_y = ACCUMULATE_WORKGROUP)
 /// Which pixels hold a surface: one that does not has no mean to bound or to bound by.
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
 
+/// The fast means as the accumulator blended them, and the frame's samples of the bounce and the
+/// fill, whose mean over the square the push goes toward. No format on the samples, for the reason `accumulate.comp` gives: the run decides their width.
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST, ACCUMULATE_COLOUR) uniform readonly image2D fast;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST_FILL, ACCUMULATE_COLOUR) uniform readonly image2D fastFill;
+layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SAMPLED) uniform readonly image2D sampled;
+layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SAMPLED_FILL) uniform readonly image2D sampledFill;
 
 /// The slow means as the accumulator blended them, the variance in the bounce's `a`, and the
 /// luminance moments in `rg`, which move with the mean so the variance they give stays the
@@ -47,6 +57,11 @@ layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST_FILL, ACCUMULATE_COL
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_BLENDED, ATROUS_CHANNEL) uniform image2D blended;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FILL_BLENDED, ATROUS_CHANNEL) uniform image2D fillBlended;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_MOMENTS, ACCUMULATE_MOMENTS) uniform image2D moments;
+
+/// This frame's fast means, which the next frame's accumulator reads.
+layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST_OUT, ACCUMULATE_COLOUR) uniform writeonly image2D fastOut;
+layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST_FILL_OUT, ACCUMULATE_COLOUR)
+    uniform writeonly image2D fastFillOut;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -57,8 +72,10 @@ const int REACH = int(ACCUMULATE_CLAMP_REACH);
 const uint SPAN = ACCUMULATE_WORKGROUP + 2u * ACCUMULATE_CLAMP_REACH;
 
 /// The fast mean's luminance at every pixel of the workgroup's square, or below nought where the
-/// pixel holds no surface.
+/// pixel holds no surface; and the samples of the bounce and the fill there.
 shared float gFast[SPAN][SPAN];
+shared vec3 gSampled[SPAN][SPAN];
+shared vec3 gSampledFill[SPAN][SPAN];
 
 void main()
 {
@@ -70,42 +87,74 @@ void main()
         const bool held = !outsideOf(uvec2(pixel), uvec2(frame.mWidth, frame.mHeight))
             && imageLoad(surfaceChannel, pixel).r != SURFACE_NO_NORMAL;
         gFast[square.y][square.x] = held ? dot(imageLoad(fast, pixel).rgb, LUMINANCE_WEIGHTS) : -1.0;
+        gSampled[square.y][square.x] = held ? imageLoad(sampled, pixel).rgb : vec3(0.0);
+        gSampledFill[square.y][square.x] = held ? imageLoad(sampledFill, pixel).rgb : vec3(0.0);
     }
     barrier();
 
     const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
-    const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + REACH;
-    const float fastHere = gFast[centre.y][centre.x];
-    if (outsideOf(uvec2(at), uvec2(frame.mWidth, frame.mHeight)) || fastHere < 0.0)
+    if (outsideOf(uvec2(at), uvec2(frame.mWidth, frame.mHeight)))
         return;
 
-    // The square's mean and spread, in a fixed order, over the pixels that hold a surface; the
-    // centre is one of them.
+    const vec3 fastHere = imageLoad(fast, at).rgb;
+    const vec3 fastFillHere = imageLoad(fastFill, at).rgb;
+    const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + REACH;
+    if (gFast[centre.y][centre.x] < 0.0)
+    {
+        imageStore(fastOut, at, vec4(fastHere, 0.0));
+        imageStore(fastFillOut, at, vec4(fastFillHere, 0.0));
+        return;
+    }
+
+    // The square's statistics, in a fixed order, over the pixels that hold a surface; the centre is
+    // one of them: the fast mean's luminance and its spread, and the samples' mean.
     float count = 0.0;
-    float sum = 0.0;
-    float squares = 0.0;
+    float fastSum = 0.0;
+    float fastSquares = 0.0;
+    vec3 sampledSum = vec3(0.0);
+    vec3 sampledFillSum = vec3(0.0);
     for (int y = -REACH; y <= REACH; ++y)
         for (int x = -REACH; x <= REACH; ++x)
         {
-            const float there = gFast[centre.y + y][centre.x + x];
+            const ivec2 tap = centre + ivec2(x, y);
+            const float there = gFast[tap.y][tap.x];
             const float weight = there >= 0.0 ? 1.0 : 0.0;
             count += weight;
-            sum += weight * there;
-            squares += weight * there * there;
+            fastSum += weight * there;
+            fastSquares += weight * there * there;
+            sampledSum += weight * gSampled[tap.y][tap.x];
+            sampledFillSum += weight * gSampledFill[tap.y][tap.x];
         }
-    const float mean = sum / count;
-    const float deviation = sqrt(max(squares / count - mean * mean, 0.0));
+    const float fastMean = fastSum / count;
+    const float fastDeviation = sqrt(max(fastSquares / count - fastMean * fastMean, 0.0));
+    const vec3 sampledMean = sampledSum / count;
+    const vec3 sampledFillMean = sampledFillSum / count;
 
     const vec4 slow = imageLoad(blended, at);
+    const vec3 slowFill = imageLoad(fillBlended, at).rgb;
     const float slowHere = dot(slow.rgb, LUMINANCE_WEIGHTS);
-    const float share = float(frame.mAntilag)
-        * antilagShare(slowHere, fastHere, mean - ACCUMULATE_CLAMP_SPREAD * deviation,
-            mean + ACCUMULATE_CLAMP_SPREAD * deviation);
+    const float fastLit = dot(fastHere, LUMINANCE_WEIGHTS);
+    const float antilag = float(frame.mAntilag);
 
-    const vec3 held = mix(slow.rgb, imageLoad(fast, at).rgb, share);
+    const float share = antilag
+        * antilagShare(slowHere, fastLit, fastMean - ACCUMULATE_CLAMP_SPREAD * fastDeviation,
+            fastMean + ACCUMULATE_CLAMP_SPREAD * fastDeviation);
+    const float pushed = antilag
+        * antilagAcceleration(dot(abs(fastHere - slow.rgb), LUMINANCE_WEIGHTS), share,
+            dot(abs(sampledMean - fastHere), LUMINANCE_WEIGHTS));
+
+    const vec3 toward = sampledMean - fastHere;
+    const vec3 towardFill = sampledFillMean - fastFillHere;
+    const vec3 held = mix(slow.rgb, fastHere, share) + pushed * toward;
+    const vec3 heldFill = mix(slowFill, fastFillHere, share) + pushed * towardFill;
+    const vec3 followed = fastHere + pushed * toward;
+    const vec3 followedFill = fastFillHere + pushed * towardFill;
+
     const float heldHere = dot(held, LUMINANCE_WEIGHTS);
     imageStore(blended, at, vec4(held, slow.a));
-    imageStore(fillBlended, at, vec4(mix(imageLoad(fillBlended, at).rgb, imageLoad(fastFill, at).rgb, share), 0.0));
+    imageStore(fillBlended, at, vec4(heldFill, 0.0));
+    imageStore(fastOut, at, vec4(followed, 0.0));
+    imageStore(fastFillOut, at, vec4(followedFill, 0.0));
 
     const vec4 kept = imageLoad(moments, at);
     imageStore(moments, at,

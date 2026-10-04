@@ -111,6 +111,11 @@ the same `f`, as ReLAX moves its SH by `f`.
 measures each of the three (clamp, acceleration, reset) alone. A part that does not pay is removed
 and recorded here.
 
+*Measured* (`RtxBounceTrailTest`, the sky under the spatiotemporal reuse): the clamp alone 14.24
+pixels of lag; with the acceleration 13.07; with the reset alone 14.24, and with both 13.07. The
+reset never fired: its threshold of 4.5 deviations is wider than any gap the sky's change opens
+against samples of one bounce each. **The acceleration is kept, the reset is removed.**
+
 **AD5. The history question is a measurement.** SVGF feeds back the wavelet's first level. ReLAX
 keeps the clamped accumulation. The feedback makes a quieter history and a wider trail. Step A.5
 measures both. The default is the feedback, as now, until the measurement says otherwise.
@@ -151,10 +156,6 @@ the same class. The estimate is under 0.1 ms at 1280×720; step A.6 measures it.
 ## A6. Steps
 
 Each step ends with `./omw test` and the gates it names.
-
-**Step A.4 — acceleration and reset.** Each one on its own, then both. A part that does not lower
-the lag in `RtxBounceTrailTest` by more than the legs' spread, or that raises still noise past
-step A.3's gate, is removed.
 
 **Step A.5 — the history: feedback or not (AD5).** The cascade's first level writes the history
 (today), against the clamp's output as the history (ReLAX). Measured on `RtxBounceTrailTest`,

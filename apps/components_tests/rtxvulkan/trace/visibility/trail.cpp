@@ -149,13 +149,13 @@ namespace Rtx::Testing
         }
 
         /// **The clamp shortens the trail the sky's fill leaves**, under the reuse the game runs with:
-        /// measured at 16.61 pixels of lag without it and 14.24 with it. The bound is the clamp alone;
-        /// the steps after it in `.notes/ANTILAG-AND-PAIRS.md` tighten it.
+        /// measured at 16.61 pixels of lag without it, 14.24 with the clamp alone and 13.07 with its
+        /// push toward the samples. The steps after it in `.notes/ANTILAG-AND-PAIRS.md` tighten it.
         TEST_F(RtxBounceTrailTest, theClampShortensTheSkysTrail)
         {
             const Trail held = trailOf(Blocked::Sky, BounceReuse::Spatiotemporal, true);
             const Trail dragged = trailOf(Blocked::Sky, BounceReuse::Spatiotemporal, false);
-            EXPECT_LT(held.mLag, 15.0f);
+            EXPECT_LT(held.mLag, 13.5f);
             EXPECT_LT(held.mLag, 0.9f * dragged.mLag) << "the clamp took nothing off the trail: " << dragged.mLag;
             EXPECT_LT(held.mTail, dragged.mTail);
         }
@@ -234,5 +234,6 @@ namespace Rtx::Testing
                     EXPECT_GT(share, 1.1) << "the history followed the sky without the clamp, so this proves nothing";
             }
         }
+
     }
 }

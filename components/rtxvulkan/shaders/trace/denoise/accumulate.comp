@@ -85,9 +85,11 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_FILL) uniform readonly image2D 
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_FILL, ACCUMULATE_COLOUR) uniform readonly image2D historyFill;
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_FILL_BLENDED_OUT, ATROUS_CHANNEL) uniform writeonly image2D fillBlendedOut;
 
-/// The fast means of the bounce and the fill, last frame's and this one's: the same samples over
-/// at most `ACCUMULATE_FAST_FRAMES`, by the same taps and count. **The accumulator's own and not the
-/// cascade's**, since what they are for is to follow the light quickly, not quietly.
+/// The fast means of the bounce and the fill, last frame's and this frame's blend of them: the same
+/// samples over at most `ACCUMULATE_FAST_FRAMES`, by the same taps and count. **The accumulator's
+/// own and not the cascade's**, since what they are for is to follow the light quickly, not
+/// quietly. The blend goes to the cascade's scratch, free until it runs, and the clamp writes this
+/// frame's fast means from it: it reads a neighbour's blend while it writes its own pixel's mean.
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_FAST, ACCUMULATE_COLOUR) uniform readonly image2D historyFast;
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_FAST_FILL, ACCUMULATE_COLOUR)
     uniform readonly image2D historyFastFill;
