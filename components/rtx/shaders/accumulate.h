@@ -86,7 +86,8 @@ namespace Rtx::Shaders
     const uint ACCUMULATE_CLAMP_BIND_SAMPLED = 4;
     const uint ACCUMULATE_CLAMP_BIND_SAMPLED_FILL = 5;
     const uint ACCUMULATE_CLAMP_BIND_FAST_OUT = 6;
-    const uint ACCUMULATE_CLAMP_BINDINGS = 7;
+    const uint ACCUMULATE_CLAMP_BIND_MOMENTS = 7;
+    const uint ACCUMULATE_CLAMP_BINDINGS = 8;
 
     /// How far either way of a pixel the clamp's square reaches: ReLAX's 5×5.
     const uint ACCUMULATE_CLAMP_REACH = 2;
@@ -100,6 +101,11 @@ namespace Rtx::Shaders
         /// One where the slow mean is held to the fast one, nought where the run asked for the A/B
         /// without it (`Reconstruction::mAntilag`): a factor, so both runs take one path.
         uint mAntilag;
+
+        /// One where the slow mean is held under its ring's ceiling (`ringHeldLuminance`), nought
+        /// where the run asked for the A/B without it (`Reconstruction::mAntiFirefly`): a factor, as
+        /// `mAntilag` is.
+        uint mAntiFirefly;
     };
 
     /// How far the slow mean `slow` is moved toward the fast one `fast`, as a share of the way:
@@ -152,12 +158,30 @@ namespace Rtx::Shaders
         float mDistanceScale;
     };
 
+    /// The luminance a slow mean `lit` keeps under the fast means around it: no more than the mean of
+    /// the ring, `sum` over `count` pixels, plus `ACCUMULATE_RING_SPREAD` of its deviations, out of
+    /// the sum of their squares `squares`. All of it where the ring holds no surface.
+    ///
+    /// **A ceiling and not ReBLUR's clamp both ways.** A firefly is bright; a floor would lift a
+    /// pixel darker than the ring, a twig in front of a lit wall, toward the wall's light. On the
+    /// M[FR] guild's tree the floor moved no figure of `noise --strafe=150` or `--walk=150`, so it
+    /// was left out rather than kept for nothing.
+    RTX_SHADER float ringHeldLuminance(float lit, float sum, float squares, float count)
+    {
+        if (!(count > 0.0f))
+            return lit;
+        const float mean = sum / count;
+        return min(lit, mean + ACCUMULATE_RING_SPREAD * sqrt(max(squares / count - mean * mean, 0.0f)));
+    }
+
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(HistoryConstants) == 144, "HistoryConstants must be scalar-packed on every side");
     static_assert(
-        sizeof(AccumulateClampConstants) == 12, "AccumulateClampConstants must be scalar-packed on every side");
+        sizeof(AccumulateClampConstants) == 16, "AccumulateClampConstants must be scalar-packed on every side");
+    static_assert(ACCUMULATE_RING_REACH >= ACCUMULATE_CLAMP_REACH && ACCUMULATE_RING_HOLE < ACCUMULATE_RING_REACH,
+        "the clamp's square and the ring's hole are read out of the ring's square");
 #endif
 
 #ifdef RTX_HOST

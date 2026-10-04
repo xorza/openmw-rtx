@@ -1191,6 +1191,65 @@ namespace Rtx::Shaders
     /// the trail stood at 14.24 pixels with it as without.
     const float ACCUMULATE_ACCELERATION = 3.0f;
 
+    /// How far either way of a pixel the ring of fast means reaches that its slow mean is held
+    /// under, and how many of the ring's deviations over the ring's mean it may stand
+    /// (`ringHeldLuminance`). ReBLUR's anti-firefly (NVIDIA NRD, `REBLUR_HistoryFix`) at its
+    /// defaults: `REBLUR_ANTI_FIREFLY_FILTER_RADIUS` and `REBLUR_ANTI_FIREFLY_SIGMA_SCALE`, over the
+    /// 9×9 square less the 3×3 at its centre, so a firefly that the reuse or the history fix spread
+    /// over a few pixels does not hold itself up.
+    const uint ACCUMULATE_RING_REACH = 4u;
+    const uint ACCUMULATE_RING_HOLE = 1u;
+    const float ACCUMULATE_RING_SPREAD = 2.0f;
+
+    /// The longest history the ring holds down: a slow mean of more frames keeps what it holds.
+    ///
+    /// **What the ring holds down is light, and a settled history pays for none of it.** The ring's
+    /// 72 fast means of two frames hold 144 draws, so on six frames in seven an event of one in a
+    /// thousand is in none of them, and the ceiling cuts it from the slow mean that took it in.
+    /// ReBLUR holds every pixel, and on the M[FR] guild's tree, where the bounce finds a lantern's
+    /// glowing paper about that rarely, the still frame stood 4% darker for it. What the ring is for
+    /// is a mean of a few frames, where one such bounce is a blotch the size of a leaf; a mean of
+    /// more is a still picture's, and comes to the truth. The tree strafed in (`noise
+    /// --strafe=150`), against 2048 frames averaged: the pixels four times over the truth, the
+    /// frame's noise, its mean against the truth's 0.0154 —
+    ///
+    ///     no ring          1.15 in a thousand   3.70   0.0153     still 0.0147
+    ///     3 frames         0.09                 2.31   0.0140     still 0.0147
+    ///     8 frames         0.04                 1.85   0.0138     still 0.0147
+    ///     16 frames        0.04                 1.74   0.0137     still 0.0147
+    ///     every pixel      0.04                 1.71   0.0137     still 0.0142
+    ///
+    /// The light the strafed frame loses is what the lanterns' paper adds by the bounce, 9.6% of
+    /// the converged frame: it arrives only as fireflies, and nothing that holds one down keeps it.
+    ///
+    /// **Under the upscaler a still frame is not all settled**: its jitter keeps a short history at
+    /// every edge, and the ring holds those. The bounce suite at its defaults, ring on against off,
+    /// the frame's noise and then its bias:
+    ///
+    ///                       still                      strafed in               walked in
+    ///     mages' guild      0.59 / 0.62  1.85 / 1.77   1.24 / 1.30  2.10 / 2.01   1.32 / 1.38  2.52 / 2.44
+    ///     guild's planter   0.69 / 0.70  2.26 / 2.19   1.42 / 1.65  2.74 / 2.37   1.42 / 1.46  3.08 / 3.06
+    ///     Ahemmusa's yurt   0.61 / 0.70  1.81 / 1.70   1.75 / 2.11  3.49 / 2.80   1.94 / 2.37  4.13 / 3.32
+    ///     pier, pond        within 0.02 of each other in every figure
+    ///
+    /// Less noise everywhere a lamp lights, and more bias, most where paper lanterns glow: the yurt's,
+    /// whose glow the bounce counts beside their lamps (`bounceArriving`), and the reference counts
+    /// it too. How much of the bias is that light, and how much is light the ring should have kept,
+    /// is for an A/B after the glow is counted once.
+    ///
+    /// **What it costs is the ring's square and not its sum.** The clamp's median at the guild went
+    /// from 0.17 ms to 0.22 ms and its p95 from 0.58 to 0.69, the switch on or off alike, since off is
+    /// a factor of nought. Passing over the 81 taps where the history is long saved nothing (0.214
+    /// against 0.217 ms): what a pixel pays for is the 16×16 tile its workgroup loads where the
+    /// anti-lag's took 12×12, and the barrier between the two.
+    ///
+    /// **ReBLUR's other guard is not taken**: its temporal accumulation holds a blend under `2 + 38
+    /// / (n + 1)` times the history of `n` frames it blends into (`REBLUR_TemporalAccumulation`).
+    /// On the tree it took the strafed frame's fireflies only to 0.93 in a thousand, and with the
+    /// ring to 0.03 against 0.04, while it held the still frame 2.7% darker, for ever: a ceiling
+    /// over a settled history is the ring's bias at every length.
+    const float ACCUMULATE_RING_FRAMES = 8.0f;
+
     /// How squarely two normals must agree before their pixels are the same surface, and the
     /// history at one may be carried to the other.
     ///

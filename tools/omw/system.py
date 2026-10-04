@@ -1,10 +1,12 @@
 """What the driver asks of the system it runs on, answered in one place."""
 
+import argparse
 import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 ROOT = Path(__file__).resolve().parents[2]
 DEPS = ROOT / "deps"
@@ -36,6 +38,20 @@ CI = os.environ.get("CI", "").lower() in ("true", "1")
 
 class Refusal(Exception):
     """A request refused, or a step that cannot go on, with the reason said to a person."""
+
+
+class Switches(argparse.ArgumentParser):
+    """A driver verb's own switches, and nothing else: `parse_known_args` returns what the verb
+    declared and leaves the rest for the program the verb runs. **No abbreviations**, because a prefix of a switch
+    the harness owns would otherwise be taken for one of the verb's. A switch spelled wrong is a
+    `Refusal`, as every other mistake on the line is, and not argparse's exit."""
+
+    def __init__(self, verb: str, description: str):
+        super().__init__(prog=f"omw {verb}", description=description, allow_abbrev=False)
+        self.verb = verb
+
+    def error(self, message: str) -> NoReturn:
+        raise Refusal(f"{self.verb}: {message}")
 
 
 def refuse_unsupported(platform: str = sys.platform) -> None:

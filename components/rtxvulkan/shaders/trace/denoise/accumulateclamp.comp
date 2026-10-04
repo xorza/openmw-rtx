@@ -5,7 +5,7 @@
 
 // The accumulator's anti-lag: the slow mean of the bounce held to what its fast mean says around
 // the pixel, after the accumulator and before the wavelet. ReLAX's history clamp (NVIDIA NRD,
-// `RELAX_HistoryClamping`), taken as published and written again.
+// `RELAX_HistoryClamping`), taken as published and written again, after ReBLUR's anti-firefly.
 //
 // **Why a slow mean drags.** The accumulator drops a history only where the surface changed. Where
 // the light changes on a surface that did not move — an actor's darkness dragged over a floor — its
@@ -22,6 +22,13 @@
 // square's mean of samples in proportion (`antilagAcceleration`). The fast mean follows the light
 // only as fast as its frames do, and this takes it further. ReLAX's reset is not taken, and
 // `ACCUMULATE_ACCELERATION` says why.
+//
+// **Before both, ReBLUR's anti-firefly** (NVIDIA NRD, `REBLUR_HistoryFix`): a slow mean of
+// `ACCUMULATE_RING_FRAMES` or fewer is held under the mean of the fast means in the 9×9 ring around
+// it, less the 3×3 at its centre, plus two of their deviations (`ringHeldLuminance`). A mean of a few
+// frames has no history to tell a firefly by, and its neighbours do; a longer one keeps what it took
+// in, for the reason `ACCUMULATE_RING_FRAMES` gives. **Here and not in the history fix**, which
+// spreads the pixel it rebuilds over a leaf: held first, there is no firefly left to spread.
 //
 // **The fill moves by the bounce's shares.** `CHANNEL_FILL` is a share of the bounce, so every move
 // the bounce's luminance decides is made of the fill by the same share, and the fill stays the share
@@ -61,6 +68,9 @@ layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SAMPLED_FILL) uniform rea
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_BLENDED, ATROUS_CHANNEL) uniform image2D blended;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FILL_BLENDED, ATROUS_CHANNEL) uniform image2D fillBlended;
 
+/// How many frames each pixel's slow mean holds, in `a`: whether the ring holds it down.
+layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_MOMENTS, ACCUMULATE_MOMENTS) uniform readonly image2D moments;
+
 /// This frame's fast means, which the next frame's accumulator reads.
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST_OUT, ACCUMULATE_FAST) uniform writeonly uimage2D fastOut;
 
@@ -72,22 +82,37 @@ layout(push_constant, scalar) uniform Push
 const int REACH = int(ACCUMULATE_CLAMP_REACH);
 const uint SPAN = ACCUMULATE_WORKGROUP + 2u * ACCUMULATE_CLAMP_REACH;
 
-/// The fast mean's luminance at every pixel of the workgroup's square, or below nought where the
-/// pixel holds no surface; and the samples of the bounce and the fill there.
-shared float gFast[SPAN][SPAN];
+const int RING = int(ACCUMULATE_RING_REACH);
+const int HOLE = int(ACCUMULATE_RING_HOLE);
+const uint RING_SPAN = ACCUMULATE_WORKGROUP + 2u * ACCUMULATE_RING_REACH;
+
+/// How far inside the ring's square the clamp's square starts.
+const int INSET = RING - REACH;
+
+/// The fast mean's luminance at every pixel of the workgroup's ring, or below nought where the
+/// pixel holds no surface; and the samples of the bounce and the fill over the clamp's square.
+shared float gFast[RING_SPAN][RING_SPAN];
 shared vec3 gSampled[SPAN][SPAN];
 shared vec3 gSampledFill[SPAN][SPAN];
 
 void main()
 {
-    const ivec2 corner = ivec2(gl_WorkGroupID.xy * ACCUMULATE_WORKGROUP) - REACH;
-    for (uint i = gl_LocalInvocationIndex; i < SPAN * SPAN; i += ACCUMULATE_WORKGROUP * ACCUMULATE_WORKGROUP)
+    const uint threads = ACCUMULATE_WORKGROUP * ACCUMULATE_WORKGROUP;
+    const ivec2 origin = ivec2(gl_WorkGroupID.xy * ACCUMULATE_WORKGROUP);
+    for (uint i = gl_LocalInvocationIndex; i < RING_SPAN * RING_SPAN; i += threads)
     {
-        const uvec2 square = uvec2(i % SPAN, i / SPAN);
-        const ivec2 pixel = corner + ivec2(square);
+        const uvec2 square = uvec2(i % RING_SPAN, i / RING_SPAN);
+        const ivec2 pixel = origin - RING + ivec2(square);
         const bool held = !outsideOf(uvec2(pixel), uvec2(frame.mWidth, frame.mHeight))
             && imageLoad(surfaceChannel, pixel).r != SURFACE_NO_NORMAL;
         gFast[square.y][square.x] = held ? dot(unpackRgb9e5(imageLoad(fast, pixel).x), LUMINANCE_WEIGHTS) : -1.0;
+    }
+    barrier();
+    for (uint i = gl_LocalInvocationIndex; i < SPAN * SPAN; i += threads)
+    {
+        const uvec2 square = uvec2(i % SPAN, i / SPAN);
+        const ivec2 pixel = origin - REACH + ivec2(square);
+        const bool held = gFast[square.y + INSET][square.x + INSET] >= 0.0;
         gSampled[square.y][square.x] = held ? imageLoad(sampled, pixel).rgb : vec3(0.0);
         gSampledFill[square.y][square.x] = held ? imageLoad(sampledFill, pixel).rgb : vec3(0.0);
     }
@@ -98,7 +123,7 @@ void main()
         return;
 
     const uvec2 fastPacked = imageLoad(fast, at).xy;
-    const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + REACH;
+    const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + RING;
     if (gFast[centre.y][centre.x] < 0.0)
     {
         imageStore(fastOut, at, uvec4(fastPacked, 0u, 0u));
@@ -118,22 +143,45 @@ void main()
         for (int x = -REACH; x <= REACH; ++x)
         {
             const ivec2 tap = centre + ivec2(x, y);
+            const ivec2 sampledTap = tap - INSET;
             const float there = gFast[tap.y][tap.x];
             const float weight = there >= 0.0 ? 1.0 : 0.0;
             count += weight;
             fastSum += weight * there;
             fastSquares += weight * there * there;
-            sampledSum += weight * gSampled[tap.y][tap.x];
-            sampledFillSum += weight * gSampledFill[tap.y][tap.x];
+            sampledSum += weight * gSampled[sampledTap.y][sampledTap.x];
+            sampledFillSum += weight * gSampledFill[sampledTap.y][sampledTap.x];
         }
     const float fastMean = fastSum / count;
     const float fastDeviation = sqrt(max(fastSquares / count - fastMean * fastMean, 0.0));
     const vec3 sampledMean = sampledSum / count;
     const vec3 sampledFillMean = sampledFillSum / count;
 
-    const vec4 slow = imageLoad(blended, at);
-    const vec3 slowFill = imageLoad(fillBlended, at).rgb;
-    const float slowHere = dot(slow.rgb, LUMINANCE_WEIGHTS);
+    // The ring's, likewise, over the square less its hole: ReBLUR's anti-firefly, which holds the
+    // slow mean under it before the anti-lag reads it, in ReBLUR's order. **Every surface the ring
+    // holds and not this one's alone**: a firefly is a bright pixel on a leaf a few pixels across,
+    // and a ring of that leaf is a ring of nothing.
+    float ringCount = 0.0;
+    float ringSum = 0.0;
+    float ringSquares = 0.0;
+    for (int y = -RING; y <= RING; ++y)
+        for (int x = -RING; x <= RING; ++x)
+        {
+            const float there = gFast[centre.y + y][centre.x + x];
+            const float weight = there >= 0.0 && (abs(x) > HOLE || abs(y) > HOLE) ? 1.0 : 0.0;
+            ringCount += weight;
+            ringSum += weight * there;
+            ringSquares += weight * there * there;
+        }
+
+    const vec4 blend = imageLoad(blended, at);
+    const float blendLit = dot(blend.rgb, LUMINANCE_WEIGHTS);
+    const float young = imageLoad(moments, at).a <= ACCUMULATE_RING_FRAMES ? 1.0 : 0.0;
+    const float slowHere = mix(
+        blendLit, ringHeldLuminance(blendLit, ringSum, ringSquares, ringCount), float(frame.mAntiFirefly) * young);
+    const float ringScale = blendLit > 0.0 ? slowHere / blendLit : 1.0;
+    const vec4 slow = vec4(blend.rgb * ringScale, blend.a);
+    const vec3 slowFill = imageLoad(fillBlended, at).rgb * ringScale;
     const float fastLit = dot(fastHere, LUMINANCE_WEIGHTS);
     const float antilag = float(frame.mAntilag);
 

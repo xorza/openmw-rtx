@@ -20,5 +20,9 @@ namespace Rtx
         /// `Reconstruction::mHistoryFix`: whether the wavelet's first level rebuilds a short history
         /// from the surface around it.
         bool mHistoryFix;
+
+        /// `Reconstruction::mAntiFirefly`: whether the accumulator holds a short history of the bounce
+        /// under the light around it.
+        bool mAntiFirefly;
     };
 }

@@ -284,9 +284,13 @@ at the top, over all of them.
   of it that is fill beside it by the same weights: the composite puts the bounce back by the
   diffuse albedo and the fill by the ambient one, as the rasterizer has `D × lit + A × ambient`. A
   clamp holds the accumulator's slow mean to a fast one of a few frames (`accumulateclamp.comp`,
-  ReLAX's), so light that changes on a surface that did not move is followed and not dragged. Where
-  a mean holds three frames or fewer — what the eye just uncovered or brought in at the frame's
-  edge — the wavelet's first level rebuilds it from the surface around it (NRD's history fix). The
+  ReLAX's), so light that changes on a surface that did not move is followed and not dragged.
+  Before it, a slow mean of `ACCUMULATE_RING_FRAMES` frames or fewer is held under the fast means in
+  the ring of pixels around it (ReBLUR's anti-firefly), so a rare bright bounce on a surface the eye
+  just reached is not spread into a blotch. A longer mean keeps what it took in; the edges the
+  upscaler's jitter keeps short are held however long the eye stands, which is a bias the ring
+  trades for its noise. Where a mean holds `ACCUMULATE_FIX_FRAMES` frames or fewer — what the eye
+  just uncovered or brought in at the frame's edge — the wavelet's first level rebuilds it from the surface around it (NRD's history fix). The
   shadow denoiser filters the one bit a pixel kept of its rays to the sky's source and to a lamp, under
   the light both would add unshadowed, where the sky has a source that lights or the scene a lamp,
   and counts in its local mean only the pixels those sources light.

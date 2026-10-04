@@ -78,10 +78,12 @@ namespace Rtx
     {
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
 
-        // The clamp reads a neighbour's fast blend and samples, so every pixel's blend is behind it.
+        // The clamp reads a neighbour's fast blend and samples, so every pixel's blend is behind it,
+        // and the count the accumulator wrote beside it.
         Barriers blended(commands);
         for (const Image* image : { &images.mBlended, &images.mFillBlended, &images.mFastBlended })
             image->addTransition(blended, Use::sComputeWrite, Use::sComputeReadWrite);
+        images.mMoments.addTransition(blended, Use::sComputeWrite, Use::sComputeRead);
         blended.flush();
 
         DescriptorWrites clampWrites(mClamp);
@@ -92,10 +94,13 @@ namespace Rtx
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SAMPLED, buffer.get(Channel::Indirect).describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SAMPLED_FILL, buffer.get(Channel::Fill).describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST_OUT, images.mFast.describeStorage());
+        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_MOMENTS, images.mMoments.describeStorage());
 
         dispatch(commands, mClamp, clampWrites,
-            Shaders::AccumulateClampConstants{
-                .mWidth = camera.mWidth, .mHeight = camera.mHeight, .mAntilag = frame.mAntilag ? 1u : 0u },
+            Shaders::AccumulateClampConstants{ .mWidth = camera.mWidth,
+                .mHeight = camera.mHeight,
+                .mAntilag = frame.mAntilag ? 1u : 0u,
+                .mAntiFirefly = frame.mAntiFirefly ? 1u : 0u },
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
     }
 

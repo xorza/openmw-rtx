@@ -12,8 +12,9 @@
             "hidden": true,
             "generator": "Ninja",
             "$comment": [
-                "Every flavour. The CS, the wizard and the two importers stay off outside `full`; `omw setup` turns",
-                "the ini importer on. ccache drives GCC and MSVC, and the compile database is what an editor reads."
+                "Every flavour. The CS, the wizard and the save importer stay off outside `full`; the ini importer",
+                "is on, because `omw setup` runs it on a fresh box. ccache drives GCC and MSVC, and the compile",
+                "database is what an editor reads."
             ],
             "cacheVariables": {
                 "CMAKE_C_COMPILER_LAUNCHER": "ccache",
@@ -23,7 +24,7 @@
                 "BUILD_OPENCS_TESTS": "OFF",
                 "BUILD_WIZARD": "OFF",
                 "BUILD_ESSIMPORTER": "OFF",
-                "BUILD_MWINIIMPORTER": "OFF"
+                "BUILD_MWINIIMPORTER": "ON"
             }
         },
         {
@@ -168,7 +169,6 @@
                 "BUILD_WIZARD": "ON",
                 "BUILD_LAUNCHER": "ON",
                 "BUILD_ESSIMPORTER": "ON",
-                "BUILD_MWINIIMPORTER": "ON",
                 "BUILD_COMPONENTS_TESTS": "ON",
                 "BUILD_OPENMW_TESTS": "ON",
                 "BUILD_BENCHMARKS": "ON"
@@ -189,7 +189,6 @@
                 "BUILD_OPENMW_TESTS": "OFF",
                 "BUILD_LAUNCHER": "ON",
                 "BUILD_WIZARD": "ON",
-                "BUILD_MWINIIMPORTER": "ON",
                 "BUILD_ESSIMPORTER": "ON",
                 "OPENMW_LOCAL_INSTALL": "ON"
             }

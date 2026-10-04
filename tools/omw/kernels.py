@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from omw.build import Build
-from omw.system import EXE, Refusal, jobs
+from omw.system import EXE, Refusal, Switches, jobs
 
 _MAGIC = 0x07230203
 _OP_NAME = 5
@@ -121,12 +121,9 @@ def _keyed(lines: list[str]) -> dict[str, str]:
 
 
 def kernels(build: Build, args: list[str]) -> int:
-    against: Path | None = None
-    for arg in args:
-        if arg.startswith("--against="):
-            against = Path(arg.split("=", 1)[1])
-        else:
-            raise Refusal("kernels reads --against=<file> and nothing else")
+    switches = Switches("kernels", "one digest per shader and tuple of its constants")
+    switches.add_argument("--against", type=Path, help="a listing this wrote before: name the tuples that moved")
+    against: Path | None = switches.parse_args(args).against
 
     # The build's own lines on stderr, because the listing is what a caller keeps.
     build.build(["openmw-rtx-vulkan-shaders", "openmw-rtx-spirv-digest"], stdout=sys.stderr)

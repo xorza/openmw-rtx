@@ -128,6 +128,11 @@ namespace Rtx
         /// it and not one bounce spread into blotches. On unless a run names it off, which is the A/B.
         bool mHistoryFix = true;
 
+        /// Whether the accumulator holds a short history of the bounce under the fast means around it
+        /// (`ACCUMULATE_RING_FRAMES`), so a bounce that found a small bright thing is not a blotch the
+        /// size of a leaf. On unless a run names it off, which is the A/B.
+        bool mAntiFirefly = true;
+
         bool operator==(const ReconstructionRequest& other) const = default;
     };
 
@@ -190,6 +195,10 @@ namespace Rtx
         /// a settled neighbour to borrow from.
         bool mHistoryFix = false;
 
+        /// Whether the accumulator held a short history of the bounce under the light around it. Read
+        /// only where the bounce is filtered.
+        bool mAntiFirefly = false;
+
         /// Whether frames come after this one to average it with — a world's, which the eye, the
         /// upscaler and the filters each take over time — and not a picture, which stands alone.
         /// **What a draw that is right only on average needs**: the eye meets a soft edge's texels
@@ -229,6 +238,7 @@ namespace Rtx
                 .mIndirect = asked.mIndirect,
                 .mAntilag = asked.mAntilag,
                 .mHistoryFix = asked.mHistoryFix,
+                .mAntiFirefly = asked.mAntiFirefly,
                 .mAveraged = true,
             };
         }

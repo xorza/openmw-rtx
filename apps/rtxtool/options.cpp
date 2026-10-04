@@ -27,6 +27,7 @@
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/shaders/look.h>
 
 #include "compare.hpp"
 #include "film.hpp"
@@ -376,9 +377,21 @@ namespace RtxTool
             bpo::value<bool>()
                 ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mHistoryFix)
                 ->implicit_value(true),
-            "rebuild the denoiser's mean of the bounce, where it holds three frames or fewer, from the "
-            "surface around it, so what the eye uncovers shows the light beside it and not one bounce "
-            "spread into blotches. Off is the A/B");
+            std::format("rebuild the denoiser's mean of the bounce, where it holds {:g} frames or fewer, from "
+                        "the surface around it, so what the eye uncovers shows the light beside it and not one "
+                        "bounce spread into blotches. Off is the A/B",
+                Rtx::Shaders::ACCUMULATE_FIX_FRAMES)
+                .c_str());
+
+        option(sFramed, "antifirefly",
+            bpo::value<bool>()
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mAntiFirefly)
+                ->implicit_value(true),
+            std::format("hold the denoiser's mean of the bounce, where it holds {:g} frames or fewer, under "
+                        "the light around it, so a bounce that found a small bright thing on one leaf is not "
+                        "spread over the leaf. Off is the A/B",
+                Rtx::Shaders::ACCUMULATE_RING_FRAMES)
+                .c_str());
 
         option(sFramed, "level-epsilon", number(anyNumber<float>())->default_value(0.0f),
             "levels added to the texture level bias past the ratio the upscaler sets, negative for "

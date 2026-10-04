@@ -1,12 +1,13 @@
-"""`omw profile [--view=<place>] [--offcpu] [--dwarf] [--tui] [bench args]`: the renderer's CPU side
-under perf, over one place or a whole suite, in the release build.
+"""`omw profile [--offcpu] [--out=<dir>] [bench args]`: the renderer's CPU side under perf, over one
+place or a whole suite, in the release build. The reports are text files, and `perf report -i
+<dir>/cpu.data --no-inline` walks the call graph.
 
 **What `--offcpu` can and cannot see.** BPF collects its stacks by frame pointer and the graphics
 driver has none, so a wait that starts inside `vkWaitForFences` is recorded as an address rather than
-as the frame that asked for it, and `--dwarf` cannot help: a BPF-collected stack cannot be unwound
-any other way. What the mode does establish is the shape — which library the process waits in, and
-whether a wait passes through this fork's own code at all. Read the by-library table; the total above
-it is dominated by driver worker threads parked for the length of the run.
+as the frame that asked for it, and no other unwinding can help: a BPF-collected stack cannot be
+unwound any other way. What the mode does establish is the shape — which library the process waits
+in, and whether a wait passes through this fork's own code at all. Read `blocked-libraries.txt`; the
+total the summary prints is dominated by driver worker threads parked for the length of the run.
 
 **It profiles the build `omw release` measures, and does not have one of its own.** A profile is only
 as good as its call graph, and a stock Release build has neither line numbers nor frame pointers — so
@@ -22,7 +23,9 @@ from pathlib import Path
 from typing import IO
 
 from omw.build import Build
-from omw.system import WINDOWS, Refusal, require
+from omw.system import WINDOWS, Refusal, Switches, require
+
+SAMPLES_A_SECOND = "5999"
 
 
 def profile(build: Build, args: list[str]) -> int:
@@ -30,42 +33,22 @@ def profile(build: Build, args: list[str]) -> int:
         raise Refusal("profile is perf's, and perf is Linux's")
     require("perf", "it is what records the profile: perf")
 
-    mode, unwind, frequency, tui = "cpu", "fp", "5999", False
-    out = build.dir / "perf"
-    place: list[str] = []
-    extra: list[str] = []
-    for arg in args:
-        if arg == "--offcpu":
-            mode = "offcpu"
-        elif arg == "--dwarf":
-            unwind = "dwarf"
-        elif arg.startswith("--freq="):
-            frequency = arg.split("=", 1)[1]
-        elif arg == "--tui":
-            tui = True
-        elif arg.startswith("--out="):
-            out = Path(arg.split("=", 1)[1])
-        elif arg.startswith("--view="):
-            place.append(f"--views={arg.split('=', 1)[1]}")
-        elif arg.startswith(("--views=", "--suite=")):
-            place.append(arg)
-        else:
-            extra.append(arg)
+    switches = Switches("profile", "the renderer's CPU side under perf, over the frames `bench` measures; the "
+                                   "rest of the line goes to `bench`, `--views=` or `--suite=` among it")
+    switches.add_argument("--offcpu", action="store_true", help="where the frame waits, and not where it works")
+    switches.add_argument("--out", type=Path, default=build.dir / "perf", help="where the recording and its reports go")
+    asked, extra = switches.parse_known_args(args)
+    offcpu: bool = asked.offcpu
+    out: Path = asked.out
     # One place unless told otherwise. A profile that averaged an exterior and an interior would
     # describe neither: the two do not spend their frame on the same thing.
-    place = place or ["--views=seyda-neen-ship"]
+    named = any(arg.split("=", 1)[0] in ("--views", "--suite") for arg in extra)
+    place = [] if named else ["--views=seyda-neen-ship"]
 
     # One file per question. On-CPU and off-CPU are two recordings rather than two events in one,
     # because `perf report` writes every event in a file to the same page and cannot be asked for one.
     out.mkdir(parents=True, exist_ok=True)
-    data = out / ("blocked.data" if mode == "offcpu" else "cpu.data")
-
-    if tui:
-        if not data.is_file():
-            raise Refusal(f"no recording at {data}: run `omw profile` without --tui first")
-        return subprocess.run(["perf", "report", "-i", str(data), "--no-inline"], check=False).returncode
-
-    build.build(["openmw-rtxtool"])
+    data = out / ("blocked.data" if offcpu else "cpu.data")
 
     # perf's control fifo. `--delay=-1` starts the counters off and `bench` turns them on around the
     # frames it measures, so the recording is those frames: not the engine starting, not a cell
@@ -77,26 +60,22 @@ def profile(build: Build, args: list[str]) -> int:
         # **The ring buffer is perf's own default**, because `perf_event_mlock_kb` is 2048 on this
         # box and `-m` above that is refused rather than clamped. A dropped sample is counted.
         record = ["perf", "record", "--delay=-1", f"--control=fifo:{control}", "-o", str(data)]
-        if mode == "offcpu":
+        if offcpu:
             # `dummy` never fires: it gives perf an event to attach to, so the only samples in the
             # file are the BPF profiler's. A millisecond, against a default of five hundred: half a
             # second is thirty frames, so the default would see none of the waits a frame is made of.
             record += ["-e", "dummy", "--off-cpu", "--off-cpu-thresh", "1", "--call-graph", "fp"]
-        elif unwind == "dwarf":
-            # The default 8 KiB of stack per sample truncates OpenMW's deeper traversals, and a
-            # truncated DWARF unwind looks complete and stops in the middle.
-            record += ["-e", "task-clock", "-F", frequency, "--call-graph", "dwarf,32768"]
         else:
             # **`task-clock` rather than `cycles`, because this machine's CPU is hybrid**: `cycles`
             # is two events, one per core type, and a thread that migrated splits across both.
             # `task-clock` is one software event, and it counts nanoseconds, which a frame budget is
             # denominated in.
-            record += ["-e", "task-clock", "-F", frequency, "--call-graph", "fp"]
+            record += ["-e", "task-clock", "-F", SAMPLES_A_SECOND, "--call-graph", "fp"]
 
-        bench = [str(build.binary("openmw-rtxtool")), "bench", "--validation=off", "--window=false", *place,
-                 f"--perf-control={control}", *extra]
+        bench = [str(part) for part in build.harness_line("bench", "--validation=off", "--window=false", *place,
+                                                          f"--perf-control={control}", *extra)]
         with open(out / "bench.txt", "w") as log:
-            if mode == "offcpu":
+            if offcpu:
                 code = _record_offcpu(build, record, bench, data, log)
             else:
                 recorded = subprocess.Popen([*record, "--", *bench], cwd=build.dir, env=build.env,
@@ -107,7 +86,7 @@ def profile(build: Build, args: list[str]) -> int:
         control.unlink(missing_ok=True)
     if code != 0:
         return code
-    _report(data, out, "blocked" if mode == "offcpu" else "cpu", mode == "offcpu")
+    _report(data, out, "blocked" if offcpu else "cpu", offcpu)
     return 0
 
 
@@ -119,11 +98,6 @@ def _narrow(line: str, width: int = 86) -> str:
     """The symbol column, narrowed to something a terminal can hold. Templates make a C++ symbol as
     long as it likes, and the part that identifies it is at the front."""
     return line if len(line) <= width else line[:width - 1] + "…"
-
-
-def _rows(text: str) -> list[list[str]]:
-    """A report's rows, a list of fields each, without its headers."""
-    return [line.split() for line in text.splitlines() if re.match(r"^ +[0-9]", line)]
 
 
 def _symbol(line: str) -> str:
@@ -183,7 +157,7 @@ def _report(data: Path, out: Path, slug: str, blocked: bool) -> None:
 
     print(f"\nprofile: {frames:g} frames over {wall:.4f} s")
     if lost not in (None, "0"):
-        print(f"  {lost} samples lost — the ring buffer overflowed, lower --freq")
+        print(f"  {lost} samples lost — the ring buffer overflowed at {SAMPLES_A_SECOND} samples a second")
     if nanoseconds is not None and wall > 0:
         share = float(nanoseconds) / 1e9 / wall
         if blocked:
@@ -218,21 +192,12 @@ def _report(data: Path, out: Path, slug: str, blocked: bool) -> None:
         fields = line.split()
         print(_narrow(f"    {fields[0]:>7}  {fields[2]:<30} {_symbol(line)}"))
 
-    print("\n  by source line:")
-    for fields in _rows(reports["lines"])[:8]:
-        print(f"    {fields[0]:>7}  {fields[1]}")
-
-    print("\n  by library — of the whole stack, and of the leaf:")
-    for fields in _rows(summary)[:10]:
-        print(f"    {fields[0]:>7} {fields[1]:>7}  {fields[2] if len(fields) > 2 else ''}")
-
     print()
     for file in [*sorted(out.glob(f"{slug}*.txt")), out / f"{slug}.svg", out / "bench.txt"]:
         if file.exists():
             print(f"  {file}")
     if not (out / f"{slug}.svg").exists():
         print("  (no flame graph: pacman -S inferno)")
-    print("  omw profile --tui   to walk the call graph")
 
 
 def _tee(process: subprocess.Popen, log: IO[str]) -> None:

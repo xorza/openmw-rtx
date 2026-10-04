@@ -5,17 +5,17 @@ import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from omw import crash, deps, formatting, game, gate, kernels, listing, package, perf, repeat, testing
+from omw import crash, deps, formatting, game, gate, kernels, listing, noise, package, perf, repeat, testing
 from omw.build import FLAVOURS, Build
 from omw.system import CI, Refusal, refuse_unsupported
 
 USAGE = """\
 omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI, on Linux and Windows.
 
-  build [targets]              format the tree, or on CI check it, configure where the presets
-                               changed, then build the harness, the game and the tests the build
-                               has, or the targets named; then check that every source the tree
-                               tracks is one the build compiles
+  build [targets]              format the tree, except on CI, whose checks job checks it once;
+                               configure where the presets changed, then build the harness, the game
+                               and the tests the build has, or the targets named; then check that
+                               every source the tree tracks is one the build compiles
   test [--without-device] [ctest args]
                                every suite through CTest, the crash matrix and the GPU binary among
                                them; `--without-device` leaves the GPU binary out
@@ -33,6 +33,9 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   profile [args]               the harness's CPU side under perf: the release flavour
   info, scene, shot, view, bench, check, film, noise [args]
                                openmw-rtxtool's own verbs, from the build directory
+  noise --ab=<switch>[=<a>,<b>] [--still] [noise args]
+                               one switch's A/B: the strafe and the walk legs, each side back to
+                               back, the still leg with `--still`, and the figures side by side
 
   crash <dump> [symbols]       a player's crash dump, every thread named and lined, against a
                                release's -symbols.zip or the newest in dist/; no flavour
@@ -58,8 +61,7 @@ HARNESS_VERBS = ("info", "scene", "shot", "view", "bench", "check", "film", "noi
 def _harness(build: Build, verb: str, args: list[str]) -> int:
     """**No `--validation` of the driver's own.** Each build's binary already defaults to its
     flavour's layers, and a level on the line reads as asked for."""
-    build.build(["openmw-rtxtool"])
-    return build.run_here([build.binary("openmw-rtxtool"), verb, *args]).returncode
+    return build.harness(verb, *args).returncode
 
 
 def _exec(build: Build, args: list[str]) -> int:
@@ -69,8 +71,9 @@ def _exec(build: Build, args: list[str]) -> int:
 
 
 def _build(build: Build, args: list[str]) -> int:
-    """The tree formatted first, or on CI only checked; after the build, `listing.check`."""
-    if formatting.format_tree(["--check"] if CI else []) != 0:
+    """The tree formatted first, except on CI, whose checks job runs `omw format --check` once for
+    every build job; after the build, `listing.check`."""
+    if not CI and formatting.format_tree([]) != 0:
         return 1
     build.build(args or build.default_targets + build.test_targets())
     return listing.check(build)
@@ -152,6 +155,8 @@ def dispatch(line: Line) -> int:
     build = Build(line.flavour)
     if line.verb in BUILD_VERBS:
         return BUILD_VERBS[line.verb].run(build, line.args)
+    if line.verb == "noise" and noise.wants_ab(line.args):
+        return noise.ab(build, line.args)
     return _harness(build, line.verb, line.args)
 
 
