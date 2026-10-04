@@ -157,6 +157,9 @@ the same class. The estimate is under 0.1 ms at 1280×720; step A.6 measures it.
 
 Each step ends with `./omw test` and the gates it names.
 
+**Step A.5 — the history: feedback or not (AD5).** *Measured and waiting:* see
+`ANTILAG-AND-PAIRS_QUESTIONS.md`, Q1. The feedback stays until the answer.
+
 **Step A.5 — the history: feedback or not (AD5).** The cascade's first level writes the history
 (today), against the clamp's output as the history (ReLAX). Measured on `RtxBounceTrailTest`,
 `noise --suite=bounce` still, strafed and walked, and `--walk=150`, which is where a history's lag
