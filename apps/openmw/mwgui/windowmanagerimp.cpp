@@ -1863,16 +1863,18 @@ namespace MWGui
         onCursorChange(name);
     }
 
-    void WindowManager::createLuaCursor(
-        const std::string& name, const std::string& path, int width, int height, int hotspotX, int hotspotY)
+    void WindowManager::createLuaCursor(const std::string& name, const std::string& path, int width, int height,
+        int hotspotX, int hotspotY, double rotation)
     {
         const LuaCursor& cursor = mLuaCursors
                                       .insert_or_assign(name,
                                           LuaCursor{ .mPath = path,
                                               .mSize = MyGUI::IntSize(width, height),
-                                              .mHotspot = MyGUI::IntPoint(hotspotX, hotspotY) })
+                                              .mHotspot = MyGUI::IntPoint(hotspotX, hotspotY),
+                                              .mRotation = rotation })
                                       .first->second;
-        if (!createScaledCursor(name, VFS::Path::Normalized(cursor.mPath), 0, cursor.mHotspot, cursor.mSize))
+        if (!createScaledCursor(
+                name, VFS::Path::Normalized(cursor.mPath), cursor.mRotation, cursor.mHotspot, cursor.mSize))
             Log(Debug::Warning) << "Failed to load Lua cursor texture: " << path;
     }
 
@@ -2512,10 +2514,11 @@ namespace MWGui
         }
 
         for (const auto& [name, cursor] : mLuaCursors)
-            createScaledCursor(name, VFS::Path::Normalized(cursor.mPath), 0, cursor.mHotspot, cursor.mSize);
+            createScaledCursor(
+                name, VFS::Path::Normalized(cursor.mPath), cursor.mRotation, cursor.mHotspot, cursor.mSize);
     }
 
-    bool WindowManager::createScaledCursor(std::string_view name, const VFS::Path::Normalized& path, int rotation,
+    bool WindowManager::createScaledCursor(std::string_view name, const VFS::Path::Normalized& path, double rotation,
         MyGUI::IntPoint hotspot, MyGUI::IntSize size)
     {
         osg::ref_ptr<osg::Image> image = mResourceSystem->getImageManager()->getImage(path);

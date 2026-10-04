@@ -102,7 +102,7 @@ namespace SDLUtil
         }
 
         /// `source` drawn into `width` × `height` pixels and turned by `rotDegrees`.
-        SurfaceUniquePtr draw(SDL_Surface& source, float rotDegrees, int width, int height)
+        SurfaceUniquePtr draw(SDL_Surface& source, double rotDegrees, int width, int height)
         {
             SurfaceUniquePtr target(SDL_CreateSurface(width, height, source.format), SDL_DestroySurface);
             if (target == nullptr)
@@ -121,15 +121,15 @@ namespace SDLUtil
                 fail("Failed to create cursor texture");
             SDL_SetTextureScaleMode(texture.get(), SDL_SCALEMODE_LINEAR);
 
-            if (!SDL_RenderTextureRotated(renderer.get(), texture.get(), nullptr, nullptr,
-                    static_cast<double>(-rotDegrees), nullptr, SDL_FLIP_NONE))
+            if (!SDL_RenderTextureRotated(
+                    renderer.get(), texture.get(), nullptr, nullptr, -rotDegrees, nullptr, SDL_FLIP_NONE))
                 fail("Failed to render cursor texture");
 
             return target;
         }
     }
 
-    void SDLCursorManager::createCursor(std::string_view name, int rotDegrees, osg::Image* image, int hotspotX,
+    void SDLCursorManager::createCursor(std::string_view name, double rotDegrees, osg::Image* image, int hotspotX,
         int hotspotY, int width, int height, float displayScale)
     {
 #ifndef ANDROID
@@ -142,10 +142,10 @@ namespace SDLUtil
         try
         {
             const SurfaceUniquePtr decoded = imageToSurface(image);
-            SurfaceUniquePtr surface = draw(*decoded, static_cast<float>(rotDegrees), baseWidth, baseHeight);
+            SurfaceUniquePtr surface = draw(*decoded, rotDegrees, baseWidth, baseHeight);
             if (displayScale > 1.f)
             {
-                const SurfaceUniquePtr whole = draw(*decoded, static_cast<float>(rotDegrees), width, height);
+                const SurfaceUniquePtr whole = draw(*decoded, rotDegrees, width, height);
                 SDL_AddSurfaceAlternateImage(surface.get(), whole.get());
             }
 

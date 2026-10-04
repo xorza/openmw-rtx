@@ -54,13 +54,10 @@ namespace
         LuaUtil::Callback badA(
             { lua.load("return function() return 'not_a_bool' end")(), sol::table(lua, sol::create) });
         EXPECT_TRUE(registry.bind("a", badA, {}));
-        testing::internal::CaptureStderr();
         registry.update(1.0);
         sol::object aValue = registry.valueOfType("a", LuaUtil::InputAction::Type::Boolean);
         EXPECT_TRUE(aValue.is<bool>());
         bValue = registry.valueOfType("b", LuaUtil::InputAction::Type::Boolean);
         EXPECT_TRUE(bValue.is<bool>() && bValue.as<bool>() == aValue.as<bool>());
-        // Given back, or every later capture in the binary, a death test's among them, aborts.
-        testing::internal::GetCapturedStderr();
     }
 }

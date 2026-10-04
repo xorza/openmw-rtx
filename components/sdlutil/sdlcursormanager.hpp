@@ -31,7 +31,7 @@ namespace SDLUtil
         /// pixels, which SDL shows at the display's scale `displayScale`: an image of the size
         /// divided by it, which is what SDL scales up, and the whole size beside it, which SDL picks
         /// instead. Shown at once where it is the current cursor.
-        void createCursor(std::string_view name, int rotDegrees, osg::Image* image, int hotspotX, int hotspotY,
+        void createCursor(std::string_view name, double rotDegrees, osg::Image* image, int hotspotX, int hotspotY,
             int width, int height, float displayScale);
 
         /// The cursor `name` destroyed, where there is one: SDL shows its default until the next
