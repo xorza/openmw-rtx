@@ -30,6 +30,7 @@ file(GLOB UNITTEST_SRC_FILES
     mwrender/classmasks.cpp
     mwrender/debugwalk.cpp
     mwrender/frametimer.cpp
+    mwrender/groundcovershapes.cpp
     mwrender/localmap.cpp
     mwrender/pixels.cpp
     mwrender/precipitation.cpp
