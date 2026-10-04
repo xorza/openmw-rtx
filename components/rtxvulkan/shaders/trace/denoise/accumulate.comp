@@ -25,6 +25,7 @@
 #include "sets.h"
 
 #include "lib/pixels.glsl"
+#include "lib/sharedexponent.glsl"
 #include "lib/surfacematch.glsl"
 
 layout(local_size_x = ACCUMULATE_WORKGROUP, local_size_y = ACCUMULATE_WORKGROUP) in;
@@ -85,16 +86,13 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_FILL) uniform readonly image2D 
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_FILL, ACCUMULATE_COLOUR) uniform readonly image2D historyFill;
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_FILL_BLENDED_OUT, ATROUS_CHANNEL) uniform writeonly image2D fillBlendedOut;
 
-/// The fast means of the bounce and the fill, last frame's and this frame's blend of them: the same
-/// samples over at most `ACCUMULATE_FAST_FRAMES`, by the same taps and count. **The accumulator's
-/// own and not the cascade's**, since what they are for is to follow the light quickly, not
-/// quietly. The blend goes to the cascade's scratch, free until it runs, and the clamp writes this
-/// frame's fast means from it: it reads a neighbour's blend while it writes its own pixel's mean.
-layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_FAST, ACCUMULATE_COLOUR) uniform readonly image2D historyFast;
-layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_FAST_FILL, ACCUMULATE_COLOUR)
-    uniform readonly image2D historyFastFill;
-layout(set = SET_PASS, binding = ACCUMULATE_BIND_FAST_OUT, ACCUMULATE_COLOUR) uniform writeonly image2D fastOut;
-layout(set = SET_PASS, binding = ACCUMULATE_BIND_FAST_FILL_OUT, ACCUMULATE_COLOUR) uniform writeonly image2D fastFillOut;
+/// The fast means of the bounce and the fill (`ACCUMULATE_FAST`), last frame's and this frame's blend
+/// of them: the same samples over at most `ACCUMULATE_FAST_FRAMES`, by the same taps and count. **The
+/// accumulator's own and not the cascade's**, since what they are for is to follow the light quickly,
+/// not quietly. The blend is an image of its own, and the clamp writes this frame's fast means from
+/// it: it reads a neighbour's blend while it writes its own pixel's mean.
+layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_FAST, ACCUMULATE_FAST) uniform readonly uimage2D historyFast;
+layout(set = SET_PASS, binding = ACCUMULATE_BIND_FAST_OUT, ACCUMULATE_FAST) uniform writeonly uimage2D fastOut;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -142,8 +140,7 @@ void main()
         imageStore(fillBlendedOut, at, vec4(sampledFill, 0.0));
         imageStore(surfaceOut, at, vec4(0.0));
         imageStore(momentsOut, at, vec4(0.0));
-        imageStore(fastOut, at, vec4(sampled, 0.0));
-        imageStore(fastFillOut, at, vec4(sampledFill, 0.0));
+        imageStore(fastOut, at, uvec4(packRgb9e5(sampled), packRgb9e5(sampledFill), 0u, 0u));
 
         return;
     }
@@ -175,8 +172,9 @@ void main()
             const vec4 heldMoments = imageLoad(historyMoments, tap);
             mean += imageLoad(historyColour, tap).rgb * bilinear;
             meanFill += imageLoad(historyFill, tap).rgb * bilinear;
-            fast += imageLoad(historyFast, tap).rgb * bilinear;
-            fastFill += imageLoad(historyFastFill, tap).rgb * bilinear;
+            const uvec2 heldFast = imageLoad(historyFast, tap).xy;
+            fast += unpackRgb9e5(heldFast.x) * bilinear;
+            fastFill += unpackRgb9e5(heldFast.y) * bilinear;
             moments += heldMoments.rg * bilinear;
             frames += heldMoments.a * bilinear;
             weight += bilinear;
@@ -238,6 +236,5 @@ void main()
     imageStore(fillBlendedOut, at, vec4(blendedFill, 0.0));
     imageStore(surfaceOut, at, vec4(normal, scaled));
     imageStore(momentsOut, at, vec4(blendedMoments, 0.0, count));
-    imageStore(fastOut, at, vec4(blendedFast, 0.0));
-    imageStore(fastFillOut, at, vec4(blendedFastFill, 0.0));
+    imageStore(fastOut, at, uvec4(packRgb9e5(blendedFast), packRgb9e5(blendedFastFill), 0u, 0u));
 }

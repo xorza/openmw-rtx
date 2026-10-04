@@ -28,8 +28,8 @@
 // of the bounce it was.
 //
 // **In place** for the slow means and the moments, which each pixel alone reads and writes. The fast
-// means are read from the blend the accumulator left in the cascade's scratch and written to the
-// history, since a neighbour reads a pixel's blend while the pixel writes its mean.
+// means are read from the blend the accumulator left and written to the history, since a neighbour
+// reads a pixel's blend while the pixel writes its mean.
 
 #include "accumulate.h"
 #include "atrous.h"
@@ -38,6 +38,7 @@
 #include "sets.h"
 
 #include "lib/pixels.glsl"
+#include "lib/sharedexponent.glsl"
 
 layout(local_size_x = ACCUMULATE_WORKGROUP, local_size_y = ACCUMULATE_WORKGROUP) in;
 
@@ -46,8 +47,7 @@ layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SURFACE, GBUFFER_SURFACE)
 
 /// The fast means as the accumulator blended them, and the frame's samples of the bounce and the
 /// fill, whose mean over the square the push goes toward. No format on the samples, for the reason `accumulate.comp` gives: the run decides their width.
-layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST, ACCUMULATE_COLOUR) uniform readonly image2D fast;
-layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST_FILL, ACCUMULATE_COLOUR) uniform readonly image2D fastFill;
+layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST, ACCUMULATE_FAST) uniform readonly uimage2D fast;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SAMPLED) uniform readonly image2D sampled;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SAMPLED_FILL) uniform readonly image2D sampledFill;
 
@@ -59,9 +59,7 @@ layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FILL_BLENDED, ATROUS_CHAN
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_MOMENTS, ACCUMULATE_MOMENTS) uniform image2D moments;
 
 /// This frame's fast means, which the next frame's accumulator reads.
-layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST_OUT, ACCUMULATE_COLOUR) uniform writeonly image2D fastOut;
-layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST_FILL_OUT, ACCUMULATE_COLOUR)
-    uniform writeonly image2D fastFillOut;
+layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST_OUT, ACCUMULATE_FAST) uniform writeonly uimage2D fastOut;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -86,7 +84,7 @@ void main()
         const ivec2 pixel = corner + ivec2(square);
         const bool held = !outsideOf(uvec2(pixel), uvec2(frame.mWidth, frame.mHeight))
             && imageLoad(surfaceChannel, pixel).r != SURFACE_NO_NORMAL;
-        gFast[square.y][square.x] = held ? dot(imageLoad(fast, pixel).rgb, LUMINANCE_WEIGHTS) : -1.0;
+        gFast[square.y][square.x] = held ? dot(unpackRgb9e5(imageLoad(fast, pixel).x), LUMINANCE_WEIGHTS) : -1.0;
         gSampled[square.y][square.x] = held ? imageLoad(sampled, pixel).rgb : vec3(0.0);
         gSampledFill[square.y][square.x] = held ? imageLoad(sampledFill, pixel).rgb : vec3(0.0);
     }
@@ -96,15 +94,15 @@ void main()
     if (outsideOf(uvec2(at), uvec2(frame.mWidth, frame.mHeight)))
         return;
 
-    const vec3 fastHere = imageLoad(fast, at).rgb;
-    const vec3 fastFillHere = imageLoad(fastFill, at).rgb;
+    const uvec2 fastPacked = imageLoad(fast, at).xy;
     const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + REACH;
     if (gFast[centre.y][centre.x] < 0.0)
     {
-        imageStore(fastOut, at, vec4(fastHere, 0.0));
-        imageStore(fastFillOut, at, vec4(fastFillHere, 0.0));
+        imageStore(fastOut, at, uvec4(fastPacked, 0u, 0u));
         return;
     }
+    const vec3 fastHere = unpackRgb9e5(fastPacked.x);
+    const vec3 fastFillHere = unpackRgb9e5(fastPacked.y);
 
     // The square's statistics, in a fixed order, over the pixels that hold a surface; the centre is
     // one of them: the fast mean's luminance and its spread, and the samples' mean.
@@ -153,8 +151,7 @@ void main()
     const float heldHere = dot(held, LUMINANCE_WEIGHTS);
     imageStore(blended, at, vec4(held, slow.a));
     imageStore(fillBlended, at, vec4(heldFill, 0.0));
-    imageStore(fastOut, at, vec4(followed, 0.0));
-    imageStore(fastFillOut, at, vec4(followedFill, 0.0));
+    imageStore(fastOut, at, uvec4(packRgb9e5(followed), packRgb9e5(followedFill), 0u, 0u));
 
     const vec4 kept = imageLoad(moments, at);
     imageStore(moments, at,

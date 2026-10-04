@@ -182,6 +182,7 @@ set(RTX_SHADER_LIB
     shaders/lib/reproject.glsl
     shaders/lib/runningmean.glsl
     shaders/lib/runs.glsl
+    shaders/lib/sharedexponent.glsl
     shaders/lib/sea.glsl
     shaders/lib/shading.glsl
     shaders/lib/sky.glsl

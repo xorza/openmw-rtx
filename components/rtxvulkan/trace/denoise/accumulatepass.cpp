@@ -55,9 +55,7 @@ namespace Rtx
         writes.image(Shaders::ACCUMULATE_BIND_HISTORY_FILL, images.mFillBefore.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_FILL_BLENDED_OUT, images.mFillBlended.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_HISTORY_FAST, images.mFastBefore.describeStorage());
-        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_FAST_FILL, images.mFastFillBefore.describeStorage());
-        writes.image(Shaders::ACCUMULATE_BIND_FAST_OUT, images.mScratch.describeStorage());
-        writes.image(Shaders::ACCUMULATE_BIND_FAST_FILL_OUT, images.mFillScratch.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_FAST_OUT, images.mFastBlended.describeStorage());
 
         const Shaders::HistoryConstants constants{
             .mEyes = frame.mSampled.mEyes,
@@ -67,27 +65,28 @@ namespace Rtx
 
         dispatch(commands, mPipeline, writes, constants,
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
+    }
+
+    void AccumulatePass::recordClamp(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
+        const GBuffer& buffer, const DenoiseFrame& frame) const
+    {
+        const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
 
         // The clamp reads a neighbour's fast blend and samples, so every pixel's blend is behind it.
-        // The scratch it reads them from is the cascade's next, whose levels order themselves
-        // against what came before them.
         Barriers blended(commands);
-        for (const Image* image :
-            { &images.mBlended, &images.mFillBlended, &images.mMoments, &images.mScratch, &images.mFillScratch })
+        for (const Image* image : { &images.mBlended, &images.mFillBlended, &images.mMoments, &images.mFastBlended })
             image->addTransition(blended, Use::sComputeWrite, Use::sComputeReadWrite);
         blended.flush();
 
         DescriptorWrites clampWrites(mClamp);
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
-        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST, images.mScratch.describeStorage());
-        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST_FILL, images.mFillScratch.describeStorage());
+        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST, images.mFastBlended.describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_BLENDED, images.mBlended.describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FILL_BLENDED, images.mFillBlended.describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_MOMENTS, images.mMoments.describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SAMPLED, buffer.get(Channel::Indirect).describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SAMPLED_FILL, buffer.get(Channel::Fill).describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST_OUT, images.mFast.describeStorage());
-        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST_FILL_OUT, images.mFastFill.describeStorage());
 
         dispatch(commands, mClamp, clampWrites,
             Shaders::AccumulateClampConstants{

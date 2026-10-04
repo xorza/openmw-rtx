@@ -73,6 +73,10 @@ namespace Rtx
         mAccumulate.record(commands, accumulated, buffer, frame);
         closeZone(timer, commands);
 
+        openZone(timer, commands, "clamp");
+        mAccumulate.recordClamp(commands, accumulated, buffer, frame);
+        closeZone(timer, commands);
+
         const Image* shadow = nullptr;
         if (runs[Temporal::Shadow])
         {
