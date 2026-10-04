@@ -10,6 +10,7 @@
 #include "look.h"
 #include "scene.h"
 #include "bindings.glsl"
+#include "bouncereservoir.glsl"
 #include "frame.glsl"
 #include "gloss.glsl"
 #include "lights.glsl"
@@ -499,6 +500,18 @@ float ambientReaching(vec3 position, vec3 normal, vec3 plane, float transmission
     return weight * ambientThrough(position, towards, frame.mReach) / rate;
 }
 
+/// `ambientReaching` for a surface a path ends at — the bounce's far hit, a water leg's, a pane —
+/// and nought, with no ray traced, where surfaces take no indirect light (`bounceTraced`). **The fill
+/// `pathEnd` gives is the bounces nobody traces**, which that setting takes away with the one that
+/// is: kept here, a pane or a wall a reflection shows would stand in the cell's ambient while the
+/// wall the eye sees beside it is black.
+float surfaceAmbient(Surface hit, uint seed, float rate)
+{
+    return bounceTraced()
+        ? ambientReaching(hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, seed, rate)
+        : 0.0;
+}
+
 /// What a surface a path ends at sends back, with the fill apart from the lights.
 struct PathEnd
 {
@@ -534,8 +547,7 @@ struct PathEnd
 /// @param ambientRate as `ambientReaching` takes it.
 PathEnd lightAtPathEnd(Surface hit, uint key, uint ambient, uint lamps, uint path, bool split, float ambientRate)
 {
-    const float reaching = ambientReaching(
-        hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, key + ambient, ambientRate);
+    const float reaching = surfaceAmbient(hit, key + ambient, ambientRate);
     const DirectLight lit = gather(hit, glossOf(hit), key, lamps, path, split);
 
     return PathEnd(SplitLight(litSurface(hit, lit.mDiffuse, lit.mSpecular), shadowedLight(hit, lit), lit.mOpen),
@@ -594,8 +606,7 @@ struct SeenPane
 /// @param key,ambient,lamps as `shadeAtPathEnd` takes them.
 SeenPane shadePane(Surface hit, uint key, uint ambient, uint lamps)
 {
-    const float reaching = ambientReaching(
-        hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, key + ambient, AMBIENT_EXTERIOR_RATE);
+    const float reaching = surfaceAmbient(hit, key + ambient, AMBIENT_EXTERIOR_RATE);
     const DirectLight lit = gather(hit, glossOf(hit), key, lamps, PATH_SEEN, false);
 
     return SeenPane(litSurface(hit, vec3(0.0), vec3(0.0)),
@@ -618,6 +629,13 @@ struct Bounce
     /// it is not multiplied by the diffuse albedo** — a metal has none, and in the indirect term its
     /// whole reflection would be multiplied by nought.
     vec3 mSpecular;
+
+    /// The diffuse half's draw as the reuse takes it: where it landed and what left there toward the
+    /// surface, unweighted, and the density it was drawn with over the solid angle — every choice
+    /// that led to it, the face, the half and the rate. Nought where the lobe drew the ray or the
+    /// diffuse half drew nothing, which is a candidate of no weight.
+    BounceSample mSample;
+    float mChance;
 };
 
 /// Which way a bounce leaves, and what it is worth.
@@ -640,6 +658,11 @@ struct BounceDraw
     /// reflection by its slopes. Never past `BOUNCE_SPREAD`, which is what a lobe as wide as the
     /// diffuse one reads its textures at.
     float mSpread;
+
+    /// The density the diffuse half drew `mTowards` with, over the solid angle, times the chance it
+    /// was the half drawn: the cosine over pi, less the lobe's share on a glossy near face. Nought
+    /// where the lobe drew it.
+    float mDiffuseChance;
 };
 
 /// What arrives along a bounce, whole, and the part of it the surface that drew it reflects by its
@@ -677,15 +700,29 @@ struct Arriving
 /// picture of the world: the deck, the sheets and the stars where they are, and no fill. With no
 /// discs, which `gather` asks the lobe for already. A branch and not a factor, because the halves
 /// are the draw's own split and the reflected sky is a deck's reading the diffuse half never needs.
-Arriving bounceEscape(vec3 position, BounceDraw drawn, vec3 weight)
+///
+/// @param landed the same, unweighted, as the reuse keeps it: a sample at infinity.
+Arriving bounceEscape(vec3 position, BounceDraw drawn, vec3 weight, out BounceSample landed)
 {
+    landed = skySample(drawn.mTowards, vec3(0.0));
     if (!skyLights())
         return Arriving(vec3(0.0), vec3(0.0));
 
     const vec3 sky = drawn.mSpecular ? reflectedSky(position, drawn.mTowards, 0.5 * drawn.mSpread, false)
                                      : skyGlow(drawn.mTowards);
-    const vec3 escaped = weight * sky * daylightReaching(position);
+    const vec3 daylight = daylightReaching(position);
+    landed = skySample(drawn.mTowards, sky * daylight);
+    const vec3 escaped = weight * sky * daylight;
     return Arriving(escaped, escaped);
+}
+
+/// What leaves the surface a bounce landed on toward the surface that drew it, unweighted: the
+/// end of the path, whole, and its fill. **The one shading of a bounce's far end**, which
+/// `bouncevalidate.rgen` asks again of a kept sample, so the two cannot disagree.
+Arriving bounceLanding(Surface hit, uint key, uint ambient, uint lamps, uint path)
+{
+    const PathEnd end = lightAtPathEnd(hit, key, ambient, lamps, path, false, AMBIENT_EXTERIOR_RATE);
+    return Arriving(composed(joinedLight(end)), fillOf(end));
 }
 
 /// Which way the eye's bounce leaves a surface, and what the light that arrives along it is worth.
@@ -709,6 +746,9 @@ Arriving bounceEscape(vec3 position, BounceDraw drawn, vec3 weight)
 /// **Off the near face only.** The lobe reflects, and the far face of a sheet transmits: `gather`
 /// gives a light behind a sheet no lobe and its diffuse half the whole of it, and so does this.
 ///
+/// **The lobe at a chance of one where no bounce is traced** (`bounceTraced`): the diffuse half is
+/// gone, and the one ray left is the reflection.
+///
 /// **One pair for either half**, `STREAM_BOUNCE`'s: only one half is kept, so the pair's spread
 /// across the screen serves whichever it is.
 ///
@@ -724,6 +764,7 @@ BounceDraw bounceDraw(Surface surface, Gloss gloss, float face, uvec2 pixel, Con
     drawn.mWeight = vec3(1.0);
     drawn.mSpecular = false;
     drawn.mSpread = BOUNCE_SPREAD;
+    drawn.mDiffuseChance = max(face * dot(surface.mNormal, scattered), 0.0) * INV_PI;
 
     if (!gloss.mGlossy || face < 0.0)
         return drawn;
@@ -731,7 +772,7 @@ BounceDraw bounceDraw(Surface surface, Gloss gloss, float face, uvec2 pixel, Con
     // A metal's diffuse albedo is nought and its chance one, which the draw always takes; the
     // diffuse weight it divides by nought is never the one selected.
     const float reflected = dot(gloss.mAlbedo, LUMINANCE_WEIGHTS);
-    const float chance = reflected / (reflected + dot(surface.mAlbedo, LUMINANCE_WEIGHTS));
+    const float chance = bounceTraced() ? reflected / (reflected + dot(surface.mAlbedo, LUMINANCE_WEIGHTS)) : 1.0;
 
     uint lobe = randomSeed(pixelKey(pixel) + SEED_BOUNCE_LOBE);
     const bool specular = randomNext(lobe) < chance;
@@ -745,23 +786,34 @@ BounceDraw bounceDraw(Surface surface, Gloss gloss, float face, uvec2 pixel, Con
     drawn.mWeight = specular ? sampled.mWeight / chance : diffuseWeight;
     drawn.mSpecular = specular;
     drawn.mSpread = specular ? lobeSpread : BOUNCE_SPREAD;
+    drawn.mDiffuseChance = specular ? 0.0 : drawn.mDiffuseChance * (1.0 - chance);
 
     return drawn;
 }
 
 /// What arrives along a bounce's direction, times `weight`: the sky it escapes to, or the surface it
 /// lands on, shaded as the end of the path.
-Arriving bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pixel)
+///
+/// @param landed the same, unweighted, as the reuse keeps it: where the ray ended and what left
+///        there toward the surface.
+/// @param rate the chance the ray was traced at all: `frame.mBounceRate` where the draw below decides
+///        it, and one where nothing does.
+Arriving bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pixel, out BounceSample landed,
+    out float rate)
 {
+    rate = 1.0;
+    landed = skySample(drawn.mTowards, vec3(0.0));
+
     // **Far ground out of doors is handed the escape rather than asked whether it escaped**, which
     // is the same answer the miss below arrives at by tracing for it. `BOUNCE_REACH` says what that
     // costs and why the room is not in it.
     const vec3 fromEye = surface.mPosition - frame.mOrigin;
     if (skyLights() && surface.mGround && dot(fromEye, fromEye) > BOUNCE_REACH * BOUNCE_REACH)
-        return bounceEscape(surface.mPosition, drawn, weight);
+        return bounceEscape(surface.mPosition, drawn, weight, landed);
 
     // Drawn last, so the side, the direction and the escape are the numbers they were. One path
     // at a rate of one: no draw reaches it, and the weight is divided by one.
+    rate = frame.mBounceRate;
     uint traced = randomSeed(pixelKey(pixel) + SEED_BOUNCE_TRACED);
     if (randomNext(traced) >= frame.mBounceRate)
         return Arriving(vec3(0.0), vec3(0.0));
@@ -778,7 +830,7 @@ Arriving bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pi
         Cone(surface.mFootprint, drawn.mSpread), solidMask(frame.mRayMask), drawn.mSpecular);
 
     if (!hit.mHit)
-        return bounceEscape(surface.mPosition, drawn, weight);
+        return bounceEscape(surface.mPosition, drawn, weight, landed);
 
     // **Its glow is counted here, because this is the only path it takes.** Nothing gives a glowing
     // surface a lamp of its own — `EMISSIVE_INTENSITY` says what measuring that showed — so a ray
@@ -787,13 +839,18 @@ Arriving bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pi
     // **One call with the path chosen, and not one per half.** Written out twice, the whole end of
     // the path is two copies, and a warp whose lanes drew both halves runs them one after the
     // other. Chosen at run time, the diffuse half's hit asks the moons and finds they weigh nought.
-    const PathEnd end = lightAtPathEnd(hit, pixelKey(pixel), SEED_AMBIENT_REACHING, SEED_LAMPS_BOUNCE,
-        drawn.mSpecular ? PATH_SEEN : PATH_INDIRECT, false, AMBIENT_EXTERIOR_RATE);
-    return Arriving(weight * composed(joinedLight(end)), weight * fillOf(end));
+    const Arriving left = bounceLanding(hit, pixelKey(pixel), SEED_AMBIENT_REACHING, SEED_LAMPS_BOUNCE,
+        drawn.mSpecular ? PATH_SEEN : PATH_INDIRECT);
+
+    // The triangle's normal where there is one, which is what the solid angle around the point
+    // changes by when another point reconnects to it (`shiftJacobian`).
+    landed = BounceSample(drawn.mTowards * hit.mDistance,
+        dot(hit.mGeometric, hit.mGeometric) > 0.0 ? hit.mGeometric : hit.mNormal, false, left.mWhole, left.mFill);
+    return Arriving(weight * left.mWhole, weight * left.mFill);
 }
 
 /// What reaches a surface from everything that is not a light: one bounce, off the half
-/// `bounceDraw` chose.
+/// `bounceDraw` chose; or, where no bounce is traced, the lobe's reflection alone.
 ///
 /// **Traced only from the hit the eye found.** A shader with no recursion cannot bounce a bounce, and
 /// it should not: what the second hit gathers is `pathEnd`, the flat ambient that stands in for the
@@ -818,17 +875,28 @@ Bounce bounceLight(Surface surface, Gloss gloss, uvec2 pixel, Cone cone)
 
     const BounceDraw drawn = bounceDraw(surface, gloss, face, pixel, cone);
 
-    // A reflection below the shading normal's horizon brings nothing back, and is not traced to
-    // find that out.
-    if (behindTheFace(drawn.mTowards, surface.mGeometric, face) || !(brightest(drawn.mWeight) > 0.0))
-        return Bounce(vec3(0.0), vec3(0.0), vec3(0.0));
+    const BounceSample nothing = skySample(drawn.mTowards, vec3(0.0));
 
-    const Arriving arriving = bounceArriving(surface, drawn, drawn.mWeight * sided, pixel);
+    // A reflection below the shading normal's horizon brings nothing back, and is not traced to
+    // find that out. **Where no bounce is traced, nor does the diffuse half**, and a ray is traced
+    // only for a lobe: a lane on a matte surface skips the ray, which is the saving the setting is
+    // for, and on vanilla content, which has no lobe, no lane traces one.
+    if (behindTheFace(drawn.mTowards, surface.mGeometric, face) || !(brightest(drawn.mWeight) > 0.0)
+        || !(bounceTraced() || drawn.mSpecular))
+        return Bounce(vec3(0.0), vec3(0.0), vec3(0.0), nothing, 0.0);
+
+    BounceSample landed;
+    float rate;
+    const Arriving arriving = bounceArriving(surface, drawn, drawn.mWeight * sided, pixel, landed, rate);
+
+    // The chance of the face `sampledFace` chose — the near one at one over `sided`, the far one at
+    // the transmission over it — beside the direction's and the rate's.
+    const float chance = drawn.mDiffuseChance * (face > 0.0 ? 1.0 : surface.mTransmission) / sided * rate;
 
     // **The lobe takes the whole of it**: a reflection is a picture of the world, and nothing in the
     // rasterizer's sum reflects one by the ambient colour.
-    return drawn.mSpecular ? Bounce(vec3(0.0), vec3(0.0), arriving.mWhole)
-                           : Bounce(arriving.mWhole, arriving.mFill, vec3(0.0));
+    return drawn.mSpecular ? Bounce(vec3(0.0), vec3(0.0), arriving.mWhole, nothing, 0.0)
+                           : Bounce(arriving.mWhole, arriving.mFill, vec3(0.0), landed, chance);
 }
 
 /// What a solid the eye found sends back, in the channels' pieces.
@@ -845,6 +913,13 @@ struct SeenSolid
 
     /// What the solid is in the filter's terms.
     SurfaceResponse mResponse;
+
+    /// The bounce as the reuse takes it (`Bounce::mSample`, `Bounce::mChance`), and what the solid's
+    /// diffuse half makes of a direction, all but where it stands, which the shader that found it
+    /// knows.
+    BounceSample mBounceSample;
+    float mBounceChance;
+    BounceOrigin mOrigin;
 
     /// What the lobe reflects of the lamps and of the one bounce, whole, and the perceptual
     /// roughness of the lobe that reflects it, or `SPECULAR_NO_LOBE`: `CHANNEL_SPECULAR`. Not
@@ -882,6 +957,10 @@ SeenSolid shadeSolid(Surface hit, uvec2 pixel, Cone cone)
     seen.mSpecular = lit.mSpecular + bounced.mSpecular;
     seen.mRoughness = gloss.mGlossy ? hit.mRoughness : SPECULAR_NO_LOBE;
     seen.mResponse = responseOf(hit);
+    seen.mBounceSample = bounced.mSample;
+    seen.mBounceChance = bounced.mChance;
+    seen.mOrigin = BounceOrigin(vec3(0.0), hit.mNormal, hit.mGeometric, dot(hit.mGeometric, hit.mGeometric) > 0.0,
+        hit.mSpecular, gloss.mGlossy, hit.mTransmission, true);
     return seen;
 }
 

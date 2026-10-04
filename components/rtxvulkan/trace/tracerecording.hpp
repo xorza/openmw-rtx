@@ -4,6 +4,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/shaders/visibility.h>
 
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -34,9 +35,10 @@ namespace Rtx
         /// the frame block is copied once, where the trace writes it (`VisibilityPass::writeFrame`).
         const Shaders::VisibilityConstants& mSampled;
 
-        /// Whether the denoisers put this trace back together, the one thing the chain reads of
-        /// what reconstructs it.
-        bool mDenoised = false;
+        /// What puts this trace back together, of which the chain reads whether the denoisers run,
+        /// what the trace makes of its bounce, and so whether the trace composes the frame itself.
+        /// Borrowed, as `mSampled` is.
+        const Reconstruction& mReconstruction;
 
         /// How many frames the chain's running total holds, this one included, or nought where
         /// nothing is averaging (`FrameOptions::mAccumulate`).

@@ -239,6 +239,22 @@
         <translation> cellules</translation>
     </message>
     <message>
+        <source>Indirect Light</source>
+        <translation>Lumière indirecte</translation>
+    </message>
+    <message>
+        <source>Whether surfaces take light that no lamp, sun or moon gives. Traced follows one bounce of light from every surface and cleans its noise. Off traces none, which is much faster: what no light reaches is black.</source>
+        <translation>Si les surfaces reçoivent la lumière qu&apos;aucune lampe, aucun soleil ni aucune lune ne donne. Tracée suit un rebond de lumière depuis chaque surface et en retire le bruit. Désactivée n&apos;en trace aucun, ce qui est bien plus rapide : ce qu&apos;aucune lumière n&apos;atteint est noir.</translation>
+    </message>
+    <message>
+        <source>Traced</source>
+        <translation>Tracée</translation>
+    </message>
+    <message>
+        <source>Off (Faster)</source>
+        <translation>Désactivée (plus rapide)</translation>
+    </message>
+    <message>
         <source>Custom:</source>
         <translation>Personnalisé :</translation>
     </message>

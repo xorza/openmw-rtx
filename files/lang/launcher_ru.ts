@@ -306,6 +306,22 @@
         <source> cells</source>
         <translation> ячеек</translation>
     </message>
+    <message>
+        <source>Indirect Light</source>
+        <translation>Непрямое освещение</translation>
+    </message>
+    <message>
+        <source>Whether surfaces take light that no lamp, sun or moon gives. Traced follows one bounce of light from every surface and cleans its noise. Off traces none, which is much faster: what no light reaches is black.</source>
+        <translation>Получают ли поверхности свет, который не дают лампы, солнце и луны. Трассировка следует за одним отражением света от каждой поверхности и убирает его шум. Выключено не трассирует ничего, что намного быстрее: то, куда не достаёт свет, остаётся чёрным.</translation>
+    </message>
+    <message>
+        <source>Traced</source>
+        <translation>Трассировка</translation>
+    </message>
+    <message>
+        <source>Off (Faster)</source>
+        <translation>Выключено (быстрее)</translation>
+    </message>
 </context>
 <context>
     <name>ImportPage</name>

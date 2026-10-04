@@ -33,6 +33,13 @@ bool skyLights()
     return frame.mAmbientFromSky > 0.0;
 }
 
+/// Whether a surface the eye finds traces its bounce, or takes no indirect light at all —
+/// `VisibilityConstants::mBounceTraced`, `[RTX] indirect light`.
+bool bounceTraced()
+{
+    return frame.mBounceTraced != 0u;
+}
+
 /// How much water stands over a point, in world units — or nothing at all above the surface, and
 /// in a cell that has none.
 ///

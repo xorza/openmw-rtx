@@ -697,6 +697,26 @@ float solidWithin(WorldRay ray, float tmin, float reach, Cone cone)
     return surfaceWithin(ray, tmin, reach, cone, RayRule(solidMask(frame.mRayMask), false, false));
 }
 
+/// Whether a solid stands along `ray` between `tmin` and `reach`: a yes or a no, for a ray between
+/// two points that only asks whether one sees the other, as the bounce's reuse asks of a sample.
+///
+/// **The first solid that stops the ray ends the search, and its cutout is read at the finest
+/// level**, the shadow rays' two rules (`passageToward`): an answer that needs no nearest hit pays
+/// for none, and the level is what a width of nought answers at once. Measured on the bounce's
+/// resolve at the guild, 1.17 ms against 1.08 with both; the first hit alone was 1.15. Solids from
+/// either face, as the bounce's own ray meets them.
+bool solidBetween(WorldRay ray, float tmin, float reach)
+{
+    rayQueryEXT query;
+    rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT, solidMask(frame.mRayMask), ray.mFrom,
+        tmin, ray.mAlong, reach);
+
+    uint blocked = 0u;
+    RTX_RESOLVE(query, ray.mAlong, 0.0, blocked, false, false)
+
+    return rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT;
+}
+
 /// What a ray found, resolved down to the inputs shading needs.
 ///
 /// Geometry and material only — no light. That is what lets water shade by tracing again: the

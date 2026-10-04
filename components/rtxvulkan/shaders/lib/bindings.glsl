@@ -31,6 +31,7 @@
 #extension GL_EXT_ray_query : require
 
 #include "bindings.h"
+#include "bouncereuse.h"
 #include "brdf.h"
 #include "counts.h"
 #include "fogvolume.h"
@@ -88,8 +89,10 @@ layout(set = SET_CHANNELS, binding = CHANNEL_ALBEDO, GBUFFER_ALBEDO) uniform wri
 /// `spritecomposite.rgen` for where a sprite is hidden, which is why it is not `writeonly`.
 layout(set = SET_CHANNELS, binding = CHANNEL_SURFACE, GBUFFER_SURFACE) uniform image2D surfaceChannel;
 
-/// Where each surface stood on the previous frame's screen, less where it stands on this one.
-layout(set = SET_CHANNELS, binding = CHANNEL_MOTION, GBUFFER_MOTION) uniform writeonly image2D motion;
+/// Where each surface stood on the previous frame's screen, less where it stands on this one. Read
+/// back by `bouncetemporal.comp` for where last frame's reservoir is, which is why it is not
+/// `writeonly`.
+layout(set = SET_CHANNELS, binding = CHANNEL_MOTION, GBUFFER_MOTION) uniform image2D motion;
 
 /// How much of the backdrop this pixel still shows, per channel, in `rgb` — everything the trace put
 /// between the backdrop and the eye, multiplied together. The backdrop is the star field behind a
@@ -158,6 +161,45 @@ layout(set = SET_PASS, binding = BIND_COUNTS, scalar) buffer Counted
 layout(set = SET_PASS, binding = BIND_SUN_GLARE, scalar) buffer SunGlare
 {
     SunGlareCount sunGlare;
+};
+
+/// The bounce's reservoirs and visible points, a traced pixel each, row by row at
+/// `VisibilityConstants::mBounceStride`: this frame's reservoirs, which the trace writes and the
+/// temporal pass merges into and the resolve reads, and the history, which the temporal pass reads
+/// last frame's off and the resolve writes the next frame's into; this frame's visible points and
+/// last frame's; and the path's transmittance in front of each pixel, `RGB9E5`, which the resolve
+/// puts back over the bounce it shades.
+layout(set = SET_PASS, binding = BIND_BOUNCE_RESERVOIRS, scalar) buffer BounceReservoirs
+{
+    GpuBounceReservoir bounceReservoirs[];
+};
+layout(set = SET_PASS, binding = BIND_BOUNCE_HISTORY, scalar) buffer BounceHistory
+{
+    GpuBounceReservoir bounceHistory[];
+};
+layout(set = SET_PASS, binding = BIND_BOUNCE_ORIGINS, scalar) buffer BounceOrigins
+{
+    GpuBounceOrigin bounceOrigins[];
+};
+layout(set = SET_PASS, binding = BIND_BOUNCE_ORIGINS_BEFORE, scalar) readonly buffer BounceOriginsBefore
+{
+    GpuBounceOrigin bounceOriginsBefore[];
+};
+layout(set = SET_PASS, binding = BIND_BOUNCE_THROUGH, scalar) buffer BounceThrough
+{
+    uint bounceThrough[];
+};
+
+/// The spatial reuse's two pairing textures, one after the other, a step a texel as two signed
+/// sixteen-bit halves; and a word a traced pixel at `VisibilityConstants::mBounceStride` whose bit `i`
+/// says whether link `i`'s partner sees the pixel's sample (`bouncepairs.rgen`).
+layout(set = SET_PASS, binding = BIND_BOUNCE_PAIRING, scalar) readonly buffer BouncePairing
+{
+    uint bouncePairing[];
+};
+layout(set = SET_PASS, binding = BIND_BOUNCE_PAIRED, scalar) buffer BouncePaired
+{
+    uint bouncePaired[];
 };
 
 // **A buffer and not a push constant.** The frame's description passed 256 bytes, which is every
