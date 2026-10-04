@@ -264,6 +264,12 @@ except where a cutout's finest level and the cone's level disagree. A sample the
 a hole at the cone's level can be hidden at the finest level. Step B.1 measures this at a foliage
 place.
 
+*Landed:* the resolve 0.07 to 0.18 ms faster (the guild 1.18 to 1.07, the pier 1.62 to 1.44),
+noise the same still, strafed and walked, and the bias up by at most 0.02 at the pier and the pond.
+Under the reuse a changed answer reorders which samples later frames keep, so `shot --against`
+moved 24 of 64 pictures by noise; the most pixels at the fence, the boulder's grass, the sail and the
+ship, which are the cutouts.
+
 **BD2. Only the visibility bits cross between the passes.** Of a pair's terms, only visibility
 needs a ray. The target at the other point and the Jacobian come from the reservoir and the origin,
 which both passes read. So the pre-pass stores **one bit a link** — whether the partner's visible
@@ -325,13 +331,6 @@ rest needs one of these, each measured as its own step:
   measurement in §10 (D10).
 
 ## B5. Steps
-
-**Step B.1 — visibility rays at the finest level (BD1).** The new traversal function, which the
-resolve's `bounceSeen` uses. The validation's ray stays a nearest-hit trace, because it compares
-the distance of what it meets with the sample's. **Gates:** `repeat --pairs=10` identical;
-`shot --views=all --map --upscale=off` against a baseline from before the step moves no picture past
-the denoiser's noise, and the foliage places are named in the record. `release bench --suite=bounce`
-with a warm-up leg: the resolve's median.
 
 **Step B.2 — the pairing textures (BD4, BD5).** Host code only, in `components/rtx/` (a core fact,
 no graphics API): `BouncePairing`, which makes one self-inverting texture of a given size and σ.

@@ -38,8 +38,7 @@ bool bounceSeen(BounceOrigin origin, BounceReach reach)
     if (!(distance > SHADOW_BIAS))
         return true;
 
-    const WorldRay ray = WorldRay(frame.mOrigin + origin.mOffset, reach.mTowards);
-    return solidWithin(ray, SHADOW_BIAS, distance, Cone(0.0, BOUNCE_SPREAD)) >= distance;
+    return !solidBetween(WorldRay(frame.mOrigin + origin.mOffset, reach.mTowards), SHADOW_BIAS, distance);
 }
 
 /// The golden angle as a share of a turn, `2 - φ`: what spaces a spiral's points so no two of them
