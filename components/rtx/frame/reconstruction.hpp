@@ -90,6 +90,11 @@ namespace Rtx
         /// frames that each reused the ones before them are not a thousand draws.
         BounceReuse mBounceReuse = BounceReuse::Spatiotemporal;
 
+        /// Whether the accumulator holds its slow mean to its fast one (`accumulateclamp.comp`), so a
+        /// change of the light on a surface that did not move is followed and not dragged. On unless
+        /// a run names it off, which is the A/B.
+        bool mAntilag = true;
+
         bool operator==(const ReconstructionRequest& other) const = default;
     };
 
@@ -139,6 +144,10 @@ namespace Rtx
         /// it on does.
         BounceReuse mBounceReuse = BounceReuse::Off;
 
+        /// Whether the accumulator held its slow mean to its fast one. Read only where the frame is
+        /// denoised.
+        bool mAntilag = false;
+
         /// Whether an upscaler reconstructed the frame.
         bool upscaled() const { return upscales(mUpscale); }
 
@@ -163,6 +172,7 @@ namespace Rtx
                 .mNoise = asked.mNoise,
                 .mLevelBias = upscaled ? levelBiasOf(extents, asked.mLevelEpsilon) : asked.mLevelEpsilon,
                 .mBounceReuse = asked.mBounceReuse,
+                .mAntilag = asked.mAntilag,
             };
         }
 

@@ -41,9 +41,10 @@ namespace Rtx
         ///        plane.
         /// @param mapped `TraceSubject::mMapped`: whether any surface of the frame has a lobe.
         /// @param lamps `TraceSubject::mLamps`: whether the scene holds a lamp.
+        /// @param antilag `Reconstruction::mAntilag`.
         /// @param timer null where the run is not being timed, which a picture is not.
         Denoised record(VkCommandBuffer commands, DenoiseHistory& history, const GBuffer& buffer,
-            const Shaders::VisibilityConstants& sampled, bool mapped, bool lamps, GpuTimer* timer) const;
+            const Shaders::VisibilityConstants& sampled, bool mapped, bool lamps, bool antilag, GpuTimer* timer) const;
 
     private:
         AccumulatePass mAccumulate;

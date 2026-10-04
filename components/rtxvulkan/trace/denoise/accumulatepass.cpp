@@ -6,6 +6,8 @@
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/accumulate.h>
 #include <components/rtx/shaders/camera.h>
+#include <components/rtxvulkan/device/memory/barriers.hpp>
+#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 
@@ -20,10 +22,15 @@ namespace Rtx
         /// this reads next frame — SVGF's feedback.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_BINDINGS> sBindings
             = computeBindings<Shaders::ACCUMULATE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+
+        /// The surface, the fast means read, and the slow means and the moments rewritten in place.
+        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_CLAMP_BINDINGS> sClampBindings
+            = computeBindings<Shaders::ACCUMULATE_CLAMP_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     }
 
     AccumulatePass::AccumulatePass(const Device& device)
         : mPipeline(device, sBindings, {}, "accumulate.comp.spv", "accumulate")
+        , mClamp(device, sClampBindings, {}, "accumulateclamp.comp.spv", "accumulate-clamp")
     {
     }
 
@@ -58,6 +65,26 @@ namespace Rtx
         };
 
         dispatch(commands, mPipeline, writes, constants,
+            Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
+
+        // The clamp reads a neighbour's fast mean, so every pixel's blend is behind it.
+        Barriers blended(commands);
+        for (const Image* image :
+            { &images.mBlended, &images.mFillBlended, &images.mMoments, &images.mFast, &images.mFastFill })
+            image->addTransition(blended, Use::sComputeWrite, Use::sComputeReadWrite);
+        blended.flush();
+
+        DescriptorWrites clampWrites(mClamp);
+        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
+        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST, images.mFast.describeStorage());
+        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST_FILL, images.mFastFill.describeStorage());
+        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_BLENDED, images.mBlended.describeStorage());
+        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FILL_BLENDED, images.mFillBlended.describeStorage());
+        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_MOMENTS, images.mMoments.describeStorage());
+
+        dispatch(commands, mClamp, clampWrites,
+            Shaders::AccumulateClampConstants{
+                .mWidth = camera.mWidth, .mHeight = camera.mHeight, .mAntilag = frame.mAntilag ? 1u : 0u },
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
     }
 }

@@ -13,5 +13,8 @@ namespace Rtx
         /// What a world distance is multiplied by before a surface history holds it —
         /// `HistoryConstants::mDistanceScale` says why — worked out once for the frame.
         float mDistanceScale;
+
+        /// `Reconstruction::mAntilag`: whether the accumulator holds its slow mean to its fast one.
+        bool mAntilag;
     };
 }

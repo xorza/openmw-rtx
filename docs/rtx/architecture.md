@@ -274,7 +274,9 @@ at the top, over all of them.
 - **The denoiser** (`trace/denoise/`) runs where the frame is filtered. The accumulator averages
   the bounce's diffuse light over time and the wavelet spreads it across the screen, with the share
   of it that is fill beside it by the same weights: the composite puts the bounce back by the
-  diffuse albedo and the fill by the ambient one, as the rasterizer has `D × lit + A × ambient`. The
+  diffuse albedo and the fill by the ambient one, as the rasterizer has `D × lit + A × ambient`. A
+  clamp holds the accumulator's slow mean to a fast one of a few frames (`accumulateclamp.comp`,
+  ReLAX's), so light that changes on a surface that did not move is followed and not dragged. The
   shadow denoiser filters the one bit a pixel kept of its rays to the sky's source and to a lamp, under
   the light both would add unshadowed, where the sky has a source that lights or the scene a lamp.
   The glossy filter averages the lobe's light over time, where the scene wears a map. The pane

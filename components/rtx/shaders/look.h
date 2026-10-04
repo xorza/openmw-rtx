@@ -1163,6 +1163,10 @@ namespace Rtx::Shaders
     /// dragged over a floor. ReLAX's default (NVIDIA NRD, `diffuseMaxFastAccumulatedFrameNum`).
     const float ACCUMULATE_FAST_FRAMES = 6.0f;
 
+    /// How many deviations of the fast mean, over a 5×5 square, the slow mean may stand from the
+    /// square's mean of it before it is held to that edge: ReLAX's `fastHistoryClampingSigmaScale`.
+    const float ACCUMULATE_CLAMP_SPREAD = 2.0f;
+
     /// How squarely two normals must agree before their pixels are the same surface, and the
     /// history at one may be carried to the other.
     ///

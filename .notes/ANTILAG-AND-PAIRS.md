@@ -152,18 +152,6 @@ the same class. The estimate is under 0.1 ms at 1280×720; step A.6 measures it.
 
 Each step ends with `./omw test` and the gates it names.
 
-**Step A.3 — the clamp.** `accumulateclamp.comp` clamps the slow bounce and fill by AD3, with the
-second-moment correction.
-
-- **Host test:** the clamp factor, the box grown by the centre, and the fill moved by the same factor,
-  each by hand.
-- **GPU tests:** a still floor: the clamped frame equals the unclamped frame to a bound derived from
-  the box (the clamp must not touch a converged, still signal). A floor whose sky light halves in
-  one frame (`mAmbientFromSky` 1 → 0.5): the mean reaches within 5% of the new level in a number of
-  frames the test states, against today's count.
-- **Gate:** `RtxBounceTrailTest`'s sky lag falls. `noise --suite=bounce`, still: no place noisier by
-  more than 0.02 against `.notes/RESTIR-GI.md` §10's figures. The bias does not rise past 0.1.
-
 **Step A.4 — acceleration and reset.** Each one on its own, then both. A part that does not lower
 the lag in `RtxBounceTrailTest` by more than the legs' spread, or that raises still noise past
 step A.3's gate, is removed.

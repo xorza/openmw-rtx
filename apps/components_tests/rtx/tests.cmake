@@ -73,6 +73,7 @@ set(RTX_TEST_FILES
     rtx/scene/scenedesc.cpp
     rtx/scene/scenetextures.cpp
     rtx/scene/surface.cpp
+    rtx/shaders/accumulate.cpp
     rtx/shaders/bouncereuse.cpp
     rtx/shaders/brdf.cpp
     rtx/shaders/exposure.cpp

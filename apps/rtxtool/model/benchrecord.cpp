@@ -326,12 +326,13 @@ namespace RtxTool
             header.mHashed ? ", every frame hashed" : "", header.mTurnsWeather ? ", the weather turned" : "");
         const Rtx::Reconstruction& resolved = header.mReconstruction;
         out += std::format(
-            "     {}x{} from {}x{}, upscale {}, filter {}, jitter {}, noise {}, level bias {:.3f}, bounce reuse {}\n",
+            "     {}x{} from {}x{}, upscale {}, filter {}, jitter {}, noise {}, level bias {:.3f}, bounce reuse {}, "
+            "antilag {}\n",
             header.mExtents.mOutputWidth, header.mExtents.mOutputHeight, header.mExtents.mRenderWidth,
             header.mExtents.mRenderHeight, Rtx::sUpscaleNames.name(resolved.mUpscale),
             resolved.mDenoised ? "on" : "off", resolved.mJitter ? "on" : "off",
             Rtx::sNoiseSourceNames.name(resolved.mNoise), resolved.mLevelBias,
-            Rtx::sBounceReuseNames.name(resolved.mBounceReuse));
+            Rtx::sBounceReuseNames.name(resolved.mBounceReuse), resolved.mAntilag ? "on" : "off");
         out += std::format("     delight {:.2f}, gamma {:.2f}, show {}, exposure {}, variants {}, hold {}\n",
             profile.mDelight, profile.mGamma, Rtx::sSurfaceViewNames.name(profile.mShow),
             describeExposure(profile.mExposure), profile.mSpecializeLaunches ? "on" : "off",
@@ -482,9 +483,9 @@ namespace RtxTool
                     Rtx::sUpscaleNames.name(header.mReconstruction.mUpscale), header.mReconstruction.mDenoised,
                     header.mReconstruction.mJitter)
              << '\n'
-             << std::format(R"(  "noise": "{}", "levelBias": {:.3f}, "bounceReuse": "{}",)",
+             << std::format(R"(  "noise": "{}", "levelBias": {:.3f}, "bounceReuse": "{}", "antilag": {},)",
                     Rtx::sNoiseSourceNames.name(header.mReconstruction.mNoise), header.mReconstruction.mLevelBias,
-                    Rtx::sBounceReuseNames.name(header.mReconstruction.mBounceReuse))
+                    Rtx::sBounceReuseNames.name(header.mReconstruction.mBounceReuse), header.mReconstruction.mAntilag)
              << '\n'
              << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", header.mMeasured, header.mWarmup,
                     header.mValidating)

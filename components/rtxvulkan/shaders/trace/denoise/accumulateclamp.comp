@@ -1,0 +1,113 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
+
+// The accumulator's anti-lag: the slow mean of the bounce held to what its fast mean says around
+// the pixel, after the accumulator and before the wavelet. ReLAX's history clamp (NVIDIA NRD,
+// `RELAX_HistoryClamping`), taken as published and written again.
+//
+// **Why a slow mean drags.** The accumulator drops a history only where the surface changed. Where
+// the light changes on a surface that did not move — an actor's darkness dragged over a floor — its
+// 32 frames keep the old light, and the wavelet's feedback blurs it as it fades: a trail ten pixels
+// long and more behind a moving bar (`RtxBounceTrailTest`).
+//
+// **Why the fast mean's neighbourhood and not the frame's sample.** A sample is one bounce, and one
+// that found a lit patch stands many deviations over the mean, so a box of samples would hold the
+// slow mean to noise. Six frames of the same samples are quiet enough to bound it and short enough
+// to follow the light: where the slow mean stands outside the fast one's mean ± two deviations over
+// a 5×5 square, it is moved to that edge.
+//
+// **The fill moves by the bounce's share.** `CHANNEL_FILL` is a share of the bounce, so both slow
+// means move toward their fast ones by the one factor the bounce's luminance gives, and the fill
+// stays the share of the bounce it was.
+//
+// **In place**: each pixel reads and writes only its own slow means and moments, and reads its
+// neighbours' fast means, which this does not write.
+
+#include "accumulate.h"
+#include "atrous.h"
+#include "colour.h"
+#include "gbuffer.h"
+#include "sets.h"
+
+#include "lib/pixels.glsl"
+
+layout(local_size_x = ACCUMULATE_WORKGROUP, local_size_y = ACCUMULATE_WORKGROUP) in;
+
+/// Which pixels hold a surface: one that does not has no mean to bound or to bound by.
+layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
+
+layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST, ACCUMULATE_COLOUR) uniform readonly image2D fast;
+layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST_FILL, ACCUMULATE_COLOUR) uniform readonly image2D fastFill;
+
+/// The slow means as the accumulator blended them, the variance in the bounce's `a`, and the
+/// luminance moments in `rg`, which move with the mean so the variance they give stays the
+/// variance of what is kept.
+layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_BLENDED, ATROUS_CHANNEL) uniform image2D blended;
+layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FILL_BLENDED, ATROUS_CHANNEL) uniform image2D fillBlended;
+layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_MOMENTS, ACCUMULATE_MOMENTS) uniform image2D moments;
+
+layout(push_constant, scalar) uniform Push
+{
+    AccumulateClampConstants frame;
+};
+
+const int REACH = int(ACCUMULATE_CLAMP_REACH);
+const uint SPAN = ACCUMULATE_WORKGROUP + 2u * ACCUMULATE_CLAMP_REACH;
+
+/// The fast mean's luminance at every pixel of the workgroup's square, or below nought where the
+/// pixel holds no surface.
+shared float gFast[SPAN][SPAN];
+
+void main()
+{
+    const ivec2 corner = ivec2(gl_WorkGroupID.xy * ACCUMULATE_WORKGROUP) - REACH;
+    for (uint i = gl_LocalInvocationIndex; i < SPAN * SPAN; i += ACCUMULATE_WORKGROUP * ACCUMULATE_WORKGROUP)
+    {
+        const uvec2 square = uvec2(i % SPAN, i / SPAN);
+        const ivec2 pixel = corner + ivec2(square);
+        const bool held = !outsideOf(uvec2(pixel), uvec2(frame.mWidth, frame.mHeight))
+            && imageLoad(surfaceChannel, pixel).r != SURFACE_NO_NORMAL;
+        gFast[square.y][square.x] = held ? dot(imageLoad(fast, pixel).rgb, LUMINANCE_WEIGHTS) : -1.0;
+    }
+    barrier();
+
+    const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
+    const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + REACH;
+    const float fastHere = gFast[centre.y][centre.x];
+    if (outsideOf(uvec2(at), uvec2(frame.mWidth, frame.mHeight)) || fastHere < 0.0)
+        return;
+
+    // The square's mean and spread, in a fixed order, over the pixels that hold a surface; the
+    // centre is one of them.
+    float count = 0.0;
+    float sum = 0.0;
+    float squares = 0.0;
+    for (int y = -REACH; y <= REACH; ++y)
+        for (int x = -REACH; x <= REACH; ++x)
+        {
+            const float there = gFast[centre.y + y][centre.x + x];
+            const float weight = there >= 0.0 ? 1.0 : 0.0;
+            count += weight;
+            sum += weight * there;
+            squares += weight * there * there;
+        }
+    const float mean = sum / count;
+    const float deviation = sqrt(max(squares / count - mean * mean, 0.0));
+
+    const vec4 slow = imageLoad(blended, at);
+    const float slowHere = dot(slow.rgb, LUMINANCE_WEIGHTS);
+    const float share = float(frame.mAntilag)
+        * antilagShare(slowHere, fastHere, mean - ACCUMULATE_CLAMP_SPREAD * deviation,
+            mean + ACCUMULATE_CLAMP_SPREAD * deviation);
+
+    const vec3 held = mix(slow.rgb, imageLoad(fast, at).rgb, share);
+    const float heldHere = dot(held, LUMINANCE_WEIGHTS);
+    imageStore(blended, at, vec4(held, slow.a));
+    imageStore(fillBlended, at, vec4(mix(imageLoad(fillBlended, at).rgb, imageLoad(fastFill, at).rgb, share), 0.0));
+
+    const vec4 kept = imageLoad(moments, at);
+    imageStore(moments, at,
+        vec4(kept.x + (heldHere - slowHere), kept.y + (heldHere * heldHere - slowHere * slowHere), kept.zw));
+}
