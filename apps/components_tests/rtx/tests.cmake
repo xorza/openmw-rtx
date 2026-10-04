@@ -119,6 +119,7 @@ set(RTX_TEST_FILES
     rtxvulkan/device/memory/memorytypes.cpp
     rtxvulkan/device/physicaldevice.cpp
     rtxvulkan/device/requirements.cpp
+    rtxvulkan/device/stagingfit.cpp
     rtxvulkan/pipeline/dispatch.cpp
     rtxvulkan/scene/sceneslots.cpp
     rtxvulkan/spirv/spirvdigest.cpp
@@ -260,6 +261,11 @@ target_compile_definitions(rtx-gpu-tests
             OPENMW_RTX_SHADER_DIR="${RTX_SPIRV_DIR}")
 if (UNIX AND NOT APPLE)
     target_link_libraries(rtx-gpu-tests ${CMAKE_THREAD_LIBS_INIT})
+endif()
+
+# Beside the bundle and not in it, for the reason `apps/rtxtool` gives for the harness.
+if (APPLE)
+    set_target_properties(rtx-gpu-tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OpenMW_BINARY_DIR}")
 endif()
 if (BUILD_WITH_CODE_COVERAGE)
     target_compile_options(rtx-gpu-tests PRIVATE --coverage)

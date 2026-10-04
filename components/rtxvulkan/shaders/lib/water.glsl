@@ -116,7 +116,7 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint key, uint lamps, ui
     if (direction.z < 0.0)
     {
         path.mDistance = WATER_UNBOUNDED_PATH;
-        path.mLight = SplitLight(vec3(0.0), vec3(0.0), 1.0);
+        path.mLight = SplitLight(vec3(0.0), vec3(0.0), 1.0, SHADOW_PENUMBRA_CLEAR);
         return path;
     }
 
@@ -128,7 +128,7 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint key, uint lamps, ui
     // says and is the same rule `tone.comp` draws by.
     const float blur = pixelBlur(frame.mEyes.mWorld) + 0.5 * lobe;
 
-    path.mLight = SplitLight(reflectedSky(origin, direction, blur, true), vec3(0.0), 1.0);
+    path.mLight = SplitLight(reflectedSky(origin, direction, blur, true), vec3(0.0), 1.0, SHADOW_PENUMBRA_CLEAR);
 
     return path;
 }
@@ -167,13 +167,13 @@ WaterPath alongLeg(WaterPath path, WorldRay leg, bool underwater, float footprin
         // into the air instead, drew the bright world over the water as specks along the horizon.
         const WaterColumn column = waterColumn(leg.mFrom, leg.mAlong, path.mDistance, footprint, pixel);
         arrived.mLight = SplitLight(
-            throughWater(light.mRest, column), light.mShadowed * column.mTransmittance, light.mOpen);
+            throughWater(light.mRest, column), light.mShadowed * column.mTransmittance, light.mOpen, light.mPenumbra);
         arrived.mLift *= column.mTransmittance;
         return arrived;
     }
 
     const vec4 air = fogAlongLeg(leg.mFrom, leg.mAlong, airSpan(path), before);
-    arrived.mLight = SplitLight(throughAir(light.mRest, air), light.mShadowed * air.w, light.mOpen);
+    arrived.mLight = SplitLight(throughAir(light.mRest, air), light.mShadowed * air.w, light.mOpen, light.mPenumbra);
     arrived.mLift *= air.w;
     return arrived;
 }

@@ -50,6 +50,11 @@
 // - **A tap that receives nothing weighs nought**, where the SDK drops only the sky: a surface the
 //   source does not light carries a value that is not a shadow, and it must not darken the
 //   terminator beside it.
+// - **A level runs only where its step fits the penumbra**, the tile's reach the temporal pass
+//   wrote: the widest penumbra in pixels in the tile and around it. A narrower one has no noise at
+//   that scale to take off, and a hard shadow the levels blurred lost its depth (`shadowtiles.comp`
+//   says how much). NVIDIA's SIGMA sizes its blur by the penumbra the same way. A level that does
+//   not run copies its input, as a cleared tile does.
 
 #include "gbuffer.h"
 #include "sets.h"
@@ -144,9 +149,19 @@ void main()
     // **A cleared tile is copied**: its value is the temporal pass's exact nought or one. Not at the
     // middle level, whose target is the temporal pass's own image, so the value is already there
     // for the last level to read.
-    if (imageLoad(tiles, ivec2(gl_WorkGroupID.xy)).r > 0.5)
+    const vec2 tile = imageLoad(tiles, ivec2(gl_WorkGroupID.xy)).rg;
+    if (tile.r > 0.5)
     {
         if (SHADOW_LEVEL != 1u && inFrame)
+            imageStore(filtered, at, imageLoad(source, at));
+        return;
+    }
+
+    // **At every level**, the middle one too: the first may have run, and its target is not the
+    // temporal pass's value the middle one's is.
+    if (float(1u << SHADOW_LEVEL) > tile.g)
+    {
+        if (inFrame)
             imageStore(filtered, at, imageLoad(source, at));
         return;
     }

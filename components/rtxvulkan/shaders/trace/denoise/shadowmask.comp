@@ -35,7 +35,13 @@
 // **A shared word and an atomic OR, not the SDK's wave-wide OR**, which assumes a wave of 32 lanes
 // laid out as the tile: AMD's are 32 or 64 and Intel's 8 to 32. A pixel off the frame is nought; the
 // classification knows the frame's extent and does not read it as a shadow.
+//
+// **And the widest penumbra of the workgroup's bits, a half a workgroup**: the workgroup's two
+// words are one tile of the classification, which reads the nine around its own rather than the 576
+// texels of `CHANNEL_PENUMBRA` they stand for. A ray that got through has none unless its source
+// was drawn (`SHADOW_PENUMBRA_DRAWN`), and a tile where no bit has one stands at nought.
 
+#include "gbuffer.h"
 #include "sets.h"
 #include "shadow.h"
 
@@ -49,6 +55,11 @@ layout(set = SET_PASS, binding = SHADOW_MASK_BIND_SHADOWED) uniform readonly ima
 
 layout(set = SET_PASS, binding = SHADOW_MASK_BIND_MASK, SHADOW_MASK) uniform writeonly uimage2D mask;
 
+/// `CHANNEL_PENUMBRA`, and the widest of it in the workgroup.
+layout(set = SET_PASS, binding = SHADOW_MASK_BIND_PENUMBRA, GBUFFER_PENUMBRA) uniform readonly image2D penumbra;
+layout(set = SET_PASS, binding = SHADOW_MASK_BIND_PENUMBRA_TILES, SHADOW_PENUMBRA_TILES)
+    uniform writeonly image2D penumbraTiles;
+
 layout(push_constant, scalar) uniform Push
 {
     ShadowMaskConstants frame;
@@ -57,6 +68,10 @@ layout(push_constant, scalar) uniform Push
 /// The two tiles one workgroup covers, the upper and the lower.
 shared uint gTiles[2];
 
+/// The widest penumbra in the workgroup, as the bits of a float that is never below nought, which
+/// order as the float does.
+shared uint gWidest;
+
 void main()
 {
     const uvec2 local = gl_LocalInvocationID.xy;
@@ -64,16 +79,28 @@ void main()
 
     if (gl_LocalInvocationIndex < 2u)
         gTiles[gl_LocalInvocationIndex] = 0u;
+    if (gl_LocalInvocationIndex == 0u)
+        gWidest = 0u;
 
     barrier();
 
-    if (!outsideOf(at, uvec2(frame.mWidth, frame.mHeight)) && imageLoad(shadowed, ivec2(at)).a > 0.5)
+    if (!outsideOf(at, uvec2(frame.mWidth, frame.mHeight)))
     {
-        const uint bit = (local.y % SHADOW_MASK_HEIGHT) * SHADOW_MASK_WIDTH + local.x;
-        atomicOr(gTiles[local.y / SHADOW_MASK_HEIGHT], 1u << bit);
+        if (imageLoad(shadowed, ivec2(at)).a > 0.5)
+        {
+            const uint bit = (local.y % SHADOW_MASK_HEIGHT) * SHADOW_MASK_WIDTH + local.x;
+            atomicOr(gTiles[local.y / SHADOW_MASK_HEIGHT], 1u << bit);
+        }
+
+        const float radius = imageLoad(penumbra, ivec2(at)).r;
+        if (radius < SHADOW_PENUMBRA_CLEAR)
+            atomicMax(gWidest, floatBitsToUint(max(radius, 0.0)));
     }
 
     barrier();
+
+    if (gl_LocalInvocationIndex == 0u)
+        imageStore(penumbraTiles, ivec2(gl_WorkGroupID.xy), vec4(uintBitsToFloat(gWidest)));
 
     if (gl_LocalInvocationIndex < 2u)
     {

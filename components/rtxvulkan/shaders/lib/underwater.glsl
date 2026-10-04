@@ -9,6 +9,7 @@
 // shading and comes first; the half that shades a water surface comes after.
 
 #include "colour.h"
+#include "gbuffer.h"
 #include "look.h"
 #include "scene.h"
 #include "bindings.glsl"
@@ -138,7 +139,9 @@ Passage skyPassageThrough(SkySource sky, vec3 position, BentPath bent, vec2 draw
 
     const Passage under = lightPassage(position, -bent.mTravelling, bent.mPath);
     const Passage over = skyPassage(sky, vec3(bent.mMet, frame.mWaterLevel), draw);
-    return Passage(under.mOpen * over.mOpen, under.mThrough * over.mThrough);
+    // The leg under the water is the nearer: what stopped it stands nearer than anything over it.
+    return Passage(under.mOpen * over.mOpen, under.mThrough * over.mThrough,
+        under.mOpen < 1.0 ? under.mOccluder : min(bent.mPath + over.mOccluder, SHADOW_PENUMBRA_CLEAR));
 }
 
 /// What a stretch of water sends toward whoever is looking down it.

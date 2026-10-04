@@ -1,4 +1,5 @@
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -13,9 +14,12 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/colour.h>
+#include <components/rtx/shaders/gbuffer.h>
+#include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/visibility.h>
 
 #include "fixture.hpp"
@@ -77,6 +81,72 @@ namespace Rtx::Testing
                         { .mSea = SeaState{ .mSignificantHeight = 0.0f }, .mFilter = true, .mLoss = HistoryLoss::Cut });
                     EXPECT_EQ(filtered.mRadiance, raw.mRadiance);
                 }
+        }
+
+        /// **A thin hard shadow keeps its depth through the denoiser, and a bit's penumbra is its
+        /// occluder's distance times the source's half angle.** A bar 40 units wide, 100 units over
+        /// the floor under the overhead sun, seen from 300 units up at 96 pixels square, with no
+        /// indirect light, so the sun is the frame: its shadow is 7 to 9 pixels wide.
+        ///
+        /// By hand: the sun's shadow cone is `SUN_SHADOW_RADIUS` = 0.0349 as a sine, a tangent of
+        /// 0.03493, so a ray stopped by the bar 100 units up has a penumbra 3.493 units in radius. A
+        /// pixel there is `mSpreadAngle` × its distance wide, and the floor under the bar stands 300
+        /// to 360 units from the eye: the penumbra is 3.493 over 300 and over 360 pixel widths of
+        /// the frame's spread, under one pixel, and a shadow that hard is noiseless. Every open ray
+        /// holds `SHADOW_PENUMBRA_CLEAR`.
+        ///
+        /// So the denoised frame is the raw one, value for value, after 96 frames of history whose
+        /// last draws what the raw frame draws: the temporal pass hands a hard bit on as it is, and
+        /// no filter level is narrower than nothing. Before, the clamp's box and the levels held the
+        /// umbra at 31 of 255 where the raw frame's stood at 17.
+        TEST_F(RtxVisibilityTest, aThinHardShadowKeepsItsDepth)
+        {
+            constexpr std::uint32_t size = 96;
+            constexpr std::uint32_t frames = 96;
+            const Shaders::VisibilityConstants camera = overheadSun(size);
+            SceneDesc scene;
+            addQuad(scene, sheetAt(4000.0f, 0.0f));
+            addQuad(scene, roofOver(-100.0f, -60.0f, 100.0f));
+
+            const Frame raw = shoot(scene, {}, camera, size,
+                { .mFrames = 1, .mFirstFrame = 300 + frames - 1, .mIndirect = IndirectLight::Off });
+
+            std::vector<float> bits;
+            std::vector<float> widths;
+            mRenderer.readChannel(Channel::Shadowed, bits);
+            mRenderer.readChannel(Channel::Penumbra, widths);
+            ASSERT_EQ(widths.size() * 4, bits.size()) << "a channel of one half a pixel";
+
+            const auto sine = static_cast<double>(Shaders::SUN_SHADOW_RADIUS);
+            const double radius = 100.0 * sine / std::sqrt(1.0 - sine * sine);
+            const auto spread = static_cast<double>(camera.mEyes.mWorld.mSpreadAngle);
+            const float widest = static_cast<float>(radius / (spread * 300.0));
+            const float narrowest = static_cast<float>(radius / (spread * 360.0));
+            ASSERT_LT(widest, 1.0f) << "a penumbra the denoiser does not count as hard proves nothing";
+
+            std::size_t stopped = 0;
+            for (std::size_t pixel = 0; pixel < bits.size() / 4; ++pixel)
+            {
+                const float width = widths[pixel];
+                if (bits[pixel * 4 + 3] > 0.5f)
+                {
+                    ASSERT_EQ(width, Shaders::SHADOW_PENUMBRA_CLEAR) << "an open ray at pixel " << pixel;
+                    continue;
+                }
+                ++stopped;
+                EXPECT_GE(width, narrowest * 0.999f) << "pixel " << pixel;
+                EXPECT_LE(width, widest * 1.001f) << "pixel " << pixel;
+            }
+            EXPECT_GT(stopped, std::size_t{ 7 * size }) << "the bar cast less than the shadow it casts";
+
+            const Frame denoised = shoot(scene, {}, camera, size,
+                { .mFrames = frames,
+                    .mAverage = false,
+                    .mFirstFrame = 300,
+                    .mFilter = true,
+                    .mIndirect = IndirectLight::Off,
+                    .mLoss = HistoryLoss::Cut });
+            EXPECT_EQ(denoised.mRadiance, raw.mRadiance);
         }
 
         /// **The noise of a penumbra comes off and its light stays where it was.** A roof over half

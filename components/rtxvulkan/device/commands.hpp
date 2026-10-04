@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <vector>
@@ -79,8 +80,38 @@ namespace Rtx
 
         const Device& getDevice() const { return mDevice; }
 
+        /// Which of the spare staging blocks `spare` an upload of `bytes` takes, as a position in
+        /// `spare`, or nothing where none holds it: the smallest that does, and of equal ones the
+        /// lowest block. **Best fit and not first**: a ring that keeps every block it made, an
+        /// upload's of tens of megabytes among them, lent the first that fit, and a hundred bytes
+        /// took a 36 MiB block beside a free 8 MiB one — the next large upload then made one more.
+        /// The lowest block of a tie, so the choice is the blocks' and not the order the queue
+        /// gave them back in.
+        ///
+        /// @param sizeOf a block's size, by its index.
+        template <class SizeOf>
+        static std::optional<std::size_t> bestFit(
+            std::span<const std::size_t> spare, SizeOf&& sizeOf, const VkDeviceSize bytes)
+        {
+            std::optional<std::size_t> best;
+            VkDeviceSize bestSize = 0;
+            for (std::size_t at = 0; at < spare.size(); ++at)
+            {
+                const VkDeviceSize size = sizeOf(spare[at]);
+                if (size < bytes)
+                    continue;
+                if (!best.has_value() || size < bestSize || (size == bestSize && spare[at] < spare[*best]))
+                {
+                    best = at;
+                    bestSize = size;
+                }
+            }
+            return best;
+        }
+
         // Read by the tests and by nothing else.
         std::size_t getStagingBlockCount() const { return mStaging.size(); }
+        VkDeviceSize getStagingSize(VkBuffer block) const;
 
     private:
         friend class Batch;

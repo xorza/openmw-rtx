@@ -11,6 +11,7 @@
 #include <osgUtil/CullVisitor>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/esm3/readerscache.hpp>
@@ -25,6 +26,7 @@
 #include "../mwworld/groundcoverstore.hpp"
 
 #include "groundcoverdensity.hpp"
+#include "groundcovershapes.hpp"
 #include "vismask.hpp"
 
 namespace MWRender
@@ -226,7 +228,7 @@ namespace MWRender
                 osg::ref_ptr<osg::Vec4Array> transforms = new osg::Vec4Array(static_cast<unsigned>(mInstances.size()));
                 osg::BoundingBox box;
                 osg::BoundingBox originalBox = geom.getBoundingBox();
-                float radius = originalBox.radius();
+                float radius = GroundcoverShapes::reach(originalBox);
                 for (unsigned int i = 0; i < transforms->getNumElements(); i++)
                 {
                     osg::Vec3f pos(mInstances[i].mPos.asVec3());
@@ -417,6 +419,10 @@ namespace MWRender
 
             // Keep link to original mesh to keep it in cache
             SceneUtil::addTemplateRef(*group, temp);
+
+            if (!GroundcoverShapes::bakeTransforms(*node))
+                Log(Debug::Verbose) << "Groundcover model " << model.value()
+                                    << " keeps its transforms, which a bake cannot stand in for";
 
             InstancingVisitor visitor(entries, worldCenter);
             node->accept(visitor);

@@ -49,17 +49,29 @@ namespace Rtx
             // A hundred rounded up to the sixteen a copy offset has to start on.
             EXPECT_EQ(second.mOffset, 112u);
 
-            // **An upload larger than a block takes a block that holds it**: one of its own exactly
-            // its size, or one the pool already had and larger, which a test before this one in a
-            // shuffled order can have left free. Either way the upload after it lands clear of it.
+            // **An upload larger than a block stays in the block only where what is left of it holds
+            // the upload**, and otherwise starts a block of its own at nought. Held against the size
+            // of the block the batch was lent, because the ring is the device's and keeps every block
+            // it made: a test before this one in a shuffled order can leave a block of 36 MiB spare,
+            // and the smallest spare that holds a hundred bytes is then larger than a block. The
+            // upload after it is held to the same rule.
             const std::vector<std::byte> past(sStagingBlock + 1, std::byte{ 3 });
             const StagingRun alone = batch.stage(past);
             const StagingRun after = batch.stage(fifty);
 
-            EXPECT_NE(alone.mBuffer, first.mBuffer) << "an upload landed in a block with no room for it";
-            EXPECT_EQ(alone.mOffset, 0u);
-            EXPECT_TRUE(after.mBuffer != alone.mBuffer || after.mOffset >= alone.mOffset + past.size())
-                << "an upload landed over the one before it";
+            // The fifty end at 162, and the next run starts on the sixteen after it.
+            const CommandPool& pool = getPool();
+            const VkDeviceSize pastStart = 176;
+            const bool pastStays = pastStart + past.size() <= pool.getStagingSize(first.mBuffer);
+            EXPECT_EQ(alone.mBuffer == first.mBuffer, pastStays) << "an upload left a block that held it, or "
+                                                                    "landed in one with no room for it";
+            EXPECT_EQ(alone.mOffset, pastStays ? pastStart : 0u);
+
+            const VkDeviceSize afterStart
+                = (alone.mOffset + past.size() + sStagingAlignment - 1) / sStagingAlignment * sStagingAlignment;
+            const bool afterStays = afterStart + fifty.size() <= pool.getStagingSize(alone.mBuffer);
+            EXPECT_EQ(after.mBuffer == alone.mBuffer, afterStays);
+            EXPECT_EQ(after.mOffset, afterStays ? afterStart : 0u) << "an upload landed over the one before it";
 
             batch.flush();
         }

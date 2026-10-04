@@ -22,6 +22,7 @@
 #include "lib/bindings.glsl"
 #include "lib/geometry.glsl"
 #include "lib/hitrecord.glsl"
+#include "lib/random.glsl"
 #include "lib/traversal.glsl"
 
 hitAttributeEXT vec2 barycentrics;
@@ -41,7 +42,11 @@ void main()
 
     const Candidate candidate = Candidate(uint(gl_InstanceCustomIndexEXT), uint(gl_PrimitiveID), barycentrics,
         gl_HitTEXT, triangleEdges(corners, gl_ObjectToWorldEXT));
+    // A soft edge's dither, a pixel, a frame and a triangle apart (`cutAt`).
+    uint draws = randomSeed(pixelKey(gl_LaunchIDEXT.xy) + SEED_SOFT_EDGE + candidate.mInstance * 0x9E3779B9u
+        + candidate.mPrimitive * 0x85EBCA6Bu);
+    const float dither = frame.mSoftEdgeDither != 0u ? randomNext(draws) : 1.0;
     if (!candidateStops(
-            candidate, gl_WorldRayDirectionEXT, cone.mWidth + cone.mSpread * candidate.mAt, false, true, blocked))
+            candidate, gl_WorldRayDirectionEXT, cone.mWidth + cone.mSpread * candidate.mAt, false, true, dither, blocked))
         ignoreIntersectionEXT;
 }

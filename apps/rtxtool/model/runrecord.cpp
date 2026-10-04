@@ -5,6 +5,7 @@
 #include <utility>
 
 #include <components/files/conversion.hpp>
+#include <components/platform/process.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 namespace RtxTool
@@ -25,8 +26,12 @@ namespace RtxTool
 
     void RunRecord::add(BenchPlace place)
     {
+        // Read once the first place has loaded, which is the memory the frames walk.
         if (mPlaces.empty())
+        {
+            mHeader.mHugePageShare = Platform::Process::hugePageShare();
             mReport += describeHeader(mHeader);
+        }
         mPlaces.push_back(std::move(place));
         mReport += describePlace(mPlaces.back(), mHeader.mMeasures);
     }

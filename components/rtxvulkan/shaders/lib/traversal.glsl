@@ -11,6 +11,7 @@
 // traversal needs to build the plane without a vertex buffer bound for it.
 #extension GL_EXT_ray_tracing_position_fetch : require
 
+#include "gbuffer.h"
 #include "look.h"
 #include "scene.h"
 #include "basis.glsl"
@@ -36,6 +37,32 @@ bool isTranslucent(GpuMaterial material)
     return (material.mFlags & MATERIAL_TRANSLUCENT) != 0u;
 }
 
+/// Whether a material is a blended mask, whose texels under the cut the eye meets by their alpha —
+/// `MATERIAL_SOFT_EDGE`, the host's `Material::isSoftEdged`.
+bool isSoftEdged(GpuMaterial material)
+{
+    return (material.mFlags & MATERIAL_SOFT_EDGE) != 0u;
+}
+
+/// What a texel of `material` is cut at, for a ray whose dither is `dither`: the material's own
+/// reference, or on a soft edge one drawn under it.
+///
+/// **The eye meets a soft texel under the cut with a chance of its alpha**, stochastic transparency
+/// (Enderton et al. 2010): a reference drawn uniformly below the cut, which a texel of alpha `a`
+/// under it passes with a chance of `a`, and one at or over it always. What it meets is the solid it
+/// is, shaded as every solid is, and the frames average to the blend `objects.frag` draws. Peeled as
+/// a pane, which is shaded at a path's end with no bounce and no shadow denoiser, the guild's rug
+/// fringe was a line of bright dots. Never under `ALPHA_PANE_CUTOFF`: a texel the blend draws as
+/// nothing is a hole to every ray.
+///
+/// @param dither in `[0, 1)` for the eye's own candidates, drawn a pixel, a frame and a triangle
+///        apart so two soft layers are met apart; one for every other ray, which keeps the cut.
+float cutAt(GpuMaterial material, float dither)
+{
+    return isSoftEdged(material) ? clamp(dither, ALPHA_PANE_CUTOFF, material.mAlphaReference)
+                                 : material.mAlphaReference;
+}
+
 /// Which sides of `GpuMaterial::mAlphaReference` a texel passes on.
 uint alphaPassesOf(GpuMaterial material)
 {
@@ -43,7 +70,7 @@ uint alphaPassesOf(GpuMaterial material)
 }
 
 /// Whether a material carries a mask a ray is tested against: a test some texel can fail. A
-/// textured pane carries one too, `Material::sPaneCutoff`: a texel its blend draws as nothing is a
+/// textured pane carries one too, `ALPHA_PANE_CUTOFF`: a texel its blend draws as nothing is a
 /// hole to every ray.
 ///
 /// The host's `Material::isCutout`, asked again here because the build marks an instance by it
@@ -317,8 +344,9 @@ struct Candidate
 ///        any other. **A literal at every call**, so the whole branch folds.
 /// @param detailed whether the ray draws the picture, so its cutout is read along the footprint the
 ///        surface it cuts is read along — `texturePoint`. A literal at every call as well.
-bool candidateStops(
-    Candidate candidate, vec3 direction, float coneWidth, bool seeThrough, bool detailed, inout uint blocked)
+/// @param dither the eye's draw for a soft edge (`cutAt`), and one for every other ray.
+bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, bool seeThrough, bool detailed,
+    float dither, inout uint blocked)
 {
     const GpuInstance instance = instanceAt(candidate.mInstance);
     const GpuMaterial material = materialAt(instance.mMaterial);
@@ -360,7 +388,7 @@ bool candidateStops(
     // four legs each), behind a material bit or not: the code sits in every shadow ray's candidate
     // loop. The hit and a medium's crossing read it.
     const float painted = sampleDiffuse(material.mDiffuse, point).a;
-    const bool there = alphaPasses(alphaPassesOf(material), painted, material.mAlphaReference);
+    const bool there = alphaPasses(alphaPassesOf(material), painted, cutAt(material, dither));
 
     // **A hole is a hole to the ray that walks past as well.** A placement the game is fading
     // makes its cutout see-through, and the eye still passes a texel the test cuts before it
@@ -401,7 +429,7 @@ bool candidateStops(
             continue;                                                                                       \
                                                                                                             \
         RTX_READ_CANDIDATE(query, candidate)                                                                \
-        if (candidateStops(candidate, (along), (cone), (seeThrough), (detailed), (blocked)))                \
+        if (candidateStops(candidate, (along), (cone), (seeThrough), (detailed), 1.0, (blocked)))           \
             rayQueryConfirmIntersectionEXT(query);                                                          \
     }
 
@@ -546,6 +574,12 @@ struct Passage
 
     /// What the translucent surfaces crossed let through, from nought to one.
     float mThrough;
+
+    /// How far along the ray the solid that stopped it stood, or `SHADOW_PENUMBRA_CLEAR` where
+    /// nothing did: what the penumbra's width is made of (`skyPenumbra`, `lampPenumbra`). **A solid and not the
+    /// nearest one**, since the ray ends on the first it finds: the penumbra of whichever solid
+    /// that was, and the reach it gives the shadow denoiser is never narrower than its own.
+    float mOccluder;
 };
 
 /// What the ray from `from` to what stands `distance` away along `towards` meets, past the surfaces
@@ -578,7 +612,7 @@ struct Passage
 Passage passageToward(vec3 from, vec3 towards, float distance, uint faces)
 {
     if (distance <= SHADOW_BIAS)
-        return Passage(1.0, 1.0);
+        return Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
 
     uint blocked = 0u;
 
@@ -590,7 +624,8 @@ Passage passageToward(vec3 from, vec3 towards, float distance, uint faces)
     RTX_RESOLVE(query, towards, 0.0, blocked, true, false)
 
     const bool stopped = rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT;
-    return Passage(stopped ? 0.0 : 1.0, throughBlocked(blocked));
+    return Passage(stopped ? 0.0 : 1.0, throughBlocked(blocked),
+        stopped ? rayQueryGetIntersectionTEXT(query, true) : SHADOW_PENUMBRA_CLEAR);
 }
 
 /// How much of what stands `distance` away along `towards` reaches `from`: `passageToward`'s two

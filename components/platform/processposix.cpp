@@ -127,6 +127,31 @@ namespace Platform::Process
 #endif
     }
 
+    void restartOnHugePages([[maybe_unused]] char** argv)
+    {
+#if defined(__linux__)
+        if (!setEnvironmentDefault("GLIBC_TUNABLES", "glibc.malloc.hugetlb=1"))
+            return;
+
+        // Returns only where the system would not start it, and the run goes on as it was, with
+        // the environment as it was: a tunable glibc read none of is not one to hand on.
+        if (const std::optional<std::filesystem::path> self = executable())
+            execv(self->c_str(), argv);
+        unsetenv("GLIBC_TUNABLES");
+#endif
+    }
+
+    std::optional<float> hugePageShare()
+    {
+#if defined(__linux__)
+        std::ifstream file("/proc/self/smaps_rollup");
+        const std::string rollup{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
+        return hugePageShare(rollup);
+#else
+        return std::nullopt;
+#endif
+    }
+
     std::size_t keepToPerformanceCores()
     {
 #if defined(__linux__)

@@ -128,6 +128,13 @@ namespace Platform::Process
         return CommandEnd{ .mExitCode = static_cast<std::uint32_t>(std::system(('"' + line + '"').c_str())) };
     }
 
+    void restartOnHugePages(char** /*argv*/) {}
+
+    std::optional<float> hugePageShare()
+    {
+        return std::nullopt;
+    }
+
     std::size_t keepToPerformanceCores()
     {
         const HANDLE process = GetCurrentProcess();

@@ -66,6 +66,9 @@ namespace Rtx
         mShadowVisibility = Image(mDevice, width, height, reprojected, sStorage, "shadow-visibility");
         mShadowTiles = Image(mDevice, groupsFor(width, Shaders::SHADOW_WORKGROUP),
             groupsFor(height, Shaders::SHADOW_WORKGROUP), toVulkanFormat(SHADOW_TILES), sStorage, "shadow-tiles");
+        mShadowPenumbra
+            = Image(mDevice, groupsFor(width, Shaders::SHADOW_WORKGROUP), groupsFor(height, Shaders::SHADOW_WORKGROUP),
+                toVulkanFormat(SHADOW_PENUMBRA_TILES), sStorage, "shadow-penumbra");
         mShadowMask = Image(mDevice, groupsFor(width, Shaders::SHADOW_MASK_WIDTH),
             groupsFor(height, Shaders::SHADOW_MASK_HEIGHT), toVulkanFormat(SHADOW_MASK), sStorage, "shadow-mask");
 
@@ -161,7 +164,8 @@ namespace Rtx
         // so it is one of what a fresh history discards and not one of what the frame writes whole.
         const ShadowImages shadowed = shadow(step);
         discardFor(Temporal::Shadow,
-            { &shadowed.mScratch, &shadowed.mMoments, &shadowed.mVisibility, &shadowed.mTiles, &shadowed.mMask },
+            { &shadowed.mScratch, &shadowed.mMoments, &shadowed.mVisibility, &shadowed.mTiles, &shadowed.mPenumbra,
+                &shadowed.mMask },
             { &shadowed.mHistory, &shadowed.mMomentsBefore });
 
         const SpecularImages glossy = specular(step);
@@ -204,6 +208,7 @@ namespace Rtx
             .mScratch = mShadowScratch,
             .mVisibility = mShadowVisibility,
             .mTiles = mShadowTiles,
+            .mPenumbra = mShadowPenumbra,
             .mMask = mShadowMask,
             .mHeldSurface = mSurface.before(step),
             .mFresh = step.mFresh[Temporal::Shadow],

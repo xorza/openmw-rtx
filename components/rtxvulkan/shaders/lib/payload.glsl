@@ -23,6 +23,8 @@
 // **Every word of it flows outwards.** The launch writes nothing here before a trace: what a
 // closest-hit shader is told, it reads off its shader-table record (`Shaders::HitRecord`).
 
+#include "gbuffer.h"
+
 #include "records.glsl"
 
 /// Where the payload below sits. A literal at every call, as the extension wants. The any-hit
@@ -53,6 +55,10 @@ struct Answer
     /// so a shadow denoiser reads such a pixel as lit and as nothing to filter.
     vec3 mShadowed;
     bool mOpen;
+
+    /// The kept ray's penumbra in the pixel's footprints, `SplitLight::mPenumbra`:
+    /// `SHADOW_PENUMBRA_CLEAR` wherever the bit is open or nothing split it off.
+    float mPenumbra;
 
     /// What the lobe of the solid the eye found reflects of its lamps and its one bounce, and the
     /// lobe's roughness: `SeenSolid::mSpecular` and `mRoughness`. Nought and `SPECULAR_NO_LOBE`
@@ -119,6 +125,7 @@ Answer noAnswer()
     answer.mFilled = vec3(0.0);
     answer.mShadowed = vec3(0.0);
     answer.mOpen = true;
+    answer.mPenumbra = SHADOW_PENUMBRA_CLEAR;
     answer.mSpecular = vec3(0.0);
     answer.mRoughness = SPECULAR_NO_LOBE;
     answer.mLift = vec3(0.0);
@@ -158,7 +165,7 @@ struct VisibilityPayload
     uint mAmbient;
 
     /// The lift, three halves in two words: a display value, which a half holds finer than the
-    /// channel's byte.
+    /// channel's byte. The fourth half is the penumbra, which the channel holds as a half.
     uvec2 mLift;
 
     /// The response's normal code, `packSurfaceNormal`, as its bits: a whole number or minus one,
@@ -202,7 +209,7 @@ VisibilityPayload packAnswer(Answer answer)
         packHalf2x16(vec2(answer.mResponse.mDiffuse.b, answer.mOpacity)));
     packed.mNormal = floatBitsToUint(answer.mResponse.mNormal);
     packed.mAmbient = packHalf2x16(answer.mResponse.mAmbient.gb);
-    packed.mLift = uvec2(packHalf2x16(answer.mLift.rg), packHalf2x16(vec2(answer.mLift.b, 0.0)));
+    packed.mLift = uvec2(packHalf2x16(answer.mLift.rg), packHalf2x16(vec2(answer.mLift.b, answer.mPenumbra)));
     packed.mMotion = uvec2(packHalf2x16(answer.mMotion.xy), packHalf2x16(vec2(answer.mMotion.z, answer.mResponse.mAmbient.r)));
     packed.mDistance = answer.mDistance;
     packed.mFlags = packHalf2x16(vec2(0.0, answer.mHit ? answer.mMisMoved : answer.mBackdropShown))
@@ -235,7 +242,9 @@ Answer unpackAnswer(VisibilityPayload packed)
     answer.mResponse = SurfaceResponse(uintBitsToFloat(packed.mNormal), vec3(diffuseRg, diffuseBOpacity.x),
         vec3(motionZAmbientR.y, unpackHalf2x16(packed.mAmbient)));
     answer.mMotion = vec3(unpackHalf2x16(packed.mMotion.x), motionZAmbientR.x);
-    answer.mLift = vec3(unpackHalf2x16(packed.mLift.x), unpackHalf2x16(packed.mLift.y).x);
+    const vec2 liftBPenumbra = unpackHalf2x16(packed.mLift.y);
+    answer.mLift = vec3(unpackHalf2x16(packed.mLift.x), liftBPenumbra.x);
+    answer.mPenumbra = liftBPenumbra.y;
     answer.mOpacity = diffuseBOpacity.y;
     answer.mPane = (packed.mFlags & ANSWER_PANE) != 0u;
     answer.mWater = (packed.mFlags & ANSWER_WATER) != 0u;
