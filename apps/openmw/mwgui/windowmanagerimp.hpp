@@ -326,7 +326,7 @@ namespace MWGui
 
         void changePointer(const std::string& name) override;
         void createLuaCursor(const std::string& name, const std::string& path, int width, int height, int hotspotX,
-            int hotspotY) override;
+            int hotspotY, double rotation) override;
         void removeLuaCursor(const std::string& name) override;
         void setLuaCursorOverride(const std::string& name) override;
         std::string getCurrentCursorName() const override;
@@ -548,6 +548,7 @@ namespace MWGui
             std::string mPath;
             MyGUI::IntSize mSize;
             MyGUI::IntPoint mHotspot;
+            double mRotation;
         };
         std::map<std::string, LuaCursor, std::less<>> mLuaCursors;
 
@@ -652,7 +653,7 @@ namespace MWGui
 
         /// Makes the cursor `name` from the image at `path`, its size and hotspot in units of the
         /// interface, at the scale `fitCursors` last saw. False where the image did not load.
-        bool createScaledCursor(std::string_view name, const VFS::Path::Normalized& path, int rotation,
+        bool createScaledCursor(std::string_view name, const VFS::Path::Normalized& path, double rotation,
             MyGUI::IntPoint hotspot, MyGUI::IntSize size);
         void setMenuTransparency(float value);
 

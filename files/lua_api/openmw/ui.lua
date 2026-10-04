@@ -22,11 +22,11 @@
 -- @function [parent=#ui] getCursorMode
 -- @return #CursorMode
 
---- Set the cursor position in UI pixels. The position is clamped to the OpenMW window.
+--- Set the cursor position in pixels. The position is clamped to the OpenMW window.
 -- @function [parent=#ui] setCursorPosition
 -- @param openmw.util#Vector2 position
 
---- Return the cursor position in UI pixels.
+--- Return the cursor position in pixels.
 -- @function [parent=#ui] getCursorPosition
 -- @return openmw.util#Vector2
 
@@ -38,11 +38,11 @@
 -- @function [parent=#ui] getCursorVisible
 -- @return #boolean
 
---- Override the cursor used by UI widgets. Pass `nil` to restore the cursor selected by the widget under the pointer.
+--- Override the engine cursor. Pass `nil` to restore the cursor back to engine-controlled.
 -- @function [parent=#ui] setCursor
 -- @param #CursorResource cursor
 
---- Return the currently displayed Lua cursor resource, or `nil` when a native MyGUI cursor is displayed.
+--- Return the currently displayed Lua cursor resource, or `nil` when a native engine-controlled cursor is displayed.
 -- @function [parent=#ui] getCursor
 -- @return #CursorResource cursor
 
@@ -384,7 +384,7 @@
 -- @field openmw.util#Vector2 size Size of the resource in the texture. (0, 0) by default. 0 means the whole texture size is used.
 
 ---
--- Register a hardware cursor backed by a texture in the virtual filesystem. Use the result as a widget's `props.cursor`, or pass it to @{openmw.ui#ui.setCursor} to override all widget cursors.
+-- Register a hardware cursor backed by a texture in the virtual filesystem. Use the result as a widget's `props.cursor`, or pass it to @{#(ui).setCursor} to override all widget cursors.
 -- Repeated calls with the same options will return the same CursorResource if it already has been registered.
 -- @function [parent=#ui] cursor
 -- @param #CursorResourceOptions options
@@ -396,6 +396,7 @@
 --     path = 'textures/my_mod/hand.dds',
 --     size = vector2(32, 32),
 --     hotspot = vector2(2, 1),
+--     rotation = math.pi / 2,
 -- }
 -- local button = ui.create {
 --     type = ui.TYPE.Widget,
@@ -407,11 +408,13 @@
 -- @field #string path Path to the texture file
 -- @field openmw.util#Vector2 size Cursor size in pixels
 -- @field openmw.util#Vector2 hotspot Position in pixels within the cursor texture that tracks the mouse pointer
+-- @field #number rotation Clockwise rotation in radians, normalized to [0, 2π)
 
 --- Table with arguments passed to ui.cursor.
 -- @type CursorResourceOptions
 -- @field #string path Path to the cursor texture file. Required
 -- @field openmw.util#Vector2 size Size of the cursor in pixels, at most 128 by 128. Required
 -- @field openmw.util#Vector2 hotspot Position in pixels within the cursor texture that tracks the mouse pointer. Required
+-- @field #number rotation Optional clockwise rotation in radians (0 by default). The hotspot is specified in the final rotated cursor canvas - rotation does not enlarge that canvas.
 
 return nil
