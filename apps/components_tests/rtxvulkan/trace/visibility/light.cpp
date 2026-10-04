@@ -206,6 +206,10 @@ namespace Rtx::Testing
         /// 0.31831 in light, so the pixel is 0.15853, which encodes to 110.86 — the 111 the half
         /// pane above lands on. Read as a mask, the same alpha is cut at a half, which 0.50196
         /// passes, so the pane stands whole and black.
+        ///
+        /// **And a mask's texel under the cut is nothing to a light ray**, which keeps the cut: at an
+        /// alpha of 64 no ray to the sun is stopped anywhere, where the eye meets it a quarter of the
+        /// time (`aCutoutStopsARayOnItsMaskAndLetsItThroughTheHoles`).
         TEST_F(RtxVisibilityTest, aBlendIsAPaneWhereItsTextureNeverClosesAndACutWhereItIsAMask)
         {
             constexpr std::uint32_t size = 33;
@@ -216,7 +220,7 @@ namespace Rtx::Testing
             Testing::paintFlat(texture, 2, glass, "soft glass");
             const std::span<const TextureData> textures(&texture.mData, 1);
 
-            const auto render = [&](bool neverSolid) {
+            const auto render = [&](bool neverSolid, std::span<const TextureData> painted) {
                 SceneDesc scene = makeWall();
                 const Index mesh
                     = scene.addMesh(MeshArrays{ .mPositions = pane, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
@@ -228,12 +232,21 @@ namespace Rtx::Testing
                 });
                 scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
 
-                const Frame frame = shoot(scene, textures, wallCamera(size, osg::Vec3f(2.0f, 2.0f, 2.0f)), size);
+                const Frame frame = shoot(scene, painted, wallCamera(size, osg::Vec3f(2.0f, 2.0f, 2.0f)), size);
                 return frame.byte(centreValueOf(size));
             };
 
-            EXPECT_EQ(render(true), 111) << "a pane lets the wall through by its alpha";
-            EXPECT_EQ(render(false), 0) << "a mask is cut at a half, which 128 passes";
+            EXPECT_EQ(render(true, textures), 111) << "a pane lets the wall through by its alpha";
+            EXPECT_EQ(render(false, textures), 0) << "a mask is cut at a half, which 128 passes";
+
+            constexpr std::array<std::uint8_t, 16> faint{ 0, 0, 0, 64, 0, 0, 0, 64, 0, 0, 0, 64, 0, 0, 0, 64 };
+            Testing::TestTexture faintTexture;
+            Testing::paintFlat(faintTexture, 2, faint, "faint glass");
+            render(false, std::span<const TextureData>(&faintTexture.mData, 1));
+            std::vector<float> bits;
+            mRenderer.readChannel(Channel::Shadowed, bits);
+            for (std::size_t value = 3; value < bits.size(); value += 4)
+                ASSERT_EQ(bits[value], 1.0f) << "a light ray stopped on a texel under the cut at " << value / 4;
         }
 
         /// Every layer of a stack is peeled, and not only the nearest of them.
@@ -557,7 +570,8 @@ namespace Rtx::Testing
                 osg::Vec3f(0.0f, -150.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
 
             const auto render = [&](AlphaMode mode, float alphaRef,
-                                    std::uint32_t passes = Shaders::ALPHA_PASSES_AT | Shaders::ALPHA_PASSES_ABOVE) {
+                                    std::uint32_t passes = Shaders::ALPHA_PASSES_AT | Shaders::ALPHA_PASSES_ABOVE,
+                                    std::uint32_t frame = 0) {
                 SceneDesc scene = makeWall();
                 const Index mesh = scene.addMesh(
                     MeshArrays{ .mPositions = masked, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
@@ -568,10 +582,11 @@ namespace Rtx::Testing
                 });
                 scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
 
-                const Frame frame = shoot(scene, textures, camera, size, Shot{ .mShow = SurfaceView::Albedo });
+                const Frame shot = shoot(scene, textures, camera, size,
+                    Shot{ .mFrames = 1, .mFirstFrame = frame, .mShow = SurfaceView::Albedo });
                 // Something is behind every hole, so every ray lands on one surface or the other.
-                EXPECT_EQ(frame.mHits, size * size);
-                return frame.bytes();
+                EXPECT_EQ(shot.mHits, size * size);
+                return shot.bytes();
             };
 
             // Red where the mask survived and grey where the wall shows through: the mask is pure
@@ -609,10 +624,54 @@ namespace Rtx::Testing
                 ASSERT_EQ(below[i + 1] == 0, !kept) << "pixel " << i / 4;
             }
 
-            // A blend that named no threshold of its own is traced against the stand-in, and the
-            // stand-in is the same half. Same bytes, or Morrowind's foliage — which is blended and
-            // never alpha-tested — would not be cut out at all.
-            EXPECT_EQ(render(AlphaMode::Blend, 0.0f), cutout);
+            // A blend that named no threshold of its own is a mask, cut at the same half, and **the
+            // eye meets a texel that cut drops with a chance of its alpha** (`cutAt`), so the frames
+            // average to the blend `objects.frag` draws. The bytes the cutout has wherever the
+            // filtered alpha is nought or at least a half, or Morrowind's foliage — which is blended
+            // and never alpha-tested — would not be cut out at all.
+            //
+            // By hand: a texel is four columns, and column c samples texel coordinate (c + 0.5) / 4,
+            // so the ramp between the bare texel 7 and the painted texel 8 gives columns 30 to 33
+            // alphas of 0.125, 0.375, 0.625 and 0.875, and the one REPEAT wraps between texel 15 and
+            // texel 0 gives columns 62, 63, 0 and 1 the same, reversed. Over 16 frames, each of the
+            // four columns under the cut is met on its alpha's share of its 1024 pixels: 128 and 384
+            // on average, held within four deviations, `4 sqrt(1024 a (1 - a))`, 42 and 62.
+            constexpr std::uint32_t frames = 16;
+            const auto alphaOf = [&](std::uint32_t column) {
+                if (column == seam - 2 || column == 1)
+                    return 0.125;
+                if (column == seam - 1 || column == 0)
+                    return 0.375;
+                return -1.0;
+            };
+            std::vector<std::uint32_t> met(size, 0);
+            for (std::uint32_t frame = 0; frame < frames; ++frame)
+            {
+                const std::vector<std::uint8_t> blended
+                    = render(AlphaMode::Blend, 0.0f, Shaders::ALPHA_PASSES_AT | Shaders::ALPHA_PASSES_ABOVE, frame);
+                ASSERT_EQ(blended.size(), cutout.size());
+                for (std::uint32_t row = 0; row < size; ++row)
+                    for (std::uint32_t column = 0; column < size; ++column)
+                    {
+                        const std::size_t at = (std::size_t{ row } * size + column) * 4;
+                        if (alphaOf(column) < 0.0)
+                        {
+                            ASSERT_EQ(blended[at + 1], cutout[at + 1]) << "pixel " << column << ", " << row;
+                            continue;
+                        }
+                        ASSERT_TRUE(blended[at + 1] == 0 || std::abs(blended[at + 1] - wallGrey) <= 1)
+                            << "a soft texel met is the mask, and one passed the wall, at " << column << ", " << row;
+                        met[column] += blended[at + 1] == 0 ? 1u : 0u;
+                    }
+            }
+            for (const std::uint32_t column : { seam - 2, seam - 1, 0u, 1u })
+            {
+                const double samples = frames * size;
+                const double alpha = alphaOf(column);
+                const double expected = samples * alpha;
+                EXPECT_NEAR(met[column], expected, 4.0 * std::sqrt(samples * alpha * (1.0 - alpha)))
+                    << "column " << column << " at an alpha of " << alpha;
+            }
 
             // And the control: the same texture on an opaque material hides the wall completely, so
             // it is the cutout doing this and not the geometry.

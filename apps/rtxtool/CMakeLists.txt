@@ -122,6 +122,16 @@ if (BUILD_OPENMW)
 
     target_link_libraries(openmw-rtxtool openmw-rtxtool-lib openmw-lib)
 
+    # Beside the bundle and not in it: on macOS every program is built into the bundle, which is
+    # installed whole, and the harness only ever runs from the tree that built it. A multi-config
+    # generator adds the configuration's directory to this as it does to every other program's.
+    # No device on macOS traces rays, so no verb past `--help`, which reads no configuration, runs
+    # there: the bundle's own `openmw.cfg`, which the binary's local path no longer finds, is not
+    # read in its place.
+    if (APPLE)
+        set_target_properties(openmw-rtxtool PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OpenMW_BINARY_DIR}")
+    endif()
+
 endif()
 
 if (BUILD_WITH_CODE_COVERAGE)

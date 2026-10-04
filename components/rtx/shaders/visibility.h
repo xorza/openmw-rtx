@@ -583,6 +583,10 @@ namespace Rtx::Shaders
         /// `Rtx::Reconstruction::mIndirect`, which `bounceTraced` reads.
         uint mBounceTraced;
 
+        /// One where the eye meets a soft edge's texels under the cut by their alpha (`cutAt`), and
+        /// nought where it cuts them as every other ray does: `Rtx::Reconstruction::mAveraged`.
+        uint mSoftEdgeDither;
+
         /// Where every table a hit reads is. `GpuTables` says why it rides here.
         ///
         /// **Last, because it is eight-aligned and nothing before it is.** Anywhere else it would

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
@@ -96,6 +97,59 @@ namespace Platform::Process
     /// stands. **For a measured run**: an efficiency core runs the walk at about half the speed,
     /// and which core the system picks changes from one run to the next.
     std::size_t keepToPerformanceCores();
+
+    /// Starts this process again, from the top, with glibc's `malloc` on transparent huge pages —
+    /// `GLIBC_TUNABLES=glibc.malloc.hugetlb=1` — where the shell named no tunables of its own:
+    /// Linux alone, and before any thread starts, since what replaces the process keeps none.
+    /// Returns where it does not restart: on another system, where the shell's word stands, and
+    /// where the system would not start it again.
+    ///
+    /// **For a measured run.** On 4 KiB pages the heap's physical placement, which decides the
+    /// cache sets it shares, is the system's draw on every run, and six runs of one build at
+    /// `one-cell-walk` read walk medians of 0.40 to 0.49 ms, the frame thread's cache misses 4.5
+    /// to 8.8 a thousand instructions. On huge pages the six read 0.41 each. Without address
+    /// randomization they spread as far, and with one `malloc` arena further.
+    void restartOnHugePages(char** argv);
+
+    /// The share of a process's anonymous memory that stands on huge pages, from the memory rollup
+    /// as `/proc/<pid>/smaps_rollup` writes it: transparent ones (`AnonHugePages`) over `Anonymous`,
+    /// and reserved ones (`Private_Hugetlb`), which `Anonymous` leaves out, on both sides. **What
+    /// the kernel gave, and not what was asked**: a tunable glibc does not know, a mode of `never`
+    /// or memory too broken up for a huge page all leave the share low. Nothing where the rollup
+    /// names no anonymous memory, or a field is not a number of kilobytes.
+    inline std::optional<float> hugePageShare(std::string_view rollup)
+    {
+        const auto kilobytes = [&](std::string_view field) -> std::optional<std::uint64_t> {
+            for (std::string_view rest = rollup; !rest.empty();)
+            {
+                const std::size_t end = rest.find('\n');
+                std::string_view line = rest.substr(0, end);
+                rest = end == std::string_view::npos ? std::string_view() : rest.substr(end + 1);
+                if (!line.starts_with(field))
+                    continue;
+
+                line.remove_prefix(field.size());
+                line.remove_prefix(std::min(line.find_first_not_of(' '), line.size()));
+                std::uint64_t value = 0;
+                const std::from_chars_result read = std::from_chars(line.data(), line.data() + line.size(), value);
+                if (read.ec != std::errc{} || std::string_view(read.ptr, line.data() + line.size()) != " kB")
+                    return std::nullopt;
+                return value;
+            }
+            return std::uint64_t{ 0 };
+        };
+
+        const std::optional<std::uint64_t> anonymous = kilobytes("Anonymous:");
+        const std::optional<std::uint64_t> transparent = kilobytes("AnonHugePages:");
+        const std::optional<std::uint64_t> reserved = kilobytes("Private_Hugetlb:");
+        if (!anonymous.has_value() || !transparent.has_value() || !reserved.has_value() || *anonymous + *reserved == 0)
+            return std::nullopt;
+        return static_cast<float>(
+            static_cast<double>(*transparent + *reserved) / static_cast<double>(*anonymous + *reserved));
+    }
+
+    /// `hugePageShare` of this process, now. Nothing on a system that is not Linux.
+    std::optional<float> hugePageShare();
 
     /// The CPUs a Linux CPU list names — `0-7,16-19`, as sysfs writes it with its line break — in
     /// the list's order, or nothing where the text is not one. A number past the kernel's own limit

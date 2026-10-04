@@ -387,10 +387,19 @@ namespace Rtx
             EXPECT_TRUE(lantern.isTranslucent()) << "no mask, so the blend draws it at its alpha";
             EXPECT_NE(lantern.isTranslucent(), leaf.isTranslucent()) << "the texture's alpha decides";
             EXPECT_FALSE(lantern.isMedium()) << "a pane at an opacity of one, and no cloud";
-            EXPECT_EQ(lantern.getAlphaTest().mReference, Material::sPaneCutoff)
+            EXPECT_EQ(lantern.getAlphaTest().mReference, Shaders::ALPHA_PANE_CUTOFF)
                 << "what its blend draws as nothing is a hole";
-            EXPECT_EQ(pane.getAlphaTest().mReference, Material::sPaneCutoff);
+            EXPECT_EQ(pane.getAlphaTest().mReference, Shaders::ALPHA_PANE_CUTOFF);
             EXPECT_EQ(leaf.getAlphaTest().mReference, Material::sBlendCutoff);
+
+            // **The leaf is soft-edged, and nothing beside it is**: the eye meets the texels its cut
+            // drops by their alpha, and every other ray keeps the cut its alpha test says. A pane is see-through
+            // everywhere already, an untextured blend has no texel to read, and a test the content
+            // asked for is the rasterizer's discard.
+            EXPECT_TRUE(leaf.isSoftEdged());
+            EXPECT_FALSE(pane.isSoftEdged()) << "a material alpha below one is a pane for every ray";
+            EXPECT_FALSE(lantern.isSoftEdged()) << "a texture that never closes is a pane for every ray";
+            EXPECT_FALSE((Material{ .mAlphaMode = AlphaMode::Blend }.isSoftEdged())) << "no texel to composite";
 
             const Material testedWisp{ .mDiffuse = texture,
                 .mAlphaTest = { .mReference = 0.3f },
@@ -398,17 +407,26 @@ namespace Rtx
                 .mDiffuseNeverSolid = true };
             EXPECT_FALSE(testedWisp.isTranslucent()) << "a test cuts at its reference";
             EXPECT_EQ(testedWisp.getAlphaTest().mReference, 0.3f);
+            EXPECT_FALSE(
+                (Material{ .mDiffuse = texture, .mAlphaTest = { .mReference = 0.3f }, .mAlphaMode = AlphaMode::Blend }
+                        .isSoftEdged()))
+                << "a test cuts at its reference for the eye as well";
 
             const Material addsWisp{ .mDiffuse = texture,
                 .mAlphaMode = AlphaMode::Blend,
                 .mBlend = BlendKind::Add,
                 .mDiffuseNeverSolid = true };
             EXPECT_FALSE(addsWisp.isTranslucent()) << "an additive sheet covers nothing";
+            EXPECT_FALSE((Material{ .mDiffuse = texture, .mAlphaMode = AlphaMode::Blend, .mBlend = BlendKind::Add }
+                              .isSoftEdged()))
+                << "nor does a soft one";
 
             // The mode is half of it: a faded material the content never asked to blend is drawn as
             // it was authored, and a cutout stays a cutout however faint its own alpha is.
             const Material faded{ .mDiffuse = texture, .mOpacity = 0.3f };
             EXPECT_FALSE(faded.isTranslucent()) << "opaque mode, whatever the alpha says";
+            EXPECT_FALSE((Material{ .mDiffuse = texture, .mAlphaMode = AlphaMode::Cutout }.isSoftEdged()))
+                << "a cutout's edge is its test's";
 
             const Material tested{ .mDiffuse = texture,
                 .mOpacity = 0.3f,

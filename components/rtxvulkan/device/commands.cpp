@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <exception>
 #include <limits>
+#include <optional>
 #include <utility>
 
 #include <components/rtxvulkan/device/memory/barriers.hpp>
@@ -170,12 +171,12 @@ namespace Rtx
 
     std::size_t CommandPool::takeStaging(const VkDeviceSize bytes)
     {
-        const auto fits = std::ranges::find_if(
-            mSpareStaging, [&](const std::size_t block) { return mStaging[block].getSize() >= bytes; });
-        if (fits != mSpareStaging.end())
+        const std::optional<std::size_t> fits = bestFit(
+            mSpareStaging, [&](const std::size_t block) { return mStaging[block].getSize(); }, bytes);
+        if (fits.has_value())
         {
-            const std::size_t block = *fits;
-            *fits = mSpareStaging.back();
+            const std::size_t block = mSpareStaging[*fits];
+            mSpareStaging[*fits] = mSpareStaging.back();
             mSpareStaging.pop_back();
             return block;
         }
@@ -183,6 +184,14 @@ namespace Rtx
         mStaging.push_back(Buffer::staging(
             mDevice, std::max(bytes, sStagingBlock), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, "staging block"));
         return mStaging.size() - 1;
+    }
+
+    VkDeviceSize CommandPool::getStagingSize(const VkBuffer block) const
+    {
+        const auto found
+            = std::ranges::find_if(mStaging, [&](const Buffer& staging) { return staging.getHandle() == block; });
+        assert(found != mStaging.end() && "a staging block the pool never made");
+        return found->getSize();
     }
 
     std::size_t CommandPool::takeHold()

@@ -148,6 +148,9 @@ layout(set = SET_CHANNELS, binding = CHANNEL_AMBIENT_ALBEDO, GBUFFER_ALBEDO) uni
 /// What Night-Eye's lift is multiplied by — `CHANNEL_LIFT`.
 layout(set = SET_CHANNELS, binding = CHANNEL_LIFT, GBUFFER_LIFT) uniform writeonly image2D lift;
 
+/// How wide the penumbra is where the shadowed bit was kept, in pixels — `CHANNEL_PENUMBRA`.
+layout(set = SET_CHANNELS, binding = CHANNEL_PENUMBRA, GBUFFER_PENUMBRA) uniform writeonly image2D penumbra;
+
 // The frame's counts, added to one atomic at a time where a ray ends: `FrameCounts::mMisses` and
 // `COUNTING` say why the misses and not the hits, which a room of nothing but hits made cost.
 layout(set = SET_PASS, binding = BIND_COUNTS, scalar) buffer Counted

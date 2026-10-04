@@ -119,8 +119,9 @@ namespace Rtx
             bool mFresh;
         };
 
-        /// The shadow denoiser's: **five images of a frame's own and two that carry over**, the
-        /// SDK's arrangement. The mask pass packs the rays' bits, the temporal pass writes its blend
+        /// The shadow denoiser's: **six images of a frame's own and two that carry over**, the
+        /// SDK's arrangement and the penumbra beside it. The mask pass packs the rays' bits and the
+        /// tiles' penumbra, the temporal pass writes its blend
         /// into the scratch, the first filter level writes the history the next frame's temporal pass
         /// reads, the second writes the scratch again — where a cleared tile keeps the temporal pass's
         /// exact value — and the third writes what the composite reads.
@@ -132,8 +133,10 @@ namespace Rtx
             const Image& mScratch;
             const Image& mVisibility;
 
-            /// One texel a tile of the classification, `SHADOW_WORKGROUP` pixels on a side.
+            /// One texel a tile of the classification, `SHADOW_WORKGROUP` pixels on a side, and one
+            /// of the widest penumbra in the tile, which the mask pass writes.
             const Image& mTiles;
+            const Image& mPenumbra;
 
             /// One word an 8×4 tile of the rays' bits.
             const Image& mMask;
@@ -198,6 +201,7 @@ namespace Rtx
         Image mShadowScratch;
         Image mShadowVisibility;
         Image mShadowTiles;
+        Image mShadowPenumbra;
         Image mShadowMask;
 
         ImagePair mSpecularMeans;

@@ -3,7 +3,7 @@ RTX Settings
 
 The experimental Vulkan ray tracing renderer. It replaces primary visibility, shadows, direct and
 indirect light, sky, water and fog; the OpenGL renderer is what you get with :code:`enabled = false`,
-and is upstream's but for the changes this fork's :code:`AGENTS.md` names: four to its picture, the
+and is upstream's but for the changes this fork's :code:`AGENTS.md` names: five to its picture, the
 frame shown scaled into the window, and the gamma it applies in its last draw.
 
 A build configured with :code:`-DOPENMW_RTX=OFF` leaves it out. It needs a GPU with hardware ray

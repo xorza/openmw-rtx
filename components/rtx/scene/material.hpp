@@ -191,16 +191,9 @@ namespace Rtx
         /// fringe, and half splits that fringe evenly between the leaf and the hole.
         static constexpr float sBlendCutoff = 0.5f;
 
-        /// What a pane is cut at when it named no threshold of its own: half a step of an 8-bit
-        /// alpha. **A blend draws a texel of alpha nought as nothing**, so such a texel is a hole to
-        /// every ray, exactly; a filtered sample below half a step covers less than the display
-        /// resolves. Without it a foliage card's empty texels were a pane the eye peeled and a
-        /// bounce stopped on.
-        static constexpr float sPaneCutoff = 0.5f / 255.0f;
-
         /// The test a texel is a hole by, or one that passes every alpha where the surface has
         /// none. A blended material that never asked for a test is cut at least `sBlendCutoff`,
-        /// because that is where the game keeps its foliage, or `sPaneCutoff` where it is a pane.
+        /// because that is where the game keeps its foliage, or `Shaders::ALPHA_PANE_CUTOFF` where it is a pane.
         AlphaTest getAlphaTest() const
         {
             switch (mAlphaMode)
@@ -210,8 +203,9 @@ namespace Rtx
                 case AlphaMode::Cutout:
                     return mAlphaTest;
                 case AlphaMode::Blend:
-                    return mAlphaTest.cuts() ? mAlphaTest
-                                             : AlphaTest{ .mReference = isTranslucent() ? sPaneCutoff : sBlendCutoff };
+                    return mAlphaTest.cuts()
+                        ? mAlphaTest
+                        : AlphaTest{ .mReference = isTranslucent() ? Shaders::ALPHA_PANE_CUTOFF : sBlendCutoff };
             }
             return AlphaTest{ .mPasses = Shaders::ALPHA_PASSES_ALL };
         }
@@ -271,13 +265,29 @@ namespace Rtx
         /// at its reference, as the rasterizer's discard does. An additive surface is neither: it
         /// covers nothing.
         ///
-        /// **A mask's soft fringe stays a cut.** Every DXT3 leaf, banner and rope the game ships is
-        /// soft at its edge, and traced as panes they turned the trace's sun and sky rays through
-        /// them to grain: at Seyda Neen's pier the panes went from 3 to 91.
+        /// **A mask's soft fringe stays a cut for every ray but the eye's** (`isSoftEdged`). Every
+        /// DXT3 leaf, banner and rope the game ships is soft at its edge, and traced as panes they
+        /// turned the trace's sun and sky rays through them to grain: at Seyda Neen's pier the panes
+        /// went from 3 to 91.
         bool isTranslucent() const
         {
             return mAlphaMode == AlphaMode::Blend && mBlend == BlendKind::Over
                 && (mOpacity < 1.0f || (!mAlphaTest.cuts() && mDiffuseNeverSolid));
+        }
+
+        /// Whether this is a blended mask: a blend over what is behind it, with no test of its own and
+        /// a material alpha of one, whose texture reaches solid — every leaf card, banner, rope and
+        /// sail the game ships, and a cobweb or a crystal that is solid anywhere at all. Cut at
+        /// `sBlendCutoff` for every ray but the eye's: **the eye meets a texel the cut drops with a
+        /// chance of its alpha** (`Shaders::MATERIAL_SOFT_EDGE`), so the frames average to the blend
+        /// the rasterizer draws, an edge fades out rather than stopping and a faint texture keeps
+        /// its coverage; what it meets is the solid it is. A light ray keeps the cut, which is
+        /// noiseless and cheap — panes for every ray turned the pier's sun and sky rays to grain,
+        /// from 3 panes to 91.
+        bool isSoftEdged() const
+        {
+            return mAlphaMode == AlphaMode::Blend && mBlend == BlendKind::Over && !mAlphaTest.cuts() && mOpacity >= 1.0f
+                && !mDiffuseNeverSolid && mDiffuse != sNoIndex;
         }
 
         /// Whether the eye passes through this rather than meeting it: a medium, not a surface.

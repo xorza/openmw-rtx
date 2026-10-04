@@ -320,7 +320,7 @@ namespace Rtx::Testing
             const Rtx::Material pane = extractOne(true, glass);
             EXPECT_TRUE(pane.isTranslucent()) << "a texture that never closes is a pane";
             EXPECT_FALSE(pane.isMedium()) << "all there, so a pane and no cloud";
-            EXPECT_EQ(pane.getAlphaTest().mReference, Material::sPaneCutoff);
+            EXPECT_EQ(pane.getAlphaTest().mReference, Shaders::ALPHA_PANE_CUTOFF);
             EXPECT_TRUE(pane.getTraversed().placedAt(1.0f).mTranslucent);
             EXPECT_FALSE(pane.getTraversed().placedAt(1.0f).mCutout);
 

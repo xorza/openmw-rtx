@@ -514,6 +514,7 @@ void main()
         RTX_STORE_COUNTED(fill, at, BOUNDARY_COLOUR, vec4(filled, 1.0))
     }
     RTX_STORE_COUNTED(shadowed, at, BOUNDARY_COLOUR, vec4(unshadowed, open))
+    RTX_STORE_COUNTED(penumbra, at, BOUNDARY_GUIDE, vec4(answer.mPenumbra))
     RTX_STORE_COUNTED(specular, at, BOUNDARY_COLOUR, vec4(lobe, answer.mRoughness))
     RTX_STORE_COUNTED(albedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mDiffuse, 1.0))
     RTX_STORE_COUNTED(ambientAlbedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mAmbient, 1.0))

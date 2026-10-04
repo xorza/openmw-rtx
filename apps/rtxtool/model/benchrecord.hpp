@@ -245,6 +245,13 @@ namespace RtxTool
 
         /// Whether the layers were running, which is what says a figure is not one to quote.
         bool mValidating = false;
+
+        /// How much of the process's anonymous memory stood on huge pages once the first place had
+        /// loaded (`Platform::Process::hugePageShare`), or nothing where the system does not say. On
+        /// small ones the host's rows move as a whole from one run to the next
+        /// (`Platform::Process::restartOnHugePages`), so two records that differ here are not one
+        /// run twice.
+        std::optional<float> mHugePageShare{};
     };
 
     /// An hour of Morrowind's day as a person reads it, on a twenty-four hour clock.
