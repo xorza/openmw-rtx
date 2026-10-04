@@ -1373,6 +1373,10 @@ namespace RtxTool
 
 int main(int argc, char* argv[])
 {
+    // **Huge pages before anything else**, since the process this starts keeps no thread and no
+    // state of this one: the figures a measured run reports move run to run on small ones.
+    Platform::Process::restartOnHugePages(argv);
+
     // **The catcher, and never a box.** This is a developer harness: it is run from a shell or a
     // task runner, its output is read, and a dialog waiting for a click is a run that never
     // finishes — which for something whose whole point is to be run in a loop is the tool not

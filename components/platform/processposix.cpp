@@ -127,6 +127,30 @@ namespace Platform::Process
 #endif
     }
 
+    void restartOnHugePages([[maybe_unused]] char** argv)
+    {
+#if defined(__linux__)
+        if (!setEnvironmentDefault("GLIBC_TUNABLES", "glibc.malloc.hugetlb=1"))
+            return;
+
+        // Returns only where the system would not start it, and the run goes on as it was.
+        if (const std::optional<std::filesystem::path> self = executable())
+            execv(self->c_str(), argv);
+#endif
+    }
+
+    bool mallocOnHugePages()
+    {
+#if defined(__linux__)
+        const char* const tunables = std::getenv("GLIBC_TUNABLES");
+        std::ifstream file("/sys/kernel/mm/transparent_hugepage/enabled");
+        const std::string mode{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
+        return mallocOnHugePages(tunables != nullptr ? tunables : "", mode);
+#else
+        return false;
+#endif
+    }
+
     std::size_t keepToPerformanceCores()
     {
 #if defined(__linux__)

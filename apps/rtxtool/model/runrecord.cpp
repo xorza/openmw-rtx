@@ -5,6 +5,7 @@
 #include <utility>
 
 #include <components/files/conversion.hpp>
+#include <components/platform/process.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 namespace RtxTool
@@ -21,6 +22,7 @@ namespace RtxTool
             [](const Stop& stop) { return !stop.mSky.mTurnThrough.empty(); });
         mHeader.mSetup = request.mSetup;
         mHeader.mStep = request.mStep;
+        mHeader.mHugePages = Platform::Process::mallocOnHugePages();
     }
 
     void RunRecord::add(BenchPlace place)

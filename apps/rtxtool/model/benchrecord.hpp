@@ -245,6 +245,11 @@ namespace RtxTool
 
         /// Whether the layers were running, which is what says a figure is not one to quote.
         bool mValidating = false;
+
+        /// Whether `malloc` was on huge pages (`Platform::Process::restartOnHugePages`): on small
+        /// ones the host's rows move as a whole from one run to the next, so two records that differ
+        /// here are not one run twice.
+        bool mHugePages = false;
     };
 
     /// An hour of Morrowind's day as a person reads it, on a twenty-four hour clock.

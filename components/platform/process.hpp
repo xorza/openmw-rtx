@@ -97,6 +97,46 @@ namespace Platform::Process
     /// and which core the system picks changes from one run to the next.
     std::size_t keepToPerformanceCores();
 
+    /// Starts this process again, from the top, with glibc's `malloc` on transparent huge pages —
+    /// `GLIBC_TUNABLES=glibc.malloc.hugetlb=1` — where the shell named no tunables of its own:
+    /// Linux alone, and before any thread starts, since what replaces the process keeps none.
+    /// Returns where it does not restart: on another system, where the shell's word stands, and
+    /// where the system would not start it again.
+    ///
+    /// **For a measured run.** On 4 KiB pages the heap's physical placement, which decides the
+    /// cache sets it shares, is the system's draw on every run, and six runs of one build at
+    /// `one-cell-walk` read walk medians of 0.40 to 0.49 ms, the frame thread's cache misses 4.5
+    /// to 8.8 a thousand instructions. On huge pages the six read 0.41 each. Without address
+    /// randomization they spread as far, and with one `malloc` arena further.
+    void restartOnHugePages(char** argv);
+
+    /// Whether `malloc` is on huge pages, from glibc's tunables `tunables` and the kernel's
+    /// transparent huge page mode as `/sys/kernel/mm/transparent_hugepage/enabled` writes it,
+    /// the one in brackets chosen: `glibc.malloc.hugetlb` at one, which asks the kernel to back the
+    /// heap by `madvise` and takes where the mode is `always` or `madvise`; or at two, which takes
+    /// reserved huge pages. The last setting of the name is the one glibc keeps.
+    inline bool mallocOnHugePages(std::string_view tunables, std::string_view transparentMode)
+    {
+        constexpr std::string_view name = "glibc.malloc.hugetlb=";
+        std::string_view asked;
+        while (!tunables.empty())
+        {
+            const std::size_t end = tunables.find(':');
+            const std::string_view tunable = tunables.substr(0, end);
+            if (tunable.starts_with(name))
+                asked = tunable.substr(name.size());
+            tunables = end == std::string_view::npos ? std::string_view() : tunables.substr(end + 1);
+        }
+
+        const bool granted = transparentMode.find("[always]") != std::string_view::npos
+            || transparentMode.find("[madvise]") != std::string_view::npos;
+        return asked == "2" || (asked == "1" && granted);
+    }
+
+    /// `mallocOnHugePages` of this process: its environment and the kernel's mode. Never on a
+    /// system that is not Linux.
+    bool mallocOnHugePages();
+
     /// The CPUs a Linux CPU list names — `0-7,16-19`, as sysfs writes it with its line break — in
     /// the list's order, or nothing where the text is not one. A number past the kernel's own limit
     /// of 8192 CPUs is not one either, so a range cannot ask for billions of entries.

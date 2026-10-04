@@ -90,6 +90,8 @@ namespace RtxTool
                 .mIndirect = Rtx::IndirectLight::Off,
                 .mAntilag = true };
             header.mValidating = true;
+            // Set by `begin` from this process, and stated here so the line does not depend on it.
+            header.mHugePages = true;
 
             BenchPlace place;
             place.mView = "seyda-neen";
@@ -102,7 +104,7 @@ namespace RtxTool
                   "level bias -1.000, indirect off, bounce reuse temporal, antilag on\n"
                   "     delight 0.50, gamma 2.20, show albedo, exposure fixed at 1.500, variants off, hold 8.0 ms\n"
                   "     land 4.0 cells, viewing distance 7168, distant statics off, step 0.0625 s, walks streamed, "
-                  "memory budget 512 MiB\n"
+                  "memory budget 512 MiB, host pages huge\n"
                   "\nseyda-neen\n";
             EXPECT_EQ(record.getReport().substr(0, expected.size()), expected) << record.getReport();
             EXPECT_NE(record.getReport().find("  not a measurement: this command draws its frames"), std::string::npos);
@@ -114,7 +116,8 @@ namespace RtxTool
             std::filesystem::remove(request.mHashes);
 
             const std::string json = read.str();
-            constexpr std::string_view premises = R"("measures": false, "hashed": true, "turnsWeather": true,)";
+            constexpr std::string_view premises
+                = R"("measures": false, "hashed": true, "turnsWeather": true, "hugePages": true,)";
             constexpr std::string_view setup
                 = R"(  "filter": false, "jitter": false, "delight": 0.500, "gamma": 2.200, "show": "albedo", )"
                   R"("exposure": 1.5, "exposureHeld": false, "variants": false, "holdMs": 8.000,)";
