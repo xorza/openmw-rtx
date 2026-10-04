@@ -500,6 +500,18 @@ float ambientReaching(vec3 position, vec3 normal, vec3 plane, float transmission
     return weight * ambientThrough(position, towards, frame.mReach) / rate;
 }
 
+/// `ambientReaching` for a surface a path ends at — the bounce's far hit, a water leg's, a pane —
+/// and nought, with no ray traced, where surfaces take no indirect light (`bounceTraced`). **The fill
+/// `pathEnd` gives is the bounces nobody traces**, which that setting takes away with the one that
+/// is: kept here, a pane or a wall a reflection shows would stand in the cell's ambient while the
+/// wall the eye sees beside it is black.
+float surfaceAmbient(Surface hit, uint seed, float rate)
+{
+    return bounceTraced()
+        ? ambientReaching(hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, seed, rate)
+        : 0.0;
+}
+
 /// What a surface a path ends at sends back, with the fill apart from the lights.
 struct PathEnd
 {
@@ -535,8 +547,7 @@ struct PathEnd
 /// @param ambientRate as `ambientReaching` takes it.
 PathEnd lightAtPathEnd(Surface hit, uint key, uint ambient, uint lamps, uint path, bool split, float ambientRate)
 {
-    const float reaching = ambientReaching(
-        hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, key + ambient, ambientRate);
+    const float reaching = surfaceAmbient(hit, key + ambient, ambientRate);
     const DirectLight lit = gather(hit, glossOf(hit), key, lamps, path, split);
 
     return PathEnd(SplitLight(litSurface(hit, lit.mDiffuse, lit.mSpecular), shadowedLight(hit, lit), lit.mOpen),
@@ -595,8 +606,7 @@ struct SeenPane
 /// @param key,ambient,lamps as `shadeAtPathEnd` takes them.
 SeenPane shadePane(Surface hit, uint key, uint ambient, uint lamps)
 {
-    const float reaching = ambientReaching(
-        hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, key + ambient, AMBIENT_EXTERIOR_RATE);
+    const float reaching = surfaceAmbient(hit, key + ambient, AMBIENT_EXTERIOR_RATE);
     const DirectLight lit = gather(hit, glossOf(hit), key, lamps, PATH_SEEN, false);
 
     return SeenPane(litSurface(hit, vec3(0.0), vec3(0.0)),
@@ -736,6 +746,9 @@ Arriving bounceLanding(Surface hit, uint key, uint ambient, uint lamps, uint pat
 /// **Off the near face only.** The lobe reflects, and the far face of a sheet transmits: `gather`
 /// gives a light behind a sheet no lobe and its diffuse half the whole of it, and so does this.
 ///
+/// **The lobe at a chance of one where no bounce is traced** (`bounceTraced`): the diffuse half is
+/// gone, and the one ray left is the reflection.
+///
 /// **One pair for either half**, `STREAM_BOUNCE`'s: only one half is kept, so the pair's spread
 /// across the screen serves whichever it is.
 ///
@@ -759,7 +772,7 @@ BounceDraw bounceDraw(Surface surface, Gloss gloss, float face, uvec2 pixel, Con
     // A metal's diffuse albedo is nought and its chance one, which the draw always takes; the
     // diffuse weight it divides by nought is never the one selected.
     const float reflected = dot(gloss.mAlbedo, LUMINANCE_WEIGHTS);
-    const float chance = reflected / (reflected + dot(surface.mAlbedo, LUMINANCE_WEIGHTS));
+    const float chance = bounceTraced() ? reflected / (reflected + dot(surface.mAlbedo, LUMINANCE_WEIGHTS)) : 1.0;
 
     uint lobe = randomSeed(pixelKey(pixel) + SEED_BOUNCE_LOBE);
     const bool specular = randomNext(lobe) < chance;
@@ -837,7 +850,7 @@ Arriving bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pi
 }
 
 /// What reaches a surface from everything that is not a light: one bounce, off the half
-/// `bounceDraw` chose.
+/// `bounceDraw` chose; or, where no bounce is traced, the lobe's reflection alone.
 ///
 /// **Traced only from the hit the eye found.** A shader with no recursion cannot bounce a bounce, and
 /// it should not: what the second hit gathers is `pathEnd`, the flat ambient that stands in for the
@@ -865,8 +878,11 @@ Bounce bounceLight(Surface surface, Gloss gloss, uvec2 pixel, Cone cone)
     const BounceSample nothing = skySample(drawn.mTowards, vec3(0.0));
 
     // A reflection below the shading normal's horizon brings nothing back, and is not traced to
-    // find that out.
-    if (behindTheFace(drawn.mTowards, surface.mGeometric, face) || !(brightest(drawn.mWeight) > 0.0))
+    // find that out. **Where no bounce is traced, nor does the diffuse half**, and a ray is traced
+    // only for a lobe: a lane on a matte surface skips the ray, which is the saving the setting is
+    // for, and on vanilla content, which has no lobe, no lane traces one.
+    if (behindTheFace(drawn.mTowards, surface.mGeometric, face) || !(brightest(drawn.mWeight) > 0.0)
+        || !(bounceTraced() || drawn.mSpecular))
         return Bounce(vec3(0.0), vec3(0.0), vec3(0.0), nothing, 0.0);
 
     BounceSample landed;

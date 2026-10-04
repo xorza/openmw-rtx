@@ -4,6 +4,7 @@
 
 #include <apps/openmw/mwrender/rtx/rtxsettings.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
@@ -27,6 +28,7 @@ namespace MWRender
                 .mGroundcoverDensity = 0.5f,
                 .mGroundcoverPointLighting = false,
                 .mSpecularMapLayout = "metal roughness",
+                .mIndirectLight = "off",
                 .mAnisotropy = 8,
                 .mGamma = 1.5f,
                 .mLitEnvironmentMaps = true,
@@ -49,6 +51,12 @@ namespace MWRender
                 values.mSpecularMapLayout = spelling;
                 EXPECT_EQ(RtxSettings::derive(values).mMirror.mSpecularLayout, layout) << spelling;
             }
+            for (const auto& [indirect, spelling] : Rtx::sIndirectLightNames.mNames)
+            {
+                RtxSettingValues values = valid();
+                values.mIndirectLight = spelling;
+                EXPECT_EQ(RtxSettings::derive(values).mIndirect, indirect) << spelling;
+            }
 
             const RtxSettings derived = RtxSettings::derive(valid());
             EXPECT_EQ(derived.mUpscale, Rtx::Upscale::Balanced);
@@ -65,6 +73,7 @@ namespace MWRender
             EXPECT_EQ(derived.mAnisotropy, 8u);
             EXPECT_EQ(derived.mGamma, 1.5f);
             EXPECT_TRUE(derived.mLitEnvironmentMaps);
+            EXPECT_EQ(derived.mIndirect, Rtx::IndirectLight::Off);
 
             RtxSettingValues handedBack = valid();
             handedBack.mDistantLandCells = 0.0f;
@@ -93,6 +102,10 @@ namespace MWRender
             RtxSettingValues layout = valid();
             layout.mSpecularMapLayout = "Classic";
             EXPECT_THROW(RtxSettings::derive(layout), Rtx::InputError);
+
+            RtxSettingValues indirect = valid();
+            indirect.mIndirectLight = "ambient";
+            EXPECT_THROW(RtxSettings::derive(indirect), Rtx::InputError);
         }
 
         /// A gamma that is not a finite number over nought is refused: nought and less raise the

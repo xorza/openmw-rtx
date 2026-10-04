@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string_view>
 
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/mirror/cells/mirrorknobs.hpp>
 
@@ -27,6 +28,7 @@ namespace MWRender
         float mGroundcoverDensity = 0.0f;
         bool mGroundcoverPointLighting = true;
         std::string_view mSpecularMapLayout;
+        std::string_view mIndirectLight;
         int mAnisotropy = 0;
         float mGamma = 1.0f;
         bool mLitEnvironmentMaps = false;
@@ -52,9 +54,12 @@ namespace MWRender
         /// `RenderProfile::mLitEnvironmentMaps`: the setting.
         bool mLitEnvironmentMaps = false;
 
-        /// Throws `Rtx::InputError` for a spelling that names no mode, or a gamma that is not a
-        /// finite number greater than nought: a setting refused rather than defaulted, so a typo is said at
-        /// once and not traced under for a session.
+        /// `ReconstructionRequest::mIndirect`: the setting.
+        Rtx::IndirectLight mIndirect = Rtx::IndirectLight::Traced;
+
+        /// Throws `Rtx::InputError` for a spelling that names no mode or no indirect light, or a gamma
+        /// that is not a finite number greater than nought: a setting refused rather than defaulted,
+        /// so a typo is said at once and not traced under for a session.
         static RtxSettings derive(const RtxSettingValues& values);
     };
 }

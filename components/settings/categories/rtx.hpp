@@ -41,5 +41,11 @@ namespace Settings
         /// `ignore`, `classic` or `metal roughness`. Read where the renderer is made, because the maps are
         /// loaded with the models.
         SettingValue<std::string> mSpecularMapLayout{ mIndex, "RTX", "specular map layout" };
+
+        /// Whether a surface takes light from anything that is not a light, as
+        /// `Rtx::sIndirectLightNames` spells it: `traced`, one bounce and the passes that clean it, or
+        /// `off`, none, which costs none of them. A name the list refuses rather than defaults.
+        /// Changed while the game runs.
+        SettingValue<std::string> mIndirectLight{ mIndex, "RTX", "indirect light" };
     };
 }

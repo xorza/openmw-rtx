@@ -24,11 +24,12 @@
 namespace Rtx
 {
     TraceChain::TraceChain(const Device& device, const TracePasses& passes, const std::uint32_t bins,
-        const RadianceWidth radiance, const bool reuses)
+        const RadianceWidth radiance, const bool reuses, const IndirectLight indirect)
         : mDevice(device)
         , mPasses(passes)
         , mRadiance(radiance)
         , mReuses(reuses)
+        , mIndirect(indirect)
         , mDenoise(device)
         , mReservoirs(device)
     {
@@ -53,12 +54,29 @@ namespace Rtx
 
         mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance);
         mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight);
-        mDenoise.resize(mWidth, mHeight);
-        mReservoirs.resize(mWidth, mHeight, mReuses);
+        const bool traced = mIndirect == IndirectLight::Traced;
+        mDenoise.resize(mWidth, mHeight, traced);
+        mReservoirs.resize(mWidth, mHeight, mReuses && traced);
 
         // Dropped rather than resized, because most runs never make one: sixteen bytes a pixel is
         // worth it to the reference mode and nothing to a window. The first averaging trace asks.
         dropSum();
+    }
+
+    void TraceChain::setIndirect(const IndirectLight indirect)
+    {
+        if (indirect == mIndirect)
+            return;
+
+        mIndirect = indirect;
+        if (!isBuilt())
+            return;
+
+        // The denoiser's mean is fresh by the turn's own rule the next frame it runs, and the
+        // reservoirs are made anew, which is a reset.
+        const bool traced = indirect == IndirectLight::Traced;
+        mDenoise.keepBounce(traced);
+        mReservoirs.resize(mWidth, mHeight, mReuses && traced);
     }
 
     void TraceChain::grow(const std::uint32_t width, const std::uint32_t height)
@@ -82,6 +100,8 @@ namespace Rtx
             mDenoise.reset();
             mReservoirs.reset();
         }
+
+        setIndirect(what.mReconstruction.mIndirect);
 
         const BounceReuse reuse = what.mReconstruction.mBounceReuse;
         assert((mReuses || reuse == BounceReuse::Off) && "a reuse asked of a chain that keeps no reservoirs");
@@ -170,7 +190,7 @@ namespace Rtx
             mDenoise.turn(TemporalFlags{});
         const Denoised resolved = denoised
             ? mPasses.mDenoise.record(commands, mDenoise, *mChannels, what.mSampled, inputs.mSubject.mMapped,
-                inputs.mSubject.mLamps, what.mReconstruction.mAntilag, what.mTimer)
+                inputs.mSubject.mLamps, what.mReconstruction, what.mTimer)
             : Denoised::unfiltered(*mChannels);
 
         // **Only where something is left to do**: a filter to put the albedo back in behind, a reused

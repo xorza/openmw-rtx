@@ -2,6 +2,7 @@
 
 #include <cassert>
 
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
@@ -25,8 +26,8 @@ namespace Rtx
     }
 
     Denoised DenoisePasses::record(VkCommandBuffer commands, DenoiseHistory& history, const GBuffer& buffer,
-        const Shaders::VisibilityConstants& sampled, const bool mapped, const bool lamps, const bool antilag,
-        GpuTimer* const timer) const
+        const Shaders::VisibilityConstants& sampled, const bool mapped, const bool lamps,
+        const Reconstruction& reconstruction, GpuTimer* const timer) const
     {
         // **The shadow denoiser only where a source in the sky or a lamp can light anything.** A
         // room with no lamp has neither, and every tile of it would be classified, found to receive
@@ -38,7 +39,7 @@ namespace Rtx
         // nowhere: its channel is nought, and the composite reads the channel itself for the nought
         // it adds.
         //
-        // **The pane filter wherever the wavelet runs**, since any frame may hold a layer — a window,
+        // **The pane filter wherever the denoisers run**, since any frame may hold a layer — a window,
         // and every actor the game fades at the edge of its range. Where none stands it averages
         // noughts.
         //
@@ -47,16 +48,21 @@ namespace Rtx
         //
         // **The accumulator runs on every frame the denoisers do**, so its history is fresh only
         // after a reset, which makes every history fresh: the shadow denoiser and the glossy filter,
-        // which read the surface it holds, need no freshness but their own.
+        // which read the surface it holds, need no freshness but their own. **Its mean of the
+        // bounce, the clamp and the wavelet only where the bounce is traced**: with none there is
+        // nothing to filter, and the composite reads the channels of nought as the trace wrote them.
+        const bool bounce = reconstruction.filtersBounce();
         TemporalFlags runs;
         runs[Temporal::Accumulate] = true;
+        runs[Temporal::Bounce] = bounce;
         runs[Temporal::Shadow] = Shaders::skySourceLights(sampled) || (lamps && sampled.mNoLamps == 0u);
         runs[Temporal::Specular] = mapped;
         runs[Temporal::Pane] = true;
 
         const TemporalTurns::Step step = history.turn(runs);
         assert((!step.mFresh[Temporal::Accumulate]
-                   || (step.mFresh[Temporal::Shadow] && step.mFresh[Temporal::Specular] && step.mFresh[Temporal::Pane]))
+                   || (step.mFresh[Temporal::Bounce] && step.mFresh[Temporal::Shadow] && step.mFresh[Temporal::Specular]
+                       && step.mFresh[Temporal::Pane]))
             && "a fresh accumulator beside a history that is not");
         history.discard(commands, step);
 
@@ -64,18 +70,24 @@ namespace Rtx
         const DenoiseFrame frame{
             .mSampled = sampled,
             .mDistanceScale = DenoiseHistory::distanceScaleFor(sampled.mFar),
-            .mAntilag = antilag,
+            .mAntilag = reconstruction.mAntilag,
         };
 
         // The temporal half first: the accumulator hands on the variance of its mean, which is
         // what lets the levels below stop at an edge in the light and not only in the geometry.
         openZone(timer, commands, "accumulate");
-        mAccumulate.record(commands, accumulated, buffer, frame);
+        if (bounce)
+            mAccumulate.record(commands, accumulated, buffer, frame);
+        else
+            mAccumulate.recordSurface(commands, accumulated, buffer, frame);
         closeZone(timer, commands);
 
-        openZone(timer, commands, "clamp");
-        mAccumulate.recordClamp(commands, accumulated, buffer, frame);
-        closeZone(timer, commands);
+        if (bounce)
+        {
+            openZone(timer, commands, "clamp");
+            mAccumulate.recordClamp(commands, accumulated, buffer, frame);
+            closeZone(timer, commands);
+        }
 
         const Image* shadow = nullptr;
         if (runs[Temporal::Shadow])
@@ -96,6 +108,13 @@ namespace Rtx
         openZone(timer, commands, "pane");
         const Image& pane = mPane.record(commands, history.pane(step), buffer, frame);
         closeZone(timer, commands);
+
+        if (!bounce)
+            return Denoised{ .mIndirect = buffer.get(Channel::Indirect),
+                .mFill = buffer.get(Channel::Fill),
+                .mSpecular = *specular,
+                .mPane = pane,
+                .mShadow = shadow };
 
         // The cascade reads what the accumulator just wrote, and it reads through the texture unit
         // — so the dependency names the sampled access and not only the storage one. The history

@@ -80,11 +80,12 @@ namespace Rtx
         , mRing(mDevice, mCounting || mStress != nullptr, mStress != nullptr ? mStress->getTickMs() : 0.0)
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
-        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth, true)
+        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth, true, mProfile.mReconstruction.mIndirect)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get())
         , mMedia(mDevice)
         , mGui(mDevice)
-        , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures(), mProfile.mRadianceWidth)
+        , mPictures(mDevice, mTracePasses, mMedia, mDisplay, mGui.getTextures(), mProfile.mRadianceWidth,
+              mProfile.mReconstruction.mIndirect)
         , mUpscaler(mDevice)
     {
         mDevice.getMemory().limitBudget(options.mRun.mMemoryBudget);
@@ -393,6 +394,12 @@ namespace Rtx
 
         mProfile.mGamma = gamma;
         mInverseGamma = 1.0f / gamma;
+    }
+
+    void VulkanRenderer::setIndirectLight(const IndirectLight indirect)
+    {
+        mProfile.mReconstruction.mIndirect = indirect;
+        mFrame.setIndirect(indirect);
     }
 
     void VulkanRenderer::skipFrame()
