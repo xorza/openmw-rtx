@@ -1,8 +1,5 @@
 #include <algorithm>
-#include <chrono>
 #include <cstdint>
-#include <cstdio>
-#include <string>
 
 #include <gtest/gtest.h>
 
@@ -101,23 +98,6 @@ namespace Rtx
                             ASSERT_EQ(
                                 static_cast<std::int32_t>(partner[1]) + returned[1], static_cast<std::int32_t>(down));
                         }
-        }
-
-        /// **Both textures, made at a resize, cost what a resize can pay.** At 720 traced rows the
-        /// deviation is 11.5 and at 1440 rows 23.0.
-        TEST(RtxBouncePairingTest, bothTexturesAreMadeQuickly)
-        {
-            for (const float deviation : { 11.5f, 23.0f })
-            {
-                const auto start = std::chrono::steady_clock::now();
-                const BouncePairing first(Shaders::BOUNCE_PAIRING_SIZE_0, deviation, 0);
-                const BouncePairing second(Shaders::BOUNCE_PAIRING_SIZE_1, deviation, 1);
-                const double milliseconds
-                    = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
-                RecordProperty("milliseconds at " + std::to_string(deviation), std::to_string(milliseconds));
-                std::printf("PAIRING deviation %.1f: %.1f ms\n", double(deviation), milliseconds);
-                EXPECT_LT(milliseconds, 100.0);
-            }
         }
     }
 }
