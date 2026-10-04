@@ -14,13 +14,13 @@
 //
 // **Why the fast mean's neighbourhood and not the frame's sample.** A sample is one bounce, and one
 // that found a lit patch stands many deviations over the mean, so a box of samples would hold the
-// slow mean to noise. Six frames of the same samples are quiet enough to bound it and short enough
-// to follow the light: where the slow mean stands outside the fast one's mean ± two deviations over
-// a 5×5 square, it is moved to that edge.
+// slow mean to noise. The same samples over `ACCUMULATE_FAST_FRAMES`, taken over a 5×5 square, are
+// quiet enough to bound it and short enough to follow the light: where the slow mean stands outside
+// the fast one's mean ± two deviations over the square, it is moved to that edge.
 //
 // **Then ReLAX's push**, on both means: where the clamp moved the slow mean, both go on toward the
 // square's mean of samples in proportion (`antilagAcceleration`). The fast mean follows the light
-// only as fast as its six frames do, and this takes it further. ReLAX's reset is not taken, and
+// only as fast as its frames do, and this takes it further. ReLAX's reset is not taken, and
 // `ACCUMULATE_ACCELERATION` says why.
 //
 // **The fill moves by the bounce's shares.** `CHANNEL_FILL` is a share of the bounce, so every move
@@ -146,8 +146,11 @@ void main()
 
     const vec3 toward = sampledMean - fastHere;
     const vec3 towardFill = sampledFillMean - fastFillHere;
-    const vec3 held = mix(slow.rgb, fastHere, share) + pushed * toward;
-    const vec3 heldFill = mix(slowFill, fastFillHere, share) + pushed * towardFill;
+    // **Held at nought**: the push is the fast mean's way to the samples, and a slow mean the clamp
+    // moved only a little toward a bright fast one is pushed back by all of it, past nought where
+    // the samples stand far under the fast mean.
+    const vec3 held = max(mix(slow.rgb, fastHere, share) + pushed * toward, vec3(0.0));
+    const vec3 heldFill = max(mix(slowFill, fastFillHere, share) + pushed * towardFill, vec3(0.0));
     const vec3 followed = fastHere + pushed * toward;
     const vec3 followedFill = fastFillHere + pushed * towardFill;
 

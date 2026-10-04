@@ -1,3 +1,2 @@
-lamps strobing
 remove cloud shadows
 mouse teleporting

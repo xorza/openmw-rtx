@@ -10,8 +10,8 @@
 const float RGB9E5_LARGEST = 65408.0;
 
 /// A colour as three nine-bit mantissas sharing one five-bit exponent: the one each channel needs
-/// for the brightest of them. **What a radiance loses is relative to its brightest channel**, a
-/// part in a thousand at worst, where three halves would cost the same six bytes twice over.
+/// for the brightest of them. **What a radiance loses is relative to its brightest channel**: half a
+/// step, a part in 512 of it at worst, where three halves would cost the same six bytes twice over.
 /// Anything not a number, or below nought, is nought.
 uint packRgb9e5(vec3 colour)
 {

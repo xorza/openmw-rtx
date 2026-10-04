@@ -197,11 +197,10 @@ namespace Rtx
 
         /// The bounce's reuse over what the trace left: last frame's reservoirs merged into this
         /// frame's candidates, the pairs' shift rays traced once for both ends, the partners' merged
-        /// into each pixel's, the final visibility ray and
-        /// the shade into `Channel::Indirect` and `Channel::Fill` — as much of that as
-        /// `VisibilityInputs::mBounceReuse` asks. After `record` and before the channels are
-        /// handed over, since the resolve writes two of them. Nothing where no reuse runs, and the
-        /// trace wrote both channels itself.
+        /// into each pixel's, the final visibility ray and the shade into `Channel::Indirect` and
+        /// `Channel::Fill` — as much of that as `VisibilityInputs::mBounceReuse` asks. After
+        /// `record` and before the channels are handed over, since the resolve writes two of them.
+        /// Nothing where no reuse runs, and the trace wrote both channels itself.
         void recordBounceReuse(VkCommandBuffer commands, const VisibilityInputs& inputs,
             const Shaders::VisibilityConstants& constants, GpuTimer* timer) const;
 
