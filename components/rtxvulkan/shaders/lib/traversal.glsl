@@ -11,6 +11,7 @@
 // traversal needs to build the plane without a vertex buffer bound for it.
 #extension GL_EXT_ray_tracing_position_fetch : require
 
+#include "gbuffer.h"
 #include "look.h"
 #include "scene.h"
 #include "basis.glsl"
@@ -546,6 +547,12 @@ struct Passage
 
     /// What the translucent surfaces crossed let through, from nought to one.
     float mThrough;
+
+    /// How far along the ray the solid that stopped it stood, or `SHADOW_PENUMBRA_CLEAR` where
+    /// nothing did: what the penumbra's width is made of (`skyPenumbra`, `lampPenumbra`). **A solid and not the
+    /// nearest one**, since the ray ends on the first it finds: the penumbra of whichever solid
+    /// that was, and the reach it gives the shadow denoiser is never narrower than its own.
+    float mOccluder;
 };
 
 /// What the ray from `from` to what stands `distance` away along `towards` meets, past the surfaces
@@ -578,7 +585,7 @@ struct Passage
 Passage passageToward(vec3 from, vec3 towards, float distance, uint faces)
 {
     if (distance <= SHADOW_BIAS)
-        return Passage(1.0, 1.0);
+        return Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
 
     uint blocked = 0u;
 
@@ -590,7 +597,8 @@ Passage passageToward(vec3 from, vec3 towards, float distance, uint faces)
     RTX_RESOLVE(query, towards, 0.0, blocked, true, false)
 
     const bool stopped = rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT;
-    return Passage(stopped ? 0.0 : 1.0, throughBlocked(blocked));
+    return Passage(stopped ? 0.0 : 1.0, throughBlocked(blocked),
+        stopped ? rayQueryGetIntersectionTEXT(query, true) : SHADOW_PENUMBRA_CLEAR);
 }
 
 /// How much of what stands `distance` away along `towards` reaches `from`: `passageToward`'s two

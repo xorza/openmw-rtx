@@ -287,6 +287,9 @@ at the top, over all of them.
   ReLAX's), so light that changes on a surface that did not move is followed and not dragged. The
   shadow denoiser filters the one bit a pixel kept of its rays to the sky's source and to a lamp, under
   the light both would add unshadowed, where the sky has a source that lights or the scene a lamp.
+  Its reach is the penumbra's (`CHANNEL_PENUMBRA`, NVIDIA SIGMA's rule): a bit whose penumbra is
+  under a pixel and whose source was not drawn is handed on as it is, and a filter level runs only
+  where its step fits the penumbra.
   The glossy filter averages the lobe's light over time, where the scene wears a map. The pane
   filter averages what was drawn for the see-through layers over time, against a history of the
   nearest layer's own surface and motion. The accumulator, the shadow denoiser and the glossy filter

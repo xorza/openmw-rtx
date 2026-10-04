@@ -67,6 +67,7 @@
 #define GBUFFER_BACKDROP STORAGE_RGBA8
 #define GBUFFER_UPSCALE_MASKS STORAGE_RG8
 #define GBUFFER_LIFT STORAGE_RGBA8
+#define GBUFFER_PENUMBRA STORAGE_R16F
 
 // Which binding of `SET_CHANNELS` each channel is.
 //
@@ -117,7 +118,7 @@ namespace Rtx::Shaders
     /// the one kept did, one or nought. The sources are the sky's — the sun, or a moon at night —
     /// and the lamps' diffuse half, every lamp's summed (`gather`). What the eye sees is the solid
     /// it found, or what the water reflects and what is seen through it. Each has two bits, the
-    /// sky's and the lamps', and `a` is one of them, drawn by the light each adds (`drawnOpen`).
+    /// sky's and the lamps', and `a` is one of them, drawn by the light each adds (`keepsSecond`).
     /// The one bit a pixel's shadow is, which the shadow denoiser filters in its place: `rgb` is
     /// exact per pixel, so a texture under a penumbra stays sharp. Nought and one wherever nothing
     /// split it off, which no filter reads as a shadow.
@@ -183,8 +184,27 @@ namespace Rtx::Shaders
     /// display pass reads it at the shown extent through the texture unit.
     const uint CHANNEL_LIFT = 16;
 
+    /// How wide the penumbra is where the bit in `CHANNEL_SHADOWED` was kept, as its radius in the
+    /// pixel's own footprints: the kept ray's distance to what stopped it, times the tangent of the
+    /// source's half angle, and for a lamp over what is left of the way to it (`skyPenumbra`,
+    /// `lampPenumbra`).
+    /// `SHADOW_PENUMBRA_CLEAR` where the ray got through, or nothing was split off. What the shadow
+    /// denoiser sizes its reach by (NVIDIA's SIGMA sizes its blur the same way): a hard shadow is
+    /// noiseless, and a reach wider than its penumbra is what blurs it.
+    const uint CHANNEL_PENUMBRA = 17;
+
+    /// What `CHANNEL_PENUMBRA` holds where no ray was stopped: the largest half, past every penumbra
+    /// a frame can hold in pixels.
+    const float SHADOW_PENUMBRA_CLEAR = 65504.0f;
+
+    /// What it holds where the kept bit was drawn from among sources — the sun or a moon, one lamp of
+    /// several, or the sky's source against the lamps — open or not: such a bit is noise whatever
+    /// its penumbra, since the next frame may draw another source, and it takes every step the
+    /// shadow denoiser's levels have (`SHADOW_FILTER_LEVELS`, whose widest is four pixels).
+    const float SHADOW_PENUMBRA_DRAWN = 8.0f;
+
     /// How many the set declares, which is the last of them and one more.
-    const uint CHANNEL_COUNT = 17;
+    const uint CHANNEL_COUNT = 18;
 
     /// How far apart, in traced pixels, an image and the motion vector its pixel is handed may move
     /// in one frame before the upscaler is told to trust none of that image's history: half a

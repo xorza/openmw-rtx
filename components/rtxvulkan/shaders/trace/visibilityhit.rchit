@@ -119,6 +119,7 @@ void answerLight(inout Answer answer, SplitLight light)
     answer.mRadiance = light.mRest;
     answer.mShadowed = light.mShadowed;
     answer.mOpen = light.mOpen > 0.0;
+    answer.mPenumbra = light.mPenumbra;
 }
 
 /// Writes the pixel's bounce as the reuse keeps it, where a frame reuses: `seen`'s draw as a

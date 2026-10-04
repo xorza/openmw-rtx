@@ -31,6 +31,7 @@ namespace Rtx
         Fill = Shaders::CHANNEL_FILL,
         AmbientAlbedo = Shaders::CHANNEL_AMBIENT_ALBEDO,
         Lift = Shaders::CHANNEL_LIFT,
+        Penumbra = Shaders::CHANNEL_PENUMBRA,
     };
 
     inline constexpr std::uint32_t sChannelCount = Shaders::CHANNEL_COUNT;
@@ -60,6 +61,7 @@ namespace Rtx
         { Channel::Fill, "g-fill" },
         { Channel::AmbientAlbedo, "g-ambient-albedo" },
         { Channel::Lift, "g-lift" },
+        { Channel::Penumbra, "g-penumbra" },
     } } };
 
     /// Every channel in binding order, for a walk that wants them all.
