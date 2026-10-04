@@ -25,7 +25,8 @@ namespace Rtx
     }
 
     Denoised DenoisePasses::record(VkCommandBuffer commands, DenoiseHistory& history, const GBuffer& buffer,
-        const Shaders::VisibilityConstants& sampled, const bool mapped, const bool lamps, GpuTimer* const timer) const
+        const Shaders::VisibilityConstants& sampled, const bool mapped, const bool lamps, const bool antilag,
+        GpuTimer* const timer) const
     {
         // **The shadow denoiser only where a source in the sky or a lamp can light anything.** A
         // room with no lamp has neither, and every tile of it would be classified, found to receive
@@ -63,6 +64,7 @@ namespace Rtx
         const DenoiseFrame frame{
             .mSampled = sampled,
             .mDistanceScale = DenoiseHistory::distanceScaleFor(sampled.mFar),
+            .mAntilag = antilag,
         };
 
         // The temporal half first: the accumulator hands on the variance of its mean, which is

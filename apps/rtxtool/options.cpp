@@ -358,6 +358,13 @@ namespace RtxTool
                 Rtx::sBounceReuseNames.list())
                 .c_str());
 
+        option(sFramed, "antilag",
+            bpo::value<bool>()
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mAntilag)
+                ->implicit_value(true),
+            "hold the denoiser's slow mean of the bounce to its fast one, so a change of the light on "
+            "a surface that did not move is followed and not dragged. Off is the A/B");
+
         option(sFramed, "level-epsilon", number(anyNumber<float>())->default_value(0.0f),
             "levels added to the texture level bias past the ratio the upscaler sets, negative for "
             "sharper. Nought is the ratio alone, and off the upscaler nothing is biased");

@@ -64,8 +64,42 @@ namespace Rtx::Shaders
     const uint ACCUMULATE_BIND_FAST_FILL_OUT = 15;
     const uint ACCUMULATE_BINDINGS = 16;
 
-    /// Threads along each edge of the accumulator's workgroup.
+    /// Threads along each edge of the accumulator's workgroup, and of the clamp's.
     const uint ACCUMULATE_WORKGROUP = 8;
+
+    /// Where `accumulateclamp.comp` binds what it reads and writes in set 0, and how many there are.
+    const uint ACCUMULATE_CLAMP_BIND_SURFACE = 0;
+    const uint ACCUMULATE_CLAMP_BIND_FAST = 1;
+    const uint ACCUMULATE_CLAMP_BIND_FAST_FILL = 2;
+    const uint ACCUMULATE_CLAMP_BIND_BLENDED = 3;
+    const uint ACCUMULATE_CLAMP_BIND_FILL_BLENDED = 4;
+    const uint ACCUMULATE_CLAMP_BIND_MOMENTS = 5;
+    const uint ACCUMULATE_CLAMP_BINDINGS = 6;
+
+    /// How far either way of a pixel the clamp's square reaches: ReLAX's 5×5.
+    const uint ACCUMULATE_CLAMP_REACH = 2;
+
+    /// What the clamp reads that is not an image.
+    struct AccumulateClampConstants
+    {
+        uint mWidth;
+        uint mHeight;
+
+        /// One where the slow mean is held to the fast one, nought where the run asked for the A/B
+        /// without it (`Reconstruction::mAntilag`): a factor, so both runs take one path.
+        uint mAntilag;
+    };
+
+    /// How far the slow mean `slow` is moved toward the fast one `fast`, as a share of the way:
+    /// nought where `slow` stands inside `[low, high]` grown to hold `fast`, and otherwise the
+    /// share that brings it to that edge. ReLAX's clamping factor (NVIDIA NRD,
+    /// `RELAX_HistoryClamping`): the box grown by the centre's own fast mean, so the slow mean is
+    /// never moved past it.
+    RTX_SHADER float antilagShare(float slow, float fast, float low, float high)
+    {
+        const float held = clamp(slow, min(low, fast), max(high, fast));
+        return slow == fast ? 0.0f : clamp((held - slow) / (fast - slow), 0.0f, 1.0f);
+    }
 
     /// What a pass that keeps a history of the frame's surfaces is handed: the accumulator, which
     /// writes the history a level of the wavelet reads, the pane filter and the shadow denoiser's
@@ -98,6 +132,8 @@ namespace Rtx::Shaders
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(HistoryConstants) == 144, "HistoryConstants must be scalar-packed on every side");
+    static_assert(
+        sizeof(AccumulateClampConstants) == 12, "AccumulateClampConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

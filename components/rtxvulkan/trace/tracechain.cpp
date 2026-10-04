@@ -168,9 +168,10 @@ namespace Rtx
         // the turn, that run would read the history of the frame before this one as last frame's.
         if (!denoised)
             mDenoise.turn(TemporalFlags{});
-        const Denoised resolved = denoised ? mPasses.mDenoise.record(commands, mDenoise, *mChannels, what.mSampled,
-                                      inputs.mSubject.mMapped, inputs.mSubject.mLamps, what.mTimer)
-                                           : Denoised::unfiltered(*mChannels);
+        const Denoised resolved = denoised
+            ? mPasses.mDenoise.record(commands, mDenoise, *mChannels, what.mSampled, inputs.mSubject.mMapped,
+                inputs.mSubject.mLamps, what.mReconstruction.mAntilag, what.mTimer)
+            : Denoised::unfiltered(*mChannels);
 
         // **Only where something is left to do**: a filter to put the albedo back in behind, a reused
         // bounce to put back, or a sum to add the frame to. Anything else was composed by the trace, into the channel
