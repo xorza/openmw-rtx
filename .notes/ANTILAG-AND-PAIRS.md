@@ -163,10 +163,6 @@ the same class. The estimate is under 0.1 ms at 1280×720; step A.6 measures it.
 
 Each step ends with `./omw test` and the gates it names.
 
-**Step A.7 — the cost and the record.** `./omw release bench --suite=bounce` from the background,
-a warm-up leg, off and on back to back: the `accumulate` zone's median and p99. `repeat --pairs=10`,
-`./omw gate`. The result goes into A9 of this file.
-
 ## A7. Acceptance
 
 - **Trail:** the sky's edge lag under the spatiotemporal reuse falls from 16.6 pixels to under 4,
@@ -176,6 +172,27 @@ a warm-up leg, off and on back to back: the `accumulate` zone's median and p99. 
 - **Bias:** within 0.1 of today's at every place.
 - **Cost:** the accumulator's zone rises by at most 0.1 ms median at 1280×720.
 - **Determinism:** `repeat --pairs=10` identical.
+
+## A9. What Part A came to
+
+Measured 2026-10-04, release, `bench --suite=bounce` and `noise --suite=bounce`, at 1280×720
+traced under `quality`, the start (4a59dcb) against the anti-lag as landed: the clamp with ReLAX's
+acceleration, a fast mean of two frames packed in `RGB9E5`, and the wavelet's feedback kept.
+
+| | Guild | Planter | Yurt | Pier | Pond |
+|---|---|---|---|---|---|
+| `accumulate` + `clamp`, median ms | 0.26 → 0.54 | 0.25 → 0.54 | 0.25 → 0.54 | 0.24 → 0.52 | 0.23 → 0.40 |
+| Frame median, ms | 6.92 → 7.19 | 7.27 → 7.53 | 6.63 → 6.81 | 8.58 → 8.89 | 8.63 → 8.73 |
+| Noise still | 0.65 → 0.61 | 0.70 → 0.65 | 0.74 → 0.72 | 0.49 → 0.49 | 0.46 → 0.46 |
+| Noise strafed | 1.37 → 1.33 | 1.83 → 1.72 | 2.26 → 2.22 | 1.18 → 1.18 | 1.19 → 1.19 |
+| Noise walked | 1.50 → 1.41 | 1.48 → 1.40 | 2.66 → 2.62 | 1.18 → 1.18 | 1.14 → 1.14 |
+| Bias still | 1.75 → 1.79 | 2.33 → 2.38 | 1.67 → 1.72 | 1.71 → 1.71 | 1.47 → 1.47 |
+
+The sky's trail behind a moving bar under the reuse (`RtxBounceTrailTest`): 16.61 → 7.66 pixels
+of lag, 2.61 → 1.51 columns of darkness left. `repeat --pairs=10` identical.
+
+**Against A7:** noise, bias and determinism pass. **The trail target (under 4) and the cost limit
+(+0.1 ms) do not**: `ANTILAG-AND-PAIRS_QUESTIONS.md`, Q1 and Q2.
 
 ## A8. Not in this part
 
