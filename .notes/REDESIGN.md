@@ -16,7 +16,6 @@ Two of them need a decision from you before work starts:
 | 2 | macOS install carries the harness | One global output directory, inside the bundle | The harness builds into the tree, outside the bundle | No |
 | 3 | Groundcover shapes under a transform | Upstream applies the instance transform before the node transforms | Bake the shape's own transform into the instanced geometry | **Yes** |
 | 4 | Host rows move between runs | Not proven yet. Data layout for the whole process is the main suspect | Experiments first, then the layout fix they show | Experiments first |
-| 5 | A thin sun shadow loses depth | The shadow denoiser treats a hard edge as noise | Penumbra-sized reach (NRD SIGMA's practice) | No |
 
 ---
 
@@ -246,110 +245,13 @@ level of the memory hierarchy moves.
 
 ---
 
-## 5. A thin sun shadow loses its depth in the denoised frame
-
-### Evidence
-
-A temporary probe used the issue's scene: a bar 40 units wide, 100 units over a floor, an overhead
-sun, 96 pixels square, 96 still frames, fixed exposure. It gave these minimum column means, in
-8-bit values:
-
-| upscale | indirect | filter | umbra | edge profile across the shadow |
-|---|---|---|---|---|
-| off | off | off | **17** | `137 137 21 19 18 17 17 17 18 24 84 137` |
-| off | off | on | **31** | `133 130 52 46 40 32 31 36 46 65 103 127` |
-| off | traced | on | 31 | the same as with indirect off |
-| quality | off | off | 17 | — |
-| quality | off | on | **66** | — |
-
-With the indirect light off, no bounce exists and none of the bounce's filters run. The loss is
-the same. So **the shadow denoiser causes it**, and the bounce filters do not. The lit side next to
-the edge also goes dark (137 becomes 130 to 133). The edge is blurred in both directions.
-
-### Cause
-
-Two mechanisms in `shadowtiles.comp`, the temporal half (FidelityFX's design):
-
-1. **The clamp box.** The history is clamped to the local mean of the frame's bits, ±0.5σ, over a
-   Gaussian of `REACH` pixels. In a shadow only 7 to 9 pixels wide, the local mean near the edge is
-   far from the pixel's own bit, which never changes. An umbra pixel with a local mean of 0.3 has
-   its history of 0 held at about 0.07, and a lit pixel's history is held down by the same amount.
-2. **The discontinuity.** A history that disagrees with the local mean loses samples
-   (`momentsNow.z *= exp(-d²/20)`). At a hard edge that is every frame, so the history stays under
-   16 samples. Its variance is then raised (`max(variance, spatialVariance) × (16 − z)`), and the
-   spatial filter (`shadowfilter.comp`, taps at 1, 2 and 4) blurs across the edge.
-
-Both mechanisms read a noiseless hard edge as noise. Two temporary variants of the temporal pass
-were run against the same probe and the trail tests:
-
-| Variant | Umbra (off / quality) | `theSunsShadowFollowsItsCaster` | Penumbra tests |
-|---|---|---|---|
-| Today | 31 / 66 | pass (tail 0.15) | pass |
-| Box grown to hold the pixel's own bit, discontinuity from the box | **17** / 38 | **fail**, tail 0.37 > 0.25 | pass |
-| Box grown to hold the pixel's own bit, discontinuity as today | 26 / 48 | pass | pass |
-
-So each mechanism causes about half of the loss. A box that holds the pixel's own bit is not
-enough without a cost: when the discontinuity also stops treating the edge as noise, a moving
-shadow's tail grows. A local patch cannot tell a hard edge from noise, because the denoiser does
-not know how wide the penumbra is.
-
-### Redesign: a penumbra-sized reach
-
-This is the field's established practice. NVIDIA's shadow denoiser, SIGMA (NRD), packs each
-visibility ray's distance to the occluder with the light's angular size
-(`SIGMA_FrontEnd_PackPenumbra`) into a penumbra radius, and uses that radius as its blur radius.
-With several lights, it uses a radius weighted by each light's share. The pixel radius is the world
-penumbra over the pixel's world footprint (NVIDIA, US 11,367,244). A hard shadow has a penumbra
-under one pixel, so it gets no spatial blur and no spatial box, and a soft one gets its full reach.
-
-1. **The trace keeps the penumbra.** Beside the one bit in `CHANNEL_SHADOWED`, write the penumbra
-   radius at the receiver for the source whose bit was kept (`drawnOpen` already picks the sky's or
-   the lamps'). Give it a 16-bit channel of its own:
-   - the sun or a moon, blocked at `t`: `t · tan(angular radius)`;
-   - a lamp of radius `r` at distance `D`, blocked at `t`: `r · t / (D − t)`;
-   - an open ray: the half-float maximum, which SIGMA uses for "no occluder".
-
-   The shadow ray meets its occluder already, so `t` costs no extra ray. But a ray that stops at
-   its first hit gives the distance of an occluder, which is not always the nearest one. Step 1
-   decides if that is accurate enough, from SIGMA's own input rule.
-2. **The tiles pass spreads it.** An open pixel next to a blocker needs the blocker's penumbra. The
-   tiles pass already reads every 8×8 tile. It keeps the tile's largest finite radius, in pixels
-   over `footprintAlong`, beside the tile's classification.
-3. **The temporal pass sizes its box by it.** The neighbourhood's reach is
-   `clamp(penumbra pixels, 0, REACH)`. With a reach under one pixel, the box is the pixel's own
-   temporal moments (mean ±kσ of its own history), grown to hold the frame's bit. The discontinuity
-   is measured against that box. So a hard edge is no longer a spatial outlier, and a moving
-   shadow still leaves the box at once, because its own bit changes.
-4. **The spatial filter skips the levels the penumbra does not need.** A level whose step is wider
-   than the tile's penumbra in pixels copies its input, as a cleared tile does today.
-
-### Steps
-
-1. Read SIGMA's source for `PackPenumbra`, the tile pass and the radius-to-step rule. Check its
-   licence before any code is taken. Take its formulation the same way `shadowfilter.comp` took
-   FidelityFX's, with the notice the licence asks for.
-2. Add the penumbra channel: `gbuffer.h`, the trace's store, and the device test for the channel's
-   values by hand (the sun at 100 units: `100 · tan(0.2665°)` world units).
-3. Tiles, temporal and filter changes as above, one commit each, with the probe numbers after each.
-4. Make the probe a permanent test (`RtxShadowDenoiseTest.aThinHardShadowKeepsItsDepth`): the
-   denoised umbra stays within 1/255 of the raw frame at `upscale=off`, and the lit side next to it
-   within 1/255 of the lit floor. Hold the `quality` figure at what the fix measures, and name the
-   upscaler's share apart from the denoiser's.
-5. Gates that must not regress: `RtxBounceTrailTest.theSunsShadowFollowsItsCaster` (lag and tail),
-   `RtxPenumbraDenoiseTest.*` (noise and light), `./omw noise --suite=noise` at the pier and the
-   pond, and `./omw kernels --against` names only the shadow passes.
-
----
-
 ## Order of work
 
-1. **Issue 5.** The evidence is complete, and the fix is local to the shadow denoiser and one
-   channel.
-2. **Issue 1.** It needs the before-and-after shots.
-3. **Issue 2.** Small. It needs time on the macOS laptop.
-4. **Issue 4's experiments**, then the design they select. They need quiet desktop time and are
+1. **Issue 1.** It needs the before-and-after shots.
+2. **Issue 2.** Small. It needs time on the macOS laptop.
+3. **Issue 4's experiments**, then the design they select. They need quiet desktop time and are
    independent of the code above.
-5. **Issue 3**, after your yes and after the model scan.
+4. **Issue 3**, after your yes and after the model scan.
 
 Each issue is deleted from `.notes/ISSUES.md` when its fix is verified. A problem found on the way
 goes to the log, not into the issue's change.

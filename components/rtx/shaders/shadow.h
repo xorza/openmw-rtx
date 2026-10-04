@@ -24,15 +24,20 @@
 // where that pixel's rays got through — the SDK's layout. The classification reads the eighteen
 // words around its tile rather than the 576 texels they stand for.
 //
-// **One byte a tile for the classification**: one where the tile was cleared — every receiver in
+// **Two halves a tile for the classification**: one where the tile was cleared — every receiver in
 // it and around it lit alike, so its value is exact and nothing filters it — and nought where the
-// filter runs. The value a cleared tile stands at is the temporal pass's own answer, which it wrote
-// as exactly nought or one.
+// filter runs; and the tile's reach, the widest penumbra in pixels in it and the tiles around it,
+// which a filter level's step must not pass (`shadowfilter.comp`). The value a cleared tile stands
+// at is the temporal pass's own answer, which it wrote as exactly nought or one.
+//
+// **And a half a tile for the penumbra**: the widest the mask pass found among the tile's stopped
+// rays (`CHANNEL_PENUMBRA`), which the temporal pass widens to the tiles around it.
 
 #define SHADOW_MASK STORAGE_R32UI
 #define SHADOW_REPROJECTED STORAGE_RG16F
 #define SHADOW_MOMENTS STORAGE_RGBA32F
-#define SHADOW_TILES STORAGE_R8
+#define SHADOW_TILES STORAGE_RG16F
+#define SHADOW_PENUMBRA_TILES STORAGE_R16F
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders
@@ -57,7 +62,9 @@ namespace Rtx::Shaders
     /// Where `shadowmask.comp` binds what it reads and writes in set 0, and how many there are.
     const uint SHADOW_MASK_BIND_SHADOWED = 0;
     const uint SHADOW_MASK_BIND_MASK = 1;
-    const uint SHADOW_MASK_BINDINGS = 2;
+    const uint SHADOW_MASK_BIND_PENUMBRA = 2;
+    const uint SHADOW_MASK_BIND_PENUMBRA_TILES = 3;
+    const uint SHADOW_MASK_BINDINGS = 4;
 
     /// The three levels the spatial filter runs at: the level is the filter module's one
     /// specialization constant, and its taps stand `1 << level` pixels apart.
@@ -78,7 +85,8 @@ namespace Rtx::Shaders
     const uint SHADOW_TILES_BIND_REPROJECTED = 7;
     const uint SHADOW_TILES_BIND_TILES = 8;
     const uint SHADOW_TILES_BIND_MASK = 9;
-    const uint SHADOW_TILES_BINDINGS = 10;
+    const uint SHADOW_TILES_BIND_PENUMBRA_TILES = 10;
+    const uint SHADOW_TILES_BINDINGS = 11;
 
     /// Where `shadowfilter.comp` binds what it reads and writes in set 0, and how many there are.
     const uint SHADOW_FILTER_BIND_SURFACE = 0;
@@ -119,6 +127,10 @@ namespace Rtx::Shaders
 
 #ifdef RTX_HOST
     static_assert(SHADOW_WORKGROUP + 2 * SHADOW_REACH <= 32, "a row of the classification's square past a word");
+    static_assert(SHADOW_REACH == SHADOW_WORKGROUP,
+        "the temporal pass reads the penumbra of the eight tiles around its own as the apron's");
+    static_assert(SHADOW_MASK_WIDTH == SHADOW_WORKGROUP && 2 * SHADOW_MASK_HEIGHT == SHADOW_WORKGROUP,
+        "the mask pass's workgroup is one tile of the classification, whose penumbra it writes");
     static_assert(SHADOW_REACH % SHADOW_MASK_WIDTH == 0 && SHADOW_WORKGROUP % SHADOW_MASK_WIDTH == 0,
         "the classification's square not on whole tiles");
 #endif

@@ -8,6 +8,7 @@
 // they may not differ in is the reach and the falloff. A puff of smoke reads the air's answer.
 
 #include "colour.h"
+#include "gbuffer.h"
 #include "look.h"
 #include "scene.h"
 #include "sky.h"
@@ -50,10 +51,10 @@ Passage skyPassage(SkySource sky, vec3 position, vec2 draw)
 {
     // A picture with shadows off is open to the sky everywhere: one answer for the whole frame.
     if (frame.mNoSkyShadows != 0u)
-        return Passage(1.0, 1.0);
+        return Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
 
     const Passage passage = lightPassage(position, coneDirection(sky.mDirection, sky.mLimb, draw), frame.mReach);
-    return Passage(passage.mOpen, passage.mThrough * cloudShadow(position, sky.mDirection));
+    return Passage(passage.mOpen, passage.mThrough * cloudShadow(position, sky.mDirection), passage.mOccluder);
 }
 
 /// The same as one number, which is exactly the product `lightThrough` makes of its own halves.
@@ -644,7 +645,7 @@ Passage lampPassage(Reservoir kept, vec2 draw)
     const vec3 offset = lamp.mPosition - kept.mFrom;
     const float distance = length(offset);
     if (!(distance > 0.0))
-        return Passage(1.0, 1.0);
+        return Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
 
     const vec3 axis = offset / distance;
     const vec3 towards = coneDirection(axis, min(lamp.mSourceRadius / distance, 1.0), draw);
@@ -654,6 +655,26 @@ Passage lampPassage(Reservoir kept, vec2 draw)
     const float along = distance * dot(towards, axis);
 
     return lightPassage(kept.mFrom, towards, along - max(lamp.mClearance, SHADOW_BIAS));
+}
+
+/// How wide the penumbra stands where a ray to a source was stopped `occluder` along it, as its
+/// radius in world units, or `SHADOW_PENUMBRA_CLEAR` where nothing stopped it. By similar
+/// triangles, a source `radius` across at `distance` puts the occluder's edge `radius occluder /
+/// (distance - occluder)` either way of where a point source would; the sky's sources stand at no
+/// distance, which leaves `occluder` times the tangent of the half angle.
+float skyPenumbra(SkySource sky, float occluder)
+{
+    return occluder < SHADOW_PENUMBRA_CLEAR ? occluder * sky.mLimb / sqrt(max(1.0 - sky.mLimb * sky.mLimb, 1e-12))
+                                            : SHADOW_PENUMBRA_CLEAR;
+}
+
+float lampPenumbra(Reservoir kept, float occluder)
+{
+    const GpuLight lamp = lightAt(kept.mLamp);
+    const float distance = length(lamp.mPosition - kept.mFrom);
+    return occluder < SHADOW_PENUMBRA_CLEAR
+        ? lamp.mSourceRadius * occluder / max(distance - occluder, SHADOW_BIAS)
+        : SHADOW_PENUMBRA_CLEAR;
 }
 
 /// `lampPassage`'s two halves as one number, from none of the lamp to all: `throughToward`'s

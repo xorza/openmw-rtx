@@ -71,12 +71,17 @@ namespace Rtx
             DescriptorWrites writes(mMask);
             writes.image(Shaders::SHADOW_MASK_BIND_SHADOWED, buffer.get(Channel::Shadowed).describeStorage());
             writes.image(Shaders::SHADOW_MASK_BIND_MASK, images.mMask.describeStorage());
+            writes.image(Shaders::SHADOW_MASK_BIND_PENUMBRA, buffer.get(Channel::Penumbra).describeStorage());
+            writes.image(Shaders::SHADOW_MASK_BIND_PENUMBRA_TILES, images.mPenumbra.describeStorage());
 
             dispatch(commands, mMask, writes, Shaders::ShadowMaskConstants{ .mWidth = width, .mHeight = height },
                 Groups::covering(width, height, Shaders::SHADOW_MASK_WIDTH, 2 * Shaders::SHADOW_MASK_HEIGHT));
         }
 
-        images.mMask.transition(commands, Use::sComputeWrite, Use::sComputeRead);
+        Barriers masked(commands);
+        for (const Image* image : { &images.mMask, &images.mPenumbra })
+            image->addTransition(masked, Use::sComputeWrite, Use::sComputeRead);
+        masked.flush();
 
         {
             DescriptorWrites writes(mTiles);
@@ -90,6 +95,7 @@ namespace Rtx
             writes.image(Shaders::SHADOW_TILES_BIND_REPROJECTED, images.mScratch.describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_TILES, images.mTiles.describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_MASK, images.mMask.describeStorage());
+            writes.image(Shaders::SHADOW_TILES_BIND_PENUMBRA_TILES, images.mPenumbra.describeStorage());
 
             const Shaders::HistoryConstants constants{
                 .mEyes = frame.mSampled.mEyes,

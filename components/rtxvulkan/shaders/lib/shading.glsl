@@ -48,20 +48,25 @@ struct DirectLight
     vec3 mShadowedDiffuse;
     vec3 mShadowedSpecular;
     float mOpen;
+
+    /// The penumbra where the kept ray was stopped, in the surface's own footprints:
+    /// `SHADOW_PENUMBRA_CLEAR` where it got through or nothing was split, and
+    /// `SHADOW_PENUMBRA_DRAWN` where the source it went to was drawn: `CHANNEL_PENUMBRA`.
+    float mPenumbra;
 };
 
-/// Which of two shadowed lights' bits a pixel keeps, drawn in proportion to the luminance each
-/// adds.
+/// Whether a pixel keeps the second of two shadowed lights' bits, and its penumbra with it, drawn in
+/// proportion to the luminance each adds.
 ///
 /// **Exact in luminance on average**: the pixel's light is the sum of both times the bit kept, and
-/// the bit is `openB` with chance `shareB / (shareA + shareB)`, so the mean is `shareA * openA +
-/// shareB * openB`. `mixSplit` says what it costs in hue and what keeping the brighter one lost.
-/// `openA` where neither adds anything.
+/// the bit is the second's with chance `shareB / (shareA + shareB)`, so the mean is `shareA *
+/// openA + shareB * openB`. `mixSplit` says what it costs in hue and what keeping the brighter one
+/// lost. The first's where neither adds anything.
 ///
 /// @param draw one number in `[0, 1)`, from a sequence of the caller's own.
-float drawnOpen(float shareA, float openA, float shareB, float openB, float draw)
+bool keepsSecond(float shareA, float shareB, float draw)
 {
-    return draw * (shareA + shareB) < shareB ? openB : openA;
+    return draw * (shareA + shareB) < shareB;
 }
 
 /// The *direct* light arriving at a point and turning back out of it: per unit albedo for the
@@ -119,7 +124,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     vec3 specular = vec3(0.0);
     vec3 taken = vec3(0.0);
 
-    DirectLight lit = DirectLight(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), 1.0);
+    DirectLight lit = DirectLight(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), 1.0, SHADOW_PENUMBRA_CLEAR);
 
     // **Drawn before anything else and out of a sequence of its own**: the ordering below is what
     // keeps a lamp arriving in the next cell from moving the penumbra of the one already there, and
@@ -183,6 +188,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
 
     const WeightedPick pick
         = pickByWeight(sun.mLight.mWeight, masser.mLight.mWeight, secunda.mLight.mWeight, skyPick);
+    const bool skyDrawn = pick.mTotal > 0.0 && !pick.mWhole;
     if (pick.mTotal > 0.0)
     {
         const SkyChoice picked = pick.mIndex == 0u ? sun : (pick.mIndex == 1u ? masser : secunda);
@@ -209,6 +215,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
             lit.mShadowedDiffuse = skyDiffuse - skyTaken;
             lit.mShadowedSpecular = skySpecular;
             lit.mOpen = passage.mOpen;
+            lit.mPenumbra = skyPenumbra(picked.mSky, passage.mOccluder);
         }
         else
         {
@@ -242,7 +249,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     weighLamps(kept, state, position, facing, INV_PI, gloss, surface.mLampLit);
     kept.mFrom = leaving;
 
-    const Passage lampPass = kept.mWeight > 0.0 ? lampPassage(kept, lampDraw) : Passage(1.0, 1.0);
+    const Passage lampPass = kept.mWeight > 0.0 ? lampPassage(kept, lampDraw) : Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
     const float lampSeen = lampPass.mOpen * lampPass.mThrough;
     const float held = heldShare(kept);
 
@@ -267,11 +274,24 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
 
     if (split)
     {
-        // **One bit for both, drawn by the light each adds**, `drawnOpen`'s rule: the shadow
+        // **One bit for both, drawn by the light each adds**, `keepsSecond`'s rule: the shadow
         // denoiser filters one bit a pixel. The sum is already net of each lamp's lobe.
-        lit.mOpen = drawnOpen(dot(surface.mAlbedo * lit.mShadowedDiffuse + lit.mShadowedSpecular, LUMINANCE_WEIGHTS),
-            lit.mOpen, dot(surface.mAlbedo * lampDiffuse, LUMINANCE_WEIGHTS), lampPass.mOpen, shadowedPick);
+        const float skyShare = dot(surface.mAlbedo * lit.mShadowedDiffuse + lit.mShadowedSpecular, LUMINANCE_WEIGHTS);
+        const float lampShare = dot(surface.mAlbedo * lampDiffuse, LUMINANCE_WEIGHTS);
+        const bool lamp = keepsSecond(skyShare, lampShare, shadowedPick);
+        lit.mOpen = lamp ? lampPass.mOpen : lit.mOpen;
+        lit.mPenumbra = lamp ? lampPenumbra(kept, lampPass.mOccluder) : lit.mPenumbra;
         lit.mShadowedDiffuse += lampDiffuse;
+
+        // In the surface's own footprints, which is what the denoiser's reach is counted in; and the
+        // whole reach where the bit's source was drawn, since that bit is noise however hard its
+        // shadow. A lamp is held whole where it holds every candidate's weight.
+        const bool drawn = (skyShare > 0.0 && lampShare > 0.0)
+            || (lamp ? kept.mWeight > 0.0 && kept.mWeight < kept.mTotal : skyDrawn);
+        lit.mPenumbra = drawn ? SHADOW_PENUMBRA_DRAWN
+            : lit.mPenumbra < SHADOW_PENUMBRA_CLEAR
+            ? min(lit.mPenumbra / max(surface.mFootprint, 1e-6), SHADOW_PENUMBRA_CLEAR)
+            : SHADOW_PENUMBRA_CLEAR;
     }
     else
     {
@@ -351,9 +371,11 @@ struct SplitLight
     vec3 mRest;
 
     /// What the shadowed sources add as though their rays got through, albedo and lobe included,
-    /// and whether the kept ray did, one or nought. Nought and one where nothing split them off.
+    /// whether the kept ray did, one or nought, and its penumbra (`DirectLight::mPenumbra`). Nought,
+    /// one and `SHADOW_PENUMBRA_CLEAR` where nothing split them off.
     vec3 mShadowed;
     float mOpen;
+    float mPenumbra;
 };
 
 /// The whole of a split light, with the shadowed sources as the kept ray found them.
@@ -391,8 +413,9 @@ SplitLight mixSplit(SplitLight a, SplitLight b, float t, float draw)
     const vec3 fromA = a.mShadowed * (1.0 - t);
     const vec3 fromB = b.mShadowed * t;
 
-    return SplitLight(mix(a.mRest, b.mRest, t), fromA + fromB,
-        drawnOpen(dot(fromA, LUMINANCE_WEIGHTS), a.mOpen, dot(fromB, LUMINANCE_WEIGHTS), b.mOpen, draw));
+    const bool second = keepsSecond(dot(fromA, LUMINANCE_WEIGHTS), dot(fromB, LUMINANCE_WEIGHTS), draw);
+    return SplitLight(mix(a.mRest, b.mRest, t), fromA + fromB, second ? b.mOpen : a.mOpen,
+        second ? b.mPenumbra : a.mPenumbra);
 }
 
 /// Which face of a surface a diffuse sample leaves by, and what the sample is then worth.
@@ -550,7 +573,8 @@ PathEnd lightAtPathEnd(Surface hit, uint key, uint ambient, uint lamps, uint pat
     const float reaching = surfaceAmbient(hit, key + ambient, ambientRate);
     const DirectLight lit = gather(hit, glossOf(hit), key, lamps, path, split);
 
-    return PathEnd(SplitLight(litSurface(hit, lit.mDiffuse, lit.mSpecular), shadowedLight(hit, lit), lit.mOpen),
+    return PathEnd(SplitLight(litSurface(hit, lit.mDiffuse, lit.mSpecular), shadowedLight(hit, lit), lit.mOpen,
+                       lit.mPenumbra),
         pathEnd(hit.mPosition, reaching), hit.mAmbientAlbedo);
 }
 
@@ -567,7 +591,8 @@ vec3 fillOf(PathEnd end)
 /// a sum, the bounce's whole rounds twice where a water leg's rounds once.
 SplitLight joinedLight(PathEnd end)
 {
-    return SplitLight(fma(end.mAmbientAlbedo, end.mAmbient, end.mLit.mRest), end.mLit.mShadowed, end.mLit.mOpen);
+    return SplitLight(fma(end.mAmbientAlbedo, end.mAmbient, end.mLit.mRest), end.mLit.mShadowed, end.mLit.mOpen,
+        end.mLit.mPenumbra);
 }
 
 /// `lightAtPathEnd` with the fill joined to the lights, for a path whose end nothing reflects by a
@@ -951,7 +976,8 @@ SeenSolid shadeSolid(Surface hit, uvec2 pixel, Cone cone)
     // (`ACCUMULATE_FRAMES`) and the shadows keep their edge. Split, `gather`'s specular half holds
     // the lamps' lobe, which joins the bounce's for the glossy filter.
     SeenSolid seen;
-    seen.mLight = SplitLight(litSurface(hit, vec3(0.0), vec3(0.0)), shadowedLight(hit, lit), lit.mOpen);
+    seen.mLight
+        = SplitLight(litSurface(hit, vec3(0.0), vec3(0.0)), shadowedLight(hit, lit), lit.mOpen, lit.mPenumbra);
     seen.mBounce = bounced.mDiffuse;
     seen.mFill = bounced.mFill;
     seen.mSpecular = lit.mSpecular + bounced.mSpecular;
