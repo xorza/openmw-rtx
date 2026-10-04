@@ -37,6 +37,32 @@ bool isTranslucent(GpuMaterial material)
     return (material.mFlags & MATERIAL_TRANSLUCENT) != 0u;
 }
 
+/// Whether a material is a blended mask, whose texels under the cut the eye meets by their alpha —
+/// `MATERIAL_SOFT_EDGE`, the host's `Material::isSoftEdged`.
+bool isSoftEdged(GpuMaterial material)
+{
+    return (material.mFlags & MATERIAL_SOFT_EDGE) != 0u;
+}
+
+/// What a texel of `material` is cut at, for a ray whose dither is `dither`: the material's own
+/// reference, or on a soft edge one drawn under it.
+///
+/// **The eye meets a soft texel under the cut with a chance of its alpha**, stochastic transparency
+/// (Enderton et al. 2010): a reference drawn uniformly below the cut, which a texel of alpha `a`
+/// under it passes with a chance of `a`, and one at or over it always. What it meets is the solid it
+/// is, shaded as every solid is, and the frames average to the blend `objects.frag` draws. Peeled as
+/// a pane, which is shaded at a path's end with no bounce and no shadow denoiser, the guild's rug
+/// fringe was a line of bright dots. Never under `ALPHA_PANE_CUTOFF`: a texel the blend draws as
+/// nothing is a hole to every ray.
+///
+/// @param dither in `[0, 1)` for the eye's own candidates, drawn a pixel, a frame and a triangle
+///        apart so two soft layers are met apart; one for every other ray, which keeps the cut.
+float cutAt(GpuMaterial material, float dither)
+{
+    return isSoftEdged(material) ? clamp(dither, ALPHA_PANE_CUTOFF, material.mAlphaReference)
+                                 : material.mAlphaReference;
+}
+
 /// Which sides of `GpuMaterial::mAlphaReference` a texel passes on.
 uint alphaPassesOf(GpuMaterial material)
 {
@@ -44,7 +70,7 @@ uint alphaPassesOf(GpuMaterial material)
 }
 
 /// Whether a material carries a mask a ray is tested against: a test some texel can fail. A
-/// textured pane carries one too, `Material::sPaneCutoff`: a texel its blend draws as nothing is a
+/// textured pane carries one too, `ALPHA_PANE_CUTOFF`: a texel its blend draws as nothing is a
 /// hole to every ray.
 ///
 /// The host's `Material::isCutout`, asked again here because the build marks an instance by it
@@ -318,8 +344,9 @@ struct Candidate
 ///        any other. **A literal at every call**, so the whole branch folds.
 /// @param detailed whether the ray draws the picture, so its cutout is read along the footprint the
 ///        surface it cuts is read along — `texturePoint`. A literal at every call as well.
-bool candidateStops(
-    Candidate candidate, vec3 direction, float coneWidth, bool seeThrough, bool detailed, inout uint blocked)
+/// @param dither the eye's draw for a soft edge (`cutAt`), and one for every other ray.
+bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, bool seeThrough, bool detailed,
+    float dither, inout uint blocked)
 {
     const GpuInstance instance = instanceAt(candidate.mInstance);
     const GpuMaterial material = materialAt(instance.mMaterial);
@@ -361,7 +388,7 @@ bool candidateStops(
     // four legs each), behind a material bit or not: the code sits in every shadow ray's candidate
     // loop. The hit and a medium's crossing read it.
     const float painted = sampleDiffuse(material.mDiffuse, point).a;
-    const bool there = alphaPasses(alphaPassesOf(material), painted, material.mAlphaReference);
+    const bool there = alphaPasses(alphaPassesOf(material), painted, cutAt(material, dither));
 
     // **A hole is a hole to the ray that walks past as well.** A placement the game is fading
     // makes its cutout see-through, and the eye still passes a texel the test cuts before it
@@ -402,7 +429,7 @@ bool candidateStops(
             continue;                                                                                       \
                                                                                                             \
         RTX_READ_CANDIDATE(query, candidate)                                                                \
-        if (candidateStops(candidate, (along), (cone), (seeThrough), (detailed), (blocked)))                \
+        if (candidateStops(candidate, (along), (cone), (seeThrough), (detailed), 1.0, (blocked)))           \
             rayQueryConfirmIntersectionEXT(query);                                                          \
     }
 
