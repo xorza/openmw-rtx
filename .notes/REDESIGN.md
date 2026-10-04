@@ -21,6 +21,9 @@ Two of them need a decision from you before work starts:
 
 ## 1. A blended mask is cut at 0.5 for every ray
 
+**Waiting on a decision:** `REDESIGN_QUESTIONS.md` §1. The plan's design was tried and kept as
+`REDESIGN_soft-edge.diff`; the pictures showed that a peeled texel's pane shading is the problem.
+
 ### Evidence
 
 `Material::isTranslucent` (`components/rtx/scene/material.hpp`) decides for the whole material.
@@ -140,6 +143,8 @@ bundle's `Contents/Resources` the same way, as the default of `--resources`.
 
 ## 3. Groundcover shapes under a transform (upstream code — needs approval)
 
+**Waiting on a decision:** `REDESIGN_QUESTIONS.md` §2.
+
 ### Evidence
 
 `Groundcover::createChunk` deep-copies the model and `InstancingVisitor` (`groundcover.cpp`) puts
@@ -187,6 +192,8 @@ The ray tracer does not change. Its picture is already the correct one.
 ---
 
 ## 4. A measured run's host rows move between runs of one build
+
+**Waiting on a decision:** `REDESIGN_QUESTIONS.md` §3.
 
 ### Evidence
 

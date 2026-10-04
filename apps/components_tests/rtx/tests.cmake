@@ -262,6 +262,11 @@ target_compile_definitions(rtx-gpu-tests
 if (UNIX AND NOT APPLE)
     target_link_libraries(rtx-gpu-tests ${CMAKE_THREAD_LIBS_INIT})
 endif()
+
+# Beside the bundle and not in it, for the reason `apps/rtxtool` gives for the harness.
+if (APPLE)
+    set_target_properties(rtx-gpu-tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${OpenMW_BINARY_DIR}")
+endif()
 if (BUILD_WITH_CODE_COVERAGE)
     target_compile_options(rtx-gpu-tests PRIVATE --coverage)
     target_link_libraries(rtx-gpu-tests gcov)
