@@ -4,63 +4,11 @@ This plan covers the open issues in `.notes/ISSUES.md`, investigated on 2026-10-
 with `restir-gi` merged into the working tree. Each section gives the evidence, the cause, the
 redesign and the steps. The last section gives the order of the work.
 
-Issue 3 changes upstream code (`groundcover.cpp`), which you approved after a scan of the models.
 Issue 4 starts with measurements; the design depends on what they show.
 
 | # | Issue | Cause found | Fix | Approval |
 |---|-------|-------------|-----|----------|
-| 3 | Groundcover shapes under a transform | Upstream applies the instance transform before the node transforms | Bake the shape's own transform into the instanced geometry | Approved |
 | 4 | Host rows move between runs | Not proven yet. Data layout for the whole process is the main suspect | Experiments first, then the layout fix they show | Decided |
-
----
-
-## 3. Groundcover shapes under a transform (upstream code — needs approval)
-
-**Approved:** scan the models first, then make the fix.
-
-### Evidence
-
-`Groundcover::createChunk` deep-copies the model and `InstancingVisitor` (`groundcover.cpp`) puts
-each plant's offset and scale into vertex attribute 6, and its rotation into attribute 7.
-`groundcover.vert` then computes `rotation * scale * gl_Vertex`, adds the offset, and only then
-multiplies by `gl_ModelViewMatrix`. That matrix holds the shape's own node transforms inside the
-model. So the result is `Nodes × Instance × vertex`. Every other reference is `Instance × Nodes ×
-vertex`. The ray tracer stands a plant as a static, which is the second order, so the two
-renderers put such a plant in two places.
-
-### Cause
-
-The node transforms inside the model come after the instance transform, in the wrong order.
-For a model whose shapes stand under the identity, the two orders give the same result. That is why
-vanilla content hides the defect.
-
-### Redesign
-
-Make the rasterizer's order the same as everything else. In `InstancingVisitor`, bake each
-geometry's static transform, from the model's root down to the geometry
-(`osg::computeLocalToWorld` over the visitor's node path, cut at the model root), into its
-vertices and normals (and its tangents, if any). The copy was made with `DEEP_COPY_ARRAYS`, so the
-arrays are the chunk's own. Then set the transforms between the root and the geometry to the
-identity. `gl_ModelViewMatrix` then holds only the chunk's place, and the shader does not change.
-Compute the bound after the bake.
-
-A transform with a controller cannot be baked. Before the change, check the groundcover models in
-use: a small scan of the data's groundcover entries for non-identity and controlled transforms.
-If a controlled transform exists, keep that one geometry on its own path and log it. Do not guess.
-
-The ray tracer does not change. Its picture is already the correct one.
-
-### Steps
-
-1. Scan the groundcover models (vanilla and the replacers you play) and count the shapes under a
-   non-identity transform, and under a controlled one. This scan is not a code change.
-2. After your yes: the bake in `InstancingVisitor`, as above.
-3. Test in `openmw_tests`: a model with one shape under a translation of (10, 0, 0) and a 90° turn,
-   in a chunk with one plant at (100, 200, 0) and a scale of 2. The instanced geometry's vertices,
-   with the shader's arithmetic done by hand on the host, land where `Instance × Nodes × vertex`
-   puts them.
-4. Add a line to the *Accepted diff* list in `AGENTS.md` for the rasterizer's picture, beside the
-   four that are there, as the fork's rules ask.
 
 ---
 
@@ -127,8 +75,7 @@ level of the memory hierarchy moves.
 
 ## Order of work
 
-1. **Issue 3**, the model scan and then the fix.
-2. **Issue 4's experiments**, last, then the design they select.
+1. **Issue 4's experiments**, then the design they select.
 
 Each issue is deleted from `.notes/ISSUES.md` when its fix is verified. A problem found on the way
 goes to the log, not into the issue's change.
