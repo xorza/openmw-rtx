@@ -20,15 +20,17 @@ namespace Rtx
     {
         /// The channel coming in with its variance, which says where the edges in the light are,
         /// the channel going out, the one that says where the edges in the surface are and which
-        /// eye each pixel's ray left, and the fill in and out. All pushed. Sampled on the three this
-        /// pass only reads, because a twenty-five tap gather wants the texture unit's cache — a few
-        /// per cent of the cascade — and legal from `VK_IMAGE_LAYOUT_GENERAL`.
+        /// eye each pixel's ray left, the fill in and out, and the accumulator's moments, whose
+        /// count the history fix reads. All pushed. Sampled on the four this pass only reads,
+        /// because a twenty-five tap gather wants the texture unit's cache — a few per cent of the
+        /// cascade — and legal from `VK_IMAGE_LAYOUT_GENERAL`.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ATROUS_BINDINGS> sBindings{
             computeBinding(Shaders::ATROUS_BIND_SOURCE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_FILTERED, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_SURFACE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_FILL_SOURCE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_FILL_FILTERED, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::ATROUS_BIND_MOMENTS, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
         };
 
         /// Both reads, because a level's inputs are sampled and its target is storage. An image
@@ -70,6 +72,7 @@ namespace Rtx
         Shaders::AtrousConstants level{
             .mEyes = frame.mSampled.mEyes,
             .mStep = 1,
+            .mFixFrames = 0.0f,
         };
 
         // Three images take turns and not two, because the first level's answer is the mean the
@@ -102,7 +105,7 @@ namespace Rtx
                 between.flush();
             }
 
-            // Sampled from `GENERAL` on the three this pass only reads. A `SAMPLED_IMAGE`
+            // Sampled from `GENERAL` on the four this pass only reads. A `SAMPLED_IMAGE`
             // descriptor names the image alone and no sampler, which is what `sBindings` declares.
             DescriptorWrites writes(mPipeline);
             writes.image(Shaders::ATROUS_BIND_SOURCE, bounce[source]->describeSampled(VK_NULL_HANDLE));
@@ -110,8 +113,10 @@ namespace Rtx
             writes.image(Shaders::ATROUS_BIND_SURFACE, buffer.get(Channel::Surface).describeSampled(VK_NULL_HANDLE));
             writes.image(Shaders::ATROUS_BIND_FILL_SOURCE, fill[source]->describeSampled(VK_NULL_HANDLE));
             writes.image(Shaders::ATROUS_BIND_FILL_FILTERED, fill[target]->describeStorage());
+            writes.image(Shaders::ATROUS_BIND_MOMENTS, images.mMoments.describeSampled(VK_NULL_HANDLE));
 
             level.mStep = 1u << pass;
+            level.mFixFrames = pass == 0 && frame.mHistoryFix ? Shaders::ACCUMULATE_FIX_FRAMES : 0.0f;
 
             dispatch(commands, mPipeline, writes, level,
                 Groups::covering(camera.mWidth, camera.mHeight, Shaders::ATROUS_WORKGROUP));

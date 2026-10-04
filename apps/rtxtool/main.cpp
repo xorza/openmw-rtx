@@ -404,6 +404,7 @@ namespace RtxTool
             profile.mReconstruction.mBounceReuse
                 = Rtx::sBounceReuseNames.require(variables["bounce-reuse"].as<std::string>(), "a bounce reuse");
             profile.mReconstruction.mAntilag = variables["antilag"].as<bool>();
+            profile.mReconstruction.mHistoryFix = variables["history-fix"].as<bool>();
 
             return framed;
         }

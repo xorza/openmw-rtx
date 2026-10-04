@@ -16,5 +16,9 @@ namespace Rtx
 
         /// `Reconstruction::mAntilag`: whether the accumulator holds its slow mean to its fast one.
         bool mAntilag;
+
+        /// `Reconstruction::mHistoryFix`: whether the wavelet's first level rebuilds a short history
+        /// from the surface around it.
+        bool mHistoryFix;
     };
 }

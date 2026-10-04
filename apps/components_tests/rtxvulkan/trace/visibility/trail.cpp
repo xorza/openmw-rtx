@@ -148,15 +148,21 @@ namespace Rtx::Testing
             EXPECT_LT(trail.mTail, 0.25f);
         }
 
-        /// **The clamp halves the trail the sky's fill leaves**, under the reuse the game runs with:
-        /// measured at 16.61 pixels of lag without it and 7.66 with it (`ACCUMULATE_FAST_FRAMES`
-        /// gives the sweep), and the darkness left behind at 2.61 and 1.51 columns.
+        /// **The clamp shortens the trail the sky's fill leaves**, under the reuse the game runs with:
+        /// measured at 11.92 pixels of lag without it and 8.48 with it (`ACCUMULATE_FAST_FRAMES`
+        /// gives the sweep), and the darkness left behind at 1.93 and 1.25 columns.
+        ///
+        /// **The history fix takes part of what the clamp did.** The floor the bar uncovers behind it
+        /// is rebuilt from the floor around it (`ACCUMULATE_FIX_FRAMES`): without the fix the clamp
+        /// took the lag from 16.67 to 7.89 and the darkness from 2.63 to 1.55, so the fix leaves a
+        /// fifth less darkness behind the bar and stands the half-level edge 0.6 pixels further back.
         TEST_F(RtxBounceTrailTest, theClampShortensTheSkysTrail)
         {
             const Trail held = trailOf(Blocked::Sky, BounceReuse::Spatiotemporal, true);
             const Trail dragged = trailOf(Blocked::Sky, BounceReuse::Spatiotemporal, false);
-            EXPECT_LT(held.mLag, 8.5f);
-            EXPECT_LT(held.mLag, 0.6f * dragged.mLag) << "the clamp took little off the trail: " << dragged.mLag;
+            EXPECT_LT(held.mLag, 9.0f);
+            EXPECT_LT(held.mLag, 0.8f * dragged.mLag) << "the clamp took little off the trail: " << dragged.mLag;
+            EXPECT_LT(held.mTail, 1.4f);
             EXPECT_LT(held.mTail, dragged.mTail);
         }
 

@@ -71,6 +71,7 @@ namespace Rtx
             .mSampled = sampled,
             .mDistanceScale = DenoiseHistory::distanceScaleFor(sampled.mFar),
             .mAntilag = reconstruction.mAntilag,
+            .mHistoryFix = reconstruction.mHistoryFix,
         };
 
         // The temporal half first: the accumulator hands on the variance of its mean, which is
@@ -116,12 +117,12 @@ namespace Rtx
                 .mPane = pane,
                 .mShadow = shadow };
 
-        // The cascade reads what the accumulator just wrote, and it reads through the texture unit
-        // — so the dependency names the sampled access and not only the storage one. The history
-        // the cascade writes for the next frame is ordered by the discard, which named a compute
-        // write as what would come next.
+        // The cascade reads what the accumulator just wrote, the moments' count for the history fix
+        // among it, and it reads through the texture unit — so the dependency names the sampled
+        // access and not only the storage one. The history the cascade writes for the next frame
+        // is ordered by the discard, which named a compute write as what would come next.
         Barriers blends(commands);
-        for (const Image* image : { &accumulated.mBlended, &accumulated.mFillBlended })
+        for (const Image* image : { &accumulated.mBlended, &accumulated.mFillBlended, &accumulated.mMoments })
             image->addTransition(blends, Use::sComputeWrite, Use::sComputeReadOrSample);
 
         blends.flush();

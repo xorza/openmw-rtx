@@ -372,6 +372,14 @@ namespace RtxTool
             "hold the denoiser's slow mean of the bounce to its fast one, so a change of the light on "
             "a surface that did not move is followed and not dragged. Off is the A/B");
 
+        option(sFramed, "history-fix",
+            bpo::value<bool>()
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mHistoryFix)
+                ->implicit_value(true),
+            "rebuild the denoiser's mean of the bounce, where it holds three frames or fewer, from the "
+            "surface around it, so what the eye uncovers shows the light beside it and not one bounce "
+            "spread into blotches. Off is the A/B");
+
         option(sFramed, "level-epsilon", number(anyNumber<float>())->default_value(0.0f),
             "levels added to the texture level bias past the ratio the upscaler sets, negative for "
             "sharper. Nought is the ratio alone, and off the upscaler nothing is biased");

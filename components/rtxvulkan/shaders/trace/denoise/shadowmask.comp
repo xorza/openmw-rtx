@@ -25,22 +25,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// The rays' bits, packed a word to an 8×4 tile — the SDK's `PrepareShadowMask`.
+// The rays' bits, packed two words to an 8×4 tile — the SDK's `PrepareShadowMask`, with which
+// pixels receive beside them (`shadow.h` says why).
 //
 // **Once a pixel, so the classification reads words and not texels.** Its kernel and its three
 // filter levels reach a 24×24 square around each tile; read off `CHANNEL_SHADOWED` directly, that
 // was every texel nine times over, and the classification cost 0.24 ms at 1080p whether it filtered
 // anything or not.
 //
-// **A shared word and an atomic OR, not the SDK's wave-wide OR**, which assumes a wave of 32 lanes
-// laid out as the tile: AMD's are 32 or 64 and Intel's 8 to 32. A pixel off the frame is nought; the
-// classification knows the frame's extent and does not read it as a shadow.
+// **Shared words and an atomic OR, not the SDK's wave-wide OR**, which assumes a wave of 32 lanes
+// laid out as the tile: AMD's are 32 or 64 and Intel's 8 to 32. A pixel off the frame receives
+// nothing, so the classification does not read it as a shadow.
 //
 // **And the widest penumbra of the workgroup's bits, a half a workgroup**: the workgroup's two
 // words are one tile of the classification, which reads the nine around its own rather than the 576
 // texels of `CHANNEL_PENUMBRA` they stand for. A ray that got through has none unless its source
 // was drawn (`SHADOW_PENUMBRA_DRAWN`), and a tile where no bit has one stands at nought.
 
+#include "colour.h"
 #include "gbuffer.h"
 #include "sets.h"
 #include "shadow.h"
@@ -49,9 +51,12 @@
 
 layout(local_size_x = SHADOW_MASK_WIDTH, local_size_y = 2 * SHADOW_MASK_HEIGHT) in;
 
-/// `CHANNEL_SHADOWED`, for its alpha: whether the pixel's rays got through. No format, because it
-/// is as wide as the run keeps radiance.
+/// `CHANNEL_SHADOWED`: the light the shadowed sources would add, and in its alpha whether the
+/// pixel's rays got through. No format, because it is as wide as the run keeps radiance.
 layout(set = SET_PASS, binding = SHADOW_MASK_BIND_SHADOWED) uniform readonly image2D shadowed;
+
+/// `CHANNEL_SURFACE`, for whether a surface stands at the pixel at all.
+layout(set = SET_PASS, binding = SHADOW_MASK_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
 
 layout(set = SET_PASS, binding = SHADOW_MASK_BIND_MASK, SHADOW_MASK) uniform writeonly uimage2D mask;
 
@@ -65,8 +70,10 @@ layout(push_constant, scalar) uniform Push
     ShadowMaskConstants frame;
 };
 
-/// The two tiles one workgroup covers, the upper and the lower.
-shared uint gTiles[2];
+/// The two tiles one workgroup covers, the upper and the lower: the pixels that receive and whose
+/// rays got through, and the pixels that receive.
+shared uint gOpen[2];
+shared uint gReceiving[2];
 
 /// The widest penumbra in the workgroup, as the bits of a float that is never below nought, which
 /// order as the float does.
@@ -78,7 +85,10 @@ void main()
     const uvec2 at = gl_GlobalInvocationID.xy;
 
     if (gl_LocalInvocationIndex < 2u)
-        gTiles[gl_LocalInvocationIndex] = 0u;
+    {
+        gOpen[gl_LocalInvocationIndex] = 0u;
+        gReceiving[gl_LocalInvocationIndex] = 0u;
+    }
     if (gl_LocalInvocationIndex == 0u)
         gWidest = 0u;
 
@@ -86,10 +96,13 @@ void main()
 
     if (!outsideOf(at, uvec2(frame.mWidth, frame.mHeight)))
     {
-        if (imageLoad(shadowed, ivec2(at)).a > 0.5)
+        const vec4 light = imageLoad(shadowed, ivec2(at));
+        if (receivesShadowed(imageLoad(surfaceChannel, ivec2(at)).r, dot(light.rgb, LUMINANCE_WEIGHTS)))
         {
-            const uint bit = (local.y % SHADOW_MASK_HEIGHT) * SHADOW_MASK_WIDTH + local.x;
-            atomicOr(gTiles[local.y / SHADOW_MASK_HEIGHT], 1u << bit);
+            const uint bit = 1u << ((local.y % SHADOW_MASK_HEIGHT) * SHADOW_MASK_WIDTH + local.x);
+            atomicOr(gReceiving[local.y / SHADOW_MASK_HEIGHT], bit);
+            if (light.a > 0.5)
+                atomicOr(gOpen[local.y / SHADOW_MASK_HEIGHT], bit);
         }
 
         const float radius = imageLoad(penumbra, ivec2(at)).r;
@@ -106,6 +119,6 @@ void main()
     {
         const ivec2 tile = ivec2(gl_WorkGroupID.x, gl_WorkGroupID.y * 2u + gl_LocalInvocationIndex);
         if (tile.y * int(SHADOW_MASK_HEIGHT) < int(frame.mHeight))
-            imageStore(mask, tile, uvec4(gTiles[gl_LocalInvocationIndex]));
+            imageStore(mask, tile, uvec4(gOpen[gl_LocalInvocationIndex], gReceiving[gl_LocalInvocationIndex], 0u, 0u));
     }
 }

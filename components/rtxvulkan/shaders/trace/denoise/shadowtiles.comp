@@ -48,8 +48,11 @@
 //   as last frame", and no depth history beside it.
 // - **The frame's edge is not a shadow.** The local mean is taken over the pixels the frame holds,
 //   where the SDK counts those off it as shadowed; `horizontalNeighbourhood` says what that cost.
-// - **Who receives.** A receiver is a surface the shadowed sources light at all — `shadowed.rgb`
-//   not nought — so a stretch no lamp reaches in a room skips every tile here.
+// - **Who receives.** A receiver is a surface the shadowed sources light at all
+//   (`receivesShadowed`), so a stretch no lamp reaches in a room skips every tile here. **And only a
+//   receiver is in the local mean**: the SDK counts every pixel's bit, and a pixel no source lights
+//   keeps a bit of one, which held a receiver in hard shadow beside it up to a seam of light
+//   (`shadow.h`).
 // - **A hard shadow is not noise.** Where the widest penumbra in the tile and the tiles around it
 //   is under a pixel and no bit there was drawn from among sources (`SHADOW_PENUMBRA_DRAWN`), the
 //   pixel's own bit is the answer, and no history is blended in: such a bit is the same every
@@ -63,7 +66,6 @@
 //   pixels), and this pass hands it to the spatial levels, which run only as far.
 
 #include "accumulate.h"
-#include "colour.h"
 #include "gbuffer.h"
 #include "sets.h"
 #include "shadow.h"
@@ -72,10 +74,6 @@
 #include "lib/surfacematch.glsl"
 
 layout(local_size_x = SHADOW_WORKGROUP, local_size_y = SHADOW_WORKGROUP) in;
-
-/// The light the shadowed sources would add and the bit that says whether the kept ray got through
-/// — `CHANNEL_SHADOWED`. No format, because it is as wide as the run keeps radiance.
-layout(set = SET_PASS, binding = SHADOW_TILES_BIND_SHADOWED) uniform readonly image2D shadowed;
 
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MOTION, GBUFFER_MOTION) uniform readonly image2D motion;
@@ -100,7 +98,7 @@ layout(set = SET_PASS, binding = SHADOW_TILES_BIND_REPROJECTED, SHADOW_REPROJECT
 /// One where the tile was cleared, nought where the filter runs over it.
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_TILES, SHADOW_TILES) uniform writeonly image2D tiles;
 
-/// The rays' bits, a word an 8×4 tile — `shadowmask.comp`.
+/// The rays' bits and the receivers', two words an 8×4 tile — `shadowmask.comp`.
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MASK, SHADOW_MASK) uniform readonly uimage2D mask;
 
 /// The widest penumbra in each tile — `shadowmask.comp`.
@@ -121,13 +119,10 @@ const uint REACH = SHADOW_REACH;
 const uint SPAN = SHADOW_WORKGROUP + 2u * REACH;
 
 /// The square's bits, one row a word: bit `c` of row `r` is the pixel `c` columns and `r` rows from
-/// the square's corner. `open` is set where the pixel's rays got through, which the mask says only of
-/// a pixel inside the frame, and `inside` where the pixel is inside the frame at all.
+/// the square's corner. `receiving` is set where the shadowed sources light the pixel, which the mask
+/// says only of a pixel inside the frame, and `open` where it receives and its rays got through.
 shared uint gOpen[SPAN];
-shared uint gInside[SPAN];
-
-/// How many of the workgroup's pixels receive: the SDK's all-true, by its shared-memory path.
-shared uint gReceivers;
+shared uint gReceiving[SPAN];
 
 /// The widest penumbra of this tile and the eight around it, which the square's apron reaches, as
 /// the bits of a float that is never below nought.
@@ -146,32 +141,26 @@ float kernelWeight(float offset)
     return exp(-3.0 * offset * offset / (width * width));
 }
 
-/// Whether the shadowed sources light the surface at `at` at all.
-bool receives(ivec2 at)
-{
-    return imageLoad(surfaceChannel, at).r != SURFACE_NO_NORMAL
-        && dot(imageLoad(shadowed, at).rgb, LUMINANCE_WEIGHTS) > 0.0;
-}
-
 /// The horizontal half of the kernel over row `row` of the square, centred on column
 /// `column + REACH`: the SDK's `HorizontalNeighborhood`, off the shared row rather than off
-/// three tile words — the weight of the open pixels, and beside it the weight of those inside the
-/// frame.
+/// three tile words — the weight of the open pixels, and beside it the weight of the receivers.
 ///
-/// **What the SDK does not carry is the second**: it counts a pixel off the frame as shadowed, so the
-/// local mean of a lit floor falls toward the frame's edge and the clamp pulls the history down with
-/// it. Measured on a penumbra that runs off the frame, the denoised mean stood 1.3% under a
-/// 256-frame reference. The two sums make the mean one over what the frame holds.
+/// **What the SDK does not carry is the second**: it counts every pixel, a pixel off the frame as
+/// shadowed and one no source lights as whatever its bit says. Off the frame, the local mean of a lit
+/// floor fell toward the frame's edge and the clamp pulled the history down with it: measured on a
+/// penumbra that runs off the frame, the denoised mean stood 1.3% under a 256-frame reference. The
+/// two sums make the mean one over the receivers.
 vec2 horizontalNeighbourhood(uint row, uint column)
 {
     const uint open = gOpen[row] >> column;
-    const uint inside = gInside[row] >> column;
+    const uint receiving = gReceiving[row] >> column;
 
     vec2 moment = vec2(0.0);
     for (int i = 0; i <= 2 * int(REACH); ++i)
     {
         const float weight = kernelWeight(float(i - int(REACH)));
-        moment += vec2(((open >> uint(i)) & 1u) != 0u ? weight : 0.0, ((inside >> uint(i)) & 1u) != 0u ? weight : 0.0);
+        moment += vec2(((open >> uint(i)) & 1u) != 0u ? weight : 0.0,
+            ((receiving >> uint(i)) & 1u) != 0u ? weight : 0.0);
     }
 
     return moment;
@@ -195,10 +184,7 @@ void main()
     const ivec2 corner = ivec2(gl_WorkGroupID.xy * SHADOW_WORKGROUP) - int(REACH);
 
     if (gl_LocalInvocationIndex == 0u)
-    {
-        gReceivers = 0u;
         gReach = 0u;
-    }
 
     // A row of the square a lane: the byte of each of the three tiles across it that holds the row.
     // The square's corner stands on a tile's, so its columns are whole tiles.
@@ -208,7 +194,7 @@ void main()
         const int y = corner.y + int(row);
 
         uint open = 0u;
-        uint inside = 0u;
+        uint receiving = 0u;
         if (y >= 0 && y < int(extent.y))
         {
             const uint shift = (uint(y) % SHADOW_MASK_HEIGHT) * SHADOW_MASK_WIDTH;
@@ -219,27 +205,20 @@ void main()
                 if (tile < 0 || tile >= tiles)
                     continue;
 
-                const uint word = imageLoad(mask, ivec2(tile, y / int(SHADOW_MASK_HEIGHT))).r;
-                open |= ((word >> shift) & 0xFFu) << (across * SHADOW_MASK_WIDTH);
+                const uvec2 words = imageLoad(mask, ivec2(tile, y / int(SHADOW_MASK_HEIGHT))).rg;
+                open |= ((words.x >> shift) & 0xFFu) << (across * SHADOW_MASK_WIDTH);
+                receiving |= ((words.y >> shift) & 0xFFu) << (across * SHADOW_MASK_WIDTH);
             }
-
-            const int first = max(-corner.x, 0);
-            const int last = min(int(extent.x) - corner.x, int(SPAN));
-            inside = lowBits(uint(last - first)) << uint(first);
         }
 
         gOpen[row] = open;
-        gInside[row] = inside;
+        gReceiving[row] = receiving;
     }
 
-    const bool receiver = inFrame && receives(at);
-
-    // The count was set to nought above, and a lane that added to it before the first lane had
-    // done so would be lost: the rows and the reset are behind this barrier, the additions after it.
     barrier();
 
-    if (receiver)
-        atomicAdd(gReceivers, 1u);
+    const uvec2 square = local + REACH;
+    const bool receiver = ((gReceiving[square.y] >> square.x) & 1u) != 0u;
 
     // The nine tiles the square stands on, a lane each: its apron is one tile wide (`shadow.h`).
     if (gl_LocalInvocationIndex < 9u)
@@ -255,14 +234,18 @@ void main()
     const float reach = uintBitsToFloat(gReach);
 
     // **Whole tiles out, uniformly**, before any pixel of them costs anything: the branch is the
-    // workgroup's, so no lane waits on another. The SDK's two early outs, in its order.
-    const bool noReceiver = gReceivers == 0u;
+    // workgroup's, so no lane waits on another. The SDK's two early outs, in its order: no receiver
+    // among the workgroup's own pixels, the middle of the square; and every receiver in the square
+    // open, or none.
+    bool noReceiver = true;
+    for (uint row = REACH; row < REACH + SHADOW_WORKGROUP; ++row)
+        noReceiver = noReceiver && (gReceiving[row] & (lowBits(SHADOW_WORKGROUP) << REACH)) == 0u;
 
     bool allLit = true;
     bool allShadowed = true;
     for (uint row = 0u; row < SPAN; ++row)
     {
-        allLit = allLit && gOpen[row] == gInside[row];
+        allLit = allLit && gOpen[row] == gReceiving[row];
         allShadowed = allShadowed && gOpen[row] == 0u;
     }
 
@@ -301,16 +284,14 @@ void main()
     for (uint i = 1u; i < REACH; ++i)
         kernel += (gRows[local.x][centre - i] + gRows[local.x][centre + i]) * kernelWeight(float(i));
 
-    // The pixel is inside the frame, so the weight of what is inside is at least its own.
-    const float neighbourhood = kernel.x / kernel.y;
-
     vec3 momentsNow = vec3(0.0);
     float variance = SHADOW_NO_RECEIVER;
     float blended = 0.0;
 
     if (receiver)
     {
-        const uvec2 square = local + REACH;
+        // The pixel receives, so the weight of the receivers is at least its own.
+        const float neighbourhood = kernel.x / kernel.y;
         const float current = ((gOpen[square.y] >> square.x) & 1u) != 0u ? 1.0 : 0.0;
 
         const vec2 seen = imageLoad(surfaceChannel, at).rg;
