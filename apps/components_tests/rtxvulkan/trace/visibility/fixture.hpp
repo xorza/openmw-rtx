@@ -178,6 +178,30 @@ namespace Rtx::Testing
             MeshInstance{ .mMesh = addQuadMesh(scene, quad), .mMaterial = glass, .mOpacity = fade });
     }
 
+    /// A floor under an overhead sun, seen from above, with the sky black so the sun is the only
+    /// light: the bounce escapes to nothing and the frame is the sun's term alone.
+    inline Shaders::VisibilityConstants overheadSun(std::uint32_t size)
+    {
+        Shaders::VisibilityConstants camera
+            = makeCamera(osg::Vec3f(0.0f, -1.0f, 300.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+        camera.mSkyHorizon = osg::Vec3f();
+        camera.mSkyZenith = osg::Vec3f();
+        camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(2.0f, 2.0f, 2.0f));
+        return camera;
+    }
+
+    /// A roof over the floor, facing up, so a shadow ray from the floor meets its back face,
+    /// which the light's rule does not cull: `x` from `left` to `right` at `height`.
+    inline std::array<osg::Vec3f, 4> roofOver(float left, float right, float height)
+    {
+        return {
+            osg::Vec3f(left, -4000.0f, height),
+            osg::Vec3f(right, -4000.0f, height),
+            osg::Vec3f(right, 4000.0f, height),
+            osg::Vec3f(left, 4000.0f, height),
+        };
+    }
+
     /// The eye and the sun every test over that wall stands it under: the sun along +Y, square to
     /// the wall, and the eye off that axis at x = 100 looking at the middle of it.
     ///
@@ -357,6 +381,14 @@ namespace Rtx::Testing
         /// unless a test names the other.
         NoiseSource mNoise = NoiseSource::BlueNoiseTile;
 
+        /// What the trace makes of its bounce: none, for the reason the filter is off — a reused
+        /// bounce is what the neighbours and the frames before found. The tests of the reuse ask.
+        BounceReuse mBounceReuse = BounceReuse::Off;
+
+        /// Where the indirect light comes from: the traced bounce every figure over this fixture was
+        /// derived against, unless a test of none names the other.
+        IndirectLight mIndirect = IndirectLight::Traced;
+
         /// What the past of the run's frame `mLossAt` is worth (`FrameOptions::mLoss`). A shot that
         /// sets its scene has lost every history at its first frame already, as a new world does.
         ///
@@ -466,7 +498,9 @@ namespace Rtx::Testing
                         .mReconstruction = ReconstructionRequest{ .mDenoise = shot.mFilter,
                             .mJitter = shot.mJitter,
                             .mNoise = shot.mNoise,
-                            .mLevelEpsilon = shot.mLevelEpsilon },
+                            .mLevelEpsilon = shot.mLevelEpsilon,
+                            .mBounceReuse = shot.mBounceReuse,
+                            .mIndirect = shot.mIndirect },
                         .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })
                                                                 : ExposureRule(MeasuredExposure{}),
                         .mDelight = shot.mDelight,

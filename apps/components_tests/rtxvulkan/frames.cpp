@@ -13,6 +13,7 @@
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -21,6 +22,7 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/scene/sceneacceleration.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
@@ -258,6 +260,34 @@ namespace Rtx
 
             EXPECT_EQ(finishedHits(), sEveryPixel) << "the frame before the picture";
             EXPECT_EQ(finishedHits(), sEveryPixel) << "the frame after it";
+
+            mRenderer.dropGuiTexture(texture);
+        }
+
+        /// **A menu's indirect light reaches the picture's chain where the menu sets it**, so the
+        /// picture traced after it makes nothing: the picture's chain lets the bounce's images go,
+        /// and makes them again, on the call and not on the frame path. Counted as the ranges the
+        /// device holds, which a range made adds to and a range buried leaves as it was until the
+        /// next frame collects it: a picture that remade its chain's reservoirs or its bounce's
+        /// images would hold more.
+        TEST_F(RtxFramesTest, aMenusIndirectLightReachesThePicturesChainAtOnce)
+        {
+            const GuiSlot texture = mRenderer.addGuiTexture(sSize, sSize);
+            mRenderer.traceGuiTexture(texture, ahead(), GuiTraceOptions{});
+            mRenderer.renderFrame(ahead(), FrameOptions{});
+            EXPECT_EQ(finishedHits(), sEveryPixel);
+
+            const MemoryAllocator& memory = mRenderer.getDevice().getMemory();
+            for (const IndirectLight indirect : { IndirectLight::Off, IndirectLight::Traced })
+            {
+                mRenderer.setIndirectLight(indirect);
+                const std::size_t held = memory.getLiveCount();
+                mRenderer.traceGuiTexture(texture, ahead(), GuiTraceOptions{});
+                EXPECT_EQ(memory.getLiveCount(), held) << "a picture made what the menu's indirect light "
+                                                       << sIndirectLightNames.name(indirect) << " asks of its chain";
+                mRenderer.renderFrame(ahead(), FrameOptions{});
+                EXPECT_EQ(finishedHits(), sEveryPixel);
+            }
 
             mRenderer.dropGuiTexture(texture);
         }

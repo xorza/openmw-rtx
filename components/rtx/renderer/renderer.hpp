@@ -215,8 +215,9 @@ namespace Rtx
         double mMs = 0.0;
     };
 
-    /// The most zones one frame may open. Sixteen are used; the rest is room to bisect one.
-    inline constexpr std::uint32_t sMaxGpuZones = 24;
+    /// The most zones one frame may open: every zone the backend names (`RtxSourceTreeTest` counts
+    /// them), and room past them to bisect one.
+    inline constexpr std::uint32_t sMaxGpuZones = 40;
 
     /// Where the device spent a frame, in the order the work was recorded, or nothing where it
     /// cannot write timestamps. Owned by the report rather than borrowed from the timer that
@@ -425,6 +426,11 @@ namespace Rtx
         /// the next frame's picture has it. A finite number greater than nought: a caller that reads
         /// it from a file or a command line refuses anything else first.
         virtual void setGamma(float gamma) = 0;
+
+        /// `ReconstructionRequest::mIndirect` of the profile, changed while the frames run: a menu
+        /// change. What only a traced bounce keeps is made or let go here, and the next frame's
+        /// bounce starts with no history.
+        virtual void setIndirectLight(IndirectLight indirect) = 0;
 
         /// How many of the kernels a trace needs are made, waiting `patience` at most for the rest,
         /// and rethrowing what making one threw. The renderer starts making them as it is made, on

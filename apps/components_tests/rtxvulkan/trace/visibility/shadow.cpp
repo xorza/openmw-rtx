@@ -24,18 +24,6 @@ namespace Rtx::Testing
 {
     namespace
     {
-        /// A floor under an overhead sun, seen from above, with the sky black so the sun is the only
-        /// light: the bounce escapes to nothing and the frame is the sun's term alone.
-        Shaders::VisibilityConstants overheadSun(std::uint32_t size)
-        {
-            Shaders::VisibilityConstants camera = Testing::makeCamera(
-                osg::Vec3f(0.0f, -1.0f, 300.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
-            camera.mSkyHorizon = osg::Vec3f();
-            camera.mSkyZenith = osg::Vec3f();
-            camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(2.0f, 2.0f, 2.0f));
-            return camera;
-        }
-
         /// The floor the sun lights: level at nought, or a hundred units under water whose surface is
         /// at nought, which `camera` is told — so the sun's bit is what the water's refraction found.
         SceneDesc floorOf(bool flooded, Shaders::VisibilityConstants& camera)
@@ -49,18 +37,6 @@ namespace Rtx::Testing
             SceneDesc scene;
             addQuad(scene, sheetAt(4000.0f, 0.0f));
             return scene;
-        }
-
-        /// A roof over the floor, facing up, so a shadow ray from the floor meets its back face,
-        /// which the light's rule does not cull: `x` from `left` to `right` at `height`.
-        std::array<osg::Vec3f, 4> roofOver(float left, float right, float height)
-        {
-            return {
-                osg::Vec3f(left, -4000.0f, height),
-                osg::Vec3f(right, -4000.0f, height),
-                osg::Vec3f(right, 4000.0f, height),
-                osg::Vec3f(left, 4000.0f, height),
-            };
         }
 
         /// **A floor every ray reaches, and a floor no ray reaches, come back exact.** Every tile of

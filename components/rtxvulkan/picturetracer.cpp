@@ -25,12 +25,12 @@
 namespace Rtx
 {
     PictureTracer::PictureTracer(const Device& device, const TracePasses& passes, const TraceMedia& media,
-        DisplayChain& display, GuiTextures& textures, const RadianceWidth radiance)
+        DisplayChain& display, GuiTextures& textures, const RadianceWidth radiance, const IndirectLight indirect)
         : mDevice(device)
         , mMedia(media)
         , mDisplay(display)
         , mTextures(textures)
-        , mChain(device, passes, 1, radiance)
+        , mChain(device, passes, 1, radiance, false, indirect)
         , mCounts(Buffer::deviceLocal(
               device, sizeof(Shaders::FrameCounts), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture counts"))
         , mGlareCounts(Buffer::deviceLocal(
@@ -62,7 +62,7 @@ namespace Rtx
 
         // Nothing puts a picture together across frames, so nothing jitters it, and it has no frame
         // before it.
-        const Reconstruction reconstruction = Reconstruction::forPicture();
+        const Reconstruction reconstruction = Reconstruction::forPicture(profile.mReconstruction.mIndirect);
         Shaders::VisibilityConstants sampled
             = sampleFrame(camera, FrameOptions{}, profile, reconstruction, traced.getCounts(), nullptr);
         traced.measureStars(sampled.mStars);
@@ -84,7 +84,7 @@ namespace Rtx
                     .mSubject = subject,
                     .mAsked = BinCamera::of(camera),
                     .mSampled = sampled,
-                    .mDenoised = reconstruction.mDenoised,
+                    .mReconstruction = reconstruction,
                     .mPastLost = true,
                 });
 

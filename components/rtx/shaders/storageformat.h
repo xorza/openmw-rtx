@@ -38,6 +38,7 @@ namespace Rtx::Shaders
         R32ui,
         Rg16f,
         Rg32f,
+        Rg32ui,
         Rgba16f,
         Rgba32f,
     };
@@ -52,6 +53,7 @@ namespace Rtx::Shaders
 #define STORAGE_R32UI ::Rtx::Shaders::StorageFormat::R32ui
 #define STORAGE_RG16F ::Rtx::Shaders::StorageFormat::Rg16f
 #define STORAGE_RG32F ::Rtx::Shaders::StorageFormat::Rg32f
+#define STORAGE_RG32UI ::Rtx::Shaders::StorageFormat::Rg32ui
 #define STORAGE_RGBA16F ::Rtx::Shaders::StorageFormat::Rgba16f
 #define STORAGE_RGBA32F ::Rtx::Shaders::StorageFormat::Rgba32f
 
@@ -66,6 +68,7 @@ namespace Rtx::Shaders
 #define STORAGE_R32UI r32ui
 #define STORAGE_RG16F rg16f
 #define STORAGE_RG32F rg32f
+#define STORAGE_RG32UI rg32ui
 #define STORAGE_RGBA16F rgba16f
 #define STORAGE_RGBA32F rgba32f
 

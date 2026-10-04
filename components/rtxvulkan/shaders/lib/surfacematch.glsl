@@ -9,7 +9,19 @@
 // three times, a shadow would stop at an edge the bounce under it blurs across.
 
 #include "camera.h"
+#include "gbuffer.h"
 #include "look.h"
+
+/// What a surface history holds of a pixel whose `CHANNEL_SURFACE` reads `seen`: the shading
+/// normal and the distance from the eye times `distanceScale` (`HistoryConstants::mDistanceScale`),
+/// or nought where no surface stands, which no surface matches. **One statement** for the
+/// accumulator, which keeps it beside the bounce's mean, and its surface-only kernel, which keeps it
+/// where nothing filters the bounce.
+vec4 heldSurfaceOf(vec2 seen, float distanceScale)
+{
+    const vec3 normal = unpackSurfaceNormal(seen.x);
+    return dot(normal, normal) > 0.0 ? vec4(normal, surfaceDistance(seen.y) * distanceScale) : vec4(0.0);
+}
 
 /// Where a pixel's surface stood on the previous frame's screen, as the four texels a bilinear fetch
 /// of it spans: the lower corner, and how far across the four it lies.

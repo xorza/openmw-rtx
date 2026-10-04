@@ -51,8 +51,23 @@ namespace Rtx::Shaders
     /// The two counts the eye's rays take of the sun's quad, for the glare fader — `glare.h`.
     const uint BIND_SUN_GLARE = 8;
 
+    /// The bounce's reservoirs, this frame's and the history the next frame merges, its visible
+    /// points, this frame's and last frame's, and the path's transmittance in front of each pixel —
+    /// `bouncereuse.h`. Pushed and not a set of their own, because which half of the points is this
+    /// frame's turns every frame and the push already does.
+    const uint BIND_BOUNCE_RESERVOIRS = 9;
+    const uint BIND_BOUNCE_HISTORY = 10;
+    const uint BIND_BOUNCE_ORIGINS = 11;
+    const uint BIND_BOUNCE_ORIGINS_BEFORE = 12;
+    const uint BIND_BOUNCE_THROUGH = 13;
+
+    /// The spatial reuse's pairings, both textures' steps one after the other (`BouncePairing`), and
+    /// the bits the pairs' pass writes: whether each link's partner sees this pixel's sample.
+    const uint BIND_BOUNCE_PAIRING = 14;
+    const uint BIND_BOUNCE_PAIRED = 15;
+
     /// How many every launch's set declares, which is the last of them and one more.
-    const uint BIND_COUNT = 9;
+    const uint BIND_COUNT = 16;
 
     /// The frame as it will be shown, at the output's own extent: what `spritecomposite.rgen`
     /// composites the puffs over, in place. Past the others, because that launch's set alone

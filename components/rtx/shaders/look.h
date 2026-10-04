@@ -1147,7 +1147,49 @@ namespace Rtx::Shaders
     /// the planter was 1.94 and 1.39 noisy and 1.90 and 2.25 biased, against 1.28 and 2.35 under
     /// the fixed reach, the noise of the first in sparse bright points the narrowed cascade no
     /// longer spread. Both lie on the curve the history length draws.
+    ///
+    /// **The bounce's reuse did not move the trade either.** A reservoir is a history of its own,
+    /// so a shorter one here might have cost the reused bounce nothing; it cost the standing frame
+    /// what it costs without the reuse, and gave the walked frame nothing back. With the reuse on,
+    /// frame noise standing and walked in, then bias standing, at 8, 16 and 32 frames:
+    ///
+    ///     guild's planter at night   1.12 / 1.69 / 2.27   0.93 / 1.62 / 2.26   0.70 / 1.48 / 2.33
+    ///     mages' guild               1.33 / 1.48 / 1.63   0.98 / 1.55 / 1.63   0.65 / 1.50 / 1.75
+    ///     Ahemmusa's yurt            1.96 / 2.58 / 1.52   1.32 / 2.69 / 1.53   0.74 / 2.66 / 1.67
     const float ACCUMULATE_FRAMES = 32.0f;
+
+    /// The longest history the accumulator's fast mean keeps, which the slow one is clamped to: the
+    /// mean that follows a change of the light on a surface that did not move, as an actor's darkness
+    /// dragged over a floor.
+    ///
+    /// **Two, and not ReLAX's six** (NVIDIA NRD, `diffuseMaxFastAccumulatedFrameNum`). The sky's
+    /// trail behind a moving bar under the reuse, in pixels (`RtxBounceTrailTest`), then the still
+    /// frames' noise at the guild, the planter and the yurt (`noise --suite=bounce`):
+    ///
+    ///     2    7.66    0.61 / 0.65 / 0.72        6    13.07    0.63 / 0.67 / 0.73
+    ///     3    8.43    0.62 / 0.65 / 0.73        8    15.55    0.63 / 0.67 / 0.73
+    ///     4    9.88    0.62 / 0.66 / 0.73
+    ///
+    /// A shorter fast mean is a wider box around the pixel's own light, so it holds the slow mean
+    /// to the change sooner and to noise no more. At two the frames strafed and walked in were
+    /// cleaner than before the clamp at every place, the guild walked 1.50 to 1.41, and the bias rose
+    /// by at most 0.06. One would be the sample itself, which the clamp's comment says why not.
+    const float ACCUMULATE_FAST_FRAMES = 2.0f;
+
+    /// How many deviations of the fast mean, over a 5×5 square, the slow mean may stand from the
+    /// square's mean of it before it is held to that edge: ReLAX's `fastHistoryClampingSigmaScale`.
+    const float ACCUMULATE_CLAMP_SPREAD = 2.0f;
+
+    /// How hard a clamped pixel's two means are pushed on toward the frame's 5×5 mean of samples:
+    /// the luminance of the gap between them, times this and the share the clamp moved, as a
+    /// distance along the way, never past it. ReLAX's `accelerationAmount` of 0.3, scaled by its 10.
+    /// Under the reuse it took the sky's trail behind a moving bar from 14.24 pixels to 13.07.
+    ///
+    /// **ReLAX's reset is not taken.** It blends both means toward the sample where the slow one
+    /// stands from the samples' mean by more than 4.5 deviations of the fast mean and half of the
+    /// samples': on this tree's bounce, whose samples are one bounce each, that never happened, and
+    /// the trail stood at 14.24 pixels with it as without.
+    const float ACCUMULATE_ACCELERATION = 3.0f;
 
     /// How squarely two normals must agree before their pixels are the same surface, and the
     /// history at one may be carried to the other.

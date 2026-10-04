@@ -348,6 +348,30 @@ namespace RtxTool
                 Rtx::sNoiseSourceNames.list())
                 .c_str());
 
+        option(sFramed, "bounce-reuse",
+            bpo::value<std::string>()->default_value(
+                std::string(Rtx::sBounceReuseNames.name(byDefault.mSetup.mRun.mProfile.mReconstruction.mBounceReuse))),
+            std::format("what the trace makes of the bounce it draws at each pixel before anything filters "
+                        "it: {}. `own` takes each pixel's own bounce through the reservoirs, `temporal` merges "
+                        "last frame's into it and `spatiotemporal` its neighbours' as well, which is ReSTIR GI. "
+                        "Naming less is the A/B",
+                Rtx::sBounceReuseNames.list())
+                .c_str());
+
+        option(sFramed, "indirect", bpo::value<std::string>(),
+            std::format("whether a surface takes light from anything that is not a light: {}. `traced` "
+                        "follows one bounce and cleans it, `off` traces none and takes none. Not given, "
+                        "`settings-default.cfg`'s `[RTX] indirect light`, or the player's own under `view`",
+                Rtx::sIndirectLightNames.list())
+                .c_str());
+
+        option(sFramed, "antilag",
+            bpo::value<bool>()
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mAntilag)
+                ->implicit_value(true),
+            "hold the denoiser's slow mean of the bounce to its fast one, so a change of the light on "
+            "a surface that did not move is followed and not dragged. Off is the A/B");
+
         option(sFramed, "level-epsilon", number(anyNumber<float>())->default_value(0.0f),
             "levels added to the texture level bias past the ratio the upscaler sets, negative for "
             "sharper. Nought is the ratio alone, and off the upscaler nothing is biased");

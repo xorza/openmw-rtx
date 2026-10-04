@@ -27,7 +27,7 @@ namespace Rtx
         /// Formats and Vulkan Formats" table, one row per qualifier `storageformat.h` spells.
         TEST(RtxFormatsTest, aStorageFormatIsTheOneTheSpecificationPairsItsQualifierWith)
         {
-            constexpr std::array<std::pair<StorageFormat, VkFormat>, 11> sTable{ {
+            constexpr std::array<std::pair<StorageFormat, VkFormat>, 12> sTable{ {
                 { StorageFormat::Rgba8, VK_FORMAT_R8G8B8A8_UNORM },
                 { StorageFormat::R8, VK_FORMAT_R8_UNORM },
                 { StorageFormat::Rg8, VK_FORMAT_R8G8_UNORM },
@@ -37,6 +37,7 @@ namespace Rtx
                 { StorageFormat::R32ui, VK_FORMAT_R32_UINT },
                 { StorageFormat::Rg16f, VK_FORMAT_R16G16_SFLOAT },
                 { StorageFormat::Rg32f, VK_FORMAT_R32G32_SFLOAT },
+                { StorageFormat::Rg32ui, VK_FORMAT_R32G32_UINT },
                 { StorageFormat::Rgba16f, VK_FORMAT_R16G16B16A16_SFLOAT },
                 { StorageFormat::Rgba32f, VK_FORMAT_R32G32B32A32_SFLOAT },
             } };

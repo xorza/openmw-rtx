@@ -18,6 +18,7 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/material.hpp>
@@ -85,11 +86,13 @@ namespace Rtx
         };
 
         /// Draws one frame and waits for it, so what comes back is that frame's own report.
-        Drawn draw(Renderer& renderer, Shaders::VisibilityConstants camera, double waterSeconds = 0.0)
+        Drawn draw(Renderer& renderer, Shaders::VisibilityConstants camera, double waterSeconds = 0.0,
+            std::optional<ReconstructionRequest> reconstruction = std::nullopt)
         {
             camera.mWaterTime = splitSeconds(waterSeconds);
             const auto start = std::chrono::steady_clock::now();
-            renderer.renderFrame(camera, FrameOptions{ .mWaterSeconds = waterSeconds });
+            renderer.renderFrame(
+                camera, FrameOptions{ .mWaterSeconds = waterSeconds, .mReconstruction = reconstruction });
             const std::optional<FrameResult> result = renderer.finishFrame();
             const double wallMs = since(start, std::chrono::steady_clock::now());
 
@@ -205,6 +208,36 @@ namespace Rtx
             // And only on the frame the arrival landed in.
             const Drawn settled = draw(mRenderer, camera);
             EXPECT_FALSE(reports(settled.mGpu.spans(), "blas")) << "nothing arrived, so nothing was built";
+
+            // **A frame that takes no indirect light runs none of the bounce's passes**:
+            // the accumulator keeps the surface's history alone, for the shadow denoiser and the
+            // glossy filter, and neither the clamp, the wavelet nor any kernel of the reuse opens a
+            // zone, though the request asked for the whole reuse. The traced frame beside it, asked
+            // the same, opens every one of them: the second of two, since the validation asks only
+            // what a frame before kept.
+            ReconstructionRequest reused = mRenderer.getProfile().mReconstruction;
+            reused.mDenoise = true;
+            reused.mBounceReuse = BounceReuse::Spatiotemporal;
+            draw(mRenderer, camera, 0.0, reused);
+            const Drawn traced = draw(mRenderer, camera, 0.0, reused);
+            reused.mIndirect = IndirectLight::Off;
+            const Drawn none = draw(mRenderer, camera, 0.0, reused);
+
+            EXPECT_TRUE(reports(none.mGpu.spans(), "accumulate")) << "the surface's history went unkept";
+            for (const char* const pass :
+                { "clamp", "filter", "bounce validate", "bounce temporal", "bounce pairs", "bounce resolve" })
+            {
+                EXPECT_TRUE(reports(traced.mGpu.spans(), pass)) << "no zone called " << pass;
+                EXPECT_FALSE(reports(none.mGpu.spans(), pass)) << "a frame with no indirect light ran " << pass;
+            }
+
+            // And as a menu sets it, for every frame that asks nothing of its own.
+            mRenderer.setIndirectLight(IndirectLight::Off);
+            const Drawn chosen = draw(mRenderer, camera);
+            mRenderer.setIndirectLight(IndirectLight::Traced);
+            EXPECT_TRUE(reports(chosen.mGpu.spans(), "accumulate"));
+            EXPECT_FALSE(reports(chosen.mGpu.spans(), "filter")) << "the menu's indirect light of none ran the wavelet";
+            EXPECT_TRUE(reports(draw(mRenderer, camera).mGpu.spans(), "filter")) << "the menu's traced bounce ran none";
 
             // **The ripple field is stood for a scene that holds water and stepped only where the
             // sky's clock has moved a sixtieth**, before the sea reads it. The frame the field is

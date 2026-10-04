@@ -6,6 +6,8 @@
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/accumulate.h>
 #include <components/rtx/shaders/camera.h>
+#include <components/rtxvulkan/device/memory/barriers.hpp>
+#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 
@@ -14,16 +16,27 @@ namespace Rtx
     namespace
     {
         /// The channel being blended, the two the frame describes it with, the three a history
-        /// arrives in, the two of those this pass writes back, and the blend the cascade reads; and
-        /// the fill's channel, history and blend. The colour histories are read and not written,
-        /// because the first wavelet level writes the history this reads next frame — SVGF's
-        /// feedback.
+        /// arrives in, the two of those this pass writes back, and the blend the cascade reads; the
+        /// fill's channel, history and blend; and the fast means, read and written. The slow colour
+        /// histories are read and not written, because the first wavelet level writes the history
+        /// this reads next frame — SVGF's feedback.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_BINDINGS> sBindings
             = computeBindings<Shaders::ACCUMULATE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+
+        /// The surface, the fast blends and the frame's samples read, the slow means rewritten in
+        /// place, and the fast means written.
+        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_CLAMP_BINDINGS> sClampBindings
+            = computeBindings<Shaders::ACCUMULATE_CLAMP_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+
+        /// The surface read, and its history written.
+        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_SURFACE_BINDINGS> sSurfaceBindings
+            = computeBindings<Shaders::ACCUMULATE_SURFACE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
     }
 
     AccumulatePass::AccumulatePass(const Device& device)
         : mPipeline(device, sBindings, {}, "accumulate.comp.spv", "accumulate")
+        , mClamp(device, sClampBindings, {}, "accumulateclamp.comp.spv", "accumulate-clamp")
+        , mSurface(device, sSurfaceBindings, {}, "accumulatesurface.comp.spv", "accumulate-surface")
     {
     }
 
@@ -31,6 +44,7 @@ namespace Rtx
         const GBuffer& buffer, const DenoiseFrame& frame) const
     {
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
+        assert(!images.mBlended.isEmpty() && "the bounce accumulated with its images let go");
         assert(images.mBlended.getWidth() >= camera.mWidth && images.mBlended.getHeight() >= camera.mHeight);
 
         DescriptorWrites writes(mPipeline);
@@ -46,6 +60,8 @@ namespace Rtx
         writes.image(Shaders::ACCUMULATE_BIND_FILL, buffer.get(Channel::Fill).describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_HISTORY_FILL, images.mFillBefore.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_FILL_BLENDED_OUT, images.mFillBlended.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_HISTORY_FAST, images.mFastBefore.describeStorage());
+        writes.image(Shaders::ACCUMULATE_BIND_FAST_OUT, images.mFastBlended.describeStorage());
 
         const Shaders::HistoryConstants constants{
             .mEyes = frame.mSampled.mEyes,
@@ -54,6 +70,52 @@ namespace Rtx
         };
 
         dispatch(commands, mPipeline, writes, constants,
+            Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
+    }
+
+    void AccumulatePass::recordClamp(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
+        const GBuffer& buffer, const DenoiseFrame& frame) const
+    {
+        const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
+
+        // The clamp reads a neighbour's fast blend and samples, so every pixel's blend is behind it.
+        Barriers blended(commands);
+        for (const Image* image : { &images.mBlended, &images.mFillBlended, &images.mFastBlended })
+            image->addTransition(blended, Use::sComputeWrite, Use::sComputeReadWrite);
+        blended.flush();
+
+        DescriptorWrites clampWrites(mClamp);
+        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
+        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST, images.mFastBlended.describeStorage());
+        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_BLENDED, images.mBlended.describeStorage());
+        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FILL_BLENDED, images.mFillBlended.describeStorage());
+        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SAMPLED, buffer.get(Channel::Indirect).describeStorage());
+        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SAMPLED_FILL, buffer.get(Channel::Fill).describeStorage());
+        clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST_OUT, images.mFast.describeStorage());
+
+        dispatch(commands, mClamp, clampWrites,
+            Shaders::AccumulateClampConstants{
+                .mWidth = camera.mWidth, .mHeight = camera.mHeight, .mAntilag = frame.mAntilag ? 1u : 0u },
+            Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
+    }
+
+    void AccumulatePass::recordSurface(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
+        const GBuffer& buffer, const DenoiseFrame& frame) const
+    {
+        const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
+
+        DescriptorWrites writes(mSurface);
+        writes.image(Shaders::ACCUMULATE_SURFACE_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
+        writes.image(Shaders::ACCUMULATE_SURFACE_BIND_SURFACE_OUT, images.mSurface.describeStorage());
+
+        // A reset, since the kernel reads no history at all.
+        const Shaders::HistoryConstants constants{
+            .mEyes = frame.mSampled.mEyes,
+            .mReset = 1u,
+            .mDistanceScale = frame.mDistanceScale,
+        };
+
+        dispatch(commands, mSurface, writes, constants,
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
     }
 }

@@ -248,8 +248,9 @@ at the top, over all of them.
 - **`FrameRing`** keeps two frames in flight. The host places frame N+1 while the device traces
   N.
 - **`TraceChain`** is everything one camera's trace writes at one extent: the G-buffer, the fog
-  volume, the sprite bins, the denoiser's history. The world has one, and `PictureTracer` has one
-  for the pictures inside the interface. The passes are shared.
+  volume, the sprite bins, the denoiser's history, and the bounce's reservoirs where it reuses.
+  The world has one, and `PictureTracer` has one for the pictures inside the interface. The passes
+  are shared.
 - **`DisplayChain`** runs after the trace and the upscaler: bloom, exposure, glare, tone, debug
   lines. The tone pass adds the glare fader and Night-Eye's lift in display values after the curve,
   where the meter never sees them, as the rasterizer adds both, and applies the player's
@@ -262,10 +263,28 @@ at the top, over all of them.
   device in it. Its reactive and transparency-and-composition masks are the trace's own
   (`CHANNEL_UPSCALE_MASKS`): the share of a pixel's light whose image moves apart from the pixel's
   motion vector — the see-through layers', and what the water's rays show.
+- **The bounce's reuse** (`BounceReservoirs`, ReSTIR GI) runs where the reconstruction asks for it
+  (`Reconstruction::mBounceReuse`): the world's chain, never a picture's. The trace's bounce is each
+  pixel's candidate, which the hit shader writes as a reservoir beside the visible point it left.
+  Four kernels of `VisibilityPass` follow the trace: the validation traces and shades again last
+  frame's kept sample at one pixel in eight, the temporal merge takes last frame's reservoir into
+  the candidate, the pairs' pass traces the shift rays of each pair of pixels the pairings link
+  once for both (`BouncePairing`), and the resolve merges the two partners by those rays, traces the
+  final visibility ray and shades the kept sample into the channels the trace would have written.
+  The reuse keeps its own history, so it runs with or without the denoiser after it.
+- **The indirect light** (`[RTX] indirect light`, `Reconstruction::mIndirect`) is `traced`, the
+  bounce above and the passes that clean it, or `off`, none: the trace draws no diffuse bounce and
+  traces only a glossy surface's reflection (`bounceTraced`), no surface a path ends at takes the
+  cell's ambient (`surfaceAmbient`), the reuse does not run, and the denoiser keeps the
+  accumulator's surface history alone. A menu changes it while the game runs
+  (`Renderer::setIndirectLight`), and the chain lets go of the reservoirs and the bounce's histories
+  where it is `off`.
 - **The denoiser** (`trace/denoise/`) runs where the frame is filtered. The accumulator averages
   the bounce's diffuse light over time and the wavelet spreads it across the screen, with the share
   of it that is fill beside it by the same weights: the composite puts the bounce back by the
-  diffuse albedo and the fill by the ambient one, as the rasterizer has `D × lit + A × ambient`. The
+  diffuse albedo and the fill by the ambient one, as the rasterizer has `D × lit + A × ambient`. A
+  clamp holds the accumulator's slow mean to a fast one of a few frames (`accumulateclamp.comp`,
+  ReLAX's), so light that changes on a surface that did not move is followed and not dragged. The
   shadow denoiser filters the one bit a pixel kept of its rays to the sky's source and to a lamp, under
   the light both would add unshadowed, where the sky has a source that lights or the scene a lamp.
   The glossy filter averages the lobe's light over time, where the scene wears a map. The pane
@@ -286,12 +305,12 @@ at the top, over all of them.
   to within `sDenoiserNoiseLevels`. The evidence is in `.notes/denoiser-nondeterminism.md`.
 
 **The shaders** (`shaders/`, in the folders of the passes that dispatch them, shared pieces in
-`shaders/lib/`). One ray generation shader traces
-one ray per pixel and composes the path. Closest-hit shaders are picked by the shader table per
-material kind. Secondary visibility in a hit uses ray queries. The rest are compute passes: the
-fog, the sprites, the denoiser, the composite, the display chain, skinning, texture preparation,
-the sea and the ripples. Specialization constants, not branches, remove what a frame cannot use
-(`lib/variants.glsl`).
+`shaders/lib/`). One ray generation shader traces one ray per pixel and composes the path.
+Closest-hit shaders are picked by the shader table per material kind. Secondary visibility in a hit
+uses ray queries. The rest are compute passes: the fog, the sprites, the bounce's temporal merge,
+the denoiser, the composite, the display chain, skinning, texture preparation, the sea and the
+ripples. The bounce's validation, pairs and resolve trace, and are ray generation shaders of their
+own. Specialization constants, not branches, remove what a frame cannot use (`lib/variants.glsl`).
 
 ## 9. Ownership
 
@@ -342,10 +361,10 @@ On the host, in order:
 6. **GUI and present.** The host returns without waiting for the device.
 
 On the device, in record order: the sea and the ripples, the sprites, the fog, the trace, the
-denoiser where it runs (the accumulator, the shadow denoiser, the glossy filter, the pane filter, the
-wavelet), the
-composite where a denoiser or a sum needs one, the upscaler where one runs, the display chain, the
-GUI, the present.
+bounce's reuse where it runs (the validation, the temporal merge, the pairs, the resolve), the
+denoiser where it runs (the accumulator and its clamp, the shadow denoiser, the glossy filter, the
+pane filter, the wavelet), the composite where a denoiser, the reuse or a sum needs one, the
+upscaler where one runs, the display chain, the GUI, the present.
 
 Four clocks drive a frame, each with one source: host time (the wall in play, the frame count
 times a stated step in a measured run), simulation time, game time (the hour), and the sky's

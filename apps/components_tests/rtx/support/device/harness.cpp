@@ -227,6 +227,9 @@ namespace Rtx::Testing
         // And no painted light divided out, so a texture a test hands over is the albedo it traces,
         // which is what its expectation is computed from. A test of the estimate asks per frame.
         options.mRun.mProfile.mDelight = 0.0f;
+        // And the bounce as each frame drew it, for the same reason as the exposure: a reused bounce is
+        // what the neighbours and the frames before it found. A test of the reuse asks per frame.
+        options.mRun.mProfile.mReconstruction.mBounceReuse = BounceReuse::Off;
 
         return options;
     }
