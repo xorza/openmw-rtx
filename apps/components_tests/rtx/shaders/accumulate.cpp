@@ -25,5 +25,19 @@ namespace Rtx
             EXPECT_EQ(Shaders::antilagShare(0.0f, 0.3f, 0.5f, 0.6f), 1.0f);
             EXPECT_EQ(Shaders::antilagShare(0.25f, 0.25f, 0.5f, 0.6f), 0.0f);
         }
+
+        /// **How far both means are pushed on toward the samples, by hand**, at
+        /// `ACCUMULATE_ACCELERATION` = 3: `3 × share × gap` along a way of `distance`.
+        ///
+        /// - A gap of 0.2 the clamp moved half of, a way of 1: `3 × 0.5 × 0.2 = 0.3` of it.
+        /// - A gap of 1 it moved all of, a way of 0.5: 6, held to the whole way and never past it.
+        /// - Nothing where the clamp moved nothing, and nothing where the samples stand at the fast mean.
+        TEST(RtxAccumulateClampTest, bothMeansArePushedTowardTheSamplesByWhatTheClampMoved)
+        {
+            EXPECT_FLOAT_EQ(Shaders::antilagAcceleration(0.2f, 0.5f, 1.0f), 0.3f);
+            EXPECT_EQ(Shaders::antilagAcceleration(1.0f, 1.0f, 0.5f), 1.0f);
+            EXPECT_EQ(Shaders::antilagAcceleration(0.2f, 0.0f, 1.0f), 0.0f);
+            EXPECT_EQ(Shaders::antilagAcceleration(0.2f, 0.5f, 0.0f), 0.0f);
+        }
     }
 }

@@ -74,7 +74,11 @@ namespace Rtx::Shaders
     const uint ACCUMULATE_CLAMP_BIND_BLENDED = 3;
     const uint ACCUMULATE_CLAMP_BIND_FILL_BLENDED = 4;
     const uint ACCUMULATE_CLAMP_BIND_MOMENTS = 5;
-    const uint ACCUMULATE_CLAMP_BINDINGS = 6;
+    const uint ACCUMULATE_CLAMP_BIND_SAMPLED = 6;
+    const uint ACCUMULATE_CLAMP_BIND_SAMPLED_FILL = 7;
+    const uint ACCUMULATE_CLAMP_BIND_FAST_OUT = 8;
+    const uint ACCUMULATE_CLAMP_BIND_FAST_FILL_OUT = 9;
+    const uint ACCUMULATE_CLAMP_BINDINGS = 10;
 
     /// How far either way of a pixel the clamp's square reaches: ReLAX's 5×5.
     const uint ACCUMULATE_CLAMP_REACH = 2;
@@ -99,6 +103,17 @@ namespace Rtx::Shaders
     {
         const float held = clamp(slow, min(low, fast), max(high, fast));
         return slow == fast ? 0.0f : clamp((held - slow) / (fast - slow), 0.0f, 1.0f);
+    }
+
+    /// How far a pixel's two means are pushed on toward the samples' mean around it, as a share of
+    /// the way from the fast mean, where the clamp moved the slow one by `share`: `gap` is the
+    /// luminance of the two means' difference, and `distance` that of the samples' mean's from the
+    /// fast one. ReLAX's acceleration (`RELAX_HistoryClamping`): proportional to the clamp, and never
+    /// past the samples.
+    RTX_SHADER float antilagAcceleration(float gap, float share, float distance)
+    {
+        const float push = ACCUMULATE_ACCELERATION * share * gap;
+        return distance > 0.0f ? min(push / distance, 1.0f) : 0.0f;
     }
 
     /// What a pass that keeps a history of the frame's surfaces is handed: the accumulator, which

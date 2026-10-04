@@ -1167,6 +1167,17 @@ namespace Rtx::Shaders
     /// square's mean of it before it is held to that edge: ReLAX's `fastHistoryClampingSigmaScale`.
     const float ACCUMULATE_CLAMP_SPREAD = 2.0f;
 
+    /// How hard a clamped pixel's two means are pushed on toward the frame's 5×5 mean of samples:
+    /// the luminance of the gap between them, times this and the share the clamp moved, as a
+    /// distance along the way, never past it. ReLAX's `accelerationAmount` of 0.3, scaled by its 10.
+    /// Under the reuse it took the sky's trail behind a moving bar from 14.24 pixels to 13.07.
+    ///
+    /// **ReLAX's reset is not taken.** It blends both means toward the sample where the slow one
+    /// stands from the samples' mean by more than 4.5 deviations of the fast mean and half of the
+    /// samples': on this tree's bounce, whose samples are one bounce each, that never happened, and
+    /// the trail stood at 14.24 pixels with it as without.
+    const float ACCUMULATE_ACCELERATION = 3.0f;
+
     /// How squarely two normals must agree before their pixels are the same surface, and the
     /// history at one may be carried to the other.
     ///
