@@ -86,7 +86,11 @@ BounceReservoir mergedWithHistory(uvec2 pixel, BounceOrigin origin, BounceReserv
     BounceReservoir before = held.mReservoir;
     before.mConfidence = min(before.mConfidence, BOUNCE_CONFIDENCE_CAP);
     ++before.mAge;
-    if (!holdsBounce(before) || before.mAge > BOUNCE_AGE_CAP)
+    // **A history that kept nothing is still merged**, by its confidence: it stands for candidates
+    // that found no light. Passed over, the candidate would take the whole weight wherever the
+    // history came up empty and its share wherever it did not, which over the frames is brighter
+    // than the bounce.
+    if (before.mConfidence == 0u || before.mAge > BOUNCE_AGE_CAP)
         return candidate;
 
     // The candidate at this point, and at last frame's: shifted there and back, `p̂←j`.

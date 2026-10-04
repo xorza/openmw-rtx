@@ -107,11 +107,12 @@ namespace Rtx::Shaders
 
     /// The disc whose mean distance the pairings' steps match (`BouncePairing`, a normal
     /// distribution of deviation `√(8 / 9π)` times the radius), as a share of the traced height, and
-    /// never under a few pixels. **A share and not RTXDI's thirty-two pixels**, which are three per cent of a 1080p
-    /// frame: a disc stated in pixels covers more of the scene the fewer pixels an upscaler traces,
-    /// and a neighbour far across a surface reconnects at a length unlike the pixel's own. Held at
-    /// thirty-two pixels over a corner traced at 128, a quarter of the frame, the spatial half raised
-    /// the frame's error over the temporal half's by a quarter; at eight it lowered it by a tenth.
+    /// never under a few pixels. **A share and not RTXDI's thirty-two pixels**, which are three per
+    /// cent of a 1080p frame: a disc stated in pixels covers more of the scene the fewer pixels an
+    /// upscaler traces, and a neighbour far across a surface reconnects at a length unlike the
+    /// pixel's own. Held at thirty-two pixels over a corner traced at 128, a quarter of the frame,
+    /// the spatial half raised the frame's error over the temporal half's by a quarter; at eight it
+    /// lowered it by a tenth.
     const float BOUNCE_RADIUS_SHARE = 0.03f;
     const float BOUNCE_RADIUS_LEAST = 3.0f;
 

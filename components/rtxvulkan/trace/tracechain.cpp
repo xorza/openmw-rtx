@@ -174,8 +174,9 @@ namespace Rtx
             : Denoised::unfiltered(*mChannels);
 
         // **Only where something is left to do**: a filter to put the albedo back in behind, a reused
-        // bounce to put back, or a sum to add the frame to. Anything else was composed by the trace, into the channel
-        // that is the frame, and every pass after it reads the channel as `handOver` left it.
+        // bounce to put back, or a sum to add the frame to. Anything else was composed by the trace,
+        // into the channel that is the frame, and every pass after it reads the channel as
+        // `handOver` left it.
         const Image& frame = mChannels->get(Channel::Direct);
         ImageUse leftAs = Use::sAnyShaderRead;
         if (!composed || what.mAccumulate > 0)

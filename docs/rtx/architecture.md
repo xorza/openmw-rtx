@@ -303,8 +303,7 @@ Closest-hit shaders are picked by the shader table per material kind. Secondary 
 uses ray queries. The rest are compute passes: the fog, the sprites, the bounce's temporal merge,
 the denoiser, the composite, the display chain, skinning, texture preparation, the sea and the
 ripples. The bounce's validation, pairs and resolve trace, and are ray generation shaders of their
-own.
-Specialization constants, not branches, remove what a frame cannot use (`lib/variants.glsl`).
+own. Specialization constants, not branches, remove what a frame cannot use (`lib/variants.glsl`).
 
 ## 9. Ownership
 

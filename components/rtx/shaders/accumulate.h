@@ -41,8 +41,8 @@
 // **The fast means of the bounce and the fill in one texel of two words**, each in shared-exponent
 // `RGB9E5` (`lib/sharedexponent.glsl`), which rounds to nearest. They are read at four taps and over
 // a 5×5 square a frame, and four full floats each made the accumulator and its clamp 0.54 ms of a
-// guild's frame where they had been 0.25; what a fast mean needs is to follow the light, which a
-// part in a thousand of its brightest channel does not move.
+// guild's frame where they had been 0.25; what a fast mean needs is to follow the light, which half
+// a step, at most a part in 512 of its brightest channel, does not move.
 #define ACCUMULATE_FAST STORAGE_RG32UI
 
 #ifdef RTX_HOST
@@ -111,7 +111,8 @@ namespace Rtx::Shaders
     /// the way from the fast mean, where the clamp moved the slow one by `share`: `gap` is the
     /// luminance of the two means' difference, and `distance` that of the samples' mean's from the
     /// fast one. ReLAX's acceleration (`RELAX_HistoryClamping`): proportional to the clamp, and never
-    /// past the samples.
+    /// carrying the fast mean past the samples. The slow mean is pushed by the same step, which can
+    /// carry it past them.
     RTX_SHADER float antilagAcceleration(float gap, float share, float distance)
     {
         const float push = ACCUMULATE_ACCELERATION * share * gap;

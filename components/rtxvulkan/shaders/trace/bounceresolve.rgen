@@ -139,7 +139,7 @@ void main()
     // guild stood at 0.62 against 0.66; but a sample that validation found dark was taken again from
     // a neighbour not yet asked the frame after, and the bounce of a lamp that went out lasted to the
     // age cap, thirty frames, where kept apart it lasts eight (`bouncevalidate.rgen`).
-    bounceHistory[at] = packBounce(!seen && !asked ? noBounce() : own);
+    bounceHistory[at] = packBounce(seen ? own : noBounce());
 
     const vec3 share = diffuseShare(origin, chosenReach.mTowards) * (seen ? chosen.mWeight : 0.0);
     const vec3 through = unpackRgb9e5(bounceThrough[at]);
