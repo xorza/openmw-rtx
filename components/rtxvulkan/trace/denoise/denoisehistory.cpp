@@ -46,25 +46,17 @@ namespace Rtx
         return Shaders::ACCUMULATE_DISTANCE_RANGE / far;
     }
 
-    void DenoiseHistory::resize(const std::uint32_t width, const std::uint32_t height)
+    void DenoiseHistory::resize(const std::uint32_t width, const std::uint32_t height, const bool bounce)
     {
-        mColour = ImagePair::make(
-            mDevice, width, height, toVulkanFormat(ACCUMULATE_COLOUR), sReadAndWrite, "accumulate-colour");
+        mWidth = width;
+        mHeight = height;
+
         mSurface = ImagePair::make(
             mDevice, width, height, toVulkanFormat(ACCUMULATE_SURFACE), sStorage, "accumulate-surface");
-        mMoments = ImagePair::make(
-            mDevice, width, height, toVulkanFormat(ACCUMULATE_MOMENTS), sReadAndWrite, "accumulate-moments");
-        mBlended = Image(mDevice, width, height, toVulkanFormat(ATROUS_CHANNEL), sReadAndWrite, "accumulate-blended");
-        mScratch = Image(mDevice, width, height, toVulkanFormat(ATROUS_CHANNEL), sReadAndWrite, "atrous-scratch");
-        mFill = ImagePair::make(
-            mDevice, width, height, toVulkanFormat(ACCUMULATE_COLOUR), sReadAndWrite, "accumulate-fill");
-        mFillBlended
-            = Image(mDevice, width, height, toVulkanFormat(ATROUS_CHANNEL), sReadAndWrite, "accumulate-fill-blended");
-        mFillScratch
-            = Image(mDevice, width, height, toVulkanFormat(ATROUS_CHANNEL), sReadAndWrite, "atrous-fill-scratch");
-        mFast = ImagePair::make(mDevice, width, height, toVulkanFormat(ACCUMULATE_FAST), sStorage, "accumulate-fast");
-        mFastBlended
-            = Image(mDevice, width, height, toVulkanFormat(ACCUMULATE_FAST), sStorage, "accumulate-fast-blended");
+        if (bounce)
+            makeBounce();
+        else
+            keepBounce(false);
 
         constexpr VkFormat reprojected = toVulkanFormat(SHADOW_REPROJECTED);
         mShadowMoments
@@ -86,9 +78,57 @@ namespace Rtx
         mTurns = TemporalTurns{};
     }
 
+    void DenoiseHistory::keepBounce(const bool bounce)
+    {
+        assert(mWidth > 0 && "the bounce's images kept before a resize");
+        if (bounce == !mBlended.isEmpty())
+            return;
+
+        if (bounce)
+        {
+            makeBounce();
+            return;
+        }
+
+        mColour = ImagePair{};
+        mMoments = ImagePair{};
+        mBlended = Image{};
+        mScratch = Image{};
+        mFill = ImagePair{};
+        mFillBlended = Image{};
+        mFillScratch = Image{};
+        mFast = ImagePair{};
+        mFastBlended = Image{};
+    }
+
+    void DenoiseHistory::makeBounce()
+    {
+        const std::uint32_t width = mWidth;
+        const std::uint32_t height = mHeight;
+        mColour = ImagePair::make(
+            mDevice, width, height, toVulkanFormat(ACCUMULATE_COLOUR), sReadAndWrite, "accumulate-colour");
+        mMoments = ImagePair::make(
+            mDevice, width, height, toVulkanFormat(ACCUMULATE_MOMENTS), sReadAndWrite, "accumulate-moments");
+        mBlended = Image(mDevice, width, height, toVulkanFormat(ATROUS_CHANNEL), sReadAndWrite, "accumulate-blended");
+        mScratch = Image(mDevice, width, height, toVulkanFormat(ATROUS_CHANNEL), sReadAndWrite, "atrous-scratch");
+        mFill = ImagePair::make(
+            mDevice, width, height, toVulkanFormat(ACCUMULATE_COLOUR), sReadAndWrite, "accumulate-fill");
+        mFillBlended
+            = Image(mDevice, width, height, toVulkanFormat(ATROUS_CHANNEL), sReadAndWrite, "accumulate-fill-blended");
+        mFillScratch
+            = Image(mDevice, width, height, toVulkanFormat(ATROUS_CHANNEL), sReadAndWrite, "atrous-fill-scratch");
+        mFast = ImagePair::make(mDevice, width, height, toVulkanFormat(ACCUMULATE_FAST), sStorage, "accumulate-fast");
+        mFastBlended
+            = Image(mDevice, width, height, toVulkanFormat(ACCUMULATE_FAST), sStorage, "accumulate-fast-blended");
+
+        // Made anew, so they hold nothing a frame may read, whichever frames ran before them.
+        mTurns.reset(Temporal::Bounce);
+    }
+
     TemporalTurns::Step DenoiseHistory::turn(const TemporalFlags& runs)
     {
-        assert(!mBlended.isEmpty() && "a turn before resize");
+        assert(!mSurface.mImages[0].isEmpty() && "a turn before resize");
+        assert((!runs[Temporal::Bounce] || !mBlended.isEmpty()) && "the bounce filtered with its images let go");
         return mTurns.next(runs);
     }
 
@@ -109,12 +149,13 @@ namespace Rtx
         };
 
         const AccumulateImages accumulated = accumulate(step);
-        discardFor(Temporal::Accumulate,
-            { &accumulated.mColour, &accumulated.mSurface, &accumulated.mMoments, &accumulated.mBlended,
-                &accumulated.mScratch, &accumulated.mFill, &accumulated.mFillBlended, &accumulated.mFillScratch,
-                &accumulated.mFast, &accumulated.mFastBlended },
-            { &accumulated.mColourBefore, &accumulated.mSurfaceBefore, &accumulated.mMomentsBefore,
-                &accumulated.mFillBefore, &accumulated.mFastBefore });
+        discardFor(Temporal::Accumulate, { &accumulated.mSurface }, { &accumulated.mSurfaceBefore });
+        discardFor(Temporal::Bounce,
+            { &accumulated.mColour, &accumulated.mMoments, &accumulated.mBlended, &accumulated.mScratch,
+                &accumulated.mFill, &accumulated.mFillBlended, &accumulated.mFillScratch, &accumulated.mFast,
+                &accumulated.mFastBlended },
+            { &accumulated.mColourBefore, &accumulated.mMomentsBefore, &accumulated.mFillBefore,
+                &accumulated.mFastBefore });
 
         // The history the temporal pass reads is the first level's answer from the frame before,
         // so it is one of what a fresh history discards and not one of what the frame writes whole.
@@ -150,7 +191,7 @@ namespace Rtx
             .mFastBefore = mFast.before(step),
             .mFast = mFast.now(step),
             .mFastBlended = mFastBlended,
-            .mFresh = step.mFresh[Temporal::Accumulate],
+            .mFresh = step.mFresh[Temporal::Bounce],
         };
     }
 

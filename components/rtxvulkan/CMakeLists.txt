@@ -58,6 +58,7 @@ set(RTX_SHADERS
     shaders/texture/spritelight.comp
     shaders/trace/denoise/accumulate.comp
     shaders/trace/denoise/accumulateclamp.comp
+    shaders/trace/denoise/accumulatesurface.comp
     shaders/trace/denoise/atrous.comp
     shaders/trace/denoise/composite.comp
     shaders/trace/denoise/pane.comp

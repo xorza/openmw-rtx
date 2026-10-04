@@ -306,6 +306,22 @@
         <source> cells</source>
         <translation> клетки</translation>
     </message>
+    <message>
+        <source>Indirect Light</source>
+        <translation>Непряка светлина</translation>
+    </message>
+    <message>
+        <source>Whether surfaces take light that no lamp, sun or moon gives. Traced follows one bounce of light from every surface and cleans its noise. Off traces none, which is much faster: what no light reaches is black.</source>
+        <translation>Дали повърхностите получават светлина, която не дават лампи, слънце и луни. Проследена следва един отскок на светлината от всяка повърхност и премахва шума му. Изключена не проследява нищо, което е много по-бързо: каквото не достига светлина, е черно.</translation>
+    </message>
+    <message>
+        <source>Traced</source>
+        <translation>Проследена</translation>
+    </message>
+    <message>
+        <source>Off (Faster)</source>
+        <translation>Изключена (по-бърза)</translation>
+    </message>
 </context>
 <context>
     <name>ImportPage</name>

@@ -43,7 +43,15 @@ namespace Rtx
 
         /// Makes room for a frame this size, anew: `TraceChain::resize` is what asks whether the size
         /// changed. A resize is a reset.
-        void resize(std::uint32_t width, std::uint32_t height);
+        ///
+        /// @param bounce whether the accumulator's mean of the bounce and the wavelet's images are
+        ///        made: `Reconstruction::filtersBounce`, as the chain last heard it.
+        void resize(std::uint32_t width, std::uint32_t height, bool bounce);
+
+        /// Makes the bounce's images at the extent the history stands at, or lets them go, where
+        /// `bounce` differs from what was made. **Images made anew are a fresh history**, whether or
+        /// not a frame ran between the two calls.
+        void keepBounce(bool bounce);
 
         /// Says every history is worthless, until each filter next runs.
         void reset() { mTurns.reset(); }
@@ -67,6 +75,7 @@ namespace Rtx
 
         /// The accumulator's and the wavelet's images: the three histories the accumulator reads and
         /// writes, the blend it hands the cascade, and the scratch the cascade ping-pongs through.
+        /// Past the surface's two, empty where the bounce's images were let go (`keepBounce`).
         struct AccumulateImages
         {
             const Image& mColourBefore;
@@ -166,9 +175,15 @@ namespace Rtx
     private:
         const Device& mDevice;
 
-        /// Empty until `resize`.
-        ImagePair mColour;
+        /// Makes the bounce's images at `mWidth` by `mHeight`.
+        void makeBounce();
+
+        std::uint32_t mWidth = 0;
+        std::uint32_t mHeight = 0;
+
+        /// Empty until `resize`, and the bounce's own past `mSurface` while `keepBounce` lets them go.
         ImagePair mSurface;
+        ImagePair mColour;
         ImagePair mMoments;
         Image mBlended;
         Image mScratch;

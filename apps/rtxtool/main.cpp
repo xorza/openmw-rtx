@@ -364,6 +364,9 @@ namespace RtxTool
                 .mSpecularMapLayout = watched
                     ? Settings::rtx().mSpecularMapLayout.get()
                     : shippedDefault<std::string>(command.mConfig, "RTX", "specular map layout"),
+                .mIndirectLight = given("indirect") ? spelled("indirect")
+                    : watched                       ? Settings::rtx().mIndirectLight.get()
+                              : shippedDefault<std::string>(command.mConfig, "RTX", "indirect light"),
                 .mAnisotropy = watched ? Settings::general().mAnisotropy.get()
                                        : shippedDefault<int>(command.mConfig, "General", "anisotropy"),
                 .mGamma = given("gamma") ? variables["gamma"].as<float>()
@@ -387,6 +390,7 @@ namespace RtxTool
             profile.mAnisotropy = derived.mAnisotropy;
             profile.mGamma = derived.mGamma;
             profile.mLitEnvironmentMaps = derived.mLitEnvironmentMaps;
+            profile.mReconstruction.mIndirect = derived.mIndirect;
             profile.mDelight = variables["delight"].as<float>();
             profile.mReconstruction.mDenoise = variables["filter"].as<bool>();
             profile.mShow = Rtx::sSurfaceViewNames.require(variables["show"].as<std::string>(), "a surface view");
@@ -1003,7 +1007,8 @@ namespace RtxTool
             // take the frame's softness for its own and report no bias at all.
             reference.mLevelEpsilon = 0.0f;
             // **And every frame of it a draw of its own**: a frame that reused the ones before it is
-            // not one more sample of the truth, and neither is a frame of the bar.
+            // not one more sample of the truth, and neither is a frame of the bar. Its indirect light
+            // stays the run's, since a traced bounce and none are two integrands.
             reference.mBounceReuse = Rtx::BounceReuse::Off;
             Rtx::ReconstructionRequest unfiltered = played;
             unfiltered.mDenoise = false;

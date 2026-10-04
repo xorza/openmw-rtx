@@ -126,7 +126,6 @@ void main()
     const vec2 seen = imageLoad(surfaceChannel, at).xy;
     const vec3 normal = unpackSurfaceNormal(seen.x);
     const float away = surfaceDistance(seen.y);
-    const float scaled = away * frame.mDistanceScale;
 
     // A pixel with no surface under it has nothing to accumulate and nothing to hand on. The sky is
     // resolved into `direct` by the trace and never reaches here as light.
@@ -138,7 +137,7 @@ void main()
         // stray infinity into a NaN rather than into nothing.
         imageStore(blendedOut, at, vec4(sampled, NO_HISTORY_VARIANCE));
         imageStore(fillBlendedOut, at, vec4(sampledFill, 0.0));
-        imageStore(surfaceOut, at, vec4(0.0));
+        imageStore(surfaceOut, at, heldSurfaceOf(seen, frame.mDistanceScale));
         imageStore(momentsOut, at, vec4(0.0));
         imageStore(fastOut, at, uvec4(packRgb9e5(sampled), packRgb9e5(sampledFill), 0u, 0u));
 
@@ -234,7 +233,7 @@ void main()
 
     imageStore(blendedOut, at, vec4(blended, variance));
     imageStore(fillBlendedOut, at, vec4(blendedFill, 0.0));
-    imageStore(surfaceOut, at, vec4(normal, scaled));
+    imageStore(surfaceOut, at, heldSurfaceOf(seen, frame.mDistanceScale));
     imageStore(momentsOut, at, vec4(blendedMoments, 0.0, count));
     imageStore(fastOut, at, uvec4(packRgb9e5(blendedFast), packRgb9e5(blendedFastFill), 0u, 0u));
 }

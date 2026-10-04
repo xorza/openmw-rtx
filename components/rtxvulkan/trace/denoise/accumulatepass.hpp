@@ -34,8 +34,15 @@ namespace Rtx
         void recordClamp(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
             const GBuffer& buffer, const DenoiseFrame& frame) const;
 
+        /// Writes the surface's history alone (`accumulatesurface.comp`), in place of `record` on a
+        /// frame whose bounce nothing filters: what the shadow denoiser and the glossy filter read
+        /// next frame.
+        void recordSurface(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
+            const GBuffer& buffer, const DenoiseFrame& frame) const;
+
     private:
         ComputePipeline<Shaders::HistoryConstants> mPipeline;
         ComputePipeline<Shaders::AccumulateClampConstants> mClamp;
+        ComputePipeline<Shaders::HistoryConstants> mSurface;
     };
 }

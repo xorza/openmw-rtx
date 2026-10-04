@@ -1,0 +1,38 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+// The accumulator's surface history alone, for a frame whose bounce nothing filters
+// (`Rtx::Reconstruction::filtersBounce`): each pixel's normal and distance, which the shadow
+// denoiser and the glossy filter read next frame as the surface their own histories belong to.
+// `accumulate.comp` writes the same texel beside the bounce's mean, by the same function.
+
+#include "accumulate.h"
+#include "gbuffer.h"
+#include "sets.h"
+
+#include "lib/pixels.glsl"
+#include "lib/surfacematch.glsl"
+
+layout(local_size_x = ACCUMULATE_WORKGROUP, local_size_y = ACCUMULATE_WORKGROUP) in;
+
+/// `CHANNEL_SURFACE`, as the accumulator reads it.
+layout(set = SET_PASS, binding = ACCUMULATE_SURFACE_BIND_SURFACE, GBUFFER_SURFACE)
+    uniform readonly image2D surfaceChannel;
+
+layout(set = SET_PASS, binding = ACCUMULATE_SURFACE_BIND_SURFACE_OUT, ACCUMULATE_SURFACE)
+    uniform writeonly image2D surfaceOut;
+
+layout(push_constant, scalar) uniform Push
+{
+    HistoryConstants frame;
+};
+
+void main()
+{
+    const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
+    if (outsideOf(uvec2(at), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
+        return;
+
+    imageStore(surfaceOut, at, heldSurfaceOf(imageLoad(surfaceChannel, at).xy, frame.mDistanceScale));
+}

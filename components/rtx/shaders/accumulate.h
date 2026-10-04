@@ -69,6 +69,12 @@ namespace Rtx::Shaders
     const uint ACCUMULATE_BIND_FAST_OUT = 13;
     const uint ACCUMULATE_BINDINGS = 14;
 
+    /// Where `accumulatesurface.comp`, the accumulator with no bounce to average, binds what it reads
+    /// and writes in set 0, and how many there are.
+    const uint ACCUMULATE_SURFACE_BIND_SURFACE = 0;
+    const uint ACCUMULATE_SURFACE_BIND_SURFACE_OUT = 1;
+    const uint ACCUMULATE_SURFACE_BINDINGS = 2;
+
     /// Threads along each edge of the accumulator's workgroup, and of the clamp's.
     const uint ACCUMULATE_WORKGROUP = 8;
 

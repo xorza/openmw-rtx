@@ -272,6 +272,13 @@ at the top, over all of them.
   once for both (`BouncePairing`), and the resolve merges the two partners by those rays, traces the
   final visibility ray and shades the kept sample into the channels the trace would have written.
   The reuse keeps its own history, so it runs with or without the denoiser after it.
+- **The indirect light** (`[RTX] indirect light`, `Reconstruction::mIndirect`) is `traced`, the
+  bounce above and the passes that clean it, or `off`, none: the trace draws no diffuse bounce and
+  traces only a glossy surface's reflection (`bounceTraced`), no surface a path ends at takes the
+  cell's ambient (`surfaceAmbient`), the reuse does not run, and the denoiser keeps the
+  accumulator's surface history alone. A menu changes it while the game runs
+  (`Renderer::setIndirectLight`), and the chain lets go of the reservoirs and the bounce's histories
+  where it is `off`.
 - **The denoiser** (`trace/denoise/`) runs where the frame is filtered. The accumulator averages
   the bounce's diffuse light over time and the wavelet spreads it across the screen, with the share
   of it that is fill beside it by the same weights: the composite puts the bounce back by the

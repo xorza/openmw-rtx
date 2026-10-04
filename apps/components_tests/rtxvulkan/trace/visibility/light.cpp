@@ -2107,6 +2107,145 @@ namespace Rtx::Testing
             EXPECT_EQ(litHalf.mFrame.mRadiance, lit.mFrame.mRadiance) << "so the ambient colour moves nothing";
         }
 
+        /// **Where no bounce is traced, a surface takes no indirect light at all**: the indirect and
+        /// fill channels are nought exactly, and the picture is the direct light alone.
+        ///
+        /// The floor under a lid of the two tests above, lit by an ambient of a half and nothing
+        /// else: traced, the floor takes the fill the bounce brings off the lid, and with none it is
+        /// black to the bit, in a room and under a sky, on a run of frames drawn from two streams and
+        /// through the denoisers, which have nothing of the bounce to filter.
+        ///
+        /// **A pane takes none either**, though it ends its path in `pathEnd` and no bounce: a white
+        /// pane at half opacity between the eye and the floor is lit by the room's fill where the
+        /// bounce is traced, and is black with the floor behind it where none is.
+        TEST_F(RtxVisibilityTest, noIndirectLightLeavesWhatNoLightReachesBlack)
+        {
+            constexpr std::uint32_t size = 32;
+            constexpr float lid = 70.0f;
+
+            const auto floorUnder
+                = [&](float fromSky, std::uint32_t first, bool filter, IndirectLight indirect, bool pane) {
+                      SceneDesc scene;
+                      addQuad(scene, sheetAt(4000.0f, 0.0f));
+                      addQuad(scene, sheetAt(4000.0f, lid));
+                      if (pane)
+                          addPane(scene, sheetAt(4000.0f, 0.25f * lid), osg::Vec4f(1.0f, 1.0f, 1.0f, 0.5f));
+
+                      Shaders::VisibilityConstants camera = Testing::makeCamera(osg::Vec3f(0.0f, -1.0f, 0.5f * lid),
+                          osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+                      camera.mSkyHorizon = osg::Vec3f(0.3f, 0.3f, 0.3f);
+                      camera.mSkyZenith = osg::Vec3f(0.3f, 0.3f, 0.3f);
+                      camera.mSun.mIrradiance = osg::Vec3f();
+                      camera.mAmbient = osg::Vec3f(0.5f, 0.5f, 0.5f);
+                      camera.mAmbientFromSky = fromSky;
+
+                      const Frame frame = shoot(scene, {}, camera, size,
+                          { .mFrames = 4,
+                              .mAverage = false,
+                              .mFirstFrame = first,
+                              .mFilter = filter,
+                              .mIndirect = indirect });
+                      EXPECT_EQ(frame.mHits, size * size);
+                      return frame;
+                  };
+
+            std::vector<float> indirect;
+            std::vector<float> fill;
+            const Frame traced = floorUnder(0.0f, 0u, false, IndirectLight::Traced, false);
+            mRenderer.readChannel(Channel::Indirect, indirect);
+            float taken = 0.0f;
+            for (std::size_t value = 0; value < indirect.size(); value += 4)
+                taken += indirect[value];
+            ASSERT_GT(taken, 0.0f) << "the traced floor took no fill, so this proves nothing";
+            ASSERT_GT(traced.mean(), 0.0f);
+
+            std::vector<float> paneLight;
+            floorUnder(0.0f, 0u, false, IndirectLight::Traced, true);
+            mRenderer.readChannel(Channel::Pane, paneLight);
+            float drawn = 0.0f;
+            for (std::size_t value = 0; value < paneLight.size(); value += 4)
+                drawn += paneLight[value];
+            ASSERT_GT(drawn, 0.0f) << "the traced pane took no fill, so this proves nothing";
+
+            for (const auto& [fromSky, first, filter, pane] : { std::tuple{ 0.0f, 0u, false, false },
+                     std::tuple{ 1.0f, 100u, false, false }, std::tuple{ 0.0f, 200u, true, false },
+                     std::tuple{ 0.0f, 300u, false, true }, std::tuple{ 0.0f, 400u, true, true } })
+            {
+                const std::string where = std::string(fromSky > 0.0f ? "under a sky" : "in a room")
+                    + (filter ? ", filtered" : "") + (pane ? ", through a pane" : "");
+                const Frame frame = floorUnder(fromSky, first, filter, IndirectLight::Off, pane);
+                mRenderer.readChannel(Channel::Indirect, indirect);
+                mRenderer.readChannel(Channel::Fill, fill);
+                for (std::size_t value = 0; value < indirect.size(); ++value)
+                {
+                    if (value % 4 == 3)
+                        continue;
+                    ASSERT_EQ(indirect[value], 0.0f) << where << ": value " << value;
+                    ASSERT_EQ(fill[value], 0.0f) << where << ": value " << value;
+                    ASSERT_EQ(frame.at(value), 0.0f) << where << ": value " << value;
+                }
+            }
+        }
+
+        /// **A glossy surface still traces its lobe where no bounce is traced**, and a metal, which
+        /// draws its lobe at a chance of one either way, draws the same reflection: the metal wall of
+        /// the tests above under a sky that lights, its `CHANNEL_SPECULAR` with the bounce traced and
+        /// with none, from one stream.
+        ///
+        /// **To the rounding of two divisions, and not to the bit.** Traced, the chance is the lobe's
+        /// albedo over itself plus a diffuse one of nought, and the lobe's weight is divided by it;
+        /// with none the chance is one as written. Vulkan holds a division to 2.5 ULP, so
+        /// the traced chance may be a step short of one and the weight two steps off: five ULP at
+        /// most, `5 × 2^-23` of the value. Measured, 639 of the 4356 values moved, by `2.2e-7` at most.
+        TEST_F(RtxVisibilityTest, aMetalReflectsTheSameWorldWhetherOrNotTheBounceIsTraced)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr float sDivided = 5.0f * std::numeric_limits<float>::epsilon();
+
+            constexpr std::array<std::uint8_t, 4> sBaseTexel{ 128, 128, 128, 255 };
+            constexpr std::array<std::uint8_t, 4> sMetalTexel{ 255, 128, 255, 255 };
+            const std::array<TextureData, 2> textures{ describeTexel(sBaseTexel, 0), describeTexel(sMetalTexel, 1) };
+
+            const osg::Vec3f normal(0.0f, -1.0f, 0.0f);
+            const osg::Vec4f tangent(1.0f, 0.0f, 0.0f, 1.0f);
+            const std::array normals{ normal, normal, normal, normal };
+            const std::array tangents{ tangent, tangent, tangent, tangent };
+
+            SceneDesc scene;
+            const Index mesh = scene.addMesh(MeshArrays{ .mPositions = sWallQuad,
+                .mNormals = normals,
+                .mTexCoords = sQuadUv,
+                .mTangents = tangents,
+                .mIndices = sQuadIndices });
+            const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("base.dds"));
+            const Index map = scene.textures().add(
+                VFS::Path::NormalizedView("base_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+            scene.addInstance(MeshInstance{
+                .mMesh = mesh, .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(100.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            camera.mSkyHorizon = osg::Vec3f(0.4f, 0.5f, 0.6f);
+            camera.mSkyZenith = osg::Vec3f(0.2f, 0.3f, 0.6f);
+            camera.mSun.mIrradiance = osg::Vec3f();
+            camera.mAmbientFromSky = 1.0f;
+
+            std::vector<float> traced;
+            std::vector<float> none;
+            shoot(scene, textures, camera, size, { .mFirstFrame = 5 });
+            mRenderer.readChannel(Channel::Specular, traced);
+            shoot(scene, textures, camera, size, { .mFirstFrame = 5, .mIndirect = IndirectLight::Off });
+            mRenderer.readChannel(Channel::Specular, none);
+
+            float brightest = 0.0f;
+            for (std::size_t value = 0; value < traced.size(); value += 4)
+                brightest = std::max(brightest, traced[value]);
+            ASSERT_GT(brightest, 0.0f) << "the metal reflected nothing to compare";
+            for (std::size_t value = 0; value < traced.size(); ++value)
+                ASSERT_LE(std::abs(none[value] - traced[value]), sDivided * std::abs(traced[value]))
+                    << "value " << value << ": no indirect light moved the metal's reflection";
+        }
+
         /// Which side of a surface a light is on is its normal's answer, and a sheet's triangle's.
         ///
         /// **A surface follows its normals**, because they describe the surface the content faceted:

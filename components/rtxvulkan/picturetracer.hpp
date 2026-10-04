@@ -27,8 +27,10 @@ namespace Rtx
     public:
         /// @param passes what the chain traces with, which outlives it.
         /// @param radiance the run's, as the frame's chain has it.
+        /// @param indirect the run's indirect light at first, as the frame's chain has it; a picture
+        ///        traced after a menu changed it follows the profile it is handed.
         PictureTracer(const Device& device, const TracePasses& passes, const TraceMedia& media, DisplayChain& display,
-            GuiTextures& textures, RadianceWidth radiance);
+            GuiTextures& textures, RadianceWidth radiance, IndirectLight indirect);
 
         /// Whether a picture this big fits what is built, which `grow` would leave alone.
         bool holds(VkExtent2D extent) const { return mChain.holds(extent.width, extent.height); }
