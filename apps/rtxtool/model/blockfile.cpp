@@ -308,6 +308,8 @@ namespace RtxTool
             stop.mSky.mWeather = weather(field);
         else if (field.mName == "air")
             stop.mSky.mAir = air(field);
+        else if (field.mName == "lamps")
+            stop.mStand.mLamps = boolean(field);
         else
             return false;
 

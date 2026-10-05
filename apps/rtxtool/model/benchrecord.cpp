@@ -337,9 +337,8 @@ namespace RtxTool
             header.mExtents.mRenderHeight, Rtx::sUpscaleNames.name(resolved.mUpscale),
             resolved.mDenoised ? "on" : "off", resolved.mJitter ? "on" : "off",
             Rtx::sNoiseSourceNames.name(resolved.mNoise), resolved.mLevelBias,
-            Rtx::sIndirectLightNames.name(resolved.mIndirect),
-            Rtx::sBounceReuseRuleNames.name(profile.mReconstruction.mBounceReuse), resolved.mAntilag ? "on" : "off",
-            resolved.mHistoryFix ? "on" : "off", resolved.mDualMotion ? "on" : "off",
+            Rtx::sIndirectLightNames.name(resolved.mIndirect), Rtx::sBounceReuseNames.name(resolved.mBounceReuse),
+            resolved.mAntilag ? "on" : "off", resolved.mHistoryFix ? "on" : "off", resolved.mDualMotion ? "on" : "off",
             resolved.mAntiFirefly ? "on" : "off");
         out += std::format("     delight {:.2f}, gamma {:.2f}, show {}, exposure {}, variants {}, hold {}\n",
             profile.mDelight, profile.mGamma, Rtx::sSurfaceViewNames.name(profile.mShow),
@@ -404,8 +403,6 @@ namespace RtxTool
 
         if (place.mHitPercent > 0.0)
             out += std::format("  {:.1f}% of primary rays hit\n", place.mHitPercent);
-
-        out += std::format("  bounce reuse {}\n", Rtx::sBounceReuseNames.name(place.mBounceReuse));
 
         if (place.mOverlap.mFrames > 0)
             out += std::format("  {:.2f} frames in flight at a submit, {} at the least\n", place.mOverlap.getMean(),
@@ -498,9 +495,9 @@ namespace RtxTool
                     R"("historyFix": {}, "dualMotion": {}, "antiFirefly": {},)",
                     Rtx::sNoiseSourceNames.name(header.mReconstruction.mNoise), header.mReconstruction.mLevelBias,
                     Rtx::sIndirectLightNames.name(header.mReconstruction.mIndirect),
-                    Rtx::sBounceReuseRuleNames.name(header.mSetup.mRun.mProfile.mReconstruction.mBounceReuse),
-                    header.mReconstruction.mAntilag, header.mReconstruction.mHistoryFix,
-                    header.mReconstruction.mDualMotion, header.mReconstruction.mAntiFirefly)
+                    Rtx::sBounceReuseNames.name(header.mReconstruction.mBounceReuse), header.mReconstruction.mAntilag,
+                    header.mReconstruction.mHistoryFix, header.mReconstruction.mDualMotion,
+                    header.mReconstruction.mAntiFirefly)
              << '\n'
              << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", header.mMeasured, header.mWarmup,
                     header.mValidating)
@@ -519,9 +516,8 @@ namespace RtxTool
             file << std::format(R"(    {{"view": {}, "cell": {}, "hour": {}, "weather": {}, )", asJson(place.mView),
                 asJson(place.mCell), place.mHour, asJson(place.mWeather))
                  << R"("scene": )" << asJson(place.mScene)
-                 << std::format(R"(, "frames": {}, "wallSeconds": {:.4f}, "hitPercent": {:.2f}, "bounceReuse": "{}", )",
-                        place.mFrames, place.mWallSeconds, place.mHitPercent,
-                        Rtx::sBounceReuseNames.name(place.mBounceReuse))
+                 << std::format(R"(, "frames": {}, "wallSeconds": {:.4f}, "hitPercent": {:.2f}, )", place.mFrames,
+                        place.mWallSeconds, place.mHitPercent)
                  << R"("crossings": )" << asJson(place.mCrossings) << R"(, "arrivals": )" << asJson(place.mArrivals)
                  << std::format(R"(, "overlap": {{"mean": {:.4f}, "least": {}}}, "travelled": {:.4f}, )",
                         place.mOverlap.getMean(), place.mOverlap.mLeast, place.mTravelled);

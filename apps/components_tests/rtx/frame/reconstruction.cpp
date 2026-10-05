@@ -21,10 +21,6 @@ namespace Rtx
         /// A performance mode, which traces at half the width: exactly minus one level.
         constexpr FrameExtents sHalved{ .mRenderWidth = 1920, .mOutputWidth = 3840 };
 
-        /// Whether the frame's sky lights, which the reuse's rule alone reads: under one, for every
-        /// test but the reuse's, which names both.
-        constexpr bool sSkyLights = true;
-
         /// What an upscaler and a request decide between them: who denoises, and whether the
         /// sample point moves.
         ///
@@ -34,13 +30,13 @@ namespace Rtx
         {
             // Nothing upscaling: the two switches mean exactly what they say.
             const Reconstruction wavelet = Reconstruction::resolve(
-                Upscale::Off, ReconstructionRequest{ .mDenoise = true, .mJitter = false }, sUnscaled, sSkyLights);
+                Upscale::Off, ReconstructionRequest{ .mDenoise = true, .mJitter = false }, sUnscaled);
             EXPECT_TRUE(wavelet.mDenoised);
             EXPECT_FALSE(wavelet.mJitter);
             EXPECT_EQ(wavelet.mUpscale, Upscale::Off);
 
             const Reconstruction raw = Reconstruction::resolve(
-                Upscale::Off, ReconstructionRequest{ .mDenoise = false, .mJitter = true }, sUnscaled, sSkyLights);
+                Upscale::Off, ReconstructionRequest{ .mDenoise = false, .mJitter = true }, sUnscaled);
             EXPECT_FALSE(raw.mDenoised) << "which is what a converged reference is built from";
             EXPECT_TRUE(raw.mJitter) << "and jitter is what makes that reference antialiased";
 
@@ -49,14 +45,14 @@ namespace Rtx
             // because reconstruction across frames of one sample point is reconstruction from one
             // sample.
             const Reconstruction upscaled = Reconstruction::resolve(
-                Upscale::Quality, ReconstructionRequest{ .mDenoise = true, .mJitter = false }, sHalved, sSkyLights);
+                Upscale::Quality, ReconstructionRequest{ .mDenoise = true, .mJitter = false }, sHalved);
             EXPECT_TRUE(upscaled.mDenoised);
             EXPECT_TRUE(upscaled.mJitter);
             EXPECT_NE(upscaled.mJitter, wavelet.mJitter) << "the same request, a different jitter";
             EXPECT_EQ(upscaled.mUpscale, Upscale::Quality);
 
             const Reconstruction unfiltered = Reconstruction::resolve(
-                Upscale::Quality, ReconstructionRequest{ .mDenoise = false, .mJitter = false }, sHalved, sSkyLights);
+                Upscale::Quality, ReconstructionRequest{ .mDenoise = false, .mJitter = false }, sHalved);
             EXPECT_FALSE(unfiltered.mDenoised) << "an upscaler denoises nothing of its own";
             EXPECT_TRUE(unfiltered.mJitter);
         }
@@ -68,35 +64,32 @@ namespace Rtx
             // With no upscaler the ratio's term is nought — the traced pixel is the shown one — and
             // the epsilon is the whole of the bias, which is how a test reads a level off this path.
             const Reconstruction wavelet = Reconstruction::resolve(
-                Upscale::Off, ReconstructionRequest{ .mDenoise = true, .mLevelEpsilon = -0.5f }, sUnscaled, sSkyLights);
+                Upscale::Off, ReconstructionRequest{ .mDenoise = true, .mLevelEpsilon = -0.5f }, sUnscaled);
             EXPECT_EQ(wavelet.mNoise, NoiseSource::BlueNoiseTile);
             EXPECT_FLOAT_EQ(wavelet.mLevelBias, -0.5f);
-            EXPECT_EQ(
-                Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled, sSkyLights).mLevelBias, 0.0f)
+            EXPECT_EQ(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mLevelBias, 0.0f)
                 << "and nought where nothing was asked";
 
             // The bias is log2(render / display), the shown pixel's own level: 1920 over 3840 is
             // exactly minus one; balanced traces 2258 of 3840 and reads log2(0.5880) = -0.7661, which
             // is the number a texture moves by.
             const Reconstruction performance
-                = Reconstruction::resolve(Upscale::Performance, ReconstructionRequest{}, sHalved, sSkyLights);
+                = Reconstruction::resolve(Upscale::Performance, ReconstructionRequest{}, sHalved);
             EXPECT_EQ(performance.mNoise, NoiseSource::BlueNoiseTile) << "the upscaler does not choose the noise";
             EXPECT_FLOAT_EQ(performance.mLevelBias, -1.0f);
 
-            const Reconstruction balanced = Reconstruction::resolve(Upscale::Balanced, ReconstructionRequest{},
-                FrameExtents{ .mRenderWidth = 2258, .mOutputWidth = 3840 }, sSkyLights);
+            const Reconstruction balanced = Reconstruction::resolve(
+                Upscale::Balanced, ReconstructionRequest{}, FrameExtents{ .mRenderWidth = 2258, .mOutputWidth = 3840 });
             EXPECT_NEAR(balanced.mLevelBias, -0.7661f, 0.0005f);
 
             // Native traces every pixel, so its level is the traced one: nought exactly.
-            const Reconstruction native
-                = Reconstruction::resolve(Upscale::Native, ReconstructionRequest{}, sUnscaled, sSkyLights);
+            const Reconstruction native = Reconstruction::resolve(Upscale::Native, ReconstructionRequest{}, sUnscaled);
             EXPECT_EQ(native.mLevelBias, 0.0f);
 
             // The epsilon is added past the ratio, and a request may name the source outright:
             // that is the A/B.
             const Reconstruction tuned = Reconstruction::resolve(Upscale::Performance,
-                ReconstructionRequest{ .mNoise = NoiseSource::WhiteHash, .mLevelEpsilon = -0.25f }, sHalved,
-                sSkyLights);
+                ReconstructionRequest{ .mNoise = NoiseSource::WhiteHash, .mLevelEpsilon = -0.25f }, sHalved);
             EXPECT_EQ(tuned.mNoise, NoiseSource::WhiteHash) << "asked for by name";
             EXPECT_FLOAT_EQ(tuned.mLevelBias, -1.25f);
         }
@@ -133,16 +126,14 @@ namespace Rtx
                 EXPECT_EQ(jitterPhasesFor(extents.mRenderWidth, extents.mOutputWidth), row.mPhases)
                     << sUpscaleNames.name(row.mMode);
 
-                const Reconstruction resolved
-                    = Reconstruction::resolve(row.mMode, ReconstructionRequest{}, extents, sSkyLights);
+                const Reconstruction resolved = Reconstruction::resolve(row.mMode, ReconstructionRequest{}, extents);
                 EXPECT_EQ(resolved.mJitterPhases, row.mPhases) << sUpscaleNames.name(row.mMode);
             }
 
             const FrameExtents unscaled = extentsFor(1920, 1080, Upscale::Off);
             EXPECT_EQ(unscaled.mRenderWidth, 1920u);
             EXPECT_EQ(unscaled.mRenderHeight, 1080u);
-            EXPECT_EQ(
-                Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, unscaled, sSkyLights).mJitterPhases, 0u)
+            EXPECT_EQ(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, unscaled).mJitterPhases, 0u)
                 << "nothing upscaling cycles nothing";
         }
 
@@ -166,13 +157,12 @@ namespace Rtx
             EXPECT_EQ(picture.mLevelBias, 0.0f);
             EXPECT_EQ(picture.mBounceReuse, BounceReuse::Off) << "a picture has no past to reuse";
             EXPECT_FALSE(picture.mAveraged) << "nor a frame after it to average it with";
-            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled, sSkyLights).mAveraged)
+            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mAveraged)
                 << "a world's frames are averaged, the upscaler on or off";
-            EXPECT_TRUE(
-                Reconstruction::resolve(Upscale::Quality, ReconstructionRequest{}, sHalved, sSkyLights).mAveraged);
+            EXPECT_TRUE(Reconstruction::resolve(Upscale::Quality, ReconstructionRequest{}, sHalved).mAveraged);
 
             const Reconstruction asked = Reconstruction::resolve(
-                Upscale::Off, ReconstructionRequest{ .mDenoise = true, .mJitter = false }, sUnscaled, sSkyLights);
+                Upscale::Off, ReconstructionRequest{ .mDenoise = true, .mJitter = false }, sUnscaled);
             EXPECT_EQ(picture.mDenoised, asked.mDenoised);
             EXPECT_EQ(picture.mJitter, asked.mJitter);
             EXPECT_EQ(picture.mLevelBias, asked.mLevelBias);
@@ -180,10 +170,9 @@ namespace Rtx
         }
 
         /// **The bounce is reused as it was asked, whatever the filter and the upscaler**, because the
-        /// reservoirs are a history of their own: a mode as named, and `rooms`, which a request that
-        /// says nothing asks, temporal where the sky lights nothing and off where it lights. **The
-        /// trace composes the frame only where nothing comes after it**: no filter, and no resolve of
-        /// a reused bounce either.
+        /// reservoirs are a history of their own; a request that says nothing reuses none, and
+        /// neither holds a young history under its ring. **The trace composes the frame only where
+        /// nothing comes after it**: no filter, and no resolve of a reused bounce either.
         ///
         /// **With no indirect light there is nothing to reuse or filter**, since it holds no draw:
         /// the reuse resolves to `off` whatever was asked, and the bounce's filters run on no frame,
@@ -191,87 +180,53 @@ namespace Rtx
         /// traces the bounce.
         TEST(RtxReconstructionTest, theBounceIsReusedAsAskedAndATraceComposesOnlyWhereNothingFollows)
         {
-            EXPECT_EQ(ReconstructionRequest{}.mBounceReuse, BounceReuseRule::Rooms);
+            EXPECT_EQ(ReconstructionRequest{}.mBounceReuse, BounceReuse::Off);
             EXPECT_EQ(ReconstructionRequest{}.mIndirect, IndirectLight::Traced);
 
-            struct Row
-            {
-                BounceReuseRule mRule;
-                BounceReuse mInRoom;
-                BounceReuse mUnderSky;
-            };
-            constexpr std::array<Row, 5> rows{ {
-                { BounceReuseRule::Rooms, BounceReuse::Temporal, BounceReuse::Off },
-                { BounceReuseRule::Off, BounceReuse::Off, BounceReuse::Off },
-                { BounceReuseRule::Own, BounceReuse::Own, BounceReuse::Own },
-                { BounceReuseRule::Temporal, BounceReuse::Temporal, BounceReuse::Temporal },
-                { BounceReuseRule::Spatiotemporal, BounceReuse::Spatiotemporal, BounceReuse::Spatiotemporal },
-            } };
             for (const IndirectLight indirect : { IndirectLight::Traced, IndirectLight::Off })
-                for (const Row& row : rows)
-                    for (const bool skyLights : { false, true })
-                        for (const bool denoise : { false, true })
-                            for (const Upscale upscale : { Upscale::Off, Upscale::Quality })
-                            {
-                                const Reconstruction resolved = Reconstruction::resolve(upscale,
-                                    ReconstructionRequest{
-                                        .mDenoise = denoise, .mBounceReuse = row.mRule, .mIndirect = indirect },
-                                    upscale == Upscale::Off ? sUnscaled : sHalved, skyLights);
-                                const bool traced = indirect == IndirectLight::Traced;
-                                const BounceReuse reuse = skyLights ? row.mUnderSky : row.mInRoom;
-                                const std::string asked = std::string(sIndirectLightNames.name(indirect)) + ", "
-                                    + std::string(sBounceReuseRuleNames.name(row.mRule))
-                                    + (skyLights ? " under a sky" : " in a room")
-                                    + (denoise ? ", filtered" : ", unfiltered");
-                                EXPECT_EQ(resolved.mIndirect, indirect) << asked;
-                                EXPECT_EQ(resolved.mBounceReuse, traced ? reuse : BounceReuse::Off) << asked;
-                                EXPECT_EQ(resolved.mDenoised, denoise) << asked;
-                                EXPECT_EQ(
-                                    resolved.composedByTrace(), !denoise && (!traced || reuse == BounceReuse::Off))
-                                    << asked;
-                                EXPECT_EQ(resolved.filtersBounce(), denoise && traced) << asked;
-                            }
-
-            // A mode is spelled the same as a rule and as what a frame ran.
-            for (const Row& row : rows)
-            {
-                if (row.mRule != BounceReuseRule::Rooms)
-                {
-                    EXPECT_EQ(sBounceReuseRuleNames.name(row.mRule), sBounceReuseNames.name(row.mInRoom));
-                }
-            }
+                for (const BounceReuse reuse :
+                    { BounceReuse::Off, BounceReuse::Own, BounceReuse::Temporal, BounceReuse::Spatiotemporal })
+                    for (const bool denoise : { false, true })
+                        for (const Upscale upscale : { Upscale::Off, Upscale::Quality })
+                        {
+                            const Reconstruction resolved = Reconstruction::resolve(upscale,
+                                ReconstructionRequest{
+                                    .mDenoise = denoise, .mBounceReuse = reuse, .mIndirect = indirect },
+                                upscale == Upscale::Off ? sUnscaled : sHalved);
+                            const bool traced = indirect == IndirectLight::Traced;
+                            const std::string asked = std::string(sIndirectLightNames.name(indirect)) + ", "
+                                + std::string(sBounceReuseNames.name(reuse))
+                                + (denoise ? ", filtered" : ", unfiltered");
+                            EXPECT_EQ(resolved.mIndirect, indirect) << asked;
+                            EXPECT_EQ(resolved.mBounceReuse, traced ? reuse : BounceReuse::Off) << asked;
+                            EXPECT_EQ(resolved.mDenoised, denoise) << asked;
+                            EXPECT_EQ(resolved.composedByTrace(), !denoise && (!traced || reuse == BounceReuse::Off))
+                                << asked;
+                            EXPECT_EQ(resolved.filtersBounce(), denoise && traced) << asked;
+                        }
 
             EXPECT_TRUE(ReconstructionRequest{}.mAntilag);
-            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled, sSkyLights).mAntilag);
+            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mAntilag);
             EXPECT_FALSE(
-                Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mAntilag = false }, sUnscaled, sSkyLights)
-                    .mAntilag);
+                Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mAntilag = false }, sUnscaled).mAntilag);
             EXPECT_TRUE(ReconstructionRequest{}.mHistoryFix);
-            EXPECT_TRUE(
-                Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled, sSkyLights).mHistoryFix);
-            EXPECT_FALSE(Reconstruction::resolve(
-                Upscale::Off, ReconstructionRequest{ .mHistoryFix = false }, sUnscaled, sSkyLights)
+            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mHistoryFix);
+            EXPECT_FALSE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mHistoryFix = false }, sUnscaled)
                              .mHistoryFix);
             EXPECT_FALSE(Reconstruction::forPicture(IndirectLight::Traced).mHistoryFix);
             EXPECT_TRUE(ReconstructionRequest{}.mDualMotion);
-            EXPECT_TRUE(
-                Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled, sSkyLights).mDualMotion);
-            EXPECT_FALSE(Reconstruction::resolve(
-                Upscale::Off, ReconstructionRequest{ .mDualMotion = false }, sUnscaled, sSkyLights)
+            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mDualMotion);
+            EXPECT_FALSE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mDualMotion = false }, sUnscaled)
                              .mDualMotion);
             EXPECT_FALSE(Reconstruction::forPicture(IndirectLight::Traced).mDualMotion);
-            EXPECT_TRUE(ReconstructionRequest{}.mAntiFirefly);
-            EXPECT_TRUE(
-                Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled, sSkyLights).mAntiFirefly);
-            EXPECT_FALSE(Reconstruction::resolve(
-                Upscale::Off, ReconstructionRequest{ .mAntiFirefly = false }, sUnscaled, sSkyLights)
-                             .mAntiFirefly);
+            EXPECT_FALSE(ReconstructionRequest{}.mAntiFirefly);
+            EXPECT_FALSE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mAntiFirefly);
+            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mAntiFirefly = true }, sUnscaled)
+                            .mAntiFirefly);
             EXPECT_FALSE(Reconstruction::forPicture(IndirectLight::Traced).mAntiFirefly);
 
             EXPECT_EQ(sBounceReuseNames.name(BounceReuse::Spatiotemporal), "spatiotemporal");
             EXPECT_EQ(sBounceReuseNames.named("own"), BounceReuse::Own);
-            EXPECT_EQ(sBounceReuseRuleNames.name(BounceReuseRule::Rooms), "rooms");
-            EXPECT_EQ(sBounceReuseRuleNames.named("temporal"), BounceReuseRule::Temporal);
             EXPECT_EQ(sIndirectLightNames.name(IndirectLight::Traced), "traced");
             EXPECT_EQ(sIndirectLightNames.named("off"), IndirectLight::Off);
         }

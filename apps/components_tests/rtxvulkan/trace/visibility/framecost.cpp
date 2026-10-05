@@ -168,24 +168,24 @@ namespace Rtx::Testing
 
             measure("a plain frame",
                 FrameOptions{ .mReconstruction
-                    = ReconstructionRequest{ .mDenoise = false, .mBounceReuse = BounceReuseRule::Spatiotemporal } },
+                    = ReconstructionRequest{ .mDenoise = false, .mBounceReuse = BounceReuse::Spatiotemporal } },
                 still);
             measure("a filtered frame",
                 FrameOptions{ .mReconstruction
-                    = ReconstructionRequest{ .mDenoise = true, .mBounceReuse = BounceReuseRule::Spatiotemporal } },
+                    = ReconstructionRequest{ .mDenoise = true, .mBounceReuse = BounceReuse::Spatiotemporal } },
                 still);
             measure("an accumulating frame",
                 FrameOptions{ .mAccumulate = 1,
                     .mReconstruction
-                    = ReconstructionRequest{ .mDenoise = true, .mBounceReuse = BounceReuseRule::Spatiotemporal } },
+                    = ReconstructionRequest{ .mDenoise = true, .mBounceReuse = BounceReuse::Spatiotemporal } },
                 still);
             measure("a body walking",
                 FrameOptions{ .mReconstruction
-                    = ReconstructionRequest{ .mDenoise = true, .mBounceReuse = BounceReuseRule::Spatiotemporal } },
+                    = ReconstructionRequest{ .mDenoise = true, .mBounceReuse = BounceReuse::Spatiotemporal } },
                 walk);
             measure("a storm thickening and thinning",
                 FrameOptions{ .mReconstruction
-                    = ReconstructionRequest{ .mDenoise = true, .mBounceReuse = BounceReuseRule::Spatiotemporal } },
+                    = ReconstructionRequest{ .mDenoise = true, .mBounceReuse = BounceReuse::Spatiotemporal } },
                 thicken);
 
             // **And one that keeps thickening, a new high every frame.** Past sixty-four every table

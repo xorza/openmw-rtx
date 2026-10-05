@@ -66,33 +66,6 @@ namespace Rtx
         std::pair{ BounceReuse::Spatiotemporal, std::string_view("spatiotemporal") },
     } };
 
-    /// What a run asks of the reuse: a mode for every frame, or the rule that picks one by the
-    /// frame's sky. `Reconstruction::resolve` turns it into the frame's `BounceReuse`, so no frame
-    /// runs a rule.
-    enum class BounceReuseRule
-    {
-        /// Temporal where the frame's sky lights nothing, an interior, and off where it lights
-        /// anything. **What the reuse is worth**, measured at FSR quality on the bounce suite: in
-        /// the rooms the whole reuse takes 10 to 20% off the noise for 1.31 ms at the guild, and the
-        /// temporal merge alone two thirds of that for 0.77 ms, more per millisecond; under the sky
-        /// either takes nothing off and adds 0.05 to 0.10 of bias, by night as by day.
-        Rooms,
-        Off,
-        Own,
-        Temporal,
-        Spatiotemporal,
-    };
-
-    /// How a `BounceReuseRule` is spelled on a command line and in a report: the modes as
-    /// `sBounceReuseNames` spells them, and `rooms`.
-    inline constexpr NamedEnum sBounceReuseRuleNames{ std::array{
-        std::pair{ BounceReuseRule::Rooms, std::string_view("rooms") },
-        std::pair{ BounceReuseRule::Off, std::string_view("off") },
-        std::pair{ BounceReuseRule::Own, std::string_view("own") },
-        std::pair{ BounceReuseRule::Temporal, std::string_view("temporal") },
-        std::pair{ BounceReuseRule::Spatiotemporal, std::string_view("spatiotemporal") },
-    } };
-
     /// Where the light that reaches a surface from everything but a light comes from.
     enum class IndirectLight
     {
@@ -137,10 +110,18 @@ namespace Rtx
         /// A/B read a level off the unupscaled path.
         float mLevelEpsilon = 0.0f;
 
-        /// What the trace makes of its bounce before anything filters it. The reuse by the sky
-        /// unless a run names a mode, which is the A/B; a reference is traced with none, since a
-        /// thousand frames that each reused the ones before them are not a thousand draws.
-        BounceReuseRule mBounceReuse = BounceReuseRule::Rooms;
+        /// What the trace makes of its bounce before anything filters it. None unless a run names a
+        /// mode, which is the A/B.
+        ///
+        /// **None, because the reuse's gain was a correction for the filter's.** Where a room is lit
+        /// by a bounce that finds a bright surface rarely (`akulakhan-chamber`), the reuse kept the
+        /// picture near the truth only because the anti-firefly ring, the anti-lag clamp and the
+        /// upscaler each lost such a sample's light; with all three off, the reuse and none drew one
+        /// picture. With the ring off, none stands level with the temporal reuse there over the
+        /// still, strafed and walked frames, takes 0.03 to 0.09 of bias off the lit rooms, and moves
+        /// nothing outdoors, where the reuse added bias by day and nothing by night. It saves 0.24 to
+        /// 0.85 ms a room, and one pipeline serves every place. `.notes/reuse.md` has the figures.
+        BounceReuse mBounceReuse = BounceReuse::Off;
 
         /// Where the indirect light comes from: `[RTX] indirect light` in a played session.
         IndirectLight mIndirect = IndirectLight::Traced;
@@ -163,8 +144,10 @@ namespace Rtx
 
         /// Whether the accumulator holds a short history of the bounce under the fast means around it
         /// (`ACCUMULATE_RING_FRAMES`), so a bounce that found a small bright thing is not a blotch the
-        /// size of a leaf. On unless a run names it off, which is the A/B.
-        bool mAntiFirefly = true;
+        /// size of a leaf. Off unless a run names it on, which is the A/B: since a lamp's own model
+        /// lights nothing by the bounce, it holds no firefly the count can see, and it took a rare
+        /// bright bounce's light with it (the glow-lit chamber 1.90 against 2.60 without the reuse).
+        bool mAntiFirefly = false;
 
         bool operator==(const ReconstructionRequest& other) const = default;
     };
@@ -261,10 +244,8 @@ namespace Rtx
         ///
         /// @param extents what the frame is traced at and shown at, read only under an upscaler
         ///        and only for its widths, since the pixels are square.
-        /// @param skyLights whether the frame's sky lights anything (`mAmbientFromSky` over
-        ///        nought), which `BounceReuseRule::Rooms` reads.
-        static Reconstruction resolve(const Upscale upscale, const ReconstructionRequest& asked,
-            const FrameExtents& extents, const bool skyLights)
+        static Reconstruction resolve(
+            const Upscale upscale, const ReconstructionRequest& asked, const FrameExtents& extents)
         {
             const bool upscaled = upscales(upscale);
             return Reconstruction{
@@ -274,8 +255,7 @@ namespace Rtx
                 .mJitterPhases = upscaled ? jitterPhasesFor(extents.mRenderWidth, extents.mOutputWidth) : 0u,
                 .mNoise = asked.mNoise,
                 .mLevelBias = upscaled ? levelBiasOf(extents, asked.mLevelEpsilon) : asked.mLevelEpsilon,
-                .mBounceReuse
-                = asked.mIndirect == IndirectLight::Traced ? reuseOf(asked.mBounceReuse, skyLights) : BounceReuse::Off,
+                .mBounceReuse = asked.mIndirect == IndirectLight::Traced ? asked.mBounceReuse : BounceReuse::Off,
                 .mIndirect = asked.mIndirect,
                 .mAntilag = asked.mAntilag,
                 .mHistoryFix = asked.mHistoryFix,
@@ -295,26 +275,6 @@ namespace Rtx
         }
 
     private:
-        /// The mode `rule` runs under a sky that does or does not light.
-        static BounceReuse reuseOf(const BounceReuseRule rule, const bool skyLights)
-        {
-            switch (rule)
-            {
-                case BounceReuseRule::Rooms:
-                    return skyLights ? BounceReuse::Off : BounceReuse::Temporal;
-                case BounceReuseRule::Own:
-                    return BounceReuse::Own;
-                case BounceReuseRule::Temporal:
-                    return BounceReuse::Temporal;
-                case BounceReuseRule::Spatiotemporal:
-                    return BounceReuse::Spatiotemporal;
-                case BounceReuseRule::Off:
-                    break;
-            }
-
-            return BounceReuse::Off;
-        }
-
         /// The ratio's levels, and the epsilon the request adds.
         static float levelBiasOf(const FrameExtents& extents, const float epsilon)
         {
