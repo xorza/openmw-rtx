@@ -377,6 +377,10 @@ namespace Rtx::Testing
         /// epsilon, which with no upscaler in the fixture is the whole of the bias.
         float mLevelEpsilon = 0.0f;
 
+        /// The share of a pixel's light under which a source draws no shadow bit —
+        /// `ReconstructionRequest`'s, the default unless a test names another.
+        float mShadowFloor = Shaders::SHADOW_DRAW_FLOOR;
+
         /// Where the trace draws from: the tile every figure over this fixture was derived against,
         /// unless a test names the other.
         NoiseSource mNoise = NoiseSource::BlueNoiseTile;
@@ -499,6 +503,7 @@ namespace Rtx::Testing
                             .mJitter = shot.mJitter,
                             .mNoise = shot.mNoise,
                             .mLevelEpsilon = shot.mLevelEpsilon,
+                            .mShadowFloor = shot.mShadowFloor,
                             .mBounceReuse = shot.mBounceReuse,
                             .mIndirect = shot.mIndirect },
                         .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })

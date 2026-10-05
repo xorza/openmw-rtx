@@ -203,6 +203,18 @@ namespace Rtx::Shaders
     /// shadow denoiser's levels have (`SHADOW_FILTER_LEVELS`, whose widest is four pixels).
     const float SHADOW_PENUMBRA_DRAWN = 8.0f;
 
+    /// The share of a pixel's light under which a source is never the one its shadow bit is drawn
+    /// from: its light rides the drawn source's bit, and that bit counts as drawn only where its own
+    /// source carries less than all but this share. What a run asks for,
+    /// `VisibilityConstants::mShadowFloor`, unless it names another.
+    ///
+    /// **Nought, so every source draws its own bit.** At the dawn deck, under the moons, a floor of
+    /// 1/64 left the noise where it was on every leg and raised the bias by 0.07 to 0.12 of a level,
+    /// and 1/256 by 0.03: the moonlight a floor rides on the sun's bit is lost wherever the sun is
+    /// shadowed and the moon is not. A daylight moon then makes a sunlit bit a draw, which no figure
+    /// showed a cost for.
+    const float SHADOW_DRAW_FLOOR = 0.0f;
+
     /// How many the set declares, which is the last of them and one more.
     const uint CHANNEL_COUNT = 18;
 

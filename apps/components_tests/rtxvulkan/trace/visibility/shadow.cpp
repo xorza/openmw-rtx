@@ -13,6 +13,7 @@
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
+#include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/channel.hpp>
@@ -21,6 +22,7 @@
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/look.h>
+#include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/visibility.h>
 
 #include "fixture.hpp"
@@ -171,6 +173,71 @@ namespace Rtx::Testing
                 EXPECT_EQ(sunlit[value + 3], 0.0f) << "pixel " << value / 4 << " lit through the wall";
             }
             ASSERT_GT(floor, std::size_t{ 8 * size }) << "no floor before the wall, or this proves nothing";
+        }
+
+        /// **The sky's shadowed light is every source's, and a source under a floor draws no bit.**
+        /// An open floor under the sun overhead, with Masser up at 60 degrees from the zenith: by day
+        /// a thousandth of the sun, at dusk a fifth of the light and blue where the sun is red.
+        ///
+        /// `CHANNEL_SHADOWED.rgb` is the sum of what each source delivers, `E cos / pi` times the
+        /// grey's albedo of a half, in every pixel of one frame: the sun's `(2, 1, 0.5) / 2 pi`, and
+        /// Masser's `E * cos 60° / 2 pi` beside it. A pick of one source over its chance put each pixel's hue on
+        /// the pick, the sun's or the moon's. Nothing stands on the floor, so every bit is one; the
+        /// penumbra says whether it was drawn. With no floor, the default, a bit is drawn wherever a
+        /// second source lights the pixel at all, the daylight moon too: `SHADOW_PENUMBRA_DRAWN`.
+        /// Under a floor of 1/64 the daylight moon is under it and the sun holds all but it,
+        /// `SHADOW_PENUMBRA_CLEAR`, and the dusk moon, a fifth of the light, is over it and drawn.
+        TEST_F(RtxVisibilityTest, theSkysShadowedLightIsEverySourcesAndAMinorOneDrawsNoBit)
+        {
+            constexpr std::uint32_t size = 32;
+            const osg::Vec3f sunlight(2.0f, 1.0f, 0.5f);
+            const float tilt = osg::DegreesToRadians(60.0f);
+
+            const auto underMoon = [&](const osg::Vec3f& moonlight, float floor) {
+                Shaders::VisibilityConstants camera = overheadSun(size);
+                camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), sunlight);
+                Shaders::MoonDisc masser{};
+                masser.mSource = Shaders::moonSource(
+                    osg::Vec3f(0.0f, std::sin(tilt), std::cos(tilt)), moonlight, moonAngularRadius(94.0f));
+                masser.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
+                masser.mUp = osg::Vec3f(0.0f, -std::cos(tilt), std::sin(tilt));
+                masser.mColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
+                masser.mAlpha = 1.0f;
+                masser.mFace = Shaders::NO_TEXTURE;
+                camera.mMoons[0] = masser;
+                camera.mMoons[1] = Shaders::MoonDisc{};
+
+                SceneDesc scene;
+                addQuad(scene, sheetAt(4000.0f, 0.0f));
+                shoot(scene, {}, camera, size, { .mShadowFloor = floor, .mIndirect = IndirectLight::Off });
+
+                std::vector<float> shadowed;
+                std::vector<float> penumbra;
+                mRenderer.readChannel(Channel::Shadowed, shadowed);
+                mRenderer.readChannel(Channel::Penumbra, penumbra);
+                EXPECT_EQ(shadowed.size(), std::size_t{ size } * size * 4);
+
+                const osg::Vec3f sum = (sunlight + moonlight * std::cos(tilt)) * (0.5f * Shaders::INV_PI);
+                for (std::size_t pixel = 0; pixel < shadowed.size() / 4; ++pixel)
+                {
+                    for (std::size_t channel = 0; channel < 3; ++channel)
+                        EXPECT_NEAR(shadowed[pixel * 4 + channel], sum[channel], sum[channel] * 1e-5f)
+                            << "pixel " << pixel << ", channel " << channel;
+                    EXPECT_EQ(shadowed[pixel * 4 + 3], 1.0f) << "pixel " << pixel;
+                }
+                return penumbra;
+            };
+
+            const osg::Vec3f daylightMoon = sunlight * 0.002f;
+            for (const float width : underMoon(daylightMoon, Shaders::SHADOW_DRAW_FLOOR))
+                ASSERT_EQ(width, Shaders::SHADOW_PENUMBRA_DRAWN) << "a second source with no floor drew no bit";
+            for (const float width : underMoon(daylightMoon, 1.0f / 64.0f))
+                ASSERT_EQ(width, Shaders::SHADOW_PENUMBRA_CLEAR) << "a moon under the floor drew the sun's bit";
+
+            // Masser's weight is `(0.5, 0.5, 2) * cos 60°` against the sun's `(2, 1, 0.5)`, in
+            // luminance 0.3042 against 1.1765: a fifth of the sky, so over the floor and drawn.
+            for (const float width : underMoon(osg::Vec3f(0.5f, 0.5f, 2.0f), 1.0f / 64.0f))
+                ASSERT_EQ(width, Shaders::SHADOW_PENUMBRA_DRAWN) << "a dusk moon drew no bit";
         }
 
         /// **A thin hard shadow keeps its depth through the denoiser, and a bit's penumbra is its

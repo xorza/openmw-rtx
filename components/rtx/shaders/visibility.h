@@ -489,6 +489,10 @@ namespace Rtx::Shaders
         /// nought where it cuts them as every other ray does: `Rtx::Reconstruction::mAveraged`.
         uint mSoftEdgeDither;
 
+        /// The share of a pixel's light under which a source is never drawn for its shadow bit —
+        /// `SHADOW_DRAW_FLOOR` unless a run names another, `Rtx::Reconstruction::mShadowFloor`.
+        float mShadowFloor;
+
         /// Where every table a hit reads is. `GpuTables` says why it rides here.
         ///
         /// **Last, because it is eight-aligned and nothing before it is.** Anywhere else it would

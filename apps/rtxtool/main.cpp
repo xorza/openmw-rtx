@@ -1018,6 +1018,9 @@ namespace RtxTool
                 // run's epsilon: an epsilon is a knob on the frame, and a reference that moved with
                 // it would take the frame's softness for its own and report no bias at all.
                 truth.mLevelEpsilon = 0.0f;
+                // **And draws every source for its bit**: a floor rides a minor source's light on
+                // another's shadow, which is the bias the A/B of the floor measures.
+                truth.mShadowFloor = 0.0f;
                 return truth;
             };
             const Rtx::ExposureRule held = Rtx::HeldExposure{};

@@ -56,7 +56,10 @@ says what was decided.
    shadow. The other option is to gate the moons on `!sunUp()`. It makes moonlight appear at the
    frame where the sun's irradiance reaches nought, which is a visible step at dusk.
 
-   **Decided: the share floor**, starting at 1/64 and set by `noise --ab` at dusk.
+   **Decided: the share floor**, starting at 1/64 and set by `noise --ab` at dusk. **Then decided
+   (2026-10-06): a floor of nought**, kept as `--shadow-floor` for a later A/B. At the dawn deck a
+   floor of 1/64 left the noise where it was on every leg and raised the bias by 0.07 to 0.12 of a
+   level, and 1/256 by 0.03 (`Shaders::SHADOW_DRAW_FLOOR` has the figures).
 4. **Whether to rebuild the bounce's reuse or to retire it** (D4). **Recommendation: make the four
    cheap corrections first** (temporal MIS, far-ground flag, the rate coin in validation, and
    allocation only on demand). Then run the reuse A/B again. Build the random-replay validation
@@ -106,7 +109,7 @@ And two rules apply to every step:
 |---|---|---|
 | D1 | The arithmetic contract stops at contraction and order | Done |
 | D2 | No one owns temporal reprojection | S§2, S§5, S§9, U › jitter, U › five kernels |
-| D3 | Direct light has no single rule for its sources | S§3 (sky), S§4, S§12, U › sky draw, U › two halves, U › lamps that take light |
+| D3 | Direct light has no single rule for its sources | S§3 (through), S§4, S§12, U › two halves |
 | D4 | The bounce's far end is not a pure function of its sample | S§6, U › validation, U › resolve, U › reservoirs kept |
 | D5 | Secondary rays see a scene that the eye does not see | S§11 (coverage) |
 | D6 | A filtered signal carries material that the filter blurs | S§8, U › pane and glossy gather |
@@ -195,59 +198,44 @@ sides, and the fixed pixel's fast mean.
 **Cause.** The sun, the moons, and the lamps follow different rules for questions that each have
 one answer:
 
-- **What is "exact" in the split output?** For the lamps it is the unshadowed sum. For the sky it
-  is one picked source over its chance, so each pixel's hue follows the pick.
-- **When is a bit "drawn"?** A daylight moon at 1e-3 of the sun's weight makes every sunlit bit
-  "drawn", so every sun shadow is filtered at the widest reach.
 - **Which occluder gives the penumbra?** The first one traversal finds, not the nearest.
 - **Which plane is the penumbra measured in?** The light's, not the receiver's.
 - **What does a stopped ray's `mThrough` mean?** It depends on the BVH order.
-- **Where does the darkening of negative lamps apply?** After a clamp on a one-sample estimate.
 - **Is a highlight the source's size?** No. The lobe is evaluated at the source's centre.
 
 **Contract (the split output, which the shadow denoiser reads).**
 
 1. **Reach, keyed by what the parent evaluated**, is done: `EVALUATED_*`, which `bounceLanding` and
    `bounceEscape` read; the water's legs keep every source's geometry.
-2. **The unshadowed sum is exact.** Split, `CHANNEL_SHADOWED.rgb` is the sum over every sky source
-   with non-zero weight, plus every lamp, as though every ray got through. `lightThroughWater` is
-   inside each source's weight. The darkening of negative lamps is subtracted from this exact sum
-   and then clamped, in both modes. The unsplit mode then applies the held lamp's visibility ratio.
-3. **One bit, drawn by contribution.** The bit is the visibility of one source, drawn in proportion
-   to its share of the sum, as now. **Drawn** means that another source carries at least
-   `SHADOW_DRAW_FLOOR` of the sum (decision 3). A source under the floor takes the drawn source's
-   bit. The floor must stand above a daylight moon's share, about 1e-3 of the sun. Start at 1/64,
-   and choose it with `noise --ab` across dusk (`views.cfg` has a dawn place): the lower floor that
-   moves neither the noise nor the bias.
-4. **The penumbra is the nearest occluder's, measured on the receiver.** Split rays trace without
+2. **The unshadowed sum is exact, and one bit is drawn by contribution**, is done: the split sky is
+   every source's sum, the darkening is taken off the exact lamp sum in both modes, and the floor
+   (`--shadow-floor`) stands at nought by decision 3.
+3. **The penumbra is the nearest occluder's, measured on the receiver.** Split rays trace without
    `TerminateOnFirstHit` and keep the nearest opaque hit. Every other ray keeps the flag. The width
    is divided by the light's cosine at the receiver, capped, and floored at one pixel where the bit
    is a boundary (SIGMA's rule), so the `reach < 1` path takes only hard shadows.
-5. **The through of a stopped ray is one.** A ray whose `mOpen` is nought reports `mThrough = 1`.
+4. **The through of a stopped ray is one.** A ray whose `mOpen` is nought reports `mThrough = 1`.
    Only an open ray's through is filtered with the bit.
-6. **A highlight has the source's size.** `reflectionAt` takes the source's angular radius and
+5. **A highlight has the source's size.** `reflectionAt` takes the source's angular radius and
    evaluates D at `α′ = saturate(α + sin θ_s / 3)` with Karis's `(α / α′)²` normalisation. The
    weight that picks a source uses the same widened lobe.
-7. **The cost is fixed below the primary hit.** The primary split hit keeps the full walk over the
+6. **The cost is fixed below the primary hit.** The primary split hit keeps the full walk over the
    cell's lamps, because point 2 needs the exact sum, and the walk is bounded by
    `LAMPS_AT_A_POINT`. At bounce hits, pane layers, water legs and the fog, `weighLamps` draws a
    fixed count M of candidates from the cell's run, with the uniform pdf `1/n`, and resamples them
    (RIS). Where `n ≤ M` this is the walk that runs now.
-8. **The draws are blue at the primary hit.** The split hit's sun-disc pair, lamp-disc pair and
+7. **The draws are blue at the primary hit.** The split hit's sun-disc pair, lamp-disc pair and
    pick come from tile streams. Deeper paths keep the hash: D4's replay needs every draw at a far
    end to come from a sequence keyed by the pixel and the frame, and the tile's per-frame turn is
    not one. The bounce pair takes a vec2 or cosine STBN mask in place of two scalar channels.
-9. **One flag answers one question.** `frame.mNoSkyShadows` is tested in `skyPassageThrough`, so it
+8. **One flag answers one question.** `frame.mNoSkyShadows` is tested in `skyPassageThrough`, so it
    covers surfaces, the shaft march and the froxels together. The moons in the water column go
    with D7.3, which rewrites `waterColumn` anyway.
 
 **What goes away.**
 
-- the per-pixel hue noise at dusk;
-- the sun shadows that are blurred all day while a moon is up;
 - the penumbrae from distant roofs;
 - the order-dependent through;
-- the brightening near negative lamps;
 - the pinpoint highlights of lamps and moons;
 - the lamp-density cost at secondary hits;
 - the inconsistent sky-shadow flag.
@@ -274,7 +262,7 @@ reservoirs are allocated at full extent while the reuse is off.
    the far end calls one `shadeFarEnd(hit, replay)`. In a static scene it then returns the stored
    radiance exactly. A change in the result is a real change of light, and validation replaces the
    value in both directions. **What replay needs of the rest:** every draw at the far end comes from
-   a hashed sequence keyed by the pixel and the frame (D3.8 keeps the tile streams to the primary
+   a hashed sequence keyed by the pixel and the frame (D3.7 keeps the tile streams to the primary
    hit), and the `INDIRECT_LIGHT_RATE` coin is one of those draws. A lamp that flickers changes the
    far end's light from frame to frame, and validation then follows it, which is correct.
 2. **The receiver's factors are applied, never stored.** Water attenuation at the receiver, the
@@ -467,7 +455,7 @@ Each check lands with its contract, and each is one the gate runs.
 | | The check |
 |---|---|
 | D2 | `RtxSourceTreeTest`: `historyShare` and `historyTap` appear in `surfacematch.glsl` alone. A GPU test: a still, jittered edge accumulates to its unjittered-centre mean. |
-| D3 | GPU tests: a mirror beside a lamp reflects the lamp's analytic lobe and no glow of its model; under a daylight moon, no sun-lit pixel is marked drawn; the split and unsplit modes agree in the mean. |
+| D3 | GPU tests: a mirror beside a lamp reflects the lamp's analytic lobe and no glow of its model (done); the split sky is every source's sum, and a source under a floor draws no bit (done); a lamp that takes light away takes it off the exact sum where one lamp is drawn (done). |
 | D4 | A GPU test: in a static scene, validation leaves every stored radiance as it was, bit for bit. |
 | D5 | GPU tests: a floor point half a unit from a wall gets no light from behind the wall; a pane of opacity one half is met by half the secondary rays, in the mean. |
 | D6 | A host test: the composite's remodulation inverts the trace's demodulation for every channel. |
@@ -509,15 +497,20 @@ Take new baselines at the end of each phase.
 
 Order matters. D5 changes what every secondary ray meets, and D3 is measured on top of it.
 
-1. D3.2 and D3.3, the exact sky sum and the drawn floor. Measure with `noise --ab` at dusk, with a
-   place in daylight while a moon is up and a place under two moons. The shadow filter's reach
-   should fall by day.
-2. D3.4 and D3.5, the nearest occluder, the receiver's penumbra, and the stopped through. Measure
+1. D3.3 and D3.4, the nearest occluder, the receiver's penumbra, and the stopped through. Measure
    the cost of the split rays without `TerminateOnFirstHit` with `bench`, and the pond A/B again.
-3. D3.6, the highlight size. Then D3.7, M candidates below the primary hit, with
+2. D3.5, the highlight size. Then D3.6, M candidates below the primary hit, with
    `noise --ab=<M>` and `bench` at a lamp-dense interior.
-4. D3.8, blue streams for split draws, and STBN for the bounce. `noise --ab`, all three legs.
-5. D3.9, the sky-shadow flag. The moons under water go with D7.3 in Phase 4.
+3. D3.7, blue streams for split draws, and STBN for the bounce. `noise --ab`, all three legs.
+4. D3.8, the sky-shadow flag. The moons under water go with D7.3 in Phase 4.
+
+### Phase 2b. The still check's probe frame
+
+The check that a still's depth and motion do not move stands down on every averaged frame
+(`dbfc358b91`), because the eye's soft edges are drawn each frame. At the end of each still,
+trace one probe frame with the first frame's number and compare its surface and motion with the
+first frame's. Then the check stands again on every world still, and no picture moves. Test it in
+`RtxRunRecordTest` or the frame hashes' tests, with a still whose probe moved.
 
 ### Phase 3. Temporal history (D2, D6, and the wavelet items)
 
@@ -654,7 +647,7 @@ These are local defects. Each one is fixed where it stands.
 | S§9 | Phase 3, step 7 |
 | S§10 | D9 (Phase 7) |
 | S§11 | D8 (Phase 6), D5 point 2 |
-| S§12 | D3 points 6 and 7 (Phase 2), the bounded VNDF in Phase 2 step 3 |
+| S§12 | D3 points 5 and 6 (Phase 2), the bounded VNDF in Phase 2 step 2 |
 | S§13 | D7 (Phase 4), the moons under water in D7.3 |
 | S§14 to S§16 | Phase 8, D7 (integrate, ambient ray), D10 (barriers) |
 | S§17 | Section 6 |

@@ -30,4 +30,6 @@ check now guards only stills that are not, and no longer catches a swapped drive
 **Recommendation.** 3: it keeps the pictures and the tripwire. It needs a harness change of its
 own.
 
+**Decided (2026-10-06): 3, the probe frame.** It is an item of the plan, after Phase 2.
+
 **Blocks.** Nothing.

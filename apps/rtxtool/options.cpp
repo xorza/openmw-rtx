@@ -455,6 +455,11 @@ namespace RtxTool
             "levels added to the texture level bias past the ratio the upscaler sets, negative for "
             "sharper. Nought is the ratio alone, and off the upscaler nothing is biased");
 
+        option(sFramed, "shadow-floor", number(between(0.0f, 0.25f))->default_value(Rtx::Shaders::SHADOW_DRAW_FLOOR),
+            "the share of a pixel's light under which a sky source, or the sky against the lamps, is never "
+            "the one its shadow bit is drawn from, and over all but which a bit's own source makes the bit "
+            "exact rather than drawn. Its light rides the drawn source's bit");
+
         option(sFramed, "hold", bpo::value<bool>()->default_value(false)->implicit_value(true),
             std::format("hold the queue behind the host after every frame's trace, as `check` does: `check` holds "
                         "{} milliseconds unless told --hold=false. The other leg of `repeat` runs under it, and a "
@@ -692,6 +697,7 @@ namespace RtxTool
         request.mNoise = noise == "auto" ? Rtx::ReconstructionRequest{}.mNoise
                                          : Rtx::sNoiseSourceNames.require(noise, "a noise source");
         request.mLevelEpsilon = variables["level-epsilon"].as<float>();
+        request.mShadowFloor = variables["shadow-floor"].as<float>();
         request.mBounceReuse
             = Rtx::sBounceReuseNames.require(variables["bounce-reuse"].as<std::string>(), "a bounce reuse");
         request.mAntilag = variables["antilag"].as<bool>();

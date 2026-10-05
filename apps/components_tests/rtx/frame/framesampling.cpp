@@ -11,6 +11,7 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 
@@ -68,7 +69,11 @@ namespace Rtx
         TEST(RtxFrameSamplingTest, everySampledFieldComesFromWhatDecidesIt)
         {
             const Reconstruction jittering{
-                .mJitter = true, .mNoise = NoiseSource::WhiteHash, .mLevelBias = -0.5f, .mAveraged = true
+                .mJitter = true,
+                .mNoise = NoiseSource::WhiteHash,
+                .mLevelBias = -0.5f,
+                .mAveraged = true,
+                .mShadowFloor = 0.125f,
             };
             const InstanceCounts counts{ .mFirstPerson = 1 };
             Shaders::VisibilityConstants previous = stated();
@@ -96,6 +101,7 @@ namespace Rtx
             EXPECT_EQ(sampled.mNoise, Shaders::NOISE_WHITE_HASH);
             EXPECT_EQ(sampled.mLevelBias, -0.5f);
             EXPECT_EQ(sampled.mSoftEdgeDither, 1u) << "a world's frames are averaged";
+            EXPECT_EQ(sampled.mShadowFloor, 0.125f) << "the run's floor";
             EXPECT_EQ(sampled.mArmsSpread, osg::Vec2f(1.5f, 1.0f));
             EXPECT_EQ(sampled.mUnitRight, osg::Vec3f(1.0f, 0.0f, 0.0f)) << "a right of two, taken unit";
             EXPECT_EQ(sampled.mUnitUp, osg::Vec3f(0.0f, 0.0f, 1.0f));
@@ -115,6 +121,7 @@ namespace Rtx
             EXPECT_EQ(picture.mCameraMotion, osg::Vec3f());
             EXPECT_EQ(picture.mNoise, Shaders::NOISE_BLUE_TILE);
             EXPECT_EQ(picture.mSoftEdgeDither, 0u) << "a picture stands alone, so the eye cuts its soft edges";
+            EXPECT_EQ(picture.mShadowFloor, Shaders::SHADOW_DRAW_FLOOR) << "and draws its bits by the default floor";
 
             const Shaders::VisibilityConstants offset = sampleFrame(stated(),
                 FrameOptions{ .mJitter = osg::Vec2f(0.25f, 0.0f) }, RenderProfile{}, Reconstruction{}, counts, nullptr);

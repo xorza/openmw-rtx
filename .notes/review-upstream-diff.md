@@ -87,40 +87,6 @@ The trace, the denoiser or the rasterizer shows a result that is not the light o
   (`ffx_fsr3upscaler.cpp` clears FRAME_INFO to `{-1, 1e8, 0, 0}`). The format is RGBA32F, so `1e8`
   is representable. Also fix the comment.
 
-### The sky draw takes a daylight moon for a second source
-
-- [ ] `components/rtxvulkan/shaders/lib/shading.glsl:184-191`, `:289-294` — **[bug]** While a moon is
-  up in daylight, every sunlit pixel's shadow bit gets marked as drawn, which blurs every sun shadow
-  in the frame. The cause:
-  - `gather` asks the moons on every `PATH_SEEN` hit (`lunar = HAS_MOONS && path == PATH_SEEN`).
-  - `skyChoiceAt` (`lights.glsl:495-508`) weighs a source by its cosine and its irradiance, with no
-    test on the hour or the sun.
-  - A moon's irradiance is nonzero whenever its alpha is (`moonbuilder.cpp:229-230`). Its alpha is
-    nonzero from `Fade_In_Start` 14:00 to `Fade_Out_Finish` 10:00 (`weather.cpp` `hourlyAlpha`,
-    `files/openmw.cfg:506-509`). That covers 14:00 to dusk and dawn to 10:00, with the sun high.
-  - The moon's weight is about 1e-3 of the sun's (`DAYLIGHT · MOON_ALBEDO · sin²r · phase`), well
-    above the 2^-24 at which `sun + moon` would round back to `sun`.
-  - So `pickByWeight` returns `mWhole = false`, so `skyDrawn` is true. On every pixel whose kept bit
-    is the sky's (no lamp), `drawn` is then true and `mPenumbra = SHADOW_PENUMBRA_DRAWN`.
-
-  `gbuffer.h:200-204` says a drawn bit "takes every step the shadow denoiser's levels have". The
-  costs:
-  - Every crisp sun shadow is filtered at the widest reach (4 px), and the denoiser runs all its
-    levels everywhere.
-  - Each sunlit pixel picks the moon with chance about 1e-3. That pixel then carries
-    `moon / chance`, which is sun-bright, under the moon's own bit. In a sun shadow that the moon
-    still reaches, this is a bright speck that the filter spreads into a blotch.
-  - Shadowed path ends (water legs) take the same specks with no filter at all.
-
-  The comment at `:159-161` ("In daylight the moons weigh nothing and the sun is always the draw")
-  states the premise that the schedule breaks. → Target shape: the pick, and the DRAWN flag, read
-  how much of the weight the other sources carry, not `mWhole`. Two options:
-  - Below a stated share (as `fogSourcesFrom` gates the moons by `FOG_SHAFT_FLOOR`), deliver the
-    minor sources through the kept source's ray and say what bias that bound costs.
-  - Gate the moons as lights on `!sunUp()`.
-
-  Either way, DRAWN is set only where another pick would actually change the bit.
-
 ### The two halves of a stopped shadow ray
 
 - [ ] `components/rtxvulkan/shaders/lib/traversal.glsl:612-629`; `shading.glsl:203`, `:264`
@@ -164,21 +130,6 @@ The trace, the denoiser or the rasterizer shows a result that is not the light o
   → Target shape: the validation shades the far end without the rate coin (a `PATH_INDIRECT` whose
   rate is one), or draws it from `SEED_*_VALIDATED`. The fall test then compares estimators whose
   only noise is the lamp pick and the occlusion ray, as `BOUNCE_VALIDATION_FALL`'s comment says.
-
-### Lamps that take light away
-
-- [ ] `components/rtxvulkan/shaders/lib/shading.glsl:264-270`, `:296-301` — **[bug]** Unsplit (every
-  bounce landing and pane), `lampDiffuse = max(held_estimate · seen − darkening, 0)` clamps a
-  one-sample RIS estimate. `E[max(X − D, 0)] > max(E[X] − D, 0)` wherever the held lamp or its
-  shadow varies, so near a `Negative` light the far ends read brighter than the rasterizer's rule
-  ("floored at nought"). The two modes also disagree on the darkening's Fresnel:
-  - split subtracts the darkening from a sum already net of each lamp's `1 − F`;
-  - unsplit takes `taken = lampDiffuse · F_held`, which scales the darkening by the held lamp's
-    `1 − F`.
-
-  → Target shape: subtract the darkening from the exact unshadowed sum in both modes. `mUnshadowed`
-  is already there unsplit: clamp `max(mUnshadowed − D, 0)` and apply the held lamp's visibility
-  ratio after, so one formula serves both modes.
 
 ### The temporal filters never see the previous frame's jitter
 
