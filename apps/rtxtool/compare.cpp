@@ -7,14 +7,19 @@
 #include <cstdint>
 #include <cstdlib>
 #include <format>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include <osg/Vec3f>
+
 #include <components/debug/debugging.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
+#include <components/rtx/image/colour.hpp>
+#include <components/rtx/shaders/colour.h>
 
 namespace RtxTool
 {
@@ -30,6 +35,15 @@ namespace RtxTool
         {
             return !one.mPixels.empty() && !other.mPixels.empty() && one.mWidth == other.mWidth
                 && one.mHeight == other.mHeight;
+        }
+
+        /// The light of the pixel whose first byte is `at`: the luminance of its channels decoded, so
+        /// a ratio of two is a ratio of light and not of the bytes the curve encoded it in.
+        double lightOf(const Rtx::PngImage& image, const std::size_t at)
+        {
+            const osg::Vec3f decoded(Rtx::toLinear(image.mPixels[at]), Rtx::toLinear(image.mPixels[at + 1]),
+                Rtx::toLinear(image.mPixels[at + 2]));
+            return static_cast<double>(decoded * Rtx::Shaders::LUMINANCE_WEIGHTS);
         }
 
         /// The difference of the pixel whose first byte is `at`: its worst colour channel, out of 255.
@@ -141,6 +155,39 @@ namespace RtxTool
         return static_cast<std::uint32_t>(std::clamp<std::uint64_t>(held, 1, sNoiseBarFrames));
     }
 
+    Misc::Result<NoiseFrame, std::string> noiseFrameFor(
+        const std::uint32_t cut, const bool flies, const Rtx::FrameExtents& extents)
+    {
+        if (cut > 0 && flies)
+            return Misc::Err{ std::string(
+                "--cut takes the frame standing after a cut, and --strafe and --walk fly it in: name one") };
+
+        if (flies)
+            return NoiseFrame{ .mWarmup = std::nullopt,
+                .mBarFrames = noiseBarFramesAfter(sNoiseFlightFrames, extents) };
+        if (cut > 0)
+            return NoiseFrame{ .mWarmup = cut - 1, .mBarFrames = noiseBarFramesAfter(cut + 1, extents) };
+        return NoiseFrame{ .mWarmup = std::nullopt, .mBarFrames = sNoiseBarFrames };
+    }
+
+    std::optional<double> fireflyShare(const Rtx::PngImage& picture, const Rtx::PngImage& reference)
+    {
+        if (!comparable(picture, reference))
+            return std::nullopt;
+
+        const double floor = static_cast<double>(Rtx::toLinear(sNoiseFireflyFloor));
+        const std::size_t pixels = std::size_t{ picture.mWidth } * picture.mHeight;
+        std::size_t fireflies = 0;
+        for (std::size_t at = 0; at < pixels * 4; at += 4)
+        {
+            const double light = lightOf(picture, at);
+            const double truth = lightOf(reference, at);
+            fireflies += light > sNoiseFireflyRatio * truth && light - truth >= floor ? 1 : 0;
+        }
+
+        return 1000.0 * static_cast<double>(fireflies) / static_cast<double>(pixels);
+    }
+
     std::optional<double> blurredDifference(
         const Rtx::PngImage& picture, const Rtx::PngImage& reference, const float sigma)
     {
@@ -240,7 +287,9 @@ namespace RtxTool
             const PictureError bar = measureError(barMean, barLimit);
             const std::optional<double> frameBias = blurredDifference(frameMean, reference, sNoiseBiasBlur);
             const std::optional<double> barBias = blurredDifference(barLimit, reference, sNoiseBiasBlur);
-            if (frame.mMismatched || bar.mMismatched || !frameBias.has_value() || !barBias.has_value())
+            const std::optional<double> fireflies = fireflyShare(single, reference);
+            if (frame.mMismatched || bar.mMismatched || !frameBias.has_value() || !barBias.has_value()
+                || !fireflies.has_value())
             {
                 out() << std::format("  {:<28} a picture is of another size than the others\n", place);
                 ++missing;
@@ -253,9 +302,9 @@ namespace RtxTool
 
             out() << std::format(
                 "  {:<28} noise: frame mean {:.2f} p99 {}, {} averaged mean {:.2f} p99 {} — {}; bias: frame {:.2f}, "
-                "{} averaged {:.2f}\n",
+                "{} averaged {:.2f}; fireflies {:.2f} in a thousand\n",
                 place, frame.mMean, frame.mP99, barFrames, bar.mMean, bar.mP99, clean ? "as clean" : "noisier",
-                *frameBias, barFrames, *barBias);
+                *frameBias, barFrames, *barBias, *fireflies);
         }
 
         if (noisier == 0 && missing == 0)

@@ -9,7 +9,8 @@ denoiser's switches are mostly felt: the strafe and the walk are the default leg
 `look.h` quotes them. **The still leg is not unmoved by them**: under the upscaler's jitter an edge
 keeps a short history however long the eye stands, and the anti-firefly ring moved the bounce
 suite's still frames by up to 0.09 of noise and 0.11 of bias. `--still` adds it, and `--strafe=N` or
-`--walk=N` moves a leg's distance.
+`--walk=N` moves a leg's distance. `--cut=N` adds the frame `N` frames after a cut, standing, once for
+each `N` named: the first frames after a door, where the fireflies were reported.
 
 **A boolean switch by its name**: `--ab=antifirefly` runs `--antifirefly=true` and then
 `--antifirefly=false`. A switch of values names its two: `--ab=bounce-reuse=own,spatiotemporal`.
@@ -37,7 +38,8 @@ JUDGED = (0, 1)
 # One place's line of the harness's report, as `RtxTool::judgeNoise` prints it.
 _PLACE = re.compile(
     r"^  (?P<place>\S+)\s+noise: frame mean (?P<mean>[\d.]+) p99 (?P<p99>\d+), (?P<frames>\d+) averaged mean "
-    r"[\d.]+ p99 \d+ — (?:as clean|noisier); bias: frame (?P<bias>[\d.]+), \d+ averaged [\d.]+$")
+    r"[\d.]+ p99 \d+ — (?:as clean|noisier); bias: frame (?P<bias>[\d.]+), \d+ averaged [\d.]+; "
+    r"fireflies (?P<fireflies>[\d.]+) in a thousand$")
 
 
 @dataclass(frozen=True)
@@ -62,11 +64,12 @@ class Plan:
 
 @dataclass(frozen=True)
 class Figures:
-    """One place's frame, as a leg's run measured it: its noise's mean and 99th percentile, and its
-    bias against the converged reference."""
+    """One place's frame, as a leg's run measured it: its noise's mean and 99th percentile, its bias
+    against the converged reference, and its fireflies in a thousand pixels."""
     mean: float
     p99: int
     bias: float
+    fireflies: float
 
 
 def wants_ab(args: list[str]) -> bool:
@@ -93,9 +96,14 @@ def plan(args: list[str]) -> Plan:
     switches.add_argument("--still", action="store_true", help="the still leg as well")
     switches.add_argument("--strafe", default=DEFAULT_DISTANCE, help="how far the strafed leg flies in")
     switches.add_argument("--walk", default=DEFAULT_DISTANCE, help="how far the walked leg walks in")
+    switches.add_argument("--cut", type=int, action="append", default=[],
+                          help="a leg of the frame this many frames after a cut; named again, one more")
     switches.add_argument("--out", type=Path, help="where the runs go, a directory of their own if not given")
     asked, rest = switches.parse_known_args(args)
+    if any(frames < 1 for frames in asked.cut):
+        raise Refusal(f"--cut={min(asked.cut)} is not a frame after the cut: one or more")
     legs = [Leg("still", ())] if asked.still else []
+    legs += [Leg(f"cut {frames}", (f"--cut={frames}",)) for frames in asked.cut]
     legs += [Leg(f"{leg} {distance}", (f"--{leg}={distance}",))
              for leg, distance in (("strafe", asked.strafe), ("walk", asked.walk))]
     return Plan(_sides(asked.ab), tuple(legs), asked.out, tuple(rest))
@@ -107,7 +115,8 @@ def read_report(text: str) -> dict[str, Figures]:
     for line in text.splitlines():
         matched = _PLACE.match(line)
         if matched:
-            found[matched["place"]] = Figures(float(matched["mean"]), int(matched["p99"]), float(matched["bias"]))
+            found[matched["place"]] = Figures(float(matched["mean"]), int(matched["p99"]), float(matched["bias"]),
+                                              float(matched["fireflies"]))
     return found
 
 
@@ -116,18 +125,19 @@ def table(leg: str, sides: tuple[Side, Side], first: dict[str, Figures], second:
     longer label**, because a side is named by what the line gave it: `spatiotemporal` is fourteen."""
     a, b = sides
     label = max(len(a.label), len(b.label))
-    mean, p99, bias = max(label, 8), max(label, 5), max(label, 6)
+    mean, p99, bias, fly = max(label, 8), max(label, 5), max(label, 6), max(label, 9)
     lines = [f"{leg}: {a.switch} against {b.switch}",
-             f"  {'':<28} {'noise mean':>{2 * mean + 1}} {'p99':>{2 * p99 + 1}} {'bias':>{2 * bias + 1}}",
+             (f"  {'':<28} {'noise mean':>{2 * mean + 1}} {'p99':>{2 * p99 + 1}} {'bias':>{2 * bias + 1}} "
+              f"{'fireflies in 1000':>{2 * fly + 1}}"),
              (f"  {'':<28} {a.label:>{mean}} {b.label:>{mean}} {a.label:>{p99}} {b.label:>{p99}} {a.label:>{bias}} "
-              f"{b.label:>{bias}}")]
+              f"{b.label:>{bias}} {a.label:>{fly}} {b.label:>{fly}}")]
     for place in [*first, *(place for place in second if place not in first)]:
         x, y = first.get(place), second.get(place)
         if x is None or y is None:
             lines.append(f"  {place:<28} measured on one side only")
             continue
         lines.append(f"  {place:<28} {x.mean:>{mean}.2f} {y.mean:>{mean}.2f} {x.p99:>{p99}} {y.p99:>{p99}} "
-                     f"{x.bias:>{bias}.2f} {y.bias:>{bias}.2f}")
+                     f"{x.bias:>{bias}.2f} {y.bias:>{bias}.2f} {x.fireflies:>{fly}.2f} {y.fireflies:>{fly}.2f}")
     return "\n".join(lines)
 
 

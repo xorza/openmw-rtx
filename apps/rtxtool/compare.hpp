@@ -151,6 +151,47 @@ namespace RtxTool
     /// Rounded down, since the history holds at most that many; never under one.
     std::uint32_t noiseBarFramesAfter(std::uint32_t frames, const Rtx::FrameExtents& extents);
 
+    /// How `noise` takes the frame it judges, out of what the line asked.
+    struct NoiseFrame
+    {
+        /// The judged stop's warm-up where the leg sets its own, and nothing where the stop keeps the
+        /// one every picture of a place converges over.
+        std::optional<std::uint32_t> mWarmup;
+
+        /// How many frames the bar averages: `noiseBarFramesAfter` the history the frame holds.
+        std::uint32_t mBarFrames = 0;
+    };
+
+    /// The frame `noise` judges: standing after its history converged, flown in over
+    /// `sNoiseFlightFrames` where `flies`, or `cut` frames after the cut its stop begins with.
+    ///
+    /// **A stop begins with a cut already** (`Stager::forgetHistory`), and its first frame, the one
+    /// the cut resets, draws the world and is not measured. So the frame `cut` frames after it is a
+    /// warm-up of `cut - 1`, and its history holds `cut + 1` frames, which is what its bar holds —
+    /// where the world stands whole on the stop's first frame, as it does at a place earlier stops
+    /// already loaded. A stop that waited for its world says so in the run's notes, and its frame
+    /// then holds the frames it waited as well.
+    /// That is where the fireflies were reported: the first frames after a door, a load or a
+    /// teleport, before a history holds enough to tell a rare bright bounce from the light.
+    ///
+    /// A cut and a flight are two ways to take the frame, and a line naming both is refused.
+    Misc::Result<NoiseFrame, std::string> noiseFrameFor(
+        std::uint32_t cut, bool flies, const Rtx::FrameExtents& extents);
+
+    /// When `noise` counts a pixel of the frame as a firefly: its light, after the tone curve as the
+    /// player sees it, `sNoiseFireflyRatio` times the reference's, and over it by at least the light
+    /// of a grey at `sNoiseFireflyFloor` levels of 255. **The floor keeps a dark speck out**: four
+    /// times the light of a level-2 corner is a corner at level 8, a ratio a ratio test alone
+    /// counts. Sixteen is chosen and not derived, a sixteenth of the display's range in level; moving
+    /// it moves what the count says, as `sNoiseBarFrames` moves what the bar says.
+    inline constexpr double sNoiseFireflyRatio = 4.0;
+    inline constexpr std::uint8_t sNoiseFireflyFloor = 16;
+
+    /// How many of `picture`'s pixels, per thousand, stand over `reference` as fireflies do
+    /// (`sNoiseFireflyRatio`, `sNoiseFireflyFloor`), each pixel's light the luminance of its decoded
+    /// channels. Nothing where either is empty or they disagree on their extents.
+    std::optional<double> fireflyShare(const Rtx::PngImage& picture, const Rtx::PngImage& reference);
+
     /// What `noise` names the pictures of a place, after the place's own name: the reference, the
     /// bar, the bar's limit and the frame's mean. The frame is the place's name alone.
     inline constexpr std::string_view sNoiseReferenceSuffix = "-reference";

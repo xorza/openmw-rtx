@@ -277,17 +277,25 @@ namespace RtxTool
             "[check] for `check` and [noise] for `noise` unless named. Overridden by --views");
 
         option(Verbs::Noise, "strafe", number(atLeast(0.0f))->default_value(0.0f),
-            std::format("with `noise`, how many world units to the side the frame starts: it flies into "
-                        "the place over the last {} frames, facing it, through a world as still as the "
-                        "reference's, so the frame is taken after a history the eye moved through, and held "
-                        "to as many frames averaged as that history could hold samples a shown pixel. "
-                        "Nought takes it standing still",
+            std::format("how many world units to the side the frame starts: it flies into the place over "
+                        "the last {} frames, facing it, through a world as still as the reference's, so the "
+                        "frame is taken after a history the eye moved through, and held to as many frames "
+                        "averaged as that history could hold samples a shown pixel. Nought takes it standing "
+                        "still",
                 sNoiseFlightFrames));
 
         option(Verbs::Noise, "walk", number(anyNumber<float>())->default_value(0.0f),
-            "with `noise`, how many world units behind the place the frame starts, as --strafe does to "
-            "the side: it walks in along the level of its facing, and a negative distance starts in "
-            "front and walks back. Adds to --strafe, which it flies in beside");
+            "how many world units behind the place the frame starts, as --strafe does to the side: it "
+            "walks in along the level of its facing, and a negative distance starts in front and walks "
+            "back. Adds to --strafe, which it flies in beside");
+
+        option(Verbs::Noise, "cut", number(anyNumber<std::uint32_t>())->default_value(0),
+            "how many frames after the cut a stop begins with the frame is taken, standing: the first "
+            "frames after a door, a load or a teleport, where a history is too short to tell a rare "
+            "bright bounce from the light. The frame holds this many and one more, since the frame the "
+            "cut resets draws the world unmeasured, and is held to as many frames averaged as that "
+            "history could hold samples a shown pixel. Nought takes it after its history converged; not "
+            "with --strafe or --walk");
 
         option(sRuns, "views", bpo::value<std::string>()->default_value(""),
             "which views.cfg views to visit, comma separated, by name rather than by suite. "
