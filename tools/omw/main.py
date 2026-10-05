@@ -33,9 +33,10 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   profile [args]               the harness's CPU side under perf: the release flavour
   info, scene, shot, view, bench, check, film, noise [args]
                                openmw-rtxtool's own verbs, from the build directory
-  noise --ab=<switch>[=<a>,<b>] [--still] [noise args]
+  noise --ab=<switch>[=<a>,<b>] [--still] [--cut=N] [noise args]
                                one switch's A/B: the strafe and the walk legs, each side back to
-                               back, the still leg with `--still`, and the figures side by side
+                               back, the still leg with `--still`, a leg N frames after a cut for
+                               each `--cut=N`, and the figures side by side
 
   crash <dump> [symbols]       a player's crash dump, every thread named and lined, against a
                                release's -symbols.zip or the newest in dist/; no flavour

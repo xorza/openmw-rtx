@@ -505,18 +505,6 @@ section at the end**, kept or reverted, because a finished step leaves this list
 noisier by more than 0.02 or more biased by more than 0.05 in any leg it is run on, still,
 strafed (`--strafe=150`) and walked (`--walk=150`).
 
-15. **Instrument: the first frames after a cut** (first in the order of work). `noise --cut=N`
-    (rtxtool `commandNoise`): the frame `N` frames after the cut a stop begins with, the world
-    frozen, each draw its own samples, held to `N` frames averaged as `--strafe` holds a flight to
-    its history. **No new cut is needed**: every stop begins with `Stager::forgetHistory`, which
-    tells the renderer of a cut and starts the exposure afresh, and the stop's first frame draws the
-    world unmeasured. So `--cut=N` is the judged stop's warm-up set to `N - 1` frames, and the leg's
-    test pins that count. `--cut` excludes `--strafe` and `--walk`, which fly in over 30 frames.
-    The report line and the A/B table gain the share of pixels over four times the reference, per
-    thousand, which `look.h` and part 1 quote by hand today; `noise.py`'s report pattern and its
-    test that reads `compare.cpp` follow the new line. Tests: the leg's stop schedule, the count on a
-    hand-made picture, and the driver's parse of the new line. Then measure `--cut=1`, `2` and `4` at
-    the bounce suite: the baseline every firefly change is held to.
 16. **F1: a short history's variance, estimated.** In `accumulateclamp.comp`, under
     `ACCUMULATE_SETTLED` frames, the slow mean's variance becomes `fastDeviation² × max(1, 4 / (N +
     1))` from the 5×5 it already holds, where it stores the slow mean (`blended`'s alpha, which it
@@ -672,3 +660,25 @@ delegated, and the rule below chose the reuse mode from the measurements.
 What each step measured, in the order of work, whether the step was kept or reverted: its
 before and after figures, the kernels it moved, the pictures that changed, and why it was kept.
 Nothing here is deleted when a step is done.
+
+## Step 15: the first frames after a cut — kept
+
+`noise --cut=N` judges the frame `N` frames after the cut a stop begins with, standing, against
+a bar of the `N + 1` frames its history holds (`noiseFrameFor`), and every place's line now counts
+its fireflies: pixels whose light, after the tone curve, is four times the reference's and over it
+by at least a level-16 grey (`fireflyShare`). `noise --ab --cut=N` adds a leg for each `N`.
+
+The baseline every later step is held to, release, `--suite=bounce`, FSR quality: frame noise
+against its bar, bias, and fireflies in a thousand pixels.
+
+| place | `--cut=1` noise / bar | bias | fireflies |
+|---|---|---|---|
+| mages' guild | 2.19 / 8.45 | 2.35 | 0.38 |
+| guild's planter | 1.83 / 14.07 | 2.92 | 0.41 |
+| Ahemmusa's yurt | 2.08 / 8.35 | 2.84 | 0.27 |
+| Seyda Neen's pier | 2.26 / 25.68 | 1.74 | 0.10 |
+| Seyda Neen's pond | 1.87 / 10.59 | 1.19 | 0.12 |
+
+At `--cut=1` under FSR quality the bar is one frame (`2 × 921600 / 2073600` rounds to 0, held to
+1), so every frame is far cleaner than its bar: the reconstruction does more than averaging two
+frames could. The rooms carry three to four times the exteriors' fireflies.
