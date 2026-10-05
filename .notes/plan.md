@@ -776,3 +776,23 @@ run line names the rule, and each place's lines the mode it ran.
   0.08 less biased. The decision's own table, taken before steps 16 and 17, had the spatial half
   take 0.02 to 0.07 off the rooms' still noise: the lighter wavelet and the honest variance took
   most of that over.
+- **And the temporal half against none**, measured after it, since the spatial half had lost its
+  gain (`--ab=bounce-reuse=temporal,off --suite=bounce`, temporal / off):
+
+| place | still noise, bias | strafed | walked |
+|---|---|---|---|
+| mages' guild | 0.39 / 0.38, 1.33 / 1.33 | 1.12 / 1.10, 1.63 / 1.64 | 1.25 / 1.23, 2.35 / 2.32 |
+| guild's planter | 0.41 / 0.40, 1.61 / 1.58 | 1.31 / 1.29, 1.78 / 1.81 | 1.17 / 1.14, 2.75 / 2.73 |
+| Ahemmusa's yurt | 0.44 / 0.44, 1.52 / 1.50 | 1.64 / 1.63, 2.46 / 2.47 | 1.82 / 1.81, 2.92 / 2.93 |
+
+  and the interiors suite, still (`--ab=bounce-reuse=rooms,off --suite=interiors`; its places name
+  no eye, so they cannot be strafed), noise and bias, temporal / off: the guild 0.39 / 0.38, 1.33 /
+  1.33; the customs house 0.44 / 0.44, 1.54 / 1.60; the canalworks 0.16 / 0.14, 0.45 / 0.48;
+  Addamasartus 0.50 / 0.49, 1.52 / 1.60; Arkngthand 0.02 / 0.02, 0.11 / 0.11; the Andrano tomb
+  0.42 / 0.40, 1.32 / 1.54.
+
+  **The temporal reuse no longer takes noise off; it takes bias off in the dark rooms**: 0.22 in
+  the tomb, 0.08 in Addamasartus, 0.06 in the customs house, at 0.01 to 0.03 more noise. Decision
+  3's rule, held to every place and leg, puts it out by one cell, the planter walked in (0.03
+  noisier and 0.02 more biased); held to the rooms as a whole, its bias gain outweighs it. Kept as
+  decided, and `plan_QUESTIONS.md` asks whether 0.24 to 0.77 ms a room is worth that bias.

@@ -31,3 +31,27 @@ its bias is past the bar. Turning it off is one default (`ReconstructionRequest:
 and the switch stays for content whose glows have no lamp, M[FR]'s tree among them.
 
 **What is blocked**: nothing. The ring stays on until you decide.
+
+## Is the temporal reuse in rooms still worth its time? (found by step 18)
+
+**What was measured** (`plan.md`, Results, step 18). After steps 16 and 17 changed the denoiser,
+the reuse takes no noise off anywhere: the spatial half buys nothing over the temporal one, and the
+temporal one leaves the rooms 0.01 to 0.03 noisier than no reuse. What it still buys is bias, in
+the dark rooms: the Andrano tomb 1.54 → 1.32, Addamasartus 1.60 → 1.52, the customs house 1.60 →
+1.54, and nothing measurable in the guild, the planter, the yurt or Arkngthand. It costs 0.24 to
+0.77 ms a room (`bench --suite=interiors`, the reuse's passes).
+
+**Options.**
+- Keep `rooms` (temporal in rooms, none under the sky), the default now: the dark rooms nearer
+  the converged picture, for up to 0.77 ms.
+- Make `off` the default everywhere: 0.24 to 0.77 ms back in every room, a little less noise, and
+  the dark rooms' bias back.
+- Keep `rooms` and look for why the reuse no longer lowers noise (its validation and its boiling
+  filter were tuned against the old denoiser) before deciding.
+
+**Recommendation**: the first, for now. The bias it removes is the frame's distance from the
+truth in the darkest rooms, which is where a player sees the bounce most; the third is worth an
+investigation of its own before the reuse is given up.
+
+**What is blocked**: nothing. The default is `rooms`.
+
