@@ -108,6 +108,11 @@ namespace Rtx
         /// a content file's own clockwise front are both flipped.
         bool mFlipFacing = false;
 
+        /// Whether the placement is the model of a light that gives light
+        /// (`MeshInstance::mLampBody`), which `GpuInstance::mClass` carries as
+        /// `INSTANCE_LAMP_BODY` and `mMask` never does.
+        bool mLampBody = false;
+
         /// Whether the slot this record sits in holds a placement. Records are addressed by slot
         /// and slots have gaps, because a slot index is what a hit reads back.
         bool mPlaced = false;

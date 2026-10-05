@@ -257,16 +257,32 @@ namespace RtxTool
         std::uint32_t flattened = 0;
         std::uint32_t normalMapped = 0;
         std::uint32_t specularMapped = 0;
+        const auto glows = [](const Rtx::Material& material) {
+            return material.mEmissiveColour.length2() > 0.0f || material.mEmissive != Rtx::sNoIndex;
+        };
         for (const Rtx::Material& material : scene.materials().getRows())
         {
             cutouts += material.isCutout() ? 1 : 0;
             tested += material.mAlphaMode == Rtx::AlphaMode::Cutout ? 1 : 0;
             translucent += material.isTranslucent() ? 1 : 0;
             media += material.isMedium() ? 1 : 0;
-            glowing += material.mEmissiveColour.length2() > 0.0f || material.mEmissive != Rtx::sNoIndex ? 1 : 0;
+            glowing += glows(material) ? 1 : 0;
             flattened += material.mFlatten ? 1 : 0;
             normalMapped += material.mNormal != Rtx::sNoIndex ? 1 : 0;
             specularMapped += material.mSpecular != Rtx::sNoIndex ? 1 : 0;
+        }
+
+        // The models of lights that give light, and which of them glow: what the bounce takes no glow
+        // from, so a run says what the rule caught.
+        std::uint32_t lampBodies = 0;
+        std::uint32_t glowingBodies = 0;
+        for (const Rtx::PlacementRow& row : scene.placements().getRows())
+        {
+            if (!row.mInstance.isPlaced() || !row.mInstance.mLampBody)
+                continue;
+            ++lampBodies;
+            const Rtx::Index material = row.mInstance.mMaterial;
+            glowingBodies += material != Rtx::sNoIndex && glows(scene.materials().getRows()[material]) ? 1 : 0;
         }
 
         std::uint32_t sheets = 0;
@@ -287,14 +303,15 @@ namespace RtxTool
                         "  translucent:          {}, which a cutoff cannot answer for\n"
                         "  media:                {} of those are nowhere opaque\n"
                         "  emissive materials:   {}\n"
+                        "  lamp bodies:          {} placements of a light's own model, {} of them glowing\n"
                         "  companion maps:       {} materials wear a normal map, {} a specular map; {} meshes "
                         "carry tangents\n"
                         "  lights:               {} casting\n"
                         "  deforming drawables:  {}\n"
                         "  flattened ground:     {} cells outside the active grid\n"
                         "  emitters:             {} holding {} live particles\n",
-                cutouts, tested, translucent, media, glowing, normalMapped, specularMapped, tangentMeshes,
-                scene.lights().size(), stats.mDeformed, flattened, stats.mEmitters, stats.mSprites));
+                cutouts, tested, translucent, media, glowing, lampBodies, glowingBodies, normalMapped, specularMapped,
+                tangentMeshes, scene.lights().size(), stats.mDeformed, flattened, stats.mEmitters, stats.mSprites));
 
         into.mRecord.note(
             std::format("\nnot placed\n"

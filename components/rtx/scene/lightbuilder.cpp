@@ -223,6 +223,34 @@ namespace Rtx
         return makeLight(clamped, radius, position + osg::Vec3f(0.0f, 0.0f, sSpellLightLift));
     }
 
+    bool givesLight(const SceneUtil::LightSource& source)
+    {
+        const float radius = source.getSourceRadius();
+        if (!(std::isfinite(radius) && radius > 0.0f))
+            return false;
+
+        // The controller's colour where there is one, as `lightColour` reads it: the game's
+        // controller writes the flicker into the light's own diffuse every frame.
+        const SceneUtil::LightController* animation = source.getController();
+        const SceneUtil::Light& light = *source.getLight(0);
+        const osg::Vec4f diffuse = animation != nullptr ? animation->getDiffuse() : light.getDiffuse();
+        const osg::Vec4f ambient = light.getAmbient();
+        bool gives = false;
+        bool takes = false;
+        for (int channel = 0; channel < 3; ++channel)
+        {
+            gives = gives || diffuse[channel] > 0.0f || ambient[channel] > 0.0f;
+            takes = takes || diffuse[channel] < 0.0f || ambient[channel] < 0.0f;
+        }
+        return gives && !takes;
+    }
+
+    bool givesLight(const SceneUtil::LightCommon& record)
+    {
+        return castsWherePlaced(record) && !record.mNegative
+            && (record.mColor.r() > 0.0f || record.mColor.g() > 0.0f || record.mColor.b() > 0.0f);
+    }
+
     bool isSpellLight(const SceneUtil::LightSource& source)
     {
         const SceneUtil::Light& light = *source.getLight(0);

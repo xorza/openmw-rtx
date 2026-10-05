@@ -288,6 +288,10 @@ namespace Rtx
 
         /// The gate the game decides its standing by — `Terrain::PagedCellRef::mGate`.
         std::uint32_t mGate = Terrain::sNoGate;
+
+        /// Whether the reference is a lamp that gives light, so its model is a lamp body
+        /// (`MeshInstance::mLampBody`).
+        bool mLampBody = false;
     };
 
     /// One `LIGH` reference a cell stands: where it stands and what its record says. The record

@@ -70,6 +70,9 @@ the window's size there, has it moved to the window on the first start, and the 
 - `README.md`, which is the fork's own page and what a package ships, and `CI/`.
 - The visibility gates (`MWScript::VisibilityGates` and the calls that feed them): without them
   the distance stands scripted stages the game keeps down.
+- The lamp body marker (`SceneUtil::LampBody`), which `SceneUtil::addLight` leaves on the group it
+  hangs a light in: the ray tracer's bounce takes no glow from a lamp's own model, whose lamp
+  already delivers that light, and the rasterizer never reads it.
 - The pose hook in `RenderingManager`'s intersection visitor (`Renderer::poseForIntersection`): a
   skinned body answers a CPU ray with the copy its last cull posed, and the ray tracer culls no
   world, so the crosshair met every actor in its bind pose.

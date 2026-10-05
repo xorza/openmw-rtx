@@ -80,14 +80,24 @@ namespace Rtx
         /// read but the pool's part.
         void fill(PreparedCell& prepared, const osg::Vec2i& cell, bool statics);
 
-        /// Carries the light of `ref` where its record is a lamp's that casts, and says whether it
-        /// did: a lamp is its own light's brightest surface, and a point of light long after it is
-        /// a pixel.
-        bool readLamp(const Terrain::PagedCellRef& ref, PreparedCell& prepared);
+        /// What `readLamp` carried of a reference.
+        struct CarriedLamp
+        {
+            /// Its record is a lamp's that casts, so its light is carried: a lamp is its own light's
+            /// brightest surface, and a point of light long after it is a pixel.
+            bool mCarried = false;
+
+            /// And that lamp gives light (`givesLight`), so its model is a lamp body.
+            bool mGivesLight = false;
+        };
+
+        /// Carries the light of `ref` where its record is a lamp's that casts, and says what it
+        /// carried.
+        CarriedLamp readLamp(const Terrain::PagedCellRef& ref, PreparedCell& prepared);
 
         /// Appends `ref` as a `PreparedRef` where it names a model with something to trace, out of
-        /// the size rule's reach where `givesLight` or the model emits.
-        void readStatic(const Terrain::PagedCellRef& ref, bool givesLight, PreparedCell& prepared);
+        /// the size rule's reach where a lamp is carried or the model emits.
+        void readStatic(const Terrain::PagedCellRef& ref, CarriedLamp lamp, PreparedCell& prepared);
 
         /// The model path `record` names, as `readModel` files it — empty where it names none.
         const VFS::Path::Normalized& modelPathOf(const ESM::RefId& record);
