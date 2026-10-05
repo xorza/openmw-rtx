@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import IO, cast
 
 from omw.build import Build
-from omw.noise import Figures, Leg, Plan, Side, ab, plan, read_report, wants_ab
+from omw.noise import Figures, Leg, Plan, Side, ab, plan, read_report, table, wants_ab
 from omw.system import ROOT, Refusal
 
 
@@ -69,6 +69,18 @@ class ReportTest(unittest.TestCase):
         # Past the place: the p99, the frames averaged and their p99, the verdict, the frames again.
         line = line.replace("{:.2f}", "1.25").replace("{}", "7", 3).replace("{}", "as clean", 1).replace("{}", "7")
         self.assertEqual(read_report(line), {"some-place": Figures(1.25, 7, 1.25)})
+
+
+class TableTest(unittest.TestCase):
+    def test_every_column_is_as_wide_as_the_longer_label(self):
+        sides = (Side("own", "--bounce-reuse=own"), Side("spatiotemporal", "--bounce-reuse=spatiotemporal"))
+        lines = table("still", sides, {"guild": Figures(0.69, 4, 1.8)}, {"guild": Figures(0.59, 4, 1.85)}).splitlines()
+        # Each column's right edge, as the labels row sets it, is where every row's figure ends.
+        heads = [match.end() for match in re.finditer(r"\S+", lines[2])]
+        figures = [match.end() for match in re.finditer(r"\S+", lines[3])][1:]
+        self.assertEqual(heads, figures)
+        self.assertEqual(lines[1].rstrip()[-4:], "bias")
+        self.assertEqual(len(lines[1].rstrip()), len(lines[2]))
 
 
 class _Harness:

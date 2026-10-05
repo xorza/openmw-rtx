@@ -112,17 +112,22 @@ def read_report(text: str) -> dict[str, Figures]:
 
 
 def table(leg: str, sides: tuple[Side, Side], first: dict[str, Figures], second: dict[str, Figures]) -> str:
-    """One leg's places, each side's noise and bias beside the other's."""
+    """One leg's places, each side's noise and bias beside the other's. **Every column as wide as the
+    longer label**, because a side is named by what the line gave it: `spatiotemporal` is fourteen."""
     a, b = sides
+    label = max(len(a.label), len(b.label))
+    mean, p99, bias = max(label, 8), max(label, 5), max(label, 6)
     lines = [f"{leg}: {a.switch} against {b.switch}",
-             f"  {'':<28} {'noise mean':>17} {'p99':>11} {'bias':>13}",
-             f"  {'':<28} {a.label:>8} {b.label:>8} {a.label:>5} {b.label:>5} {a.label:>6} {b.label:>6}"]
+             f"  {'':<28} {'noise mean':>{2 * mean + 1}} {'p99':>{2 * p99 + 1}} {'bias':>{2 * bias + 1}}",
+             (f"  {'':<28} {a.label:>{mean}} {b.label:>{mean}} {a.label:>{p99}} {b.label:>{p99}} {a.label:>{bias}} "
+              f"{b.label:>{bias}}")]
     for place in [*first, *(place for place in second if place not in first)]:
         x, y = first.get(place), second.get(place)
         if x is None or y is None:
             lines.append(f"  {place:<28} measured on one side only")
             continue
-        lines.append(f"  {place:<28} {x.mean:>8.2f} {y.mean:>8.2f} {x.p99:>5} {y.p99:>5} {x.bias:>6.2f} {y.bias:>6.2f}")
+        lines.append(f"  {place:<28} {x.mean:>{mean}.2f} {y.mean:>{mean}.2f} {x.p99:>{p99}} {y.p99:>{p99}} "
+                     f"{x.bias:>{bias}.2f} {y.bias:>{bias}.2f}")
     return "\n".join(lines)
 
 
