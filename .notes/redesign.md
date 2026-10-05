@@ -198,7 +198,6 @@ sides, and the fixed pixel's fast mean.
 **Cause.** The sun, the moons, and the lamps follow different rules for questions that each have
 one answer:
 
-- **Is a highlight the source's size?** No. The lobe is evaluated at the source's centre.
 
 **Contract (the split output, which the shadow denoiser reads).**
 
@@ -211,9 +210,10 @@ one answer:
    is one**, is done: split rays trace to the nearest solid, the width is stretched by the light's
    cosine at the receiver up to `SHADOW_PENUMBRA_STRETCH`. No floor of one pixel: stretched, a reach
    under a pixel is a hard shadow, which the denoiser's hard path was measured for.
-4. **A highlight has the source's size.** `reflectionAt` takes the source's angular radius and
-   evaluates D at `α′ = saturate(α + sin θ_s / 3)` with Karis's `(α / α′)²` normalisation. The
-   weight that picks a source uses the same widened lobe.
+4. **A highlight has the source's size**, is done: `reflectionAt` takes the lobe at the disc's
+   representative point and scales it by `(α / α′)²` (Karis 2013, eq. 10 and 14), the sun's at its
+   seen disc. Evaluating D at `α′` alone, as this item first said, is the method Karis set aside
+   because it makes a glossy surface look rough.
 5. **The cost is fixed below the primary hit.** The primary split hit keeps the full walk over the
    cell's lamps, because point 2 needs the exact sum, and the walk is bounded by
    `LAMPS_AT_A_POINT`. At bounce hits, pane layers, water legs and the fog, `weighLamps` draws a
@@ -229,7 +229,6 @@ one answer:
 
 **What goes away.**
 
-- the pinpoint highlights of lamps and moons;
 - the lamp-density cost at secondary hits;
 - the inconsistent sky-shadow flag.
 
@@ -490,7 +489,7 @@ Take new baselines at the end of each phase.
 
 Order matters. D5 changes what every secondary ray meets, and D3 is measured on top of it.
 
-1. D3.4, the highlight size. Then D3.5, M candidates below the primary hit, with
+1. D3.5, M candidates below the primary hit, with
    `noise --ab=<M>` and `bench` at a lamp-dense interior.
 2. D3.6, blue streams for split draws, and STBN for the bounce. `noise --ab`, all three legs.
 3. D3.7, the sky-shadow flag. The moons under water go with D7.3 in Phase 4.
@@ -638,7 +637,7 @@ These are local defects. Each one is fixed where it stands.
 | S§9 | Phase 3, step 7 |
 | S§10 | D9 (Phase 7) |
 | S§11 | D8 (Phase 6), D5 point 2 |
-| S§12 | D3 points 4 and 5 (Phase 2), the bounded VNDF in Phase 2 step 1 |
+| S§12 | D3 point 5 (Phase 2), the bounded VNDF in Phase 2 step 1 |
 | S§13 | D7 (Phase 4), the moons under water in D7.3 |
 | S§14 to S§16 | Phase 8, D7 (integrate, ambient ray), D10 (barriers) |
 | S§17 | Section 6 |

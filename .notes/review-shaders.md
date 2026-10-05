@@ -382,15 +382,6 @@ items are departures from the published method that each cost gain or add bias. 
 
 ## 12. Light sampling for glossy surfaces and for many lamps
 
-- [ ] `lights.glsl:446-458` (`surfaceCandidate` → `reflectionAt(gloss, side, towards)` at the centre),
-  `gloss.glsl:123-135`, `shading.glsl:87-94, 208-210`. Visibility is sampled across the source's
-  cone, but the GGX lobe is evaluated at the source's centre. A lamp 4 to 16 units wide at 100 units
-  subtends 2° to 9°, and a lobe under roughness 0.3 is narrower than that. A smooth surface shows a
-  highlight the size of the lobe, with the disc's energy in a few pixels, which reads as sparkle under
-  bloom. On Masser the ratio is about 100. Karis 2013, eq. 10 and 14: `α′ = saturate(α + r / (3d))`
-  with the normalisation `(α / α′)²`. Target: `reflectionAt` takes the source's sine
-  (`lamp.mSourceRadius / distance`, `SkySource::mLimb` for the visible disc), and evaluates D at `α′`.
-  `atan(mLimb)` per sky source is computed once a frame.
 - [ ] `lights.glsl:563-600` (`weighLamps`), `LAMPS_AT_A_POINT = 256` (`:134`). Weighted reservoir
   sampling walks every lamp in the cell, at every shading point (primary, bounce, each pane layer,
   both water legs), and on a glossy surface each candidate pays a full GGX evaluation. The cost grows

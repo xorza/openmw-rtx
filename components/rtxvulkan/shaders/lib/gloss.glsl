@@ -115,21 +115,45 @@ struct Reflection
     vec3 mFresnel;
 };
 
-/// The lobe at `towards`, the direction to the light's centre.
+/// The lobe at a light whose centre stands along `towards` and whose disc is `sine` across, as the
+/// sine of its half angle.
+///
+/// **The highlight is the source's size** (Karis, *Real Shading in Unreal Engine 4*, 2013): the
+/// lobe is taken toward the representative point, the direction inside the disc nearest the
+/// mirror direction, and scaled by `(α / α′)²`, the normalisation of a lobe widened by the disc,
+/// `α′ = saturate(α + sine / 3)` (his equations 10 and 14). Taken at the centre, a polished surface
+/// reflected the sun and a lantern as a pinpoint where they are a disc.
 ///
 /// @param side what decides which side of the surface a light has to stand on — `litCosine`'s
 ///        argument, and for the same reason: a normal map does not move a light through the surface,
-///        and nothing on the far side of a sheet is reflected.
-Reflection reflectionAt(Gloss gloss, vec3 side, vec3 towards)
+///        and nothing on the far side of a sheet is reflected. Asked of the centre.
+Reflection reflectionAt(Gloss gloss, vec3 side, vec3 towards, float sine)
 {
-    const float toLight = dot(gloss.mNormal, towards);
-    if (!(toLight > 0.0) || !(dot(side, towards) > 0.0))
+    if (!(dot(side, towards) > 0.0))
         return Reflection(vec3(0.0), vec3(0.0));
 
-    const vec3 halfway = normalize(gloss.mToEye + towards);
+    // The mirror direction rotated into the disc: whole where it falls inside, and to the disc's rim
+    // toward it otherwise.
+    const vec3 mirror = reflect(-gloss.mToEye, gloss.mNormal);
+    const float cosine = sqrt(max(1.0 - sine * sine, 0.0));
+    const float along = dot(mirror, towards);
+    const vec3 across = mirror - towards * along;
+    const float acrossLength = length(across);
+    const vec3 nearest = along >= cosine ? mirror
+        : acrossLength > 0.0          ? towards * cosine + across * (sine / acrossLength)
+                                      : towards;
+
+    const float toLight = dot(gloss.mNormal, nearest);
+    if (!(toLight > 0.0))
+        return Reflection(vec3(0.0), vec3(0.0));
+
+    const float widened = clamp(gloss.mAlpha + sine / 3.0, 0.0, 1.0);
+    const float normalisation = widened > 0.0 ? (gloss.mAlpha / widened) * (gloss.mAlpha / widened) : 1.0;
+
+    const vec3 halfway = normalize(gloss.mToEye + nearest);
     const vec3 fresnel = fresnelAt(gloss, halfway);
     const float lobe = ggxDistribution(gloss.mAlpha, max(dot(gloss.mNormal, halfway), 0.0))
-        * smithVisibility(gloss.mAlpha, gloss.mToEyeCosine, toLight) * toLight;
+        * smithVisibility(gloss.mAlpha, gloss.mToEyeCosine, toLight) * toLight * normalisation;
 
     return Reflection(fresnel * gloss.mCompensation * lobe, fresnel);
 }
