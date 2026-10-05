@@ -402,7 +402,7 @@ namespace RtxTool
                 std::ifstream in(file);
                 std::getline(in, header);
             }
-            EXPECT_EQ(header.substr(0, 45), "hashes 5: view,frame,upscale,denoise,picture,");
+            EXPECT_EQ(header.substr(0, 45), "hashes 6: view,frame,upscale,denoise,picture,");
             EXPECT_NE(header.find(",g-direct,"), std::string::npos) << header;
             EXPECT_NE(
                 header.find(",g-puffs,g-shadowed,g-specular,g-pane,g-pane-albedo,g-pane-surface,g-pane-motion,"

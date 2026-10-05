@@ -48,7 +48,31 @@ namespace Rtx
             ASSERT_TRUE(read.isOk()) << read.error();
             EXPECT_EQ(read.value().mWidth, 2u);
             EXPECT_EQ(read.value().mHeight, 1u);
-            EXPECT_EQ(read.value().mPixels, std::vector<std::uint8_t>(pixels.begin(), pixels.end()));
+            std::vector<std::uint16_t> widened;
+            for (const std::uint8_t level : pixels)
+                widened.push_back(static_cast<std::uint16_t>(level * sSamplesPerLevel));
+            EXPECT_EQ(read.value().mSamples, widened);
+        }
+
+        /// **A sixteen-bit picture reads back sample for sample**, the ends of the scale, the middle
+        /// and a sample beside a byte's level included, with its description; and an eight-bit one
+        /// reads on the same scale, a level `v` as `257 v`, which the test above holds.
+        TEST(RtxPngTest, aSixteenBitPictureReadsBackSampleForSample)
+        {
+            constexpr std::array<std::uint16_t, 8> samples{ 0, 1, 32768, 65535, 257, 258, 25700, 25829 };
+
+            const std::filesystem::path deep = TestingOpenMW::outputFilePath("deep.png");
+            ASSERT_TRUE(writePng(deep, 2, 1, samples, "a mean").isOk());
+
+            const Misc::Result<PngImage, std::string> read = readPng(deep);
+            ASSERT_TRUE(read.isOk()) << read.error();
+            EXPECT_EQ(read.value().mWidth, 2u);
+            EXPECT_EQ(read.value().mHeight, 1u);
+            EXPECT_EQ(read.value().mSamples, std::vector<std::uint16_t>(samples.begin(), samples.end()));
+
+            const std::vector<Testing::PngText> texts = Testing::readPngTexts(deep);
+            ASSERT_EQ(texts.size(), 1u);
+            EXPECT_EQ(texts[0].mText, "a mean");
         }
 
         /// What could not be written or read says which file and what was wrong with it, each of the

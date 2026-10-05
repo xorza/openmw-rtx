@@ -12,7 +12,12 @@ Nothing here is measured. Each step in the plan names the measurement that accep
 
 **Status.** Phase 0 step 1, the security of the workflows, is in `938d176850`, and its first run
 is its test (section 5, Phase 0). D11, each shared header with the C++ that reads it, is done, and
-`RtxSourceTreeTest.aSharedHeaderStandsWithTheCodeThatReadsIt` holds it.
+`RtxSourceTreeTest.aSharedHeaderStandsWithTheCodeThatReadsIt` holds it. D12, the instruments, is
+done: `noise` keeps its means in sixteen bits and judges in fractions of a level, the still bar is
+held to its history, the scene digest names the colours and every texture field, and the driver
+reads every file as UTF-8. **Every `noise` figure from before D12 is not comparable with one after
+it.** The registration GPU test lands with D2 in Phase 3, and `noise --upscale=native` standing is
+the leg that shows the defect.
 
 ## 1. Decisions
 
@@ -107,7 +112,7 @@ And two rules apply to every step:
 | D9 | Exposure has two owners, and neither adapts in stops | S§10, U › FSR's reset sentinel |
 | D10 | Frame state changes and barriers are decided inside a pass | U › Vulkan ordering (3 groups), S§16 (barriers) |
 | D11 | The core's shader folder holds the backend's binding model | Done |
-| D12 | The instruments cannot see the defects above | U › Measurements that can mislead, S§2 (`--upscale=off`) |
+| D12 | The instruments cannot see the defects above | Done |
 
 ## 4. The contracts
 
@@ -489,6 +494,10 @@ same rule on the host and on the device (`MipChain`, `ShadingMap`):
   then does not set the exposure. The sentinel is still cleared to the SDK's `1e8`, so a reset is
   read as a reset.
 - The tone pass dithers with triangular noise from the blue-noise tile before the 8-bit store.
+- **`noise`'s reference in sixteen bits.** D12 keeps the means a run averages in sixteen bits,
+  but the reference is the renderer's own sum of radiance, written through this pass's 8-bit
+  target, so its rounding still stands under every bias. A capture of a summed stop takes a
+  16-bit target of its own (`writePng` writes either depth), and the frame shown keeps eight.
 - The bloom chain:
   - takes a Karis average on its first halving only (a specialization constant);
   - places taps on corners on odd levels, `uv = (2 · pixel + 1) · texel`;
@@ -529,35 +538,6 @@ same rule on the host and on the device (`MipChain`, `ShadingMap`):
    - A subgroup row (quad operations in compute) and the largest push block, a `constexpr`, are
      held in `requirements.cpp`.
 
-### D12. Instruments that can see these defects
-
-**Cause.** The plan is judged by `noise`, `shot` and `repeat`, but:
-
-- `noise` measures against means that it rounds to whole levels. That error is about the size of
-  the differences the A/Bs decide on.
-- `shot` and `repeat` run with `--upscale=off`, so no jitter reaches the temporal filters, and the
-  D2 registration defect is invisible.
-- The scene digest skips vertex colours and texture-row fields.
-- The still bar ignores the upscaler's extent.
-- Windows reads the logs in the wrong encoding.
-
-**Contract.**
-
-- `noise` keeps exact means: 16-bit PNGs, or the sums themselves. It judges in floating point.
-- One suite leg runs still and jittered, with the denoiser and with no upscaler (or FSR native).
-  Its bias against the reference shows the history blur.
-- A GPU test holds a still, jittered, accumulated edge to its unjittered-centre mean. **It lands
-  with the D2 fix, in Phase 3, and not here**: it fails today, and the gate stops at the first
-  failure. Write it first in Phase 3, see it fail on the old code, then fix.
-- The digest covers the colour stream and every `TextureRow` field, bound whole as
-  `forEachMaterialField` binds the material.
-- The still bar follows `noiseBarFramesAfter`.
-- The driver reads every program output as UTF-8 through one helper.
-
-**Exact means move every `noise` figure a little**, by the rounding they lose. The figures in
-`.notes/reuse.md` and every baseline taken before this step are then not comparable with later
-ones. Take all baselines again after it.
-
 ### What holds each contract
 
 Each check lands with its contract, and each is one the gate runs.
@@ -574,7 +554,6 @@ Each check lands with its contract, and each is one the gate runs.
 | D8 | The host/device tests that exist, plus: an odd extent's halving reads every texel of the level above, and preserves its sum. |
 | D9 | A host test: adaptation closes a gap at the same rate in stops either way, after the asymmetry the constants state. |
 | D10 | `CommandPool`'s count of open recordings, asserted at each submit. Synchronization validation clean on one `shot` run. |
-| D12 | The harness's own tests. |
 
 ## 5. Implementation plan
 
@@ -582,16 +561,16 @@ Each phase ends with `./omw gate`. Each step builds the targets it touched and r
 test binary with a filter, as AGENTS.md says. Changes to the picture are taken one at a time, so
 that each `shot --against` and each `noise` run attributes its movement to one cause.
 
-**After Phase 0, before Phase 1.** Take the baselines outside `/tmp`, once D12's exact means are in:
+**After Phase 0, before Phase 1.** Take the baselines outside `/tmp`:
 
 - `./omw shot --views=all --map --upscale=off --out=~/rtx-baselines/<commit>`
 - `./omw kernels > ~/rtx-baselines/<commit>/kernels.txt`
-- the `noise` suites (D12's new leg included) and a `release bench`, on a quiet desktop, as
+- the `noise` suites (the `--upscale=native` still leg included) and a `release bench`, on a quiet desktop, as
   AGENTS.md describes.
 
 Take new baselines at the end of each phase.
 
-### Phase 0. Foundations that move no picture (D12, D10, the security item)
+### Phase 0. Foundations that move no picture (D10, the security item)
 
 1. **Security first, independent of the rest. Done in `938d176850`**, unproven until a merge runs:
    - the agent job has no write credential;
@@ -604,9 +583,6 @@ Take new baselines at the end of each phase.
    `UPSTREAM-MERGE.md` means the `Edit(./**)` rule does not cover it); the sandbox started (a
    missing bubblewrap stops the agent at once, by `failIfUnavailable`); a pull request opened by the
    Claude GitHub App, with CI running on it; and auto-merge turned on or the merge held, as before.
-3. **D12.** Exact `noise` means, the jittered still leg, digest coverage, the still bar rule, and
-   UTF-8 reads. Verify with the harness tests and with one `noise` run per side, to confirm that the
-   figures move only by the rounding they lost. The registration GPU test waits for Phase 3.
 4. **D10 points 1, 2, 4 and 5.** These are ordering and contract fixes. Verify with
    `./omw test` and with synchronization validation on one `shot` run and one `bench` run.
    `./omw repeat --pairs=10` must agree.
@@ -777,7 +753,7 @@ These are local defects. Each one is fixed where it stands.
 | Review group | Goes to |
 |---|---|
 | S§1 | D1 (Phase 1) |
-| S§2 | D2 (Phase 3), D12 (Phase 0) |
+| S§2 | D2 (Phase 3) |
 | S§3: lamp, sky, through | D3 (Phase 2) |
 | S§3: fog, water, layer | D7 (Phase 4) |
 | S§4 | D3 (Phase 2), D2 point 6 (Phase 3) |
@@ -797,7 +773,7 @@ These are local defects. Each one is fixed where it stands.
 | U › Vulkan ordering and submission | D10 |
 | U › Settings and the SDL3 port | Section 6, decision 5 |
 | U › Crash reports, CI and the release | Phase 0 step 1 (security), section 6 |
-| U › Measurements that can mislead | D12 (Phase 0), section 6 (gate, hashes, driver) |
+| U › Measurements that can mislead | Section 6 (gate, hashes, driver) |
 | U › Performance | D4 point 5, D8 (sprite light), D6 (pane gather), Phase 8 |
 | U › Design: data, ownership and dependencies | Section 6 |
 | U › Duplication, dead code and stale narration | D2 (the five kernels), section 6 |

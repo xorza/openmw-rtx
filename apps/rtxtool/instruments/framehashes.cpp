@@ -45,7 +45,7 @@ namespace RtxTool
             // The format's own number first, stepped where the columns keep their names and a
             // value changes its meaning — a digest hashed another way — so a file an older build
             // wrote is refused rather than compared.
-            std::string header = "hashes 5: view,frame,upscale,denoise,picture";
+            std::string header = "hashes 6: view,frame,upscale,denoise,picture";
             for (std::size_t column = 0; column < sTracedColumns; ++column)
                 header += ',' + std::string(tracedName(column));
             for (const auto& [part, name] : sSceneParts.mNames)

@@ -144,5 +144,8 @@ namespace RtxTool
         /// mean takes run one after another.
         PictureMean mMean;
         std::filesystem::path mMeanFile;
+
+        /// What a finished mean is written from, refilled per mean and never freed.
+        std::vector<std::uint16_t> mMeanSamples;
     };
 }

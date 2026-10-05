@@ -7,7 +7,7 @@ import json
 import re
 from pathlib import Path
 
-from omw.system import ROOT, Refusal
+from omw.system import ROOT, Refusal, read_text
 
 _MACRO = re.compile(r"\$(p?env)\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
@@ -31,7 +31,7 @@ def digest(env: dict[str, str], root: Path = ROOT) -> str:
     hashed = hashlib.sha256()
     names = set(IMPLICIT_INPUTS)
     for file in preset_files(root):
-        text = file.read_text()
+        text = read_text(file)
         if "include" in json.loads(text):
             raise Refusal(f"{file.name} includes another presets file, which the digest does not read")
         hashed.update(text.encode())
@@ -74,7 +74,7 @@ def test_environment(name: str, env: dict[str, str], root: Path = ROOT) -> dict[
 
 def _test_presets(root: Path) -> dict[str, dict]:
     return {preset["name"]: preset for file in preset_files(root)
-            for preset in json.loads(file.read_text()).get("testPresets", [])}
+            for preset in json.loads(read_text(file)).get("testPresets", [])}
 
 
 def has_test_preset(name: str, root: Path = ROOT) -> bool:

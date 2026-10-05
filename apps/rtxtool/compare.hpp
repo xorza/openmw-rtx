@@ -28,7 +28,8 @@ namespace RtxTool
         std::uint64_t mDiffering = 0;
         std::uint64_t mTotal = 0;
 
-        /// The largest difference any one channel showed, out of 255.
+        /// The largest difference any one channel showed, out of 255: rounded up where a picture is
+        /// a mean, so a difference of any size is at least one.
         std::uint32_t mWorst = 0;
 
         bool same() const { return !mMismatched && mDiffering == 0; }
@@ -90,11 +91,13 @@ namespace RtxTool
         /// The two are not the same size, or either is empty.
         bool mMismatched = false;
 
+        /// The mean of each pixel's worst colour channel, out of 255, in fractions of a level where a
+        /// picture is a mean.
         double mMean = 0.0;
 
-        /// The least error ninety-nine pixels in a hundred are within: where the specks are, which
-        /// the mean spreads over the whole picture.
-        std::uint32_t mP99 = 0;
+        /// The least error ninety-nine pixels in a hundred are within, on the same scale: where the
+        /// specks are, which the mean spreads over the whole picture.
+        double mP99 = 0.0;
     };
 
     /// Measures `picture` against `reference`. Mismatched where either is empty or they disagree
@@ -164,6 +167,9 @@ namespace RtxTool
 
     /// The frame `noise` judges: standing after its history converged, flown in over
     /// `sNoiseFlightFrames` where `flies`, or `cut` frames after the cut its stop begins with.
+    /// **Each held to what its history could hold**, standing as well: its warm-up is
+    /// `sHistoryFrames`, so its history holds `sHistoryFrames + 2` frames, which at ultra
+    /// performance is fewer samples a shown pixel than `sNoiseBarFrames`.
     ///
     /// **A stop begins with a cut already** (`Stager::forgetHistory`), and its first frame, the one
     /// the cut resets, draws the world and is not measured. So the frame `cut` frames after it is a
