@@ -18,8 +18,9 @@
 // looks through, the column of water in front of them, the air, the cloud shells, and the
 // channels.
 
+#include "shared/tracerecords.h"
 #include "camera.h"
-#include "glare.h"
+#include "shared/glare.h"
 #include "scene.h"
 #include "visibility.h"
 

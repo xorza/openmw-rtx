@@ -26,9 +26,9 @@
 #include <components/rtx/scene/ripple.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/look.h>
-#include <components/rtx/shaders/ripple.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/shaders/shared/ripple.h>
 
 #include "fixture.hpp"
 

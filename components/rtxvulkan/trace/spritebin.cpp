@@ -4,13 +4,13 @@
 #include <cstdint>
 
 #include <components/rtx/shaders/scene.h>
-#include <components/rtx/shaders/spritebin.h>
-#include <components/rtx/shaders/spriteshade.h>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
+#include <components/rtxvulkan/shaders/shared/spritebin.h>
+#include <components/rtxvulkan/shaders/shared/spriteshade.h>
 
 #include "spritepasses.hpp"
 

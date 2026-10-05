@@ -20,8 +20,8 @@
 // decoded as the trace decodes them and made unit, which lose nothing of their own.
 
 #include "brdf.h"
-#include "normalspread.h"
-#include "sets.h"
+#include "shared/normalspread.h"
+#include "shared/sets.h"
 
 #include "lib/normaldecode.glsl"
 #include "lib/pixels.glsl"

@@ -4,9 +4,9 @@
 #include <cstddef>
 #include <string>
 
-#include <components/rtx/shaders/normalspread.h>
 #include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/memory/formats.hpp>
+#include <components/rtxvulkan/shaders/shared/normalspread.h>
 
 namespace Rtx
 {

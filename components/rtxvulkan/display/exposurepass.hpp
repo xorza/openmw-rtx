@@ -2,9 +2,9 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/shaders/exposure.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/exposure.h>
 
 namespace Rtx
 {

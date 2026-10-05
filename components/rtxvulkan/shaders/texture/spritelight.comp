@@ -22,8 +22,8 @@
 // hundred multiplies: a scan would save nothing anybody can measure and would sum in another order.
 
 #include "scene.h"
-#include "sets.h"
-#include "spritelight.h"
+#include "shared/sets.h"
+#include "shared/spritelight.h"
 
 #include "lib/pixels.glsl"
 

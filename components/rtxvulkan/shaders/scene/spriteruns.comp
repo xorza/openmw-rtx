@@ -32,7 +32,7 @@
 // an emitter's sprites consecutive — which is what lets the march evaluate the fog and walk the
 // lamps once for a run rather than once for a sprite.
 
-#include "spritebin.h"
+#include "shared/spritebin.h"
 
 #include "lib/spritelist.glsl"
 

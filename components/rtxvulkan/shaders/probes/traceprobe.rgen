@@ -14,8 +14,8 @@
 // idea for the buffer reads. The miss and hit records are the trace's own tests': the sky and every
 // surface are drawn through them.
 
-#include "probe.h"
-#include "sets.h"
+#include "shared/probe.h"
+#include "shared/sets.h"
 
 layout(set = SET_PASS, binding = PROBE_BIND_LAUNCHED, scalar) writeonly buffer Launched
 {

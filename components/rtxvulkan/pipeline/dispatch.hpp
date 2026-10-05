@@ -9,9 +9,9 @@
 
 #include <volk.h>
 
-#include <components/rtx/shaders/sets.h>
 #include <components/rtxvulkan/device/bindingtable.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/shaders/shared/sets.h>
 
 #include "computepipeline.hpp"
 #include "pipeline.hpp"

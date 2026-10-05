@@ -6,11 +6,11 @@
 #include <span>
 
 #include <components/rtx/renderer/channel.hpp>
-#include <components/rtx/shaders/accumulate.h>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/accumulate.h>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 
 namespace Rtx

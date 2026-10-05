@@ -44,8 +44,8 @@
 
 #include "colour.h"
 #include "gbuffer.h"
-#include "sets.h"
-#include "shadow.h"
+#include "shared/sets.h"
+#include "shared/shadow.h"
 
 #include "lib/pixels.glsl"
 

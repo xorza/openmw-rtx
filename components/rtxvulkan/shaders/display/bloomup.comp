@@ -8,8 +8,8 @@
 // room for — `BLOOM_SCATTER` says why, and what a level holds after this is the blur of everything
 // coarser than it.
 
-#include "bloom.h"
-#include "sets.h"
+#include "shared/bloom.h"
+#include "shared/sets.h"
 #include "lib/bloom.glsl"
 #include "lib/pixels.glsl"
 

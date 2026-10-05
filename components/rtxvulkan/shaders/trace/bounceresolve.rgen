@@ -22,7 +22,7 @@
 // it is the last thing traced; a wall of no thickness between a lit room and a dark one is the
 // first leak it stops.
 
-#include "bouncereuse.h"
+#include "shared/bouncereuse.h"
 #include "colour.h"
 #include "gbuffer.h"
 #include "scene.h"

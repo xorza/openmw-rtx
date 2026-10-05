@@ -8,8 +8,8 @@
 // entry point take both: a sampler carries no format qualifier, so the whole-float frame and the
 // half-float levels reach the same code.
 
-#include "bloom.h"
-#include "sets.h"
+#include "shared/bloom.h"
+#include "shared/sets.h"
 #include "lib/bloom.glsl"
 #include "lib/pixels.glsl"
 

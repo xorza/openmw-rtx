@@ -12,8 +12,8 @@
 // across frames. The whole of the fix is which image these two passes are bound to.
 
 #include "colour.h"
-#include "exposure.h"
-#include "sets.h"
+#include "shared/exposure.h"
+#include "shared/sets.h"
 
 #include "lib/pixels.glsl"
 

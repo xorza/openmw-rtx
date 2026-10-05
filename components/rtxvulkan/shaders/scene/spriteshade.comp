@@ -7,8 +7,9 @@
 // `spriteshade.h` says what this computes, why it is here rather than on the host, and why there is
 // no second implementation of it anywhere.
 
+#include "shared/tables.h"
 #include "scene.h"
-#include "spriteshade.h"
+#include "shared/spriteshade.h"
 
 #include "lib/basis.glsl"
 #include "lib/spritelist.glsl"

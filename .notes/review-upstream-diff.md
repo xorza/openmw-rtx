@@ -1029,33 +1029,6 @@ Work done twice, at the wrong time, or for nothing.
 
 ## Design: data, ownership and dependencies
 
-### The core's shader folder holds the Vulkan backend's binding model
-
-- [ ] `components/rtx/shaders/` (core, "no graphics API") — **[design]**
-  Of the 46 headers, these are read by no C++ outside the Vulkan backend:
-  `accumulate.h`, `atrous.h`, `bindings.h`, `bloom.h`, `bouncereuse.h`, `composite.h`, `counts.h`,
-  `exposure.h`, `fogvolume.h`, `fsr.h`, `glare.h`, `ground.h`, `gui.h`, `line.h`, `mipchain.h`,
-  `normalspread.h`, `pane.h`, `ripple.h`, `sets.h`, `shadow.h`, `specular.h`, `spritebin.h`,
-  `spritelight.h`, `spriteshade.h`, `stress.h`, `tone.h` and `storageformat.h`.
-
-  They state Vulkan facts: descriptor sets and bindings, push blocks, specialization ids, and
-  `fsr.h:95`'s "the largest `minUniformBufferOffsetAlignment` Vulkan allows". Mixed headers carry
-  more: `scene.h`'s `TEXTURE_BIND_*` and `TABLE_ALIGN_*` (buffer-reference alignment "on this
-  device"), and `visibility.h`'s `HIT_RECORD_*`, `MISS_RECORD_*` and `hitRecordTable()`, which is
-  the ray tracing pipeline's shader binding table.
-
-  AGENTS.md: "A fact about Vulkan that leaks into the core is a bug." The stated reason for the
-  placement is false. `bindings.h:21-24` says "the shader compiler is given this directory and no
-  other", but `components/rtxvulkan/CMakeLists.txt:131-132` passes `-I` for
-  `components/rtxvulkan/shaders` and `extern/fidelityfx/gpu` as well.
-  → Target shape: the backend-only shared headers move to a folder under
-  `components/rtxvulkan/shaders/`, which glslc already searches and the backend's C++ can include.
-  The core keeps what core C++ reads (`scene.h`, `visibility.h`, `camera.h`, `look.h`, `sky.h`,
-  `brdf.h`, `colour.h`, `skinning.h`, `tangent.h`, `octahedral.h`, `gbuffer.h`, `digest.h`,
-  `shadingmap.h`, `wave.h`). The mixed headers split their binding and table parts out.
-- [ ] `components/rtx/shaders/bindings.h:21-24` — **[code]** The comment justifying the placement
-  is stale, as above. It goes with the move.
-
 ### The scene graph's state reading lives in `scene/`
 
 - [ ] `components/rtx/scene/surface.hpp:152,272,441` / `surface.cpp` — **[design]** `describeStateSet`,

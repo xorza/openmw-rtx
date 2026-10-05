@@ -21,11 +21,11 @@
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/scene.h>
-#include <components/rtx/shaders/spritebin.h>
-#include <components/rtx/shaders/spriteshade.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
+#include <components/rtxvulkan/shaders/shared/spritebin.h>
+#include <components/rtxvulkan/shaders/shared/spriteshade.h>
 #include <components/rtxvulkan/trace/spritepasses.hpp>
 
 namespace Rtx

@@ -19,7 +19,7 @@
 // memory whole and came straight back.
 
 #include "scene.h"
-#include "sets.h"
+#include "shared/sets.h"
 #include "wave.h"
 
 #include "lib/turns.glsl"

@@ -23,9 +23,9 @@
 // texel, so that `RtxMipChainPassTest` can hold the two to a byte.
 
 #include "colour.h"
-#include "mipchain.h"
+#include "shared/mipchain.h"
 #include "scene.h"
-#include "sets.h"
+#include "shared/sets.h"
 
 #include "lib/pixels.glsl"
 

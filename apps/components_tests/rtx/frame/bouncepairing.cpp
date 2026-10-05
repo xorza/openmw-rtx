@@ -1,15 +1,33 @@
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
+#include <vector>
 
 #include <gtest/gtest.h>
 
 #include <components/rtx/frame/bouncepairing.hpp>
-#include <components/rtx/shaders/bouncereuse.h>
+#include <components/rtx/shaders/bouncepairing.h>
 
 namespace Rtx
 {
     namespace
     {
+        /// **What the device reads is both textures, the first's steps and then the second's**, made
+        /// at the deviation the frame's height asks for. A height of 100000 rows asks for a radius
+        /// of 3000 pixels, whose deviation is held at a sixth of the smaller texture: 230 / 6.
+        TEST(RtxBouncePairingTest, aFramesStepsAreBothTexturesAtItsDeviation)
+        {
+            const std::vector<std::uint32_t> steps = bouncePairingSteps(100000);
+            const float held = static_cast<float>(Shaders::BOUNCE_PAIRING_SIZE_1) / 6.0f;
+            const BouncePairing first(Shaders::BOUNCE_PAIRING_SIZE_0, held, 0);
+            const BouncePairing second(Shaders::BOUNCE_PAIRING_SIZE_1, held, 1);
+
+            ASSERT_EQ(steps.size(), first.getSteps().size() + second.getSteps().size());
+            EXPECT_TRUE(std::equal(first.getSteps().begin(), first.getSteps().end(), steps.begin()));
+            EXPECT_TRUE(std::equal(second.getSteps().begin(), second.getSteps().end(),
+                steps.begin() + static_cast<std::ptrdiff_t>(first.getSteps().size())));
+        }
+
         /// **Every texel's partner's partner is itself**, at both sizes the reuse reads and at a
         /// deviation that wraps a few steps at the texture's edge.
         TEST(RtxBouncePairingTest, everyTexelsPartnersPartnerIsItself)

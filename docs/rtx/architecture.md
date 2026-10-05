@@ -72,8 +72,10 @@ Shaders are GLSL, compiled by `glslc` and validated by `spirv-val` in one build 
 invalid module fails the build. Between the two, `Rtx::pinFloatArithmetic`
 (`components/rtxvulkan/spirv/spirvpin.hpp`) fixes the order and fusion of every float operation the
 Vulkan specification leaves open, so every compile of a module, the driver's recompiles
-included, computes the same frame. The structures both languages read live in
-`components/rtx/shaders/*.h`, which compile as C++ and as GLSL.
+included, computes the same frame. The structures both languages read are headers that compile as
+C++ and as GLSL, beside the C++ that reads them: `components/rtx/shaders/*.h` for what the core
+reads, and `components/rtxvulkan/shaders/shared/*.h` for what only the backend and its shaders read
+(the bindings, the passes' constants, the shader binding table's records).
 
 `./omw [flavour] <verb>` is the one command line over the CMake presets, on the desk and in CI.
 `./omw help` lists both.
@@ -163,7 +165,7 @@ source-tree test holds the order.
 | `mirror/`           | the walk from the scene graph; the cell ring in `cells/`, which runs inside it |
 | `environment/`      | the sky, the air and the sea a frame is told                             |
 | `view/`             | the pictures traced away from the eye                                    |
-| `shaders/`          | the structures C++ and GLSL both read                                    |
+| `shaders/`          | the structures core C++ and GLSL both read                               |
 
 - **`Rtx::Renderer`** (`renderer/renderer.hpp`) is one traced image, whichever API makes it. Each
   call is worth a whole scene or a whole frame, never an instance or a pixel: build, extend or
@@ -220,6 +222,7 @@ at the top, over all of them.
 
 | folder              | holds                                                                   |
 |---------------------|-------------------------------------------------------------------------|
+| `shaders/`          | the GLSL, by the folder of the pass that dispatches it; `lib/` shared, and `shared/` the headers only the backend and its shaders read |
 | `spirv/`            | the pinning and the kernel digest, a library of its own the build runs  |
 | `device/`           | the instance, the device, the timeline, the graveyard; `memory/` for buffers and images |
 | `pipeline/`         | compute, graphics and ray tracing pipelines, and how a dispatch is sized |

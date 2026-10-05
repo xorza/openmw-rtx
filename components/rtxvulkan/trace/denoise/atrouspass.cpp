@@ -7,12 +7,12 @@
 #include <string_view>
 
 #include <components/rtx/renderer/channel.hpp>
-#include <components/rtx/shaders/atrous.h>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/atrous.h>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 
 namespace Rtx

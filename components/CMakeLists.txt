@@ -447,10 +447,8 @@ add_component_dir (rtx/scene
     )
 
 add_component_dir (rtx/shaders
-    accumulate atrous bindings bloom bouncereuse brdf camera colour composite counts digest exposure fogvolume fsr gbuffer
-    glare ground gui halfstore hosttypes line look mipchain normalspread octahedral pane pinning portable probe ripple
-    scene sets shadingmap shadow skinning sky specular spritebin spritelight spriteshade storageformat stress
-    tangent tone visibility wave
+    bouncepairing brdf camera colour digest gbuffer hosttypes look octahedral portable scene shadingmap skinning sky
+    storageformat tangent visibility wave
     )
 
 add_component_dir (rtx/view

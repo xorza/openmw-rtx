@@ -4,9 +4,9 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/shaders/accumulate.h>
-#include <components/rtx/shaders/shadow.h>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/accumulate.h>
+#include <components/rtxvulkan/shaders/shared/shadow.h>
 
 #include "denoiseframe.hpp"
 #include "denoisehistory.hpp"

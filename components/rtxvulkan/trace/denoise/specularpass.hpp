@@ -2,8 +2,8 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/shaders/specular.h>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/specular.h>
 
 #include "denoiseframe.hpp"
 #include "denoisehistory.hpp"

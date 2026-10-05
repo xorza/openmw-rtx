@@ -9,7 +9,6 @@
 #include <osg/Vec2i>
 
 #include <components/rtx/environment/wavecascade.hpp>
-#include <components/rtx/shaders/ripple.h>
 #include <components/rtx/shaders/wave.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -19,6 +18,7 @@
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/ripple.h>
 
 namespace Rtx
 {

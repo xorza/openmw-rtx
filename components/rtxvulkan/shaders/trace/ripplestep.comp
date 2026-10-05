@@ -18,8 +18,8 @@
 // million texels. A texel loops over the frame's impulses, which is nought on nearly every frame
 // and a handful when somebody wades.
 
-#include "ripple.h"
-#include "sets.h"
+#include "shared/ripple.h"
+#include "shared/sets.h"
 #include "lib/pixels.glsl"
 
 layout(local_size_x = RIPPLE_WORKGROUP, local_size_y = RIPPLE_WORKGROUP) in;

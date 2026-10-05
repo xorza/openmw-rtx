@@ -22,8 +22,6 @@
 #include <components/rtx/frame/specularalbedo.hpp>
 #include <components/rtx/scene/lightgrid.hpp>
 #include <components/rtx/scene/material.hpp>
-#include <components/rtx/shaders/bindings.h>
-#include <components/rtx/shaders/bouncereuse.h>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
@@ -41,6 +39,10 @@
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
+#include <components/rtxvulkan/shaders/shared/bindings.h>
+#include <components/rtxvulkan/shaders/shared/bouncereuse.h>
+#include <components/rtxvulkan/shaders/shared/tables.h>
+#include <components/rtxvulkan/shaders/shared/tracerecords.h>
 
 #include "bouncereservoirs.hpp"
 #include "fogvolume.hpp"

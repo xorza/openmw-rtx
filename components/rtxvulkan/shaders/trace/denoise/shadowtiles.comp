@@ -65,10 +65,10 @@
 //   is NVIDIA's SIGMA's rule (the distance to the occluder times the source's half angle, in
 //   pixels), and this pass hands it to the spatial levels, which run only as far.
 
-#include "accumulate.h"
+#include "shared/accumulate.h"
 #include "gbuffer.h"
-#include "sets.h"
-#include "shadow.h"
+#include "shared/sets.h"
+#include "shared/shadow.h"
 
 #include "lib/pixels.glsl"
 #include "lib/surfacematch.glsl"

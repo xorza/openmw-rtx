@@ -6,8 +6,6 @@
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/framesampling.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
-#include <components/rtx/shaders/counts.h>
-#include <components/rtx/shaders/glare.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
@@ -18,6 +16,8 @@
 #include <components/rtxvulkan/gui/guitextures.hpp>
 #include <components/rtxvulkan/pipeline/graphicspipeline.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
+#include <components/rtxvulkan/shaders/shared/counts.h>
+#include <components/rtxvulkan/shaders/shared/glare.h>
 #include <components/rtxvulkan/trace/tracemedia.hpp>
 #include <components/rtxvulkan/trace/tracerecording.hpp>
 #include <components/rtxvulkan/trace/visibilitypass.hpp>

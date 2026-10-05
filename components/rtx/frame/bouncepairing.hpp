@@ -51,4 +51,10 @@ namespace Rtx
         float mDeviation = 0.0f;
         std::vector<std::uint32_t> mSteps;
     };
+
+    /// Both pairing textures for a frame `height` traced rows tall, the first's steps and then the
+    /// second's: what the device reads. **The steps' deviation is the one whose mean distance a
+    /// uniform disc of the reuse's radius has** (ReSTIR PT Enhanced §7): `σ √(π/2) = 2R/3`, so
+    /// `σ = √(8 / 9π) R`, held where the shuffles still spread it.
+    std::vector<std::uint32_t> bouncePairingSteps(std::uint32_t height);
 }

@@ -4,16 +4,16 @@
 #include <initializer_list>
 #include <string>
 
-#include <components/rtx/shaders/accumulate.h>
-#include <components/rtx/shaders/atrous.h>
 #include <components/rtx/shaders/look.h>
-#include <components/rtx/shaders/pane.h>
-#include <components/rtx/shaders/shadow.h>
-#include <components/rtx/shaders/specular.h>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/accumulate.h>
+#include <components/rtxvulkan/shaders/shared/atrous.h>
+#include <components/rtxvulkan/shaders/shared/pane.h>
+#include <components/rtxvulkan/shaders/shared/shadow.h>
+#include <components/rtxvulkan/shaders/shared/specular.h>
 
 namespace Rtx
 {

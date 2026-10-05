@@ -5,7 +5,10 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <numbers>
 #include <random>
+
+#include <components/rtx/shaders/bouncepairing.h>
 
 namespace Rtx
 {
@@ -157,5 +160,19 @@ namespace Rtx
         const std::uint32_t word = mSteps[std::size_t{ down } * mSize + across];
         return PairingStep{ .mAcross = static_cast<std::int16_t>(word & 0xFFFFu),
             .mDown = static_cast<std::int16_t>(word >> 16) };
+    }
+
+    std::vector<std::uint32_t> bouncePairingSteps(const std::uint32_t height)
+    {
+        const float radius
+            = std::max(Shaders::BOUNCE_RADIUS_SHARE * static_cast<float>(height), Shaders::BOUNCE_RADIUS_LEAST);
+        const float deviation = std::clamp(std::sqrt(8.0f / (9.0f * std::numbers::pi_v<float>)) * radius, 0.8f,
+            static_cast<float>(Shaders::BOUNCE_PAIRING_SIZE_1) / 6.0f);
+
+        const BouncePairing first(Shaders::BOUNCE_PAIRING_SIZE_0, deviation, 0);
+        const BouncePairing second(Shaders::BOUNCE_PAIRING_SIZE_1, deviation, 1);
+        std::vector<std::uint32_t> steps(first.getSteps().begin(), first.getSteps().end());
+        steps.insert(steps.end(), second.getSteps().begin(), second.getSteps().end());
+        return steps;
     }
 }

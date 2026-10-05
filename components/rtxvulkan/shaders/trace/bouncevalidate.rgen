@@ -18,7 +18,7 @@
 // is asked every eighth frame, and every frame asks as many. **A launch over that share and
 // not a branch in the resolve**, whose every pixel would hold the registers the shading takes.
 
-#include "bouncereuse.h"
+#include "shared/bouncereuse.h"
 #include "camera.h"
 #include "gbuffer.h"
 #include "scene.h"

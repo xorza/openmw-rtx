@@ -457,8 +457,8 @@ namespace Rtx
                 { "shaders", "common", "image", "preprocess", "scene", "frame", "renderer", "mirror", "environment",
                     "view" } },
             FolderOrder{ "rtxvulkan",
-                { "spirv", "device", "pipeline", "texture", "scene", "trace", "upscale", "display", "present", "gui",
-                    "" } },
+                { "shaders", "spirv", "device", "pipeline", "texture", "scene", "trace", "upscale", "display",
+                    "present", "gui", "" } },
         };
 
         /// The folder of the library a path under its root stands in: the first of its names, or
@@ -529,6 +529,53 @@ namespace Rtx
                                 + "/` — move the file where what it includes allows, or split it");
                     }
                 }
+            }
+
+            EXPECT_TRUE(found.empty()) << joined(found);
+        }
+
+        /// **A header both languages read stands with the C++ that reads it.** The core's shader
+        /// folder holds what core C++ reads, and a header that only the backend and its GLSL read is
+        /// the backend's, in `components/rtxvulkan/shaders/shared/`, whatever it states: the GLSL
+        /// that uses it lives in the backend already. And nothing of the core reads the backend.
+        TEST(RtxSourceTreeTest, aSharedHeaderStandsWithTheCodeThatReadsIt)
+        {
+            const std::filesystem::path core = sRoot / "components" / "rtx";
+            const std::filesystem::path shaders = core / "shaders";
+
+            std::set<std::string, std::less<>> read;
+            std::vector<std::string> found;
+            for (const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(core))
+            {
+                const std::filesystem::path& file = entry.path();
+                const std::filesystem::path extension = file.extension();
+                if (extension != ".cpp" && extension != ".hpp" && extension != ".h")
+                    continue;
+
+                for (const std::string& line : linesOf(file))
+                {
+                    const std::optional<Included> included = includedBy(line);
+                    if (!included.has_value())
+                        continue;
+
+                    if (included->mPath.starts_with("components/rtxvulkan/"))
+                        found.push_back(genericName(file.lexically_relative(sRoot)) + ": <" + included->mPath
+                            + "> is the backend's");
+
+                    const std::filesystem::path named = included->mQuoted
+                        ? (file.parent_path() / included->mPath).lexically_normal()
+                        : (sRoot / included->mPath).lexically_normal();
+                    if (named.parent_path() == shaders && named != file.lexically_normal())
+                        read.insert(Files::pathToUnicodeString(named.filename()));
+                }
+            }
+
+            for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(shaders))
+            {
+                const std::string name = Files::pathToUnicodeString(entry.path().filename());
+                if (entry.path().extension() == ".h" && !read.contains(name))
+                    found.push_back("components/rtx/shaders/" + name
+                        + ": no file of the core reads it — it belongs in components/rtxvulkan/shaders/shared/");
             }
 
             EXPECT_TRUE(found.empty()) << joined(found);

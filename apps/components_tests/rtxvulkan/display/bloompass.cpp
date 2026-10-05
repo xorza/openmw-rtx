@@ -9,12 +9,12 @@
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/readback.hpp>
-#include <components/rtx/shaders/bloom.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/display/bloompass.hpp>
+#include <components/rtxvulkan/shaders/shared/bloom.h>
 
 namespace Rtx
 {

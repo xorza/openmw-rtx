@@ -8,13 +8,13 @@
 #include <volk.h>
 
 #include <components/rtx/renderer/guirenderer.hpp>
-#include <components/rtx/shaders/gui.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/display/tonepass.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/pipeline/shadercode.hpp>
+#include <components/rtxvulkan/shaders/shared/gui.h>
 
 namespace Rtx
 {

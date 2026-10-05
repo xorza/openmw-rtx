@@ -6,7 +6,8 @@
 // What `bouncepairs.rgen`, which traces a pair's rays, and `bounceresolve.rgen`, which reads them,
 // must answer alike to the bit.
 
-#include "bouncereuse.h"
+#include "bouncepairing.h"
+#include "shared/bouncereuse.h"
 
 #include "bindings.glsl"
 #include "bouncereservoir.glsl"

@@ -17,6 +17,7 @@
 // record — an instance's offset is its material's kind, and a scene can hold water the build was
 // told to ignore — so `HAS_SEA` is what says whether it shades as water or as the solid it then is.
 
+#include "shared/tracerecords.h"
 #include "camera.h"
 #include "scene.h"
 #include "visibility.h"

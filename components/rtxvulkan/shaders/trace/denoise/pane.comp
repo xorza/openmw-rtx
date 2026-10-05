@@ -22,11 +22,11 @@
 // each only if it is this layer by `heldSurfaceMatches`, and `blendedMean` into the history, with the
 // whole of it kept — a layer's light does not turn with the view.
 
-#include "accumulate.h"
+#include "shared/accumulate.h"
 #include "gbuffer.h"
 #include "look.h"
-#include "pane.h"
-#include "sets.h"
+#include "shared/pane.h"
+#include "shared/sets.h"
 
 #include "lib/pixels.glsl"
 #include "lib/runningmean.glsl"

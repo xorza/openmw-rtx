@@ -19,7 +19,7 @@
 // alike (`originsAlike`, the same both ways round), the sample worth something, and its shift not
 // refused.
 
-#include "bouncereuse.h"
+#include "shared/bouncereuse.h"
 #include "scene.h"
 
 #include "lib/bindings.glsl"

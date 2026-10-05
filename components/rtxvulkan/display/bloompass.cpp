@@ -6,13 +6,13 @@
 
 #include <osg/Vec2f>
 
-#include <components/rtx/shaders/bloom.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/bloom.h>
 
 namespace Rtx
 {

@@ -7,9 +7,9 @@
 // denoiser and the glossy filter read next frame as the surface their own histories belong to.
 // `accumulate.comp` writes the same texel beside the bounce's mean, by the same function.
 
-#include "accumulate.h"
+#include "shared/accumulate.h"
 #include "gbuffer.h"
-#include "sets.h"
+#include "shared/sets.h"
 
 #include "lib/pixels.glsl"
 #include "lib/surfacematch.glsl"

@@ -1,0 +1,106 @@
+#ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_SHARED_EXPOSURE_H
+#define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_SHARED_EXPOSURE_H
+
+#include <components/rtx/shaders/hosttypes.h>
+#include <components/rtx/shaders/look.h>
+#include <components/rtx/shaders/portable.h>
+
+// What the two passes that measure a frame's brightness need. Included verbatim by both sides, for
+// the reason `visibility.h` is.
+
+#ifdef RTX_HOST
+namespace Rtx::Shaders
+{
+#endif
+
+    /// Where `histogram.comp` binds what it reads and writes in set 0, and how many there are. The
+    /// shader's layout and the pass's own layout and writes are numbered by these and by nothing
+    /// else, so the two cannot drift apart.
+    const uint HISTOGRAM_BIND_SOURCE = 0;
+    const uint HISTOGRAM_BIND_BINS = 1;
+    const uint HISTOGRAM_BINDINGS = 2;
+
+    /// Where `exposure.comp` binds what it reads and writes in set 0, and how many there are. The
+    /// shader's layout and the pass's own layout and writes are numbered by these and by nothing
+    /// else, so the two cannot drift apart.
+    const uint EXPOSURE_BIND_HISTOGRAM = 0;
+    const uint EXPOSURE_BIND_EXPOSURE = 1;
+    const uint EXPOSURE_BINDINGS = 2;
+
+    /// Threads along each edge of the binning pass's workgroup.
+    const uint HISTOGRAM_WORKGROUP = 16;
+
+    /// Bins in the log-luminance histogram: the binning pass's workgroup squared, so each thread
+    /// owns exactly one bin of the workgroup's own tally, which `histogram.comp` indexes by the
+    /// thread.
+    ///
+    /// **A histogram and not a running mean, because of what an interior looks like**: a handful of
+    /// tiny flames at a luminance of one, in a room sitting at a hundredth of that. A mean is
+    /// dragged around by whichever population has more pixels; a histogram keeps them apart and
+    /// lets the reduction decide what to expose for.
+    const uint EXPOSURE_BINS = HISTOGRAM_WORKGROUP * HISTOGRAM_WORKGROUP;
+
+    /// What the binning pass needs to place a luminance.
+    struct HistogramConstants
+    {
+        uint mWidth;
+        uint mHeight;
+    };
+
+    /// What the reduction needs to undo the binning.
+    struct ExposureConstants
+    {
+        /// Pixels binned, so the black bin can be discounted from the divisor.
+        uint mPixels;
+
+        /// Seconds since the previous measurement, which is what makes the approach a rate rather
+        /// than a fraction per frame. Nought moves nothing: a frame with no past is `mReset`.
+        float mElapsed;
+
+        /// One where there is no previous exposure to move away from — the first frame, and any
+        /// frame the renderer was told has no past. The measured value is taken outright.
+        uint mReset;
+
+        /// What to multiply the measured target by before anything approaches it. See
+        /// `Rtx::Daylight::mExposureBias`.
+        float mBias;
+    };
+
+    // The bin mapping, both ways, so that the pass that fills the histogram and the pass that
+    // reads its mean back cannot come to differ about where a bin stands. Bin nought is black and
+    // is not on the scale; the scale runs from one over `EXPOSURE_BINS - 2`. Inside the namespace,
+    // for the reason `causticGain` is: a curve two passes agree on is a curve a test has to call.
+
+    /// Which bin a luminance lands in.
+    RTX_SHADER uint luminanceBin(float luminance)
+    {
+        if (luminance < EXPOSURE_BLACK)
+            return 0u;
+
+        const float span = MAX_LOG_LUMINANCE - MIN_LOG_LUMINANCE;
+        const float normalised = (log2(luminance) - MIN_LOG_LUMINANCE) / span;
+        return uint(clamp(normalised, 0.0f, 1.0f) * float(EXPOSURE_BINS - 2u)) + 1u;
+    }
+
+    /// The luminance a bin stands for, for a bin that may be a mean and so not whole: its middle.
+    /// A luminance is binned by the floor of where it falls on the scale, so a whole bin holds
+    /// what lies from its lower edge to the next one, and half a bin up is where what it holds lies
+    /// on average — at its lower edge, the metered mean read half a bin low, about 0.04 of a stop.
+    RTX_SHADER float binLuminance(float bin)
+    {
+        const float span = MAX_LOG_LUMINANCE - MIN_LOG_LUMINANCE;
+        return exp2((bin - 0.5f) / float(EXPOSURE_BINS - 2u) * span + MIN_LOG_LUMINANCE);
+    }
+
+    // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
+    // reads them are different compilers.
+#ifdef RTX_HOST
+    static_assert(sizeof(HistogramConstants) == 8, "HistogramConstants must be scalar-packed on every side");
+    static_assert(sizeof(ExposureConstants) == 16, "ExposureConstants must be scalar-packed on every side");
+#endif
+
+#ifdef RTX_HOST
+}
+#endif
+
+#endif

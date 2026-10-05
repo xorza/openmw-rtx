@@ -5,7 +5,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/shaders/camera.h>
-#include <components/rtx/shaders/fsr.h>
+#include <components/rtxvulkan/shaders/shared/fsr.h>
 
 namespace Rtx
 {

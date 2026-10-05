@@ -26,12 +26,12 @@
 // each only if it is this surface by `heldSurfaceMatches`, against the accumulator's own surface
 // history; and `blendedMean` into a history of this pass's own.
 
-#include "accumulate.h"
+#include "shared/accumulate.h"
 #include "colour.h"
 #include "gbuffer.h"
 #include "look.h"
-#include "sets.h"
-#include "specular.h"
+#include "shared/sets.h"
+#include "shared/specular.h"
 
 #include "lib/pixels.glsl"
 #include "lib/runningmean.glsl"

@@ -4,10 +4,10 @@
 #include <cstdint>
 #include <span>
 
-#include <components/rtx/shaders/exposure.h>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/exposure.h>
 
 namespace Rtx
 {

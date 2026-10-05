@@ -48,7 +48,7 @@
 
 #include "camera.h"
 #include "scene.h"
-#include "sets.h"
+#include "shared/sets.h"
 
 #include "lib/bindings.glsl"
 #include "lib/fog.glsl"

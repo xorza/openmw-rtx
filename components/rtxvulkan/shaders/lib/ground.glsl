@@ -14,6 +14,7 @@
 // **The three tables it reads are declared here** and reached through `bindings.glsl` by the
 // trace, so that a table is declared once whichever side constructs the reference.
 
+#include "shared/tables.h"
 #include "brdf.h"
 #include "colour.h"
 #include "look.h"
