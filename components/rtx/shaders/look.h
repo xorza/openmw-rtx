@@ -1268,7 +1268,7 @@ namespace Rtx::Shaders
     /// `REBLUR_HistoryFix`), whose three this is.
     ///
     /// **Where the eye uncovers a surface or brings it in at the frame's edge**, its mean is one
-    /// bounce, and the cascade's fourteen pixels spread that one bounce into blotches that settle
+    /// bounce, and the cascade's sixteen pixels spread that one bounce into blotches that settle
     /// over the frames after it. Rebuilt instead from the surface around it, under ReLAX's flat
     /// kernel, a pixel shows the light of that surface and starts its history from it. No weight on
     /// the brightness, since a history of one has no spread to judge a neighbour by. The frames
@@ -1340,20 +1340,23 @@ namespace Rtx::Shaders
     /// one holds its detail. SVGF's own figure.
     const float ATROUS_LUMINANCE_SIGMA = 4.0f;
 
-    /// How many levels the cascade runs, its taps standing 1, 2 and 4 pixels apart.
+    /// How many levels the cascade runs, its taps standing 1, 2, 4 and 8 pixels apart.
     ///
-    /// **Three levels of a 5×5 kernel reach fourteen pixels**: each takes two taps at its own
-    /// spacing, so the support is twice `1 + 2 + 4`. That is the à-trous trick — the holes between
-    /// taps grow while the tap count does not.
+    /// **A 5×5 first level and three 3×3 after it reach sixteen pixels**: the first takes two taps
+    /// at its spacing and each later one a tap at its own, so the support is `2 + 2 + 4 + 8`. That
+    /// is the à-trous trick — the holes between taps grow while the tap count does not. ReLAX's
+    /// shape (`RELAX_AtrousSmem`, then `RELAX_Atrous`): the later levels weigh by the centre's
+    /// variance, which the levels before already averaged, and skip the prefilter's nine loads.
     ///
-    /// **Three and not the five SVGF runs, because what the wide levels did is done over time now.**
-    /// The accumulator averages sixteen frames ahead of the cascade and FSR accumulates behind it, so
-    /// a level past the third spreads light that is already quiet. Measured at native under both
-    /// profiles, still and strafing in (`noise --strafe=150`), three levels stand level with five
-    /// (the guild 4.15/35 still and 4.32/36 strafing, against 4.18/35 and 4.40/36), the local map
-    /// tiles — one frame, no history — move by a few levels at most, and the filter's zone falls
-    /// from 3.0 ms to 1.75 at 1920×1080.
-    const uint ATROUS_LEVELS = 3;
+    /// **Not the five SVGF runs, because what the wide levels did is done over time now.** The
+    /// accumulator averages sixteen frames ahead of the cascade and FSR accumulates behind it, so a
+    /// level past the reach of sixteen spreads light that is already quiet. Three 5×5 levels, which
+    /// reached fourteen, stood level with five at native (the guild 4.15/35 still and 4.32/36
+    /// strafing, against 4.18/35 and 4.40/36). Measured against them at 1920×1080 under FSR
+    /// quality, these four take the filter's share of the frame from 1.09 ms to 0.69 at the guild
+    /// and from 0.78 to 0.56 at the ship, and move no place of the bounce suite by more than 0.01
+    /// of noise or bias, still, strafed and walked in.
+    const uint ATROUS_LEVELS = 4;
 
     /// How much of a froxel's answer comes from where it stood last frame.
     ///

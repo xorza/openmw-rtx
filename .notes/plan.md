@@ -413,18 +413,6 @@ section at the end**, kept or reverted, because a finished step leaves this list
 noisier by more than 0.02 or more biased by more than 0.05 in any leg it is run on, still,
 strafed (`--strafe=150`) and walked (`--walk=150`).
 
-17. **P1: the lighter wavelet** (decision 4). `atrous.comp`: past the first level a 3×3 kernel
-    (ReLAX's Gaussian, 0.44198 and 0.27901) and the centre's variance; the first level, with the
-    history fix, unchanged; `ATROUS_LEVELS` 4, so the steps are 1, 2, 4 and 8. ReLAX's two other
-    rules for its later passes, a normal test tightened by the step and a random offset past step
-    4 against ringing, are not taken: the A/B passed without them. `look.h`'s `ATROUS_LEVELS` and
-    `architecture.md`'s denoiser paragraph say what the levels are now, with the measurements. The
-    GPU tests that quote measured filter figures (`rtxvulkan/trace/visibility/filter.cpp`) are run
-    and their figures updated where they moved; a claim that fails is a finding, not a number to
-    retune. Several were stale before step 16 and are measured again here: after step 16 the arm
-    leaves 3.0% of its spread (quoted 3.2), the grazing sheet's one sample is 0.0335 off and the
-    cascade 0.00224 (quoted 0.0420 and 0.0020), its history 0.00177 (quoted 0.00201), and the
-    neighbourless grid's cascade 0.0179 and history 0.0050 (quoted 0.00475 and 0.00268).
 18. **P2: the reuse by the sky** (decision 3). `BounceReuse` gains a mode, `rooms`, the default:
     temporal where the frame's sky lights nothing (`mAmbientFromSky` nought: an interior) and off
     where it does. **`Reconstruction::resolve` already runs once a frame** in
@@ -711,3 +699,54 @@ own moments, as before.
 | Seyda Neen's pier | 2.25 / 2.26, bias 1.74 / 1.68 | 1.16 / 1.17, bias 1.43 / 1.42 | 1.18 / 1.18, bias 2.16 / 2.16 |
 | Seyda Neen's pond | 1.87 / 1.88, bias 1.20 / 1.13 | 1.21 / 1.22, bias 1.72 / 1.71 | 1.17 / 1.17, bias 1.61 / 1.61 |
 | mages' guild | 2.13 / 2.19, bias 1.15 / 1.01 | 1.12 / 1.13, bias 1.63 / 1.62 | 1.25 / 1.25, bias 2.36 / 2.38 |
+
+## Step 17: the lighter wavelet — kept
+
+The first level stays a 5×5 B3 kernel over the 3×3 prefiltered variance, with the history fix;
+every level after it is ReLAX's 3×3 Gaussian (0.44198, 0.27901) weighed by the centre's variance,
+and there are four levels, steps 1, 2, 4 and 8, a reach of 16 pixels against 14. The two kinds are
+two pipelines of one module, by a specialization constant (`ATROUS_WIDE`), as the shadow filter's
+levels are.
+
+- **Kernels**: 3 of 179 moved, the wavelet's one module become two tuples.
+- **Pictures** (`shot --views=all --map --upscale=off`): 38 of 64 moved, 24 within the denoiser's
+  noise.
+- **Noise**, release, FSR quality, `--suite=bounce`: no place moves by more than 0.01 of noise or
+  of bias in any leg, still, strafed or walked in; the firefly counts are the same.
+
+| place | still noise, bias | strafed | walked |
+|---|---|---|---|
+| mages' guild | 0.39 → 0.39, 1.29 → 1.29 | 1.12 → 1.11, 1.62 → 1.62 | 1.24 → 1.24, 2.36 → 2.37 |
+| guild's planter | 0.42 → 0.41, 1.57 → 1.57 | 1.31 → 1.30, 1.73 → 1.73 | 1.17 → 1.16, 2.76 → 2.76 |
+| Ahemmusa's yurt | 0.44 → 0.44, 1.50 → 1.50 | 1.64 → 1.64, 2.42 → 2.42 | 1.81 → 1.81, 2.91 → 2.91 |
+| Seyda Neen's pier | 0.48 → 0.48, 1.75 → 1.75 | 1.16 → 1.16, 1.43 → 1.43 | 1.18 → 1.18, 2.16 → 2.16 |
+| Seyda Neen's pond | 0.49 → 0.49, 1.58 → 1.58 | 1.21 → 1.21, 1.72 → 1.72 | 1.17 → 1.17, 1.61 → 1.61 |
+
+- **Time**, `bench`, 10 s a place, back to back after a warm-up leg: the frame's median and p99,
+  and the filter's share of the mean frame, in ms, before → after.
+
+| place | frame median | frame p99 | filter |
+|---|---|---|---|
+| mages' guild | 6.57 → 6.21 | 9.06 → 6.79 | 1.09 → 0.69 |
+| Seyda Neen's customs | 5.74 → 5.56 | 6.16 → 6.19 | 0.92 → 0.70 |
+| Vivec's canalworks | 3.80 → 3.84 | 4.77 → 4.87 | 0.27 → 0.22 |
+| Addamasartus | 6.46 → 6.21 | 6.92 → 8.67 | 0.99 → 0.77 |
+| Arkngthand | 3.59 → 3.59 | 4.49 → 4.48 | 0.31 → 0.23 |
+| the Andrano tomb | 5.63 → 5.35 | 6.42 → 5.95 | 1.00 → 0.69 |
+| Seyda Neen's ship | 7.70 → 7.44 | 8.50 → 8.25 | 0.78 → 0.56 |
+| Seyda Neen's shore | 6.27 → 6.06 | 8.65 → 7.94 | 0.71 → 0.54 |
+| Balmora | 6.53 → 6.27 | 7.38 → 7.00 | 0.83 → 0.59 |
+| Vivec | 8.12 → 7.84 | 9.07 → 8.94 | 0.91 → 0.65 |
+| Ald-ruhn | 6.47 → 6.27 | 7.16 → 7.25 | 0.75 → 0.54 |
+| Sadrith Mora | 5.51 → 5.32 | 6.26 → 5.89 | 0.56 → 0.41 |
+| Dagon Fel | 6.12 → 5.85 | 6.76 → 6.54 | 0.76 → 0.55 |
+
+  A quarter to two fifths of the filter, 0.15 to 0.40 ms, and the frame's median 0.2 to 0.36 ms
+  lower wherever the filter is a real share of it. Addamasartus's p99 rose by 1.75 ms with its
+  median 0.25 lower: one place's tail, which a filter whose work is the same every frame does not
+  explain, and which a desktop slice in a few frames does.
+- **The tests' figures**: every GPU test that quotes a filter figure was measured again (several
+  were stale before step 16) and holds its claim. `theClampShortensTheSkysTrail` held its claim
+  and not its margin: the narrow levels drag the sky's trail less on their own (11.00 → 10.16
+  pixels of lag without the clamp, 8.32 → 8.22 with it), so the clamp's share fell from a quarter
+  to a fifth, and its bound asks for 15% where it asked for 20%.

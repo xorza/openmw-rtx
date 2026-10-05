@@ -293,7 +293,9 @@ at the top, over all of them.
   just reached is not spread into a blotch. A longer mean keeps what it took in; the edges the
   upscaler's jitter keeps short are held however long the eye stands, which is a bias the ring
   trades for its noise. Where a mean holds `ACCUMULATE_FIX_FRAMES` frames or fewer — what the eye
-  just uncovered or brought in at the frame's edge — the wavelet's first level rebuilds it from the surface around it (NRD's history fix). The
+  just uncovered or brought in at the frame's edge — the wavelet's first level rebuilds it from the surface around it (NRD's history fix).
+  The wavelet is ReLAX's shape: a 5×5 first level, then three 3×3 levels that weigh by the centre's
+  variance, a reach of sixteen pixels (`ATROUS_LEVELS`). The
   shadow denoiser filters the one bit a pixel kept of its rays to the sky's source and to a lamp, under
   the light both would add unshadowed, where the sky has a source that lights or the scene a lamp,
   and counts in its local mean only the pixels those sources light.

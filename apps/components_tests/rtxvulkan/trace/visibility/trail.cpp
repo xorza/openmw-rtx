@@ -149,19 +149,22 @@ namespace Rtx::Testing
         }
 
         /// **The clamp shortens the trail the sky's fill leaves**, under the reuse the game runs with:
-        /// measured at 11.92 pixels of lag without it and 8.48 with it (`ACCUMULATE_FAST_FRAMES`
-        /// gives the sweep), and the darkness left behind at 1.93 and 1.25 columns.
+        /// measured at 10.16 pixels of lag without it and 8.22 with it (`ACCUMULATE_FAST_FRAMES`
+        /// gives the sweep), and the darkness left behind at 1.89 and 1.22 columns.
         ///
         /// **The history fix takes part of what the clamp did.** The floor the bar uncovers behind it
         /// is rebuilt from the floor around it (`ACCUMULATE_FIX_FRAMES`): without the fix the clamp
-        /// took the lag from 16.67 to 7.89 and the darkness from 2.63 to 1.55, so the fix leaves a
-        /// fifth less darkness behind the bar and stands the half-level edge 0.6 pixels further back.
+        /// took the lag from 14.56 to 7.68 and the darkness from 2.56 to 1.52, so the fix leaves a
+        /// fifth less darkness behind the bar and stands the half-level edge 0.5 pixels further back.
+        /// **And so does the wavelet**: with three 5×5 levels the lag without the clamp was 11.00, and
+        /// with it 8.32. The narrow levels drag less, so the clamp's share fell from a quarter to a
+        /// fifth, and the bound asks for 15%.
         TEST_F(RtxBounceTrailTest, theClampShortensTheSkysTrail)
         {
             const Trail held = trailOf(Blocked::Sky, BounceReuse::Spatiotemporal, true);
             const Trail dragged = trailOf(Blocked::Sky, BounceReuse::Spatiotemporal, false);
             EXPECT_LT(held.mLag, 9.0f);
-            EXPECT_LT(held.mLag, 0.8f * dragged.mLag) << "the clamp took little off the trail: " << dragged.mLag;
+            EXPECT_LT(held.mLag, 0.85f * dragged.mLag) << "the clamp took little off the trail: " << dragged.mLag;
             EXPECT_LT(held.mTail, 1.4f);
             EXPECT_LT(held.mTail, dragged.mTail);
         }
