@@ -334,13 +334,15 @@ namespace RtxTool
         }
 
         // **A still is one frame traced again, and its depth and motion cannot move unless the
-        // code under them did.** Asked of every hashed still that nothing jittered and nothing
-        // flew. The build pins the float arithmetic the driver's second code could otherwise take
-        // apart (`Rtx::pinFloatArithmetic`), so a frame where either moved is a swapped code
-        // computing one of the operations left to the device — a division, a root, a
-        // transcendental — otherwise, and the stop's frames are then two codes' and no reference.
+        // code under them did.** Asked of every hashed still that nothing jittered, nothing flew,
+        // and no soft edge was drawn: a frame averaged with others meets a blended mask's texels by
+        // a dither drawn each frame (`Reconstruction::mAveraged`), which moves the eye's own surface
+        // as a jitter moves its pixel. The build pins the float arithmetic the driver's second code
+        // could otherwise take apart (`Rtx::pinFloatArithmetic`), so a frame where either moved is
+        // a swapped code computing one of the operations left to the device — a division, a root,
+        // a transcendental — otherwise, and the stop's frames are then two codes' and no reference.
         if (stop.mSchedule.mFrozen && !stop.mSchedule.mRoute.has_value() && stop.mActions.mHash
-            && !mProgress.mReconstruction.mJitter)
+            && !mProgress.mReconstruction.mJitter && !mProgress.mReconstruction.mAveraged)
             if (const std::optional<std::uint32_t> moved = mRecord.getHashes().findStillMoved(stop.mName))
             {
                 const std::string why = std::format(
