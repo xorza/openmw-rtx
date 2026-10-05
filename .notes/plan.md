@@ -310,38 +310,6 @@ changes it.
 - **Cost.** One texture read on each sky ray. The saving is expected to stay inside the bench's
   noise. The `exteriors` suite checks that it is not slower.
 
-## Implementation plan
-
-9. **Shader.** `lib/lights.glsl`: `skyPassage` returns `lightPassage`'s answer as it is. Its doc
-    loses "the deck is the one occluder no ray finds" and "and the deck let through". `lib/sky.glsl`:
-    delete `cloudShadow` and its doc. `look.h`: delete `CLOUD_SHADOW_DEPTH`.
-10. **Host.** Delete `CloudDeck::mCover` and `CloudSheet::mCover` and the lines that fill them.
-    `CloudDeck`'s assert goes from 96 to 92 bytes. `VisibilityConstants` stays 1600 bytes with
-    `mTables` at 1416: measured, the fields above `mTables` end at exactly 1416 today, so four bytes
-    fewer leave four bytes of padding in front of the eight-aligned tables, on both sides alike, as
-    `mTables`' own comment states. Its two asserts stay as they are and prove it.
-11. **Comments.** `visibility.h`'s fog drift paragraph argues from "cloud shadows crossing the ground
-    one way while the air moves another": it argues from the deck drifting instead, which is still
-    true. `CloudSheet::mMean` and `CloudDeck::mMean` stay; their docs name no shadow.
-12. **Tests.**
-    - `theDeckShadowsWhatStandsUnderIt` (`rtxvulkan/trace/visibility/sky.cpp`) becomes the new
-      claim on the same fixture: a solid sheet over the floor at full opacity leaves the sun's
-      `0.5 × 2 / π = 0.31831` whole. Its other cases (no deck, a stand-in sheet) fold into that one
-      assertion, since every case now reads the same number.
-    - `skybuilder.cpp`'s opened-sheet test loses its cover expectation and the doc's "and a cover of
-      0.4".
-    - `frameworld.cpp`: the hidden sky's `mClouds.mTexture` assertion goes. Its message says why it
-      was there, "the deck's shadow went with its picture", and the shadow was its only reader:
-      `skyRadiance` returns the fog colour before it reaches the deck where `mSkyDrawn` is nought,
-      and `reflectedSky` goes through `skyRadiance`.
-13. **Measure.** `./omw kernels` before and after: the kernels that trace a sky ray move, and
-    nothing else does. `./omw release shot --views=all --map --upscale=off` against a baseline: only
-    exteriors under a sheet that casts today move, and every interior and every overcast, rain or
-    thunder view stays as it was within `sDenoiserNoiseLevels`, the bound `shot --against` holds a
-    denoised picture to (`architecture.md` says why a denoised frame is not bit-exact on this card). `./omw release bench --suite=exteriors` before and
-    after, back to back.
-14. **Notes.** Delete "remove cloud shadows" from `.notes/todo.txt` when the change stands.
-
 # Part 3: the indirect light, measured and reviewed
 
 ## Summary
@@ -679,6 +647,45 @@ against its bar, bias, and fireflies in a thousand pixels.
 | Seyda Neen's pier | 2.26 / 25.68 | 1.74 | 0.10 |
 | Seyda Neen's pond | 1.87 / 10.59 | 1.19 | 0.12 |
 
+And two and four frames after the cut, noise / bar (frames averaged), bias, fireflies:
+
+| place | `--cut=2` | `--cut=4` |
+|---|---|---|
+| mages' guild | 2.00 / 8.45 (1), 2.30, 0.32 | 1.73 / 6.00 (2), 2.28, 0.23 |
+| guild's planter | 1.67 / 14.07 (1), 2.95, 0.32 | 1.48 / 10.57 (2), 2.88, 0.24 |
+| Ahemmusa's yurt | 1.99 / 8.35 (1), 2.83, 0.23 | 1.85 / 6.44 (2), 2.83, 0.22 |
+| Seyda Neen's pier | 2.06 / 25.68 (1), 1.84, 0.05 | 1.79 / 18.17 (2), 1.82, 0.04 |
+| Seyda Neen's pond | 1.72 / 10.59 (1), 1.26, 0.09 | 1.57 / 7.88 (2), 1.32, 0.06 |
+
 At `--cut=1` under FSR quality the bar is one frame (`2 × 921600 / 2073600` rounds to 0, held to
 1), so every frame is far cleaner than its bar: the reconstruction does more than averaging two
 frames could. The rooms carry three to four times the exteriors' fireflies.
+
+## Part 2: the cloud deck casts no shadow — kept
+
+`skyPassage` returns the ray's own passage; `cloudShadow`, `CLOUD_SHADOW_DEPTH` and both `mCover`
+fields are gone. `CloudDeck` is 92 bytes; `VisibilityConstants` stayed 1600 with `mTables` at 1416,
+its asserts unchanged.
+
+- **Kernels**: 127 of 178 moved, more than the kernels that trace a sky ray. Every kernel that
+  reads a frame field past `mClouds.mCover` reads it four bytes earlier now, which changes its code
+  and not what it computes; the pictures below are the check on what it computes.
+- **Pictures**, `shot --views=all --map --upscale=off` against the same build before: 20 of 64
+  moved, 5 within the denoiser's noise on this card. Every interior's trace is identical (the
+  scene digest differs everywhere, because the frame's layout is in it), and so is the overcast
+  ship's: an opaque sheet cast nothing. Every exterior under a clear, cloudy or foggy sky moved, by
+  night as well (`balmora-fog-night`, where the moons' rays crossed the deck). Ald-ruhn and the
+  caldera move because their views stand in clear weather.
+- **Time**, `bench --suite=exteriors`, 10 s a place, before and after, trace zone median in ms:
+
+| place | before | after |
+|---|---|---|
+| Seyda Neen's ship | 2.88 | 2.77 |
+| Seyda Neen's shore | 2.45 | 2.34 |
+| Balmora | 1.85 | 1.79 |
+| Vivec | 2.04 | 1.99 |
+| Ald-ruhn | 1.57 | 1.52 |
+| Sadrith Mora | 1.65 | 1.62 |
+| Dagon Fel | 2.00 | 1.91 |
+
+  A twentieth to a tenth of a millisecond at every place: the texture read every sky ray paid.

@@ -58,12 +58,6 @@ namespace Rtx::Shaders
         /// flat as it did before it read the paint at all.
         float mMean RTX_ZERO;
 
-        /// The mean alpha of the sheets being sampled: how much sky the deck hides on average.
-        ///
-        /// **What a shadow is measured against**, so that darkening the ground states the pattern
-        /// and not the weather — `CLOUD_SHADOW_DEPTH` carries the argument.
-        float mCover RTX_ZERO;
-
         /// Where the layer stands, as a world height, and how many tiles of its sheet one world unit
         /// is along each axis.
         ///
@@ -74,7 +68,7 @@ namespace Rtx::Shaders
         /// **The one number in the sky that is chosen rather than read**, and `Rtx::sCloudAltitude`
         /// says so: the mesh gives its height in tiles of its own sheet and no metre anywhere. It is
         /// what lets the sheet be addressed from where the eye stands rather than from where it
-        /// looks, and so what lets the deck cast.
+        /// looks.
         float mAltitude;
         vec2 mPerTile;
 
@@ -349,7 +343,7 @@ namespace Rtx::Shaders
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(MoonDisc) == 112, "MoonDisc must be scalar-packed on every side");
-    static_assert(sizeof(CloudDeck) == 96, "CloudDeck must be scalar-packed on every side");
+    static_assert(sizeof(CloudDeck) == 92, "CloudDeck must be scalar-packed on every side");
     static_assert(sizeof(StarField) == 40, "StarField must be scalar-packed on every side");
     static_assert(sizeof(SkyPatch) == 44, "SkyPatch must be scalar-packed on every side");
     static_assert(sizeof(SkyRamp) == 24, "SkyRamp must be scalar-packed on every side");

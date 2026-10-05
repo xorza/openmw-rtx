@@ -189,35 +189,6 @@ vec3 cloudDeck(vec3 origin, vec3 direction, out float covered)
     return mix(frame.mSkyHorizon, radiance, reaches) * covered;
 }
 
-/// What the cloud layer leaves of a light standing over `position`.
-///
-/// **A flat layer, where the eye is given the mesh's bowl, and the two agree where anyone could
-/// check.** Morrowind's cap is a strong compression — it lets the deck reach 4.7 degrees above the
-/// horizon where a flat layer stops at 15.9 — and it is centred on the viewer by construction, so a
-/// world-anchored copy of it does not exist. A shadow has no viewer to be centred on, so it takes
-/// the honest crossing. Straight overhead the bowl and the plane meet exactly and it is the same
-/// texel; at 45 degrees they are 5% apart and at 14 degrees half again, which is a cloud low in the
-/// sky whose shadow is kilometres away and out of the frame it would have to be compared in.
-///
-/// **Beer-Lambert and not a crossfade**: mixing toward a floor by coverage saturates, and deepening
-/// that mix enough for a cirrus sky to cast anything pins half the sheet at one flat value. An
-/// exponential never flattens, so the pattern on the ground stays the pattern in the sky.
-///
-/// `CLOUD_SHADOW_DEPTH` says why it is the alpha *over the sheet's own mean* that darkens.
-float cloudShadow(vec3 position, vec3 towards)
-{
-    if (towards.z <= 0.0)
-        return 1.0;
-
-    const float height = deckOver(position);
-    if (height <= 0.0)
-        return 1.0;
-
-    const float alpha = cloudSheetAt(position.xy + towards.xy * (height / towards.z)).a;
-
-    return exp(-CLOUD_SHADOW_DEPTH * max(alpha - frame.mClouds.mCover, 0.0) * frame.mClouds.mOpacity);
-}
-
 /// Where a direction lands across a disc laid on the sky, in units of the disc's own radius.
 ///
 /// **One mapping for a moon and for a painted patch**, which are the same kind of thing: a sheet
