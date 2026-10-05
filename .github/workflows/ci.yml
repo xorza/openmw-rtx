@@ -19,9 +19,22 @@ on:
     branches: [master]
   pull_request:
   workflow_dispatch:
+  # A release runs the whole of CI again on the commit its tag names (`rtx-release.yml`).
+  workflow_call:
+    inputs:
+      cache:
+        description: Whether to restore and save the build caches; false for a release.
+        type: boolean
+        required: true
 
 # Nothing by default, and each job names what it needs.
 permissions: {}
+
+# **The caches on every run but a release's**, which is judged by what its own run built and not by
+# objects another run left. `inputs` is empty on a push or a pull request, and `format` reads it as
+# an empty string where a comparison with `false` would read it as false.
+env:
+  CI_CACHE: ${{ format('{0}', inputs.cache) != 'false' }}
 
 # A push supersedes the push before it on the same ref. A run asked for by hand stands alone: it is
 # wanted whole, and a push in the meantime must neither cancel it nor be cancelled by it.
@@ -127,6 +140,7 @@ jobs:
 
       - uses: $/.github/actions/openmw-deps
         with:
+          cache: ${{ env.CI_CACHE }}
           ccache-key: ${{ matrix.ccache }}
           ccache-size: ${{ matrix.ccache-size }}
 
@@ -210,6 +224,7 @@ jobs:
       # Its own, as macOS takes nothing of `openmw-deps`; saved on master alone, for the reason that
       # action gives.
       - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        if: env.CI_CACHE == 'true'
         with:
           key: macos
           max-size: 1000M
