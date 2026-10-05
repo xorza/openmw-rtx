@@ -293,7 +293,9 @@ at the top, over all of them.
   ReLAX's), so light that changes on a surface that did not move is followed and not dragged. A
   mean of `ACCUMULATE_SETTLED` frames or fewer has no variance of its own yet, and the clamp gives
   it the spread of the fast means around it (ReLAX's spatial estimate), so the wavelet's brightness
-  test measures a fresh pixel in its own light and not against a constant.
+  test measures a fresh pixel in its own light and not against a constant. A surface the previous
+  frame did not see because something stood in front of it takes the history beside it, along the
+  occluder's own motion (Zeng et al.'s dual motion vector), held to its plane.
   Before it, a slow mean of `ACCUMULATE_RING_FRAMES` frames or fewer is held under the fast means in
   the ring of pixels around it (ReBLUR's anti-firefly), so a rare bright bounce on a surface the eye
   just reached is not spread into a blotch. A longer mean keeps what it took in; the edges the

@@ -392,6 +392,14 @@ namespace RtxTool
                 Rtx::Shaders::ACCUMULATE_FIX_FRAMES)
                 .c_str());
 
+        option(sFramed, "dual-motion",
+            bpo::value<bool>()
+                ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mDualMotion)
+                ->implicit_value(true),
+            "where the previous frame did not see a surface, take the denoiser's history of the bounce "
+            "along the motion of what hid it, so what the eye uncovers starts with the history of the "
+            "surface beside it (Zeng et al. 2021's dual motion vector). Off is the A/B");
+
         option(sFramed, "antifirefly",
             bpo::value<bool>()
                 ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mAntiFirefly)

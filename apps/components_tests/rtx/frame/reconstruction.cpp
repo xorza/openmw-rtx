@@ -253,6 +253,13 @@ namespace Rtx
                 Upscale::Off, ReconstructionRequest{ .mHistoryFix = false }, sUnscaled, sSkyLights)
                              .mHistoryFix);
             EXPECT_FALSE(Reconstruction::forPicture(IndirectLight::Traced).mHistoryFix);
+            EXPECT_TRUE(ReconstructionRequest{}.mDualMotion);
+            EXPECT_TRUE(
+                Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled, sSkyLights).mDualMotion);
+            EXPECT_FALSE(Reconstruction::resolve(
+                Upscale::Off, ReconstructionRequest{ .mDualMotion = false }, sUnscaled, sSkyLights)
+                             .mDualMotion);
+            EXPECT_FALSE(Reconstruction::forPicture(IndirectLight::Traced).mDualMotion);
             EXPECT_TRUE(ReconstructionRequest{}.mAntiFirefly);
             EXPECT_TRUE(
                 Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled, sSkyLights).mAntiFirefly);

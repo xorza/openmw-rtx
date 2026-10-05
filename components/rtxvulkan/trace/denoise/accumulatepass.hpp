@@ -41,7 +41,7 @@ namespace Rtx
             const GBuffer& buffer, const DenoiseFrame& frame) const;
 
     private:
-        ComputePipeline<Shaders::HistoryConstants> mPipeline;
+        ComputePipeline<Shaders::AccumulateConstants> mPipeline;
         ComputePipeline<Shaders::AccumulateClampConstants> mClamp;
         ComputePipeline<Shaders::HistoryConstants> mSurface;
     };
