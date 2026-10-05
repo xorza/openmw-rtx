@@ -250,7 +250,7 @@ namespace RtxTool
     }
 
     int judgeNoise(
-        const std::filesystem::path& wrote, const std::span<const std::string> places, const std::uint32_t barFrames)
+        const std::filesystem::path& wrote, const std::span<const NoiseSide> places, const std::uint32_t barFrames)
     {
         // A run that measured nothing has not shown that anything is as clean as its bar.
         if (places.empty())
@@ -259,17 +259,18 @@ namespace RtxTool
             return 1;
         }
 
-        const auto read = [&](const std::string& place, const std::string_view suffix) {
-            return Rtx::readPng(wrote / (place + std::string(suffix) + ".png"));
+        const auto read = [&](const std::string& name, const std::string_view suffix) {
+            return Rtx::readPng(wrote / (name + std::string(suffix) + ".png"));
         };
 
         std::uint32_t noisier = 0;
         std::uint32_t missing = 0;
-        for (const std::string& place : places)
+        for (const NoiseSide& side : places)
         {
-            const std::array<Misc::Result<Rtx::PngImage, std::string>, 5> pictures{ read(place, ""),
-                read(place, sNoiseMeanSuffix), read(place, sNoiseBarSuffix), read(place, sNoiseBarLimitSuffix),
-                read(place, sNoiseReferenceSuffix) };
+            const std::string& place = side.mPlace;
+            const std::array<Misc::Result<Rtx::PngImage, std::string>, 5> pictures{ read(side.mFrame, ""),
+                read(side.mFrame, sNoiseMeanSuffix), read(side.mBar, sNoiseBarSuffix),
+                read(side.mBar, sNoiseBarLimitSuffix), read(side.mBar, sNoiseReferenceSuffix) };
             const auto unread = std::ranges::find_if(pictures, [](const auto& one) { return !one.isOk(); });
             if (unread != pictures.end())
             {

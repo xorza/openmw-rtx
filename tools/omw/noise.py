@@ -1,12 +1,17 @@
 """`omw [flavour] noise --ab=<switch>[=<a>,<b>] [--still] [noise args]`: one harness switch's A/B on the
-`noise` verb, both sides of each leg back to back, and the figures beside each other.
+`noise` verb, both sides of each leg in one run, and the figures beside each other.
 
-**The moving legs, and the still one only where it is asked for.** A run of `noise` warms each of
-its independent draws for 128 frames before it measures: some 9,400 frames a place, five minutes for
-the bounce suite on the RTX 4090 Laptop, which it keeps at 99%, so a second process beside it only
-shares the card. What makes an A/B cheaper is fewer runs, and the moving legs are where the
-denoiser's switches are mostly felt: the strafe and the walk are the default legs, each 150 units, as
-`look.h` quotes them. **The still leg is not unmoved by them**: under the upscaler's jitter an edge
+**One run a leg, both sides in it** (`noise --versus`): the second side draws what the first drew,
+and where the switch is one only the filters read, its reference and its bar are the first side's,
+which half of a run is. A run of `noise` warms each of its independent draws for 128 frames before
+it measures: some 9,400 frames a place, five minutes for the bounce suite on the RTX 4090 Laptop,
+which it keeps at 99%, so a second process beside it only shares the card.
+
+**The moving legs, and the still one only where it is asked for.** What makes an A/B cheaper is
+fewer runs, and the moving legs are where the denoiser's switches are mostly felt: the strafe and the
+walk are the default legs, each 150 units, as `look.h` quotes them, and a distance of nought leaves
+one out. An investigation narrows to the place and the leg that show the effect first, with
+`--views=` and `--strafe=0 --walk=0 --still`, and the whole suite is its verdict. **The still leg is not unmoved by them**: under the upscaler's jitter an edge
 keeps a short history however long the eye stands, and the anti-firefly ring moved the bounce
 suite's still frames by up to 0.09 of noise and 0.11 of bias. `--still` adds it, and `--strafe=N` or
 `--walk=N` moves a leg's distance. `--cut=N` adds the frame `N` frames after a cut, standing, once for
@@ -16,7 +21,7 @@ each `N` named: the first frames after a door, where the fireflies were reported
 `--antifirefly=false`. A switch of values names its two: `--ab=bounce-reuse=own,spatiotemporal`.
 
 **Every run keeps its pictures and its log**, under `--out` where it is given and a directory of its
-own where it is not, one directory a side and a leg, because what an A/B finds is read in them."""
+own where it is not, one directory a leg, because what an A/B finds is read in them."""
 
 import re
 import sys
@@ -34,6 +39,9 @@ DEFAULT_DISTANCE = "150"
 # Any other ended the run before it judged, and a crash after some places printed reads as a
 # shorter suite.
 JUDGED = (0, 1)
+
+# The line between a run's two sides, as `RtxTool::commandNoise` prints it.
+_VERSUS = "versus --"
 
 # One place's line of the harness's report, as `RtxTool::judgeNoise` prints it.
 _PLACE = re.compile(
@@ -105,8 +113,18 @@ def plan(args: list[str]) -> Plan:
     legs = [Leg("still", ())] if asked.still else []
     legs += [Leg(f"cut {frames}", (f"--cut={frames}",)) for frames in asked.cut]
     legs += [Leg(f"{leg} {distance}", (f"--{leg}={distance}",))
-             for leg, distance in (("strafe", asked.strafe), ("walk", asked.walk))]
+             for leg, distance in (("strafe", asked.strafe), ("walk", asked.walk)) if not _nought(distance)]
+    if not legs:
+        raise Refusal("no leg is left to run: name --still, --cut=N, or a distance that is not nought")
     return Plan(_sides(asked.ab), tuple(legs), asked.out, tuple(rest))
+
+
+def _nought(distance: str) -> bool:
+    """Whether a leg's distance leaves it out. What is no number is the harness's to refuse."""
+    try:
+        return float(distance) == 0.0
+    except ValueError:
+        return False
 
 
 def read_report(text: str) -> dict[str, Figures]:
@@ -118,6 +136,12 @@ def read_report(text: str) -> dict[str, Figures]:
             found[matched["place"]] = Figures(float(matched["mean"]), int(matched["p99"]), float(matched["bias"]),
                                               float(matched["fireflies"]))
     return found
+
+
+def read_sides(text: str) -> tuple[dict[str, Figures], dict[str, Figures]]:
+    """A run's two sides: the places it judged before its `versus` line, and the places after it."""
+    first, _, second = text.partition(f"\n{_VERSUS}")
+    return read_report(first), read_report(second)
 
 
 def table(leg: str, sides: tuple[Side, Side], first: dict[str, Figures], second: dict[str, Figures]) -> str:
@@ -146,22 +170,20 @@ def ab(build: Build, args: list[str]) -> int:
     out = asked.out or Path(tempfile.mkdtemp(prefix="omw-noise-ab-"))
     out.mkdir(parents=True, exist_ok=True)
 
+    first, second = asked.sides
     tables: list[str] = []
     for leg in asked.legs:
-        reports: list[dict[str, Figures]] = []
-        for side in asked.sides:
-            folder = out / f"{side.label}-{leg.label.replace(' ', '')}"
-            log = folder.with_suffix(".log")
-            print(f"noise: {leg.label}, {side.switch}", flush=True)
-            with open(log, "w") as written:
-                ended = build.harness("noise", side.switch, *leg.switches, *asked.rest, f"--out={folder}",
-                                      stdout=written, stderr=written)
-            report = read_report(log.read_text(errors="replace"))
-            if ended.returncode not in JUDGED or not report:
-                print(f"the run failed with status {ended.returncode}, see {log}", file=sys.stderr)
-                return 1
-            reports.append(report)
-        tables.append(table(leg.label, asked.sides, reports[0], reports[1]))
+        folder = out / leg.label.replace(" ", "")
+        log = folder.with_suffix(".log")
+        print(f"noise: {leg.label}, {first.switch} against {second.switch}", flush=True)
+        with open(log, "w") as written:
+            ended = build.harness("noise", first.switch, f"--versus={second.switch.removeprefix('--')}",
+                                  *leg.switches, *asked.rest, f"--out={folder}", stdout=written, stderr=written)
+        reports = read_sides(log.read_text(errors="replace"))
+        if ended.returncode not in JUDGED or not all(reports):
+            print(f"the run failed with status {ended.returncode}, see {log}", file=sys.stderr)
+            return 1
+        tables.append(table(leg.label, asked.sides, *reports))
 
     print("\n\n".join(tables))
     print(f"\nthe runs are in {out}")

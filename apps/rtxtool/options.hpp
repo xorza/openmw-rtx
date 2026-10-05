@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -10,6 +11,7 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
 
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 #include "verbs.hpp"
@@ -47,6 +49,14 @@ namespace RtxTool
         /// What `verb` was given on `line` and does not read, as the lines to print, or empty. The
         /// command line only: an option in `openmw.cfg` is there for every command.
         std::string complainAbout(const boost::program_options::parsed_options& line, Verbs verb) const;
+
+        /// What `noise --versus=<switch>=<value>` runs its other side with: `played` with the one
+        /// switch `asked` names read at its value, as the line would have read it, and every other
+        /// switch of `sReconstructionSwitches` as `variables` reads it. A switch named alone takes
+        /// its implicit value. Throws `std::runtime_error` for a switch no reconstruction reads,
+        /// and for a value the switch refuses.
+        Rtx::ReconstructionRequest versus(const boost::program_options::variables_map& variables,
+            const Rtx::ReconstructionRequest& played, std::string_view asked) const;
     };
 
     /// `validationByDefault` is what `--validation` reads when nobody names it — a decision about the
@@ -58,6 +68,18 @@ namespace RtxTool
     /// keys add up to, and of a set pace only where somebody asked for the pace. Throws
     /// `std::runtime_error` for both named at once, and for a length that is none.
     std::optional<float> filmLengthFrom(const boost::program_options::variables_map& variables);
+
+    /// The switches `readReconstruction` reads, by their names on the line: the ones `--versus`
+    /// may name, since nothing else reads them.
+    inline constexpr std::array sReconstructionSwitches = std::to_array<std::string_view>({ "filter", "jitter", "noise",
+        "level-epsilon", "bounce-reuse", "antilag", "history-fix", "dual-motion", "antifirefly" });
+
+    /// Writes into `request` what each of `sReconstructionSwitches` says, `noise` at `auto` as the
+    /// request's own default. Throws `std::runtime_error` for a noise source or a reuse no
+    /// reconstruction has. The indirect light is not among them: a run derives it from the
+    /// settings as well as the line.
+    void readReconstruction(
+        const boost::program_options::variables_map& variables, Rtx::ReconstructionRequest& request);
 
     /// Where the engine's own state goes when this tool drives it: the settings it saves on its
     /// way out, its log, its key bindings, its Lua storage. Under the cache path, because every

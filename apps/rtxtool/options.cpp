@@ -95,6 +95,42 @@ namespace RtxTool
         }
     }
 
+    Rtx::ReconstructionRequest ToolOptions::versus(const bpo::variables_map& variables,
+        const Rtx::ReconstructionRequest& played, const std::string_view asked) const
+    {
+        const std::string_view name = asked.substr(0, asked.find('='));
+        if (std::ranges::find(sReconstructionSwitches, name) == sReconstructionSwitches.end())
+        {
+            std::string switches;
+            for (const std::string_view known : sReconstructionSwitches)
+                switches += std::format("{}{}", switches.empty() ? "" : ", ", known);
+            throw std::runtime_error(
+                std::format("--versus={} names no switch of the reconstruction, which are {}", asked, switches));
+        }
+
+        // Read as the line reads it, so a value is refused or taken by the switch's own rule.
+        bpo::variables_map read;
+        try
+        {
+            bpo::store(bpo::command_line_parser(std::vector<std::string>{ "--" + std::string(asked) })
+                           .options(mDescription)
+                           .run(),
+                read);
+        }
+        catch (const bpo::error& refused)
+        {
+            throw std::runtime_error(std::format("--versus={}: {}", asked, refused.what()));
+        }
+
+        bpo::variables_map side = variables;
+        side.erase(std::string(name));
+        side.emplace(std::string(name), read[std::string(name)]);
+
+        Rtx::ReconstructionRequest request = played;
+        readReconstruction(side, request);
+        return request;
+    }
+
     Verbs ToolOptions::readsOption(const std::string_view name) const
     {
         for (const OptionOwner& owner : mOwners)
@@ -296,6 +332,12 @@ namespace RtxTool
             "cut resets draws the world unmeasured, and is held to as many frames averaged as that "
             "history could hold samples a shown pixel. Nought takes it after its history converged; not "
             "with --strafe or --walk");
+
+        option(Verbs::Noise, "versus", bpo::value<std::string>()->default_value(""),
+            "a second side in the same run: <switch>=<value> takes the frame and its mean again with that "
+            "one switch of the reconstruction changed, at the same draws, and judges both. The reference "
+            "and the bar are the first side's where the switch changes nothing an unfiltered frame "
+            "reads, and its own where it does. What `omw noise --ab` runs");
 
         option(sRuns, "views", bpo::value<std::string>()->default_value(""),
             "which views.cfg views to visit, comma separated, by name rather than by suite. "
@@ -640,6 +682,22 @@ namespace RtxTool
         Files::ConfigurationManager::addCommonOptions(result.mDescription);
 
         return result;
+    }
+
+    void readReconstruction(const bpo::variables_map& variables, Rtx::ReconstructionRequest& request)
+    {
+        request.mDenoise = variables["filter"].as<bool>();
+        request.mJitter = variables["jitter"].as<bool>();
+        const std::string& noise = variables["noise"].as<std::string>();
+        request.mNoise = noise == "auto" ? Rtx::ReconstructionRequest{}.mNoise
+                                         : Rtx::sNoiseSourceNames.require(noise, "a noise source");
+        request.mLevelEpsilon = variables["level-epsilon"].as<float>();
+        request.mBounceReuse
+            = Rtx::sBounceReuseNames.require(variables["bounce-reuse"].as<std::string>(), "a bounce reuse");
+        request.mAntilag = variables["antilag"].as<bool>();
+        request.mHistoryFix = variables["history-fix"].as<bool>();
+        request.mDualMotion = variables["dual-motion"].as<bool>();
+        request.mAntiFirefly = variables["antifirefly"].as<bool>();
     }
 
     std::optional<float> filmLengthFrom(const bpo::variables_map& variables)

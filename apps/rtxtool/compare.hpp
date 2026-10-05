@@ -199,6 +199,19 @@ namespace RtxTool
     inline constexpr std::string_view sNoiseBarLimitSuffix = "-averaged-limit";
     inline constexpr std::string_view sNoiseMeanSuffix = "-mean";
 
+    /// One place's frame as `noise` judges it: the place its line names, the name its frame's two
+    /// pictures were written under, and the name its bar's three were — the place's own, or another
+    /// side's where both sides trace the bar alike (`--versus`).
+    struct NoiseSide
+    {
+        std::string mPlace;
+        std::string mFrame;
+        std::string mBar;
+    };
+
+    /// What `noise --versus` names the second side's pictures of a place, after the place's name.
+    inline constexpr std::string_view sNoiseVersusSuffix = "-versus";
+
     /// Reads back the five pictures `noise` wrote of each of `places` into `wrote` and says whether
     /// each frame is as clean as its bar: **its noise** — how far it stands from its own mean — no
     /// more than the bar's from the bar's own limit, by the mean and at the 99th percentile. Beside
@@ -213,7 +226,7 @@ namespace RtxTool
     /// FSR's kernel against the box, which failed every upscaled mode as noise it was not.
     ///
     /// @param barFrames how many frames the bars averaged, which the report names.
-    int judgeNoise(const std::filesystem::path& wrote, std::span<const std::string> places, std::uint32_t barFrames);
+    int judgeNoise(const std::filesystem::path& wrote, std::span<const NoiseSide> places, std::uint32_t barFrames);
 
     /// Whether a run that writes its pictures into `out` can be compared against `against`, and why
     /// not where it cannot. The pictures are written over their references before the two

@@ -1156,7 +1156,8 @@ namespace Rtx::Shaders
     ///
     /// A longer fast mean darkens a standing eye's frame less and a moving one's more, and drags
     /// the trail; the lit rooms of the bounce suite stand within 0.01 at all three. Two serves the
-    /// moving eye best.
+    /// moving eye best. Measured under the centre's variance alone; under both
+    /// (`ATROUS_LUMINANCE_SIGMA`), two stands at 7.97 and 1.84 / 2.14.
     ///
     /// A shorter fast mean is a wider box around the pixel's own light, so it holds the slow mean
     /// to the change sooner and to noise no more. At two the frames strafed and walked in were
@@ -1304,12 +1305,27 @@ namespace Rtx::Shaders
     /// 0.70, and every other place within 0.01. The frame's bias rose by 0.05 at the yurt strafed
     /// and 0.10 walked, and by 0.02 at most anywhere else.
     ///
+    /// **What the flat kernel costs is light, where light rises across the surface it borrows
+    /// from**, and ReLAX's (`RELAX_HistoryFix`) costs the same: the mean of fourteen pixels either
+    /// side of light that rises faster than in a line stands over the light at the centre, and at
+    /// the frame's edge every tap the kernel keeps stands on one side. Under a lamp's spot on a wall
+    /// (`theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo`), over 32 draws against 1024 frames, the
+    /// strip the eye turned to reads 1.22 of its light fourteen columns in from the edge and 1.52 at
+    /// it. A pixel holds it for three frames at most, and the bounce suite shows none of it: the B3
+    /// spline below took two thirds of the excess off that scene and moved no place's bias.
+    ///
     /// **Not ReBLUR's weight of each tap by the frames its own mean holds.** Its noise was the flat
     /// kernel's to 0.01 at every place, and where the uncovered strip is the frame's edge its
-    /// settled neighbours all stand on one side: under a lamp's spot on a wall it held the strip at
-    /// 1.69 times its reference where the flat kernel holds 1.17
-    /// (`theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo`). Eight frames in place of NRD's three
-    /// moved no place by more than 0.03.
+    /// settled neighbours all stand on one side and weigh the most: it held the strip there 1.44
+    /// times as far over its reference as the flat kernel did, over four draws under the centre's
+    /// variance alone. Eight frames in place of NRD's three moved no place by more than 0.03.
+    ///
+    /// **Nor the B3 spline the wavelet's first level filters by**, though it halves the kernel's
+    /// second moment and with it what a flat mean adds where light rises faster than in a line: in
+    /// the same scene, over 32 draws against 1024 frames, the strip fourteen columns in from the
+    /// frame's edge read 1.07 of its light where the flat kernel reads 1.22. On the bounce suite it
+    /// moved no bias by more than 0.03, and every place was noisier one and two frames after a cut,
+    /// the glow-lit chamber 2.61 against 2.37 and its p99 16 against 14.
     const float ACCUMULATE_FIX_FRAMES = 3.0f;
 
     /// How far apart the history fix's 5×5 taps stand for a history of `n` frames, in pixels:
@@ -1353,13 +1369,24 @@ namespace Rtx::Shaders
     const float ATROUS_PLANE_SIGMA = 2.0f;
 
     /// How far a tap's brightness may differ from the centre's before it stops being the same
-    /// light, in standard deviations of what the centre has been measuring.
+    /// light, in standard deviations of what the centre and the tap have been measuring.
     ///
     /// **The term that wants a history**, because a variance is taken from one. With it the filter
     /// can stop at an edge in the *light* — the line where a shadow ends on a flat wall, which the
     /// normal test and the plane test both read as one surface and blur straight through. Scaled
     /// by the estimator's own spread, so a pixel that is still noisy filters widely and a settled
     /// one holds its detail. SVGF's own figure.
+    ///
+    /// **The variance of both, and not the centre's alone as SVGF and ReLAX (`RELAX_AtrousSmem`)
+    /// take it.** Where a bounce finds a bright surface rarely, a pixel whose history never found it
+    /// has a variance of nought and refused every brighter tap, while one that found it took its
+    /// dark taps in: light left the bright pixels and reached no dark one. A floor lit by a
+    /// lamp-lit spot on a wall kept 0.969 of its light under the centre's alone, 0.995 with no
+    /// brightness test and 0.988 under both (`theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo`).
+    /// On the bounce suite it took the glow-lit chamber's bias from 1.89 to 1.84 still, 2.32 to
+    /// 2.14 strafed and 2.20 to 2.07 walked in, and moved no other figure of any place by more
+    /// than 0.01. It costs the square root at every tap and not once a pixel: the filter's median
+    /// rose by 0.005 to 0.015 ms of 0.66 to 0.70 at the guild, the pier and the chamber.
     const float ATROUS_LUMINANCE_SIGMA = 4.0f;
 
     /// How many levels the cascade runs, its taps standing 1, 2, 4 and 8 pixels apart.

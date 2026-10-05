@@ -5,8 +5,10 @@
 #include <fstream>
 #include <optional>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -22,6 +24,7 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/testing/util.hpp>
 
@@ -47,6 +50,65 @@ namespace RtxTool
             bpo::notify(variables);
 
             return variables["validation"].as<std::string>();
+        }
+
+        /// **The other side of `noise --versus` changes the one switch it names**, read as the line would
+        /// read it, and keeps every other where the line put it and the indirect light the run derived.
+        /// A switch named alone takes its implicit value; naming the line's own value is the same side
+        /// again. Each switch `--versus` may name is one the reader reads: at a value other than the
+        /// default, it moves the request. A name no reconstruction reads, and a value its switch
+        /// refuses, are refused.
+        TEST(RtxToolOptionsTest, theOtherSideChangesTheOneSwitchItNames)
+        {
+            const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
+            const auto read = [&](const std::vector<std::string>& line) {
+                bpo::variables_map variables;
+                bpo::store(parse(options, line), variables);
+                bpo::notify(variables);
+                return variables;
+            };
+
+            const bpo::variables_map variables = read({ "--antilag=false", "--bounce-reuse=temporal" });
+            Rtx::ReconstructionRequest played{ .mIndirect = Rtx::IndirectLight::Off };
+            readReconstruction(variables, played);
+            ASSERT_FALSE(played.mAntilag);
+            ASSERT_EQ(played.mBounceReuse, Rtx::BounceReuse::Temporal);
+
+            Rtx::ReconstructionRequest ringed = played;
+            ringed.mAntiFirefly = true;
+            EXPECT_EQ(options.versus(variables, played, "antifirefly=true"), ringed);
+            EXPECT_EQ(options.versus(variables, played, "antifirefly"), ringed) << "the implicit value";
+            Rtx::ReconstructionRequest whole = played;
+            whole.mBounceReuse = Rtx::BounceReuse::Spatiotemporal;
+            EXPECT_EQ(options.versus(variables, played, "bounce-reuse=spatiotemporal"), whole);
+            EXPECT_EQ(options.versus(variables, played, "antilag=false"), played) << "the same side again";
+
+            const std::array<std::pair<std::string_view, std::string_view>, sReconstructionSwitches.size()> moved{ {
+                { "filter", "false" },
+                { "jitter", "true" },
+                { "noise", "white-hash" },
+                { "level-epsilon", "0.5" },
+                { "bounce-reuse", "own" },
+                { "antilag", "false" },
+                { "history-fix", "false" },
+                { "dual-motion", "false" },
+                { "antifirefly", "true" },
+            } };
+            const bpo::variables_map defaults = read({});
+            Rtx::ReconstructionRequest plain;
+            readReconstruction(defaults, plain);
+            EXPECT_EQ(plain, Rtx::ReconstructionRequest{});
+            for (std::size_t at = 0; at < moved.size(); ++at)
+            {
+                EXPECT_EQ(moved[at].first, sReconstructionSwitches[at]);
+                EXPECT_NE(
+                    options.versus(defaults, plain, std::format("{}={}", moved[at].first, moved[at].second)), plain)
+                    << moved[at].first << " is not read";
+            }
+
+            EXPECT_THROW(options.versus(variables, played, "delight=0.5"), std::runtime_error);
+            EXPECT_THROW(options.versus(variables, played, "bounce-reuse=sideways"), std::runtime_error);
+            EXPECT_THROW(options.versus(variables, played, "antifirefly=maybe"), std::runtime_error);
         }
 
         /// **A film is twenty seconds unless its length or its speed is named**, and never both: the

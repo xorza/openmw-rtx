@@ -225,6 +225,23 @@ namespace Rtx
                             .mAntiFirefly);
             EXPECT_FALSE(Reconstruction::forPicture(IndirectLight::Traced).mAntiFirefly);
 
+            // **An unfiltered request keeps what the trace reads and nothing the filters read**: a
+            // request with every filter switch turned from its default is the default request once
+            // unfiltered, and one switch the trace reads keeps two apart.
+            const ReconstructionRequest turned{ .mBounceReuse = BounceReuse::Spatiotemporal,
+                .mAntilag = false,
+                .mHistoryFix = false,
+                .mDualMotion = false,
+                .mAntiFirefly = true };
+            EXPECT_FALSE(turned.unfiltered().mDenoise);
+            EXPECT_EQ(turned.unfiltered().mBounceReuse, BounceReuse::Off);
+            EXPECT_EQ(turned.unfiltered(), ReconstructionRequest{}.unfiltered());
+            for (const ReconstructionRequest& traced :
+                { ReconstructionRequest{ .mJitter = true }, ReconstructionRequest{ .mNoise = NoiseSource::WhiteHash },
+                    ReconstructionRequest{ .mLevelEpsilon = 0.5f },
+                    ReconstructionRequest{ .mIndirect = IndirectLight::Off } })
+                EXPECT_NE(traced.unfiltered(), ReconstructionRequest{}.unfiltered());
+
             EXPECT_EQ(sBounceReuseNames.name(BounceReuse::Spatiotemporal), "spatiotemporal");
             EXPECT_EQ(sBounceReuseNames.named("own"), BounceReuse::Own);
             EXPECT_EQ(sIndirectLightNames.name(IndirectLight::Traced), "traced");
