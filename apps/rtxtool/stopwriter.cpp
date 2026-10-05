@@ -147,11 +147,11 @@ namespace RtxTool
         if (mMean.getCount() < mean.mOf)
             return;
 
-        mMean.mean(mPixels);
+        mMean.mean(mMeanSamples);
         mMean.clear();
         mMeanFile.clear();
         const Misc::Result<void, std::string> written
-            = Rtx::writePng(mean.mFile, extents.mOutputWidth, extents.mOutputHeight, mPixels);
+            = Rtx::writePng(mean.mFile, extents.mOutputWidth, extents.mOutputHeight, mMeanSamples);
         if (!written.isOk())
         {
             into.mRecord.note(written.error() + "\n");

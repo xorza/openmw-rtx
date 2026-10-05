@@ -21,6 +21,8 @@
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/shaders/colour.h>
 
+#include "run.hpp"
+
 namespace RtxTool
 {
     namespace
@@ -33,28 +35,31 @@ namespace RtxTool
         /// Whether the two have a picture each, of one size, so there is something to subtract.
         bool comparable(const Rtx::PngImage& one, const Rtx::PngImage& other)
         {
-            return !one.mPixels.empty() && !other.mPixels.empty() && one.mWidth == other.mWidth
+            return !one.mSamples.empty() && !other.mSamples.empty() && one.mWidth == other.mWidth
                 && one.mHeight == other.mHeight;
         }
 
-        /// The light of the pixel whose first byte is `at`: the luminance of its channels decoded, so
-        /// a ratio of two is a ratio of light and not of the bytes the curve encoded it in.
+        /// The light of the pixel whose first sample is `at`: the luminance of its channels decoded,
+        /// so a ratio of two is a ratio of light and not of the levels the curve encoded it in. **By
+        /// the curve itself and not a byte's table**, since a mean stands between the bytes.
         double lightOf(const Rtx::PngImage& image, const std::size_t at)
         {
-            const osg::Vec3f decoded(Rtx::toLinear(image.mPixels[at]), Rtx::toLinear(image.mPixels[at + 1]),
-                Rtx::toLinear(image.mPixels[at + 2]));
-            return static_cast<double>(decoded * Rtx::Shaders::LUMINANCE_WEIGHTS);
+            const auto decoded = [&](const std::size_t channel) {
+                return Rtx::Shaders::decodeSrgb(static_cast<float>(image.mSamples[at + channel]) / 65535.0f);
+            };
+            return static_cast<double>(
+                osg::Vec3f(decoded(0), decoded(1), decoded(2)) * Rtx::Shaders::LUMINANCE_WEIGHTS);
         }
 
-        /// The difference of the pixel whose first byte is `at`: its worst colour channel, out of 255.
-        /// Colour only, because alpha is not the picture.
+        /// The difference of the pixel whose first sample is `at`: its worst colour channel, on the
+        /// sixteen-bit scale. Colour only, because alpha is not the picture.
         std::uint32_t worstChannel(const Rtx::PngImage& one, const Rtx::PngImage& other, const std::size_t at)
         {
             std::uint32_t worst = 0;
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
-                const auto a = static_cast<std::int32_t>(one.mPixels[at + channel]);
-                const auto b = static_cast<std::int32_t>(other.mPixels[at + channel]);
+                const auto a = static_cast<std::int32_t>(one.mSamples[at + channel]);
+                const auto b = static_cast<std::int32_t>(other.mSamples[at + channel]);
                 worst = std::max(worst, static_cast<std::uint32_t>(std::abs(a - b)));
             }
 
@@ -88,13 +93,14 @@ namespace RtxTool
         FrameDifference difference;
         difference.mTotal = std::uint64_t{ before.mWidth } * before.mHeight;
 
-        for (std::size_t at = 0; at + 3 < before.mPixels.size(); at += 4)
+        for (std::size_t at = 0; at + 3 < before.mSamples.size(); at += 4)
         {
             const std::uint32_t worst = worstChannel(before, after, at);
             if (worst > 0)
             {
                 ++difference.mDiffering;
-                difference.mWorst = std::max(difference.mWorst, worst);
+                difference.mWorst
+                    = std::max(difference.mWorst, (worst + Rtx::sSamplesPerLevel - 1) / Rtx::sSamplesPerLevel);
             }
         }
 
@@ -123,9 +129,10 @@ namespace RtxTool
         if (!comparable(picture, reference))
             return PictureError{ .mMismatched = true };
 
-        std::array<std::uint64_t, 256> counts{};
+        // On the sixteen-bit scale, so a mean's fraction of a level is counted and not rounded away.
+        std::vector<std::uint64_t> counts(65536);
         std::uint64_t sum = 0;
-        for (std::size_t at = 0; at + 3 < picture.mPixels.size(); at += 4)
+        for (std::size_t at = 0; at + 3 < picture.mSamples.size(); at += 4)
         {
             const std::uint32_t worst = worstChannel(picture, reference, at);
             ++counts[worst];
@@ -137,13 +144,14 @@ namespace RtxTool
         // Counted in whole pixels, rounded up: at least ninety-nine in a hundred are within it.
         const std::uint64_t needed = (pixels * 99 + 99) / 100;
         std::uint64_t within = 0;
-        std::uint32_t level = 0;
-        while ((within += counts[level]) < needed)
-            ++level;
+        std::uint32_t sample = 0;
+        while ((within += counts[sample]) < needed)
+            ++sample;
 
+        constexpr auto perLevel = static_cast<double>(Rtx::sSamplesPerLevel);
         return PictureError{
-            .mMean = static_cast<double>(sum) / static_cast<double>(pixels),
-            .mP99 = level,
+            .mMean = static_cast<double>(sum) / perLevel / static_cast<double>(pixels),
+            .mP99 = static_cast<double>(sample) / perLevel,
         };
     }
 
@@ -167,7 +175,7 @@ namespace RtxTool
                 .mBarFrames = noiseBarFramesAfter(sNoiseFlightFrames, extents) };
         if (cut > 0)
             return NoiseFrame{ .mWarmup = cut - 1, .mBarFrames = noiseBarFramesAfter(cut + 1, extents) };
-        return NoiseFrame{ .mWarmup = std::nullopt, .mBarFrames = sNoiseBarFrames };
+        return NoiseFrame{ .mWarmup = std::nullopt, .mBarFrames = noiseBarFramesAfter(sHistoryFrames + 2, extents) };
     }
 
     std::optional<double> fireflyShare(const Rtx::PngImage& picture, const Rtx::PngImage& reference)
@@ -217,8 +225,9 @@ namespace RtxTool
         std::vector<float> difference(std::size_t{ picture.mWidth } * picture.mHeight * 3);
         for (std::size_t pixel = 0; pixel < std::size_t{ picture.mWidth } * picture.mHeight; ++pixel)
             for (std::size_t channel = 0; channel < 3; ++channel)
-                difference[pixel * 3 + channel] = static_cast<float>(picture.mPixels[pixel * 4 + channel])
-                    - static_cast<float>(reference.mPixels[pixel * 4 + channel]);
+                difference[pixel * 3 + channel] = (static_cast<float>(picture.mSamples[pixel * 4 + channel])
+                                                      - static_cast<float>(reference.mSamples[pixel * 4 + channel]))
+                    / static_cast<float>(Rtx::sSamplesPerLevel);
 
         std::vector<float> across(difference.size());
         for (std::int32_t y = 0; y < height; ++y)
@@ -302,8 +311,8 @@ namespace RtxTool
                 ++noisier;
 
             out() << std::format(
-                "  {:<28} noise: frame mean {:.2f} p99 {}, {} averaged mean {:.2f} p99 {} — {}; bias: frame {:.2f}, "
-                "{} averaged {:.2f}; fireflies {:.2f} in a thousand\n",
+                "  {:<28} noise: frame mean {:.2f} p99 {:.2f}, {} averaged mean {:.2f} p99 {:.2f} — {}; "
+                "bias: frame {:.2f}, {} averaged {:.2f}; fireflies {:.2f} in a thousand\n",
                 place, frame.mMean, frame.mP99, barFrames, bar.mMean, bar.mP99, clean ? "as clean" : "noisier",
                 *frameBias, barFrames, *barBias, *fireflies);
         }

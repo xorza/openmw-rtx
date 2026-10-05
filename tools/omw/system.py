@@ -84,9 +84,15 @@ def run(command: list, **options) -> subprocess.CompletedProcess:
 
 
 def output(command: list, **options) -> str:
-    return subprocess.run(
-        resolved(command, options.get("env")), check=True, capture_output=True, text=True, **options
-    ).stdout
+    return subprocess.run(resolved(command, options.get("env")), check=True, capture_output=True, encoding="utf-8",
+                          errors="replace", **options).stdout
+
+
+def read_text(path: Path) -> str:
+    """A file the tree, the build or a program wrote, as text. **UTF-8 whatever the locale**: Python reads
+    with the locale's encoding unless told, which is cp1252 on Windows, and every program here writes
+    UTF-8. What does not decode is replaced, so a log a crash cut mid-character still reads."""
+    return path.read_text(encoding="utf-8", errors="replace")
 
 
 def working_tree_files(*pathspecs: str) -> list[str]:

@@ -1043,8 +1043,8 @@ namespace RtxTool
             const float walk = variables["walk"].as<float>();
             const bool flies = strafe > 0.0f || walk != 0.0f;
 
-            // A frame taken standing still has a history as long as the warm-up, which is more than
-            // any mode needs to hold sixteen samples a shown pixel.
+            // Each leg's frame is held to the samples a shown pixel its history could hold
+            // (`noiseFrameFor`), standing as well.
             const Rtx::FrameExtents extents
                 = Rtx::extentsFor(framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mRun.mProfile.mUpscale);
             const Misc::Result<NoiseFrame, std::string> taken

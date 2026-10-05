@@ -414,7 +414,7 @@ namespace RtxTool
         const Vertices now{
             .mRevision = meshes.getRevision(),
             .mLengths = { meshes.getPositions().size(), meshes.getNormals().size(), meshes.getTexCoords().size(),
-                meshes.getSecondTexCoords().size(), meshes.getIndices().size() },
+                meshes.getSecondTexCoords().size(), meshes.getColours().size(), meshes.getIndices().size() },
         };
         if (mVertices == now)
             return;
@@ -437,6 +437,10 @@ namespace RtxTool
         addBlocks(texCoords, meshes.getTexCoords());
         addBlocks(texCoords, meshes.getSecondTexCoords());
         take(ScenePart::TexCoords, texCoords.getWords());
+
+        Rtx::HashState colours;
+        addBlocks(colours, meshes.getColours());
+        take(ScenePart::Colours, colours.getWords());
 
         take(ScenePart::Indices, wordsOf(meshes.getIndices()));
 
@@ -508,15 +512,29 @@ namespace RtxTool
         // empty string — and a run whose bakes landed in another order comes out identical here
         // while the materials naming them move. Each name ends with its length, so two names laid
         // end to end cannot be read as one.
+        //
+        // **And every other field of the row, bound whole**, as `forEachMaterialField` binds a
+        // material: the wrap reaches the sampler and the encoding and format how the texels decode,
+        // so a slot read another way is a trace that moves over this column. A field added to
+        // `TextureRow` does not compile here until it is named. The image is the file's bytes, which
+        // the path already names.
         Column textures(mScratch);
         for (const Rtx::TextureRow& row : scene.textures().getRows())
         {
-            const std::string_view path = row.mPath.value();
-            textures.add(std::span<const char>(path.data(), path.size()));
-            textures.add(static_cast<std::uint32_t>(path.size()));
+            const auto& [kind, path, baked, groundOf, wrap, encoding, image, format] = row;
+            const std::string_view name = path.value();
+            textures.add(std::span<const char>(name.data(), name.size()));
+            textures.add(static_cast<std::uint32_t>(name.size()));
 
-            textures.add(std::span<const char>(row.mBaked.data(), row.mBaked.size()));
-            textures.add(static_cast<std::uint32_t>(row.mBaked.size()));
+            textures.add(std::span<const char>(baked.data(), baked.size()));
+            textures.add(static_cast<std::uint32_t>(baked.size()));
+
+            textures.add(static_cast<std::uint32_t>(kind));
+            textures.add(static_cast<std::uint32_t>(groundOf));
+            textures.add(static_cast<std::uint32_t>(wrap));
+            textures.add(static_cast<std::uint32_t>(encoding));
+            textures.add(static_cast<std::uint32_t>(format));
+            static_cast<void>(image);
         }
         take(ScenePart::Textures, textures.take());
 

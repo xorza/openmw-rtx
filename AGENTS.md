@@ -174,7 +174,9 @@ backend ever arrives.
   averaged, and fails a frame noisier; beside it, each one's bias against a converged reference;
   `--strafe=150` takes the frame after the eye flew in from the side, and `--walk=150` from
   behind, which is what a history length or a filter's reach shows in; `--cut=N` takes the frame N
-  frames after the cut a stop begins with, standing, which is where fireflies show. Each place's
+  frames after the cut a stop begins with, standing, which is where fireflies show; and
+  `--upscale=native` standing is jittered with no upscaled resampling over it, which is where a
+  temporal filter that fetches its history off the pixel shows, as a bias. Each place's
   line counts its fireflies, pixels four times over the reference, in a thousand. A run is five minutes a
   suite with the card at 99%, so an A/B is `./omw release noise --ab=<switch>`: the strafe and the
   walk legs, both sides in one run a leg (`noise --versus`), and the still leg with `--still`, which a

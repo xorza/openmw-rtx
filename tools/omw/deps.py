@@ -12,14 +12,14 @@ import zipfile
 from pathlib import Path
 
 from omw import fetch, pins
-from omw.system import DEPS, EXE, ROOT, SYSTEM, WINDOWS, Refusal, environment_key, prepend_path, run
+from omw.system import DEPS, EXE, ROOT, SYSTEM, WINDOWS, Refusal, environment_key, prepend_path, read_text, run
 
 
 def msvc_versions() -> dict[str, str]:
     """The tags upstream's `CI/deps_versions.msvc.sh` pins, read the way its MSVC script reads them:
     the dependency set's `VCPKG_TAG` and Qt's `QT_VER`."""
     versions: dict[str, str] = {}
-    for line in (ROOT / "CI" / "deps_versions.msvc.sh").read_text().splitlines():
+    for line in read_text((ROOT / "CI" / "deps_versions.msvc.sh")).splitlines():
         match = re.fullmatch(r"\s*([A-Z_]+)=(\S+)\s*", line)
         if match:
             versions[match.group(1)] = match.group(2)
@@ -40,7 +40,7 @@ def windows_set(tag: str) -> Path:
 
     manifest = DEPS / f"{deps.name}-manifest.txt"
     fetch.download(f"https://gitlab.com/OpenMW/openmw-deps/-/raw/main/windows/{manifest.name}", manifest)
-    lines = manifest.read_text().splitlines()
+    lines = read_text(manifest).splitlines()
     url = lines[0].strip()
     # The second line is `sha512sum`'s: the digest, then the file, with a `*` in binary mode.
     sha512, name = lines[1].split(maxsplit=1)

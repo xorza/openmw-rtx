@@ -27,6 +27,10 @@ namespace RtxTool
         Positions,
         Normals,
         TexCoords,
+
+        /// Each vertex's colour, which every hit multiplies by.
+        Colours,
+
         Indices,
 
         /// One row per mesh slot: where its geometry sits and what it wears.
@@ -76,6 +80,7 @@ namespace RtxTool
         std::pair{ ScenePart::Positions, std::string_view("positions") },
         std::pair{ ScenePart::Normals, std::string_view("normals") },
         std::pair{ ScenePart::TexCoords, std::string_view("texcoords") },
+        std::pair{ ScenePart::Colours, std::string_view("colours") },
         std::pair{ ScenePart::Indices, std::string_view("indices") },
         std::pair{ ScenePart::Meshes, std::string_view("meshes") },
         std::pair{ ScenePart::Instances, std::string_view("instances") },
@@ -133,7 +138,7 @@ namespace RtxTool
         struct Vertices
         {
             std::uint64_t mRevision = 0;
-            std::array<std::size_t, 5> mLengths{};
+            std::array<std::size_t, 6> mLengths{};
 
             bool operator==(const Vertices&) const = default;
         };
