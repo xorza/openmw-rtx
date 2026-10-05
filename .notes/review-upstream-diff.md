@@ -121,32 +121,6 @@ The trace, the denoiser or the rasterizer shows a result that is not the light o
 
   Either way, DRAWN is set only where another pick would actually change the bit.
 
-### See-through surfaces stand solid in every ray but the eye's
-
-- [ ] `components/rtxvulkan/shaders/lib/traversal.glsl:380-381`, `:1277-1278`;
-  `water.glsl:97,107`; `shading.glsl:872-873` — **[bug]** Every committing inline traversal
-  (`traverse`, which backs `trace`) passes `seeThrough = false`. A non-opaque instance with no mask
-  then commits whole (`!walkPast && !hasMask → true`) and is shaded with its full albedo. Its
-  `mOpacity` is never read. This covers:
-  - an actor under Invisibility or Chameleon;
-  - an actor in the distance fade;
-  - a pane of glass.
-
-  So these appear fully opaque in:
-  - the water's reflection and refraction (`waterRay` → `shadeAtPathEnd`);
-  - a glossy lobe's reflection;
-  - the diffuse bounce, where they occlude and bounce light at full albedo.
-
-  The eye, meanwhile, peels them (`visibility.rgen:323-340`), and the shadow ray passes them by
-  opacity (`passageToward`, `seeThrough = true`). Result: an invisible NPC standing by a pond shows
-  a solid reflection, and a faded actor bounces colour onto the floor beside it. → Target shape:
-  secondary rays meet a see-through surface by its opacity, as the eye's rays meet a soft edge. Two
-  options:
-  - commit a see-through candidate with chance equal to its opacity, from one draw per ray and
-    triangle (`cutAt`'s construction). This keeps one traversal and averages to the blend;
-  - for an unfiltered reflection, walk past it as the shadow ray does and carry
-    `throughBlocked(blocked)` onto what stands behind.
-
 ### A lamp is counted twice where a glossy lobe reflects it
 
 - [ ] `components/rtxvulkan/shaders/lib/shading.glsl:759-769`, `:886-887`, `:272-273` — **[bug]**

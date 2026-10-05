@@ -108,7 +108,7 @@ And two rules apply to every step:
 | D2 | No one owns temporal reprojection | S§2, S§5, S§9, U › jitter, U › five kernels |
 | D3 | Direct light has no single rule for its sources | S§3 (lamp, sky), S§4, S§12, U › sky draw, U › two halves, U › lamps that take light |
 | D4 | The bounce's far end is not a pure function of its sample | S§6, U › validation, U › resolve, U › reservoirs kept |
-| D5 | Secondary rays see a scene that the eye does not see | U › See-through surfaces, S§11 (coverage) |
+| D5 | Secondary rays see a scene that the eye does not see | S§11 (coverage) |
 | D6 | A filtered signal carries material that the filter blurs | S§8, U › pane and glossy gather |
 | D7 | Participating media store a product as two means | S§3 (fog, water), S§13, S§15 (fog ray), S§16 (integrate) |
 | D8 | Texture facts are computed per use, with the wrong semantics | S§11, U › mip chain, U › painted-light estimate, U › Sprite light bake |
@@ -315,24 +315,19 @@ validation without the rate coin, come first. Point 1 comes only if the reuse th
 
 **Cause.**
 
-- The eye's ray peels see-through surfaces by opacity. Shadow rays walk past them by opacity. Every
-  other committing ray meets them as solid: reflections, refractions, lobes and the bounce.
 - Alpha-tested foliage thins with distance, because the mips lose coverage. The rasterizer corrects
   this by default.
 
 **Contract.**
 
-1. **Leaving a surface** is done: `leaveSurface` steps off the triangle by NVIDIA's bound for a
-   hardware traversal, every ray from a surface starts at nought, and the peel carries on
-   `CONTINUATION_ULPS` past its layer.
-2. **Meeting a see-through surface.** A committing traversal meets a non-opaque, unmasked candidate
-   with a chance equal to its opacity. The draw is one per ray and triangle, built as `cutAt`
-   builds its dither. One traversal, and the expected value is the blend. The eye's peel and the
-   shadow's walk-past stay as they are.
-3. **Coverage at every level.** The mip chain preserves alpha-test coverage at the material's
+1. **Leaving a surface** and **meeting a see-through surface** are done: `leaveSurface` steps off
+   the triangle by NVIDIA's bound for a hardware traversal, every ray from a surface starts at
+   nought, the peel carries on `CONTINUATION_ULPS` past its layer, and a committing ray meets a
+   see-through surface as often as it is there (`MEET_BY_CHANCE`).
+2. **Coverage at every level.** The mip chain preserves alpha-test coverage at the material's
    reference (D8). The trace then needs no LOD scale in `candidateStops`.
 
-**What goes away.** The solid reflections of invisible actors, and the thin far foliage.
+**What goes away.** The thin far foliage.
 
 ### D6. The signal contract: every filtered signal is demodulated by its own albedo
 
@@ -529,18 +524,16 @@ Take new baselines at the end of each phase.
 
 Order matters. D5 changes what every secondary ray meets, and D3 is measured on top of it.
 
-1. D5.2, see-through commits by opacity. Measure with `shot` at a place with glass and an invisible
-   or fading actor. Add one to `views.cfg` if none exists.
-2. D3.1, the reach rule: lamp bodies, discs, and water legs.
-3. D3.2 and D3.3, the exact sky sum and the drawn floor. Measure with `noise --ab` at dusk, with a
+1. D3.1, the reach rule: lamp bodies, discs, and water legs.
+2. D3.2 and D3.3, the exact sky sum and the drawn floor. Measure with `noise --ab` at dusk, with a
    place in daylight while a moon is up and a place under two moons. The shadow filter's reach
    should fall by day.
-4. D3.4 and D3.5, the nearest occluder, the receiver's penumbra, and the stopped through. Measure
+3. D3.4 and D3.5, the nearest occluder, the receiver's penumbra, and the stopped through. Measure
    the cost of the split rays without `TerminateOnFirstHit` with `bench`, and the pond A/B again.
-5. D3.6, the highlight size. Then D3.7, M candidates below the primary hit, with
+4. D3.6, the highlight size. Then D3.7, M candidates below the primary hit, with
    `noise --ab=<M>` and `bench` at a lamp-dense interior.
-6. D3.8, blue streams for split draws, and STBN for the bounce. `noise --ab`, all three legs.
-7. D3.9, the sky-shadow flag. The moons under water go with D7.3 in Phase 4.
+5. D3.8, blue streams for split draws, and STBN for the bounce. `noise --ab`, all three legs.
+6. D3.9, the sky-shadow flag. The moons under water go with D7.3 in Phase 4.
 
 ### Phase 3. Temporal history (D2, D6, and the wavelet items)
 
@@ -676,8 +669,8 @@ These are local defects. Each one is fixed where it stands.
 | S§8 | D6 (Phase 3) |
 | S§9 | Phase 3, step 7 |
 | S§10 | D9 (Phase 7) |
-| S§11 | D8 (Phase 6), D5 point 3 |
-| S§12 | D3 points 6 and 7 (Phase 2), the bounded VNDF in Phase 2 step 5 |
+| S§11 | D8 (Phase 6), D5 point 2 |
+| S§12 | D3 points 6 and 7 (Phase 2), the bounded VNDF in Phase 2 step 4 |
 | S§13 | D7 (Phase 4), the moons under water in D7.3 |
 | S§14 to S§16 | Phase 8, D7 (integrate, ambient ray), D10 (barriers) |
 | S§17 | Section 6 |

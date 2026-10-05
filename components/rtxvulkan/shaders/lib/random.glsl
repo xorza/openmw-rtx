@@ -142,6 +142,10 @@ const uint SEED_BOUNCE_PAIRS = SEED_AMBIENT_VALIDATED + 1u;
 /// its triangle as well, so two soft layers on one pixel are met apart.
 const uint SEED_SOFT_EDGE = SEED_BOUNCE_PAIRS + 1u;
 
+/// And one for whether a ray that commits meets a see-through surface (`MEET_BY_CHANCE`), drawn off
+/// the ray's own key and not a pixel's.
+const uint SEED_SEE_THROUGH = SEED_SOFT_EDGE + 1u;
+
 /// How far each stream's sequence advances between frames.
 ///
 /// **An additive recurrence with an irrational step**, which is the cheapest sequence whose every

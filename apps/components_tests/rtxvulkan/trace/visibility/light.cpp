@@ -2509,6 +2509,45 @@ namespace Rtx::Testing
             EXPECT_LT(floorUnder(glowingAt(-100.0f)), 0.005f) << "and it stops at the triangle";
         }
 
+        /// A bounce meets a see-through pane as often as the pane is there.
+        ///
+        /// **The blend the eye draws, in the mean, for every ray that commits a hit.** A grey floor
+        /// under a glowing sheet that covers every direction it gathers from comes to its albedo, a
+        /// half, for the sheet's radiance of one (`aBounceDoesNotGatherThroughTheTriangleItLeft`
+        /// says why one). A black pane between them, unlit and glowing nothing, takes the share of
+        /// that it covers: met solid by every bounce, it took all of it at any opacity. At an
+        /// opacity of one the floor is dark, at a half it is `0.5 * 0.5` = 0.25, and at a quarter
+        /// `0.5 * 0.75` = 0.375.
+        TEST_F(RtxVisibilityTest, aBounceMeetsASeeThroughPaneAsOftenAsThePaneIsThere)
+        {
+            constexpr std::uint32_t size = 32;
+
+            const auto floorUnder = [&](float opacity) {
+                SceneDesc scene;
+                addQuad(scene, sheetAt(40000.0f, 0.0f));
+
+                Material glowing;
+                glowing.mEmissiveColour = osg::Vec3f(0.125f, 0.125f, 0.125f);
+                glowing.mTwoSided = true;
+                addQuad(scene, sheetAt(40000.0f, 100.0f), scene.addMaterial(glowing));
+                addPane(scene, sheetAt(40000.0f, 50.0f), osg::Vec4f(0.0f, 0.0f, 0.0f, opacity), 1.0f, true);
+
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, -1.0f, 20.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mAmbient = osg::Vec3f();
+                camera.mAmbientFromSky = 1.0f;
+
+                return shoot(scene, {}, camera, size, { .mFrames = 64 }).mean();
+            };
+
+            EXPECT_LT(floorUnder(1.0f), 0.005f) << "a whole pane stops every bounce";
+            EXPECT_NEAR(floorUnder(0.5f), 0.25f, 0.01f) << "half a pane stops half of them";
+            EXPECT_NEAR(floorUnder(0.25f), 0.375f, 0.01f) << "and a quarter a quarter";
+        }
+
         /// **A lamp's own model glows to the eye and lights nothing by the bounce** (`bounceLanding`,
         /// `INSTANCE_LAMP_BODY`): its lamp delivers that light already.
         ///
