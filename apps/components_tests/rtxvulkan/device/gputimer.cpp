@@ -83,6 +83,7 @@ namespace Rtx
             /// CPU sat through, for this frame.
             double mWallMs = 0.0;
             GpuZones mGpu;
+            BounceReuse mBounceReuse = BounceReuse::Off;
         };
 
         /// Draws one frame and waits for it, so what comes back is that frame's own report.
@@ -100,7 +101,10 @@ namespace Rtx
             if (!result.has_value())
                 return Drawn{};
 
-            return Drawn{ .mHits = result->mHits, .mWallMs = wallMs, .mGpu = result->mGpu };
+            return Drawn{ .mHits = result->mHits,
+                .mWallMs = wallMs,
+                .mGpu = result->mGpu,
+                .mBounceReuse = result->mReconstruction.mBounceReuse };
         }
 
         /// A frame accounts for its own device time, pass by pass.
@@ -217,7 +221,7 @@ namespace Rtx
             // what a frame before kept.
             ReconstructionRequest reused = mRenderer.getProfile().mReconstruction;
             reused.mDenoise = true;
-            reused.mBounceReuse = BounceReuse::Spatiotemporal;
+            reused.mBounceReuse = BounceReuseRule::Spatiotemporal;
             draw(mRenderer, camera, 0.0, reused);
             const Drawn traced = draw(mRenderer, camera, 0.0, reused);
             reused.mIndirect = IndirectLight::Off;
@@ -230,6 +234,28 @@ namespace Rtx
                 EXPECT_TRUE(reports(traced.mGpu.spans(), pass)) << "no zone called " << pass;
                 EXPECT_FALSE(reports(none.mGpu.spans(), pass)) << "a frame with no indirect light ran " << pass;
             }
+
+            // **A request that names no reuse runs it by the frame's sky** (`BounceReuseRule::Rooms`):
+            // temporal where the sky lights nothing, so the temporal pass runs and the pairs do not,
+            // and none where it lights, so no pass of the reuse runs. The second frame of each, since
+            // the temporal pass runs only on a history a frame before kept.
+            ReconstructionRequest bySky = reused;
+            bySky.mIndirect = IndirectLight::Traced;
+            bySky.mBounceReuse = ReconstructionRequest{}.mBounceReuse;
+            Shaders::VisibilityConstants room = camera;
+            room.mAmbientFromSky = 0.0f;
+            Shaders::VisibilityConstants open = camera;
+            open.mAmbientFromSky = 1.0f;
+            draw(mRenderer, room, 0.0, bySky);
+            const Drawn inRoom = draw(mRenderer, room, 0.0, bySky);
+            draw(mRenderer, open, 0.0, bySky);
+            const Drawn underSky = draw(mRenderer, open, 0.0, bySky);
+            EXPECT_EQ(inRoom.mBounceReuse, BounceReuse::Temporal);
+            EXPECT_EQ(underSky.mBounceReuse, BounceReuse::Off);
+            EXPECT_TRUE(reports(inRoom.mGpu.spans(), "bounce temporal")) << "a room's frame ran no temporal reuse";
+            EXPECT_FALSE(reports(inRoom.mGpu.spans(), "bounce pairs")) << "a room's frame ran the spatial reuse";
+            for (const char* const pass : { "bounce validate", "bounce temporal", "bounce pairs", "bounce resolve" })
+                EXPECT_FALSE(reports(underSky.mGpu.spans(), pass)) << "a frame under a sky that lights ran " << pass;
 
             // And as a menu sets it, for every frame that asks nothing of its own.
             mRenderer.setIndirectLight(IndirectLight::Off);

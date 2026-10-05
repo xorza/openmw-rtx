@@ -225,6 +225,7 @@ namespace RtxTool
             return;
 
         mProgress.mReconstruction = finished.mReconstruction;
+        mProgress.mPlace.mBounceReuse = finished.mReconstruction.mBounceReuse;
         mProgress.mPlace.mOverlap.add(finished.mInFlight);
         mProgress.mGpu.add(finished.mGpu.spans());
         mProgress.mNotFinite.add(finished.mNotFinite);

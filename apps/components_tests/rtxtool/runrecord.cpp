@@ -61,6 +61,7 @@ namespace RtxTool
             Rtx::RenderProfile& profile = request.mSetup.mRun.mProfile;
             profile.mReconstruction.mDenoise = false;
             profile.mReconstruction.mJitter = false;
+            profile.mReconstruction.mBounceReuse = Rtx::BounceReuseRule::Rooms;
             profile.mDelight = 0.5f;
             profile.mGamma = 2.2f;
             profile.mShow = Rtx::SurfaceView::Albedo;
@@ -80,7 +81,9 @@ namespace RtxTool
                 .mRenderWidth = 960, .mRenderHeight = 540, .mOutputWidth = 1920, .mOutputHeight = 1080
             };
             // **What a frame resolved, not what the line asked**: the line asked no jitter, and an
-            // upscaler jitters the ray whatever it is asked.
+            // upscaler jitters the ray whatever it is asked. **The reuse is the one exception**: the
+            // line asked `rooms`, which each place resolves by its own sky, so the run's line says the
+            // rule and a place's says the mode.
             header.mReconstruction = Rtx::Reconstruction{ .mDenoised = false,
                 .mUpscale = Rtx::Upscale::Performance,
                 .mJitter = true,
@@ -95,13 +98,14 @@ namespace RtxTool
 
             BenchPlace place;
             place.mView = "seyda-neen";
+            place.mBounceReuse = Rtx::BounceReuse::Temporal;
             record.add(place);
 
             const std::string build = Rtx::sAssertsOn ? "a build with asserts, not one to quote" : "a release build";
             const std::string expected = "\nrun  " + build
                 + ", layers on, not a figure to quote, not measured, every frame hashed, the weather turned\n"
                   "     1920x1080 from 960x540, upscale performance, filter off, jitter on, noise white-hash, "
-                  "level bias -1.000, indirect off, bounce reuse temporal, antilag on, history fix off, anti-firefly on\n"
+                  "level bias -1.000, indirect off, bounce reuse rooms, antilag on, history fix off, anti-firefly on\n"
                   "     delight 0.50, gamma 2.20, show albedo, exposure fixed at 1.500, variants off, hold 8.0 ms\n"
                   "     land 4.0 cells, viewing distance 7168, distant statics off, step 0.0625 s, walks streamed, "
                   "memory budget 512 MiB, host pages ";
@@ -116,6 +120,7 @@ namespace RtxTool
             const std::optional<float> share = record.getHeader().mHugePageShare;
             EXPECT_EQ(word == "not said", !share.has_value());
             EXPECT_NE(record.getReport().find("  not a measurement: this command draws its frames"), std::string::npos);
+            EXPECT_NE(record.getReport().find("\n  bounce reuse temporal\n"), std::string::npos) << record.getReport();
 
             record.finish(request);
             std::ostringstream read;
@@ -135,11 +140,11 @@ namespace RtxTool
             EXPECT_NE(json.find(premises), std::string::npos) << json;
             EXPECT_NE(json.find(setup), std::string::npos) << json;
             EXPECT_NE(json.find(mirror), std::string::npos) << json;
-            EXPECT_NE(
-                json.find(R"("indirect": "off", "bounceReuse": "temporal", "antilag": true, "historyFix": false, )"
-                          R"("antiFirefly": true)"),
+            EXPECT_NE(json.find(R"("indirect": "off", "bounceReuse": "rooms", "antilag": true, "historyFix": false, )"
+                                R"("antiFirefly": true)"),
                 std::string::npos)
                 << json;
+            EXPECT_NE(json.find(R"("hitPercent": 0.00, "bounceReuse": "temporal", )"), std::string::npos) << json;
             EXPECT_NE(json.find(Rtx::sAssertsOn ? R"("asserts": true)" : R"("asserts": false)"), std::string::npos);
         }
 
