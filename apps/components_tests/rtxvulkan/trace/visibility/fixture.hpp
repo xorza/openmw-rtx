@@ -383,7 +383,7 @@ namespace Rtx::Testing
 
         /// What the trace makes of its bounce: none, for the reason the filter is off — a reused
         /// bounce is what the neighbours and the frames before found. The tests of the reuse ask.
-        BounceReuse mBounceReuse = BounceReuse::Off;
+        BounceReuseRule mBounceReuse = BounceReuseRule::Off;
 
         /// Where the indirect light comes from: the traced bounce every figure over this fixture was
         /// derived against, unless a test of none names the other.

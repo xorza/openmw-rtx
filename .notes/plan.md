@@ -413,24 +413,6 @@ section at the end**, kept or reverted, because a finished step leaves this list
 noisier by more than 0.02 or more biased by more than 0.05 in any leg it is run on, still,
 strafed (`--strafe=150`) and walked (`--walk=150`).
 
-18. **P2: the reuse by the sky** (decision 3). `BounceReuse` gains a mode, `rooms`, the default:
-    temporal where the frame's sky lights nothing (`mAmbientFromSky` nought: an interior) and off
-    where it does. **`Reconstruction::resolve` already runs once a frame** in
-    `VulkanRenderer::renderFrame`, with the frame's camera in hand: it takes whether the sky lights
-    this frame and resolves `rooms` there, so every reader of the frame's `Reconstruction`, the
-    trace chain, `composedByTrace` and `FrameResult`, reads the effective mode. A picture's
-    reconstruction (`forPicture`) keeps no reuse. The other modes stay for A/Bs (`--bounce-reuse=`);
-    the reuse is not a player setting, so no settings page changes. A door is a cut, so the history
-    the temporal pass reads after one is empty either way. The world's chain keeps its reservoirs
-    whatever a frame runs (`TraceChain::mReuses`, set when the chain is made), so a door costs no
-    allocation. Tests: `reconstruction.cpp`, the mode resolves to temporal under no sky and to off
-    under one. Every GPU test that builds a `ReconstructionRequest` without naming the reuse takes
-    the new default, and under a sky that is no reuse: `trail.cpp`'s second test (line 193) is one,
-    and the rest are found by a search for requests that name no `mBounceReuse`. Each names the mode
-    its claim was measured under. The bench's report names the effective mode per place, since a run
-    now differs by place. `architecture.md`'s reuse paragraph says when the reuse runs. Measure:
-    `bench --suite=default` and `--suite=interiors` against today, and one `noise
-    --ab=bounce-reuse=rooms,spatiotemporal --suite=bounce --still` to confirm the tables.
 19. **P3: the far hit draws its lamps** (decision 5). At `PATH_INDIRECT`, `weighLamps` weighs
     `min(n, K)` of the cell's `n` lamps: where `n ≤ K`, every lamp, as now, and exact; past it, `K`
     drawn uniformly with replacement, each offered to the reservoir at its target over `K / n`
@@ -750,3 +732,47 @@ levels are.
   and not its margin: the narrow levels drag the sky's trail less on their own (11.00 → 10.16
   pixels of lag without the clamp, 8.32 → 8.22 with it), so the clamp's share fell from a quarter
   to a fifth, and its bound asks for 15% where it asked for 20%.
+
+## Step 18: the reuse by the sky — kept
+
+A request asks for a rule (`BounceReuseRule`) and a frame runs a mode: `rooms`, the default, is
+temporal where the frame's sky lights nothing and off where it lights, which `Reconstruction::resolve`
+reads off the frame's camera. The rule is its own type and not a fifth `BounceReuse`, so no frame can
+run a rule: the backend reads the mode by its order and against the shader's constants. The bench's
+run line names the rule, and each place's lines the mode it ran.
+
+- **Time**, `bench`, 10 s a place, back to back after a warm-up leg: the frame's median and p99,
+  and the reuse's passes' share of the mean frame, in ms, before → after.
+
+| place | frame median | frame p99 | reuse | mode |
+|---|---|---|---|---|
+| Seyda Neen's ship | 7.32 → 6.14 | 8.09 → 8.25 | 1.09 → 0 | off |
+| the ship at dawn | 7.90 → 6.67 | 9.91 → 7.35 | 1.07 → 0 | off |
+| mages' guild | 6.24 → 5.74 | 8.78 → 6.46 | 1.32 → 0.76 | temporal |
+| Seyda Neen's customs | 5.56 → 5.12 | 6.05 → 5.90 | 1.14 → 0.64 | temporal |
+| Vivec's canalworks | 3.74 → 3.65 | 4.24 → 4.50 | 0.39 → 0.24 | temporal |
+| Addamasartus | 6.14 → 5.62 | 6.76 → 8.21 | 1.31 → 0.68 | temporal |
+| Arkngthand | 3.36 → 3.34 | 3.97 → 4.25 | 0.42 → 0.25 | temporal |
+| the Andrano tomb | 5.33 → 4.88 | 6.11 → 5.44 | 1.11 → 0.62 | temporal |
+
+  1.2 ms off the median outdoors and 0.1 to 0.5 ms in the rooms. Addamasartus's p99 rose again, as
+  in step 17's run, with its median lower: its tail moves from run to run by more than any change
+  here. The trace's own zone rose by 0.14 ms in the canalworks and 0.19 in Arkngthand and by
+  nothing elsewhere, within what the zone moves between runs.
+- **Pictures**: 30 of 64 moved, every one whose reuse changed: the interiors from spatiotemporal to
+  temporal, the exteriors to none.
+- **Noise**, `--ab=bounce-reuse=rooms,spatiotemporal --suite=bounce`, rooms / spatiotemporal:
+
+| place | still noise, bias | strafed | walked |
+|---|---|---|---|
+| mages' guild | 0.39 / 0.39, 1.33 / 1.29 | 1.12 / 1.11, 1.63 / 1.62 | 1.25 / 1.24, 2.35 / 2.37 |
+| guild's planter | 0.41 / 0.41, 1.61 / 1.57 | 1.31 / 1.30, 1.78 / 1.73 | 1.17 / 1.16, 2.75 / 2.76 |
+| Ahemmusa's yurt | 0.44 / 0.44, 1.52 / 1.50 | 1.64 / 1.64, 2.46 / 2.42 | 1.82 / 1.81, 2.92 / 2.91 |
+| Seyda Neen's pier | 0.48 / 0.48, 1.71 / 1.75 | 1.16 / 1.16, 1.43 / 1.43 | 1.17 / 1.18, 2.08 / 2.16 |
+| Seyda Neen's pond | 0.48 / 0.49, 1.59 / 1.58 | 1.21 / 1.21, 1.74 / 1.72 | 1.17 / 1.17, 1.58 / 1.61 |
+
+  **Within the bar everywhere, and the spatial half now buys almost nothing.** The rooms are 0.01
+  noisier at most and up to 0.05 more biased (the planter strafed in, at the bar); the pier is up to
+  0.08 less biased. The decision's own table, taken before steps 16 and 17, had the spatial half
+  take 0.02 to 0.07 off the rooms' still noise: the lighter wavelet and the honest variance took
+  most of that over.

@@ -50,7 +50,7 @@ namespace Rtx::Testing
         class RtxBounceTrailTest : public RtxVisibilityTest
         {
         protected:
-            Trail trailOf(Blocked blocked, BounceReuse reuse, bool antilag)
+            Trail trailOf(Blocked blocked, BounceReuseRule reuse, bool antilag)
             {
                 constexpr std::uint32_t still = 32;
                 constexpr std::uint32_t moving = 40;
@@ -143,7 +143,7 @@ namespace Rtx::Testing
         /// of darkness left behind, where the raw frame lags by 0.11 and leaves none.
         TEST_F(RtxBounceTrailTest, theSunsShadowFollowsItsCaster)
         {
-            const Trail trail = trailOf(Blocked::Sun, BounceReuse::Off, true);
+            const Trail trail = trailOf(Blocked::Sun, BounceReuseRule::Off, true);
             EXPECT_LT(trail.mLag, 0.4f);
             EXPECT_LT(trail.mTail, 0.25f);
         }
@@ -161,8 +161,8 @@ namespace Rtx::Testing
         /// fifth, and the bound asks for 15%.
         TEST_F(RtxBounceTrailTest, theClampShortensTheSkysTrail)
         {
-            const Trail held = trailOf(Blocked::Sky, BounceReuse::Spatiotemporal, true);
-            const Trail dragged = trailOf(Blocked::Sky, BounceReuse::Spatiotemporal, false);
+            const Trail held = trailOf(Blocked::Sky, BounceReuseRule::Spatiotemporal, true);
+            const Trail dragged = trailOf(Blocked::Sky, BounceReuseRule::Spatiotemporal, false);
             EXPECT_LT(held.mLag, 9.0f);
             EXPECT_LT(held.mLag, 0.85f * dragged.mLag) << "the clamp took little off the trail: " << dragged.mLag;
             EXPECT_LT(held.mTail, 1.4f);
@@ -193,7 +193,9 @@ namespace Rtx::Testing
                     sampled.mFrame = first + at;
                     mRenderer.renderFrame(sampled,
                         FrameOptions{ .mLoss = cut && at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
-                            .mReconstruction = ReconstructionRequest{ .mDenoise = true, .mAntilag = antilag },
+                            .mReconstruction = ReconstructionRequest{ .mDenoise = true,
+                                .mBounceReuse = BounceReuseRule::Spatiotemporal,
+                                .mAntilag = antilag },
                             .mExposure = FixedExposure{ 1.0f } });
                     EXPECT_TRUE(mRenderer.finishFrame().has_value());
                     mRenderer.readComposite(radiance);

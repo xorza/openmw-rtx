@@ -271,7 +271,13 @@ at the top, over all of them.
   the candidate, the pairs' pass traces the shift rays of each pair of pixels the pairings link
   once for both (`BouncePairing`), and the resolve merges the two partners by those rays, traces the
   final visibility ray and shades the kept sample into the channels the trace would have written.
-  The reuse keeps its own history, so it runs with or without the denoiser after it.
+  The reuse keeps its own history, so it runs with or without the denoiser after it. **A run asks
+  for a rule and a frame runs a mode** (`BounceReuseRule`): by default `rooms`, temporal where the
+  frame's sky lights nothing and none where it lights, which `Reconstruction::resolve` reads off the
+  frame's camera. Under the sky the reuse took no noise off and added bias; in a room the temporal
+  merge takes two thirds of what the whole reuse takes, for 0.77 ms of its 1.31. A door is a cut, so the
+  reservoirs a room's first frame reads are empty either way, and the chain keeps them whatever a
+  frame runs.
 - **The indirect light** (`[RTX] indirect light`, `Reconstruction::mIndirect`) is `traced`, the
   bounce above and the passes that clean it, or `off`, none: the trace draws no diffuse bounce and
   traces only a glossy surface's reflection (`bounceTraced`), no surface a path ends at takes the

@@ -174,6 +174,11 @@ namespace RtxTool
         /// state the host rows above ran in.
         ThreadCounts mThread;
 
+        /// What the trace made of the bounce at this place, as its last measured frame resolved it:
+        /// **a place's and not the run's**, since the run's rule may pick the mode by the place's sky
+        /// (`BounceReuseRule::Rooms`).
+        Rtx::BounceReuse mBounceReuse = Rtx::BounceReuse::Off;
+
         /// What fraction of primary rays hit something, as a percentage. A place profiled facing a
         /// wall is fast and means nothing, and this is what says so without opening a window.
         double mHitPercent = 0.0;

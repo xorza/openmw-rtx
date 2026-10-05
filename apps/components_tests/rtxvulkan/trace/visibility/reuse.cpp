@@ -67,8 +67,8 @@ namespace Rtx::Testing
             /// The bounce's luminance at every pixel of the corner, one vector a frame, over a run of
             /// `frames` from the sampler's frame `first` on with the history let build from nothing,
             /// past the first `skipped`.
-            std::vector<std::vector<float>> bounceRun(
-                BounceReuse reuse, std::uint32_t size, std::uint32_t frames, std::uint32_t skipped, std::uint32_t first)
+            std::vector<std::vector<float>> bounceRun(BounceReuseRule reuse, std::uint32_t size, std::uint32_t frames,
+                std::uint32_t skipped, std::uint32_t first)
             {
                 std::vector<std::vector<float>> kept;
                 std::vector<float> read;
@@ -135,13 +135,15 @@ namespace Rtx::Testing
 
             std::vector<float> plain;
             std::vector<float> plainFill;
-            ASSERT_EQ(shoot(scene, {}, camera, sSize, Shot{ .mBounceReuse = BounceReuse::Off }).mHits, sSize * sSize);
+            ASSERT_EQ(
+                shoot(scene, {}, camera, sSize, Shot{ .mBounceReuse = BounceReuseRule::Off }).mHits, sSize * sSize);
             mRenderer.readChannel(Channel::Indirect, plain);
             mRenderer.readChannel(Channel::Fill, plainFill);
 
             std::vector<float> own;
             std::vector<float> ownFill;
-            ASSERT_EQ(shoot(scene, {}, camera, sSize, Shot{ .mBounceReuse = BounceReuse::Own }).mHits, sSize * sSize);
+            ASSERT_EQ(
+                shoot(scene, {}, camera, sSize, Shot{ .mBounceReuse = BounceReuseRule::Own }).mHits, sSize * sSize);
             mRenderer.readChannel(Channel::Indirect, own);
             mRenderer.readChannel(Channel::Fill, ownFill);
 
@@ -183,16 +185,17 @@ namespace Rtx::Testing
         /// temporal half and further with the spatial one, which is what the reuse is for.
         TEST_F(RtxBounceReuseTest, theReuseKeepsTheMeanAndTakesNoiseOffEachFrame)
         {
-            const std::vector<float> truth = meanOf(bounceRun(BounceReuse::Off, 128, 256, 0, 10000));
+            const std::vector<float> truth = meanOf(bounceRun(BounceReuseRule::Off, 128, 256, 0, 10000));
             const float whole = wholeOf(truth);
             ASSERT_GT(whole, 0.0f);
 
             float errors[3]{};
-            const BounceReuse reuses[3]{ BounceReuse::Own, BounceReuse::Temporal, BounceReuse::Spatiotemporal };
+            const BounceReuseRule reuses[3]{ BounceReuseRule::Own, BounceReuseRule::Temporal,
+                BounceReuseRule::Spatiotemporal };
             for (std::size_t at = 0; at < 3; ++at)
             {
                 const std::vector<std::vector<float>> run = bounceRun(reuses[at], 128, 64, 24, 20000);
-                EXPECT_NEAR(wholeOf(meanOf(run)) / whole, 1.0f, 0.02f) << sBounceReuseNames.name(reuses[at]);
+                EXPECT_NEAR(wholeOf(meanOf(run)) / whole, 1.0f, 0.02f) << sBounceReuseRuleNames.name(reuses[at]);
                 errors[at] = errorOf(run, truth);
             }
 
@@ -231,7 +234,7 @@ namespace Rtx::Testing
                 = makeCamera(osg::Vec3f(0.0f, 0.0f, 900.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 60.0f, size, size, 10000.0f);
             camera.mAmbientFromSky = 0.0f;
 
-            const auto lightest = [&](BounceReuse reuse) {
+            const auto lightest = [&](BounceReuseRule reuse) {
                 std::vector<float> most(std::size_t{ size } * size);
                 std::vector<float> read;
                 std::uint32_t at = 0;
@@ -252,8 +255,8 @@ namespace Rtx::Testing
                 return most;
             };
 
-            const std::vector<float> plain = lightest(BounceReuse::Off);
-            const std::vector<float> reused = lightest(BounceReuse::Spatiotemporal);
+            const std::vector<float> plain = lightest(BounceReuseRule::Off);
+            const std::vector<float> reused = lightest(BounceReuseRule::Spatiotemporal);
 
             // The wall stands on the middle column, and the lamp's half is the one the plain bounce
             // lights: the other is the dark side, past a column either side of the wall.
@@ -315,7 +318,7 @@ namespace Rtx::Testing
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
 
             std::vector<float> read;
-            const auto draw = [&](float x, std::uint32_t frame, BounceReuse reuse, bool cut) {
+            const auto draw = [&](float x, std::uint32_t frame, BounceReuseRule reuse, bool cut) {
                 mRenderer.renderFrame(standing(x, frame),
                     FrameOptions{ .mLoss = cut ? HistoryLoss::Cut : HistoryLoss::None,
                         .mReconstruction = ReconstructionRequest{ .mDenoise = false, .mBounceReuse = reuse },
@@ -330,13 +333,14 @@ namespace Rtx::Testing
             std::vector<std::vector<float>> plain;
             for (std::uint32_t frame = 0; frame < 160; ++frame)
             {
-                draw(end, 9000 + frame, BounceReuse::Off, frame == 0);
+                draw(end, 9000 + frame, BounceReuseRule::Off, frame == 0);
                 plain.push_back(bounce());
             }
             const std::vector<float> truth = meanOf(plain);
 
             float errors[3]{};
-            const BounceReuse reuses[3]{ BounceReuse::Own, BounceReuse::Temporal, BounceReuse::Spatiotemporal };
+            const BounceReuseRule reuses[3]{ BounceReuseRule::Own, BounceReuseRule::Temporal,
+                BounceReuseRule::Spatiotemporal };
             for (std::size_t at = 0; at < 3; ++at)
             {
                 std::vector<std::vector<float>> ends;
@@ -347,7 +351,8 @@ namespace Rtx::Testing
                             step == 0);
                     ends.push_back(bounce());
                 }
-                EXPECT_NEAR(wholeOf(meanOf(ends)) / wholeOf(truth), 1.0f, 0.02f) << sBounceReuseNames.name(reuses[at]);
+                EXPECT_NEAR(wholeOf(meanOf(ends)) / wholeOf(truth), 1.0f, 0.02f)
+                    << sBounceReuseRuleNames.name(reuses[at]);
                 errors[at] = errorOf(ends, truth);
             }
 
@@ -378,7 +383,7 @@ namespace Rtx::Testing
                 double mMean = 0.0;
                 std::size_t mBright = 0;
             };
-            const auto runOf = [&](BounceReuse reuse) {
+            const auto runOf = [&](BounceReuseRule reuse) {
                 SceneDesc scene = makeCorner();
                 scene.addLight(Light{
                     .mPosition = osg::Vec3f(0.0f, 298.0f, 0.0f),
@@ -407,8 +412,8 @@ namespace Rtx::Testing
                 return run;
             };
 
-            const Run plain = runOf(BounceReuse::Off);
-            const Run reused = runOf(BounceReuse::Temporal);
+            const Run plain = runOf(BounceReuseRule::Off);
+            const Run reused = runOf(BounceReuseRule::Temporal);
             ASSERT_GT(plain.mBright, 0u) << "the spot is no firefly";
             EXPECT_LE(reused.mBright, plain.mBright) << "the reuse carried a firefly";
             EXPECT_NEAR(reused.mMean / plain.mMean, 1.0, 0.02);
@@ -435,7 +440,8 @@ namespace Rtx::Testing
             camera.mSkyZenith = osg::Vec3f();
             camera.mAmbientFromSky = 0.0f;
 
-            for (const BounceReuse reuse : { BounceReuse::Off, BounceReuse::Temporal, BounceReuse::Spatiotemporal })
+            for (const BounceReuseRule reuse :
+                { BounceReuseRule::Off, BounceReuseRule::Temporal, BounceReuseRule::Spatiotemporal })
             {
                 SceneDesc scene = makeCorner();
                 scene.addLight(Light{
@@ -460,7 +466,7 @@ namespace Rtx::Testing
                         .mFirstFrame = 100,
                         .mBounceReuse = reuse,
                         .mLoss = HistoryLoss::Cut });
-                ASSERT_GT(lit(), std::size_t{ size } * size / 4) << sBounceReuseNames.name(reuse);
+                ASSERT_GT(lit(), std::size_t{ size } * size / 4) << sBounceReuseRuleNames.name(reuse);
 
                 // The lamp goes: the per-frame lists are emptied and the corner placed again.
                 scene.clearPlacement();
@@ -473,12 +479,12 @@ namespace Rtx::Testing
                         .mSetScene = false,
                         .mEachFrame = [&](const Frame&) { after.push_back(lit()); } });
 
-                const std::size_t darkFrom = reuse == BounceReuse::Off ? 0 : asked - 1;
+                const std::size_t darkFrom = reuse == BounceReuseRule::Off ? 0 : asked - 1;
                 for (std::size_t frame = 0; frame < after.size(); ++frame)
                     if (frame < darkFrom)
-                        EXPECT_GT(after[frame], 0u) << sBounceReuseNames.name(reuse) << ", frame " << frame;
+                        EXPECT_GT(after[frame], 0u) << sBounceReuseRuleNames.name(reuse) << ", frame " << frame;
                     else
-                        EXPECT_EQ(after[frame], 0u) << sBounceReuseNames.name(reuse) << ", frame " << frame;
+                        EXPECT_EQ(after[frame], 0u) << sBounceReuseRuleNames.name(reuse) << ", frame " << frame;
             }
         }
 
@@ -493,7 +499,7 @@ namespace Rtx::Testing
         {
             constexpr std::uint32_t size = 64;
             std::vector<float> albedo;
-            const auto after = [&](BounceReuse reuse) {
+            const auto after = [&](BounceReuseRule reuse) {
                 SceneDesc scene = makeCorner();
                 const Index red = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.8f, 0.1f, 0.1f) });
                 const Index pillar = addQuad(scene, uprightQuadAt(60.0f, 100.0f, osg::Vec2f(0.0f, -40.0f)), red);
@@ -514,8 +520,8 @@ namespace Rtx::Testing
                 return indirect;
             };
 
-            const std::vector<float> own = after(BounceReuse::Own);
-            const std::vector<float> temporal = after(BounceReuse::Temporal);
+            const std::vector<float> own = after(BounceReuseRule::Own);
+            const std::vector<float> temporal = after(BounceReuseRule::Temporal);
             ASSERT_EQ(own.size(), temporal.size());
 
             const auto wasPillar = [&](std::uint32_t x, std::uint32_t y) {
