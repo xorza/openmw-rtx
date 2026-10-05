@@ -446,13 +446,15 @@ struct LightCandidate
 ///        product, and a sky source's the cosine times the luminance of the irradiance. Worked out
 ///        here the one way, the moons' pick flipped at a boundary and moved a night's pixels.
 /// @param arriving the light's irradiance square to its direction, which the lobe reflects.
+/// @param sine the sine of the light's half angle, which sizes its highlight (`reflectionAt`).
 /// @param side what decides which side a light has to stand on, as `reflectionAt` takes it.
-LightCandidate surfaceCandidate(vec3 unshadowed, float plain, vec3 arriving, vec3 towards, Gloss gloss, vec3 side)
+LightCandidate surfaceCandidate(
+    vec3 unshadowed, float plain, vec3 arriving, vec3 towards, float sine, Gloss gloss, vec3 side)
 {
     LightCandidate candidate = LightCandidate(unshadowed, vec3(0.0), vec3(0.0), plain);
     if (gloss.mGlossy)
     {
-        const Reflection reflected = reflectionAt(gloss, side, towards);
+        const Reflection reflected = reflectionAt(gloss, side, towards, sine);
         candidate.mSpecular = arriving * reflected.mLobe;
         candidate.mFresnel = reflected.mFresnel;
         candidate.mWeight = dot(unshadowed * gloss.mDiffuse * (1.0 - reflected.mFresnel) + candidate.mSpecular,
@@ -502,11 +504,14 @@ SkyChoice skyChoiceAt(uint source, Facing facing, bool asked, Gloss gloss)
     const float cosine = asked ? litCosine(facing, sky.mDirection) : 0.0;
 
     // A source the surface does not face weighs nought and is never drawn, and its lobe is not worth
-    // evaluating: in daylight that is both moons.
+    // evaluating: in daylight that is both moons. **Its highlight is the disc seen**: a moon's limb,
+    // and the sun's real half angle and not the wider cone its shadow is drawn across, so a mirror
+    // shows the sun the sky draws.
     LightCandidate light = LightCandidate(vec3(0.0), vec3(0.0), vec3(0.0), 0.0);
     if (cosine > 0.0)
         light = surfaceCandidate(sky.mIrradiance * (cosine * INV_PI), cosine * dot(sky.mIrradiance, LUMINANCE_WEIGHTS),
-            sky.mIrradiance, sky.mDirection, gloss, facing.mSide);
+            sky.mIrradiance, sky.mDirection, source == SKY_SOURCE_SUN ? sin(SUN_ANGULAR_RADIUS) : sky.mLimb, gloss,
+            facing.mSide);
 
     return SkyChoice(sky, cosine, light);
 }
@@ -596,7 +601,9 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
         const float cosine = mix(faced, 1.0, depth);
         const vec3 unshadowed = held.mIntensity * (cosine * lamp.mReaching * scale);
         const LightCandidate candidate = surfaceCandidate(unshadowed, dot(unshadowed, LUMINANCE_WEIGHTS),
-            held.mIntensity * lamp.mReaching, lamp.mTowards, gloss, facing.mSide);
+            held.mIntensity * lamp.mReaching, lamp.mTowards,
+            held.mSourceRadius > 0.0 ? held.mSourceRadius / max(lamp.mDistance, held.mSourceRadius) : 0.0, gloss,
+            facing.mSide);
 
         kept.mUnshadowed += candidate.mRadiance * (1.0 - candidate.mFresnel);
         considerLamp(kept, state, from, candidate, row);

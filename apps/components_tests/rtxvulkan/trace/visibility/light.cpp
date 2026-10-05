@@ -1445,6 +1445,11 @@ namespace Rtx::Testing
         /// estimate is the two lobes summed. Weighed by the cosine and the irradiance, as the sky's
         /// pick was, a frame holding the sun gives `2.4 / 2` of its lobe and one holding the moon
         /// `2.4 / 0.4` of hers: the sum only where the moon's lobe is a fifth of the sun's.
+        ///
+        /// **Each lobe at its disc's representative point** (`reflectionAt`): the mirror direction of
+        /// the eye's ray, `(-1, -1, 0) / sqrt 2`, stands 45 degrees off the sun and 8 off Masser,
+        /// so each is taken at its disc's rim toward it — the sun's real half angle, Masser's 0.05 —
+        /// and scaled by `(α / α′)²`, `α′ = α + sine / 3`.
         TEST_F(RtxVisibilityTest, aMetalHoldsTheSkySourceItsLobeReturnsAndIsSampledWithNoNoise)
         {
             constexpr std::uint32_t size = 33;
@@ -1491,7 +1496,16 @@ namespace Rtx::Testing
             const float reflectance = 128.0f / 255.0f;
             const float roughness = 128.0f / 255.0f;
             const osg::Vec3f toEye = osg::Vec3f(1.0f, -1.0f, 0.0f) / std::sqrt(2.0f);
-            const auto lobe = [&](const osg::Vec3f& toLight, float irradiance) {
+            const osg::Vec3f mirror = normal * (2.0f * (normal * toEye)) - toEye;
+            const auto lobe = [&](const osg::Vec3f& toCentre, float irradiance, float sine) {
+                const float cosine = std::sqrt(1.0f - sine * sine);
+                const float along = mirror * toCentre;
+                osg::Vec3f across = mirror - toCentre * along;
+                across.normalize();
+                const osg::Vec3f toLight = along >= cosine ? mirror : toCentre * cosine + across * sine;
+                const float widened = Shaders::ggxAlpha(roughness) + sine / 3.0f;
+                const float normalisation
+                    = (Shaders::ggxAlpha(roughness) / widened) * (Shaders::ggxAlpha(roughness) / widened);
                 osg::Vec3f halfway = toEye + toLight;
                 halfway.normalize();
                 const float toLightCosine = normal * toLight;
@@ -1502,11 +1516,11 @@ namespace Rtx::Testing
                     reflectance, Shaders::specularEdge(reflectance), Shaders::schlickWeight(toEye * halfway));
                 return irradiance * fresnel * Shaders::specularCompensation(reflectance, table.y())
                     * Shaders::ggxDistribution(alpha, normal * halfway)
-                    * Shaders::smithVisibility(alpha, eyeCosine, toLightCosine) * toLightCosine;
+                    * Shaders::smithVisibility(alpha, eyeCosine, toLightCosine) * toLightCosine * normalisation;
             };
 
-            const float sun = lobe(toSun, sunlight);
-            const float moon = lobe(toMoon, moonlight);
+            const float sun = lobe(toSun, sunlight, std::sin(Shaders::SUN_ANGULAR_RADIUS));
+            const float moon = lobe(toMoon, moonlight, std::sin(0.05f));
             ASSERT_GT(std::abs(moon / sun - 0.2f), 0.05f) << "the directions no longer tell the two targets apart";
 
             const Frame frame = shoot(scene, textures, camera, size);
