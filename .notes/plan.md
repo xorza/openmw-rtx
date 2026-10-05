@@ -413,7 +413,6 @@ section at the end**, kept or reverted, because a finished step leaves this list
 noisier by more than 0.02 or more biased by more than 0.05 in any leg it is run on, still,
 strafed (`--strafe=150`) and walked (`--walk=150`).
 
-21. **P4 and P5**, each measured and kept only where it saves time.
 
 N1 and N2 are not steps: the finding above says why.
 
@@ -868,3 +867,29 @@ the accumulator's legs gain.
 - **Found on the way**: the trail tests hand their moving bar over without advancing the placement
   table, so its motion vector is its whole travel since it stood still; logged in
   `.notes/ISSUES.md`.
+
+## Step 21: P4 and P5 — neither built
+
+Each was timed first at its upper bound, a build that does more than the change could: for P4 the
+candidate loop reading no corners and no matrix at all (`RTX_READ_CANDIDATE`, the cutouts' cone
+then wrong), for P5 the shadow tiles and the glossy filter matching no history surface at all.
+Both pictures are wrong; only the time was read. Release, 10 s a place, the base run before and
+after the two, the trace zone in ms, base / P4 / P5 / base again:
+
+| place | trace | shadow |
+|---|---|---|
+| Seyda Neen's ship | 2.54 / 2.52 / 2.58 / 2.59 | 0.22 / 0.22 / 0.22 / 0.22 |
+| the ship at dawn | 2.88 / 2.83 / 2.92 / 2.96 | 0.26 / 0.27 / 0.26 / 0.27 |
+| mages' guild | 1.66 / 1.65 / 1.68 / 1.69 | 0.27 / 0.27 / 0.27 / 0.27 |
+| Seyda Neen's customs | 1.18 / 1.18 / 1.20 / 1.21 | 0.30 / 0.31 / 0.30 / 0.31 |
+| Addamasartus | 1.37 / 1.38 / 1.38 / 1.38 | 0.26 / 0.27 / 0.26 / 0.27 |
+| the Andrano tomb | 1.03 / 1.02 / 1.04 / 1.03 | 0.22 / 0.22 / 0.21 / 0.22 |
+
+- **P4**: at most 0.02 to 0.08 ms off the exteriors' trace, where the base moved by up to 0.08 ms
+  between its own two runs. A deferral would still read the corners of every masked candidate,
+  which outdoors are most of them (the foliage). Not measurable, so not built. Vivec's canalworks
+  and Arkngthand are left out of the table: their trace moved by 0.1 to 0.2 ms from run to run in
+  every step of this plan, the base's two runs here included (1.52 and 1.62, 1.26 and 1.28 against
+  1.38 and 1.06 under P4).
+- **P5**: no zone moves. The match is four loads and a few products a pass, which the passes'
+  other reads hide. Not built.
