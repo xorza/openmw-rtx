@@ -16,6 +16,7 @@
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/gbuffer.h>
@@ -126,6 +127,50 @@ namespace Rtx::Testing
                     .mIndirect = IndirectLight::Off,
                     .mLoss = HistoryLoss::Cut });
             EXPECT_EQ(filtered.mRadiance, raw.mRadiance);
+        }
+
+        /// **The floor at a wall's foot is shadowed by the wall, however near it stands.** A sun 14
+        /// degrees up behind a wall, and the eye ten units off the wall's foot, where a pixel is a
+        /// fifth of a unit of floor. A shadow ray from the floor `d` short of the wall meets it after
+        /// `d / cos 14°` = `1.031 d`, so every floor point within a unit of the wall asks about an
+        /// occluder nearer than a unit — which a ray that skipped its first unit never met, and lit.
+        /// The wall is two-sided, so it casts toward a ray that meets it from either face.
+        ///
+        /// Every pixel the sun adds light to is floor in front of the wall, and its bit is nought.
+        TEST_F(RtxVisibilityTest, theFloorAtAWallsFootIsShadowedByTheWallNoMatterHowNear)
+        {
+            constexpr std::uint32_t size = 64;
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -8.0f, 8.0f), osg::Vec3f(0.0f, -1.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            const float elevation = osg::DegreesToRadians(14.0f);
+            camera.mSun = Shaders::sunSource(
+                osg::Vec3f(0.0f, std::cos(elevation), std::sin(elevation)), osg::Vec3f(2.0f, 2.0f, 2.0f));
+
+            SceneDesc scene;
+            addQuad(scene, sheetAt(4000.0f, 0.0f));
+            const Index wall
+                = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mTwoSided = true });
+            addQuad(scene,
+                std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, 0.0f, 0.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f),
+                    osg::Vec3f(4000.0f, 0.0f, 400.0f), osg::Vec3f(-4000.0f, 0.0f, 400.0f) },
+                wall);
+
+            shoot(scene, {}, camera, size, { .mIndirect = IndirectLight::Off });
+
+            std::vector<float> sunlit;
+            mRenderer.readChannel(Channel::Shadowed, sunlit);
+            ASSERT_EQ(sunlit.size(), std::size_t{ size } * size * 4);
+            std::size_t floor = 0;
+            for (std::size_t value = 0; value < sunlit.size(); value += 4)
+            {
+                if (!(sunlit[value] > 0.0f))
+                    continue;
+                ++floor;
+                EXPECT_EQ(sunlit[value + 3], 0.0f) << "pixel " << value / 4 << " lit through the wall";
+            }
+            ASSERT_GT(floor, std::size_t{ 8 * size }) << "no floor before the wall, or this proves nothing";
         }
 
         /// **A thin hard shadow keeps its depth through the denoiser, and a bit's penumbra is its

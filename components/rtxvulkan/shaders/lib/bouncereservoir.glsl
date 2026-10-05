@@ -102,6 +102,9 @@ struct BounceOrigin
     vec3 mPlane;
     bool mPlaned;
 
+    /// How far the point can stand off its triangle (`Surface::mRounding`).
+    float mRounding;
+
     /// The lobe's reflectance at normal incidence, where `mGlossy`.
     vec3 mReflectance;
     bool mGlossy;
@@ -115,7 +118,7 @@ struct BounceOrigin
 
 BounceOrigin noOrigin()
 {
-    return BounceOrigin(vec3(0.0), vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, 1.0), false, vec3(0.0), false, 0.0, false);
+    return BounceOrigin(vec3(0.0), vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, 1.0), false, 0.0, vec3(0.0), false, 0.0, false);
 }
 
 GpuBounceOrigin packOrigin(BounceOrigin origin)
@@ -130,6 +133,7 @@ GpuBounceOrigin packOrigin(BounceOrigin origin)
     packed.mSheet = uint(round(clamp(origin.mTransmission, 0.0, 1.0) * 65535.0))
         | (origin.mGlossy ? BOUNCE_ORIGIN_GLOSSY : 0u) | (origin.mPlaned ? BOUNCE_ORIGIN_PLANED : 0u)
         | (origin.mKept ? BOUNCE_ORIGIN_KEPT : 0u);
+    packed.mRounding = origin.mRounding;
     return packed;
 }
 
@@ -138,7 +142,7 @@ BounceOrigin unpackOrigin(GpuBounceOrigin packed)
     const bool planed = (packed.mSheet & BOUNCE_ORIGIN_PLANED) != 0u;
     const uvec3 reflectance = uvec3(packed.mReflectance, packed.mReflectance >> 8u, packed.mReflectance >> 16u) & 0xFFu;
     return BounceOrigin(packed.mOffset, unpackUnit(packed.mNormal),
-        planed ? unpackUnit(packed.mPlane) : vec3(0.0, 0.0, 1.0), planed, vec3(reflectance) / 255.0,
+        planed ? unpackUnit(packed.mPlane) : vec3(0.0, 0.0, 1.0), planed, packed.mRounding, vec3(reflectance) / 255.0,
         (packed.mSheet & BOUNCE_ORIGIN_GLOSSY) != 0u, float(packed.mSheet & 0xFFFFu) / 65535.0,
         (packed.mSheet & BOUNCE_ORIGIN_KEPT) != 0u);
 }

@@ -199,7 +199,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
         // The shadow rays leave from where every ray off the surface leaves, and the light arrives
         // where the surface is: one refraction, a bent path to each.
         const SunUnderWater bent = sunUnderWater(picked.mSky.mDirection);
-        const Passage passage = skyPassageThrough(picked.mSky, leaving, bentPathAt(leaving, bent), sunDraw);
+        const Passage passage = skyPassageThrough(picked.mSky, leaving, stepOf(surface), bentPathAt(leaving, bent), sunDraw);
         const float skySeen = split ? passage.mThrough : passage.mOpen * passage.mThrough;
         const vec3 water = lightThroughWater(bentPathAt(position, bent), surface.mFootprint);
         const vec3 skyArriving = picked.mSky.mIrradiance * water;
@@ -249,7 +249,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     weighLamps(kept, state, position, facing, INV_PI, gloss, surface.mLampLit);
     kept.mFrom = leaving;
 
-    const Passage lampPass = kept.mWeight > 0.0 ? lampPassage(kept, lampDraw) : Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
+    const Passage lampPass = kept.mWeight > 0.0 ? lampPassage(kept, stepOf(surface), lampDraw) : Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
     const float lampSeen = lampPass.mOpen * lampPass.mThrough;
     const float held = heldShare(kept);
 
@@ -491,10 +491,12 @@ bool behindTheFace(vec3 towards, vec3 plane, float face)
 ///        of the air, which is `weighLamps`' contract and means the same thing here: the air has no
 ///        side to face away from, so what stands over it is asked over the whole sphere rather than
 ///        over a hemisphere.
-/// @param plane the surface's own triangle, as `behindTheFace` takes it.
+/// @param plane the surface's own triangle, as `behindTheFace` takes it and as the ray leaves it
+///        (`leaveSurface`): nought for a froxel, which starts where it is.
+/// @param rounding how far `position` can stand off that triangle, `Surface::mRounding`.
 /// @param rate what share of the rays out of doors are traced: `AMBIENT_EXTERIOR_RATE` where a
 ///        filter takes the answer, and `AMBIENT_UNFILTERED_RATE` where none does.
-float ambientReaching(vec3 position, vec3 normal, vec3 plane, float transmission, uint seed, float rate)
+float ambientReaching(vec3 position, vec3 normal, vec3 plane, float rounding, float transmission, uint seed, float rate)
 {
     uint state = randomSeed(seed);
     const vec2 draw = vec2(randomNext(state), randomNext(state));
@@ -520,13 +522,13 @@ float ambientReaching(vec3 position, vec3 normal, vec3 plane, float transmission
     // between a point and the room: the pillow over the sheet, the chest against the wall, the
     // underside of a table. A room keeps every sample too — `AMBIENT_EXTERIOR_RATE` says why.
     if (!skyLights())
-        return weight * ambientThrough(position, towards, ROOM_FILL_REACH);
+        return weight * ambientThrough(leaveSurface(position, plane * rounding, towards), towards, ROOM_FILL_REACH);
 
     // Drawn last, so a solid's direction and a sheet's side are the numbers they were.
     if (randomNext(state) >= rate)
         return 0.0;
 
-    return weight * ambientThrough(position, towards, frame.mReach) / rate;
+    return weight * ambientThrough(leaveSurface(position, plane * rounding, towards), towards, frame.mReach) / rate;
 }
 
 /// `ambientReaching` for a surface a path ends at — the bounce's far hit, a water leg's, a pane —
@@ -537,7 +539,7 @@ float ambientReaching(vec3 position, vec3 normal, vec3 plane, float transmission
 float surfaceAmbient(Surface hit, uint seed, float rate)
 {
     return bounceTraced()
-        ? ambientReaching(hit.mPosition, hit.mNormal, hit.mGeometric, hit.mTransmission, seed, rate)
+        ? ambientReaching(hit.mPosition, hit.mNormal, hit.mGeometric, hit.mRounding, hit.mTransmission, seed, rate)
         : 0.0;
 }
 
@@ -869,7 +871,8 @@ Arriving bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pi
     // and lands on the same few surfaces, so there is no coherence left to recover.
     // A diffuse bounce is not drawn: it carries light, and a surface it met from behind still
     // carries it.
-    const Surface hit = trace(WorldRay(surface.mPosition, drawn.mTowards), SHADOW_BIAS,
+    const Surface hit = trace(
+        WorldRay(leaveSurface(surface.mPosition, stepOf(surface), drawn.mTowards), drawn.mTowards), 0.0,
         Cone(surface.mFootprint, drawn.mSpread), solidMask(frame.mRayMask), drawn.mSpecular);
 
     if (!hit.mHit)
@@ -1005,7 +1008,7 @@ SeenSolid shadeSolid(Surface hit, uvec2 pixel, Cone cone)
     seen.mBounceSample = bounced.mSample;
     seen.mBounceChance = bounced.mChance;
     seen.mOrigin = BounceOrigin(vec3(0.0), hit.mNormal, hit.mGeometric, dot(hit.mGeometric, hit.mGeometric) > 0.0,
-        hit.mSpecular, gloss.mGlossy, hit.mTransmission, true);
+        hit.mRounding, hit.mSpecular, gloss.mGlossy, hit.mTransmission, true);
     return seen;
 }
 

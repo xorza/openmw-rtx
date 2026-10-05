@@ -131,14 +131,18 @@ vec3 lightThroughWater(BentPath bent, float footprint)
 ///
 /// **In `Passage`'s two halves**: stopped where either ray was, and what both let through otherwise.
 ///
+/// @param step the step off the triangle `position` stands on (`stepOf`), or nought for a point in
+///        the water. The leg over the water leaves from the surface's level, which no
+///        solid ray can meet.
 /// @param bent `sky`'s path to `position`.
-Passage skyPassageThrough(SkySource sky, vec3 position, BentPath bent, vec2 draw)
+Passage skyPassageThrough(SkySource sky, vec3 position, vec3 step, BentPath bent, vec2 draw)
 {
     if (!(bent.mDepth > 0.0))
-        return skyPassage(sky, position, draw);
+        return skyPassage(sky, position, step, draw);
 
-    const Passage under = lightPassage(position, -bent.mTravelling, bent.mPath);
-    const Passage over = skyPassage(sky, vec3(bent.mMet, frame.mWaterLevel), draw);
+    const vec3 up = -bent.mTravelling;
+    const Passage under = lightPassage(leaveSurface(position, step, up), up, bent.mPath);
+    const Passage over = skyPassage(sky, vec3(bent.mMet, frame.mWaterLevel), vec3(0.0), draw);
     // The leg under the water is the nearer: what stopped it stands nearer than anything over it.
     return Passage(under.mOpen * over.mOpen, under.mThrough * over.mThrough,
         under.mOpen < 1.0 ? under.mOccluder : min(bent.mPath + over.mOccluder, SHADOW_PENUMBRA_CLEAR));
@@ -287,7 +291,7 @@ WaterColumn waterColumn(vec3 from, vec3 direction, float path, float footprint, 
         // in front of it as it shadows the bed. One short ray more a step, and only where a shaft
         // shows.
         const vec2 draw = fract(aimed + float(step) * R2_STEPS);
-        const Passage passage = skyPassageThrough(skySourceAt(SKY_SOURCE_SUN), at, bent, draw);
+        const Passage passage = skyPassageThrough(skySourceAt(SKY_SOURCE_SUN), at, vec3(0.0), bent, draw);
         const float visible = passage.mOpen * passage.mThrough;
 
         lit += weight * mix(1.0, caustic(bent.mMet, bent.mDepth, footprint), show) * visible;

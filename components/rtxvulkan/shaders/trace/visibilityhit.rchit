@@ -60,7 +60,7 @@ Hit stageHit(vec2 bary)
     const Cone cone = stageCone();
 
     return committedHit(uint(gl_InstanceCustomIndexEXT), uint(gl_PrimitiveID), bary, gl_HitTEXT,
-        cone.mWidth + cone.mSpread * gl_HitTEXT, corners, gl_ObjectToWorldEXT);
+        cone.mWidth + cone.mSpread * gl_HitTEXT, corners, gl_ObjectToWorldEXT, gl_WorldToObjectEXT);
 }
 
 /// The pixel this invocation was launched for.
@@ -240,8 +240,10 @@ WaterImages answerWater(inout Answer answer, Surface surface)
         return images;
 
     // Drawn, because this is what the eye sees through the water.
-    const Surface bed = trace(
-        WorldRay(origin, direction), max(surface.mDistance - SHADOW_BIAS, 0.0), cone, solidMask(frame.mRayMask), true);
+    // From just short of the water along the eye's own line (`alongShort`), so a bed that meets the
+    // surface where the eye met it is found.
+    const Surface bed
+        = trace(WorldRay(origin, direction), alongShort(surface.mDistance), cone, solidMask(frame.mRayMask), true);
     if (!bed.mHit)
         return images;
 

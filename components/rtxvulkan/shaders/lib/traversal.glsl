@@ -21,12 +21,57 @@
 #include "texturing.glsl"
 #include "variants.glsl"
 
-/// How far off a surface a shadow ray starts, in world units.
-///
-/// A Morrowind unit is about 1.4 cm, and a float at the far side of a worldspace resolves to a
-/// hundredth of one — so this is invisible and still an order of magnitude clear of where a hit
-/// point can land on the wrong side of its own triangle.
+/// The shortest distance to a light worth a ray, in world units: a light nearer the point than this
+/// is one nothing can stand between. **Not where a ray starts**, which is `leaveSurface`'s.
 const float SHADOW_BIAS = 1.0;
+
+/// How many units in the last place past a hit an eye's ray carries on from, where it carries on
+/// along the same line (`alongPast`). The same ray meets the same triangle at the same distance to
+/// the bit; a triangle that shares the edge the ray crossed works its own distance out, a few
+/// units in the last place off. Sixty-four is four thousandths of a unit at a thousand units, so
+/// two layers that near are one layer.
+const uint CONTINUATION_ULPS = 64u;
+
+/// Where a ray carries on from along the line it met `distance` along: just past it, by
+/// `CONTINUATION_ULPS`.
+float alongPast(float distance)
+{
+    return uintBitsToFloat(floatBitsToUint(distance) + CONTINUATION_ULPS);
+}
+
+/// Just short of `distance`, by the same step, for a ray asked again about what stands at the
+/// distance it met.
+float alongShort(float distance)
+{
+    return distance > 0.0 ? uintBitsToFloat(floatBitsToUint(distance) - min(CONTINUATION_ULPS, floatBitsToUint(distance)))
+                          : 0.0;
+}
+
+/// Where a ray leaving a surface along `direction` starts: `point` pushed off its triangle by
+/// `step`, on the side `direction` leaves by — and the ray then starts at nought.
+///
+/// **A distance skipped at the start was the alternative, and it skipped what stood there**: a unit
+/// of it, and the floor at a wall's foot took the sun through the wall, and every contact shadow
+/// nearer than a unit was lost.
+///
+/// @param step the triangle's unit normal, either way round, times how far the point can stand off
+///        the triangle: `stepOf`, which a point summed back from the eye widens
+///        (`summedRounding`). Nought for a point in the air, which has no surface to leave and starts
+///        where it is.
+vec3 leaveSurface(vec3 point, vec3 step, vec3 direction)
+{
+    return point + (dot(direction, step) < 0.0 ? -step : step);
+}
+
+/// What a point kept as `offset` from `eye` and summed back carries beyond its triangle's own
+/// rounding: the eye's ray times the hit's distance, and the sum, each a few units in the last
+/// place of the larger — eight of them, over the two magnitudes.
+float summedRounding(vec3 eye, vec3 offset)
+{
+    const vec3 eyeSize = abs(eye);
+    const vec3 offsetSize = abs(offset);
+    return 9.5367431640625e-7 * (max(max(eyeSize.x, eyeSize.y), eyeSize.z) + max(max(offsetSize.x, offsetSize.y), offsetSize.z));
+}
 
 /// Whether a material is meant to be seen through everywhere, rather than in the holes of a mask.
 ///
@@ -462,6 +507,16 @@ struct Hit
     vec2 mBary;
     float mDistance;
 
+    /// Where the ray met the triangle, in the world: the corners' mix by the weights, carried
+    /// through the placement. **Off the triangle and not off the ray**, whose rounding grows with
+    /// its length and with how far its origin stands.
+    vec3 mPosition;
+
+    /// How far `mPosition` can stand off its triangle along the triangle's normal, either way: the
+    /// rounding of the mix, of the placement, and of the card's own test of a ray against the
+    /// triangle. What a ray leaving here steps off by (`leaveSurface`).
+    float mRounding;
+
     /// How wide the ray's cone was where it landed.
     float mFootprint;
 
@@ -506,6 +561,8 @@ Hit noHit()
     hit.mCorner = uvec3(0u);
     hit.mBary = vec2(0.0);
     hit.mDistance = frame.mReach;
+    hit.mPosition = vec3(0.0);
+    hit.mRounding = 0.0;
     hit.mFootprint = 0.0;
     hit.mEdges = TriangleEdges(vec3(0.0), vec3(0.0));
     hit.mShading = vec3(0.0);
@@ -516,11 +573,51 @@ Hit noHit()
     return hit;
 }
 
+/// Where a hit stands and how far that can be off its triangle: `Hit::mPosition` and
+/// `Hit::mRounding`.
+///
+/// **NVIDIA's bound for a hardware traversal** (*Solving Self-Intersection Artifacts in DirectX
+/// Raytracing*, NVIDIA developer blog, 2022), which is the one that holds on a card whose own test
+/// of the ray against the triangle rounds: the point is mixed in the mesh's own space, base corner
+/// last, and carried into the world with the translation last; its error is bounded in the mesh's
+/// space by the corner's size and the triangle's extent — `c1` covers RTX's test, and the article
+/// says the bound is the hardware's — and in the world by the placement's. Wächter and Binder's
+/// step, a fixed count of units in the last place of the point's own coordinates, was tried first:
+/// it scales with the point and not with the triangle, and a floor four thousand units across at
+/// nought met itself on rays leaving it within a hundred units of the world's middle.
+void placeHit(inout Hit hit, vec3 corners[3], vec2 bary, mat4x3 toWorld, mat4x3 toObject)
+{
+    const float c0 = 5.9604644775390625e-8;
+    const float c1 = 1.788139769587360206060111522674560546875e-7;
+    const float c2 = 1.19209317972490680404007434844970703125e-7;
+
+    precise vec3 first = corners[1] - corners[0];
+    precise vec3 second = corners[2] - corners[0];
+    precise vec3 local = corners[0] + (first * bary.x + second * bary.y);
+    const mat3 turn = mat3(toWorld);
+    precise vec3 placed = toWorld[3] + (turn[0] * local.x + (turn[1] * local.y + turn[2] * local.z));
+    hit.mPosition = placed;
+
+    const vec3 crossed = cross(first, second);
+    const vec3 sizes = abs(first) + abs(second) + abs(abs(first) - abs(second));
+    const float extent = max(max(sizes.x, sizes.y), sizes.z);
+    const mat3 back = mat3(toObject);
+    const vec3 localError = c0 * abs(corners[0]) + c1 * extent
+        + c2 * (mat3(abs(back[0]), abs(back[1]), abs(back[2])) * abs(placed) + abs(toObject[3]));
+    const vec3 placedError
+        = c1 * (mat3(abs(turn[0]), abs(turn[1]), abs(turn[2])) * abs(local)) + c2 * abs(toWorld[3]);
+
+    const vec3 normal = transpose(back) * crossed;
+    const float lengthSquared = dot(normal, normal);
+    const float scale = lengthSquared > 0.0 ? inversesqrt(lengthSquared) : 0.0;
+    hit.mRounding = scale * dot(localError, abs(crossed)) + dot(placedError, abs(normal * scale));
+}
+
 /// The committed intersection, read off the query and put into world space.
 ///
 /// @param corners the triangle as position fetch gave it, in the mesh's own space.
-Hit committedHit(
-    uint instance, uint primitive, vec2 bary, float distance, float footprint, vec3 corners[3], mat4x3 toWorld)
+Hit committedHit(uint instance, uint primitive, vec2 bary, float distance, float footprint, vec3 corners[3],
+    mat4x3 toWorld, mat4x3 toObject)
 {
     Hit hit;
     hit.mHit = true;
@@ -529,6 +626,7 @@ Hit committedHit(
     hit.mDistance = distance;
     hit.mFootprint = footprint;
     hit.mEdges = triangleEdges(corners, toWorld);
+    placeHit(hit, corners, bary, toWorld, toObject);
 
     // **The one vertex fetch a traversal does, and it is here so that the transform need not
     // survive the call.** The test is on the mesh's own normal rather than on the transformed one:
@@ -594,11 +692,12 @@ struct Passage
 /// in `coneLod`, and a determinant and two logarithms in `coneBase`, at every candidate. What
 /// those early returns save is more than the cache gives back, on every place tried.
 ///
-/// **A ray shorter than the bias it starts past is not a ray.** A candle sitting a unit off a table
-/// asks for a shadow ray whose end is behind its own beginning, and `rayQueryInitializeEXT` with a
-/// `tmax` under its `tmin` is undefined — which is a hang or a garbage answer rather than an empty
-/// one. Nothing fits in that gap anyway: the bias is what a hit point's own surface needs to be
-/// clear of, so a light inside it is a light nothing can stand between.
+/// **A light nearer than `SHADOW_BIAS` is open.** A candle on a table asks for a ray of next to no
+/// length, and one of none or less is a `tmax` under the `tmin`, which `rayQueryInitializeEXT`
+/// leaves undefined — a hang or a garbage answer rather than an empty one. Nothing stands between
+/// a point and a light that near.
+///
+/// @param from where the ray starts, already off its surface (`leaveSurface`).
 /// **A translucent surface dims the light rather than stopping it**, and the order it is met in does
 /// not matter: the answer is a product, and a product does not care. That is what makes the shadow
 /// the cheap half of transparency — the eye needs its layers sorted and this needs nothing at all.
@@ -620,7 +719,7 @@ Passage passageToward(vec3 from, vec3 towards, float distance, uint faces)
     // **And the mediums**, which only this ray and `mediumAlong` meet: a medium dims the light that
     // crosses it, and `candidateStops` asks its class in place of the mask.
     rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT | faces,
-        solidMask(frame.mRayMask) | MASK_MEDIUM, from, SHADOW_BIAS, towards, distance);
+        solidMask(frame.mRayMask) | MASK_MEDIUM, from, 0.0, towards, distance);
     RTX_RESOLVE(query, towards, 0.0, blocked, true, false)
 
     const bool stopped = rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT;
@@ -788,6 +887,9 @@ struct Surface
     /// evaluated against: the eye's own ray, a bounce, a reflection.
     vec3 mIncident;
 
+    /// How far `mPosition` can stand off its triangle: `Hit::mRounding`.
+    float mRounding;
+
     /// The triangle's own plane, turned the same way `mNormal` is.
     ///
     /// **What a bounce is bounded by, and what a sheet takes a light's side from.** A shading normal
@@ -875,6 +977,7 @@ Surface noSurface(vec3 origin)
     surface.mHit = false;
     surface.mGround = false;
     surface.mPosition = origin;
+    surface.mRounding = 0.0;
     surface.mNormal = vec3(0.0, 0.0, 1.0);
     surface.mSmooth = vec3(0.0, 0.0, 1.0);
     surface.mIncident = vec3(0.0, 0.0, -1.0);
@@ -895,6 +998,13 @@ Surface noSurface(vec3 origin)
     surface.mLampLit = true;
 
     return surface;
+}
+
+/// The step a ray leaving `surface` takes off its triangle, for `leaveSurface`: the plane times how
+/// far the point can stand off it.
+vec3 stepOf(Surface surface)
+{
+    return surface.mGeometric * surface.mRounding;
 }
 
 /// What a hit is made of.
@@ -923,7 +1033,8 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
 
     surface.mHit = true;
     surface.mDistance = hit.mDistance;
-    surface.mPosition = origin + direction * surface.mDistance;
+    surface.mPosition = hit.mPosition;
+    surface.mRounding = hit.mRounding;
     surface.mIncident = direction;
 
     surface.mFootprint = hit.mFootprint;
@@ -1286,7 +1397,8 @@ Hit traverse(WorldRay ray, float tmin, Cone cone, uint mask, bool draws)
     const float distance = rayQueryGetIntersectionTEXT(query, true);
     return committedHit(rayQueryGetIntersectionInstanceCustomIndexEXT(query, true),
         rayQueryGetIntersectionPrimitiveIndexEXT(query, true), rayQueryGetIntersectionBarycentricsEXT(query, true),
-        distance, cone.mWidth + cone.mSpread * distance, corners, rayQueryGetIntersectionObjectToWorldEXT(query, true));
+        distance, cone.mWidth + cone.mSpread * distance, corners, rayQueryGetIntersectionObjectToWorldEXT(query, true),
+        rayQueryGetIntersectionWorldToObjectEXT(query, true));
 }
 
 /// Traverses, and resolves whatever it hit.
