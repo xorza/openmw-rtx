@@ -155,6 +155,12 @@ namespace Rtx
         /// it and not one bounce spread into blotches. On unless a run names it off, which is the A/B.
         bool mHistoryFix = true;
 
+        /// Whether a surface the previous frame did not see takes the accumulator's history along the
+        /// motion of the occluder that hid it (Zeng et al. 2021's dual motion vector), so what the eye
+        /// uncovers starts with the history of the surface beside it. On unless a run names it off,
+        /// which is the A/B.
+        bool mDualMotion = true;
+
         /// Whether the accumulator holds a short history of the bounce under the fast means around it
         /// (`ACCUMULATE_RING_FRAMES`), so a bounce that found a small bright thing is not a blotch the
         /// size of a leaf. On unless a run names it off, which is the A/B.
@@ -222,6 +228,11 @@ namespace Rtx
         /// a settled neighbour to borrow from.
         bool mHistoryFix = false;
 
+        /// Whether a surface the previous frame did not see took its history along its occluder's
+        /// motion. Read only where the bounce is filtered, and off for a picture, which has no
+        /// previous frame.
+        bool mDualMotion = false;
+
         /// Whether the accumulator held a short history of the bounce under the light around it. Read
         /// only where the bounce is filtered.
         bool mAntiFirefly = false;
@@ -268,6 +279,7 @@ namespace Rtx
                 .mIndirect = asked.mIndirect,
                 .mAntilag = asked.mAntilag,
                 .mHistoryFix = asked.mHistoryFix,
+                .mDualMotion = asked.mDualMotion,
                 .mAntiFirefly = asked.mAntiFirefly,
                 .mAveraged = true,
             };

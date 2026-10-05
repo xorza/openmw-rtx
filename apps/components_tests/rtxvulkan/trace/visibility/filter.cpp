@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include <osg/Math>
+#include <osg/Matrixf>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
@@ -803,6 +804,130 @@ namespace Rtx::Testing
             EXPECT_LT(std::abs(fixedShare - 1.0), std::abs(unfixedShare - 1.0))
                 << "the history fix took the strip's light from " << unfixedShare << " of the truth to " << fixedShare;
             EXPECT_NEAR(fixedShare, 1.0, 0.1) << "the history fix moved the strip's light off the truth";
+        }
+
+        /// **The floor a moving bar uncovers starts with the history beside it** (`occluderMotion`,
+        /// Zeng et al. 2021's dual motion vector).
+        ///
+        /// The eye 300 units over a floor under a sky dark at the horizon and bright overhead, and a
+        /// bar 40 units wide spanning every row at 200, which moves 10 units a frame across the
+        /// columns after 32 still frames: on the screen the bar is a third as far as the floor, so it
+        /// steps about five and a half columns a frame over a floor that stands still, and every frame
+        /// uncovers a strip that the frame before did not see. The bar starts mid-frame, so the floor
+        /// beside it on the first step is floor the eye has watched for 32 frames. Over four draws,
+        /// the strip the last frame uncovered, its noise from one draw to the next over its mean:
+        /// without the dual vector the strip holds one frame, which the history fix rebuilds from the
+        /// floor around it; with it, the history of the floor the bar uncovered before it, each
+        /// strip's taken from the last, back to the floor the bar first stood beside.
+        ///
+        /// **Each of those taps is another point of the floor**, five pixels on, and 3% further from
+        /// the eye here: the depth test refused every one, and the plane test takes them
+        /// (`samePlane`). **The table is advanced after each hand-over**, as `SceneUploader` does, or
+        /// the bar's motion is its whole travel since it stood still.
+        ///
+        /// Measured: 0.0099 without the dual vector and 0.0022 with it, where the floor beside a bar
+        /// that stood still holds 0.0019.
+        TEST_F(RtxVisibilityTest, theFloorAMovingBarUncoversStartsWithTheHistoryBesideIt)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::uint32_t still = 32;
+            constexpr std::uint32_t moving = 4;
+            constexpr std::uint32_t draws = 4;
+            constexpr float step = 10.0f;
+            constexpr float width = 40.0f;
+            constexpr float start = -30.0f;
+            constexpr float height = 200.0f;
+            constexpr float eye = 300.0f;
+
+            SceneDesc scene;
+            addQuad(scene, sheetAt(4000.0f, 0.0f));
+            const Index bar = addQuad(scene, roofOver(start, start + width, height));
+            mRenderer.resize(size, size);
+            mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -1.0f, eye), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSun.mIrradiance = osg::Vec3f();
+            camera.mSkyHorizon = osg::Vec3f(0.02f, 0.02f, 0.02f);
+            camera.mSkyZenith = osg::Vec3f(0.6f, 0.6f, 0.6f);
+            camera.mAmbientFromSky = 1.0f;
+
+            // Whether the floor under `column` is under the bar placed `moved` along: where the
+            // column's ray crosses the bar's height, a third of the way down, `(eye - height) / eye`
+            // of the floor's offset. A column within one of either edge counts as neither.
+            const float halfWidth = eye * std::tan(osg::DegreesToRadians(30.0f));
+            const auto crossing = [&](std::uint32_t column) {
+                const float floor = (static_cast<float>(column) + 0.5f - 0.5f * size) / (0.5f * size) * halfWidth;
+                return floor * (eye - height) / eye;
+            };
+            const float pixelAtBar = halfWidth * (eye - height) / eye / (0.5f * size);
+            const auto under = [&](std::uint32_t column, float moved, float margin) {
+                const float x = crossing(column);
+                return x >= start + moved - margin && x <= start + width + moved + margin;
+            };
+
+            std::vector<float> read;
+            std::vector<double> sums(std::size_t{ size } * size);
+            std::vector<double> squares(std::size_t{ size } * size);
+            const auto run = [&](bool dual) {
+                std::ranges::fill(sums, 0.0);
+                std::ranges::fill(squares, 0.0);
+                for (std::uint32_t draw = 0; draw < draws; ++draw)
+                {
+                    for (std::uint32_t at = 0; at < still + moving; ++at)
+                    {
+                        const float moved = at < still ? 0.0f : step * static_cast<float>(at + 1 - still);
+                        // Advanced after each hand-over, as `SceneUploader` does, or the bar's motion
+                        // is every step since it stood still.
+                        scene.placements().move(bar, osg::Matrixf::translate(moved, 0.0f, 0.0f));
+                        mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                        scene.placements().advance();
+                        camera.mFrame = 3000 + 100 * draw + at;
+                        mRenderer.renderFrame(camera,
+                            FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
+                                .mReconstruction = ReconstructionRequest{ .mDenoise = true,
+                                    .mBounceReuse = BounceReuseRule::Off,
+                                    .mAntilag = false,
+                                    .mDualMotion = dual,
+                                    .mAntiFirefly = false },
+                                .mExposure = FixedExposure{ 1.0f } });
+                        EXPECT_TRUE(mRenderer.finishFrame().has_value());
+                    }
+                    mRenderer.readComposite(read);
+                    for (std::size_t pixel = 0; pixel < sums.size(); ++pixel)
+                    {
+                        const double value = static_cast<double>(read[pixel * 4 + 1]);
+                        sums[pixel] += value;
+                        squares[pixel] += value * value;
+                    }
+                }
+
+                // The strip: under the bar the frame before the last and clear of it in the last.
+                const float last = step * static_cast<float>(moving);
+                double spread = 0.0;
+                double mean = 0.0;
+                std::uint32_t counted = 0;
+                for (std::uint32_t x = 0; x < size; ++x)
+                {
+                    if (!under(x, last - step, -pixelAtBar) || under(x, last, pixelAtBar))
+                        continue;
+                    for (std::uint32_t y = 0; y < size; ++y)
+                    {
+                        const std::size_t pixel = std::size_t{ y } * size + x;
+                        const double average = sums[pixel] / draws;
+                        spread += (squares[pixel] - draws * average * average) / (draws - 1);
+                        mean += average;
+                        ++counted;
+                    }
+                }
+                EXPECT_GT(counted, 3u * size) << "the last frame uncovered too little floor to measure";
+                return std::sqrt(spread / counted) / (mean / counted);
+            };
+
+            const double without = run(false);
+            const double with = run(true);
+            EXPECT_LT(with, 0.5 * without)
+                << "the dual vector left " << with << " of the strip's noise, against " << without << " without it";
         }
 
         /// **A rare bright bounce on a history of a few frames is held to the light around it, and a

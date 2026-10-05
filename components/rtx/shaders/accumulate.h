@@ -158,6 +158,17 @@ namespace Rtx::Shaders
         float mDistanceScale;
     };
 
+    /// What the accumulator is handed: the history's record; the previous frame's eye,
+    /// `VisibilityConstants::mPrevious`, which a history taken along an occluder's motion is held to
+    /// this pixel's plane through; and whether a surface the previous frame did not see takes the
+    /// history that way at all (`occluderMotion`), nought or one.
+    struct AccumulateConstants
+    {
+        HistoryConstants mHistory;
+        Basis mPrevious;
+        uint mDualMotion;
+    };
+
     /// The luminance a slow mean `lit` keeps under the fast means around it: no more than the mean of
     /// the ring, `sum` over `count` pixels, plus `ACCUMULATE_RING_SPREAD` of its deviations, out of
     /// the sum of their squares `squares`. All of it where the ring holds no surface.
@@ -192,6 +203,7 @@ namespace Rtx::Shaders
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(HistoryConstants) == 144, "HistoryConstants must be scalar-packed on every side");
+    static_assert(sizeof(AccumulateConstants) == 192, "AccumulateConstants must be scalar-packed on every side");
     static_assert(
         sizeof(AccumulateClampConstants) == 16, "AccumulateClampConstants must be scalar-packed on every side");
     static_assert(ACCUMULATE_RING_REACH >= ACCUMULATE_CLAMP_REACH && ACCUMULATE_RING_HOLE < ACCUMULATE_RING_REACH,

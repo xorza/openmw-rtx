@@ -413,15 +413,6 @@ section at the end**, kept or reverted, because a finished step leaves this list
 noisier by more than 0.02 or more biased by more than 0.05 in any leg it is run on, still,
 strafed (`--strafe=150`) and walked (`--walk=150`).
 
-20. **N3: dual motion vectors**, designed before coded. Read Zeng et al. 2021 (*Temporally
-    Reliable Motion Vectors for Real-time Ray Tracing*) and how ReSTIR PT Enhanced (§6.4) applies it
-    to temporal resampling: what the second vector is, which pass computes it and from what, and
-    what it costs a pixel. Write that design into this step, with what the trace must write beside
-    `CHANNEL_MOTION`, and only then build it: for the reuse's temporal pass and the accumulator,
-    where the surface's own reprojection is refused (a disocclusion), the history is fetched along
-    the second vector and held to the same surface test. A/B walked and strafed, and `--cut` legs to
-    show the still frame does not move. A design that needs a second trace of the previous frame's
-    geometry is reported and not built.
 21. **P4 and P5**, each measured and kept only where it saves time.
 
 N1 and N2 are not steps: the finding above says why.
@@ -823,3 +814,57 @@ on its measurements.
 - **No power table.** It would take the bias back by drawing the bright lamps more often, but it
   could save no more than the uniform draws did, 0.06 ms, for a structure the host builds per grid
   cell and the device reads. Not worth building.
+
+## Step 20: dual motion vectors — kept
+
+**The design, after reading both.** Zeng et al. (Eq. 6) take a pixel `x` that the previous
+frame did not see: its own motion sends it to `y`, where the occluder stood, and the occluder's
+motion brings that point to `z` in this frame; the history is fetched at `y + (x − z)`, on the
+assumption that the occluder and what it uncovered keep their places relative to each other.
+ReSTIR PT Enhanced (§6.4) applies this to temporal resampling unchanged, and needs no incident
+radiance store, since resampling does not copy a pattern. **No second trace here**: `z` is a
+pixel of this frame whose motion lands on `y`, `z + m(z) = y`, so `y + (x − z) = x + m(z)` —
+the dual vector is the occluder's own `CHANNEL_MOTION`, read where the occluder now stands. The
+occluder is found by a search, only at a pixel whose own reprojection found no history and
+landed inside the previous frame (a frame edge is not an occlusion): taps on rings around `x`,
+each a surface nearer the eye than `x`, the one whose `q + m(q)` lands nearest `y`, accepted
+within a pixel and a half. The history is then fetched bilinearly at `x + m(q)` under the same
+surface test, with `x`'s own depth step. Nothing new is written by the trace. Built first in
+the accumulator, where its effect is measured alone; the reuse's temporal pass takes it only if
+the accumulator's legs gain.
+
+**What building it found.**
+
+- **The depth test refuses every dual tap.** It compares the depth of one point, and a dual tap is
+  another point of the surface: five pixels on, the floor stood 3% further from the eye, past the
+  2% tolerance. A dual tap is held instead to the plane of this pixel's surface, both points taken
+  from the previous frame's eye (`samePlane`): this pixel's own point at the pixel its motion leads
+  to and the distance it stood at, and the tap's along that eye's ray. `AccumulateConstants` carries
+  the previous eye's basis for it, as `SpecularConstants` does, so the four other history passes do
+  not carry fields they never read.
+- **The occluder is found in two steps.** Rings of taps at 1, 2, 4, 8 and 16 pixels sample the
+  occluder too sparsely to land on `y` within a pixel and a half: an occluder 5.5 pixels off fell
+  between the rings at 4 and 8. Any surface nearer the eye carries the occluder's motion, so the
+  ring tap landing nearest gives it, `z = y - m` is where the occluder stands, and the motion read
+  there is checked to land on `y`.
+- **A switch**, `ReconstructionRequest::mDualMotion` and `--dual-motion`, for the A/B.
+
+**Measured.**
+
+- **The case it is for**, `theFloorAMovingBarUncoversStartsWithTheHistoryBesideIt`: a bar moving
+  5.5 pixels a frame over a floor, the strip it uncovered in the last frame, noise over its mean
+  across four draws: 0.0099 without the dual vector and 0.0022 with it, where the floor beside a
+  bar that stood still holds 0.0019.
+- **The bounce suite** (`--ab=dual-motion --suite=bounce --still --cut=1`): no place moves, still,
+  one frame after a cut, strafed or walked in, by more than 0.01 of bias, and the noise not at all.
+  Its legs move the eye through still rooms, where little that an occluder hid comes into view; the
+  game's actors and doors are what moves in front of a surface, and the suite holds none moving.
+- **Time**, `bench --suite=interiors`, off, on, off again: the accumulator's share 0.28, 0.29, 0.28
+  ms at the guild, and 0.01 to 0.02 ms more at every room; the frame's median within the runs'
+  spread.
+- **Kept**, at no measurable cost, for the moving occluders the suite cannot show. **The reuse's
+  temporal pass does not take it**: the design took it there only if the accumulator's legs gained,
+  and they cannot gain where nothing moves in front of anything.
+- **Found on the way**: the trail tests hand their moving bar over without advancing the placement
+  table, so its motion vector is its whole travel since it stood still; logged in
+  `.notes/ISSUES.md`.

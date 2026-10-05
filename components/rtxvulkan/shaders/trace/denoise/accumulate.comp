@@ -17,9 +17,16 @@
 // history at that pixel belong to this surface", which is a question about what was accumulated
 // rather than about what the frame drew — so the normal and the distance the history belongs to are
 // carried beside the history itself.
+//
+// **What an occluder uncovered takes the history beside it** (`occluderMotion`, Zeng et al. 2021's
+// dual motion vector, which ReSTIR PT Enhanced applies to its temporal reuse): a surface the
+// previous frame did not see is fetched along the motion of what hid it, held to its own plane. A
+// floor a bar uncovered kept a fifth of the noise it had without it, near the floor beside a bar
+// that stood still (`theFloorAMovingBarUncoversStartsWithTheHistoryBesideIt`).
 
 #include "accumulate.h"
 #include "atrous.h"
+#include "camera.h"
 #include "colour.h"
 #include "gbuffer.h"
 #include "sets.h"
@@ -97,6 +104,8 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_FAST_OUT, ACCUMULATE_FAST) unif
 layout(push_constant, scalar) uniform Push
 {
     HistoryConstants frame;
+    Basis previous;
+    uint dualMotion;
 };
 
 /// The variance written where a pixel's mean holds too few frames to have measured one
@@ -112,6 +121,122 @@ bool sameSurface(ivec2 at, vec3 normal, float distance, vec3 moved)
         return false;
 
     return heldSurfaceMatches(imageLoad(historySurface, at), normal, distance, moved, frame.mDistanceScale);
+}
+
+/// What the history holds of this pixel's surface, summed over the taps that are it, each by its
+/// bilinear share.
+struct Held
+{
+    vec3 mMean;
+    vec3 mMeanFill;
+    vec3 mFast;
+    vec3 mFastFill;
+    vec2 mMoments;
+    float mFrames;
+    float mWeight;
+};
+
+/// Whether a history texel lies on the plane of this pixel's surface, as the previous frame's eye
+/// saw both: `anchor` is this pixel's point from that eye, and the texel's is its own distance along
+/// that eye's ray through it.
+///
+/// **A plane and not a point**, for a texel the occluder's motion leads to: it is another point of
+/// the surface, as far off as the occluder moved, and the depth test's two per cent of one point's
+/// distance refused a floor three per cent further away five pixels on. **Both from the previous
+/// eye**, which is a basis and no place, so the two are differenced as `positionAlong`'s are.
+bool samePlane(ivec2 tap, vec3 normal, vec3 anchor)
+{
+    if (outsideOf(tap, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
+        return false;
+
+    const vec4 was = imageLoad(historySurface, tap);
+    if (dot(was.xyz, was.xyz) <= 0.0 || dot(was.xyz, normal) < ACCUMULATE_FACING)
+        return false;
+
+    Camera eye = frame.mEyes.mWorld;
+    eye.mBasis = previous;
+    const Ray ray = rayAt(eye, vec2(tap));
+    const vec3 there = ray.mOffset + ray.mDirection * (was.w / frame.mDistanceScale);
+    return abs(dot(there - anchor, normal)) <= ACCUMULATE_DEPTH * length(anchor);
+}
+
+/// Adds the four texels `before` spans that are this pixel's surface to `held`: by the depth test
+/// where the footprint is the pixel's own reprojection, and by the plane test through `anchor`
+/// where it is the occluder's (`samePlane`).
+///
+/// @param moved the pixel's own `CHANNEL_MOTION`, whose depth step the depth test reads.
+void gatherHistory(
+    inout Held held, HistoryFootprint before, vec3 normal, float away, vec3 moved, bool alongOccluder, vec3 anchor)
+{
+    for (int i = 0; i < 4; ++i)
+    {
+        const float bilinear = historyShare(before, i);
+        const ivec2 tap = historyTap(before, i);
+        const bool same = alongOccluder ? samePlane(tap, normal, anchor) : sameSurface(tap, normal, away, moved);
+        if (bilinear <= 0.0 || !same)
+            continue;
+
+        const vec4 heldMoments = imageLoad(historyMoments, tap);
+        held.mMean += imageLoad(historyColour, tap).rgb * bilinear;
+        held.mMeanFill += imageLoad(historyFill, tap).rgb * bilinear;
+        const uvec2 heldFast = imageLoad(historyFast, tap).xy;
+        held.mFast += unpackRgb9e5(heldFast.x) * bilinear;
+        held.mFastFill += unpackRgb9e5(heldFast.y) * bilinear;
+        held.mMoments += heldMoments.rg * bilinear;
+        held.mFrames += heldMoments.a * bilinear;
+        held.mWeight += bilinear;
+    }
+}
+
+/// Whether the pixel at `tap` holds a surface nearer the eye than `away` by more than the depth
+/// test's tolerance, and its motion in `xy` where it does.
+vec3 nearerAt(ivec2 tap, float away)
+{
+    if (outsideOf(tap, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
+        return vec3(0.0);
+
+    const vec2 seen = imageLoad(surfaceChannel, tap).xy;
+    const bool nearer = seen.x != SURFACE_NO_NORMAL && surfaceDistance(seen.y) < away * (1.0 - ACCUMULATE_DEPTH);
+    return nearer ? vec3(imageLoad(motion, tap).xy, 1.0) : vec3(0.0);
+}
+
+/// The motion of the occluder that hid this pixel's surface last frame, in `xy`, and in `z` one
+/// where one was found and nought where none was: Zeng et al. 2021's dual motion vector.
+///
+/// **The occluder's own motion vector is the dual one.** The pixel's motion sends it to `y`, where
+/// the occluder stood; the occluder stands at `z` now, with `z + m(z) = y`; and the history Zeng et
+/// al. fetch, `y + (at - z)`, is `at + m(z)`. So no second trace finds it: a pixel of this frame
+/// nearer the eye than this one whose motion lands on `y` is the occluder, and its motion is the
+/// answer. **Found in two steps, as Zeng et al. find `z`**: any surface nearer the eye on rings
+/// out to `ACCUMULATE_DUAL_REACH` carries the occluder's motion, the one landing nearest `y` taken;
+/// `z = y - m` is then where that occluder now stands, and its own motion there must land on `y`
+/// within `ACCUMULATE_DUAL_MISS`, or what was found is not what hid the pixel.
+vec3 occluderMotion(ivec2 at, vec3 moved, float away)
+{
+    const vec2 landed = vec2(at) + moved.xy;
+    float nearest = 1e30;
+    vec2 guess = vec2(0.0);
+    for (int ring = 1; ring <= ACCUMULATE_DUAL_REACH; ring *= 2)
+        for (int y = -1; y <= 1; ++y)
+            for (int x = -1; x <= 1; ++x)
+            {
+                const ivec2 tap = at + ivec2(x, y) * ring;
+                const vec3 there = (x == 0 && y == 0) ? vec3(0.0) : nearerAt(tap, away);
+                const float miss = distance(vec2(tap) + there.xy, landed);
+                if (there.z > 0.0 && miss < nearest)
+                {
+                    nearest = miss;
+                    guess = there.xy;
+                }
+            }
+
+    if (!(nearest < 1e30))
+        return vec3(0.0);
+
+    const ivec2 occluder = ivec2(floor(landed - guess + 0.5));
+    const vec3 there = nearerAt(occluder, away);
+    const bool lands = there.z > 0.0 && distance(vec2(occluder) + there.xy, landed) < ACCUMULATE_DUAL_MISS;
+    return lands ? vec3(there.xy, 1.0) : vec3(0.0);
 }
 
 void main()
@@ -150,34 +275,41 @@ void main()
     const vec3 moved = imageLoad(motion, at).xyz;
     const HistoryFootprint before = historyFootprint(at, frame.mEyes.mWorld.mJitter, moved);
 
-    vec3 mean = vec3(0.0);
-    vec3 meanFill = vec3(0.0);
-    vec3 fast = vec3(0.0);
-    vec3 fastFill = vec3(0.0);
-    vec2 moments = vec2(0.0);
-    float frames = 0.0;
-    float weight = 0.0;
-
+    Held held = Held(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), vec2(0.0), 0.0, 0.0);
     if (frame.mReset == 0u)
     {
-        for (int i = 0; i < 4; ++i)
-        {
-            const float bilinear = historyShare(before, i);
-            const ivec2 tap = historyTap(before, i);
-            if (bilinear <= 0.0 || !sameSurface(tap, normal, away, moved))
-                continue;
+        gatherHistory(held, before, normal, away, moved, false, vec3(0.0));
 
-            const vec4 heldMoments = imageLoad(historyMoments, tap);
-            mean += imageLoad(historyColour, tap).rgb * bilinear;
-            meanFill += imageLoad(historyFill, tap).rgb * bilinear;
-            const uvec2 heldFast = imageLoad(historyFast, tap).xy;
-            fast += unpackRgb9e5(heldFast.x) * bilinear;
-            fastFill += unpackRgb9e5(heldFast.y) * bilinear;
-            moments += heldMoments.rg * bilinear;
-            frames += heldMoments.a * bilinear;
-            weight += bilinear;
+        // **Where the surface was hidden and not off the screen**, the history along the occluder's
+        // motion (`occluderMotion`). A branch, which only the pixels an occluder uncovered take:
+        // measured on the interiors, the accumulator's 0.28 ms became 0.29.
+        const vec2 landed = vec2(at) + 0.5 + moved.xy;
+        const bool hidden = dualMotion != 0u && dot(previous.mForward, previous.mForward) > 0.0
+            && !(held.mWeight > 0.0)
+            && !outsideOf(ivec2(floor(landed)), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight));
+        if (hidden)
+        {
+            // This pixel's point as the previous eye saw it, at the pixel its own motion leads to and
+            // the distance it stood at, which the plane test holds the occluder's texels to.
+            Camera eye = frame.mEyes.mWorld;
+            eye.mBasis = previous;
+            const Ray seenBefore = rayAt(eye, vec2(at) + moved.xy);
+            const vec3 anchor = seenBefore.mOffset + seenBefore.mDirection * (away + moved.z);
+
+            const vec3 dual = occluderMotion(at, moved, away);
+            if (dual.z > 0.0)
+                gatherHistory(held, historyFootprint(at, frame.mEyes.mWorld.mJitter, vec3(dual.xy, moved.z)), normal,
+                    away, moved, true, anchor);
         }
     }
+
+    vec3 mean = held.mMean;
+    vec3 meanFill = held.mMeanFill;
+    vec3 fast = held.mFast;
+    vec3 fastFill = held.mFastFill;
+    vec2 moments = held.mMoments;
+    float frames = held.mFrames;
+    float weight = held.mWeight;
 
     const float lit = dot(sampled, LUMINANCE_WEIGHTS);
 

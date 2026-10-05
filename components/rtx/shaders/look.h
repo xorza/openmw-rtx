@@ -1249,6 +1249,16 @@ namespace Rtx::Shaders
     /// world unit in the units the distance is stored in.
     const float ACCUMULATE_DEPTH = 0.02f;
 
+    /// How far from a pixel the accumulator looks for a surface nearer the eye that carries the
+    /// motion of what hid it last frame, in pixels (`occluderMotion`): rings at 1, 2, 4, 8 and 16,
+    /// since the occluder stands as far off as it moved against what it uncovered.
+    const int ACCUMULATE_DUAL_REACH = 16;
+
+    /// How near the occluder's motion, read where that motion says the occluder now stands, has to
+    /// land to where the pixel's own lands, in pixels: half a pixel of rounding each way and half
+    /// of slack.
+    const float ACCUMULATE_DUAL_MISS = 1.5f;
+
     /// How many frames a pixel needs before its second moment describes a spread rather than a
     /// coincidence.
     ///
