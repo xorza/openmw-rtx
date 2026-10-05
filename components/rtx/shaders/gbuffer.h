@@ -203,6 +203,11 @@ namespace Rtx::Shaders
     /// shadow denoiser's levels have (`SHADOW_FILTER_LEVELS`, whose widest is four pixels).
     const float SHADOW_PENUMBRA_DRAWN = 8.0f;
 
+    /// The most a penumbra is stretched onto the receiver it falls on (`receiverStretch`): eight, a
+    /// light 83 degrees off the receiver's normal. Past it the stretch runs to infinity at the
+    /// terminator, where the light is gone anyway.
+    const float SHADOW_PENUMBRA_STRETCH = 8.0f;
+
     /// The share of a pixel's light under which a source is never the one its shadow bit is drawn
     /// from: its light rides the drawn source's bit, and that bit counts as drawn only where its own
     /// source carries less than all but this share. What a run asks for,
