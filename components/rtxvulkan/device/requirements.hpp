@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -202,10 +203,45 @@ namespace Rtx
         const OptionalFeature* mFeature = nullptr;
     };
 
+    /// The push constants Vulkan 1.4 guarantees a device, which every push block is held to at
+    /// compile time (`pushRangeOf`) and a device that reports less is refused for.
+    inline constexpr std::uint32_t sPushConstantsFloor = 256;
+
     /// Every option, in the order of `DeviceOption`. Reported by `openmw-rtxtool info`, so it is
     /// visible which a device offers; `Device`'s constructor takes each it can and keeps what the
     /// frame asks of them (`Device::hasPresentFences`).
     std::span<const OptionalExtensions> getOptionalExtensions();
+
+    /// Takes out of `taken` every option a need of which is neither `given` nor an extension of an
+    /// option still taken, until nothing more falls: an option rests on what it needs and falls
+    /// with it, whatever order the table lists them in. `taken` is indexed as `options` is.
+    ///
+    /// @param given whether an extension is enabled whatever the options are: the instance's, and
+    ///        the device's required ones.
+    template <class Given>
+    void dropUnmetNeeds(const std::span<const OptionalExtensions> options, const std::span<bool> taken, Given&& given)
+    {
+        const auto enabled = [&](const char* const name) {
+            const auto named = [&](const char* const held) { return std::string_view(held) == name; };
+            return given(name) || std::ranges::any_of(options, [&](const OptionalExtensions& other) {
+                return taken[static_cast<std::size_t>(other.mOption)] && std::ranges::any_of(other.mExtensions, named);
+            });
+        };
+
+        for (bool fell = true; fell;)
+        {
+            fell = false;
+            for (const OptionalExtensions& option : options)
+            {
+                bool& held = taken[static_cast<std::size_t>(option.mOption)];
+                if (held && !std::ranges::all_of(option.mNeeds, enabled))
+                {
+                    held = false;
+                    fell = true;
+                }
+            }
+        }
+    }
 
     /// The table itself, so a test can prove its entries address distinct fields.
     std::span<const RequiredFeature> getRequiredDeviceFeatures();

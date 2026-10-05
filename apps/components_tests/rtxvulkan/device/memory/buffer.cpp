@@ -15,6 +15,7 @@
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
+#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 
 namespace Rtx
@@ -161,6 +162,42 @@ namespace Rtx
             EXPECT_EQ(fresh.unnamed<std::uint32_t>().size(), 16u);
             Testing::expectAssertDies([&] { static_cast<void>(source.unnamed<std::uint32_t>()); },
                 "a buffer written as unnamed after a submit named it");
+        }
+
+        /// **A fill, an inline update and a barrier each name their buffer**, as a copy does: each
+        /// puts the buffer on the queue with the submit it rides, so a host write meanwhile is the
+        /// hazard `isIdle` guards, and until each named it nothing did.
+        TEST_F(RtxBufferTest, aFillAnUpdateAndABarrierNameTheBufferAsACopyDoes)
+        {
+            const Device& device = *mHarness.mDevice;
+            CommandPool& pool = getPool();
+
+            constexpr VkBufferUsageFlags writable = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+            const Buffer filled = Buffer::staging(device, 64, writable, "test");
+            const Buffer updated = Buffer::staging(device, 64, writable, "test");
+            const Buffer ordered = Buffer::staging(device, 64, writable, "test");
+
+            Testing::HeldSubmit hold(device);
+            const VkCommandBuffer commands = pool.allocate(1).front();
+            pool.begin(commands);
+            filled.clear(commands);
+            constexpr std::array<std::byte, 4> word{};
+            updated.updateInline(commands, Use::sBufferComputeRead, word);
+            ordered.transition(commands, Use::sBufferComputeWrite, Use::sBufferComputeRead);
+
+            const std::uint64_t next = device.getTimeline().getNext();
+            EXPECT_EQ(filled.getNamedUntil(), next) << "the fill did not name its buffer";
+            EXPECT_EQ(updated.getNamedUntil(), next) << "the inline update did not name its buffer";
+            EXPECT_EQ(ordered.getNamedUntil(), next) << "the barrier did not name its buffer";
+
+            EXPECT_EQ(hold.submit(commands), next);
+            EXPECT_FALSE(filled.isIdle()) << "the fill is on the queue";
+
+            hold.release();
+            filled.waitIdle("test");
+            EXPECT_TRUE(filled.isIdle());
+            EXPECT_TRUE(updated.isIdle());
+            EXPECT_TRUE(ordered.isIdle());
         }
     }
 }

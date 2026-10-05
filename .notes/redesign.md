@@ -517,27 +517,15 @@ same rule on the host and on the device (`MipChain`, `ShadingMap`):
 - `Buffer`'s fill, update and barrier do not name the buffer for the next submit.
 - An optional extension is enabled even where its feature was declined.
 
-**Contract.**
+**Contract.** Points 1, 2, 4 and 5 are done: the indirect light is set before a frame's recording
+opens and `CommandPool` asserts no submit beside an open one; a discard's first scope is every
+stage; every buffer hand-out names the buffer; and a device option is taken whole, its needs met to a
+fixed point (`dropUnmetNeeds`), with quad subgroups and Vulkan 1.4's push constants required. What is
+left:
 
-1. **State before recording.** One `applyFrameRequest` step runs after `Reconstruction::resolve`
-   and before `CommandPool::begin`. It applies everything that can resize or replace a resource:
-   the indirect light, the reuse mode, the extent, and the upscaler. `TraceChain::record` asserts
-   that the chain already matches. `CommandPool` counts open recordings and asserts in
-   `submitWithDeferred` that only the submitted one is open. `GuiTextures::mBatch` is the one named
-   exception.
-2. **A discard waits for the frame before it.** `sUndefined` is `{UNDEFINED, ALL_COMMANDS, 0}`. The
-   comment and its restatements say why.
-3. **A pass returns its writes, and the chain places the barrier.** The shadow, glossy and pane
-   passes hand their images back untransitioned. `DenoisePasses::record` puts one `Barriers`
-   batch after the three. The display chain does the same for its independent passes (D9).
-4. **Everything a submit touches is named for it.** `Buffer::clear`, `updateInline` and
-   `describeBarrier` call `nameForNext()`.
-5. **The device takes what it says it takes.**
-   - Options are queried before any extension is appended.
-   - `mNeeds` is checked against the taken options.
-   - A subgroup row (quad operations in compute) and the largest push block, a `constexpr`, are
-     held in `requirements.cpp`.
-
+- **A pass returns its writes, and the chain places the barrier.** The shadow, glossy and pane
+  passes hand their images back untransitioned. `DenoisePasses::record` puts one `Barriers` batch
+  after the three. The display chain does the same for its independent passes (D9). Phase 8.
 ### What holds each contract
 
 Each check lands with its contract, and each is one the gate runs.
@@ -553,7 +541,7 @@ Each check lands with its contract, and each is one the gate runs.
 | D7 | Host tests: the froxel's blend of `σ·L` and `σ` equals the mean of `σ·L`; `waterColumn`'s closed form equals a numerical integral at several directions. |
 | D8 | The host/device tests that exist, plus: an odd extent's halving reads every texel of the level above, and preserves its sum. |
 | D9 | A host test: adaptation closes a gap at the same rate in stops either way, after the asymmetry the constants state. |
-| D10 | `CommandPool`'s count of open recordings, asserted at each submit. Synchronization validation clean on one `shot` run. |
+| D10 | `CommandPool`'s open recordings, asserted at each submit (done). Synchronization validation clean on one `shot` run. |
 
 ## 5. Implementation plan
 
@@ -570,7 +558,7 @@ that each `shot --against` and each `noise` run attributes its movement to one c
 
 Take new baselines at the end of each phase.
 
-### Phase 0. Foundations that move no picture (D10, the security item)
+### Phase 0. Foundations that move no picture (the security item)
 
 1. **Security first, independent of the rest. Done in `938d176850`**, unproven until a merge runs:
    - the agent job has no write credential;
@@ -583,9 +571,6 @@ Take new baselines at the end of each phase.
    `UPSTREAM-MERGE.md` means the `Edit(./**)` rule does not cover it); the sandbox started (a
    missing bubblewrap stops the agent at once, by `failIfUnavailable`); a pull request opened by the
    Claude GitHub App, with CI running on it; and auto-merge turned on or the merge held, as before.
-4. **D10 points 1, 2, 4 and 5.** These are ordering and contract fixes. Verify with
-   `./omw test` and with synchronization validation on one `shot` run and one `bench` run.
-   `./omw repeat --pairs=10` must agree.
 
 ### Phase 1. Arithmetic (D1)
 

@@ -58,7 +58,9 @@ namespace Rtx
         /// mean of the bounce — for frames whose indirect light is `indirect`, and says to every
         /// history of the bounce that the frames before it are not its own. Nothing where the chain
         /// keeps that already. **Where a menu changes it**, so the images are made off the frame
-        /// path; a frame asking for another reaches it too (`record`), which is a harness's stop.
+        /// path; and before the recording of a frame that asks for another opens, a harness's stop,
+        /// since the reservoirs are uploaded by a submit of their own. `record` asserts the chain
+        /// matches its frame.
         void setIndirect(IndirectLight indirect);
 
         /// Makes the chain at least this big, keeping whatever extent it already reached on either

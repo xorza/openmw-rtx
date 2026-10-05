@@ -112,34 +112,21 @@ namespace Rtx
         if (instance.hasExtension(VK_KHR_SURFACE_EXTENSION_NAME))
             extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
-        // **An option is taken whole where the device offers every extension of it and every one
-        // it needs is already taken**, by the instance or by this device. The table's order is the
-        // order the needs are met in. What a driver offers is not what a device may enable: a
-        // present fence is offered to a device with no window, and rests on a swapchain it has none
-        // of.
+        // **An option is taken whole or not at all**: where the device offers every extension of
+        // it, has the feature it is no use without, and every extension it needs is the instance's,
+        // a required one or a taken option's. Its feature is asked before anything is enabled and
+        // its needs are met after, so an option the driver offers without its feature enables
+        // nothing, and takes down what rests on it. What a driver offers is not what a device may
+        // enable: a present fence is offered to a device with no window, and rests on a swapchain it
+        // has none of.
         std::array<bool, sDeviceOptions> taken{};
-        const auto listed = [&](const char* const name) {
-            return std::any_of(extensions.begin(), extensions.end(),
-                [&](const char* const held) { return std::strcmp(held, name) == 0; });
-        };
-        const auto enabled = [&](const char* const name) { return instance.hasExtension(name) || listed(name); };
         for (const OptionalExtensions& option : getOptionalExtensions())
-        {
-            const bool offered = std::all_of(option.mExtensions.begin(), option.mExtensions.end(),
-                [&](const char* const name) { return mPhysicalDevice.hasOptionalExtension(name); });
-            if (!option.mRead || !offered || !std::all_of(option.mNeeds.begin(), option.mNeeds.end(), enabled))
-                continue;
-
-            extensions.insert(extensions.end(), option.mExtensions.begin(), option.mExtensions.end());
-            taken[static_cast<std::size_t>(option.mOption)] = true;
-        }
+            taken[static_cast<std::size_t>(option.mOption)] = option.mRead
+                && std::all_of(option.mExtensions.begin(), option.mExtensions.end(),
+                    [&](const char* const name) { return mPhysicalDevice.hasOptionalExtension(name); });
         const auto has = [&](const DeviceOption option) { return taken[static_cast<std::size_t>(option)]; };
 
-        DeviceFeatures features;
-        requestRequiredFeatures(features);
-
-        // Only what the device took is chained, into the query and into the creation alike. A
-        // driver may offer an extension without the feature it provides, so each has to be asked.
+        // Only what is still taken is chained, into the query and into the creation alike.
         OptionalFeatures optional;
         VkBaseOutStructure* asked = nullptr;
         const auto chain = [&asked](VkBaseOutStructure& structure) {
@@ -163,20 +150,28 @@ namespace Rtx
             optional.mFault.deviceFaultVendorBinary = VK_FALSE;
         }
 
-        // The same chain again, of what the device turned out to have rather than what it offered,
-        // in front of the features the renderer requires. An option whose feature the device lacks
-        // is not taken after all.
+        for (const OptionalExtensions& option : getOptionalExtensions())
+            if (option.mFeature != nullptr && has(option.mOption) && option.mFeature->mField(optional) != VK_TRUE)
+                taken[static_cast<std::size_t>(option.mOption)] = false;
+
+        dropUnmetNeeds(getOptionalExtensions(), taken, [&](const char* const name) {
+            return instance.hasExtension(name)
+                || std::any_of(extensions.begin(), extensions.end(),
+                    [&](const char* const held) { return std::strcmp(held, name) == 0; });
+        });
+
+        for (const OptionalExtensions& option : getOptionalExtensions())
+            if (has(option.mOption))
+                extensions.insert(extensions.end(), option.mExtensions.begin(), option.mExtensions.end());
+
+        DeviceFeatures features;
+        requestRequiredFeatures(features);
+
+        // The same chain again, of what was taken, in front of the features the renderer requires.
         asked = reinterpret_cast<VkBaseOutStructure*>(&features.mFeatures2);
         for (const OptionalExtensions& option : getOptionalExtensions())
-        {
-            if (option.mFeature == nullptr || !has(option.mOption))
-                continue;
-
-            if (option.mFeature->mField(optional) == VK_TRUE)
+            if (option.mFeature != nullptr && has(option.mOption))
                 chain(option.mFeature->mStructure(optional));
-            else
-                taken[static_cast<std::size_t>(option.mOption)] = false;
-        }
 
         const bool describesFault = has(DeviceOption::FaultReport);
         mPresentFences = has(DeviceOption::PresentFences);

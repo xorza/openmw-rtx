@@ -576,36 +576,10 @@ NaN, infinity, division and constant folding that differ by compile or reach an 
 
 ## Vulkan ordering and submission
 
-### A discard's `NONE` source chains to nothing, so no discard is ordered after the frame before it
-
-> Checked by the merge: a second barrier whose first scope is `NONE` does not chain to the head barrier, which the tree's own comment at `presenter.cpp:217-224` states.
-
-- [ ] `components/rtxvulkan/device/memory/imageuse.hpp:30-35` — **[bug]** `Use::sUndefined` is `{UNDEFINED, VK_PIPELINE_STAGE_2_NONE, 0}`. The comment says the head barrier (`CommandPool::begin`, `commands.cpp:242`) has already ordered the discard after the last frame. It has not. Two dependencies chain only when the second scope of the first intersects the first scope of the second (spec, "Execution Dependencies"), and a `NONE` first scope is empty. So every layout transition from `sUndefined` is ordered after nothing earlier on the queue, and nothing earlier in its own command buffer either. A layout transition is a write to the image. The renderer itself documents this rule one folder over: `present/presenter.cpp:217-224` says a `NONE` source "is ordered against nothing and can run before the image is ours — which is what `sUndefined`'s `NONE` says". Sites that discard an image the previous frame (or an earlier pass) still reads:
-  - `trace/gbuffer.cpp:140`: every G-buffer channel. One set serves both frames in flight, and the comment at `:135-137` relies on the head barrier.
-  - `display/displaychain.cpp:97`: the picture and `PictureTracer::mTarget`, after the last picture's copy out of it.
-  - `display/bloompass.cpp:174`: every bloom level, which the previous frame's tone pass samples.
-  - `device/memory/image.cpp:299`: `buildMips` levels 1..n, which the previous frame's trace and fog sample.
-  - `gui/guidrawer.cpp:83`: `shown`, which the previous present's blit reads after waiting its acquire semaphore. A later submission is not held behind that wait except through the head barrier, and the transition does not chain to that barrier. `present/presenttarget.hpp:159-163` claims exactly this ordering.
-  - The same shape is in `trace/fogvolume.cpp:184-186`, `trace/denoise/denoisehistory.cpp:148-151`, `trace/ripplepass.cpp:192` and `trace/wavepass.cpp:140`.
-
-  On today's drivers this rarely shows. NVIDIA mostly ignores layouts. RADV emits a barrier's pending flush before its next action, a DCC initialisation included. Still, the dependency is not there by the spec. Synchronization validation is entitled to report it as a write-after-read hazard. And any driver that runs an UNDEFINED→GENERAL or UNDEFINED→COLOR_ATTACHMENT transition as a metadata initialisation (DCC on RDNA, compression state on NVIDIA) without the wait corrupts what the frame before is still reading: the previous picture's blit, the last tone pass's bloom samples. → Target shape: `sUndefined{UNDEFINED, ALL_COMMANDS, 0}`. That is an execution-only first scope, which chains to the head barrier's `ALL_COMMANDS` second scope and to earlier passes in the same buffer, exactly as `presenter.cpp:222` does for the acquire. Rewrite the comment at `imageuse.hpp:30-34` and the restatements at the sites above to say why the stage is there. A narrower stage (the image's last use) is only an option where a pass knows it.
-
-### A submit inside an open frame recording breaks "the next submit carries everything named"
-
-- [ ] `components/rtxvulkan/trace/tracechain.cpp:103` → `trace/tracechain.cpp:79` → `trace/bouncereservoirs.cpp:61-66` — **[bug]** `TraceChain::record` calls `setIndirect(what.mReconstruction.mIndirect)`. Where the request's indirect differs from the chain's, the call reaches `BounceReservoirs::resize`. For the world chain (`mReuses == true`) with indirect turning `Traced`, that resize does `Batch::flush`, a submit-and-wait. That happens while `VulkanRenderer::renderFrame`'s `frame.mWorld.mCommands` is open (`vulkanrenderer.cpp:561` begin, `:670` submit). The graveyard and `ReadStamp` both stamp with `Timeline::getNext()` on the premise that the next submit carries whatever the open recording named. Here the flush takes value N and the frame rides N+1. The resources the frame named before the flush (`beginGlare`'s counts, `stepRipples`' tiles) read as idle once N is waited. Anything buried in that window is freed by the flush's own `collect` while the open recording still names it. And the host stalls on the frame in flight in the middle of recording a frame. It is reachable wherever a frame option's `ReconstructionRequest::mIndirect` (default `Traced`, `frame/reconstruction.hpp:127`) disagrees with the profile's. That is any harness stop carrying a request under `--indirect=off`, or `unfiltered()` copies of such a request. → Target shape: `renderFrame` applies `mFrame.setIndirect(reconstruction.mIndirect)` after `Reconstruction::resolve` and before `getPool().begin(commands)`, and `TraceChain::record` asserts the chain already matches instead of switching. `CommandPool` should state the invariant it rests on: count recordings begun from it that are neither submitted, deferred, ended nor discarded, and assert in `submitWithDeferred` that the only open one is the one being submitted. `GuiTextures::mBatch`, which stays open across submits by design, is then the single named exception.
-
-### The device's refusals do not cover what the shaders require
-
-- [ ] `components/rtxvulkan/device/physicaldevice.cpp:271-332` — **[design]** The FSR luma pyramid compiles AMD's SPD with wave operations: `FFX_SPD_NO_WAVE_OPERATIONS` is not defined, and `extern/fidelityfx/gpu/spd/ffx_spd.h:122-152` uses `subgroupQuadSwap*` in a compute shader. Vulkan guarantees only `VK_SUBGROUP_FEATURE_BASIC_BIT`, and `profileOf` never checks `mVulkan11.subgroupSupportedOperations & QUAD` or `subgroupSupportedStages & COMPUTE`, although `DeviceProperties` already queries `mVulkan11`. A device without quad operations is not refused by name, against `RequiredFormat`'s stated promise (`requirements.hpp:95-98`) and architecture.md's "It needs no extension, so it runs on every device the renderer does". Both target vendors have the operations today. → Target shape: a subgroup requirement row in `profileOf`, beside the format check, that names what it is for. Alternatively, define `FFX_SPD_NO_WAVE_OPERATIONS` in `fsrcallbacks.glsl` and keep the guarantee true without the check.
-
-- [ ] `components/rtxvulkan/device/device.cpp:126-179` — **[code]** The extensions are appended in the first loop, before any feature is known. When the second loop finds an option's feature missing and clears `taken`, that option's extensions stay in `extensions` and are enabled anyway (for example `VK_EXT_device_fault` without `deviceFault`). An option's `mNeeds` is also checked against enabled extension names, not against taken options: `PageableMemory` is taken on a device whose `MemoryPriority` was declined for its feature. Both are legal Vulkan, but the device enables a set other than the one `taken` and architecture.md describe ("each optional extension is taken whole or not at all"). → Target shape: query each offered option's feature first, then append only the options that hold, checking `mNeeds` against those options.
-
 ### Contracts stated where the code no longer keeps them
 
 
 - [ ] `components/rtxvulkan/vulkanrenderer.hpp:235-238` — **[code]** The reason given for declaring `mPresenter` after `mTarget` cites `VUID-vkDestroyImage-image-01000` for "a recording names it". That VUID concerns submitted commands, not executable recordings, and `Image`'s destructor buries through the graveyard whatever the member order. The order is harmless, but the stated reason is wrong. → Target shape: remove the reason, or state the real constraint if there is one.
-
-- [ ] `components/rtxvulkan/device/memory/buffer.cpp:225-239, 272-289` — **[code]** `ReadStamp` promises that every hand-out names its resource for the next submit (`readstamp.hpp:16-20`). `Image::addTransition` and `Image::clearInGeneral` do this. `Buffer::transition`, `Buffer::clear` (`vkCmdFillBuffer`) and `Buffer::updateInline` (`vkCmdUpdateBuffer`) do not. Every buffer that takes these today is device-local, so nothing misreads. A host-visible buffer whose only use in a submit is a fill or an inline update would read `isIdle` while the write is on the queue. → Target shape: `Buffer::clear`, `updateInline` and `describeBarrier` call `nameForNext()`, as `Image`'s siblings do.
 
 ## Settings and the SDL3 port
 
@@ -1090,17 +1064,6 @@ Work done twice, at the wrong time, or for nothing.
 
 ### Smaller items in the shared headers and the pipeline
 
-- [ ] `pipeline/pipeline.hpp:33-39` with `requirements.cpp` — **[design]**
-  Several push blocks are past Vulkan's guaranteed 128 bytes:
-  - `ToneConstants`: 200 bytes on the host, which is what `pushRangeOf` declares;
-  - `SpecularConstants` 196, `AccumulateConstants` 192, `SpriteBinConstants` 184,
-    `AtrousConstants` and `HistoryConstants` 144, `ShadowFilterConstants` 136.
-
-  No requirement checks `maxPushConstantsSize`. The target devices report 256, so nothing breaks
-  today. A device with a smaller limit gets an invalid pipeline layout instead of
-  `Rtx::Unsupported`.
-  → Target shape: a `constexpr` largest push block, which `requirements.cpp` holds against
-  `maxPushConstantsSize` and refuses as unsupported.
 - [ ] `components/rtx/shaders/visibility.h:615` (`sunSource`) and `sky.h:297` (`moonSource`) — **[code]**
   Both are `SkySource{ direction, irradiance, std::sin(angle) }`: one rule spelled twice.
   → Target shape: one `skySource(direction, irradiance, angularRadius)`. The sun's caller passes

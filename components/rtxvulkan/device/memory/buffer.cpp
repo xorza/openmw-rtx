@@ -207,6 +207,9 @@ namespace Rtx
 
     VkBufferMemoryBarrier2 Buffer::describeBarrier(const BufferUse& from, const BufferUse& to) const
     {
+        // A barrier is a hand-out as a copy is: whatever it orders is on the queue with the buffer,
+        // and a host write over the buffer meanwhile is the hazard `isIdle` is asked about.
+        nameForNext();
         return VkBufferMemoryBarrier2{
             .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
             .pNext = nullptr,
@@ -235,6 +238,7 @@ namespace Rtx
     {
         assert(!isEmpty() && "a clear of a buffer nobody made");
 
+        nameForNext();
         vkCmdFillBuffer(commands, mHandle.get(), 0, bytes, 0);
     }
 

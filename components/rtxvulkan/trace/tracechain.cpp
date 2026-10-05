@@ -101,7 +101,8 @@ namespace Rtx
             mReservoirs.reset();
         }
 
-        setIndirect(what.mReconstruction.mIndirect);
+        assert(what.mReconstruction.mIndirect == mIndirect
+            && "a trace whose indirect light the chain was not set to before its recording opened");
 
         const BounceReuse reuse = what.mReconstruction.mBounceReuse;
         assert((mReuses || reuse == BounceReuse::Off) && "a reuse asked of a chain that keeps no reservoirs");
