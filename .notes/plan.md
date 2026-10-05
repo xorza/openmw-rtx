@@ -413,16 +413,6 @@ section at the end**, kept or reverted, because a finished step leaves this list
 noisier by more than 0.02 or more biased by more than 0.05 in any leg it is run on, still,
 strafed (`--strafe=150`) and walked (`--walk=150`).
 
-19. **P3: the far hit draws its lamps** (decision 5). At `PATH_INDIRECT`, `weighLamps` weighs
-    `min(n, K)` of the cell's `n` lamps: where `n ≤ K`, every lamp, as now, and exact; past it, `K`
-    drawn uniformly with replacement, each offered to the reservoir at its target over `K / n`
-    (resampled importance sampling with a uniform source, unbiased). One loop with the index
-    selected, not two paths. The draws come after the sequence's fixed places, so no other draw
-    moves. `PATH_SEEN` keeps the full walk. **Uniform first, a power table only if it fails**: a
-    table per grid cell is a new structure the host builds and the device reads, and is planned
-    only if uniform draws fail the bar. `K` from an A/B of 4 and 8 on `--suite=bounce` and
-    `--suite=interiors`, and the time on `bench --suite=interiors`. A test by hand on three lamps
-    and `K = 2`: the estimate's mean over the draws equals the full walk's.
 20. **N3: dual motion vectors**, designed before coded. Read Zeng et al. 2021 (*Temporally
     Reliable Motion Vectors for Real-time Ray Tracing*) and how ReSTIR PT Enhanced (§6.4) applies it
     to temporal resampling: what the second vector is, which pass computes it and from what, and
@@ -796,3 +786,40 @@ run line names the rule, and each place's lines the mode it ran.
   3's rule, held to every place and leg, puts it out by one cell, the planter walked in (0.03
   noisier and 0.02 more biased); held to the rooms as a whole, its bias gain outweighs it. Kept as
   decided, and `plan_QUESTIONS.md` asks whether 0.24 to 0.77 ms a room is worth that bias.
+
+## Step 19: the far hit draws its lamps — reverted
+
+At `PATH_INDIRECT` the walk weighed `min(n, K)` of the `n` lamps reaching the far hit, drawn
+uniformly with replacement where `n > K`, with the reservoir's total and the unshadowed sum raised
+by `n / K`: resampled importance sampling with a uniform source. The eye's hit kept the full walk.
+A host test held the draws' mean to the full walk's, and a GPU test held twelve lamps at one point
+to one lamp twelve times as bright (without the raise, a third). Both passed; the step is reverted
+on its measurements.
+
+- **Kernels**: 72 of 179 moved, the hit shader's and the validation's.
+- **Pictures** (`K = 4`): 14 of 64 moved, 17 within the denoiser's noise.
+- **Noise and bias**, release, FSR quality, full walk | `K = 8` | `K = 4`. The noise moves by 0.01
+  at most anywhere; the bias does not hold:
+
+| place | still bias | strafed bias | walked bias |
+|---|---|---|---|
+| mages' guild | 1.33, 1.33, 1.39 | 1.63, 1.64, 1.67 | 2.35, 2.34, 2.31 |
+| guild's planter | 1.61, 1.61, 1.65 | 1.78, 1.79, 1.81 | 2.75, 2.75, 2.75 |
+| Seyda Neen's customs | 1.54, 1.68, 1.81 | | |
+| Vivec's canalworks | 0.45, 0.45, 0.49 | | |
+| Addamasartus | 1.52, 1.52, 1.75 | | |
+
+  The yurt, the pier, the pond, Arkngthand and the tomb do not move. The customs house is 0.14 more
+  biased at `K = 8` and 0.27 at `K = 4`, and Addamasartus 0.23 at `K = 4`: past the bar of 0.05 at
+  both. Unbiased in expectation, the drawn walk is noisier at the far hit, and the wavelet's
+  brightness test turns a noisier bounce into a darker one.
+- **Time**, `bench --suite=interiors`, the trace zone, full walk | `K = 8` | `K = 4`, in ms: the
+  guild 1.69, 1.67, 1.63; the customs house 1.20, 1.19, 1.15; Addamasartus 1.38, 1.39, 1.38; the
+  tomb 1.05, 1.06, 1.04. The canalworks and Arkngthand moved by 0.2 at `K = 8` and by nothing at
+  `K = 4`, so by the run and not the walk. **At most 0.06 ms**, where the plan read 0.30 ms of
+  lamp walk at the guild's far hits: the diagnostic behind that figure turned the far hit's lamps
+  off (`mLampLit`), which took the walk, the lamp's shadow ray and the darkening walk together. The
+  draws keep the ray, which is the most of it.
+- **No power table.** It would take the bias back by drawing the bright lamps more often, but it
+  could save no more than the uniform draws did, 0.06 ms, for a structure the host builds per grid
+  cell and the device reads. Not worth building.
