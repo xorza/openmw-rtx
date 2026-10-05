@@ -5,8 +5,8 @@
 // **Display-referred, and after the tone curve.** The GUI's colours and its atlases were authored
 // against a monitor, so they are written out as they are, over a picture already in display values.
 
-#include "gui.h"
-#include "sets.h"
+#include "shared/gui.h"
+#include "shared/sets.h"
 
 layout(set = SET_PASS, binding = GUI_BIND_TEXTURE) uniform sampler2D uTexture;
 

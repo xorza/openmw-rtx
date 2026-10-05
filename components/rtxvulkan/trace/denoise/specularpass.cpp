@@ -5,10 +5,10 @@
 #include <cstdint>
 
 #include <components/rtx/renderer/channel.hpp>
-#include <components/rtx/shaders/specular.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/specular.h>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 
 namespace Rtx

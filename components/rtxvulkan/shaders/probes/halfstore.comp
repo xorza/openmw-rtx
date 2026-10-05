@@ -5,8 +5,8 @@
 // Each float stored into a half-float image as it is, for `RtxHalfStoreTest` to read back how the
 // store rounded it. The format is the one every history kept in halves is declared with.
 
-#include "halfstore.h"
-#include "sets.h"
+#include "shared/halfstore.h"
+#include "shared/sets.h"
 #include "storageformat.h"
 
 layout(local_size_x = HALF_STORE_WORKGROUP) in;

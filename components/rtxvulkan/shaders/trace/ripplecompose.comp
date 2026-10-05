@@ -7,8 +7,8 @@
 // differentiates. Central differences, because the field is a grid of heights and not a spectrum;
 // `waverows.comp` has the derivatives analytically and this has to take them.
 
-#include "ripple.h"
-#include "sets.h"
+#include "shared/ripple.h"
+#include "shared/sets.h"
 #include "wave.h"
 #include "lib/pixels.glsl"
 #include "lib/wavetile.glsl"

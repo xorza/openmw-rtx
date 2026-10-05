@@ -20,7 +20,7 @@
 // **Then the boiling filter**: a sample a history carried, worth far more than its workgroup's
 // mean, is let go (`BOUNCE_BOILING_LIMIT`).
 
-#include "bouncereuse.h"
+#include "shared/bouncereuse.h"
 #include "gbuffer.h"
 #include "scene.h"
 

@@ -19,8 +19,8 @@
 #include "colour.h"
 #include "gbuffer.h"
 #include "scene.h"
-#include "sets.h"
-#include "tone.h"
+#include "shared/sets.h"
+#include "shared/tone.h"
 
 #include "lib/bloom.glsl"
 #include "lib/pixels.glsl"

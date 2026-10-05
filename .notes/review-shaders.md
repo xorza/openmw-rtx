@@ -299,12 +299,6 @@ items are departures from the published method that each cost gain or add bias. 
   whole origins live (about 65 floats) until the second loop, which needs only the confidences, the
   `there` values and the partners' bits. Target: keep those, and read each partner again in the
   second loop from the cache.
-- [ ] `components/rtxvulkan/trace/bouncereservoirs.cpp:25-37` (`pairingsFor`). The mapping from the
-  traced height to the radius (`BOUNCE_RADIUS_SHARE`, `BOUNCE_RADIUS_LEAST`) and from the radius to
-  the deviation (`√(8/9π)·R`, clamped to `[0.8, SIZE_1/6]`) is an algorithm, not a Vulkan fact, and
-  it stands in the backend's anonymous namespace where `BouncePairing`'s tests cannot reach it.
-  Target: a core entry point in `components/rtx/frame/bouncepairing` that returns both textures'
-  steps. The backend only uploads them.
 
 ## 7. Every secondary ray skips the first world unit
 

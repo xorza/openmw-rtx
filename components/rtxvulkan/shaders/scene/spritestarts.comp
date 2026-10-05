@@ -13,7 +13,8 @@
 // written and where the frame's need is reported. `SPRITE_LIST_UNBINNED` says what the trace does
 // with the first and `SpriteBin::record` what the host does with the second.
 
-#include "spritebin.h"
+#include "shared/tables.h"
+#include "shared/spritebin.h"
 
 #include "lib/spritelist.glsl"
 

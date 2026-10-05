@@ -22,7 +22,7 @@
 // dozen drops are nearly the whole list. The capsule's radius is the streak's width instead of its
 // length.
 
-#include "spritebin.h"
+#include "shared/spritebin.h"
 
 #include "lib/spritelist.glsl"
 

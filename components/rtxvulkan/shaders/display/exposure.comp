@@ -7,8 +7,8 @@
 // One workgroup of exactly `EXPOSURE_BINS` threads: the whole job is a 256-element weighted sum, and
 // dispatching it apart from the curve is what stops every one of the curve's workgroups redoing it.
 
-#include "exposure.h"
-#include "sets.h"
+#include "shared/exposure.h"
+#include "shared/sets.h"
 
 layout(local_size_x = EXPOSURE_BINS) in;
 

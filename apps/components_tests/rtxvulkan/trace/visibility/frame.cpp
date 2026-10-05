@@ -33,10 +33,10 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/camera.h>
-#include <components/rtx/shaders/exposure.h>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/shaders/shared/exposure.h>
 #include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"

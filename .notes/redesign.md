@@ -10,9 +10,9 @@ lists the point fixes.
 
 Nothing here is measured. Each step in the plan names the measurement that accepts it.
 
-**Status.** Phase 0 step 1, the security of the workflows, is in `938d176850`. Its first scheduled
-run is its test (section 5, Phase 0). Nothing else is started. A first attempt at D11 was reverted,
-and what it found is written into D11 below.
+**Status.** Phase 0 step 1, the security of the workflows, is in `938d176850`, and its first run
+is its test (section 5, Phase 0). D11, each shared header with the C++ that reads it, is done, and
+`RtxSourceTreeTest.aSharedHeaderStandsWithTheCodeThatReadsIt` holds it.
 
 ## 1. Decisions
 
@@ -106,7 +106,7 @@ And two rules apply to every step:
 | D8 | Texture facts are computed per use, with the wrong semantics | S§11, U › mip chain, U › painted-light estimate, U › Sprite light bake |
 | D9 | Exposure has two owners, and neither adapts in stops | S§10, U › FSR's reset sentinel |
 | D10 | Frame state changes and barriers are decided inside a pass | U › Vulkan ordering (3 groups), S§16 (barriers) |
-| D11 | The core's shader folder holds the backend's binding model | U › core's shader folder, S§6 (`pairingsFor`) |
+| D11 | The core's shader folder holds the backend's binding model | Done |
 | D12 | The instruments cannot see the defects above | U › Measurements that can mislead, S§2 (`--upscale=off`) |
 
 ## 4. The contracts
@@ -342,7 +342,7 @@ reservoirs are allocated at full extent while the reuse is off.
    already use. The pairs pass traces only where the target at the partner is above nought.
    `GpuBounceOrigin` is padded to 32 bytes. The temporal kernel reads the best tap once. The
    resolve keeps only confidences, `there` values and bits live between its loops.
-   `pairingsFor` moves to the core (D11).
+   `pairingsFor` is in the core (D11, done).
 
 Decision 4 orders this work: points 2 (the far-ground flag only), 3 and 5, together with the
 validation without the rate coin, come first. Point 1 comes only if the reuse then shows a gain.
@@ -529,58 +529,6 @@ same rule on the host and on the device (`MipChain`, `ShadingMap`):
    - A subgroup row (quad operations in compute) and the largest push block, a `constexpr`, are
      held in `requirements.cpp`.
 
-### D11. Each fact in its own layer
-
-**Cause.** The core's shader folder holds headers that no core C++ reads. Some state descriptor
-sets, bindings, push blocks, specialization ids and the shader binding table, which are Vulkan's.
-Their stated reason (the compiler is given one directory) is false: glslc is also given
-`components/rtxvulkan/shaders`. Also, the backend holds an algorithm, `pairingsFor`, that the
-core's tests cannot reach.
-
-**The rule is who reads a header, not what it names.** The light transport's GLSL already lives in
-the backend (`shaders/lib/`), so a header that only the backend's C++ and its GLSL read is the
-backend's, whatever it states. A header that core C++ reads stays in the core. The first attempt
-moved a list, and the list was wrong in two places:
-
-- `storageformat.h` stays: core headers (`scene.h`, `gbuffer.h`, `wave.h`, `shadingmap.h`) include
-  it, and its host half names no API.
-- `bouncereuse.h` splits: the pairing (`BOUNCE_RADIUS_*`, `BOUNCE_PAIRING_SIZE_*`, `pairingTexel`,
-  `pairedStep`) becomes a core header, `bouncepairing.h`, because `pairingsFor` moves to the core and
-  reads it. The reservoir's layout and the reuse's constants move.
-
-**Contract.**
-
-- Every header in `components/rtx/shaders` that no file under `components/rtx` includes moves to
-  `components/rtxvulkan/shaders/shared/`: 28 headers today (`accumulate`, `atrous`, `bindings`,
-  `bloom`, `bouncereuse`, `composite`, `counts`, `exposure`, `fogvolume`, `fsr`, `glare`, `ground`,
-  `gui`, `halfstore`, `line`, `mipchain`, `normalspread`, `pane`, `pinning`, `probe`, `ripple`,
-  `sets`, `shadow`, `specular`, `spritebin`, `spritelight`, `spriteshade`, `stress`). Their guards
-  are renamed with the path.
-- The mixed headers split. `visibility.h` gives `SPEC_*`, `HitRecord`, `HIT_*`, `hitRecordOffset`,
-  `hitRecordTable` and `MISS_RECORD_*` to `shared/tracerecords.h`. `scene.h` gives `TEXTURE_BIND_*`
-  to `shared/sets.h` and `TABLE_ALIGN_*` to `shared/tables.h`.
-- `pairingsFor` moves into `components/rtx/frame/bouncepairing` as a free function of the height.
-
-**How the includes work, which the first attempt found:**
-
-- A moved header cannot include a core header as `"camera.h"`: C++ looks beside the moved file and
-  then on the include path, which holds the source root only. It includes
-  `<components/rtx/shaders/camera.h>`, and glslc gets `-I` for the source root. Its siblings stay
-  quoted.
-- GLSL includes a moved header as `"shared/accumulate.h"`, under the existing
-  `-I components/rtxvulkan/shaders`, as it includes `"lib/…"` today.
-- C++ includes `<components/rtxvulkan/shaders/shared/….h>`, and `RtxSourceTreeTest`'s backend order
-  gains `"shaders"` first, as the core's has.
-- The core tests that include a moved header move to `apps/components_tests/rtxvulkan/shaders/`:
-  `accumulate`, `exposure`, `shadow`, `hitrecords`, the reuse half of `bouncereuse`, and the
-  glare line of `sharedconstants`. `frame/bouncepairing.cpp` stays and includes `bouncepairing.h`.
-  `openmw_tests/mwrender/ripples.cpp` includes the moved `ripple.h` by its new path.
-- `AGENTS.md`'s `#pragma once` exception names both shader folders, and `bindings.h`'s stale reason
-  goes.
-
-This step changes no kernel. `./omw kernels --against` must name no moved kernel: the digest strips
-the debug information, which is the only thing a moved include changes.
-
 ### D12. Instruments that can see these defects
 
 **Cause.** The plan is judged by `noise`, `shot` and `repeat`, but:
@@ -626,7 +574,6 @@ Each check lands with its contract, and each is one the gate runs.
 | D8 | The host/device tests that exist, plus: an odd extent's halving reads every texel of the level above, and preserves its sum. |
 | D9 | A host test: adaptation closes a gap at the same rate in stops either way, after the asymmetry the constants state. |
 | D10 | `CommandPool`'s count of open recordings, asserted at each submit. Synchronization validation clean on one `shot` run. |
-| D11 | `RtxSourceTreeTest`: a header in `components/rtx/shaders` that no file under `components/rtx` includes is a failure, and so is a backend header that core includes. |
 | D12 | The harness's own tests. |
 
 ## 5. Implementation plan
@@ -644,7 +591,7 @@ that each `shot --against` and each `noise` run attributes its movement to one c
 
 Take new baselines at the end of each phase.
 
-### Phase 0. Foundations that move no picture (D11, D12, D10, the security item)
+### Phase 0. Foundations that move no picture (D12, D10, the security item)
 
 1. **Security first, independent of the rest. Done in `938d176850`**, unproven until a merge runs:
    - the agent job has no write credential;
@@ -657,8 +604,6 @@ Take new baselines at the end of each phase.
    `UPSTREAM-MERGE.md` means the `Edit(./**)` rule does not cover it); the sandbox started (a
    missing bubblewrap stops the agent at once, by `failIfUnavailable`); a pull request opened by the
    Claude GitHub App, with CI running on it; and auto-merge turned on or the merge held, as before.
-2. **D11.** Move the headers and split the mixed ones. Verify that `./omw kernels --against` names
-   nothing, and that `RtxSourceTreeTest` passes.
 3. **D12.** Exact `noise` means, the jittered still leg, digest coverage, the still bar rule, and
    UTF-8 reads. Verify with the harness tests and with one `noise` run per side, to confirm that the
    figures move only by the rounding they lost. The registration GPU test waits for Phase 3.
@@ -837,7 +782,7 @@ These are local defects. Each one is fixed where it stands.
 | S§3: fog, water, layer | D7 (Phase 4) |
 | S§4 | D3 (Phase 2), D2 point 6 (Phase 3) |
 | S§5 | D2 point 5 (Phase 3) |
-| S§6 | D4 (Phase 5), D11 (Phase 0) |
+| S§6 | D4 (Phase 5) |
 | S§7 | D5 (Phase 2) |
 | S§8 | D6 (Phase 3) |
 | S§9 | Phase 3, step 7 |
@@ -854,7 +799,7 @@ These are local defects. Each one is fixed where it stands.
 | U › Crash reports, CI and the release | Phase 0 step 1 (security), section 6 |
 | U › Measurements that can mislead | D12 (Phase 0), section 6 (gate, hashes, driver) |
 | U › Performance | D4 point 5, D8 (sprite light), D6 (pane gather), Phase 8 |
-| U › Design: data, ownership and dependencies | D11, section 6 |
+| U › Design: data, ownership and dependencies | Section 6 |
 | U › Duplication, dead code and stale narration | D2 (the five kernels), section 6 |
 | U › Conventions, U › Fork hunks | Section 6 |
 

@@ -30,15 +30,16 @@
 // query. Declared here and not in each stage, so a stage cannot reach the structure without it.
 #extension GL_EXT_ray_query : require
 
-#include "bindings.h"
-#include "bouncereuse.h"
+#include "shared/tables.h"
+#include "shared/bindings.h"
+#include "shared/bouncereuse.h"
 #include "brdf.h"
-#include "counts.h"
-#include "fogvolume.h"
+#include "shared/counts.h"
+#include "shared/fogvolume.h"
 #include "gbuffer.h"
-#include "glare.h"
+#include "shared/glare.h"
 #include "scene.h"
-#include "sets.h"
+#include "shared/sets.h"
 #include "visibility.h"
 #include "wave.h"
 

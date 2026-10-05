@@ -11,13 +11,13 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/scene/ripple.hpp>
-#include <components/rtx/shaders/ripple.h>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/ripple.h>
 
 namespace Rtx
 {

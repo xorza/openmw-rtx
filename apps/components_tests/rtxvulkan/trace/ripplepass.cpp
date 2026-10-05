@@ -14,9 +14,9 @@
 #include <apps/components_tests/rtx/support/device/readback.hpp>
 #include <components/rtx/scene/ripple.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/shaders/ripple.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
+#include <components/rtxvulkan/shaders/shared/ripple.h>
 #include <components/rtxvulkan/trace/ripplepass.hpp>
 #include <components/rtxvulkan/trace/tracemedia.hpp>
 

@@ -19,10 +19,10 @@
 // light apart from the frame after this: the frame is one image fewer, and the one an upscaler, the
 // puffs and the curve take is the channel the trace wrote.
 
-#include "composite.h"
+#include "shared/composite.h"
 #include "gbuffer.h"
-#include "sets.h"
-#include "shadow.h"
+#include "shared/sets.h"
+#include "shared/shadow.h"
 
 #include "lib/compose.glsl"
 #include "lib/pixels.glsl"

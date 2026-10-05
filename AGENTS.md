@@ -226,8 +226,9 @@ the posture behind them does.
   local headers — of the file's own folder only, and any other folder is spelled from the root.
   `.clang-format` preserves the blocks and sorts inside each, so the order is the author's and the
   sorting is not. A conditional `#include` goes last, and a block out of order carries the comment
-  saying why, the way `memory.cpp` does for the allocator. `components/rtx/shaders/*.h` is the one
-  exception to `#pragma once`, and `portable.h` says why.
+  saying why, the way `memory.cpp` does for the allocator. The headers GLSL reads as well,
+  `components/rtx/shaders/*.h` and `components/rtxvulkan/shaders/shared/*.h`, are the one exception
+  to `#pragma once`, and `portable.h` says why.
 - **Include what you name.** A file that spells `std::size_t` includes `<cstddef>`. A `.cpp` may
   lean on its own header for what that header's interface already needs, and on nothing else.
 - **The preprocessor switches only where nothing else can.** What systems spell differently goes

@@ -24,12 +24,12 @@
 // floor a bar uncovered kept a fifth of the noise it had without it, near the floor beside a bar
 // that stood still (`theFloorAMovingBarUncoversStartsWithTheHistoryBesideIt`).
 
-#include "accumulate.h"
-#include "atrous.h"
+#include "shared/accumulate.h"
+#include "shared/atrous.h"
 #include "camera.h"
 #include "colour.h"
 #include "gbuffer.h"
-#include "sets.h"
+#include "shared/sets.h"
 
 #include "lib/pixels.glsl"
 #include "lib/sharedexponent.glsl"

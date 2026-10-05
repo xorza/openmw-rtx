@@ -57,8 +57,8 @@
 //   not run copies its input, as a cleared tile does.
 
 #include "gbuffer.h"
-#include "sets.h"
-#include "shadow.h"
+#include "shared/sets.h"
+#include "shared/shadow.h"
 
 #include "lib/pixels.glsl"
 #include "lib/surfacematch.glsl"

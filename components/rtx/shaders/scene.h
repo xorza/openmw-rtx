@@ -63,16 +63,6 @@ namespace Rtx::Shaders
     /// table hands out from nought, and every test that names a slot by number still does.
     const uint TEXTURE_NEUTRAL = TEXTURE_SLOTS - 1u;
 
-    /// Where the texture set binds its three arrays: the textures, their shading maps at the same
-    /// slots, and the textures again through samplers that filter along a footprint.
-    ///
-    /// **Named on both sides because a swap would be silent.** All are `TEXTURE_SLOTS` combined
-    /// image samplers, so a layout and a shader that disagreed on which is which would pass every
-    /// check the layers make, and the trace would sample companions as colour.
-    const uint TEXTURE_BIND_IMAGES = 0;
-    const uint TEXTURE_BIND_COMPANIONS = 1;
-    const uint TEXTURE_BIND_ALONG = 2;
-
 /// What every texture this renderer writes is stored as: a chain a file did not carry, a sprite's
 /// light bake and a ground composite. Read back through the file's curve where the file had one.
 #define TEXTURE_WRITTEN_FORMAT STORAGE_RGBA8
@@ -837,18 +827,6 @@ namespace Rtx::Shaders
         /// `TEXTURE_STANDS_IN` over the count of a slot that draws the stand-in.
         uint64 mTextureTexels;
     };
-
-    /// What a reference to each table may claim about its address, and so what the host checks.
-    ///
-    /// **The largest power of two that divides both the buffer's start and every element access.**
-    /// A claim larger than the truth is undefined behaviour with no message. A claim smaller than
-    /// the truth costs the compiler a wider load where one was possible. A buffer's start is at
-    /// least sixteen-aligned on this device and the host asserts it, so the stride decides:
-    /// `GpuLayer` is 64 bytes with two `vec4` at sixteen and thirty-two, the block tables hold
-    /// eight-byte addresses, and every other row or list is four-aligned only.
-    const uint TABLE_ALIGN_ROWS = 4u;
-    const uint TABLE_ALIGN_BLOCKS = 8u;
-    const uint TABLE_ALIGN_LAYERS = 16u;
 
     /// A ground layer whose diffuse is an authored albedo with the perceptual roughness in its
     /// alpha — a `_diffusespec` under `SpecularLayout::MetalRoughness`, as Wareya's shaders read it.

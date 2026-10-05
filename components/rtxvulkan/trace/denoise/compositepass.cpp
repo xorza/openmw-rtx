@@ -4,11 +4,11 @@
 #include <cassert>
 
 #include <components/rtx/renderer/channel.hpp>
-#include <components/rtx/shaders/composite.h>
-#include <components/rtx/shaders/shadow.h>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/composite.h>
+#include <components/rtxvulkan/shaders/shared/shadow.h>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 
 namespace Rtx

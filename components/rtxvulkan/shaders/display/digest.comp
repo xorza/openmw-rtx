@@ -12,7 +12,7 @@
 // same on every run, because the conversion is the format's and not the frame's.
 
 #include "digest.h"
-#include "sets.h"
+#include "shared/sets.h"
 
 #include "lib/pixels.glsl"
 

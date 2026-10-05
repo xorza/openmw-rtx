@@ -12,10 +12,10 @@
 #include <volk.h>
 
 #include <components/crashcatcher/crashnote.hpp>
-#include <components/rtx/shaders/sets.h>
 #include <components/rtxvulkan/device/bindingtable.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
+#include <components/rtxvulkan/shaders/shared/sets.h>
 
 namespace Rtx
 {

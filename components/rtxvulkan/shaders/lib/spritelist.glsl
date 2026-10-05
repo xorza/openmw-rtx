@@ -13,6 +13,7 @@
 //
 // Nothing here reads the frame, so a pass with no frame block reaches it.
 
+#include "shared/tables.h"
 #include "camera.h"
 #include "scene.h"
 

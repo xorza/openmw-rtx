@@ -30,7 +30,6 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/texturedata.hpp>
-#include <components/rtx/shaders/fsr.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
@@ -38,6 +37,7 @@
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/fsr.h>
 
 namespace Rtx
 {

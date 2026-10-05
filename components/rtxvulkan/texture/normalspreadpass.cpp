@@ -5,9 +5,9 @@
 #include <cassert>
 #include <cstdint>
 
-#include <components/rtx/shaders/normalspread.h>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/normalspread.h>
 
 namespace Rtx
 {

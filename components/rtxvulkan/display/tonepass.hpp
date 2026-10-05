@@ -2,12 +2,12 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/shaders/tone.h>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/tone.h>
 
 namespace Rtx
 {

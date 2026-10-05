@@ -74,14 +74,9 @@ set(RTX_TEST_FILES
     rtx/scene/scenedesc.cpp
     rtx/scene/scenetextures.cpp
     rtx/scene/surface.cpp
-    rtx/shaders/accumulate.cpp
-    rtx/shaders/bouncereuse.cpp
     rtx/shaders/brdf.cpp
-    rtx/shaders/exposure.cpp
-    rtx/shaders/hitrecords.cpp
     rtx/shaders/lights.cpp
     rtx/shaders/pixelgrid.cpp
-    rtx/shaders/shadow.cpp
     rtx/shaders/sharedconstants.cpp
     rtx/shaders/tangent.cpp
     rtx/sourcetree.cpp
@@ -122,6 +117,12 @@ set(RTX_TEST_FILES
     rtxvulkan/device/stagingfit.cpp
     rtxvulkan/pipeline/dispatch.cpp
     rtxvulkan/scene/sceneslots.cpp
+    rtxvulkan/shaders/accumulate.cpp
+    rtxvulkan/shaders/bouncereuse.cpp
+    rtxvulkan/shaders/exposure.cpp
+    rtxvulkan/shaders/hitrecords.cpp
+    rtxvulkan/shaders/sharedconstants.cpp
+    rtxvulkan/shaders/shadow.cpp
     rtxvulkan/spirv/spirvdigest.cpp
     rtxvulkan/spirv/spirvfile.cpp
     rtxvulkan/spirv/spirvpin.cpp

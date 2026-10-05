@@ -17,9 +17,9 @@
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/shaders/bouncereuse.h>
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/shaders/shared/bouncereuse.h>
 
 namespace Rtx::Testing
 {

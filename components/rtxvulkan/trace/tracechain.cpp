@@ -4,7 +4,6 @@
 #include <cassert>
 
 #include <components/rtx/renderer/channel.hpp>
-#include <components/rtx/shaders/composite.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
@@ -13,6 +12,7 @@
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/scene/spritesource.hpp>
+#include <components/rtxvulkan/shaders/shared/composite.h>
 #include <components/rtxvulkan/trace/denoise/denoised.hpp>
 
 #include "tracemedia.hpp"

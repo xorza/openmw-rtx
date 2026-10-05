@@ -6,7 +6,7 @@
 // point is worth something at another. What the trace, the temporal pass and the resolve share, so
 // the three cannot weigh one sample three ways.
 
-#include "bouncereuse.h"
+#include "shared/bouncereuse.h"
 #include "brdf.h"
 #include "colour.h"
 #include "octahedral.h"

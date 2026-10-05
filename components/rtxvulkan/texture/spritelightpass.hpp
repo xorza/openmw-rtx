@@ -4,8 +4,8 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/shaders/spritelight.h>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/spritelight.h>
 
 namespace Rtx
 {

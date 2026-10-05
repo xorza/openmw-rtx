@@ -1,0 +1,101 @@
+#ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_SHARED_FOGVOLUME_H
+#define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_SHARED_FOGVOLUME_H
+
+#include <components/rtx/shaders/hosttypes.h>
+#include <components/rtx/shaders/portable.h>
+#include <components/rtx/shaders/sky.h>
+#include <components/rtx/shaders/storageformat.h>
+
+// What the fog volume's images are made of and where each one is bound, said once for both sides
+// that have to agree. `gbuffer.h` says what a channel costs when its format and its image's drift.
+//
+// **Four formats and not one**, because two of these images hold a single channel: the sun's
+// transport is a product of transmittances and carries no colour, so the accumulated and the
+// per-slice copies of it are half floats one wide. The column depth is a world distance and is the
+// one thing here a half float cannot hold.
+//
+// **The column's moon terms are the fourth, and they stay full width for what a half would move
+// rather than for what it could not hold.** `fogPhase` peaks at 345 at exact forward scatter and
+// the brightest pixel this game reaches is under nine, so a half has room to spare — and rounding
+// the term every froxel of a night reads would move the night's air for a megabyte at 1080p.
+
+#define FOG_VOLUME_FORMAT STORAGE_RGBA16F
+#define FOG_SUNWARD_FORMAT STORAGE_R16F
+#define FOG_DEPTH_FORMAT STORAGE_R32F
+#define FOG_MOONS_FORMAT STORAGE_RGBA32F
+
+// Which binding of `SET_VOLUME` each image is, for the shaders that declare them and the owner that
+// writes them.
+//
+// **Eleven images and nineteen bindings, eight of them named twice**, because Vulkan has no
+// descriptor a shader may both sample and store through — and every one but a pair's history is
+// written by one pass and read by the next. The column depth is named once: both passes reach it
+// through the one storage binding.
+//
+// **Sampled first and storage after**, so `FOG_SAMPLED_COUNT` is a bound rather than a table, and
+// the layout and the writes cannot disagree about which kind a binding is.
+
+#ifdef RTX_HOST
+namespace Rtx::Shaders
+{
+#endif
+
+    /// What the air scatters at a point and the three answers a ray each gave there, as the
+    /// previous frame left them. These are the quantities that reproject, so these are the ones a
+    /// frame averages against.
+    const uint BIND_FOG_WAS_SCATTER = 0;
+    const uint BIND_FOG_WAS_SUNWARD = 1;
+
+    /// The same two as this frame's scatter pass wrote them, which its integrate pass reads.
+    const uint BIND_FOG_SCATTER = 2;
+    const uint BIND_FOG_SUNWARD = 3;
+
+    /// What every lamp puts into a froxel, per steradian and with nothing standing in the way.
+    const uint BIND_FOG_LAMPS = 4;
+
+    /// Both accumulated front to back, which is what a pixel reads.
+    const uint BIND_FOG_AIR = 5;
+    const uint BIND_FOG_AIR_SUNWARD = 6;
+
+    /// What each slice holds once everything that lights it is applied, which a pixel steps through
+    /// from the last edge it passed to where its surface stands.
+    const uint BIND_FOG_SLICE = 7;
+    const uint BIND_FOG_SLICE_SUNWARD = 8;
+
+    /// The three answers of `BIND_FOG_SUNWARD` with their neighbours across the screen averaged in,
+    /// as the integrate pass averaged them for the air: what a puff of smoke is lit by at a point.
+    const uint BIND_FOG_SEEING = 9;
+
+    /// The same eight, as the pass that fills each one writes it.
+    const uint BIND_FOG_SCATTER_TARGET = 10;
+    const uint BIND_FOG_SUNWARD_TARGET = 11;
+    const uint BIND_FOG_LAMPS_TARGET = 12;
+    const uint BIND_FOG_AIR_TARGET = 13;
+    const uint BIND_FOG_AIR_SUNWARD_TARGET = 14;
+    const uint BIND_FOG_SLICE_TARGET = 15;
+    const uint BIND_FOG_SLICE_SUNWARD_TARGET = 16;
+    const uint BIND_FOG_SEEING_TARGET = 17;
+
+    /// How far each column's ray runs before it meets a surface, which every reader reaches through
+    /// this one storage binding because none of them samples it.
+    const uint BIND_FOG_COLUMN_DEPTH = 18;
+
+    /// What each moon puts into the air along each column's ray, before its slant through the fog:
+    /// one layer a moon, in `MoonDisc` order. `fogdepth.rgen` writes it once a column and the
+    /// scatter pass reads it once a froxel, which is the phase function evaluated once where it was
+    /// evaluated sixty-four times.
+    ///
+    /// **The sun is not one of them.** Its irradiance and its phase are functions of the direction
+    /// alone, and `fogscatter.rgen` says why the trace puts both back at the pixel's own angle
+    /// rather than the column's — so a third layer held the sun's term and no pass ever read it.
+    const uint BIND_FOG_COLUMN_MOONS = 19;
+
+    /// Where the sampled bindings end and the storage ones begin, and how many the set declares.
+    const uint FOG_SAMPLED_COUNT = BIND_FOG_SCATTER_TARGET;
+    const uint FOG_BINDING_COUNT = BIND_FOG_COLUMN_MOONS + 1;
+
+#ifdef RTX_HOST
+}
+#endif
+
+#endif

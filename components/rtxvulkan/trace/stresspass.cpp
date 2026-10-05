@@ -5,11 +5,11 @@
 #include <cstdint>
 
 #include <components/rtx/frame/reconstruction.hpp>
-#include <components/rtx/shaders/stress.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/stress.h>
 
 namespace Rtx
 {

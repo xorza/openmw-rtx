@@ -48,11 +48,11 @@
 // there: every place of the bounce suite was as noisy to the hundredth, still, strafed and walked,
 // and the sky's trail as long, where reading and writing them cost the clamp 0.08 ms of 0.25.
 
-#include "accumulate.h"
-#include "atrous.h"
+#include "shared/accumulate.h"
+#include "shared/atrous.h"
 #include "colour.h"
 #include "gbuffer.h"
-#include "sets.h"
+#include "shared/sets.h"
 
 #include "lib/pixels.glsl"
 #include "lib/sharedexponent.glsl"

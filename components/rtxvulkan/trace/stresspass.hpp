@@ -4,9 +4,9 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/shaders/stress.h>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/stress.h>
 
 namespace Rtx
 {

@@ -48,12 +48,12 @@
 // weighed by the centre's own variance, which the level before already averaged: a third of the
 // taps, and a fourth level that reaches 16 pixels where three 5×5 levels reached 14.
 
-#include "accumulate.h"
-#include "atrous.h"
+#include "shared/accumulate.h"
+#include "shared/atrous.h"
 #include "camera.h"
 #include "colour.h"
 #include "gbuffer.h"
-#include "sets.h"
+#include "shared/sets.h"
 
 #include "lib/pixels.glsl"
 #include "lib/surfacematch.glsl"
