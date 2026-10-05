@@ -402,7 +402,7 @@ namespace RtxTool
                 profile.mReconstruction.mNoise = Rtx::sNoiseSourceNames.require(noise, "a noise source");
             profile.mReconstruction.mLevelEpsilon = variables["level-epsilon"].as<float>();
             profile.mReconstruction.mBounceReuse
-                = Rtx::sBounceReuseRuleNames.require(variables["bounce-reuse"].as<std::string>(), "a bounce reuse");
+                = Rtx::sBounceReuseNames.require(variables["bounce-reuse"].as<std::string>(), "a bounce reuse");
             profile.mReconstruction.mAntilag = variables["antilag"].as<bool>();
             profile.mReconstruction.mHistoryFix = variables["history-fix"].as<bool>();
             profile.mReconstruction.mDualMotion = variables["dual-motion"].as<bool>();
@@ -1012,10 +1012,10 @@ namespace RtxTool
             // **And every frame of it a draw of its own**: a frame that reused the ones before it is
             // not one more sample of the truth, and neither is a frame of the bar. Its indirect light
             // stays the run's, since a traced bounce and none are two integrands.
-            reference.mBounceReuse = Rtx::BounceReuseRule::Off;
+            reference.mBounceReuse = Rtx::BounceReuse::Off;
             Rtx::ReconstructionRequest unfiltered = played;
             unfiltered.mDenoise = false;
-            unfiltered.mBounceReuse = Rtx::BounceReuseRule::Off;
+            unfiltered.mBounceReuse = Rtx::BounceReuse::Off;
             const Rtx::ExposureRule held = Rtx::HeldExposure{};
 
             // One picture of `place` after `frames` frames: their sum where `summed`, and the last of

@@ -574,7 +574,7 @@ namespace Rtx::Testing
                     FrameOptions{ .mAccumulate = 0,
                         .mLoss = loss,
                         .mReconstruction = ReconstructionRequest{ .mDenoise = filter,
-                            .mBounceReuse = BounceReuseRule::Off,
+                            .mBounceReuse = BounceReuse::Off,
                             .mIndirect = indirect },
                         .mExposure = FixedExposure{ 1.0f } });
             };
@@ -745,7 +745,7 @@ namespace Rtx::Testing
                         mRenderer.renderFrame(standing(at == still ? to : from, 1000 + 100 * draw + at),
                             FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                                 .mReconstruction = ReconstructionRequest{ .mDenoise = true,
-                                    .mBounceReuse = BounceReuseRule::Off,
+                                    .mBounceReuse = BounceReuse::Off,
                                     .mAntilag = false,
                                     .mHistoryFix = fix,
                                     .mAntiFirefly = false },
@@ -886,7 +886,7 @@ namespace Rtx::Testing
                         mRenderer.renderFrame(camera,
                             FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                                 .mReconstruction = ReconstructionRequest{ .mDenoise = true,
-                                    .mBounceReuse = BounceReuseRule::Off,
+                                    .mBounceReuse = BounceReuse::Off,
                                     .mAntilag = false,
                                     .mDualMotion = dual,
                                     .mAntiFirefly = false },
@@ -978,7 +978,7 @@ namespace Rtx::Testing
                     mRenderer.renderFrame(camera,
                         FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                             .mReconstruction = ReconstructionRequest{ .mDenoise = true,
-                                .mBounceReuse = BounceReuseRule::Off,
+                                .mBounceReuse = BounceReuse::Off,
                                 .mAntilag = false,
                                 .mAntiFirefly = ring },
                             .mExposure = FixedExposure{ 1.0f } });
@@ -1050,7 +1050,7 @@ namespace Rtx::Testing
                     mRenderer.renderFrame(camera,
                         FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                             .mReconstruction = ReconstructionRequest{ .mDenoise = filter,
-                                .mBounceReuse = BounceReuseRule::Off,
+                                .mBounceReuse = BounceReuse::Off,
                                 .mAntilag = false,
                                 .mAntiFirefly = false },
                             .mExposure = FixedExposure{ 1.0f } });

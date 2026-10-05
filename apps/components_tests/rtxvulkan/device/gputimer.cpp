@@ -221,7 +221,7 @@ namespace Rtx
             // what a frame before kept.
             ReconstructionRequest reused = mRenderer.getProfile().mReconstruction;
             reused.mDenoise = true;
-            reused.mBounceReuse = BounceReuseRule::Spatiotemporal;
+            reused.mBounceReuse = BounceReuse::Spatiotemporal;
             draw(mRenderer, camera, 0.0, reused);
             const Drawn traced = draw(mRenderer, camera, 0.0, reused);
             reused.mIndirect = IndirectLight::Off;
@@ -235,27 +235,17 @@ namespace Rtx
                 EXPECT_FALSE(reports(none.mGpu.spans(), pass)) << "a frame with no indirect light ran " << pass;
             }
 
-            // **A request that names no reuse runs it by the frame's sky** (`BounceReuseRule::Rooms`):
-            // temporal where the sky lights nothing, so the temporal pass runs and the pairs do not,
-            // and none where it lights, so no pass of the reuse runs. The second frame of each, since
-            // the temporal pass runs only on a history a frame before kept.
-            ReconstructionRequest bySky = reused;
-            bySky.mIndirect = IndirectLight::Traced;
-            bySky.mBounceReuse = ReconstructionRequest{}.mBounceReuse;
-            Shaders::VisibilityConstants room = camera;
-            room.mAmbientFromSky = 0.0f;
-            Shaders::VisibilityConstants open = camera;
-            open.mAmbientFromSky = 1.0f;
-            draw(mRenderer, room, 0.0, bySky);
-            const Drawn inRoom = draw(mRenderer, room, 0.0, bySky);
-            draw(mRenderer, open, 0.0, bySky);
-            const Drawn underSky = draw(mRenderer, open, 0.0, bySky);
-            EXPECT_EQ(inRoom.mBounceReuse, BounceReuse::Temporal);
-            EXPECT_EQ(underSky.mBounceReuse, BounceReuse::Off);
-            EXPECT_TRUE(reports(inRoom.mGpu.spans(), "bounce temporal")) << "a room's frame ran no temporal reuse";
-            EXPECT_FALSE(reports(inRoom.mGpu.spans(), "bounce pairs")) << "a room's frame ran the spatial reuse";
+            // **A request that names no reuse runs none of it**, the second frame as above, so a
+            // validation asking what a frame before kept would show here too.
+            ReconstructionRequest plain = reused;
+            plain.mIndirect = IndirectLight::Traced;
+            plain.mBounceReuse = ReconstructionRequest{}.mBounceReuse;
+            draw(mRenderer, camera, 0.0, plain);
+            const Drawn unreused = draw(mRenderer, camera, 0.0, plain);
+            EXPECT_EQ(unreused.mBounceReuse, BounceReuse::Off);
+            EXPECT_TRUE(reports(unreused.mGpu.spans(), "filter")) << "a frame that reuses nothing filters its bounce";
             for (const char* const pass : { "bounce validate", "bounce temporal", "bounce pairs", "bounce resolve" })
-                EXPECT_FALSE(reports(underSky.mGpu.spans(), pass)) << "a frame under a sky that lights ran " << pass;
+                EXPECT_FALSE(reports(unreused.mGpu.spans(), pass)) << "a request that names no reuse ran " << pass;
 
             // And as a menu sets it, for every frame that asks nothing of its own.
             mRenderer.setIndirectLight(IndirectLight::Off);

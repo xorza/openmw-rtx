@@ -152,6 +152,9 @@ namespace RtxTool
         if (stop.mSky.mWeather.has_value() && *stop.mSky.mWeather != sDefaultWeather)
             block += std::format("weather = {}\n", Rtx::weatherName(*stop.mSky.mWeather));
 
+        if (!stop.mStand.mLamps)
+            block += "lamps = false\n";
+
         // Always where it is known, since no air is the file's own: one left out is whatever the
         // run's frames carried it to.
         if (stop.mSky.mAir.has_value())

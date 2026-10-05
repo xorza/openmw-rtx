@@ -358,14 +358,13 @@ namespace RtxTool
                 .c_str());
 
         option(sFramed, "bounce-reuse",
-            bpo::value<std::string>()->default_value(std::string(
-                Rtx::sBounceReuseRuleNames.name(byDefault.mSetup.mRun.mProfile.mReconstruction.mBounceReuse))),
+            bpo::value<std::string>()->default_value(
+                std::string(Rtx::sBounceReuseNames.name(byDefault.mSetup.mRun.mProfile.mReconstruction.mBounceReuse))),
             std::format("what the trace makes of the bounce it draws at each pixel before anything filters "
                         "it: {}. `own` takes each pixel's own bounce through the reservoirs, `temporal` merges "
                         "last frame's into it and `spatiotemporal` its neighbours' as well, which is ReSTIR GI. "
-                        "`rooms` is temporal where the place's sky lights nothing and off where it lights. "
-                        "Naming a mode is the A/B",
-                Rtx::sBounceReuseRuleNames.list())
+                        "Naming one is the A/B",
+                Rtx::sBounceReuseNames.list())
                 .c_str());
 
         option(sFramed, "indirect", bpo::value<std::string>(),

@@ -2534,7 +2534,7 @@ namespace Rtx::Testing
                 return scene;
             };
 
-            const auto seen = [&](const SceneDesc& scene, const osg::Vec3f& looking, BounceReuseRule reuse) {
+            const auto seen = [&](const SceneDesc& scene, const osg::Vec3f& looking, BounceReuse reuse) {
                 Shaders::VisibilityConstants camera
                     = Testing::makeCamera(osg::Vec3f(0.0f, -1.0f, 50.0f), looking, 60.0f, size, size, 100000.0f);
                 camera.mSkyHorizon = osg::Vec3f();
@@ -2548,7 +2548,7 @@ namespace Rtx::Testing
 
             const osg::Vec3f down(0.0f, 0.0f, 0.0f);
             const osg::Vec3f up(0.0f, 0.0f, 100.0f);
-            for (const BounceReuseRule reuse : { BounceReuseRule::Off, BounceReuseRule::Temporal })
+            for (const BounceReuse reuse : { BounceReuse::Off, BounceReuse::Temporal })
             {
                 EXPECT_NEAR(seen(under(false), down, reuse), 0.5f, 0.01f) << "a glow lights by its bounce";
                 EXPECT_LT(seen(under(true), down, reuse), 0.005f) << "a lamp's model lit what its lamp lights";

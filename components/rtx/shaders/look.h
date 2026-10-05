@@ -1146,12 +1146,17 @@ namespace Rtx::Shaders
     /// dragged over a floor.
     ///
     /// **Two, and not ReLAX's six** (NVIDIA NRD, `diffuseMaxFastAccumulatedFrameNum`). The sky's
-    /// trail behind a moving bar under the reuse, in pixels (`RtxBounceTrailTest`), then the still
-    /// frames' noise at the guild, the planter and the yurt (`noise --suite=bounce`):
+    /// trail behind a moving bar under the whole reuse, in pixels of lag (`RtxBounceTrailTest`), and
+    /// in the room lit by what glows in it (`akulakhan-chamber`) with no reuse and no ring, the
+    /// still and the strafed frame's bias:
     ///
-    ///     2    7.66    0.61 / 0.65 / 0.72        6    13.07    0.63 / 0.67 / 0.73
-    ///     3    8.43    0.62 / 0.65 / 0.73        8    15.55    0.63 / 0.67 / 0.73
-    ///     4    9.88    0.62 / 0.66 / 0.73
+    ///     2     7.86    1.90 / 2.37
+    ///     4     9.78    1.59 / 2.67
+    ///     6    12.59    1.54 / 2.84
+    ///
+    /// A longer fast mean darkens a standing eye's frame less and a moving one's more, and drags
+    /// the trail; the lit rooms of the bounce suite stand within 0.01 at all three. Two serves the
+    /// moving eye best.
     ///
     /// A shorter fast mean is a wider box around the pixel's own light, so it holds the slow mean
     /// to the change sooner and to noise no more. At two the frames strafed and walked in were
@@ -1219,6 +1224,13 @@ namespace Rtx::Shaders
     /// whose glow the bounce counts beside their lamps (`bounceArriving`), and the reference counts
     /// it too. How much of the bias is that light, and how much is light the ring should have kept,
     /// is for an A/B after the glow is counted once.
+    ///
+    /// **Off by default** (`ReconstructionRequest::mAntiFirefly`), measured after a lamp's own
+    /// model stopped lighting the room by the bounce. On vanilla content the ring holds no firefly
+    /// the count sees, and in a room lit by what glows in it (`akulakhan-chamber`, its lamps off) it
+    /// took that light with it: the still frame's bias 2.60 with it and 1.90 without, the strafed
+    /// frame's 3.92 and 2.37. The lit rooms' bias fell by 0.03 to 0.09 without it, at the same
+    /// noise.
     ///
     /// **What it costs is the ring's square and not its sum.** The clamp's median at the guild went
     /// from 0.17 ms to 0.22 ms and its p95 from 0.58 to 0.69, the switch on or off alike, since off is

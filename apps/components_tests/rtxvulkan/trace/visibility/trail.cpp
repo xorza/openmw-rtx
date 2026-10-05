@@ -46,11 +46,13 @@ namespace Rtx::Testing
         /// it stands 20 units up, low enough that the fill it blocks darkens the floor under it, as an
         /// actor darkens the ground at its feet. The bar moves 4 units a frame, about three quarters
         /// of a pixel, for 40 frames after 32 still ones, from four draws of the sampler; the profile is
-        /// held against 96 still frames of the bar where the run left it.
+        /// held against 96 still frames of the bar where the run left it. **The placement table is
+        /// advanced after each hand-over**, as `SceneUploader` does, or the bar's motion vector is its
+        /// whole travel since it stood still.
         class RtxBounceTrailTest : public RtxVisibilityTest
         {
         protected:
-            Trail trailOf(Blocked blocked, BounceReuseRule reuse, bool antilag)
+            Trail trailOf(Blocked blocked, BounceReuse reuse, bool antilag)
             {
                 constexpr std::uint32_t still = 32;
                 constexpr std::uint32_t moving = 40;
@@ -85,6 +87,7 @@ namespace Rtx::Testing
                             scene.placements().move(
                                 bar, osg::Matrixf::translate(step * static_cast<float>(at + 1 - still), 0.0f, 0.0f));
                             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                            scene.placements().advance();
                         }
                         Shaders::VisibilityConstants sampled = camera;
                         sampled.mFrame = first + at;
@@ -110,6 +113,7 @@ namespace Rtx::Testing
 
                 scene.placements().move(bar, osg::Matrixf::translate(step * static_cast<float>(moving), 0.0f, 0.0f));
                 mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                scene.placements().advance();
                 const std::vector<float> standing = profile(96, 5000, false);
 
                 // The bar moves toward the high columns, so its trail is on the low ones: the first
@@ -129,6 +133,7 @@ namespace Rtx::Testing
                 {
                     scene.placements().move(bar, osg::Matrixf::identity());
                     mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                    scene.placements().advance();
                     const std::vector<float>& moved = profile(still + moving, 100 + 1000 * draw, true);
                     trail.mLag += (standingEdge - edgeOf(moved)) / static_cast<float>(draws);
                     for (std::uint32_t x = 0; x < sSize && standing[x] >= 0.9f * lit; ++x)
@@ -143,29 +148,28 @@ namespace Rtx::Testing
         /// of darkness left behind, where the raw frame lags by 0.11 and leaves none.
         TEST_F(RtxBounceTrailTest, theSunsShadowFollowsItsCaster)
         {
-            const Trail trail = trailOf(Blocked::Sun, BounceReuseRule::Off, true);
+            const Trail trail = trailOf(Blocked::Sun, BounceReuse::Off, true);
             EXPECT_LT(trail.mLag, 0.4f);
             EXPECT_LT(trail.mTail, 0.25f);
         }
 
-        /// **The clamp shortens the trail the sky's fill leaves**, under the reuse the game runs with:
-        /// measured at 10.16 pixels of lag without it and 8.22 with it (`ACCUMULATE_FAST_FRAMES`
-        /// gives the sweep), and the darkness left behind at 1.89 and 1.22 columns.
+        /// **The clamp shortens the trail the sky's fill leaves**, under no reuse, which the game runs
+        /// with: measured at 16.74 pixels of lag without it and 6.08 with it (`ACCUMULATE_FAST_FRAMES`
+        /// gives the sweep), and the darkness left behind at 2.05 and 0.75 columns.
         ///
         /// **The history fix takes part of what the clamp did.** The floor the bar uncovers behind it
         /// is rebuilt from the floor around it (`ACCUMULATE_FIX_FRAMES`): without the fix the clamp
-        /// took the lag from 14.56 to 7.68 and the darkness from 2.56 to 1.52, so the fix leaves a
-        /// fifth less darkness behind the bar and stands the half-level edge 0.5 pixels further back.
-        /// **And so does the wavelet**: with three 5×5 levels the lag without the clamp was 11.00, and
-        /// with it 8.32. The narrow levels drag less, so the clamp's share fell from a quarter to a
-        /// fifth, and the bound asks for 15%.
+        /// took the lag from 18.97 to 6.24 and the darkness from 2.45 to 1.00, so the fix leaves a
+        /// quarter less darkness behind the bar. **And the reuse drags it**: under the whole reuse the
+        /// clamp left 7.86 pixels and 1.40 columns, the reservoirs keeping the darker light for
+        /// frames.
         TEST_F(RtxBounceTrailTest, theClampShortensTheSkysTrail)
         {
-            const Trail held = trailOf(Blocked::Sky, BounceReuseRule::Spatiotemporal, true);
-            const Trail dragged = trailOf(Blocked::Sky, BounceReuseRule::Spatiotemporal, false);
-            EXPECT_LT(held.mLag, 9.0f);
-            EXPECT_LT(held.mLag, 0.85f * dragged.mLag) << "the clamp took little off the trail: " << dragged.mLag;
-            EXPECT_LT(held.mTail, 1.4f);
+            const Trail held = trailOf(Blocked::Sky, BounceReuse::Off, true);
+            const Trail dragged = trailOf(Blocked::Sky, BounceReuse::Off, false);
+            EXPECT_LT(held.mLag, 7.0f);
+            EXPECT_LT(held.mLag, 0.5f * dragged.mLag) << "the clamp took little off the trail: " << dragged.mLag;
+            EXPECT_LT(held.mTail, 0.9f);
             EXPECT_LT(held.mTail, dragged.mTail);
         }
 
@@ -194,7 +198,7 @@ namespace Rtx::Testing
                     mRenderer.renderFrame(sampled,
                         FrameOptions{ .mLoss = cut && at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                             .mReconstruction = ReconstructionRequest{ .mDenoise = true,
-                                .mBounceReuse = BounceReuseRule::Spatiotemporal,
+                                .mBounceReuse = BounceReuse::Spatiotemporal,
                                 .mAntilag = antilag },
                             .mExposure = FixedExposure{ 1.0f } });
                     EXPECT_TRUE(mRenderer.finishFrame().has_value());
