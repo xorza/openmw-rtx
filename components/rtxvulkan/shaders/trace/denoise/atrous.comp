@@ -62,9 +62,9 @@ layout(constant_id = ATROUS_SPEC_WIDE) const bool ATROUS_WIDE = true;
 layout(local_size_x = ATROUS_WORKGROUP, local_size_y = ATROUS_WORKGROUP) in;
 
 /// The one bounce, albedo divided out, as the last level left it, and in `a` the
-/// variance of its luminance: the accumulator's for the first level, and what the last level's
-/// average left of it for every level after. Where a pixel's mean holds too few frames to have
-/// measured its own, the spread around it (`shortHistoryVariance`).
+/// variance of its luminance: the accumulator's clamp's for the first level, and what the last
+/// level's average left of it for every level after. Where a pixel's mean holds too few frames to
+/// have measured its own, the square's around it (`shortHistoryVariance`).
 ///
 /// **A sampled image and not a storage one, on every input this pass only reads.**
 /// `AtrousPass::sBindings` carries the measurement. A sampled declaration states no format, which

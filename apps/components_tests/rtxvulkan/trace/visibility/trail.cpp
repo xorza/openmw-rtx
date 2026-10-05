@@ -154,14 +154,14 @@ namespace Rtx::Testing
         }
 
         /// **The clamp shortens the trail the sky's fill leaves**, under no reuse, which the game runs
-        /// with: measured at 16.74 pixels of lag without it and 6.08 with it (`ACCUMULATE_FAST_FRAMES`
-        /// gives the sweep), and the darkness left behind at 2.05 and 0.75 columns.
+        /// with: measured at 17.18 pixels of lag without it and 6.10 with it (`ACCUMULATE_FAST_FRAMES`
+        /// gives the sweep), and the darkness left behind at 2.09 and 0.77 columns.
         ///
         /// **The history fix takes part of what the clamp did.** The floor the bar uncovers behind it
         /// is rebuilt from the floor around it (`ACCUMULATE_FIX_FRAMES`): without the fix the clamp
-        /// took the lag from 18.97 to 6.24 and the darkness from 2.45 to 1.00, so the fix leaves a
+        /// took the lag from 19.24 to 6.25 and the darkness from 2.48 to 1.01, so the fix leaves a
         /// quarter less darkness behind the bar. **And the reuse drags it**: under the whole reuse the
-        /// clamp left 7.86 pixels and 1.40 columns, the reservoirs keeping the darker light for
+        /// clamp left 7.86 pixels and 1.41 columns, the reservoirs keeping the darker light for
         /// frames.
         TEST_F(RtxBounceTrailTest, theClampShortensTheSkysTrail)
         {

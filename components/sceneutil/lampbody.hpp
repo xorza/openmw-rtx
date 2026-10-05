@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <typeinfo>
 
 #include <osg/CopyOp>
@@ -21,7 +22,8 @@ namespace SceneUtil
     ///
     /// Kept in the node's user data slot, as `StableIdentity` is and for its reason: a reader finds
     /// it in one load. The slot is free on every node `addLight` is given — an object root or a
-    /// shield part — and is the instance's own, since a model is cloned with its user data.
+    /// shield part — or holds the marker of the light hung there before, and is the instance's own,
+    /// since a model is cloned with its user data.
     class LampBody final : public osg::Object
     {
     public:
@@ -41,7 +43,12 @@ namespace SceneUtil
         META_Object(SceneUtil, LampBody)
 
         /// Marks `group` as the model of `light`.
-        static void mark(osg::Node& group, LightSource& light) { group.setUserData(new LampBody(light)); }
+        static void mark(osg::Node& group, LightSource& light)
+        {
+            assert((group.getUserData() == nullptr || find(group) != nullptr)
+                && "a lamp body's marker over another user data: the slot holds one");
+            group.setUserData(new LampBody(light));
+        }
 
         /// The marker `node` carries, or null where it carries none.
         static const LampBody* find(const osg::Node& node)

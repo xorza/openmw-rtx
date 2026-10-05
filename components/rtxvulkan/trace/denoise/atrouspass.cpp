@@ -39,6 +39,14 @@ namespace Rtx
         /// leave the other frame's access uncovered.
         constexpr VkAccessFlags2 sReads = VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;
 
+        ComputePipeline<Shaders::AtrousConstants> makeLevel(const Device& device, bool wide, std::string_view name)
+        {
+            std::array<std::uint32_t, Shaders::ATROUS_SPEC_COUNT> specialization{};
+            specialization[Shaders::ATROUS_SPEC_WIDE] = wide ? VK_TRUE : VK_FALSE;
+            return ComputePipeline<Shaders::AtrousConstants>(
+                device, sBindings, {}, "atrous.comp.spv", name, specialization);
+        }
+
         /// **One fetch of eight bytes a tap for the surface**, the normal's code and the distance,
         /// where a half-float guide and a two-float depth were two of sixteen. Measured on the
         /// default suite against the two channels: 3.19 ms of the cascade to 2.78 in the guild,
@@ -51,14 +59,6 @@ namespace Rtx
         /// pass costs the same per level whatever the stride and there is no locality to recover.
         /// What the pass spends is the two `exp` and the surface tap. A profiler is what the next
         /// attempt should start from.
-
-        ComputePipeline<Shaders::AtrousConstants> makeLevel(const Device& device, bool wide, std::string_view name)
-        {
-            std::array<std::uint32_t, Shaders::ATROUS_SPEC_COUNT> specialization{};
-            specialization[Shaders::ATROUS_SPEC_WIDE] = wide ? VK_TRUE : VK_FALSE;
-            return ComputePipeline<Shaders::AtrousConstants>(
-                device, sBindings, {}, "atrous.comp.spv", name, specialization);
-        }
     }
 
     AtrousPass::AtrousPass(const Device& device)
