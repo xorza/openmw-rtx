@@ -20,4 +20,14 @@ where the glow it held down is now gone at its source.
 **Recommendation**: the third. Step 16 moves exactly the frames the ring acts on, so its trade is
 worth reading once more after it; if the bias still stands past the bar then, turn it off.
 
-**What is blocked**: nothing. The ring stays as it is meanwhile.
+**Measured again after step 16** (`plan.md`, Results, step 16), at the pier, the pond and the
+guild: one frame after a cut the ring takes 0.01 to 0.06 off the noise and adds 0.06 to 0.14 of
+bias, and the firefly count is the same with it and without it at every place. Strafed and walked
+in, it moves nothing by more than 0.02. Its trade did not change: it buys a little noise in the
+first frame, at a bias past the plan's bar of 0.05 at the guild and the pond.
+
+**Recommendation now**: the second. On vanilla content it holds no firefly the count can see, and
+its bias is past the bar. Turning it off is one default (`ReconstructionRequest::mAntiFirefly`)
+and the switch stays for content whose glows have no lamp, M[FR]'s tree among them.
+
+**What is blocked**: nothing. The ring stays on until you decide.
