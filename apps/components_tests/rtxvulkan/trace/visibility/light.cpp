@@ -2561,9 +2561,24 @@ namespace Rtx::Testing
         {
             constexpr std::uint32_t size = 32;
 
-            const auto under = [](bool lampBody) {
+            // A grey floor, or a white metal one, whose every ray off it is its lobe's.
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+            constexpr std::array<std::uint8_t, 4> metalTexel{ 255, 128, 255, 255 };
+            const std::array<TextureData, 2> metalTextures{ describeTexel(white, 0), describeTexel(metalTexel, 1) };
+            const auto under = [](bool lampBody, bool metal = false) {
                 SceneDesc scene;
-                addQuad(scene, sheetAt(40000.0f, 0.0f));
+                if (metal)
+                {
+                    const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                    const Index map = scene.textures().add(
+                        VFS::Path::NormalizedView("white_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+                    scene.addInstance(MeshInstance{
+                        .mMesh = scene.addMesh(MeshArrays{
+                            .mPositions = sheetAt(40000.0f, 0.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                        .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
+                }
+                else
+                    addQuad(scene, sheetAt(40000.0f, 0.0f));
 
                 const Index glowing = scene.addMaterial(
                     Material{ .mEmissiveColour = osg::Vec3f(0.125f, 0.125f, 0.125f), .mTwoSided = true });
@@ -2573,7 +2588,8 @@ namespace Rtx::Testing
                 return scene;
             };
 
-            const auto seen = [&](const SceneDesc& scene, const osg::Vec3f& looking, BounceReuse reuse) {
+            const auto seen = [&](const SceneDesc& scene, const osg::Vec3f& looking, BounceReuse reuse,
+                                  std::span<const TextureData> textures = {}) {
                 Shaders::VisibilityConstants camera
                     = Testing::makeCamera(osg::Vec3f(0.0f, -1.0f, 50.0f), looking, 60.0f, size, size, 100000.0f);
                 camera.mSkyHorizon = osg::Vec3f();
@@ -2582,7 +2598,7 @@ namespace Rtx::Testing
                 camera.mAmbient = osg::Vec3f();
                 camera.mAmbientFromSky = 1.0f;
 
-                return shoot(scene, {}, camera, size, { .mFrames = 64, .mBounceReuse = reuse }).mean();
+                return shoot(scene, textures, camera, size, { .mFrames = 64, .mBounceReuse = reuse }).mean();
             };
 
             const osg::Vec3f down(0.0f, 0.0f, 0.0f);
@@ -2593,6 +2609,15 @@ namespace Rtx::Testing
                 EXPECT_LT(seen(under(true), down, reuse), 0.005f) << "a lamp's model lit what its lamp lights";
                 EXPECT_NEAR(seen(under(true), up, reuse), 1.0f, 0.01f) << "a lamp's model stopped glowing";
             }
+
+            // **And by the lobe, which `gather` reached the lamp with already.** A white metal gives
+            // a glow back whole, as it gives the sky back (`aGlossyFloorUnderAnEvenSkyGivesBackWhatItReflects`),
+            // and a lamp's model none: its lamp reaches the lobe by its light sample, and the model
+            // reflected beside that was the lamp twice.
+            EXPECT_NEAR(seen(under(false, true), down, BounceReuse::Off, metalTextures), 1.0f, 0.02f)
+                << "a metal reflects a glow";
+            EXPECT_LT(seen(under(true, true), down, BounceReuse::Off, metalTextures), 0.005f)
+                << "a metal reflected a lamp's model beside its lamp";
         }
 
         /// A bounce is drawn by the cosine, and a half is the number that says so.

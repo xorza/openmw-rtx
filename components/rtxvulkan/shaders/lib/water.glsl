@@ -127,6 +127,8 @@ WaterPath waterRay(WorldRay ray, Cone cone, float lobe, uint key, uint lamps, ui
     // says and is the same rule `tone.comp` draws by.
     const float blur = pixelBlur(frame.mEyes.mWorld) + 0.5 * lobe;
 
+    // The water's surface evaluated no source (`EVALUATED_NONE`), so its legs see the discs whole, as
+    // they see a lamp's model (`shadeAtPathEnd` keeps its glow).
     path.mLight = SplitLight(reflectedSky(origin, direction, blur, true), vec3(0.0), 1.0, SHADOW_PENUMBRA_CLEAR);
 
     return path;

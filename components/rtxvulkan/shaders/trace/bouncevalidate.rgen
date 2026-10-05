@@ -78,10 +78,12 @@ void main()
     {
         BounceSample escaped;
         now = bounceEscape(
-            position, BounceDraw(reach.mTowards, vec3(1.0), false, BOUNCE_SPREAD, 0.0), vec3(1.0), escaped);
+            position, BounceDraw(reach.mTowards, vec3(1.0), false, BOUNCE_SPREAD, 0.0), vec3(1.0), EVALUATED_GATHERED,
+            escaped);
     }
     else if (met)
-        now = bounceLanding(hit, pixelKey(pixel), SEED_AMBIENT_VALIDATED, SEED_LAMPS_VALIDATED, PATH_INDIRECT);
+        now = bounceLanding(
+            hit, pixelKey(pixel), SEED_AMBIENT_VALIDATED, SEED_LAMPS_VALIDATED, PATH_INDIRECT, EVALUATED_GATHERED);
 
     if (!met)
         held = noBounce();
