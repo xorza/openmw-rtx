@@ -318,7 +318,7 @@ namespace Rtx
             row.mMaterial = record.mMaterial == sNoIndex ? Shaders::MATERIAL_ROW_UNTEXTURED
                                                          : record.mMaterial + Shaders::MATERIAL_ROW_FIRST;
             row.mOpacity = record.mOpacity;
-            row.mClass = record.mClass;
+            row.mClass = record.mClass | (record.mLampBody ? Shaders::INSTANCE_LAMP_BODY : 0u);
 
             for (int r = 0; r < 3; ++r)
                 row.mMotion[r] = osg::Vec4f(record.mMotion.mRows[r][0], record.mMotion.mRows[r][1],

@@ -284,8 +284,10 @@ namespace Rtx
         ///
         /// @param glow the effect the drawable stands under, where the walk is inside one.
         /// @param jumped whether the drawable stands under a node `setJumped` named.
+        /// @param lampBody whether the drawable is the model of a light that gives light
+        ///        (`MeshInstance::mLampBody`).
         void addDrawable(const osg::Drawable& drawable, std::size_t who, std::span<const Shading> shading,
-            const osg::Matrixf& place, InstanceClass what, std::optional<std::size_t> glow, bool jumped);
+            const osg::Matrixf& place, InstanceClass what, std::optional<std::size_t> glow, bool jumped, bool lampBody);
 
         /// The state set a node shades with where that is not the one it wears, or null where it
         /// is — `MaterialResolver::animate`, which says what the two cases are. Applied here rather

@@ -232,17 +232,17 @@ namespace Rtx
 
         for (const Terrain::PagedCellRef& ref : mRefScratch)
         {
-            const bool givesLight = readLamp(ref, prepared);
+            const CarriedLamp lamp = readLamp(ref, prepared);
             if (statics)
-                readStatic(ref, givesLight, prepared);
+                readStatic(ref, lamp, prepared);
         }
     }
 
-    bool CellReader::readLamp(const Terrain::PagedCellRef& ref, PreparedCell& prepared)
+    CellReader::CarriedLamp CellReader::readLamp(const Terrain::PagedCellRef& ref, PreparedCell& prepared)
     {
         const std::optional<SceneUtil::LightCommon> record = mStorage.getLight(ref.mRefId);
         if (!record.has_value())
-            return false;
+            return {};
 
         // Made once here to be judged, and again every walk to be stood, because a flame is a
         // function of the hour and whether a lamp is refused is not. A record off by default
@@ -254,10 +254,10 @@ namespace Rtx
         {
             prepared.mRefusals.push_back(Refusal{
                 .mKind = Refused::Lamp, .mName = ref.mRefId.toDebugString(), .mWhy = std::string(made.error()) });
-            return false;
+            return {};
         }
         if (!made.value().has_value())
-            return false;
+            return {};
 
         prepared.mLights.push_back(PreparedLight{
             .mPosition = position,
@@ -265,10 +265,10 @@ namespace Rtx
             .mGate = ref.mGate,
             .mRecord = *record,
         });
-        return true;
+        return CarriedLamp{ .mCarried = true, .mGivesLight = givesLight(*record) };
     }
 
-    void CellReader::readStatic(const Terrain::PagedCellRef& ref, const bool givesLight, PreparedCell& prepared)
+    void CellReader::readStatic(const Terrain::PagedCellRef& ref, const CarriedLamp lamp, PreparedCell& prepared)
     {
         // A reference naming no record is the content's to answer for, and the game draws
         // nothing for one either.
@@ -288,8 +288,9 @@ namespace Rtx
                 .mRefNum = ref.mRefNum,
                 .mTransform = transformOf(ref),
                 .mRadius
-                = givesLight || read->mEmits ? std::numeric_limits<float>::infinity() : read->mRadius * ref.mScale,
+                = lamp.mCarried || read->mEmits ? std::numeric_limits<float>::infinity() : read->mRadius * ref.mScale,
                 .mGate = ref.mGate,
+                .mLampBody = lamp.mGivesLight,
             },
             prepared.mModels, prepared.mRefs);
     }

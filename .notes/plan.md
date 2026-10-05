@@ -156,28 +156,18 @@ on the cached template.
 a scoped `mLampBody` for the subtree, restored on the way out. `addDrawable` hands it to the
 placement.
 
-- **The record's half of the decision at the marker, the lamp at its source.** The marker is
-  always an ancestor of its `LightSource`, because `addLight` attaches the source inside the group
-  it marks (at `AttachLight` or at the group). But the lamp's position is the source's own world
-  matrix, which the walk knows only when it reaches the source: an `AttachLight` node can stand
-  below the marker under a transform a controller moves. So `makeLight` splits in two: what the
-  record decides (a radius over nought, and a colour of one sign: the refusal and the sign) and the
-  placement (the position, and the finite test on the made lamp). At the marker the walk asks the
-  first half of the marker's source, sets `mLampBody` from it, and keeps the answer in the scope
-  beside the source it is for. At the source the walk places the lamp from the kept answer and
-  decides nothing again. A source with no marker over it (a test's bare source) asks both halves
-  where it is met, as now. A lamp whose placement is not finite is refused at the source while its
-  model keeps the bit, and loses its glow in the bounce with no lamp to give the light instead. That
-  needs a source under a transform that is not finite, which is a fault before this rule; the
-  refusal is reported as every refused lamp is, so a run says where it happened.
+- **The record decides, at the marker, and the lamp is made at its source as before.** The marker
+  is always an ancestor of its `LightSource`, because `addLight` attaches the source inside the
+  group it marks. At the marker the walk asks `givesLight` of the marker's source: a radius over
+  nought, and the recorded colour (the controller's where there is one, since the game's
+  controller writes the flicker into the light's own diffuse; and the ambient) over nought in some
+  channel and under it in none. The encoded colour answers that, since decoding keeps a channel's
+  sign and its nought, so nothing is decoded twice; the lamp is made at the source by
+  `SceneExtractor::addLight`, unchanged, with this frame's colour and the source's own position.
 - **An expired marker is no lamp body.** The marker names its source by `osg::observer_ptr`; where
-  the source has gone (an equipment change detached the part's light before the part), the marker
-  answers nothing and the subtree glows as any other.
-- **Positive intensity only**: the bit is set where the lamp was made and its intensity is over
-  nought in every channel, so a negative lamp's model keeps its glow.
-- **The decision is fixed for the placement's life.** `makeLight` refuses only for the record's
-  radius or a colour of mixed sign. Flicker scales the colour and never changes its sign, so a
-  flickering lamp cannot move its model in and out of the rule from frame to frame.
+  the source has gone, the marker answers nothing and the subtree glows as any other.
+- **The decision is fixed for the placement's life**: it reads the record and never this frame's
+  flicker or fade, so a lamp that flickers to nought cannot move its model out of the rule.
 - **No frozen run to replay.** A reference root that holds a `LightSource` is never frozen: meeting
   the source sets `mChangeable` (`enterWalked`), so the root is walked every frame and the bit is
   set every frame.
@@ -225,56 +215,6 @@ so the walk's positive-intensity rule holds here too. `readLamp` is where both a
 > a lamp for every glowing shape is hundreds of lights in the grid per cell, and what they buy is the
 > warm ring under a mushroom's cap. **A lamp's own model does not light even so**: its `LIGH` lamp
 > already lights for it, through its fitting (`INSTANCE_LAMP_BODY`).
-
-## Implementation plan
-
-1. **Marker.** `components/sceneutil/lampbody.hpp` (new): `SceneUtil::LampBody`, holding an
-   `osg::observer_ptr<LightSource>`. `SceneUtil::addLight` puts it in the user-data slot of the
-   group it was given. Add the hook to AGENTS.md's accepted diff.
-2. **Walk.** `components/rtx/scene/lightbuilder.cpp`: `makeLight` splits into the record's half
-   and the placement, both behind the one call they make today for a bare source.
-   `components/rtx/mirror/sceneextractor.cpp`: the walk asks the slot at entry with an exact type
-   test, as `StableIdentity::find` does. At a marker it asks the record's half once, keeps the
-   answer in the scope beside its source, and sets the scoped `mLampBody`; the `LightSource` branch
-   of `enterWalked` places the lamp from the kept answer where the source is the scope's own. `addDrawable` →
-   `MeshInstance::mLampBody` → `InstanceRecord::mLampBody`, and `mLampBody` joins the comparison that
-   stands a placement again.
-3. **Ring.** `cellreader.cpp`: `readLamp` answers whether the reference gives a lamp of positive
-   intensity, and `PreparedRef::mLampBody` takes that answer; `cellplacer.cpp` carries it to the
-   placement it stands.
-4. **Device.** `components/rtx/shaders/scene.h`: `INSTANCE_LAMP_BODY`, documented on
-   `GpuInstance::mClass`. `scenebuffers.cpp`'s `placeRow` ORs it in. A static assert holds it above
-   `MASK_EVERY_CLASS | MASK_ADDITIVE | MASK_MEDIUM`.
-5. **Shader.** `lib/shading.glsl`: `bounceLanding` takes the glow off a lamp body on
-   `PATH_INDIRECT`. Rewrite `bounceArriving`'s glow paragraph and `EMISSIVE_INTENSITY`'s comment.
-6. **Report.** `scene` reports how many placements stand as lamp bodies, beside "emissive
-   materials", so a run says what the rule caught.
-7. **Tests.**
-   - Mirror (host), beside the light tests in `rtx/mirror/extractor/lights.cpp`, which already seed
-     the fallbacks `createLightSource` reads: a group given to `SceneUtil::addLight` marks every
-     drawable under it and only those, with the light at an `AttachLight` node and at the group; a
-     negative lamp marks nothing; the walk adds one lamp for the marker's source, not two, at the
-     source's own position under an `AttachLight` node that stands apart from the marker; and a
-     marker whose source is gone marks nothing.
-   - Light builder (host), `rtx/scene/lightbuilder.cpp`: the record's half refuses exactly what
-     `makeLight` refuses today for a radius and a mixed sign, and the two halves together make the
-     lamp `makeLight` made, field for field.
-     (`OffDefault` is the game's: `Light::insertObjectRendering` passes `allowLight` false and
-     `addLight` is never called, so no mirror test reaches it.)
-   - Ring (host): a `LIGH` reference's placements stand as lamp bodies, and a static's do not.
-   - GPU: a floor under a glowing quad, once as a lamp body and once not, with no other light.
-     Hand-computed: the floor's bounce is the glow's form factor without the bit and nought with
-     it. A glossy floor reflects the quad the same either way.
-   - GPU: the validation re-shades a kept sample on a lamp body to what the trace shaded.
-8. **Measure.** `./omw kernels` before and after. `./omw release shot --views=all --map
-   --upscale=off` against a baseline: every place with a glowing lamp model moves, and it is
-   expected to darken where the paper was counted twice, and nowhere more than the vanilla table
-   above bounds. `noise --cut=1`, `--cut=2` and `--strafe=150` at the guild, the planter and the
-   yurt, before and after: the firefly share step 15 counts, which the change is for. The M[FR]
-   tree only where M[FR] is installed (the bench's data folders hold vanilla alone today): its
-   converged mean, and its fireflies with `--antifirefly=false`, which should fall as far as with
-   the glow removed (0.08 in a thousand). `./omw release noise --ab=antifirefly` again, because the
-   ring then has less to cut and its trade may change.
 
 # Part 2: the cloud deck casts no shadow
 
@@ -689,3 +629,48 @@ its asserts unchanged.
 | Dagon Fel | 2.00 | 1.91 |
 
   A twentieth to a tenth of a millisecond at every place: the texture read every sky ray paid.
+
+## Part 1: a lamp's own model lights nothing by the bounce — kept
+
+`SceneUtil::addLight` marks the group it hangs a light in (`SceneUtil::LampBody`); the walk carries
+the mark down that group where the light gives light (`givesLight`), the cell ring from the record
+(`givesLight` of a `LIGH`), and `GpuInstance::mClass` carries `INSTANCE_LAMP_BODY`;
+`bounceLanding` takes the glow off such a far hit on the diffuse path. The design text above is
+what the code does: the split of `makeLight` the plan named became one test of the encoded
+record, which answers the same question and decodes nothing twice.
+
+- **Kernels**: 72 of 178 moved, the hit shader's 64 and the validation's 8 — the two that run
+  `bounceLanding` — and nothing else.
+- **Pictures** (`shot --views=all --map --upscale=off` against the same build before): 21 of 64
+  moved and 19 within the denoiser's noise. The traces differ where a lamp's glowing model is in
+  view, Seyda Neen's lanterns included; interiors with none (Wolverine Hall, Addamasartus, the
+  Andrano tomb) differ by the card's arithmetic alone. The guild's frame mean is 0.8% darker under
+  the measured exposure and its picture looks the same: the worst pixel, 131 levels, stands on the
+  paper screens' speckle.
+- **Noise** at the guild, the planter and the yurt, before → after: frame noise, bias, fireflies.
+
+| place | `--cut=1` | `--cut=2` | `--strafe=150` |
+|---|---|---|---|
+| mages' guild | 2.19 → 2.12, 2.35 → 1.15, 0.38 → 0.39 | 2.00 → 1.93, 2.30 → 1.09, 0.32 → 0.34 | 1.24 → 1.12, 2.10 → 1.62, 0.77 → 0.78 |
+| guild's planter | 1.83 → 1.75, 2.92 → 1.59, 0.41 → 0.43 | 1.67 → 1.60, 2.95 → 1.62, 0.32 → 0.34 | 1.42 → 1.31, 2.74 → 1.73, 0.49 → 0.52 |
+| Ahemmusa's yurt | 2.08 → 1.96, 2.84 → 1.22, 0.27 → 0.29 | 1.99 → 1.87, 2.83 → 1.21, 0.23 → 0.25 | 1.75 → 1.64, 3.49 → 2.42, 0.35 → 0.34 |
+
+  The bias falls by a third to a half and the noise by 4 to 9% everywhere. **The firefly count
+  does not fall**: on vanilla content the outliers four times over the truth are not the lanterns'
+  glow (M[FR]'s tree, which the old figure of 1.15 → 0.08 came from, glows far more). What they are
+  is open for step 16 and after.
+- **The anti-firefly ring, again** (`--ab=antifirefly`), on against off: one frame after a cut it
+  takes 0.06 to 0.08 off the noise and adds 0.14 to 0.23 of bias, and moves the fireflies by 0.01;
+  strafed and walked in it moves nothing by more than 0.04. With the lanterns' glow gone it buys
+  little and costs bias past the bar: `plan_QUESTIONS.md` asks whether it stays on.
+
+| place | `--cut=1`, on / off | strafed, on / off | walked, on / off |
+|---|---|---|---|
+| mages' guild | 2.12 / 2.19, bias 1.15 / 1.01 | 1.12 / 1.13, bias 1.62 / 1.61 | 1.24 / 1.25, bias 2.37 / 2.39 |
+| guild's planter | 1.75 / 1.81, bias 1.59 / 1.36 | 1.31 / 1.33, bias 1.73 / 1.69 | 1.17 / 1.17, bias 2.76 / 2.76 |
+| Ahemmusa's yurt | 1.96 / 2.04, bias 1.22 / 1.20 | 1.64 / 1.65, bias 2.42 / 2.38 | 1.81 / 1.83, bias 2.91 / 2.90 |
+
+- **Time**, `bench --suite=interiors`, before and after: the walk's median rises by 0.01 to 0.04 ms
+  and its p99 by up to 0.10 at the six places, the marker read at every node the walk enters; the
+  trace does not move (within ±0.07 ms either way). The frame waits on the card, so the walk's
+  share hides behind it.

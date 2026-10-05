@@ -750,8 +750,20 @@ Arriving bounceEscape(vec3 position, BounceDraw drawn, vec3 weight, out BounceSa
 /// What leaves the surface a bounce landed on toward the surface that drew it, unweighted: the
 /// end of the path, whole, and its fill. **The one shading of a bounce's far end**, which
 /// `bouncevalidate.rgen` asks again of a kept sample, so the two cannot disagree.
-Arriving bounceLanding(Surface hit, uint key, uint ambient, uint lamps, uint path)
+///
+/// **A lamp's own model glows to a reflection and to nothing the diffuse half gathers**
+/// (`INSTANCE_LAMP_BODY`). Its lamp lights every surface around it through the model's fitting
+/// (`lampPassage`), so a diffuse bounce that also brought back the paper's glow lit the room twice
+/// — and found that glow rarely and brightly, which is a firefly. A reflection is a picture of the
+/// lantern and keeps it: `PATH_SEEN`. A factor and not a branch.
+Arriving bounceLanding(Surface landed, uint key, uint ambient, uint lamps, uint path)
 {
+    const bool lampBody = (instanceAt(landed.mInstance).mClass & INSTANCE_LAMP_BODY) != 0u;
+    const float keep = path == PATH_INDIRECT && lampBody ? 0.0 : 1.0;
+    Surface hit = landed;
+    hit.mEmissiveColour *= keep;
+    hit.mEmitted *= keep;
+
     const PathEnd end = lightAtPathEnd(hit, key, ambient, lamps, path, false, AMBIENT_EXTERIOR_RATE);
     return Arriving(composed(joinedLight(end)), fillOf(end));
 }
@@ -865,7 +877,8 @@ Arriving bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pi
 
     // **Its glow is counted here, because this is the only path it takes.** Nothing gives a glowing
     // surface a lamp of its own — `EMISSIVE_INTENSITY` says what measuring that showed — so a ray
-    // that lands on a mushroom cap is what carries the cap's glow back to whatever sent it.
+    // that lands on a mushroom cap is what carries the cap's glow back to whatever sent it. A
+    // lamp's own model is the exception `bounceLanding` makes: its lamp carries its glow already.
     //
     // **One call with the path chosen, and not one per half.** Written out twice, the whole end of
     // the path is two copies, and a warp whose lanes drew both halves runs them one after the

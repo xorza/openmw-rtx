@@ -363,6 +363,7 @@ namespace Rtx
                         .mMesh = adopted.mParts[at].mMesh,
                         .mMaterial = adopted.mParts[at].mMaterial,
                         .mTransform = model.mParts[at].mLocal * ref.mTransform,
+                        .mLampBody = ref.mLampBody,
                     },
                     .mRadius = ref.mRadius,
                     .mModes = model.mParts[at].mModes,
@@ -422,6 +423,7 @@ namespace Rtx
             .mTransform = stood.mTransform,
             .mMesh = stood.mMesh,
             .mMaterial = stood.mMaterial,
+            .mLampBody = stood.mLampBody,
             .mStander = Stander::Ring,
         });
         ++standing;

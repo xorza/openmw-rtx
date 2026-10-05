@@ -487,6 +487,37 @@ namespace Rtx
             EXPECT_TRUE(isRefused(makeLight(osg::Vec3f(-1.0f, 1.0f, 0.0f), 100.0f, osg::Vec3f())));
         }
 
+        /// **A lamp gives light by its record, and not by this frame's flicker** (`givesLight`):
+        /// what makes its model a lamp body, whose glow the bounce leaves to the lamp.
+        ///
+        /// A white lamp gives, by the graph and by the record; a negative one takes, and a black one,
+        /// one of no size, one of mixed sign and one off by default give nothing. A Light spell's
+        /// glow, all ambient, gives. **A pulse the game wrote to nought for a frame still gives**:
+        /// the game's controller writes the flicker into the light's own diffuse, and the record's
+        /// colour is the controller's.
+        TEST(RtxLightBuilderTest, aLampGivesLightByItsRecordAndNotByItsFlicker)
+        {
+            const osg::Vec4f white(1.0f, 1.0f, 1.0f, 1.0f);
+            EXPECT_TRUE(givesLight(*Testing::makeLightSource(100.0f, white)));
+            EXPECT_TRUE(givesLight(*Testing::makeLightSource(100.0f, osg::Vec4f(), osg::Vec4f(1.5f, 1.5f, 1.5f, 1))))
+                << "a Light spell's glow";
+            EXPECT_FALSE(givesLight(*Testing::makeLightSource(100.0f, osg::Vec4f(-1, -1, -1, 1)))) << "negative";
+            EXPECT_FALSE(givesLight(*Testing::makeLightSource(100.0f, osg::Vec4f(0, 0, 0, 1)))) << "black";
+            EXPECT_FALSE(givesLight(*Testing::makeLightSource(0.0f, white))) << "no size";
+            EXPECT_FALSE(givesLight(*Testing::makeLightSource(100.0f, osg::Vec4f(-1, 1, 0, 1)))) << "mixed";
+
+            const SceneUtil::LightCommon pulsing = describe(100, 0x00FFFFFF, ESM::Light::PulseSlow);
+            const osg::ref_ptr<SceneUtil::LightSource> built
+                = SceneUtil::createLightSource(pulsing, Testing::sLightMask, /*isExterior=*/false);
+            built->getLight(0)->setDiffuse(osg::Vec4f(0, 0, 0, 1));
+            EXPECT_TRUE(givesLight(*built)) << "a flicker at nought moved the model out of the rule";
+
+            EXPECT_TRUE(givesLight(describe(100, 0x00FFFFFF, 0)));
+            EXPECT_FALSE(givesLight(describe(100, 0x00FFFFFF, ESM::Light::Negative)));
+            EXPECT_FALSE(givesLight(describe(100, 0x00000000, 0))) << "black";
+            EXPECT_FALSE(givesLight(describe(100, 0x00FFFFFF, ESM::Light::OffDefault)));
+        }
+
         /// A lamp any number of which is not finite is refused by every route to one.
         ///
         /// **Each number came off a file or off a graph something else built**: a record's radius,

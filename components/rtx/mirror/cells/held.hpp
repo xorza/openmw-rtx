@@ -40,6 +40,10 @@ namespace Rtx
         Index mMaterial = sNoIndex;
         osg::Matrixf mTransform;
 
+        /// Whether it is the model of a lamp that gives light, which the bounce takes no glow from
+        /// (`MeshInstance::mLampBody`).
+        bool mLampBody = false;
+
         /// The slot it stands in, or none while the size rule, a script or the ring keeps it out.
         Index mSlot = sNoIndex;
 

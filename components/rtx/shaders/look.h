@@ -362,9 +362,10 @@ namespace Rtx::Shaders
     /// derived, because a material's own glow and painted content added past the lighting are two
     /// conventions and not one.
     ///
-    /// **A glow lights nothing, and this is the whole of what it does.** A lamp for every glowing
-    /// shape is hundreds of lights in the grid per cell, and what they buy is the warm ring under a
-    /// mushroom's cap. Morrowind lights what it means to light with a `LIGH` record.
+    /// **A glow has no lamp of its own, and lights only by the bounce that lands on it**
+    /// (`bounceArriving`): a lamp for every glowing shape is hundreds of lights in the grid per cell,
+    /// and what they buy is the warm ring under a mushroom's cap. **A lamp's own model does not light
+    /// even so**: its `LIGH` lamp already lights for it, through its fitting (`INSTANCE_LAMP_BODY`).
     const float EMISSIVE_INTENSITY = 8.0f;
 
     /// What light on the far side of a leaf is worth to the side being looked at, against the same
