@@ -287,19 +287,13 @@ namespace Rtx::Testing
             EXPECT_EQ(sky(), 0.0f) << "a patch whose sheet stands in was added";
         }
 
-        /// The deck shadows the ground under it, and what darkens is the alpha over the sheet's mean.
+        /// **The deck stands in no ray's way.** The content dims the sun for each weather
+        /// (`Sun_*_Color`), and that is the whole of what a deck does to the light under it.
         ///
-        /// **The one occluder no ray finds.** The clouds are not in the acceleration structure, so
-        /// `cloudShadow` asks the sheet directly where the ray from a shading point to a light
-        /// crosses the layer. `CLOUD_SHADOW_DEPTH` says why it is the alpha *over the sheet's own
-        /// mean* that darkens: the content has already dimmed the sun for the weather, and taking
-        /// the whole of the alpha would state that twice.
-        ///
-        /// A floor of albedo 0.5 under a sun of 2 delivers `0.5 * 2 / pi` where nothing stands over
-        /// it. A sheet whose alpha is one everywhere then darkens it by `exp(-4)` where the sheet's
-        /// own mean is nought, and by nothing at all where that mean is one — which is the overcast
-        /// case, and the whole point of measuring against the mean.
-        TEST_F(RtxVisibilityTest, theDeckShadowsWhatStandsUnderIt)
+        /// A floor of albedo 0.5 under a sun of 2 delivers `0.5 * 2 / pi` = 0.31831 where nothing
+        /// stands over it, and a sheet opaque in every texel over the whole sky, at full opacity,
+        /// leaves it all of that.
+        TEST_F(RtxVisibilityTest, theDeckCastsNoShadow)
         {
             constexpr std::uint32_t size = 32;
             constexpr std::size_t centre = centreValueOf(size);
@@ -329,29 +323,8 @@ namespace Rtx::Testing
                 .mNext = 0u,
             };
 
-            const auto floorUnder = [&](float cover) {
-                camera.mClouds.mCover = cover;
-
-                const Frame frame = shoot(scene, sheet, camera, size);
-
-                return frame.at(centre);
-            };
-
-            EXPECT_NEAR(floorUnder(1.0f), 0.31831f, 1.0e-4f) << "a sheet at its own mean darkens nothing";
-            EXPECT_NEAR(floorUnder(0.0f), 0.31831f * std::exp(-4.0f), 1.0e-4f) << "and one over it darkens by four";
-
-            // And nothing at all where there is no deck, whatever the sheet says — which is the test
-            // every frame with no cloud over it passes without knowing it.
-            camera.mClouds.mOpacity = 0.0f;
-            EXPECT_NEAR(floorUnder(0.0f), 0.31831f, 1.0e-4f);
-
-            // Nor where the sheet stands in, which is no deck: its grey is no cloud to cast.
-            camera.mClouds.mOpacity = 1.0f;
-            camera.mClouds.mCover = 0.0f;
-            std::array<TextureData, 1> standing = sheet;
-            standing[0].mSource = TextureSource::StandIn;
-            const Frame frame = shoot(scene, standing, camera, size);
-            EXPECT_NEAR(frame.at(centre), 0.31831f, 1.0e-4f) << "a deck whose sheet stands in shadowed the floor";
+            const Frame frame = shoot(scene, sheet, camera, size);
+            EXPECT_NEAR(frame.at(centre), 0.31831f, 1.0e-4f) << "the deck shadowed the floor";
         }
 
         /// The deck takes its shape from what the sheet paints, read against what that sheet averages.

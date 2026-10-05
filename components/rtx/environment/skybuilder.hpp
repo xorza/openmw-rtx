@@ -58,12 +58,6 @@ namespace Rtx
         /// means are 0.268, 0.283 and 0.357, against clear 0.435, cloudy 0.552, foggy 0.639.
         /// Measured over the alpha, because clear weather's cirrus covers a quarter of its sheet.
         float mMean = 0.0f;
-
-        /// The mean alpha: how much sky the deck hides on average, which a cloud's shadow is measured
-        /// against because the content's own `Sun_*_Color` has already dimmed the sun for that
-        /// weather (`Shaders::CLOUD_SHADOW_DEPTH`). A quarter for clear weather's cirrus, three
-        /// quarters for cloudy, all of it for the three opaque sheets.
-        float mCover = 0.0f;
     };
 
     /// No sheet: a weather that names none, which the shipped fallbacks do for ash and blight.

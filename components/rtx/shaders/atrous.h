@@ -43,6 +43,11 @@ namespace Rtx::Shaders
     const uint ATROUS_BIND_MOMENTS = 5;
     const uint ATROUS_BINDINGS = 6;
 
+    /// Where `atrous.comp`'s specialization constant sits: `ATROUS_WIDE`, true for the first level
+    /// and false for every level after it.
+    const uint ATROUS_SPEC_WIDE = 0u;
+    const uint ATROUS_SPEC_COUNT = 1u;
+
     /// Threads along each edge of a level's workgroup.
     const uint ATROUS_WORKGROUP = 8;
 
@@ -66,7 +71,7 @@ namespace Rtx::Shaders
         /// The longest history this level rebuilds from the surface around it rather than filters
         /// (`ACCUMULATE_FIX_FRAMES`): the first level's, where the run asks for the history fix, and
         /// nought at every other level and in a picture, which has no settled neighbour to borrow
-        /// from.
+        /// from. A narrow level reads none.
         float mFixFrames;
     };
 

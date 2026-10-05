@@ -72,6 +72,7 @@ namespace Rtx
             .mDistanceScale = DenoiseHistory::distanceScaleFor(sampled.mFar),
             .mAntilag = reconstruction.mAntilag,
             .mHistoryFix = reconstruction.mHistoryFix,
+            .mDualMotion = reconstruction.mDualMotion,
             .mAntiFirefly = reconstruction.mAntiFirefly,
         };
 

@@ -46,6 +46,8 @@ namespace Rtx
             const DenoiseFrame& frame) const;
 
     private:
-        ComputePipeline<Shaders::AtrousConstants> mPipeline;
+        /// The first level, wide, and every level after it, narrow (`ATROUS_WIDE`).
+        ComputePipeline<Shaders::AtrousConstants> mWide;
+        ComputePipeline<Shaders::AtrousConstants> mNarrow;
     };
 }

@@ -31,6 +31,7 @@
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
+#include <components/sceneutil/lampbody.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/skeleton.hpp>
 #include <components/sceneutil/stableidentity.hpp>
@@ -208,6 +209,10 @@ namespace Rtx
         /// down as the class is.
         bool mJumping = false;
 
+        /// Whether the node being walked is part of the model of a light that gives light, carried
+        /// down from the group the game marked (`SceneUtil::LampBody`) as the class is.
+        bool mLampBody = false;
+
         /// `SceneExtractor::setJumped`, read once at `begin`.
         std::span<const osg::Node* const> mJumped;
 
@@ -291,6 +296,7 @@ namespace Rtx
         mClass = InstanceClass::Static;
         mGlow.reset();
         mJumping = false;
+        mLampBody = false;
         mFreezes = freezes;
         mChangeable = false;
 
@@ -400,7 +406,15 @@ namespace Rtx
         const InstanceClass outerClass = mClass;
         const std::optional<std::size_t> outerGlow = mGlow;
         const bool outerJumping = mJumping;
+        const bool outerLampBody = mLampBody;
         mJumping = jumps(node);
+
+        // **The model of a light, where the game hung one** (`SceneUtil::addLight`): every drawable
+        // under the marked group, the paper beside the `AttachLight` node as well as anything under
+        // it. Asked of the record and not of this frame's flicker (`givesLight`), so a placement
+        // keeps its answer for its life; a marker whose light has gone answers nothing.
+        if (const SceneUtil::LampBody* marker = SceneUtil::LampBody::find(node))
+            mLampBody = marker->getLight() != nullptr && givesLight(*marker->getLight());
         // **A first-person root keeps its subtree whatever is marked inside it**: the rasterizer
         // draws everything under the arms at their field of view and over everything, a spell's
         // swirl on the hands included, and the arms' eye is what traces that class.
@@ -420,6 +434,7 @@ namespace Rtx
         mClass = outerClass;
         mGlow = outerGlow;
         mJumping = outerJumping;
+        mLampBody = outerLampBody;
         mPathHash = above;
         --mDepth;
         mShading.resize(held);
@@ -563,7 +578,7 @@ namespace Rtx
         }
 
         mExtractor.addDrawable(
-            drawable, identityWith(mPathHash, mChildIndex), mShading, placed(), mClass, mGlow, mJumping);
+            drawable, identityWith(mPathHash, mChildIndex), mShading, placed(), mClass, mGlow, mJumping, mLampBody);
 
         mShading.resize(held);
     }
@@ -815,7 +830,7 @@ namespace Rtx
 
     void SceneExtractor::addDrawable(const osg::Drawable& drawable, const std::size_t who,
         const std::span<const Shading> shading, const osg::Matrixf& place, const InstanceClass what,
-        const std::optional<std::size_t> glow, const bool jumped)
+        const std::optional<std::size_t> glow, const bool jumped, const bool lampBody)
     {
         ExtractionStats& stats = mPass.getStats();
 
@@ -875,6 +890,7 @@ namespace Rtx
             .mOpacity = fade,
             .mClass = what,
             .mClockwise = !shading.empty() && shading.back().mClockwise,
+            .mLampBody = lampBody,
         };
 
         ++stats.mInstances;
@@ -906,7 +922,8 @@ namespace Rtx
         Index& slot = held->second.mIndex;
         const MeshInstance& standing = mScene.placements().getRows()[slot].mInstance;
         if (standing.mMesh != resolved.mMesh || standing.mMaterial != resolved.mMaterial
-            || standing.mClass != resolved.mClass || standing.mClockwise != resolved.mClockwise)
+            || standing.mClass != resolved.mClass || standing.mClockwise != resolved.mClockwise
+            || standing.mLampBody != resolved.mLampBody)
         {
             mScene.dropInstance(slot, Stander::Walk);
             slot = mScene.addInstance(resolved);

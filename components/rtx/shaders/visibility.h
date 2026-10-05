@@ -461,8 +461,8 @@ namespace Rtx::Shaders
         /// and pull apart — air doing that in a dead calm is the whole reason a still fog is not a
         /// frozen texture. The drift is the separate thing a wind adds: the entire field carried
         /// downwind together, on the heading the cloud layer drifts along, because there is one wind
-        /// over a landscape and cloud shadows crossing the ground one way while the air moves another
-        /// would read as two weathers at once. The drift is how far the air has been carried and not
+        /// over a landscape and a deck drifting one way while the air under it moves another would
+        /// read as two weathers at once. The drift is how far the air has been carried and not
         /// the wind, integrated over the clock (`Rtx::FogDrift`), because a wind times the clock jumps
         /// whenever the wind changes; each scale takes it turned as that scale is turned.
         ///

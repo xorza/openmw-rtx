@@ -129,6 +129,12 @@ namespace RtxTool
         /// every shown pixel and is held to the sixteen of a still frame; quality traces 1280 by 720,
         /// `30 * 921600 / 2073600` = 13.3 samples a shown pixel, held to 13; ultra performance traces
         /// 640 by 360, 3.3, held to 3. And never nought, however short the history.
+        ///
+        /// **And the frame a leg judges holds what the leg says.** Standing, the warm-up is the stop's
+        /// own and the bar sixteen; flown in, the flight's thirty frames; `--cut=N`, a warm-up of
+        /// `N - 1` after the frame the cut resets, so `N + 1` frames of history: `--cut=1` at native
+        /// holds 2 and is held to 2, at quality `2 * 921600 / 2073600` = 0.89, held to 1; `--cut=4`
+        /// at native holds 5. A cut and a flight together are refused.
         TEST(RtxCompareTest, aStrafedBarAveragesAsManyFramesAsTheHistoryCouldHold)
         {
             const auto after = [](std::uint32_t frames, Rtx::Upscale mode) {
@@ -141,6 +147,54 @@ namespace RtxTool
             EXPECT_EQ(after(30, Rtx::Upscale::UltraPerformance), 3u);
             EXPECT_EQ(after(8, Rtx::Upscale::Native), 8u);
             EXPECT_EQ(after(1, Rtx::Upscale::UltraPerformance), 1u);
+
+            const auto taken = [](std::uint32_t cut, bool flies, Rtx::Upscale mode) {
+                return noiseFrameFor(cut, flies, Rtx::extentsFor(1920, 1080, mode));
+            };
+            const NoiseFrame standing = taken(0, false, Rtx::Upscale::Native).value();
+            EXPECT_FALSE(standing.mWarmup.has_value());
+            EXPECT_EQ(standing.mBarFrames, sNoiseBarFrames);
+            const NoiseFrame flown = taken(0, true, Rtx::Upscale::Quality).value();
+            EXPECT_FALSE(flown.mWarmup.has_value());
+            EXPECT_EQ(flown.mBarFrames, 13u);
+            const NoiseFrame first = taken(1, false, Rtx::Upscale::Native).value();
+            EXPECT_EQ(first.mWarmup, 0u);
+            EXPECT_EQ(first.mBarFrames, 2u);
+            EXPECT_EQ(taken(1, false, Rtx::Upscale::Quality).value().mBarFrames, 1u);
+            const NoiseFrame fourth = taken(4, false, Rtx::Upscale::Native).value();
+            EXPECT_EQ(fourth.mWarmup, 3u);
+            EXPECT_EQ(fourth.mBarFrames, 5u);
+            EXPECT_FALSE(taken(2, true, Rtx::Upscale::Native).isOk());
+        }
+
+        /// **A firefly is four times the truth's light and a spark's worth over it.** A grey's light
+        /// is its decoded level, the weights summing to one. On a hundred pixels of the truth at level
+        /// 100, whose light is 0.12744:
+        /// - level 255, light 1, stands 7.8 times over: a firefly;
+        /// - level 180, light 0.45641, stands 3.58 times over, under four: not one;
+        /// - over a truth at level 2 (light `2 / 255 / 12.92` = 0.000607), level 9 (0.002732) stands
+        ///   4.5 times over but only 0.0021 above, under the floor of a level-16 grey's 0.00518: not
+        ///   one, a dark speck;
+        /// - over the same truth, level 60 (0.04519) stands far over and far above: a firefly.
+        /// Two in a hundred is 20 in a thousand. Pictures of two sizes have nothing to count.
+        TEST(RtxCompareTest, aFireflyIsFourTimesTheTruthsLightAndASparkOverIt)
+        {
+            Rtx::PngImage reference = flat(10, 10, 100);
+            Rtx::PngImage picture = reference;
+            const auto grey = [](Rtx::PngImage& image, std::uint32_t x, std::uint8_t level) {
+                for (std::size_t channel = 0; channel < 3; ++channel)
+                    channelAt(image, x, 0, channel) = level;
+            };
+            grey(picture, 0, 255);
+            grey(picture, 1, 180);
+            grey(reference, 2, 2);
+            grey(picture, 2, 9);
+            grey(reference, 3, 2);
+            grey(picture, 3, 60);
+
+            EXPECT_DOUBLE_EQ(fireflyShare(reference, reference).value(), 0.0);
+            EXPECT_DOUBLE_EQ(fireflyShare(picture, reference).value(), 20.0);
+            EXPECT_FALSE(fireflyShare(picture, flat(10, 9, 100)).has_value());
         }
 
         /// **A bias is the difference that survives the blur.** A constant offset survives whole, the

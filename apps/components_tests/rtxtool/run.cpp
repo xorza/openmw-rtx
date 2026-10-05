@@ -177,6 +177,21 @@ namespace RtxTool
             EXPECT_EQ(back.front().mSky.mAir->mSky.mSeconds, dawn.mSky.mAir->mSky.mSeconds);
             EXPECT_EQ(back.front().mSky.mAir->mSky.mCloudScroll, dawn.mSky.mAir->mSky.mCloudScroll);
             EXPECT_EQ(back.front().mSky.mAir->mCarried, dawn.mSky.mAir->mCarried);
+            EXPECT_TRUE(read.front().mStand.mLamps) << "a lit place writes no lamps";
+
+            // **A place with its lamps off writes so**, or a window flown without them pastes a
+            // view that measures them.
+            RtxTool::Stop unlit = spot;
+            unlit.mStand.mLamps = false;
+            const std::filesystem::path third = TestingOpenMW::outputFilePath("viewpoint-unlit.cfg");
+            {
+                std::ofstream out(third);
+                out << describeBlock(unlit);
+            }
+            const std::vector<RtxTool::Stop> dark = loadViews(third);
+            std::filesystem::remove(third);
+            ASSERT_EQ(dark.size(), 1u);
+            EXPECT_FALSE(dark.front().mStand.mLamps);
         }
 
         /// A window opened by `--cell` has no view to replace: `stopFor` names the stop after the
@@ -511,9 +526,13 @@ weather = Overcast
 like = ship
 pos = 100, 200, 900
 hour = 19.25
+
+[ship-unlit]
+like = ship
+lamps = false
 )");
 
-            ASSERT_EQ(read.size(), std::size_t{ 4 });
+            ASSERT_EQ(read.size(), std::size_t{ 5 });
 
             // A place that fixes nothing keeps both conditions absent, which is what lets a run name
             // them.
@@ -554,6 +573,14 @@ hour = 19.25
             EXPECT_EQ(*mast->mStand.mEye, osg::Vec3f(100.0f, 200.0f, 900.0f)) << "its own position was overwritten";
             EXPECT_EQ(*mast->mStand.mLook, osg::Vec3f(100.0f, 300.0f, 300.0f)) << "the look it did not state";
             EXPECT_EQ(mast->mStand.mCell, "-2,-9");
+
+            // **The lamps light a place unless it says they do not**, and a likeness does not take
+            // that from the place it is like.
+            EXPECT_TRUE(noon->mStand.mLamps);
+            const RtxTool::Stop* unlit = findView(read, "ship-unlit");
+            ASSERT_NE(unlit, nullptr);
+            EXPECT_FALSE(unlit->mStand.mLamps);
+            EXPECT_TRUE(dawn->mStand.mLamps);
         }
 
         /// Every way of writing a condition or a likeness wrong is a refusal.
@@ -597,6 +624,9 @@ hour = 19.25
                 << "a weather kept as the file spelled it";
 
             EXPECT_NO_THROW(readViews(std::string(sShip) + "[grim]\nlike = ship\nweather = Thunderstorm\n"));
+
+            EXPECT_THROW(readViews(std::string(sShip) + "[unlit]\nlike = ship\nlamps = off\n"), std::runtime_error)
+                << "lamps that are not true or false";
 
             EXPECT_THROW(readViews(std::string(sShip) + "[dawn]\nlike = nowhere\n"), std::runtime_error)
                 << "like a view that is not there";

@@ -35,16 +35,17 @@ SkySource skySourceAt(uint source)
 /// What the world leaves of a light in the sky at a point, from none of it to all.
 ///
 /// **One question, asked by every reader.** A surface, a froxel of the air and a step of a water
-/// shaft each asked it their own way, and only the surface asked about the cloud deck — so a cloud
-/// darkened the ground and not the fog over it or the beam under it. The deck is the one occluder
-/// no ray finds, `cloudShadow` says why, and the ray is drawn across the disc's own penumbra: the
-/// sun's for the reason `SUN_SHADOW_RADIUS` gives, a moon's at its own limb.
+/// shaft each asked it their own way, and their answers parted. The ray is drawn across the disc's
+/// own penumbra: the sun's for the reason `SUN_SHADOW_RADIUS` gives, a moon's at its own limb.
+///
+/// **The cloud deck stands in no ray's way.** The content dims the sun for each weather
+/// (`Sun_*_Color`), and that is the whole of what a deck does to the light under it.
 ///
 /// What the water over the point takes is not here: that is per channel and it is the caustic as
 /// well as the absorption, and `lightThroughWater` is the one place it is answered.
 ///
 /// **Two halves, `Passage`'s**: whether the ray was stopped, and the rest — what the translucent
-/// surfaces it crossed and the deck let through.
+/// surfaces it crossed let through.
 ///
 /// @param draw one pair in `[0, 1)`, which aims the ray inside the disc's cone.
 Passage skyPassage(SkySource sky, vec3 position, vec2 draw)
@@ -53,8 +54,7 @@ Passage skyPassage(SkySource sky, vec3 position, vec2 draw)
     if (frame.mNoSkyShadows != 0u)
         return Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
 
-    const Passage passage = lightPassage(position, coneDirection(sky.mDirection, sky.mLimb, draw), frame.mReach);
-    return Passage(passage.mOpen, passage.mThrough * cloudShadow(position, sky.mDirection), passage.mOccluder);
+    return lightPassage(position, coneDirection(sky.mDirection, sky.mLimb, draw), frame.mReach);
 }
 
 /// The same as one number, which is exactly the product `lightThrough` makes of its own halves.

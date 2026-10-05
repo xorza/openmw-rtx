@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 
 #include <osg/Math>
+#include <osg/Matrixf>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
@@ -190,8 +191,8 @@ namespace Rtx::Testing
             const auto [filteredMean, filteredSpread] = spreadOf(true);
             ASSERT_GT(rawSpread, 0.0f) << "a bounce with no noise proves nothing";
             EXPECT_NEAR(filteredMean, rawMean, 0.004f) << "the arm keeps its light";
-            // Measured over the cascade's three levels: the arms' eye leaves 3.2 per cent of the
-            // spread, and the world's 6.4 — its coarser levels turn their taps away. A bound between
+            // Measured over the cascade's four levels: the arms' eye leaves 2.3 per cent of the
+            // spread, and the world's 16.4 — its coarser levels turn their taps away. A bound between
             // the two.
             EXPECT_LT(filteredSpread, rawSpread * 0.045f) << "the arm's noise was not taken away";
         }
@@ -211,11 +212,11 @@ namespace Rtx::Testing
         /// exists to reduce, and the ratio of the two is the only honest way to say it worked.
         ///
         /// **The bound sits between the two weightings on purpose.** Measured here on the composite
-        /// (`readRadiance`): one sample is 0.0420 off the reference and the plane weight brings
-        /// that to 0.0020, against 0.0061 for a plain depth weight — twenty times better against
-        /// seven. Every number is repeatable, because frame zero and a sixty-four frame average are
-        /// both deterministic, so a tenth is a bound this passes with room and a depth test cannot
-        /// reach.
+        /// (`readRadiance`): one sample is 0.0335 off the reference and the plane weight brings
+        /// that to 0.0019, seventeen times better; a plain depth weight, measured when one sample
+        /// stood 0.0420 off, brought it to 0.0061, seven times. Every number is repeatable, because
+        /// frame zero and a sixty-four frame average are both deterministic, so a tenth is a bound
+        /// this passes with room and a depth test cannot reach.
         TEST_F(RtxVisibilityTest, theFilterAndItsHistoryConvergeOnAGrazingSurface)
         {
             constexpr std::uint32_t size = 64;
@@ -294,7 +295,7 @@ namespace Rtx::Testing
             const float settled = errorAgainstReference(settledPixels);
 
             // **The accumulator may not make this worse, and on this surface that is the whole of
-            // what it can be asked.** Measured here, the cascade alone already lands at 0.0020 of
+            // what it can be asked.** Measured here, the cascade alone already lands at 0.0019 of
             // the converged reference — a flat sheet under a smooth sky is precisely
             // where à-trous has every advantage, since the signal is uniform and
             // every neighbour is a valid sample of it. What the history is for is the case this
@@ -302,18 +303,16 @@ namespace Rtx::Testing
             // looking at the same thing, which is what
             // `theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow` is for.
             //
-            // **Eight per cent rather than five, because the history is the filtered light.** The
-            // cascade keeps its levels in half floats, which puts a rounding floor of about 3e-4 of
-            // the value under a figure the cascade has already driven to 0.0020 — so past that point
-            // this is measuring a storage format and not an accumulator. Measured on this box: at
-            // full width the pair is 0.00201 and 0.00203, at half width 0.00201 and 0.00210, and
-            // with SVGF's feedback 0.00201 and 0.00213, against an unfiltered 0.042.
+            // **Eight per cent of room, because the history is the filtered light** (SVGF's
+            // feedback), and averaging the cascade's answers over frames on a surface this easy
+            // correlates them more than it adds. Measured: the cascade 0.00195 and the settled
+            // history 0.00177, against an unfiltered 0.0335.
             //
             // **A flat sheet is where feeding the filtered light back has least to give**, since the
             // cascade has every neighbour it could want and averaging its answers over frames only
             // correlates them. What the feedback is for is the other scene, and
-            // `theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow` moved by nothing there:
-            // 0.00272 settled against 0.00475 alone, which is the ratio that test already records.
+            // `theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow` records what it does there:
+            // 0.0050 settled against 0.0164 alone.
             EXPECT_LE(settled, after * 1.08f)
                 << "the history does not cost what the cascade gained: " << after << " becomes " << settled;
 
@@ -678,18 +677,19 @@ namespace Rtx::Testing
         /// `(tan 30° - tan 16°) / (tan 30° / 32)` = 16 columns that hold one frame, and the rest of
         /// the frame holds thirty-two. The strip is the twelve columns at that edge.
         ///
-        /// Pooled over four draws, against 128 unfiltered frames where the eye ends: the strip's error,
-        /// and its mean. **The clamp is off in every run**: with no reuse, its box of fifty samples
-        /// mostly holds none of a light this rare and holds the strip near nought, which is
-        /// `ACCUMULATE_FAST_FRAMES`'s trade and not this test's question. So is the ring, which holds
-        /// the fresh strip down before the fix borrows: with it the strip's error is 0.0136 without
-        /// the fix and 0.0139 with it, at 0.99 of the truth either way — `ACCUMULATE_RING_FRAMES`'s
-        /// trade, and not this test's question either.
+        /// Over four draws: the strip's spread from one draw to the next, over its mean, and the mean
+        /// against 128 unfiltered frames where the eye ends. **The noise in the light's own units**:
+        /// without the fix the brightness test passes over a fresh pixel's rare bright draws, and a
+        /// strip at a third of its light is quieter by as much and no better for it. **The clamp is
+        /// off in every run**: with no reuse, its box of fifty samples mostly holds none of a light
+        /// this rare and holds the strip near nought, which is `ACCUMULATE_FAST_FRAMES`'s trade and not
+        /// this test's question. So is the ring, which holds the fresh strip down before the fix
+        /// borrows, `ACCUMULATE_RING_FRAMES`'s trade.
         ///
-        /// Measured: the strip's error 0.0266 without the fix and 0.0079 with it, where the settled
-        /// edge's is 0.0134; its mean 0.61 of the truth without the fix and 1.17 with it, where 32
-        /// still frames settle it at 0.81. The fix's excess is the edge's: every neighbour it borrows
-        /// from stands on the lamp's side.
+        /// Measured: the strip's noise 1.61 of its mean without the fix and 0.71 with it, its mean 0.31
+        /// of the truth without the fix and 1.04 with it; the same strip held still, 0.30 at 0.61. With
+        /// the fixed variance `shortHistoryVariance` replaced and three 5×5 levels, 13.6 and 0.87, and
+        /// 0.61 and 1.08.
         TEST_F(RtxVisibilityTest, theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo)
         {
             constexpr std::uint32_t size = 64;
@@ -724,21 +724,25 @@ namespace Rtx::Testing
             const std::vector<float> reference
                 = shoot(scene, {}, standing(turn, 0), size, { .mFrames = 128 }).mRadiance;
 
-            // Each column's green channel over the rows and the draws, at the last frame of a run of
-            // `still` frames standing at `from` and one at the turn: its squared error, and its sum.
+            // Each column's green channel at the last frame of a run of `still` frames standing at
+            // `from` and one at `to`: its spread over the draws, as a variance summed over the rows,
+            // and its sum over the rows and the draws.
             struct Columns
             {
-                std::vector<double> mSquares;
+                std::vector<double> mVariances;
                 std::vector<double> mSums;
             };
             std::vector<float> read;
-            const auto columnsOf = [&](float from, bool fix, std::uint32_t first) {
-                Columns columns{ std::vector<double>(size, 0.0), std::vector<double>(size, 0.0) };
+            std::vector<double> sums(std::size_t{ size } * size);
+            std::vector<double> squares(std::size_t{ size } * size);
+            const auto columnsOf = [&](float from, float to, bool fix) {
+                std::ranges::fill(sums, 0.0);
+                std::ranges::fill(squares, 0.0);
                 for (std::uint32_t draw = 0; draw < draws; ++draw)
                 {
                     for (std::uint32_t at = 0; at <= still; ++at)
                     {
-                        mRenderer.renderFrame(standing(at == still ? turn : from, first + 100 * draw + at),
+                        mRenderer.renderFrame(standing(at == still ? to : from, 1000 + 100 * draw + at),
                             FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                                 .mReconstruction = ReconstructionRequest{ .mDenoise = true,
                                     .mBounceReuse = BounceReuse::Off,
@@ -749,51 +753,181 @@ namespace Rtx::Testing
                         EXPECT_TRUE(mRenderer.finishFrame().has_value());
                     }
                     mRenderer.readComposite(read);
-                    for (std::uint32_t y = 0; y < size; ++y)
-                        for (std::uint32_t x = 0; x < size; ++x)
-                        {
-                            const std::size_t at = (std::size_t{ y } * size + x) * 4 + 1;
-                            const double error = static_cast<double>(read[at]) - static_cast<double>(reference[at]);
-                            columns.mSquares[x] += error * error;
-                            columns.mSums[x] += static_cast<double>(read[at]);
-                        }
+                    for (std::size_t pixel = 0; pixel < sums.size(); ++pixel)
+                    {
+                        const double value = static_cast<double>(read[pixel * 4 + 1]);
+                        sums[pixel] += value;
+                        squares[pixel] += value * value;
+                    }
                 }
+                Columns columns{ std::vector<double>(size, 0.0), std::vector<double>(size, 0.0) };
+                for (std::uint32_t y = 0; y < size; ++y)
+                    for (std::uint32_t x = 0; x < size; ++x)
+                    {
+                        const std::size_t pixel = std::size_t{ y } * size + x;
+                        const double mean = sums[pixel] / draws;
+                        columns.mVariances[x] += (squares[pixel] - draws * mean * mean) / (draws - 1);
+                        columns.mSums[x] += sums[pixel];
+                    }
                 return columns;
             };
-            const auto overStrip = [&](const std::vector<double>& column, std::uint32_t from) {
+            // The strip's mean, and its noise as a deviation over that mean: a strip the brightness
+            // test darkened is quieter by as much as it is darker, and no less noisy for its light.
+            const auto overStrip = [&](const std::vector<double>& column, std::uint32_t per) {
                 double sum = 0.0;
-                for (std::uint32_t x = from; x < from + strip; ++x)
+                for (std::uint32_t x = 0; x < strip; ++x)
                     sum += column[x];
-                return sum / static_cast<double>(strip * size * draws);
+                return sum / static_cast<double>(strip * size * per);
             };
+            const auto meanOf = [&](const Columns& columns) { return overStrip(columns.mSums, draws); };
+            const auto noiseOf
+                = [&](const Columns& columns) { return std::sqrt(overStrip(columns.mVariances, 1)) / meanOf(columns); };
 
-            // The strip is at whichever edge the turn brought in, and the fix off says which.
-            const Columns without = columnsOf(0.0f, false, 1000);
-            const std::uint32_t edge
-                = overStrip(without.mSquares, 0) > overStrip(without.mSquares, size - strip) ? 0 : size - strip;
-            const double fresh = std::sqrt(overStrip(without.mSquares, edge));
-            const double settled = std::sqrt(overStrip(without.mSquares, size - strip - edge));
-            ASSERT_GT(fresh, 1.5 * settled)
-                << "the strip the eye turned to is no noisier than the settled edge, so this proves nothing: " << fresh
-                << " against " << settled;
+            // A yaw toward -x turns the eye left, so the strip is the picture's first twelve columns.
+            const Columns held = columnsOf(turn, turn, false);
+            const Columns without = columnsOf(0.0f, turn, false);
+            const Columns with = columnsOf(0.0f, turn, true);
+            ASSERT_GT(noiseOf(without), 1.5 * noiseOf(held))
+                << "the strip the eye turned to is no noisier than the same strip held still, so this proves nothing: "
+                << noiseOf(without) << " against " << noiseOf(held);
+            EXPECT_LT(noiseOf(with), 0.5 * noiseOf(without))
+                << "the history fix left " << noiseOf(with) << " of the strip's " << noiseOf(without)
+                << ", where the strip held still holds " << noiseOf(held);
 
-            const Columns with = columnsOf(0.0f, true, 1000);
-            const double fixed = std::sqrt(overStrip(with.mSquares, edge));
-            EXPECT_LT(fixed, 0.5 * fresh) << "the history fix left " << fixed << " of the strip's " << fresh
-                                          << ", where the settled edge holds " << settled;
-
-            // **And it brings the light nearer the truth**, where the brightness test darkened a
-            // history of one by passing over its bright draws.
             double truth = 0.0;
             for (std::uint32_t y = 0; y < size; ++y)
-                for (std::uint32_t x = edge; x < edge + strip; ++x)
+                for (std::uint32_t x = 0; x < strip; ++x)
                     truth += static_cast<double>(reference[(std::size_t{ y } * size + x) * 4 + 1]);
             truth /= static_cast<double>(strip * size);
-            const double unfixedShare = overStrip(without.mSums, edge) / truth;
-            const double fixedShare = overStrip(with.mSums, edge) / truth;
+            const double unfixedShare = meanOf(without) / truth;
+            const double fixedShare = meanOf(with) / truth;
             EXPECT_LT(std::abs(fixedShare - 1.0), std::abs(unfixedShare - 1.0))
                 << "the history fix took the strip's light from " << unfixedShare << " of the truth to " << fixedShare;
-            EXPECT_NEAR(fixedShare, 1.0, 0.25) << "the history fix moved the strip's light off the truth";
+            EXPECT_NEAR(fixedShare, 1.0, 0.1) << "the history fix moved the strip's light off the truth";
+        }
+
+        /// **The floor a moving bar uncovers starts with the history beside it** (`occluderMotion`,
+        /// Zeng et al. 2021's dual motion vector).
+        ///
+        /// The eye 300 units over a floor under a sky dark at the horizon and bright overhead, and a
+        /// bar 40 units wide spanning every row at 200, which moves 10 units a frame across the
+        /// columns after 32 still frames: on the screen the bar is a third as far as the floor, so it
+        /// steps about five and a half columns a frame over a floor that stands still, and every frame
+        /// uncovers a strip that the frame before did not see. The bar starts mid-frame, so the floor
+        /// beside it on the first step is floor the eye has watched for 32 frames. Over four draws,
+        /// the strip the last frame uncovered, its noise from one draw to the next over its mean:
+        /// without the dual vector the strip holds one frame, which the history fix rebuilds from the
+        /// floor around it; with it, the history of the floor the bar uncovered before it, each
+        /// strip's taken from the last, back to the floor the bar first stood beside.
+        ///
+        /// **Each of those taps is another point of the floor**, five pixels on, and 3% further from
+        /// the eye here: the depth test refused every one, and the plane test takes them
+        /// (`samePlane`). **The table is advanced after each hand-over**, as `SceneUploader` does, or
+        /// the bar's motion is its whole travel since it stood still.
+        ///
+        /// Measured: 0.0095 without the dual vector and 0.0022 with it, where the floor beside a bar
+        /// that stood still holds 0.0019.
+        TEST_F(RtxVisibilityTest, theFloorAMovingBarUncoversStartsWithTheHistoryBesideIt)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::uint32_t still = 32;
+            constexpr std::uint32_t moving = 4;
+            constexpr std::uint32_t draws = 4;
+            constexpr float step = 10.0f;
+            constexpr float width = 40.0f;
+            constexpr float start = -30.0f;
+            constexpr float height = 200.0f;
+            constexpr float eye = 300.0f;
+
+            SceneDesc scene;
+            addQuad(scene, sheetAt(4000.0f, 0.0f));
+            const Index bar = addQuad(scene, roofOver(start, start + width, height));
+            mRenderer.resize(size, size);
+            mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -1.0f, eye), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSun.mIrradiance = osg::Vec3f();
+            camera.mSkyHorizon = osg::Vec3f(0.02f, 0.02f, 0.02f);
+            camera.mSkyZenith = osg::Vec3f(0.6f, 0.6f, 0.6f);
+            camera.mAmbientFromSky = 1.0f;
+
+            // Whether the floor under `column` is under the bar placed `moved` along: where the
+            // column's ray crosses the bar's height, a third of the way down, `(eye - height) / eye`
+            // of the floor's offset. A column within one of either edge counts as neither.
+            const float halfWidth = eye * std::tan(osg::DegreesToRadians(30.0f));
+            const auto crossing = [&](std::uint32_t column) {
+                const float floor = (static_cast<float>(column) + 0.5f - 0.5f * size) / (0.5f * size) * halfWidth;
+                return floor * (eye - height) / eye;
+            };
+            const float pixelAtBar = halfWidth * (eye - height) / eye / (0.5f * size);
+            const auto under = [&](std::uint32_t column, float moved, float margin) {
+                const float x = crossing(column);
+                return x >= start + moved - margin && x <= start + width + moved + margin;
+            };
+
+            std::vector<float> read;
+            std::vector<double> sums(std::size_t{ size } * size);
+            std::vector<double> squares(std::size_t{ size } * size);
+            const auto run = [&](bool dual) {
+                std::ranges::fill(sums, 0.0);
+                std::ranges::fill(squares, 0.0);
+                for (std::uint32_t draw = 0; draw < draws; ++draw)
+                {
+                    for (std::uint32_t at = 0; at < still + moving; ++at)
+                    {
+                        const float moved = at < still ? 0.0f : step * static_cast<float>(at + 1 - still);
+                        // Advanced after each hand-over, as `SceneUploader` does, or the bar's motion
+                        // is every step since it stood still.
+                        scene.placements().move(bar, osg::Matrixf::translate(moved, 0.0f, 0.0f));
+                        mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
+                        scene.placements().advance();
+                        camera.mFrame = 3000 + 100 * draw + at;
+                        mRenderer.renderFrame(camera,
+                            FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
+                                .mReconstruction = ReconstructionRequest{ .mDenoise = true,
+                                    .mBounceReuse = BounceReuse::Off,
+                                    .mAntilag = false,
+                                    .mDualMotion = dual,
+                                    .mAntiFirefly = false },
+                                .mExposure = FixedExposure{ 1.0f } });
+                        EXPECT_TRUE(mRenderer.finishFrame().has_value());
+                    }
+                    mRenderer.readComposite(read);
+                    for (std::size_t pixel = 0; pixel < sums.size(); ++pixel)
+                    {
+                        const double value = static_cast<double>(read[pixel * 4 + 1]);
+                        sums[pixel] += value;
+                        squares[pixel] += value * value;
+                    }
+                }
+
+                // The strip: under the bar the frame before the last and clear of it in the last.
+                const float last = step * static_cast<float>(moving);
+                double spread = 0.0;
+                double mean = 0.0;
+                std::uint32_t counted = 0;
+                for (std::uint32_t x = 0; x < size; ++x)
+                {
+                    if (!under(x, last - step, -pixelAtBar) || under(x, last, pixelAtBar))
+                        continue;
+                    for (std::uint32_t y = 0; y < size; ++y)
+                    {
+                        const std::size_t pixel = std::size_t{ y } * size + x;
+                        const double average = sums[pixel] / draws;
+                        spread += (squares[pixel] - draws * average * average) / (draws - 1);
+                        mean += average;
+                        ++counted;
+                    }
+                }
+                EXPECT_GT(counted, 3u * size) << "the last frame uncovered too little floor to measure";
+                return std::sqrt(spread / counted) / (mean / counted);
+            };
+
+            const double without = run(false);
+            const double with = run(true);
+            EXPECT_LT(with, 0.5 * without)
+                << "the dual vector left " << with << " of the strip's noise, against " << without << " without it";
         }
 
         /// **A rare bright bounce on a history of a few frames is held to the light around it, and a
@@ -812,8 +946,8 @@ namespace Rtx::Testing
         /// are `(31/32)^128` of that quarter 128 frames later, under half a hundredth of the mean
         /// however much of their light the ring took.
         ///
-        /// Measured: 8080 fireflies without the ring, the history fix having spread each over its
-        /// taps, and 391 with it; the settled means 0.7021 and 0.7009.
+        /// Measured: 9021 fireflies without the ring, the history fix having spread each over its
+        /// taps, and 166 with it; the settled means 0.6969 and 0.6955.
         TEST_F(RtxVisibilityTest, theRingHoldsAFreshFireflyAndLeavesASettledMeanItsLight)
         {
             constexpr std::uint32_t size = 64;
@@ -878,6 +1012,85 @@ namespace Rtx::Testing
             };
             const double unheld = meanOf(false);
             EXPECT_NEAR(meanOf(true) / unheld, 1.0, 0.01) << "the ring kept a settled mean's light from it";
+        }
+
+        /// **A fresh pixel is filtered the same under any light** (`shortHistoryVariance`).
+        ///
+        /// A floor under a sky dark at the horizon and bright overhead, from a cut, at the sky's light and at 1024
+        /// times it: a power of two, so every sum, mean and packed colour of the brighter run is the dimmer one's
+        /// scaled exactly, the same draws in both. A filter whose weights hang on the light's ratios alone leaves the
+        /// brighter picture 1024 times the dimmer one, pixel for pixel; one that reads a fixed variance does not. Taken
+        /// two frames on, where the history fix rebuilds the first level and the later ones read the variance, and
+        /// four, where every level reads it.
+        ///
+        /// Measured: the brighter picture stands 0.40 hundred-thousandths from the dimmer one scaled two
+        /// frames on, and 0.056 four frames on, which the brightness test's divide guard accounts for.
+        /// With the constant variance this replaced, 3.2% and 6.9%.
+        TEST_F(RtxVisibilityTest, aFreshPixelIsFilteredTheSameUnderAnyLight)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr float brighter = 1024.0f;
+
+            SceneDesc scene;
+            addQuad(scene, sheetAt(4000.0f, 0.0f));
+            mRenderer.resize(size, size);
+            mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -200.0f, 150.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSun.mIrradiance = osg::Vec3f();
+            camera.mAmbientFromSky = 1.0f;
+
+            const auto run = [&](float scale, std::uint32_t frames, bool filter) {
+                camera.mSkyHorizon = osg::Vec3f(0.02f, 0.02f, 0.02f) * scale;
+                camera.mSkyZenith = osg::Vec3f(0.4f, 0.4f, 0.4f) * scale;
+                for (std::uint32_t at = 0; at < frames; ++at)
+                {
+                    camera.mFrame = 2000 + at;
+                    mRenderer.renderFrame(camera,
+                        FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
+                            .mReconstruction = ReconstructionRequest{ .mDenoise = filter,
+                                .mBounceReuse = BounceReuse::Off,
+                                .mAntilag = false,
+                                .mAntiFirefly = false },
+                            .mExposure = FixedExposure{ 1.0f } });
+                    EXPECT_TRUE(mRenderer.finishFrame().has_value());
+                }
+                std::vector<float> read;
+                mRenderer.readComposite(read);
+                return read;
+            };
+
+            // The green channel's spread over its mean, which says how much noise a picture holds.
+            const auto spreadOf = [&](const std::vector<float>& picture) {
+                double sum = 0.0;
+                double squares = 0.0;
+                for (std::size_t at = 1; at < picture.size(); at += 4)
+                {
+                    sum += static_cast<double>(picture[at]);
+                    squares += static_cast<double>(picture[at]) * static_cast<double>(picture[at]);
+                }
+                const double mean = sum / static_cast<double>(size * size);
+                return std::sqrt(std::max(squares / static_cast<double>(size * size) - mean * mean, 0.0)) / mean;
+            };
+
+            for (const std::uint32_t frames : { 2u, 4u })
+            {
+                const std::vector<float> dim = run(1.0f, frames, true);
+                const std::vector<float> bright = run(brighter, frames, true);
+                ASSERT_LT(spreadOf(dim), 0.5 * spreadOf(run(1.0f, frames, false)))
+                    << "the filter took little noise off " << frames << " frames, so this proves nothing";
+
+                double off = 0.0;
+                double sum = 0.0;
+                for (std::size_t at = 1; at < dim.size(); at += 4)
+                {
+                    off += std::abs(
+                        static_cast<double>(bright[at]) / static_cast<double>(brighter) - static_cast<double>(dim[at]));
+                    sum += static_cast<double>(dim[at]);
+                }
+                EXPECT_LT(off / sum, 1e-3) << frames << " frames from a cut are filtered by the light's own level";
+            }
         }
 
         /// What the history is worth where the cascade has nothing to borrow from.
@@ -996,15 +1209,12 @@ namespace Rtx::Testing
             }
             const double alone = std::sqrt(pooled);
 
-            // Measured on this box through the composite (`readRadiance`), over ten starts of the
-            // sampler's stream: the cascade alone leaves 0.00475 to 0.00486 pooled over sixteen
-            // frames, and the same sixteen accumulated leave 0.00268 to 0.00285 — the history
-            // removes two fifths of the error the filter cannot reach, and the ratio runs from
-            // 0.556 to 0.590 with a spread of 0.011 about 0.573. Deterministic to the last digit
-            // for one stream, and a different stream is what any change to the sampler or the scene
-            // hands this test, so the bound below sits seven spreads above the mean rather than
-            // one.
-            //
+            // Measured on this box through the composite (`readRadiance`): the cascade alone leaves
+            // 0.0164 pooled over sixteen frames, and the same sixteen accumulated leave 0.0050 — the
+            // history removes seven tenths of the error the filter cannot reach. Deterministic to the
+            // last digit for one stream, and a different stream is what any change to the sampler or
+            // the scene hands this test: over ten streams, with an earlier cascade, the ratio spread
+            // by 0.011 about its mean, so the bound below stands far over the 0.31 measured.
             EXPECT_GT(alone, 0.003) << "the cascade alone leaves enough error here for the question to mean something: "
                                     << alone;
             EXPECT_LT(settled, alone * 0.65) << "and a history of " << Shaders::ACCUMULATE_FRAMES

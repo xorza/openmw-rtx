@@ -8,6 +8,7 @@
 #include <components/fallback/fallback.hpp>
 #include <components/sceneutil/lightcommon.hpp>
 
+#include "lampbody.hpp"
 #include "lightcontroller.hpp"
 #include "lightmanager.hpp"
 #include "visitor.hpp"
@@ -102,6 +103,10 @@ namespace SceneUtil
         osg::ref_ptr<LightSource> lightSource
             = createLightSource(esmLight, lightMask, isExterior, osg::Vec4f(0, 0, 0, 1));
         attachTo->addChild(lightSource);
+
+        // The whole group is the light's model, and not the `AttachLight` node alone: the paper of a
+        // lantern stands beside that node and never under it.
+        LampBody::mark(*node, *lightSource);
 
         CheckEmptyLightVisitor emptyVisitor;
         node->accept(emptyVisitor);

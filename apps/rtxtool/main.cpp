@@ -405,6 +405,7 @@ namespace RtxTool
                 = Rtx::sBounceReuseNames.require(variables["bounce-reuse"].as<std::string>(), "a bounce reuse");
             profile.mReconstruction.mAntilag = variables["antilag"].as<bool>();
             profile.mReconstruction.mHistoryFix = variables["history-fix"].as<bool>();
+            profile.mReconstruction.mDualMotion = variables["dual-motion"].as<bool>();
             profile.mReconstruction.mAntiFirefly = variables["antifirefly"].as<bool>();
 
             return framed;
@@ -1042,12 +1043,19 @@ namespace RtxTool
             // any mode needs to hold sixteen samples a shown pixel.
             const Rtx::FrameExtents extents
                 = Rtx::extentsFor(framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mRun.mProfile.mUpscale);
-            const std::uint32_t barFrames = flies ? noiseBarFramesAfter(sNoiseFlightFrames, extents) : sNoiseBarFrames;
+            const Misc::Result<NoiseFrame, std::string> taken
+                = noiseFrameFor(variables["cut"].as<std::uint32_t>(), flies, extents);
+            if (!taken.isOk())
+                throw std::runtime_error(taken.error());
+            const NoiseFrame& leg = taken.value();
+            const std::uint32_t barFrames = leg.mBarFrames;
 
             // The frame's own stop, flying in where the line asks: a route that holds the world, so
             // the frame flies through the world the reference stands in (`applyPolicy`).
             const auto frame = [&](const Stop& place) {
                 Stop stop = picture(place, "", flies ? sNoiseFlightFrames : 1, false, std::nullopt, held, std::nullopt);
+                if (leg.mWarmup.has_value())
+                    stop.mSchedule.mSpec.mWarm = BenchSpan{ .mFrames = *leg.mWarmup };
                 if (!flies)
                     return stop;
 

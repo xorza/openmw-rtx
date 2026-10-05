@@ -196,8 +196,8 @@ namespace RtxTool
 
         auto fieldsOf(const Rtx::MeshInstance& instance)
         {
-            const auto& [transform, mesh, material, opacity, instanceClass, clockwise, stander] = instance;
-            return std::tie(transform, mesh, material, opacity, instanceClass, clockwise, stander);
+            const auto& [transform, mesh, material, opacity, instanceClass, clockwise, lampBody, stander] = instance;
+            return std::tie(transform, mesh, material, opacity, instanceClass, clockwise, lampBody, stander);
         }
 
         /// Field by field, because the kind is a byte and the row carries padding after it.

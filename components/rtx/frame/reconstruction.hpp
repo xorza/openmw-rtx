@@ -110,10 +110,18 @@ namespace Rtx
         /// A/B read a level off the unupscaled path.
         float mLevelEpsilon = 0.0f;
 
-        /// What the trace makes of its bounce before anything filters it. The whole reuse unless a
-        /// run names less, which is the A/B; a reference is traced with none, since a thousand
-        /// frames that each reused the ones before them are not a thousand draws.
-        BounceReuse mBounceReuse = BounceReuse::Spatiotemporal;
+        /// What the trace makes of its bounce before anything filters it. None unless a run names a
+        /// mode, which is the A/B.
+        ///
+        /// **None, because the reuse's gain was a correction for the filter's.** Where a room is lit
+        /// by a bounce that finds a bright surface rarely (`akulakhan-chamber`), the reuse kept the
+        /// picture near the truth only because the anti-firefly ring, the anti-lag clamp and the
+        /// upscaler each lost such a sample's light; with all three off, the reuse and none drew one
+        /// picture. With the ring off, none stands level with the temporal reuse there over the
+        /// still, strafed and walked frames, takes 0.03 to 0.09 of bias off the lit rooms, and moves
+        /// nothing outdoors, where the reuse added bias by day and nothing by night. It saves 0.24 to
+        /// 0.85 ms a room, and one pipeline serves every place. `.notes/reuse.md` has the figures.
+        BounceReuse mBounceReuse = BounceReuse::Off;
 
         /// Where the indirect light comes from: `[RTX] indirect light` in a played session.
         IndirectLight mIndirect = IndirectLight::Traced;
@@ -128,10 +136,18 @@ namespace Rtx
         /// it and not one bounce spread into blotches. On unless a run names it off, which is the A/B.
         bool mHistoryFix = true;
 
+        /// Whether a surface the previous frame did not see takes the accumulator's history along the
+        /// motion of the occluder that hid it (Zeng et al. 2021's dual motion vector), so what the eye
+        /// uncovers starts with the history of the surface beside it. On unless a run names it off,
+        /// which is the A/B.
+        bool mDualMotion = true;
+
         /// Whether the accumulator holds a short history of the bounce under the fast means around it
         /// (`ACCUMULATE_RING_FRAMES`), so a bounce that found a small bright thing is not a blotch the
-        /// size of a leaf. On unless a run names it off, which is the A/B.
-        bool mAntiFirefly = true;
+        /// size of a leaf. Off unless a run names it on, which is the A/B: since a lamp's own model
+        /// lights nothing by the bounce, it holds no firefly the count can see, and it took a rare
+        /// bright bounce's light with it (the glow-lit chamber 1.90 against 2.60 without the reuse).
+        bool mAntiFirefly = false;
 
         bool operator==(const ReconstructionRequest& other) const = default;
     };
@@ -195,6 +211,11 @@ namespace Rtx
         /// a settled neighbour to borrow from.
         bool mHistoryFix = false;
 
+        /// Whether a surface the previous frame did not see took its history along its occluder's
+        /// motion. Read only where the bounce is filtered, and off for a picture, which has no
+        /// previous frame.
+        bool mDualMotion = false;
+
         /// Whether the accumulator held a short history of the bounce under the light around it. Read
         /// only where the bounce is filtered.
         bool mAntiFirefly = false;
@@ -238,6 +259,7 @@ namespace Rtx
                 .mIndirect = asked.mIndirect,
                 .mAntilag = asked.mAntilag,
                 .mHistoryFix = asked.mHistoryFix,
+                .mDualMotion = asked.mDualMotion,
                 .mAntiFirefly = asked.mAntiFirefly,
                 .mAveraged = true,
             };

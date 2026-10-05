@@ -947,6 +947,13 @@ namespace Rtx::Testing
             // A threshold of 20480 thins even the tree.
             mRing.setMinSize(1.0f);
             EXPECT_EQ(walk(mWalked++).mDistantStatics, 3u) << "the ember and the two lamps alone";
+
+            // **Of the three, the flame's lantern alone is a lamp body**: the ember glows with no lamp
+            // to carry its light, and the dark lamp's lantern stands with a lamp that takes light.
+            std::uint32_t bodies = 0;
+            for (const PlacementRow& row : mScene.placements().getRows())
+                bodies += row.mInstance.isPlaced() && row.mInstance.mLampBody ? 1 : 0;
+            EXPECT_EQ(bodies, 1u);
         }
 
         /// What the size rule admits is a prefix of the cell's placements, largest first, and a

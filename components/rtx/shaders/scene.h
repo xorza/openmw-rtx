@@ -436,6 +436,15 @@ namespace Rtx::Shaders
     /// and `GpuInstance::mClass` answers the class test the mask no longer makes.
     const uint MASK_MEDIUM = 0x08u;
 
+    /// The placement is the model of a light that gives light — `Rtx::MeshInstance::mLampBody` — so
+    /// a diffuse bounce takes no glow from it (`bounceLanding`): its lamp delivers that light.
+    ///
+    /// **In `GpuInstance::mClass` above the class bits**, as `GpuLight::mTraits` packs its fill bit
+    /// beside its classes. Every reader of the word masks it with a ray mask of eight bits, and the
+    /// structure's own mask is `Rtx::InstanceRecord::mMask`, which never carries it, so no traversal
+    /// sees it.
+    const uint INSTANCE_LAMP_BODY = 0x100u;
+
     /// The material is a medium — `Rtx::Material::isMedium`.
     ///
     /// **A bit and not a second float**, because the row is read at every candidate the eye walks
@@ -634,7 +643,8 @@ namespace Rtx::Shaders
         /// The class bits this placement answers to — `MASK_STATIC`, `MASK_ACTOR` and the rest,
         /// `Rtx::InstanceRecord::mClass`. The structure's own mask says the same for every placement
         /// but a medium's, which carries `MASK_MEDIUM` alone so that no ray ignoring it meets it; the
-        /// one ray that sums a medium asks this word instead — `candidateStops`.
+        /// one ray that sums a medium asks this word instead — `candidateStops`. And
+        /// `INSTANCE_LAMP_BODY` above them.
         uint mClass;
 
         /// World space to where this instance was on the previous frame, as three rows of four.
@@ -1203,6 +1213,8 @@ namespace Rtx::Shaders
 #ifdef RTX_HOST
     static_assert(sizeof(GpuMesh) == 24, "GpuMesh must be scalar-packed on every side");
     static_assert(sizeof(GpuInstance) == 64, "GpuInstance must be scalar-packed on every side");
+    static_assert(INSTANCE_LAMP_BODY > (MASK_EVERY_CLASS | MASK_ADDITIVE | MASK_MEDIUM),
+        "the lamp body's bit stands above every ray mask's");
     static_assert(sizeof(GpuLight) == 40, "GpuLight must be scalar-packed on every side");
     static_assert(sizeof(GpuLightGrid) == 28, "GpuLightGrid must be scalar-packed on every side");
     static_assert(sizeof(GpuLayer) == 64, "GpuLayer must be scalar-packed on every side");

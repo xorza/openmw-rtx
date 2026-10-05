@@ -170,9 +170,9 @@ namespace Rtx
         }
 
         /// **The bounce is reused as it was asked, whatever the filter and the upscaler**, because the
-        /// reservoirs are a history of their own; and the whole reuse is what a request that says
-        /// nothing asks, as the filter is. **The trace composes the frame only where nothing comes
-        /// after it**: no filter, and no resolve of a reused bounce either.
+        /// reservoirs are a history of their own; a request that says nothing reuses none, and
+        /// neither holds a young history under its ring. **The trace composes the frame only where
+        /// nothing comes after it**: no filter, and no resolve of a reused bounce either.
         ///
         /// **With no indirect light there is nothing to reuse or filter**, since it holds no draw:
         /// the reuse resolves to `off` whatever was asked, and the bounce's filters run on no frame,
@@ -180,7 +180,7 @@ namespace Rtx
         /// traces the bounce.
         TEST(RtxReconstructionTest, theBounceIsReusedAsAskedAndATraceComposesOnlyWhereNothingFollows)
         {
-            EXPECT_EQ(ReconstructionRequest{}.mBounceReuse, BounceReuse::Spatiotemporal);
+            EXPECT_EQ(ReconstructionRequest{}.mBounceReuse, BounceReuse::Off);
             EXPECT_EQ(ReconstructionRequest{}.mIndirect, IndirectLight::Traced);
 
             for (const IndirectLight indirect : { IndirectLight::Traced, IndirectLight::Off })
@@ -214,11 +214,15 @@ namespace Rtx
             EXPECT_FALSE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mHistoryFix = false }, sUnscaled)
                              .mHistoryFix);
             EXPECT_FALSE(Reconstruction::forPicture(IndirectLight::Traced).mHistoryFix);
-            EXPECT_TRUE(ReconstructionRequest{}.mAntiFirefly);
-            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mAntiFirefly);
-            EXPECT_FALSE(
-                Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mAntiFirefly = false }, sUnscaled)
-                    .mAntiFirefly);
+            EXPECT_TRUE(ReconstructionRequest{}.mDualMotion);
+            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mDualMotion);
+            EXPECT_FALSE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mDualMotion = false }, sUnscaled)
+                             .mDualMotion);
+            EXPECT_FALSE(Reconstruction::forPicture(IndirectLight::Traced).mDualMotion);
+            EXPECT_FALSE(ReconstructionRequest{}.mAntiFirefly);
+            EXPECT_FALSE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mAntiFirefly);
+            EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mAntiFirefly = true }, sUnscaled)
+                            .mAntiFirefly);
             EXPECT_FALSE(Reconstruction::forPicture(IndirectLight::Traced).mAntiFirefly);
 
             EXPECT_EQ(sBounceReuseNames.name(BounceReuse::Spatiotemporal), "spatiotemporal");

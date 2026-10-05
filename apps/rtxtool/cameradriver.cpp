@@ -266,16 +266,18 @@ namespace RtxTool
 
     void CameraDriver::aim(const Stop& stop)
     {
+        showInView(MWRender::Mask_Lighting, stop.mStand.mLamps);
+
         // **The body is hidden from a camera this stands inside it**, through the seam's view mask
         // that both renderers read: a stop flies the player to its route's point so that cells load
         // around it and stands the camera on the same coordinates, and would trace a boot thirteen
         // units from the eye. A free camera is the player's own again.
         if (stop.mSchedule.mFreeCamera)
-            showPlayer(true);
+            showInView(MWRender::Mask_Player, true);
         if (stop.mSchedule.mFreeCamera || !stop.mStand.mEye.has_value())
             return;
 
-        showPlayer(false);
+        showInView(MWRender::Mask_Player, false);
 
         if (stop.mSchedule.mTrack.has_value())
         {
@@ -346,11 +348,11 @@ namespace RtxTool
         world.moveObjectBy(player, eye - osg::Vec3f(stood.pos[0], stood.pos[1], stood.pos[2]), true);
     }
 
-    void CameraDriver::showPlayer(const bool shown)
+    void CameraDriver::showInView(const unsigned int classes, const bool shown)
     {
         MWRender::Renderer& renderer = MWBase::Environment::get().getWorld()->getRenderingManager()->getRenderer();
         const unsigned int mask = renderer.getViewMask();
-        const unsigned int wanted = shown ? mask | MWRender::Mask_Player : mask & ~MWRender::Mask_Player;
+        const unsigned int wanted = shown ? mask | classes : mask & ~classes;
         if (wanted != mask)
             renderer.setViewMask(wanted);
     }

@@ -17,8 +17,9 @@ namespace SceneUtil
     /// everything under such a node is told apart by its place in the subtree.
     ///
     /// Kept in the node's user data slot (`osg::Object::setUserData`) rather than among its user
-    /// objects, because nothing else in the engine writes that slot on a node and a reader then
-    /// finds it in one load rather than a scan.
+    /// objects, so a reader finds it in one load rather than a scan. The slot's one other writer is
+    /// `LampBody`, whose groups are never the nodes stamped here: a lamp's model stands under its
+    /// reference's root, which is.
     class StableIdentity final : public osg::Object
     {
     public:
@@ -45,7 +46,8 @@ namespace SceneUtil
         /// than taken.
         static void stamp(osg::Node& node, const std::uint64_t id)
         {
-            assert(find(node) == nullptr && "a node stamped twice: a stable identity is for the node's life");
+            assert(node.getUserData() == nullptr
+                && "a node stamped twice, or over another user data: a stable identity is for the node's life");
             node.setUserData(new StableIdentity(id));
         }
 

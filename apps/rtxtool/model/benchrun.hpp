@@ -144,6 +144,11 @@ namespace RtxTool
         std::optional<osg::Vec3f> mEye{};
         std::optional<osg::Vec3f> mLook{};
 
+        /// Whether the place's lamps light it. False where a view says `lamps = false`, which hides
+        /// them through the seam's view mask as the game's own `Mask_Lighting` does, so a place lit
+        /// by what glows in it can be judged by that light alone.
+        bool mLamps = true;
+
         /// The point the eye faces: `mLook`, or due north where it names nothing or the eye itself,
         /// because a direction of no length aims nothing. One answer, because `CameraDriver`
         /// aims at it and `Check::CameraStands` asserts the camera reached it. Only for a stand that
