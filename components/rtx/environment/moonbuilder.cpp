@@ -43,13 +43,16 @@ namespace Rtx
             return moonAngularRadius(size);
         }
 
-        /// This moon's colour, on a scale where Masser's luminance is one: Secunda's shipped portrait
-        /// averages two and a half times Masser's, and a pale moon reflects more of the same
-        /// sunlight than a dark red one. Normalised on Masser, so that `Shaders::MOON_ALBEDO` is the
-        /// albedo of exactly one moon rather than of an average of two.
+        /// This moon's colour, on a scale where the shipped Masser's luminance is one: Secunda's
+        /// shipped portrait averages two and a half times Masser's, and a pale moon reflects more of
+        /// the same sunlight than a dark red one. Normalised on Masser, so that `Shaders::MOON_ALBEDO`
+        /// is the albedo of exactly one moon rather than of an average of two — and on the shipped
+        /// portrait rather than the one that opened, because a replacement that hides a moon paints
+        /// it black or clear, and a ratio to its nought is no light.
         osg::Vec3f tintOf(const MoonFaces& faces, Moon moon)
         {
-            return faces.of(moon).mMean / (faces.of(Moon::Masser).mMean * Shaders::LUMINANCE_WEIGHTS);
+            static const float masser = sShippedMasserFace * Shaders::LUMINANCE_WEIGHTS;
+            return faces.of(moon).mMean / masser;
         }
 
         /// What a full moon of `angularRadius` delivers to a surface facing it, before its own tint:

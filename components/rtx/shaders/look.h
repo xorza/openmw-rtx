@@ -782,9 +782,10 @@ namespace Rtx::Shaders
     }
 
     /// Water's index of refraction, and the reflectance it gives head-on: `((n - 1) / (n + 1))^2`,
-    /// 0.02037, which is why water is a window seen from above and a mirror seen along it.
+    /// 0.02037, which is why water is a window seen from above and a mirror seen along it. The
+    /// reflectance written as its value, for the reason `portable.h` gives.
     const float WATER_IOR = 1.333f;
-    const float WATER_F0 = ((WATER_IOR - 1.0f) / (WATER_IOR + 1.0f)) * ((WATER_IOR - 1.0f) / (WATER_IOR + 1.0f));
+    const float WATER_F0 = 0.020373188f;
 
     /// The most radiance the sun's disc is drawn with.
     ///
@@ -806,7 +807,9 @@ namespace Rtx::Shaders
     /// **The disc alone, because it is the only thing in the sky that can reach a ceiling at all.**
     /// A moon's face is held at 0.18, a star at the same, and the dome's own glow is a decoded
     /// weather colour — every one of them three orders below this.
-    const float MAX_SUN_RADIANCE = 1.0f / (EXPOSURE_MIN * WATER_F0);
+    ///
+    /// `1 / (EXPOSURE_MIN * WATER_F0)`, written as its value for the reason `portable.h` gives.
+    const float MAX_SUN_RADIANCE = 9816.824f;
 
     /// Extinction per world unit, per channel — how fast water swallows light along a path.
     ///
@@ -837,7 +840,11 @@ namespace Rtx::Shaders
     /// swamp coast and the Pacific. Every expectation a test makes about water derives from this
     /// sum, so a tuning pass is one line rather than five pieces of arithmetic that quietly stop
     /// describing the shader.
-    const vec3 WATER_EXTINCTION = vec3(0.262f, 0.059f, 0.024f) / UNITS_PER_METRE;
+    ///
+    /// `(0.262, 0.059, 0.024) / UNITS_PER_METRE`, a metre's extinction in each channel, written as
+    /// its values for the reason `portable.h` gives: `RtxSharedConstantTest` says the new ones when
+    /// the per-metre figures change.
+    const vec3 WATER_EXTINCTION = vec3(0.0037433251f, 0.00084296253f, 0.0003429f);
 
     /// The single-scattering albedo: the share of extinction that was scattering and not absorption,
     /// and so the part the water hands back as its own colour instead of swallowing.
@@ -874,7 +881,9 @@ namespace Rtx::Shaders
     /// falls toward blue where every real water's rises — molecular scattering goes as the fourth
     /// power of the wavenumber. What that costs is confined to the colour a very deep column
     /// settles at, which is the one thing the game states outright and this defers to.
-    const vec3 WATER_SCATTER_SHIPPED = vec3(12.0f, 30.0f, 37.0f) / 255.0f * 0.85f;
+    ///
+    /// `(12, 30, 37) / 255 * 0.85`, written as its values for the reason `portable.h` gives.
+    const vec3 WATER_SCATTER_SHIPPED = vec3(0.04f, 0.1f, 0.123333335f);
 
     /// How far forward water throws what it scatters.
     ///
@@ -926,7 +935,9 @@ namespace Rtx::Shaders
     ///
     /// The sun's term is its angular *diameter*, narrowed by refraction on the way in. A mip chain
     /// preserves the mean, so nothing here changes how much light arrives.
-    const float WATER_CAUSTIC_SPREAD = 2.0f * SUN_ANGULAR_RADIUS / WATER_IOR;
+    ///
+    /// `2 * SUN_ANGULAR_RADIUS / WATER_IOR`, written as its value for the reason `portable.h` gives.
+    const float WATER_CAUSTIC_SPREAD = 0.0069827456f;
 
     /// The depth a sea's caustics are boldest at, in world units.
     ///

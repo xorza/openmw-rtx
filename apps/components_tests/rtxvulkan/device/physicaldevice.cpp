@@ -88,6 +88,7 @@ namespace Rtx
                     = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_QUAD_BIT;
                 mProperties.mVulkan11.subgroupSupportedStages = VK_SHADER_STAGE_COMPUTE_BIT;
                 mProperties.mProperties2.properties.limits.maxPushConstantsSize = sPushConstantsFloor;
+                mProperties.mVulkan12.shaderSignedZeroInfNanPreserveFloat32 = VK_TRUE;
 
                 // Every required format offered whole, in optimal tiling, which is where an image
                 // the trace samples lives.
@@ -241,6 +242,12 @@ namespace Rtx
                 Card basic(&describeTuring);
                 basic.mProperties.mVulkan11.subgroupSupportedOperations = VK_SUBGROUP_FEATURE_BASIC_BIT;
                 EXPECT_EQ(basic.profile().mObstacle, "no quad subgroup operations in compute shaders");
+            }
+            {
+                Card folding(&describeTuring);
+                folding.mProperties.mVulkan12.shaderSignedZeroInfNanPreserveFloat32 = VK_FALSE;
+                EXPECT_EQ(folding.profile().mObstacle,
+                    "no preservation of signed zeros, infinities and NaNs in 32-bit floats");
             }
             {
                 // Vulkan 1.0's 128 bytes, which a device reporting 1.4 must not.

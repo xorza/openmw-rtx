@@ -71,10 +71,11 @@ namespace Rtx::Shaders
     // is not on the scale; the scale runs from one over `EXPOSURE_BINS - 2`. Inside the namespace,
     // for the reason `causticGain` is: a curve two passes agree on is a curve a test has to call.
 
-    /// Which bin a luminance lands in.
+    /// Which bin a luminance lands in. NaN is black: past this test it reaches a conversion whose
+    /// answer neither language defines, and an index into the histogram's shared bins.
     RTX_SHADER uint luminanceBin(float luminance)
     {
-        if (luminance < EXPOSURE_BLACK)
+        if (!(luminance >= EXPOSURE_BLACK))
             return 0u;
 
         const float span = MAX_LOG_LUMINANCE - MIN_LOG_LUMINANCE;

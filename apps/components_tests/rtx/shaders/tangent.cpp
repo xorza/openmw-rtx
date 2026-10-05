@@ -1,6 +1,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 #include <gtest/gtest.h>
 
@@ -42,12 +43,21 @@ namespace Rtx
         }
 
         /// A tangent of no length is none, whatever its handedness, and so is one the generator
-        /// left undefined. None reads back as nought.
+        /// left undefined or a file gave past every float. None reads back as nought.
+        ///
+        /// **Past every float in its sum as well as in a component.** Two halves of the largest
+        /// float sum to an infinity as surely as an infinity does.
         TEST(RtxTangentTest, noLengthIsNoTangent)
         {
+            constexpr float infinity = std::numeric_limits<float>::infinity();
+            constexpr float largest = std::numeric_limits<float>::max();
             EXPECT_EQ(Shaders::packTangent(osg::Vec3f(0.0f, 0.0f, 0.0f), false), 0u);
             EXPECT_EQ(Shaders::packTangent(osg::Vec3f(0.0f, 0.0f, 0.0f), true), 0u);
             EXPECT_EQ(Shaders::packTangent(osg::Vec3f(std::nanf(""), 0.0f, 0.0f), false), 0u);
+            EXPECT_EQ(Shaders::packTangent(osg::Vec3f(infinity, 0.0f, 0.0f), false), 0u);
+            EXPECT_EQ(Shaders::packTangent(osg::Vec3f(0.0f, -infinity, 1.0f), true), 0u);
+            EXPECT_EQ(Shaders::packTangent(osg::Vec3f(largest, largest, 0.0f), false), 0u);
+            EXPECT_NE(Shaders::packTangent(osg::Vec3f(largest, 0.0f, 0.0f), false), 0u) << "the largest is a number";
             EXPECT_EQ(Shaders::unpackTangent(0u), osg::Vec4f());
         }
 

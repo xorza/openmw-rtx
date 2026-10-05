@@ -32,6 +32,12 @@ namespace Rtx
     /// implementation; and whether a denormal is flushed, which an NVIDIA device lets no module
     /// choose. The pinned forms keep each of these as one operation on pinned operands.
     ///
+    /// **And the module keeps its signed zeros, infinities and NaNs.** Vulkan lets a compile assume a
+    /// float is none of them unless the entry point says otherwise, and so fold `isnan` to false or
+    /// `!(a >= b)` to `a < b` — which every guard against a value from the world is written as. Each
+    /// entry point declares `SignedZeroInfNanPreserve` for every float width the module has, and the
+    /// device is required to honour it.
+    ///
     /// **A multiply a `precise` variable reads stays a multiply.** `precise` is the source's own
     /// `NoContraction`, and where two shaders must compute one value to the bit it is what says so:
     /// a fusion that depended on how each module happened to be optimised could split them.
@@ -54,7 +60,8 @@ namespace Rtx
     /// - `mod(x, y)` is `fma(-y, floor(x / y), x)`, and `rem` the same with `trunc`.
     ///
     /// Throws `std::runtime_error` for a module it cannot read and for an operation it cannot pin —
-    /// a derivative, a relaxed precision, a float environment the module sets for itself, an
+    /// a derivative or a level of detail worked out from one, a relaxed precision, a rounding mode or
+    /// any other float environment the module sets for itself, an
     /// extended instruction set it does not know, an instruction newer than the SPIR-V headers it
     /// was built with — naming it, so the build stops rather than ships a shader a compile may change.
     std::vector<std::uint32_t> pinFloatArithmetic(std::span<const std::uint32_t> module);

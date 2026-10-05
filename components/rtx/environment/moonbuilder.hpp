@@ -105,7 +105,8 @@ namespace Rtx
     /// The mean opaque texel of `tx_masser_full.dds` and `tx_secunda_full.dds`, linear —
     /// `MeanTexel::opaque` of the shipped portraits, which is what a face that opens is measured
     /// by: one red, one grey. What a moon whose face does not open is lit as; a face that opens is
-    /// measured instead, so a replaced portrait lights as it is painted.
+    /// measured instead, so a replaced portrait lights as it is painted. Masser's luminance is the
+    /// level both moons' light is measured on, whichever portraits opened.
     inline const osg::Vec3f sShippedMasserFace(0.03282f, 0.00981f, 0.01213f);
     inline const osg::Vec3f sShippedSecundaFace(0.04356f, 0.03686f, 0.02912f);
 

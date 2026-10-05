@@ -85,7 +85,7 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
     const vec2 across = vec2(tracedExtent) / vec2(extent);
 
     // The traced camera on this grid — `cameraOnGrid` says why it is the same basis.
-    const Camera camera = cameraOnGrid(eyeOf(uint(arms)), extent.x, extent.y);
+    const Camera camera = arms ? picture.mShown.mArms : picture.mShown.mWorld;
 
     const Ray ray = rayAt(camera, vec2(pixel));
     const vec3 origin = frame.mOrigin + ray.mOffset;
@@ -208,7 +208,7 @@ void main()
 {
     const uvec2 traced = gl_LaunchIDEXT.xy;
     const uvec2 tracedExtent = gl_LaunchSizeEXT.xy;
-    const uvec2 extent = uvec2(picture.mShownWidth, picture.mShownHeight);
+    const uvec2 extent = uvec2(picture.mShown.mWorld.mWidth, picture.mShown.mWorld.mHeight);
 
     // Which eye the trace cast this pixel's ray from — the arms' where it drew the pixel on an arm,
     // so the march here runs along the same ray the trace lit them on.

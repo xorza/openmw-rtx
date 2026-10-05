@@ -119,7 +119,12 @@ set(RTX_SHADER_VENDORED "${OpenMW_SOURCE_DIR}/extern/fidelityfx/gpu")
 # `-g` always, into the source set, for Nsight's source view. The renderers' set strips it rather than
 # compiling twice, so the two differ in nothing else; both are pinned before validation, so the
 # validator reads what the driver gets.
-set(RTX_GLSLC_FLAGS -g $<IF:$<CONFIG:Debug>,-O0,-O>)
+#
+# **One level for every flavour**, because the pinning fuses a multiply into the add that reads it
+# only where the module is in SSA form: at `-O0` glslc keeps locals in memory, nothing is fused, and
+# the debug build that runs every test computed other arithmetic than the release build a figure is
+# quoted from.
+set(RTX_GLSLC_FLAGS -g -O)
 
 foreach (shader ${RTX_SHADERS})
     get_filename_component(name "${shader}" NAME)
@@ -170,6 +175,7 @@ set(RTX_SHADER_LIB
     shaders/lib/bouncereservoir.glsl
     shaders/lib/compose.glsl
     shaders/lib/counts.glsl
+    shaders/lib/finite.glsl
     shaders/lib/fog.glsl
     shaders/lib/footprint.glsl
     shaders/lib/frame.glsl

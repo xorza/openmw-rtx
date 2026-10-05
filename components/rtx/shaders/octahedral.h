@@ -65,10 +65,12 @@ namespace Rtx::Shaders
         return (float(stored) - float(steps)) / float(steps);
     }
 
-    /// Whether `direction` has one to fold: some length, and none a number cannot hold.
+    /// Whether `direction` has one to fold: some length, and none a number cannot hold. A sum past
+    /// the largest float is an infinity, which folds to `inf / inf`, and NaN fails both tests.
     RTX_SHADER bool octahedralDirected(vec3 direction)
     {
-        return abs(direction[0]) + abs(direction[1]) + abs(direction[2]) > 0.0f;
+        const float sum = abs(direction[0]) + abs(direction[1]) + abs(direction[2]);
+        return sum > 0.0f && sum <= 3.40282347e38f;
     }
 
     /// `direction`, `octahedralDirected`, as the two coordinates of the square stepped to `steps`:

@@ -90,6 +90,14 @@ namespace Rtx::Shaders
 
         uint mWidth;
         uint mHeight;
+
+        /// What `rayAt` scales a pixel's offset from the middle by onto the minus-one-to-one plane:
+        /// `2 / mWidth` and `2 / mHeight`. **Divided on the host**, where a division rounds correctly, so every
+        /// module that builds a ray multiplies by the same number: a division in a shader is
+        /// bounded by Vulkan to an error and not fixed, and two modules dividing their own way drew
+        /// two rays a few hundred pixels apart. Set with the extent by whoever sets the extent
+        /// (`pixelScaleOf`).
+        vec2 mPixelScale;
     };
 
     /// The two eyes a pixel's ray can have left: the world's, and the one the player's own arms are
@@ -121,26 +129,35 @@ namespace Rtx::Shaders
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(ScreenBasis) == 44, "ScreenBasis must be scalar-packed on every side");
-    static_assert(sizeof(Camera) == 68, "Camera must be scalar-packed on every side");
-    static_assert(sizeof(Eyes) == 136, "Eyes must be scalar-packed on every side");
+    static_assert(sizeof(Camera) == 76, "Camera must be scalar-packed on every side");
+    static_assert(sizeof(Eyes) == 152, "Eyes must be scalar-packed on every side");
     static_assert(sizeof(Basis) == 44, "Basis must be scalar-packed on every side");
 #endif
 
+#ifdef RTX_HOST
+    /// `Camera::mPixelScale` for an extent of `width` by `height` pixels.
+    inline vec2 pixelScaleOf(uint width, uint height)
+    {
+        return vec2(2.0f / static_cast<float>(width), 2.0f / static_cast<float>(height));
+    }
+
     /// The traced camera on the grid a pass draws at once: the same basis, `width` by `height`
-    /// pixels, no jitter, and the spread angle brought down with the pixel. `rayAt` divides by
+    /// pixels, no jitter, and the spread angle brought down with the pixel. `rayAt` scales by
     /// the camera's own extent, so this is what turns a pixel of the shown picture into the ray it
-    /// shows. The display pass takes it from the host and the sprite composite works it out in
-    /// the shader, both from here, so the two cannot draw different rays.
-    RTX_SHADER Camera cameraOnGrid(Camera traced, uint width, uint height)
+    /// shows. **The host's alone**, since it divides: the display pass and the sprite composite are
+    /// each handed it, so the two cannot draw different rays.
+    inline Camera cameraOnGrid(Camera traced, uint width, uint height)
     {
         Camera shown = traced;
         shown.mJitter = vec2(0.0, 0.0);
         shown.mSpreadAngle = traced.mSpreadAngle * float(traced.mHeight) / float(height);
         shown.mWidth = width;
         shown.mHeight = height;
+        shown.mPixelScale = pixelScaleOf(width, height);
 
         return shown;
     }
+#endif
 
     /// The traced pixel under a pixel of the shown extent, along one axis: the one its centre lands
     /// on. Nearest and not filtered, because a depth is not a quantity that averages and a tile's
@@ -255,8 +272,12 @@ namespace Rtx::Shaders
 /// are added here — added to *one* number, so which way is down cannot be disagreed about.
 RTX_SHADER Ray rayAt(Camera camera, vec2 pixel)
 {
-    RTX_PRECISE vec2 uv
-        = (pixel + 0.5 + camera.mJitter) / vec2(float(camera.mWidth), float(camera.mHeight)) * 2.0 - 1.0;
+    // **The offset from the middle first, and one multiply after it.** The half extent is a whole
+    // or a half number, so the offset of a pixel's centre from the middle is exact and the middle
+    // of an odd grid is nought, a level ray; the scale is the host's `2 / extent`, and the multiply
+    // is the one rounding.
+    RTX_PRECISE vec2 middle = 0.5 * vec2(float(camera.mWidth), float(camera.mHeight));
+    RTX_PRECISE vec2 uv = (pixel + 0.5 + camera.mJitter - middle) * camera.mPixelScale;
 
     return rayAcross(camera, uv);
 }

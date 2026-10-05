@@ -620,7 +620,8 @@ namespace Rtx
                     firstType = at;
             }
             EXPECT_EQ(capabilities,
-                (std::vector<std::uint32_t>{ spv::CapabilityShader, spv::CapabilityFloat16, spv::CapabilityFMAKHR }));
+                (std::vector<std::uint32_t>{ spv::CapabilityShader, spv::CapabilityFloat16, spv::CapabilityFMAKHR,
+                    spv::CapabilitySignedZeroInfNanPreserve }));
             EXPECT_EQ(extensions, std::vector<std::string>{ "SPV_KHR_fma" });
             EXPECT_LT(lastDecoration, firstType) << "a decoration after the first type is out of SPIR-V's layout";
 
@@ -658,17 +659,37 @@ namespace Rtx
             EXPECT_LT(lastImport, memoryModel) << "an import after the memory model is out of SPIR-V's layout";
         }
 
-        /// **A module with nothing to pin comes back as it was, word for word**: integer arithmetic,
-        /// a square root and an exponential are left to the device, and nothing asks for a fusion.
-        TEST(RtxSpirvPinTest, aModuleWithNothingToPinComesBackAsItWas)
+        /// **A module with nothing to pin comes back as it was but for its float environment**:
+        /// integer arithmetic, a square root and an exponential are left to the device, and nothing
+        /// asks for a fusion. What it gains is the preservation of signed zeros, infinities and
+        /// NaNs, at its one entry point for both float widths it declares, and the capability for
+        /// it — written by hand here and compared word for word.
+        TEST(RtxSpirvPinTest, aModuleWithNothingToPinComesBackAsItWasButForItsFloatEnvironment)
         {
             Writer writer;
             const std::uint32_t s = writer.input(writer.mFloat, "s");
             writer.glsl(writer.mFloat, GLSLstd450Exp2, { writer.glsl(writer.mFloat, GLSLstd450Sqrt, { s }) });
             writer.op(spv::OpFNegate, writer.mFloat, { s });
-
             const std::vector<std::uint32_t> module = writer.finish();
-            EXPECT_EQ(pinFloatArithmetic(module), module);
+
+            Writer expected = writer;
+            expected.raw(expected.mCapabilities, spv::OpCapability, { spv::CapabilitySignedZeroInfNanPreserve });
+            expected.raw(expected.mModes, spv::OpExecutionMode,
+                { expected.mMain, spv::ExecutionModeSignedZeroInfNanPreserve, 16 });
+            expected.raw(expected.mModes, spv::OpExecutionMode,
+                { expected.mMain, spv::ExecutionModeSignedZeroInfNanPreserve, 32 });
+            EXPECT_EQ(pinFloatArithmetic(module), expected.finish());
+
+            // **A module that asks for it already gets no second one**: the 32-bit width it declared
+            // stays as it was, and only the 16-bit one and the capability are added.
+            Writer asking = writer;
+            asking.raw(
+                asking.mModes, spv::OpExecutionMode, { asking.mMain, spv::ExecutionModeSignedZeroInfNanPreserve, 32 });
+            Writer answered = asking;
+            answered.raw(answered.mCapabilities, spv::OpCapability, { spv::CapabilitySignedZeroInfNanPreserve });
+            answered.raw(answered.mModes, spv::OpExecutionMode,
+                { answered.mMain, spv::ExecutionModeSignedZeroInfNanPreserve, 16 });
+            EXPECT_EQ(pinFloatArithmetic(asking.finish()), answered.finish());
         }
 
         /// **What cannot be pinned stops the build, and says what it is.** One module per refusal,
@@ -710,6 +731,29 @@ namespace Rtx
                             { w.mMain, spv::ExecutionModeFPFastMathDefault, w.mFloat, 1 });
                     },
                     "fast-math default" },
+                { "a rounding mode",
+                    [](Writer& w) {
+                        w.raw(w.mModes, spv::OpExecutionMode, { w.mMain, spv::ExecutionModeRoundingModeRTZ, 32 });
+                    },
+                    "float environment" },
+                { "a flushed denormal",
+                    [](Writer& w) {
+                        w.raw(w.mModes, spv::OpExecutionMode, { w.mMain, spv::ExecutionModeDenormFlushToZero, 32 });
+                    },
+                    "float environment" },
+                { "a rounding mode on one result",
+                    [](Writer& w) {
+                        const std::uint32_t sum
+                            = w.op(spv::OpFAdd, w.mFloat, { w.input(w.mFloat, "s"), w.input(w.mFloat, "t") });
+                        w.raw(w.mAnnotations, spv::OpDecorate, { sum, spv::DecorationFPRoundingMode, 1 });
+                    },
+                    "rounding mode" },
+                { "an implicit level of detail",
+                    [](Writer& w) {
+                        w.op(spv::OpImageSampleImplicitLod, w.mVec2,
+                            { w.input(w.mFloat, "image"), w.input(w.mVec2, "uv") });
+                    },
+                    "OpImageSampleImplicitLod" },
                 { "another extended set",
                     [](Writer& w) {
                         const std::uint32_t set = w.fresh();

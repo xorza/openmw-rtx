@@ -211,12 +211,13 @@ namespace Rtx
         /// `spritecomposite.rgen` says what an upscaler's overlay costs.
         ///
         /// @param shown the frame as it will be shown, in `GENERAL`.
+        /// @param eyes the frame's eyes as the trace cast them, at the traced extent the launch
+        ///        covers; the composite is handed them on the shown grid.
         /// @param extent how much of `shown` the picture is, from its corner: the whole of a
         ///        frame's, and a picture's own size inside an image that may be larger. The block is
-        ///        the one the trace wrote, so the traced camera and the bin are read from there.
-        /// @param traced the extent the trace ran at, its camera's, which the launch covers.
+        ///        the one the trace wrote, so the bin is read from there.
         void recordSpriteComposite(VkCommandBuffer commands, const VisibilityInputs& inputs, const Image& shown,
-            VkExtent2D extent, VkExtent2D traced, GpuTimer* timer) const;
+            const Shaders::Eyes& eyes, VkExtent2D extent, GpuTimer* timer) const;
 
     private:
         enum class Kernel
