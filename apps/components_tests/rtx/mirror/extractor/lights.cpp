@@ -21,6 +21,7 @@
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/graphlight.hpp>
 #include <components/esm3/loadligh.hpp>
@@ -38,6 +39,7 @@
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/lightutil.hpp>
 #include <components/sceneutil/material.hpp>
+#include <components/sceneutil/stableidentity.hpp>
 
 #include "fixture.hpp"
 
@@ -419,6 +421,18 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.lights()[0].mPosition, osg::Vec3f(0.0f, 0.0f, 30.0f));
             EXPECT_GT(mScene.lights()[0].mIntensity.x(), 0.0f);
             EXPECT_LT(mScene.lights()[1].mIntensity.x(), 0.0f);
+
+            // **The user data slot holds one marker, which `StableIdentity` shares**: a light hung
+            // again in the same group marks it again, and neither kind takes the slot from the other.
+            const osg::ref_ptr<SceneUtil::LightSource> again = makeLightSource(100.0f, osg::Vec4f(1, 1, 1, 1));
+            SceneUtil::LampBody::mark(*orphan, *again);
+            EXPECT_EQ(SceneUtil::LampBody::find(*orphan)->getLight(), again.get());
+            const osg::ref_ptr<osg::Group> stamped = new osg::Group;
+            SceneUtil::StableIdentity::stamp(*stamped, 1);
+            Testing::expectAssertDies(
+                [&] { SceneUtil::LampBody::mark(*stamped, *again); }, "a lamp body's marker over another user data");
+            Testing::expectAssertDies([&] { SceneUtil::StableIdentity::stamp(*orphan, 2); },
+                "a node stamped twice, or over another user data");
         }
 
         /// A lamp the record says animates is mirrored at the instant the walk was told, not at rest.

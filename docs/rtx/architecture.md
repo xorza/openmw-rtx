@@ -291,7 +291,7 @@ at the top, over all of them.
   clamp holds the accumulator's slow mean to a fast one of a few frames (`accumulateclamp.comp`,
   ReLAX's), so light that changes on a surface that did not move is followed and not dragged. A
   mean of `ACCUMULATE_SETTLED` frames or fewer has no variance of its own yet, and the clamp gives
-  it the spread of the fast means around it (ReLAX's spatial estimate), so the wavelet's brightness
+  it the variance of the moments around it (ReLAX's spatial estimate), so the wavelet's brightness
   test measures a fresh pixel in its own light and not against a constant. A surface the previous
   frame did not see because something stood in front of it takes the history beside it, along the
   occluder's own motion (Zeng et al.'s dual motion vector), held to its plane.

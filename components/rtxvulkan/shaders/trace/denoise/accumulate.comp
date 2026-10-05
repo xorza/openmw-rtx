@@ -70,14 +70,11 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_HISTORY_MOMENTS, ACCUMULATE_MOM
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_SURFACE_OUT, ACCUMULATE_SURFACE) uniform writeonly image2D surfaceOut;
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_MOMENTS_OUT, ACCUMULATE_MOMENTS) uniform writeonly image2D momentsOut;
 
-/// This frame's bounce blended with the history in `rgb`, which is what the cascade reads, and in `a`
-/// the variance of its luminance, which the cascade weighs a tap by and carries through its levels.
-///
-/// **The variance is written rather than left to be derived, and the single-sample case is why.**
-/// `E[l²] - E[l]²` over one sample is exactly nought, which a filter reads as "this pixel is
-/// certain" — the opposite of the truth, and it would leave the noise precisely where it is. What a
-/// pixel with no history has is no idea how noisy it is, and the honest value for that is the
-/// largest one, not the smallest.
+/// This frame's bounce blended with the history in `rgb`, which is what the cascade reads. **Nought
+/// in `a`, where the clamp writes the variance** the cascade weighs a tap by, out of the moments this
+/// writes beside it (`accumulateclamp.comp`): `E[l²] - E[l]²` over one sample is exactly nought,
+/// which a filter reads as "this pixel is certain", and only the square around a short history can
+/// say how noisy it is.
 ///
 /// **The cascade's channel and not the trace's**, so `CHANNEL_INDIRECT` keeps what the trace put
 /// there for the whole of the frame. `AccumulatePass::record` says what that separation is worth.
@@ -107,12 +104,6 @@ layout(push_constant, scalar) uniform Push
     Basis previous;
     uint dualMotion;
 };
-
-/// The variance written where a pixel's mean holds too few frames to have measured one
-/// (`ACCUMULATE_SETTLED`). **Nothing reads it**: the clamp after this replaces it on every pixel
-/// with a surface (`shortHistoryVariance`), and the wavelet reads no pixel without one. Not nought,
-/// which says the pixel is certain, should a reader ever arrive.
-const float NO_HISTORY_VARIANCE = 1.0;
 
 /// Whether the history at `at` belongs to the surface now in front of this pixel.
 bool sameSurface(ivec2 at, vec3 normal, float distance, vec3 moved)
@@ -259,7 +250,7 @@ void main()
         // surface straight through, so one this never wrote would arrive there as whatever the
         // allocation held — and the composite multiplies it by an albedo of nought, which turns a
         // stray infinity into a NaN rather than into nothing.
-        imageStore(blendedOut, at, vec4(sampled, NO_HISTORY_VARIANCE));
+        imageStore(blendedOut, at, vec4(sampled, 0.0));
         imageStore(fillBlendedOut, at, vec4(sampledFill, 0.0));
         imageStore(surfaceOut, at, heldSurfaceOf(seen, frame.mDistanceScale));
         imageStore(momentsOut, at, vec4(0.0));
@@ -326,7 +317,6 @@ void main()
     // sample away: every pixel a surface uncovers, and every pixel of a reset, would keep one sample
     // for two frames and count one frame short ever after.
     float count = 1.0;
-    float variance = NO_HISTORY_VARIANCE;
 
     if (weight > 0.0)
     {
@@ -357,12 +347,9 @@ void main()
         const float fastAlpha = 1.0 / min(frames + 1.0, ACCUMULATE_FAST_FRAMES);
         blendedFast = mix(fast, sampled, fastAlpha);
         blendedFastFill = mix(fastFill, sampledFill, fastAlpha);
-
-        if (frames >= ACCUMULATE_SETTLED)
-            variance = max(blendedMoments.y - blendedMoments.x * blendedMoments.x, 0.0);
     }
 
-    imageStore(blendedOut, at, vec4(blended, variance));
+    imageStore(blendedOut, at, vec4(blended, 0.0));
     imageStore(fillBlendedOut, at, vec4(blendedFill, 0.0));
     imageStore(surfaceOut, at, heldSurfaceOf(seen, frame.mDistanceScale));
     imageStore(momentsOut, at, vec4(blendedMoments, 0.0, count));

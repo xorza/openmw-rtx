@@ -34,9 +34,9 @@ vec3 skyGlow(vec3 direction)
 
 /// Where a point on the layer sits on the sheet, in texture coordinates.
 ///
-/// **Addressed from the world and not from the eye**, which is the whole of what lets the deck cast:
-/// a sheet laid out from where a ray happened to be looking travels with the camera, and a shadow
-/// off one would travel with it too rather than lie under the cloud that made it.
+/// **Addressed from the world and not from the eye**: a sheet laid out from where a ray happened to
+/// be looking travels with the camera, and a cloud overhead walks along with the player rather than
+/// stand over the ground under it.
 ///
 /// **The turn is about the frame's eye**, as the rasterizer turns its cloud mesh about the
 /// camera, and one point for every ray of a frame, so a ray from the eye and a ray from a shading
@@ -55,10 +55,6 @@ vec2 cloudUvAt(vec2 crossing, vec2 bearing)
 
 /// The sheet where a crossing lands on it, across whatever transition the weather is part way
 /// through.
-///
-/// **One reading, because two things ask for it**: what the eye finds in the deck, and what the deck
-/// leaves of a light standing over a shading point. Two samples of one sheet with one blend
-/// written out twice are two that drift.
 ///
 /// **The top mip and no cone.** A deck seen edge-on wants a level off the ray's gradient, and the
 /// gradient is what the hardware works out for itself from neighbouring lanes, which a ray tracer
@@ -82,11 +78,9 @@ vec4 cloudSheetAt(vec2 crossing)
 /// How high the deck stands over a point, or nothing at all: where there is no deck, and where
 /// the point stands over it, which is what an eye above the clouds is.
 ///
-/// **A world height rather than one over the eye**, which is what a shadow needs: a layer that rose
-/// with the camera would cast a shadow that moved with it. What still follows the eye is the deck's
-/// *extent*, because the fade rings are the mesh's own and are measured from there.
-///
-/// **One statement of whether there is a deck**, asked by the eye and by a shadow ray alike.
+/// **A world height rather than one over the eye** (`Rtx::sCloudAltitude`): a layer that rose with
+/// the camera would never come nearer. What still follows the eye is the deck's *extent*, because
+/// the fade rings are the mesh's own and are measured from there.
 float deckOver(vec3 at)
 {
     if (!(frame.mClouds.mOpacity > 0.0) || !holdsTexture(frame.mClouds.mTexture))

@@ -22,15 +22,15 @@ namespace Rtx
     public:
         explicit AccumulatePass(const Device& device);
 
-        /// Blends the buffer's indirect channel with the history, and leaves the blend and its variance
-        /// in `images.mBlended` where the cascade can read them — an image of the history's own, or
-        /// `Channel::Indirect` would mean two different things — and the fast blend in the scratch.
-        /// `DenoiseHistory::discard` has readied what this reads and writes.
+        /// Blends the buffer's indirect channel with the history, and leaves the blend in
+        /// `images.mBlended` where the cascade can read it — an image of the history's own, or
+        /// `Channel::Indirect` would mean two different things — its moments beside it, and the fast
+        /// blend in the scratch. `DenoiseHistory::discard` has readied what this reads and writes.
         void record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images, const GBuffer& buffer,
             const DenoiseFrame& frame) const;
 
-        /// Holds the blend's slow mean to the fast one (`accumulateclamp.comp`) and writes the fast
-        /// means. After `record`.
+        /// Holds the blend's slow mean to the fast one (`accumulateclamp.comp`), writes its variance
+        /// beside it and writes the fast means. After `record`.
         void recordClamp(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
             const GBuffer& buffer, const DenoiseFrame& frame) const;
 

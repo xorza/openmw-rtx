@@ -305,7 +305,7 @@ namespace Rtx::Testing
             //
             // **Eight per cent of room, because the history is the filtered light** (SVGF's
             // feedback), and averaging the cascade's answers over frames on a surface this easy
-            // correlates them more than it adds. Measured: the cascade 0.00194 and the settled
+            // correlates them more than it adds. Measured: the cascade 0.00195 and the settled
             // history 0.00177, against an unfiltered 0.0335.
             //
             // **A flat sheet is where feeding the filtered light back has least to give**, since the
@@ -686,8 +686,8 @@ namespace Rtx::Testing
         /// this test's question. So is the ring, which holds the fresh strip down before the fix
         /// borrows, `ACCUMULATE_RING_FRAMES`'s trade.
         ///
-        /// Measured: the strip's noise 1.78 of its mean without the fix and 0.72 with it, its mean 0.28
-        /// of the truth without the fix and 1.03 with it; the same strip held still, 0.30 at 0.61. With
+        /// Measured: the strip's noise 1.61 of its mean without the fix and 0.71 with it, its mean 0.31
+        /// of the truth without the fix and 1.04 with it; the same strip held still, 0.30 at 0.61. With
         /// the fixed variance `shortHistoryVariance` replaced and three 5×5 levels, 13.6 and 0.87, and
         /// 0.61 and 1.08.
         TEST_F(RtxVisibilityTest, theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo)
@@ -825,7 +825,7 @@ namespace Rtx::Testing
         /// (`samePlane`). **The table is advanced after each hand-over**, as `SceneUploader` does, or
         /// the bar's motion is its whole travel since it stood still.
         ///
-        /// Measured: 0.0099 without the dual vector and 0.0022 with it, where the floor beside a bar
+        /// Measured: 0.0095 without the dual vector and 0.0022 with it, where the floor beside a bar
         /// that stood still holds 0.0019.
         TEST_F(RtxVisibilityTest, theFloorAMovingBarUncoversStartsWithTheHistoryBesideIt)
         {
@@ -946,8 +946,8 @@ namespace Rtx::Testing
         /// are `(31/32)^128` of that quarter 128 frames later, under half a hundredth of the mean
         /// however much of their light the ring took.
         ///
-        /// Measured: 8944 fireflies without the ring, the history fix having spread each over its
-        /// taps, and 164 with it; the settled means 0.6969 and 0.6955.
+        /// Measured: 9021 fireflies without the ring, the history fix having spread each over its
+        /// taps, and 166 with it; the settled means 0.6969 and 0.6955.
         TEST_F(RtxVisibilityTest, theRingHoldsAFreshFireflyAndLeavesASettledMeanItsLight)
         {
             constexpr std::uint32_t size = 64;
@@ -1023,8 +1023,8 @@ namespace Rtx::Testing
         /// two frames on, where the history fix rebuilds the first level and the later ones read the variance, and
         /// four, where every level reads it.
         ///
-        /// Measured: the brighter picture stands 1.1 hundred-thousandths from the dimmer one scaled two
-        /// frames on, and 0.35 four frames on, which the brightness test's divide guard accounts for.
+        /// Measured: the brighter picture stands 0.40 hundred-thousandths from the dimmer one scaled two
+        /// frames on, and 0.056 four frames on, which the brightness test's divide guard accounts for.
         /// With the constant variance this replaced, 3.2% and 6.9%.
         TEST_F(RtxVisibilityTest, aFreshPixelIsFilteredTheSameUnderAnyLight)
         {
