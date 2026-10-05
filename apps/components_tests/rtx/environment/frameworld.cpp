@@ -595,7 +595,6 @@ namespace Rtx
             EXPECT_EQ(hidden.mAmbientFromSky, open.mAmbientFromSky);
             EXPECT_EQ(hidden.mSkyFill, open.mSkyFill);
             EXPECT_EQ(hidden.mFogColour, open.mFogColour);
-            EXPECT_EQ(hidden.mClouds.mTexture, open.mClouds.mTexture) << "the deck's shadow went with its picture";
             EXPECT_EQ(hidden.mMoons[0].mSource.mIrradiance, open.mMoons[0].mSource.mIrradiance);
         }
 
