@@ -556,6 +556,11 @@ namespace Rtx
         if (past.mWaterLost)
             mMedia.resetRipples();
 
+        // **What can make or replace a resource, before the recording opens**: the reservoirs the
+        // indirect light makes are uploaded by a submit of their own, which inside the open
+        // recording would take the value what it already named was named for.
+        mFrame.setIndirect(reconstruction.mIndirect);
+
         GpuTimer& timer = frame.mTimer;
         const VkCommandBuffer commands = frame.mWorld.mCommands;
         mDevice.getPool().begin(commands);

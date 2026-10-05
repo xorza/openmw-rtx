@@ -72,6 +72,9 @@ namespace Rtx
         if (options.mScene.isWorld())
             mMedia.placeRipples(sampled);
 
+        // Before the batch opens, as the world's chain is switched before its frame opens.
+        mChain.setIndirect(reconstruction.mIndirect);
+
         Batch trace(mDevice.getPool());
         {
             const VkCommandBuffer commands = trace.getCommands();

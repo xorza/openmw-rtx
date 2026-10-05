@@ -83,6 +83,12 @@ namespace Rtx
                 describe(mProperties);
                 requestRequiredFeatures(mFeatures);
 
+                // What every card of the targets reports, and a case below takes out again.
+                mProperties.mVulkan11.subgroupSupportedOperations
+                    = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_QUAD_BIT;
+                mProperties.mVulkan11.subgroupSupportedStages = VK_SHADER_STAGE_COMPUTE_BIT;
+                mProperties.mProperties2.properties.limits.maxPushConstantsSize = sPushConstantsFloor;
+
                 // Every required format offered whole, in optimal tiling, which is where an image
                 // the trace samples lives.
                 for (const RequiredFormat& required : getRequiredFormats())
@@ -225,6 +231,22 @@ namespace Rtx
                           .bufferFeatures = 0 };
                 EXPECT_EQ(flat.profile().mObstacle,
                     "missing format features for " + std::string(getRequiredFormats().front().mFor));
+            }
+            {
+                // Quads in the fragment stage alone, and in compute only the basic operations.
+                Card fragmentQuads(&describeTuring);
+                fragmentQuads.mProperties.mVulkan11.subgroupSupportedStages = VK_SHADER_STAGE_FRAGMENT_BIT;
+                EXPECT_EQ(fragmentQuads.profile().mObstacle, "no quad subgroup operations in compute shaders");
+
+                Card basic(&describeTuring);
+                basic.mProperties.mVulkan11.subgroupSupportedOperations = VK_SUBGROUP_FEATURE_BASIC_BIT;
+                EXPECT_EQ(basic.profile().mObstacle, "no quad subgroup operations in compute shaders");
+            }
+            {
+                // Vulkan 1.0's 128 bytes, which a device reporting 1.4 must not.
+                Card cramped(&describeTuring);
+                cramped.mProperties.mProperties2.properties.limits.maxPushConstantsSize = 128;
+                EXPECT_EQ(cramped.profile().mObstacle, "push constants of 128 bytes, under 256");
             }
             {
                 Card split(&describeTuring);

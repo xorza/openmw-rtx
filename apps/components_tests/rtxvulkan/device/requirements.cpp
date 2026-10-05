@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <set>
 #include <span>
@@ -96,10 +97,9 @@ namespace Rtx
                 (std::vector<std::string_view>{
                     VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME }));
 
-            // Paging by priority rests on the priority, which the table takes first.
+            // Paging by priority rests on the priority.
             const OptionalExtensions& pageable = options[static_cast<std::size_t>(DeviceOption::PageableMemory)];
             EXPECT_EQ(names(pageable.mNeeds), (std::vector<std::string_view>{ VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME }));
-            EXPECT_LT(DeviceOption::MemoryPriority, DeviceOption::PageableMemory) << "a need taken after what needs it";
 
             for (const DeviceOption alone : { DeviceOption::FaultReport, DeviceOption::MemoryBudget,
                      DeviceOption::MemoryPriority, DeviceOption::Checkpoints, DeviceOption::BufferMarkers })
@@ -146,6 +146,37 @@ namespace Rtx
             for (const DeviceOption bare :
                 { DeviceOption::MemoryBudget, DeviceOption::Checkpoints, DeviceOption::BufferMarkers })
                 EXPECT_EQ(options[static_cast<std::size_t>(bare)].mFeature, nullptr) << static_cast<int>(bare);
+        }
+
+        /// **An option falls with what it needs**, whatever order the table lists them in, and
+        /// stands where what it needs is given or taken. Every option offered: with nothing given,
+        /// the present fences fall, since no swapchain is enabled; with the priority not taken,
+        /// paging by priority falls with it; and every option that needs nothing stands. Given the
+        /// swapchain and its surface's maintenance, the fences stand.
+        TEST(RtxRequirementsTest, anOptionFallsWithWhatItNeeds)
+        {
+            const std::span<const OptionalExtensions> options = getOptionalExtensions();
+            const auto index = [](DeviceOption option) { return static_cast<std::size_t>(option); };
+
+            std::array<bool, sDeviceOptions> taken{};
+            taken.fill(true);
+            taken[index(DeviceOption::MemoryPriority)] = false;
+            dropUnmetNeeds(options, taken, [](const char*) { return false; });
+            EXPECT_FALSE(taken[index(DeviceOption::PresentFences)]);
+            EXPECT_FALSE(taken[index(DeviceOption::PageableMemory)]);
+            for (const OptionalExtensions& option : options)
+            {
+                const bool alone = option.mNeeds.empty() && option.mOption != DeviceOption::MemoryPriority;
+                EXPECT_TRUE(!alone || taken[index(option.mOption)]) << "an option that needs nothing fell";
+            }
+
+            taken.fill(true);
+            dropUnmetNeeds(options, taken, [](const char* name) {
+                return std::string_view(name) == VK_KHR_SWAPCHAIN_EXTENSION_NAME
+                    || std::string_view(name) == VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME;
+            });
+            EXPECT_TRUE(taken[index(DeviceOption::PresentFences)]);
+            EXPECT_TRUE(taken[index(DeviceOption::PageableMemory)]) << "the priority it rests on is taken";
         }
 
         /// The two directions of the table have to agree: what `requestRequiredFeatures` writes is
