@@ -19,7 +19,7 @@ def msvc_versions() -> dict[str, str]:
     """The tags upstream's `CI/deps_versions.msvc.sh` pins, read the way its MSVC script reads them:
     the dependency set's `VCPKG_TAG` and Qt's `QT_VER`."""
     versions: dict[str, str] = {}
-    for line in read_text((ROOT / "CI" / "deps_versions.msvc.sh")).splitlines():
+    for line in read_text(ROOT / "CI" / "deps_versions.msvc.sh").splitlines():
         match = re.fullmatch(r"\s*([A-Z_]+)=(\S+)\s*", line)
         if match:
             versions[match.group(1)] = match.group(2)

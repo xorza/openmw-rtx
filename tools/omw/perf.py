@@ -117,7 +117,7 @@ def _report(data: Path, out: Path, slug: str, blocked: bool) -> None:
     read beat inline names that name the wrong thing."""
     wall = 0.0
     frames = 0.0
-    for line in read_text((out / "bench.txt")).splitlines():
+    for line in read_text(out / "bench.txt").splitlines():
         if re.search(r"frames in .* s ", line):
             fields = line.split()
             frames += float(fields[0])
