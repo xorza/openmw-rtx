@@ -10,6 +10,7 @@
 #include <variant>
 
 #include <components/rtx/common/namedenum.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 
 #include "frameextents.hpp"
 #include "surfaceview.hpp"
@@ -109,6 +110,10 @@ namespace Rtx
         /// the ratio is nought and this is the whole of the bias, which is what lets a test and an
         /// A/B read a level off the unupscaled path.
         float mLevelEpsilon = 0.0f;
+
+        /// The share of a pixel's light under which a source is never drawn for its shadow bit
+        /// (`Shaders::SHADOW_DRAW_FLOOR`), which a run names for the A/B.
+        float mShadowFloor = Shaders::SHADOW_DRAW_FLOOR;
 
         /// What the trace makes of its bounce before anything filters it. None unless a run names a
         /// mode, which is the A/B.
@@ -244,6 +249,10 @@ namespace Rtx
         /// since alone such a draw is stipple on a doll's hair.
         bool mAveraged = false;
 
+        /// The share of a pixel's light under which a source is never drawn for its shadow bit:
+        /// `ReconstructionRequest::mShadowFloor`, and the default for a picture.
+        float mShadowFloor = Shaders::SHADOW_DRAW_FLOOR;
+
         /// Whether an upscaler reconstructed the frame.
         bool upscaled() const { return upscales(mUpscale); }
 
@@ -279,6 +288,7 @@ namespace Rtx
                 .mDualMotion = asked.mDualMotion,
                 .mAntiFirefly = asked.mAntiFirefly,
                 .mAveraged = true,
+                .mShadowFloor = asked.mShadowFloor,
             };
         }
 

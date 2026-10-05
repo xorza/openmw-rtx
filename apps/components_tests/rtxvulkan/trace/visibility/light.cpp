@@ -842,6 +842,51 @@ namespace Rtx::Testing
                 << "the quad shadowed a lamp that takes light away";
         }
 
+        /// **A lamp that takes light away takes it off the lamps' exact sum on a surface that draws one
+        /// lamp, too.** A white pane half there, which the eye peels and shades with its lamps
+        /// composed (`shadePane`), over a black sky, under a red lamp and a blue one at one place,
+        /// and a white lamp there that takes half of either away. Each alone lights the frame `r` in
+        /// its own channel, so the darkened sum is `r / 2` in red and in blue.
+        ///
+        /// The pane draws one lamp a pixel by its luminance: red with a chance of `p = 0.2126 /
+        /// 0.2848 = 0.7465`, delivering `r / p` in red, and blue otherwise, `r / (1 - p)` in blue.
+        /// Clamped after that one-lamp draw, red came to `p (r / p - r / 2) = 0.627 r` and blue to
+        /// `0.873 r`; scaled by the exact sum's darkened share, each comes to `r / 2`.
+        TEST_F(RtxVisibilityTest, aLampThatTakesLightAwayTakesItOffTheExactSumWhereOneLampIsDrawn)
+        {
+            constexpr std::uint32_t size = 32;
+            const auto lit = [&](std::span<const Light> lamps) {
+                SceneDesc scene;
+                addPane(scene, uprightQuadAt(400.0f, 0.0f), osg::Vec4f(1.0f, 1.0f, 1.0f, 0.5f));
+                for (const Light& lamp : lamps)
+                    scene.addLight(lamp);
+
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mAmbient = osg::Vec3f();
+
+                const Frame frame = shoot(scene, {}, camera, size, { .mFrames = 16, .mIndirect = IndirectLight::Off });
+                return osg::Vec3f(frame.mean(0), frame.mean(1), frame.mean(2));
+            };
+
+            const auto lampOf = [](const osg::Vec3f& intensity) {
+                return Light{ .mPosition = osg::Vec3f(0.0f, -50.0f, 0.0f), .mIntensity = intensity, .mReach = 500.0f };
+            };
+            const std::array red{ lampOf(osg::Vec3f(4000.0f, 0.0f, 0.0f)) };
+            const float r = lit(red).x();
+            ASSERT_GT(r, 0.01f) << "the pane is lit, or this proves nothing";
+
+            const std::array lamps{ lampOf(osg::Vec3f(4000.0f, 0.0f, 0.0f)), lampOf(osg::Vec3f(0.0f, 0.0f, 4000.0f)),
+                lampOf(osg::Vec3f(-2000.0f, -2000.0f, -2000.0f)) };
+            const osg::Vec3f darkened = lit(lamps);
+            EXPECT_NEAR(darkened.x(), 0.5f * r, 0.01f * r) << "red";
+            EXPECT_EQ(darkened.y(), 0.0f) << "green";
+            EXPECT_NEAR(darkened.z(), 0.5f * r, 0.01f * r) << "blue";
+        }
+
         /// **A wall with a specular map reflects the lamp by the lobe the host evaluates**, a
         /// dielectric keeps what the lobe did not take for its diffuse half, and a normal map turns
         /// both through the tangent frame the rasterizer builds.

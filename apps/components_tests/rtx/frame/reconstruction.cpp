@@ -8,6 +8,7 @@
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 
 namespace Rtx
 {
@@ -39,6 +40,11 @@ namespace Rtx
                 Upscale::Off, ReconstructionRequest{ .mDenoise = false, .mJitter = true }, sUnscaled);
             EXPECT_FALSE(raw.mDenoised) << "which is what a converged reference is built from";
             EXPECT_TRUE(raw.mJitter) << "and jitter is what makes that reference antialiased";
+            EXPECT_EQ(raw.mShadowFloor, Shaders::SHADOW_DRAW_FLOOR) << "the default floor where none is named";
+            EXPECT_EQ(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mShadowFloor = 0.25f }, sUnscaled)
+                          .mShadowFloor,
+                0.25f)
+                << "and the one a run names";
 
             // **The same request, and an upscaler behind it.** The wavelet runs as it was asked,
             // since an upscaler reconstructs the frame the trace chain composed; the frame jitters

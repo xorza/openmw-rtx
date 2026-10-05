@@ -62,18 +62,12 @@ of the gather make each one harder to fix.
 
 Each item adds or loses light in the converged picture. A denoiser cannot remove this.
 
-- [ ] `lib/shading.glsl:189-218` (`skyDiffuse = skyArriving * (pick.mWhole ? skyLit : skyLit / pick.mChance)`
-  at `:207`), against the contract at `gbuffer.h:122-123` ("`rgb` is exact per pixel"), read raw at
-  `composite.comp:91-95`. In the split path, the lamps give the shadow denoiser their exact
-  unshadowed sum (Heitz et al. 2018's ratio estimator). The sky gives one picked source over its
-  chance. The pick weight is `cos · lum(irradiance)`, so the luminance is constant but the hue is not:
-  at dusk and under two moons, each pixel shows one source's colour. Under water,
-  `lightThroughWater` is outside the weight, so the luminance is noisy too. No filter reads this
-  channel. `passage.mThrough` (`:203`) and `lampPass.mThrough` (`:264`, the held lamp's applied to
-  every lamp) are per-ray values in the same unfiltered rgb. Target: in the split path, sum the
-  unshadowed light of every sky source that weighs (`skyChoiceAt` already has each candidate), and
-  keep only the picked source's bit and penumbra. Either filter `mThrough` with the bit, as SIGMA
-  does with translucency (`SIGMA_FrontEnd_PackTranslucency`), or remove "exact" from the contract.
+- [ ] `lib/shading.glsl` (`gather`, the split sky and lamps), against the contract at `gbuffer.h`
+  ("`rgb` is exact per pixel"), read raw at `composite.comp`. The sky's and the lamps' sums are exact
+  now, but each is multiplied by one ray's `mThrough` — the picked source's, the held lamp's — so
+  what a translucent surface let through is a per-ray value in the unfiltered rgb. Target: filter
+  `mThrough` with the bit, as SIGMA does with translucency (`SIGMA_FrontEnd_PackTranslucency`), or
+  remove "exact" from the contract.
 - [ ] `fogscatter.rgen:263-291`, `fogintegrate.comp:99-126`, `lib/froxel.glsl:221-228`. The history
   and the 3×3 tent average the extinction σ and the in-scattered light L separately, and
   `fogThrough` multiplies the means. The integrand is σ·L, and the two are anti-correlated: the sun's

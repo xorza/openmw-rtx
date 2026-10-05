@@ -88,6 +88,7 @@ namespace RtxTool
                 { "jitter", "true" },
                 { "noise", "white-hash" },
                 { "level-epsilon", "0.5" },
+                { "shadow-floor", "0.25" },
                 { "bounce-reuse", "own" },
                 { "antilag", "false" },
                 { "history-fix", "false" },
@@ -109,6 +110,8 @@ namespace RtxTool
             EXPECT_THROW(options.versus(variables, played, "delight=0.5"), std::runtime_error);
             EXPECT_THROW(options.versus(variables, played, "bounce-reuse=sideways"), std::runtime_error);
             EXPECT_THROW(options.versus(variables, played, "antifirefly=maybe"), std::runtime_error);
+            EXPECT_THROW(options.versus(variables, played, "shadow-floor=0.5"), std::runtime_error)
+                << "a floor over a quarter, which can leave a pixel nothing to draw";
         }
 
         /// **A film is twenty seconds unless its length or its speed is named**, and never both: the

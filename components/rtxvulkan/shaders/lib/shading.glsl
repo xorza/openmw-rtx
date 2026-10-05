@@ -82,6 +82,56 @@ bool keepsSecond(float shareA, float shareB, float draw)
     return draw * (shareA + shareB) < shareB;
 }
 
+/// `weight` where it is at least `minor`, and nought where it is under it: what a source draws by
+/// where a source under the floor is never drawn (`VisibilityConstants::mShadowFloor`).
+float drawable(float weight, float minor)
+{
+    return weight >= minor ? weight : 0.0;
+}
+
+/// One where a source has a weight and it is under the floor, and nought otherwise: the minor
+/// sources whose light rides the drawn one's ray whole.
+float minorWeight(float weight, float minor)
+{
+    return weight > 0.0 && weight < minor ? 1.0 : 0.0;
+}
+
+/// What one sky source delivers to a surface with nothing in the way: the diffuse half per unit
+/// albedo, the share of that the lobe takes, and what the lobe reflects, all through the water over
+/// the point.
+struct SkyTerm
+{
+    vec3 mDiffuse;
+    vec3 mTaken;
+    vec3 mSpecular;
+};
+
+/// `choice`'s term, and nought where it weighs nothing: in daylight both moons, which then cost no
+/// water column.
+SkyTerm skyTermOf(SkyChoice choice, vec3 position, float footprint, Gloss gloss)
+{
+    if (!(choice.mLight.mWeight > 0.0))
+        return SkyTerm(vec3(0.0), vec3(0.0), vec3(0.0));
+
+    const vec3 water = lightThroughWater(bentPathAt(position, sunUnderWater(choice.mSky.mDirection)), footprint);
+    const vec3 diffuse = choice.mSky.mIrradiance * water * (choice.mCosine * INV_PI);
+    return SkyTerm(diffuse, gloss.mGlossy ? diffuse * choice.mLight.mFresnel : vec3(0.0),
+        gloss.mGlossy ? water * choice.mLight.mSpecular : vec3(0.0));
+}
+
+/// `term` times `scale`.
+SkyTerm scaledTerm(SkyTerm term, float scale)
+{
+    return SkyTerm(term.mDiffuse * scale, term.mTaken * scale, term.mSpecular * scale);
+}
+
+/// `first` and `scale` of `second`.
+SkyTerm joinedTerms(SkyTerm first, SkyTerm second, float scale)
+{
+    return SkyTerm(first.mDiffuse + second.mDiffuse * scale, first.mTaken + second.mTaken * scale,
+        first.mSpecular + second.mSpecular * scale);
+}
+
 /// The *direct* light arriving at a point and turning back out of it: per unit albedo for the
 /// diffuse half, and whole for the specular.
 ///
@@ -199,12 +249,23 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     const SkyChoice masser = skyChoiceAt(SKY_SOURCE_MASSER, facing, lunar, gloss);
     const SkyChoice secunda = skyChoiceAt(SKY_SOURCE_SECUNDA, facing, lunar, gloss);
 
-    const WeightedPick pick
-        = pickByWeight(sun.mLight.mWeight, masser.mLight.mWeight, secunda.mLight.mWeight, skyPick);
-    const bool skyDrawn = pick.mTotal > 0.0 && !pick.mWhole;
+    // **A source under `mShadowFloor` of the sky's weight is never the one drawn** (decision 3): its
+    // light is in the sum below, and it takes the drawn source's ray. Drawn, a daylight moon at a
+    // thousandth of the sun made every sunlit bit a draw, and the shadow denoiser filtered every sun
+    // shadow at its widest all day. What that costs is the minor source's own shadow, at most the
+    // floor's share of the light.
+    const float skyWeight = sun.mLight.mWeight + masser.mLight.mWeight + secunda.mLight.mWeight;
+    const float minor = frame.mShadowFloor * skyWeight;
+    const WeightedPick pick = pickByWeight(drawable(sun.mLight.mWeight, minor), drawable(masser.mLight.mWeight, minor),
+        drawable(secunda.mLight.mWeight, minor), skyPick);
+
+    // What the bit's source carries of the sky's light, as the pair `skyCarried / skyWeight`: its
+    // weight over every source's, the minor ones counted against it.
+    float skyCarried = 0.0;
     if (pick.mTotal > 0.0)
     {
         const SkyChoice picked = pick.mIndex == 0u ? sun : (pick.mIndex == 1u ? masser : secunda);
+        skyCarried = picked.mLight.mWeight;
 
         // Split, the rays' own bit is handed back and the rest of the estimate is made as though
         // they got through: the product of the two is the estimate unsplit, and the bit is what a
@@ -212,29 +273,37 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
         // The shadow rays leave from where every ray off the surface leaves, and the light arrives
         // where the surface is: one refraction, a bent path to each.
         const SunUnderWater bent = sunUnderWater(picked.mSky.mDirection);
-        const Passage passage = skyPassageThrough(picked.mSky, leaving, stepOf(surface), bentPathAt(leaving, bent), sunDraw);
-        const float skySeen = split ? passage.mThrough : passage.mOpen * passage.mThrough;
-        const vec3 water = lightThroughWater(bentPathAt(position, bent), surface.mFootprint);
-        const vec3 skyArriving = picked.mSky.mIrradiance * water;
-        const float skyLit = picked.mCosine * INV_PI * skySeen;
-        const vec3 skyDiffuse = skyArriving * (pick.mWhole ? skyLit : skyLit / pick.mChance);
-        const vec3 skySpecular = gloss.mGlossy
-            ? water * picked.mLight.mSpecular * (pick.mWhole ? skySeen : skySeen / pick.mChance)
-            : vec3(0.0);
-        const vec3 skyTaken = gloss.mGlossy ? skyDiffuse * picked.mLight.mFresnel : vec3(0.0);
+        const Passage passage
+            = skyPassageThrough(picked.mSky, leaving, stepOf(surface), bentPathAt(leaving, bent), sunDraw);
+
+        // **Each source's term whole, as the lamps' unshadowed sum is** (D3.2): split, every source
+        // with a weight is in the light the bit multiplies, so a pixel's hue is the sources' and
+        // not the pick's; unsplit, the drawn one over its chance and the minor ones whole, under
+        // the one ray.
+        const SkyTerm sunTerm = skyTermOf(sun, position, surface.mFootprint, gloss);
+        const SkyTerm masserTerm = skyTermOf(masser, position, surface.mFootprint, gloss);
+        const SkyTerm secundaTerm = skyTermOf(secunda, position, surface.mFootprint, gloss);
+        const SkyTerm pickedTerm = pick.mIndex == 0u ? sunTerm : (pick.mIndex == 1u ? masserTerm : secundaTerm);
 
         if (split)
         {
-            lit.mShadowedDiffuse = skyDiffuse - skyTaken;
-            lit.mShadowedSpecular = skySpecular;
+            const SkyTerm every = joinedTerms(joinedTerms(sunTerm, masserTerm, 1.0), secundaTerm, 1.0);
+            lit.mShadowedDiffuse = (every.mDiffuse - every.mTaken) * passage.mThrough;
+            lit.mShadowedSpecular = every.mSpecular * passage.mThrough;
             lit.mOpen = passage.mOpen;
             lit.mPenumbra = skyPenumbra(picked.mSky, passage.mOccluder);
         }
         else
         {
-            radiance += skyDiffuse;
-            specular += skySpecular;
-            taken += skyTaken;
+            const SkyTerm minors = joinedTerms(
+                joinedTerms(scaledTerm(sunTerm, minorWeight(sun.mLight.mWeight, minor)), masserTerm,
+                    minorWeight(masser.mLight.mWeight, minor)),
+                secundaTerm, minorWeight(secunda.mLight.mWeight, minor));
+            const SkyTerm estimate = joinedTerms(minors, pickedTerm, pick.mWhole ? 1.0 : 1.0 / pick.mChance);
+            const float seen = passage.mOpen * passage.mThrough;
+            radiance += estimate.mDiffuse * seen;
+            specular += estimate.mSpecular * seen;
+            taken += estimate.mTaken * seen;
         }
     }
 
@@ -276,11 +345,18 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     // reservoir's speckle back into a light nothing filters.
     const vec3 lampsArriving = split ? kept.mUnshadowed * lampPass.mThrough : kept.mRadiance * held * lampSeen;
 
-    // **The lamps that take light away take it off the lamps' term and no further**, floored at
+    // **The lamps that take light away take it off the lamps' exact sum and no further**, floored at
     // nought as the rasterizer clamps its lighting: the sun, the sky and the bounce stay whole.
-    // Split, that is still exact: a lamp's ray that was stopped leaves `max(-darkening, 0)`,
-    // nought.
-    const vec3 lampDiffuse = max(lampsArriving - darkeningAt(position, facing, INV_PI, surface.mLampLit), vec3(0.0));
+    // Split, the sum is what the bit multiplies. Unsplit, the clamped sum is scaled by the held
+    // lamp's estimate of how much of it got through: clamped on that one-lamp estimate instead,
+    // every pixel the held lamp outshone the darkening kept light the mean did not have, and the
+    // ground near a negative lamp came out brighter than its own lamps leave it.
+    const vec3 darkening = darkeningAt(position, facing, INV_PI, surface.mLampLit);
+    const vec3 unshadowed = split ? kept.mUnshadowed * lampPass.mThrough : kept.mUnshadowed;
+    // `1 - min(d / u, 1)` is `max(u - d, 0) / u`, and exactly one where nothing darkens.
+    const vec3 lampDiffuse = split
+        ? max(unshadowed - darkening, vec3(0.0))
+        : lampsArriving * (1.0 - min(darkening / max(unshadowed, vec3(1e-30)), vec3(1.0)));
 
     if (gloss.mGlossy)
         specular += kept.mSpecular * (held * lampSeen);
@@ -288,19 +364,24 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     if (split)
     {
         // **One bit for both, drawn by the light each adds**, `keepsSecond`'s rule: the shadow
-        // denoiser filters one bit a pixel. The sum is already net of each lamp's lobe.
+        // denoiser filters one bit a pixel. The sum is already net of each lamp's lobe. A side
+        // under the floor of the two is never drawn, as a minor sky source is not.
         const float skyShare = dot(surface.mAlbedo * lit.mShadowedDiffuse + lit.mShadowedSpecular, LUMINANCE_WEIGHTS);
         const float lampShare = dot(surface.mAlbedo * lampDiffuse, LUMINANCE_WEIGHTS);
-        const bool lamp = keepsSecond(skyShare, lampShare, shadowedPick);
+        const float shares = skyShare + lampShare;
+        const bool lamp = keepsSecond(
+            drawable(skyShare, frame.mShadowFloor * shares), drawable(lampShare, frame.mShadowFloor * shares), shadowedPick);
         lit.mOpen = lamp ? lampPass.mOpen : lit.mOpen;
         lit.mPenumbra = lamp ? lampPenumbra(kept, lampPass.mOccluder) : lit.mPenumbra;
         lit.mShadowedDiffuse += lampDiffuse;
 
         // In the surface's own footprints, which is what the denoiser's reach is counted in; and the
-        // whole reach where the bit's source was drawn, since that bit is noise however hard its
-        // shadow. A lamp is held whole where it holds every candidate's weight.
-        const bool drawn = (skyShare > 0.0 && lampShare > 0.0)
-            || (lamp ? kept.mWeight > 0.0 && kept.mWeight < kept.mTotal : skyDrawn);
+        // whole reach where the bit was drawn — where its own source carries less than all but the
+        // floor of the light (D3.3), since that bit is noise however hard its shadow. As products,
+        // for the reason `pickByWeight` compares against weights and not quotients.
+        const float whole = (1.0 - frame.mShadowFloor) * shares;
+        const bool drawn = lamp ? lampShare * kept.mWeight < whole * kept.mTotal
+                                : skyShare * skyCarried < whole * skyWeight;
         lit.mPenumbra = drawn ? SHADOW_PENUMBRA_DRAWN
             : lit.mPenumbra < SHADOW_PENUMBRA_CLEAR
             ? min(lit.mPenumbra / max(surface.mFootprint, 1e-6), SHADOW_PENUMBRA_CLEAR)
