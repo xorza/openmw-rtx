@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import IO, cast
 
 from omw.build import Build
-from omw.noise import Figures, Leg, Plan, Side, ab, plan, read_report, table, wants_ab
+from omw.noise import Figures, Leg, Plan, Side, ab, plan, read_report, read_sides, table, wants_ab
 from omw.system import ROOT, Refusal
 
 
@@ -29,6 +29,11 @@ class PlanTest(unittest.TestCase):
                        Leg("strafe 150", ("--strafe=150",)), Leg("walk -80", ("--walk=-80",))),
                  out=Path("/tmp/ab"), rest=("--views=x",)))
 
+    def test_a_distance_of_nought_leaves_its_leg_out(self):
+        self.assertEqual(plan(["--ab=antilag", "--views=x", "--still", "--strafe=0", "--walk=0"]).legs,
+                         (Leg("still", ()),))
+        self.assertEqual(plan(["--ab=antilag", "--strafe=0"]).legs, (Leg("walk 150", ("--walk=150",)),))
+
     def test_a_line_that_names_no_pair_is_refused(self):
         cases = [
             (["--suite=bounce"], "noise: the following arguments are required: --ab"),
@@ -37,6 +42,8 @@ class PlanTest(unittest.TestCase):
             (["--ab=reuse=a,b,c"], "--ab=reuse=a,b,c names 3 values of reuse, and an A/B is two"),
             (["--ab="], "--ab= names no switch: `--ab=antifirefly` or `--ab=bounce-reuse=own,temporal`"),
             (["--ab=antilag", "--cut=2", "--cut=0"], "--cut=0 is not a frame after the cut: one or more"),
+            (["--ab=antilag", "--strafe=0", "--walk=0.0"],
+             "no leg is left to run: name --still, --cut=N, or a distance that is not nought"),
         ]
         for args, message in cases:
             with self.subTest(args=args):
@@ -64,6 +71,16 @@ class ReportTest(unittest.TestCase):
             "seyda-neen-pond": Figures(0.49, 3, 1.57, 0.00),
         })
 
+    def test_the_sides_part_where_the_harness_prints_its_versus_line(self):
+        text = (ROOT / "apps" / "rtxtool" / "main.cpp").read_text()
+        printed = re.search(r'out\(\) << std::format\("(versus --)\{\}', text)
+        self.assertIsNotNone(printed, "commandNoise no longer prints the versus line where this looks for it")
+        place = ("  some-place                   noise: frame mean {} p99 9, 13 averaged mean 2.00 p99 20 — as clean; "
+                 "bias: frame 0.50, 13 averaged 0.40; fireflies 0.25 in a thousand\n")
+        first, second = read_sides(place.format("1.00") + printed.group(1) + "antilag=false\n" + place.format("0.80"))
+        self.assertEqual(first["some-place"].mean, 1.00)
+        self.assertEqual(second["some-place"].mean, 0.80)
+
     def test_the_line_read_is_the_one_the_harness_prints(self):
         text = (ROOT / "apps" / "rtxtool" / "compare.cpp").read_text()
         printed = re.search(r'"(  \{:<28\} noise: frame mean .*?)"\s*"(.*?)"', text, re.DOTALL)
@@ -89,14 +106,22 @@ class TableTest(unittest.TestCase):
 
 
 class _Harness:
-    """A build whose harness prints one place's line and ends with `status`."""
+    """A build whose harness prints one place's line for each side, the second only where `versus`,
+    and ends with `status`; it keeps every line it was run with."""
 
-    def __init__(self, status: int):
+    def __init__(self, status: int, versus: bool = True):
         self.status = status
+        self.versus = versus
+        self.lines: list[tuple[str, ...]] = []
 
     def harness(self, verb: str, *args: str, stdout: IO[str], **options) -> subprocess.CompletedProcess:
+        self.lines.append((verb, *args))
         stdout.write("  some-place                   noise: frame mean 1.00 p99 9, 13 averaged mean 2.00 p99 20 — "
                      "noisier; bias: frame 0.50, 13 averaged 0.40; fireflies 0.25 in a thousand\n")
+        if self.versus:
+            stdout.write("versus --antifirefly=false\n"
+                         "  some-place                   noise: frame mean 0.80 p99 8, 13 averaged mean 2.00 p99 20 — "
+                         "as clean; bias: frame 0.60, 13 averaged 0.40; fireflies 0.10 in a thousand\n")
         return subprocess.CompletedProcess([verb, *args], self.status)
 
 
@@ -109,10 +134,26 @@ class AbTest(unittest.TestCase):
                     code = ab(cast(Build, _Harness(status)), ["--ab=antifirefly", f"--out={out}"])
                 self.assertEqual(code, expected)
                 if expected == 0:
-                    self.assertIn("  some-place                       1.00     1.00     9     9   0.50   0.50      0.25"
-                                  "      0.25", printed.getvalue())
+                    self.assertIn("  some-place                       1.00     0.80     9     8   0.50   0.60      0.25"
+                                  "      0.10", printed.getvalue())
                 else:
                     self.assertIn(f"the run failed with status {status}", refused.getvalue())
+
+    def test_each_leg_is_one_run_of_both_sides(self):
+        built = _Harness(0)
+        with tempfile.TemporaryDirectory() as out, redirect_stdout(StringIO()):
+            self.assertEqual(ab(cast(Build, built), ["--ab=antifirefly", "--views=x", f"--out={out}"]), 0)
+            self.assertEqual(built.lines, [
+                ("noise", "--antifirefly=true", "--versus=antifirefly=false", "--strafe=150", "--views=x",
+                 f"--out={Path(out) / 'strafe150'}"),
+                ("noise", "--antifirefly=true", "--versus=antifirefly=false", "--walk=150", "--views=x",
+                 f"--out={Path(out) / 'walk150'}"),
+            ])
+
+    def test_a_run_that_judged_one_side_is_not_read(self):
+        with tempfile.TemporaryDirectory() as out, redirect_stdout(StringIO()), redirect_stderr(StringIO()) as refused:
+            self.assertEqual(ab(cast(Build, _Harness(0, versus=False)), ["--ab=antifirefly", f"--out={out}"]), 1)
+        self.assertIn("the run failed with status 0", refused.getvalue())
 
 
 if __name__ == "__main__":

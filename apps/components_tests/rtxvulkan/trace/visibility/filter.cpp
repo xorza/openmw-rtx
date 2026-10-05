@@ -191,7 +191,7 @@ namespace Rtx::Testing
             const auto [filteredMean, filteredSpread] = spreadOf(true);
             ASSERT_GT(rawSpread, 0.0f) << "a bounce with no noise proves nothing";
             EXPECT_NEAR(filteredMean, rawMean, 0.004f) << "the arm keeps its light";
-            // Measured over the cascade's four levels: the arms' eye leaves 2.3 per cent of the
+            // Measured over the cascade's four levels: the arms' eye leaves 2.4 per cent of the
             // spread, and the world's 16.4 — its coarser levels turn their taps away. A bound between
             // the two.
             EXPECT_LT(filteredSpread, rawSpread * 0.045f) << "the arm's noise was not taken away";
@@ -213,7 +213,7 @@ namespace Rtx::Testing
         ///
         /// **The bound sits between the two weightings on purpose.** Measured here on the composite
         /// (`readRadiance`): one sample is 0.0335 off the reference and the plane weight brings
-        /// that to 0.0019, seventeen times better; a plain depth weight, measured when one sample
+        /// that to 0.0020, seventeen times better; a plain depth weight, measured when one sample
         /// stood 0.0420 off, brought it to 0.0061, seven times. Every number is repeatable, because
         /// frame zero and a sixty-four frame average are both deterministic, so a tenth is a bound
         /// this passes with room and a depth test cannot reach.
@@ -305,14 +305,14 @@ namespace Rtx::Testing
             //
             // **Eight per cent of room, because the history is the filtered light** (SVGF's
             // feedback), and averaging the cascade's answers over frames on a surface this easy
-            // correlates them more than it adds. Measured: the cascade 0.00195 and the settled
+            // correlates them more than it adds. Measured: the cascade 0.00196 and the settled
             // history 0.00177, against an unfiltered 0.0335.
             //
             // **A flat sheet is where feeding the filtered light back has least to give**, since the
             // cascade has every neighbour it could want and averaging its answers over frames only
             // correlates them. What the feedback is for is the other scene, and
             // `theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow` records what it does there:
-            // 0.0050 settled against 0.0164 alone.
+            // 0.0050 settled against 0.0165 alone.
             EXPECT_LE(settled, after * 1.08f)
                 << "the history does not cost what the cascade gained: " << after << " becomes " << settled;
 
@@ -673,30 +673,42 @@ namespace Rtx::Testing
         /// wall standing on it under a black sky, and a lamp twenty units off the wall whose reach
         /// lights a spot of it: the floor's bounce is that spot, which a ray finds now and then, so
         /// one frame of it is noisy after the wavelet, as a lamp's bounce in a room is. The eye stands
-        /// still for 32 frames, then turns 14 degrees in one: the edge it turns toward brings in
-        /// `(tan 30° - tan 16°) / (tan 30° / 32)` = 16 columns that hold one frame, and the rest of
-        /// the frame holds thirty-two. The strip is the twelve columns at that edge.
+        /// still for 32 frames, then turns 24 degrees in one: the edge it turns toward brings in
+        /// `(tan 30° - tan 6°) / (tan 30° / 32)` = 26 columns that hold one frame, and the rest of
+        /// the frame holds thirty-two. The strip is twelve of them fourteen columns in from that edge,
+        /// as far as a new pixel's fix reaches, so its taps stand on both sides of it: at the edge they
+        /// all stand on the side the light rises toward, and the fix held the strip there at 1.27 of
+        /// its light under the centre's variance alone and 1.52 under both.
         ///
-        /// Over four draws: the strip's spread from one draw to the next, over its mean, and the mean
-        /// against 128 unfiltered frames where the eye ends. **The noise in the light's own units**:
-        /// without the fix the brightness test passes over a fresh pixel's rare bright draws, and a
-        /// strip at a third of its light is quieter by as much and no better for it. **The clamp is
-        /// off in every run**: with no reuse, its box of fifty samples mostly holds none of a light
-        /// this rare and holds the strip near nought, which is `ACCUMULATE_FAST_FRAMES`'s trade and not
-        /// this test's question. So is the ring, which holds the fresh strip down before the fix
-        /// borrows, `ACCUMULATE_RING_FRAMES`'s trade.
+        /// Over four draws, the strip's spread from one draw to the next, over its mean. **The noise
+        /// in the light's own units**: without the fix the brightness test passes over a fresh pixel's
+        /// rare bright draws, and a strip darker for it is quieter by as much and no better for it.
+        /// **The clamp is off in every run**: with no reuse, its box of fifty samples mostly holds
+        /// none of a light this rare and holds the strip near nought, which is
+        /// `ACCUMULATE_FAST_FRAMES`'s trade and not this test's question. So is the ring, which holds
+        /// the fresh strip down before the fix borrows, `ACCUMULATE_RING_FRAMES`'s trade.
         ///
-        /// Measured: the strip's noise 1.61 of its mean without the fix and 0.71 with it, its mean 0.31
-        /// of the truth without the fix and 1.04 with it; the same strip held still, 0.30 at 0.61. With
-        /// the fixed variance `shortHistoryVariance` replaced and three 5×5 levels, 13.6 and 0.87, and
-        /// 0.61 and 1.08.
+        /// **And a settled history keeps its light under the brightness test**
+        /// (`ATROUS_LUMINANCE_SIGMA`): the whole frame held still, against 128 unfiltered frames where
+        /// the eye ends, which hold the frame's light to two thousandths where they hold a strip's to
+        /// a fifth.
+        ///
+        /// Measured: the strip's noise 1.38 of its mean without the fix and 0.53 with it, and 0.21
+        /// held still; the frame keeps 0.993 of its light, and kept 0.974 under the centre's variance
+        /// alone. **The strip's light is not held to its truth here**: over 32 draws against 1024
+        /// frames it reads 1.00 held still, 0.84 without the fix and 1.22 with it, where it read 0.68,
+        /// 0.54 and 1.01 under the centre's variance alone, and four draws and 128 frames place it
+        /// anywhere within a fifth of that. The fix's excess is its flat kernel's, ReLAX's
+        /// (`RELAX_HistoryFix`), which takes the mean of fourteen pixels either side of light that
+        /// rises toward the spot faster than in a line.
         TEST_F(RtxVisibilityTest, theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo)
         {
             constexpr std::uint32_t size = 64;
             constexpr std::uint32_t still = 32;
             constexpr std::uint32_t draws = 4;
             constexpr std::uint32_t strip = 12;
-            const float turn = osg::DegreesToRadians(14.0f);
+            constexpr std::uint32_t inset = 14;
+            const float turn = osg::DegreesToRadians(24.0f);
 
             SceneDesc scene;
             addQuad(scene, sheetAt(4000.0f, -100.0f));
@@ -775,7 +787,7 @@ namespace Rtx::Testing
             // test darkened is quieter by as much as it is darker, and no less noisy for its light.
             const auto overStrip = [&](const std::vector<double>& column, std::uint32_t per) {
                 double sum = 0.0;
-                for (std::uint32_t x = 0; x < strip; ++x)
+                for (std::uint32_t x = inset; x < inset + strip; ++x)
                     sum += column[x];
                 return sum / static_cast<double>(strip * size * per);
             };
@@ -783,7 +795,7 @@ namespace Rtx::Testing
             const auto noiseOf
                 = [&](const Columns& columns) { return std::sqrt(overStrip(columns.mVariances, 1)) / meanOf(columns); };
 
-            // A yaw toward -x turns the eye left, so the strip is the picture's first twelve columns.
+            // A yaw toward -x turns the eye left, so the new columns are the picture's first.
             const Columns held = columnsOf(turn, turn, false);
             const Columns without = columnsOf(0.0f, turn, false);
             const Columns with = columnsOf(0.0f, turn, true);
@@ -794,16 +806,14 @@ namespace Rtx::Testing
                 << "the history fix left " << noiseOf(with) << " of the strip's " << noiseOf(without)
                 << ", where the strip held still holds " << noiseOf(held);
 
-            double truth = 0.0;
-            for (std::uint32_t y = 0; y < size; ++y)
-                for (std::uint32_t x = 0; x < strip; ++x)
-                    truth += static_cast<double>(reference[(std::size_t{ y } * size + x) * 4 + 1]);
-            truth /= static_cast<double>(strip * size);
-            const double unfixedShare = meanOf(without) / truth;
-            const double fixedShare = meanOf(with) / truth;
-            EXPECT_LT(std::abs(fixedShare - 1.0), std::abs(unfixedShare - 1.0))
-                << "the history fix took the strip's light from " << unfixedShare << " of the truth to " << fixedShare;
-            EXPECT_NEAR(fixedShare, 1.0, 0.1) << "the history fix moved the strip's light off the truth";
+            double heldLight = 0.0;
+            for (const double column : held.mSums)
+                heldLight += column;
+            double truthLight = 0.0;
+            for (std::size_t pixel = 0; pixel < std::size_t{ size } * size; ++pixel)
+                truthLight += static_cast<double>(reference[pixel * 4 + 1]);
+            const double kept = heldLight / draws / truthLight;
+            EXPECT_GT(kept, 0.985) << "the brightness test took light from a settled history: " << kept;
         }
 
         /// **The floor a moving bar uncovers starts with the history beside it** (`occluderMotion`,
@@ -825,7 +835,7 @@ namespace Rtx::Testing
         /// (`samePlane`). **The table is advanced after each hand-over**, as `SceneUploader` does, or
         /// the bar's motion is its whole travel since it stood still.
         ///
-        /// Measured: 0.0095 without the dual vector and 0.0022 with it, where the floor beside a bar
+        /// Measured: 0.0097 without the dual vector and 0.0022 with it, where the floor beside a bar
         /// that stood still holds 0.0019.
         TEST_F(RtxVisibilityTest, theFloorAMovingBarUncoversStartsWithTheHistoryBesideIt)
         {
@@ -946,8 +956,8 @@ namespace Rtx::Testing
         /// are `(31/32)^128` of that quarter 128 frames later, under half a hundredth of the mean
         /// however much of their light the ring took.
         ///
-        /// Measured: 9021 fireflies without the ring, the history fix having spread each over its
-        /// taps, and 166 with it; the settled means 0.6969 and 0.6955.
+        /// Measured: 9319 fireflies without the ring, the history fix having spread each over its
+        /// taps, and 173 with it; the settled means 0.7973 and 0.7928.
         TEST_F(RtxVisibilityTest, theRingHoldsAFreshFireflyAndLeavesASettledMeanItsLight)
         {
             constexpr std::uint32_t size = 64;
@@ -1023,8 +1033,8 @@ namespace Rtx::Testing
         /// two frames on, where the history fix rebuilds the first level and the later ones read the variance, and
         /// four, where every level reads it.
         ///
-        /// Measured: the brighter picture stands 0.40 hundred-thousandths from the dimmer one scaled two
-        /// frames on, and 0.056 four frames on, which the brightness test's divide guard accounts for.
+        /// Measured: the brighter picture stands 0.39 hundred-thousandths from the dimmer one scaled two
+        /// frames on, and 0.053 four frames on, which the brightness test's divide guard accounts for.
         /// With the constant variance this replaced, 3.2% and 6.9%.
         TEST_F(RtxVisibilityTest, aFreshPixelIsFilteredTheSameUnderAnyLight)
         {
@@ -1210,11 +1220,11 @@ namespace Rtx::Testing
             const double alone = std::sqrt(pooled);
 
             // Measured on this box through the composite (`readRadiance`): the cascade alone leaves
-            // 0.0164 pooled over sixteen frames, and the same sixteen accumulated leave 0.0050 — the
+            // 0.0165 pooled over sixteen frames, and the same sixteen accumulated leave 0.0050 — the
             // history removes seven tenths of the error the filter cannot reach. Deterministic to the
             // last digit for one stream, and a different stream is what any change to the sampler or
             // the scene hands this test: over ten streams, with an earlier cascade, the ratio spread
-            // by 0.011 about its mean, so the bound below stands far over the 0.31 measured.
+            // by 0.011 about its mean, so the bound below stands far over the 0.30 measured.
             EXPECT_GT(alone, 0.003) << "the cascade alone leaves enough error here for the question to mean something: "
                                     << alone;
             EXPECT_LT(settled, alone * 0.65) << "and a history of " << Shaders::ACCUMULATE_FRAMES

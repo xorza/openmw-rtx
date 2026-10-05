@@ -268,6 +268,7 @@ namespace RtxTool
         struct Command
         {
             const bpo::variables_map& mVariables;
+            const ToolOptions& mOptions;
             Files::ConfigurationManager& mConfig;
             const std::filesystem::path& mResources;
             const std::filesystem::path& mShaders;
@@ -392,21 +393,11 @@ namespace RtxTool
             profile.mLitEnvironmentMaps = derived.mLitEnvironmentMaps;
             profile.mReconstruction.mIndirect = derived.mIndirect;
             profile.mDelight = variables["delight"].as<float>();
-            profile.mReconstruction.mDenoise = variables["filter"].as<bool>();
             profile.mShow = Rtx::sSurfaceViewNames.require(variables["show"].as<std::string>(), "a surface view");
-            profile.mReconstruction.mJitter = variables["jitter"].as<bool>();
             profile.mExposure = parseExposure(variables["exposure"].as<std::string>());
             profile.mStressOverlapMs = variables["hold"].as<bool>() ? sCheckHoldMs : 0.0;
             profile.mSpecializeLaunches = variables["variants"].as<bool>();
-            if (const std::string& noise = variables["noise"].as<std::string>(); noise != "auto")
-                profile.mReconstruction.mNoise = Rtx::sNoiseSourceNames.require(noise, "a noise source");
-            profile.mReconstruction.mLevelEpsilon = variables["level-epsilon"].as<float>();
-            profile.mReconstruction.mBounceReuse
-                = Rtx::sBounceReuseNames.require(variables["bounce-reuse"].as<std::string>(), "a bounce reuse");
-            profile.mReconstruction.mAntilag = variables["antilag"].as<bool>();
-            profile.mReconstruction.mHistoryFix = variables["history-fix"].as<bool>();
-            profile.mReconstruction.mDualMotion = variables["dual-motion"].as<bool>();
-            profile.mReconstruction.mAntiFirefly = variables["antifirefly"].as<bool>();
+            readReconstruction(variables, profile.mReconstruction);
 
             return framed;
         }
@@ -985,6 +976,11 @@ namespace RtxTool
         /// picture but the reference holds the exposure the reference ended on, so all are mapped by one curve and the
         /// scale is derived rather than stated.
         ///
+        /// **With `--versus`, a second side at each place after the first**: its frame and the frame's
+        /// mean at the first side's draws, and its own reference, bar and limit before them only
+        /// where its unfiltered frames trace otherwise, so an A/B of a switch only the filters read
+        /// traces the half of the run that cannot differ once. Each side is judged on its own lines.
+        ///
         /// **Judged against the bar and not against a number**: a frame is as clean as the bar when it
         /// stands no further from its own mean than the bar from its limit, by the mean and at the 99th
         /// percentile — `judgeNoise` says why noise against noise. The bar is measured at the same
@@ -997,25 +993,33 @@ namespace RtxTool
             const SuiteRun run = chooseBenchViews(variables, "noise");
             const std::vector<Stop> places = stopsFrom(run.mViews, variables, framed);
 
-            const std::filesystem::path out = outOf(command);
-            std::filesystem::create_directories(out);
+            const std::filesystem::path folder = outOf(command);
+            std::filesystem::create_directories(folder);
 
             const Rtx::ReconstructionRequest& played = framed.mSetup.mRun.mProfile.mReconstruction;
-            Rtx::ReconstructionRequest reference = played;
-            reference.mDenoise = false;
-            reference.mJitter = true;
-            reference.mNoise = Rtx::NoiseSource::WhiteHash;
-            // **The truth reads every texture at the level its footprint asks**, whatever the run's
-            // epsilon: an epsilon is a knob on the frame, and a reference that moved with it would
-            // take the frame's softness for its own and report no bias at all.
-            reference.mLevelEpsilon = 0.0f;
-            // **And every frame of it a draw of its own**: a frame that reused the ones before it is
-            // not one more sample of the truth, and neither is a frame of the bar. Its indirect light
-            // stays the run's, since a traced bounce and none are two integrands.
-            reference.mBounceReuse = Rtx::BounceReuse::Off;
-            Rtx::ReconstructionRequest unfiltered = played;
-            unfiltered.mDenoise = false;
-            unfiltered.mBounceReuse = Rtx::BounceReuse::Off;
+
+            // The other side, where the line names one: the frame and its mean again with one switch
+            // of the reconstruction changed, at the same draws (`ToolOptions::versus`).
+            const std::string asked = variables["versus"].as<std::string>();
+            const std::optional<Rtx::ReconstructionRequest> versus
+                = asked.empty() ? std::nullopt : std::optional(command.mOptions.versus(variables, played, asked));
+
+            // **The reference and the bar trace unfiltered, every frame a draw of its own**
+            // (`ReconstructionRequest::unfiltered`): a frame that reused the ones before it is not
+            // one more sample of the truth, and neither is a frame of the bar. Their indirect light
+            // stays the run's, since a traced bounce and none are two integrands. So the other side
+            // traces its own only where its unfiltered frames trace otherwise.
+            const bool ownBar = versus.has_value() && versus->unfiltered() != played.unfiltered();
+            const auto referenceOf = [](const Rtx::ReconstructionRequest& side) {
+                Rtx::ReconstructionRequest truth = side.unfiltered();
+                truth.mJitter = true;
+                truth.mNoise = Rtx::NoiseSource::WhiteHash;
+                // **The truth reads every texture at the level its footprint asks**, whatever the
+                // run's epsilon: an epsilon is a knob on the frame, and a reference that moved with
+                // it would take the frame's softness for its own and report no bias at all.
+                truth.mLevelEpsilon = 0.0f;
+                return truth;
+            };
             const Rtx::ExposureRule held = Rtx::HeldExposure{};
 
             // One picture of `place` after `frames` frames: their sum where `summed`, and the last of
@@ -1031,7 +1035,7 @@ namespace RtxTool
                       stop.mSchedule.mReconstruction = reconstruction;
                       stop.mSchedule.mExposure = exposure;
                       stop.mSchedule.mUpscale = upscale;
-                      stop.mActions.mCapture = out / (stop.mName + ".png");
+                      stop.mActions.mCapture = folder / (stop.mName + ".png");
                       return stop;
                   };
 
@@ -1052,8 +1056,8 @@ namespace RtxTool
 
             // The frame's own stop, flying in where the line asks: a route that holds the world, so
             // the frame flies through the world the reference stands in (`applyPolicy`).
-            const auto frame = [&](const Stop& place) {
-                Stop stop = picture(place, "", flies ? sNoiseFlightFrames : 1, false, std::nullopt, held, std::nullopt);
+            const auto frame = [&](const Stop& place, const Rtx::ReconstructionRequest& side) {
+                Stop stop = picture(place, "", flies ? sNoiseFlightFrames : 1, false, side, held, std::nullopt);
                 if (leg.mWarmup.has_value())
                     stop.mSchedule.mSpec.mWarm = BenchSpan{ .mFrames = *leg.mWarmup };
                 if (!flies)
@@ -1085,40 +1089,65 @@ namespace RtxTool
                           again.mName = place.mName + std::string(suffix);
                           again.mActions.mCapture.clear();
                           again.mActions.mMean = Actions::Mean{
-                              .mFile = out / (place.mName + std::string(suffix) + ".png"),
+                              .mFile = folder / (place.mName + std::string(suffix) + ".png"),
                               .mOf = sNoiseMeanDraws,
                           };
                           into.push_back(std::move(again));
                       }
                   };
 
-            constexpr std::size_t stopsAPlace = 3 + 2 * sNoiseMeanDraws;
-            static_assert(stopsAPlace * std::uint64_t{ sNoiseSampleStride } <= ~std::uint32_t{ 0 },
+            // One side of a place: its reference, its bar and the bar's limit where `bar` asks, then its
+            // frame and the frame's mean. **The sample offsets are the stop's place in a whole side**,
+            // so the other side draws what the first drew, and an A/B compares two reconstructions of
+            // one set of draws. A side that asks what the first asked took the frame to the byte at
+            // the glow-lit chamber, and the frame's mean to within 50 bytes of 8.3 million, each by
+            // one level, which no figure of the report showed: the card's arithmetic under the
+            // wavelet (`docs/rtx/architecture.md`, the denoiser), which two runs differ by too.
+            constexpr std::size_t stopsASide = 3 + 2 * sNoiseMeanDraws;
+            static_assert(stopsASide * std::uint64_t{ sNoiseSampleStride } <= ~std::uint32_t{ 0 },
                 "the sample offsets of one place past what a frame number holds");
+            const auto drawSide = [&](const Stop& place, const Rtx::ReconstructionRequest& side, const bool bar,
+                                      std::vector<Stop>& into) {
+                const std::size_t first = into.size();
+                if (bar)
+                {
+                    into.push_back(picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, true, referenceOf(side),
+                        std::nullopt, Rtx::Upscale::Off));
+                    const Stop averaged
+                        = picture(place, sNoiseBarSuffix, barFrames, true, side.unfiltered(), held, Rtx::Upscale::Off);
+                    into.push_back(averaged);
+                    drawMean(place, averaged, sNoiseBarLimitSuffix, into);
+                }
+                const Stop judged = frame(place, side);
+                into.push_back(judged);
+                drawMean(place, judged, sNoiseMeanSuffix, into);
+
+                const std::size_t skipped = bar ? 0 : 2 + sNoiseMeanDraws;
+                assert(into.size() - first + skipped == stopsASide);
+                for (std::size_t at = first; at < into.size(); ++at)
+                    into[at].mSchedule.mSampleOffset
+                        = static_cast<std::uint32_t>((at - first + skipped) * sNoiseSampleStride);
+            };
 
             std::vector<Stop> stops;
-            stops.reserve(places.size() * stopsAPlace);
-            std::vector<std::string> names;
-            names.reserve(places.size());
+            stops.reserve(places.size() * stopsASide * (versus.has_value() ? 2 : 1));
+            std::vector<NoiseSide> sides;
+            sides.reserve(places.size());
+            std::vector<NoiseSide> versusSides;
+            versusSides.reserve(versus.has_value() ? places.size() : 0);
             for (const Stop& place : places)
             {
-                names.push_back(place.mName);
-                const std::size_t first = stops.size();
+                sides.push_back(NoiseSide{ .mPlace = place.mName, .mFrame = place.mName, .mBar = place.mName });
+                drawSide(place, played, true, stops);
+                if (!versus.has_value())
+                    continue;
 
-                stops.push_back(picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, true, reference,
-                    std::nullopt, Rtx::Upscale::Off));
-
-                const Stop bar = picture(place, sNoiseBarSuffix, barFrames, true, unfiltered, held, Rtx::Upscale::Off);
-                stops.push_back(bar);
-                drawMean(place, bar, sNoiseBarLimitSuffix, stops);
-
-                const Stop judged = frame(place);
-                stops.push_back(judged);
-                drawMean(place, judged, sNoiseMeanSuffix, stops);
-
-                assert(stops.size() - first == stopsAPlace);
-                for (std::size_t at = first; at < stops.size(); ++at)
-                    stops[at].mSchedule.mSampleOffset = static_cast<std::uint32_t>((at - first) * sNoiseSampleStride);
+                // After the first side's reference, whose exposure every picture after it holds.
+                Stop other = place;
+                other.mName += sNoiseVersusSuffix;
+                versusSides.push_back(NoiseSide{
+                    .mPlace = place.mName, .mFrame = other.mName, .mBar = ownBar ? other.mName : place.mName });
+                drawSide(other, *versus, ownBar, stops);
             }
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));
@@ -1129,7 +1158,12 @@ namespace RtxTool
                 status != 0)
                 return status;
 
-            return judgeNoise(out, names, barFrames);
+            const int judged = judgeNoise(folder, sides, barFrames);
+            if (!versus.has_value())
+                return judged;
+
+            out() << std::format("versus --{}{}\n", asked, ownBar ? ", against a bar of its own" : "");
+            return std::max(judged, judgeNoise(folder, versusSides, barFrames));
         }
 
         /// A film of the keys a window wrote: every take drawn headless, its frames numbered through
@@ -1360,7 +1394,7 @@ namespace RtxTool
             driverCache.applyToDriver();
             driverCache.sweep();
 
-            return found->mRun(Command{ variables, config, resources, shaders, found->mVerb });
+            return found->mRun(Command{ variables, options, config, resources, shaders, found->mVerb });
         }
 
         int run(int argc, char* argv[])

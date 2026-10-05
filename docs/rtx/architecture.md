@@ -323,7 +323,8 @@ at the top, over all of them.
   frames after it. Everything before the wavelet — every channel the trace writes, and the scene —
   stays exact. The harness holds each part to what it promises: `FrameHashes` reports a difference
   in the composed frame of a denoised run beside the verdict, and `shot` holds a denoised picture
-  to within `sDenoiserNoiseLevels`. The evidence is in `.notes/denoiser-nondeterminism.md`.
+  to within `sDenoiserNoiseLevels`. The evidence is in `6b3978a065`
+  (`.notes/denoiser-nondeterminism.md`).
 
 **The shaders** (`shaders/`, in the folders of the passes that dispatch them, shared pieces in
 `shaders/lib/`). One ray generation shader traces one ray per pixel and composes the path.

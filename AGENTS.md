@@ -177,9 +177,10 @@ backend ever arrives.
   frames after the cut a stop begins with, standing, which is where fireflies show. Each place's
   line counts its fireflies, pixels four times over the reference, in a thousand. A run is five minutes a
   suite with the card at 99%, so an A/B is `./omw release noise --ab=<switch>`: the strafe and the
-  walk legs, both sides back to back and side by side, and the still leg with `--still`, which a
+  walk legs, both sides in one run a leg (`noise --versus`), and the still leg with `--still`, which a
   switch that touches short histories still moves, since the upscaler's jitter keeps edges short.
-  Two runs at once only share the card.
+  Narrow an A/B to one place and leg first (`--views=`, `--strafe=0 --walk=0 --still`); the suite is
+  the verdict. Two runs at once only share the card.
 - `./omw kernels > before.txt` ahead of a shader change and `--against=before.txt` after
   it names the kernels the change moved, per tuple of their constants; a tuple it did not name
   draws what it drew.
@@ -188,6 +189,11 @@ backend ever arrives.
   held behind the host, and must agree frame for frame. The walk is always the same one, so every
   repeat compares with every other. A run is the same run twice, and a pair that finds nothing has
   found nothing. Read a difference with `--exposure=1` and `--pictures=<dir>`.
+- **The denoised frame is not bit-exact on this card** (`docs/rtx/architecture.md`; notes in
+  `6b3978a065`): under a busy queue, the first wavelet dispatch after a pipeline drain sometimes
+  differs by an ulp on identical inputs, one level of 255 in the picture. The card's, not a missing
+  barrier; a wait for idle per frame hides it. `repeat` runs unfiltered and cannot see it; a
+  difference in the composed frame alone is the card's.
 - Measure with `./omw release bench`, on a hot card, back to back, never with a sleep between
   runs. Take a throwaway warm-up leg first. No frame times until the renderer draws everything the
   game has.

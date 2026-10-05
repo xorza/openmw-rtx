@@ -149,6 +149,23 @@ namespace Rtx
         /// bright bounce's light with it (the glow-lit chamber 1.90 against 2.60 without the reuse).
         bool mAntiFirefly = false;
 
+        /// This request with no filter and no reuse, every frame a draw of its own, and each switch
+        /// only the bounce's filters read at its default: what an unfiltered frame reads of it, so
+        /// two requests whose unfiltered frames trace alike compare equal. An unfiltered frame runs
+        /// none of the denoiser's passes, so nothing else reads those switches.
+        ReconstructionRequest unfiltered() const
+        {
+            const ReconstructionRequest defaults;
+            ReconstructionRequest plain = *this;
+            plain.mDenoise = false;
+            plain.mBounceReuse = BounceReuse::Off;
+            plain.mAntilag = defaults.mAntilag;
+            plain.mHistoryFix = defaults.mHistoryFix;
+            plain.mDualMotion = defaults.mDualMotion;
+            plain.mAntiFirefly = defaults.mAntiFirefly;
+            return plain;
+        }
+
         bool operator==(const ReconstructionRequest& other) const = default;
     };
 

@@ -29,9 +29,11 @@
 // gradient along the tap, `exp(-|z(p) - z(q)| / (sigma_z * |grad z . (p - q)| + eps))`; what is
 // below is a plane-distance test, which is what the denoisers written since — NRD's among them —
 // settled on, and which handles a grazing floor without needing a derivative that a ray tracer has
-// no rasterizer to hand it. The luminance term is SVGF's whole: it weighs by the variance of the
-// accumulated history, prefiltered 3x3 at the first level, and each level carries what averaging
-// left of that variance to the next in the alpha beside its colour.
+// no rasterizer to hand it. The luminance term is SVGF's but for one thing: it weighs by the
+// variance of the accumulated history, prefiltered 3x3 at the first level, and each level carries
+// what averaging left of that variance to the next in the alpha beside its colour — **the centre's
+// and the tap's variance together, and not the centre's alone** (`ATROUS_LUMINANCE_SIGMA` says
+// why).
 //
 // **The first level is also NRD's history fix** (`ACCUMULATE_FIX_FRAMES`): at a pixel whose mean
 // holds that few frames, its taps stand `ACCUMULATE_FIX_STRIDE / (1 + n)` apart under ReLAX's flat
@@ -196,10 +198,9 @@ void main()
     // difference of one against a variance of four is nothing; the same difference against a settled
     // pixel is an edge. The epsilon is a divide guard and nothing else. The history fix has no
     // brightness test, and does not pay the nine loads of the variance's prefilter; a narrow level
-    // reads the centre's, which the levels before it averaged.
+    // reads the centre's, which the levels before it averaged. Each tap adds its own beside it.
     const vec4 centre = texelFetch(source, at, 0);
     const float noise = ATROUS_WIDE ? varianceAround(at) : centre.a;
-    const float spread = fixing ? 1.0 : ATROUS_LUMINANCE_SIGMA * sqrt(noise) + 1e-4;
     const float here = dot(centre.rgb, LUMINANCE_WEIGHTS);
 
     // What the average leaves of the variance, for the next level: each tap's own, by the square of
@@ -232,6 +233,7 @@ void main()
             // The third of SVGF's three, and the only one about the light rather than the surface.
             // **None in the history fix**, whose centre holds too few frames to have a spread.
             const vec4 light = texelFetch(source, tap, 0);
+            const float spread = ATROUS_LUMINANCE_SIGMA * sqrt(0.5 * (noise + light.a)) + 1e-4;
             const float lit = fixing ? 1.0 : exp(-abs(here - dot(light.rgb, LUMINANCE_WEIGHTS)) / spread);
             const float kernel
                 = fixing ? 1.0 : (ATROUS_WIDE ? kernelAt(x) * kernelAt(y) : gaussianAt(x) * gaussianAt(y));

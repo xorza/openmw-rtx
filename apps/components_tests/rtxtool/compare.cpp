@@ -1,3 +1,4 @@
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -401,7 +402,12 @@ namespace RtxTool
             std::filesystem::remove(root / ("missing" + std::string(sNoiseBarLimitSuffix) + ".png"));
             place("other-size", flat(10, 9, 100), limit);
 
-            const auto judge = [&](std::vector<std::string> places) { return judgeNoise(root, places, 16); };
+            const auto judge = [&](const std::vector<std::string>& names) {
+                std::vector<NoiseSide> places;
+                for (const std::string& name : names)
+                    places.push_back(NoiseSide{ .mPlace = name, .mFrame = name, .mBar = name });
+                return judgeNoise(root, places, 16);
+            };
             EXPECT_EQ(judge({ "clean" }), 0);
             EXPECT_EQ(judge({ "noisier-mean" }), 1);
             EXPECT_EQ(judge({ "noisier-tail" }), 1) << "a tail the mean hides";
@@ -409,6 +415,19 @@ namespace RtxTool
             EXPECT_EQ(judge({ "other-size" }), 1);
             EXPECT_EQ(judge({ "clean", "noisier-tail" }), 1) << "one noisier place among clean ones";
             EXPECT_EQ(judge({}), 1) << "nothing measured";
+
+            // **A side reads its frame under its own name and its bar under the one it names**: the
+            // frame 3 off, noisier than its own bar 2 off, is as clean as a looser bar 4 off; and a
+            // bar or a frame no side wrote is not measured.
+            place("loose", limit, raisedAt(10, 10, 100, 100, 4));
+            const auto against = [&](const std::string& frame, const std::string& bar) {
+                const std::array places{ NoiseSide{ .mPlace = "side", .mFrame = frame, .mBar = bar } };
+                return judgeNoise(root, places, 16);
+            };
+            EXPECT_EQ(against("noisier-mean", "noisier-mean"), 1);
+            EXPECT_EQ(against("noisier-mean", "loose"), 0);
+            EXPECT_EQ(against("noisier-mean", "nowhere"), 1) << "a bar no side wrote";
+            EXPECT_EQ(against("nowhere", "loose"), 1) << "a frame no side wrote";
 
             const PictureError tail = measureError(raisedAt(10, 10, 100, 2, 10), limit);
             EXPECT_DOUBLE_EQ(tail.mMean, 0.2);
