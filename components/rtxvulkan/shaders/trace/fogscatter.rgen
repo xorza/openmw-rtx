@@ -211,7 +211,7 @@ void main()
     // over — so a froxel with no lamp in it handed full sight of a lamp to the froxel beside it, and
     // a lantern behind a lid lit the air in front of it after all.
     const float lampsSeen
-        = lamps.mWeight > 0.0 ? lampVisible(lamps, vec2(randomNext(lampState), randomNext(lampState))) : 0.0;
+        = lamps.mWeight > 0.0 ? lampVisible(lamps, vec3(0.0), vec2(randomNext(lampState), randomNext(lampState))) : 0.0;
 
     // **The sun's ray whenever there is a sun, and not only where the air's own shaft is worth it.**
     // The air throws the sun forward so hard that looking away from it there is nothing to shadow,
@@ -230,9 +230,9 @@ void main()
     float visible = 1.0;
     float lunar = 1.0;
     if (sources.mSunlit)
-        visible = skyVisible(position, SKY_SOURCE_SUN, sunDraw);
+        visible = skyVisible(position, vec3(0.0), SKY_SOURCE_SUN, sunDraw);
     if (sources.mMoonlit)
-        lunar = skyVisible(sources.mDrawnSky, position, moonDraw);
+        lunar = skyVisible(sources.mDrawnSky, position, vec3(0.0), moonDraw);
 
     // **And the ambient's, which the air never asked and a puff does.** The air scatters the
     // weather's fog colour unshadowed, which is Morrowind's convention for it; a puff is lit by the
@@ -240,7 +240,7 @@ void main()
     // point. Over the whole sphere, because the air has no side — `ambientReaching` says what that
     // means in a room and out of one.
     const float ambientSeen
-        = ambientReaching(position, vec3(0.0), vec3(0.0), 0.0, froxelKey(uvec2(column), slice) + SEED_AMBIENT_FOG,
+        = ambientReaching(position, vec3(0.0), vec3(0.0), 0.0, 0.0, froxelKey(uvec2(column), slice) + SEED_AMBIENT_FOG,
             AMBIENT_EXTERIOR_RATE);
 
     // **Whatever the moons deliver, whether or not they were worth a ray.** `mMoonlit` gates the

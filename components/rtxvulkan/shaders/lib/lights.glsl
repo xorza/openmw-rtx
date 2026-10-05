@@ -47,27 +47,30 @@ SkySource skySourceAt(uint source)
 /// **Two halves, `Passage`'s**: whether the ray was stopped, and the rest — what the translucent
 /// surfaces it crossed let through.
 ///
+/// @param step the step off the triangle `position` stands on (`stepOf`), or nought for a point in
+///        the air.
 /// @param draw one pair in `[0, 1)`, which aims the ray inside the disc's cone.
-Passage skyPassage(SkySource sky, vec3 position, vec2 draw)
+Passage skyPassage(SkySource sky, vec3 position, vec3 step, vec2 draw)
 {
     // A picture with shadows off is open to the sky everywhere: one answer for the whole frame.
     if (frame.mNoSkyShadows != 0u)
         return Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
 
-    return lightPassage(position, coneDirection(sky.mDirection, sky.mLimb, draw), frame.mReach);
+    const vec3 towards = coneDirection(sky.mDirection, sky.mLimb, draw);
+    return lightPassage(leaveSurface(position, step, towards), towards, frame.mReach);
 }
 
 /// The same as one number, which is exactly the product `lightThrough` makes of its own halves.
-float skyVisible(SkySource sky, vec3 position, vec2 draw)
+float skyVisible(SkySource sky, vec3 position, vec3 step, vec2 draw)
 {
-    const Passage passage = skyPassage(sky, position, draw);
+    const Passage passage = skyPassage(sky, position, step, draw);
     return passage.mOpen * passage.mThrough;
 }
 
 /// The same for a caller that has an index and not a source.
-float skyVisible(vec3 position, uint source, vec2 draw)
+float skyVisible(vec3 position, vec3 step, uint source, vec2 draw)
 {
-    return skyVisible(skySourceAt(source), position, draw);
+    return skyVisible(skySourceAt(source), position, step, draw);
 }
 
 /// Which lamps one cell of the grid holds, as a range into the light list.
@@ -636,7 +639,10 @@ vec3 darkeningAt(vec3 from, Facing facing, float scale, bool lampLit)
 /// for both draws a black speckle over every lamp-lit wall in the game: aimed across the flame and
 /// stopped at the flame, half the rays a wall sends end among the fitting and charge the whole
 /// lamp to the pixel.
-Passage lampPassage(Reservoir kept, vec2 draw)
+///
+/// @param step the step off the triangle the reservoir's point stands on (`stepOf`), or nought for a
+///        point in the air.
+Passage lampPassage(Reservoir kept, vec3 step, vec2 draw)
 {
     // Aimed from where the ray leaves and not from where the lamp was weighed, with no reach test:
     // a caller that moved its origin after weighing — a lifted surface and the air both do — still
@@ -654,7 +660,8 @@ Passage lampPassage(Reservoir kept, vec2 draw)
     // the lamp and so where the clearance has to be measured from.
     const float along = distance * dot(towards, axis);
 
-    return lightPassage(kept.mFrom, towards, along - max(lamp.mClearance, SHADOW_BIAS));
+    return lightPassage(
+        leaveSurface(kept.mFrom, step, towards), towards, along - max(lamp.mClearance, SHADOW_BIAS));
 }
 
 /// How wide the penumbra stands where a ray to a source was stopped `occluder` along it, as its
@@ -679,9 +686,9 @@ float lampPenumbra(Reservoir kept, float occluder)
 
 /// `lampPassage`'s two halves as one number, from none of the lamp to all: `throughToward`'s
 /// product, exact for the reason it gives.
-float lampVisible(Reservoir kept, vec2 draw)
+float lampVisible(Reservoir kept, vec3 step, vec2 draw)
 {
-    const Passage passage = lampPassage(kept, draw);
+    const Passage passage = lampPassage(kept, step, draw);
     return passage.mOpen * passage.mThrough;
 }
 

@@ -42,7 +42,12 @@ bool bounceSeen(BounceOrigin origin, BounceReach reach)
     if (!(distance > SHADOW_BIAS))
         return true;
 
-    return !solidBetween(WorldRay(frame.mOrigin + origin.mOffset, reach.mTowards), SHADOW_BIAS, distance);
+    // Off the triangle where the origin kept one, and off the shading normal where it did not; the
+    // point is the eye's offset summed back, and carries that sum's rounding as well.
+    const float rounding = origin.mRounding + summedRounding(frame.mOrigin, origin.mOffset);
+    const vec3 from = leaveSurface(frame.mOrigin + origin.mOffset,
+        (origin.mPlaned ? origin.mPlane : origin.mNormal) * rounding, reach.mTowards);
+    return !solidBetween(WorldRay(from, reach.mTowards), 0.0, distance);
 }
 
 /// Whether `origin` and `near`, both visible points this frame, are alike enough to reuse each

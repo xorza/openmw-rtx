@@ -80,6 +80,11 @@ namespace Rtx::Shaders
 
         /// The sheet's transmission in the low sixteen bits, and `BOUNCE_ORIGIN_*`.
         uint mSheet;
+
+        /// How far the point can stand off its triangle, `Surface::mRounding`: what a ray leaving it
+        /// steps off by, with the rounding `mOffset` adds (`summedRounding`). And what fills the
+        /// record to thirty-two bytes, so no record crosses a sector.
+        float mRounding;
     };
 
     /// What `GpuBounceOrigin::mSheet` holds past the transmission: whether the surface has a lobe,
@@ -184,7 +189,7 @@ namespace Rtx::Shaders
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(GpuBounceReservoir) == 32, "GpuBounceReservoir must be scalar-packed on every side");
-    static_assert(sizeof(GpuBounceOrigin) == 28, "GpuBounceOrigin must be scalar-packed on every side");
+    static_assert(sizeof(GpuBounceOrigin) == 32, "GpuBounceOrigin must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

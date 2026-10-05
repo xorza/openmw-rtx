@@ -262,29 +262,15 @@ items are departures from the published method that each cost gain or add bias. 
 - [ ] `trace/bouncetemporal.comp:88`. `min(before.mConfidence, BOUNCE_CONFIDENCE_CAP)` is dead: every
   writer of `bounceHistory` stores a capped confidence (`finishMerge`, a candidate of 1, or
   validation's 1 or 0). Target: remove it.
-- [ ] `components/rtx/shaders/bouncereuse.h:68-83, 228`. `GpuBounceOrigin` is 28 bytes, so six of
-  every eight records cross a 32-byte sector. The reads are scattered: four temporal taps, two
-  partners in the pairs pass, two in the resolve. Target: 32 bytes, or 24 by folding the reflectance
-  and the three flags into one word. Measure.
+- [ ] `components/rtxvulkan/shaders/shared/bouncereuse.h` (`GpuBounceOrigin`). The record is 32 bytes
+  now, the point's rounding filling it, so none crosses a sector; 24, by folding the reflectance and
+  the three flags into one word and the rounding with them, is not measured. The reads are
+  scattered: four temporal taps, two partners in the pairs pass, two in the resolve. Target: measure
+  32 against 24 with the reuse on.
 - [ ] `trace/bounceresolve.rgen:65-67, 74-123`. The first loop keeps two whole reservoirs and two
   whole origins live (about 65 floats) until the second loop, which needs only the confidences, the
   `there` values and the partners' bits. Target: keep those, and read each partner again in the
   second loop from the cache.
-
-## 7. Every secondary ray skips the first world unit
-
-- [ ] `lib/traversal.glsl:29` (`SHADOW_BIAS = 1.0`), `:614, 622-623`, `shading.glsl:872-873`,
-  `visibility.rgen:259, 338`, `visibilityhit.rchit:243`. Every secondary ray starts at the hit point
-  with `tmin = 1` unit along the ray. A bounce from a floor point 0.5 units from a wall, toward the
-  wall, meets the wall under `t = 1` and goes through it: light leaks from the next room along every
-  seam. Shadow and ambient rays lose contact occlusion within one unit (a cup on a table). The peel
-  skips a see-through layer within one unit behind another (cloth over armour), the case
-  `visibility.rgen:290-294` names. The established method offsets the origin along the geometric
-  normal by an amount in ulps of the position and keeps `tmin` near 0 (Wächter & Binder, Ray Tracing
-  Gems ch. 6; NVIDIA, "Solving Self-Intersection Artifacts in DirectX Raytracing"). Target: one
-  `offsetOrigin(position, geometric * side)` in `traversal.glsl`, with the side the ray leaves by,
-  for every inline query with `tmin = 0`. The peel continues at `t · (1 + kε)`, not `t + 1`. Prove it
-  with `shot --against`.
 
 ## 8. The specular channels are not demodulated
 

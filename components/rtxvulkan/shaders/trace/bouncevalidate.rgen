@@ -60,7 +60,11 @@ void main()
     // **The cone the trace's bounce left with**: the eye's footprint at the point and the bounce's
     // spread, so the far surface is read at the level the candidate read it.
     const Cone eye = coneAt(frame.mEyes.mWorld);
-    const Surface hit = trace(WorldRay(position, reach.mTowards), SHADOW_BIAS,
+    // The point is the eye's offset summed back, and carries that sum's rounding as well.
+    const float rounding = before.mRounding + summedRounding(frame.mOrigin, before.mOffset);
+    const vec3 from
+        = leaveSurface(position, (before.mPlaned ? before.mPlane : before.mNormal) * rounding, reach.mTowards);
+    const Surface hit = trace(WorldRay(from, reach.mTowards), 0.0,
         Cone(eye.mWidth + eye.mSpread * length(offset), BOUNCE_SPREAD), solidMask(frame.mRayMask), false);
 
     // The same point, to what the offset kept of it; anything nearer stands in front of it now,
