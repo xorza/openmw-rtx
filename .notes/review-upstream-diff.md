@@ -121,27 +121,6 @@ The trace, the denoiser or the rasterizer shows a result that is not the light o
 
   Either way, DRAWN is set only where another pick would actually change the bit.
 
-### A lamp is counted twice where a glossy lobe reflects it
-
-- [ ] `components/rtxvulkan/shaders/lib/shading.glsl:759-769`, `:886-887`, `:272-273` — **[bug]**
-  `gather` adds every lamp's lobe analytically (`specular += kept.mSpecular * (held * lampSeen)`).
-  The glossy bounce's ray then lands on the same lamp's model and keeps its glow, because
-  `bounceLanding` drops the glow only for `PATH_INDIRECT`, and the lobe passes `PATH_SEEN`.
-  - The rule `bounceLanding` itself states for the diffuse half ("its lamp lights every surface
-    around it ... a diffuse bounce that also brought back the paper's glow lit the room twice")
-    applies to the lobe word for word.
-  - The sky already follows it: the lobe's escape reads `reflectedSky(..., discs = false)`
-    (`shading.glsl:742`, `sky.glsl:341-343`), because `gather` asks the lobe for the sun and the
-    moons.
-
-  Result: a polished floor, a metal plate or a wet `_spec` surface near a lantern shows the analytic
-  highlight and the lantern's glowing body on top of it. The extra energy is the lamp-body glow,
-  which goes to the glossy filter. → Target shape: one rule for every analytic source. Either:
-  - drop the lamp body's glow wherever the ray was drawn by a lobe that `gather` evaluated the lamp
-    for (`keep` becomes "lobe or diffuse alike", and only water, which has no analytic lamp lobe,
-    keeps the glow); or
-  - MIS-weight the lobe's hit on a lamp body against the lamp's light sample.
-
 ### The two halves of a stopped shadow ray
 
 - [ ] `components/rtxvulkan/shaders/lib/traversal.glsl:612-629`; `shading.glsl:203`, `:264`

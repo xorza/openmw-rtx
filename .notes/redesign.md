@@ -106,7 +106,7 @@ And two rules apply to every step:
 |---|---|---|
 | D1 | The arithmetic contract stops at contraction and order | Done |
 | D2 | No one owns temporal reprojection | S§2, S§5, S§9, U › jitter, U › five kernels |
-| D3 | Direct light has no single rule for its sources | S§3 (lamp, sky), S§4, S§12, U › sky draw, U › two halves, U › lamps that take light |
+| D3 | Direct light has no single rule for its sources | S§3 (sky), S§4, S§12, U › sky draw, U › two halves, U › lamps that take light |
 | D4 | The bounce's far end is not a pure function of its sample | S§6, U › validation, U › resolve, U › reservoirs kept |
 | D5 | Secondary rays see a scene that the eye does not see | S§11 (coverage) |
 | D6 | A filtered signal carries material that the filter blurs | S§8, U › pane and glossy gather |
@@ -195,8 +195,6 @@ sides, and the fixed pixel's fast mean.
 **Cause.** The sun, the moons, and the lamps follow different rules for questions that each have
 one answer:
 
-- **Which technique reaches a source?** The sun disc is light-sample only. A lamp is reached by its
-  light sample and again by a lobe ray that hits its model.
 - **What is "exact" in the split output?** For the lamps it is the unshadowed sum. For the sky it
   is one picked source over its chance, so each pixel's hue follows the pick.
 - **When is a bit "drawn"?** A daylight moon at 1e-3 of the sun's weight makes every sunlit bit
@@ -209,20 +207,8 @@ one answer:
 
 **Contract (the split output, which the shadow denoiser reads).**
 
-1. **Reach, keyed by what the parent evaluated.** A source's geometry (sun disc, moon discs, lamp
-   body) emits nothing to a ray whose parent shading point evaluated that source analytically,
-   because the parent's light sample already holds that light. It emits whole to every other ray.
-   The ray's path carries the answer per kind of source: `bounceLanding` and `reflectedSky` read
-   it, and the test of `PATH_SEEN` / `PATH_INDIRECT` goes. Today:
-   - a diffuse bounce and a glossy lobe leave a surface whose `gather` evaluated every source, so
-     each drops every disc and every lamp body;
-   - the water's reflection and refraction legs leave a surface with no analytic lobe, so they
-     keep the discs (`water.glsl:131` reads `reflectedSky(…, true)`) and the lamp bodies;
-   - a shadow ray has no emission to count.
-
-   Keyed by the parent and not by the ray, the rule stays correct when a surface gains or loses an
-   analytic lobe. A flat rule ("no lamp body to any secondary ray") would darken the water's
-   picture of a lantern.
+1. **Reach, keyed by what the parent evaluated**, is done: `EVALUATED_*`, which `bounceLanding` and
+   `bounceEscape` read; the water's legs keep every source's geometry.
 2. **The unshadowed sum is exact.** Split, `CHANNEL_SHADOWED.rgb` is the sum over every sky source
    with non-zero weight, plus every lamp, as though every ray got through. `lightThroughWater` is
    inside each source's weight. The darkening of negative lamps is subtracted from this exact sum
@@ -257,7 +243,6 @@ one answer:
 
 **What goes away.**
 
-- the double-counted lamp highlight;
 - the per-pixel hue noise at dusk;
 - the sun shadows that are blurred all day while a moon is up;
 - the penumbrae from distant roofs;
@@ -524,16 +509,15 @@ Take new baselines at the end of each phase.
 
 Order matters. D5 changes what every secondary ray meets, and D3 is measured on top of it.
 
-1. D3.1, the reach rule: lamp bodies, discs, and water legs.
-2. D3.2 and D3.3, the exact sky sum and the drawn floor. Measure with `noise --ab` at dusk, with a
+1. D3.2 and D3.3, the exact sky sum and the drawn floor. Measure with `noise --ab` at dusk, with a
    place in daylight while a moon is up and a place under two moons. The shadow filter's reach
    should fall by day.
-3. D3.4 and D3.5, the nearest occluder, the receiver's penumbra, and the stopped through. Measure
+2. D3.4 and D3.5, the nearest occluder, the receiver's penumbra, and the stopped through. Measure
    the cost of the split rays without `TerminateOnFirstHit` with `bench`, and the pond A/B again.
-4. D3.6, the highlight size. Then D3.7, M candidates below the primary hit, with
+3. D3.6, the highlight size. Then D3.7, M candidates below the primary hit, with
    `noise --ab=<M>` and `bench` at a lamp-dense interior.
-5. D3.8, blue streams for split draws, and STBN for the bounce. `noise --ab`, all three legs.
-6. D3.9, the sky-shadow flag. The moons under water go with D7.3 in Phase 4.
+4. D3.8, blue streams for split draws, and STBN for the bounce. `noise --ab`, all three legs.
+5. D3.9, the sky-shadow flag. The moons under water go with D7.3 in Phase 4.
 
 ### Phase 3. Temporal history (D2, D6, and the wavelet items)
 
@@ -661,7 +645,7 @@ These are local defects. Each one is fixed where it stands.
 | Review group | Goes to |
 |---|---|
 | S§2 | D2 (Phase 3) |
-| S§3: lamp, sky, through | D3 (Phase 2) |
+| S§3: sky, through | D3 (Phase 2) |
 | S§3: fog, water, layer | D7 (Phase 4) |
 | S§4 | D3 (Phase 2), D2 point 6 (Phase 3) |
 | S§5 | D2 point 5 (Phase 3) |
@@ -670,7 +654,7 @@ These are local defects. Each one is fixed where it stands.
 | S§9 | Phase 3, step 7 |
 | S§10 | D9 (Phase 7) |
 | S§11 | D8 (Phase 6), D5 point 2 |
-| S§12 | D3 points 6 and 7 (Phase 2), the bounded VNDF in Phase 2 step 4 |
+| S§12 | D3 points 6 and 7 (Phase 2), the bounded VNDF in Phase 2 step 3 |
 | S§13 | D7 (Phase 4), the moons under water in D7.3 |
 | S§14 to S§16 | Phase 8, D7 (integrate, ambient ray), D10 (barriers) |
 | S§17 | Section 6 |

@@ -62,17 +62,6 @@ of the gather make each one harder to fix.
 
 Each item adds or loses light in the converged picture. A denoiser cannot remove this.
 
-- [ ] `lib/shading.glsl:754-768` (`bounceLanding` keeps `INSTANCE_LAMP_BODY` glow for
-  `PATH_SEEN`), with `:272-273` and `:1002`. A glossy surface gets a lamp in its specular channel two
-  times: once from next-event estimation (the lamp's analytic sphere, `kept.mSpecular`), and once
-  from a lobe ray that meets the lantern's model, whose glow is also scaled by `EMISSIVE_INTENSITY = 8`
-  (`look.h:369`) and not by the lamp's intensity. The sun follows the opposite rule: the lobe ray
-  drops the disc because `gather` already samples it (`shading.glsl:730-732`). `e896492f9c` removed
-  the double count from the diffuse half only. Without MIS, each emitter is reached by exactly one
-  technique (PBRT 4e §13.4; Veach 1997 ch. 9). Target: one rule for every path that runs `gather`'s
-  lamp lobe, the sun's rule. Either the lamp body has no glow on every path, or the lobe term of a
-  lamp that has a body is dropped from next-event estimation. The water's legs
-  (`shadeAtPathEnd` through `PATH_SEEN`) take the same rule.
 - [ ] `lib/shading.glsl:189-218` (`skyDiffuse = skyArriving * (pick.mWhole ? skyLit : skyLit / pick.mChance)`
   at `:207`), against the contract at `gbuffer.h:122-123` ("`rgb` is exact per pixel"), read raw at
   `composite.comp:91-95`. In the split path, the lamps give the shadow denoiser their exact
