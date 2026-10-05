@@ -52,7 +52,7 @@ def unlisted(tracked: list[str], compiled: set[str], windows: bool) -> list[str]
 
 def check(build: Build) -> int:
     tracked = working_tree_files("apps/*.cpp", "components/*.cpp")
-    database = json.loads(read_text((build.dir / "compile_commands.json")))
+    database = json.loads(read_text(build.dir / "compile_commands.json"))
     # Without Qt a build leaves out libraries no rule can name; debug, full and package have Qt.
     if not any("components_qt.dir" in entry.get("output", "") for entry in database):
         return 0

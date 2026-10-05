@@ -110,7 +110,7 @@ def _archive_linux(build: Build, name: str) -> None:
     osg_libdir = Path(output(["pkg-config", "--variable=libdir", "openscenegraph-osg"]).strip())
     plugins = appdir / "usr" / "lib" / f"osgPlugins-{osg_version}"
     plugins.mkdir(parents=True)
-    for plugin in used_osg_plugins(read_text((ROOT / "CMakeLists.txt"))):
+    for plugin in used_osg_plugins(read_text(ROOT / "CMakeLists.txt")):
         shutil.copy2(osg_libdir / f"osgPlugins-{osg_version}" / f"{plugin}.so", plugins)
     hooks = appdir / "apprun-hooks"
     hooks.mkdir()
