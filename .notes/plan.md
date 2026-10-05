@@ -413,16 +413,6 @@ section at the end**, kept or reverted, because a finished step leaves this list
 noisier by more than 0.02 or more biased by more than 0.05 in any leg it is run on, still,
 strafed (`--strafe=150`) and walked (`--walk=150`).
 
-16. **F1: a short history's variance, estimated.** In `accumulateclamp.comp`, under
-    `ACCUMULATE_SETTLED` frames, the slow mean's variance becomes `fastDeviation² × max(1, 4 / (N +
-    1))` from the 5×5 it already holds, where it stores the slow mean (`blended`'s alpha, which it
-    passes through today), with `N` the count it already reads for the ring. The accumulator's
-    constant stays only for a pixel the clamp passes over (no surface), and is renamed to say so.
-    The history fix's level reads the new variance as every level does. A shader function in
-    `accumulate.h` beside `ringHeldLuminance`, with a test by hand; a GPU test that a fresh pixel's
-    wavelet weights are the same at two exposures of the same scene (the fault's own shape). A/B:
-    `--cut=1`, `--cut=2` and `--strafe` at the pier and the pond (daylight, where the fault bites)
-    and the guild.
 17. **P1: the lighter wavelet** (decision 4). `atrous.comp`: past the first level a 3×3 kernel
     (ReLAX's Gaussian, 0.44198 and 0.27901) and the centre's variance; the first level, with the
     history fix, unchanged; `ATROUS_LEVELS` 4, so the steps are 1, 2, 4 and 8. ReLAX's two other
@@ -431,7 +421,10 @@ strafed (`--strafe=150`) and walked (`--walk=150`).
     `architecture.md`'s denoiser paragraph say what the levels are now, with the measurements. The
     GPU tests that quote measured filter figures (`rtxvulkan/trace/visibility/filter.cpp`) are run
     and their figures updated where they moved; a claim that fails is a finding, not a number to
-    retune.
+    retune. Several were stale before step 16 and are measured again here: after step 16 the arm
+    leaves 3.0% of its spread (quoted 3.2), the grazing sheet's one sample is 0.0335 off and the
+    cascade 0.00224 (quoted 0.0420 and 0.0020), its history 0.00177 (quoted 0.00201), and the
+    neighbourless grid's cascade 0.0179 and history 0.0050 (quoted 0.00475 and 0.00268).
 18. **P2: the reuse by the sky** (decision 3). `BounceReuse` gains a mode, `rooms`, the default:
     temporal where the frame's sky lights nothing (`mAmbientFromSky` nought: an interior) and off
     where it does. **`Reconstruction::resolve` already runs once a frame** in
@@ -674,3 +667,47 @@ record, which answers the same question and decodes nothing twice.
   and its p99 by up to 0.10 at the six places, the marker read at every node the walk enters; the
   trace does not move (within ±0.07 ms either way). The frame waits on the card, so the walk's
   share hides behind it.
+
+## Step 16: a short history's variance, estimated — kept
+
+`accumulateclamp.comp` writes a mean of four frames or fewer the spread of the fast means over its
+5×5 square as its variance, raised by `max(1, 4 / (N + 1))` (`shortHistoryVariance`); the
+accumulator's constant stays for a pixel with no surface. A mean of five frames or more keeps its
+own moments, as before.
+
+- **The fault's own shape**, a GPU test (`aFreshPixelIsFilteredTheSameUnderAnyLight`): a floor under
+  a sky, from a cut, at the sky's light and at 1024 times it. The brighter picture stood 3.2% (two
+  frames on) and 6.9% (four frames on) from the dimmer one scaled with the constant; with the
+  spread, 1.1 and 0.28 hundred-thousandths.
+- **Kernels**: 1 of 178 moved, `accumulateclamp.comp`.
+- **Pictures** (`shot --views=all --map --upscale=off`): 44 of 64 moved, 19 within the denoiser's
+  noise; the maps most (the caldera's worst 22 levels on 16% of its pixels), since a map is one
+  frame from a cut and every pixel of it holds a short history.
+- **Noise**, release, FSR quality, before → after: frame noise, bias, fireflies.
+
+| place | `--cut=1` | `--cut=2` | `--strafe=150` |
+|---|---|---|---|
+| Seyda Neen's pier | 2.26 → 2.25, 1.74 → 1.74, 0.09 → 0.09 | 2.06 → 2.06, 1.84 → 1.84, 0.05 → 0.05 | 1.16 → 1.16, 1.43 → 1.43, 0.05 → 0.05 |
+| Seyda Neen's pond | 1.87 → 1.87, 1.20 → 1.20, 0.12 → 0.12 | 1.72 → 1.72, 1.27 → 1.27, 0.10 → 0.10 | 1.21 → 1.21, 1.72 → 1.72, 0.04 → 0.04 |
+| mages' guild | 2.12 → 2.13, 1.15 → 1.15, 0.39 → 0.40 | 1.93 → 1.94, 1.09 → 1.10, 0.34 → 0.34 | 1.12 → 1.12, 1.63 → 1.63, 0.80 → 0.80 |
+
+  **No place moves.** The plan expected the daylight places to: the trace hands the denoiser
+  radiance with no exposure in it, and at these places a fresh pixel's bounce stands near one,
+  where the constant was about right. The fault bites where the light stands far from one, as the
+  test's sky does. Kept as a correctness fix at no cost.
+- **The history fix**, which only the wavelet's first level reads, measured again with the new
+  variance (`--ab=history-fix`, on / off): one frame after a cut it takes 0.03 to 0.04 off the
+  noise and 0.03 to 0.07 off the bias; strafed and walked in it moves nothing by more than 0.02.
+  `theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo` now measures the strip's noise over its own mean:
+  without the fix, the brightness test with an honest variance passes over a fresh pixel's rare
+  bright draws, and the strip stands at 0.31 of its light (0.61 with the constant), which made its
+  absolute noise look small. With the fix, 0.98.
+- **The anti-firefly ring**, again (`--ab=antifirefly`, on / off): one frame after a cut it takes
+  0.01 to 0.06 off the noise and adds 0.06 to 0.14 of bias; the fireflies do not move. Strafed and
+  walked in, nothing by more than 0.02. `plan_QUESTIONS.md` has the figures.
+
+| place | `--cut=1`, on / off | strafed, on / off | walked, on / off |
+|---|---|---|---|
+| Seyda Neen's pier | 2.25 / 2.26, bias 1.74 / 1.68 | 1.16 / 1.17, bias 1.43 / 1.42 | 1.18 / 1.18, bias 2.16 / 2.16 |
+| Seyda Neen's pond | 1.87 / 1.88, bias 1.20 / 1.13 | 1.21 / 1.22, bias 1.72 / 1.71 | 1.17 / 1.17, bias 1.61 / 1.61 |
+| mages' guild | 2.13 / 2.19, bias 1.15 / 1.01 | 1.12 / 1.13, bias 1.63 / 1.62 | 1.25 / 1.25, bias 2.36 / 2.38 |

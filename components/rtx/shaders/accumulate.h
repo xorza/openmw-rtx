@@ -174,6 +174,20 @@ namespace Rtx::Shaders
         return min(lit, mean + ACCUMULATE_RING_SPREAD * sqrt(max(squares / count - mean * mean, 0.0f)));
     }
 
+    /// The variance of a slow mean of `frames` frames whose own second moment means nothing yet
+    /// (`ACCUMULATE_SETTLED`): the spread of the fast means over the clamp's square, `deviation` of
+    /// their luminance, raised for a mean of very few frames (`ACCUMULATE_VARIANCE_BOOST`).
+    ///
+    /// **Measured where the pixel stands, and not a number**, which is ReLAX's spatial variance
+    /// estimate (`spatialVarianceEstimationHistoryThreshold`) and SVGF's before it. A constant is a
+    /// radiance, and the trace hands the denoiser radiance with no exposure in it: a variance of one
+    /// let every tap of a fresh pixel through where the light stands at a hundredth of one, and
+    /// refused nearly every one where it stands at a hundred.
+    RTX_SHADER float shortHistoryVariance(float deviation, float frames)
+    {
+        return deviation * deviation * max(1.0f, ACCUMULATE_VARIANCE_BOOST / (frames + 1.0f));
+    }
+
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST

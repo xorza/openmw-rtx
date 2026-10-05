@@ -99,11 +99,10 @@ layout(push_constant, scalar) uniform Push
     HistoryConstants frame;
 };
 
-/// The variance written where a pixel has no history to have measured one.
-///
-/// **One, which the cascade reads as "trust the neighbours entirely".** A pixel with a single sample
-/// in it has no idea how noisy it is, and the honest answer to that is not nought — nought is what
-/// says the pixel is certain, and a filter told that leaves the noise exactly where it is.
+/// The variance written where a pixel's mean holds too few frames to have measured one
+/// (`ACCUMULATE_SETTLED`). **Nothing reads it**: the clamp after this replaces it on every pixel
+/// with a surface (`shortHistoryVariance`), and the wavelet reads no pixel without one. Not nought,
+/// which says the pixel is certain, should a reader ever arrive.
 const float NO_HISTORY_VARIANCE = 1.0;
 
 /// Whether the history at `at` belongs to the surface now in front of this pixel.

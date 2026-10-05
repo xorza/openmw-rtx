@@ -30,6 +30,10 @@
 // in, for the reason `ACCUMULATE_RING_FRAMES` gives. **Here and not in the history fix**, which
 // spreads the pixel it rebuilds over a leaf: held first, there is no firefly left to spread.
 //
+// **And a short history's variance**, which its own moments cannot give yet (`ACCUMULATE_SETTLED`):
+// the spread of the fast means over the same 5×5 square, `shortHistoryVariance`, ReLAX's spatial
+// estimate. Here because the square is here, and the wavelet's brightness test reads it.
+//
 // **The fill moves by the bounce's shares.** `CHANNEL_FILL` is a share of the bounce, so every move
 // the bounce's luminance decides is made of the fill by the same share, and the fill stays the share
 // of the bounce it was.
@@ -68,7 +72,8 @@ layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SAMPLED_FILL) uniform rea
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_BLENDED, ATROUS_CHANNEL) uniform image2D blended;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FILL_BLENDED, ATROUS_CHANNEL) uniform image2D fillBlended;
 
-/// How many frames each pixel's slow mean holds, in `a`: whether the ring holds it down.
+/// How many frames each pixel's slow mean holds, in `a`: whether the ring holds it down, and whether
+/// its variance is its own or the square's.
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_MOMENTS, ACCUMULATE_MOMENTS) uniform readonly image2D moments;
 
 /// This frame's fast means, which the next frame's accumulator reads.
@@ -176,7 +181,8 @@ void main()
 
     const vec4 blend = imageLoad(blended, at);
     const float blendLit = dot(blend.rgb, LUMINANCE_WEIGHTS);
-    const float young = imageLoad(moments, at).a <= ACCUMULATE_RING_FRAMES ? 1.0 : 0.0;
+    const float frames = imageLoad(moments, at).a;
+    const float young = frames <= ACCUMULATE_RING_FRAMES ? 1.0 : 0.0;
     const float slowHere = mix(
         blendLit, ringHeldLuminance(blendLit, ringSum, ringSquares, ringCount), float(frame.mAntiFirefly) * young);
     const float ringScale = blendLit > 0.0 ? slowHere / blendLit : 1.0;
@@ -202,7 +208,8 @@ void main()
     const vec3 followed = fastHere + pushed * toward;
     const vec3 followedFill = fastFillHere + pushed * towardFill;
 
-    imageStore(blended, at, vec4(held, slow.a));
+    const float variance = frames <= ACCUMULATE_SETTLED ? shortHistoryVariance(fastDeviation, frames) : slow.a;
+    imageStore(blended, at, vec4(held, variance));
     imageStore(fillBlended, at, vec4(heldFill, 0.0));
     imageStore(fastOut, at, uvec4(packRgb9e5(followed), packRgb9e5(followedFill), 0u, 0u));
 }

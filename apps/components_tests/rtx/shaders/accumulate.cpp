@@ -57,5 +57,21 @@ namespace Rtx
             EXPECT_EQ(Shaders::ringHeldLuminance(0.0f, sum, squares, 72.0f), 0.0f);
             EXPECT_EQ(Shaders::ringHeldLuminance(5.0f, 0.0f, 0.0f, 0.0f), 5.0f);
         }
+
+        /// **A short history's variance is the spread around it, raised for the shortest**: a
+        /// deviation of a half is a variance of a quarter, which a mean of one frame doubles (`4 / 2`),
+        /// one of two raises by `4 / 3` to 0.3333, and one of three or more keeps (`4 / 4` is one).
+        /// The same spread at a thousand times the light is a million times the variance: a measure
+        /// in the light's own units, which a constant is not.
+        TEST(RtxAccumulateClampTest, aShortHistorysVarianceIsTheSpreadAroundIt)
+        {
+            EXPECT_FLOAT_EQ(Shaders::shortHistoryVariance(0.5f, 1.0f), 0.5f);
+            EXPECT_FLOAT_EQ(Shaders::shortHistoryVariance(0.5f, 2.0f), 0.25f * 4.0f / 3.0f);
+            EXPECT_FLOAT_EQ(Shaders::shortHistoryVariance(0.5f, 3.0f), 0.25f);
+            EXPECT_FLOAT_EQ(Shaders::shortHistoryVariance(0.5f, 4.0f), 0.25f);
+            EXPECT_FLOAT_EQ(
+                Shaders::shortHistoryVariance(500.0f, 1.0f), 1.0e6f * Shaders::shortHistoryVariance(0.5f, 1.0f));
+            EXPECT_EQ(Shaders::shortHistoryVariance(0.0f, 1.0f), 0.0f);
+        }
     }
 }

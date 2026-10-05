@@ -1256,6 +1256,13 @@ namespace Rtx::Shaders
     /// samples has a variance, and it is not one anybody should filter by.
     const float ACCUMULATE_SETTLED = 4.0f;
 
+    /// How much a slow mean of very few frames has its spatial variance raised by: `max(1, 4 / (n +
+    /// 1))` for a mean of `n` frames (`shortHistoryVariance`), ReLAX's own figure for its spatial
+    /// variance estimate (NVIDIA NRD, `RELAX_AtrousSmem`): twice the spread around a fresh pixel,
+    /// and the spread itself from three frames on. A mean of one frame is one sample, which stands
+    /// further from the truth than its neighbours' spread says, since they are as noisy as it.
+    const float ACCUMULATE_VARIANCE_BOOST = 4.0f;
+
     /// The longest history the wavelet's first level rebuilds from the surface around it, in
     /// frames: NVIDIA NRD's history fix (`historyFixFrameNum`, `RELAX_HistoryFix`,
     /// `REBLUR_HistoryFix`), whose three this is.
