@@ -753,9 +753,8 @@ run line names the rule, and each place's lines the mode it ran.
 
   **Within the bar everywhere, and the spatial half now buys almost nothing.** The rooms are 0.01
   noisier at most and up to 0.05 more biased (the planter strafed in, at the bar); the pier is up to
-  0.08 less biased. The decision's own table, taken before steps 16 and 17, had the spatial half
-  take 0.02 to 0.07 off the rooms' still noise: the lighter wavelet and the honest variance took
-  most of that over.
+  0.08 less biased. The decision's own table, taken before part 1, had the spatial half take 0.02 to
+  0.07 off the rooms' still noise; part 1 took that away, as the bisect below says.
 - **And the temporal half against none**, measured after it, since the spatial half had lost its
   gain (`--ab=bounce-reuse=temporal,off --suite=bounce`, temporal / off):
 
@@ -893,3 +892,35 @@ after the two, the trace zone in ms, base / P4 / P5 / base again:
   1.38 and 1.06 under P4).
 - **P5**: no zone moves. The match is four loads and a few products a pass, which the passes'
   other reads hide. Not built.
+
+## Why the reuse lost its noise gain — part 1, found after the plan
+
+A bisect of `--ab=bounce-reuse=temporal,off --suite=bounce --still`, release, FSR quality, at the
+commit before part 1 (`07532515d8`), part 1 (`e896492f9c`), step 16 (`5f5cce3fcb`) and step 17
+(`b67892c413`), frame noise temporal / off:
+
+| place, leg | before part 1 | part 1 | step 16 | step 17 |
+|---|---|---|---|---|
+| mages' guild, still | 0.63 / 0.69 | 0.40 / 0.38 | 0.40 / 0.38 | 0.39 / 0.38 |
+| guild's planter, still | 0.76 / 0.89 | 0.43 / 0.41 | 0.43 / 0.41 | 0.41 / 0.40 |
+| mages' guild, walked | 1.34 / 1.49 | 1.26 / 1.23 | 1.26 / 1.23 | 1.25 / 1.23 |
+| guild's planter, strafed | 1.43 / 1.62 | 1.33 / 1.30 | 1.33 / 1.30 | 1.31 / 1.29 |
+
+**Part 1 took the gain, and steps 16 and 17 moved nothing.** What the reuse was taking off was the
+lanterns' glow: a bounce that finds a small bright surface rarely and brightly, which is the path
+resampling is best at holding. Part 1 found that glow was the lamps' light counted twice and took it
+off the bounce, and with it the noise the reuse was there for. The rooms' noise fell by more than
+the reuse ever took (the guild 0.69 → 0.38 without it).
+
+Two more legs on `nightly`, temporal / off:
+
+- **With the filter off** (`--filter=false`), the reuse takes 1 to 8% off the frame's own noise: the
+  guild 1.36 → 1.34 still, the planter 2.55 → 2.44 still and 6.41 → 5.92 strafed. The denoiser is
+  not hiding a gain; there is little left to hide.
+- **Two, four and eight frames after a cut** (`--cut=2 --cut=4 --cut=8`): no place moves by more
+  than 0.01 of noise, so a young history gains nothing from it either.
+
+What it still does is lower the bias where a room is dark and its light is in a few places (the
+Andrano tomb 1.54 → 1.32, step 18's interiors run), and, with the filter off, the guild's
+(1.48 → 1.16) and the planter's (2.61 → 2.15). `plan_QUESTIONS.md` asks whether that is worth its time.
+

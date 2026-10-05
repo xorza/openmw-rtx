@@ -34,24 +34,27 @@ and the switch stays for content whose glows have no lamp, M[FR]'s tree among th
 
 ## Is the temporal reuse in rooms still worth its time? (found by step 18)
 
-**What was measured** (`plan.md`, Results, step 18). After steps 16 and 17 changed the denoiser,
-the reuse takes no noise off anywhere: the spatial half buys nothing over the temporal one, and the
-temporal one leaves the rooms 0.01 to 0.03 noisier than no reuse. What it still buys is bias, in
-the dark rooms: the Andrano tomb 1.54 → 1.32, Addamasartus 1.60 → 1.52, the customs house 1.60 →
-1.54, and nothing measurable in the guild, the planter, the yurt or Arkngthand. It costs 0.24 to
-0.77 ms a room (`bench --suite=interiors`, the reuse's passes).
+**What was measured** (`plan.md`, Results, step 18, and "Why the reuse lost its noise gain"). The
+reuse takes no noise off anywhere now, and the cause is part 1, not the denoiser: a bisect shows
+it took 0.06 to 0.15 off the rooms' noise before part 1 and nothing from part 1 on, at every later
+commit alike. Its gain was on the lanterns' glow, a rare bright bounce, which part 1 found was the
+lamps' light counted twice and removed. With the filter off it takes only 1 to 8% off a frame's
+noise, and nothing in a young history. What it still buys is bias, in the dark rooms: the Andrano
+tomb 1.54 → 1.32, Addamasartus 1.60 → 1.52, the customs house 1.60 → 1.54, and nothing measurable
+in the guild, the planter, the yurt or Arkngthand. It costs 0.24 to 0.77 ms a room
+(`bench --suite=interiors`, the reuse's passes).
 
 **Options.**
 - Keep `rooms` (temporal in rooms, none under the sky), the default now: the dark rooms nearer
   the converged picture, for up to 0.77 ms.
 - Make `off` the default everywhere: 0.24 to 0.77 ms back in every room, a little less noise, and
   the dark rooms' bias back.
-- Keep `rooms` and look for why the reuse no longer lowers noise (its validation and its boiling
-  filter were tuned against the old denoiser) before deciding.
+- Keep `rooms` and measure it on content with rare bright bounces that are not a lamp's own model
+  (glowing plants and crystals, a replacer's emissive maps, sunlight through a window into a dark
+  room), which is what resampling is for and what the bounce suite no longer holds.
 
-**Recommendation**: the first, for now. The bias it removes is the frame's distance from the
-truth in the darkest rooms, which is where a player sees the bounce most; the third is worth an
-investigation of its own before the reuse is given up.
+**Recommendation**: the third. The bounce suite lost the one case the reuse was built for when part
+1 fixed the double count, so it can no longer judge the reuse. A view with a glowing surface that
+lights a room by its bounce would. Until then `rooms` stays, for the dark rooms' bias.
 
 **What is blocked**: nothing. The default is `rooms`.
-
