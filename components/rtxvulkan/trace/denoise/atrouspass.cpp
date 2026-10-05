@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <string_view>
 
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/atrous.h>
@@ -50,10 +51,19 @@ namespace Rtx
         /// pass costs the same per level whatever the stride and there is no locality to recover.
         /// What the pass spends is the two `exp` and the surface tap. A profiler is what the next
         /// attempt should start from.
+
+        ComputePipeline<Shaders::AtrousConstants> makeLevel(const Device& device, bool wide, std::string_view name)
+        {
+            std::array<std::uint32_t, Shaders::ATROUS_SPEC_COUNT> specialization{};
+            specialization[Shaders::ATROUS_SPEC_WIDE] = wide ? VK_TRUE : VK_FALSE;
+            return ComputePipeline<Shaders::AtrousConstants>(
+                device, sBindings, {}, "atrous.comp.spv", name, specialization);
+        }
     }
 
     AtrousPass::AtrousPass(const Device& device)
-        : mPipeline(device, sBindings, {}, "atrous.comp.spv", "atrous")
+        : mWide(makeLevel(device, true, "atrous"))
+        , mNarrow(makeLevel(device, false, "atrous-narrow"))
     {
     }
 
@@ -107,7 +117,8 @@ namespace Rtx
 
             // Sampled from `GENERAL` on the four this pass only reads. A `SAMPLED_IMAGE`
             // descriptor names the image alone and no sampler, which is what `sBindings` declares.
-            DescriptorWrites writes(mPipeline);
+            const ComputePipeline<Shaders::AtrousConstants>& pipeline = pass == 0 ? mWide : mNarrow;
+            DescriptorWrites writes(pipeline);
             writes.image(Shaders::ATROUS_BIND_SOURCE, bounce[source]->describeSampled(VK_NULL_HANDLE));
             writes.image(Shaders::ATROUS_BIND_FILTERED, bounce[target]->describeStorage());
             writes.image(Shaders::ATROUS_BIND_SURFACE, buffer.get(Channel::Surface).describeSampled(VK_NULL_HANDLE));
@@ -118,7 +129,7 @@ namespace Rtx
             level.mStep = 1u << pass;
             level.mFixFrames = pass == 0 && frame.mHistoryFix ? Shaders::ACCUMULATE_FIX_FRAMES : 0.0f;
 
-            dispatch(commands, mPipeline, writes, level,
+            dispatch(commands, pipeline, writes, level,
                 Groups::covering(camera.mWidth, camera.mHeight, Shaders::ATROUS_WORKGROUP));
 
             // The next level reads what this one wrote, and writes whichever of the other two it is

@@ -190,8 +190,8 @@ namespace Rtx::Testing
             const auto [filteredMean, filteredSpread] = spreadOf(true);
             ASSERT_GT(rawSpread, 0.0f) << "a bounce with no noise proves nothing";
             EXPECT_NEAR(filteredMean, rawMean, 0.004f) << "the arm keeps its light";
-            // Measured over the cascade's three levels: the arms' eye leaves 3.2 per cent of the
-            // spread, and the world's 6.4 — its coarser levels turn their taps away. A bound between
+            // Measured over the cascade's four levels: the arms' eye leaves 2.3 per cent of the
+            // spread, and the world's 16.4 — its coarser levels turn their taps away. A bound between
             // the two.
             EXPECT_LT(filteredSpread, rawSpread * 0.045f) << "the arm's noise was not taken away";
         }
@@ -211,11 +211,11 @@ namespace Rtx::Testing
         /// exists to reduce, and the ratio of the two is the only honest way to say it worked.
         ///
         /// **The bound sits between the two weightings on purpose.** Measured here on the composite
-        /// (`readRadiance`): one sample is 0.0420 off the reference and the plane weight brings
-        /// that to 0.0020, against 0.0061 for a plain depth weight — twenty times better against
-        /// seven. Every number is repeatable, because frame zero and a sixty-four frame average are
-        /// both deterministic, so a tenth is a bound this passes with room and a depth test cannot
-        /// reach.
+        /// (`readRadiance`): one sample is 0.0335 off the reference and the plane weight brings
+        /// that to 0.0019, seventeen times better; a plain depth weight, measured when one sample
+        /// stood 0.0420 off, brought it to 0.0061, seven times. Every number is repeatable, because
+        /// frame zero and a sixty-four frame average are both deterministic, so a tenth is a bound
+        /// this passes with room and a depth test cannot reach.
         TEST_F(RtxVisibilityTest, theFilterAndItsHistoryConvergeOnAGrazingSurface)
         {
             constexpr std::uint32_t size = 64;
@@ -294,7 +294,7 @@ namespace Rtx::Testing
             const float settled = errorAgainstReference(settledPixels);
 
             // **The accumulator may not make this worse, and on this surface that is the whole of
-            // what it can be asked.** Measured here, the cascade alone already lands at 0.0020 of
+            // what it can be asked.** Measured here, the cascade alone already lands at 0.0019 of
             // the converged reference — a flat sheet under a smooth sky is precisely
             // where à-trous has every advantage, since the signal is uniform and
             // every neighbour is a valid sample of it. What the history is for is the case this
@@ -302,18 +302,16 @@ namespace Rtx::Testing
             // looking at the same thing, which is what
             // `theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow` is for.
             //
-            // **Eight per cent rather than five, because the history is the filtered light.** The
-            // cascade keeps its levels in half floats, which puts a rounding floor of about 3e-4 of
-            // the value under a figure the cascade has already driven to 0.0020 — so past that point
-            // this is measuring a storage format and not an accumulator. Measured on this box: at
-            // full width the pair is 0.00201 and 0.00203, at half width 0.00201 and 0.00210, and
-            // with SVGF's feedback 0.00201 and 0.00213, against an unfiltered 0.042.
+            // **Eight per cent of room, because the history is the filtered light** (SVGF's
+            // feedback), and averaging the cascade's answers over frames on a surface this easy
+            // correlates them more than it adds. Measured: the cascade 0.00194 and the settled
+            // history 0.00177, against an unfiltered 0.0335.
             //
             // **A flat sheet is where feeding the filtered light back has least to give**, since the
             // cascade has every neighbour it could want and averaging its answers over frames only
             // correlates them. What the feedback is for is the other scene, and
-            // `theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow` moved by nothing there:
-            // 0.00272 settled against 0.00475 alone, which is the ratio that test already records.
+            // `theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow` records what it does there:
+            // 0.0050 settled against 0.0164 alone.
             EXPECT_LE(settled, after * 1.08f)
                 << "the history does not cost what the cascade gained: " << after << " becomes " << settled;
 
@@ -687,9 +685,10 @@ namespace Rtx::Testing
         /// this test's question. So is the ring, which holds the fresh strip down before the fix
         /// borrows, `ACCUMULATE_RING_FRAMES`'s trade.
         ///
-        /// Measured: the strip's noise 2.85 of its mean without the fix and 1.02 with it, its mean 0.31
-        /// of the truth without the fix and 0.98 with it; the same strip held still, 0.33 at 0.56. With
-        /// the fixed variance `shortHistoryVariance` replaced, 13.6 and 0.87, and 0.61 and 1.08.
+        /// Measured: the strip's noise 1.78 of its mean without the fix and 0.72 with it, its mean 0.28
+        /// of the truth without the fix and 1.03 with it; the same strip held still, 0.30 at 0.61. With
+        /// the fixed variance `shortHistoryVariance` replaced and three 5×5 levels, 13.6 and 0.87, and
+        /// 0.61 and 1.08.
         TEST_F(RtxVisibilityTest, theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo)
         {
             constexpr std::uint32_t size = 64;
@@ -822,8 +821,8 @@ namespace Rtx::Testing
         /// are `(31/32)^128` of that quarter 128 frames later, under half a hundredth of the mean
         /// however much of their light the ring took.
         ///
-        /// Measured: 8832 fireflies without the ring, the history fix having spread each over its
-        /// taps, and 270 with it; the settled means 0.7023 and 0.7009.
+        /// Measured: 8944 fireflies without the ring, the history fix having spread each over its
+        /// taps, and 164 with it; the settled means 0.6969 and 0.6955.
         TEST_F(RtxVisibilityTest, theRingHoldsAFreshFireflyAndLeavesASettledMeanItsLight)
         {
             constexpr std::uint32_t size = 64;
@@ -900,7 +899,7 @@ namespace Rtx::Testing
         /// four, where every level reads it.
         ///
         /// Measured: the brighter picture stands 1.1 hundred-thousandths from the dimmer one scaled two
-        /// frames on, and 0.28 four frames on, which the brightness test's divide guard accounts for.
+        /// frames on, and 0.35 four frames on, which the brightness test's divide guard accounts for.
         /// With the constant variance this replaced, 3.2% and 6.9%.
         TEST_F(RtxVisibilityTest, aFreshPixelIsFilteredTheSameUnderAnyLight)
         {
@@ -1085,15 +1084,12 @@ namespace Rtx::Testing
             }
             const double alone = std::sqrt(pooled);
 
-            // Measured on this box through the composite (`readRadiance`), over ten starts of the
-            // sampler's stream: the cascade alone leaves 0.00475 to 0.00486 pooled over sixteen
-            // frames, and the same sixteen accumulated leave 0.00268 to 0.00285 — the history
-            // removes two fifths of the error the filter cannot reach, and the ratio runs from
-            // 0.556 to 0.590 with a spread of 0.011 about 0.573. Deterministic to the last digit
-            // for one stream, and a different stream is what any change to the sampler or the scene
-            // hands this test, so the bound below sits seven spreads above the mean rather than
-            // one.
-            //
+            // Measured on this box through the composite (`readRadiance`): the cascade alone leaves
+            // 0.0164 pooled over sixteen frames, and the same sixteen accumulated leave 0.0050 — the
+            // history removes seven tenths of the error the filter cannot reach. Deterministic to the
+            // last digit for one stream, and a different stream is what any change to the sampler or
+            // the scene hands this test: over ten streams, with an earlier cascade, the ratio spread
+            // by 0.011 about its mean, so the bound below stands far over the 0.31 measured.
             EXPECT_GT(alone, 0.003) << "the cascade alone leaves enough error here for the question to mean something: "
                                     << alone;
             EXPECT_LT(settled, alone * 0.65) << "and a history of " << Shaders::ACCUMULATE_FRAMES
