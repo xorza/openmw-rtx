@@ -13,9 +13,8 @@
 //
 // **`candidateStops` and not a second copy of it.** A shadow ray asks the same question of the same
 // surface from the other side, and the two stay one number only while there is one place it is
-// worked out. `seeThrough` is false here for the reason it is false for the eye's own query: a ray
-// that keeps what it passed through cannot commit the surface it passed through, and this one
-// commits.
+// worked out. It meets a see-through surface to peel it (`MEET_AS_SOLID`): the closest-hit shader
+// composites the layers, which a ray that walked past them could not hand it.
 
 #include "camera.h"
 
@@ -46,7 +45,7 @@ void main()
     uint draws = randomSeed(pixelKey(gl_LaunchIDEXT.xy) + SEED_SOFT_EDGE + candidate.mInstance * 0x9E3779B9u
         + candidate.mPrimitive * 0x85EBCA6Bu);
     const float dither = frame.mSoftEdgeDither != 0u ? randomNext(draws) : 1.0;
-    if (!candidateStops(
-            candidate, gl_WorldRayDirectionEXT, cone.mWidth + cone.mSpread * candidate.mAt, false, true, dither, blocked))
+    if (!candidateStops(candidate, gl_WorldRayDirectionEXT, cone.mWidth + cone.mSpread * candidate.mAt, MEET_AS_SOLID,
+            true, dither, 0u, blocked))
         ignoreIntersectionEXT;
 }

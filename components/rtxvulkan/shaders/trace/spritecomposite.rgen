@@ -108,7 +108,7 @@ void compositeAt(uvec2 pixel, uvec2 extent, uvec2 tracedExtent, uvec2 traced, bo
     // tenth to a fifth of a millisecond more than the longer query it saved, at 2560 by 1440.
     const float distance = arms ? surfaceDistance(imageLoad(surfaceChannel, ivec2(traced)).y)
                                 : surfaceWithin(WorldRay(origin, direction), 0.0, frame.mFar, cone,
-                                    RayRule(worldMask(frame.mRayMask), true, true));
+                                    RayRule(worldMask(frame.mRayMask), MEET_WALK_PAST, true));
 
     // The sprites' shape, and where they stand, off this pixel's own march.
     PuffLayer layer = spritesAlong(binned, origin, direction, distance, cone, false);

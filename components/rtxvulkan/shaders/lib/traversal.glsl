@@ -18,6 +18,7 @@
 #include "bindings.glsl"
 #include "geometry.glsl"
 #include "ground.glsl"
+#include "random.glsl"
 #include "texturing.glsl"
 #include "variants.glsl"
 
@@ -365,6 +366,39 @@ struct Candidate
             = triangleEdges(candidateCorners, rayQueryGetIntersectionObjectToWorldEXT(query, false));       \
     }
 
+/// How a ray meets a surface it could see through — a pane, a fading actor, a material's own alpha:
+/// one of three rules, each a literal at its call, so `candidateStops` folds to one.
+///
+/// **Walked past, keeping what it let through**: a ray toward a light, whose answer is a product the
+/// order does not change, and an asker of where the picture ends.
+const uint MEET_WALK_PAST = 0u;
+
+/// **Met as often as it is there**, and passed otherwise: every ray that commits a hit and shades it —
+/// a bounce, a reflection, a refraction, the reuse's rays. Met every time, a pane the eye sees
+/// through stood solid in each of them; met by chance, their mean is the blend the eye draws.
+const uint MEET_BY_CHANCE = 1u;
+
+/// **Met as any solid is**: by the eye's any-hit shader, whose closest-hit shader peels it
+/// (`visibility.rgen`) and composites the layers itself, and by a falling drop's shelter ray, since
+/// glass keeps rain off as a roof does.
+const uint MEET_AS_SOLID = 2u;
+
+/// A key a ray draws from, made of the ray itself: where it leaves and which way, so two rays a
+/// pixel apart or a frame apart draw apart without a pixel's key handed down every traversal.
+uint rayKeyOf(vec3 origin, vec3 direction)
+{
+    const uvec3 from = floatBitsToUint(origin);
+    const uvec3 along = floatBitsToUint(direction);
+    uint key = 0u;
+    for (uint word = 0u; word < 6u; ++word)
+    {
+        key ^= word < 3u ? from[word] : along[word - 3u];
+        key *= 0x9E3779B1u;
+        key ^= key >> 15u;
+    }
+    return key;
+}
+
 /// Whether a candidate hit stops the ray, and what it lets past where it does not.
 ///
 /// **One load of the instance and its material, and not three questions asked in turn.** Whether a
@@ -384,20 +418,23 @@ struct Candidate
 /// way the better of the two errors.
 ///
 /// @param blocked raised by what a see-through candidate kept, in `blockedBy`'s terms. Untouched
-///        otherwise, which the compiler folds away with `seeThrough`.
-/// @param seeThrough whether a see-through candidate is walked past or taken against its cutoff like
-///        any other. **A literal at every call**, so the whole branch folds.
+///        otherwise, which the compiler folds away with `meet`.
+/// @param meet how a see-through candidate is met — `MEET_WALK_PAST`, `MEET_BY_CHANCE` or
+///        `MEET_AS_SOLID`. **A literal at every call**, so the branches fold.
 /// @param detailed whether the ray draws the picture, so its cutout is read along the footprint the
 ///        surface it cuts is read along — `texturePoint`. A literal at every call as well.
 /// @param dither the eye's draw for a soft edge (`cutAt`), and one for every other ray.
-bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, bool seeThrough, bool detailed,
-    float dither, inout uint blocked)
+/// @param rayKey the ray's own key, `rayKeyOf`, which `MEET_BY_CHANCE` draws from. Unread otherwise.
+bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, uint meet, bool detailed, float dither,
+    uint rayKey, inout uint blocked)
 {
     const GpuInstance instance = instanceAt(candidate.mInstance);
     const GpuMaterial material = materialAt(instance.mMaterial);
 
     const float opacity = surfaceOpacity(instance, material);
-    const bool walkPast = seeThrough && isSeenThrough(opacity, material);
+    const bool seenThrough = isSeenThrough(opacity, material);
+    const bool walkPast = meet == MEET_WALK_PAST && seenThrough;
+    const bool byChance = meet == MEET_BY_CHANCE && seenThrough;
 
     // **Nothing stops on a medium, whatever the ray was asking.** A surface that is nowhere opaque
     // is not a surface: the eye walks through a cloud and commits the mountain behind it, and a
@@ -422,7 +459,7 @@ bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, bool s
     //
     // **The material and not the placement.** An actor the game is fading keeps every hole in its
     // mask, because a fade is not a hole — what the fade does to what is left is measured elsewhere.
-    if (!walkPast && !hasMask(material))
+    if (!walkPast && !byChance && !hasMask(material))
         return true;
 
     const TexturePoint point = candidatePoint(triangleCorners(meshAt(instance.mMesh), candidate.mPrimitive), material,
@@ -445,6 +482,15 @@ bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, bool s
         return false;
     }
 
+    // **Met as often as it is there**, one draw a ray and a triangle, so the mean of what the rays
+    // find behind a pane is the blend the eye draws over it.
+    if (byChance)
+    {
+        uint draws = randomSeed(rayKey + SEED_SEE_THROUGH + candidate.mInstance * 0x9E3779B9u
+            + candidate.mPrimitive * 0x85EBCA6Bu);
+        return there && randomNext(draws) < sampledOpacity(opacity, painted);
+    }
+
     return there;
 }
 
@@ -462,19 +508,22 @@ bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, bool s
 /// @param cone how wide the ray's cone is *at this candidate*, which is what decides how much of the
 ///        mask one pixel is looking at. Nought for a ray that carries no cone, which reads the
 ///        finest level — every shadow ray. Substituted textually, so it may name the traversal.
-/// @param blocked,seeThrough handed straight to `candidateStops`, which says what each is for. A
-///        ray that sees through cannot commit the surface it saw through, so a caller with no use
-///        for `blocked` must say false and get the surface. The shadow ray says true — it wants a
-///        sum, and the sum does not depend on the order they arrived in.
+/// @param blocked,meet handed straight to `candidateStops`, which says what each is for. A ray
+///        that walks past cannot commit the surface it walked past, so a caller with no use for
+///        `blocked` meets by chance and gets the surface or what stands behind it. The shadow ray
+///        walks past — it wants a sum, and the sum does not depend on the order they arrived in.
 /// @param detailed handed to `candidateStops` as well: whether the ray draws the picture.
-#define RTX_RESOLVE(query, along, cone, blocked, seeThrough, detailed)                                      \
+#define RTX_RESOLVE(query, along, cone, blocked, meet, detailed)                                            \
+    const uint resolveRayKey = (meet) == MEET_BY_CHANCE                                                     \
+        ? rayKeyOf(rayQueryGetWorldRayOriginEXT(query), rayQueryGetWorldRayDirectionEXT(query))            \
+        : 0u;                                                                                               \
     while (rayQueryProceedEXT(query))                                                                       \
     {                                                                                                       \
         if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)    \
             continue;                                                                                       \
                                                                                                             \
         RTX_READ_CANDIDATE(query, candidate)                                                                \
-        if (candidateStops(candidate, (along), (cone), (seeThrough), (detailed), 1.0, (blocked)))           \
+        if (candidateStops(candidate, (along), (cone), (meet), (detailed), 1.0, resolveRayKey, (blocked)))  \
             rayQueryConfirmIntersectionEXT(query);                                                          \
     }
 
@@ -720,7 +769,7 @@ Passage passageToward(vec3 from, vec3 towards, float distance, uint faces)
     // crosses it, and `candidateStops` asks its class in place of the mask.
     rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT | faces,
         solidMask(frame.mRayMask) | MASK_MEDIUM, from, 0.0, towards, distance);
-    RTX_RESOLVE(query, towards, 0.0, blocked, true, false)
+    RTX_RESOLVE(query, towards, 0.0, blocked, MEET_WALK_PAST, false)
 
     const bool stopped = rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT;
     return Passage(stopped ? 0.0 : 1.0, throughBlocked(blocked),
@@ -785,11 +834,12 @@ struct RayRule
     /// Which instances stop the ray.
     uint mMask;
 
-    /// Whether a surface the eye would see through is walked past rather than stopped at, which is
-    /// the eye's own rule: `visibility.rgen` peels those and commits what stands behind them. An asker
-    /// whose question is "where does the picture end" wants this, and one asking "what is the nearest
-    /// thing there" does not. **A literal at every call**, so `RTX_RESOLVE`'s branch folds.
-    bool mSeeThrough;
+    /// How a surface the eye would see through is met: walked past, `MEET_WALK_PAST`, which is the
+    /// eye's own rule — `visibility.rgen` peels those and commits what stands behind them — or by
+    /// chance, `MEET_BY_CHANCE`. An asker whose question is "where does the picture end" walks past,
+    /// and one asking "what is the nearest thing there" meets by chance. **A literal at every call**,
+    /// so `RTX_RESOLVE`'s branches fold.
+    uint mMeet;
 
     /// The same division again, and the same two askers — `facingFor`. Where the picture ends is where
     /// the eye's own ray ends, and the eye culls.
@@ -818,7 +868,7 @@ float surfaceWithin(WorldRay ray, float tmin, float reach, Cone cone, RayRule ru
     // a question for whoever wants the picture, and this ray wants the distance.
     uint blocked = 0u;
     RTX_RESOLVE(query, ray.mAlong, cone.mWidth + cone.mSpread * rayQueryGetIntersectionTEXT(query, false), blocked,
-        rule.mSeeThrough, rule.mDraws)
+        rule.mMeet, rule.mDraws)
 
     if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT)
         return reach;
@@ -828,7 +878,7 @@ float surfaceWithin(WorldRay ray, float tmin, float reach, Cone cone, RayRule ru
 
 float solidWithin(WorldRay ray, float tmin, float reach, Cone cone)
 {
-    return surfaceWithin(ray, tmin, reach, cone, RayRule(solidMask(frame.mRayMask), false, false));
+    return surfaceWithin(ray, tmin, reach, cone, RayRule(solidMask(frame.mRayMask), MEET_BY_CHANCE, false));
 }
 
 /// Whether a solid stands along `ray` between `tmin` and `reach`: a yes or a no, for a ray between
@@ -846,7 +896,7 @@ bool solidBetween(WorldRay ray, float tmin, float reach)
         tmin, ray.mAlong, reach);
 
     uint blocked = 0u;
-    RTX_RESOLVE(query, ray.mAlong, 0.0, blocked, false, false)
+    RTX_RESOLVE(query, ray.mAlong, 0.0, blocked, MEET_BY_CHANCE, false)
 
     return rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT;
 }
@@ -1386,7 +1436,7 @@ Hit traverse(WorldRay ray, float tmin, Cone cone, uint mask, bool draws)
     // cannot commit the surface it passed through, and this one commits.
     uint blocked = 0u;
     RTX_RESOLVE(query, ray.mAlong, cone.mWidth + cone.mSpread * rayQueryGetIntersectionTEXT(query, false), blocked,
-        false, draws)
+        MEET_BY_CHANCE, draws)
 
     if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT)
         return noHit();
