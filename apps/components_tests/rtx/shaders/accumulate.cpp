@@ -57,5 +57,24 @@ namespace Rtx
             EXPECT_EQ(Shaders::ringHeldLuminance(0.0f, sum, squares, 72.0f), 0.0f);
             EXPECT_EQ(Shaders::ringHeldLuminance(5.0f, 0.0f, 0.0f, 0.0f), 5.0f);
         }
+
+        /// **A short history's variance is the moments' around it, raised for the shortest**: moments
+        /// of one and 1.25 are a variance of `1.25 - 1²`, a quarter, which a mean of one frame doubles
+        /// (`4 / 2`), one of two raises by `4 / 3` to 0.3333, and one of three or more keeps (`4 / 4` is
+        /// one). The same moments at a thousand times the light, 1000 and 1.25e6, are a million times
+        /// the variance: a measure in the light's own units, which a constant is not. Moments whose
+        /// rounding leaves the second under the first's square are no variance and not a negative one.
+        TEST(RtxAccumulateClampTest, aShortHistorysVarianceIsTheMomentsAroundIt)
+        {
+            EXPECT_FLOAT_EQ(Shaders::momentVariance(1.0f, 1.25f), 0.25f);
+            EXPECT_FLOAT_EQ(Shaders::shortHistoryVariance(1.0f, 1.25f, 1.0f), 0.5f);
+            EXPECT_FLOAT_EQ(Shaders::shortHistoryVariance(1.0f, 1.25f, 2.0f), 0.25f * 4.0f / 3.0f);
+            EXPECT_FLOAT_EQ(Shaders::shortHistoryVariance(1.0f, 1.25f, 3.0f), 0.25f);
+            EXPECT_FLOAT_EQ(Shaders::shortHistoryVariance(1.0f, 1.25f, 4.0f), 0.25f);
+            EXPECT_FLOAT_EQ(Shaders::shortHistoryVariance(1000.0f, 1.25e6f, 1.0f),
+                1.0e6f * Shaders::shortHistoryVariance(1.0f, 1.25f, 1.0f));
+            EXPECT_EQ(Shaders::shortHistoryVariance(2.0f, 4.0f, 1.0f), 0.0f);
+            EXPECT_EQ(Shaders::momentVariance(2.0f, 3.9f), 0.0f);
+        }
     }
 }

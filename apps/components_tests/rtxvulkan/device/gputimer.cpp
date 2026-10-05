@@ -83,6 +83,7 @@ namespace Rtx
             /// CPU sat through, for this frame.
             double mWallMs = 0.0;
             GpuZones mGpu;
+            BounceReuse mBounceReuse = BounceReuse::Off;
         };
 
         /// Draws one frame and waits for it, so what comes back is that frame's own report.
@@ -100,7 +101,10 @@ namespace Rtx
             if (!result.has_value())
                 return Drawn{};
 
-            return Drawn{ .mHits = result->mHits, .mWallMs = wallMs, .mGpu = result->mGpu };
+            return Drawn{ .mHits = result->mHits,
+                .mWallMs = wallMs,
+                .mGpu = result->mGpu,
+                .mBounceReuse = result->mReconstruction.mBounceReuse };
         }
 
         /// A frame accounts for its own device time, pass by pass.
@@ -230,6 +234,18 @@ namespace Rtx
                 EXPECT_TRUE(reports(traced.mGpu.spans(), pass)) << "no zone called " << pass;
                 EXPECT_FALSE(reports(none.mGpu.spans(), pass)) << "a frame with no indirect light ran " << pass;
             }
+
+            // **A request that names no reuse runs none of it**, the second frame as above, so a
+            // validation asking what a frame before kept would show here too.
+            ReconstructionRequest plain = reused;
+            plain.mIndirect = IndirectLight::Traced;
+            plain.mBounceReuse = ReconstructionRequest{}.mBounceReuse;
+            draw(mRenderer, camera, 0.0, plain);
+            const Drawn unreused = draw(mRenderer, camera, 0.0, plain);
+            EXPECT_EQ(unreused.mBounceReuse, BounceReuse::Off);
+            EXPECT_TRUE(reports(unreused.mGpu.spans(), "filter")) << "a frame that reuses nothing filters its bounce";
+            for (const char* const pass : { "bounce validate", "bounce temporal", "bounce pairs", "bounce resolve" })
+                EXPECT_FALSE(reports(unreused.mGpu.spans(), pass)) << "a request that names no reuse ran " << pass;
 
             // And as a menu sets it, for every frame that asks nothing of its own.
             mRenderer.setIndirectLight(IndirectLight::Off);

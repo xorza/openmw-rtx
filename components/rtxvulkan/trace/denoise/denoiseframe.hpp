@@ -21,6 +21,10 @@ namespace Rtx
         /// from the surface around it.
         bool mHistoryFix;
 
+        /// `Reconstruction::mDualMotion`: whether a surface the previous frame did not see takes the
+        /// accumulator's history along its occluder's motion.
+        bool mDualMotion;
+
         /// `Reconstruction::mAntiFirefly`: whether the accumulator holds a short history of the bounce
         /// under the light around it.
         bool mAntiFirefly;

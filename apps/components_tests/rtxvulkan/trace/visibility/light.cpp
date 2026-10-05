@@ -2509,6 +2509,53 @@ namespace Rtx::Testing
             EXPECT_LT(floorUnder(glowingAt(-100.0f)), 0.005f) << "and it stops at the triangle";
         }
 
+        /// **A lamp's own model glows to the eye and lights nothing by the bounce** (`bounceLanding`,
+        /// `INSTANCE_LAMP_BODY`): its lamp delivers that light already.
+        ///
+        /// A glowing sheet over a grey floor and nothing else, the sheet two-sided so the eye under
+        /// it sees it. Its radiance is `1 * 0.125 * EMISSIVE_INTENSITY`, one, and it covers every
+        /// direction the floor gathers from, so the floor comes to its albedo, a half — and to
+        /// nothing where the sheet is a lamp's model, under the trace's own bounce and under the
+        /// temporal reuse, whose validation shades a kept sample by the same rule. Looked at, the
+        /// sheet is one either way: its glow is the eye's, and the floor it would bounce off is dark.
+        TEST_F(RtxVisibilityTest, aLampsOwnModelGlowsToTheEyeAndLightsNothingByTheBounce)
+        {
+            constexpr std::uint32_t size = 32;
+
+            const auto under = [](bool lampBody) {
+                SceneDesc scene;
+                addQuad(scene, sheetAt(40000.0f, 0.0f));
+
+                const Index glowing = scene.addMaterial(
+                    Material{ .mEmissiveColour = osg::Vec3f(0.125f, 0.125f, 0.125f), .mTwoSided = true });
+                scene.addInstance(MeshInstance{ .mMesh = addQuadMesh(scene, sheetAt(40000.0f, 100.0f)),
+                    .mMaterial = glowing,
+                    .mLampBody = lampBody });
+                return scene;
+            };
+
+            const auto seen = [&](const SceneDesc& scene, const osg::Vec3f& looking, BounceReuse reuse) {
+                Shaders::VisibilityConstants camera
+                    = Testing::makeCamera(osg::Vec3f(0.0f, -1.0f, 50.0f), looking, 60.0f, size, size, 100000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mAmbient = osg::Vec3f();
+                camera.mAmbientFromSky = 1.0f;
+
+                return shoot(scene, {}, camera, size, { .mFrames = 64, .mBounceReuse = reuse }).mean();
+            };
+
+            const osg::Vec3f down(0.0f, 0.0f, 0.0f);
+            const osg::Vec3f up(0.0f, 0.0f, 100.0f);
+            for (const BounceReuse reuse : { BounceReuse::Off, BounceReuse::Temporal })
+            {
+                EXPECT_NEAR(seen(under(false), down, reuse), 0.5f, 0.01f) << "a glow lights by its bounce";
+                EXPECT_LT(seen(under(true), down, reuse), 0.005f) << "a lamp's model lit what its lamp lights";
+                EXPECT_NEAR(seen(under(true), up, reuse), 1.0f, 0.01f) << "a lamp's model stopped glowing";
+            }
+        }
+
         /// A bounce is drawn by the cosine, and a half is the number that says so.
         ///
         /// **The one property of the estimator a uniform sky cannot show.** Every other test here

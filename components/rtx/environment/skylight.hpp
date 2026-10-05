@@ -91,8 +91,8 @@ namespace Rtx
 
     /// How high the cloud layer stands, in world units: the one number in the sky that is chosen
     /// rather than read, because the cloud mesh gives its height in tiles of its own sheet. Five
-    /// hundred metres is a stratocumulus base. A world height, so the deck's shadow does not move
-    /// with the camera.
+    /// hundred metres is a stratocumulus base. A world height, so the deck stands over the world and
+    /// not over the camera.
     inline constexpr float sCloudAltitude = 500.0f * Constants::UnitsPerMeter;
 
     /// How much of the sun is over the horizon at `hour`: the weather manager's own disc alpha

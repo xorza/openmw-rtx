@@ -158,6 +158,17 @@ namespace Rtx::Shaders
         float mDistanceScale;
     };
 
+    /// What the accumulator is handed: the history's record; the previous frame's eye,
+    /// `VisibilityConstants::mPrevious`, which a history taken along an occluder's motion is held to
+    /// this pixel's plane through; and whether a surface the previous frame did not see takes the
+    /// history that way at all (`occluderMotion`), nought or one.
+    struct AccumulateConstants
+    {
+        HistoryConstants mHistory;
+        Basis mPrevious;
+        uint mDualMotion;
+    };
+
     /// The luminance a slow mean `lit` keeps under the fast means around it: no more than the mean of
     /// the ring, `sum` over `count` pixels, plus `ACCUMULATE_RING_SPREAD` of its deviations, out of
     /// the sum of their squares `squares`. All of it where the ring holds no surface.
@@ -174,10 +185,36 @@ namespace Rtx::Shaders
         return min(lit, mean + ACCUMULATE_RING_SPREAD * sqrt(max(squares / count - mean * mean, 0.0f)));
     }
 
+    /// The variance of a luminance whose first and second moments are `first` and `second`.
+    RTX_SHADER float momentVariance(float first, float second)
+    {
+        return max(second - first * first, 0.0f);
+    }
+
+    /// The variance of a slow mean of `frames` frames whose own second moment means nothing yet
+    /// (`ACCUMULATE_SETTLED`): that of the moments `first` and `second` averaged over the clamp's
+    /// square, raised for a mean of very few frames (`ACCUMULATE_VARIANCE_BOOST`).
+    ///
+    /// **Measured where the pixel stands, and not a number**, which is ReLAX's spatial variance
+    /// estimate (`spatialVarianceEstimationHistoryThreshold`) and SVGF's before it. A constant is a
+    /// radiance, and the trace hands the denoiser radiance with no exposure in it: a variance of one
+    /// let every tap of a fresh pixel through where the light stands at a hundredth of one, and
+    /// refused nearly every one where it stands at a hundred.
+    ///
+    /// **Of the slow means' moments, as ReLAX's is, and not of the fast means' spread**, so it is a
+    /// sample's variance as a settled pixel's own is (`momentVariance`): a fast mean of two frames
+    /// spreads half as far, and a pixel's variance halved at its third frame and doubled at its
+    /// fifth.
+    RTX_SHADER float shortHistoryVariance(float first, float second, float frames)
+    {
+        return momentVariance(first, second) * max(1.0f, ACCUMULATE_VARIANCE_BOOST / (frames + 1.0f));
+    }
+
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(HistoryConstants) == 144, "HistoryConstants must be scalar-packed on every side");
+    static_assert(sizeof(AccumulateConstants) == 192, "AccumulateConstants must be scalar-packed on every side");
     static_assert(
         sizeof(AccumulateClampConstants) == 16, "AccumulateClampConstants must be scalar-packed on every side");
     static_assert(ACCUMULATE_RING_REACH >= ACCUMULATE_CLAMP_REACH && ACCUMULATE_RING_HOLE < ACCUMULATE_RING_REACH,

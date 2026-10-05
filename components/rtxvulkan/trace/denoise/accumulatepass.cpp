@@ -63,10 +63,14 @@ namespace Rtx
         writes.image(Shaders::ACCUMULATE_BIND_HISTORY_FAST, images.mFastBefore.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_FAST_OUT, images.mFastBlended.describeStorage());
 
-        const Shaders::HistoryConstants constants{
-            .mEyes = frame.mSampled.mEyes,
-            .mReset = images.mFresh ? 1u : 0u,
-            .mDistanceScale = frame.mDistanceScale,
+        const Shaders::AccumulateConstants constants{
+            .mHistory = Shaders::HistoryConstants{
+                .mEyes = frame.mSampled.mEyes,
+                .mReset = images.mFresh ? 1u : 0u,
+                .mDistanceScale = frame.mDistanceScale,
+            },
+            .mPrevious = frame.mSampled.mPrevious,
+            .mDualMotion = frame.mDualMotion ? 1u : 0u,
         };
 
         dispatch(commands, mPipeline, writes, constants,

@@ -94,6 +94,13 @@ namespace RtxTool
             EXPECT_EQ(fromWest.mRoute.mLookTo, *north.mLook);
             EXPECT_NEAR(fromWest.mRoute.mSpeed, 310.345f, 1e-3f);
             EXPECT_TRUE(fromWest.mRoute.mWorldHeld) << "the world the reference stands in, and not a walk";
+            EXPECT_TRUE(fromWest.mFrom.mLamps);
+
+            // **And under the stand's lamps**, or a place judged with its lamps off is flown into
+            // with them on and held against a reference without them.
+            Stand unlit = north;
+            unlit.mLamps = false;
+            EXPECT_FALSE(unlit.approachFrom(150.0f, 0.0f, 1.0f / 60.0f, 30).mFrom.mLamps);
 
             const Stand east{ .mEye = osg::Vec3f(100.0f, 200.0f, 300.0f),
                 .mLook = osg::Vec3f(1100.0f, 200.0f, 300.0f) };

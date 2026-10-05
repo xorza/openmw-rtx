@@ -56,6 +56,22 @@ namespace Rtx
     Misc::Result<std::optional<Light>, std::string_view> makeLight(
         const osg::Vec3f& colour, float radius, const osg::Vec3f& position);
 
+    /// Whether a light in the game's scene graph makes a lamp that gives light: a radius over nought,
+    /// and its recorded colour — the diffuse and the ambient, before any flicker or fade scales them
+    /// — over nought in some channel and under it in none. What makes the light's model a lamp body
+    /// (`SceneUtil::LampBody`): the lamp delivers what the model glows with, so a bounce must not.
+    ///
+    /// **The record and not this frame's colour**, so a flicker that dims a lamp to nothing for a
+    /// frame does not move its model in and out of the rule. **Encoded, with no decode**: decoding
+    /// keeps a channel's sign and its nought, so the answer is the decoded colour's and costs none
+    /// of the decode `lightColour` makes again at the light.
+    bool givesLight(const SceneUtil::LightSource& source);
+
+    /// The same of a `LIGH` record the cell ring stands with no node: a lamp that casts where it is
+    /// placed, not negative, and coloured in some channel. The radius is at least sixteen
+    /// (`makeLight`), so it is never nought.
+    bool givesLight(const SceneUtil::LightCommon& record);
+
     /// Whether a light in the game's scene graph is a Light spell's glow: it radiates in its
     /// ambient and in nothing else. The game builds exactly one such light
     /// (`MWRender::Animation::setLightEffect`, a diffuse of nought and an ambient of 1.5), and the

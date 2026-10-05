@@ -122,6 +122,11 @@ namespace Rtx
         /// is where it meets the placement's own mirror.
         bool mClockwise = false;
 
+        /// Whether this is the model of a light that gives light — a lantern's paper — so a diffuse
+        /// bounce takes no glow from it: its lamp delivers that light already
+        /// (`SceneUtil::LampBody`, `givesLight`).
+        bool mLampBody = false;
+
         /// Who stood it, which is who may move it or drop it. The walk's unless the ring says so.
         Stander mStander = Stander::Walk;
 

@@ -271,7 +271,12 @@ at the top, over all of them.
   the candidate, the pairs' pass traces the shift rays of each pair of pixels the pairings link
   once for both (`BouncePairing`), and the resolve merges the two partners by those rays, traces the
   final visibility ray and shades the kept sample into the channels the trace would have written.
-  The reuse keeps its own history, so it runs with or without the denoiser after it.
+  The reuse keeps its own history, so it runs with or without the denoiser after it. **Off by
+  default**, one pipeline for every place: its gain was a correction for stages of the denoiser
+  that lost a rare bright sample's light, and with the anti-firefly ring off, no reuse stands level
+  with it where a room is lit by what glows in it, is better in the lit rooms, and saves 0.24 to
+  0.85 ms a room (`.notes/reuse.md`). The modes stay for A/Bs and for content they would serve, and
+  the world's chain keeps its reservoirs whatever a frame runs.
 - **The indirect light** (`[RTX] indirect light`, `Reconstruction::mIndirect`) is `traced`, the
   bounce above and the passes that clean it, or `off`, none: the trace draws no diffuse bounce and
   traces only a glossy surface's reflection (`bounceTraced`), no surface a path ends at takes the
@@ -284,13 +289,19 @@ at the top, over all of them.
   of it that is fill beside it by the same weights: the composite puts the bounce back by the
   diffuse albedo and the fill by the ambient one, as the rasterizer has `D × lit + A × ambient`. A
   clamp holds the accumulator's slow mean to a fast one of a few frames (`accumulateclamp.comp`,
-  ReLAX's), so light that changes on a surface that did not move is followed and not dragged.
-  Before it, a slow mean of `ACCUMULATE_RING_FRAMES` frames or fewer is held under the fast means in
-  the ring of pixels around it (ReBLUR's anti-firefly), so a rare bright bounce on a surface the eye
-  just reached is not spread into a blotch. A longer mean keeps what it took in; the edges the
-  upscaler's jitter keeps short are held however long the eye stands, which is a bias the ring
-  trades for its noise. Where a mean holds `ACCUMULATE_FIX_FRAMES` frames or fewer — what the eye
-  just uncovered or brought in at the frame's edge — the wavelet's first level rebuilds it from the surface around it (NRD's history fix). The
+  ReLAX's), so light that changes on a surface that did not move is followed and not dragged. A
+  mean of `ACCUMULATE_SETTLED` frames or fewer has no variance of its own yet, and the clamp gives
+  it the variance of the moments around it (ReLAX's spatial estimate), so the wavelet's brightness
+  test measures a fresh pixel in its own light and not against a constant. A surface the previous
+  frame did not see because something stood in front of it takes the history beside it, along the
+  occluder's own motion (Zeng et al.'s dual motion vector), held to its plane.
+  Before it, where a run asks for it, a slow mean of `ACCUMULATE_RING_FRAMES` frames or fewer is
+  held under the fast means in the ring of pixels around it (ReBLUR's anti-firefly). Off by
+  default: with a lamp's own model out of the bounce it holds no firefly the count sees, and it took
+  a rare bright bounce's light with it. Where a mean holds `ACCUMULATE_FIX_FRAMES` frames or fewer — what the eye
+  just uncovered or brought in at the frame's edge — the wavelet's first level rebuilds it from the surface around it (NRD's history fix).
+  The wavelet is ReLAX's shape: a 5×5 first level, then three 3×3 levels that weigh by the centre's
+  variance, a reach of sixteen pixels (`ATROUS_LEVELS`). The
   shadow denoiser filters the one bit a pixel kept of its rays to the sky's source and to a lamp, under
   the light both would add unshadowed, where the sky has a source that lights or the scene a lamp,
   and counts in its local mean only the pixels those sources light.

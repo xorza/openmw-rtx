@@ -21,6 +21,7 @@
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/graphlight.hpp>
 #include <components/esm3/loadligh.hpp>
@@ -32,11 +33,13 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
+#include <components/sceneutil/lampbody.hpp>
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/sceneutil/lightcontroller.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/lightutil.hpp>
 #include <components/sceneutil/material.hpp>
+#include <components/sceneutil/stableidentity.hpp>
 
 #include "fixture.hpp"
 
@@ -365,6 +368,71 @@ namespace Rtx::Testing
 
             EXPECT_EQ(Shaders::lightFill(lights[0].mTraits), 0.0f) << "a lamp with a diffuse is no fill";
             EXPECT_EQ(lights[0].mSourceRadius, 100.0f / 16.0f);
+        }
+
+        /// **A light's own model is a lamp body, and nothing else is** (`SceneUtil::LampBody`).
+        ///
+        /// A lantern as the game hangs one: a group holding the paper, a quad, and an `AttachLight`
+        /// node thirty units up, given to `SceneUtil::addLight`, which hangs the light at that node
+        /// and marks the group. The walk makes one lamp, standing thirty up where the light hangs,
+        /// and the paper is a lamp body although it stands beside that node and not under it. A quad
+        /// beside the lantern is none; nor is the model of a negative lamp, whose lamp still takes
+        /// light; nor a group whose marker names a light that has gone.
+        TEST_F(RtxSceneExtractorTest, aLightsOwnModelIsALampBodyAndNothingElseIs)
+        {
+            const auto lantern = [](bool negative) {
+                osg::ref_ptr<osg::Group> group = new osg::Group;
+                group->addChild(makeQuad());
+                osg::ref_ptr<osg::MatrixTransform> attach = new osg::MatrixTransform(osg::Matrix::translate(0, 0, 30));
+                attach->setName("AttachLight");
+                group->addChild(attach);
+
+                ESM::Light record;
+                record.mData.mRadius = 100;
+                record.mData.mColor = 0x00FFFFFF;
+                record.mData.mFlags = negative ? ESM::Light::Negative : 0;
+                SceneUtil::addLight(group.get(), SceneUtil::LightCommon(record), sLightMask, /*isExterior=*/false);
+                return group;
+            };
+
+            osg::ref_ptr<osg::Group> orphan = new osg::Group;
+            orphan->addChild(makeQuad());
+            {
+                osg::ref_ptr<SceneUtil::LightSource> gone = makeLightSource(100.0f, osg::Vec4f(1, 1, 1, 1));
+                SceneUtil::LampBody::mark(*orphan, *gone);
+            }
+
+            osg::ref_ptr<osg::Group> world = new osg::Group;
+            world->addChild(lantern(false));
+            world->addChild(makeQuad());
+            world->addChild(lantern(true));
+            world->addChild(orphan);
+
+            walk(*world);
+
+            const auto rows = mScene.placements().getRows();
+            ASSERT_EQ(rows.size(), 4u);
+            EXPECT_TRUE(rows[0].mInstance.mLampBody) << "the paper beside the light is its model";
+            EXPECT_FALSE(rows[1].mInstance.mLampBody) << "a quad beside the lantern";
+            EXPECT_FALSE(rows[2].mInstance.mLampBody) << "a negative lamp's model";
+            EXPECT_FALSE(rows[3].mInstance.mLampBody) << "a marker whose light has gone";
+
+            ASSERT_EQ(mScene.lights().size(), 2u) << "one lamp a light, and no second for its marker";
+            EXPECT_EQ(mScene.lights()[0].mPosition, osg::Vec3f(0.0f, 0.0f, 30.0f));
+            EXPECT_GT(mScene.lights()[0].mIntensity.x(), 0.0f);
+            EXPECT_LT(mScene.lights()[1].mIntensity.x(), 0.0f);
+
+            // **The user data slot holds one marker, which `StableIdentity` shares**: a light hung
+            // again in the same group marks it again, and neither kind takes the slot from the other.
+            const osg::ref_ptr<SceneUtil::LightSource> again = makeLightSource(100.0f, osg::Vec4f(1, 1, 1, 1));
+            SceneUtil::LampBody::mark(*orphan, *again);
+            EXPECT_EQ(SceneUtil::LampBody::find(*orphan)->getLight(), again.get());
+            const osg::ref_ptr<osg::Group> stamped = new osg::Group;
+            SceneUtil::StableIdentity::stamp(*stamped, 1);
+            Testing::expectAssertDies(
+                [&] { SceneUtil::LampBody::mark(*stamped, *again); }, "a lamp body's marker over another user data");
+            Testing::expectAssertDies([&] { SceneUtil::StableIdentity::stamp(*orphan, 2); },
+                "a node stamped twice, or over another user data");
         }
 
         /// A lamp the record says animates is mirrored at the instant the walk was told, not at rest.

@@ -108,7 +108,6 @@ namespace Rtx
         // upload is about to take out of the same cache.
         const MeanTexel& painted = facts.meanOf(*image.value());
         sheet.mMean = painted.opaque() * Shaders::LUMINANCE_WEIGHTS;
-        sheet.mCover = painted.mAlpha;
         return at;
     }
 
@@ -207,7 +206,6 @@ namespace Rtx
             .mLit = light.mLit,
             .mShadowed = light.mShadowed,
             .mMean = first != nullptr ? crossing(first->mMean, second->mMean) : 0.0f,
-            .mCover = first != nullptr ? crossing(first->mCover, second->mCover) : 0.0f,
 
             // A world height and a tile's own width, which is what anchors the sheet to the
             // ground under it rather than to the eye. `Rtx::sCloudAltitude` is the chosen number and

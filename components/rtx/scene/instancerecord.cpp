@@ -114,6 +114,7 @@ namespace Rtx
                 .mAdditive = traversed.mAdditive,
                 .mTwoSided = worn.mTwoSided || shape.mFolded || shape.mPocketed,
                 .mFlipFacing = instance.mClockwise != mirrors(placement),
+                .mLampBody = instance.mLampBody,
                 .mPlaced = true,
             };
         }

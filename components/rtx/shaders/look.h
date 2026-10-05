@@ -317,24 +317,6 @@ namespace Rtx::Shaders
     /// which is `cloudDeck`'s coverage and not this.
     const float CLOUD_TRANSMISSION = 0.25f;
 
-    /// How dark a cloud's shadow is, in nepers per unit of alpha over the sheet's own mean.
-    ///
-    /// **Over the mean and not over nothing, because the content has already dimmed the sun.**
-    /// Morrowind gives every weather its own `Sun_*_Color`: clear's is 255, 252, 238 and overcast's
-    /// is 163, 169, 183, so the average cloud is in the number before this renderer touches it. A
-    /// shadow that darkened by the whole of the alpha would state the weather twice — and worst
-    /// where it is most wrong, since `tx_sky_overcast` is 255 alpha in every texel and would come
-    /// out as one flat second dimming with no shape in it at all. Subtracting the sheet's own mean
-    /// leaves the level where the content put it and adds only the pattern.
-    ///
-    /// **And a cloud never brightens the sun**, which the `max` at nought is: a gap in the sheet is
-    /// an open sky and not a lens.
-    ///
-    /// Four is the reference implementation's own figure and the one number in the layer chosen
-    /// rather than derived. Clear weather's sheet is cirrus, which in life casts almost nothing, and
-    /// a shadow that cannot be seen is not worth tracing.
-    const float CLOUD_SHADOW_DEPTH = 4.0f;
-
     /// How far the estimate may reach either way, which is also how a map is stored.
     ///
     /// **A map on the device is a sixteen-bit unorm of `(value - floor) / (ceiling - floor)`**, so
@@ -380,9 +362,10 @@ namespace Rtx::Shaders
     /// derived, because a material's own glow and painted content added past the lighting are two
     /// conventions and not one.
     ///
-    /// **A glow lights nothing, and this is the whole of what it does.** A lamp for every glowing
-    /// shape is hundreds of lights in the grid per cell, and what they buy is the warm ring under a
-    /// mushroom's cap. Morrowind lights what it means to light with a `LIGH` record.
+    /// **A glow has no lamp of its own, and lights only by the bounce that lands on it**
+    /// (`bounceArriving`): a lamp for every glowing shape is hundreds of lights in the grid per cell,
+    /// and what they buy is the warm ring under a mushroom's cap. **A lamp's own model does not light
+    /// even so**: its `LIGH` lamp already lights for it, through its fitting (`INSTANCE_LAMP_BODY`).
     const float EMISSIVE_INTENSITY = 8.0f;
 
     /// What light on the far side of a leaf is worth to the side being looked at, against the same
@@ -1163,12 +1146,17 @@ namespace Rtx::Shaders
     /// dragged over a floor.
     ///
     /// **Two, and not ReLAX's six** (NVIDIA NRD, `diffuseMaxFastAccumulatedFrameNum`). The sky's
-    /// trail behind a moving bar under the reuse, in pixels (`RtxBounceTrailTest`), then the still
-    /// frames' noise at the guild, the planter and the yurt (`noise --suite=bounce`):
+    /// trail behind a moving bar under the whole reuse, in pixels of lag (`RtxBounceTrailTest`), and
+    /// in the room lit by what glows in it (`akulakhan-chamber`) with no reuse and no ring, the
+    /// still and the strafed frame's bias:
     ///
-    ///     2    7.66    0.61 / 0.65 / 0.72        6    13.07    0.63 / 0.67 / 0.73
-    ///     3    8.43    0.62 / 0.65 / 0.73        8    15.55    0.63 / 0.67 / 0.73
-    ///     4    9.88    0.62 / 0.66 / 0.73
+    ///     2     7.86    1.90 / 2.37
+    ///     4     9.78    1.59 / 2.67
+    ///     6    12.59    1.54 / 2.84
+    ///
+    /// A longer fast mean darkens a standing eye's frame less and a moving one's more, and drags
+    /// the trail; the lit rooms of the bounce suite stand within 0.01 at all three. Two serves the
+    /// moving eye best.
     ///
     /// A shorter fast mean is a wider box around the pixel's own light, so it holds the slow mean
     /// to the change sooner and to noise no more. At two the frames strafed and walked in were
@@ -1237,6 +1225,13 @@ namespace Rtx::Shaders
     /// it too. How much of the bias is that light, and how much is light the ring should have kept,
     /// is for an A/B after the glow is counted once.
     ///
+    /// **Off by default** (`ReconstructionRequest::mAntiFirefly`), measured after a lamp's own
+    /// model stopped lighting the room by the bounce. On vanilla content the ring holds no firefly
+    /// the count sees, and in a room lit by what glows in it (`akulakhan-chamber`, its lamps off) it
+    /// took that light with it: the still frame's bias 2.60 with it and 1.90 without, the strafed
+    /// frame's 3.92 and 2.37. The lit rooms' bias fell by 0.03 to 0.09 without it, at the same
+    /// noise.
+    ///
     /// **What it costs is the ring's square and not its sum.** The clamp's median at the guild went
     /// from 0.17 ms to 0.22 ms and its p95 from 0.58 to 0.69, the switch on or off alike, since off is
     /// a factor of nought. Passing over the 81 taps where the history is long saved nothing (0.214
@@ -1266,6 +1261,16 @@ namespace Rtx::Shaders
     /// world unit in the units the distance is stored in.
     const float ACCUMULATE_DEPTH = 0.02f;
 
+    /// How far from a pixel the accumulator looks for a surface nearer the eye that carries the
+    /// motion of what hid it last frame, in pixels (`occluderMotion`): rings at 1, 2, 4, 8 and 16,
+    /// since the occluder stands as far off as it moved against what it uncovered.
+    const int ACCUMULATE_DUAL_REACH = 16;
+
+    /// How near the occluder's motion, read where that motion says the occluder now stands, has to
+    /// land to where the pixel's own lands, in pixels: half a pixel of rounding each way and half
+    /// of slack.
+    const float ACCUMULATE_DUAL_MISS = 1.5f;
+
     /// How many frames a pixel needs before its second moment describes a spread rather than a
     /// coincidence.
     ///
@@ -1273,12 +1278,19 @@ namespace Rtx::Shaders
     /// samples has a variance, and it is not one anybody should filter by.
     const float ACCUMULATE_SETTLED = 4.0f;
 
+    /// How much a slow mean of very few frames has its spatial variance raised by: `max(1, 4 / (n +
+    /// 1))` for a mean of `n` frames (`shortHistoryVariance`), ReLAX's own figure for its spatial
+    /// variance estimate (NVIDIA NRD, `RELAX_AtrousSmem`): twice the spread around a fresh pixel,
+    /// and the spread itself from three frames on. A mean of one frame is one sample, which stands
+    /// further from the truth than its neighbours' spread says, since they are as noisy as it.
+    const float ACCUMULATE_VARIANCE_BOOST = 4.0f;
+
     /// The longest history the wavelet's first level rebuilds from the surface around it, in
     /// frames: NVIDIA NRD's history fix (`historyFixFrameNum`, `RELAX_HistoryFix`,
     /// `REBLUR_HistoryFix`), whose three this is.
     ///
     /// **Where the eye uncovers a surface or brings it in at the frame's edge**, its mean is one
-    /// bounce, and the cascade's fourteen pixels spread that one bounce into blotches that settle
+    /// bounce, and the cascade's sixteen pixels spread that one bounce into blotches that settle
     /// over the frames after it. Rebuilt instead from the surface around it, under ReLAX's flat
     /// kernel, a pixel shows the light of that surface and starts its history from it. No weight on
     /// the brightness, since a history of one has no spread to judge a neighbour by. The frames
@@ -1350,20 +1362,23 @@ namespace Rtx::Shaders
     /// one holds its detail. SVGF's own figure.
     const float ATROUS_LUMINANCE_SIGMA = 4.0f;
 
-    /// How many levels the cascade runs, its taps standing 1, 2 and 4 pixels apart.
+    /// How many levels the cascade runs, its taps standing 1, 2, 4 and 8 pixels apart.
     ///
-    /// **Three levels of a 5×5 kernel reach fourteen pixels**: each takes two taps at its own
-    /// spacing, so the support is twice `1 + 2 + 4`. That is the à-trous trick — the holes between
-    /// taps grow while the tap count does not.
+    /// **A 5×5 first level and three 3×3 after it reach sixteen pixels**: the first takes two taps
+    /// at its spacing and each later one a tap at its own, so the support is `2 + 2 + 4 + 8`. That
+    /// is the à-trous trick — the holes between taps grow while the tap count does not. ReLAX's
+    /// shape (`RELAX_AtrousSmem`, then `RELAX_Atrous`): the later levels weigh by the centre's
+    /// variance, which the levels before already averaged, and skip the prefilter's nine loads.
     ///
-    /// **Three and not the five SVGF runs, because what the wide levels did is done over time now.**
-    /// The accumulator averages sixteen frames ahead of the cascade and FSR accumulates behind it, so
-    /// a level past the third spreads light that is already quiet. Measured at native under both
-    /// profiles, still and strafing in (`noise --strafe=150`), three levels stand level with five
-    /// (the guild 4.15/35 still and 4.32/36 strafing, against 4.18/35 and 4.40/36), the local map
-    /// tiles — one frame, no history — move by a few levels at most, and the filter's zone falls
-    /// from 3.0 ms to 1.75 at 1920×1080.
-    const uint ATROUS_LEVELS = 3;
+    /// **Not the five SVGF runs, because what the wide levels did is done over time now.** The
+    /// accumulator averages sixteen frames ahead of the cascade and FSR accumulates behind it, so a
+    /// level past the reach of sixteen spreads light that is already quiet. Three 5×5 levels, which
+    /// reached fourteen, stood level with five at native (the guild 4.15/35 still and 4.32/36
+    /// strafing, against 4.18/35 and 4.40/36). Measured against them at 1920×1080 under FSR
+    /// quality, these four take the filter's share of the frame from 1.09 ms to 0.69 at the guild
+    /// and from 0.78 to 0.56 at the ship, and move no place of the bounce suite by more than 0.01
+    /// of noise or bias, still, strafed and walked in.
+    const uint ATROUS_LEVELS = 4;
 
     /// How much of a froxel's answer comes from where it stood last frame.
     ///

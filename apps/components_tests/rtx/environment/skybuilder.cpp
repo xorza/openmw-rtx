@@ -505,9 +505,9 @@ namespace Rtx
             taken.drop(takenHolds);
         }
 
-        /// **A sheet a script names is opened once and drawn**, with its mean and cover read off it,
-        /// as the rasterizer loads a deck when the name changes. A 4 × 4 sheet, white at an alpha of
-        /// 102: a mean luminance of one over the alpha, and a cover of 0.4.
+        /// **A sheet a script names is opened once and drawn**, with its mean read off it, as the
+        /// rasterizer loads a deck when the name changes. A 4 × 4 sheet, white at an alpha of 102: a
+        /// mean luminance of one over the alpha.
         TEST(RtxSkyBuilderTest, aSheetAScriptNamesIsOpenedOnceAndDrawn)
         {
             const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS(
@@ -538,7 +538,6 @@ namespace Rtx
             ASSERT_NE(opened, nullptr);
             EXPECT_NE(scene.textures().findFile(VFS::Path::NormalizedView("textures/tx_script_sky.dds")), sNoIndex);
             EXPECT_NEAR(opened->mMean, 1.0f, 1e-5f);
-            EXPECT_NEAR(opened->mCover, 0.4f, 1e-5f);
 
             scene.drop(holds);
             EXPECT_TRUE(scene.isEmpty());
