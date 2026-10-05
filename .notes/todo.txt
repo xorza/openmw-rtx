@@ -1,4 +1,3 @@
 mouse teleporting
-
-1. Should the anti-firefly ring stay on? One frame after a cut it lowers the noise by 0.01 to 0.06 and adds 0.06 to 0.14 of bias. It holds no firefly that the count can see. I recommend you turn it off by default.
-2. Is the temporal reuse in rooms still worth its time? After steps 16 and 17 it no longer lowers noise. It still lowers bias in dark rooms: the Andrano tomb goes from 1.54 to 1.32. It costs 0.24 to 0.77 ms. I recommend you keep it for now and look into why it lost its noise gain.
+shader pinning performance
+ambient lighting
