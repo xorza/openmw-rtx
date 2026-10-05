@@ -111,16 +111,6 @@ Each item adds or loses light in the converged picture. A denoiser cannot remove
 
 ## 4. The shadow denoiser's inputs and storage
 
-- [ ] `lib/traversal.glsl:622-628`, the comment at `:578-582`, read at `shading.glsl:218, 283, 289-294`.
-  `passageToward` traces with `gl_RayFlagsTerminateOnFirstHitEXT` and reports the committed `t` as
-  `mOccluder`. That is the first opaque hit in BVH order, not the nearest. `skyPenumbra` and
-  `lampPenumbra` turn it into the penumbra, which sets the shadow filter's reach. A hand two units
-  over a table, with a roof 500 units farther on the same sun ray, can return the roof and blur away
-  the contact shadow. The comment calls a wider reach safe. NRD's README says that
-  `ACCEPT_FIRST_HIT_AND_END_SEARCH` "can't be used … because it can lead to wrong potentially very
-  long hit distances from random distant occluders". Target: a literal `nearest` parameter on
-  `passageToward`. The split rays, the only ones whose `mOccluder` is read, trace without the flag
-  and keep the nearest opaque hit. Every other caller keeps the flag. Measure the cost.
 - [ ] `components/rtx/shaders/shadow.h:18-22, 45` (`SHADOW_REPROJECTED STORAGE_RG16F`),
   `shadowtiles.comp:87, 356`, `shadowfilter.comp:78`, `denoisehistory.cpp:61-63`. The moments are
   full floats because "a half store rounds toward nought on this card … so a mean kept in halves falls
@@ -130,14 +120,6 @@ Each item adds or loses light in the converged picture. A denoiser cannot remove
   of 1. That is more than the 0.13–0.2% for which the specular history went to full floats
   (`specular.h`). Target: the history (mean, variance) in `RG32F`. The scratch and visibility images,
   which are not fed back, stay in halves.
-- [ ] `shading.glsl:291-294` (`lit.mPenumbra / max(surface.mFootprint, 1e-6)`), `lights.glsl:661-678`,
-  `shadowtiles.comp:356` (`reach < 1.0 ? current`). The penumbra is measured normal to the light. On
-  a receiver lit at incidence θL it is stretched by `1 / cos θL` along the light's azimuth: three to
-  six times at Morrowind's long dawn and dusk. A soft grazing penumbra can read under one pixel and
-  take the hard-shadow path, which gives raw bits to the upscaler. SIGMA keeps "at least a 1-pixel
-  radius to avoid the hard-shadow early out" (`SIGMA_Blur.cs.hlsl:84-88`). Target: divide the
-  penumbra by the light's cosine at the receiver (`picked.mCosine`, the held lamp's cosine), capped.
-  Then measure again the pond A/B that justified `reach < 1`.
 - [ ] `shading.glsl:142-154` (`sunDraw`, `skyPick`, `lampDraw`, `shadowedPick` from
   `randomSeed(key + lamps)`), `lights.glsl:529`, `random.glsl:255-274`, `scene.h:146-173`. The rays
   whose one bit the shadow denoiser filters aim with hashed white noise, and so does the lamp

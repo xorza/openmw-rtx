@@ -50,20 +50,21 @@ SkySource skySourceAt(uint source)
 /// @param step the step off the triangle `position` stands on (`stepOf`), or nought for a point in
 ///        the air.
 /// @param draw one pair in `[0, 1)`, which aims the ray inside the disc's cone.
-Passage skyPassage(SkySource sky, vec3 position, vec3 step, vec2 draw)
+/// @param nearest whether the occluder must be the nearest (`passageToward`): a split ray's.
+Passage skyPassage(SkySource sky, vec3 position, vec3 step, vec2 draw, bool nearest)
 {
     // A picture with shadows off is open to the sky everywhere: one answer for the whole frame.
     if (frame.mNoSkyShadows != 0u)
         return Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
 
     const vec3 towards = coneDirection(sky.mDirection, sky.mLimb, draw);
-    return lightPassage(leaveSurface(position, step, towards), towards, frame.mReach);
+    return lightPassage(leaveSurface(position, step, towards), towards, frame.mReach, nearest);
 }
 
 /// The same as one number, which is exactly the product `lightThrough` makes of its own halves.
 float skyVisible(SkySource sky, vec3 position, vec3 step, vec2 draw)
 {
-    const Passage passage = skyPassage(sky, position, step, draw);
+    const Passage passage = skyPassage(sky, position, step, draw, false);
     return passage.mOpen * passage.mThrough;
 }
 
@@ -642,7 +643,7 @@ vec3 darkeningAt(vec3 from, Facing facing, float scale, bool lampLit)
 ///
 /// @param step the step off the triangle the reservoir's point stands on (`stepOf`), or nought for a
 ///        point in the air.
-Passage lampPassage(Reservoir kept, vec3 step, vec2 draw)
+Passage lampPassage(Reservoir kept, vec3 step, vec2 draw, bool nearest)
 {
     // Aimed from where the ray leaves and not from where the lamp was weighed, with no reach test:
     // a caller that moved its origin after weighing — a lifted surface and the air both do — still
@@ -661,7 +662,7 @@ Passage lampPassage(Reservoir kept, vec3 step, vec2 draw)
     const float along = distance * dot(towards, axis);
 
     return lightPassage(
-        leaveSurface(kept.mFrom, step, towards), towards, along - max(lamp.mClearance, SHADOW_BIAS));
+        leaveSurface(kept.mFrom, step, towards), towards, along - max(lamp.mClearance, SHADOW_BIAS), nearest);
 }
 
 /// How wide the penumbra stands where a ray to a source was stopped `occluder` along it, as its
@@ -688,7 +689,7 @@ float lampPenumbra(Reservoir kept, float occluder)
 /// product, exact for the reason it gives.
 float lampVisible(Reservoir kept, vec3 step, vec2 draw)
 {
-    const Passage passage = lampPassage(kept, step, draw);
+    const Passage passage = lampPassage(kept, step, draw, false);
     return passage.mOpen * passage.mThrough;
 }
 

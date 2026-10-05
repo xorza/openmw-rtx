@@ -89,23 +89,6 @@ The trace, the denoiser or the rasterizer shows a result that is not the light o
 
 ### The two halves of a stopped shadow ray
 
-- [ ] `components/rtxvulkan/shaders/lib/traversal.glsl:612-629`; `shading.glsl:203`, `:264`
-  — **[bug]** With `split` set, `gather` keeps `Passage::mThrough` "as though the rays got through",
-  even when `mOpen` is 0. `passageToward` traces with `gl_RayFlagsTerminateOnFirstHitEXT`, so on a
-  stopped ray `blocked` sums only the see-through candidates the traversal happened to visit before
-  the first solid. That includes media and panes beyond the occluder, and the set depends on BVH
-  order: the very order-dependence `SHARE_UNIT` was introduced to remove.
-  - `composite.comp:91-94` multiplies this pixel's own `CHANNEL_SHADOWED` light by the filtered
-    visibility of its neighbourhood.
-  - So in a penumbra, an occluded pixel's unshadowed sky or lamp light comes back scaled by whatever
-    random part of the translucent layers was visited. Examples: a blight cloud shell beyond a roof,
-    a window behind a wall.
-  - That value changes with every TLAS refit, so it is neither repeatable nor the light of any path.
-
-  → Target shape: a stopped ray reports an order-free through, `mThrough = 1` where `mOpen = 0`,
-  since the stopped ray's through is unknown and nothing reads it unsplit. Document that the bit
-  then carries the only shadow information.
-
 - [ ] `components/rtxvulkan/shaders/lib/underwater.glsl:135-145`, `:290` — **[bug]** `skyPassage`
   returns open for `frame.mNoSkyShadows` (every picture inside the interface, `visibility.h:198-201`).
   `skyPassageThrough`'s underwater leg calls `lightPassage` directly and ignores the flag. In a local

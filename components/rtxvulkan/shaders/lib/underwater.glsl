@@ -135,16 +135,18 @@ vec3 lightThroughWater(BentPath bent, float footprint)
 ///        the water. The leg over the water leaves from the surface's level, which no
 ///        solid ray can meet.
 /// @param bent `sky`'s path to `position`.
-Passage skyPassageThrough(SkySource sky, vec3 position, vec3 step, BentPath bent, vec2 draw)
+Passage skyPassageThrough(SkySource sky, vec3 position, vec3 step, BentPath bent, vec2 draw, bool nearest)
 {
     if (!(bent.mDepth > 0.0))
-        return skyPassage(sky, position, step, draw);
+        return skyPassage(sky, position, step, draw, nearest);
 
     const vec3 up = -bent.mTravelling;
-    const Passage under = lightPassage(leaveSurface(position, step, up), up, bent.mPath);
-    const Passage over = skyPassage(sky, vec3(bent.mMet, frame.mWaterLevel), vec3(0.0), draw);
-    // The leg under the water is the nearer: what stopped it stands nearer than anything over it.
-    return Passage(under.mOpen * over.mOpen, under.mThrough * over.mThrough,
+    const Passage under = lightPassage(leaveSurface(position, step, up), up, bent.mPath, nearest);
+    const Passage over = skyPassage(sky, vec3(bent.mMet, frame.mWaterLevel), vec3(0.0), draw, nearest);
+    // The leg under the water is the nearer: what stopped it stands nearer than anything over it. A
+    // stopped ray's through is one, as `Passage::mThrough` says, whichever leg stopped it.
+    const float open = under.mOpen * over.mOpen;
+    return Passage(open, open > 0.0 ? under.mThrough * over.mThrough : 1.0,
         under.mOpen < 1.0 ? under.mOccluder : min(bent.mPath + over.mOccluder, SHADOW_PENUMBRA_CLEAR));
 }
 
@@ -291,7 +293,7 @@ WaterColumn waterColumn(vec3 from, vec3 direction, float path, float footprint, 
         // in front of it as it shadows the bed. One short ray more a step, and only where a shaft
         // shows.
         const vec2 draw = fract(aimed + float(step) * R2_STEPS);
-        const Passage passage = skyPassageThrough(skySourceAt(SKY_SOURCE_SUN), at, vec3(0.0), bent, draw);
+        const Passage passage = skyPassageThrough(skySourceAt(SKY_SOURCE_SUN), at, vec3(0.0), bent, draw, false);
         const float visible = passage.mOpen * passage.mThrough;
 
         lit += weight * mix(1.0, caustic(bent.mMet, bent.mDepth, footprint), show) * visible;

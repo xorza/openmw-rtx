@@ -306,6 +306,111 @@ namespace Rtx::Testing
             EXPECT_EQ(denoised.mRadiance, raw.mRadiance);
         }
 
+        /// **A penumbra is its nearest occluder's, laid on the receiver, and a stopped ray lets
+        /// everything through.** The bar of `aThinHardShadowKeepsItsDepth` over a floor, seen from
+        /// 300 units up, where a pixel is 3.61 units across, and 3.61 to 4.66 over the frame.
+        ///
+        /// A sun 60 degrees from the zenith across the bar, from -x, the bar 20 units up and a roof
+        /// 500 up over the whole floor: every ray is stopped, and beside the bar, where its shadow
+        /// falls `20 tan 60°` = 34.6 units off it toward +x, the nearest solid is the bar. Its penumbra is
+        /// `20 / cos 60° * 0.03493 / cos 60°` = 2.79 units on the floor, under a pixel; the roof's is
+        /// `500 / cos 60° * 0.03493 / cos 60°` = 69.9 units, over fifteen pixels. A ray that ended on
+        /// the first solid traversal found took the roof's on whichever pixels it found the roof
+        /// first.
+        ///
+        /// The same sun and the bar 100 up with no roof, its shadow 173 units off it: the bar stands
+        /// `100 / cos 60°` = 200 along the ray, and the penumbra square to the light,
+        /// `200 * 0.03493`, lies up to `1 / cos 60°` = twice as long on the floor, along the light's
+        /// azimuth: 13.97 units, the reach the shadow denoiser is handed, where the light's own plane
+        /// read half.
+        ///
+        /// And under a black pane half there at 40 units, over the whole floor, and a roof over half
+        /// the floor at 100, the eye 30 units up under them both: the open half's shadowed light is the
+        /// sun's `2 * 0.5 / pi` = 0.31831 through half the pane, 0.15915, and the roofed half's the
+        /// whole of it, whatever the stopped ray met first.
+        TEST_F(RtxVisibilityTest, aPenumbraIsItsNearestOccludersOnTheReceiverAndAStoppedRayLetsAllThrough)
+        {
+            constexpr std::uint32_t size = 96;
+            const auto sine = static_cast<double>(Shaders::SUN_SHADOW_RADIUS);
+            const double tangent = sine / std::sqrt(1.0 - sine * sine);
+
+            const Shaders::VisibilityConstants overhead = overheadSun(size);
+            const auto spread = static_cast<double>(overhead.mEyes.mWorld.mSpreadAngle);
+            const float zenith = osg::DegreesToRadians(60.0f);
+            Shaders::VisibilityConstants tilted = overhead;
+            tilted.mSun = Shaders::sunSource(
+                osg::Vec3f(-std::sin(zenith), 0.0f, std::cos(zenith)), osg::Vec3f(2.0f, 2.0f, 2.0f));
+
+            const auto widthsUnder = [&](float barHeight, bool roofed) {
+                SceneDesc scene;
+                addQuad(scene, sheetAt(4000.0f, 0.0f));
+                if (roofed)
+                    addQuad(scene, roofOver(-4000.0f, 4000.0f, 500.0f));
+                addQuad(scene, roofOver(-100.0f, -60.0f, barHeight));
+                shoot(scene, {}, tilted, size, { .mIndirect = IndirectLight::Off });
+
+                std::vector<float> widths;
+                mRenderer.readChannel(Channel::Penumbra, widths);
+                return widths;
+            };
+
+            // Within the frame a pixel is `spread * 300` to `spread * 387` units across.
+            const auto pixels
+                = [&](double units, double distance) { return static_cast<float>(units / (spread * distance)); };
+            const double barOnFloor = 20.0 / 0.5 * tangent / 0.5;
+            const double roofOnFloor = 500.0 / 0.5 * tangent / 0.5;
+            ASSERT_LT(pixels(barOnFloor, 300.0), 1.0f);
+            ASSERT_GT(pixels(roofOnFloor, 387.0), 10.0f);
+            std::size_t barred = 0;
+            for (const float width : widthsUnder(20.0f, true))
+            {
+                ASSERT_LT(width, Shaders::SHADOW_PENUMBRA_CLEAR) << "the roof stops every ray";
+                ASSERT_TRUE(width < 1.0f || width > 10.0f) << "a penumbra of neither occluder: " << width;
+                barred += width < 1.0f ? 1 : 0;
+            }
+            EXPECT_GT(barred, std::size_t{ 5 * size }) << "the bar's shadow took a farther occluder's penumbra";
+
+            // The ray is aimed across the disc, whose half angle is `asin 0.0349` = 2.0 degrees, so it
+            // meets the bar `100 / cos 62°` to `100 / cos 58°` along it.
+            const double half = std::asin(sine);
+            const double nearest = 100.0 / std::cos(double{ zenith } - half);
+            const double farthest = 100.0 / std::cos(double{ zenith } + half);
+            std::size_t stopped = 0;
+            for (const float width : widthsUnder(100.0f, false))
+            {
+                if (width == Shaders::SHADOW_PENUMBRA_CLEAR)
+                    continue;
+                ++stopped;
+                EXPECT_GE(width, pixels(nearest * tangent / 0.5, 387.0) * 0.999f) << "the penumbra square to the light";
+                EXPECT_LE(width, pixels(farthest * tangent / 0.5, 300.0) * 1.001f);
+            }
+            EXPECT_GT(stopped, std::size_t{ 7 * size }) << "the bar cast less than the shadow it casts";
+
+            Shaders::VisibilityConstants between = Testing::makeCamera(
+                osg::Vec3f(0.0f, -1.0f, 30.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            between.mSkyHorizon = osg::Vec3f();
+            between.mSkyZenith = osg::Vec3f();
+            between.mSun = overhead.mSun;
+            SceneDesc scene;
+            addQuad(scene, sheetAt(4000.0f, 0.0f));
+            addPane(scene, sheetAt(4000.0f, 40.0f), osg::Vec4f(0.0f, 0.0f, 0.0f, 0.5f), 1.0f, true);
+            addQuad(scene, roofOver(-4000.0f, 0.0f, 100.0f));
+            shoot(scene, {}, between, size, { .mIndirect = IndirectLight::Off });
+            std::vector<float> shadowed;
+            mRenderer.readChannel(Channel::Shadowed, shadowed);
+            const float sunlit = Shaders::INV_PI;
+            std::size_t open = 0;
+            std::size_t roofed = 0;
+            for (std::size_t value = 0; value < shadowed.size(); value += 4)
+            {
+                const bool stoppedHere = shadowed[value + 3] == 0.0f;
+                EXPECT_NEAR(shadowed[value], stoppedHere ? sunlit : 0.5f * sunlit, 2e-3f) << "pixel " << value / 4;
+                ++(stoppedHere ? roofed : open);
+            }
+            EXPECT_GT(open, std::size_t{ 8 * size });
+            EXPECT_GT(roofed, std::size_t{ 8 * size });
+        }
+
         /// **The noise of a penumbra comes off and its light stays where it was.** A roof over half
         /// the floor, two thousand units up, under a sun whose shadow cone is `SUN_SHADOW_RADIUS`
         /// either way: the penumbra is `2 * 2000 * 0.0349` = 140 units across, a quarter of the

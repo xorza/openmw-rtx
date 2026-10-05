@@ -719,13 +719,16 @@ struct Passage
     /// One where nothing opaque stood in the way, and nought where something did.
     float mOpen;
 
-    /// What the translucent surfaces crossed let through, from nought to one.
+    /// What the translucent surfaces crossed let through, from nought to one. **One where the ray was
+    /// stopped**: which translucent surfaces a stopped ray met before it ended depends on the order
+    /// traversal visited them in, so a stopped ray's through is no light of any path, and the bit
+    /// carries the whole of its shadow.
     float mThrough;
 
     /// How far along the ray the solid that stopped it stood, or `SHADOW_PENUMBRA_CLEAR` where
-    /// nothing did: what the penumbra's width is made of (`skyPenumbra`, `lampPenumbra`). **A solid and not the
-    /// nearest one**, since the ray ends on the first it finds: the penumbra of whichever solid
-    /// that was, and the reach it gives the shadow denoiser is never narrower than its own.
+    /// nothing did: what the penumbra's width is made of (`skyPenumbra`, `lampPenumbra`). The
+    /// nearest solid where the ray was asked for it (`nearest`), and otherwise the first traversal
+    /// found, which nothing reads.
     float mOccluder;
 };
 
@@ -752,12 +755,17 @@ struct Passage
 /// the cheap half of transparency — the eye needs its layers sorted and this needs nothing at all.
 /// Taken as `blockedBy`'s sum and not as the product itself, because a float product does care.
 ///
-/// **`TerminateOnFirstHit` stays.** A translucent candidate is never confirmed, so traversal walks
-/// past it and keeps the early out for the first thing that does stop the ray.
+/// **`TerminateOnFirstHit` stays, but where the occluder's distance is read.** A translucent
+/// candidate is never confirmed, so traversal walks past it and keeps the early out for the first
+/// thing that does stop the ray. The first in traversal's order is not the nearest, and a penumbra
+/// made of a roof five hundred units on blurred away the contact shadow of a hand two units over a
+/// table; so a ray whose penumbra the shadow denoiser reads runs to the nearest solid.
 ///
 /// @param faces the ray flags that cull one face or none. **A literal at every call**, so each
 ///        caller's traversal is compiled for its own.
-Passage passageToward(vec3 from, vec3 towards, float distance, uint faces)
+/// @param nearest whether `Passage::mOccluder` must be the nearest solid's — a split ray's, whose
+///        penumbra is read. A literal at every call as well.
+Passage passageToward(vec3 from, vec3 towards, float distance, uint faces, bool nearest)
 {
     if (distance <= SHADOW_BIAS)
         return Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
@@ -767,12 +775,12 @@ Passage passageToward(vec3 from, vec3 towards, float distance, uint faces)
     rayQueryEXT query;
     // **And the mediums**, which only this ray and `mediumAlong` meet: a medium dims the light that
     // crosses it, and `candidateStops` asks its class in place of the mask.
-    rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT | faces,
+    rayQueryInitializeEXT(query, sceneTop, (nearest ? gl_RayFlagsNoneEXT : gl_RayFlagsTerminateOnFirstHitEXT) | faces,
         solidMask(frame.mRayMask) | MASK_MEDIUM, from, 0.0, towards, distance);
     RTX_RESOLVE(query, towards, 0.0, blocked, MEET_WALK_PAST, false)
 
     const bool stopped = rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT;
-    return Passage(stopped ? 0.0 : 1.0, throughBlocked(blocked),
+    return Passage(stopped ? 0.0 : 1.0, stopped ? 1.0 : throughBlocked(blocked),
         stopped ? rayQueryGetIntersectionTEXT(query, true) : SHADOW_PENUMBRA_CLEAR);
 }
 
@@ -781,7 +789,7 @@ Passage passageToward(vec3 from, vec3 towards, float distance, uint faces)
 /// is the other half or is nought, and every caller reads what it read before the two were apart.
 float throughToward(vec3 from, vec3 towards, float distance, uint faces)
 {
-    const Passage passage = passageToward(from, towards, distance, faces);
+    const Passage passage = passageToward(from, towards, distance, faces, false);
     return passage.mOpen * passage.mThrough;
 }
 
@@ -802,10 +810,11 @@ float lightThrough(vec3 from, vec3 towards, float distance)
     return throughToward(from, towards, distance, gl_RayFlagsCullFrontFacingTrianglesEXT);
 }
 
-/// The same ray as `lightThrough`, with its two halves apart.
-Passage lightPassage(vec3 from, vec3 towards, float distance)
+/// The same ray as `lightThrough`, with its two halves apart, and the nearest solid's distance
+/// where `nearest` asks (`passageToward`).
+Passage lightPassage(vec3 from, vec3 towards, float distance, bool nearest)
 {
-    return passageToward(from, towards, distance, gl_RayFlagsCullFrontFacingTrianglesEXT);
+    return passageToward(from, towards, distance, gl_RayFlagsCullFrontFacingTrianglesEXT, nearest);
 }
 
 /// How much of the ambient along `towards` reaches `from`, past whatever stands within `distance`.

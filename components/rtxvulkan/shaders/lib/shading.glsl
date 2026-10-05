@@ -82,6 +82,15 @@ bool keepsSecond(float shareA, float shareB, float draw)
     return draw * (shareA + shareB) < shareB;
 }
 
+/// What a penumbra measured square to its light is on a receiver the light meets at `cosine`: `1 /
+/// cosine` longer along the light's azimuth, held to `SHADOW_PENUMBRA_STRETCH`. Square to the light, a
+/// grazing penumbra at Morrowind's long dawn read three to six times narrower than it lay, under a
+/// pixel, and took the shadow denoiser's hard path with its raw bits.
+float receiverStretch(float cosine)
+{
+    return 1.0 / max(cosine, 1.0 / SHADOW_PENUMBRA_STRETCH);
+}
+
 /// `weight` where it is at least `minor`, and nought where it is under it: what a source draws by
 /// where a source under the floor is never drawn (`VisibilityConstants::mShadowFloor`).
 float drawable(float weight, float minor)
@@ -274,7 +283,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
         // where the surface is: one refraction, a bent path to each.
         const SunUnderWater bent = sunUnderWater(picked.mSky.mDirection);
         const Passage passage
-            = skyPassageThrough(picked.mSky, leaving, stepOf(surface), bentPathAt(leaving, bent), sunDraw);
+            = skyPassageThrough(picked.mSky, leaving, stepOf(surface), bentPathAt(leaving, bent), sunDraw, split);
 
         // **Each source's term whole, as the lamps' unshadowed sum is** (D3.2): split, every source
         // with a weight is in the light the bit multiplies, so a pixel's hue is the sources' and
@@ -291,7 +300,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
             lit.mShadowedDiffuse = (every.mDiffuse - every.mTaken) * passage.mThrough;
             lit.mShadowedSpecular = every.mSpecular * passage.mThrough;
             lit.mOpen = passage.mOpen;
-            lit.mPenumbra = skyPenumbra(picked.mSky, passage.mOccluder);
+            lit.mPenumbra = skyPenumbra(picked.mSky, passage.mOccluder) * receiverStretch(picked.mCosine);
         }
         else
         {
@@ -331,7 +340,7 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     weighLamps(kept, state, position, facing, INV_PI, gloss, surface.mLampLit);
     kept.mFrom = leaving;
 
-    const Passage lampPass = kept.mWeight > 0.0 ? lampPassage(kept, stepOf(surface), lampDraw) : Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
+    const Passage lampPass = kept.mWeight > 0.0 ? lampPassage(kept, stepOf(surface), lampDraw, split) : Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
     const float lampSeen = lampPass.mOpen * lampPass.mThrough;
     const float held = heldShare(kept);
 
@@ -372,7 +381,9 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
         const bool lamp = keepsSecond(
             drawable(skyShare, frame.mShadowFloor * shares), drawable(lampShare, frame.mShadowFloor * shares), shadowedPick);
         lit.mOpen = lamp ? lampPass.mOpen : lit.mOpen;
-        lit.mPenumbra = lamp ? lampPenumbra(kept, lampPass.mOccluder) : lit.mPenumbra;
+        lit.mPenumbra = lamp ? lampPenumbra(kept, lampPass.mOccluder)
+                * receiverStretch(litCosine(facing, normalize(lightAt(kept.mLamp).mPosition - position)))
+                             : lit.mPenumbra;
         lit.mShadowedDiffuse += lampDiffuse;
 
         // In the surface's own footprints, which is what the denoiser's reach is counted in; and the
