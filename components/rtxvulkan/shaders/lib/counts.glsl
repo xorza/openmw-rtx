@@ -7,6 +7,7 @@
 // because it runs on nothing else of the frame's.
 
 #include "bindings.glsl"
+#include "finite.glsl"
 #include "variants.glsl"
 
 /// Counts one primary ray that reached nothing, from the miss shader. `FrameCounts::mMisses` says
@@ -25,7 +26,7 @@ void countMiss()
 /// by itself.
 void countNotFinite(uint boundary, vec4 value)
 {
-    if (COUNTING && (any(isnan(value)) || any(isinf(value))))
+    if (COUNTING && any(notFinite(value)))
         atomicAdd(counts.mNotFinite[boundary], 1u);
 }
 

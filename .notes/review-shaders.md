@@ -11,35 +11,6 @@ RTXDI, Frostbite's volumetrics, Jimenez 2014, and the Vulkan and SPIR-V specific
 references are given per item. Nothing here was measured. An item that changes the picture or the
 frame time is proved with `noise --ab`, `shot --against` or `bench` before it is kept.
 
-## 1. The float environment is not pinned
-
-The pinning fixes contraction and the order of operations. It does not fix what a driver may
-assume about NaN, infinity and the sign of zero, and it does not give every flavour one module.
-
-- [ ] `components/rtxvulkan/spirv/spirvpin.cpp:561-584, 1033-1040`, `spirvpin.hpp:13-37`. The
-  pinner refuses `FPFastMathMode` but sets no float execution mode. Vulkan's Appendix A lets an
-  implementation "assume that arguments and results are not NaNs or infinities" and ignore the sign
-  of zero by default. A compile may then fold `isnan`/`isinf` to false (`lib/counts.glsl:28`, the
-  finiteness counts `check` reads), and rewrite `!(a >= b)` as `a < b` (`colour.h:45`,
-  `lib/reproject.glsl:79`, and the non-finite select in `visibility.rgen`). The driver's second
-  compile may take these freedoms differently from the first, which is the nondeterminism the
-  pinning exists to remove. Target: the pinner adds `OpCapability SignedZeroInfNanPreserve` and
-  `OpExecutionMode %entry SignedZeroInfNanPreserve 32` (and 16 where halves are used) to every entry
-  point, and `requirements.cpp` requires `shaderSignedZeroInfNanPreserveFloat32`. Alternatively,
-  `FPFastMathDefault None` per float type (float_controls2, core in 1.4). Re-measure the trace
-  after it.
-- [ ] `components/rtxvulkan/CMakeLists.txt:122` (`-O0` in Debug, `-O` otherwise) with
-  `spirvpin.cpp:984-998` (`fusionOf` fuses only a multiply whose one reader is the add). At `-O0`,
-  glslang keeps locals as `OpVariable`/`OpStore`/`OpLoad`, so `float p = a * b; … p + c` reaches
-  the pinner as an add of a load and is not fused. At `-O`, it is SSA and is fused. The debug flavour
-  that runs every assert and test therefore computes different float arithmetic from the release
-  flavour that figures are quoted from. Target: one glslc level (`-O -g`) for every flavour.
-- [ ] `components/rtx/shaders/exposure.h:77-82`, `display/histogram.comp:47-48`. A NaN luminance
-  passes `luminance < EXPOSURE_BLACK`. Then `clamp` of NaN and `uint()` of NaN are undefined, and
-  `atomicAdd(localBins[…])` can write outside the shared array. Target:
-  `if (!(luminance >= EXPOSURE_BLACK)) return 0u;`, as `contrastScale` already does, and
-  `min(…, EXPOSURE_BINS - 1u)` on the index. This holds only after the first item.
-
 ## 2. The temporal filters fetch and match their history differently from the practice they cite
 
 Every temporal pass (accumulator, shadow, glossy, pane, bounce reuse) goes through

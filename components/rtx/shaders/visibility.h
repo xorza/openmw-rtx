@@ -499,14 +499,15 @@ namespace Rtx::Shaders
         GpuTables mTables;
     };
 
-    /// What the puffs' composite is pushed beside the frame block: the extent of the picture it
-    /// composites over — the output's past an upscaler, the traced one where nothing upscales, and
-    /// a picture's own inside an image that may be larger. Pushed, because the launch runs over
-    /// the traced grid and says only that extent: `spritecomposite.rgen` says why.
+    /// What the puffs' composite is pushed beside the frame block: the frame's eyes on the grid of
+    /// the picture it composites over — the output's past an upscaler, the traced one where nothing
+    /// upscales, and a picture's own inside an image that may be larger — whose extent is that
+    /// grid's. Pushed, because the launch runs over the traced grid and says only that extent:
+    /// `spritecomposite.rgen` says why. **Made on the host by `cameraOnGrid`**, as the display
+    /// pass's camera is, so the two draw one ray through a shown pixel.
     struct PuffConstants
     {
-        uint mShownWidth;
-        uint mShownHeight;
+        Eyes mShown;
     };
 
 #ifdef RTX_HOST
@@ -532,9 +533,9 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1416, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1600, "VisibilityConstants must be scalar-packed on every side");
-    static_assert(sizeof(PuffConstants) == 8, "PuffConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1432, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1616, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(PuffConstants) == 152, "PuffConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

@@ -1,5 +1,6 @@
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 #include <gtest/gtest.h>
 
@@ -53,6 +54,10 @@ namespace Rtx
             EXPECT_EQ(Shaders::luminanceBin(std::exp2(Shaders::MIN_LOG_LUMINANCE) * 0.5f), 0u) << "under the scale";
             EXPECT_EQ(Shaders::luminanceBin(Shaders::EXPOSURE_BLACK), 1u) << "the scale's bottom";
             EXPECT_EQ(Shaders::luminanceBin(1.0e6f), Shaders::EXPOSURE_BINS - 1u) << "over it";
+            EXPECT_EQ(Shaders::luminanceBin(std::numeric_limits<float>::infinity()), Shaders::EXPOSURE_BINS - 1u)
+                << "past every float";
+            EXPECT_EQ(Shaders::luminanceBin(std::numeric_limits<float>::quiet_NaN()), 0u) << "no number is black";
+            EXPECT_EQ(Shaders::luminanceBin(-std::numeric_limits<float>::quiet_NaN()), 0u) << "either sign";
         }
     }
 }

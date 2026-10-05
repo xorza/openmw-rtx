@@ -123,7 +123,7 @@ namespace Rtx::Shaders
 
 #ifdef RTX_HOST
 
-    static_assert(sizeof(SpriteBinConstants) == 184, "SpriteBinConstants must be scalar-packed on every side");
+    static_assert(sizeof(SpriteBinConstants) == 192, "SpriteBinConstants must be scalar-packed on every side");
 }
 
 #endif

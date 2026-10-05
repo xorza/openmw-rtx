@@ -103,8 +103,7 @@ namespace Rtx
         const GBuffer& channels = inputs.mChannels;
 
         shown.transition(commands, what.mShown.mLeftAs, Use::sTraceReadWrite);
-        mPuffs.recordSpriteComposite(commands, inputs, shown, what.mExtent,
-            VkExtent2D{ what.mSampled.mEyes.mWorld.mWidth, what.mSampled.mEyes.mWorld.mHeight }, timer);
+        mPuffs.recordSpriteComposite(commands, inputs, shown, what.mSampled.mEyes, what.mExtent, timer);
         shown.transition(commands, Use::sTraceReadWrite, Use::sComputeReadOrSample);
 
         // What the lens will spread, built here and applied by the curve. Nothing is written back

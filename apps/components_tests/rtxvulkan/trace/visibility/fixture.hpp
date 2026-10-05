@@ -660,8 +660,10 @@ namespace Rtx::Testing
         /// **What the water test and the first-person test share**, each placing the pane its
         /// own way through `place`. The camera stands off the sun's axis, so the centre pixel
         /// lands on the patch of wall the pane shadows without the camera's own ray having to
-        /// cross the pane — it passes y = -50 at x = 50, and the pane reaches 20 — or straight
-        /// at the pane, to see it at all.
+        /// cross the pane — it passes y = -50 at x = 50, and the pane reaches 20 — or at the pane,
+        /// to see it at all: from ten units above its middle, because water is a horizontal plane
+        /// to the renderer, which names its sides by which way a ray climbs, and a level ray
+        /// climbs neither way.
         /// @param where the caller's own line, never passed, for the reason `litThroughPane` gives.
         std::array<std::uint8_t, 3> paneOverWall(
             const std::function<void(SceneDesc&, std::span<const osg::Vec3f, 4>)>& place, bool lookAtIt,
@@ -679,7 +681,7 @@ namespace Rtx::Testing
 
             const osg::Vec3f bright(2.0f, 2.0f, 2.0f);
             const Shaders::VisibilityConstants camera = lookAtIt
-                ? wallCamera(size, bright, osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, -50.0f, 0.0f))
+                ? wallCamera(size, bright, osg::Vec3f(0.0f, -100.0f, 10.0f), osg::Vec3f(0.0f, -50.0f, 0.0f))
                 : wallCamera(size, bright);
 
             const Frame frame = shoot(scene, {}, camera, size);

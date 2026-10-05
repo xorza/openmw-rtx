@@ -16,7 +16,10 @@ is its test (section 5, Phase 0). D11, each shared header with the C++ that read
 done: `noise` keeps its means in sixteen bits and judges in fractions of a level, the still bar is
 held to its history, the scene digest names the colours and every texture field, and the driver
 reads every file as UTF-8. **Every `noise` figure from before D12 is not comparable with one after
-it.** The registration GPU test lands with D2 in Phase 3, and `noise --upscale=native` standing is
+it.** D1, one arithmetic for every module and flavour, is done: every entry point preserves
+NaNs, infinities and signed zeros, debug and release compile one listing, and `rayAt` divides
+nothing. Its pictures from before are in `~/rtx-baselines/a70ac65b81`, and from
+after in `~/rtx-baselines/d1-after`. The registration GPU test lands with D2 in Phase 3, and `noise --upscale=native` standing is
 the leg that shows the defect.
 
 ## 1. Decisions
@@ -101,7 +104,7 @@ And two rules apply to every step:
 
 | | Cause | Findings it explains |
 |---|---|---|
-| D1 | The arithmetic contract stops at contraction and order | S§1, U › Floating point (5 groups) |
+| D1 | The arithmetic contract stops at contraction and order | Done |
 | D2 | No one owns temporal reprojection | S§2, S§5, S§9, U › jitter, U › five kernels |
 | D3 | Direct light has no single rule for its sources | S§3 (lamp, sky), S§4, S§12, U › sky draw, U › two halves, U › lamps that take light |
 | D4 | The bounce's far end is not a pure function of its sample | S§6, U › validation, U › resolve, U › reservoirs kept |
@@ -115,50 +118,6 @@ And two rules apply to every step:
 | D12 | The instruments cannot see the defects above | Done |
 
 ## 4. The contracts
-
-### D1. One module, one arithmetic
-
-**Cause.** The pinner fixes fusion and order of operations. It does not fix:
-
-- the float environment: NaN, infinity, and signed zero;
-- the division `rayAt` makes;
-- the double-precision folding of derived constants;
-- the glslc level, which differs by flavour;
-- implicit-LOD sampling.
-
-Each of these is a way for two compiles of one expression to disagree. The tree then depends on
-the exact behaviour in about a dozen guards, such as the `-inf` water sentinel, `isnan` in the
-counts and the 9e5 pack, and the NaN-aware comparisons.
-
-**Contract.** A pinned module computes the same bits in every compile, on every flavour, and
-from every module that spells the same expression.
-
-**Shape.**
-
-- **Float controls.** The pinner adds `SignedZeroInfNanPreserve 32` to every entry point.
-  `requirements.cpp` requires `shaderSignedZeroInfNanPreserveFloat32`. The pinner refuses every
-  float-controls mode and `FPRoundingMode` that the source sets itself, and every implicit-LOD
-  image operation. The GUI samples at an explicit level.
-- **One build level.** glslc runs at one level, `-O -g`, for every flavour.
-- **No division that two modules must agree on.** `Camera` carries `2 / width` and `2 / height`,
-  divided on the host. `rayAt` is then multiplies and adds only. Look for other divisions that
-  several modules repeat: any `precise` expression with an `OpFDiv` is one.
-- **Derived shared constants are literals.** Each is written as its correctly rounded value, with
-  the derivation in a comment. `RtxSharedConstantTest` holds each literal to the derivation
-  computed in double. This extends the `portable.h` rule.
-- **Finiteness by bits, where a count depends on it.** `countNotFinite` and the 9e5 pack's scrub
-  test the exponent field (`(floatBitsToUint(x) & 0x7F800000u) == 0x7F800000u`). An integer test
-  cannot be folded under any float environment, so the counts that `check` asserts on stay true
-  even if the float controls cost too much and are taken back. The NaN-aware comparisons still need
-  the float controls.
-- **Boundary guards for data from the world.** These become correct only after the float controls,
-  so they are part of this contract:
-  - the histogram bin uses `!(l >= black)`;
-  - `octahedralDirected` refuses a sum that is not finite;
-  - the moon tint never divides by a measured luminance.
-
-**What goes away.** The per-flavour difference in arithmetic, the "may fold" risk in every NaN
-guard, and three host-against-device constant mismatches.
 
 ### D2. Temporal history: one library and one registration rule
 
@@ -532,7 +491,6 @@ Each check lands with its contract, and each is one the gate runs.
 
 | | The check |
 |---|---|
-| D1 | A SPIR-V test: every pinned module declares `SignedZeroInfNanPreserve`, and the pinner refuses each float-controls mode and implicit LOD in a source. `./omw kernels` gives one listing in every flavour. |
 | D2 | `RtxSourceTreeTest`: `historyShare` and `historyTap` appear in `surfacematch.glsl` alone. A GPU test: a still, jittered edge accumulates to its unjittered-centre mean. |
 | D3 | GPU tests: a mirror beside a lamp reflects the lamp's analytic lobe and no glow of its model; under a daylight moon, no sun-lit pixel is marked drawn; the split and unsplit modes agree in the mean. |
 | D4 | A GPU test: in a static scene, validation leaves every stored radiance as it was, bit for bit. |
@@ -549,7 +507,7 @@ Each phase ends with `./omw gate`. Each step builds the targets it touched and r
 test binary with a filter, as AGENTS.md says. Changes to the picture are taken one at a time, so
 that each `shot --against` and each `noise` run attributes its movement to one cause.
 
-**After Phase 0, before Phase 1.** Take the baselines outside `/tmp`:
+**Before each phase.** Take the baselines outside `/tmp`:
 
 - `./omw shot --views=all --map --upscale=off --out=~/rtx-baselines/<commit>`
 - `./omw kernels > ~/rtx-baselines/<commit>/kernels.txt`
@@ -571,27 +529,6 @@ Take new baselines at the end of each phase.
    `UPSTREAM-MERGE.md` means the `Edit(./**)` rule does not cover it); the sandbox started (a
    missing bubblewrap stops the agent at once, by `failIfUnavailable`); a pull request opened by the
    Claude GitHub App, with CI running on it; and auto-merge turned on or the merge held, as before.
-
-### Phase 1. Arithmetic (D1)
-
-1. Float controls, the pinner's refusals, and explicit LOD in the GUI.
-2. One glslc level for every flavour.
-3. The `rayAt` reciprocal, and any other division that two modules repeat.
-4. Shared constants as literals, with the test.
-5. Boundary guards: the histogram, `octahedralDirected` and the moon tint.
-
-**Verify.**
-
-- `./omw kernels --against` names the moved kernels. Expect most of them to move.
-- `./omw repeat --pairs=10` agrees.
-- `shot --against` shows no picture change beyond the half-ulp class. A larger move means that a
-  guard was being folded, so read it.
-- `release bench` A/B with the previous commit, back to back, medians and p99. This step costs
-  frame time if it costs anything, so state the figure in the commit.
-- `./omw kernels` in the debug flavour and in the release flavour give one listing.
-- **The GPU tests now run against the modules the game ships**, for the first time: until step 2
-  they ran on `-O0` modules, which fuse nothing. A test that fails then has found a real
-  difference between the host model and the shipped arithmetic. Read it before changing it.
 
 ### Phase 2. Where light goes (D5, then D3)
 
@@ -737,7 +674,6 @@ These are local defects. Each one is fixed where it stands.
 
 | Review group | Goes to |
 |---|---|
-| S§1 | D1 (Phase 1) |
 | S§2 | D2 (Phase 3) |
 | S§3: lamp, sky, through | D3 (Phase 2) |
 | S§3: fog, water, layer | D7 (Phase 4) |
@@ -754,7 +690,6 @@ These are local defects. Each one is fixed where it stands.
 | S§14 to S§16 | Phase 8, D7 (integrate, ambient ray), D10 (barriers) |
 | S§17 | Section 6 |
 | U › Pictures that are quietly wrong | D3, D4, D2, D5, D8, and section 6 (material key, groundcover, night sky, twin fold, hooks, canvas) |
-| U › Floating point the build does not control | D1 |
 | U › Vulkan ordering and submission | D10 |
 | U › Settings and the SDL3 port | Section 6, decision 5 |
 | U › Crash reports, CI and the release | Phase 0 step 1 (security), section 6 |

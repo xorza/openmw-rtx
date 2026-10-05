@@ -153,7 +153,7 @@ namespace Rtx::Shaders
 #ifdef RTX_HOST
     // The host rounds the block up to eight for the addresses at its head, past the 196 bytes the
     // shader reads, as `hosttypes.h` says a push may.
-    static_assert(offsetof(ToneConstants, mLiftOffset) + sizeof(vec2) == 196,
+    static_assert(offsetof(ToneConstants, mLiftOffset) + sizeof(vec2) == 204,
         "ToneConstants must be scalar-packed on every side");
 #endif
 

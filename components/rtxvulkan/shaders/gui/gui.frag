@@ -23,5 +23,7 @@ layout(location = 0) out vec4 outColour;
 void main()
 {
     const vec4 tint = PREMULTIPLIED ? vec4(inColour.rgb * inColour.a, inColour.a) : inColour;
-    outColour = texture(uTexture, inTexCoord) * tint;
+    // The one level a texture of the interface has, named: an implicit level is worked out from
+    // derivatives, which each compile may take finely or coarsely.
+    outColour = textureLod(uTexture, inTexCoord, 0.0) * tint;
 }

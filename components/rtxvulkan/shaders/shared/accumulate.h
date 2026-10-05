@@ -214,8 +214,8 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(HistoryConstants) == 144, "HistoryConstants must be scalar-packed on every side");
-    static_assert(sizeof(AccumulateConstants) == 192, "AccumulateConstants must be scalar-packed on every side");
+    static_assert(sizeof(HistoryConstants) == 160, "HistoryConstants must be scalar-packed on every side");
+    static_assert(sizeof(AccumulateConstants) == 208, "AccumulateConstants must be scalar-packed on every side");
     static_assert(
         sizeof(AccumulateClampConstants) == 16, "AccumulateClampConstants must be scalar-packed on every side");
     static_assert(ACCUMULATE_RING_REACH >= ACCUMULATE_CLAMP_REACH && ACCUMULATE_RING_HOLE < ACCUMULATE_RING_REACH,

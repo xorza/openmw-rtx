@@ -120,6 +120,7 @@ namespace Rtx
                 .mOrthographic = orthographic ? 1u : 0u,
                 .mWidth = width,
                 .mHeight = height,
+                .mPixelScale = Shaders::pixelScaleOf(width, height),
             };
             camera.mEyes.mArms = camera.mEyes.mWorld;
 

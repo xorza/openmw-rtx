@@ -225,6 +225,16 @@ namespace Rtx
             return profile;
         }
 
+        // Every module declares it (`pinFloatArithmetic`), and a device that does not honour it
+        // could fold every guard against a value that is not a number. For 32-bit floats, the one
+        // width a shipped module has: a module with another asks for a property this does not
+        // require, which validation names at the pipeline.
+        if (properties.mVulkan12.shaderSignedZeroInfNanPreserveFloat32 != VK_TRUE)
+        {
+            profile.mObstacle = "no preservation of signed zeros, infinities and NaNs in 32-bit floats";
+            return profile;
+        }
+
         const std::uint32_t pushed = properties.mProperties2.properties.limits.maxPushConstantsSize;
         if (pushed < sPushConstantsFloor)
         {

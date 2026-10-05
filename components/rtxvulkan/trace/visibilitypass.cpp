@@ -769,7 +769,7 @@ namespace Rtx
     }
 
     void VisibilityPass::recordSpriteComposite(const VkCommandBuffer commands, const VisibilityInputs& inputs,
-        const Image& shown, const VkExtent2D extent, const VkExtent2D traced, GpuTimer* const timer) const
+        const Image& shown, const Shaders::Eyes& eyes, const VkExtent2D extent, GpuTimer* const timer) const
     {
         assert(extent.width <= shown.getWidth() && extent.height <= shown.getHeight()
             && "a picture larger than the image it is drawn into");
@@ -781,11 +781,15 @@ namespace Rtx
         const auto& composite = *kernels().mSpriteComposite;
         bind(commands, composite);
         pushInputs(commands, composite, inputs, &shown);
-        composite.push(commands, Shaders::PuffConstants{ .mShownWidth = extent.width, .mShownHeight = extent.height });
+        composite.push(commands,
+            Shaders::PuffConstants{ .mShown = Shaders::Eyes{
+                                        .mWorld = Shaders::cameraOnGrid(eyes.mWorld, extent.width, extent.height),
+                                        .mArms = Shaders::cameraOnGrid(eyes.mArms, extent.width, extent.height),
+                                    } });
 
         // One invocation a traced pixel, which composites the shown pixels over it —
         // `spritecomposite.rgen` says why.
-        composite.traceRays(commands, traced.width, traced.height);
+        composite.traceRays(commands, eyes.mWorld.mWidth, eyes.mWorld.mHeight);
 
         closeZone(timer, commands);
     }

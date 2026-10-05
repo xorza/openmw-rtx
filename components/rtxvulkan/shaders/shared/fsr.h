@@ -186,7 +186,7 @@ namespace Rtx::Shaders
 #ifdef RTX_HOST
     static_assert(sizeof(FsrConstants) == 148, "FsrConstants must be scalar-packed on every side");
     static_assert(sizeof(FsrPyramidConstants) == 24, "FsrPyramidConstants must be scalar-packed on every side");
-    static_assert(sizeof(FsrInputConstants) == 140, "FsrInputConstants must be scalar-packed on every side");
+    static_assert(sizeof(FsrInputConstants) == 156, "FsrInputConstants must be scalar-packed on every side");
     static_assert(sizeof(FsrConstants) <= FSR_BLOCK_PYRAMID - FSR_BLOCK_CONSTANTS);
     static_assert(sizeof(FsrPyramidConstants) <= FSR_BLOCK_INPUTS - FSR_BLOCK_PYRAMID);
     static_assert(sizeof(FsrInputConstants) <= FSR_BLOCKS_BYTES - FSR_BLOCK_INPUTS);
