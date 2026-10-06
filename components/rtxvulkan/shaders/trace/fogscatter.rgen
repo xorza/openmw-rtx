@@ -131,8 +131,11 @@ void main()
     // ray, and so where this froxel's air ends: at the surface if that stands inside it, and at its
     // own far edge otherwise — a froxel that starts past the surface included, for the reason the
     // top of this file gives.
-    const float surface = imageLoad(fogColumnDepth, column).x;
-    const float clear = surface > behind ? min(ahead, surface) : ahead;
+    const vec2 surfaces = imageLoad(fogColumnDepth, column).xy;
+    const float clear = surfaces.x > behind ? min(ahead, surfaces.x) : ahead;
+
+    // The same rule along the middle ray, which the lamps' stretch ends by: `fogdepth.rgen` says why.
+    const float lampsClear = surfaces.y > behind ? min(ahead, surfaces.y) : ahead;
 
     // **Drawn inside the air the froxel holds and not inside the froxel**, so a froxel the ground
     // stands inside is a draw of its air on every frame rather than on the frames the draw happened
@@ -175,7 +178,8 @@ void main()
     // own shells.
     //
     // **Over the stretch short of the surface and not over the slice**, so a froxel the ground
-    // stands inside holds the mean over its air.
+    // stands inside holds the mean over its air: the surface the middle ray met, since the stretch
+    // is the middle ray's.
     uint lampState = randomSeed(froxelKey(uvec2(column), slice) + SEED_LAMPS_FOG);
 
     // **The sky's draws first, at a fixed place in the sequence**: the ray's pair for the sun, the
@@ -188,7 +192,7 @@ void main()
 
     Reservoir lamps = noLamps();
     const vec3 lampScatter
-        = lampsInAir(lamps, lampState, fromMiddle, middle.mDirection, behind, clear) / (clear - behind);
+        = lampsInAir(lamps, lampState, fromMiddle, middle.mDirection, behind, lampsClear) / (lampsClear - behind);
 
     // **What a lamp is worth and where to ask whether it is seen are two questions.** The froxel
     // weighs its lamps over the whole of its stretch, where a share is an integral and the point

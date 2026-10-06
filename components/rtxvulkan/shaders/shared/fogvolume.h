@@ -21,7 +21,7 @@
 
 #define FOG_VOLUME_FORMAT STORAGE_RGBA16F
 #define FOG_SUNWARD_FORMAT STORAGE_R16F
-#define FOG_DEPTH_FORMAT STORAGE_R32F
+#define FOG_DEPTH_FORMAT STORAGE_RG32F
 #define FOG_MOONS_FORMAT STORAGE_RGBA32F
 
 // Which binding of `SET_VOLUME` each image is, for the shaders that declare them and the owner that
