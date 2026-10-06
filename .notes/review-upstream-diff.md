@@ -575,22 +575,6 @@ Work done twice, at the wrong time, or for nothing.
   `Texture::widen`. Keep `getColor` only for the rest, and decode DXT through a block decoder rather than per
   texel.
 
-### The sea is synthesised once per trace, not once per water time
-
-- [ ] `components/rtxvulkan/trace/tracechain.cpp:263-268`, `trace/wavepass.cpp:230-290` — **[perf]**
-  `TraceChain::record` records `WavePass::record` for every trace with `mSea`. That includes each
-  picture of the world (`PictureTracer::trace` → `mChain.record`), and every one of them gets the
-  same `mWaterTime` from the frame's `WorldReading` (`frameworld.cpp:206`). Per `ViewQueue::draw`,
-  a cell crossing traces a row of three map tiles and a fresh load traces up to nine. In an exterior
-  with water, each of those re-synthesises all cascades: rows, columns and the mip chains, which
-  the comment at `tracechain.cpp:262` puts at a fifth of a millisecond. The frame then synthesises
-  the same tiles again. On a crossing that is about 0.6 ms of duplicate device work landing on the
-  frame that already carries the arrival, which goes against "compute nothing twice".
-  → Target shape: `WavePass` keeps the seconds it last synthesised and records nothing when asked
-  for the same seconds. Once the queue order makes those tiles visible to every later trace, they
-  are the answer. Alternatively the renderer synthesises once per frame before the views and the
-  trace, and the chain only reads the result.
-
 ### `noise`: work every run pays for nothing
 
 - [ ] `apps/rtxtool/main.cpp:1027-1046` (`picture`, through `measureFrames`) — **[perf]** Every stop warms `sHistoryFrames` = 128 frames, which is four times the accumulator's length. The bar and its 32 limit draws are traced unfiltered (`side.unfiltered()`: no denoiser, no reuse, upscaler off) under a held exposure. They read no accumulator history, so the 128 frames are sized for a history they do not have. Per place and side that is 33 stops × 128 = 4224 warm-up frames out of about 9 400, or 45 % of the run. The reference is excluded: it measures its exposure and needs the adaptation time. What an unfiltered, held-exposure frame does carry over frames is the air, which decays by 0.9 a frame (`run.hpp:88`). Reaching the accumulator's own 1.7 % residue takes 0.9ⁿ ≤ 0.017, so n = 39. → Target shape: an unfiltered held-exposure stop warms for a count derived from the air's decay, not from `ACCUMULATE_FRAMES`, beside the filtered stops' `sHistoryFrames`. Expect about 30 % off every `noise` run. Confirm with one place that the bar and limit pictures do not move.

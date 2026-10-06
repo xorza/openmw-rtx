@@ -550,9 +550,10 @@ measures it, since the frame it shortens is the rare one a storm's first frames 
 A frozen root that moves no longer costs a sweep: a dropped hold leaves the counts short until the
 walk reaches the entry again, and a root whose face changed stays thawed until a later walk finds it
 standing still, so a turning door is walked each frame and frozen on none.
+The sea is synthesised once per water time (`WavePass::holds`): the pictures of a cell crossing and
+the frame share one synthesis.
 
 - **Uniform frame times.**
-  - the sea synthesised once per water time;
   - the visibility gates' per-frame rerun.
 - **Unused work.**
   - the arms' `tmax`;

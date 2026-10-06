@@ -107,6 +107,7 @@ namespace Rtx
         batch.flush();
 
         mSea = sea;
+        mSynthesised.reset();
     }
 
     void WavePass::handOver(VkCommandBuffer commands) const
@@ -121,6 +122,8 @@ namespace Rtx
 
     void WavePass::record(VkCommandBuffer commands, const osg::Vec2f& seconds) const
     {
+        mSynthesised = seconds;
+
         // **The cascades in step, one barrier a stage for both.** A cascade's stages wait on each
         // other and never on the other cascade's, so each stage is dispatched for every tile before
         // the queue drains: one tile at a time drained it after every dispatch of both.
