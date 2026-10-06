@@ -1,7 +1,10 @@
 #pragma once
 
+#include <optional>
+
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/exposure.h>
@@ -27,9 +30,11 @@ namespace Rtx
         ///
         /// @param frame the finished frame in linear radiance, in `VK_IMAGE_LAYOUT_GENERAL`.
         /// @param elapsedSeconds since the previous frame.
-        /// @param reset true where there is no previous exposure to move from — the first frame, and
-        ///        any frame the renderer was told has no past. The measurement is taken outright.
-        void record(VkCommandBuffer commands, const Image& frame, float elapsedSeconds, bool reset, float bias) const;
+        /// @param reset where the eye starts on a frame with no previous exposure to move from — the
+        ///        first frame, and any frame the renderer was told has no past — or nothing where it
+        ///        moves from the exposure the frame before left.
+        void record(VkCommandBuffer commands, const Image& frame, float elapsedSeconds, std::optional<EyeStart> reset,
+            float bias) const;
 
         /// Holds the frame's exposure at `value` instead, measuring nothing — what a pixel test and
         /// a converged reference are built at. The frame's buffer either way, so the curve never

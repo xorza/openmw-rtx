@@ -501,8 +501,11 @@ namespace Rtx::Testing
                     .mTexture = 0u }
                                       : noStars();
 
+                // **At an exposure of one, held**: the frame is black but for the field, which the
+                // meter never sees, and a black frame leaves a measured eye where it stood.
                 std::vector<std::uint8_t> pixels;
-                renderPicture(scene, sheet, camera, size, pixels);
+                shoot(scene, sheet, camera, size);
+                mRenderer.readPixels(pixels);
 
                 std::array<std::uint8_t, 2> halves{ 0, 0 };
                 for (std::uint32_t row = 0; row < size; ++row)

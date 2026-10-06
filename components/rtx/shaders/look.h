@@ -108,6 +108,20 @@ namespace Rtx::Shaders
     const float EXPOSURE_MIN = 0.05f / DAYLIGHT_GAIN;
     const float EXPOSURE_MAX = 200.0f;
 
+    /// Where the eye starts once it has no past: a bright day's exposure, which the eye then
+    /// opens from toward what the frame measures.
+    ///
+    /// **Dark to normal, and never bright to normal.** A load or a cut resets the eye on the first
+    /// frame of a world that arrives over the frames after it, and taken outright, that frame's
+    /// measurement exposed for a world half there: the picture stood bright and closed over
+    /// `EXPOSURE_FALL_SECONDS`. Started at a day, an exterior in daylight starts where it settles
+    /// and an interior opens from the dark, as an eye does coming in from outside.
+    ///
+    /// **A day is the key lifted by the day's gain**, so the meter settles at
+    /// `(1 / DAYLIGHT_GAIN)^EXPOSURE_ADAPTATION`, `10^-0.75`, written as the literal it is for the
+    /// reason `portable.h` gives.
+    const float EXPOSURE_DAY = 0.17782794f;
+
     /// How long the exposure takes to open, as the time constant of an exponential approach, in
     /// seconds.
     ///

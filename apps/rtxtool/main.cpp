@@ -136,8 +136,11 @@ namespace RtxTool
         /// What `--exposure` asked for: a number to hold it at, or nothing to measure it.
         Rtx::ExposureRule parseExposure(std::string_view text)
         {
+            // **Settled at every stop**, where the game opens from a day: a stop starts with no past
+            // and warms up for less time than an eye takes to open in a room, and a measured picture
+            // is of the eye that place settles on.
             if (text == "auto")
-                return Rtx::MeasuredExposure{};
+                return Rtx::MeasuredExposure{ .mStart = Rtx::EyeStart::Settled };
 
             const std::optional<float> value = parseFloat(text);
             if (!value.has_value() || !(*value > 0.0f))

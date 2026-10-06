@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include <numbers>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -27,7 +28,8 @@ namespace Rtx
         struct RtxExposurePassTest : Testing::DeviceTest
         {
             /// What the pass meters a frame of `width` by `height` pixels, every one of them
-            /// `luminance`, at: taken outright, as a reset takes it, and with no bias.
+            /// `luminance`, at, with no bias: the frame metered twice, from a reset and then over a
+            /// time long enough that the eye closes the whole gap (`sSettling`).
             float meter(std::uint32_t width, std::uint32_t height, float luminance)
             {
                 Device& device = getDevice();
@@ -48,7 +50,13 @@ namespace Rtx
                         commands, frame.getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &colour, 1, &whole);
 
                     frame.transition(commands, Use::sClearWrite, Use::sComputeRead);
-                    pass.record(commands, frame, 0.0f, true, 1.0f);
+                    pass.record(commands, frame, 0.0f, EyeStart::Day, 1.0f);
+                });
+
+                // A submit of its own, whose head barrier orders its histogram's clear after the
+                // reduction above read it.
+                getPool().submitAndWait([&](VkCommandBuffer commands) {
+                    pass.record(commands, frame, sSettling, std::nullopt, 1.0f);
 
                     pass.getExposure().transition(commands, Use::sBufferComputeWrite, Use::sBufferCopyRead);
                     pass.getExposure().copyTo(commands, read, sizeof(float));
@@ -65,11 +73,26 @@ namespace Rtx
                 std::vector<float> mLuminances;
                 float mElapsed = 0.0f;
                 bool mReset = true;
+
+                /// Where a reset starts the eye: the game's day unless a test of the other says.
+                EyeStart mStart = EyeStart::Day;
             };
 
             /// What the pass holds after metering `frames` in order, each `sSide` square, with no
             /// bias: the exposure the last one left.
             static constexpr std::uint32_t sSide = 50;
+
+            /// A time over which the eye closes the whole gap to what it meters, either way:
+            /// `exp(-1000 / EXPOSURE_RISE_SECONDS)` is nought in a float.
+            static constexpr float sSettling = 1000.0f;
+
+            /// The frames that settle the eye on `luminances`: a reset, which starts it at a day, and
+            /// the same frame again over `sSettling`.
+            static std::array<Metered, 2> settledOn(const std::vector<float>& luminances)
+            {
+                return { Metered{ .mLuminances = luminances },
+                    Metered{ .mLuminances = luminances, .mElapsed = sSettling, .mReset = false } };
+            }
 
             float meterAll(std::span<const Metered> frames)
             {
@@ -97,7 +120,8 @@ namespace Rtx
                         vkCmdCopyBufferToImage(commands, staging.getHandle(), frame.getHandle(),
                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
                         frame.transition(commands, Use::sCopyWrite, Use::sComputeRead);
-                        pass.record(commands, frame, metered.mElapsed, metered.mReset, 1.0f);
+                        pass.record(commands, frame, metered.mElapsed,
+                            metered.mReset ? std::optional(metered.mStart) : std::nullopt, 1.0f);
 
                         pass.getExposure().transition(commands, Use::sBufferComputeWrite, Use::sBufferCopyRead);
                         pass.getExposure().copyTo(commands, read, sizeof(float));
@@ -132,18 +156,64 @@ namespace Rtx
             for (std::size_t at = 0; at < flames.size() * 8 / 100; ++at)
                 flames[at * 12 % flames.size()] = 100.0f;
 
-            const float keyed = meterAll(std::array{ Metered{ .mLuminances = even(0.18f) } });
-            EXPECT_EQ(meterAll(std::array{ Metered{ .mLuminances = flames } }), keyed)
-                << "the brightest tenth moved the meter";
+            const float keyed = meterAll(settledOn(even(0.18f)));
+            EXPECT_EQ(meterAll(settledOn(flames)), keyed) << "the brightest tenth moved the meter";
 
-            const float dark = meterAll(std::array{ Metered{ .mLuminances = even(0.018f) } });
+            const float dark = meterAll(settledOn(even(0.018f)));
             ASSERT_GT(dark, 2.0f * keyed) << "a frame ten times darker wants the eye open";
             ASSERT_LT(dark, Shaders::EXPOSURE_MAX);
 
             const float half = Shaders::EXPOSURE_RISE_SECONDS * std::numbers::ln2_v<float>;
-            const float adapted = meterAll(std::array{ Metered{ .mLuminances = even(0.18f) },
-                Metered{ .mLuminances = even(0.018f), .mElapsed = half, .mReset = false } });
+            const std::array<Metered, 2> settled = settledOn(even(0.18f));
+            const float adapted = meterAll(std::array{
+                settled[0], settled[1], Metered{ .mLuminances = even(0.018f), .mElapsed = half, .mReset = false } });
             EXPECT_NEAR(adapted, std::sqrt(keyed * dark), std::sqrt(keyed * dark) * 1e-5f) << "half the gap in stops";
+        }
+
+        /// **An eye with no past starts at a bright day and opens toward what it meters**, so a load
+        /// goes from dark to normal and never from bright to normal; **and a frame with nothing lit
+        /// leaves the eye where it stands.**
+        ///
+        /// A reset frame moves the eye no time, so it holds `EXPOSURE_DAY`, `(1/10)^0.75` = 0.1778,
+        /// whatever the frame is: a room at a tenth of the key wants it open. Over `ln 2` of the
+        /// rising time constant it opens half the gap in stops, to the geometric mean of the day and
+        /// the room's own exposure. A black frame — every pixel under `EXPOSURE_BLACK`, a world still
+        /// arriving — over any time leaves an eye settled on the key where it was, to the bit, where
+        /// a target of one opened it by stops on the frames a load begins with.
+        TEST_F(RtxExposurePassTest, anEyeWithNoPastStartsAtADayAndABlackFrameHoldsIt)
+        {
+            EXPECT_NEAR(
+                Shaders::EXPOSURE_DAY, std::pow(1.0f / Shaders::DAYLIGHT_GAIN, Shaders::EXPOSURE_ADAPTATION), 1e-7f);
+
+            const std::vector<float> room = even(0.018f);
+            EXPECT_EQ(meterAll(std::array{ Metered{ .mLuminances = room } }), Shaders::EXPOSURE_DAY)
+                << "a reset took the room's exposure outright";
+
+            const float roomed = meterAll(settledOn(room));
+            ASSERT_GT(roomed, 2.0f * Shaders::EXPOSURE_DAY) << "a room wants the eye open past a day";
+            const float half = Shaders::EXPOSURE_RISE_SECONDS * std::numbers::ln2_v<float>;
+            const float opening = meterAll(std::array{
+                Metered{ .mLuminances = room }, Metered{ .mLuminances = room, .mElapsed = half, .mReset = false } });
+            const float between = std::sqrt(Shaders::EXPOSURE_DAY * roomed);
+            EXPECT_NEAR(opening, between, between * 1e-5f) << "half the gap from a day, in stops";
+
+            const std::array<Metered, 2> keyed = settledOn(even(0.18f));
+            const float settled = meterAll(keyed);
+            EXPECT_EQ(meterAll(std::array{ keyed[0], keyed[1],
+                          Metered{ .mLuminances = even(0.0f), .mElapsed = 1.0f, .mReset = false } }),
+                settled)
+                << "a black frame moved the eye";
+            EXPECT_EQ(meterAll(std::array{ Metered{ .mLuminances = even(0.0f) } }), Shaders::EXPOSURE_DAY)
+                << "a black frame with no past";
+
+            // **A measured run's reset takes the frame's measurement outright** (`EyeStart::Settled`):
+            // the room's own exposure on its first frame, where the game's holds the day.
+            const float settledAtOnce
+                = meterAll(std::array{ Metered{ .mLuminances = room, .mStart = EyeStart::Settled } });
+            EXPECT_NEAR(settledAtOnce, roomed, roomed * 1e-5f) << "a settled start eased from a day";
+            EXPECT_EQ(meterAll(std::array{ Metered{ .mLuminances = even(0.0f), .mStart = EyeStart::Settled } }),
+                Shaders::EXPOSURE_DAY)
+                << "a settled start on a black frame";
         }
 
         /// A frame too large to sum its bins in a word meters as bright as it is.

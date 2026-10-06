@@ -429,9 +429,10 @@ namespace Rtx::Testing
         /// exterior from an exposure of order tens to exactly one between two frames.
         ///
         /// Two skies a factor of thirty-two apart and nothing else in the picture, so the histogram
-        /// is the only thing that changed. Every case is claimed: told it has no past, the eye
-        /// arrives at once; told it has one, it has barely moved a frame later; told no time passed,
-        /// it has not moved at all; held, it has not moved whatever it was told.
+        /// is the only thing that changed. Every case is claimed: told it has no past, the eye holds
+        /// a bright day's exposure (`EXPOSURE_DAY`); given a long frame, it arrives; told it has a
+        /// past, it has barely moved a frame later; told no time passed, it has not moved at all;
+        /// held, it has not moved whatever it was told.
         ///
         /// **Driven frame by frame rather than through `shoot`**, because that helper calls
         /// `setScene` every time and a new scene costs every history — the eye's too, and a lost eye
@@ -476,12 +477,23 @@ namespace Rtx::Testing
                 return meanByte();
             };
 
+            // Where the eye arrives on `camera`: a frame with no past, which holds a day, and the same
+            // frame again over a time it closes the whole gap in.
+            const auto settle = [&](const Shaders::VisibilityConstants& camera) {
+                shot(camera, 1.0f / 60.0f, HistoryLoss::Cut);
+                return shot(camera, 1000.0f);
+            };
+
             // Nothing to hit, so every pixel is the sky and the mean of the frame is the sky. The
             // scene is set once: setting it again would clear the previous camera and reset the eye.
             mRenderer.resize(size, size);
             mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc{}, {});
 
-            const double lit = shot(bright);
+            // The dim sky at a day's exposure, which every frame with no past draws.
+            const double dayDim = shot(dim);
+            EXPECT_EQ(shot(dim, 1.0f / 60.0f, HistoryLoss::Cut), dayDim) << "a cut did not start the eye at a day";
+
+            const double lit = settle(bright);
             ASSERT_GT(lit, 0.0) << "the bright sky rendered as black";
 
             // The same sky thirty-two times darker, one frame later and with a past to move from.
@@ -489,12 +501,13 @@ namespace Rtx::Testing
             // so it has gone almost nowhere.
             const double justAfter = shot(dim);
 
-            // No time at all after that, and the eye has had none to move in: the exposure a reset
-            // takes outright is the reset's to take, and a frame that stood for nothing is no reset.
+            // No time at all after that, and the eye has had none to move in: a frame that stood for
+            // nothing is no reset.
             EXPECT_EQ(shot(dim, 0.0f), justAfter) << "the eye moved in no time";
 
-            // And the same sky again with no past, which is where it is headed.
-            const double adapted = shot(dim, 1.0f / 60.0f, HistoryLoss::Cut);
+            // And where it is headed: the eye settled on the dim sky.
+            const double adapted = settle(dim);
+            EXPECT_GT(adapted, dayDim) << "the dim sky did not open the eye past a day";
 
             EXPECT_GT(adapted, 0.0) << "the dark sky rendered as black even with the eye open";
             EXPECT_LT(justAfter, 0.5 * adapted)
@@ -515,18 +528,18 @@ namespace Rtx::Testing
 
             // **A new extent keeps the eye**: an eye adapted to the bright sky meets the dim one past
             // two upscale modes as it met it before them, barely moved, where an eye that lost its
-            // past would take the dim sky outright.
-            EXPECT_EQ(shot(bright, 1.0f / 60.0f, HistoryLoss::Cut), lit);
+            // past would start again at a day.
+            EXPECT_EQ(settle(bright), lit);
             mRenderer.setUpscale(Upscale::Quality);
             mRenderer.setUpscale(Upscale::Off);
             EXPECT_LT(shot(dim), 0.5 * adapted) << "a new extent snapped the eye";
 
             // **And a new world loses it, whatever frame comes first**: a held frame after the world
-            // is handed over spends nothing of the eye's loss, and the measured frame after it takes
-            // the dim sky outright, as a cut's frame does, rather than easing from the old world's eye.
+            // is handed over spends nothing of the eye's loss, and the measured frame after it starts
+            // at a day, as a cut's frame does, rather than easing from the old world's eye.
             mRenderer.setScene(Rtx::SceneSlot::world(), SceneDesc{}, {});
             held(bright);
-            EXPECT_EQ(shot(dim), adapted) << "the measured frame eased from the old world's eye";
+            EXPECT_EQ(shot(dim), dayDim) << "the measured frame eased from the old world's eye";
         }
 
         /// A reset survives a frame that has no history to reset, and such a frame leaves none.

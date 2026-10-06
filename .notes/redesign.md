@@ -580,9 +580,16 @@ costing more than the strides passed save, and its p99 1.08 → 1.09; the p99 is
 **Declined by its bound: the sprite shade's batches in shared memory.** The shade zone is 0.011 ms
 at the night storm and 0.04 at the overcast deck, under a bench median's noise.
 
+**Measured and declined: one trace site in `visibility.rgen`.** The four sites folded into one loop
+over the eye and the layer draw the same pictures at every place, and are slower: the trace zone's
+median 3.68 → 3.82 ms at the dawn deck and 1.75 → 1.77 at the guild over six runs a side
+(`~/.cache/omw-redesign/ab-site`).
+
+**Stopped here on the user's word** (2026-10-06): Phase 8 is done; Phase 9 and section 6 are not
+started.
+
 - **Uniform frame times.**
 - **Unused work.**
-  - the single trace site in `visibility.rgen`;
 
 Each one is a `release bench` A/B, and is kept only if its median or p99 improves. A per-lane
 branch is kept only with its measurement written beside it.

@@ -142,7 +142,8 @@ namespace Rtx
             else
             {
                 const FrameLook::Measured& measured = std::get<FrameLook::Measured>(look->mExposure);
-                mExposure.record(commands, shown, measured.mSeconds, mExposureStale, measured.mBias);
+                mExposure.record(commands, shown, measured.mSeconds,
+                    mExposureStale ? std::optional(measured.mStart) : std::nullopt, measured.mBias);
                 mExposureStale = false;
             }
             closeZone(timer, commands);

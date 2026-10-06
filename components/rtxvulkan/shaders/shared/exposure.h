@@ -47,6 +47,13 @@ namespace Rtx::Shaders
         uint mHeight;
     };
 
+    /// What `ExposureConstants::mReset` says of the frame: it has a past, or it has none and the eye
+    /// holds a bright day (`EXPOSURE_DAY`), or it has none and the eye takes what the frame
+    /// measures outright — `Rtx::EyeStart`'s two.
+    const uint EXPOSURE_RESET_NONE = 0u;
+    const uint EXPOSURE_RESET_DAY = 1u;
+    const uint EXPOSURE_RESET_SETTLED = 2u;
+
     /// What the reduction needs to undo the binning.
     struct ExposureConstants
     {
@@ -57,8 +64,9 @@ namespace Rtx::Shaders
         /// than a fraction per frame. Nought moves nothing: a frame with no past is `mReset`.
         float mElapsed;
 
-        /// One where there is no previous exposure to move away from — the first frame, and any
-        /// frame the renderer was told has no past. The measured value is taken outright.
+        /// `EXPOSURE_RESET_NONE` where the eye moves from the exposure the frame before left, and one
+        /// of the other two where there is no previous exposure to move away from — the first frame,
+        /// and any frame the renderer was told has no past: `Rtx::EyeStart` says which.
         uint mReset;
 
         /// What to multiply the measured target by before anything approaches it. See

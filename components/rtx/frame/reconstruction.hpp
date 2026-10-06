@@ -292,9 +292,24 @@ namespace Rtx
         Summed,
     };
 
+    /// Where a measured eye stands on a frame with no past: a load, a cut, a new world.
+    enum class EyeStart
+    {
+        /// At a bright day's exposure (`Shaders::EXPOSURE_DAY`), opening toward what the frames
+        /// after measure: the game's, whose world arrives over the frames after a load, so a
+        /// picture goes from dark to normal and never from bright to normal.
+        Day,
+
+        /// At what the frame measures, outright: a measured run's, whose every stop starts with no
+        /// past and warms up for less time than an eye takes to open from a day in a room.
+        Settled,
+    };
+
     /// The scale measured off the frame, as the eye adapts.
     struct MeasuredExposure
     {
+        EyeStart mStart = EyeStart::Day;
+
         bool operator==(const MeasuredExposure&) const = default;
     };
 
