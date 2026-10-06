@@ -103,7 +103,7 @@ namespace RtxTool
         const Writing into{ context, report, record };
 
         if (!actions.mCapture.empty())
-            writeCapture(into, actions.mCapture);
+            writeCapture(into, actions.mCapture, actions.mDeepCapture);
 
         if (actions.mMean.has_value())
             addToMean(into, *actions.mMean);
@@ -147,11 +147,11 @@ namespace RtxTool
         if (mMean.getCount() < mean.mOf)
             return;
 
-        mMean.mean(mMeanSamples);
+        mMean.mean(mSamples);
         mMean.clear();
         mMeanFile.clear();
         const Misc::Result<void, std::string> written
-            = Rtx::writePng(mean.mFile, extents.mOutputWidth, extents.mOutputHeight, mMeanSamples);
+            = Rtx::writePng(mean.mFile, extents.mOutputWidth, extents.mOutputHeight, mSamples);
         if (!written.isOk())
         {
             into.mRecord.note(written.error() + "\n");
@@ -163,14 +163,21 @@ namespace RtxTool
             extents.mOutputWidth, extents.mOutputHeight, mean.mOf));
     }
 
-    void StopWriter::writeCapture(const Writing& into, const std::filesystem::path& file)
+    void StopWriter::writeCapture(const Writing& into, const std::filesystem::path& file, const bool deep)
     {
         Rtx::Renderer& renderer = into.mContext.mBackend;
         const Rtx::FrameExtents extents = renderer.getExtents();
 
-        renderer.readPixels(mPixels);
-        const Misc::Result<void, std::string> written
-            = Rtx::writePng(file, extents.mOutputWidth, extents.mOutputHeight, mPixels);
+        const auto write = [&]() -> Misc::Result<void, std::string> {
+            if (!deep)
+            {
+                renderer.readPixels(mPixels);
+                return Rtx::writePng(file, extents.mOutputWidth, extents.mOutputHeight, mPixels);
+            }
+            renderer.readDeepPixels(mSamples);
+            return Rtx::writePng(file, extents.mOutputWidth, extents.mOutputHeight, mSamples);
+        };
+        const Misc::Result<void, std::string> written = write();
         if (!written.isOk())
         {
             into.mRecord.note(written.error() + "\n");

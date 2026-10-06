@@ -37,6 +37,11 @@ namespace Rtx::Shaders
 /// image in it.
 #define TONE_TARGET_FORMAT STORAGE_RGBA8
 
+/// What a summed frame's picture is written as beside it (`PresentTarget::requireDeep`): a mean of many
+/// frames falls between the levels a byte holds, and rounded to one it carries half a level of
+/// error into every measure taken against it.
+#define TONE_DEEP_FORMAT STORAGE_RGBA16
+
     /// One step of the store, `TONE_TARGET_FORMAT`'s: what `ToneConstants::mDitherStep` is when the
     /// frame dithers.
     const float TONE_DITHER_STEP = 1.0 / 255.0;
@@ -159,8 +164,10 @@ namespace Rtx::Shaders
         uint mFrame;
 
         /// How far the dither reaches either way: `TONE_DITHER_STEP`, or nought for no dither — a
-        /// picture inside the interface, and a profile that asks for none (`RenderProfile::mDither`).
-        /// A factor and not a switch, so every lane takes the one path.
+        /// picture inside the interface, a profile that asks for none (`RenderProfile::mDither`),
+        /// and the sixteen-bit picture, whose rounding is under anything measured against it and
+        /// which a dither would only add noise to. A factor and not a switch, so every lane takes
+        /// the one path.
         float mDitherStep;
     };
 

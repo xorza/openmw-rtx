@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <span>
@@ -579,6 +580,7 @@ namespace Rtx
 
         Image& target = mTarget.getPicture();
         mShownCurrent = false;
+        mDeepCurrent = options.mAccumulate > 0;
 
         const TraceResult traced = mFrame.record(commands,
             TraceRecording{
@@ -656,6 +658,7 @@ namespace Rtx
                     .mInverseGamma = mInverseGamma,
                     .mNightEye = options.mNightEye,
                     .mDither = options.mDither.value_or(mProfile.mDither),
+                    .mDeep = mDeepCurrent ? &mTarget.requireDeep(mDevice) : nullptr,
                     .mDebug = options.mDebug,
                     .mDebugVertices = frame.mDebugVertices,
                     .mTimer = timer,
@@ -730,6 +733,16 @@ namespace Rtx
         assert(mTarget.isOpen());
 
         mTarget.getPicture().read(VK_IMAGE_LAYOUT_GENERAL, pixels);
+    }
+
+    void VulkanRenderer::readDeepPixels(std::vector<std::uint16_t>& samples)
+    {
+        assert(mDeepCurrent && "a sixteen-bit picture asked of a frame that did not sum");
+
+        std::vector<std::uint8_t> bytes;
+        mTarget.getDeep().read(VK_IMAGE_LAYOUT_GENERAL, bytes);
+        samples.resize(bytes.size() / sizeof(std::uint16_t));
+        std::memcpy(samples.data(), bytes.data(), samples.size() * sizeof(std::uint16_t));
     }
 
     void VulkanRenderer::readShown(std::vector<std::uint8_t>& pixels)

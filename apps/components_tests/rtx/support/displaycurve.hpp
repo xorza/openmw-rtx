@@ -41,6 +41,20 @@ namespace Rtx::Testing
         return std::clamp(Shaders::encodeSrgb(graded - Shaders::TONE_SHADOW_OFFSET), 0.0f, 1.0f) * 255.0f;
     }
 
+    /// The grey whose `displayedLevel` is `level`, by bisection over the straight stretch: what a
+    /// test that wants a level between two bytes exposes a white surface at.
+    inline float greyForLevel(float level)
+    {
+        float low = 0.1f;
+        float high = 0.5f;
+        for (int step = 0; step < 40; ++step)
+        {
+            const float middle = 0.5f * (low + high);
+            (displayedLevel(middle) < level ? low : high) = middle;
+        }
+        return 0.5f * (low + high);
+    }
+
     /// The byte `tone.comp` writes for that grey: `displayedLevel` rounded, as the store rounds it.
     inline std::uint8_t displayedGrey(float linear)
     {

@@ -69,6 +69,11 @@ namespace Rtx
         /// Whether the curve dithers its store, `RenderProfile::mDither`.
         bool mDither;
 
+        /// Where the curve writes the frame a second time at sixteen bits a channel, undithered
+        /// and without the lines, left as `Display::mLeftAs` leaves the picture; or null. A summed
+        /// frame's, `PresentTarget::requireDeep`.
+        Image* mDeep;
+
         /// The debug modes' lines and triangles over the picture, and the slot's own buffer they
         /// are drawn from: the frame behind read its own slot's, so nothing here is written under
         /// a submit.
