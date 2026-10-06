@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -44,16 +45,34 @@ namespace Rtx
         /// Submits and waits.
         explicit RipplePass(const Device& device);
 
-        /// Steps the field once where a sixtieth has accrued on `waterSeconds` since the last step,
-        /// presses `impulses`, and unpacks the tiles. The window follows `eye` by whole texels.
-        /// Nothing at all where no step is due and nothing is pressed, which leaves the tiles as
-        /// they were.
+        /// Steps the field by the time `waterSeconds` moved since the last step, in as few steps as
+        /// keep each within `getLongestStep` and no more than `RIPPLE_SUBSTEPS_MOST`, presses
+        /// `impulses` with the first, and unpacks the tiles. The window follows `eye` by whole
+        /// texels. Nothing at all where the clock did not move, which leaves the tiles as they were.
+        ///
+        /// **Every frame and not once a sixtieth**, as upstream steps, which is a look of its own:
+        /// the same springs over the same time, and a wake that keeps its pace under sixty frames a
+        /// second, where upstream's slows. AGENTS.md's Accepted diff names it.
         ///
         /// @param slot the frame's, which names the copy of the impulse buffer this frame writes.
         /// @param timer where the step's zone goes, or nothing where nobody is counting. Opened
         ///        only on a frame that steps, so a frame that stands still reports no zone.
         void record(VkCommandBuffer commands, FrameSlot slot, std::span<const RippleImpulse> impulses,
             const osg::Vec2f& eye, double waterSeconds, GpuTimer* timer);
+
+        /// The longest step the springs stand, in sixtieths.
+        ///
+        /// **The five-point Laplacian's highest mode**, the checkerboard, is pulled by `8 a + udamp`
+        /// a sixtieth squared; a step of `s` keeps it bounded while `s² (8 a + udamp) ≤ 2 (1 + c)`,
+        /// `c` the carry `(1 − vdamp)^s`. Under two sixtieths the carry is at least `(1 − vdamp)²`,
+        /// which this takes, so the bound holds over the step it names: 1.298 sixtieths, a frame
+        /// of 46 a second.
+        static float getLongestStep()
+        {
+            const float carried = (1.0f - Shaders::RIPPLE_VELOCITY_DAMPING) * (1.0f - Shaders::RIPPLE_VELOCITY_DAMPING);
+            return std::sqrt(
+                2.0f * (1.0f + carried) / (8.0f * Shaders::RIPPLE_STIFFNESS + Shaders::RIPPLE_HEIGHT_DAMPING));
+        }
 
         /// Drops what the field holds, for a world that was replaced rather than moved through.
         void reset() { mReset = true; }
@@ -102,8 +121,10 @@ namespace Rtx
         osg::Vec2i mWindow;
         osg::Vec2f mOrigin;
 
-        /// The water's clock at the last step, in whole sixtieths.
-        std::int64_t mSteppedTick = 0;
+        /// The water's clock at the last step, and how long that step was in sixtieths, or nought
+        /// for a field that has taken none since it was reset.
+        double mSteppedSeconds = 0.0;
+        float mLastStep = 0.0f;
         bool mReset = true;
     };
 }

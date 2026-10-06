@@ -39,18 +39,6 @@ namespace Rtx
 
         constexpr std::uint32_t sGrid = Shaders::RIPPLE_GRID;
 
-        /// Which sixtieth of the water's clock `seconds` falls in.
-        ///
-        /// **A count and not a remainder, so the arithmetic cannot drift.** A remainder carried
-        /// in floating point fell a few ulps short of a sixtieth every so often and skipped the
-        /// step; a tick is a floor, and a thousandth of a tick of slack keeps a clock that lands
-        /// exactly on a sixtieth on the right side of it.
-        std::int64_t tickOf(const double seconds)
-        {
-            return static_cast<std::int64_t>(
-                std::floor(seconds * static_cast<double>(Shaders::RIPPLE_STEP_RATE) + 1.0e-3));
-        }
-
         constexpr Groups sGroups = Groups::covering(sGrid, sGrid, Shaders::RIPPLE_WORKGROUP);
     }
 
@@ -114,10 +102,11 @@ namespace Rtx
         if (mReset)
         {
             standWindow(windowOf(eye));
-            mSteppedTick = tickOf(waterSeconds);
+            mSteppedSeconds = waterSeconds;
+            mLastStep = 0.0f;
             mReset = false;
 
-            // The tiles too, because the step below is due only on the next tick and the trace
+            // The tiles too, because the step below is due only once the clock moves and the trace
             // samples them in between.
             const VkClearColorValue still{ .float32 = { 0.0f, 0.0f, 0.0f, 0.0f } };
             for (const Image& field : mFields)
@@ -126,21 +115,29 @@ namespace Rtx
                 image->clear(commands, Use::sShaderSample, still, Use::sShaderSample);
         }
 
-        // What this frame disturbed, kept until the step that presses it: a frame that comes round
-        // before a sixtieth has accrued steps nothing, and its footfalls wait for the step rather
-        // than being dropped. Capped at what the buffer holds, oldest first.
+        // What this frame disturbed, kept until the step that presses it: a frame the water's clock
+        // stood still over steps nothing, and its footfalls wait for the step rather than being
+        // dropped. Capped at what the buffer holds, oldest first.
         for (const RippleImpulse& impulse : impulses)
             if (mPending.size() < Shaders::RIPPLE_IMPULSES_MOST)
                 mPending.push_back(impulse);
 
-        // One step where a sixtieth has passed, as `RipplesSurface::updateState` steps: a frame
-        // that comes round before one is due neither steps nor moves the window, and a frame that
-        // took several steps a second still steps once. A clock that ran backwards stands still.
-        const std::int64_t tick = tickOf(waterSeconds);
-        if (tick <= mSteppedTick)
+        // **Every frame the clock moved, by the time it moved**, where `RipplesSurface::updateState`
+        // steps once a sixtieth: at 120 frames a second that left every other frame the whole cost
+        // of a step and the frames between none, and under 60 the wake slowed. A clock that stood
+        // still or ran backwards steps nothing and moves no window.
+        const double elapsed = (waterSeconds - mSteppedSeconds) * static_cast<double>(Shaders::RIPPLE_STEP_RATE);
+        if (!(elapsed > 0.0))
             return;
 
-        mSteppedTick = tick;
+        mSteppedSeconds = waterSeconds;
+
+        // As few steps as keep each under the longest the springs stand, and no more than
+        // `RIPPLE_SUBSTEPS_MOST`: a frame slower than those drops the rest of its time.
+        const auto steps
+            = static_cast<std::uint32_t>(std::min<double>(std::ceil(elapsed / static_cast<double>(getLongestStep())),
+                static_cast<double>(Shaders::RIPPLE_SUBSTEPS_MOST)));
+        const float step = std::min(static_cast<float>(elapsed / static_cast<double>(steps)), getLongestStep());
 
         openZone(timer, commands, "ripples");
 
@@ -164,24 +161,36 @@ namespace Rtx
         if (!mImpulseScratch.empty())
             impulseBuffer.write(std::span<const Shaders::GpuRippleImpulse>(mImpulseScratch));
 
-        const Image& before = mFields[mLatest];
-        const Image& after = mFields[1 - mLatest];
-        mLatest = 1 - mLatest;
+        // The first step reads the old window at its shift and presses the frame's impulses; the
+        // steps after it carry on from it.
+        for (std::uint32_t at = 0; at < steps; ++at)
+        {
+            const Image& before = mFields[mLatest];
+            const Image& after = mFields[1 - mLatest];
+            mLatest = 1 - mLatest;
 
-        DescriptorWrites steps(mStepPipeline);
-        steps.image(Shaders::RIPPLE_STEP_BIND_BEFORE, before.describeStorage());
-        steps.image(Shaders::RIPPLE_STEP_BIND_AFTER, after.describeStorage());
-        steps.buffer(Shaders::RIPPLE_STEP_BIND_IMPULSES, impulseBuffer.describe());
+            DescriptorWrites writes(mStepPipeline);
+            writes.image(Shaders::RIPPLE_STEP_BIND_BEFORE, before.describeStorage());
+            writes.image(Shaders::RIPPLE_STEP_BIND_AFTER, after.describeStorage());
+            writes.buffer(Shaders::RIPPLE_STEP_BIND_IMPULSES, impulseBuffer.describe());
 
-        const Shaders::RippleStepConstants stepped{
-            .mShift = shift,
-            .mCount = static_cast<std::uint32_t>(mImpulseScratch.size()),
-        };
+            // A field that has taken no step yet holds two equal heights, so the ratio is moot; one.
+            const float last = mLastStep > 0.0f ? mLastStep : step;
+            const Shaders::RippleStepConstants stepped{
+                .mShift = at == 0 ? shift : osg::Vec2i(),
+                .mCount = at == 0 ? static_cast<std::uint32_t>(mImpulseScratch.size()) : 0u,
+                .mCarry = step / last * std::pow(1.0f - Shaders::RIPPLE_VELOCITY_DAMPING, step),
+                .mScale = 0.5f * step * (step + last),
+            };
+            mLastStep = step;
 
-        dispatch(commands, mStepPipeline, steps, stepped, sGroups);
+            dispatch(commands, mStepPipeline, writes, stepped, sGroups);
 
-        // The step wrote what the compose reads, and what the next step reads back.
-        handOver(commands, Use::sBufferComputeWrite, Use::sBufferComputeReadWrite);
+            // The step wrote what the compose reads, and what the next step reads back.
+            handOver(commands, Use::sBufferComputeWrite, Use::sBufferComputeReadWrite);
+        }
+
+        const Image& after = mFields[mLatest];
 
         // Every level of both tiles is written whole below — the first by the compose, the rest by
         // the chain — so none needs what the last frame left in it. Whatever last touched them,

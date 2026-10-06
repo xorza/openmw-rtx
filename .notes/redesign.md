@@ -542,8 +542,11 @@ seconds with no overshoot and no step.
 
 These are the S§14, S§15 and S§16 items, and U › Performance, that no contract above already removed.
 
+**Done**: the ripples step every frame by the time the water's clock moved, in time-corrected Verlet
+steps no longer than the springs stand (1.298 sixtieths) and at most four a frame; the change of look
+is in AGENTS.md's Accepted diff.
+
 - **Uniform frame times.**
-  - the ripples at `dt` (decision 6);
   - the per-tile sprite overflow;
   - the frozen-root sweep;
   - the sea synthesised once per water time;

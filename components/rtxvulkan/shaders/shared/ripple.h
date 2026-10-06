@@ -48,9 +48,14 @@ namespace Rtx::Shaders
     /// across, so 1280 from the eye in every direction.
     const float RIPPLE_TEXEL = 2.5f;
 
-    /// How often the field is stepped, a second. The step is one texel of neighbourhood, so the
-    /// rate is what the springs' wave speed is stated against.
+    /// The rate the springs below are stated against, a second: upstream steps its field at it,
+    /// and a step of `dt` is `RIPPLE_STEP_RATE × dt` of these (`RippleStepConstants`).
     const float RIPPLE_STEP_RATE = 60.0f;
+
+    /// How many steps one frame may take of the field, each no longer than the springs stay stable
+    /// over (`RipplePass::getLongestStep`): a frame slower than that many of the longest steps drops
+    /// the rest of its time, as upstream drops whatever a frame takes past a sixtieth.
+    const uint RIPPLE_SUBSTEPS_MOST = 4u;
 
     /// How many impulses one frame may stamp. Upstream keeps a hundred positions a frame.
     const uint RIPPLE_IMPULSES_MOST = 128u;
@@ -78,17 +83,26 @@ namespace Rtx::Shaders
     };
 
     /// What the step is told: how far the field's window moved since the last step, in texels,
-    /// so the old field is read where it now stands, and how many impulses to press on the way out.
-    /// The springs and the texel are the constants above, which both kernels read for themselves.
+    /// so the old field is read where it now stands, how many impulses to press on the way out,
+    /// and how long a step it is. The springs and the texel are the constants above, which both
+    /// kernels read for themselves.
+    ///
+    /// **A step of `s` sixtieths after one of `p`, as time-corrected Verlet takes it**: the height
+    /// moves on by what it moved over the last step, `s / p` of it, under the velocity's damping
+    /// over `s` sixtieths, `(1 − vdamp)^s`, which is `mCarry`; and by the springs' pull and the
+    /// height's damping, stated per sixtieth squared, over `s (s + p) / 2` of them, `mScale`. At
+    /// `s = p = 1` that is `applySprings` to the term.
     struct RippleStepConstants
     {
         ivec2 mShift;
         uint mCount;
+        float mCarry;
+        float mScale;
     };
 
 #ifdef RTX_HOST
     static_assert(sizeof(GpuRippleImpulse) == 16, "GpuRippleImpulse must be scalar-packed on every side");
-    static_assert(sizeof(RippleStepConstants) == 12, "RippleStepConstants must be scalar-packed on every side");
+    static_assert(sizeof(RippleStepConstants) == 20, "RippleStepConstants must be scalar-packed on every side");
 }
 #endif
 
