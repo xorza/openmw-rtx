@@ -913,16 +913,6 @@ Work done twice, at the wrong time, or for nothing.
   `NavMeshRenderMode`). → Target shape: typed settings (`SettingValue<Rtx::Upscale>` and so on)
   with the parse and the refusal in `components/settings`, so menus and renderer read the enum.
   `sUpscaleNames` stays the one spelling list.
-- [ ] `apps/openmw/mwscript/visibilitygates.cpp:247` — **perf** `update` re-runs every script with
-  a watched input that moved, on the frame it moved. A gate script that reads `GameHour`, or any
-  global that changes every frame (content that disables a lamp or window by the hour), therefore
-  re-runs every frame. That is up to 16 event combinations × 16 interpreter frames
-  (`VisibilityRun::run`), plus `rewatch()`'s quadratic rebuild of `mWatched`, on a path the header
-  calls "a load or a step of the story". The worst frame depends on content the code does not
-  bound. → Target shape: treat inputs that move continuously (`GameHour`, `DaysPassed`, …) as
-  undecided in the gate (`Undecided` is already the answer for history-dependent scripts), or
-  re-run at most once per game hour, so per-frame cost stays flat.
-
 ### Stale narration in the harness
 
 - [ ] `apps/rtxtool/main.cpp:937-939` (`commandCheck`) — **[code]** "Two measured frames, because one of the claims is about a pair of them. A still camera resolving to a still picture cannot be asked of one frame." No row of `sChecks` (`model/benchrun.cpp:63-77`) compares two frames. The only claim about a still's frames, `findStillMoved`, runs only on hashed stops, and `check` neither hashes (`VerbPolicy` row: `mHashes = false`) nor turns off jitter. Either the claim went with an old check, or `check` was meant to ask it. → Target shape: if the still claim belongs to `check`, have `check` hash its frozen, unjittered stops. Otherwise drop the two frames and the comment.
