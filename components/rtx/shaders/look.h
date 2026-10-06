@@ -1368,6 +1368,20 @@ namespace Rtx::Shaders
     /// history describes a different reflection**, and the constant is what that rule was tuned at.
     const float SPECULAR_LOBE_VOLUME = 0.75f;
 
+    /// The perceptual roughness under which the glossy filter's history shortens with the lobe:
+    /// ReBLUR's responsive accumulation (NRD's `ReblurResponsiveAccumulationSettings`), which caps the
+    /// frames at `ACCUMULATE_FRAMES · lerp(c, 1, smoothstep(r / this))`, `c` the specular curve
+    /// `(1 - 2^(-200 r²)) r^¼`. **What bounds a sharp reflection's lag**: the view's turn drops a
+    /// history only where the eye moves, and a lamp or a body moving before a still eye left a
+    /// mirror's reflection thirty-two frames behind it. NRD ships it off, at nought, and names
+    /// animated water as its use; here no fast history bounds the lag instead (`redesign.md`, Phase 3
+    /// step 5). At a quarter: 0.05 keeps seven frames, 0.02 three, and 0.15 twenty-seven.
+    const float SPECULAR_RESPONSIVE_ROUGHNESS = 0.25f;
+
+    /// The fewest frames a responsive history keeps, NRD's default: a mirror's reflection is a sample
+    /// of one lamp drawn among several, and fewer frames than this leave that draw in the picture.
+    const float SPECULAR_RESPONSIVE_FRAMES = 3.0f;
+
     /// How sharply a tap's normal has to agree with the centre's, as the exponent on their cosine.
     ///
     /// A hundred and twenty-eight keeps a tap at more than about six degrees of tilt from
