@@ -83,6 +83,36 @@ bool heldSurfaceMatches(vec4 was, vec3 normal, float distance, vec3 moved, float
         && abs(was.w - before) <= ACCUMULATE_DEPTH * max(before, distanceScale);
 }
 
+/// What a history fetch takes of each of the four texels `footprint` spans, into a new `vec4`
+/// named `shares`: its bilinear share where it is on the screen, is this pixel's surface
+/// (`heldSurfaceMatches` against `heldImage`) and holds a history (`holds`, an expression that may
+/// name the tap as `historyAt`), and nought where it is refused. Their sum, before any kernel
+/// divides by it, is how much of the footprint the history covers.
+///
+/// **One gather for every temporal filter**, so the accumulator, the shadow denoiser, the glossy
+/// filter and the pane filter cannot come to refuse a tap by four rules: written four times, the
+/// shadow's lost its test for a texel that held no history. **A macro because an image is not an
+/// argument** these kernels can hand a function, as `RTX_RESOLVE` says of a query; each kernel then
+/// weighs its own payload by the shares.
+#define RTX_HISTORY_SHARES(shares, footprint, extent, heldImage, holds, normal, away, moved, distanceScale)       \
+    vec4 shares = vec4(0.0);                                                                                    \
+    for (int historyCorner = 0; historyCorner < 4; ++historyCorner)                                             \
+    {                                                                                                           \
+        const float historyBilinear = historyShare(footprint, historyCorner);                                   \
+        const ivec2 historyAt = historyTap(footprint, historyCorner);                                           \
+        if (historyBilinear <= 0.0 || outsideOf(historyAt, extent)                                              \
+            || !heldSurfaceMatches(imageLoad(heldImage, historyAt), normal, away, moved, distanceScale)         \
+            || !(holds))                                                                                        \
+            continue;                                                                                           \
+        shares[historyCorner] = historyBilinear;                                                                \
+    }
+
+/// How much of a history's footprint its matched taps cover: the shares' sum.
+float historyCovered(vec4 shares)
+{
+    return shares.x + shares.y + shares.z + shares.w;
+}
+
 /// Where the trace's ray through `pixel` ended up, `away` along it, through `eye`.
 ///
 /// **The trace's own `rayAt` through the eye the trace used, so these are the rays that were

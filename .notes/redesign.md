@@ -492,10 +492,10 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
 
 ### Phase 3. Temporal history (D2, D6, and the wavelet items)
 
-1. **The gather library first, as a pure refactor.** Fold the four loops and the three
-   `sameSurface` copies into it, with today's rules unchanged, the shadow's missing "no history"
-   test excepted. `shot --against` must show no change outside the shadow's terminators, and
-   `repeat` must agree. Every later step of this phase is then one change in one place.
+1. **The gather library is done** (`RTX_HISTORY_SHARES`): one rule for the four filters' taps, and the
+   shadow's "no history" test with it. The occluder's path keeps `samePlane` until step 3's one match
+   rule. **Owed:** a GPU test of the shadow's "no history" test — a tile with shadowed receivers, lit
+   receivers and non-receivers on one plane, under a soft penumbra and a jittered history.
 2. **The registration rule, test first.** Write the GPU test of a still, jittered edge, and see it
    fail on step 2's code. Then change the fetch and the `samePlane` rebuild, and see it pass.
    Measure with `noise` on the jittered still leg, and with `--strafe=150 --walk=150`.

@@ -105,15 +105,6 @@ layout(push_constant, scalar) uniform Push
     uint dualMotion;
 };
 
-/// Whether the history at `at` belongs to the surface now in front of this pixel.
-bool sameSurface(ivec2 at, vec3 normal, float distance, vec3 moved)
-{
-    if (outsideOf(at, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
-        return false;
-
-    return heldSurfaceMatches(imageLoad(historySurface, at), normal, distance, moved, frame.mDistanceScale);
-}
-
 /// What the history holds of this pixel's surface, summed over the taps that are it, each by its
 /// bilinear share.
 struct Held
@@ -151,20 +142,28 @@ bool samePlane(ivec2 tap, vec3 normal, vec3 anchor)
     return abs(dot(there - anchor, normal)) <= ACCUMULATE_DEPTH * length(anchor);
 }
 
-/// Adds the four texels `before` spans that are this pixel's surface to `held`: by the depth test
-/// where the footprint is the pixel's own reprojection, and by the plane test through `anchor`
-/// where it is the occluder's (`samePlane`).
-///
-/// @param moved the pixel's own `CHANNEL_MOTION`, whose depth step the depth test reads.
-void gatherHistory(
-    inout Held held, HistoryFootprint before, vec3 normal, float away, vec3 moved, bool alongOccluder, vec3 anchor)
+/// The four texels `before` spans that lie on this pixel's plane through `anchor` (`samePlane`), by
+/// their bilinear shares: the occluder's footprint, as `RTX_HISTORY_SHARES` takes the pixel's own.
+vec4 planeShares(HistoryFootprint before, vec3 normal, vec3 anchor)
 {
+    vec4 shares = vec4(0.0);
     for (int i = 0; i < 4; ++i)
     {
         const float bilinear = historyShare(before, i);
+        if (bilinear > 0.0 && samePlane(historyTap(before, i), normal, anchor))
+            shares[i] = bilinear;
+    }
+    return shares;
+}
+
+/// Adds the four texels `before` spans to `held`, each by its matched share.
+void gatherHistory(inout Held held, HistoryFootprint before, vec4 shares)
+{
+    for (int i = 0; i < 4; ++i)
+    {
+        const float bilinear = shares[i];
         const ivec2 tap = historyTap(before, i);
-        const bool same = alongOccluder ? samePlane(tap, normal, anchor) : sameSurface(tap, normal, away, moved);
-        if (bilinear <= 0.0 || !same)
+        if (!(bilinear > 0.0))
             continue;
 
         const vec4 heldMoments = imageLoad(historyMoments, tap);
@@ -269,7 +268,9 @@ void main()
     Held held = Held(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), vec2(0.0), 0.0, 0.0);
     if (frame.mReset == 0u)
     {
-        gatherHistory(held, before, normal, away, moved, false, vec3(0.0));
+        RTX_HISTORY_SHARES(shares, before, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight),
+            historySurface, true, normal, away, moved, frame.mDistanceScale)
+        gatherHistory(held, before, shares);
 
         // **Where the surface was hidden and not off the screen**, the history along the occluder's
         // motion (`occluderMotion`). A branch, which only the pixels an occluder uncovered take:
@@ -289,8 +290,11 @@ void main()
 
             const vec3 dual = occluderMotion(at, moved, away);
             if (dual.z > 0.0)
-                gatherHistory(held, historyFootprint(at, frame.mEyes.mWorld.mJitter, vec3(dual.xy, moved.z)), normal,
-                    away, moved, true, anchor);
+            {
+                const HistoryFootprint along
+                    = historyFootprint(at, frame.mEyes.mWorld.mJitter, vec3(dual.xy, moved.z));
+                gatherHistory(held, along, planeShares(along, normal, anchor));
+            }
         }
     }
 
