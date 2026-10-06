@@ -334,8 +334,6 @@ and the gather runs through the D2 library.
 2. **A column is charged with the coverage it crosses.** One `slantCoverage(from, direction,
    length)` helper reads the coverage at the slant's mean-value point, with the slant as its
    spacing. `fogThroughLeg` and `fogBeamDepth` both call it.
-5. **The lamps' stretch uses one ray.** The lamp integral is cut at the surface found on the ray it
-   is integrated along.
 
 **Performance in the same phase.** The integrate pass reads its tent from shared memory, or the
 tent moves to a parallel pass before a pure scan. The ambient ray per froxel is gated by a
@@ -520,6 +518,8 @@ from the source's direction (`waterCrossingOf`), not on the host. A stored facto
 statement of the direction, and a writer that sets only the direction leaves it stale.
 **Point 4 is done**: a shell and an additive mesh are dimmed by `fogAlong(…).w`, and the sprites'
 march keeps the closed form per crossing.
+**Point 5 is done**: `fogdepth.rgen` traces the block's middle ray as well, and the lamps' stretch
+ends where it stops.
 
 ### Phase 5. The bounce's reuse (D4, decision 4)
 
