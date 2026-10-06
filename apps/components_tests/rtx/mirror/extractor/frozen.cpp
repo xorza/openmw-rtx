@@ -84,8 +84,9 @@ namespace Rtx::Testing
         };
 
         /// **A reference nothing changes is walked once and passed after**, its rows kept through
-        /// every sweep it is not walked in; **moved, it is walked and placed where it went**, and
-        /// frozen again there; **taken off the graph, it is swept.**
+        /// every sweep it is not walked in; **moved, it is walked and placed where it went**, walked
+        /// again on the frame it first stands still there, and frozen then; **taken off the graph,
+        /// it is swept.**
         ///
         /// What a walk resolved is what `mMeshesReused` counts: one for the quad on a frame that
         /// walks the reference, and nought on one that passes it, while `mInstances` counts the
@@ -112,6 +113,7 @@ namespace Rtx::Testing
             EXPECT_EQ(moved.mMeshesReused, 1u) << "a moved reference was passed";
             EXPECT_EQ(standing(), osg::Vec3f(0.0f, 20.0f, 0.0f));
 
+            EXPECT_EQ(frame().mMeshesReused, 1u) << "it froze on the frame it moved";
             const ExtractionStats refrozen = frame();
             EXPECT_EQ(refrozen.mMeshesReused, 0u) << "it did not freeze where it went";
             EXPECT_EQ(standing(), osg::Vec3f(0.0f, 20.0f, 0.0f));
@@ -159,6 +161,7 @@ namespace Rtx::Testing
 
             reference->getOrCreateStateSet();
             EXPECT_EQ(frame().mMeshesReused, 1u) << "a state set hung on the root left it frozen";
+            EXPECT_EQ(frame().mMeshesReused, 1u) << "it froze on the frame the state set was hung";
             EXPECT_EQ(frame().mMeshesReused, 0u);
 
             reference->addChild(makeQuad());
@@ -166,6 +169,30 @@ namespace Rtx::Testing
             EXPECT_EQ(grown.mMeshesReused, 1u) << "a child given to the root left it frozen";
             EXPECT_EQ(grown.mMeshesAdded, 1u) << "the child it was given";
             EXPECT_EQ(mScene.placements().getCounts().mPlaced, 2u);
+        }
+
+        /// **A reference the game moves on every frame — a door turning — is walked on every frame
+        /// and freezes on none**, placed where each frame put it; the first frame it stands still is
+        /// walked once more, and the one after passes it. Freezing it on each frame it moved held
+        /// and gave back every entry it stands on, and allocated and freed its run, on every frame
+        /// of the motion.
+        TEST_F(RtxFrozenSubtreeTest, aReferenceMovedOnEveryFrameIsWalkedAndFreezesOnceItStandsStill)
+        {
+            const osg::ref_ptr<osg::MatrixTransform> reference = addReference(osg::Vec3f());
+            frame();
+            ASSERT_EQ(frame().mMeshesReused, 0u) << "a still reference froze";
+
+            for (int step = 1; step <= 4; ++step)
+            {
+                reference->setMatrix(osg::Matrix::translate(static_cast<float>(step), 0.0f, 0.0f));
+                EXPECT_EQ(frame().mMeshesReused, 1u) << "step " << step << " passed a moving reference";
+                EXPECT_EQ(standing(), osg::Vec3f(static_cast<float>(step), 0.0f, 0.0f)) << "step " << step;
+                EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u) << "step " << step;
+            }
+
+            EXPECT_EQ(frame().mMeshesReused, 1u) << "it froze on a frame it moved";
+            EXPECT_EQ(frame().mMeshesReused, 0u) << "standing still, it did not freeze";
+            EXPECT_EQ(standing(), osg::Vec3f(4.0f, 0.0f, 0.0f));
         }
 
         /// **A view that sees another part of the world walks every reference again**: a mask

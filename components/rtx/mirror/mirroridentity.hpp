@@ -126,8 +126,10 @@ namespace Rtx
             mReached -= held.mReach.mEpoch == mPass.mEpoch ? 1 : 0;
         }
 
-        /// Gives one hold back. An entry no hold and no stamp keeps is the next sweep's, and the
-        /// sweep is owed for it whatever else the walk reached.
+        /// Gives one hold back. An entry no hold and no stamp keeps is the next sweep's: unheld and
+        /// unreached, it leaves the counts short of the map, so `whole` owes the sweep — unless the
+        /// walk then stamps it, which a frozen root's own walk does the frame it thaws, and the
+        /// sweep is owed nothing.
         void drop(Entry entry)
         {
             freshen();
@@ -138,10 +140,7 @@ namespace Rtx
                 return;
 
             --mHeld;
-            if (held.mReach.mEpoch == mPass.mEpoch)
-                ++mReached;
-            else
-                mAbandoned = true;
+            mReached += held.mReach.mEpoch == mPass.mEpoch ? 1 : 0;
         }
 
         /// Adds what the walk has just resolved, stamped, and hands the entry back. `key` must not
