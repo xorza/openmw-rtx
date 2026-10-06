@@ -149,7 +149,8 @@ backend ever arrives.
   the tree alone, and `./omw format --check` changes nothing and is what the gate and CI run.
   Compiling is not verifying.
 - `./omw` at the root is the one way in, `omw [flavour] <verb>`, and `./omw help` lists both. The
-  flavour is `debug` unless named: every assert and the tests. `release` is the build a number is
+  flavour is `debug` unless named: every assert and the tests. A flavour comes before the verb and is
+  refused after it (`omw release build`, not `omw build release`). `release` is the build a number is
   quoted from, and `profile` runs in it and refuses another flavour named before it. `asan` adds
   the address and undefined-behaviour sanitizers and `tsan` the thread sanitizer, which the daily
   run builds apart, `full` builds every program the tree has, the CS among them, and `package` is
