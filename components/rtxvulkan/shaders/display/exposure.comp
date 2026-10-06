@@ -81,10 +81,10 @@ void main()
         return;
 
     // **A frame with no past moves from no exposure the frame before left**: the first frame of a
-    // run and any frame the renderer was told to reconstruct without one. The buffer holds whatever
-    // it held, and on the very first frame that is uninitialised device memory; the time since the
-    // frame before is another world's. The reset says so and nothing else does: a frame no time
-    // after the last is a frame the eye had no time to move in.
+    // run and any frame the renderer was told to reconstruct without one. The buffer holds the eye
+    // of a world that is gone, and the time since the frame before is that world's. The reset says
+    // so and nothing else does: a frame no time after the last is a frame the eye had no time to
+    // move in.
     const float held = frame.mReset == EXPOSURE_RESET_NONE ? exposure : EXPOSURE_DAY;
 
     // **What this frame asks for, which is not yet what it gets.** Every branch below settles a

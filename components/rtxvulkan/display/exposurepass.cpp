@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <span>
 
+#include <components/rtx/shaders/look.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -41,12 +42,12 @@ namespace Rtx
     {
         mPicture.writable<float>(0, 1).front() = 1.0f;
 
-        // **One, before any frame**, because the pyramid's first halving reads what the frame
-        // before ended on (`BloomPass::record`), and the first frame has none: a buffer nobody
-        // wrote is whatever the allocation held.
-        const float one = 1.0f;
+        // **A day's, before any frame**, which is where an eye with no past starts: the pyramid's
+        // first halving reads what the frame before ended on (`BloomPass::record`), and the first
+        // frame has none. A buffer nobody wrote is whatever the allocation held.
+        const float day = Shaders::EXPOSURE_DAY;
         device.getPool().submitAndWait([&](VkCommandBuffer commands) {
-            mExposure.updateInline(commands, Use::sBufferComputeReadWrite, std::as_bytes(std::span(&one, 1)));
+            mExposure.updateInline(commands, Use::sBufferComputeReadWrite, std::as_bytes(std::span(&day, 1)));
         });
     }
 
