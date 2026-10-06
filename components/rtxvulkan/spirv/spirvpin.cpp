@@ -8,6 +8,7 @@
 #include <functional>
 #include <map>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -230,12 +231,22 @@ namespace Rtx
 
         /// A float instruction outside `GLSL.std.450` that nothing here pins: a derivative — a plain
         /// one fine or coarse at the compile's choice, and none of them taken by a shader here — and
-        /// a float sum or product across a subgroup, a float atomic, and a cooperative matrix or
-        /// vector, whose order is the hardware's.
+        /// an image read whose level of detail is worked out from derivatives, which carries the same
+        /// choice; a float sum or product across a subgroup, a float atomic, and a cooperative matrix
+        /// or vector, whose order is the hardware's.
         bool isUnpinnable(spv::Op op)
         {
             switch (op)
             {
+                case spv::OpImageSampleImplicitLod:
+                case spv::OpImageSampleDrefImplicitLod:
+                case spv::OpImageSampleProjImplicitLod:
+                case spv::OpImageSampleProjDrefImplicitLod:
+                case spv::OpImageSparseSampleImplicitLod:
+                case spv::OpImageSparseSampleDrefImplicitLod:
+                case spv::OpImageSparseSampleProjImplicitLod:
+                case spv::OpImageSparseSampleProjDrefImplicitLod:
+                case spv::OpImageQueryLod:
                 case spv::OpDPdx:
                 case spv::OpDPdy:
                 case spv::OpFwidth:
@@ -437,6 +448,11 @@ namespace Rtx
             /// The declarations the rewrites add before the first function.
             std::vector<Instruction> mDeclared;
 
+            /// Every entry point, and each (entry point, float width) the module already preserves
+            /// signed zeros, infinities and NaNs for.
+            std::vector<std::uint32_t> mEntryPoints;
+            std::set<std::pair<std::uint32_t, std::uint32_t>> mPreserved;
+
             /// The functions as the rewrites leave them.
             std::vector<Instruction> mOut;
 
@@ -571,15 +587,36 @@ namespace Rtx
                             // An explicit environment takes precedence over `NoContraction`.
                             case spv::DecorationFPFastMathMode:
                                 refuse(instruction, "a fast-math mode the module sets overrides NoContraction");
+                            case spv::DecorationFPRoundingMode:
+                                refuse(instruction, "a rounding mode the module sets for itself");
                             default:
                                 break;
                         }
                         break;
                     case spv::OpExecutionMode:
                     case spv::OpExecutionModeId:
-                        if (static_cast<spv::ExecutionMode>(operandAt(instruction, 1))
-                            == spv::ExecutionModeFPFastMathDefault)
-                            refuse(instruction, "a fast-math default the module sets overrides NoContraction");
+                        switch (static_cast<spv::ExecutionMode>(operandAt(instruction, 1)))
+                        {
+                            case spv::ExecutionModeFPFastMathDefault:
+                                refuse(instruction, "a fast-math default the module sets overrides NoContraction");
+                            // **A float environment is the pinning's to set**, and these are the
+                            // ones it leaves the device or would contradict. The preservation of
+                            // signed zeros, infinities and NaNs is the one it sets itself, so a
+                            // module that asks for it already asks for what it gets.
+                            case spv::ExecutionModeDenormPreserve:
+                            case spv::ExecutionModeDenormFlushToZero:
+                            case spv::ExecutionModeRoundingModeRTE:
+                            case spv::ExecutionModeRoundingModeRTZ:
+                                refuse(instruction, "a float environment the module sets for itself");
+                            case spv::ExecutionModeSignedZeroInfNanPreserve:
+                                mPreserved.insert(std::pair(operandAt(instruction, 0), operandAt(instruction, 2)));
+                                break;
+                            default:
+                                break;
+                        }
+                        break;
+                    case spv::OpEntryPoint:
+                        mEntryPoints.push_back(operandAt(instruction, 1));
                         break;
                     default:
                         break;
@@ -1049,9 +1086,6 @@ namespace Rtx
                     if (const std::uint32_t result = *resultOf(instruction); !mDecorated.contains(result))
                         decorations.push_back(Instruction{ spv::OpDecorate, { result, spv::DecorationNoContraction } });
 
-            std::vector<Instruction> global;
-            global.reserve(mGlobal.size() + mDeclared.size() + decorations.size() + 3);
-
             const auto lastOf = [&](const auto& matches) -> std::optional<std::size_t> {
                 std::optional<std::size_t> last;
                 for (std::size_t at = 0; at < mGlobal.size(); ++at)
@@ -1067,6 +1101,29 @@ namespace Rtx
                 return instruction.mOp == spv::OpExtension && readString(instruction.mOperands) == "SPV_KHR_fma";
             });
 
+            // **Signed zeros, infinities and NaNs preserved, for each float width the module has, at
+            // every entry point.** Vulkan otherwise lets each compile assume there are none and fold
+            // what tests for them — `isnan`, `!(a >= b)` — its own way, the driver's second compile
+            // included. Core since SPIR-V 1.4, so a capability and no extension.
+            std::set<std::uint32_t> widths;
+            for (const auto& [id, type] : mTypes)
+                if (type.mKind == Kind::Float)
+                    widths.insert(type.mWidth);
+            std::vector<Instruction> preserved;
+            for (const std::uint32_t entry : mEntryPoints)
+                for (const std::uint32_t width : widths)
+                    if (!mPreserved.contains(std::pair(entry, width)))
+                        preserved.push_back(Instruction{
+                            spv::OpExecutionMode, { entry, spv::ExecutionModeSignedZeroInfNanPreserve, width } });
+            const bool hasPreservation
+                = std::any_of(mGlobal.begin(), mGlobal.end(), [](const Instruction& instruction) {
+                      return instruction.mOp == spv::OpCapability
+                          && instruction.mOperands.at(0) == spv::CapabilitySignedZeroInfNanPreserve;
+                  });
+
+            std::vector<Instruction> global;
+            global.reserve(mGlobal.size() + mDeclared.size() + decorations.size() + preserved.size() + 4);
+
             // Where each addition goes: a capability among the capabilities, an extension after
             // them and the other extensions, the decorations among the annotations or before the
             // first type where there are none, and the declarations last before the functions.
@@ -1074,6 +1131,9 @@ namespace Rtx
                 = lastOf([](spv::Op op) { return op == spv::OpCapability; });
             const std::optional<std::size_t> lastExtension = lastOf([](spv::Op op) { return op == spv::OpExtension; });
             const std::optional<std::size_t> lastAnnotation = lastOf(isAnnotation);
+            const std::optional<std::size_t> lastMode = lastOf([](spv::Op op) {
+                return op == spv::OpEntryPoint || op == spv::OpExecutionMode || op == spv::OpExecutionModeId;
+            });
             const std::optional<std::size_t> lastImport = lastOf([](spv::Op op) { return op == spv::OpExtInstImport; });
             std::size_t firstType = mGlobal.size();
             for (std::size_t at = 0; at < mGlobal.size(); ++at)
@@ -1094,6 +1154,10 @@ namespace Rtx
 
                 if (mFused && !hasCapability && lastCapability == at)
                     global.push_back(Instruction{ spv::OpCapability, { spv::CapabilityFMAKHR } });
+                if (!preserved.empty() && !hasPreservation && lastCapability == at)
+                    global.push_back(Instruction{ spv::OpCapability, { spv::CapabilitySignedZeroInfNanPreserve } });
+                if (lastMode == at)
+                    global.insert(global.end(), preserved.begin(), preserved.end());
                 if (mFused && !hasExtension && at == extensionAfter)
                     global.push_back(Instruction{ spv::OpExtension, spell("SPV_KHR_fma") });
                 if (mImportsGlsl && at == importAfter)

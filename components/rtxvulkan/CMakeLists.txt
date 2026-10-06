@@ -73,10 +73,6 @@ set(RTX_SHADERS
     shaders/upscale/fsrinstability.comp
     shaders/upscale/fsrlumapyramid.comp
     shaders/upscale/fsrreactivity.comp
-    shaders/trace/bouncepairs.rgen
-    shaders/trace/bounceresolve.rgen
-    shaders/trace/bouncetemporal.comp
-    shaders/trace/bouncevalidate.rgen
     shaders/trace/fogdepth.rgen
     shaders/trace/fogintegrate.comp
     shaders/trace/fogscatter.rgen
@@ -107,7 +103,9 @@ endif()
 # `-MD` gives Ninja the include graph, so editing a shared header rebuilds the shaders that read it.
 set(RTX_SHADER_OUTPUTS)
 
-# The shaders' root as well as the shared structures', so `lib/` is spelled alike in every folder.
+# The shaders' root as well as the core's shared structures', so `lib/` and `shared/` are spelled
+# alike in every folder; and the source root, from which a header in `shared/` spells the core's
+# headers, because C++ reads it too and finds nothing beside it of the core's.
 set(RTX_SHADER_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
 set(RTX_SHADER_INCLUDE "${OpenMW_SOURCE_DIR}/components/rtx/shaders")
 
@@ -117,7 +115,12 @@ set(RTX_SHADER_VENDORED "${OpenMW_SOURCE_DIR}/extern/fidelityfx/gpu")
 # `-g` always, into the source set, for Nsight's source view. The renderers' set strips it rather than
 # compiling twice, so the two differ in nothing else; both are pinned before validation, so the
 # validator reads what the driver gets.
-set(RTX_GLSLC_FLAGS -g $<IF:$<CONFIG:Debug>,-O0,-O>)
+#
+# **One level for every flavour**, because the pinning fuses a multiply into the add that reads it
+# only where the module is in SSA form: at `-O0` glslc keeps locals in memory, nothing is fused, and
+# the debug build that runs every test computed other arithmetic than the release build a figure is
+# quoted from.
+set(RTX_GLSLC_FLAGS -g -O)
 
 foreach (shader ${RTX_SHADERS})
     get_filename_component(name "${shader}" NAME)
@@ -130,7 +133,8 @@ foreach (shader ${RTX_SHADERS})
         OUTPUT "${sourced}" "${spv}"
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${RTX_SPIRV_DIR}" "${RTX_SPIRV_SOURCE_DIR}"
         COMMAND "${OPENMW_GLSLC}" ${RTX_GLSLC_FLAGS} --target-env=vulkan1.4 -I "${RTX_SHADER_INCLUDE}"
-                -I "${RTX_SHADER_ROOT}" -I "${RTX_SHADER_VENDORED}" -MD -MF "${depfile}" -o "${sourced}"
+                -I "${RTX_SHADER_ROOT}" -I "${RTX_SHADER_VENDORED}" -I "${OpenMW_SOURCE_DIR}" -MD -MF "${depfile}"
+                -o "${sourced}"
                 "${CMAKE_CURRENT_SOURCE_DIR}/${shader}"
         COMMAND openmw-rtx-spirv-pin "${sourced}"
         # --scalar-block-layout because the shared C++/GLSL headers rely on the feature the
@@ -163,10 +167,10 @@ set(RTX_SHADER_LIB
     shaders/lib/basis.glsl
     shaders/lib/bindings.glsl
     shaders/lib/bloom.glsl
-    shaders/lib/bouncepairs.glsl
-    shaders/lib/bouncereservoir.glsl
+    shaders/lib/bluenoise.glsl
     shaders/lib/compose.glsl
     shaders/lib/counts.glsl
+    shaders/lib/finite.glsl
     shaders/lib/fog.glsl
     shaders/lib/footprint.glsl
     shaders/lib/frame.glsl
@@ -326,6 +330,36 @@ set(RTX_VULKAN_FILES
     scene/spritesource.hpp
     scene/structurebuild.cpp
     scene/structurebuild.hpp
+    shaders/shared/accumulate.h
+    shaders/shared/atrous.h
+    shaders/shared/bindings.h
+    shaders/shared/bloom.h
+    shaders/shared/composite.h
+    shaders/shared/counts.h
+    shaders/shared/exposure.h
+    shaders/shared/fogvolume.h
+    shaders/shared/fsr.h
+    shaders/shared/glare.h
+    shaders/shared/ground.h
+    shaders/shared/gui.h
+    shaders/shared/halfstore.h
+    shaders/shared/line.h
+    shaders/shared/mipchain.h
+    shaders/shared/normalspread.h
+    shaders/shared/pane.h
+    shaders/shared/pinning.h
+    shaders/shared/probe.h
+    shaders/shared/ripple.h
+    shaders/shared/sets.h
+    shaders/shared/shadow.h
+    shaders/shared/specular.h
+    shaders/shared/spritebin.h
+    shaders/shared/spritelight.h
+    shaders/shared/spriteshade.h
+    shaders/shared/stress.h
+    shaders/shared/tables.h
+    shaders/shared/tone.h
+    shaders/shared/tracerecords.h
     texture/groundcompositepass.cpp
     texture/groundcompositepass.hpp
     texture/mipchainpass.cpp
@@ -362,8 +396,6 @@ set(RTX_VULKAN_FILES
     trace/denoise/specularpass.cpp
     trace/denoise/specularpass.hpp
     trace/denoise/temporalturns.hpp
-    trace/bouncereservoirs.cpp
-    trace/bouncereservoirs.hpp
     trace/fogvolume.cpp
     trace/fogvolume.hpp
     trace/gbuffer.cpp

@@ -5,11 +5,11 @@
 #include <cassert>
 
 #include <components/rtx/image/texturedata.hpp>
-#include <components/rtx/shaders/ground.h>
-#include <components/rtx/shaders/normalspread.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/memory/formats.hpp>
+#include <components/rtxvulkan/shaders/shared/ground.h>
+#include <components/rtxvulkan/shaders/shared/normalspread.h>
 
 namespace Rtx
 {

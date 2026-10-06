@@ -131,8 +131,11 @@ void main()
     // ray, and so where this froxel's air ends: at the surface if that stands inside it, and at its
     // own far edge otherwise — a froxel that starts past the surface included, for the reason the
     // top of this file gives.
-    const float surface = imageLoad(fogColumnDepth, column).x;
-    const float clear = surface > behind ? min(ahead, surface) : ahead;
+    const vec2 surfaces = imageLoad(fogColumnDepth, column).xy;
+    const float clear = surfaces.x > behind ? min(ahead, surfaces.x) : ahead;
+
+    // The same rule along the middle ray, which the lamps' stretch ends by: `fogdepth.rgen` says why.
+    const float lampsClear = surfaces.y > behind ? min(ahead, surfaces.y) : ahead;
 
     // **Drawn inside the air the froxel holds and not inside the froxel**, so a froxel the ground
     // stands inside is a draw of its air on every frame rather than on the frames the draw happened
@@ -146,7 +149,7 @@ void main()
 
     // The field's level from where the sample stands and not from the slice's own stride, which is
     // the same number at the slice's middle and a different one everywhere else in it.
-    const float extinction = fogExtinctionAt(position, froxelStrideAt(along));
+    const float density = fogDensityAt(position, froxelStrideAt(along));
 
     // **The froxel's own middle is what reprojects, and not the point drawn inside it.** What the
     // history holds is this froxel's running average, so what has to be found in the previous frame
@@ -175,7 +178,8 @@ void main()
     // own shells.
     //
     // **Over the stretch short of the surface and not over the slice**, so a froxel the ground
-    // stands inside holds the mean over its air.
+    // stands inside holds the mean over its air: the surface the middle ray met, since the stretch
+    // is the middle ray's.
     uint lampState = randomSeed(froxelKey(uvec2(column), slice) + SEED_LAMPS_FOG);
 
     // **The sky's draws first, at a fixed place in the sequence**: the ray's pair for the sun, the
@@ -188,7 +192,7 @@ void main()
 
     Reservoir lamps = noLamps();
     const vec3 lampScatter
-        = lampsInAir(lamps, lampState, fromMiddle, middle.mDirection, behind, clear) / (clear - behind);
+        = lampsInAir(lamps, lampState, fromMiddle, middle.mDirection, behind, lampsClear) / (lampsClear - behind);
 
     // **What a lamp is worth and where to ask whether it is seen are two questions.** The froxel
     // weighs its lamps over the whole of its stretch, where a share is an integral and the point
@@ -211,7 +215,7 @@ void main()
     // over — so a froxel with no lamp in it handed full sight of a lamp to the froxel beside it, and
     // a lantern behind a lid lit the air in front of it after all.
     const float lampsSeen
-        = lamps.mWeight > 0.0 ? lampVisible(lamps, vec2(randomNext(lampState), randomNext(lampState))) : 0.0;
+        = lamps.mWeight > 0.0 ? lampVisible(lamps, vec3(0.0), vec2(randomNext(lampState), randomNext(lampState))) : 0.0;
 
     // **The sun's ray whenever there is a sun, and not only where the air's own shaft is worth it.**
     // The air throws the sun forward so hard that looking away from it there is nothing to shadow,
@@ -230,25 +234,30 @@ void main()
     float visible = 1.0;
     float lunar = 1.0;
     if (sources.mSunlit)
-        visible = skyVisible(position, SKY_SOURCE_SUN, sunDraw);
+        visible = skyVisible(position, vec3(0.0), SKY_SOURCE_SUN, sunDraw);
     if (sources.mMoonlit)
-        lunar = skyVisible(sources.mDrawnSky, position, moonDraw);
+        lunar = skyVisible(sources.mDrawnSky, position, vec3(0.0), moonDraw);
 
     // **And the ambient's, which the air never asked and a puff does.** The air scatters the
     // weather's fog colour unshadowed, which is Morrowind's convention for it; a puff is lit by the
     // frame's ambient the way a surface is, and what it sees of that is a question about the
     // point. Over the whole sphere, because the air has no side — `ambientReaching` says what that
     // means in a room and out of one.
-    const float ambientSeen
-        = ambientReaching(position, vec3(0.0), vec3(0.0), 0.0, froxelKey(uvec2(column), slice) + SEED_AMBIENT_FOG,
-            AMBIENT_EXTERIOR_RATE);
+    //
+    // **And only in a frame a puff reads it in**, `mPuffsInFrame`, because nothing else does. Open
+    // where it was not asked, so a puff that enters a frame of none starts from the open fill and
+    // the history takes it to what its froxel sees.
+    const float ambientSeen = frame.mPuffsInFrame != 0u
+        ? ambientReaching(position, vec3(0.0), vec3(0.0), 0.0, 0.0, froxelKey(uvec2(column), slice) + SEED_AMBIENT_FOG,
+              AMBIENT_EXTERIOR_RATE)
+        : 1.0;
 
     // **Whatever the moons deliver, whether or not they were worth a ray.** `mMoonlit` gates the
     // shadow and nothing else: gating the energy with it stepped both moons out of the frame the
     // moment their share of the sky's term crossed `FOG_SHAFT_FLOOR`, where what the threshold is
     // for is a shaft nobody can see cut out of light that faint. `lunar` stands at one where no ray
     // was cast, so the light arrives unshadowed rather than not at all.
-    const vec3 moons = HAS_MOONS ? moonsInAir(extinction, sources, lunar) : vec3(0.0);
+    const vec3 moons = HAS_MOONS ? moonsInAir(position, sources, lunar) : vec3(0.0);
 
     // Everything below is a property of this *point* and of nothing along the ray, which is what
     // lets it be reprojected and averaged. The transmittance is the integrate pass's.
@@ -260,8 +269,11 @@ void main()
     // hour and which is the horizon's own colour at the horizon. Scattering the sky's mean here
     // instead is a look decision, and it is deliberately not taken: the content states a colour,
     // and a number the game states beats one derived here.
-    vec3 inscatter = frame.mFogColour + moons;
-    float density = extinction;
+    //
+    // **Stored times the density, as the sun's transport is below** (`FogSlice` says why): what the
+    // history and the tent average is what the integrate pass integrates.
+    vec3 source = density * (frame.mFogColour + moons);
+    float held = density;
 
     // **The sun without its irradiance and without its phase**, which is the whole of what the
     // second image is for: both are functions of the direction alone, so they factor out of the
@@ -269,7 +281,8 @@ void main()
     // column's. Mie's forward peak is thousands of times isotropic within a degree and a column is a
     // quarter of one, so baking it here would smear the blaze around a low sun over four times its
     // width.
-    float transport = sources.mSunlit ? sunInAir(extinction, visible) : 0.0;
+    float transport = sources.mSunlit ? sunInAir(position, visible) : 0.0;
+    float sunSource = density * transport;
 
     // **The lamps' seeing and the ambient's ride beside the sun's transport**, because the three are
     // filtered alike and for one reason: each is what a ray found, nought or one at an edge the grid
@@ -281,14 +294,15 @@ void main()
     if (reprojected)
     {
         const FogPoint was = unpackFogPoint(wasScatter, wasSunward);
-        inscatter = mix(inscatter, was.mInscatter, FOG_VOLUME_HISTORY);
-        density = mix(density, was.mExtinction, FOG_VOLUME_HISTORY);
+        source = mix(source, was.mSource, FOG_VOLUME_HISTORY);
+        held = mix(held, was.mDensity, FOG_VOLUME_HISTORY);
         transport = mix(transport, was.mSeeing.mTransport, FOG_VOLUME_HISTORY);
+        sunSource = mix(sunSource, was.mSeeing.mSunSource, FOG_VOLUME_HISTORY);
         seen = mix(seen, was.mSeeing.mLampsSeen, FOG_VOLUME_HISTORY);
         ambient = mix(ambient, was.mSeeing.mAmbientSeen, FOG_VOLUME_HISTORY);
     }
 
-    const FogPoint point = FogPoint(inscatter, density, FogSeeing(transport, seen, ambient));
+    const FogPoint point = FogPoint(source, held, FogSeeing(transport, seen, ambient, sunSource));
     RTX_STORE_COUNTED(fogScatterTarget, froxel, BOUNDARY_FOG, packFogScatter(point))
     RTX_STORE_COUNTED(fogSunwardTarget, froxel, BOUNDARY_FOG, packFogSeeing(point.mSeeing))
     RTX_STORE_COUNTED(fogLampsTarget, froxel, BOUNDARY_FOG, vec4(lampScatter, 0.0))

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <cstdint>
 
 #include <vulkan/vulkan_core.h>
@@ -51,8 +52,25 @@ namespace Rtx
         Image& getShown() { return mShown; }
         const Image& getShown() const { return mShown; }
 
+        /// The picture again at sixteen bits a channel, which the curve writes beside it for a
+        /// summed frame alone, without the debug lines: made at the output extent the first time
+        /// one asks, in `TonePass::sDeepFormat`, and dropped by `resize`.
+        ///
+        /// **Made on demand, because only a harness sums**: the frame at the window's extent and
+        /// eight bytes a pixel is 133 megabytes at 7680 by 2160, which no player's frame
+        /// reads.
+        Image& requireDeep(const Device& device);
+
+        /// What `requireDeep` made, which it has since the last `resize`.
+        const Image& getDeep() const
+        {
+            assert(!mDeep.isEmpty() && "a sixteen-bit picture nothing made");
+            return mDeep;
+        }
+
     private:
         Image mPicture;
         Image mShown;
+        Image mDeep;
     };
 }

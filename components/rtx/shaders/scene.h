@@ -63,16 +63,6 @@ namespace Rtx::Shaders
     /// table hands out from nought, and every test that names a slot by number still does.
     const uint TEXTURE_NEUTRAL = TEXTURE_SLOTS - 1u;
 
-    /// Where the texture set binds its three arrays: the textures, their shading maps at the same
-    /// slots, and the textures again through samplers that filter along a footprint.
-    ///
-    /// **Named on both sides because a swap would be silent.** All are `TEXTURE_SLOTS` combined
-    /// image samplers, so a layout and a shader that disagreed on which is which would pass every
-    /// check the layers make, and the trace would sample companions as colour.
-    const uint TEXTURE_BIND_IMAGES = 0;
-    const uint TEXTURE_BIND_COMPANIONS = 1;
-    const uint TEXTURE_BIND_ALONG = 2;
-
 /// What every texture this renderer writes is stored as: a chain a file did not carry, a sprite's
 /// light bake and a ground composite. Read back through the file's curve where the file had one.
 #define TEXTURE_WRITTEN_FORMAT STORAGE_RGBA8
@@ -139,11 +129,12 @@ namespace Rtx::Shaders
     /// generated there and has to carry exactly this many masks.
     ///
     /// Exactly the number drawn and not a round one: the fog's column takes a pair and its march a
-    /// number, the bounce takes a pair, and the water's own march takes a number. A spare channel
+    /// number, the bounce takes a pair, the water's own march takes a number, the eye's own split
+    /// hit takes two pairs and two numbers for its shadow rays, and the tone pass's dither takes one. A spare channel
     /// would have to be given a step to advance by, and the honest step for a stream nobody reads is
     /// nothing — which is a value frozen for the life of the process, waiting for whoever reaches
     /// for it next.
-    const uint RANDOM_STREAMS = 6;
+    const uint RANDOM_STREAMS = 13;
 
     /// Which channel of the tile each draw takes. A pair costs two, which is why the column and the
     /// bounce each leave a gap.
@@ -171,6 +162,22 @@ namespace Rtx::Shaders
     /// Where a froxel's sample sits inside its own slice, down the column's ray: a march offset like
     /// the water's, and its own channel for the same reason.
     const uint STREAM_FOG_ALONG = 5u;
+
+    /// Where on the sky's disc and on the held lamp's sphere the eye's own split hit aims its two
+    /// shadow rays, which sky source it draws, and whose bit it keeps (`gather`).
+    ///
+    /// **Blue, because the shadow denoiser filters these rays' one bit**, and an error spread blue
+    /// across the screen filters away where a white one shimmers (Heitz and Belcour 2019; NRD). The
+    /// paths deeper than the eye's hit keep the hash, which a replay of their far end needs.
+    const uint STREAM_SUN_DISC = 6u;
+    const uint STREAM_LAMP_DISC = 8u;
+    const uint STREAM_SKY_PICK = 10u;
+    const uint STREAM_SHADOWED_PICK = 11u;
+
+    /// The tone pass's dither under the eight-bit store (`tone.comp`): blue, so the error a byte
+    /// leaves is spread where the eye sees least of it, and its own channel, so it follows none of
+    /// the trace's draws at the same pixel.
+    const uint STREAM_DITHER = 12u;
 
     /// What `VisibilityConstants::mNoise` says the per-pixel draws come from: the tile, turned
     /// by an irrational step each frame, or a hashed counter seeded by the pixel, the frame and
@@ -838,18 +845,6 @@ namespace Rtx::Shaders
         uint64 mTextureTexels;
     };
 
-    /// What a reference to each table may claim about its address, and so what the host checks.
-    ///
-    /// **The largest power of two that divides both the buffer's start and every element access.**
-    /// A claim larger than the truth is undefined behaviour with no message. A claim smaller than
-    /// the truth costs the compiler a wider load where one was possible. A buffer's start is at
-    /// least sixteen-aligned on this device and the host asserts it, so the stride decides:
-    /// `GpuLayer` is 64 bytes with two `vec4` at sixteen and thirty-two, the block tables hold
-    /// eight-byte addresses, and every other row or list is four-aligned only.
-    const uint TABLE_ALIGN_ROWS = 4u;
-    const uint TABLE_ALIGN_BLOCKS = 8u;
-    const uint TABLE_ALIGN_LAYERS = 16u;
-
     /// A ground layer whose diffuse is an authored albedo with the perceptual roughness in its
     /// alpha — a `_diffusespec` under `SpecularLayout::MetalRoughness`, as Wareya's shaders read it.
     /// **Not delit, and a dielectric**: the texture was painted as a surface and not as a picture
@@ -1008,16 +1003,25 @@ namespace Rtx::Shaders
         return spriteTilesOver(width) * spriteTilesOver(height);
     }
 
-    /// What the sprite tiles' list holds in its first entry where its runs did not fit.
-    ///
-    /// **The list carries its own degenerate form, so the trace needs no second signal.** Where
-    /// the runs are binned, entry nought is where the runs begin — `tiles + 1`, never nought. Where
-    /// a frame's entries outgrew the buffer, `spritestarts.comp` writes nought there and the sprite
-    /// count in entry one, and the trace walks every sprite over every pixel for that frame: slow
-    /// and right. The host reads what the frame needed,
-    /// grows the buffer and the next frame is binned. `SpriteBin::record` says how the list
-    /// is sized so that this is a rare frame and never a wrong one.
+    /// What a sprite tiles' list holds in its first entry where it holds no runs at all: the
+    /// stand-in a trace that draws no sprites is handed (`TraceMedia`), two words long, whose
+    /// entry one is the count to walk, nought. Where the runs are binned, entry nought is where
+    /// they begin — `tiles + 1`, never nought.
     const uint SPRITE_LIST_UNBINNED = 0u;
+
+    /// The bit a tile's end entry carries where its run did not fit, beside the frame's sprite
+    /// count in the bits under it.
+    ///
+    /// **Only the tiles past the room are unbinned, and every one before them is whole.** The runs
+    /// lie in tile order, so the tiles whose ends fit the capacity are a prefix and are binned as
+    /// any frame's are; `spritestarts.comp` writes this into the end of every tile after them, and
+    /// those alone walk every sprite: slow and right. A storm that more than doubled in the two
+    /// frames the report lags, or a first step into rain, made every pixel of its frame walk every
+    /// sprite, the worst frame of a run. The host reads what the frame needed, grows the buffer,
+    /// and the next frame is binned whole; `SpriteBin::record` says how the list is sized so that
+    /// this is a rare frame. A valid end is under `SpriteListSize::sMostEntries` and never carries
+    /// the bit.
+    const uint SPRITE_TILE_UNBINNED = 0x80000000u;
 
     /// One particle system: what its sprites are drawn with, and a sphere that holds all of them,
     /// which is the whole spatial structure because one rejection throws a small emitter away for
@@ -1084,7 +1088,7 @@ namespace Rtx::Shaders
         float mBand;
 
         /// What one layer of the emitter's texture lets through on average, as the base-two
-        /// logarithm the walk's two powers share: off its coarsest level, held under
+        /// logarithm the walk's two powers share: off the mean of its coarsest level, held under
         /// `SPRITE_ALPHA_LIMIT`.
         float mLayerThrough;
 

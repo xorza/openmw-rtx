@@ -1,6 +1,7 @@
 #include "visibilitygates.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <string>
 #include <string_view>
@@ -22,6 +23,15 @@ namespace MWScript
 {
     namespace
     {
+        /// The global the game advances on every frame, `Watched::mHourly`. Made where first asked
+        /// rather than at load, because an id is interned and the table it goes in has its own
+        /// order of construction.
+        const ESM::RefId& gameHour()
+        {
+            static const ESM::RefId id = ESM::RefId::stringRefId("GameHour");
+            return id;
+        }
+
         /// What a script's code enables or disables: the reference it runs on, and every record it
         /// names.
         struct Toggled
@@ -224,12 +234,14 @@ namespace MWScript
         mUnrun = true;
     }
 
-    bool VisibilityGates::moved(const VisibilityInput& input, const VisibilityReads& reads)
+    bool VisibilityGates::moved(const Watched& watched, const VisibilityReads& reads)
     {
+        const VisibilityInput& input = watched.mInput;
         if (input.mSource == VisibilitySource::Journal)
             return reads.getJournalIndex(input.mId) != input.mValue;
 
-        return reads.getGlobal(input.mId.getRefIdString()) != input.mValue;
+        const double now = reads.getGlobal(input.mId.getRefIdString());
+        return watched.mHourly ? std::floor(now) != std::floor(input.mValue) : now != input.mValue;
     }
 
     void VisibilityGates::settle(
@@ -250,7 +262,7 @@ namespace MWScript
         bool anyMoved = false;
         for (Watched& watched : mWatched)
         {
-            watched.mMoved = moved(watched.mInput, reads);
+            watched.mMoved = moved(watched, reads);
             anyMoved = anyMoved || watched.mMoved;
         }
 
@@ -305,7 +317,9 @@ namespace MWScript
                 if (same == mWatched.end())
                 {
                     script.mWatches.push_back(static_cast<std::uint32_t>(mWatched.size()));
-                    mWatched.push_back(Watched{ .mInput = input, .mMoved = false });
+                    mWatched.push_back(Watched{ .mInput = input,
+                        .mHourly = input.mSource == VisibilitySource::Global && input.mId == gameHour(),
+                        .mMoved = false });
                 }
                 else
                     script.mWatches.push_back(static_cast<std::uint32_t>(same - mWatched.begin()));

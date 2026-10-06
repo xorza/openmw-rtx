@@ -8,6 +8,7 @@
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/image/mipchain.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureencoding.hpp>
 
 namespace Rtx
 {
@@ -145,6 +146,44 @@ namespace Rtx
             ASSERT_FALSE(none.isEmpty());
             EXPECT_EQ(channelAt(none.describe(), 1, 0, 0, 0), 40u);
             EXPECT_EQ(channelAt(none.describe(), 1, 0, 0, 3), 0u);
+
+            // **Data's alpha is a channel like the others**, a height or a gloss, and its box is
+            // even: the white and the black meet at 127.5, which rounds to 128.
+            TestTexture data;
+            addLevel(data, 2, 2, { 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0 });
+            data.describe(2, 2, "data");
+            data.mData.mEncoding = TextureEncoding::Data;
+
+            const MipChain even(data.mData);
+            ASSERT_FALSE(even.isEmpty());
+            EXPECT_EQ(channelAt(even.describe(), 1, 0, 0, 0), 128u) << "data was weighed by its alpha";
+            EXPECT_EQ(channelAt(even.describe(), 1, 0, 0, 3), 128u);
+        }
+
+        /// **An odd extent is halved by the box of its own width**, three taps a texel, so its last
+        /// texel is read. Five texels along a line, the last of them 250 and the rest nought: level
+        /// one is two texels, `(2, 2, 1) / 5` over texels 0 to 2 and `(1, 2, 2) / 5` over 2 to 4,
+        /// so nought and `250 * 2 / 5 = 100`; level two is their mean, 50. Halved as two, texel 4
+        /// was never read and both levels were nought.
+        TEST(RtxMipChainTest, anOddExtentIsHalvedByTheBoxOfItsOwnWidth)
+        {
+            TestTexture line;
+            for (const std::uint8_t value : { 0, 0, 0, 0, 250 })
+                for (const std::uint8_t byte : { value, value, value, std::uint8_t{ 255 } })
+                    line.mBytes.push_back(byte);
+            line.mLevels.push_back(MipLevel{ 0, 5, 1 });
+            line.describe(5, 1, "line");
+
+            const MipChain chain(line.mData);
+            ASSERT_FALSE(chain.isEmpty());
+            const TextureData built = chain.describe();
+            ASSERT_EQ(built.mLevels.size(), 3u) << "five texels run down to one in three levels";
+            ASSERT_EQ(built.mLevels[1].mWidth, 2u);
+
+            EXPECT_EQ(channelAt(built, 1, 0, 0, 0), 0u);
+            EXPECT_EQ(channelAt(built, 1, 1, 0, 0), 100u) << "the last texel of an odd extent was dropped";
+            EXPECT_EQ(channelAt(built, 2, 0, 0, 0), 50u);
+            EXPECT_EQ(channelAt(built, 2, 0, 0, 3), 255u) << "the weights did not sum to one";
         }
 
         /// A display-encoded texture is averaged in light and written back encoded.

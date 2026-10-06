@@ -961,14 +961,20 @@ namespace Rtx
         // the one the game hangs. A change deeper down is a controller's, and a controller never
         // let it freeze.
         FrozenRun& run = frozen->second;
-        if (run.mFace != FrozenFace::of(root, world))
+        run.mMet = mWorldWalk;
+        const FrozenFace face = FrozenFace::of(root, world);
+        if (run.mFace != face)
         {
-            thaw(run);
-            mFrozen.erase(frozen);
+            if (run.mHolding)
+                thaw(run);
+            run.mFace = face;
+            run.mMoved = mWorldWalk;
             return false;
         }
 
-        run.mMet = mWorldWalk;
+        if (!run.mHolding)
+            return false;
+
         mPass.getStats().mInstances += run.mInstances;
         return true;
     }
@@ -988,6 +994,13 @@ namespace Rtx
         if (changeable || mRecordedChangeable || mRecorded.empty())
             return;
 
+        // A root that moved on this walk is not frozen where it stands yet: the next walk that
+        // finds its face where this one left it freezes it.
+        const auto known = mFrozen.find(&root);
+        assert((known == mFrozen.end() || !known->second.mHolding) && "a frozen root walked and not passed");
+        if (known != mFrozen.end() && known->second.mMoved == mWorldWalk)
+            return;
+
         // Held from here on: the walk resolved every one of these this frame, and stamped it.
         for (const FrozenKey& key : mRecorded)
         {
@@ -997,17 +1010,23 @@ namespace Rtx
             mMaterials.hold(key.mMaterial);
         }
 
-        mFrozen.emplace(osg::ref_ptr<const osg::Node>(&root),
-            FrozenRun{
-                .mFace = FrozenFace::of(root, world),
-                .mKeys = mFrozenKeys.allocate(std::span<const FrozenKey>(mRecorded)),
-                .mInstances = mPass.getStats().mInstances - mRecordedFrom,
-                .mMet = mWorldWalk,
-            });
+        const FrozenRun run{
+            .mFace = FrozenFace::of(root, world),
+            .mKeys = mFrozenKeys.allocate(std::span<const FrozenKey>(mRecorded)),
+            .mInstances = mPass.getStats().mInstances - mRecordedFrom,
+            .mMet = mWorldWalk,
+            .mMoved = known != mFrozen.end() ? known->second.mMoved : 0,
+            .mHolding = true,
+        };
+        if (known != mFrozen.end())
+            known->second = run;
+        else
+            mFrozen.emplace(osg::ref_ptr<const osg::Node>(&root), run);
     }
 
     void SceneExtractor::thaw(FrozenRun& run)
     {
+        run.mHolding = false;
         for (const FrozenKey& key : mFrozenKeys.in(run.mKeys))
         {
             if (key.mPlaced)

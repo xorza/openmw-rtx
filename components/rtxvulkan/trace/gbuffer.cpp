@@ -84,6 +84,7 @@ namespace Rtx
                 every[bindingOf(Channel::AmbientAlbedo)] = { sAlbedo, sReadable };
                 every[bindingOf(Channel::Lift)] = { sLift, sReadable };
                 every[bindingOf(Channel::Penumbra)] = { sPenumbra, sReadable };
+                every[bindingOf(Channel::SpecularAlbedo)] = { sAlbedo, sReadable };
 
                 return every;
             }();

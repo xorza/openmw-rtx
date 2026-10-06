@@ -638,6 +638,92 @@ namespace Rtx::Testing
             EXPECT_LT(step / mean, 0.03) << "how far a settled pixel of lit air moves between frames";
         }
 
+        /// **The air beside an edge holds its lamp light still, and as bright as open air.** A
+        /// froxel's lamps are integrated along its column's middle ray, and their image keeps no
+        /// history, so the stretch they are integrated over has to end where that ray ends, on every
+        /// frame.
+        ///
+        /// Two posts 760 units out with a slit between them eleven pixels wide, and the centre pixel
+        /// looking through the slit at a black wall. The two columns the pixel reads both have their
+        /// middle ray in the slit, and their outer two or three pixels behind a post, so the
+        /// jittered ray each draws meets a post on a quarter to three eighths of the frames. A lamp
+        /// twenty units over the ray at 800, with a reach of a hundred, puts nearly all of its light
+        /// into the slice from 732 to 886 — which a stretch cut at the post holds none of.
+        ///
+        /// **Measured against the same air with no posts**, which holds perfectly still. Cut where
+        /// the jittered ray stopped, the pixel stepped by 20% of itself from one frame to the next
+        /// and settled 12% darker than the open air. Cut where the middle ray stops, it is the open
+        /// air's to half a per cent, and steps by 6.5%: the draws of the shadow rays the posts'
+        /// edges stop, which the froxel's history averages and nothing here can take away.
+        TEST_F(RtxVisibilityTest, theLampLightBesideAnEdgeHoldsStillAndAsBrightAsOpenAir)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreOf(size);
+            constexpr std::size_t frames = 96;
+            constexpr std::size_t settled = 48;
+            constexpr float eye = -2000.0f;
+            constexpr float posts = eye + 760.0f;
+            // Five and a half pixels either side of the centre, a pixel being `2 * 760 * tan 5° / 33`
+            // = 4.03 units out there: the columns' middles, four pixels either side, stand inside.
+            constexpr float slit = 22.0f;
+            constexpr float reach = 100.0f;
+            const osg::Vec3f lamp(0.0f, eye + 800.0f, 20.0f);
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, eye, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 10.0f, size, size, 100000.0f);
+            litThroughFog(camera, LampInTheAir::sExtinction);
+            camera.mFogUniform = sVolumeOverEvenAir;
+            camera.mFogColour = osg::Vec3f();
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mAmbientFromSky = 0.0f;
+
+            struct Settled
+            {
+                double mMean = 0.0;
+                double mStep = 0.0;
+            };
+
+            const auto run = [&](bool withPosts) {
+                SceneDesc scene = makeWall();
+                if (withPosts)
+                    for (const float side : { -1.0f, 1.0f })
+                        addQuad(scene,
+                            std::array{ osg::Vec3f(side * slit, posts, -500.0f),
+                                osg::Vec3f(side * 500.0f, posts, -500.0f), osg::Vec3f(side * 500.0f, posts, 500.0f),
+                                osg::Vec3f(side * slit, posts, 500.0f) });
+                scene.addLight(Light{
+                    .mPosition = lamp,
+                    .mIntensity = osg::Vec3f(1.0f, 1.0f, 1.0f) * (48.0f / lampDelivered(lamp.z(), reach)),
+                    .mReach = reach,
+                });
+
+                std::vector<float> radiance;
+                shoot(scene, {}, camera, size,
+                    Shot{ .mFrames = frames,
+                        .mAverage = false,
+                        .mLoss = HistoryLoss::Cut,
+                        .mEachFrame = [&](const Frame& each) { radiance.push_back(each.at(centre * 4)); } });
+
+                Settled out;
+                for (std::size_t frame = frames - settled; frame < frames; ++frame)
+                {
+                    out.mMean += double{ radiance[frame] };
+                    out.mStep += std::abs(double{ radiance[frame] } - double{ radiance[frame - 1] });
+                }
+                out.mMean /= double{ settled };
+                out.mStep /= double{ settled } * out.mMean;
+                return out;
+            };
+
+            const Settled open = run(false);
+            const Settled edged = run(true);
+            ASSERT_GT(open.mMean, 0.02) << "the lamp lights the air the pixel looks through";
+            EXPECT_EQ(open.mStep, 0.0) << "the open air holds still, so a step beside the posts is theirs";
+            EXPECT_NEAR(edged.mMean / open.mMean, 1.0, 0.02) << "the slit's air is lit as the open air is";
+            EXPECT_LT(edged.mStep, 0.1) << "how far the pixel beside the posts moves between frames";
+        }
+
         /// **The air's history turns once a trace, and a frame closed untraced turns nothing.** A
         /// trace writes one half of the air and reads the other as its history, so the trace after
         /// a frame the ring closed with no trace reads what the trace before it wrote: forty frames

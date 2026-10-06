@@ -8,8 +8,8 @@
 // room for — `BLOOM_SCATTER` says why, and what a level holds after this is the blur of everything
 // coarser than it.
 
-#include "bloom.h"
-#include "sets.h"
+#include "shared/bloom.h"
+#include "shared/sets.h"
 #include "lib/bloom.glsl"
 #include "lib/pixels.glsl"
 
@@ -33,7 +33,7 @@ void main()
         return;
 
     const ivec2 at = ivec2(pixel);
-    const vec2 uv = (vec2(pixel) + 0.5) / vec2(frame.mWidth, frame.mHeight);
+    const vec2 uv = (vec2(pixel) + 0.5) * 0.5 * frame.mTexel;
 
     const vec3 spread = bloomSpread(coarser, uv, frame.mTexel);
 

@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <span>
@@ -80,7 +81,7 @@ namespace Rtx
         , mRing(mDevice, mCounting || mStress != nullptr, mStress != nullptr ? mStress->getTickMs() : 0.0)
         , mScenePasses(mDevice)
         , mTracePasses(mDevice, mScenePasses.mTextureLayout, mCounting, mProfile.mSpecializeLaunches)
-        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth, true, mProfile.mReconstruction.mIndirect)
+        , mFrame(mDevice, mTracePasses, sFrameSlots, mProfile.mRadianceWidth, mProfile.mReconstruction.mIndirect)
         , mDisplay(mDevice, mTracePasses.mVisibility, mScenePasses.mTextureLayout.get())
         , mMedia(mDevice)
         , mGui(mDevice)
@@ -556,6 +557,10 @@ namespace Rtx
         if (past.mWaterLost)
             mMedia.resetRipples();
 
+        // **What can make or replace a resource, before the recording opens**: the bounce's histories
+        // the indirect light keeps.
+        mFrame.setIndirect(reconstruction.mIndirect);
+
         GpuTimer& timer = frame.mTimer;
         const VkCommandBuffer commands = frame.mWorld.mCommands;
         mDevice.getPool().begin(commands);
@@ -575,6 +580,7 @@ namespace Rtx
 
         Image& target = mTarget.getPicture();
         mShownCurrent = false;
+        mDeepCurrent = options.mAccumulate > 0;
 
         const TraceResult traced = mFrame.record(commands,
             TraceRecording{
@@ -621,6 +627,7 @@ namespace Rtx
                     .mMotion = channels.get(Channel::Motion),
                     .mMasks = channels.get(Channel::UpscaleMasks),
                     .mEyes = sampled.mEyes,
+                    .mPreviousJitter = sampled.mPreviousJitter,
                     .mJitterPhases = reconstruction.mJitterPhases,
                     .mSeconds = options.mSinceLast,
                     .mSlot = mRing.getRecordingSlot(),
@@ -633,8 +640,10 @@ namespace Rtx
         FrameLook::Exposure exposure = FrameLook::Held{};
         if (const FixedExposure* fixed = std::get_if<FixedExposure>(&rule))
             exposure = FrameLook::Fixed{ fixed->mScale };
-        else if (std::holds_alternative<MeasuredExposure>(rule))
-            exposure = FrameLook::Measured{ .mSeconds = options.mSinceLast, .mBias = options.mExposureBias };
+        else if (const MeasuredExposure* measured = std::get_if<MeasuredExposure>(&rule))
+            exposure = FrameLook::Measured{
+                .mSeconds = options.mSinceLast, .mBias = options.mExposureBias, .mStart = measured->mStart
+            };
 
         mDisplay.record(commands,
             Display{
@@ -650,6 +659,8 @@ namespace Rtx
                     .mGlare = FrameLook::Glare{ .mFader = options.mGlare, .mSeconds = options.mSinceLast },
                     .mInverseGamma = mInverseGamma,
                     .mNightEye = options.mNightEye,
+                    .mDither = options.mDither.value_or(mProfile.mDither),
+                    .mDeep = mDeepCurrent ? &mTarget.requireDeep(mDevice) : nullptr,
                     .mDebug = options.mDebug,
                     .mDebugVertices = frame.mDebugVertices,
                     .mTimer = timer,
@@ -724,6 +735,16 @@ namespace Rtx
         assert(mTarget.isOpen());
 
         mTarget.getPicture().read(VK_IMAGE_LAYOUT_GENERAL, pixels);
+    }
+
+    void VulkanRenderer::readDeepPixels(std::vector<std::uint16_t>& samples)
+    {
+        assert(mDeepCurrent && "a sixteen-bit picture asked of a frame that did not sum");
+
+        std::vector<std::uint8_t> bytes;
+        mTarget.getDeep().read(VK_IMAGE_LAYOUT_GENERAL, bytes);
+        samples.resize(bytes.size() / sizeof(std::uint16_t));
+        std::memcpy(samples.data(), bytes.data(), samples.size() * sizeof(std::uint16_t));
     }
 
     void VulkanRenderer::readShown(std::vector<std::uint8_t>& pixels)

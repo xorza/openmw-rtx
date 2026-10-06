@@ -35,14 +35,30 @@ void main()
     const bool parallel = frame.mEyes.mWorld.mOrthographic != 0u;
     const vec3 forward = frame.mEyes.mWorld.mBasis.mForward;
     const float along = parallel ? dot(toCentre, forward) : length(toCentre);
-    const vec3 halfway = parallel ? emitter.mCentre - forward * (0.5 * along) : frame.mOrigin + toCentre * 0.5;
+    const vec3 from = parallel ? emitter.mCentre - forward * along : frame.mOrigin;
+    const vec3 towards = parallel || !(along > 0.0) ? forward : toCentre / along;
 
-    // **What one layer of this texture hides on average**, off its coarsest level, as the logarithm
-    // the walk's two powers share: an outermost sprite raises it to nought and gets one, exactly.
-    const float coarsest = float(textureQueryLevels(textures[nonuniformEXT(emitter.mTexture)]) - 1);
-    const float layerMean = textureLod(textures[nonuniformEXT(emitter.mTexture)], vec2(0.5), coarsest).a;
+    // **What one layer of this texture hides on average**, as the logarithm the walk's two powers
+    // share: an outermost sprite raises it to nought and gets one, exactly.
+    //
+    // **The mean of the coarsest level, every texel of it**, which a box-filtered chain keeps as its
+    // texture's own at every level: eight by eight where Morrowind's chains end, and one texel where
+    // the device made the chain. A chain whose coarsest level is wider than eight is read on an eight-by-eight grid. Read at
+    // the middle of the coarsest level instead, it was the peak of a radial puff and not its mean,
+    // and vanilla smoke shadowed itself several times too darkly. **Here and not at the texture's
+    // arrival**, because only the device knows which image stands in a slot and at which level it
+    // was stood: at most sixty-four reads an emitter.
+    const int coarsest = textureQueryLevels(textures[nonuniformEXT(emitter.mTexture)]) - 1;
+    const ivec2 grid = min(textureSize(textures[nonuniformEXT(emitter.mTexture)], coarsest), ivec2(8));
+    float covered = 0.0;
+    for (int y = 0; y < grid.y; ++y)
+        for (int x = 0; x < grid.x; ++x)
+            covered += textureLod(textures[nonuniformEXT(emitter.mTexture)], (vec2(x, y) + 0.5) / vec2(grid),
+                float(coarsest))
+                           .a;
+    const float layerMean = covered / float(grid.x * grid.y);
 
     // Both axes, because a streak carries them at different densities — `quadCrossing` says why.
-    EmitterFrames(frame.mTables.mEmitterFrames).at[index] = GpuEmitterFrame(fogCoverageAt(halfway, max(along, 1.0)),
+    EmitterFrames(frame.mTables.mEmitterFrames).at[index] = GpuEmitterFrame(slantCoverage(from, towards, along),
         log2(1.0 - min(layerMean, SPRITE_ALPHA_LIMIT)), vec2(textureSize(textures[nonuniformEXT(emitter.mTexture)], 0)));
 }

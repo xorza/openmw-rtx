@@ -9,7 +9,7 @@
 // else; the traced depth is what decides the rest, in the fragment stage.
 
 #include "camera.h"
-#include "line.h"
+#include "shared/line.h"
 
 layout(push_constant, scalar) uniform Push
 {

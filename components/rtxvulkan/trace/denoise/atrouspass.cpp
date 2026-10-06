@@ -7,12 +7,12 @@
 #include <string_view>
 
 #include <components/rtx/renderer/channel.hpp>
-#include <components/rtx/shaders/atrous.h>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/atrous.h>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 
 namespace Rtx
@@ -21,8 +21,9 @@ namespace Rtx
     {
         /// The channel coming in with its variance, which says where the edges in the light are,
         /// the channel going out, the one that says where the edges in the surface are and which
-        /// eye each pixel's ray left, the fill in and out, and the accumulator's moments, whose
-        /// count the history fix reads. All pushed. Sampled on the four this pass only reads,
+        /// eye each pixel's ray left, the fill in and out, the accumulator's moments, whose count
+        /// the history fix reads, and its fast means, which the fix writes its answer into. All
+        /// pushed. Sampled on the four this pass only reads,
         /// because a twenty-five tap gather wants the texture unit's cache — a few per cent of the
         /// cascade — and legal from `VK_IMAGE_LAYOUT_GENERAL`.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ATROUS_BINDINGS> sBindings{
@@ -32,6 +33,7 @@ namespace Rtx
             computeBinding(Shaders::ATROUS_BIND_FILL_SOURCE, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_FILL_FILTERED, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
             computeBinding(Shaders::ATROUS_BIND_MOMENTS, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE),
+            computeBinding(Shaders::ATROUS_BIND_FAST, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
         };
 
         /// Both reads, because a level's inputs are sampled and its target is storage. An image
@@ -71,7 +73,7 @@ namespace Rtx
         const GBuffer& buffer, const DenoiseFrame& frame) const
     {
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
-        assert(images.mScratch.getWidth() >= camera.mWidth && images.mScratch.getHeight() >= camera.mHeight);
+        assert(images.mNarrow.getWidth() >= camera.mWidth && images.mNarrow.getHeight() >= camera.mHeight);
         assert(buffer.getWidth() >= camera.mWidth && buffer.getHeight() >= camera.mHeight);
 
         // One assignment and not eight, so the filter's rays and the trace's cannot come to
@@ -83,17 +85,21 @@ namespace Rtx
             .mEyes = frame.mSampled.mEyes,
             .mStep = 1,
             .mFixFrames = 0.0f,
+            .mFrame = frame.mSampled.mFrame,
         };
 
-        // Three images take turns and not two, because the first level's answer is the mean the
-        // accumulator reads next frame — SVGF's feedback — so the levels after it ping-pong between
-        // the blend and the scratch and leave it alone. The bounce's three and the fill's take the
+        // The first level reads the blend and writes the mean the accumulator reads next frame —
+        // SVGF's feedback — in full floats; the levels after it ping-pong between the narrow pair,
+        // in halves (`ATROUS_NARROW`), and leave both alone. The bounce's and the fill's take the
         // same turns.
         constexpr std::size_t blended = 0;
         constexpr std::size_t history = 1;
-        constexpr std::size_t scratch = 2;
-        const std::array<const Image*, 3> bounce{ &images.mBlended, &images.mColour, &images.mScratch };
-        const std::array<const Image*, 3> fill{ &images.mFillBlended, &images.mFill, &images.mFillScratch };
+        constexpr std::size_t narrow = 2;
+        constexpr std::size_t other = 3;
+        const std::array<const Image*, 4> bounce{ &images.mBlended, &images.mColour, &images.mNarrow,
+            &images.mNarrowOther };
+        const std::array<const Image*, 4> fill{ &images.mFillBlended, &images.mFill, &images.mFillNarrow,
+            &images.mFillNarrowOther };
         std::size_t source = blended;
         std::size_t target = history;
 
@@ -125,6 +131,7 @@ namespace Rtx
             writes.image(Shaders::ATROUS_BIND_FILL_SOURCE, fill[source]->describeSampled(VK_NULL_HANDLE));
             writes.image(Shaders::ATROUS_BIND_FILL_FILTERED, fill[target]->describeStorage());
             writes.image(Shaders::ATROUS_BIND_MOMENTS, images.mMoments.describeSampled(VK_NULL_HANDLE));
+            writes.image(Shaders::ATROUS_BIND_FAST, images.mFast.describeStorage());
 
             level.mStep = 1u << pass;
             level.mFixFrames = pass == 0 && frame.mHistoryFix ? Shaders::ACCUMULATE_FIX_FRAMES : 0.0f;
@@ -132,11 +139,10 @@ namespace Rtx
             dispatch(commands, pipeline, writes, level,
                 Groups::covering(camera.mWidth, camera.mHeight, Shaders::ATROUS_WORKGROUP));
 
-            // The next level reads what this one wrote, and writes whichever of the other two it is
-            // not reading — the blend after the first level, and the scratch and the blend by turns
-            // after that.
+            // The next level reads what this one wrote, and writes whichever of the narrow pair it is
+            // not reading.
             source = target;
-            target = pass == 0 ? blended : (source == blended ? scratch : blended);
+            target = source == narrow ? other : narrow;
         }
 
         // The cascade hands over what it wrote, because nothing after it does: with the last level

@@ -13,8 +13,8 @@
 
 #include "colour.h"
 #include "gbuffer.h"
-#include "line.h"
-#include "sets.h"
+#include "shared/line.h"
+#include "shared/sets.h"
 
 #include "lib/pixels.glsl"
 

@@ -49,7 +49,9 @@ namespace Rtx
         /// Gives command buffers back for the next `take`, once the queue has finished with them.
         void recycle(std::span<const VkCommandBuffer> commands);
 
-        /// Begins one of them, one-shot like everything this pool hands out.
+        /// Begins one of them, one-shot like everything this pool hands out: a frame's recording, a
+        /// placement's or a trace's, open until it is ended, submitted, deferred or discarded.
+        /// **No other submit is made while it is open**, which `submitWithDeferred` asserts.
         void begin(VkCommandBuffer commands);
 
         /// Ends a recording nobody will submit this frame — a placement that placed nothing — so
@@ -137,6 +139,13 @@ namespace Rtx
         VkCommandBuffer begin();
         void endAndWait(VkCommandBuffer commands);
 
+        /// Begins `commands` and records the head barrier: what `begin` does for a frame and a
+        /// batch alike, without the frame's bookkeeping.
+        void open(VkCommandBuffer commands);
+
+        /// Takes `commands` off the open frame recordings where it is one.
+        void close(VkCommandBuffer commands);
+
         /// Gives back a recording nobody will submit. `Batch::~Batch` says when that happens.
         void discard(VkCommandBuffer commands);
 
@@ -170,6 +179,13 @@ namespace Rtx
         /// value of the timeline, which it returns. A deferred batch ends every upload and every
         /// build in a barrier, so what `commands` reads of them is what it would have read had
         /// they been recorded into it.
+        ///
+        /// **With no frame recording open beside it.** What an open recording hands out is named
+        /// for the next submit (`ReadStamp`), and this submit is the next: it would take the value,
+        /// and what the open recording named would read idle once this one ran, though the
+        /// recording runs after it. A batch is not a frame recording and is not counted — the
+        /// interface keeps one open across frames by design (`GuiTextures`), and it names what it
+        /// reads only when it is handed over.
         std::uint64_t submitWithDeferred(VkCommandBuffer commands, std::span<const VkSemaphoreSubmitInfo> waits,
             std::span<const VkSemaphoreSubmitInfo> signals);
 
@@ -178,6 +194,10 @@ namespace Rtx
 
         /// Recorded and ended, waiting for the next submit to carry them first.
         std::vector<VkCommandBuffer> mDeferred;
+
+        /// The recordings `begin` opened and nothing has closed: a frame's placements' and its
+        /// trace's, one or two at a time, kept at its capacity.
+        std::vector<VkCommandBuffer> mOpen;
 
         /// Carried by a submit and not yet known to have run.
         Retiring<VkCommandBuffer> mRetiring;

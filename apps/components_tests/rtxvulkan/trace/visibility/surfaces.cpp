@@ -47,6 +47,7 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
+#include <components/rtxvulkan/shaders/shared/tables.h>
 #include <components/rtxvulkan/trace/spritebin.hpp>
 #include <components/rtxvulkan/trace/spritepasses.hpp>
 #include <components/vfs/pathutil.hpp>

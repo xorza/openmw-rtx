@@ -13,12 +13,12 @@
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/hosttypes.h>
-#include <components/rtx/shaders/tone.h>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
+#include <components/rtxvulkan/shaders/shared/tone.h>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 #include <components/rtxvulkan/trace/tracerecording.hpp>
 #include <components/rtxvulkan/trace/visibilitypass.hpp>
@@ -35,11 +35,16 @@ namespace Rtx
         /// is traced into a chain grown to the largest one asked for, so a smaller picture fills a
         /// corner of its channels: read at the channels' size, the pass looked for a pixel's backdrop
         /// and its sprite tile under another pixel altogether.
-        Shaders::ToneConstants toneFor(const Shaders::VisibilityConstants& frame, const SunGlare& fader,
-            const float inverseGamma, const osg::Vec3f& nightEye, const bool upscaled,
-            const VkDeviceAddress spriteTileList, const VkDeviceAddress spritePresence,
-            const VkDeviceAddress textureTexels, std::uint32_t width, std::uint32_t height)
+        ///
+        /// @param look the frame's, or null for a picture inside the interface, which takes no glare,
+        ///        no gamma, no Night-Eye and no dither: the interface draws it as it draws its own.
+        Shaders::ToneConstants toneFor(const Shaders::VisibilityConstants& frame, const FrameLook* look,
+            const bool upscaled, const VkDeviceAddress spriteTileList, const VkDeviceAddress spritePresence,
+            const VkDeviceAddress textureTexels, const VkDeviceAddress blueNoise, std::uint32_t width,
+            std::uint32_t height)
         {
+            const SunGlare fader = look != nullptr ? look->mGlare.mFader : SunGlare{};
+
             assert(spriteTileList != 0 && spritePresence != 0 && "a curve told no tiles to test the puffs by");
             assert(textureTexels != 0 && "a curve told no texel counts to test the star sheet by");
 
@@ -47,6 +52,7 @@ namespace Rtx
                 .mSpriteTileList = spriteTileList,
                 .mSpritePresence = spritePresence,
                 .mTextureTexels = textureTexels,
+                .mBlueNoise = blueNoise,
                 .mTracedWidth = frame.mEyes.mWorld.mWidth,
                 .mTracedHeight = frame.mEyes.mWorld.mHeight,
                 .mBackdrop = frame.mTransparentBackground == 0 ? Shaders::BACKDROP_STARS : Shaders::BACKDROP_INTERFACE,
@@ -54,9 +60,11 @@ namespace Rtx
                 .mStars = frame.mStars,
                 .mGlareColour = fader.mFader.mColour,
                 .mGlareAmount = fader.amountFor(frame),
-                .mInverseGamma = inverseGamma,
-                .mNightEye = nightEye,
+                .mInverseGamma = look != nullptr ? look->mInverseGamma : 1.0f,
+                .mNightEye = look != nullptr ? look->mNightEye : osg::Vec3f(),
                 .mLiftOffset = upscaled ? -frame.mEyes.mWorld.mJitter : osg::Vec2f(),
+                .mFrame = frame.mFrame,
+                .mDitherStep = look != nullptr && look->mDither ? Shaders::TONE_DITHER_STEP : 0.0f,
             };
         }
     }
@@ -103,8 +111,7 @@ namespace Rtx
         const GBuffer& channels = inputs.mChannels;
 
         shown.transition(commands, what.mShown.mLeftAs, Use::sTraceReadWrite);
-        mPuffs.recordSpriteComposite(commands, inputs, shown, what.mExtent,
-            VkExtent2D{ what.mSampled.mEyes.mWorld.mWidth, what.mSampled.mEyes.mWorld.mHeight }, timer);
+        mPuffs.recordSpriteComposite(commands, inputs, shown, what.mSampled.mEyes, what.mExtent, timer);
         shown.transition(commands, Use::sTraceReadWrite, Use::sComputeReadOrSample);
 
         // What the lens will spread, built here and applied by the curve. Nothing is written back
@@ -113,7 +120,7 @@ namespace Rtx
         if (look != nullptr)
         {
             openZone(timer, commands, "bloom");
-            mBloom.record(commands, shown);
+            mBloom.record(commands, shown, mExposure.getExposure());
             closeZone(timer, commands);
         }
 
@@ -135,7 +142,8 @@ namespace Rtx
             else
             {
                 const FrameLook::Measured& measured = std::get<FrameLook::Measured>(look->mExposure);
-                mExposure.record(commands, shown, measured.mSeconds, mExposureStale, measured.mBias);
+                mExposure.record(commands, shown, measured.mSeconds,
+                    mExposureStale ? std::optional(measured.mStart) : std::nullopt, measured.mBias);
                 mExposureStale = false;
             }
             closeZone(timer, commands);
@@ -155,23 +163,40 @@ namespace Rtx
             share = &mSunGlare.getShare();
         }
 
+        const Shaders::ToneConstants constants = toneFor(what.mSampled, look, what.mUpscaled,
+            what.mTrace.mSprites.mTileList, what.mTrace.mSprites.mPresence, inputs.mSubject.mScene->getTextureTexels(),
+            mPuffs.getBlueNoise(), what.mExtent.width, what.mExtent.height);
+        const auto toneInto = [&](const Image& target, const Shaders::ToneConstants& into) {
+            mTone.record(commands,
+                Tone{
+                    .mColour = shown,
+                    .mExposure = *exposure,
+                    .mSunGlare = *share,
+                    .mBackdrop = channels.get(Channel::Backdrop),
+                    .mSurface = channels.get(Channel::Surface),
+                    .mLift = channels.get(Channel::Lift),
+                    .mBloom = look != nullptr ? mBloom.getPyramid() : nullptr,
+                    .mTextures = inputs.mSubject.mScene->getTextures(),
+                    .mTarget = target,
+                    .mConstants = into,
+                });
+        };
+
         openZone(timer, commands, "tone");
-        mTone.record(commands,
-            Tone{
-                .mColour = shown,
-                .mExposure = *exposure,
-                .mSunGlare = *share,
-                .mBackdrop = channels.get(Channel::Backdrop),
-                .mSurface = channels.get(Channel::Surface),
-                .mLift = channels.get(Channel::Lift),
-                .mBloom = look != nullptr ? mBloom.getPyramid() : nullptr,
-                .mTextures = inputs.mSubject.mScene->getTextures(),
-                .mTarget = what.mTarget,
-                .mConstants = toneFor(what.mSampled, look != nullptr ? look->mGlare.mFader : SunGlare{},
-                    look != nullptr ? look->mInverseGamma : 1.0f, look != nullptr ? look->mNightEye : osg::Vec3f(),
-                    what.mUpscaled, what.mTrace.mSprites.mTileList, what.mTrace.mSprites.mPresence,
-                    inputs.mSubject.mScene->getTextureTexels(), what.mExtent.width, what.mExtent.height),
-            });
+        toneInto(what.mTarget, constants);
+
+        // **The curve run a second time, because a copy of the picture would carry its byte**, and
+        // the byte is what the second store is there to escape: a summed frame's mean falls between
+        // the byte's levels. Undithered, since sixteen bits round under anything measured against
+        // them.
+        if (look != nullptr && look->mDeep != nullptr)
+        {
+            Shaders::ToneConstants deep = constants;
+            deep.mDitherStep = 0.0f;
+            look->mDeep->transition(commands, Use::sUndefined, Use::sComputeWrite);
+            toneInto(*look->mDeep, deep);
+            look->mDeep->transition(commands, Use::sComputeWrite, what.mLeftAs);
+        }
         closeZone(timer, commands);
 
         if (look != nullptr)

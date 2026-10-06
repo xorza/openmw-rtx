@@ -8,8 +8,8 @@
 // curve's every workgroup reads one settled number rather than each easing it again. `glare.h`
 // says whose query this is.
 
-#include "glare.h"
-#include "sets.h"
+#include "shared/glare.h"
+#include "shared/sets.h"
 
 layout(local_size_x = 1) in;
 

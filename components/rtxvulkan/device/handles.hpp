@@ -9,7 +9,7 @@
 #include <volk.h>
 
 #include <components/rtx/image/texturewrap.hpp>
-#include <components/rtx/shaders/sets.h>
+#include <components/rtxvulkan/shaders/shared/sets.h>
 
 #include "bindingtable.hpp"
 #include "owned.hpp"

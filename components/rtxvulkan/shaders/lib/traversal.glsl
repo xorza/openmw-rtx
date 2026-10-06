@@ -18,15 +18,50 @@
 #include "bindings.glsl"
 #include "geometry.glsl"
 #include "ground.glsl"
+#include "random.glsl"
 #include "texturing.glsl"
 #include "variants.glsl"
 
-/// How far off a surface a shadow ray starts, in world units.
-///
-/// A Morrowind unit is about 1.4 cm, and a float at the far side of a worldspace resolves to a
-/// hundredth of one — so this is invisible and still an order of magnitude clear of where a hit
-/// point can land on the wrong side of its own triangle.
+/// The shortest distance to a light worth a ray, in world units: a light nearer the point than this
+/// is one nothing can stand between. **Not where a ray starts**, which is `leaveSurface`'s.
 const float SHADOW_BIAS = 1.0;
+
+/// How many units in the last place past a hit an eye's ray carries on from, where it carries on
+/// along the same line (`alongPast`). The same ray meets the same triangle at the same distance to
+/// the bit; a triangle that shares the edge the ray crossed works its own distance out, a few
+/// units in the last place off. Sixty-four is four thousandths of a unit at a thousand units, so
+/// two layers that near are one layer.
+const uint CONTINUATION_ULPS = 64u;
+
+/// Where a ray carries on from along the line it met `distance` along: just past it, by
+/// `CONTINUATION_ULPS`.
+float alongPast(float distance)
+{
+    return uintBitsToFloat(floatBitsToUint(distance) + CONTINUATION_ULPS);
+}
+
+/// Just short of `distance`, by the same step, for a ray asked again about what stands at the
+/// distance it met.
+float alongShort(float distance)
+{
+    return distance > 0.0 ? uintBitsToFloat(floatBitsToUint(distance) - min(CONTINUATION_ULPS, floatBitsToUint(distance)))
+                          : 0.0;
+}
+
+/// Where a ray leaving a surface along `direction` starts: `point` pushed off its triangle by
+/// `step`, on the side `direction` leaves by — and the ray then starts at nought.
+///
+/// **A distance skipped at the start was the alternative, and it skipped what stood there**: a unit
+/// of it, and the floor at a wall's foot took the sun through the wall, and every contact shadow
+/// nearer than a unit was lost.
+///
+/// @param step the triangle's unit normal, either way round, times how far the point can stand off
+///        the triangle: `stepOf`. Nought for a point in the air, which has no surface to leave and
+///        starts where it is.
+vec3 leaveSurface(vec3 point, vec3 step, vec3 direction)
+{
+    return point + (dot(direction, step) < 0.0 ? -step : step);
+}
 
 /// Whether a material is meant to be seen through everywhere, rather than in the holes of a mask.
 ///
@@ -320,6 +355,39 @@ struct Candidate
             = triangleEdges(candidateCorners, rayQueryGetIntersectionObjectToWorldEXT(query, false));       \
     }
 
+/// How a ray meets a surface it could see through — a pane, a fading actor, a material's own alpha:
+/// one of three rules, each a literal at its call, so `candidateStops` folds to one.
+///
+/// **Walked past, keeping what it let through**: a ray toward a light, whose answer is a product the
+/// order does not change, and an asker of where the picture ends.
+const uint MEET_WALK_PAST = 0u;
+
+/// **Met as often as it is there**, and passed otherwise: every ray that commits a hit and shades it —
+/// a bounce, a reflection, a refraction, the reuse's rays. Met every time, a pane the eye sees
+/// through stood solid in each of them; met by chance, their mean is the blend the eye draws.
+const uint MEET_BY_CHANCE = 1u;
+
+/// **Met as any solid is**: by the eye's any-hit shader, whose closest-hit shader peels it
+/// (`visibility.rgen`) and composites the layers itself, and by a falling drop's shelter ray, since
+/// glass keeps rain off as a roof does.
+const uint MEET_AS_SOLID = 2u;
+
+/// A key a ray draws from, made of the ray itself: where it leaves and which way, so two rays a
+/// pixel apart or a frame apart draw apart without a pixel's key handed down every traversal.
+uint rayKeyOf(vec3 origin, vec3 direction)
+{
+    const uvec3 from = floatBitsToUint(origin);
+    const uvec3 along = floatBitsToUint(direction);
+    uint key = 0u;
+    for (uint word = 0u; word < 6u; ++word)
+    {
+        key ^= word < 3u ? from[word] : along[word - 3u];
+        key *= 0x9E3779B1u;
+        key ^= key >> 15u;
+    }
+    return key;
+}
+
 /// Whether a candidate hit stops the ray, and what it lets past where it does not.
 ///
 /// **One load of the instance and its material, and not three questions asked in turn.** Whether a
@@ -339,20 +407,23 @@ struct Candidate
 /// way the better of the two errors.
 ///
 /// @param blocked raised by what a see-through candidate kept, in `blockedBy`'s terms. Untouched
-///        otherwise, which the compiler folds away with `seeThrough`.
-/// @param seeThrough whether a see-through candidate is walked past or taken against its cutoff like
-///        any other. **A literal at every call**, so the whole branch folds.
+///        otherwise, which the compiler folds away with `meet`.
+/// @param meet how a see-through candidate is met — `MEET_WALK_PAST`, `MEET_BY_CHANCE` or
+///        `MEET_AS_SOLID`. **A literal at every call**, so the branches fold.
 /// @param detailed whether the ray draws the picture, so its cutout is read along the footprint the
 ///        surface it cuts is read along — `texturePoint`. A literal at every call as well.
 /// @param dither the eye's draw for a soft edge (`cutAt`), and one for every other ray.
-bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, bool seeThrough, bool detailed,
-    float dither, inout uint blocked)
+/// @param rayKey the ray's own key, `rayKeyOf`, which `MEET_BY_CHANCE` draws from. Unread otherwise.
+bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, uint meet, bool detailed, float dither,
+    uint rayKey, inout uint blocked)
 {
     const GpuInstance instance = instanceAt(candidate.mInstance);
     const GpuMaterial material = materialAt(instance.mMaterial);
 
     const float opacity = surfaceOpacity(instance, material);
-    const bool walkPast = seeThrough && isSeenThrough(opacity, material);
+    const bool seenThrough = isSeenThrough(opacity, material);
+    const bool walkPast = meet == MEET_WALK_PAST && seenThrough;
+    const bool byChance = meet == MEET_BY_CHANCE && seenThrough;
 
     // **Nothing stops on a medium, whatever the ray was asking.** A surface that is nowhere opaque
     // is not a surface: the eye walks through a cloud and commits the mountain behind it, and a
@@ -377,7 +448,7 @@ bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, bool s
     //
     // **The material and not the placement.** An actor the game is fading keeps every hole in its
     // mask, because a fade is not a hole — what the fade does to what is left is measured elsewhere.
-    if (!walkPast && !hasMask(material))
+    if (!walkPast && !byChance && !hasMask(material))
         return true;
 
     const TexturePoint point = candidatePoint(triangleCorners(meshAt(instance.mMesh), candidate.mPrimitive), material,
@@ -388,7 +459,16 @@ bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, bool s
     // four legs each), behind a material bit or not: the code sits in every shadow ray's candidate
     // loop. The hit and a medium's crossing read it.
     const float painted = sampleDiffuse(material.mDiffuse, point).a;
-    const bool there = alphaPasses(alphaPassesOf(material), painted, cutAt(material, dither));
+
+    // **Tested as the rasterizer tests it**, with the alpha raised by a quarter a level the read
+    // stands below the finest (`alpha.glsl`'s `coveragePreservingAlphaScale`, on by default): a
+    // box filter's level holds the mean of its texels' alpha, and a mean of opaque leaves and holes
+    // falls under the reference, so a canopy thinned with distance and the trace's far foliage was
+    // thinner than the rasterizer's. **Not on a soft edge**, whose cut is drawn under the reference
+    // (`cutAt`) and whose mean alpha is already its coverage. The level is the cone's over the
+    // texture's mean side, where the rasterizer takes its longer axis.
+    const float covering = isSoftEdged(material) ? 1.0 : 1.0 + 0.25 * max(coneLod(material.mDiffuse, point), 0.0);
+    const bool there = alphaPasses(alphaPassesOf(material), painted * covering, cutAt(material, dither));
 
     // **A hole is a hole to the ray that walks past as well.** A placement the game is fading
     // makes its cutout see-through, and the eye still passes a texel the test cuts before it
@@ -398,6 +478,15 @@ bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, bool s
     {
         blocked = addShare(blocked, blockedBy(there ? sampledOpacity(opacity, painted) : 0.0));
         return false;
+    }
+
+    // **Met as often as it is there**, one draw a ray and a triangle, so the mean of what the rays
+    // find behind a pane is the blend the eye draws over it.
+    if (byChance)
+    {
+        uint draws = randomSeed(rayKey + SEED_SEE_THROUGH + candidate.mInstance * 0x9E3779B9u
+            + candidate.mPrimitive * 0x85EBCA6Bu);
+        return there && randomNext(draws) < sampledOpacity(opacity, painted);
     }
 
     return there;
@@ -417,19 +506,22 @@ bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, bool s
 /// @param cone how wide the ray's cone is *at this candidate*, which is what decides how much of the
 ///        mask one pixel is looking at. Nought for a ray that carries no cone, which reads the
 ///        finest level — every shadow ray. Substituted textually, so it may name the traversal.
-/// @param blocked,seeThrough handed straight to `candidateStops`, which says what each is for. A
-///        ray that sees through cannot commit the surface it saw through, so a caller with no use
-///        for `blocked` must say false and get the surface. The shadow ray says true — it wants a
-///        sum, and the sum does not depend on the order they arrived in.
+/// @param blocked,meet handed straight to `candidateStops`, which says what each is for. A ray
+///        that walks past cannot commit the surface it walked past, so a caller with no use for
+///        `blocked` meets by chance and gets the surface or what stands behind it. The shadow ray
+///        walks past — it wants a sum, and the sum does not depend on the order they arrived in.
 /// @param detailed handed to `candidateStops` as well: whether the ray draws the picture.
-#define RTX_RESOLVE(query, along, cone, blocked, seeThrough, detailed)                                      \
+#define RTX_RESOLVE(query, along, cone, blocked, meet, detailed)                                            \
+    const uint resolveRayKey = (meet) == MEET_BY_CHANCE                                                     \
+        ? rayKeyOf(rayQueryGetWorldRayOriginEXT(query), rayQueryGetWorldRayDirectionEXT(query))            \
+        : 0u;                                                                                               \
     while (rayQueryProceedEXT(query))                                                                       \
     {                                                                                                       \
         if (rayQueryGetIntersectionTypeEXT(query, false) != gl_RayQueryCandidateIntersectionTriangleEXT)    \
             continue;                                                                                       \
                                                                                                             \
         RTX_READ_CANDIDATE(query, candidate)                                                                \
-        if (candidateStops(candidate, (along), (cone), (seeThrough), (detailed), 1.0, (blocked)))           \
+        if (candidateStops(candidate, (along), (cone), (meet), (detailed), 1.0, resolveRayKey, (blocked)))  \
             rayQueryConfirmIntersectionEXT(query);                                                          \
     }
 
@@ -461,6 +553,16 @@ struct Hit
 
     vec2 mBary;
     float mDistance;
+
+    /// Where the ray met the triangle, in the world: the corners' mix by the weights, carried
+    /// through the placement. **Off the triangle and not off the ray**, whose rounding grows with
+    /// its length and with how far its origin stands.
+    vec3 mPosition;
+
+    /// How far `mPosition` can stand off its triangle along the triangle's normal, either way: the
+    /// rounding of the mix, of the placement, and of the card's own test of a ray against the
+    /// triangle. What a ray leaving here steps off by (`leaveSurface`).
+    float mRounding;
 
     /// How wide the ray's cone was where it landed.
     float mFootprint;
@@ -506,6 +608,8 @@ Hit noHit()
     hit.mCorner = uvec3(0u);
     hit.mBary = vec2(0.0);
     hit.mDistance = frame.mReach;
+    hit.mPosition = vec3(0.0);
+    hit.mRounding = 0.0;
     hit.mFootprint = 0.0;
     hit.mEdges = TriangleEdges(vec3(0.0), vec3(0.0));
     hit.mShading = vec3(0.0);
@@ -516,11 +620,51 @@ Hit noHit()
     return hit;
 }
 
+/// Where a hit stands and how far that can be off its triangle: `Hit::mPosition` and
+/// `Hit::mRounding`.
+///
+/// **NVIDIA's bound for a hardware traversal** (*Solving Self-Intersection Artifacts in DirectX
+/// Raytracing*, NVIDIA developer blog, 2022), which is the one that holds on a card whose own test
+/// of the ray against the triangle rounds: the point is mixed in the mesh's own space, base corner
+/// last, and carried into the world with the translation last; its error is bounded in the mesh's
+/// space by the corner's size and the triangle's extent — `c1` covers RTX's test, and the article
+/// says the bound is the hardware's — and in the world by the placement's. Wächter and Binder's
+/// step, a fixed count of units in the last place of the point's own coordinates, was tried first:
+/// it scales with the point and not with the triangle, and a floor four thousand units across at
+/// nought met itself on rays leaving it within a hundred units of the world's middle.
+void placeHit(inout Hit hit, vec3 corners[3], vec2 bary, mat4x3 toWorld, mat4x3 toObject)
+{
+    const float c0 = 5.9604644775390625e-8;
+    const float c1 = 1.788139769587360206060111522674560546875e-7;
+    const float c2 = 1.19209317972490680404007434844970703125e-7;
+
+    precise vec3 first = corners[1] - corners[0];
+    precise vec3 second = corners[2] - corners[0];
+    precise vec3 local = corners[0] + (first * bary.x + second * bary.y);
+    const mat3 turn = mat3(toWorld);
+    precise vec3 placed = toWorld[3] + (turn[0] * local.x + (turn[1] * local.y + turn[2] * local.z));
+    hit.mPosition = placed;
+
+    const vec3 crossed = cross(first, second);
+    const vec3 sizes = abs(first) + abs(second) + abs(abs(first) - abs(second));
+    const float extent = max(max(sizes.x, sizes.y), sizes.z);
+    const mat3 back = mat3(toObject);
+    const vec3 localError = c0 * abs(corners[0]) + c1 * extent
+        + c2 * (mat3(abs(back[0]), abs(back[1]), abs(back[2])) * abs(placed) + abs(toObject[3]));
+    const vec3 placedError
+        = c1 * (mat3(abs(turn[0]), abs(turn[1]), abs(turn[2])) * abs(local)) + c2 * abs(toWorld[3]);
+
+    const vec3 normal = transpose(back) * crossed;
+    const float lengthSquared = dot(normal, normal);
+    const float scale = lengthSquared > 0.0 ? inversesqrt(lengthSquared) : 0.0;
+    hit.mRounding = scale * dot(localError, abs(crossed)) + dot(placedError, abs(normal * scale));
+}
+
 /// The committed intersection, read off the query and put into world space.
 ///
 /// @param corners the triangle as position fetch gave it, in the mesh's own space.
-Hit committedHit(
-    uint instance, uint primitive, vec2 bary, float distance, float footprint, vec3 corners[3], mat4x3 toWorld)
+Hit committedHit(uint instance, uint primitive, vec2 bary, float distance, float footprint, vec3 corners[3],
+    mat4x3 toWorld, mat4x3 toObject)
 {
     Hit hit;
     hit.mHit = true;
@@ -529,6 +673,7 @@ Hit committedHit(
     hit.mDistance = distance;
     hit.mFootprint = footprint;
     hit.mEdges = triangleEdges(corners, toWorld);
+    placeHit(hit, corners, bary, toWorld, toObject);
 
     // **The one vertex fetch a traversal does, and it is here so that the transform need not
     // survive the call.** The test is on the mesh's own normal rather than on the transformed one:
@@ -572,13 +717,16 @@ struct Passage
     /// One where nothing opaque stood in the way, and nought where something did.
     float mOpen;
 
-    /// What the translucent surfaces crossed let through, from nought to one.
+    /// What the translucent surfaces crossed let through, from nought to one. **One where the ray was
+    /// stopped**: which translucent surfaces a stopped ray met before it ended depends on the order
+    /// traversal visited them in, so a stopped ray's through is no light of any path, and the bit
+    /// carries the whole of its shadow.
     float mThrough;
 
     /// How far along the ray the solid that stopped it stood, or `SHADOW_PENUMBRA_CLEAR` where
-    /// nothing did: what the penumbra's width is made of (`skyPenumbra`, `lampPenumbra`). **A solid and not the
-    /// nearest one**, since the ray ends on the first it finds: the penumbra of whichever solid
-    /// that was, and the reach it gives the shadow denoiser is never narrower than its own.
+    /// nothing did: what the penumbra's width is made of (`skyPenumbra`, `lampPenumbra`). The
+    /// nearest solid where the ray was asked for it (`nearest`), and otherwise the first traversal
+    /// found, which nothing reads.
     float mOccluder;
 };
 
@@ -594,22 +742,28 @@ struct Passage
 /// in `coneLod`, and a determinant and two logarithms in `coneBase`, at every candidate. What
 /// those early returns save is more than the cache gives back, on every place tried.
 ///
-/// **A ray shorter than the bias it starts past is not a ray.** A candle sitting a unit off a table
-/// asks for a shadow ray whose end is behind its own beginning, and `rayQueryInitializeEXT` with a
-/// `tmax` under its `tmin` is undefined — which is a hang or a garbage answer rather than an empty
-/// one. Nothing fits in that gap anyway: the bias is what a hit point's own surface needs to be
-/// clear of, so a light inside it is a light nothing can stand between.
+/// **A light nearer than `SHADOW_BIAS` is open.** A candle on a table asks for a ray of next to no
+/// length, and one of none or less is a `tmax` under the `tmin`, which `rayQueryInitializeEXT`
+/// leaves undefined — a hang or a garbage answer rather than an empty one. Nothing stands between
+/// a point and a light that near.
+///
+/// @param from where the ray starts, already off its surface (`leaveSurface`).
 /// **A translucent surface dims the light rather than stopping it**, and the order it is met in does
 /// not matter: the answer is a product, and a product does not care. That is what makes the shadow
 /// the cheap half of transparency — the eye needs its layers sorted and this needs nothing at all.
 /// Taken as `blockedBy`'s sum and not as the product itself, because a float product does care.
 ///
-/// **`TerminateOnFirstHit` stays.** A translucent candidate is never confirmed, so traversal walks
-/// past it and keeps the early out for the first thing that does stop the ray.
+/// **`TerminateOnFirstHit` stays, but where the occluder's distance is read.** A translucent
+/// candidate is never confirmed, so traversal walks past it and keeps the early out for the first
+/// thing that does stop the ray. The first in traversal's order is not the nearest, and a penumbra
+/// made of a roof five hundred units on blurred away the contact shadow of a hand two units over a
+/// table; so a ray whose penumbra the shadow denoiser reads runs to the nearest solid.
 ///
 /// @param faces the ray flags that cull one face or none. **A literal at every call**, so each
 ///        caller's traversal is compiled for its own.
-Passage passageToward(vec3 from, vec3 towards, float distance, uint faces)
+/// @param nearest whether `Passage::mOccluder` must be the nearest solid's — a split ray's, whose
+///        penumbra is read. A literal at every call as well.
+Passage passageToward(vec3 from, vec3 towards, float distance, uint faces, bool nearest)
 {
     if (distance <= SHADOW_BIAS)
         return Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
@@ -619,12 +773,12 @@ Passage passageToward(vec3 from, vec3 towards, float distance, uint faces)
     rayQueryEXT query;
     // **And the mediums**, which only this ray and `mediumAlong` meet: a medium dims the light that
     // crosses it, and `candidateStops` asks its class in place of the mask.
-    rayQueryInitializeEXT(query, sceneTop, gl_RayFlagsTerminateOnFirstHitEXT | faces,
-        solidMask(frame.mRayMask) | MASK_MEDIUM, from, SHADOW_BIAS, towards, distance);
-    RTX_RESOLVE(query, towards, 0.0, blocked, true, false)
+    rayQueryInitializeEXT(query, sceneTop, (nearest ? gl_RayFlagsNoneEXT : gl_RayFlagsTerminateOnFirstHitEXT) | faces,
+        solidMask(frame.mRayMask) | MASK_MEDIUM, from, 0.0, towards, distance);
+    RTX_RESOLVE(query, towards, 0.0, blocked, MEET_WALK_PAST, false)
 
     const bool stopped = rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT;
-    return Passage(stopped ? 0.0 : 1.0, throughBlocked(blocked),
+    return Passage(stopped ? 0.0 : 1.0, stopped ? 1.0 : throughBlocked(blocked),
         stopped ? rayQueryGetIntersectionTEXT(query, true) : SHADOW_PENUMBRA_CLEAR);
 }
 
@@ -633,7 +787,7 @@ Passage passageToward(vec3 from, vec3 towards, float distance, uint faces)
 /// is the other half or is nought, and every caller reads what it read before the two were apart.
 float throughToward(vec3 from, vec3 towards, float distance, uint faces)
 {
-    const Passage passage = passageToward(from, towards, distance, faces);
+    const Passage passage = passageToward(from, towards, distance, faces, false);
     return passage.mOpen * passage.mThrough;
 }
 
@@ -654,10 +808,11 @@ float lightThrough(vec3 from, vec3 towards, float distance)
     return throughToward(from, towards, distance, gl_RayFlagsCullFrontFacingTrianglesEXT);
 }
 
-/// The same ray as `lightThrough`, with its two halves apart.
-Passage lightPassage(vec3 from, vec3 towards, float distance)
+/// The same ray as `lightThrough`, with its two halves apart, and the nearest solid's distance
+/// where `nearest` asks (`passageToward`).
+Passage lightPassage(vec3 from, vec3 towards, float distance, bool nearest)
 {
-    return passageToward(from, towards, distance, gl_RayFlagsCullFrontFacingTrianglesEXT);
+    return passageToward(from, towards, distance, gl_RayFlagsCullFrontFacingTrianglesEXT, nearest);
 }
 
 /// How much of the ambient along `towards` reaches `from`, past whatever stands within `distance`.
@@ -686,11 +841,12 @@ struct RayRule
     /// Which instances stop the ray.
     uint mMask;
 
-    /// Whether a surface the eye would see through is walked past rather than stopped at, which is
-    /// the eye's own rule: `visibility.rgen` peels those and commits what stands behind them. An asker
-    /// whose question is "where does the picture end" wants this, and one asking "what is the nearest
-    /// thing there" does not. **A literal at every call**, so `RTX_RESOLVE`'s branch folds.
-    bool mSeeThrough;
+    /// How a surface the eye would see through is met: walked past, `MEET_WALK_PAST`, which is the
+    /// eye's own rule — `visibility.rgen` peels those and commits what stands behind them — or by
+    /// chance, `MEET_BY_CHANCE`. An asker whose question is "where does the picture end" walks past,
+    /// and one asking "what is the nearest thing there" meets by chance. **A literal at every call**,
+    /// so `RTX_RESOLVE`'s branches fold.
+    uint mMeet;
 
     /// The same division again, and the same two askers — `facingFor`. Where the picture ends is where
     /// the eye's own ray ends, and the eye culls.
@@ -719,7 +875,7 @@ float surfaceWithin(WorldRay ray, float tmin, float reach, Cone cone, RayRule ru
     // a question for whoever wants the picture, and this ray wants the distance.
     uint blocked = 0u;
     RTX_RESOLVE(query, ray.mAlong, cone.mWidth + cone.mSpread * rayQueryGetIntersectionTEXT(query, false), blocked,
-        rule.mSeeThrough, rule.mDraws)
+        rule.mMeet, rule.mDraws)
 
     if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT)
         return reach;
@@ -729,7 +885,7 @@ float surfaceWithin(WorldRay ray, float tmin, float reach, Cone cone, RayRule ru
 
 float solidWithin(WorldRay ray, float tmin, float reach, Cone cone)
 {
-    return surfaceWithin(ray, tmin, reach, cone, RayRule(solidMask(frame.mRayMask), false, false));
+    return surfaceWithin(ray, tmin, reach, cone, RayRule(solidMask(frame.mRayMask), MEET_BY_CHANCE, false));
 }
 
 /// Whether a solid stands along `ray` between `tmin` and `reach`: a yes or a no, for a ray between
@@ -747,7 +903,7 @@ bool solidBetween(WorldRay ray, float tmin, float reach)
         tmin, ray.mAlong, reach);
 
     uint blocked = 0u;
-    RTX_RESOLVE(query, ray.mAlong, 0.0, blocked, false, false)
+    RTX_RESOLVE(query, ray.mAlong, 0.0, blocked, MEET_BY_CHANCE, false)
 
     return rayQueryGetIntersectionTypeEXT(query, true) != gl_RayQueryCommittedIntersectionNoneEXT;
 }
@@ -787,6 +943,9 @@ struct Surface
     /// Which way the ray that found this surface was travelling, which is what the lobe is
     /// evaluated against: the eye's own ray, a bounce, a reflection.
     vec3 mIncident;
+
+    /// How far `mPosition` can stand off its triangle: `Hit::mRounding`.
+    float mRounding;
 
     /// The triangle's own plane, turned the same way `mNormal` is.
     ///
@@ -875,6 +1034,7 @@ Surface noSurface(vec3 origin)
     surface.mHit = false;
     surface.mGround = false;
     surface.mPosition = origin;
+    surface.mRounding = 0.0;
     surface.mNormal = vec3(0.0, 0.0, 1.0);
     surface.mSmooth = vec3(0.0, 0.0, 1.0);
     surface.mIncident = vec3(0.0, 0.0, -1.0);
@@ -895,6 +1055,13 @@ Surface noSurface(vec3 origin)
     surface.mLampLit = true;
 
     return surface;
+}
+
+/// The step a ray leaving `surface` takes off its triangle, for `leaveSurface`: the plane times how
+/// far the point can stand off it.
+vec3 stepOf(Surface surface)
+{
+    return surface.mGeometric * surface.mRounding;
 }
 
 /// What a hit is made of.
@@ -923,7 +1090,8 @@ Surface resolveFor(Hit hit, vec3 origin, vec3 direction, bool layered, bool deta
 
     surface.mHit = true;
     surface.mDistance = hit.mDistance;
-    surface.mPosition = origin + direction * surface.mDistance;
+    surface.mPosition = hit.mPosition;
+    surface.mRounding = hit.mRounding;
     surface.mIncident = direction;
 
     surface.mFootprint = hit.mFootprint;
@@ -1275,7 +1443,7 @@ Hit traverse(WorldRay ray, float tmin, Cone cone, uint mask, bool draws)
     // cannot commit the surface it passed through, and this one commits.
     uint blocked = 0u;
     RTX_RESOLVE(query, ray.mAlong, cone.mWidth + cone.mSpread * rayQueryGetIntersectionTEXT(query, false), blocked,
-        false, draws)
+        MEET_BY_CHANCE, draws)
 
     if (rayQueryGetIntersectionTypeEXT(query, true) == gl_RayQueryCommittedIntersectionNoneEXT)
         return noHit();
@@ -1286,7 +1454,8 @@ Hit traverse(WorldRay ray, float tmin, Cone cone, uint mask, bool draws)
     const float distance = rayQueryGetIntersectionTEXT(query, true);
     return committedHit(rayQueryGetIntersectionInstanceCustomIndexEXT(query, true),
         rayQueryGetIntersectionPrimitiveIndexEXT(query, true), rayQueryGetIntersectionBarycentricsEXT(query, true),
-        distance, cone.mWidth + cone.mSpread * distance, corners, rayQueryGetIntersectionObjectToWorldEXT(query, true));
+        distance, cone.mWidth + cone.mSpread * distance, corners, rayQueryGetIntersectionObjectToWorldEXT(query, true),
+        rayQueryGetIntersectionWorldToObjectEXT(query, true));
 }
 
 /// Traverses, and resolves whatever it hit.

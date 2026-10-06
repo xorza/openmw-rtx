@@ -170,6 +170,7 @@ namespace Rtx::Testing
         bool takeGuiCopy(Rtx::GuiSlot, std::span<std::uint8_t>) override { return false; }
         void finishGuiTraces() override {}
         void readPixels(std::vector<std::uint8_t>&) override {}
+        void readDeepPixels(std::vector<std::uint16_t>&) override {}
 
         /// Which slots the last hand-over described, in the order it described them.
         ///

@@ -35,7 +35,7 @@ import tempfile
 from pathlib import Path
 
 from omw.build import Build
-from omw.system import Refusal, Switches
+from omw.system import Refusal, Switches, read_text
 
 # `RtxTool::sDifferedStatus`: the run's one fault is a frame that differed from its reference.
 DIFFERED_STATUS = 3
@@ -45,7 +45,7 @@ WALK_SWITCHES = ("--views", "--suite", "--seconds", "--frames")
 
 
 def _tail(log: Path) -> str:
-    return "\n".join(log.read_text(errors="replace").splitlines()[-20:])
+    return "\n".join(read_text(log).splitlines()[-20:])
 
 
 def repeat(build: Build, args: list[str]) -> int:
@@ -68,7 +68,7 @@ def repeat(build: Build, args: list[str]) -> int:
         log = out / f"{index}.log"
         held = ["--hold"] if index % 2 else []
         against = [f"--against={out / f'{index - 1}.csv'}"] if index else []
-        with open(log, "w") as written:
+        with open(log, "w", encoding="utf-8") as written:
             ended = build.harness("bench", *bench, *held, f"--hashes={out / f'{index}.csv'}", *against,
                                   stdout=written, stderr=written)
         return log, ended.returncode
@@ -81,7 +81,7 @@ def repeat(build: Build, args: list[str]) -> int:
     status = 0
     for pair in range(1, pairs + 1):
         second, code = run(pair)
-        lines = second.read_text(errors="replace").splitlines()
+        lines = read_text(second).splitlines()
         against = next((i for i, line in enumerate(lines) if line.startswith("against ")), None)
         if code == 0:
             print(f"pair {pair} of {pairs}: identical")

@@ -162,7 +162,7 @@ namespace Rtx::Testing
     /// material's alpha by a placement's fade, and a helper that built either of them its own way
     /// would be holding up a surface this renderer does not have.
     inline Index addPane(SceneDesc& scene, std::span<const osg::Vec3f, 4> quad, const osg::Vec4f& colour,
-        float fade = 1.0f, bool twoSided = false)
+        float fade = 1.0f, bool twoSided = false, InstanceClass kind = InstanceClass::Static)
     {
         // A test states a pane as a colour and how much of it there is, which is the pair the
         // record states too. Linear already, so there is nothing to decode: `Rtx::decodeColour` is
@@ -175,7 +175,7 @@ namespace Rtx::Testing
         });
 
         return scene.addInstance(
-            MeshInstance{ .mMesh = addQuadMesh(scene, quad), .mMaterial = glass, .mOpacity = fade });
+            MeshInstance{ .mMesh = addQuadMesh(scene, quad), .mMaterial = glass, .mOpacity = fade, .mClass = kind });
     }
 
     /// A floor under an overhead sun, seen from above, with the sky black so the sun is the only
@@ -377,13 +377,17 @@ namespace Rtx::Testing
         /// epsilon, which with no upscaler in the fixture is the whole of the bias.
         float mLevelEpsilon = 0.0f;
 
+        /// The share of a pixel's light under which a source draws no shadow bit —
+        /// `ReconstructionRequest`'s, the default unless a test names another.
+        float mShadowFloor = Shaders::SHADOW_DRAW_FLOOR;
+
+        /// How many lamps a composing point draws — `ReconstructionRequest`'s, the default unless a
+        /// test names another.
+        std::uint32_t mLampCandidates = Shaders::LAMP_CANDIDATES;
+
         /// Where the trace draws from: the tile every figure over this fixture was derived against,
         /// unless a test names the other.
         NoiseSource mNoise = NoiseSource::BlueNoiseTile;
-
-        /// What the trace makes of its bounce: none, for the reason the filter is off — a reused
-        /// bounce is what the neighbours and the frames before found. The tests of the reuse ask.
-        BounceReuse mBounceReuse = BounceReuse::Off;
 
         /// Where the indirect light comes from: the traced bounce every figure over this fixture was
         /// derived against, unless a test of none names the other.
@@ -421,6 +425,13 @@ namespace Rtx::Testing
 
         /// `RenderProfile::mLitEnvironmentMaps` over the harness's, which leaves a sheet unlit.
         std::optional<bool> mLitEnvironmentMaps{};
+
+        /// `RenderProfile::mDither` over the harness's, which dithers nothing.
+        std::optional<bool> mDither{};
+
+        /// Seconds since the frame before, `FrameOptions::mSinceLast`, which a measured exposure
+        /// adapts over. Nought, so a frame moves no eye, unless a test settles one.
+        float mSinceLast = 0.0f;
 
         /// `RenderProfile::mAnisotropy` for the shot. One, so the level a cone names is the level
         /// read, which is what every test that measures a level off the mip ladder relies on.
@@ -491,6 +502,7 @@ namespace Rtx::Testing
                     sampled.mWaterTime = splitSeconds(waterSeconds);
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = shot.mFrames > 0 && shot.mAverage ? at + 1 : 0,
+                        .mSinceLast = shot.mSinceLast,
                         .mGlare = shot.mGlare,
                         .mNightEye = shot.mNightEye,
                         .mWaterSeconds = waterSeconds,
@@ -499,13 +511,15 @@ namespace Rtx::Testing
                             .mJitter = shot.mJitter,
                             .mNoise = shot.mNoise,
                             .mLevelEpsilon = shot.mLevelEpsilon,
-                            .mBounceReuse = shot.mBounceReuse,
+                            .mShadowFloor = shot.mShadowFloor,
+                            .mLampCandidates = shot.mLampCandidates,
                             .mIndirect = shot.mIndirect },
                         .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })
                                                                 : ExposureRule(MeasuredExposure{}),
                         .mDelight = shot.mDelight,
                         .mShow = shot.mShow,
                         .mLitEnvironmentMaps = shot.mLitEnvironmentMaps,
+                        .mDither = shot.mDither,
                         .mJitter = shot.mOffset,
                         .mDebug = shot.mDebug });
 
@@ -554,12 +568,17 @@ namespace Rtx::Testing
         /// the exposure the frame measured for itself.
         ///
         /// **The one thing here that wants the picture rather than the radiance**, because what
-        /// it measures is the exposure pass.
+        /// it measures is the exposure pass. **Settled**: the scene's first frame has no past and
+        /// holds a day's exposure (`EXPOSURE_DAY`), so the same frame is drawn again over a time the
+        /// eye closes the whole gap in, and that is the picture read.
         void renderPicture(const SceneDesc& scene, std::span<const TextureData> textures,
             const Shaders::VisibilityConstants& camera, std::uint32_t size, std::vector<std::uint8_t>& pixels,
             Shot shot = {})
         {
             shot.mExposure = std::nullopt;
+            shoot(scene, textures, camera, size, shot);
+            shot.mSetScene = false;
+            shot.mSinceLast = 1000.0f;
             shoot(scene, textures, camera, size, shot);
             mRenderer.readPixels(pixels);
 
@@ -660,8 +679,10 @@ namespace Rtx::Testing
         /// **What the water test and the first-person test share**, each placing the pane its
         /// own way through `place`. The camera stands off the sun's axis, so the centre pixel
         /// lands on the patch of wall the pane shadows without the camera's own ray having to
-        /// cross the pane — it passes y = -50 at x = 50, and the pane reaches 20 — or straight
-        /// at the pane, to see it at all.
+        /// cross the pane — it passes y = -50 at x = 50, and the pane reaches 20 — or at the pane,
+        /// to see it at all: from ten units above its middle, because water is a horizontal plane
+        /// to the renderer, which names its sides by which way a ray climbs, and a level ray
+        /// climbs neither way.
         /// @param where the caller's own line, never passed, for the reason `litThroughPane` gives.
         std::array<std::uint8_t, 3> paneOverWall(
             const std::function<void(SceneDesc&, std::span<const osg::Vec3f, 4>)>& place, bool lookAtIt,
@@ -679,7 +700,7 @@ namespace Rtx::Testing
 
             const osg::Vec3f bright(2.0f, 2.0f, 2.0f);
             const Shaders::VisibilityConstants camera = lookAtIt
-                ? wallCamera(size, bright, osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, -50.0f, 0.0f))
+                ? wallCamera(size, bright, osg::Vec3f(0.0f, -100.0f, 10.0f), osg::Vec3f(0.0f, -50.0f, 0.0f))
                 : wallCamera(size, bright);
 
             const Frame frame = shoot(scene, {}, camera, size);

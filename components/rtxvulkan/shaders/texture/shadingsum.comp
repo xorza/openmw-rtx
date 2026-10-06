@@ -17,7 +17,7 @@
 // the same sums on every run. `shadingmap.comp` says what a cell is and which texels count.
 
 #include "colour.h"
-#include "sets.h"
+#include "shared/sets.h"
 #include "shadingmap.h"
 
 layout(local_size_x = SHADING_EXTENT, local_size_y = SHADING_EXTENT) in;
@@ -35,7 +35,7 @@ layout(push_constant, scalar) uniform Push
 };
 
 shared float partSum[SHADING_EXTENT * SHADING_EXTENT];
-shared uint partCount[SHADING_EXTENT * SHADING_EXTENT];
+shared float partWeight[SHADING_EXTENT * SHADING_EXTENT];
 
 /// The smallest texel of `cell` along an axis of `extent` texels: the first `x` with
 /// `x * SHADING_EXTENT / extent >= cell`, which is the host's `cellOf` inverted.
@@ -59,20 +59,17 @@ void main()
     // This lane's rows of the cell: every thirty-second, so a cell four texels tall is read by
     // four lanes and one a hundred tall by all of them.
     float sum = 0.0;
-    uint count = 0u;
+    float weight = 0.0;
     for (uint y = yBegin + lane; y < yEnd; y += SHADING_EXTENT)
         for (uint x = xBegin; x < xEnd; ++x)
         {
             const vec4 texel = texelFetch(source, ivec2(x, y), 0);
-            if (read.mPunchThrough != 0u && texel.a == 0.0)
-                continue;
-
-            sum += dot(texel.rgb, LUMINANCE_WEIGHTS);
-            ++count;
+            sum += dot(texel.rgb, LUMINANCE_WEIGHTS) * texel.a;
+            weight += texel.a;
         }
 
     partSum[id] = sum;
-    partCount[id] = count;
+    partWeight[id] = weight;
 
     // The lanes of each column folded together, halving the lanes each step.
     for (uint stride = SHADING_EXTENT / 2u; stride > 0u; stride >>= 1u)
@@ -81,11 +78,11 @@ void main()
         if (lane < stride)
         {
             partSum[id] += partSum[id + stride * SHADING_EXTENT];
-            partCount[id] += partCount[id + stride * SHADING_EXTENT];
+            partWeight[id] += partWeight[id + stride * SHADING_EXTENT];
         }
     }
     barrier();
 
     if (lane == 0u)
-        sums[row * SHADING_EXTENT + column] = ShadingSum(partSum[column], partCount[column]);
+        sums[row * SHADING_EXTENT + column] = ShadingSum(partSum[column], partWeight[column]);
 }

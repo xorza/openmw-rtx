@@ -211,5 +211,100 @@ namespace Rtx::Testing
                 EXPECT_LE(roughTurned.errorFrom(roughReference, channel), roughRaw.errorFrom(roughReference, channel))
                     << "channel " << channel << ": what the rough lobe kept is no worse than a raw frame";
         }
+
+        /// **A sharp lobe's reflection follows a light that goes, before a still eye** (ReBLUR's
+        /// responsive accumulation, `SPECULAR_RESPONSIVE_ROUGHNESS`). The metal floor under its four
+        /// lamps for forty filtered frames, then the lamps go and nothing is left to light it: each
+        /// frame keeps `1 - 1 / n` of the last, `n` the frames the history holds, and four frames on
+        /// the floor holds `(1 - 1 / n)⁴` of its light. At a roughness of 5/255 = 0.0196 the cap is
+        /// `32 · lerp(0.0194, 1, smoothstep(0.0784)) = 1.17`, held at three, so `(2/3)⁴ = 0.1975`
+        /// is left; at one, thirty-two frames, `(31/32)⁴ = 0.8807`. Without the cap the sharp floor
+        /// kept the rough one's.
+        TEST_F(RtxVisibilityTest, aSharpLobesReflectionFollowsALightThatGoesBeforeAStillEye)
+        {
+            const auto left = [&](std::uint8_t roughness) {
+                GlossyFloor floor(roughness);
+                const Shaders::VisibilityConstants camera = darkCameraAt(osg::Vec3f(0.0f, -200.0f, 300.0f));
+                const Frame lit = shoot(floor.mScene, floor.mTextures, camera, sSize, filteredRun(40, 6000));
+
+                floor.mScene.clearPlacement();
+                const Frame dark = shoot(floor.mScene, floor.mTextures, camera, sSize,
+                    Shot{ .mFrames = 4, .mAverage = false, .mFirstFrame = 6040, .mFilter = true, .mSetScene = false });
+                EXPECT_GT(lit.mean(1), 0.0f) << "a floor that reflects nothing proves nothing";
+                return dark.mean(1) / lit.mean(1);
+            };
+
+            EXPECT_NEAR(left(5), 16.0f / 81.0f, 1e-3f) << "the sharp floor dragged its lamps";
+            EXPECT_NEAR(left(255), std::pow(31.0f / 32.0f, 4.0f), 1e-3f) << "the rough floor lost its history";
+        }
+
+        /// **A replacer's speckled reflectance stays sharp under the glossy filter's history**, which
+        /// holds the lobe's light per unit of its specular albedo (D6). A metal floor whose base
+        /// colour, and so its F0, is a checker of single texels — 230 and 30, three pixels a square —
+        /// at one roughness under a grey sky: the light its lobe reflects is the sky's, alike on both
+        /// squares, and the checker is the albedo alone. Sixteen still frames filtered, then eight
+        /// steps of 2.5 units sideways, three eighths of a pixel each, each one more filtered frame:
+        /// every step resamples the history bilinearly. Against 64 unfiltered frames at the last
+        /// place, the filtered frame's error was 0.0052, a tenth of the raw frame's 0.053; with the
+        /// history kept whole, the checker blurred into it and the error was 0.025, nearly half.
+        TEST_F(RtxVisibilityTest, aSpeckledReflectanceStaysSharpUnderTheGlossyHistory)
+        {
+            constexpr std::uint32_t extent = 256;
+            std::vector<std::uint8_t> checker(std::size_t{ extent } * extent * 4, 255);
+            for (std::uint32_t y = 0; y < extent; ++y)
+                for (std::uint32_t x = 0; x < extent; ++x)
+                    for (std::size_t channel = 0; channel < 3; ++channel)
+                        checker[(std::size_t{ y } * extent + x) * 4 + channel] = (x + y) % 2 == 0 ? 230 : 30;
+            TestTexture base;
+            paintFlat(base, extent, checker, "checker");
+            base.mData.mSlot = 0;
+            constexpr std::array<std::uint8_t, 4> sMetalTexel{ 255, 128, 0, 255 };
+            const std::array<TextureData, 2> textures{ base.mData, describeTexel(sMetalTexel, 1) };
+
+            SceneDesc scene;
+            const std::array positions = sheetAt(4000.0f, 0.0f);
+            const Index mesh
+                = scene.addMesh(MeshArrays{ .mPositions = positions, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+            const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("checker.dds"));
+            const Index map = scene.textures().add(
+                VFS::Path::NormalizedView("checker_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+            scene.addInstance(MeshInstance{
+                .mMesh = mesh, .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
+
+            const auto cameraAt = [](float across) {
+                Shaders::VisibilityConstants camera = Testing::makeCamera(osg::Vec3f(across, -200.0f, 300.0f),
+                    osg::Vec3f(across, 0.0f, 0.0f), 60.0f, sSize, sSize, 100000.0f);
+                camera.mSkyHorizon = osg::Vec3f(0.5f, 0.5f, 0.5f);
+                camera.mSkyZenith = osg::Vec3f(0.5f, 0.5f, 0.5f);
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mAmbientFromSky = 1.0f;
+                return camera;
+            };
+
+            constexpr std::uint32_t steps = 8;
+            constexpr float step = 2.5f;
+            shoot(scene, textures, cameraAt(0.0f), sSize, filteredRun(16, 3000));
+            Frame filtered;
+            for (std::uint32_t at = 1; at <= steps; ++at)
+            {
+                Shaders::VisibilityConstants camera = cameraAt(step * static_cast<float>(at));
+                camera.mFrame = 3015 + at;
+                filtered = shoot(scene, textures, camera, sSize, { .mFilter = true, .mSetScene = false });
+            }
+
+            Shaders::VisibilityConstants last = cameraAt(step * static_cast<float>(steps));
+            const Frame reference = shoot(scene, textures, last, sSize, { .mFrames = 64, .mSetScene = false });
+            last.mFrame = 5000;
+            const Frame raw = shoot(scene, textures, last, sSize, { .mSetScene = false });
+
+            for (std::size_t channel = 0; channel < 3; ++channel)
+            {
+                const float rawError = raw.errorFrom(reference, channel);
+                const float filteredError = filtered.errorFrom(reference, channel);
+                ASSERT_GT(rawError, 0.0f) << "a raw frame with no noise proves nothing";
+                EXPECT_LT(filteredError, rawError * 0.2f)
+                    << "channel " << channel << ": raw " << rawError << ", filtered " << filteredError;
+            }
+        }
     }
 }

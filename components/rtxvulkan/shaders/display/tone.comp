@@ -19,10 +19,11 @@
 #include "colour.h"
 #include "gbuffer.h"
 #include "scene.h"
-#include "sets.h"
-#include "tone.h"
+#include "shared/sets.h"
+#include "shared/tone.h"
 
 #include "lib/bloom.glsl"
+#include "lib/bluenoise.glsl"
 #include "lib/pixels.glsl"
 #include "lib/spritelist.glsl"
 #include "lib/starfield.glsl"
@@ -32,8 +33,9 @@ layout(local_size_x = TONE_WORKGROUP, local_size_y = TONE_WORKGROUP) in;
 /// The finished frame in linear radiance, at whatever resolution the pass before this produced.
 layout(set = SET_PASS, binding = TONE_BIND_COLOUR) uniform readonly image2D colour;
 
-/// The picture, as bytes a display understands.
-layout(set = SET_PASS, binding = TONE_BIND_TARGET, TONE_TARGET_FORMAT) uniform writeonly image2D target;
+/// The picture, as bytes a display understands: `TONE_TARGET_FORMAT`, or `TONE_DEEP_FORMAT` for a
+/// summed frame's second run. No format declared, so the one kernel stores into either.
+layout(set = SET_PASS, binding = TONE_BIND_TARGET) uniform writeonly image2D target;
 
 /// What the backdrop is seen through, at the trace's own extent. `bindings.glsl` declares the other
 /// end of it.
@@ -69,6 +71,29 @@ layout(push_constant, scalar) uniform Push
     ToneConstants frame;
 };
 
+/// The blue-noise tile, `ToneConstants::mBlueNoise`.
+layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) readonly buffer DitherTile
+{
+    float at[];
+};
+
+/// `value` with a triangular dither of up to `ToneConstants::mDitherStep` either way added, before
+/// the store rounds it.
+///
+/// **Triangular, because a step of uniform dither leaves the error's power following the signal**:
+/// a ramp shows its bands as noise that comes and goes with them, and a triangle twice as wide
+/// makes the noise's power one whatever the value (Lipshitz, Wannamaker and Vanderkooy, 1992). **Off
+/// the blue-noise tile**, so the error stands where the eye resolves it least, and turned by the
+/// frame, so a still picture's bands average away over frames. One draw a pixel for its three
+/// channels, so the dither is grey and adds no colour of its own.
+vec3 dithered(vec3 value, uvec2 pixel)
+{
+    const float tiled = DitherTile(frame.mBlueNoise).at[tileIndex(pixel, STREAM_DITHER)];
+    const float centred = 2.0 * turnedTile(tiled, frame.mFrame, STREAM_DITHER) - 1.0;
+    const float triangular = sign(centred) * (1.0 - sqrt(1.0 - abs(centred)));
+    return value + triangular * frame.mDitherStep;
+}
+
 /// `CHANNEL_LIFT` at the place `pixel` of the picture shows, `ToneConstants::mLiftOffset`. Held inside
 /// the traced extent, which a picture inside the interface fills only a corner of its channels with.
 ///
@@ -97,7 +122,9 @@ void main()
     // added; `ToneConstants::mBloom` says why it lands here and not on the radiance image itself.
     if (frame.mBloom > 0.0)
     {
-        const vec2 uv = (vec2(pixel) + 0.5) / vec2(extent);
+        // Where the pixel's centre stands in the finest level, which halved this grid: `bloomup.comp`'s
+        // own placing, so a picture of odd width spreads the level it built and not one stretched.
+        const vec2 uv = (vec2(pixel) + 0.5) * 0.5 * frame.mBloomTexel;
         lit.rgb = mix(lit.rgb, bloomSpread(bloom, uv, frame.mBloomTexel), frame.mBloom);
     }
 
@@ -169,5 +196,5 @@ void main()
 
     // **The player's gamma over the whole of that**, for the reason `ToneConstants::mInverseGamma`
     // gives. A push constant, so `displayGamma`'s test of one is taken alike by every lane.
-    imageStore(target, at, vec4(displayGamma(washed, frame.mInverseGamma), alpha));
+    imageStore(target, at, vec4(dithered(displayGamma(washed, frame.mInverseGamma), pixel), alpha));
 }

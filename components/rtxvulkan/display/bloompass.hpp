@@ -6,10 +6,11 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/shaders/bloom.h>
 #include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/bloom.h>
 
 namespace Rtx
 {
@@ -17,11 +18,10 @@ namespace Rtx
 
     /// What a lens does with the light that reached it: the frame's own brightness, spread through
     /// Jorge Jimenez's pyramid (*Next Generation Post Processing in Call of Duty: Advanced
-    /// Warfare*) — a thirteen-tap halving per level and a nine-tap tent back up, mixed rather than
-    /// added, for a third of the frame's pixels and none of a Gaussian stack's banding. No
-    /// threshold, because a threshold is a brightness at which the veil switches on. This builds
-    /// the pyramid and `TonePass` spreads it, so `readComposite` stays the trace's own answer
-    /// that a measurement can hand-compute.
+    /// Warfare*) — a thirteen-tap halving per level, the frame's own a Karis average, and a nine-tap
+    /// tent back up, mixed rather than added, for a third of the frame's pixels and none of a Gaussian stack's banding.
+    /// No threshold, because a threshold is a brightness at which the veil switches on. This builds the pyramid and
+    /// `TonePass` spreads it, so `readComposite` stays the trace's own answer that a measurement can hand-compute.
     class BloomPass
     {
     public:
@@ -35,7 +35,10 @@ namespace Rtx
         ///
         /// @param frame the finished frame in linear radiance, in `VK_IMAGE_LAYOUT_GENERAL`, at the
         ///        extent `resize` was told, with `VK_IMAGE_USAGE_SAMPLED_BIT`.
-        void record(VkCommandBuffer commands, const Image& frame) const;
+        /// @param exposure one float, what the curve scales a frame by, which the frame's own
+        ///        halving weighs its squares with (`bloomHalved`); nought weighs them alike. Read
+        ///        before anything recorded after this call writes it.
+        void record(VkCommandBuffer commands, const Image& frame, const Buffer& exposure) const;
 
         /// The finest level, which after `record` holds the blur of every level under it — or null
         /// where the frame was too small to halve. Left in `VK_IMAGE_LAYOUT_GENERAL` and already
@@ -50,12 +53,15 @@ namespace Rtx
         /// Orders the level just written against the dispatch about to read it.
         void handOver(VkCommandBuffer commands, const Image& level) const;
 
-        /// One dispatch: `source` sampled, `target` written, over `target`'s own extent.
+        /// One dispatch: `source` sampled, `target` written, over `target`'s own extent, and a
+        /// halving's `exposure` bound.
         void run(VkCommandBuffer commands, const ComputePipeline<Shaders::BloomConstants>& pipeline,
-            const Image& source, const Image& target, float mix) const;
+            const Image& source, const Image& target, const Buffer* exposure, float mix) const;
 
         const Device& mDevice;
 
+        /// The frame's own halving, which takes the Karis average, and every halving after it.
+        ComputePipeline<Shaders::BloomConstants> mFramePipeline;
         ComputePipeline<Shaders::BloomConstants> mHalvePipeline;
         ComputePipeline<Shaders::BloomConstants> mSpreadPipeline;
 

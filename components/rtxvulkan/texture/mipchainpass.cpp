@@ -4,9 +4,9 @@
 #include <cassert>
 #include <cstdint>
 
-#include <components/rtx/shaders/mipchain.h>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/mipchain.h>
 
 namespace Rtx
 {
@@ -26,7 +26,7 @@ namespace Rtx
     }
 
     void MipChainPass::recordLevel(const VkCommandBuffer commands, const Image& source, const Image& chain,
-        const std::uint32_t level, const bool encoded) const
+        const std::uint32_t level, const bool encoded, const TextureEncoding encoding) const
     {
         assert(source.getMipLevels() == 1 && "a chain is built for a file that carried none");
         assert(chain.getWidth() == source.getWidth() && chain.getHeight() == source.getHeight()
@@ -47,6 +47,7 @@ namespace Rtx
             .mWidth = chain.getWidthAt(level),
             .mHeight = chain.getHeightAt(level),
             .mEncoded = encoded ? 1u : 0u,
+            .mCoverage = encoding == TextureEncoding::Colour ? 1u : 0u,
         };
 
         dispatch(commands, mPipeline, writes, constants,

@@ -1,10 +1,12 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_SHAREDEXPONENT_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_SHAREDEXPONENT_GLSL
 
-// A colour in one word, for what a pass keeps of many pixels and reads many times: the bounce's
-// reservoirs and the accumulator's fast means. **Rounded to nearest, where a half store rounds toward
+// A colour in one word, for what a pass keeps of many pixels and reads many times: the accumulator's
+// fast means. **Rounded to nearest, where a half store rounds toward
 // nought on this card** (`RtxHalfStoreTest`), so a running mean kept in it does not fall a little at
 // every store.
+
+#include "finite.glsl"
 
 /// The largest value `RGB9E5` holds: nine bits of mantissa at the largest of its exponents.
 const float RGB9E5_LARGEST = 65408.0;
@@ -15,7 +17,7 @@ const float RGB9E5_LARGEST = 65408.0;
 /// Anything not a number, or below nought, is nought.
 uint packRgb9e5(vec3 colour)
 {
-    const vec3 held = clamp(mix(colour, vec3(0.0), isnan(colour)), vec3(0.0), vec3(RGB9E5_LARGEST));
+    const vec3 held = clamp(mix(colour, vec3(0.0), notANumber(colour)), vec3(0.0), vec3(RGB9E5_LARGEST));
     const float brightest = max(held.r, max(held.g, held.b));
 
     // The exponent that puts the brightest channel just under one at nine bits, held to what five

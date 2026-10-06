@@ -166,27 +166,16 @@ namespace Rtx::Testing
                     << what << ": " << (after - before) << " allocations across " << measuredFrames << " frames";
             };
 
-            measure("a plain frame",
-                FrameOptions{ .mReconstruction
-                    = ReconstructionRequest{ .mDenoise = false, .mBounceReuse = BounceReuse::Spatiotemporal } },
-                still);
-            measure("a filtered frame",
-                FrameOptions{ .mReconstruction
-                    = ReconstructionRequest{ .mDenoise = true, .mBounceReuse = BounceReuse::Spatiotemporal } },
+            measure(
+                "a plain frame", FrameOptions{ .mReconstruction = ReconstructionRequest{ .mDenoise = false } }, still);
+            measure("a filtered frame", FrameOptions{ .mReconstruction = ReconstructionRequest{ .mDenoise = true } },
                 still);
             measure("an accumulating frame",
-                FrameOptions{ .mAccumulate = 1,
-                    .mReconstruction
-                    = ReconstructionRequest{ .mDenoise = true, .mBounceReuse = BounceReuse::Spatiotemporal } },
-                still);
-            measure("a body walking",
-                FrameOptions{ .mReconstruction
-                    = ReconstructionRequest{ .mDenoise = true, .mBounceReuse = BounceReuse::Spatiotemporal } },
-                walk);
+                FrameOptions{ .mAccumulate = 1, .mReconstruction = ReconstructionRequest{ .mDenoise = true } }, still);
+            measure(
+                "a body walking", FrameOptions{ .mReconstruction = ReconstructionRequest{ .mDenoise = true } }, walk);
             measure("a storm thickening and thinning",
-                FrameOptions{ .mReconstruction
-                    = ReconstructionRequest{ .mDenoise = true, .mBounceReuse = BounceReuse::Spatiotemporal } },
-                thicken);
+                FrameOptions{ .mReconstruction = ReconstructionRequest{ .mDenoise = true } }, thicken);
 
             // **And one that keeps thickening, a new high every frame.** Past sixty-four every table
             // a frame writes doubles its room at the first new high, so the thirty-two highs from

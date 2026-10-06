@@ -47,27 +47,31 @@ SkySource skySourceAt(uint source)
 /// **Two halves, `Passage`'s**: whether the ray was stopped, and the rest — what the translucent
 /// surfaces it crossed let through.
 ///
+/// @param step the step off the triangle `position` stands on (`stepOf`), or nought for a point in
+///        the air.
 /// @param draw one pair in `[0, 1)`, which aims the ray inside the disc's cone.
-Passage skyPassage(SkySource sky, vec3 position, vec2 draw)
+/// @param nearest whether the occluder must be the nearest (`passageToward`): a split ray's.
+Passage skyPassage(SkySource sky, vec3 position, vec3 step, vec2 draw, bool nearest)
 {
     // A picture with shadows off is open to the sky everywhere: one answer for the whole frame.
     if (frame.mNoSkyShadows != 0u)
         return Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
 
-    return lightPassage(position, coneDirection(sky.mDirection, sky.mLimb, draw), frame.mReach);
+    const vec3 towards = coneDirection(sky.mDirection, sky.mLimb, draw);
+    return lightPassage(leaveSurface(position, step, towards), towards, frame.mReach, nearest);
 }
 
 /// The same as one number, which is exactly the product `lightThrough` makes of its own halves.
-float skyVisible(SkySource sky, vec3 position, vec2 draw)
+float skyVisible(SkySource sky, vec3 position, vec3 step, vec2 draw)
 {
-    const Passage passage = skyPassage(sky, position, draw);
+    const Passage passage = skyPassage(sky, position, step, draw, false);
     return passage.mOpen * passage.mThrough;
 }
 
 /// The same for a caller that has an index and not a source.
-float skyVisible(vec3 position, uint source, vec2 draw)
+float skyVisible(vec3 position, vec3 step, uint source, vec2 draw)
 {
-    return skyVisible(skySourceAt(source), position, draw);
+    return skyVisible(skySourceAt(source), position, step, draw);
 }
 
 /// Which lamps one cell of the grid holds, as a range into the light list.
@@ -442,13 +446,15 @@ struct LightCandidate
 ///        product, and a sky source's the cosine times the luminance of the irradiance. Worked out
 ///        here the one way, the moons' pick flipped at a boundary and moved a night's pixels.
 /// @param arriving the light's irradiance square to its direction, which the lobe reflects.
+/// @param sine the sine of the light's half angle, which sizes its highlight (`reflectionAt`).
 /// @param side what decides which side a light has to stand on, as `reflectionAt` takes it.
-LightCandidate surfaceCandidate(vec3 unshadowed, float plain, vec3 arriving, vec3 towards, Gloss gloss, vec3 side)
+LightCandidate surfaceCandidate(
+    vec3 unshadowed, float plain, vec3 arriving, vec3 towards, float sine, Gloss gloss, vec3 side)
 {
     LightCandidate candidate = LightCandidate(unshadowed, vec3(0.0), vec3(0.0), plain);
     if (gloss.mGlossy)
     {
-        const Reflection reflected = reflectionAt(gloss, side, towards);
+        const Reflection reflected = reflectionAt(gloss, side, towards, sine);
         candidate.mSpecular = arriving * reflected.mLobe;
         candidate.mFresnel = reflected.mFresnel;
         candidate.mWeight = dot(unshadowed * gloss.mDiffuse * (1.0 - reflected.mFresnel) + candidate.mSpecular,
@@ -498,11 +504,14 @@ SkyChoice skyChoiceAt(uint source, Facing facing, bool asked, Gloss gloss)
     const float cosine = asked ? litCosine(facing, sky.mDirection) : 0.0;
 
     // A source the surface does not face weighs nought and is never drawn, and its lobe is not worth
-    // evaluating: in daylight that is both moons.
+    // evaluating: in daylight that is both moons. **Its highlight is the disc seen**: a moon's limb,
+    // and the sun's real half angle and not the wider cone its shadow is drawn across, so a mirror
+    // shows the sun the sky draws.
     LightCandidate light = LightCandidate(vec3(0.0), vec3(0.0), vec3(0.0), 0.0);
     if (cosine > 0.0)
         light = surfaceCandidate(sky.mIrradiance * (cosine * INV_PI), cosine * dot(sky.mIrradiance, LUMINANCE_WEIGHTS),
-            sky.mIrradiance, sky.mDirection, gloss, facing.mSide);
+            sky.mIrradiance, sky.mDirection, source == SKY_SOURCE_SUN ? sin(SUN_ANGULAR_RADIUS) : sky.mLimb, gloss,
+            facing.mSide);
 
     return SkyChoice(sky, cosine, light);
 }
@@ -547,7 +556,7 @@ GpuLight shownLightAt(uint row)
     return held;
 }
 
-/// Weighs every lamp reaching `from` into `kept`.
+/// Weighs every lamp reaching `from` into `kept`, or `candidates` of them drawn from the cell.
 ///
 /// **The surface's walk of the grid, about a point.** The air's — `lampsInAir` — walks the same grid
 /// along a ray, and the two feed one rule, `considerLamp`, so what unbiased means cannot come apart
@@ -560,16 +569,26 @@ GpuLight shownLightAt(uint row)
 /// @param gloss the surface's specular half, with its diffuse albedo, which weigh a lamp as
 ///        `surfaceCandidate` says.
 /// @param lampLit whether the lamps light the surface at all — `Surface::mLampLit`.
+/// @param candidates how many lamps to draw where the cell holds more, and nought for every one.
 void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing, float scale, Gloss gloss,
-    bool lampLit)
+    bool lampLit, uint candidates)
 {
     const bool sided = dot(facing.mNormal, facing.mNormal) > 0.0;
 
     // None, for a picture no lamp lights or a surface none lights: an empty run, selected, and the
     // loop is over.
     const uvec2 near = frame.mNoLamps != 0u || !lampLit ? uvec2(0u) : lampsWithin(lampsReaching(from));
-    for (uint i = near.x; i < near.y; ++i)
+
+    // **A fixed count of candidates where the run is longer than it**, drawn uniformly and
+    // resampled (RIS, Talbot 2005; Bitterli et al. 2020): each is offered at its own weight, and the
+    // total and the unshadowed sum are scaled by `n / M` after, which is the estimate's `1 / (M p)`
+    // for a pdf of `1 / n`. Every lamp otherwise, which is what a shorter run is anyway.
+    const uint count = near.y - near.x;
+    const bool sampled = candidates > 0u && count > candidates;
+    const uint steps = sampled ? candidates : count;
+    for (uint step = 0u; step < steps; ++step)
     {
+        const uint i = near.x + (sampled ? min(uint(randomNext(state) * float(count)), count - 1u) : step);
         const uint row = lightListAt(i);
         const GpuLight held = shownLightAt(row);
         const Lamp lamp = lampAt(held, from);
@@ -592,11 +611,17 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
         const float cosine = mix(faced, 1.0, depth);
         const vec3 unshadowed = held.mIntensity * (cosine * lamp.mReaching * scale);
         const LightCandidate candidate = surfaceCandidate(unshadowed, dot(unshadowed, LUMINANCE_WEIGHTS),
-            held.mIntensity * lamp.mReaching, lamp.mTowards, gloss, facing.mSide);
+            held.mIntensity * lamp.mReaching, lamp.mTowards,
+            held.mSourceRadius > 0.0 ? held.mSourceRadius / max(lamp.mDistance, held.mSourceRadius) : 0.0, gloss,
+            facing.mSide);
 
         kept.mUnshadowed += candidate.mRadiance * (1.0 - candidate.mFresnel);
         considerLamp(kept, state, from, candidate, row);
     }
+
+    const float spread = sampled ? float(count) / float(steps) : 1.0;
+    kept.mTotal *= spread;
+    kept.mUnshadowed *= spread;
 }
 
 /// What every lamp that takes light away takes from a surface's direct lamp term, per unit albedo:
@@ -636,7 +661,10 @@ vec3 darkeningAt(vec3 from, Facing facing, float scale, bool lampLit)
 /// for both draws a black speckle over every lamp-lit wall in the game: aimed across the flame and
 /// stopped at the flame, half the rays a wall sends end among the fitting and charge the whole
 /// lamp to the pixel.
-Passage lampPassage(Reservoir kept, vec2 draw)
+///
+/// @param step the step off the triangle the reservoir's point stands on (`stepOf`), or nought for a
+///        point in the air.
+Passage lampPassage(Reservoir kept, vec3 step, vec2 draw, bool nearest)
 {
     // Aimed from where the ray leaves and not from where the lamp was weighed, with no reach test:
     // a caller that moved its origin after weighing — a lifted surface and the air both do — still
@@ -654,7 +682,8 @@ Passage lampPassage(Reservoir kept, vec2 draw)
     // the lamp and so where the clearance has to be measured from.
     const float along = distance * dot(towards, axis);
 
-    return lightPassage(kept.mFrom, towards, along - max(lamp.mClearance, SHADOW_BIAS));
+    return lightPassage(
+        leaveSurface(kept.mFrom, step, towards), towards, along - max(lamp.mClearance, SHADOW_BIAS), nearest);
 }
 
 /// How wide the penumbra stands where a ray to a source was stopped `occluder` along it, as its
@@ -679,9 +708,9 @@ float lampPenumbra(Reservoir kept, float occluder)
 
 /// `lampPassage`'s two halves as one number, from none of the lamp to all: `throughToward`'s
 /// product, exact for the reason it gives.
-float lampVisible(Reservoir kept, vec2 draw)
+float lampVisible(Reservoir kept, vec3 step, vec2 draw)
 {
-    const Passage passage = lampPassage(kept, draw);
+    const Passage passage = lampPassage(kept, step, draw, false);
     return passage.mOpen * passage.mThrough;
 }
 

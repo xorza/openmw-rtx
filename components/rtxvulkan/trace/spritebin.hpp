@@ -56,6 +56,10 @@ namespace Rtx
         VkDeviceAddress mEmitterFrames = 0;
         VkDeviceAddress mTileList = 0;
         VkDeviceAddress mPresence = 0;
+
+        /// Whether the bin took anything a puff is lit as: a sprite, or a placement in the
+        /// presence table — `VisibilityConstants::mPuffsInFrame`.
+        bool mPuffs = false;
     };
 
     /// What one bin is of: the sprites, and where they are seen from.
@@ -104,7 +108,8 @@ namespace Rtx
             return SpriteTables{ .mSprites = mSprites.get().addressFor(),
                 .mEmitterFrames = mEmitterFrames.get().addressFor(),
                 .mTileList = mTileList.get().addressFor(),
-                .mPresence = mPresence.get().addressFor() };
+                .mPresence = mPresence.get().addressFor(),
+                .mPuffs = mPuffs };
         }
 
         VkDeviceSize getBytes() const;
@@ -144,5 +149,8 @@ namespace Rtx
         /// never shrunk, so the list settles at its high-water mark like every other table.
         /// `SpriteListSize` says why the two numbers are one object.
         SpriteListSize mListSize;
+
+        /// Whether the last `take` took anything a puff is lit as: `SpriteTables::mPuffs`.
+        bool mPuffs = false;
     };
 }

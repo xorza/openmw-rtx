@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
@@ -30,15 +31,14 @@ namespace Rtx
         /// texture the trace samples, which is how an upload leaves it. The size is the image's
         /// own, which for a texture held to a smaller side is a level further down the file.
         ///
-        /// @param punchThrough whether `source` is a BC1 file, whose blocks store black where
-        ///        nothing was painted.
+        /// @param wrap how `source` is addressed past its edges, which the map's blur follows.
         void recordSum(
-            VkCommandBuffer commands, const Image& source, const VkDescriptorBufferInfo& sums, bool punchThrough) const;
+            VkCommandBuffer commands, const Image& source, const VkDescriptorBufferInfo& sums, TextureWrap wrap) const;
 
         /// Records `map` from the sums `recordSum` wrote of `source`, which the caller has ordered
         /// before it. `map` is met where a dispatch writes it.
         void recordMap(VkCommandBuffer commands, const Image& source, const Image& map,
-            const VkDescriptorBufferInfo& sums, bool punchThrough) const;
+            const VkDescriptorBufferInfo& sums, TextureWrap wrap) const;
 
     private:
         ComputePipeline<Shaders::ShadingConstants> mSum;

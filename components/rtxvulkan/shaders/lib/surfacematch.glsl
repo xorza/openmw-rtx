@@ -8,6 +8,7 @@
 // wavelet and the shadow denoiser each reject what is not the surface in front of them; written
 // three times, a shadow would stop at an edge the bounce under it blurs across.
 
+#include "shared/accumulate.h"
 #include "camera.h"
 #include "gbuffer.h"
 #include "look.h"
@@ -15,8 +16,8 @@
 /// What a surface history holds of a pixel whose `CHANNEL_SURFACE` reads `seen`: the shading
 /// normal and the distance from the eye times `distanceScale` (`HistoryConstants::mDistanceScale`),
 /// or nought where no surface stands, which no surface matches. **One statement** for the
-/// accumulator, which keeps it beside the bounce's mean, and its surface-only kernel, which keeps it
-/// where nothing filters the bounce.
+/// accumulator, which keeps it beside the bounce's mean, its surface-only kernel, which keeps it
+/// where nothing filters the bounce, and the pane filter, which keeps the nearest layer's.
 vec4 heldSurfaceOf(vec2 seen, float distanceScale)
 {
     const vec3 normal = unpackSurfaceNormal(seen.x);
@@ -31,15 +32,17 @@ struct HistoryFootprint
     vec2 mAcross;
 };
 
-/// **In the coordinates the motion vector was written against.** The trace aims through
-/// `pixel + 0.5 + jitter` and `reprojected` differences against exactly that, so undoing it adds
-/// the same offset back — or the history is fetched a fraction of a pixel out, by a different
-/// fraction every frame, which is a still image that shakes.
+/// **At the pixel's centre and not at where the ray went** (decision 1, the hybrid rule): a history
+/// texel holds a mean over many frames' samples, each through `i + 0.5 + jitter`, whose centre is
+/// `i + 0.5` — so it is fetched at `at + 0.5 + motion`, as NRD fetches its own. Fetched at the
+/// jittered point, a still history was resampled a different fraction of a pixel out every frame,
+/// a blur of twice the jitter's variance that fed back into itself. What holds one frame's geometry
+/// instead is rebuilt through the previous jitter (`heldSurfaceMatches`).
 ///
 /// @param moved the pixel's `CHANNEL_MOTION`.
-HistoryFootprint historyFootprint(ivec2 at, vec2 jitter, vec3 moved)
+HistoryFootprint historyFootprint(ivec2 at, vec3 moved)
 {
-    const vec2 before = vec2(at) + 0.5 + jitter + moved.xy;
+    const vec2 before = vec2(at) + 0.5 + moved.xy;
     const vec2 corner = before - 0.5;
     return HistoryFootprint(ivec2(floor(corner)), fract(corner));
 }
@@ -58,29 +61,6 @@ float historyShare(HistoryFootprint footprint, int corner)
 {
     const vec2 share = mix(vec2(1.0) - footprint.mAcross, footprint.mAcross, vec2(ivec2(corner & 1, corner >> 1)));
     return share.x * share.y;
-}
-
-/// Whether a history texel belongs to the surface now in front of the pixel.
-///
-/// **Measured from the eye the history was measured from.** The history's distance is the one the
-/// previous frame found, so this pixel's is taken back there by the step `CHANNEL_MOTION` carries.
-/// Compared from this frame's eye instead, an eye walking toward a surface nearer than its step
-/// over `ACCUMULATE_DEPTH` — two hundred and fifty units at a run of five a frame — finds each
-/// frame's history a different surface, and the filter shows one frame's noise.
-///
-/// @param was the surface the history belongs to: its normal in `xyz`, nought where nothing was
-///        accumulated, and its distance in `w`, times `distanceScale` —
-///        `HistoryConstants::mDistanceScale` says what those units are and why.
-/// @param distance how far this pixel's surface is, in world units.
-/// @param moved the pixel's `CHANNEL_MOTION`.
-bool heldSurfaceMatches(vec4 was, vec3 normal, float distance, vec3 moved, float distanceScale)
-{
-    if (dot(was.xyz, was.xyz) <= 0.0)
-        return false;
-
-    const float before = (distance + moved.z) * distanceScale;
-    return dot(was.xyz, normal) >= ACCUMULATE_FACING
-        && abs(was.w - before) <= ACCUMULATE_DEPTH * max(before, distanceScale);
 }
 
 /// Where the trace's ray through `pixel` ended up, `away` along it, through `eye`.
@@ -105,15 +85,145 @@ float footprintAlong(Camera eye, float away)
     return max(cone.mWidth + cone.mSpread * away, 1e-4);
 }
 
-/// How nearly a tap faces the way the centre's surface does, as a weight: SVGF's normal test, with
-/// its exponent of `ATROUS_NORMAL_POWER`.
+/// A pixel's surface as the history is held to it: where the previous frame's eye saw it, and how
+/// far off its plane a texel may stand and still be it. Made once a pixel by `historyPlane`, and
+/// every texel any temporal filter takes is held to it by `heldSurfaceMatches`.
+struct HistoryPlane
+{
+    /// The eye the history's texels were traced through: the previous basis, at the arms' spread
+    /// where the pixel is on an arm, and the previous jitter, since a held surface is one frame's
+    /// geometry (`historyFootprint`).
+    Camera mBefore;
+
+    vec3 mNormal;
+
+    /// The pixel's point from that eye, which no history texel is rebuilt without.
+    vec3 mAnchor;
+
+    /// In world units: `planeTolerance`, and below nought where there was no previous eye, which
+    /// refuses every texel.
+    float mTolerance;
+
+    /// `HistoryConstants::mDistanceScale`, which a held distance is divided by.
+    float mDistanceScale;
+};
+
+/// How far off a pixel's plane a history texel may stand and still be its surface, in world units:
+/// ReLAX's `disocclusionThreshold * frustumSize / lerp(0.05, 1, NoV)`, with `ACCUMULATE_PLANE` its
+/// threshold and NoV the cosine between the surface and the ray that found it.
+///
+/// **Looser at a grazing angle, as ReLAX is**: there a step across the surface moves the point far
+/// along the ray, and what the motion and the stored distance round by moves it off the plane by as
+/// much. The frustum's side is `footprintAlong` times the image's narrower extent.
+float planeTolerance(Camera eye, float away, vec3 normal, vec3 direction)
+{
+    const float side = footprintAlong(eye, away) * float(min(eye.mWidth, eye.mHeight));
+    return ACCUMULATE_PLANE * side / mix(0.05, 1.0, abs(dot(normal, direction)));
+}
+
+/// Whether a surface with normal `was`, `there`, is the one with `normal` at `anchor`: the two
+/// normals within `ACCUMULATE_FACING`, and `there` within `tolerance` of the plane through `anchor`.
+///
+/// **The one rule** every temporal filter and the bounce's reuse hold a history to, whatever the
+/// history holds of where its surface stood: `heldSurfaceMatches` rebuilds it from a held distance,
+/// and the reuse reads it off a reservoir's own origin.
+bool samePlane(vec3 was, vec3 there, vec3 normal, vec3 anchor, float tolerance)
+{
+    return dot(was, normal) >= ACCUMULATE_FACING && abs(dot(normal, there - anchor)) <= tolerance;
+}
+
+/// The previous frame's eye of a pixel `onArms` (`surfaceOnArms`): the arms' plane over the
+/// previous basis, as `previousScreenThrough` reads it, or the world's.
+Camera previousEye(HistoryConstants history, bool onArms)
+{
+    Camera eye = onArms ? history.mEyes.mArms : history.mEyes.mWorld;
+    const vec2 spread = onArms ? history.mArmsSpread : vec2(1.0);
+    eye.mBasis = history.mPrevious;
+    eye.mBasis.mRight *= spread.x;
+    eye.mBasis.mUp *= spread.y;
+    eye.mJitter = history.mPreviousJitter;
+    return eye;
+}
+
+/// The plane of the surface at `at` whose `CHANNEL_SURFACE`, or `CHANNEL_PANE_SURFACE`, reads `seen`.
+///
+/// **Its point from the eye the history was measured from.** `CHANNEL_MOTION` says where it stood
+/// on the previous screen and how much farther from that eye, so it is rebuilt there and not at
+/// this frame's distance: compared from this frame's eye, an eye walking toward a surface found
+/// each frame's history a step off the plane, and the filter showed one frame's noise. **The ray
+/// through the previous basis at this frame's jitter**, since the motion is measured from the
+/// jittered point this frame's ray was aimed at (`reprojected`). **No history where there was no
+/// previous eye**: its basis is nought, a ray through it has no direction, and the tolerance below
+/// nought says so to every texel rather than a comparison with whatever that ray came to.
+///
+/// @param moved the pixel's `CHANNEL_MOTION`.
+HistoryPlane historyPlane(HistoryConstants history, ivec2 at, vec2 seen, vec3 moved)
+{
+    const vec3 normal = unpackSurfaceNormal(seen.x);
+    const float away = surfaceDistance(seen.y);
+    const Camera eye = eyeOfPixel(seen.y, history.mEyes);
+    const Camera before = previousEye(history, surfaceOnArms(seen.y));
+    Camera landed = before;
+    landed.mJitter = eye.mJitter;
+    const Ray ray = rayAt(landed, vec2(at) + moved.xy);
+    const vec3 anchor = ray.mOffset + ray.mDirection * (away + moved.z);
+    const bool seenBefore = dot(history.mPrevious.mForward, history.mPrevious.mForward) > 0.0;
+    const float tolerance = planeTolerance(eye, away, normal, rayAt(eye, vec2(at)).mDirection);
+    return HistoryPlane(before, normal, anchor, seenBefore ? tolerance : -1.0, history.mDistanceScale);
+}
+
+/// Whether the history texel at `tap`, which holds `was` — its normal in `xyz`, nought where nothing
+/// was accumulated, and its distance in `w` times `HistoryConstants::mDistanceScale` — is the
+/// surface `plane` stands for: the point it holds, rebuilt along the previous eye's ray through it,
+/// on that plane (`samePlane`).
+bool heldSurfaceMatches(vec4 was, ivec2 tap, HistoryPlane plane)
+{
+    if (dot(was.xyz, was.xyz) <= 0.0)
+        return false;
+
+    const vec3 there = positionAlong(plane.mBefore, tap, was.w / plane.mDistanceScale);
+    return samePlane(was.xyz, there, plane.mNormal, plane.mAnchor, plane.mTolerance);
+}
+
+/// What a history fetch takes of each of the four texels `footprint` spans, into a new `vec4`
+/// named `shares`: its bilinear share where it is on the screen, is the surface of `plane`
+/// (`heldSurfaceMatches` against `heldImage`) and holds a history (`holds`, an expression that may
+/// name the tap as `historyAt`), and nought where it is refused. Their sum, before any kernel
+/// divides by it, is how much of the footprint the history covers.
+///
+/// **One gather for every temporal filter**, so the accumulator, the shadow denoiser, the glossy
+/// filter and the pane filter cannot come to refuse a tap by four rules: written four times, the
+/// shadow's lost its test for a texel that held no history. **A macro because an image is not an
+/// argument** these kernels can hand a function, as `RTX_RESOLVE` says of a query; each kernel then
+/// weighs its own payload by the shares.
+#define RTX_HISTORY_SHARES(shares, footprint, extent, heldImage, holds, plane)                    \
+    vec4 shares = vec4(0.0);                                                                       \
+    for (int historyCorner = 0; historyCorner < 4; ++historyCorner)                                \
+    {                                                                                              \
+        const float historyBilinear = historyShare(footprint, historyCorner);                      \
+        const ivec2 historyAt = historyTap(footprint, historyCorner);                              \
+        if (historyBilinear <= 0.0 || outsideOf(historyAt, extent)                                 \
+            || !heldSurfaceMatches(imageLoad(heldImage, historyAt), historyAt, plane) || !(holds)) \
+            continue;                                                                              \
+        shares[historyCorner] = historyBilinear;                                                   \
+    }
+
+/// How much of a history's footprint its matched taps cover: the shares' sum.
+float historyCovered(vec4 shares)
+{
+    return shares.x + shares.y + shares.z + shares.w;
+}
+
+/// How nearly a tap faces the way the centre's surface does, as a weight: SVGF's normal test, the
+/// cosine to the `power` — `ATROUS_NORMAL_POWER` for the wavelet's levels and the shadow's,
+/// `ACCUMULATE_FIX_NORMAL_POWER` for the history fix.
 ///
 /// **Clamped above as well as below.** A unit vector normalised in floats has a length just off one,
 /// so a dot with a normal that matches — the centre tap's with its own, above all — can pass one, and
 /// a hundred and twenty-eight powers of that is a weight too heavy.
-float facingWeight(vec3 normal, vec3 there)
+float facingWeight(vec3 normal, vec3 there, float power)
 {
-    return pow(clamp(dot(normal, there), 0.0, 1.0), ATROUS_NORMAL_POWER);
+    return pow(clamp(dot(normal, there), 0.0, 1.0), power);
 }
 
 /// How far a tap lies off the plane of the centre's surface, as a weight: one in the plane, and

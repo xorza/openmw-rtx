@@ -5,6 +5,7 @@
 // in `visibility.h` says why it is here and not in the payload. One file, because the any-hit and
 // the closest-hit stages share a hit group's record and both read the same fact off it.
 
+#include "shared/tracerecords.h"
 #include "camera.h"
 #include "visibility.h"
 

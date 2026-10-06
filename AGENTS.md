@@ -114,6 +114,10 @@ the window's size there, has it moved to the window on the first start, and the 
 - `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
   view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
   it.
+- A look of the ray tracer's own against upstream's: its ripple field steps every frame by the time
+  the water's clock moved (`RipplePass::record`), where upstream's steps once a sixtieth. The same
+  springs over the same time, at a cost every frame pays alike, and a wake that keeps its pace under
+  sixty frames a second, where upstream's slows.
 
 ## Where the code lives
 
@@ -174,7 +178,9 @@ backend ever arrives.
   averaged, and fails a frame noisier; beside it, each one's bias against a converged reference;
   `--strafe=150` takes the frame after the eye flew in from the side, and `--walk=150` from
   behind, which is what a history length or a filter's reach shows in; `--cut=N` takes the frame N
-  frames after the cut a stop begins with, standing, which is where fireflies show. Each place's
+  frames after the cut a stop begins with, standing, which is where fireflies show; and
+  `--upscale=native` standing is jittered with no upscaled resampling over it, which is where a
+  temporal filter that fetches its history off the pixel shows, as a bias. Each place's
   line counts its fireflies, pixels four times over the reference, in a thousand. A run is five minutes a
   suite with the card at 99%, so an A/B is `./omw release noise --ab=<switch>`: the strafe and the
   walk legs, both sides in one run a leg (`noise --versus`), and the still leg with `--still`, which a
@@ -226,8 +232,9 @@ the posture behind them does.
   local headers — of the file's own folder only, and any other folder is spelled from the root.
   `.clang-format` preserves the blocks and sorts inside each, so the order is the author's and the
   sorting is not. A conditional `#include` goes last, and a block out of order carries the comment
-  saying why, the way `memory.cpp` does for the allocator. `components/rtx/shaders/*.h` is the one
-  exception to `#pragma once`, and `portable.h` says why.
+  saying why, the way `memory.cpp` does for the allocator. The headers GLSL reads as well,
+  `components/rtx/shaders/*.h` and `components/rtxvulkan/shaders/shared/*.h`, are the one exception
+  to `#pragma once`, and `portable.h` says why.
 - **Include what you name.** A file that spells `std::size_t` includes `<cstddef>`. A `.cpp` may
   lean on its own header for what that header's interface already needs, and on nothing else.
 - **The preprocessor switches only where nothing else can.** What systems spell differently goes

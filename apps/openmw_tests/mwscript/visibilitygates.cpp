@@ -92,6 +92,8 @@ End
         char getGlobalType(const std::string& name) const override
         {
             using Misc::StringUtils::ciEqual;
+            if (ciEqual(name, "gamehour"))
+                return 'f';
             return ciEqual(name, "stronghold") || ciEqual(name, "flag") ? 's' : ' ';
         }
 
@@ -104,7 +106,10 @@ End
     class FakeReads final : public MWScript::VisibilityReads
     {
     public:
-        char getGlobalType(std::string_view name) const override { return mGlobals.contains(name) ? 's' : ' '; }
+        char getGlobalType(std::string_view name) const override
+        {
+            return mFloats.contains(name) ? 'f' : mGlobals.contains(name) ? 's' : ' ';
+        }
 
         int getGlobalInt(std::string_view name) const override
         {
@@ -112,7 +117,11 @@ End
             return found != mGlobals.end() ? found->second : 0;
         }
 
-        float getGlobalFloat(std::string_view name) const override { return static_cast<float>(getGlobalInt(name)); }
+        float getGlobalFloat(std::string_view name) const override
+        {
+            const auto found = mFloats.find(name);
+            return found != mFloats.end() ? found->second : static_cast<float>(getGlobalInt(name));
+        }
 
         int getJournalIndex(const ESM::RefId& quest) const override
         {
@@ -123,6 +132,7 @@ End
         /// Both as the game compares them, without regard to case: a name a script spells in its own
         /// case reads the entry a test wrote in lower case, whatever spelling the process interned first.
         std::map<std::string, int, Misc::StringUtils::CiComp> mGlobals;
+        std::map<std::string, float, Misc::StringUtils::CiComp> mFloats;
         std::map<ESM::RefId, int> mJournal;
     };
 
@@ -502,5 +512,65 @@ End
         gates.reset();
         gates.update(mReads, changes);
         EXPECT_EQ(changes.size(), 5u) << "a reset tells every gate again";
+    }
+
+    /// **A script that reads the hour runs again as the hour turns, and not on every frame it
+    /// moves.** A lantern lit past half past seven: at seven it is out, and it stays out at 19.7 and
+    /// 19.9, where the hour moved and the gate did not run — the half hour's test answers within
+    /// the hour; past eight the run finds it lit, and through the hour after nothing runs again.
+    TEST_F(VisibilityGatesTest, aScriptThatReadsTheHourRunsAgainAsTheHourTurns)
+    {
+        static constexpr std::string_view text
+            = "begin evening\nif ( GameHour > 19.5 )\nenable\nelse\ndisable\nendif\nend evening\n";
+        MWWorld::ESMStore store;
+        ESM::Script evening;
+        evening.mId = ESM::RefId::stringRefId("evening");
+        evening.mScriptText = std::string(text);
+        store.insertStatic(evening);
+        ESM::Activator lantern;
+        lantern.mId = ESM::RefId::stringRefId("lantern");
+        lantern.mScript = evening.mId;
+        store.insertStatic(lantern);
+        store.setUp();
+
+        class FromStore final : public MWScript::GateScripts
+        {
+        public:
+            explicit FromStore(VisibilityGatesTest& test)
+                : mTest(test)
+            {
+            }
+
+            std::optional<MWScript::GateScript> compiled(const ESM::RefId&) override
+            {
+                mKept = mTest.compile(text);
+                return MWScript::GateScript{ .mProgram = &mKept.mProgram, .mLocals = &mKept.mLocals };
+            }
+
+        private:
+            VisibilityGatesTest& mTest;
+            Compiled mKept;
+        };
+
+        FromStore scripts(*this);
+        MWScript::VisibilityGates gates;
+        gates.build(store, scripts);
+        ASSERT_EQ(gates.getGateCount(), 1u);
+
+        std::vector<MWScript::GateChange> changes;
+        const auto at = [&](float hour) {
+            changes.clear();
+            mReads.mFloats["gamehour"] = hour;
+            gates.update(mReads, changes);
+            return changes;
+        };
+
+        ASSERT_EQ(at(19.0f).size(), 1u);
+        EXPECT_EQ(changes[0].mState, GateState::Closed);
+        EXPECT_TRUE(at(19.7f).empty()) << "the hour moved within itself and the gate ran";
+        EXPECT_TRUE(at(19.9f).empty());
+        ASSERT_EQ(at(20.1f).size(), 1u) << "the hour turned and the gate did not run";
+        EXPECT_EQ(changes[0].mState, GateState::Open);
+        EXPECT_TRUE(at(20.6f).empty());
     }
 }

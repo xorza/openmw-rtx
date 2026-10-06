@@ -18,8 +18,9 @@
 // looks through, the column of water in front of them, the air, the cloud shells, and the
 // channels.
 
+#include "shared/tracerecords.h"
 #include "camera.h"
-#include "glare.h"
+#include "shared/glare.h"
 #include "scene.h"
 #include "visibility.h"
 
@@ -96,15 +97,20 @@ struct PaneStack
     float mThrough;
     vec3 mScattered;
 
-    /// What was drawn for the layers, `SeenPane`'s drawn light and its lobe's, and their albedos,
-    /// each by what reaches the eye of that layer: `CHANNEL_PANE` before it is divided, and
-    /// `CHANNEL_PANE_ALBEDO` before the floor. Kept out of `mRadiance`, which holds what they glow
-    /// with and the air between them.
+    /// What was drawn for the layers, `SeenPane`'s drawn light, and their albedos, each by what
+    /// reaches the eye of that layer: `CHANNEL_PANE` before it is divided, and `CHANNEL_PANE_ALBEDO`
+    /// before the floor. Kept out of `mRadiance`, which holds what they glow with and the air between
+    /// them.
+    ///
+    /// **Their lobes' light is not here but in `mRadiance`, composed unfiltered** (D6): the pane
+    /// filter keeps a layer's history whole over every turn of the view, which a reflection does not
+    /// survive, and divided by the diffuse albedo it was taken apart by an albedo it is not of. Every
+    /// vanilla layer has no lobe, and the upscaler's accumulation takes a replacer's.
     vec3 mDrawn;
     vec3 mAlbedo;
 
-    /// What they glow with by the same weights: with `mDrawn`, the light that moves as the layers
-    /// do, where `mRadiance` has the air between them in it as well.
+    /// What they glow with and their lobes send, by the same weights: with `mDrawn`, the light that
+    /// moves as the layers do, where `mRadiance` has the air between them in it as well.
     vec3 mGlow;
 
     /// What Night-Eye's lift adds to them by the same weights: `CHANNEL_LIFT`'s layers.
@@ -122,13 +128,14 @@ PaneStack noPanes()
 void stackLayer(inout PaneStack stack, MediumAhead ahead, Answer layer)
 {
     const vec3 reaching = stack.mThrough * ahead.mThrough * layer.mOpacity;
-    stack.mDrawn += reaching * (layer.mBounced + layer.mSpecular);
+    stack.mDrawn += reaching * layer.mBounced;
     stack.mAlbedo += reaching * layer.mResponse.mDiffuse;
-    stack.mGlow += reaching * layer.mRadiance;
+    stack.mGlow += reaching * (layer.mRadiance + layer.mSpecular);
     stack.mLift += reaching * layer.mLift;
 
     stack.mRadiance
-        += stack.mThrough * (ahead.mScattered - stack.mScattered + ahead.mThrough * (layer.mRadiance * layer.mOpacity));
+        += stack.mThrough
+        * (ahead.mScattered - stack.mScattered + ahead.mThrough * ((layer.mRadiance + layer.mSpecular) * layer.mOpacity));
     stack.mThrough *= 1.0 - layer.mOpacity;
     stack.mScattered = ahead.mScattered;
 }
@@ -138,7 +145,11 @@ void stackLayer(inout PaneStack stack, MediumAhead ahead, Answer layer)
 struct NearestPane
 {
     float mNormal;
+
+    /// With the arms' flag in its sign, `packSurfaceDistance`: the pane filter rebuilds the layer's
+    /// ray through the eye that cast it, as every pass does a solid's.
     float mDistance;
+
     vec3 mMotion;
 };
 
@@ -147,9 +158,9 @@ NearestPane noNearestPane()
     return NearestPane(SURFACE_NO_NORMAL, 0.0, vec3(0.0));
 }
 
-NearestPane nearestPaneOf(Answer layer)
+NearestPane nearestPaneOf(Answer layer, bool arms)
 {
-    return NearestPane(layer.mResponse.mNormal, layer.mDistance, layer.mMotion);
+    return NearestPane(layer.mResponse.mNormal, packSurfaceDistance(layer.mDistance, arms), layer.mMotion);
 }
 
 /// `stack` over `behind`, the whole path it stands part of the way along — the identity the launch
@@ -251,12 +262,12 @@ void main()
                 = mediumAhead(pixel, WorldRay(origin, direction), distance, distance, armsCone);
 
             if (layer == 0u)
-                nearest = nearestPaneOf(answer);
+                nearest = nearestPaneOf(answer, true);
             stackLayer(armsStack, ahead, answer);
 
             // Unshaded where it misses, as the arms' first ray is: a miss here is the world's to
             // answer, through the world's eye.
-            answer = answerAlong(origin, min(distance + SHADOW_BIAS, frame.mFar), direction,
+            answer = answerAlong(origin, min(alongPast(distance), frame.mFar), direction,
                 frame.mRayMask & MASK_FIRST_PERSON, 1u, layer + 1u, MISS_RECORD_UNSHADED);
             if (!answer.mHit)
             {
@@ -326,17 +337,18 @@ void main()
         const MediumAhead ahead = mediumAhead(pixel, WorldRay(origin, direction), distance, distance, cone);
 
         if (layer == 0u)
-            nearest = nearestPaneOf(answer);
+            nearest = nearestPaneOf(answer, false);
         stackLayer(panes, ahead, answer);
 
         // The layer this trace is for, which on the last one the budget allows is the record that
         // says whatever it finds is to be shaded as a solid.
         //
-        // **Held at the clip**, where a pane within the bias of it would start the ray past its own
-        // end: a trace with its `tmin` over its `tmax` is undefined, and one with the two equal is
-        // the miss the clip says it is.
-        answer = answerAlong(origin, min(distance + SHADOW_BIAS, frame.mFar), direction, worldMask(frame.mRayMask),
-            0u, layer + 1u, MISS_RECORD_SKY);
+        // **From just past the layer along the same line** (`alongPast`), so a layer a unit behind
+        // it is met and the layer itself is not. **Held at the clip**, where a pane at the clip
+        // would start the ray past its own end: a trace with its `tmin` over its `tmax` is
+        // undefined, and one with the two equal is the miss the clip says it is.
+        answer = answerAlong(origin, min(alongPast(distance), frame.mFar), direction, worldMask(frame.mRayMask), 0u,
+            layer + 1u, MISS_RECORD_SKY);
     }
 
     // **The last shader's answer, unpacked once.** `answer` holds what the surface behind the
@@ -460,6 +472,7 @@ void main()
     // filters.
     const vec3 unshadowed = answer.mShadowed * transmittance;
     const float open = answer.mOpen ? 1.0 : 0.0;
+    // The lobe's light per unit of its specular albedo, which the composite puts back (D6).
     const vec3 lobe = answer.mSpecular * transmittance;
 
     // **The layers' drawn light, the world's behind the arms' as their pictures meet.** Divided by
@@ -477,7 +490,7 @@ void main()
     // it, the layers in front of the water taking theirs off it.
     const vec3 pixelLight
         = composedLight(shaded, answer.mResponse.mDiffuse, bounce, answer.mResponse.mAmbient, filled, unshadowed, open,
-            lobe, paneModulation, paneLight);
+            lobe * answer.mResponse.mSpecular, paneModulation, paneLight);
     const float pixelLit = max(dot(pixelLight, LUMINANCE_WEIGHTS), 1e-6);
     const vec3 paneOwn = armsStack.mGlow + armsStack.mThrough * panes.mGlow + paneDrawn;
     const float paneApart = motionsApart(nearest.mMotion.xy, answer.mMotion.xy);
@@ -494,30 +507,14 @@ void main()
     const vec3 light = frame.mComposed != 0u ? pixelLight : shaded;
     RTX_STORE_COUNTED(direct, at, BOUNDARY_COLOUR, vec4(light, 1.0))
 
-    // **Where the bounce is reused, the resolve writes its two channels** out of what the reuse
-    // kept, and this hands it what it needs that only this launch knows: what the path took off the
-    // light in front of the bounce, and a reservoir of nothing where no shader kept a bounce — the
-    // sky, a pane, a picture of the maps.
-    if (frame.mBounceReuse != BOUNCE_REUSE_OFF)
-    {
-        const uint kept = pixel.y * frame.mBounceStride + pixel.x;
-        bounceThrough[kept] = packRgb9e5(transmittance);
-        if (!answer.mBounceKept)
-        {
-            bounceReservoirs[kept] = packBounce(noBounce());
-            bounceOrigins[kept] = packOrigin(noOrigin());
-        }
-    }
-    else
-    {
-        RTX_STORE_COUNTED(indirect, at, BOUNDARY_COLOUR, vec4(bounce, 1.0))
-        RTX_STORE_COUNTED(fill, at, BOUNDARY_COLOUR, vec4(filled, 1.0))
-    }
+    RTX_STORE_COUNTED(indirect, at, BOUNDARY_COLOUR, vec4(bounce, 1.0))
+    RTX_STORE_COUNTED(fill, at, BOUNDARY_COLOUR, vec4(filled, 1.0))
     RTX_STORE_COUNTED(shadowed, at, BOUNDARY_COLOUR, vec4(unshadowed, open))
     RTX_STORE_COUNTED(penumbra, at, BOUNDARY_GUIDE, vec4(answer.mPenumbra))
     RTX_STORE_COUNTED(specular, at, BOUNDARY_COLOUR, vec4(lobe, answer.mRoughness))
     RTX_STORE_COUNTED(albedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mDiffuse, 1.0))
     RTX_STORE_COUNTED(ambientAlbedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mAmbient, 1.0))
+    RTX_STORE_COUNTED(specularAlbedo, at, BOUNDARY_GUIDE, vec4(answer.mResponse.mSpecular, 1.0))
 
     // **The layers' lift, the world's behind the arms', and the surface's behind both**, by what the
     // path let through — the layers, the water and the air: each lit thing the pixel shows, by the
@@ -528,7 +525,8 @@ void main()
     RTX_STORE_COUNTED(paneAlbedo, at, BOUNDARY_GUIDE, vec4(paneModulation, 1.0))
     RTX_STORE_COUNTED(paneSurface, at, BOUNDARY_GUIDE, vec4(nearest.mNormal, nearest.mDistance, 0.0, 0.0))
     RTX_STORE_COUNTED(paneMotion, at, BOUNDARY_GUIDE, vec4(nearest.mMotion, 0.0))
-    RTX_STORE_COUNTED(upscaleMasks, at, BOUNDARY_GUIDE, vec4(paneMisMoved, waterMisMoved, 0.0, 0.0))
+    RTX_STORE_COUNTED(upscaleMasks, at, BOUNDARY_GUIDE,
+        vec4(min(vec2(paneMisMoved, waterMisMoved), vec2(UPSCALE_MASK_CEILING)), 0.0, 0.0))
 
     // **The vector as the shader that answered worked it out**: where the surface or the sky stood
     // last frame. `Answer::mMotion` says whose and why there.

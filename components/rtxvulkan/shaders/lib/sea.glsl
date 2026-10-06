@@ -13,7 +13,7 @@
 
 #include "look.h"
 #include "scene.h"
-#include "ripple.h"
+#include "shared/ripple.h"
 #include "wave.h"
 #include "bindings.glsl"
 #include "footprint.glsl"

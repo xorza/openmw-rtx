@@ -34,7 +34,9 @@ namespace Rtx
                 && stated.mCameraMotion == osg::Vec3f() && stated.mAnisotropy == 0.0f
                 && stated.mPrevious.mForward == osg::Vec3f() && stated.mPrevious.mRight == osg::Vec3f()
                 && stated.mPrevious.mUp == osg::Vec3f() && stated.mDelight == 0.0f && stated.mShow == 0u
-                && stated.mLitEnvironmentMaps == 0u && stated.mBounceTraced == 0u && stated.mSoftEdgeDither == 0u;
+                && stated.mLitEnvironmentMaps == 0u && stated.mBounceTraced == 0u && stated.mSoftEdgeDither == 0u
+                && stated.mShadowFloor == 0.0f && stated.mLampCandidates == 0u
+                && stated.mPreviousJitter == osg::Vec2f();
         }
     }
 
@@ -56,15 +58,18 @@ namespace Rtx
         sampled.mEyes.mWorld.mJitter
             = reconstruction.mJitter ? haltonJitter(phase) : options.mJitter.value_or(osg::Vec2f());
 
-        // The four consequences of the reconstruction the trace reads for itself: where its draws
+        // The six consequences of the reconstruction the trace reads for itself: where its draws
         // come from, how far the shown pixel narrows every texture level, whether a surface traces
-        // its bounce, and whether the eye may draw a soft edge's texels by their alpha. A picture's
-        // `Reconstruction{}` says the tile, nought, traced and no.
+        // its bounce, whether the eye may draw a soft edge's texels by their alpha, under which share
+        // a source is never drawn for the shadow bit, and how many lamps a composing point draws. A
+        // picture's `Reconstruction{}` says the tile, nought, traced, no and the two defaults.
         sampled.mNoise
             = reconstruction.mNoise == NoiseSource::WhiteHash ? Shaders::NOISE_WHITE_HASH : Shaders::NOISE_BLUE_TILE;
         sampled.mLevelBias = reconstruction.mLevelBias;
         sampled.mBounceTraced = reconstruction.mIndirect == IndirectLight::Traced ? 1u : 0u;
         sampled.mSoftEdgeDither = reconstruction.mAveraged ? 1u : 0u;
+        sampled.mShadowFloor = reconstruction.mShadowFloor;
+        sampled.mLampCandidates = reconstruction.mLampCandidates;
 
         // The sampler takes the setting as it is: the settings clamp it to sixteen, and a device
         // with `samplerAnisotropy`, which the requirements ask for, takes at least sixteen.
@@ -88,10 +93,12 @@ namespace Rtx
         // The one subtraction of two world points, and it happens here. Two camera positions a
         // step apart subtract exactly in a float; the same difference taken on the device, between
         // coordinates six figures long, would be rounding. Nothing moved where no frame came before.
+        sampled.mPreviousJitter = sampled.mEyes.mWorld.mJitter;
         if (previous != nullptr)
         {
             sampled.mCameraMotion = stated.mOrigin - previous->mOrigin;
             sampled.mPrevious = previous->mEyes.mWorld.mBasis;
+            sampled.mPreviousJitter = previous->mEyes.mWorld.mJitter;
         }
 
         return sampled;

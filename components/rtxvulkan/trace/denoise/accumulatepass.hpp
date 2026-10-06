@@ -2,8 +2,8 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/shaders/accumulate.h>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/accumulate.h>
 
 #include "denoiseframe.hpp"
 #include "denoisehistory.hpp"
@@ -43,6 +43,7 @@ namespace Rtx
     private:
         ComputePipeline<Shaders::AccumulateConstants> mPipeline;
         ComputePipeline<Shaders::AccumulateClampConstants> mClamp;
+        ComputePipeline<Shaders::AccumulateClampConstants> mClampRing;
         ComputePipeline<Shaders::HistoryConstants> mSurface;
     };
 }

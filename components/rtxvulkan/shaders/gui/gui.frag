@@ -5,8 +5,8 @@
 // **Display-referred, and after the tone curve.** The GUI's colours and its atlases were authored
 // against a monitor, so they are written out as they are, over a picture already in display values.
 
-#include "gui.h"
-#include "sets.h"
+#include "shared/gui.h"
+#include "shared/sets.h"
 
 layout(set = SET_PASS, binding = GUI_BIND_TEXTURE) uniform sampler2D uTexture;
 
@@ -23,5 +23,7 @@ layout(location = 0) out vec4 outColour;
 void main()
 {
     const vec4 tint = PREMULTIPLIED ? vec4(inColour.rgb * inColour.a, inColour.a) : inColour;
-    outColour = texture(uTexture, inTexCoord) * tint;
+    // The one level a texture of the interface has, named: an implicit level is worked out from
+    // derivatives, which each compile may take finely or coarsely.
+    outColour = textureLod(uTexture, inTexCoord, 0.0) * tint;
 }

@@ -465,6 +465,52 @@ namespace Rtx::Testing
             EXPECT_NEAR(both.mGreen / shell.mGreen, green, 1e-3f) << "the shell was weighed by its coverage";
         }
 
+        /// **A shell is dimmed by the air the volume says stands in front of it**, the estimator the
+        /// geometry behind it and the haze laid over it both read, and not by a closed form of its
+        /// own.
+        ///
+        /// The world's edge is the air here, which the volume's answer holds and the closed form did
+        /// not: no weather, a black sky, so the edge scatters nothing in and the frame is the shell
+        /// alone, times what the edge leaves of it. Level, so the edge's rise is one; the shell at
+        /// 400 against an edge at 800 has crossed
+        ///
+        ///   (e^(0.5 / 0.125) - 1) / (e^(1 / 0.125) - 1) = 53.598 / 2979.96 = 0.017986
+        ///
+        /// of the ramp, which leaves `256^-0.017986 = 0.90506` of it. The closed form left all of it.
+        TEST_F(RtxVisibilityTest, aShellIsDimmedByTheAirTheVolumeSaysIsInFrontOfIt)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+
+            const auto shot = [&](float edge) {
+                Shaders::VisibilityConstants camera = Testing::makeCameraAlong(
+                    osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 60.0f, size, size, 100000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mAmbientFromSky = 0.0f;
+                camera.mAmbient = osg::Vec3f();
+                camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
+                camera.mFogEdge = edge;
+
+                SceneDesc scene;
+                const std::array<TextureData, 1> textures{ describeTexel(white) };
+                const Index texture = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                addQuad(scene, uprightQuadAt(80.0f, 400.0f),
+                    scene.addMaterial(Material{ .mDiffuse = texture,
+                        .mOpacity = 0.5f,
+                        .mAlphaMode = AlphaMode::Blend,
+                        .mDiffuseNeverSolid = true }));
+
+                return shoot(scene, textures, camera, size, Shot{ .mLoss = HistoryLoss::Cut }).at(centre);
+            };
+
+            const float clear = shot(0.0f);
+            const float edged = shot(800.0f);
+            ASSERT_GT(clear, 0.01f) << "the shell is not lit, so this proves nothing";
+            EXPECT_NEAR(edged / clear, 0.90506f, 2e-3f);
+        }
+
         /// A sprite in front of the player's hand is looked for where the arms' ray crosses the
         /// world's picture, and not in the tile of the pixel the ray was cast for.
         ///
@@ -628,6 +674,11 @@ namespace Rtx::Testing
         /// The sprite is opaque and carries no lighting bake, so what a pixel shows is the fill
         /// alone. Only the middle row is read: those rays are level, so they meet neither sheet and
         /// the chord they cut is the same one in all three scenes.
+        ///
+        /// **And a cloud's shell in a frame with no sprite in it, by the same law**, because the air
+        /// asks what a point sees of the fill wherever a puff of either kind can read it
+        /// (`mPuffsInFrame`). Asked only where a sprite stood, the shell read the open fill in the
+        /// room too.
         TEST_F(RtxVisibilityTest, aRoomsFillReachesAPuffFromEverySideAndWhatIsNearTakesItAway)
         {
             constexpr std::uint32_t size = 33;
@@ -636,14 +687,25 @@ namespace Rtx::Testing
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             const std::array<TextureData, 1> puff{ describeTexel(white) };
 
-            const auto boxedAt = [&](float half) {
+            const auto boxedAt = [&](float half, bool shell, std::uint32_t frames) {
                 SceneDesc scene;
                 const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
-                const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
-                    .mRadius = 40.0f,
-                    .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
-                    .mAlpha = 1.0f } };
-                scene.addEmitter(sprites, cut, BlendKind::Over);
+                if (shell)
+                {
+                    addQuad(scene, uprightQuadAt(40.0f, 0.0f),
+                        scene.addMaterial(Material{ .mDiffuse = cut,
+                            .mOpacity = 0.5f,
+                            .mAlphaMode = AlphaMode::Blend,
+                            .mDiffuseNeverSolid = true }));
+                }
+                else
+                {
+                    const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
+                        .mRadius = 40.0f,
+                        .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                        .mAlpha = 1.0f } };
+                    scene.addEmitter(sprites, cut, BlendKind::Over);
+                }
 
                 // Nothing at all where the fill is whole, rather than sheets moved out of reach: a
                 // scene with no geometry is the one case where the answer cannot be the geometry's.
@@ -660,7 +722,7 @@ namespace Rtx::Testing
                 camera.mAmbient = osg::Vec3f(0.5f, 0.5f, 0.5f);
                 camera.mAmbientFromSky = 0.0f;
 
-                const Frame frame = shoot(scene, puff, camera, size, { .mFrames = 128 });
+                const Frame frame = shoot(scene, puff, camera, size, { .mFrames = frames });
 
                 // The middle row, whose rays leave the eye level and stay level.
                 float sum = 0.0f;
@@ -670,11 +732,19 @@ namespace Rtx::Testing
                 return sum;
             };
 
-            const float open = boxedAt(0.0f);
+            const float open = boxedAt(0.0f, false, 128);
             ASSERT_GT(open, 0.01f) << "the fill did not light the puff at all";
 
-            EXPECT_NEAR(boxedAt(70.0f) / open, 70.0f / reach, 0.08f) << "half of the sphere is left";
-            EXPECT_NEAR(boxedAt(105.0f) / open, 105.0f / reach, 0.08f) << "and three quarters in a taller room";
+            EXPECT_NEAR(boxedAt(70.0f, false, 128) / open, 70.0f / reach, 0.08f) << "half of the sphere is left";
+            EXPECT_NEAR(boxedAt(105.0f, false, 128) / open, 105.0f / reach, 0.08f)
+                << "and three quarters in a taller room";
+
+            // Sixteen frames, which hold the shell to the law within a hundredth: the open fill it read
+            // without the flag is a whole half away.
+            const float shellOpen = boxedAt(0.0f, true, 16);
+            ASSERT_GT(shellOpen, 0.01f) << "the fill did not light the shell at all";
+            EXPECT_NEAR(boxedAt(70.0f, true, 16) / shellOpen, 70.0f / reach, 0.08f)
+                << "half of the sphere is left for a shell with no sprite in the frame";
         }
 
         /// **A lamp lights a puff by the card's convention, as the sun and the fill do**: a white puff
@@ -1138,15 +1208,36 @@ namespace Rtx::Testing
         /// does not. `spriteshade.h` counts one whole layer, and the shader thins the sun by the
         /// texture's mean alpha — its one texel, `128/255` — to `0.49804` of the card's worth from
         /// the side. Nothing stands over either, so the sky is untouched, and the ambient is nought.
+        ///
+        /// **The mean, and not the middle of the coarsest level.** A puff of sixteen texels square
+        /// opaque over its middle four by four, with its file's chain stopping at eight by eight, as
+        /// Morrowind's do: its mean alpha is a sixteenth, so one layer of it leaves `15/16` of the
+        /// sun; read at the coarsest level's middle, it was all alpha and left almost nothing.
         TEST_F(RtxVisibilityTest, aPuffInTheShadeOfItsOwnEmitterIsThinnedByOneLayer)
         {
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
             constexpr std::array<std::uint8_t, 4> half{ 255, 255, 255, 128 };
-            const std::array<TextureData, 1> puff{ describeTexel(half) };
+            const std::array<TextureData, 1> halfPuff{ describeTexel(half) };
 
-            const auto lit = [&](bool shaded) {
+            Testing::TestTexture radial;
+            for (const std::uint32_t side : { 16u, 8u })
+            {
+                radial.mLevels.push_back(MipLevel{ static_cast<std::uint32_t>(radial.mBytes.size()), side, side });
+                for (std::uint32_t y = 0; y < side; ++y)
+                    for (std::uint32_t x = 0; x < side; ++x)
+                    {
+                        const bool middle
+                            = x >= side * 3 / 8 && x < side * 5 / 8 && y >= side * 3 / 8 && y < side * 5 / 8;
+                        radial.mBytes.insert(radial.mBytes.end(), 3, std::uint8_t{ 255 });
+                        radial.mBytes.push_back(middle ? 255 : 0);
+                    }
+            }
+            radial.describe(16, 16, "radial");
+            const std::array<TextureData, 1> radialPuff{ radial.mData };
+
+            const auto lit = [&](bool shaded, std::span<const TextureData> puff) {
                 SceneDesc scene;
                 const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                 std::vector<Sprite> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
@@ -1173,9 +1264,14 @@ namespace Rtx::Testing
                 return frame.at(centre);
             };
 
-            const float alone = lit(false);
+            const float alone = lit(false, halfPuff);
             ASSERT_GT(alone, 0.1f) << "the sun did not reach the puff at all";
-            EXPECT_NEAR(lit(true) / alone, 1.0f - sHalfAlpha, 0.01f) << "one layer of a half-alpha texture";
+            EXPECT_NEAR(lit(true, halfPuff) / alone, 1.0f - sHalfAlpha, 0.01f) << "one layer of a half-alpha texture";
+
+            const float radialAlone = lit(false, radialPuff);
+            ASSERT_GT(radialAlone, 0.1f) << "the sun did not reach the radial puff at all";
+            EXPECT_NEAR(lit(true, radialPuff) / radialAlone, 15.0f / 16.0f, 0.01f)
+                << "one layer of a puff whose mean alpha is a sixteenth";
         }
 
         /// A drop under a roof is not drawn, and a hearth's smoke under the same roof is.

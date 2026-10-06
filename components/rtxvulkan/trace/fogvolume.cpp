@@ -7,7 +7,6 @@
 #include <vector>
 
 #include <components/rtx/environment/fogbuilder.hpp>
-#include <components/rtx/shaders/fogvolume.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtxvulkan/device/commands.hpp>
@@ -16,6 +15,7 @@
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/fogvolume.h>
 
 namespace Rtx
 {

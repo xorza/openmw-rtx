@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstddef>
+#include <optional>
 
 #include <osg/Vec2f>
 #include <vulkan/vulkan_core.h>
@@ -44,6 +45,13 @@ namespace Rtx
         /// `VK_IMAGE_LAYOUT_GENERAL` ordered against a sampled read. A cell with no water never
         /// samples them, so it need not synthesise them.
         void record(VkCommandBuffer commands, const osg::Vec2f& seconds) const;
+
+        /// Whether the tiles already hold the sea at `seconds`, which a trace then reads as they
+        /// are: **every picture of the world shares its frame's water time**, and a cell crossing
+        /// traces a row of map tiles beside the frame, each of which synthesised the same sea again
+        /// — a fifth of a millisecond apiece, on the frame that already carries the arrival.
+        /// Whatever reads them after is behind the write on the one queue.
+        bool holds(const osg::Vec2f& seconds) const { return mSynthesised == seconds; }
 
         /// Linear, mipmapped and wrapping — a tile lays the same water down every `getExtent` units,
         /// and a tap that clamped would smear the last texel of one across the whole sea.
@@ -101,6 +109,11 @@ namespace Rtx
         std::array<Tile, Shaders::WAVE_CASCADES> mTiles;
 
         SeaState mSea;
+
+        /// The moment the tiles were last synthesised at, or nothing where they hold no sea of
+        /// `mSea`'s. Mutable as the tiles are: `record` writes both, and a record is const because
+        /// it changes nothing a caller holds.
+        mutable std::optional<osg::Vec2f> mSynthesised;
 
         float mSlope = 0.0f;
         WaveCurvature mCurvature;

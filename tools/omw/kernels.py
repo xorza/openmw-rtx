@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from omw.build import Build
-from omw.system import EXE, Refusal, Switches, jobs
+from omw.system import EXE, Refusal, Switches, jobs, read_text
 
 _MAGIC = 0x07230203
 _OP_NAME = 5
@@ -174,7 +174,7 @@ def kernels(build: Build, args: list[str]) -> int:
         print("\n".join(listed))
         return 0
 
-    changed = moved(_keyed(against.read_text().splitlines()), _keyed(listed))
+    changed = moved(_keyed(read_text(against).splitlines()), _keyed(listed))
     if not changed:
         print(f"kernels: all {len(listed)} the same as {against}")
         return 0

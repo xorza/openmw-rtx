@@ -123,7 +123,9 @@ namespace Rtx
         /// Written by that pass and not over `mSunward`, which is the next trace's history.
         Image mSeeing;
 
-        /// How far each column's ray runs this frame before it meets a surface, in world units.
+        /// How far each column's ray runs this frame before it meets a surface, in world units: the
+        /// jittered ray the froxels draw along in the first channel, the block's middle the lamps
+        /// are integrated along in the second.
         Image mColumnDepth;
 
         /// What each moon puts into the air along each column's ray, one layer a moon.

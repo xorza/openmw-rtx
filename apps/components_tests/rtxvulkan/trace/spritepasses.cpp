@@ -21,11 +21,11 @@
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/scene.h>
-#include <components/rtx/shaders/spritebin.h>
-#include <components/rtx/shaders/spriteshade.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
+#include <components/rtxvulkan/shaders/shared/spritebin.h>
+#include <components/rtxvulkan/shaders/shared/spriteshade.h>
 #include <components/rtxvulkan/trace/spritepasses.hpp>
 
 namespace Rtx
@@ -155,7 +155,17 @@ namespace Rtx
 
             std::size_t getTileCount() const { return std::size_t{ mAcross } * mDown; }
 
-            bool isUnbinned() const { return mList[0] == Shaders::SPRITE_LIST_UNBINNED; }
+            /// Whether `tile`'s run fit the room, `SPRITE_TILE_UNBINNED`.
+            bool isBinned(std::size_t tile) const { return (mList[tile + 1] & Shaders::SPRITE_TILE_UNBINNED) == 0; }
+
+            /// Whether every tile's run fit.
+            bool isWhole() const
+            {
+                for (std::size_t tile = 0; tile < getTileCount(); ++tile)
+                    if (!isBinned(tile))
+                        return false;
+                return true;
+            }
 
             std::span<const std::uint32_t> getRun(std::size_t tile) const
             {
@@ -199,7 +209,7 @@ namespace Rtx
             /// through shared memory and a race there is exactly what this would show.
             void expectRunsMatchRects(std::uint32_t sprites) const
             {
-                for (std::size_t tile = 0; tile < getTileCount(); ++tile)
+                for (std::size_t tile = 0; tile < getTileCount() && isBinned(tile); ++tile)
                 {
                     std::vector<std::uint32_t> expected;
                     for (std::uint32_t sprite = 0; sprite < sprites; ++sprite)
@@ -285,8 +295,7 @@ namespace Rtx
                 const auto* const presenceWords = static_cast<const std::uint32_t*>(presence.map());
                 result.mPresence.assign(presenceWords, presenceWords + result.getTileCount());
 
-                if (!result.isUnbinned())
-                    result.expectRunsMatchRects(count);
+                result.expectRunsMatchRects(count);
 
                 return result;
             }
@@ -365,7 +374,7 @@ namespace Rtx
                 constants.mEyes.mWorld.mJitter = jitter;
 
                 const Binned tiles = bin(layer, constants, sPlenty);
-                ASSERT_FALSE(tiles.isUnbinned());
+                ASSERT_TRUE(tiles.isWhole());
                 ASSERT_EQ(tiles.mAcross, (sWidth + Shaders::SPRITE_TILE - 1) / Shaders::SPRITE_TILE);
                 ASSERT_EQ(tiles.mDown, (sHeight + Shaders::SPRITE_TILE - 1) / Shaders::SPRITE_TILE);
                 EXPECT_EQ(tiles.mReport, tiles.getEntryCount());
@@ -450,7 +459,7 @@ namespace Rtx
                 layer.addSprite(osg::Vec3f(40.0f, y, 0.0f), 30.0f);
 
             const Binned tiles = bin(layer, lookingAlongX(), sPlenty);
-            ASSERT_FALSE(tiles.isUnbinned());
+            ASSERT_TRUE(tiles.isWhole());
 
             std::uint32_t runs = 0;
             for (std::size_t tile = 0; tile < tiles.getTileCount(); ++tile)
@@ -482,7 +491,7 @@ namespace Rtx
             layer.addSprite(osg::Vec3f(40.0f, 0.0f, 0.0f), 0.0f);
 
             const Binned tiles = bin(layer, lookingAlongX(), sPlenty);
-            ASSERT_FALSE(tiles.isUnbinned());
+            ASSERT_TRUE(tiles.isWhole());
 
             std::uint32_t listed = 0;
             for (std::size_t tile = 0; tile < tiles.getTileCount(); ++tile)
@@ -504,7 +513,7 @@ namespace Rtx
             layer.addSprite(osg::Vec3f(1.0f, 0.0f, 0.0f), 50.0f);
 
             const Binned tiles = bin(layer, lookingAlongX(), sPlenty);
-            ASSERT_FALSE(tiles.isUnbinned());
+            ASSERT_TRUE(tiles.isWhole());
 
             ASSERT_EQ(tiles.getEntryCount(), tiles.getTileCount());
             for (std::size_t tile = 0; tile < tiles.getTileCount(); ++tile)
@@ -560,7 +569,7 @@ namespace Rtx
             layer.addSprite(osg::Vec3f(6.0f, 0.0f, 0.0f), 8.0f);
 
             const Binned tiles = bin(layer, lookingAlongX(), sPlenty);
-            ASSERT_FALSE(tiles.isUnbinned());
+            ASSERT_TRUE(tiles.isWhole());
 
             // Eight tenths of a unit of width at six away is a tangent of 0.133, against the 0.77 the
             // frame's own half-width is — so the streak is a sixth of the frame across, dead centre,
@@ -586,7 +595,7 @@ namespace Rtx
             layer.addSprite(osg::Vec3f(100.0f, 0.0f, 0.0f), 2.0f);
 
             const Binned tiles = bin(layer, lookingAlongX(), sPlenty);
-            ASSERT_FALSE(tiles.isUnbinned());
+            ASSERT_TRUE(tiles.isWhole());
 
             for (std::size_t tile = 0; tile < tiles.getTileCount(); ++tile)
                 for (const std::uint32_t index : tiles.getRun(tile))
@@ -616,7 +625,7 @@ namespace Rtx
             layer.addSprite(osg::Vec3f(1.0f, 3.0f, 0.0f), 2.5f);
 
             const Binned tiles = bin(layer, lookingAlongX(), sPlenty);
-            ASSERT_FALSE(tiles.isUnbinned());
+            ASSERT_TRUE(tiles.isWhole());
 
             for (std::size_t tile = 0; tile < tiles.getTileCount(); ++tile)
             {
@@ -646,7 +655,7 @@ namespace Rtx
                 = makeOrthographicCameraFromView(view, 128.0f, 96.0f, sWidth, sHeight, 1.0f, 10000.0f).value();
 
             const Binned tiles = bin(layer, constants, sPlenty);
-            ASSERT_FALSE(tiles.isUnbinned());
+            ASSERT_TRUE(tiles.isWhole());
 
             // Dead centre of the box, so the middle tiles hold it and the corners do not.
             for (std::uint32_t y = 0; y < sHeight; ++y)
@@ -711,7 +720,7 @@ namespace Rtx
             constants.mEyes.mWorld.mJitter = osg::Vec2f(-0.3f, 0.45f);
 
             const Binned tiles = bin(layer, constants, 1u << 20);
-            ASSERT_FALSE(tiles.isUnbinned());
+            ASSERT_TRUE(tiles.isWhole());
             EXPECT_EQ(tiles.mReport, tiles.getEntryCount());
 
             // The three puffs around the eye are in every run, and every run ascends.
@@ -775,7 +784,7 @@ namespace Rtx
 
             // Sixty puffs in every tile is most of the list, at any tile size the frame may have.
             const Binned tiles = bin(layer, constants, 1u << 22);
-            ASSERT_FALSE(tiles.isUnbinned());
+            ASSERT_TRUE(tiles.isWhole());
             EXPECT_EQ(tiles.mReport, tiles.getEntryCount());
 
             // **The puffs whose balls hold the eye, in every tile**: the first three columns stand 2, 3
@@ -799,13 +808,17 @@ namespace Rtx
             }
         }
 
-        /// A list with no room for its runs says so in its first entry and names the count in its
-        /// second, reports what it needed, and is whole again once given that much.
+        /// A list without room for every run bins the tiles whose runs fit and marks the rest,
+        /// reports what it needed, and is whole again once given that much.
         ///
-        /// **The report is what sizes the next frame's list, so it has to be the same number whether
-        /// or not the runs fit** — and the list given exactly that room has to be the list a
-        /// generous one would have made, entry for entry.
-        TEST_F(RtxSpriteBinPassTest, aListTooSmallForItsRunsSaysSoAndNamesWhatItNeeded)
+        /// **The tiles before the room ran out are binned as a generous list bins them**, run for
+        /// run, since the runs lie in tile order and the ones that fit are a prefix; every tile from
+        /// the first whose end passed the room carries `SPRITE_TILE_UNBINNED` and the sprite count,
+        /// and walks every sprite. Given half the room, the split falls where the generous list's
+        /// ends pass it. **The report is what sizes the next frame's list, so it has to be the same
+        /// number whether or not the runs fit** — and the list given exactly that room has to be the
+        /// list a generous one would have made, entry for entry.
+        TEST_F(RtxSpriteBinPassTest, aListTooSmallForItsRunsBinsWhatFitsAndNamesWhatItNeeded)
         {
             Layer layer;
             layer.addEmitter(0.0f, osg::Vec3f());
@@ -815,18 +828,41 @@ namespace Rtx
             const Shaders::VisibilityConstants constants = lookingAlongX();
 
             const Binned generous = bin(layer, constants, sPlenty);
-            ASSERT_FALSE(generous.isUnbinned());
+            ASSERT_TRUE(generous.isWhole());
             const std::size_t needed = generous.getEntryCount();
             ASSERT_GT(needed, 1u);
             EXPECT_EQ(generous.mReport, needed);
 
-            const Binned starved = bin(layer, constants, static_cast<std::uint32_t>(needed - 1));
-            EXPECT_TRUE(starved.isUnbinned());
-            EXPECT_EQ(starved.mList[1], layer.mSprites.size());
+            const auto room = static_cast<std::uint32_t>(needed / 2);
+            const Binned starved = bin(layer, constants, room);
             EXPECT_EQ(starved.mReport, needed);
+            EXPECT_EQ(starved.mList[0], generous.mList[0]) << "the head";
+            const std::size_t head = generous.mList[0];
+            std::size_t binned = 0;
+            std::size_t marked = 0;
+            for (std::size_t tile = 0; tile < starved.getTileCount(); ++tile)
+            {
+                const bool fits = generous.mList[tile + 1] <= head + room;
+                ASSERT_EQ(starved.isBinned(tile), fits) << "tile " << tile;
+                if (fits)
+                {
+                    ++binned;
+                    const std::span<const std::uint32_t> run = starved.getRun(tile);
+                    const std::span<const std::uint32_t> whole = generous.getRun(tile);
+                    EXPECT_TRUE(std::equal(run.begin(), run.end(), whole.begin(), whole.end())) << "tile " << tile;
+                }
+                else
+                {
+                    ++marked;
+                    EXPECT_EQ(starved.mList[tile + 1], Shaders::SPRITE_TILE_UNBINNED | layer.mSprites.size())
+                        << "tile " << tile;
+                }
+            }
+            EXPECT_GT(binned, 0u) << "half the room binned no tile";
+            EXPECT_GT(marked, 0u) << "half the room marked no tile";
 
             const Binned exact = bin(layer, constants, static_cast<std::uint32_t>(needed));
-            ASSERT_FALSE(exact.isUnbinned());
+            ASSERT_TRUE(exact.isWhole());
             EXPECT_EQ(exact.mReport, needed);
 
             const std::size_t whole = exact.getTileCount() + 1 + needed;
@@ -842,7 +878,7 @@ namespace Rtx
             const Layer layer;
             const Binned tiles = bin(layer, lookingAlongX(), 0);
 
-            ASSERT_FALSE(tiles.isUnbinned());
+            ASSERT_TRUE(tiles.isWhole());
             for (std::size_t tile = 0; tile <= tiles.getTileCount(); ++tile)
                 EXPECT_EQ(tiles.mList[tile], tiles.getTileCount() + 1) << "start " << tile;
 

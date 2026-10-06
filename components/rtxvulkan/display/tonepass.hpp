@@ -2,12 +2,12 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/shaders/tone.h>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/tone.h>
 
 namespace Rtx
 {
@@ -50,7 +50,7 @@ namespace Rtx
         /// The scene's texture descriptor set, bound at `SET_TEXTURES`.
         VkDescriptorSet mTextures = VK_NULL_HANDLE;
 
-        /// The displayable image, in `VK_IMAGE_LAYOUT_GENERAL`.
+        /// The displayable image, in `VK_IMAGE_LAYOUT_GENERAL`: `sTargetFormat`, or `sDeepFormat`.
         const Image& mTarget;
 
         /// How much of the target to encode from its top-left corner — a corner of it for a
@@ -72,6 +72,9 @@ namespace Rtx
         /// the lines, the interface — is compiled against, and what the targets are made in. Not
         /// display-encoded by the hardware, because the curve encoded it already.
         static constexpr VkFormat sTargetFormat = toVulkanFormat(TONE_TARGET_FORMAT);
+
+        /// What a summed frame's picture is written in beside it, `TONE_DEEP_FORMAT`.
+        static constexpr VkFormat sDeepFormat = toVulkanFormat(TONE_DEEP_FORMAT);
 
         /// @param textureLayout the scene's bindless textures, which this samples the star sheet
         ///        out of — `ToneConstants::mStars` says why the field is drawn here.

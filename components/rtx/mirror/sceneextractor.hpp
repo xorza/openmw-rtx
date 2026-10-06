@@ -345,6 +345,12 @@ namespace Rtx
         /// on its own — `Traversal::enter` says what does — and which the world walk passes rather
         /// than descends while its `FrozenFace` stands. Its entries are held, so every sweep it is
         /// not walked in keeps them, and nothing in it is read again until it thaws.
+        ///
+        /// **A root whose face changed stays thawed until a walk after that finds it standing
+        /// still**, its run kept with no keys and the face it was last met at. A door the game turns
+        /// a step a frame, or a reference a script moves, would otherwise thaw, freeze again where
+        /// it stood and thaw on the next frame: a hold taken and given back on every entry, and a
+        /// run allocated and freed, on every frame of the motion.
         struct FrozenRun
         {
             FrozenFace mFace;
@@ -353,18 +359,22 @@ namespace Rtx
             /// What its walk counted, which every walk that passes it counts again.
             std::uint32_t mInstances = 0;
 
-            /// The world walk that last met it.
+            /// The world walk that last met it, and the one that last found its face changed.
             unsigned int mMet = 0;
+            unsigned int mMoved = 0;
+
+            /// Whether its keys are held and the walk passes it: false while it stands thawed.
+            bool mHolding = false;
         };
 
         /// Whether the reference root `root`, standing at `world`, is frozen and still what it
         /// froze as: counted as walked and passed where it is, and thawed where it is not, for the
-        /// walk to descend into it as any other.
+        /// walk to descend into it as any other. A thawed root is walked, and its face kept.
         bool passFrozen(const osg::Node& root, const osg::Matrix& world);
 
         /// Starts recording what the world walk resolves under the reference root it is about to
-        /// descend into, and `endFrozen` freezes the root with it where `changeable` is false and
-        /// nothing it resolved said otherwise.
+        /// descend into, and `endFrozen` freezes the root with it where `changeable` is false,
+        /// nothing it resolved said otherwise, and its face did not change on this walk.
         void recordFrozen();
         void endFrozen(const osg::Node& root, const osg::Matrix& world, bool changeable);
 

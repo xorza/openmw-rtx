@@ -27,6 +27,8 @@ namespace Rtx
                 return FormatInfo{ 4, TexelDecode::Half };
             case VK_FORMAT_R32_SFLOAT:
                 return FormatInfo{ 4, TexelDecode::Float };
+            case VK_FORMAT_R16G16B16A16_UNORM:
+                return FormatInfo{ 8, TexelDecode::Bytes };
             case VK_FORMAT_R16G16B16A16_SFLOAT:
                 return FormatInfo{ 8, TexelDecode::Half };
             case VK_FORMAT_R32G32_SFLOAT:

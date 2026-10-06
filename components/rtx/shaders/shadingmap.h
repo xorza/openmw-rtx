@@ -33,11 +33,13 @@ namespace Rtx::Shaders
 /// `encodeShading` rounds to.
 #define SHADING_MAP_FORMAT STORAGE_R16
 
-    /// How many times the grid is box blurred, three by three and wrapping, before it is
-    /// normalised: three passes are a close enough Gaussian for anything this coarse, and a
-    /// correction with an edge in it would put that edge into the frame. Wrapping because
-    /// Morrowind's textures tile, and a blur that clamped at the edges would invent a gradient
-    /// across every wall.
+    /// How many times the grid is box blurred, three by three, before it is normalised: three passes
+    /// are a close enough Gaussian for anything this coarse, and a correction with an edge in it
+    /// would put that edge into the frame. **Wrapping along an axis the texture repeats**, because
+    /// Morrowind's textures tile and a blur that clamped there would invent a gradient across every
+    /// wall; **and clamped along one it clamps** (`ShadingConstants::mWrap`), because that is an
+    /// unwrapped picture — a banner, a flame — whose border cells took the opposite edge's light and
+    /// divided real albedo by it.
     const uint SHADING_BLUR_PASSES = 3u;
 
     /// One factor as the map's format stores it, before the unorm's rounding: its place between
@@ -62,11 +64,14 @@ namespace Rtx::Shaders
     }
 
     /// One cell's sum, as the summing stage leaves it for the map stage: the linear luminance of
-    /// every texel that counted, and how many did.
+    /// its texels weighed by their alpha, and the alpha summed. **Weighed by alpha in every format**:
+    /// a texel nothing was painted on is usually black, and counted whole it darkened every cell
+    /// round a leaf's holes, which the delighting then brightened the leaves against. A format
+    /// with no alpha weighs every texel one, and BC1's holes are an alpha of nought like any other.
     struct ShadingSum
     {
         float mSum;
-        uint mCount;
+        float mWeight;
     };
 
     /// What the dispatch is told about the texture's finest level.
@@ -75,10 +80,9 @@ namespace Rtx::Shaders
         uint mWidth;
         uint mHeight;
 
-        /// One where the texture is BC1, whose only alpha is a hole: a texel with none is one
-        /// the estimate leaves out, as the host's `blockSum` refuses it. Nought for every other
-        /// format, whose transparent texels are painted and counted.
-        uint mPunchThrough;
+        /// How the texture is addressed past its edges, `Rtx::TextureWrap`: bit nought clamps the
+        /// blur across, bit one down.
+        uint mWrap;
     };
 
 #ifdef RTX_HOST

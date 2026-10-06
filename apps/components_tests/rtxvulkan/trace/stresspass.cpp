@@ -6,11 +6,11 @@
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <components/rtx/renderer/renderer.hpp>
-#include <components/rtx/shaders/counts.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
+#include <components/rtxvulkan/shaders/shared/counts.h>
 #include <components/rtxvulkan/trace/stresspass.hpp>
 
 namespace Rtx

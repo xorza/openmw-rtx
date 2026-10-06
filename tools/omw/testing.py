@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 from omw.build import Build
-from omw.system import FORK, ROOT, Refusal
+from omw.system import FORK, ROOT, Refusal, read_text
 
 
 def test(build: Build, args: list[str]) -> int:
@@ -74,12 +74,12 @@ def timing(build: Build) -> int:
     alone = build.dir / "test-output" / "alone.json"
     slow = 0
     for path in sorted(times_folder(build).glob("*.json")):
-        for name, shared in durations(json.loads(path.read_text())).items():
+        for name, shared in durations(json.loads(read_text(path))).items():
             if shared <= LIMIT_SECONDS:
                 continue
             build.run_here([build.binary(targets[path.stem]), f"--gtest_filter={name}",
                             f"--gtest_output=json:{alone}"], check=True, capture_output=True)
-            seconds = durations(json.loads(alone.read_text()))[name]
+            seconds = durations(json.loads(read_text(alone)))[name]
             print(f"timing: {name} took {shared:.2f} s beside the other suites and {seconds:.2f} s alone")
             if seconds > LIMIT_SECONDS:
                 slow += 1

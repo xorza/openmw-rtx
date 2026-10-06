@@ -1,0 +1,49 @@
+#ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_SHARED_LINE_H
+#define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_SHARED_LINE_H
+
+#include <components/rtx/shaders/camera.h>
+#include <components/rtx/shaders/hosttypes.h>
+#include <components/rtx/shaders/portable.h>
+
+// The debug lines and triangles drawn over the picture: the navmesh, the pathgrid, the actors'
+// paths, the recast mesh and the collision shapes, which the game builds as `osg::Geometry` under
+// `Mask_Debug` and a ray cannot meet.
+//
+// **Rasterized, and depth-tested against the trace.** A line has no area for a ray to land on, so
+// the one graphics pipeline beside the interface's draws them, projected through the frame's own
+// camera by the inverse of `rayAt`, and each fragment is kept where it stands nearer than the
+// surface the eye's ray met at that pixel — the traced depth, read at the nearest texel. A tool
+// and not the picture: drawn after the curve and before the interface, in the display's own values
+// the drawers painted them in.
+
+#ifdef RTX_HOST
+namespace Rtx::Shaders
+{
+#endif
+
+    /// The traced surface channel the fragment stage tests each line's depth against — the pass's
+    /// one binding, `bindings.h`'s rule.
+    const uint LINE_BIND_SURFACE = 0;
+
+    /// What both stages are told: the frame's eye read the other way (`screenOf`) and the picture's
+    /// own extent, where the eye stands, the near plane a vertex is clipped at, and the traced extent
+    /// the surface channel is read over.
+    struct LineConstants
+    {
+        ScreenBasis mScreen;
+        uvec2 mExtent;
+        vec3 mOrigin;
+        float mNear;
+        uvec2 mTraced;
+
+        /// One over the player's gamma, `ToneConstants::mInverseGamma`: the lines are part of the
+        /// picture, which the rasterizer raises whole and the curve raises before they are drawn.
+        float mInverseGamma;
+    };
+
+#ifdef RTX_HOST
+    static_assert(sizeof(LineConstants) == 80, "LineConstants must be scalar-packed on every side");
+}
+#endif
+
+#endif

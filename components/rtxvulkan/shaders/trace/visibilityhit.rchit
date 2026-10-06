@@ -17,6 +17,7 @@
 // record — an instance's offset is its material's kind, and a scene can hold water the build was
 // told to ignore — so `HAS_SEA` is what says whether it shades as water or as the solid it then is.
 
+#include "shared/tracerecords.h"
 #include "camera.h"
 #include "scene.h"
 #include "visibility.h"
@@ -28,7 +29,6 @@
 #include "lib/random.glsl"
 #include "lib/reproject.glsl"
 #include "lib/shading.glsl"
-#include "lib/surfacematch.glsl"
 #include "lib/traversal.glsl"
 #include "lib/variants.glsl"
 #include "lib/water.glsl"
@@ -59,7 +59,7 @@ Hit stageHit(vec2 bary)
     const Cone cone = stageCone();
 
     return committedHit(uint(gl_InstanceCustomIndexEXT), uint(gl_PrimitiveID), bary, gl_HitTEXT,
-        cone.mWidth + cone.mSpread * gl_HitTEXT, corners, gl_ObjectToWorldEXT);
+        cone.mWidth + cone.mSpread * gl_HitTEXT, corners, gl_ObjectToWorldEXT, gl_WorldToObjectEXT);
 }
 
 /// The pixel this invocation was launched for.
@@ -122,28 +122,6 @@ void answerLight(inout Answer answer, SplitLight light)
     answer.mPenumbra = light.mPenumbra;
 }
 
-/// Writes the pixel's bounce as the reuse keeps it, where a frame reuses: `seen`'s draw as a
-/// reservoir of one candidate, worth one over its chance, and the visible point it left from,
-/// `along` this stage's ray.
-///
-/// **Here and not in the launch**, because the shader that shaded the point is the one that holds
-/// it; the launch writes a reservoir of nothing where no shader did (`Answer::mBounceKept`).
-void keepBounce(inout Answer answer, SeenSolid seen, float along)
-{
-    if (frame.mBounceReuse == BOUNCE_REUSE_OFF)
-        return;
-
-    const uvec2 pixel = stagePixel();
-    const uint at = pixel.y * frame.mBounceStride + pixel.x;
-
-    BounceOrigin origin = seen.mOrigin;
-    origin.mOffset = positionAlong(eyeOf(record.mArms), ivec2(pixel), along);
-    bounceOrigins[at] = packOrigin(origin);
-    bounceReservoirs[at] = packBounce(BounceReservoir(
-        seen.mBounceSample, seen.mBounceChance > 0.0 ? 1.0 / seen.mBounceChance : 0.0, 1u, 0u));
-    answer.mBounceKept = true;
-}
-
 /// Fills the payload in for an ordinary lit surface.
 void answerSolid(inout Answer answer, Surface surface)
 {
@@ -165,12 +143,11 @@ void answerSolid(inout Answer answer, Surface surface)
         else
             answer.mRadiance = surface.mSpecular;
 
-        answer.mResponse = responseOf(surface);
+        answer.mResponse = responseOf(surface, vec3(1.0));
         return;
     }
 
     const SeenSolid seen = shadeSolid(surface, stagePixel(), stageCone());
-    keepBounce(answer, seen, gl_HitTEXT);
     answerLight(answer, seen.mLight);
     answer.mBounced = seen.mBounce;
     answer.mFilled = seen.mFill;
@@ -239,13 +216,14 @@ WaterImages answerWater(inout Answer answer, Surface surface)
         return images;
 
     // Drawn, because this is what the eye sees through the water.
-    const Surface bed = trace(
-        WorldRay(origin, direction), max(surface.mDistance - SHADOW_BIAS, 0.0), cone, solidMask(frame.mRayMask), true);
+    // From just short of the water along the eye's own line (`alongShort`), so a bed that meets the
+    // surface where the eye met it is found.
+    const Surface bed
+        = trace(WorldRay(origin, direction), alongShort(surface.mDistance), cone, solidMask(frame.mRayMask), true);
     if (!bed.mHit)
         return images;
 
     const SeenSolid seen = shadeSolid(bed, pixel, cone);
-    keepBounce(answer, seen, bed.mDistance);
 
     // The direct light and the response as a blend, and the bounce whole, since the albedos it is put
     // back against carry the share. The two normals arrive as codes and leave as one, so a shore
@@ -257,10 +235,12 @@ WaterImages answerWater(inout Answer answer, Surface surface)
     answerLight(answer, mixSplit(seen.mLight, water.mLight, shore, randomNext(kept)));
     answer.mBounced = seen.mBounce;
     answer.mFilled = seen.mFill;
+    // The lobe's share is taken off its light and not off its modulation, which the payload carries
+    // as it was rounded and the light was divided by.
     answer.mSpecular = seen.mSpecular * (1.0 - shore);
     answer.mRoughness = seen.mRoughness;
     answer.mResponse = SurfaceResponse(packSurfaceNormal(normal), seen.mResponse.mDiffuse * (1.0 - shore),
-        seen.mResponse.mAmbient * (1.0 - shore));
+        seen.mResponse.mAmbient * (1.0 - shore), seen.mResponse.mSpecular);
     answer.mLift = mix(liftOf(bed), water.mLift, shore);
     images.mMirror.mShare *= shore;
     images.mBed.mShare *= shore;

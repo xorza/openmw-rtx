@@ -6,11 +6,11 @@
 #include <span>
 
 #include <components/rtx/renderer/channel.hpp>
-#include <components/rtx/shaders/accumulate.h>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/accumulate.h>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 
 namespace Rtx
@@ -97,11 +97,7 @@ namespace Rtx
             writes.image(Shaders::SHADOW_TILES_BIND_MASK, images.mMask.describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_PENUMBRA_TILES, images.mPenumbra.describeStorage());
 
-            const Shaders::HistoryConstants constants{
-                .mEyes = frame.mSampled.mEyes,
-                .mReset = images.mFresh ? 1u : 0u,
-                .mDistanceScale = frame.mDistanceScale,
-            };
+            const Shaders::HistoryConstants constants = frame.history(images.mFresh);
 
             dispatch(commands, mTiles, writes, constants, Groups::covering(width, height, Shaders::SHADOW_WORKGROUP));
         }

@@ -33,10 +33,10 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/camera.h>
-#include <components/rtx/shaders/exposure.h>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/shaders/shared/exposure.h>
 #include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"
@@ -276,6 +276,138 @@ namespace Rtx::Testing
             }
 
             EXPECT_TRUE(lifted) << "a gamma of two lifted nothing";
+        }
+
+        /// The dither keeps a flat grey's mean inside the byte the curve rounds it to, a step either
+        /// way at most, and grey, and a mean that follows the curve's level within that byte.
+        ///
+        /// **The arithmetic.** The white wall under the albedo view reaches the curve at the
+        /// exposure, so the curve stores a level `v` and, undithered, the byte `round(v)`. The
+        /// dither adds `d`, triangular over `(-1, 1)` steps, so a byte is `v + d` rounded: never
+        /// more than a step from `round(v)`, since `v` is within half a step of it, and of mean `v`
+        /// exactly, which is what a triangular dither is for — the first moment of its rounding
+        /// error is nought for every `v`. The frame is the tile's own 64 square, so each frame
+        /// draws every one of the tile's 4096 ranks once, and the mean of the bytes is `v` to well
+        /// under a hundredth of a step.
+        ///
+        /// **Three levels inside one byte, from the host's curve**: 109.7, 110 and 110.3. The
+        /// device's curve stands up to 0.05 of a step from the host's here (its own arithmetic and
+        /// the veil's), so the test takes the device's level from nowhere: each mean has to lie
+        /// within the half step about the byte the undithered picture stored, which is where `v`
+        /// lies, and the three have to rise with the exposure, three tenths of a step apart and so
+        /// well clear of that difference. Undithered, all three pictures are the one byte, 110.
+        TEST_F(RtxVisibilityTest, theDitherKeepsAFlatGreysMeanInsideItsByte)
+        {
+            constexpr std::uint32_t size = Shaders::BLUE_NOISE_EXTENT;
+            constexpr std::uint32_t frames = 4;
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            SceneDesc bare;
+            addQuad(bare, sWallQuad, sNoIndex);
+
+            constexpr int byte = 110;
+            double previousMean = 0.0;
+            for (const float level : { 109.7f, 110.0f, 110.3f })
+            {
+                const float exposure = Testing::greyForLevel(level);
+
+                std::vector<std::uint8_t> plain;
+                shoot(bare, {}, camera, size, Shot{ .mExposure = exposure, .mShow = SurfaceView::Albedo });
+                mRenderer.readPixels(plain);
+                ASSERT_EQ(plain.size(), std::size_t{ size } * size * 4);
+                for (std::size_t i = 0; i < plain.size(); ++i)
+                    ASSERT_EQ(plain[i], i % 4 == 3 ? 255 : byte) << "undithered value " << i << " at " << level;
+
+                double sum = 0.0;
+                std::array<std::size_t, 3> counts{};
+                std::vector<std::uint8_t> previous;
+                std::size_t turned = 0;
+                std::vector<std::uint8_t> pixels;
+                shoot(bare, {}, camera, size,
+                    Shot{ .mFrames = frames,
+                        .mAverage = false,
+                        .mExposure = exposure,
+                        .mShow = SurfaceView::Albedo,
+                        .mDither = true,
+                        .mEachFrame = [&](const Frame&) {
+                            mRenderer.readPixels(pixels);
+                            ASSERT_EQ(pixels.size(), plain.size());
+                            for (std::size_t i = 0; i < pixels.size(); i += 4)
+                            {
+                                ASSERT_EQ(pixels[i + 1], pixels[i]) << "green apart from red at pixel " << i / 4;
+                                ASSERT_EQ(pixels[i + 2], pixels[i]) << "blue apart from red at pixel " << i / 4;
+                                ASSERT_EQ(pixels[i + 3], 255) << "the dither reached the alpha of pixel " << i / 4;
+                                const int step = int{ pixels[i] } - byte;
+                                ASSERT_LE(std::abs(step), 1) << "pixel " << i / 4 << " at " << level;
+                                ++counts[static_cast<std::size_t>(step + 1)];
+                                sum += pixels[i];
+                                turned += !previous.empty() && previous[i] != pixels[i] ? 1 : 0;
+                            }
+                            previous = pixels;
+                        } });
+
+                const double mean = sum / (static_cast<double>(frames) * size * size);
+                EXPECT_GT(mean, byte - 0.5) << "at " << level;
+                EXPECT_LT(mean, byte + 0.5) << "at " << level;
+                EXPECT_GT(mean, previousMean) << "the mean did not rise with the level at " << level;
+                previousMean = mean;
+                EXPECT_GT(counts[0], 0u) << "no byte under the curve's at " << level;
+                EXPECT_GT(counts[2], 0u) << "no byte over the curve's at " << level;
+                EXPECT_GT(turned, 0u) << "the dither stood still over the frames at " << level;
+            }
+        }
+
+        /// A summed frame's picture at sixteen bits a channel is its bytes' picture with the fraction
+        /// the byte rounded off still in it, undithered.
+        ///
+        /// **The arithmetic.** The white wall under the albedo view, held at an exposure, reaches the
+        /// curve as one level `v` at every pixel and every frame, so two frames summed are `v` again.
+        /// The byte is `round(v)` and the sixteen-bit sample `round(257 v)`, one float stored twice,
+        /// so the sample over 257 is within half a level of the byte — a 257th of it, plus the
+        /// sample's own half step. The three levels the dither's test takes, 109.7, 110 and 110.3,
+        /// are one byte, 110, and three samples 77 apart by the host's curve: they rise, where the
+        /// bytes stand still. With the dither on, the bytes scatter and the samples do not: the
+        /// second store is undithered, so every pixel holds the one sample.
+        TEST_F(RtxVisibilityTest, aSummedFramesPictureIsWrittenAtSixteenBitsBesideItsBytes)
+        {
+            constexpr std::uint32_t size = 16;
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            SceneDesc bare;
+            addQuad(bare, sWallQuad, sNoIndex);
+
+            int previous = 0;
+            std::size_t scattered = 0;
+            for (const float level : { 109.7f, 110.0f, 110.3f })
+            {
+                const float exposure = Testing::greyForLevel(level);
+                shoot(bare, {}, camera, size,
+                    Shot{ .mFrames = 2, .mExposure = exposure, .mShow = SurfaceView::Albedo, .mDither = true });
+
+                std::vector<std::uint8_t> bytes;
+                mRenderer.readPixels(bytes);
+                std::vector<std::uint16_t> samples;
+                mRenderer.readDeepPixels(samples);
+                ASSERT_EQ(samples.size(), std::size_t{ size } * size * 4);
+                ASSERT_EQ(bytes.size(), samples.size());
+
+                const int sample = samples[0];
+                for (std::size_t i = 0; i < samples.size(); ++i)
+                {
+                    if (i % 4 == 3)
+                    {
+                        ASSERT_EQ(samples[i], 65535) << "alpha at pixel " << i / 4;
+                        continue;
+                    }
+                    ASSERT_EQ(samples[i], sample) << "the sixteen bits are not one value at " << level;
+                    ASSERT_LE(std::abs(bytes[i] - 110), 1) << "the dithered byte at " << level;
+                    scattered += bytes[i] != 110 ? 1 : 0;
+                }
+                EXPECT_NEAR(sample / 257.0, 110.0, 0.5 + 0.5 / 257.0) << "at " << level;
+                EXPECT_GT(sample, previous) << "the sample did not rise with the level at " << level;
+                previous = sample;
+            }
+            EXPECT_GT(scattered, 0u) << "the bytes were not dithered, so the test shows nothing of the second store";
         }
 
         /// A wall smaller than the frame leaves sky around it, and the count is the area it covers.

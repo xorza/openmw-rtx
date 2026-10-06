@@ -4,11 +4,11 @@
 #include <cassert>
 
 #include <components/rtx/renderer/channel.hpp>
-#include <components/rtx/shaders/composite.h>
-#include <components/rtx/shaders/shadow.h>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/composite.h>
+#include <components/rtxvulkan/shaders/shared/shadow.h>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 
 namespace Rtx
@@ -66,6 +66,7 @@ namespace Rtx
         writes.image(Shaders::COMPOSITE_BIND_PANE_ALBEDO, buffer.get(Channel::PaneAlbedo).describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_FILL, fill.describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_AMBIENT_ALBEDO, buffer.get(Channel::AmbientAlbedo).describeStorage());
+        writes.image(Shaders::COMPOSITE_BIND_SPECULAR_ALBEDO, buffer.get(Channel::SpecularAlbedo).describeStorage());
 
         dispatch(commands, mPipeline, writes, constants,
             Groups::covering(constants.mWidth, constants.mHeight, Shaders::COMPOSITE_WORKGROUP));

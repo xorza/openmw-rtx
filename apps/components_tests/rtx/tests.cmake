@@ -26,7 +26,6 @@ set(RTX_TEST_FILES
     rtx/environment/wavecascade.cpp
     rtx/environment/wavespectrum.cpp
     rtx/frame/bluenoise.cpp
-    rtx/frame/bouncepairing.cpp
     rtx/frame/camera.cpp
     rtx/frame/framepast.cpp
     rtx/frame/framesampling.cpp
@@ -74,14 +73,9 @@ set(RTX_TEST_FILES
     rtx/scene/scenedesc.cpp
     rtx/scene/scenetextures.cpp
     rtx/scene/surface.cpp
-    rtx/shaders/accumulate.cpp
-    rtx/shaders/bouncereuse.cpp
     rtx/shaders/brdf.cpp
-    rtx/shaders/exposure.cpp
-    rtx/shaders/hitrecords.cpp
     rtx/shaders/lights.cpp
     rtx/shaders/pixelgrid.cpp
-    rtx/shaders/shadow.cpp
     rtx/shaders/sharedconstants.cpp
     rtx/shaders/tangent.cpp
     rtx/sourcetree.cpp
@@ -122,6 +116,12 @@ set(RTX_TEST_FILES
     rtxvulkan/device/stagingfit.cpp
     rtxvulkan/pipeline/dispatch.cpp
     rtxvulkan/scene/sceneslots.cpp
+    rtxvulkan/shaders/accumulate.cpp
+    rtxvulkan/shaders/exposure.cpp
+    rtxvulkan/shaders/hitrecords.cpp
+    rtxvulkan/shaders/medium.cpp
+    rtxvulkan/shaders/sharedconstants.cpp
+    rtxvulkan/shaders/shadow.cpp
     rtxvulkan/spirv/spirvdigest.cpp
     rtxvulkan/spirv/spirvfile.cpp
     rtxvulkan/spirv/spirvpin.cpp
@@ -214,7 +214,6 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/trace/visibility/kernels.cpp
     rtxvulkan/trace/visibility/light.cpp
     rtxvulkan/trace/visibility/pane.cpp
-    rtxvulkan/trace/visibility/reuse.cpp
     rtxvulkan/trace/visibility/sea.cpp
     rtxvulkan/trace/visibility/shadow.cpp
     rtxvulkan/trace/visibility/specular.cpp

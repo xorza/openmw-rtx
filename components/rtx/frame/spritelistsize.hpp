@@ -6,8 +6,8 @@ namespace Rtx
 {
     /// How long one copy of the sprite tile list is, and how much of it a bin may fill, both off
     /// one high-water mark that grows and never shrinks. A frame the sizing misjudges is slow and
-    /// not wrong: the list falls back to `SPRITE_LIST_UNBINNED`, and the next frame is sized to
-    /// what the device reported.
+    /// not wrong: the tiles past the room fall back to `SPRITE_TILE_UNBINNED`, and the next frame
+    /// is sized to what the device reported.
     class SpriteListSize
     {
     public:

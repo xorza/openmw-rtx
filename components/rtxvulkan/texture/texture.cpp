@@ -21,9 +21,7 @@
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/mipchain.hpp>
 #include <components/rtx/image/textureencoding.hpp>
-#include <components/rtx/shaders/ground.h>
 #include <components/rtx/shaders/look.h>
-#include <components/rtx/shaders/normalspread.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/shadingmap.h>
 #include <components/rtxvulkan/device/commands.hpp>
@@ -33,6 +31,9 @@
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 #include <components/rtxvulkan/device/result.hpp>
+#include <components/rtxvulkan/shaders/shared/ground.h>
+#include <components/rtxvulkan/shaders/shared/normalspread.h>
+#include <components/rtxvulkan/shaders/shared/sets.h>
 
 #include "groundcompositepass.hpp"
 #include "texturecost.hpp"
@@ -326,7 +327,7 @@ namespace Rtx
         {
             const Image& held = arrival.hold(std::move(*upload));
             arrival.upload(batch, held, data.mBytes, regions);
-            arrival.chain(held, mImage, isSrgb(data.mFormat));
+            arrival.chain(held, mImage, isSrgb(data.mFormat), data.mEncoding);
         }
         else
             arrival.upload(batch, mImage, bytes, regions);
@@ -337,7 +338,7 @@ namespace Rtx
                 arrival.clearNeutral(mCompanion);
                 break;
             case TextureCompanion::Shading:
-                arrival.shade(mImage, mCompanion, isBc1(data.mFormat));
+                arrival.shade(mImage, mCompanion, data.mWrap);
                 break;
             case TextureCompanion::Spread:
                 arrival.spread(mImage, arrival.hold(std::move(*means)), mCompanion);

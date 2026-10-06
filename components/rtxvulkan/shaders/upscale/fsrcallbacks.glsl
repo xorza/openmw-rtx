@@ -60,9 +60,9 @@
 #define FFX_FSR3UPSCALER_OPTION_APPLY_SHARPENING 0
 
 #include "camera.h"
-#include "fsr.h"
+#include "shared/fsr.h"
 #include "gbuffer.h"
-#include "sets.h"
+#include "shared/sets.h"
 
 #include "fsr3upscaler/ffx_fsr3upscaler_resources.h"
 
