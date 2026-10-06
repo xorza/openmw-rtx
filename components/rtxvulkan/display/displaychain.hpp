@@ -66,6 +66,9 @@ namespace Rtx
         /// What Night-Eye adds to the ambient, `ToneConstants::mNightEye`.
         osg::Vec3f mNightEye;
 
+        /// Whether the curve dithers its store, `RenderProfile::mDither`.
+        bool mDither;
+
         /// The debug modes' lines and triangles over the picture, and the slot's own buffer they
         /// are drawn from: the frame behind read its own slot's, so nothing here is written under
         /// a submit.

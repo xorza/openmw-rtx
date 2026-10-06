@@ -350,6 +350,12 @@ namespace Rtx
         /// player chose.
         float mGamma = 1.0f;
 
+        /// Whether the display curve dithers the frame before its eight-bit store
+        /// (`ToneConstants::mDitherStep`), which a player's frame does. Off where a test reads the
+        /// curve's bytes exactly, as it fixes the exposure: a dithered byte is the curve's only to
+        /// within a step. A frame may ask otherwise (`FrameOptions`).
+        bool mDither = true;
+
         /// Whether an environment map's sheet is part of the colour the light falls on, as
         /// `[Shaders] apply lighting to environment maps` asks the rasterizer, rather than light of
         /// its own past it — `VisibilityConstants::mLitEnvironmentMaps`. Off, the setting's default.

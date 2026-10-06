@@ -35,11 +35,16 @@ namespace Rtx
         /// is traced into a chain grown to the largest one asked for, so a smaller picture fills a
         /// corner of its channels: read at the channels' size, the pass looked for a pixel's backdrop
         /// and its sprite tile under another pixel altogether.
-        Shaders::ToneConstants toneFor(const Shaders::VisibilityConstants& frame, const SunGlare& fader,
-            const float inverseGamma, const osg::Vec3f& nightEye, const bool upscaled,
-            const VkDeviceAddress spriteTileList, const VkDeviceAddress spritePresence,
-            const VkDeviceAddress textureTexels, std::uint32_t width, std::uint32_t height)
+        ///
+        /// @param look the frame's, or null for a picture inside the interface, which takes no glare,
+        ///        no gamma, no Night-Eye and no dither: the interface draws it as it draws its own.
+        Shaders::ToneConstants toneFor(const Shaders::VisibilityConstants& frame, const FrameLook* look,
+            const bool upscaled, const VkDeviceAddress spriteTileList, const VkDeviceAddress spritePresence,
+            const VkDeviceAddress textureTexels, const VkDeviceAddress blueNoise, std::uint32_t width,
+            std::uint32_t height)
         {
+            const SunGlare fader = look != nullptr ? look->mGlare.mFader : SunGlare{};
+
             assert(spriteTileList != 0 && spritePresence != 0 && "a curve told no tiles to test the puffs by");
             assert(textureTexels != 0 && "a curve told no texel counts to test the star sheet by");
 
@@ -47,6 +52,7 @@ namespace Rtx
                 .mSpriteTileList = spriteTileList,
                 .mSpritePresence = spritePresence,
                 .mTextureTexels = textureTexels,
+                .mBlueNoise = blueNoise,
                 .mTracedWidth = frame.mEyes.mWorld.mWidth,
                 .mTracedHeight = frame.mEyes.mWorld.mHeight,
                 .mBackdrop = frame.mTransparentBackground == 0 ? Shaders::BACKDROP_STARS : Shaders::BACKDROP_INTERFACE,
@@ -54,9 +60,11 @@ namespace Rtx
                 .mStars = frame.mStars,
                 .mGlareColour = fader.mFader.mColour,
                 .mGlareAmount = fader.amountFor(frame),
-                .mInverseGamma = inverseGamma,
-                .mNightEye = nightEye,
+                .mInverseGamma = look != nullptr ? look->mInverseGamma : 1.0f,
+                .mNightEye = look != nullptr ? look->mNightEye : osg::Vec3f(),
                 .mLiftOffset = upscaled ? -frame.mEyes.mWorld.mJitter : osg::Vec2f(),
+                .mFrame = frame.mFrame,
+                .mDitherStep = look != nullptr && look->mDither ? Shaders::TONE_DITHER_STEP : 0.0f,
             };
         }
     }
@@ -166,10 +174,9 @@ namespace Rtx
                 .mBloom = look != nullptr ? mBloom.getPyramid() : nullptr,
                 .mTextures = inputs.mSubject.mScene->getTextures(),
                 .mTarget = what.mTarget,
-                .mConstants = toneFor(what.mSampled, look != nullptr ? look->mGlare.mFader : SunGlare{},
-                    look != nullptr ? look->mInverseGamma : 1.0f, look != nullptr ? look->mNightEye : osg::Vec3f(),
-                    what.mUpscaled, what.mTrace.mSprites.mTileList, what.mTrace.mSprites.mPresence,
-                    inputs.mSubject.mScene->getTextureTexels(), what.mExtent.width, what.mExtent.height),
+                .mConstants = toneFor(what.mSampled, look, what.mUpscaled, what.mTrace.mSprites.mTileList,
+                    what.mTrace.mSprites.mPresence, inputs.mSubject.mScene->getTextureTexels(), mPuffs.getBlueNoise(),
+                    what.mExtent.width, what.mExtent.height),
             });
         closeZone(timer, commands);
 

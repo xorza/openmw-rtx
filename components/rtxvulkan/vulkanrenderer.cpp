@@ -655,6 +655,7 @@ namespace Rtx
                     .mGlare = FrameLook::Glare{ .mFader = options.mGlare, .mSeconds = options.mSinceLast },
                     .mInverseGamma = mInverseGamma,
                     .mNightEye = options.mNightEye,
+                    .mDither = options.mDither.value_or(mProfile.mDither),
                     .mDebug = options.mDebug,
                     .mDebugVertices = frame.mDebugVertices,
                     .mTimer = timer,
