@@ -16,6 +16,7 @@
 #include "lights.glsl"
 #include "random.glsl"
 #include "records.glsl"
+#include "sharedexponent.glsl"
 #include "sky.glsl"
 #include "traversal.glsl"
 #include "underwater.glsl"
@@ -443,11 +444,27 @@ vec3 pathEnd(vec3 position, float reaching)
     return frame.mAmbient * (daylightReaching(position) * reaching);
 }
 
-/// What a surface is in the filter's and the composite's terms: its shading normal and its two
-/// albedos, whether or not it has a specular half.
-SurfaceResponse responseOf(Surface surface)
+/// What the lobe's light is divided by before the glossy filter averages it, and the composite
+/// multiplies back: `gloss`'s split-sum specular albedo (`Gloss::mAlbedo`), the D6 contract, so a
+/// history blended over a replacer's speckled reflectance keeps the speckle sharp, as the bounce's
+/// demodulation keeps a texture. One in a channel under `SPECULAR_ALBEDO_FLOOR`, and where there is
+/// no lobe.
+///
+/// **Rounded to what the payload carries before anything is divided by it** (`packRgb9e5`, whose
+/// every value a half holds as well): the light divided by this and the channel the composite
+/// multiplies by are one number, so the two meet to the rounding of a product.
+vec3 specularModulation(Gloss gloss)
 {
-    return SurfaceResponse(packSurfaceNormal(surface.mNormal), surface.mAlbedo, surface.mAmbientAlbedo);
+    const vec3 rounded = unpackRgb9e5(packRgb9e5(gloss.mGlossy ? gloss.mAlbedo : vec3(0.0)));
+    return mix(vec3(1.0), rounded, greaterThanEqual(rounded, vec3(SPECULAR_ALBEDO_FLOOR)));
+}
+
+/// What a surface is in the filter's and the composite's terms: its shading normal, its two
+/// albedos, and what its lobe's light is multiplied by: `specularModulation`, or one where the lobe's
+/// light is not taken apart.
+SurfaceResponse responseOf(Surface surface, vec3 specular)
+{
+    return SurfaceResponse(packSurfaceNormal(surface.mNormal), surface.mAlbedo, surface.mAmbientAlbedo, specular);
 }
 
 /// What Night-Eye's lift adds to a surface, per unit of lift, in display values: its ambient albedo
@@ -736,9 +753,10 @@ struct SeenPane
     vec3 mGlow;
 
     /// What a path end drew for it, whole — `gather`'s diffuse half by the albedo, and `pathEnd`
-    /// under its one occlusion ray by the ambient albedo — and what its lobe reflects of that.
-    /// **Whole and not per unit albedo**, because the two halves take two albedos, and the pane
-    /// filter averages a layer over time alone, so nothing needs the light apart from them.
+    /// under its one occlusion ray by the ambient albedo — and what its lobe reflects of that, which
+    /// the launch composes unfiltered (`PaneStack::mDrawn`). **Whole and not per unit albedo**,
+    /// because the two halves take two albedos, and the pane filter averages a layer over time
+    /// alone, so nothing needs the light apart from them.
     vec3 mDrawn;
     vec3 mSpecular;
 
@@ -762,7 +780,7 @@ SeenPane shadePane(Surface hit, uint key, uint ambient, uint lamps)
 
     return SeenPane(litSurface(hit, vec3(0.0), vec3(0.0)),
         hit.mAlbedo * lit.mDiffuse + hit.mAmbientAlbedo * pathEnd(hit.mPosition, reaching), lit.mSpecular,
-        responseOf(hit));
+        responseOf(hit, vec3(1.0)));
 }
 
 /// What one bounce brings back, in the two halves `shadeSolid` hands on apart.
@@ -1091,9 +1109,10 @@ struct SeenSolid
     float mBounceChance;
     BounceOrigin mOrigin;
 
-    /// What the lobe reflects of the lamps and of the one bounce, whole, and the perceptual
-    /// roughness of the lobe that reflects it, or `SPECULAR_NO_LOBE`: `CHANNEL_SPECULAR`. Not
-    /// multiplied by the diffuse albedo, for the reason `Bounce::mSpecular` gives.
+    /// What the lobe reflects of the lamps and of the one bounce, per unit of `mResponse.mSpecular`,
+    /// and the perceptual roughness of the lobe that reflects it, or `SPECULAR_NO_LOBE`:
+    /// `CHANNEL_SPECULAR`. Not multiplied by the diffuse albedo, for the reason `Bounce::mSpecular`
+    /// gives.
     vec3 mSpecular;
     float mRoughness;
 };
@@ -1125,9 +1144,10 @@ SeenSolid shadeSolid(Surface hit, uvec2 pixel, Cone cone)
         = SplitLight(litSurface(hit, vec3(0.0), vec3(0.0)), shadowedLight(hit, lit), lit.mOpen, lit.mPenumbra);
     seen.mBounce = bounced.mDiffuse;
     seen.mFill = bounced.mFill;
-    seen.mSpecular = lit.mSpecular + bounced.mSpecular;
+    const vec3 modulation = specularModulation(gloss);
+    seen.mSpecular = (lit.mSpecular + bounced.mSpecular) / modulation;
     seen.mRoughness = gloss.mGlossy ? hit.mRoughness : SPECULAR_NO_LOBE;
-    seen.mResponse = responseOf(hit);
+    seen.mResponse = responseOf(hit, modulation);
     seen.mBounceSample = bounced.mSample;
     seen.mBounceChance = bounced.mChance;
     seen.mOrigin = BounceOrigin(vec3(0.0), hit.mNormal, hit.mGeometric, dot(hit.mGeometric, hit.mGeometric) > 0.0,

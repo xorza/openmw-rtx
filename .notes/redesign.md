@@ -291,7 +291,7 @@ validation without the rate coin, come first. Point 1 comes only if the reuse th
 
 **What goes away.** The thin far foliage.
 
-### D6. The signal contract: every filtered signal is demodulated by its own albedo
+### D6. The signal contract: every filtered signal is demodulated by its own albedo (done)
 
 **Cause.**
 
@@ -514,7 +514,6 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
    it out. Neither filter has a spatial pass before the clamp, which ReLAX's has. The patch is in
    `~/.cache/omw-redesign/ab-meanclamp/`. The glossy roughness cap waits on
    `redesign_QUESTIONS.md`, "The glossy filter's roughness cap".
-6. D6: the specular demodulation, and the pane's lobe out of `CHANNEL_PANE`.
 7. The wavelet items from S§9. Then decide the anti-firefly ring (`.notes/todo.txt` item 1):
    remove it, or give it a specialization constant.
 

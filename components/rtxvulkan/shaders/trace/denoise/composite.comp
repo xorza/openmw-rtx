@@ -60,9 +60,11 @@ layout(set = SET_PASS, binding = COMPOSITE_BIND_SHADOWED) uniform readonly image
 /// How much of it got through, as the shadow denoiser filtered the rays' bits: its mean in `r`.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_SHADOW, SHADOW_REPROJECTED) uniform readonly image2D shadow;
 
-/// The lobe's light: the glossy filter's mean where it ran, and `CHANNEL_SPECULAR` itself where it
-/// did not. No format, for the reason `indirect` has none.
+/// The lobe's light, demodulated: the glossy filter's mean where it ran, and `CHANNEL_SPECULAR`
+/// itself where it did not. No format, for the reason `indirect` has none. And what puts it back,
+/// `CHANNEL_SPECULAR_ALBEDO`.
 layout(set = SET_PASS, binding = COMPOSITE_BIND_SPECULAR) uniform readonly image2D specular;
+layout(set = SET_PASS, binding = COMPOSITE_BIND_SPECULAR_ALBEDO, GBUFFER_ALBEDO) uniform readonly image2D specularAlbedo;
 
 /// What was drawn for the see-through layers, demodulated: the pane filter's mean where it ran, and
 /// `CHANNEL_PANE` itself where it did not. No format, for the reason `indirect` has none. And what
@@ -91,7 +93,7 @@ void main()
         const vec4 unshadowed = imageLoad(shadowed, at);
         const float seen = frame.mShadowed != 0u ? imageLoad(shadow, at).r : unshadowed.a;
         resolved = composedLight(resolved, imageLoad(albedo, at).rgb, imageLoad(indirect, at).rgb,
-            imageLoad(ambientAlbedo, at).rgb, imageLoad(fill, at).rgb, unshadowed.rgb, seen, imageLoad(specular, at).rgb,
+            imageLoad(ambientAlbedo, at).rgb, imageLoad(fill, at).rgb, unshadowed.rgb, seen, imageLoad(specular, at).rgb * imageLoad(specularAlbedo, at).rgb,
             imageLoad(paneAlbedo, at).rgb, imageLoad(pane, at).rgb);
     }
 

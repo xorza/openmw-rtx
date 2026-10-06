@@ -166,7 +166,7 @@ void answerSolid(inout Answer answer, Surface surface)
         else
             answer.mRadiance = surface.mSpecular;
 
-        answer.mResponse = responseOf(surface);
+        answer.mResponse = responseOf(surface, vec3(1.0));
         return;
     }
 
@@ -260,10 +260,12 @@ WaterImages answerWater(inout Answer answer, Surface surface)
     answerLight(answer, mixSplit(seen.mLight, water.mLight, shore, randomNext(kept)));
     answer.mBounced = seen.mBounce;
     answer.mFilled = seen.mFill;
+    // The lobe's share is taken off its light and not off its modulation, which the payload carries
+    // as it was rounded and the light was divided by.
     answer.mSpecular = seen.mSpecular * (1.0 - shore);
     answer.mRoughness = seen.mRoughness;
     answer.mResponse = SurfaceResponse(packSurfaceNormal(normal), seen.mResponse.mDiffuse * (1.0 - shore),
-        seen.mResponse.mAmbient * (1.0 - shore));
+        seen.mResponse.mAmbient * (1.0 - shore), seen.mResponse.mSpecular);
     answer.mLift = mix(liftOf(bed), water.mLift, shore);
     images.mMirror.mShare *= shore;
     images.mBed.mShare *= shore;

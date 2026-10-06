@@ -15,12 +15,18 @@
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
+#include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/common/runs.hpp>
+#include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/scene/light.hpp>
+#include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"
 
@@ -42,13 +48,9 @@ namespace Rtx::Testing
             Index mPane;
         };
 
-        PaneUnderLamps paneUnderLamps()
+        /// The four lamps of four colours a hundred units in front of a pane `away` units ahead.
+        void addLampsBefore(SceneDesc& scene, float away)
         {
-            constexpr float away = 200.0f;
-
-            SceneDesc scene;
-            const Index pane = addPane(scene, uprightQuadAt(4000.0f, away), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f));
-
             const std::array<std::pair<osg::Vec2f, osg::Vec3f>, 4> lamps{ {
                 { osg::Vec2f(-100.0f, -100.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f) },
                 { osg::Vec2f(100.0f, -100.0f), osg::Vec3f(0.0f, 4000.0f, 0.0f) },
@@ -61,6 +63,15 @@ namespace Rtx::Testing
                     .mIntensity = intensity,
                     .mReach = 500.0f,
                 });
+        }
+
+        PaneUnderLamps paneUnderLamps()
+        {
+            constexpr float away = 200.0f;
+
+            SceneDesc scene;
+            const Index pane = addPane(scene, uprightQuadAt(4000.0f, away), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f));
+            addLampsBefore(scene, away);
 
             return PaneUnderLamps{ .mScene = std::move(scene), .mPane = pane };
         }
@@ -172,6 +183,49 @@ namespace Rtx::Testing
                 const float filteredError = filtered.errorFrom(averaged, channel);
                 EXPECT_LT(filteredError, rawError * 0.5f)
                     << "channel " << channel << ": raw " << rawError << ", filtered " << filteredError;
+            }
+        }
+
+        /// **A pane's lobe is composed and not filtered** (D6): the pane filter keeps a layer's history
+        /// whole over every turn of the view, which a reflection does not survive. A metal pane at half
+        /// its opacity under the four lamps: a metal has no diffuse half, and the black sky lights
+        /// nothing, so what the pane sends is its lobe alone. `CHANNEL_PANE` holds nought at every
+        /// pixel, and sixteen frames through the filters end on the frame the trace composed itself,
+        /// to the rounding of the shown width a filtered frame is read back at.
+        TEST_F(RtxVisibilityTest, aPanesLobeIsComposedAndNotFiltered)
+        {
+            constexpr std::array<std::uint8_t, 4> sBaseTexel{ 128, 128, 128, 255 };
+            constexpr std::array<std::uint8_t, 4> sMetalTexel{ 255, 128, 0, 255 };
+            const std::array<TextureData, 2> textures{ describeTexel(sBaseTexel, 0), describeTexel(sMetalTexel, 1) };
+
+            SceneDesc scene;
+            addLampsBefore(scene, 200.0f);
+            const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("pane.dds"));
+            const Index map = scene.textures().add(
+                VFS::Path::NormalizedView("pane_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+            const Index metal = scene.addMaterial(
+                Material{ .mDiffuse = diffuse, .mSpecular = map, .mOpacity = 0.5f, .mAlphaMode = AlphaMode::Blend });
+            scene.addInstance(
+                MeshInstance{ .mMesh = addQuadMesh(scene, uprightQuadAt(4000.0f, 200.0f)), .mMaterial = metal });
+
+            Shaders::VisibilityConstants camera = darkEyeAt(osg::Vec3f());
+            const Frame filtered = shoot(scene, textures, camera, sSize, filteredRun(16, 2000));
+
+            std::vector<float> pane;
+            mRenderer.readChannel(Channel::Pane, pane);
+            for (std::size_t value = 0; value < pane.size(); ++value)
+                ASSERT_EQ(value % 4 == 3 ? 0.0f : pane[value], 0.0f)
+                    << "value " << value << " of a pane with no diffuse half";
+
+            camera.mFrame = 2015;
+            const Frame raw = shoot(scene, textures, camera, sSize, { .mSetScene = false });
+            ASSERT_GT(raw.mean(1), 0.0f) << "a pane that reflects nothing proves nothing";
+            for (std::size_t value = 0; value < raw.mRadiance.size(); ++value)
+            {
+                if (value % 4 == 3)
+                    continue;
+                ASSERT_LE(std::abs(filtered.at(value) - raw.at(value)), std::abs(raw.at(value)) * 0x1p-10f + 1e-7f)
+                    << "value " << value;
             }
         }
 
