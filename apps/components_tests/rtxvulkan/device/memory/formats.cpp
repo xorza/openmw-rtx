@@ -43,7 +43,16 @@ namespace Rtx
             } };
 
             for (const auto& [format, expected] : sTable)
+            {
                 EXPECT_EQ(toVulkanFormat(format), expected) << "layout " << static_cast<int>(format);
+
+                // A half's store may round toward nought, and no other format's here: the unsigned
+                // normalised ones round to nearest by the specification, and the integers store
+                // what they are handed.
+                const bool half = expected == VK_FORMAT_R16_SFLOAT || expected == VK_FORMAT_R16G16_SFLOAT
+                    || expected == VK_FORMAT_R16G16B16A16_SFLOAT;
+                EXPECT_EQ(Shaders::mayRoundTowardNought(format), half) << "layout " << static_cast<int>(format);
+            }
         }
 
         /// **Every format this uploads is the block or order its file holds, with the curve where it

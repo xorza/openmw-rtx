@@ -500,9 +500,9 @@ namespace Rtx::Testing
         /// the floor, two thousand units up, under a sun whose shadow cone is `SUN_SHADOW_RADIUS`
         /// either way: the penumbra is `2 * 2000 * 0.0349` = 140 units across, a quarter of the
         /// 346 the frame spans, and one ray a pixel speckles it. Measured against a reference of 256
-        /// unfiltered frames, one frame's error and the denoised frame's after sixteen frames of
+        /// unfiltered frames, one frame's error and the denoised frame's after sixty-four frames of
         /// history — on a dry floor, and on a flooded one seen through the water, whose sun is what
-        /// the refraction found. Two tests on one body, since each is 273 frames.
+        /// the refraction found. Two tests on one body, since each is 321 frames.
         class RtxPenumbraDenoiseTest : public RtxVisibilityTest
         {
         protected:
@@ -521,7 +521,7 @@ namespace Rtx::Testing
 
                 const Frame denoised = shoot(scene, {}, camera, size,
                     { .mSea = SeaState{ .mSignificantHeight = 0.0f },
-                        .mFrames = 16,
+                        .mFrames = 64,
                         .mAverage = false,
                         .mFirstFrame = 2000,
                         .mFilter = true,
@@ -532,23 +532,25 @@ namespace Rtx::Testing
                 ASSERT_GT(rawError, 0.01f) << "a penumbra one ray a pixel draws is noisy, or this proves nothing";
                 EXPECT_LT(denoisedError, rawError * 0.1f) << "raw " << rawError << ", denoised " << denoisedError;
 
-                // **The one bias the port keeps is the SDK's clamp**: the history is held to half a
-                // deviation of the local mean, which on a penumbra's gradient holds it a little under
-                // its own mean — measured at 0.64% dry and 0.07% flooded. The SDK's contrast step,
-                // which darkened the penumbra by a further 3.4% on purpose, is not ported, and the
-                // frame's edge no longer counts as shadow; either would fail this.
-                EXPECT_NEAR(denoised.mean(), reference.mean(), reference.mean() * 0.01f)
+                // **The denoiser keeps the penumbra's light to a quarter of a per cent**: measured at
+                // +0.03% dry and +0.10% flooded. Its history is read back into its own blend, so it is
+                // kept in full floats (`DenoiseHistory`): kept in halves, whose store rounds toward
+                // nought here, it stood at -0.57% and -0.41% after these frames and -0.68% and -0.47%
+                // after 256. The SDK's contrast step, which darkened the penumbra by 3.4% on purpose,
+                // is not ported, and the frame's edge no longer counts as shadow; either would fail
+                // this.
+                EXPECT_NEAR(denoised.mean(), reference.mean(), reference.mean() * 0.0025f)
                     << "the denoiser moved the light it was smoothing";
             }
         };
 
-        /// Measured at a thirteenth: 0.0762 raw against 0.0058 denoised.
+        /// Measured at a thirty-second: 0.0762 raw against 0.0024 denoised.
         TEST_F(RtxPenumbraDenoiseTest, theShadowDenoiserTakesTheNoiseOffAPenumbraAndLeavesItsLightWhereItWas)
         {
             penumbraOn(false);
         }
 
-        /// Measured at a twelfth: 0.0318 raw against 0.0026 denoised. Before the water split the sun
+        /// Measured at a thirteenth: 0.0318 raw against 0.0025 denoised. Before the water split the sun
         /// off what its rays found, nothing filtered it, and the denoised frame stood at 0.0322.
         TEST_F(RtxPenumbraDenoiseTest, theShadowDenoiserTakesTheNoiseOffAPenumbraSeenThroughTheWater)
         {
