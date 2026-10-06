@@ -17,17 +17,6 @@ Every temporal pass (accumulator, shadow, glossy, pane, bounce reuse) goes throu
 `lib/surfacematch.glsl`. The defects below are therefore in every filter at once, and the copies
 of the gather make each one harder to fix.
 
-- [ ] `lib/surfacematch.glsl:34-45` (`historyFootprint`). Callers: `accumulate.comp:267, 292`,
-  `pane.comp:75`, `specular.comp:128`, `shadowtiles.comp:301`, `bouncetemporal.comp:55`. The fetch
-  is at `at + 0.5 + jitter + motion`. The motion is unjittered at both ends (`reproject.glsl:119`),
-  so with a still eye and world, the history is fetched bilinearly at this frame's jitter offset. It
-  is then stored back at `at`. Each frame resamples the history at a new fractional offset. This
-  blurs every temporal mean, and the content follows the jitter's partial sums. The comment's
-  reason ("a still image that shakes") is true of the motion vector handed to FSR. It is not true of
-  a history that is stored at pixel centres. NRD fetches at `pixelUv + mv`, with no jitter, and its
-  matrices are "non jittered!" (`RELAX_TemporalAccumulation.cs.hlsl:413-416`, `NRDSettings.h:92-126`).
-  `shot` and `repeat` run with `--upscale=off`, so neither sees this. Target:
-  `before = vec2(at) + 0.5 + moved.xy`, and remove the `jitter` parameter from the six callers.
 - [ ] `accumulate.comp:159-179, 321-333`, `specular.comp:138-151`, `pane.comp:80-94`. Valid taps are
   renormalised, so a pixel whose only matching tap has 0.05 of the footprint takes that tap's whole
   32-frame mean. NRD scales the history length by the footprint's quality:

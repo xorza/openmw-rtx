@@ -72,7 +72,7 @@ void main()
     const bool stands = dot(normal, normal) > 0.0;
 
     const vec3 moved = imageLoad(paneMotion, at).xyz;
-    const HistoryFootprint footprint = historyFootprint(at, frame.mEyes.mWorld.mJitter, moved);
+    const HistoryFootprint footprint = historyFootprint(at, moved);
 
     // A texel no layer stood in holds no history, and would pull the mean toward nought.
     RTX_HISTORY_SHARES(shares, footprint, extent, heldBefore, imageLoad(meanBefore, historyAt).a > 0.0, normal, seen.y,

@@ -87,11 +87,11 @@ float reflectionKept(vec3 toEye, vec3 toEyeBefore, float allowed)
 }
 
 /// The direction toward the previous eye from where the surface stood, read off the previous
-/// basis at the point on the previous screen the footprint was taken around. The arms' plane is
-/// the previous basis at the arms' half extents, as `previousScreenThrough` reads it.
-vec3 toEyeBefore(HistoryFootprint footprint, bool arms)
+/// basis at `before`, the surface's own point on the previous screen — where this frame's jittered
+/// ray met it, carried by its motion, and not the footprint's centre. The arms' plane is the
+/// previous basis at the arms' own half extents, as `previousScreenThrough` reads it.
+vec3 toEyeBefore(vec2 before, bool arms)
 {
-    const vec2 before = vec2(footprint.mLow) + footprint.mAcross + 0.5;
     const vec2 uv = before / vec2(frame.mHistory.mEyes.mWorld.mWidth, frame.mHistory.mEyes.mWorld.mHeight) * 2.0 - 1.0;
     const vec2 spread = arms ? frame.mArmsSpread : vec2(1.0);
     return -directionAcross(frame.mPrevious, uv, spread);
@@ -116,7 +116,7 @@ void main()
     const vec3 toEye = -rayAt(eyeOfPixel(seen.y, frame.mHistory.mEyes), vec2(at)).mDirection;
 
     const vec3 moved = imageLoad(motion, at).xyz;
-    const HistoryFootprint footprint = historyFootprint(at, frame.mHistory.mEyes.mWorld.mJitter, moved);
+    const HistoryFootprint footprint = historyFootprint(at, moved);
 
     // Where there was no previous frame the basis is nought, and there is no direction to compare:
     // no history, as a reset has none.
@@ -139,7 +139,7 @@ void main()
     if (weight > 0.0)
     {
         const float facing = abs(dot(normal, toEye));
-        const float kept = reflectionKept(toEye, toEyeBefore(footprint, arms), turnAllowed(sampled.a, facing));
+        const float kept = reflectionKept(toEye, toEyeBefore(vec2(at) + 0.5 + frame.mHistory.mEyes.mWorld.mJitter + moved.xy, arms), turnAllowed(sampled.a, facing));
         blended = blendedMean(sampled.rgb, runningMeanOf(held, weight), kept);
     }
 

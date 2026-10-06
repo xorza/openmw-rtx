@@ -496,9 +496,10 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
    shadow's "no history" test with it. The occluder's path keeps `samePlane` until step 3's one match
    rule. **Owed:** a GPU test of the shadow's "no history" test — a tile with shadowed receivers, lit
    receivers and non-receivers on one plane, under a soft penumbra and a jittered history.
-2. **The registration rule, test first.** Write the GPU test of a still, jittered edge, and see it
-   fail on step 2's code. Then change the fetch and the `samePlane` rebuild, and see it pass.
-   Measure with `noise` on the jittered still leg, and with `--strafe=150 --walk=150`.
+2. **The registration rule is done**: means are fetched at `at + 0.5 + motion`, the held surface's plane
+   test rebuilds through the previous jitter, and the reuse keeps its tap at the surface's own point.
+   **Owed:** the GPU test of a still, jittered edge accumulating to its unjittered-centre mean, which
+   needs an edge in the accumulator's own history, isolated from the wavelet.
 3. The history length by quality, and the plane match, each with its own A/B switch.
 4. The fed-back precision rule and the history table in `DenoiseHistory`. The shadow history
    becomes `RG32F`.

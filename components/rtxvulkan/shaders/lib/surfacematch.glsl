@@ -31,15 +31,17 @@ struct HistoryFootprint
     vec2 mAcross;
 };
 
-/// **In the coordinates the motion vector was written against.** The trace aims through
-/// `pixel + 0.5 + jitter` and `reprojected` differences against exactly that, so undoing it adds
-/// the same offset back — or the history is fetched a fraction of a pixel out, by a different
-/// fraction every frame, which is a still image that shakes.
+/// **At the pixel's centre and not at where the ray went** (decision 1, the hybrid rule): a history
+/// texel holds a mean over many frames' samples, each through `i + 0.5 + jitter`, whose centre is
+/// `i + 0.5` — so it is fetched at `at + 0.5 + motion`, as NRD fetches its own. Fetched at the
+/// jittered point, a still history was resampled a different fraction of a pixel out every frame,
+/// a blur of twice the jitter's variance that fed back into itself. What holds one frame's geometry
+/// instead is rebuilt through the previous jitter (`samePlane`).
 ///
 /// @param moved the pixel's `CHANNEL_MOTION`.
-HistoryFootprint historyFootprint(ivec2 at, vec2 jitter, vec3 moved)
+HistoryFootprint historyFootprint(ivec2 at, vec3 moved)
 {
-    const vec2 before = vec2(at) + 0.5 + jitter + moved.xy;
+    const vec2 before = vec2(at) + 0.5 + moved.xy;
     const vec2 corner = before - 0.5;
     return HistoryFootprint(ivec2(floor(corner)), fract(corner));
 }

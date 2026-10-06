@@ -289,7 +289,7 @@ void main()
         const vec3 normal = unpackSurfaceNormal(seen.x);
         const float away = surfaceDistance(seen.y);
         const vec3 moved = imageLoad(motion, at).xyz;
-        const HistoryFootprint before = historyFootprint(at, frame.mEyes.mWorld.mJitter, moved);
+        const HistoryFootprint before = historyFootprint(at, moved);
 
         // The moments at the nearest texel, as the SDK fetches them, and none where that texel is
         // another surface: the SDK's disocclusion.
