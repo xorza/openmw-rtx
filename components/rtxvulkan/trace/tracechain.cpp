@@ -108,12 +108,14 @@ namespace Rtx
         }
 
         // Before the trace and outside its zone, because the sea is a function of the clock and of
-        // nothing the camera does — one synthesis serves every ray. None where there is no sea,
-        // which is most interiors, and a fifth of a millisecond of device time in each of them.
-        if (inputs.mSubject.mSea)
+        // nothing the camera does — one synthesis serves every ray, and every trace at the same
+        // moment (`WavePass::holds`). None where there is no sea, which is most interiors, and a
+        // fifth of a millisecond of device time in each of them.
+        const WavePass& waves = inputs.mSubject.mMedia->getWaves();
+        if (inputs.mSubject.mSea && !waves.holds(what.mSampled.mWaterTime))
         {
             openZone(what.mTimer, commands, "waves");
-            inputs.mSubject.mMedia->getWaves().record(commands, what.mSampled.mWaterTime);
+            waves.record(commands, what.mSampled.mWaterTime);
             closeZone(what.mTimer, commands);
         }
 
