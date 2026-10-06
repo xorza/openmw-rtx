@@ -335,9 +335,12 @@ and the gather runs through the D2 library.
    length)` helper reads the coverage at the slant's mean-value point, with the slant as its
    spacing. `fogThroughLeg` and `fogBeamDepth` both call it.
 
-**Performance in the same phase.** The integrate pass reads its tent from shared memory, or the
-tent moves to a parallel pass before a pure scan. The ambient ray per froxel is gated by a
-frame-uniform flag for whether puffs are present.
+**Performance in the same phase.** The ambient ray per froxel is gated by `mPuffsInFrame` (done).
+The tent from shared memory was tried and declined: the integrate pass's `column` zone measured
+0.11 ms with a tile a slice and 0.15 ms with a tile of eight slices, against 0.08–0.09 ms with the
+nine reads a column, which the cache already serves. A parallel tent pass before the scan was not
+tried: it bounds a gain under the pass's whole 0.09 ms, and adds a write and a read of a
+64-slice image.
 
 ### D8. Texture facts: computed once at arrival, with the encoding's semantics
 

@@ -565,6 +565,7 @@ namespace Rtx
         described.mTables.mEmitterFrames = sprites.mEmitterFrames;
         described.mTables.mSpriteTileList = sprites.mTileList;
         described.mTables.mSpritePresence = sprites.mPresence;
+        described.mPuffsInFrame = sprites.mPuffs ? 1u : 0u;
 
         // Nothing addressed here may be nothing, and every address must be what its reference
         // claims. A descriptor bound as a null handle cost this renderer a device with no message;

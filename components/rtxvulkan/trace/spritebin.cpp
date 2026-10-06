@@ -65,6 +65,8 @@ namespace Rtx
         // the buffer holds.
         mTileList.outgrow(mListSize.getBytes());
 
+        mPuffs = count > 0 || source.mPresenceCount > 0;
+
         // The placement's table, whole, because the shade writes over what it reads: the copy is
         // what lets a second trace against the same placement — a picture, or the frame after a
         // picture — start from sprites nothing has shaded. On the queue and not from the host,
