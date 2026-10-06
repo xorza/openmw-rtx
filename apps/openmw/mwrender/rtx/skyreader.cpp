@@ -78,19 +78,19 @@ namespace MWRender
             textures.emplace_back(Rtx::moonFaceOf(moon));
     }
 
-    void SkyReader::attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ImageFactCache& facts)
+    void SkyReader::attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ThreadContent& thread)
     {
-        mMoonFaces = Rtx::addMoonFaces(scene, *scenes.getImageManager(), mMoonSizes, mHolds, facts);
-        mSkyContent = Rtx::addSkyContent(scene, scenes, meshes(), facts, mHolds);
+        mMoonFaces = Rtx::addMoonFaces(scene, *scenes.getImageManager(), mMoonSizes, mHolds, thread);
+        mSkyContent = Rtx::addSkyContent(scene, scenes, meshes(), thread, mHolds);
         mTimescaleClouds = Fallback::Map::getBool("Weather_Timescale_Clouds");
     }
 
     void SkyReader::follow(
-        const SkyState& sky, Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ImageFactCache& facts)
+        const SkyState& sky, Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ThreadContent& thread)
     {
         for (const std::string* name : { &sky.mWeather.mCloudTexture, &sky.mWeather.mNextCloudTexture })
             if (!name->empty() && mSkyContent.sheetNamed(*name) == Rtx::sNoSheet)
-                Rtx::addCloudSheet(scene, scenes, facts, mHolds, *name, mSkyContent);
+                Rtx::addCloudSheet(scene, scenes, thread, mHolds, *name, mSkyContent);
     }
 
     void SkyReader::detach(Rtx::SceneDesc& scene)

@@ -49,7 +49,7 @@ namespace Rtx
         MeshResolver(SceneDesc& scene, const MirrorPass& pass, ContentPreprocessor& content)
             : mScene(scene)
             , mPass(pass)
-            , mReader(content)
+            , mContent(content)
         {
         }
 
@@ -164,6 +164,7 @@ namespace Rtx
 
         SceneDesc& mScene;
         const MirrorPass& mPass;
+        ContentPreprocessor& mContent;
 
         // Keyed on pointer identity, which OpenMW's resource cache and SHARE_DUPLICATE_STATE make
         // meaningful, and owning, which makes it sound: what these hold outlives the graph by one

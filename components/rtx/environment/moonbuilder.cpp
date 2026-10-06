@@ -16,7 +16,7 @@
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturewrap.hpp>
-#include <components/rtx/preprocess/imagefactcache.hpp>
+#include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -117,7 +117,7 @@ namespace Rtx
     }
 
     MoonFaces addMoonFaces(SceneDesc& scene, Resource::ImageManager& images, const MoonSizes& sizes,
-        std::vector<TextureHold>& holds, ImageFactCache& facts)
+        std::vector<TextureHold>& holds, ThreadContent& thread)
     {
         // A moon of a size that is no size is refused and not drawn.
         const auto drawnWidth = [&](Moon moon, float size) {
@@ -146,7 +146,7 @@ namespace Rtx
             face.mSlot = scene.textures().add(path, image.isOk() ? image.value().get() : nullptr, TextureWrap::Clamp);
             holds.push_back(scene.holdTexture(face.mSlot));
             if (image.isOk() && image.value() != nullptr)
-                face.mMean = facts.meanOf(*image.value()).opaque();
+                face.mMean = thread.meanOf(*image.value()).opaque();
         }
         return faces;
     }

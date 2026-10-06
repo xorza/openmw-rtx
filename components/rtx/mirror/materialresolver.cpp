@@ -19,7 +19,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texels.hpp>
-#include <components/rtx/preprocess/imagefactcache.hpp>
+#include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>
@@ -206,7 +206,7 @@ namespace Rtx
             .mKey = sSea };
     }
 
-    MaterialReading MaterialResolver::read(std::span<const Shading> shading, ImageFactCache& facts)
+    MaterialReading MaterialResolver::read(std::span<const Shading> shading, ThreadContent& thread)
     {
         if (shading.empty())
             return MaterialReading{};
@@ -225,11 +225,11 @@ namespace Rtx
 
         if (described.mAlphaMode == AlphaMode::Blend && diffuse != nullptr && !diffuse->getFileName().empty())
         {
-            ImageFacts& known = facts.of(*diffuse);
+            ImageFacts& known = thread.factsOf(*diffuse);
             if (additiveSurface(described.mAlphaMode, described.mBlend))
-                facts.meanOf(known, *diffuse);
+                thread.meanOf(known, *diffuse);
             else
-                facts.reachesSolid(known, *diffuse);
+                thread.reachesSolid(known, *diffuse);
             reading.mDiffuseFacts = known;
         }
 
@@ -381,7 +381,7 @@ namespace Rtx
         // Kept by the slot, so the frames after the first find it without the name.
         ImageFacts*& facts = known->second.mFacts;
         if (facts == nullptr)
-            facts = &mFacts.of(*image);
+            facts = &mThread.factsOf(*image);
 
         return facts;
     }
@@ -512,9 +512,9 @@ namespace Rtx
         else if (material.isBlended() && material.mDiffuse != sNoIndex)
         {
             if (ImageFacts* const facts = diffuseFacts(diffuse); facts != nullptr && material.isAdditive())
-                material.mDiffuseMean = meanUnder(mFacts.meanOf(*facts, *diffuse), material.mBlend);
+                material.mDiffuseMean = meanUnder(mThread.meanOf(*facts, *diffuse), material.mBlend);
             else if (facts != nullptr)
-                material.mDiffuseNeverSolid = !mFacts.reachesSolid(*facts, *diffuse);
+                material.mDiffuseNeverSolid = !mThread.reachesSolid(*facts, *diffuse);
         }
 
         return material;

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texture/texturepass.hpp>
@@ -23,7 +22,7 @@ namespace Rtx
     /// what each cost is counted.
     ///
     /// **One a thread**, as the passes' scratch is: the frame's walk has one and the cell ring's
-    /// reader another. Not copyable, because the passes hold its scratch by reference.
+    /// reader another. Not copyable: each texture pass's description spans its own scratch.
     class ContentPreprocessor
     {
     public:
@@ -48,12 +47,9 @@ namespace Rtx
         template <ContentPass Pass>
         void run(Pass& pass, const typename Pass::Input& input, typename Pass::Output& output);
 
-        /// What the two texture passes describe an image into, one after the other.
-        AlphaScratch mAlphaScratch;
-
         ShapePass mShape;
-        SolidReach mSolid{ mAlphaScratch };
-        TexelMean mMean{ mAlphaScratch };
+        SolidReach mSolid;
+        TexelMean mMean;
 
         ContentCache mCache;
         ContentStats mStats;

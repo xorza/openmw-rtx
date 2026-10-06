@@ -297,7 +297,8 @@ namespace Rtx
         return true;
     }
 
-    Misc::Result<bool, std::string> MeshReader::read(const DrawableRead& read, MeshReading& into)
+    Misc::Result<bool, std::string> MeshReader::read(
+        ContentPreprocessor& content, const DrawableRead& read, MeshReading& into)
     {
         const osg::Geometry& geometry = *read.mGeometry;
 
@@ -383,7 +384,7 @@ namespace Rtx
             .mSplits = read.mDeform == Deform::None,
         };
         ShapePass::Output shaped{ .mKept = mIndexScratch, .mNormals = mNormalScratch, .mSources = mSourceScratch };
-        mContent.shape(shape, shaped);
+        content.shape(shape, shaped);
         into.mShape = shaped.mShape;
 
         const std::span<const std::uint32_t> sources = mSourceScratch;

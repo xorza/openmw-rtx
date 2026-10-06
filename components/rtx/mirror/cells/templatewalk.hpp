@@ -75,7 +75,7 @@ namespace Rtx
 
         /// What this thread computes from the content, as the frame thread's walks hold theirs.
         ThreadContent mContent;
-        MeshReader mMeshes{ mContent.mPreprocessor };
+        MeshReader mMeshes;
 
         /// This thread's own classifier: `NodeKinds` is written on a miss.
         NodeKinds mKinds;

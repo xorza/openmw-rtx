@@ -26,7 +26,7 @@ namespace VFS
 
 namespace Rtx
 {
-    class ImageFactCache;
+    struct ThreadContent;
     class SceneDesc;
 }
 
@@ -65,8 +65,8 @@ namespace MWRender
         /// material speaks for the slots and the sweep would take them on the first frame a cell
         /// died. Once, where the world is attached.
         ///
-        /// @param facts what the sheets' means are read through: the frame thread's.
-        void attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ImageFactCache& facts);
+        /// @param thread what the sheets' means are read through: the frame thread's.
+        void attach(Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ThreadContent& thread);
 
         /// Gives every hold `attach` took back to `scene`, so a scene the world has left holds
         /// nothing of the sky: `attach`'s pair, where the world is detached.
@@ -88,7 +88,7 @@ namespace MWRender
         /// `weather.cloudTexture` — as the rasterizer loads one when the name changes. Every frame,
         /// before `read`, between `attach` and `detach`.
         void follow(
-            const SkyState& sky, Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ImageFactCache& facts);
+            const SkyState& sky, Rtx::SceneDesc& scene, Resource::SceneManager& scenes, Rtx::ThreadContent& thread);
 
         /// @param falling what the weather drops, for how much of it rings the water and how high
         ///        a roof shelters from it.

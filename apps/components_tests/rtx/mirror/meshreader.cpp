@@ -80,9 +80,9 @@ namespace Rtx::Testing
             cube->addPrimitiveSet(new osg::DrawElementsUInt(GL_TRIANGLES, named.begin(), named.end()));
 
             ContentPreprocessor content;
-            MeshReader reader(content);
+            MeshReader reader;
             MeshReading reading;
-            ASSERT_TRUE(reader.read(readDrawable(*cube, NodeKinds{}.of(*cube)), reading).value());
+            ASSERT_TRUE(reader.read(content, readDrawable(*cube, NodeKinds{}.of(*cube)), reading).value());
 
             const MeshArrays& arrays = reading.mArrays;
             ASSERT_EQ(arrays.mPositions.size(), 24u);
@@ -116,9 +116,9 @@ namespace Rtx::Testing
             quad->setNormalArray(makePositions({ osg::Vec3f(0.0f, 0.0f, 1.0f) }), osg::Array::BIND_OVERALL);
 
             ContentPreprocessor content;
-            MeshReader reader(content);
+            MeshReader reader;
             MeshReading reading;
-            ASSERT_TRUE(reader.read(readDrawable(*quad, NodeKinds{}.of(*quad)), reading).value());
+            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), reading).value());
 
             EXPECT_EQ(reading.mArrays.mPositions.size(), 4u);
             EXPECT_EQ(reading.mArrays.mIndices.size(), 6u) << "two triangles, none of them the other's reverse";
@@ -137,20 +137,20 @@ namespace Rtx::Testing
                                      osg::Vec3f(0.0f, 1.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f) }),
                 osg::Array::BIND_OVERALL);
             MeshReading asLong;
-            ASSERT_TRUE(reader.read(readDrawable(*quad, NodeKinds{}.of(*quad)), asLong).value());
+            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), asLong).value());
             ASSERT_EQ(asLong.mArrays.mNormals.size(), 4u);
             for (const osg::Vec3f& normal : asLong.mArrays.mNormals)
                 EXPECT_EQ(normal, osg::Vec3f(0.0f, 0.0f, 1.0f)) << "an overall array was read per vertex";
 
             // A drawable with no triangles mirrors nothing, and says so rather than reading zero.
             osg::ref_ptr<osg::Geometry> empty = new osg::Geometry;
-            EXPECT_FALSE(reader.read(readDrawable(*empty, NodeKinds{}.of(*empty)), reading).value());
+            EXPECT_FALSE(reader.read(content, readDrawable(*empty, NodeKinds{}.of(*empty)), reading).value());
 
             // One whose triangles name a vertex it does not have is refused by name: four vertices,
             // and the second triangle ends at index four.
             osg::ref_ptr<osg::Geometry> past = makeIndexPastItsVertices();
             const Misc::Result<bool, std::string> refused
-                = reader.read(readDrawable(*past, NodeKinds{}.of(*past)), reading);
+                = reader.read(content, readDrawable(*past, NodeKinds{}.of(*past)), reading);
             ASSERT_FALSE(refused.isOk()) << "a triangle past its vertices was read";
             EXPECT_EQ(refused.error(), "its triangles name vertex 4 of 4");
         }
@@ -167,7 +167,7 @@ namespace Rtx::Testing
             constexpr float sAt128 = 0.21586050f;
 
             ContentPreprocessor content;
-            MeshReader reader(content);
+            MeshReader reader;
             MeshReading reading;
 
             // What `NifOsg` builds from a `NiGeometryData`: four floats a vertex.
@@ -177,7 +177,7 @@ namespace Rtx::Testing
                 asFloats->push_back(osg::Vec4f(64.0f / 255.0f, 128.0f / 255.0f, 1.0f, 1.0f));
             floats->setColorArray(asFloats, osg::Array::BIND_PER_VERTEX);
 
-            ASSERT_TRUE(reader.read(readDrawable(*floats, NodeKinds{}.of(*floats)), reading).value());
+            ASSERT_TRUE(reader.read(content, readDrawable(*floats, NodeKinds{}.of(*floats)), reading).value());
             ASSERT_EQ(reading.mArrays.mColours.size(), 4u);
             for (const osg::Vec3f& colour : reading.mArrays.mColours)
             {
@@ -193,7 +193,7 @@ namespace Rtx::Testing
                 asBytes->push_back(osg::Vec4ub(64, 128, 255, 255));
             bytes->setColorArray(asBytes, osg::Array::BIND_PER_VERTEX);
 
-            ASSERT_TRUE(reader.read(readDrawable(*bytes, NodeKinds{}.of(*bytes)), reading).value());
+            ASSERT_TRUE(reader.read(content, readDrawable(*bytes, NodeKinds{}.of(*bytes)), reading).value());
             ASSERT_EQ(reading.mArrays.mColours.size(), 4u);
             for (const osg::Vec3f& colour : reading.mArrays.mColours)
             {
@@ -209,7 +209,7 @@ namespace Rtx::Testing
             one->push_back(osg::Vec4f(1.0f, 128.0f / 255.0f, 0.0f, 1.0f));
             overall->setColorArray(one, osg::Array::BIND_OVERALL);
 
-            ASSERT_TRUE(reader.read(readDrawable(*overall, NodeKinds{}.of(*overall)), reading).value());
+            ASSERT_TRUE(reader.read(content, readDrawable(*overall, NodeKinds{}.of(*overall)), reading).value());
             ASSERT_EQ(reading.mArrays.mColours.size(), 4u);
             for (const osg::Vec3f& colour : reading.mArrays.mColours)
             {
@@ -274,12 +274,12 @@ namespace Rtx::Testing
             } };
 
             ContentPreprocessor content;
-            MeshReader reader(content);
+            MeshReader reader;
             MeshReading reading;
             for (const auto& [geometry, why] : broken)
             {
                 const Misc::Result<bool, std::string> refused
-                    = reader.read(readDrawable(*geometry, NodeKinds{}.of(*geometry)), reading);
+                    = reader.read(content, readDrawable(*geometry, NodeKinds{}.of(*geometry)), reading);
                 ASSERT_FALSE(refused.isOk()) << "read a face that should be refused because " << why;
                 EXPECT_EQ(refused.error(), why);
             }
@@ -292,7 +292,7 @@ namespace Rtx::Testing
             whole->setTexCoordArray(1, pairs(4));
             whole->setColorArray(new osg::Vec4Array(4), osg::Array::BIND_PER_VERTEX);
             whole->setTexCoordArray(Shader::sTangentUnit, new osg::Vec4Array(4));
-            EXPECT_TRUE(reader.read(readDrawable(*whole, NodeKinds{}.of(*whole)), reading).value());
+            EXPECT_TRUE(reader.read(content, readDrawable(*whole, NodeKinds{}.of(*whole)), reading).value());
         }
 
         /// The tangents `Shader::MapVisitor` builds are read as they are, and their unit is not
@@ -315,9 +315,9 @@ namespace Rtx::Testing
             quad->setTexCoordArray(3, new osg::Vec2Array(*second));
 
             ContentPreprocessor content;
-            MeshReader reader(content);
+            MeshReader reader;
             MeshReading reading;
-            ASSERT_TRUE(reader.read(readDrawable(*quad, NodeKinds{}.of(*quad)), reading).value());
+            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), reading).value());
             EXPECT_TRUE(reading.mArrays.mTangents.empty()) << "a quad no normal map is read through";
 
             osg::ref_ptr<osg::Vec4Array> tangents = new osg::Vec4Array;
@@ -327,7 +327,7 @@ namespace Rtx::Testing
             tangents->push_back(osg::Vec4f());
             quad->setTexCoordArray(Shader::sTangentUnit, tangents, osg::Array::BIND_PER_VERTEX);
 
-            ASSERT_TRUE(reader.read(readDrawable(*quad, NodeKinds{}.of(*quad)), reading).value());
+            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), reading).value());
             ASSERT_EQ(reading.mArrays.mTangents.size(), 4u);
             for (std::size_t vertex = 0; vertex < 4; ++vertex)
                 EXPECT_EQ(reading.mArrays.mTangents[vertex], (*tangents)[vertex]) << vertex;
@@ -343,9 +343,9 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Geometry> quad = makeQuad();
 
             ContentPreprocessor content;
-            MeshReader reader(content);
+            MeshReader reader;
             MeshReading reading;
-            ASSERT_TRUE(reader.read(readDrawable(*quad, NodeKinds{}.of(*quad)), reading).value());
+            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), reading).value());
 
             Resolving adopted;
             const Index mesh = adopted.mResolver.adopt(*quad, reading);

@@ -33,7 +33,7 @@ namespace osgParticle
 namespace Rtx
 {
     struct Glow;
-    class ImageFactCache;
+    struct ThreadContent;
     struct ImageFacts;
     struct Shading;
 
@@ -47,12 +47,12 @@ namespace Rtx
         /// @param pass the walk in progress: its sweep stamp and its counts, read at every call.
         ///        Borrowed, so that the mirror and everything resolving into it cannot come to hold
         ///        two answers.
-        /// @param facts the thread's image facts, shared with the materials, because a flame's
-        ///        texture is a sheet's too and one file is read once.
-        EmitterResolver(SceneDesc& scene, const MirrorPass& pass, ImageFactCache& facts)
+        /// @param thread the thread's content, whose image facts are shared with the materials,
+        ///        because a flame's texture is a sheet's too and one file is read once.
+        EmitterResolver(SceneDesc& scene, const MirrorPass& pass, ThreadContent& thread)
             : mScene(scene)
             , mPass(pass)
-            , mFacts(facts)
+            , mThread(thread)
         {
         }
 
@@ -173,7 +173,7 @@ namespace Rtx
 
         SceneDesc& mScene;
         const MirrorPass& mPass;
-        ImageFactCache& mFacts;
+        ThreadContent& mThread;
 
         /// Which textures each particle system draws with. This entry is the reference: a sprite's
         /// texture hangs off no material, so the scene holds it from first meeting until the sweep

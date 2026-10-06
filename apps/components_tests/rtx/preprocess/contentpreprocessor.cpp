@@ -150,8 +150,7 @@ namespace Rtx
         /// the finest level as it was described — format, encoding, extent and its sixteen bytes.
         TEST(RtxContentPreprocessorTest, aTextureIsKeyedOnItsPictureAndNotOnItsName)
         {
-            AlphaScratch scratch;
-            FinestTexels finest(scratch);
+            FinestTexels finest;
 
             const ContentKey key = finestKeyOf(*makeImage(sPaint, "painted.dds"), finest);
             ASSERT_TRUE(finest.get().has_value());

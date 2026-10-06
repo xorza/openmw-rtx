@@ -387,7 +387,7 @@ namespace MWRender
 
         // The sky's sheets into the mirror's scene, once: they are drawn by rays that reach
         // nothing, so nothing the walk finds would keep their slots.
-        mSky.attach(mMirror.getScene(), *getResources().getSceneManager(), mMirror.getWalkContext().mContent.mFacts);
+        mSky.attach(mMirror.getScene(), *getResources().getSceneManager(), mMirror.getWalkContext().mContent);
     }
 
     void RtxRenderer::adoptTraversalRoot(osg::Group& root) noexcept
@@ -982,8 +982,8 @@ namespace MWRender
     void RtxRenderer::trace(const SceneFrame& frame, Rtx::Shaders::VisibilityConstants constants, FrameReport& report,
         const std::optional<double> since)
     {
-        mSky.follow(frame.mSky, mMirror.getScene(), *getResources().getSceneManager(),
-            mMirror.getWalkContext().mContent.mFacts);
+        mSky.follow(
+            frame.mSky, mMirror.getScene(), *getResources().getSceneManager(), mMirror.getWalkContext().mContent);
         const Rtx::WorldReading read = mSky.read(frame.mSky, frame.mWorld, frame.mPrecipitation,
             frame.mWhen.getSimulationTime(), frame.mEye.closesAirAt(mMirror.getReach()));
 

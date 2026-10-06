@@ -238,6 +238,13 @@ the posture behind them does.
   to `#pragma once`, and `portable.h` says why.
 - **Include what you name.** A file that spells `std::size_t` includes `<cstddef>`. A `.cpp` may
   lean on its own header for what that header's interface already needs, and on nothing else.
+- **A part that needs another part's state is handed it at the call** (`ThreadContent`, whose
+  cache is handed the preprocessor at each read), and holds no reference to a sibling member or to
+  its owner. An owner that does wire its parts together by reference — a renderer's passes holding
+  its device — is pinned: a class with a constructor, its copy and move deleted, each member
+  declared after everything it refers to. **Never an aggregate**: MSVC bound a reference that an
+  aggregate's default member initializer took to a sibling to another object, inside a designated
+  initializer, and the sky's first image read address nought on Windows alone.
 - **The preprocessor switches only where nothing else can.** What systems spell differently goes
   in a `…posix.cpp` and `…win32.cpp` pair that CMake chooses, behind one header: a general fact in
   `components/platform` (`Platform::Process`, `Platform::SharedMemory`), the crash catcher's own

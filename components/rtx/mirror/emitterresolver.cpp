@@ -20,7 +20,7 @@
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/spritelight.hpp>
 #include <components/rtx/image/textureencoding.hpp>
-#include <components/rtx/preprocess/imagefactcache.hpp>
+#include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
@@ -335,10 +335,10 @@ namespace Rtx
             else
             {
                 if (held.mFacts == nullptr)
-                    held.mFacts = &mFacts.of(*held.mSprite);
+                    held.mFacts = &mThread.factsOf(*held.mSprite);
 
                 glows[*pending.mGlow].addSprites(
-                    emitter, mSpriteScratch, meanUnder(mFacts.meanOf(*held.mFacts, *held.mSprite), held.mBlend));
+                    emitter, mSpriteScratch, meanUnder(mThread.meanOf(*held.mFacts, *held.mSprite), held.mBlend));
             }
         }
     }

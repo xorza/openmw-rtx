@@ -5,6 +5,7 @@
 
 #include <osg/ref_ptr>
 
+#include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
@@ -17,7 +18,6 @@ namespace osg
 namespace Rtx
 {
     class ContentDigest;
-    struct AlphaScratch;
 
     /// An image's finest level as a `TexturePass` reads it — `describeFinest` — described once for
     /// both the key and the run that follows it, where a key is made.
@@ -35,11 +35,17 @@ namespace Rtx
     /// freed memory. Held, its address also names it, so a run knows whether the description is of
     /// the image it was handed. A key the cache answers runs nothing, and leaves its image held
     /// until the pass is next asked: one image a pass, on a loader's thread.
+    ///
+    /// **The scratch is its own**, so nothing outside it can redescribe what it holds between the
+    /// key and the run. Not copyable: the description spans the scratch's buffers.
     class FinestTexels
     {
     public:
-        explicit FinestTexels(AlphaScratch& scratch);
+        FinestTexels();
         ~FinestTexels();
+
+        FinestTexels(const FinestTexels&) = delete;
+        FinestTexels& operator=(const FinestTexels&) = delete;
 
         /// Describes `image` into the scratch, and holds it until the next `describe` or `clear`.
         void describe(const osg::Image& image);
@@ -54,13 +60,13 @@ namespace Rtx
         /// image no reader here decodes.
         const std::optional<TextureData>& get() const { return mFinest; }
 
-        AlphaScratch& getScratch() const { return mScratch; }
+        AlphaScratch& getScratch() { return mScratch; }
 
         /// Lets go of the image and its description.
         void clear();
 
     private:
-        AlphaScratch& mScratch;
+        AlphaScratch mScratch;
         osg::ref_ptr<const osg::Image> mImage;
         std::optional<TextureData> mFinest;
     };
@@ -98,10 +104,7 @@ namespace Rtx
     private:
         /// Made by a `ContentPreprocessor` and by nothing else — `ShapeFold` says why.
         friend class ContentPreprocessor;
-        explicit TexturePass(AlphaScratch& scratch)
-            : mFinest(scratch)
-        {
-        }
+        TexturePass() = default;
 
         FinestTexels mFinest;
     };

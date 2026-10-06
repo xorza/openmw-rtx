@@ -18,7 +18,7 @@
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texels.hpp>
-#include <components/rtx/preprocess/imagefactcache.hpp>
+#include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -66,7 +66,7 @@ namespace Rtx
         return &mSheets[sheet];
     }
 
-    std::uint32_t addCloudSheet(SceneDesc& scene, Resource::SceneManager& scenes, ImageFactCache& facts,
+    std::uint32_t addCloudSheet(SceneDesc& scene, Resource::SceneManager& scenes, ThreadContent& thread,
         std::vector<TextureHold>& holds, std::string_view name, SkyContent& content)
     {
         const auto at = static_cast<std::uint32_t>(content.mSheets.size());
@@ -106,13 +106,13 @@ namespace Rtx
 
         // Averaging a 512-square sheet is a quarter of a million texels; the image is the one the
         // upload is about to take out of the same cache.
-        const MeanTexel& painted = facts.meanOf(*image.value());
+        const MeanTexel& painted = thread.meanOf(*image.value());
         sheet.mMean = painted.opaque() * Shaders::LUMINANCE_WEIGHTS;
         return at;
     }
 
     SkyContent addSkyContent(SceneDesc& scene, Resource::SceneManager& scenes, const SkyMeshes& meshes,
-        ImageFactCache& facts, std::vector<TextureHold>& holds)
+        ThreadContent& thread, std::vector<TextureHold>& holds)
     {
         SkyContent loaded;
 
@@ -124,7 +124,7 @@ namespace Rtx
             const std::string_view sheet
                 = Fallback::Map::getString("Weather_" + std::string(weatherName(weather)) + "_Cloud_Texture");
             if (!sheet.empty() && loaded.sheetNamed(sheet) == sNoSheet)
-                addCloudSheet(scene, scenes, facts, holds, sheet, loaded);
+                addCloudSheet(scene, scenes, thread, holds, sheet, loaded);
         }
 
         // The shape the deck hangs on is the mesh's, both of its numbers: how high the layer is
@@ -144,7 +144,7 @@ namespace Rtx
         // The night sky is the mesh's, every number of it: which sheet the field wears, how much
         // sky a tile of it covers, where it fades out, and where the six patches sit.
         if (const Misc::Result<NightSky, std::string> night
-            = readNightSky(scene, scenes, meshes.mStars, meshes.mStarsFallback, facts, holds);
+            = readNightSky(scene, scenes, meshes.mStars, meshes.mStarsFallback, thread, holds);
             night.isOk())
             loaded.mNight = night.value();
         else
