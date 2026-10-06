@@ -200,19 +200,6 @@ items are departures from the published method that each cost gain or add bias. 
   `there` values and the partners' bits. Target: keep those, and read each partner again in the
   second loop from the cache.
 
-## 9. The wavelet's details differ from ReLAX and SVGF
-
-- [ ] `atrous.comp:203, 235-236`. The wide level weighs a prefiltered centre variance
-  (`varianceAround`, SVGF's 3×3) against each tap's raw variance (`light.a`). The prefilter exists
-  because "an edge stopped by a noisy spread is a blotch", and the tap's raw value is the noisy
-  estimate. Target: prefilter both, or say why the tap's raw variance is acceptable.
-- [ ] `atrous.comp:192-194, 237-239`. In ReLAX the history fix is a pass before the clamp, and every
-  à-trous level then filters the fixed pixel (`Relax_Diffuse.hpp`). Here the fix replaces the first
-  level's B3 filter, so a fixed pixel is filtered by one level fewer than its neighbours. ReLAX's clamp
-  also copies the fast history into the slow one for histories under the fix's frames; here the fast
-  mean of a fixed pixel stays the raw sample, and the next frame's box around it is as wide as the
-  noise. Target: keep the fused pass, which saves bandwidth, and either weight the B3 by the fix
-  kernel or say why one level fewer is acceptable.
 ## 10. The display chain does not adapt and meter as its comments say
 
 - [ ] `display/exposure.comp:98-104` (`exposure = mix(held, target, 1 - exp(-dt / tau))`), `look.h:123, 126`.
