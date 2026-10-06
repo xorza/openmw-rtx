@@ -66,6 +66,7 @@ namespace Rtx
         writes.image(Shaders::COMPOSITE_BIND_PANE_ALBEDO, buffer.get(Channel::PaneAlbedo).describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_FILL, fill.describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_AMBIENT_ALBEDO, buffer.get(Channel::AmbientAlbedo).describeStorage());
+        writes.image(Shaders::COMPOSITE_BIND_SPECULAR_ALBEDO, buffer.get(Channel::SpecularAlbedo).describeStorage());
 
         dispatch(commands, mPipeline, writes, constants,
             Groups::covering(constants.mWidth, constants.mHeight, Shaders::COMPOSITE_WORKGROUP));

@@ -125,11 +125,11 @@ namespace Rtx::Shaders
     /// split it off, which no filter reads as a shadow.
     const uint CHANNEL_SHADOWED = 7;
 
-    /// What the lobe of the solid the eye found reflects of its lamps and its one bounce, whole, times
-    /// the path's transmittance, in `rgb`, and the lobe's perceptual roughness in `a`: the glossy
-    /// light a PBR replacer's surface sends, which the glossy filter takes over time and nothing
-    /// takes across the screen. Nought and `SPECULAR_NO_LOBE` wherever there is no specular half,
-    /// which is every vanilla surface.
+    /// What the lobe of the solid the eye found reflects of its lamps and its one bounce, times the
+    /// path's transmittance, per unit of `CHANNEL_SPECULAR_ALBEDO`, in `rgb`, and the lobe's
+    /// perceptual roughness in `a`: the glossy light a PBR replacer's surface sends, which the glossy
+    /// filter takes over time and nothing takes across the screen. Nought and `SPECULAR_NO_LOBE`
+    /// wherever there is no specular half, which is every vanilla surface.
     const uint CHANNEL_SPECULAR = 8;
 
     /// The roughness `CHANNEL_SPECULAR` holds where there is no lobe: below every roughness, so the
@@ -137,13 +137,13 @@ namespace Rtx::Shaders
     /// returned nought.
     const float SPECULAR_NO_LOBE = -1.0f;
 
-    /// What the see-through layers in front of the surface send of the light a path end drew — the
-    /// light arriving at each and its lobe's, each times what the layers and the media in front of it
-    /// let through and its own opacity — divided by `CHANNEL_PANE_ALBEDO`, in `rgb`: the channel the
-    /// pane filter averages over time. A pane is shaded at the end of a path, one occlusion ray, one
-    /// lamp and one sun ray a frame, and composited over the frame, so this is as noisy as a bounce
-    /// and nothing else takes it. Nought where no layer stands. What a layer glows with is
-    /// deterministic, and stays in `CHANNEL_DIRECT`.
+    /// What the see-through layers in front of the surface send of the light a path end drew to their
+    /// diffuse halves — each times what the layers and the media in front of it let through and its
+    /// own opacity — divided by `CHANNEL_PANE_ALBEDO`, in `rgb`: the channel the pane filter averages
+    /// over time. A pane is shaded at the end of a path, one occlusion ray, one lamp and one sun ray a
+    /// frame, and composited over the frame, so this is as noisy as a bounce and nothing else takes
+    /// it. Nought where no layer stands. What a layer glows with is deterministic, and stays in
+    /// `CHANNEL_DIRECT`, and so does what its lobe reflects, unfiltered (`PaneStack::mDrawn` says why).
     const uint CHANNEL_PANE = 9;
 
     /// What `CHANNEL_PANE` is multiplied back by: the layers' albedos, each times the same weight,
@@ -226,8 +226,14 @@ namespace Rtx::Shaders
     /// `VisibilityConstants::mLampCandidates`, unless it names another.
     const uint LAMP_CANDIDATES = 8u;
 
+    /// What `CHANNEL_SPECULAR` is multiplied back by: the lobe's split-sum specular albedo
+    /// (`specularModulation`), one in a channel under `SPECULAR_ALBEDO_FLOOR` and wherever there is
+    /// no lobe. Demodulated for the reason the bounce is: the glossy filter's bilinear history blurs
+    /// what it averages, and a replacer's reflectance is detail the light behind it is not.
+    const uint CHANNEL_SPECULAR_ALBEDO = 18;
+
     /// How many the set declares, which is the last of them and one more.
-    const uint CHANNEL_COUNT = 18;
+    const uint CHANNEL_COUNT = 19;
 
     /// How far apart, in traced pixels, an image and the motion vector its pixel is handed may move
     /// in one frame before the upscaler is told to trust none of that image's history: half a
@@ -236,8 +242,14 @@ namespace Rtx::Shaders
     /// what chooses.
     const float MISMOVED_FULL = 0.5f;
 
+    /// The least specular albedo `CHANNEL_SPECULAR` is divided by, a channel at a time
+    /// (`specularModulation`): under it the lobe's light is kept whole and multiplied back by one,
+    /// since dividing it by nearly nought would hand the glossy filter a number a radiance channel of
+    /// halves cannot hold. A texel's step, as `PANE_ALBEDO_FLOOR` is.
+    const float SPECULAR_ALBEDO_FLOOR = 1.0f / 255.0f;
+
     /// The least albedo `CHANNEL_PANE` is divided by, a channel at a time: under it the layers are
-    /// black there, what they send is their lobe's alone, and dividing it by nearly nought would
+    /// black there, they send next to nothing to the channel, and dividing it by nearly nought would
     /// hand the filter a number the albedo channel's halves cannot bring back. A texel's step.
     const float PANE_ALBEDO_FLOOR = 1.0f / 255.0f;
 

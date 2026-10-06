@@ -26,6 +26,7 @@
 #include "gbuffer.h"
 
 #include "records.glsl"
+#include "sharedexponent.glsl"
 
 /// Where the payload below sits. A literal at every call, as the extension wants. The any-hit
 /// shader a traversal reaches declares none, because it reads none.
@@ -60,10 +61,11 @@ struct Answer
     /// `SHADOW_PENUMBRA_CLEAR` wherever the bit is open or nothing split it off.
     float mPenumbra;
 
-    /// What the lobe of the solid the eye found reflects of its lamps and its one bounce, and the
-    /// lobe's roughness: `SeenSolid::mSpecular` and `mRoughness`. Nought and `SPECULAR_NO_LOBE`
-    /// wherever nothing split it off, as `mShadowed` is nought there. A pane's lobe light is here
-    /// too, `SeenPane::mSpecular`, with no roughness: the pane filter keeps no lobe's rule.
+    /// What the lobe of the solid the eye found reflects of its lamps and its one bounce, per unit of
+    /// `mResponse.mSpecular`, and the lobe's roughness: `SeenSolid::mSpecular` and `mRoughness`.
+    /// Nought and `SPECULAR_NO_LOBE` wherever nothing split it off, as `mShadowed` is nought there.
+    /// A pane's lobe light is here too, whole, `SeenPane::mSpecular`, with no roughness: the launch
+    /// composes it with the pane's glow, and no filter takes it.
     vec3 mSpecular;
     float mRoughness;
 
@@ -143,7 +145,7 @@ Answer noAnswer()
     return answer;
 }
 
-/// The record as it crosses the trace: twenty-five words, laid out once here.
+/// The record as it crosses the trace: twenty-six words, laid out once here.
 ///
 /// The flags word carries the backdrop's share as a half in its high bits — or a hit's
 /// `mMisMoved`, since only a miss shows the backdrop and only a hit moves — the lobe's roughness in
@@ -163,6 +165,10 @@ struct VisibilityPayload
     /// The response's ambient albedo in green and blue. Its red is the half the motion's second word
     /// leaves.
     uint mAmbient;
+
+    /// The response's specular modulation, in shared exponent: `specularModulation` rounds it to
+    /// what this word holds, so it crosses exactly.
+    uint mSpecularAlbedo;
 
     /// The lift, three halves in two words: a display value, which a half holds finer than the
     /// channel's byte. The fourth half is the penumbra, which the channel holds as a half.
@@ -209,6 +215,7 @@ VisibilityPayload packAnswer(Answer answer)
         packHalf2x16(vec2(answer.mResponse.mDiffuse.b, answer.mOpacity)));
     packed.mNormal = floatBitsToUint(answer.mResponse.mNormal);
     packed.mAmbient = packHalf2x16(answer.mResponse.mAmbient.gb);
+    packed.mSpecularAlbedo = packRgb9e5(answer.mResponse.mSpecular);
     packed.mLift = uvec2(packHalf2x16(answer.mLift.rg), packHalf2x16(vec2(answer.mLift.b, answer.mPenumbra)));
     packed.mMotion = uvec2(packHalf2x16(answer.mMotion.xy), packHalf2x16(vec2(answer.mMotion.z, answer.mResponse.mAmbient.r)));
     packed.mDistance = answer.mDistance;
@@ -240,7 +247,7 @@ Answer unpackAnswer(VisibilityPayload packed)
     answer.mOpen = (packed.mFlags & ANSWER_OPEN) != 0u;
     const vec2 motionZAmbientR = unpackHalf2x16(packed.mMotion.y);
     answer.mResponse = SurfaceResponse(uintBitsToFloat(packed.mNormal), vec3(diffuseRg, diffuseBOpacity.x),
-        vec3(motionZAmbientR.y, unpackHalf2x16(packed.mAmbient)));
+        vec3(motionZAmbientR.y, unpackHalf2x16(packed.mAmbient)), unpackRgb9e5(packed.mSpecularAlbedo));
     answer.mMotion = vec3(unpackHalf2x16(packed.mMotion.x), motionZAmbientR.x);
     const vec2 liftBPenumbra = unpackHalf2x16(packed.mLift.y);
     answer.mLift = vec3(unpackHalf2x16(packed.mLift.x), liftBPenumbra.x);

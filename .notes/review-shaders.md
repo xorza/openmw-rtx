@@ -116,26 +116,8 @@ Each item adds or loses light in the converged picture. A denoiser cannot remove
   arrangement each time". The turn shifts the values, not the positions, so the period stays on
   screen. Target: a vec2 or cosine STBN mask for the bounce, and a corrected comment.
 
-## 5. The glossy and pane filters keep 32 frames with no anti-lag
+## 5. The glossy filter has no virtual-motion history
 
-- [ ] `specular.comp:139-179`, `pane.comp:77-104` (`blendedMean(…, 1.0)`), `lib/runningmean.glsl:8-9`
-  ("No outlier clamp, for the accumulator's reason"). The accumulator's reason now comes with a
-  clamp: `accumulateclamp.comp:6-21` holds the slow mean to a fast one, because without it there is
-  "a trail ten pixels long". The glossy and pane filters copy the history length without the clamp.
-  With a still eye, `reflectionKept` is 1, so a near-mirror floor that reflects a walking NPC ghosts
-  for up to 32 frames, and so does a flickering or carried lamp's highlight (lamp specular is not
-  split). A pane's lamp light lags on a still window while the wall behind it follows the light frame
-  by frame. ReLAX keeps a fast specular history and clamps to it
-  (`RELAX_TemporalAccumulation.cs.hlsl:863-866`, `RELAX_HistoryClamping.cs.hlsl:39-154`). ReBLUR caps
-  a near-mirror's frames by roughness: `1 - exp2(-200 r²)` frames' share (`NRD.hlsli:588-595`).
-  Target: a fast mean beside each running mean, and the slow mean clamped to its neighbourhood by
-  `accumulateclamp.comp`'s rule, shared. For the glossy filter, also a cap on frames by roughness.
-- [ ] `accumulateclamp.comp:117, 145-169, 200-205`, `accumulate.h:93-103`. The clamp's box is
-  luminance only, but the comment calls it ReLAX's "as published". ReLAX builds the box per channel
-  in YCoCg and clamps the slow history in YCoCg (`RELAX_HistoryClamping.cs.hlsl`). A change of hue at
-  constant luminance is never followed: a red torch replaced by a blue spell, or the sky's tint at
-  dusk. Target: YCoCg fast means in shared memory (three floats instead of one) and a per-channel
-  clamp. Alternatively, say what was measured to justify luminance alone.
 - [ ] Known gap, `specular.comp:17-21`. The glossy filter has no virtual-motion history. A sharp lobe
   resets at every turn of the head, and only the upscaler denoises it. ReLAX blends a virtual-motion
   reprojection from the hit distance with the surface motion (`RELAX_TemporalAccumulation.cs.hlsl:753-934`).
@@ -217,23 +199,6 @@ items are departures from the published method that each cost gain or add bias. 
   whole origins live (about 65 floats) until the second loop, which needs only the confidences, the
   `there` values and the partners' bits. Target: keep those, and read each partner again in the
   second loop from the cache.
-
-## 8. The specular channels are not demodulated
-
-- [ ] `lib/shading.glsl:1002` (`seen.mSpecular = lit.mSpecular + bounced.mSpecular`), `lib/compose.glsl:23`,
-  `lib/gloss.glsl:93-95` (`gloss.mAlbedo`, the split-sum albedo, weighs only the bounce's draw). The
-  glossy filter averages the lobe's light whole, so the F0 and roughness detail of a PBR replacer's
-  maps is blurred into the 32-frame mean by the bilinear fetch. The diffuse half and the pane are
-  demodulated. NRD's input contract: radiance "should not include material information (use
-  material de-modulation)" (`NRD.hlsli:37`), and for specular that is the pre-integrated albedo
-  (Karis 2013, here `specularAlbedoOf`). Target: write `lobe / max(gloss.mAlbedo, ε)` to
-  `CHANNEL_SPECULAR` and multiply back in `composedLight`.
-- [ ] `visibility.rgen:125` (`stack.mDrawn += reaching * (layer.mBounced + layer.mSpecular)`),
-  `:466-471` (divided by `paneAlbedoSum`), `pane.comp:96`, the comment at `pane.comp:22-23`. A glossy
-  layer's highlight turns with the view, but the pane history keeps it whole across any rotation, so
-  highlights on PBR glass smear when the eye turns. The lobe is also divided by the diffuse albedo,
-  against `shading.glsl:659-661`'s own rule. Target: the layer's lobe on its own path, kept by
-  `reflectionKept` and demodulated by the specular albedo, or left out of `CHANNEL_PANE`.
 
 ## 9. The wavelet's details differ from ReLAX and SVGF
 
