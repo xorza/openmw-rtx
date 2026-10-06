@@ -11,8 +11,8 @@
 // One statement of the curve, so a boundary the scatter pass sampled inside is the boundary the
 // integrate pass takes its transmittance over.
 
-#include "shared/fogvolume.h"
 #include "look.h"
+#include "shared/medium.h"
 #include "scene.h"
 
 /// Where along the ray the slice ending at `fraction` of the way through reaches.
@@ -222,7 +222,7 @@ FogSlice fogSliceBetween(FogSlice from, FogSlice to, float fraction)
 ///
 /// **The source is the extinction times the light, so what a stretch scatters in is
 /// `T (1 - e^-σd) / σ` of it** — the transmittance's share the source keeps over the stretch —
-/// which `fogKept` holds to its digits however thin the air, and which is the stretch's length times
+/// which `mediumKept` holds to its digits however thin the air, and which is the stretch's length times
 /// the transmittance where there is no air at all. What the transmittance loses is the same stretch
 /// times `σ`.
 ///
@@ -236,7 +236,7 @@ void fogThrough(
     inout float transmittance, inout vec3 scattered, inout float sunward, FogSlice slice, float length, float extinction)
 {
     const float depth = slice.mDensity * extinction * length;
-    const float share = transmittance * fogKept(depth);
+    const float share = transmittance * mediumKept(depth);
 
     scattered += share * length * extinction * slice.mSource;
     sunward += share * length * extinction * slice.mSunSource;

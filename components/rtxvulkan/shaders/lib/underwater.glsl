@@ -11,6 +11,7 @@
 #include "colour.h"
 #include "gbuffer.h"
 #include "look.h"
+#include "shared/medium.h"
 #include "scene.h"
 #include "bindings.glsl"
 #include "frame.glsl"
@@ -93,7 +94,8 @@ BentPath bentPathAt(vec3 position, SunUnderWater bent)
 
 /// What a light in the sky has left, and how it has been gathered, by the time it reaches a point.
 ///
-/// Two things happen to it on the way down. The water absorbs along the path — the *slant* path,
+/// Three things happen to it on the way down. The surface lets `1 - F` of it in
+/// (`waterCrossingOf`), and reflects the rest. The water absorbs along the path — the *slant* path,
 /// which is longer than the depth for any source that is not overhead, and is why a bed is
 /// legitimately darker seen from under the water than from above it. And the surface is a lens,
 /// which is `caustic`. The shadow ray already passes the surface — water carries a mask bit that
@@ -106,7 +108,8 @@ BentPath bentPathAt(vec3 position, SunUnderWater bent)
 /// White above the surface, and for a cell with no water at all.
 ///
 /// @param bent the light's path to the point.
-vec3 lightThroughWater(BentPath bent, float footprint)
+/// @param into what the surface lets in of the light, `WaterCrossing::mInto`.
+vec3 lightThroughWater(BentPath bent, float footprint, float into)
 {
     if (!(bent.mDepth > 0.0))
         return vec3(1.0);
@@ -114,7 +117,7 @@ vec3 lightThroughWater(BentPath bent, float footprint)
     // **Read for the lens where the light met the surface, which is up-sun of where it landed**:
     // the point whose curvature focused it — and the whole of what makes a caustic move with the
     // depth and with the light rather than sitting still under the bed.
-    return waterTransmittance(bent.mPath) * caustic(bent.mMet, bent.mDepth, footprint);
+    return waterTransmittance(bent.mPath) * (caustic(bent.mMet, bent.mDepth, footprint) * into);
 }
 
 /// What the world leaves of a light in the sky at a point, asked along the path the light took:
@@ -156,6 +159,30 @@ Passage skyPassageThrough(SkySource sky, vec3 position, vec3 step, BentPath bent
         under.mOpen < 1.0 ? under.mOccluder : min(bent.mPath + over.mOccluder, SHADOW_PENUMBRA_CLEAR));
 }
 
+/// What a stretch of water `path` long along `direction` gathers of a light arriving `slant` units of
+/// water per unit of depth, as a share of the stretch: `exp(-o k h)`'s factor along the ray,
+/// `(1 - exp(-o g L)) / g` with `g = 1 - k d.z`, in `mediumKept`'s form, which holds its digits
+/// however short the stretch or level the ray, and which a negative `g` — looking up toward the
+/// light — does not trouble.
+vec3 gatheredAlong(vec3 direction, float slant, float path)
+{
+    const vec3 depth = WATER_EXTINCTION * ((1.0 - slant * direction.z) * path);
+    return WATER_EXTINCTION * path * vec3(mediumKept(depth.x), mediumKept(depth.y), mediumKept(depth.z));
+}
+
+/// What one light in the sky sends toward the eye along the stretch, closed form: its irradiance
+/// across its own line once the surface has bent it (`WaterCrossing::mBeam`), what the water
+/// over the stretch's start leaves of it, the phase at the bent line's angle to the ray, and what the
+/// stretch gathers.
+vec3 beamAlong(SkySource source, vec3 from, vec3 direction, float path)
+{
+    const SunUnderWater bent = sunUnderWater(source.mDirection);
+    const vec3 toward = source.mIrradiance * waterCrossingOf(source.mDirection).mBeam
+        * henyeyGreenstein(WATER_ASYMMETRY, -dot(direction, bent.mTravelling));
+    return frame.mWaterScatter * toward * waterTransmittance(bent.mSlant * waterOver(from))
+        * gatheredAlong(direction, bent.mSlant, path);
+}
+
 /// What a stretch of water sends toward whoever is looking down it.
 ///
 /// **The sky's half is integrated, and the sun's is too everywhere a shaft would not show.** Water is
@@ -169,18 +196,20 @@ Passage skyPassageThrough(SkySource sky, vec3 position, vec3 step, BentPath bent
 /// sphere, so an even sky needs none of it and the whole of what reaches a point scatters. Light
 /// that scatters toward the eye had to get down there first: attenuating only the way back — `1 - T`
 /// — lets deep water settle at the scattering colour at full sky brightness, which is the milky
-/// sheet a real channel is not. Integrating both legs turns that into `(1 - T^2) / 2`, half as
-/// bright where it settles and markedly less red, because squaring the transmittance costs red
-/// twice over.
+/// sheet a real channel is not. Integrating both legs, the sky's way down being the column over
+/// each point, turns that into the closed form below with `k` one: `(1 - T^2) / 2` looking straight
+/// down, half as bright where it settles and markedly less red, because squaring the transmittance
+/// costs red twice over.
 ///
-/// **The sun, arriving along one line, and this is the closed form.** At a point `t` along the ray
-/// the sun has crossed `k h(t)` of water to arrive and the scattered light crosses `t` to leave,
-/// with `h(t) = h - t d.z` the depth there. Both are exponentials in `t`, so their product is one:
+/// **Each light in the sky, arriving along one line, the moons with the sun, and this is the closed
+/// form.** The surface lets in `WaterCrossing::mBeam` of it. At a point `t` along the ray the light
+/// has crossed `k h(t)` of water to arrive and the scattered light crosses `t` to leave, with
+/// `h(t) = h - t d.z` the depth there. Both are exponentials in `t`, so their product is one:
 ///
 ///     exp(-o k h) * exp(-o (1 - k d.z) t)
 ///
 /// and the integral over the stretch is `exp(-o k h) (1 - exp(-o g L)) / g` with `g = 1 - k d.z`.
-/// **`g` is negative looking up toward the sun**, where a step further along the ray is nearer the
+/// **`g` is negative looking up toward the light**, where a step further along the ray is nearer the
 /// surface and better lit — and the product stays bounded anyway, because a ray under the water
 /// stops at the surface and `h(L)` never goes below nought.
 ///
@@ -201,7 +230,7 @@ Passage skyPassageThrough(SkySource sky, vec3 position, vec3 step, BentPath bent
 /// **Only where the beam is a real share of what the stretch sends**, which is `WATER_SHAFT_FLOOR`.
 /// Everywhere else the closed form is the whole answer and nothing is marched.
 ///
-/// **And the water over the stretch, which is no part of the stretch.** `(1 - T^2) / 2` counts what
+/// **And the water over the stretch, which is no part of the stretch.** The closed forms count what
 /// the stretch itself crosses and says nothing about what stands above where it begins. From above
 /// there is nothing there — the stretch begins at the surface. From below it is the whole column
 /// over the camera, and leaving it out let a sea a thousand units down scatter as brightly as one
@@ -229,36 +258,32 @@ struct WaterColumn
 ///        pixel's legs draw alike, since they leave one point.
 WaterColumn waterColumn(vec3 from, vec3 direction, float path, float footprint, uvec2 pixel)
 {
+    // **The sky's closed form at the ray's own angle**, `k` one: the sky arrives from above,
+    // through the column over each point. Looking straight down, `g` is two and this is the
+    // `(1 - T^2) / 2` it was for every ray; level, it is `1 - T`, and looking up it gathers more.
     const vec3 transmittance = waterTransmittance(path);
-    const vec3 sky = frame.mWaterScatter * ((1.0 - transmittance * transmittance) * 0.5) * frame.mAmbient
+    const vec3 sky = frame.mWaterScatter * gatheredAlong(direction, 1.0, path) * frame.mAmbient
         * daylightReaching(from);
+
+    // **Every light in the sky, as a surface's `gather` walks them**, so the water in front of a bed
+    // a moon lights is lit by the same moon. A moon's beam is the closed form alone: the shaft march
+    // below is the sun's.
+    vec3 moons = vec3(0.0);
+    if (HAS_MOONS)
+        for (uint moon = SKY_SOURCE_MASSER; moon <= SKY_SOURCE_SECUNDA; ++moon)
+            moons += beamAlong(skySourceAt(moon), from, direction, path);
 
     // The same test `fogAlong` makes before it spends anything on shafts: an interior and a night
     // both answer no, and `mSun.mIrradiance` fades to nought across dusk rather than stepping.
     if (!sunUp())
-        return WaterColumn(transmittance, sky);
+        return WaterColumn(transmittance, sky + moons);
 
     const SunUnderWater sun = sunUnderWater(frame.mSun.mDirection);
+    const vec3 beam = beamAlong(frame.mSun, from, direction, path);
 
-    // Forward is the direction the light was already going, which is `mTravelling`; the eye receives
-    // along `-direction`. `fogPhase` measures the same angle in air, where the light travels along
-    // `-mSun.mDirection` and the two spellings agree.
-    const vec3 sunward
-        = frame.mSun.mIrradiance * henyeyGreenstein(WATER_ASYMMETRY, -dot(direction, sun.mTravelling));
-
-    const float depth = waterOver(from);
-    const float g = 1.0 - sun.mSlant * direction.z;
-
-    // A ray running along the sun's own line has the two exponentials cancel, and the integral is
-    // the stretch itself. Written out rather than left to the general form, which divides by `g`.
-    const vec3 gathered = abs(g) < 1.0e-3 ? WATER_EXTINCTION * path
-                                          : (1.0 - exp(-WATER_EXTINCTION * (g * path))) / g;
-
-    const vec3 beam = frame.mWaterScatter * sunward * waterTransmittance(sun.mSlant * depth) * gathered;
-
-    const float share = brightest(beam) / max(brightest(sky + beam), 1.0e-9);
+    const float share = brightest(beam) / max(brightest(sky + moons + beam), 1.0e-9);
     if (share < WATER_SHAFT_FLOOR)
-        return WaterColumn(transmittance, sky + beam);
+        return WaterColumn(transmittance, sky + moons + beam);
 
     const float show = smoothstep(WATER_SHAFT_FLOOR, WATER_SHAFT_SHOWN, share);
 
@@ -307,7 +332,7 @@ WaterColumn waterColumn(vec3 from, vec3 direction, float path, float footprint, 
         behind = ahead;
     }
 
-    return WaterColumn(transmittance, sky + beam * (lit / max(plain, vec3(1.0e-20))));
+    return WaterColumn(transmittance, sky + moons + beam * (lit / max(plain, vec3(1.0e-20))));
 }
 
 /// What is left of `radiance` after a column of water, plus what that column sent back.

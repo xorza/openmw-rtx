@@ -120,8 +120,8 @@ set(RTX_TEST_FILES
     rtxvulkan/shaders/accumulate.cpp
     rtxvulkan/shaders/bouncereuse.cpp
     rtxvulkan/shaders/exposure.cpp
-    rtxvulkan/shaders/fogvolume.cpp
     rtxvulkan/shaders/hitrecords.cpp
+    rtxvulkan/shaders/medium.cpp
     rtxvulkan/shaders/sharedconstants.cpp
     rtxvulkan/shaders/shadow.cpp
     rtxvulkan/spirv/spirvdigest.cpp
