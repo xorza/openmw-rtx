@@ -547,9 +547,11 @@ steps no longer than the springs stand (1.298 sixtieths) and at most four a fram
 is in AGENTS.md's Accepted diff. A sprite list without room for every run bins the tiles whose runs
 fit, a prefix, and only the tiles past it walk every sprite (`SPRITE_TILE_UNBINNED`); no bench
 measures it, since the frame it shortens is the rare one a storm's first frames make.
+A frozen root that moves no longer costs a sweep: a dropped hold leaves the counts short until the
+walk reaches the entry again, and a root whose face changed stays thawed until a later walk finds it
+standing still, so a turning door is walked each frame and frozen on none.
 
 - **Uniform frame times.**
-  - the frozen-root sweep;
   - the sea synthesised once per water time;
   - the visibility gates' per-frame rerun.
 - **Unused work.**

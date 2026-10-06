@@ -561,23 +561,6 @@ Work done twice, at the wrong time, or for nothing.
   and holds the 1-pixel ones otherwise. `BounceReservoirs::resize(…, reuses)` already has both
   shapes, and making them anew is already a reset.
 
-### Moving a frozen reference root forces a full sweep on every frame it moves
-
-- [ ] `components/rtx/mirror/mirroridentity.hpp:131-145` (`Kept::drop`), `sceneextractor.cpp:953-974`
-  (`passFrozen`), `:985-1007` (`endFrozen`) — **[perf]** When a frozen root's `FrozenFace` changes,
-  `passFrozen` thaws it *before* the walk stamps its entries again. Each `drop` then meets an entry from
-  the old epoch and sets `mAbandoned`, so `whole()` is false for `mPlacements`, `mMeshes` and
-  `mMaterials`, and `retire()` walks every entry of all three on that frame. `endFrozen` then freezes
-  the root again at its new place, so the next frame does it all again. Concrete cases: a door opening,
-  which `World` rotates step by step and does not report as a jump; and any object without
-  controllers that a script moves (`SetPos`, `Rotate`, `Move`). For the whole motion, each frame pays
-  a sweep of tens of thousands of entries plus a thaw, a record and a run allocated and released.
-  That is a per-frame cost that only some frames pay. The flag is not needed in `drop`: after the
-  drop the entry is unheld and unreached, so `mReached + mHeld < size` unless the walk stamps it again,
-  and the counts already give the right answer. → Target shape: `drop` adjusts the counts only and
-  leaves `mAbandoned` alone (`abandon` keeps it). Do not freeze a root whose face changed on this walk
-  until a later walk finds it standing still.
-
 ### Performance: picture uploads through `osg::Image::getColor`
 
 - [ ] `components/myguirtx/slottexture.cpp:134-148` — **[perf]** Every image that is not packed RGBA8 is
