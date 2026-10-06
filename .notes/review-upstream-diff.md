@@ -604,23 +604,6 @@ Work done twice, at the wrong time, or for nothing.
     - The outputs are unchanged bit for bit.
     - Measure the `pane` zone before and after, as the rule asks.
 
-### Every bottom level pays for no-duplicate any-hit, including meshes no ray ever any-hits
-
-- [ ] `components/rtxvulkan/scene/structurebuild.cpp:20-23` — **[perf]** `describeTriangles` sets
-  `VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR` on every geometry, static and deforming. Its
-  stated reason is `candidateStops` summing a see-through surface's reports, which applies only to
-  instances `placeRow` marks `FORCE_NO_OPAQUE` (cutout, translucent, additive,
-  `sceneacceleration.cpp:640-641`). An opaque instance never reaches an any-hit shader or a
-  candidate, so the bit buys it nothing. The bit exists because a builder may split primitives,
-  which is what produces duplicate reports. Requiring no duplicates takes that freedom away from
-  every structure in a cell built with `PREFER_FAST_TRACE`, most of which are walls and ground only
-  ever traced opaque. What this costs in trace time is the driver's to say, and the code does not
-  measure it.
-  → Target shape: measure first (`./omw release bench`, with the bit only where needed against the
-  bit everywhere). If it pays, set the bit only on meshes that some non-opaque material wears at
-  arrival, and rebuild the structure in the one case where `setMaterial` makes a placement
-  non-opaque on a mesh built without the bit.
-
 ### Changeable marks that the walk does not need
 
 - [ ] `components/rtx/mirror/sceneextractor.cpp:356-359` — **[perf]** `NodeKind::Lod` marks a
