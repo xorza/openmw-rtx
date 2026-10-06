@@ -522,7 +522,9 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
 ### Phase 4. Participating media (D7)
 
 In the order of D7's points. Each step is a `shot --against` at the fog and water places, and the
-fog's zones in `bench`. Point 1 changes the stored formats, so take `./omw kernels` before it.
+fog's zones in `bench`. **Point 1 is done**: the froxel stores the density as a share of the
+weather's extinction, the light and the sun's transport times it, and `fogThrough` integrates them
+by `fogKept`. The pictures before it are in `~/.cache/omw-redesign/shots-before-d7`.
 
 ### Phase 5. The bounce's reuse (D4, decision 4)
 

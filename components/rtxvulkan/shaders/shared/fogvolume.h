@@ -90,6 +90,20 @@ namespace Rtx::Shaders
     /// rather than the column's — so a third layer held the sun's term and no pass ever read it.
     const uint BIND_FOG_COLUMN_MOONS = 19;
 
+    /// What a stretch of optical depth `x` keeps of a source spread evenly along it, per unit of its
+    /// length: `(1 - e^-x) / x`, one at nought.
+    ///
+    /// **A series under `x` of a sixteenth**, where the closed form loses its digits: `1 - e^-x` takes
+    /// the rounding of `e^-x`, six parts in a hundred million, as a share of `x`, which at a
+    /// hundred-thousandth is half of it. Four terms of the series leave `x^4 / 120`, a part in ten
+    /// million at the switch, and the closed form a part in a million there.
+    RTX_SHADER float fogKept(float x)
+    {
+        // `e^-x` as `2^(-x log2 e)`, the one exponential both sides spell alike.
+        return x < 0.0625f ? 1.0f - x * (0.5f - x * (1.0f / 6.0f - x / 24.0f))
+                           : (1.0f - exp2(-x * 1.4426950408889634f)) / x;
+    }
+
     /// Where the sampled bindings end and the storage ones begin, and how many the set declares.
     const uint FOG_SAMPLED_COUNT = BIND_FOG_SCATTER_TARGET;
     const uint FOG_BINDING_COUNT = BIND_FOG_COLUMN_MOONS + 1;
