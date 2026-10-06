@@ -214,15 +214,16 @@ float historyCovered(vec4 shares)
     return shares.x + shares.y + shares.z + shares.w;
 }
 
-/// How nearly a tap faces the way the centre's surface does, as a weight: SVGF's normal test, with
-/// its exponent of `ATROUS_NORMAL_POWER`.
+/// How nearly a tap faces the way the centre's surface does, as a weight: SVGF's normal test, the
+/// cosine to the `power` — `ATROUS_NORMAL_POWER` for the wavelet's levels and the shadow's,
+/// `ACCUMULATE_FIX_NORMAL_POWER` for the history fix.
 ///
 /// **Clamped above as well as below.** A unit vector normalised in floats has a length just off one,
 /// so a dot with a normal that matches — the centre tap's with its own, above all — can pass one, and
 /// a hundred and twenty-eight powers of that is a weight too heavy.
-float facingWeight(vec3 normal, vec3 there)
+float facingWeight(vec3 normal, vec3 there, float power)
 {
-    return pow(clamp(dot(normal, there), 0.0, 1.0), ATROUS_NORMAL_POWER);
+    return pow(clamp(dot(normal, there), 0.0, 1.0), power);
 }
 
 /// How far a tap lies off the plane of the centre's surface, as a weight: one in the plane, and

@@ -303,8 +303,8 @@ at the top, over all of them.
   default: with a lamp's own model out of the bounce it holds no firefly the count sees, and it took
   a rare bright bounce's light with it. Where a mean holds `ACCUMULATE_FIX_FRAMES` frames or fewer — what the eye
   just uncovered or brought in at the frame's edge — the wavelet's first level rebuilds it from the surface around it (NRD's history fix).
-  The wavelet is ReLAX's shape: a 5×5 first level, then three 3×3 levels that weigh by the centre's
-  variance, a reach of sixteen pixels (`ATROUS_LEVELS`). The
+  The wavelet is SVGF's B3 first level, 5×5, then ReLAX's 3×3 levels (`RELAX_Atrous`) that weigh by
+  the centre's variance, a reach of sixteen pixels (`ATROUS_LEVELS`). The
   shadow denoiser filters the one bit a pixel kept of its rays to the sky's source and to a lamp, under
   the light both would add unshadowed, where the sky has a source that lights or the scene a lamp,
   and counts in its local mean only the pixels those sources light.
