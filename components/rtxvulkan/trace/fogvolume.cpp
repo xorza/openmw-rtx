@@ -9,6 +9,7 @@
 #include <components/rtx/environment/fogbuilder.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
+#include <components/rtx/shaders/storageformat.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
@@ -46,6 +47,12 @@ namespace Rtx
         /// the sun's is a product of transmittances, and the integrated pair is bounded by the
         /// transmittance beside it.
         constexpr VkFormat sFormat = toVulkanFormat(FOG_VOLUME_FORMAT);
+
+        /// What the scatter pass's two answers are kept in, which the next frame's reads back into
+        /// its own blend: `FOG_HISTORY_FORMAT` says why that is never a half.
+        constexpr VkFormat sHistoryFormat = toVulkanFormat(FOG_HISTORY_FORMAT);
+        static_assert(!Shaders::mayRoundTowardNought(FOG_HISTORY_FORMAT),
+            "a history read back into its own blend is stored where a store may round toward nought");
 
         /// `TRANSFER_DST` because the constructor empties every one of these, which is what a
         /// history read before anything has written it needs and what an image made over a departed
@@ -97,10 +104,12 @@ namespace Rtx
     FogVolume::FogVolume(const Device& device, const SetLayout& layout, std::uint32_t width, std::uint32_t height)
         : mColumns(columnsFor(width))
         , mRows(columnsFor(height))
-        , mScatter{ Image(device, mColumns, mRows, sFormat, sUsage, "fog scatter 0", 1, Shaders::FOG_VOLUME_SLICES),
-            Image(device, mColumns, mRows, sFormat, sUsage, "fog scatter 1", 1, Shaders::FOG_VOLUME_SLICES) }
-        , mSunward{ Image(device, mColumns, mRows, sFormat, sUsage, "fog sunward 0", 1, Shaders::FOG_VOLUME_SLICES),
-            Image(device, mColumns, mRows, sFormat, sUsage, "fog sunward 1", 1, Shaders::FOG_VOLUME_SLICES) }
+        , mScatter{ Image(device, mColumns, mRows, sHistoryFormat, sUsage, "fog scatter 0", 1,
+                        Shaders::FOG_VOLUME_SLICES),
+            Image(device, mColumns, mRows, sHistoryFormat, sUsage, "fog scatter 1", 1, Shaders::FOG_VOLUME_SLICES) }
+        , mSunward{ Image(device, mColumns, mRows, sHistoryFormat, sUsage, "fog sunward 0", 1,
+                        Shaders::FOG_VOLUME_SLICES),
+            Image(device, mColumns, mRows, sHistoryFormat, sUsage, "fog sunward 1", 1, Shaders::FOG_VOLUME_SLICES) }
         , mLamps(device, mColumns, mRows, sFormat, sUsage, "fog lamps", 1, Shaders::FOG_VOLUME_SLICES)
         , mAir(device, mColumns, mRows, sFormat, sUsage, "fog air", 1, Shaders::FOG_VOLUME_SLICES)
         , mAirSunward(device, mColumns, mRows, toVulkanFormat(FOG_SUNWARD_FORMAT), sUsage, "fog air sunward", 1,

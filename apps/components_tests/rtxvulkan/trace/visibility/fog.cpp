@@ -444,7 +444,12 @@ namespace Rtx::Testing
             // **And nothing at all through a lid**, which is the whole of what the march's one ray
             // buys: every lamp at every step is weighed into one reservoir and the one held is
             // traced to, so a lantern behind something stops lighting the air in front of it.
-            EXPECT_EQ(look(true, true), look(false)) << "a lamp behind a lid still lit the air";
+            //
+            // **Against the same lid with no lamp**, because the lid stands over the wall as well:
+            // the wall's light is one bounce, and a bounce the lid stops brings back the lid and not
+            // the sky. The lamp lights only the lid's upper face, which nothing under it sees, so
+            // the two frames differ only where the lid failed to stop the lamp.
+            EXPECT_EQ(look(true, true), look(false, true)) << "a lamp behind a lid still lit the air";
 
             // **And nothing from a lamp whose class the view hides**, as the surfaces' walk drops it:
             // an actor's lamp under a view of the statics.
@@ -1509,9 +1514,9 @@ namespace Rtx::Testing
         /// beam is what stands between the two. Nothing may deliver less than the shadowed leg, and
         /// nothing may deliver more than twice it. The step this is about reads nought.
         ///
-        /// **Less than the shadowed leg by what the volume can hold, and no more.** A froxel keeps
-        /// the air's colour and the moons' light summed in one half float a channel
-        /// (`FOG_VOLUME_FORMAT`), so every reading here is off by up to half a step at its own
+        /// **Less than the shadowed leg by what the volume can hold, and no more.** The integrated
+        /// air a pixel reads keeps the air's colour and the moons' light summed in one half float a
+        /// channel (`FOG_VOLUME_FORMAT`), so every reading here is off by up to half a step at its own
         /// magnitude and a difference of two by a whole one, which a leg's figure then divides by
         /// its irradiance. The faintest leg puts two hundred steps into the channel, so its figure
         /// is good to half a per cent — and held to the shadowed leg's exactly, it came back a

@@ -70,12 +70,15 @@ namespace Rtx::Testing
 
     /// The same, with no validation layers loaded.
     ///
-    /// **The one thing in this suite that runs unvalidated, and it is measured rather than
-    /// asserted.** `getAllocationCount` replaces the global `operator new`, so it cannot tell a
-    /// layer's allocation from the renderer's; with the layers loaded, `RtxFrameCostTest` measures
-    /// between 32,352 and 49,152 allocations over its 32 frames — a thousand to fifteen hundred a
-    /// frame against a budget of nought. That is not a stricter test but a deleted one. Everything
-    /// else is validated, so this second device is only built if something asks for it.
+    /// **Two things in this suite run unvalidated, and each is measured rather than asserted.**
+    /// `getAllocationCount` replaces the global `operator new`, so it cannot tell a layer's
+    /// allocation from the renderer's; with the layers loaded, `RtxFrameCostTest` measures between
+    /// 32,352 and 49,152 allocations over its 32 frames — a thousand to fifteen hundred a frame
+    /// against a budget of nought. That is not a stricter test but a deleted one. And
+    /// `RtxVisibilityKernelsTest` watches seven kernels compile, which the layers held at 1.2 to
+    /// 1.4 s against 0.03 without them, kernels the suite's renderer has already made and the
+    /// layers already checked. Everything else is validated, so this second device is only built
+    /// if something asks for it.
     Harness& getUnvalidatedHarness();
 
     /// A device of the caller's own, closed when it lets go: what a test about a device coming and
@@ -154,7 +157,8 @@ namespace Rtx::Testing
     {
     protected:
         /// **Validated unless a derived fixture says otherwise**, which only a test that counts
-        /// allocations wants: `getUnvalidatedHarness` says what the layers cost such a test.
+        /// allocations or watches kernels the suite already checked wants: `getUnvalidatedHarness`
+        /// says what the layers cost each.
         explicit DeviceTest(bool validation = true);
 
         void SetUp() override;
