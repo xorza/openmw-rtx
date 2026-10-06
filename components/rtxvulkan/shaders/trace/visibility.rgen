@@ -525,7 +525,8 @@ void main()
     RTX_STORE_COUNTED(paneAlbedo, at, BOUNDARY_GUIDE, vec4(paneModulation, 1.0))
     RTX_STORE_COUNTED(paneSurface, at, BOUNDARY_GUIDE, vec4(nearest.mNormal, nearest.mDistance, 0.0, 0.0))
     RTX_STORE_COUNTED(paneMotion, at, BOUNDARY_GUIDE, vec4(nearest.mMotion, 0.0))
-    RTX_STORE_COUNTED(upscaleMasks, at, BOUNDARY_GUIDE, vec4(paneMisMoved, waterMisMoved, 0.0, 0.0))
+    RTX_STORE_COUNTED(upscaleMasks, at, BOUNDARY_GUIDE,
+        vec4(min(vec2(paneMisMoved, waterMisMoved), vec2(UPSCALE_MASK_CEILING)), 0.0, 0.0))
 
     // **The vector as the shader that answered worked it out**: where the surface or the sky stood
     // last frame. `Answer::mMotion` says whose and why there.

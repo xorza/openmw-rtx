@@ -326,7 +326,8 @@ namespace Rtx::Testing
         /// fetched from where the pane stood, carries sixteen frames across the step: the filtered
         /// frame stands under half the raw frame's error from the average at the new eye. The pane is
         /// the whole of the frame's light, so the upscaler's reactive mask is how far apart the two
-        /// motions stand, past `MISMOVED_FULL` and so whole; and nought for the eye standing still.
+        /// motions stand, past `MISMOVED_FULL` and so at `UPSCALE_MASK_CEILING`, 0.9, which eight bits
+        /// store as 229/255; and nought for the eye standing still.
         TEST_F(RtxVisibilityTest, aPaneIsReprojectedByItsOwnMotionAndNotTheSurfacesBehindIt)
         {
             const SceneDesc scene = paneUnderLamps().mScene;
@@ -351,7 +352,7 @@ namespace Rtx::Testing
 
             const Frame filtered = shoot(scene, {}, after, sSize, { .mFilter = true, .mSetScene = false });
             mRenderer.readChannel(Channel::UpscaleMasks, masks);
-            EXPECT_EQ(masks[centre * 2], 1.0f) << "the pane moved a pixel apart from the sky behind it";
+            EXPECT_EQ(masks[centre * 2], 229.0f / 255.0f) << "the pane moved a pixel apart from the sky behind it";
             EXPECT_EQ(masks[centre * 2 + 1], 0.0f) << "no water stands anywhere";
 
             std::vector<float> paneMotion;
