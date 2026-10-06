@@ -490,10 +490,6 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
    tool (void and cluster over space and time) and checked in as data, read for `STREAM_BOUNCE`.
    `noise`, all three legs, against the commit before. **Waiting on `redesign_QUESTIONS.md`**, "A
    spatiotemporal mask for the bounce".
-2. The bounded VNDF for the glossy lobe (S§12, Eto and Tokuyoshi 2023): the cap in `visibleNormal`
-   shrunk so no reflection under the horizon is drawn, with the weight from its pdf. A GPU test that
-   no drawn direction leaves under the horizon at a grazing view, and `noise --ab` where a surface
-   has a lobe.
 
 ### Phase 2b. The still check's probe frame
 
@@ -638,7 +634,6 @@ These are local defects. Each one is fixed where it stands.
 | S§9 | Phase 3, step 7 |
 | S§10 | D9 (Phase 7) |
 | S§11 | D8 (Phase 6), D5 point 2 |
-| S§12 | the bounded VNDF (Phase 2 step 2) |
 | S§13 | D7 (Phase 4), the moons under water in D7.3 |
 | S§14 to S§16 | Phase 8, D7 (integrate, ambient ray), D10 (barriers) |
 | S§17 | Section 6 |

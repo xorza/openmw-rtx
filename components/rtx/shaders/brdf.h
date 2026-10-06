@@ -176,13 +176,41 @@ namespace Rtx::Shaders
     /// @param eye unit, with a positive z.
     /// @param raised in `[0, 1)`: how far down the cap the point stands, by height, from its top.
     /// @param turn the point's azimuth about the normal, as its cosine and its sine.
-    RTX_SHADER vec3 visibleNormal(vec3 eye, float alpha, float raised, vec2 turn)
+    /// @param bound what the cap's floor, minus the stretched eye's height, is scaled by: one for
+    ///        the visible normals whole, and `boundedCap`'s for a reflection that leaves no draw
+    ///        under the horizon it can tell from the eye.
+    RTX_SHADER vec3 visibleNormal(vec3 eye, float alpha, float raised, vec2 turn, float bound)
     {
         const vec3 stretched = normalize(vec3(eye[0] * alpha, eye[1] * alpha, eye[2]));
-        const float height = (1.0f - raised) * (1.0f + stretched[2]) - stretched[2];
+        const float lowest = bound * stretched[2];
+        const float height = (1.0f - raised) * (1.0f + lowest) - lowest;
         const float across = sqrt(clamp(1.0f - height * height, 0.0f, 1.0f));
         const vec3 cap = vec3(across * turn[0], across * turn[1], height) + stretched;
         return normalize(vec3(cap[0] * alpha, cap[1] * alpha, cap[2]));
+    }
+
+    /// How far up the visible normals' cap a reflection's draws may start, as the share of the
+    /// stretched eye's height the cap's floor is scaled by: Eto and Tokuyoshi, *Bounded VNDF Sampling
+    /// for Smith–GGX Reflections* (2023), equation 5, `k = (1 - a²) s² / (s² + a² z²)` with
+    /// `s = 1 + |eye.xy|` and `a` the alpha held to one. Under it every facet reflects the eye below
+    /// the horizon, a draw that weighs nought, and the spherical caps drew it at grazing.
+    RTX_SHADER float boundedCap(vec3 eye, float alpha)
+    {
+        const float a = clamp(alpha, 0.0f, 1.0f);
+        const float s = 1.0f + sqrt(eye[0] * eye[0] + eye[1] * eye[1]);
+        const float a2 = a * a;
+        const float s2 = s * s;
+        return (1.0f - a2) * s2 / (s2 + a2 * eye[2] * eye[2]);
+    }
+
+    /// What a reflection drawn under `boundedCap`'s `bound` weighs against one drawn from the whole
+    /// cap: their densities' ratio, `(k z + t) / (z + t)` with `t = |(α eye.xy, eye.z)|` — the
+    /// paper's equation 8 over Dupuy and Benyoub's for the same reflection. Under one, since the
+    /// bounded cap spends no draw where the whole one spent a draw of weight nought.
+    RTX_SHADER float boundedWeight(vec3 eye, float alpha, float bound)
+    {
+        const float t = sqrt(alpha * alpha * (eye[0] * eye[0] + eye[1] * eye[1]) + eye[2] * eye[2]);
+        return (bound * eye[2] + t) / (eye[2] + t);
     }
 
     /// The perceptual roughness a field of slopes stands for, whose total variance over both axes is

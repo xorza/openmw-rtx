@@ -61,7 +61,9 @@ namespace Rtx
                     double whole = 0.0;
                     for (std::uint32_t at = 0; at < sSamples; ++at)
                     {
-                        const osg::Vec3f half = Shaders::visibleNormal(eye, alpha, raised[at], turned[at]);
+                        // The whole cap: the bounded one integrates the same albedo, and the table
+                        // is pinned to these draws.
+                        const osg::Vec3f half = Shaders::visibleNormal(eye, alpha, raised[at], turned[at], 1.0f);
 
                         const float eyeHalf = eye * half;
                         const float lightCosine = 2.0f * eyeHalf * half.z() - cosine;
