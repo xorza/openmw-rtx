@@ -470,7 +470,16 @@ bool candidateStops(Candidate candidate, vec3 direction, float coneWidth, uint m
     // four legs each), behind a material bit or not: the code sits in every shadow ray's candidate
     // loop. The hit and a medium's crossing read it.
     const float painted = sampleDiffuse(material.mDiffuse, point).a;
-    const bool there = alphaPasses(alphaPassesOf(material), painted, cutAt(material, dither));
+
+    // **Tested as the rasterizer tests it**, with the alpha raised by a quarter a level the read
+    // stands below the finest (`alpha.glsl`'s `coveragePreservingAlphaScale`, on by default): a
+    // box filter's level holds the mean of its texels' alpha, and a mean of opaque leaves and holes
+    // falls under the reference, so a canopy thinned with distance and the trace's far foliage was
+    // thinner than the rasterizer's. **Not on a soft edge**, whose cut is drawn under the reference
+    // (`cutAt`) and whose mean alpha is already its coverage. The level is the cone's over the
+    // texture's mean side, where the rasterizer takes its longer axis.
+    const float covering = isSoftEdged(material) ? 1.0 : 1.0 + 0.25 * max(coneLod(material.mDiffuse, point), 0.0);
+    const bool there = alphaPasses(alphaPassesOf(material), painted * covering, cutAt(material, dither));
 
     // **A hole is a hole to the ray that walks past as well.** A placement the game is fading
     // makes its cutout see-through, and the eye still passes a texel the test cuts before it

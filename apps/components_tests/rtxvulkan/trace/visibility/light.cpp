@@ -683,6 +683,74 @@ namespace Rtx::Testing
             }
         }
 
+        /// **A cutout keeps its coverage with distance, as the rasterizer keeps it.** A checker of
+        /// opaque texels and holes, cut at 0.6, whose file carries one level: the chain the device
+        /// makes holds an alpha of a half at every level under it, which the test fails, so a
+        /// canopy read from a few levels down had no leaves. The alpha is raised by a quarter a
+        /// level (`alpha.glsl`'s scale): tiled sixteen times across a card that fills the frame, a
+        /// pixel covers four texels, the read stands two levels down, and `0.5 · 1.5 = 0.75` passes —
+        /// every pixel the card. Tiled once, a texel is four pixels a side, nothing is raised, and the
+        /// checker shows as its own bilinear read: pixels a quarter and three quarters of a texel off
+        /// its centre read `0.875² + 0.125² = 0.781` in the middle two by two of an opaque texel and
+        /// `0.875 · 0.625 + 0.125 · 0.375 = 0.594` beside them, so four of every thirty-two pixels
+        /// are the card. A raise of a hundredth would take the second over the cut and the share to
+        /// three eighths.
+        TEST_F(RtxVisibilityTest, aCutoutKeepsItsCoverageWithDistanceAsTheRasterizerKeepsIt)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::uint32_t extent = 16;
+
+            std::vector<std::uint8_t> bytes(std::size_t{ extent } * extent * 4);
+            for (std::uint32_t y = 0; y < extent; ++y)
+                for (std::uint32_t x = 0; x < extent; ++x)
+                {
+                    std::uint8_t* const texel = &bytes[(std::size_t{ y } * extent + x) * 4];
+                    texel[0] = 255;
+                    texel[3] = (x + y) % 2 == 0 ? 255 : 0;
+                }
+
+            const MipLevel level{ 0, extent, extent };
+            const TextureData data{
+                .mFormat = TextureFormat::Rgba8Unorm,
+                .mWidth = extent,
+                .mHeight = extent,
+                .mBytes = std::as_bytes(std::span(bytes)),
+                .mLevels = std::span(&level, 1),
+                .mCompleteChain = true,
+            };
+            const std::span<const TextureData> textures(&data, 1);
+
+            const std::array masked = cardAt(-50.0f);
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -150.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            const auto cardShare = [&](float tiles) {
+                std::array<osg::Vec2f, 4> uv = sQuadUv;
+                for (osg::Vec2f& corner : uv)
+                    corner *= tiles;
+
+                SceneDesc scene = makeWall();
+                const Index mesh
+                    = scene.addMesh(MeshArrays{ .mPositions = masked, .mTexCoords = uv, .mIndices = sQuadIndices });
+                const Index material = scene.addMaterial(Material{
+                    .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("checker.dds")),
+                    .mAlphaTest = { .mReference = 0.6f },
+                    .mAlphaMode = AlphaMode::Cutout,
+                });
+                scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
+
+                const std::vector<std::uint8_t> shot
+                    = shoot(scene, textures, camera, size, Shot{ .mFrames = 1, .mShow = SurfaceView::Albedo }).bytes();
+                std::size_t card = 0;
+                for (std::size_t i = 0; i < shot.size(); i += 4)
+                    card += shot[i + 1] == 0 ? 1 : 0;
+                return static_cast<float>(card) / static_cast<float>(size * size);
+            };
+
+            EXPECT_EQ(cardShare(16.0f), 1.0f) << "the far canopy lost its coverage";
+            EXPECT_EQ(cardShare(1.0f), 0.125f) << "the near checker was raised as well";
+        }
+
         /// A wall lit by one lamp, at the radiance the falloff says and nowhere else.
         ///
         /// The centre pixel looks straight at the origin, where the wall's normal is (0, -1, 0) and
