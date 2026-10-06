@@ -136,15 +136,20 @@ namespace Rtx
 
             // **And the sea is not among them where the frame has none.** `makeCamera` names no
             // water, so nothing can sample the wave tiles and nothing should synthesise them; a
-            // frame that does name a level pays for them once, before the trace.
+            // frame that does name a level pays for them once, before the trace — at a moment of
+            // the water's clock no test of the shared renderer stood at, since tiles that already
+            // hold a frame's moment are read as they stand (`WavePass::holds`).
             EXPECT_FALSE(reports(drawn.mGpu.spans(), "waves")) << "a dry frame synthesised the sea";
 
             Shaders::VisibilityConstants flooded = camera;
             flooded.mWaterLevel = 0.0f;
-            const Drawn wet = draw(mRenderer, flooded);
+            constexpr double moment = 7919.25;
+            const Drawn wet = draw(mRenderer, flooded, moment);
             EXPECT_TRUE(reports(wet.mGpu.spans(), "waves")) << "a frame with water in it synthesised no sea";
             EXPECT_EQ(wet.mGpu.spans().front().mName, "waves")
                 << "the sea was synthesised somewhere other than before the trace";
+            EXPECT_FALSE(reports(draw(mRenderer, flooded, moment).mGpu.spans(), "waves"))
+                << "a second frame at the same moment synthesised the same sea again";
 
             for (const GpuSpan& span : drawn.mGpu.spans())
             {
