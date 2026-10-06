@@ -12,8 +12,8 @@
 
 // What a level reads and writes, said once for both sides that have to agree.
 //
-// **The cascade's own, and not the trace's.** The levels ping-pong between the image the
-// accumulator blended into and a scratch of this pass's own, so `CHANNEL_INDIRECT` is written once
+// **The cascade's own, and not the trace's.** The levels run from the image the accumulator
+// blended into through a pair of this pass's own, so `CHANNEL_INDIRECT` is written once
 // by the trace and read once by whatever consumes it. That is what lets the two formats part: a
 // reference is built through that channel and never through this one.
 //
@@ -21,11 +21,16 @@
 // blends into the next frame (`ACCUMULATE_COLOUR` is this format by definition). A half store
 // rounds toward nought on this card (`RtxHalfStoreTest`), so a mean kept in halves falls a little
 // at every store: up to one step a frame, which a blend of `ACCUMULATE_FRAMES` keeps at up to
-// thirty-two, about 1.6 per cent under the mean of the same frames. One declaration writes every level, so every
-// level is full float; the levels after the first are shown and never summed, and would keep halves
-// on their own.
+// thirty-two, about 1.6 per cent under the mean of the same frames.
 
 #define ATROUS_CHANNEL STORAGE_RGBA32F
+
+// **The narrow levels in halves**, every level after the first: each is shown and never summed, so
+// a half's rounding is taken once a level, three times in all, and never compounds over frames.
+// They read nine taps a pixel, which in halves is half the traffic. The kernel stores without a
+// declared format, so the one entry point writes either.
+
+#define ATROUS_NARROW STORAGE_RGBA16F
 
 #ifdef RTX_HOST
 namespace Rtx::Shaders

@@ -73,7 +73,7 @@ namespace Rtx
         const GBuffer& buffer, const DenoiseFrame& frame) const
     {
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
-        assert(images.mScratch.getWidth() >= camera.mWidth && images.mScratch.getHeight() >= camera.mHeight);
+        assert(images.mNarrow.getWidth() >= camera.mWidth && images.mNarrow.getHeight() >= camera.mHeight);
         assert(buffer.getWidth() >= camera.mWidth && buffer.getHeight() >= camera.mHeight);
 
         // One assignment and not eight, so the filter's rays and the trace's cannot come to
@@ -88,15 +88,18 @@ namespace Rtx
             .mFrame = frame.mSampled.mFrame,
         };
 
-        // Three images take turns and not two, because the first level's answer is the mean the
-        // accumulator reads next frame — SVGF's feedback — so the levels after it ping-pong between
-        // the blend and the scratch and leave it alone. The bounce's three and the fill's take the
+        // The first level reads the blend and writes the mean the accumulator reads next frame —
+        // SVGF's feedback — in full floats; the levels after it ping-pong between the narrow pair,
+        // in halves (`ATROUS_NARROW`), and leave both alone. The bounce's and the fill's take the
         // same turns.
         constexpr std::size_t blended = 0;
         constexpr std::size_t history = 1;
-        constexpr std::size_t scratch = 2;
-        const std::array<const Image*, 3> bounce{ &images.mBlended, &images.mColour, &images.mScratch };
-        const std::array<const Image*, 3> fill{ &images.mFillBlended, &images.mFill, &images.mFillScratch };
+        constexpr std::size_t narrow = 2;
+        constexpr std::size_t other = 3;
+        const std::array<const Image*, 4> bounce{ &images.mBlended, &images.mColour, &images.mNarrow,
+            &images.mNarrowOther };
+        const std::array<const Image*, 4> fill{ &images.mFillBlended, &images.mFill, &images.mFillNarrow,
+            &images.mFillNarrowOther };
         std::size_t source = blended;
         std::size_t target = history;
 
@@ -136,11 +139,10 @@ namespace Rtx
             dispatch(commands, pipeline, writes, level,
                 Groups::covering(camera.mWidth, camera.mHeight, Shaders::ATROUS_WORKGROUP));
 
-            // The next level reads what this one wrote, and writes whichever of the other two it is
-            // not reading — the blend after the first level, and the scratch and the blend by turns
-            // after that.
+            // The next level reads what this one wrote, and writes whichever of the narrow pair it is
+            // not reading.
             source = target;
-            target = pass == 0 ? blended : (source == blended ? scratch : blended);
+            target = source == narrow ? other : narrow;
         }
 
         // The cascade hands over what it wrote, because nothing after it does: with the last level
