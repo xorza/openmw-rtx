@@ -1431,6 +1431,17 @@ namespace Rtx::Shaders
     /// of noise or bias, still, strafed and walked in.
     const uint ATROUS_LEVELS = 4;
 
+    /// The step past which a level's eight outer taps stand off their lattice, by a hash of the pixel
+    /// and the frame, up to half the step either way: ReLAX's (`RELAX_Atrous`), "to minimize ringing
+    /// at large A-Trous steps". A fixed 3×3 lattice eight pixels apart leaves the grid it samples on
+    /// the picture, the à-trous artefact; moved per pixel and per frame it averages away over time.
+    /// The last level alone, whose step is eight. On the history fix's scene the noise of two pixels
+    /// eight apart, which share six of a fixed lattice's nine taps, correlated at 0.645 and correlates
+    /// at 0.424 (`theWidestLevelsTapsStandOffTheirLattice`); `noise` moved by no figure, being a
+    /// measure of how much noise and not of its shape. **It costs about 0.05 ms of the median frame**,
+    /// where neighbouring lanes fetch taps the offset scattered.
+    const uint ATROUS_JITTER_STEP = 4u;
+
     /// How much of a froxel's answer comes from where it stood last frame.
     ///
     /// **Heavy, because what it is averaging is one jittered sample.** A froxel takes one point out of

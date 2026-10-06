@@ -55,6 +55,7 @@
 #include "gbuffer.h"
 #include "shared/sets.h"
 
+#include "lib/hash.glsl"
 #include "lib/pixels.glsl"
 #include "lib/surfacematch.glsl"
 
@@ -194,6 +195,15 @@ void main()
     const int step = fixing ? int(floor(ACCUMULATE_FIX_STRIDE / (1.0 + held) + 0.5)) : int(level.mStep);
     const int reach = ATROUS_WIDE ? 2 : 1;
 
+    // **The outer taps off their lattice past `ATROUS_JITTER_STEP`**, ReLAX's offset: by a hash of
+    // the pixel and the frame, so `repeat` draws it again, and truncated as ReLAX truncates it. Not in
+    // the history fix, whose pass in ReLAX has no offset; a select, since a level's step is one step
+    // for every lane but a fixed one.
+    uint taps = seededKey(pixelKey(uvec2(at)) + SEED_WAVELET_TAPS, level.mFrame);
+    const vec2 drawn = vec2(randomNext(taps), randomNext(taps));
+    const bool jitters = !fixing && uint(step) > ATROUS_JITTER_STEP;
+    const ivec2 offset = jitters ? ivec2(float(step) * 0.5 * (drawn - 0.5)) : ivec2(0);
+
     // **How noisy this pixel still is, which is what makes the brightness test mean anything.** A
     // difference of one against a variance of four is nothing; the same difference against a settled
     // pixel is an edge. The epsilon is a divide guard and nothing else. The history fix has no
@@ -214,7 +224,7 @@ void main()
     for (int y = -reach; y <= reach; ++y)
         for (int x = -reach; x <= reach; ++x)
         {
-            const ivec2 tap = at + ivec2(x, y) * step;
+            const ivec2 tap = at + ivec2(x, y) * step + (x == 0 && y == 0 ? ivec2(0) : offset);
             if (outsideOf(tap, uvec2(level.mEyes.mWorld.mWidth, level.mEyes.mWorld.mHeight)))
                 continue;
 

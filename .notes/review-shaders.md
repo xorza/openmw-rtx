@@ -213,10 +213,6 @@ items are departures from the published method that each cost gain or add bias. 
   (`varianceAround`, SVGF's 3×3) against each tap's raw variance (`light.a`). The prefilter exists
   because "an edge stopped by a noisy spread is a blotch", and the tap's raw value is the noisy
   estimate. Target: prefilter both, or say why the tap's raw variance is acceptable.
-- [ ] `atrous.comp:214-217`, step 8 at the last level (`atrouspass.cpp:360`). A fixed 3×3 lattice at
-  stride 8 is the classic à-trous grid artefact. ReLAX offsets the taps by a per-pixel hash where the
-  step is over 4 (`RELAX_Atrous.cs.hlsl:137-141`). Target: a deterministic hash of the pixel and the
-  frame, so `repeat` holds.
 - [ ] `atrous.comp:192-194, 237-239`. In ReLAX the history fix is a pass before the clamp, and every
   à-trous level then filters the fixed pixel (`Relax_Diffuse.hpp`). Here the fix replaces the first
   level's B3 filter, so a fixed pixel is filtered by one level fewer than its neighbours. ReLAX's clamp

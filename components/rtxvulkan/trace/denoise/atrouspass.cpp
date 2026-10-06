@@ -83,6 +83,7 @@ namespace Rtx
             .mEyes = frame.mSampled.mEyes,
             .mStep = 1,
             .mFixFrames = 0.0f,
+            .mFrame = frame.mSampled.mFrame,
         };
 
         // Three images take turns and not two, because the first level's answer is the mean the
