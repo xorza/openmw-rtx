@@ -514,9 +514,10 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
    it out. Neither filter has a spatial pass before the clamp, which ReLAX's has. The patch is in
    `~/.cache/omw-redesign/ab-meanclamp/`. The glossy roughness cap waits on
    `redesign_QUESTIONS.md`, "The glossy filter's roughness cap".
-7. The wavelet items from S§9 (`review-shaders.md` lists what is left of them). The history fix's
-   normal power, the widest level's tap offset and the anti-firefly ring's specialization constant are
-   done.
+7. **The wavelet items from S§9 are done**: the history fix's normal power, the widest level's tap
+   offset, the anti-firefly ring's specialization constant, the short history's geometry-weighted
+   variance, and the fixed pixel's fast mean. Prefiltering each tap's variance was tried and
+   declined (`ATROUS_LUMINANCE_SIGMA` has the figures).
 
 ### Phase 4. Participating media (D7)
 

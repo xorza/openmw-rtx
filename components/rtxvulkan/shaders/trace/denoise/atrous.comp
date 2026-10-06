@@ -41,7 +41,12 @@
 // **Here and not in a pass of its own**, because the first level already reads the accumulator's
 // mean and writes the history: a pass before it would copy every pixel of every frame to rebuild
 // the few the eye just uncovered, and the history starts from the rebuilt mean either way. One path,
-// with the step and the weights selected.
+// with the step and the weights selected. **So a fixed pixel takes the fix in place of the B3 and
+// not before it**, one level fewer than ReLAX's, whose fix is a pass ahead of every level: the fix's
+// twenty-five taps stand four to seven pixels apart, a support of up to twenty-eight pixels the
+// B3's five at step one lies inside, and the narrow levels after it filter the fixed pixel as they
+// filter every other. **And its answer is the fast mean's too** (`fast`), which ReLAX's clamp makes
+// of its two histories.
 //
 // **Only the first level is wide** (`ATROUS_WIDE`): a 5×5 B3 kernel over a 3×3 prefilter of the
 // variance, and the history fix. Every level after it is ReLAX's later pass, a 3×3 Gaussian
@@ -57,6 +62,7 @@
 
 #include "lib/hash.glsl"
 #include "lib/pixels.glsl"
+#include "lib/sharedexponent.glsl"
 #include "lib/surfacematch.glsl"
 
 /// Whether this module is the first level, wide, or one of the narrow levels after it.
@@ -98,6 +104,13 @@ layout(set = SET_PASS, binding = ATROUS_BIND_FILL_FILTERED, ATROUS_CHANNEL) unif
 /// fix rebuilds it, and how far apart its taps stand. Read only where `AtrousConstants::mFixFrames`
 /// asks.
 layout(set = SET_PASS, binding = ATROUS_BIND_MOMENTS) uniform texture2D moments;
+
+/// The accumulator's fast means, as the clamp wrote them: where the history fix rebuilds a pixel,
+/// its answer goes here too, so the next frame's fast mean starts from the rebuilt light and not
+/// from one raw sample — ReLAX's clamp copies the fixed history into the slow one, so after it the
+/// two hold one light (`RELAX_HistoryClamping`). Untouched everywhere else, and at every narrow
+/// level.
+layout(set = SET_PASS, binding = ATROUS_BIND_FAST, ACCUMULATE_FAST) uniform writeonly uimage2D fast;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -257,6 +270,10 @@ void main()
         }
 
     // The centre always passes its own tests, so the weight can only be zero if it underflowed.
-    imageStore(filtered, at, weight > 0.0 ? vec4(sum / weight, variance / (weight * weight)) : centre);
-    imageStore(fillFiltered, at, weight > 0.0 ? vec4(sumFill / weight, 0.0) : texelFetch(fillSource, at, 0));
+    const vec4 answer = weight > 0.0 ? vec4(sum / weight, variance / (weight * weight)) : centre;
+    const vec4 answerFill = weight > 0.0 ? vec4(sumFill / weight, 0.0) : texelFetch(fillSource, at, 0);
+    imageStore(filtered, at, answer);
+    imageStore(fillFiltered, at, answerFill);
+    if (fixing)
+        imageStore(fast, at, uvec4(packRgb9e5(answer.rgb), packRgb9e5(answerFill.rgb), 0u, 0u));
 }

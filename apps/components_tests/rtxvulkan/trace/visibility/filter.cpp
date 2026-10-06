@@ -712,7 +712,10 @@ namespace Rtx::Testing
         {
         protected:
             /// @param bumped whether the floor and the wall wear `paintStripes` as their normal map.
-            StripNoise stripNoise(bool bumped)
+            ///
+            /// @param antilag whether the clamp runs, which every run but the fast mean's leaves off.
+            /// @param after how many frames past the turn the strip is read: nought, the turn itself.
+            StripNoise stripNoise(bool bumped, bool antilag = false, std::uint32_t after = 0)
             {
                 constexpr std::uint32_t size = 64;
                 constexpr std::uint32_t still = 32;
@@ -790,13 +793,13 @@ namespace Rtx::Testing
                     std::ranges::fill(squares, 0.0);
                     for (std::uint32_t draw = 0; draw < draws; ++draw)
                     {
-                        for (std::uint32_t at = 0; at <= still; ++at)
+                        for (std::uint32_t at = 0; at <= still + after; ++at)
                         {
-                            mRenderer.renderFrame(standing(at == still ? to : from, 1000 + 100 * draw + at),
+                            mRenderer.renderFrame(standing(at >= still ? to : from, 1000 + 100 * draw + at),
                                 FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                                     .mReconstruction = ReconstructionRequest{ .mDenoise = true,
                                         .mBounceReuse = BounceReuse::Off,
-                                        .mAntilag = false,
+                                        .mAntilag = antilag,
                                         .mHistoryFix = fix,
                                         .mAntiFirefly = false },
                                     .mExposure = FixedExposure{ 1.0f } });
@@ -909,6 +912,20 @@ namespace Rtx::Testing
             ASSERT_GT(strip.mWithout, 1.5 * strip.mHeld)
                 << "the strip the eye turned to is no noisier, so this proves nothing";
             EXPECT_LT(strip.mWith, 0.6 * strip.mWithout)
+                << "the history fix left " << strip.mWith << " of the strip's " << strip.mWithout;
+        }
+
+        /// **The pixels the history fix rebuilt keep the rebuilt light under the clamp.** The turn of
+        /// `theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo` with the clamp on, the strip read two
+        /// frames after it. A fixed pixel's fast mean was its one raw sample, and the next frame's clamp
+        /// held the rebuilt slow mean to a box grown by that sample, which pulled the noise back in;
+        /// the fix's answer goes into the fast mean too, as ReLAX's clamp leaves its two histories one
+        /// light. Measured: the strip's noise 0.921 of its mean without the fix, and with it 0.619,
+        /// where with the fast mean left raw it was 0.737.
+        TEST_F(RtxHistoryFixTest, aFixedPixelsFastMeanStartsFromTheFixedLight)
+        {
+            const StripNoise strip = stripNoise(false, true, 2);
+            EXPECT_LT(strip.mWith, 0.74 * strip.mWithout)
                 << "the history fix left " << strip.mWith << " of the strip's " << strip.mWithout;
         }
 

@@ -1411,6 +1411,10 @@ namespace Rtx::Shaders
     /// 2.14 strafed and 2.20 to 2.07 walked in, and moved no other figure of any place by more
     /// than 0.01. It costs the square root at every tap and not once a pixel: the filter's median
     /// rose by 0.005 to 0.015 ms of 0.66 to 0.70 at the guild, the pier and the chamber.
+    ///
+    /// **The tap's own variance as the level reads it, and not prefiltered as the centre's is**
+    /// (`varianceAround`): prefiltered at the wide level, nine loads a tap, every place of every leg
+    /// held its noise and its bias to 0.01, and the filter rose from 0.58–0.82 ms to 1.42–1.87.
     const float ATROUS_LUMINANCE_SIGMA = 4.0f;
 
     /// How many levels the cascade runs, its taps standing 1, 2, 4 and 8 pixels apart.

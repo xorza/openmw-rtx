@@ -41,7 +41,8 @@ namespace Rtx::Shaders
     const uint ATROUS_BIND_FILL_SOURCE = 3;
     const uint ATROUS_BIND_FILL_FILTERED = 4;
     const uint ATROUS_BIND_MOMENTS = 5;
-    const uint ATROUS_BINDINGS = 6;
+    const uint ATROUS_BIND_FAST = 6;
+    const uint ATROUS_BINDINGS = 7;
 
     /// Where `atrous.comp`'s specialization constant sits: `ATROUS_WIDE`, true for the first level
     /// and false for every level after it.
