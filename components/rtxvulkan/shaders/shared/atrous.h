@@ -73,12 +73,16 @@ namespace Rtx::Shaders
         /// nought at every other level and in a picture, which has no settled neighbour to borrow
         /// from. A narrow level reads none.
         float mFixFrames;
+
+        /// The frame's number, `VisibilityConstants::mFrame`, which a level whose step passes
+        /// `ATROUS_JITTER_STEP` draws its taps' offset by.
+        uint mFrame;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(AtrousConstants) == 160, "AtrousConstants must be scalar-packed on every side");
+    static_assert(sizeof(AtrousConstants) == 164, "AtrousConstants must be scalar-packed on every side");
 #endif
 
 #ifdef RTX_HOST

@@ -1351,5 +1351,57 @@ namespace Rtx::Testing
             EXPECT_NEAR(settledMean, referenceMean, referenceMean * 0.02)
                 << "the accumulated mean is " << settledMean << " against a converged " << referenceMean;
         }
+
+        /// **The widest level's taps stand off their lattice** (`ATROUS_JITTER_STEP`). The history
+        /// fix's scene, a floor and a wall under a lamp's spot, at 128 square: sixteen frames, each
+        /// filtered from a cut, and the noise each leaves about their mean. On a fixed lattice two
+        /// pixels eight apart share six of the last level's nine taps, and their noise moves
+        /// together: the noise eight pixels apart correlated at 0.645. Moved by ReLAX's offset, it
+        /// correlates at 0.424.
+        TEST_F(RtxVisibilityTest, theWidestLevelsTapsStandOffTheirLattice)
+        {
+            constexpr std::uint32_t size = 128;
+            constexpr std::uint32_t draws = 16;
+            constexpr std::uint32_t lag = 8;
+
+            SceneDesc scene;
+            addQuad(scene, sheetAt(4000.0f, -100.0f));
+            addQuad(scene, uprightQuadAt(4000.0f, 300.0f));
+            scene.addLight(Light{
+                .mPosition = osg::Vec3f(0.0f, 280.0f, -40.0f),
+                .mIntensity = osg::Vec3f(40000.0f, 40000.0f, 40000.0f),
+                .mReach = 150.0f,
+            });
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -200.0f, 50.0f), osg::Vec3f(0.0f, 300.0f, -100.0f), 60.0f, size, size, 10000.0f);
+            camera.mSun.mIrradiance = osg::Vec3f();
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+
+            std::vector<std::vector<float>> frames;
+            for (std::uint32_t draw = 0; draw < draws; ++draw)
+                frames.push_back(shoot(scene, {}, camera, size, filteredRun(1, 500 + 37 * draw)).mRadiance);
+
+            std::vector<double> mean(frames.front().size(), 0.0);
+            for (const std::vector<float>& frame : frames)
+                for (std::size_t value = 0; value < frame.size(); ++value)
+                    mean[value] += static_cast<double>(frame[value]) / draws;
+
+            // Green's noise about the mean, against itself `lag` pixels along the row.
+            double together = 0.0;
+            double alone = 0.0;
+            for (const std::vector<float>& frame : frames)
+                for (std::uint32_t y = 0; y < size; ++y)
+                    for (std::uint32_t x = 0; x + lag < size; ++x)
+                    {
+                        const std::size_t here = (std::size_t{ y } * size + x) * 4 + 1;
+                        const std::size_t there = here + std::size_t{ lag } * 4;
+                        const double noise = static_cast<double>(frame[here]) - mean[here];
+                        together += noise * (static_cast<double>(frame[there]) - mean[there]);
+                        alone += noise * noise;
+                    }
+
+            EXPECT_LT(together / alone, 0.55) << "the noise eight pixels apart moves together";
+        }
     }
 }
