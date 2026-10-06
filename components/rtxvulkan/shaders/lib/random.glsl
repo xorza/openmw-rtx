@@ -166,8 +166,13 @@ const uint SEED_SEE_THROUGH = SEED_SOFT_EDGE + 1u;
 /// water and the golden ratio for the fog's march — two different irrationals for the two single
 /// numbers, because two streams turning by the same step differ only by where they started and
 /// converge on the same sweep. The two pairs share `R2`, and are never read together.
-const float STREAM_TURN[RANDOM_STREAMS]
-    = float[](0.7548777, 0.5698403, 0.7548777, 0.5698403, 0.4142136, 0.6180340);
+///
+/// **The split hit's four draws are read together**, so each turns by its own: the sun's pair by
+/// `R2`, which nothing beside it reads, the lamp's by `(sqrt 3 - 1, sqrt 7 - 2)`, and the two picks
+/// by `sqrt 11 - 3` and `sqrt 13 - 3`. Square roots of distinct square-free numbers are independent
+/// over the rationals, and of the plastic constant too, so no two of these turn in step.
+const float STREAM_TURN[RANDOM_STREAMS] = float[](0.7548777, 0.5698403, 0.7548777, 0.5698403, 0.4142136, 0.6180340,
+    0.7548777, 0.5698403, 0.7320508, 0.6457513, 0.3166248, 0.6055513);
 
 /// The bounce's pair on its own, for a march that carries one draw along its own steps rather
 /// than through the frames: each step turns by the same two irrationals the frames turn by.

@@ -411,6 +411,61 @@ namespace Rtx::Testing
             EXPECT_GT(roofed, std::size_t{ 8 * size });
         }
 
+        /// **A penumbra's bits are drawn blue, so a little blur takes most of their noise.** The roof
+        /// of the penumbra test below over half the floor, 2000 units up, where the penumbra runs 140
+        /// units across; one frame's bits, each blurred over the 5 by 5 pixels around it, against the
+        /// mean of 256 frames' bits. Drawn from the tile (`STREAM_SUN_DISC`), a pixel's error is
+        /// arranged against its neighbours' and the box averages it away; hashed, it is white, and
+        /// the box keeps a fifth of it. Asserted as the blue frame's error under three quarters of the
+        /// white one's.
+        TEST_F(RtxVisibilityTest, aPenumbrasBitsAreDrawnBlueSoABlurTakesTheirNoise)
+        {
+            constexpr std::uint32_t size = 64;
+            Shaders::VisibilityConstants camera = overheadSun(size);
+            SceneDesc scene;
+            addQuad(scene, sheetAt(4000.0f, 0.0f));
+            addQuad(scene, roofOver(-4000.0f, 0.0f, 2000.0f));
+
+            std::vector<double> mean(std::size_t{ size } * size, 0.0);
+            std::vector<float> bits;
+            shoot(scene, {}, camera, size,
+                { .mFrames = 256, .mAverage = false, .mIndirect = IndirectLight::Off, .mEachFrame = [&](const Frame&) {
+                     mRenderer.readChannel(Channel::Shadowed, bits);
+                     for (std::size_t pixel = 0; pixel < mean.size(); ++pixel)
+                         mean[pixel] += static_cast<double>(bits[pixel * 4 + 3]) / 256.0;
+                 } });
+
+            const auto blurredError = [&](NoiseSource noise) {
+                camera.mFrame = 1000;
+                shoot(scene, {}, camera, size, { .mNoise = noise, .mIndirect = IndirectLight::Off });
+                mRenderer.readChannel(Channel::Shadowed, bits);
+                double squares = 0.0;
+                std::size_t counted = 0;
+                for (int y = 2; y < static_cast<int>(size) - 2; ++y)
+                    for (int x = 2; x < static_cast<int>(size) - 2; ++x)
+                    {
+                        double box = 0.0;
+                        double truth = 0.0;
+                        for (int dy = -2; dy <= 2; ++dy)
+                            for (int dx = -2; dx <= 2; ++dx)
+                            {
+                                const std::size_t at
+                                    = static_cast<std::size_t>((y + dy) * static_cast<int>(size) + x + dx);
+                                box += static_cast<double>(bits[at * 4 + 3]) / 25.0;
+                                truth += mean[at] / 25.0;
+                            }
+                        squares += (box - truth) * (box - truth);
+                        ++counted;
+                    }
+                return std::sqrt(squares / static_cast<double>(counted));
+            };
+
+            const double white = blurredError(NoiseSource::WhiteHash);
+            const double blue = blurredError(NoiseSource::BlueNoiseTile);
+            ASSERT_GT(white, 0.01) << "a penumbra one ray a pixel draws is noisy, or this proves nothing";
+            EXPECT_LT(blue, 0.75 * white) << "blue " << blue << ", white " << white;
+        }
+
         /// **The noise of a penumbra comes off and its light stays where it was.** A roof over half
         /// the floor, two thousand units up, under a sun whose shadow cone is `SUN_SHADOW_RADIUS`
         /// either way: the penumbra is `2 * 2000 * 0.0349` = 140 units across, a quarter of the
