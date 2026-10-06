@@ -57,4 +57,7 @@ denoiser takes, and the noise A/B decides.
 **Decided (2026-10-06): 1, the vector STBN mask, kept only if `noise` on all three legs beats the
 R2 sweep.**
 
-**Blocks.** Nothing; Phase 2 step 1 is open to do.
+**Done (2026-10-06): built, measured, and declined by that rule.** No leg beat the R2 sweep: every
+`noise` figure stood within 0.01 of it. `redesign.md`, Phase 2 step 1, has the figures.
+
+**Blocks.** Nothing.
