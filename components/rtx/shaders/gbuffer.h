@@ -147,7 +147,7 @@ namespace Rtx::Shaders
     const uint CHANNEL_PANE = 9;
 
     /// What `CHANNEL_PANE` is multiplied back by: the layers' albedos, each times the same weight,
-    /// in `rgb`, and one in a channel where they sum to under `PANE_ALBEDO_FLOOR`. Demodulated for
+    /// in `rgb`, held at `PANE_ALBEDO_FLOOR` from below. Demodulated for
     /// the reason the bounce is, so texture a history is reprojected across stays sharp.
     const uint CHANNEL_PANE_ALBEDO = 10;
 
@@ -227,8 +227,8 @@ namespace Rtx::Shaders
     const uint LAMP_CANDIDATES = 8u;
 
     /// What `CHANNEL_SPECULAR` is multiplied back by: the lobe's split-sum specular albedo
-    /// (`specularModulation`), one in a channel under `SPECULAR_ALBEDO_FLOOR` and wherever there is
-    /// no lobe. Demodulated for the reason the bounce is: the glossy filter's bilinear history blurs
+    /// (`specularModulation`), held at `SPECULAR_ALBEDO_FLOOR` from below, and one wherever there
+    /// is no lobe. Demodulated for the reason the bounce is: the glossy filter's bilinear history blurs
     /// what it averages, and a replacer's reflectance is detail the light behind it is not.
     const uint CHANNEL_SPECULAR_ALBEDO = 18;
 
@@ -243,14 +243,17 @@ namespace Rtx::Shaders
     const float MISMOVED_FULL = 0.5f;
 
     /// The least specular albedo `CHANNEL_SPECULAR` is divided by, a channel at a time
-    /// (`specularModulation`): under it the lobe's light is kept whole and multiplied back by one,
-    /// since dividing it by nearly nought would hand the glossy filter a number a radiance channel of
-    /// halves cannot hold. A texel's step, as `PANE_ALBEDO_FLOOR` is.
+    /// (`specularModulation`), since dividing by nearly nought would hand the glossy filter a number
+    /// a radiance channel of halves cannot hold. **A floor and not a switch**: a channel replaced by
+    /// one under it handed the filter quotients 255 times apart either side of the line where the
+    /// albedo crosses it, and a history blended across that line drew it. A texel's step, as
+    /// `PANE_ALBEDO_FLOOR` is.
     const float SPECULAR_ALBEDO_FLOOR = 1.0f / 255.0f;
 
     /// The least albedo `CHANNEL_PANE` is divided by, a channel at a time: under it the layers are
     /// black there, they send next to nothing to the channel, and dividing it by nearly nought would
-    /// hand the filter a number the albedo channel's halves cannot bring back. A texel's step.
+    /// hand the filter a number the albedo channel's halves cannot bring back. A floor and not a
+    /// switch, for `SPECULAR_ALBEDO_FLOOR`'s reason. A texel's step.
     const float PANE_ALBEDO_FLOOR = 1.0f / 255.0f;
 
     /// How many steps either side of nought the surface channel holds an octahedral axis at: twelve

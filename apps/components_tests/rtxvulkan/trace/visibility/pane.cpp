@@ -25,6 +25,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/vfs/pathutil.hpp>
 
@@ -216,6 +217,18 @@ namespace Rtx::Testing
             for (std::size_t value = 0; value < pane.size(); ++value)
                 ASSERT_EQ(value % 4 == 3 ? 0.0f : pane[value], 0.0f)
                     << "value " << value << " of a pane with no diffuse half";
+
+            // Nor is that nought divided by one: what puts it back is held at `PANE_ALBEDO_FLOOR`
+            // from below, as a half rounds it, `2^-11` of the value.
+            std::vector<float> paneAlbedo;
+            mRenderer.readChannel(Channel::PaneAlbedo, paneAlbedo);
+            for (std::size_t value = 0; value < paneAlbedo.size(); ++value)
+            {
+                if (value % 4 == 3)
+                    continue;
+                ASSERT_NEAR(paneAlbedo[value], Shaders::PANE_ALBEDO_FLOOR, Shaders::PANE_ALBEDO_FLOOR * 0x1p-11f)
+                    << "value " << value << " of a pane with no diffuse half";
+            }
 
             camera.mFrame = 2015;
             const Frame raw = shoot(scene, textures, camera, sSize, { .mSetScene = false });

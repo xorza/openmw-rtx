@@ -447,16 +447,18 @@ vec3 pathEnd(vec3 position, float reaching)
 /// What the lobe's light is divided by before the glossy filter averages it, and the composite
 /// multiplies back: `gloss`'s split-sum specular albedo (`Gloss::mAlbedo`), the D6 contract, so a
 /// history blended over a replacer's speckled reflectance keeps the speckle sharp, as the bounce's
-/// demodulation keeps a texture. One in a channel under `SPECULAR_ALBEDO_FLOOR`, and where there is
-/// no lobe.
+/// demodulation keeps a texture. Held at `SPECULAR_ALBEDO_FLOOR` from below, which says why it is
+/// a floor, and one where there is no lobe.
 ///
 /// **Rounded to what the payload carries before anything is divided by it** (`packRgb9e5`, whose
 /// every value a half holds as well): the light divided by this and the channel the composite
-/// multiplies by are one number, so the two meet to the rounding of a product.
+/// multiplies by are one number, so the two meet to the rounding of a product. The floor survives
+/// the rounding as a step of the shared exponent's mantissa, never nought, while no channel of the
+/// albedo reaches two.
 vec3 specularModulation(Gloss gloss)
 {
-    const vec3 rounded = unpackRgb9e5(packRgb9e5(gloss.mGlossy ? gloss.mAlbedo : vec3(0.0)));
-    return mix(vec3(1.0), rounded, greaterThanEqual(rounded, vec3(SPECULAR_ALBEDO_FLOOR)));
+    const vec3 rounded = unpackRgb9e5(packRgb9e5(max(gloss.mAlbedo, vec3(SPECULAR_ALBEDO_FLOOR))));
+    return mix(vec3(1.0), rounded, bvec3(gloss.mGlossy));
 }
 
 /// What a surface is in the filter's and the composite's terms: its shading normal, its two
