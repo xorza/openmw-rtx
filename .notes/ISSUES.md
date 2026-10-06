@@ -19,7 +19,3 @@
 - The sprite bin's zone (`sprites`) at `balmora-storm-night` has a median of 0.05 ms and a p99 of
   0.6 to 1.3 ms in every release bench run, with a worst of 1.1 to 1.7 ms: a few frames in a hundred
   pay twenty times the bin's usual cost.
-
-- `RtxNvmlTest.theLibraryAnswersAClockAndNamesThisProcess`
-  (`apps/components_tests/rtxtool/cardwatch.cpp:150`) fails on Windows: the name NVML gives this
-  process is `components-tests.exe`, and the test expects `components-tests`.

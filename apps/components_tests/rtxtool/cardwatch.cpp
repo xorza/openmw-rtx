@@ -1,5 +1,6 @@
 #include <chrono>
 #include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <thread>
@@ -11,6 +12,7 @@
 #include <apps/rtxtool/instruments/cardwatch.hpp>
 #include <apps/rtxtool/instruments/gpuclock.hpp>
 #include <apps/rtxtool/instruments/nvml.hpp>
+#include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
 
 namespace RtxTool
@@ -144,10 +146,13 @@ namespace RtxTool
             EXPECT_TRUE(clock.mThrottleMask.has_value());
 
             // This process, by the name the driver keeps for it: the executable's own, without
-            // its directory, which is what a report prints beside a count.
+            // its directory, which is what a report prints beside a count. The file's name as the
+            // system spells it, so `components-tests` on Linux and `components-tests.exe` on Windows.
+            const std::optional<std::filesystem::path> executable = Platform::Process::executable();
+            ASSERT_TRUE(executable.has_value());
             std::string name;
             nvml.nameProcess(Platform::Process::currentId(), name);
-            EXPECT_EQ(name, "components-tests") << name;
+            EXPECT_EQ(name, Files::pathToUnicodeString(executable->filename()));
 
             // One nobody runs is named by its number.
             nvml.nameProcess(4'000'000'000u, name);

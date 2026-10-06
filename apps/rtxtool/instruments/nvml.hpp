@@ -60,7 +60,8 @@ namespace RtxTool
         void readSamples(std::vector<CardSample>& into);
 
         /// What the process the driver numbers `pid` is called — its executable's own name without
-        /// the directory — into `into`; `pid <n>` where the process is gone.
+        /// the directory, its extension kept where the system gives one — into `into`; `pid <n>`
+        /// where the process is gone.
         void nameProcess(std::uint32_t pid, std::string& into) const;
 
         /// The executable's own name in what the driver calls a process: what stands before the
