@@ -479,13 +479,6 @@ namespace Rtx::Shaders
         /// lighting, which is that setting's default.
         uint mLitEnvironmentMaps;
 
-        /// What the bounce's reuse does this frame — `BOUNCE_REUSE_*`, `Rtx::Reconstruction::
-        /// mBounceReuse` — how many reservoirs a row holds, and whether last frame's half holds
-        /// any a frame may read: none after a cut, a resize, or a frame that reused nothing.
-        uint mBounceReuse;
-        uint mBounceStride;
-        uint mBounceHistory;
-
         /// One where a surface traces its bounce, and nought where it takes no indirect light —
         /// `Rtx::Reconstruction::mIndirect`, which `bounceTraced` reads.
         uint mBounceTraced;
@@ -551,8 +544,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1448, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1632, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1440, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1624, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 152, "PuffConstants must be scalar-packed on every side");
 #endif
 

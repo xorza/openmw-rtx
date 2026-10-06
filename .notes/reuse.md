@@ -211,3 +211,29 @@ standing eye, at the moving one's cost and at the trail's (7.9 → 12.6 pixels a
   and figures measured again.
 - The one pipeline: the request's defaults, `BounceReuseRule` removed, the bench report's mode per
   place removed (every place runs the run's), and the tests that named the rule.
+
+## After the redesign's cheap fixes: removed (2026-10-06)
+
+Decision 4 of `redesign.md` made the reuse's cheap corrections first — the validation at the whole
+rate, the far-ground flag, allocation on demand, the pairs skip — and then ran the A/B again
+(`noise --ab=bounce-reuse=…,off --suite=bounce`, strafed, walked and still), with the rule: remove
+the reuse if it does not gain.
+
+Noise / bias, reuse against off:
+
+| place, leg | temporal | spatiotemporal | off |
+|---|---|---|---|
+| mages' guild, still | 0.49 / 1.14 | 0.48 / 1.12 | 0.48 / 1.14 |
+| guild's planter, still | 0.44 / 1.33 | 0.43 / 1.30 | 0.42 / 1.29 |
+| Ahemmusa's yurt, still | 0.48 / 1.36 | 0.47 / 1.35 | 0.49 / 1.35 |
+| **chamber, still** | 0.57 / **3.15** | 0.55 / **2.50** | 0.55 / **1.63** |
+| **chamber, strafed** | 1.50 / **3.19** | 1.46 / **2.90** | 1.44 / **2.11** |
+| **chamber, walked** | 1.56 / **3.46** | 1.51 / **3.14** | 1.50 / **2.08** |
+| Seyda Neen's pier, still | 0.46 / 1.33 | 0.46 / 1.33 | 0.46 / 1.33 |
+| Seyda Neen's pond, still | 0.51 / 1.48 | 0.51 / 1.47 | 0.51 / 1.47 |
+
+The other legs agree within 0.02. **No place gains.** The chamber, the one place the reuse was
+kept for, lost its darkening to the denoiser's own fixes since (bias 2.60 → 1.63 with no reuse),
+and the reuse now adds bias there. So the reuse, its four kernels, its reservoirs, the pairing
+textures and `--bounce-reuse` are removed; the reuse's cost, 0.24 to 1.8 ms where it ran, is gone
+with them, and D4's replay is not built.

@@ -121,25 +121,9 @@ const uint SEED_AMBIENT_THROUGH = SEED_AMBIENT_MIRROR + 1u;
 const uint SEED_SHADOWED_LEGS = SEED_AMBIENT_THROUGH + 1u;
 const uint SEED_SHADOWED_SHORE = SEED_SHADOWED_LEGS + 1u;
 
-/// The bounce's reuse: which reservoir the temporal pass keeps, and the turn of the resolve's
-/// neighbours and which reservoir it keeps of them. Each its own, so the merge a frame makes moves
-/// no draw the trace made.
-const uint SEED_BOUNCE_TEMPORAL = SEED_SHADOWED_SHORE + 1u;
-const uint SEED_BOUNCE_SPATIAL = SEED_BOUNCE_TEMPORAL + 1u;
-
-/// And the lamp and the occlusion ray of a kept sample shaded again (`bouncevalidate.rgen`), for
-/// the reason `SEED_AMBIENT_REACHING` gives, and apart from the trace's own: the pixel asked
-/// draws a candidate of its own in the same frame, at another point.
-const uint SEED_LAMPS_VALIDATED = SEED_BOUNCE_SPATIAL + 1u;
-const uint SEED_AMBIENT_VALIDATED = SEED_LAMPS_VALIDATED + 1u;
-
-/// How the frame turns the spatial reuse's pairings (`pairingTexel`): one draw for the whole frame,
-/// as every pixel and its partner must read the same turn.
-const uint SEED_BOUNCE_PAIRS = SEED_AMBIENT_VALIDATED + 1u;
-
 /// Which texels under the cut of a soft edge the eye meets (`cutAt`): one draw a candidate, keyed on
 /// its triangle as well, so two soft layers on one pixel are met apart.
-const uint SEED_SOFT_EDGE = SEED_BOUNCE_PAIRS + 1u;
+const uint SEED_SOFT_EDGE = SEED_SHADOWED_SHORE + 1u;
 
 /// And one for whether a ray that commits meets a see-through surface (`MEET_BY_CHANCE`), drawn off
 /// the ray's own key and not a pixel's.

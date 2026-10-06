@@ -1141,15 +1141,6 @@ namespace Rtx::Shaders
     /// the planter was 1.94 and 1.39 noisy and 1.90 and 2.25 biased, against 1.28 and 2.35 under
     /// the fixed reach, the noise of the first in sparse bright points the narrowed cascade no
     /// longer spread. Both lie on the curve the history length draws.
-    ///
-    /// **The bounce's reuse did not move the trade either.** A reservoir is a history of its own,
-    /// so a shorter one here might have cost the reused bounce nothing; it cost the standing frame
-    /// what it costs without the reuse, and gave the walked frame nothing back. With the reuse on,
-    /// frame noise standing and walked in, then bias standing, at 8, 16 and 32 frames:
-    ///
-    ///     guild's planter at night   1.12 / 1.69 / 2.27   0.93 / 1.62 / 2.26   0.70 / 1.48 / 2.33
-    ///     mages' guild               1.33 / 1.48 / 1.63   0.98 / 1.55 / 1.63   0.65 / 1.50 / 1.75
-    ///     Ahemmusa's yurt            1.96 / 2.58 / 1.52   1.32 / 2.69 / 1.53   0.74 / 2.66 / 1.67
     const float ACCUMULATE_FRAMES = 32.0f;
 
     /// The longest history the accumulator's fast mean keeps, which the slow one is clamped to: the

@@ -40,38 +40,11 @@ namespace Rtx
         std::pair{ NoiseSource::WhiteHash, std::string_view("white-hash") },
     } };
 
-    /// What the trace makes of the bounce it draws at each pixel before anything filters it:
-    /// ReSTIR GI (Ouyang et al. 2021), in the order each adds to the one before.
-    enum class BounceReuse
-    {
-        /// The bounce as the trace drew it.
-        Off,
-
-        /// The trace's own bounce, taken through the reservoirs and shaded by the resolve: the
-        /// estimate `Off` makes, to the rounding of what a reservoir stores. What the plumbing
-        /// costs, and the test that it carries the integrand whole.
-        Own,
-
-        /// Last frame's reservoir merged into each pixel's candidate.
-        Temporal,
-
-        /// And a few neighbours' reservoirs merged into each pixel's.
-        Spatiotemporal,
-    };
-
-    /// How a `BounceReuse` is spelled on a command line and in a report.
-    inline constexpr NamedEnum sBounceReuseNames{ std::array{
-        std::pair{ BounceReuse::Off, std::string_view("off") },
-        std::pair{ BounceReuse::Own, std::string_view("own") },
-        std::pair{ BounceReuse::Temporal, std::string_view("temporal") },
-        std::pair{ BounceReuse::Spatiotemporal, std::string_view("spatiotemporal") },
-    } };
-
     /// Where the light that reaches a surface from everything but a light comes from.
     enum class IndirectLight
     {
         /// One bounce traced from every surface the eye finds, the cell's ambient at its far end,
-        /// and the reuse and the denoisers that make one bounce a pixel a picture.
+        /// and the denoisers that make one bounce a pixel a picture.
         Traced,
 
         /// None: a surface is lit by the lamps, the sun and the moons alone, and what no light
@@ -119,19 +92,6 @@ namespace Rtx
         /// nought for every lamp, which a run names for the A/B.
         std::uint32_t mLampCandidates = Shaders::LAMP_CANDIDATES;
 
-        /// What the trace makes of its bounce before anything filters it. None unless a run names a
-        /// mode, which is the A/B.
-        ///
-        /// **None, because the reuse's gain was a correction for the filter's.** Where a room is lit
-        /// by a bounce that finds a bright surface rarely (`akulakhan-chamber`), the reuse kept the
-        /// picture near the truth only because the anti-firefly ring, the anti-lag clamp and the
-        /// upscaler each lost such a sample's light; with all three off, the reuse and none drew one
-        /// picture. With the ring off, none stands level with the temporal reuse there over the
-        /// still, strafed and walked frames, takes 0.03 to 0.09 of bias off the lit rooms, and moves
-        /// nothing outdoors, where the reuse added bias by day and nothing by night. It saves 0.24 to
-        /// 0.85 ms a room, and one pipeline serves every place. `.notes/reuse.md` has the figures.
-        BounceReuse mBounceReuse = BounceReuse::Off;
-
         /// Where the indirect light comes from: `[RTX] indirect light` in a played session.
         IndirectLight mIndirect = IndirectLight::Traced;
 
@@ -155,10 +115,10 @@ namespace Rtx
         /// (`ACCUMULATE_RING_FRAMES`), so a bounce that found a small bright thing is not a blotch the
         /// size of a leaf. Off unless a run names it on, which is the A/B: since a lamp's own model
         /// lights nothing by the bounce, it holds no firefly the count can see, and it took a rare
-        /// bright bounce's light with it (the glow-lit chamber 1.90 against 2.60 without the reuse).
+        /// bright bounce's light with it (the glow-lit chamber 1.90 against 2.60 without the ring).
         bool mAntiFirefly = false;
 
-        /// This request with no filter and no reuse, every frame a draw of its own, and each switch
+        /// This request with no filter, every frame a draw of its own, and each switch
         /// only the bounce's filters read at its default: what an unfiltered frame reads of it, so
         /// two requests whose unfiltered frames trace alike compare equal. An unfiltered frame runs
         /// none of the denoiser's passes, so nothing else reads those switches.
@@ -167,7 +127,6 @@ namespace Rtx
             const ReconstructionRequest defaults;
             ReconstructionRequest plain = *this;
             plain.mDenoise = false;
-            plain.mBounceReuse = BounceReuse::Off;
             plain.mAntilag = defaults.mAntilag;
             plain.mHistoryFix = defaults.mHistoryFix;
             plain.mDualMotion = defaults.mDualMotion;
@@ -219,13 +178,8 @@ namespace Rtx
         /// coarser moved the noise down again and the bias up: 0.80, the pond 1.38.
         float mLevelBias = 0.0f;
 
-        /// What the trace made of its bounce. **Not tied to the denoiser**: the reservoirs are a
-        /// history of their own, so a run with the filter off — `repeat`, a bar — reuses as one with
-        /// it on does.
-        BounceReuse mBounceReuse = BounceReuse::Off;
-
         /// Where the indirect light came from. **None holds no draw**, so it leaves nothing for the
-        /// reuse or the bounce's filters to do.
+        /// bounce's filters to do.
         IndirectLight mIndirect = IndirectLight::Traced;
 
         /// Whether the accumulator held its slow mean to its fast one. Read only where the bounce is
@@ -265,8 +219,8 @@ namespace Rtx
         bool upscaled() const { return upscales(mUpscale); }
 
         /// Whether the trace composes the frame itself (`VisibilityConstants::mComposed`): where
-        /// nothing filters the bounce and nothing resolves it after the trace either.
-        bool composedByTrace() const { return !mDenoised && mBounceReuse == BounceReuse::Off; }
+        /// nothing filters the bounce after it.
+        bool composedByTrace() const { return !mDenoised; }
 
         /// Whether the bounce's filters run: the accumulator's mean of it, its clamp and the
         /// wavelet. The accumulator keeps the surface's history where they do not, which the shadow
@@ -289,7 +243,6 @@ namespace Rtx
                 .mJitterPhases = upscaled ? jitterPhasesFor(extents.mRenderWidth, extents.mOutputWidth) : 0u,
                 .mNoise = asked.mNoise,
                 .mLevelBias = upscaled ? levelBiasOf(extents, asked.mLevelEpsilon) : asked.mLevelEpsilon,
-                .mBounceReuse = asked.mIndirect == IndirectLight::Traced ? asked.mBounceReuse : BounceReuse::Off,
                 .mIndirect = asked.mIndirect,
                 .mAntilag = asked.mAntilag,
                 .mHistoryFix = asked.mHistoryFix,
@@ -303,7 +256,7 @@ namespace Rtx
 
         /// What reconstructs a doll or a map tile: one frame with nothing before it and nothing to
         /// put it together across frames, so denoised as a single frame is, with no jitter, the
-        /// tile's noise, no level bias, no reuse and no draw that is right only on average. Its
+        /// tile's noise, no level bias and no draw that is right only on average. Its
         /// indirect light is the world's, so a doll is lit as the player's settings light the world.
         static Reconstruction forPicture(const IndirectLight indirect)
         {

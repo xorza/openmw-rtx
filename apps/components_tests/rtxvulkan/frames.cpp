@@ -268,8 +268,7 @@ namespace Rtx
         /// picture traced after it makes nothing: the picture's chain lets the bounce's images go,
         /// and makes them again, on the call and not on the frame path. Counted as the ranges the
         /// device holds, which a range made adds to and a range buried leaves as it was until the
-        /// next frame collects it: a picture that remade its chain's reservoirs or its bounce's
-        /// images would hold more.
+        /// next frame collects it: a picture that remade its bounce's images would hold more.
         TEST_F(RtxFramesTest, aMenusIndirectLightReachesThePicturesChainAtOnce)
         {
             const GuiSlot texture = mRenderer.addGuiTexture(sSize, sSize);

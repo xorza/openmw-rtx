@@ -30,7 +30,7 @@ namespace Rtx
         , mMedia(media)
         , mDisplay(display)
         , mTextures(textures)
-        , mChain(device, passes, 1, radiance, false, indirect)
+        , mChain(device, passes, 1, radiance, indirect)
         , mCounts(Buffer::deviceLocal(
               device, sizeof(Shaders::FrameCounts), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture counts"))
         , mGlareCounts(Buffer::deviceLocal(

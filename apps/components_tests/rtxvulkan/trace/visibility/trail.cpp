@@ -53,7 +53,7 @@ namespace Rtx::Testing
         class RtxBounceTrailTest : public RtxVisibilityTest
         {
         protected:
-            Trail trailOf(Blocked blocked, BounceReuse reuse, bool antilag)
+            Trail trailOf(Blocked blocked, bool antilag)
             {
                 constexpr std::uint32_t still = 32;
                 constexpr std::uint32_t moving = 40;
@@ -94,8 +94,7 @@ namespace Rtx::Testing
                         sampled.mFrame = first + at;
                         mRenderer.renderFrame(sampled,
                             FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
-                                .mReconstruction
-                                = ReconstructionRequest{ .mDenoise = true, .mBounceReuse = reuse, .mAntilag = antilag },
+                                .mReconstruction = ReconstructionRequest{ .mDenoise = true, .mAntilag = antilag },
                                 .mExposure = FixedExposure{ 1.0f } });
                         EXPECT_TRUE(mRenderer.finishFrame().has_value());
                     }
@@ -149,25 +148,22 @@ namespace Rtx::Testing
         /// left behind.
         TEST_F(RtxBounceTrailTest, theSunsShadowFollowsItsCaster)
         {
-            const Trail trail = trailOf(Blocked::Sun, BounceReuse::Off, true);
+            const Trail trail = trailOf(Blocked::Sun, true);
             EXPECT_LT(trail.mLag, 0.4f);
             EXPECT_LT(trail.mTail, 0.25f);
         }
 
-        /// **The clamp shortens the trail the sky's fill leaves**, under no reuse, which the game runs
-        /// with: measured at 15.94 pixels of lag without it and 5.36 with it (`ACCUMULATE_FAST_FRAMES`
-        /// gives the sweep), and the darkness left behind at 2.10 and 0.73 columns.
+        /// **The clamp shortens the trail the sky's fill leaves**: measured at 15.94 pixels of lag without it and 5.36
+        /// with it (`ACCUMULATE_FAST_FRAMES` gives the sweep), and the darkness left behind at 2.10 and 0.73 columns.
         ///
         /// **The history fix takes part of what the clamp did.** The floor the bar uncovers behind it
         /// is rebuilt from the floor around it (`ACCUMULATE_FIX_FRAMES`): without the fix the clamp
         /// took the lag from 18.04 to 5.57 and the darkness from 2.50 to 0.97, so the fix leaves a
-        /// quarter less darkness behind the bar. **And the reuse drags it**: under the whole reuse the
-        /// clamp left 7.97 pixels and 1.42 columns, the reservoirs keeping the darker light for
-        /// frames.
+        /// quarter less darkness behind the bar.
         TEST_F(RtxBounceTrailTest, theClampShortensTheSkysTrail)
         {
-            const Trail held = trailOf(Blocked::Sky, BounceReuse::Off, true);
-            const Trail dragged = trailOf(Blocked::Sky, BounceReuse::Off, false);
+            const Trail held = trailOf(Blocked::Sky, true);
+            const Trail dragged = trailOf(Blocked::Sky, false);
             EXPECT_LT(held.mLag, 7.0f);
             EXPECT_LT(held.mLag, 0.5f * dragged.mLag) << "the clamp took little off the trail: " << dragged.mLag;
             EXPECT_LT(held.mTail, 0.9f);
@@ -200,9 +196,7 @@ namespace Rtx::Testing
                     sampled.mFrame = first + at;
                     mRenderer.renderFrame(sampled,
                         FrameOptions{ .mLoss = cut && at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
-                            .mReconstruction = ReconstructionRequest{ .mDenoise = true,
-                                .mBounceReuse = BounceReuse::Spatiotemporal,
-                                .mAntilag = antilag },
+                            .mReconstruction = ReconstructionRequest{ .mDenoise = true, .mAntilag = antilag },
                             .mExposure = FixedExposure{ 1.0f } });
                     EXPECT_TRUE(mRenderer.finishFrame().has_value());
                     mRenderer.readComposite(radiance);
@@ -225,14 +219,16 @@ namespace Rtx::Testing
             }
         };
 
-        /// **The clamp leaves light that does not move alone.** After 64 still frames the floor's mean
-        /// with the clamp is the mean without it: measured 0.28982 against 0.28966, 0.06% apart. The
-        /// slow mean stands inside the fast one's box wherever nothing changed.
+        /// **The clamp leaves light that does not move nearly alone.** After 64 still frames the
+        /// floor's mean with the clamp is 0.75% over the mean without it: the box of two-frame fast
+        /// means is one draw's spread wide, and a still slow mean stands outside it on a few frames —
+        /// the trade `ACCUMULATE_FAST_FRAMES` takes for the trail. Under the spatiotemporal reuse,
+        /// whose reservoirs smooth the bounce the box is made of, the two stood 0.06% apart.
         TEST_F(RtxBounceClampTest, theClampLeavesStillLightAlone)
         {
             const double held = meansOf(true, 64, 100, sGrey, true).back();
             const double dragged = meansOf(false, 64, 100, sGrey, true).back();
-            EXPECT_NEAR(held / dragged, 1.0, 0.001);
+            EXPECT_NEAR(held / dragged, 1.0, 0.01);
         }
 
         /// **The floor follows a sky whose light halves.** Every term the floor's light holds is

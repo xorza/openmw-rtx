@@ -403,7 +403,7 @@ add_component_dir (rtx/environment
     )
 
 add_component_dir (rtx/frame
-    bluenoise bouncepairing camera debuglines frameextents frameoptions framepast framesampling reconstruction specularalbedo
+    bluenoise camera debuglines frameextents frameoptions framepast framesampling reconstruction specularalbedo
     spritelistsize sunglare surfaceview upscale
     )
 
@@ -447,7 +447,7 @@ add_component_dir (rtx/scene
     )
 
 add_component_dir (rtx/shaders
-    bouncepairing brdf camera colour digest gbuffer hosttypes look octahedral portable scene shadingmap skinning sky
+    brdf camera colour digest gbuffer hosttypes look octahedral portable scene shadingmap skinning sky
     storageformat tangent visibility wave
     )
 
