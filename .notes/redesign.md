@@ -164,10 +164,10 @@ The copies have drifted apart:
    figure by more than 0.01 on any leg, and the darkness `RtxBounceTrailTest` measures behind a
    moving bar rose from 0.74 to 0.94 columns, since a shortened history called the wavelet's
    history fix in from the still-shadowed floor.
-5. **One running mean with a fast companion.** Every running mean (diffuse, glossy, pane) keeps a
-   fast mean beside the slow one. The slow mean is clamped to the neighbourhood of the fast means
-   in YCoCg, per channel, by `accumulateclamp.comp`'s rule, moved into a shared library. The glossy
-   filter also caps its frames by roughness (ReBLUR's `1 − exp2(−200 r²)`).
+5. **One running mean with a fast companion.** The bounce's slow mean is clamped to the
+   neighbourhood of its fast means in YCoCg, per channel, by a shared library (done). The glossy and
+   pane filters' companions were declined (Phase 3 step 5), and the glossy roughness cap waits on a
+   question.
 6. **Fed-back precision** (done). A history that is read back into its own blend is never stored in
    a format whose store may round toward nought (`mayRoundTowardNought`); `DenoiseHistory`'s table
    names each image's role and checks it at compile time. The shadow history is `RG32F`.
@@ -183,7 +183,7 @@ The copies have drifted apart:
 - the four gather loops and the three `sameSurface` copies;
 - the hand-spelled `heldSurfaceOf`;
 - the per-frame resampling blur;
-- the ghosting of reflections and windows;
+- the ghosting of reflections and windows (stays: their fast companions were declined, Phase 3 step 5);
 - the darkening of shadow history at terminators;
 - the loss of far-ground taps at grazing angles;
 - the half-float drift of the shadow history.
@@ -505,11 +505,15 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
    test rebuilds through the previous jitter, and the reuse keeps its tap at the surface's own point.
    **Owed:** the GPU test of a still, jittered edge accumulating to its unjittered-centre mean, which
    needs an edge in the accumulator's own history, isolated from the wavelet.
-5. The fast companion and the YCoCg clamp for every running mean, and the glossy roughness cap
-   (**waiting on `redesign_QUESTIONS.md`**, "The glossy filter's roughness cap"). `noise` freezes the
-   world, so no actor walks in it: the lag is measured by trail tests beside `RtxBounceTrailTest`'s,
-   a bar over a glossy floor and over a pane, and `noise` holds the rest. Phase 2's D3.1 has already taken the lamp body out
-   of the glossy channel, so the lag measured here is the filter's alone.
+5. **The YCoCg clamp is done** (`lib/historyclamp.glsl`, the accumulator's). **The fast companion for
+   the glossy and pane filters was tried and declined**: a 2-frame fast mean beside each, held by the
+   accumulator's clamp in one kernel, took the still eye's filtered means off the mean of their frames
+   — the pane test's blue 14% dark, the glossy test's off by up to 0.16% — and a 6-frame one left the
+   pane's blue 8.5% dark. The lamp a pixel draws is one of four by luminance, so the blue lamp comes
+   rarely and bright: the slow mean holds it, the box of fast means seldom does, and the clamp takes
+   it out. Neither filter has a spatial pass before the clamp, which ReLAX's has. The patch is in
+   `~/.cache/omw-redesign/ab-meanclamp/`. The glossy roughness cap waits on
+   `redesign_QUESTIONS.md`, "The glossy filter's roughness cap".
 6. D6: the specular demodulation, and the pane's lobe out of `CHANNEL_PANE`.
 7. The wavelet items from S§9. Then decide the anti-firefly ring (`.notes/todo.txt` item 1):
    remove it, or give it a specialization constant.
