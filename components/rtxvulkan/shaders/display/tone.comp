@@ -23,6 +23,7 @@
 #include "shared/tone.h"
 
 #include "lib/bloom.glsl"
+#include "lib/bluenoise.glsl"
 #include "lib/pixels.glsl"
 #include "lib/spritelist.glsl"
 #include "lib/starfield.glsl"
@@ -68,6 +69,29 @@ layout(push_constant, scalar) uniform Push
 {
     ToneConstants frame;
 };
+
+/// The blue-noise tile, `ToneConstants::mBlueNoise`.
+layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) readonly buffer DitherTile
+{
+    float at[];
+};
+
+/// `value` with a triangular dither of up to `ToneConstants::mDitherStep` either way added, before
+/// the store rounds it.
+///
+/// **Triangular, because a step of uniform dither leaves the error's power following the signal**:
+/// a ramp shows its bands as noise that comes and goes with them, and a triangle twice as wide
+/// makes the noise's power one whatever the value (Lipshitz, Wannamaker and Vanderkooy, 1992). **Off
+/// the blue-noise tile**, so the error stands where the eye resolves it least, and turned by the
+/// frame, so a still picture's bands average away over frames. One draw a pixel for its three
+/// channels, so the dither is grey and adds no colour of its own.
+vec3 dithered(vec3 value, uvec2 pixel)
+{
+    const float tiled = DitherTile(frame.mBlueNoise).at[tileIndex(pixel, STREAM_DITHER)];
+    const float centred = 2.0 * turnedTile(tiled, frame.mFrame, STREAM_DITHER) - 1.0;
+    const float triangular = sign(centred) * (1.0 - sqrt(1.0 - abs(centred)));
+    return value + triangular * frame.mDitherStep;
+}
 
 /// `CHANNEL_LIFT` at the place `pixel` of the picture shows, `ToneConstants::mLiftOffset`. Held inside
 /// the traced extent, which a picture inside the interface fills only a corner of its channels with.
@@ -169,5 +193,5 @@ void main()
 
     // **The player's gamma over the whole of that**, for the reason `ToneConstants::mInverseGamma`
     // gives. A push constant, so `displayGamma`'s test of one is taken alike by every lane.
-    imageStore(target, at, vec4(displayGamma(washed, frame.mInverseGamma), alpha));
+    imageStore(target, at, vec4(dithered(displayGamma(washed, frame.mInverseGamma), pixel), alpha));
 }

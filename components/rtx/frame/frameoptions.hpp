@@ -74,6 +74,10 @@ namespace Rtx
         std::optional<SurfaceView> mShow{};
         std::optional<bool> mLitEnvironmentMaps{};
 
+        /// Whether the display curve dithers its store, in place of the profile's: what a test of
+        /// the dither asks for, over a harness that turns it off.
+        std::optional<bool> mDither{};
+
         /// Where in the pixel the frame samples, where the reconstruction does not jitter: a test's
         /// fixed sub-pixel offset. Nothing samples the pixel's centre. A reconstruction that jitters
         /// walks its own sequence, and a frame that asked for both is an assert.

@@ -426,6 +426,9 @@ namespace Rtx::Testing
         /// `RenderProfile::mLitEnvironmentMaps` over the harness's, which leaves a sheet unlit.
         std::optional<bool> mLitEnvironmentMaps{};
 
+        /// `RenderProfile::mDither` over the harness's, which dithers nothing.
+        std::optional<bool> mDither{};
+
         /// `RenderProfile::mAnisotropy` for the shot. One, so the level a cone names is the level
         /// read, which is what every test that measures a level off the mip ladder relies on.
         std::uint32_t mAnisotropy = 1;
@@ -511,6 +514,7 @@ namespace Rtx::Testing
                         .mDelight = shot.mDelight,
                         .mShow = shot.mShow,
                         .mLitEnvironmentMaps = shot.mLitEnvironmentMaps,
+                        .mDither = shot.mDither,
                         .mJitter = shot.mOffset,
                         .mDebug = shot.mDebug });
 

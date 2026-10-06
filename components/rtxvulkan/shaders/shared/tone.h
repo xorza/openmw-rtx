@@ -37,6 +37,10 @@ namespace Rtx::Shaders
 /// image in it.
 #define TONE_TARGET_FORMAT STORAGE_RGBA8
 
+    /// One step of the store, `TONE_TARGET_FORMAT`'s: what `ToneConstants::mDitherStep` is when the
+    /// frame dithers.
+    const float TONE_DITHER_STEP = 1.0 / 255.0;
+
     /// Threads along each edge of the tone pass's workgroup.
     const uint TONE_WORKGROUP = 8;
 
@@ -67,6 +71,9 @@ namespace Rtx::Shaders
         /// The array's texel counts, `VisibilityInputs::mTextureTexels`, which say whether the star
         /// field's sheet stands in.
         uint64 mTextureTexels;
+
+        /// The blue-noise tile, `GpuTables::mBlueNoise`, which the dither under the store draws from.
+        uint64 mBlueNoise;
 
         /// The trace's own extent, which is what `Channel::Backdrop` is written at.
         ///
@@ -146,14 +153,23 @@ namespace Rtx::Shaders
         /// the jitter inside theirs; and nought where the picture is the trace's own composite,
         /// whose pixels are those samples.
         vec2 mLiftOffset;
+
+        /// The frame's count, `VisibilityConstants::mFrame`, which turns the dither as the trace's
+        /// draws turn.
+        uint mFrame;
+
+        /// How far the dither reaches either way: `TONE_DITHER_STEP`, or nought for no dither — a
+        /// picture inside the interface, and a profile that asks for none (`RenderProfile::mDither`).
+        /// A factor and not a switch, so every lane takes the one path.
+        float mDitherStep;
     };
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    // The host rounds the block up to eight for the addresses at its head, past the 196 bytes the
-    // shader reads, as `hosttypes.h` says a push may.
-    static_assert(offsetof(ToneConstants, mLiftOffset) + sizeof(vec2) == 204,
+    // The host rounds the block up to 224, a multiple of eight for the addresses at its head, and the
+    // push range covers four bytes past the shader's block that nothing reads.
+    static_assert(offsetof(ToneConstants, mDitherStep) + sizeof(float) == 220,
         "ToneConstants must be scalar-packed on every side");
 #endif
 

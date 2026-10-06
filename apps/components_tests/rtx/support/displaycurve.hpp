@@ -21,15 +21,16 @@ namespace Rtx::Testing
         return static_cast<std::uint8_t>(std::lround(std::clamp(Shaders::encodeSrgb(linear), 0.0f, 1.0f) * 255.0f));
     }
 
-    /// The byte `tone.comp` writes for a grey that reaches it at `linear`, exposure applied, under
-    /// whatever the grade's dials in `look.h` say.
+    /// The level `tone.comp` stores for a grey that reaches it at `linear`, exposure applied, under
+    /// whatever the grade's dials in `look.h` say: in steps of the eight-bit store, before the store
+    /// rounds it.
     ///
     /// **A grey on the curve's straight stretch alone, because that is the stretch a test can count
     /// by hand**: past three times the shadow offset, so the whole of it comes off, and under the
     /// compression point, so nothing else does. The saturation grade leaves a grey where it is.
     /// Outside the stretch this throws rather than answering with a number nobody derived, and says
     /// which end the dials carried the grey past.
-    inline std::uint8_t displayedGrey(float linear)
+    inline float displayedLevel(float linear)
     {
         const float graded = linear * Shaders::contrastScale(linear, Shaders::TONE_CONTRAST);
         if (graded < 3.0f * Shaders::TONE_SHADOW_OFFSET)
@@ -37,6 +38,12 @@ namespace Rtx::Testing
         if (!(graded - Shaders::TONE_SHADOW_OFFSET < Shaders::TONE_COMPRESSION_START))
             throw std::runtime_error("a grey of " + std::to_string(linear) + " is graded into the compression");
 
-        return encodeSrgb(graded - Shaders::TONE_SHADOW_OFFSET);
+        return std::clamp(Shaders::encodeSrgb(graded - Shaders::TONE_SHADOW_OFFSET), 0.0f, 1.0f) * 255.0f;
+    }
+
+    /// The byte `tone.comp` writes for that grey: `displayedLevel` rounded, as the store rounds it.
+    inline std::uint8_t displayedGrey(float linear)
+    {
+        return static_cast<std::uint8_t>(std::lround(displayedLevel(linear)));
     }
 }

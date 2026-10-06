@@ -147,6 +147,10 @@ namespace Rtx
         VisibilityPass(const Device& device, const SetLayout& textureLayout, const SetLayout& channelLayout,
             const SetLayout& volumeLayout, bool counting, bool specialize);
 
+        /// Where the blue-noise tile is, named for the next submit: what the frame block carries,
+        /// and the tone pass's dither draws from.
+        VkDeviceAddress getBlueNoise() const { return mBlueNoise.addressFor(); }
+
         /// Waits `patience` at most for every kernel, and says how many are made; throws what making
         /// one threw. For a host drawing a loading screen while it waits. Recording needs no wait of
         /// its own: every launch reads its kernel through `kernels`, which waits.

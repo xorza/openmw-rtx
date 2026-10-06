@@ -129,12 +129,12 @@ namespace Rtx::Shaders
     /// generated there and has to carry exactly this many masks.
     ///
     /// Exactly the number drawn and not a round one: the fog's column takes a pair and its march a
-    /// number, the bounce takes a pair, the water's own march takes a number, and the eye's own
-    /// split hit takes two pairs and two numbers for its shadow rays. A spare channel
+    /// number, the bounce takes a pair, the water's own march takes a number, the eye's own split
+    /// hit takes two pairs and two numbers for its shadow rays, and the tone pass's dither takes one. A spare channel
     /// would have to be given a step to advance by, and the honest step for a stream nobody reads is
     /// nothing — which is a value frozen for the life of the process, waiting for whoever reaches
     /// for it next.
-    const uint RANDOM_STREAMS = 12;
+    const uint RANDOM_STREAMS = 13;
 
     /// Which channel of the tile each draw takes. A pair costs two, which is why the column and the
     /// bounce each leave a gap.
@@ -173,6 +173,11 @@ namespace Rtx::Shaders
     const uint STREAM_LAMP_DISC = 8u;
     const uint STREAM_SKY_PICK = 10u;
     const uint STREAM_SHADOWED_PICK = 11u;
+
+    /// The tone pass's dither under the eight-bit store (`tone.comp`): blue, so the error a byte
+    /// leaves is spread where the eye sees least of it, and its own channel, so it follows none of
+    /// the trace's draws at the same pixel.
+    const uint STREAM_DITHER = 12u;
 
     /// What `VisibilityConstants::mNoise` says the per-pixel draws come from: the tile, turned
     /// by an irrational step each frame, or a hashed counter seeded by the pixel, the frame and

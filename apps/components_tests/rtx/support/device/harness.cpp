@@ -224,6 +224,9 @@ namespace Rtx::Testing
         // One, because a measured exposure makes every pixel depend on the whole frame's histogram,
         // and a test hand-computes a pixel. A test of the eye asks per frame (`FrameOptions`).
         options.mRun.mProfile.mExposure = FixedExposure{ 1.0f };
+        // And no dither, for the same reason: a test reads the curve's bytes. A test of the dither
+        // asks for it.
+        options.mRun.mProfile.mDither = false;
         // And no painted light divided out, so a texture a test hands over is the albedo it traces,
         // which is what its expectation is computed from. A test of the estimate asks per frame.
         options.mRun.mProfile.mDelight = 0.0f;

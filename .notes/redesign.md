@@ -515,8 +515,11 @@ the display's exposure.** Handed last frame's through a texel, its still frames 
 the converged reference — the guild 1.20 → 1.58 of bias, the pond 1.51 → 1.71, the pier 1.32 →
 1.39, the noise the same — so FSR meters its own (`upscaler.cpp` says so).
 
-**Left**, in order: the tone pass's triangular dither from the blue-noise tile, `noise`'s reference
-in sixteen bits, and the bloom chain (a Karis average on the first halving, corner taps on odd
+The tone pass dithers its eight-bit store, triangular off the blue-noise tile's thirteenth channel
+(`STREAM_DITHER`), which a world frame takes and a picture inside the interface does not; the test
+harness turns it off (`RenderProfile::mDither`), since its tests read the curve's bytes.
+
+**Left**, in order: `noise`'s reference in sixteen bits, and the bloom chain (a Karis average on the first halving, corner taps on odd
 levels, the histogram with the first halving). Run a walk from an interior into daylight and back
 with `film` to see the adaptation in stops.
 
