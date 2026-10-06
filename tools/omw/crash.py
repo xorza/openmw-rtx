@@ -21,6 +21,8 @@ def read_crash(args: list[str]) -> int:
     # A release's `-symbols.zip` or a folder of one, or else the newest `omw archive` left in dist/.
     if len(args) == 2:
         symbols = Path(args[1])
+        if not symbols.exists():
+            raise Refusal(f"there are no symbols at {symbols}")
     else:
         made = sorted(DIST.glob("*-symbols.zip"), key=lambda zipped: zipped.stat().st_mtime)
         if not made:

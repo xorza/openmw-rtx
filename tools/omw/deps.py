@@ -41,9 +41,12 @@ def windows_set(tag: str) -> Path:
     manifest = DEPS / f"{deps.name}-manifest.txt"
     fetch.download(f"https://gitlab.com/OpenMW/openmw-deps/-/raw/main/windows/{manifest.name}", manifest)
     lines = read_text(manifest).splitlines()
-    url = lines[0].strip()
     # The second line is `sha512sum`'s: the digest, then the file, with a `*` in binary mode.
-    sha512, name = lines[1].split(maxsplit=1)
+    checksum = lines[1].split(maxsplit=1) if len(lines) >= 2 else []
+    if len(checksum) != 2:
+        raise Refusal(f"{manifest.name} is no URL above a sha512sum line")
+    url = lines[0].strip()
+    sha512, name = checksum
     archive = DEPS / name.lstrip("*").strip()
     fetch.download(url, archive, sha512=sha512)
 
@@ -122,9 +125,10 @@ def vulkan_sdk_dir() -> Path:
 def vulkan_sdk() -> Path:
     """**The Vulkan SDK from LunarG, only what the build needs out of it.** The backend needs
     VK_KHR_shader_fma, which entered the SDK at 1.4.329, and a pinned SDK is the same headers and
-    tools on every desk and runner, whatever the distribution packages. What is kept: the headers, SPIR-V's among them, the loader the tests
-    start against, and glslc, spirv-val and spirv-opt, which link nothing of the SDK's. No layers:
-    a runner has no device to validate on, and a desk that validates has an SDK installed for it."""
+    tools on every desk and runner, whatever the distribution packages. What is kept: the headers,
+    SPIR-V's among them, the loader the tests start against, and glslc, spirv-val and spirv-opt, which
+    link nothing of the SDK's. No layers: a runner has no device to validate on, and a desk that
+    validates has an SDK installed for it."""
     sdk = vulkan_sdk_dir()
     if sdk.is_dir():
         return sdk

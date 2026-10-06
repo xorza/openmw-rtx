@@ -215,12 +215,14 @@ def _record_offcpu(build: Build, record: list[str], bench: list[str], data: Path
     capabilities needs nothing more — `sudo setcap cap_perfmon,cap_bpf,cap_sys_ptrace+ep
     "$(command -v perf)"` — and one without runs under sudo. Asked of the binary rather than assumed
     either way: a `perf` upgrade drops what was set on the file, and a `sudo` asked for every time is
-    a password prompt in front of a profile that did not need one. The harness runs as the user
-    throughout, where it has a home, a Wayland socket and a GPU, and perf attaches to it."""
+    a password prompt in front of a profile that did not need one. A box without `getcap` reads as a
+    `perf` without them. The harness runs as the user throughout, where it has a home, a Wayland
+    socket and a GPU, and perf attaches to it."""
     elevate: list[str] = []
     perf = shutil.which("perf") or "perf"
-    capabilities = subprocess.run(["getcap", perf], capture_output=True, encoding="utf-8", errors="replace",
-                                  check=False).stdout
+    getcap = shutil.which("getcap")
+    capabilities = "" if getcap is None else subprocess.run(
+        [getcap, perf], capture_output=True, encoding="utf-8", errors="replace", check=False).stdout
     if "cap_bpf" not in capabilities:
         print("profile: perf carries no cap_bpf — it runs under sudo, and the harness does not")
         elevate = ["sudo"]

@@ -33,6 +33,10 @@ class ParseTest(unittest.TestCase):
             (["debug", "crash", "a.dmp"], "crash is not made of a build, so it takes no flavour"),
             (["release", "archive"], "archive is made of the package flavour: `omw archive`"),
             (["debug", "--views=x"], "name a verb before the switches: `omw debug view --views=x`"),
+            (["build", "release"], "the flavour comes before the verb: `omw release build`"),
+            (["debug", "test", "asan", "--all"], "the flavour comes before the verb: `omw asan test --all`"),
+            (["profile", "release"], "the flavour comes before the verb: `omw release profile`"),
+            (["format", "debug"], "format is not made of a build, so it takes no flavour"),
         ]
         for argv, message in cases:
             with self.subTest(argv=argv):

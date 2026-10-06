@@ -7,7 +7,7 @@ the harness at start. `Files::pathToUnicodeString` spells a path as UTF-8, and
 
 import re
 
-from omw.system import FORK, ROOT, working_tree_files
+from omw.system import FORK, ROOT, read_text, working_tree_files
 
 NARROWED = re.compile(r"\.(generic_)?string\(\)")
 
@@ -22,7 +22,7 @@ def narrowed(name: str, text: str) -> list[str]:
 def check() -> int:
     found = [line for name in working_tree_files(*FORK)
              if name.endswith((".cpp", ".hpp"))
-             for line in narrowed(name, (ROOT / name).read_text(encoding="utf-8"))]
+             for line in narrowed(name, read_text(ROOT / name))]
     for line in found:
         print(line)
     return 1 if found else 0

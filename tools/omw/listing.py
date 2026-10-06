@@ -56,8 +56,7 @@ def check(build: Build) -> int:
     # Without Qt a build leaves out libraries no rule can name; debug, full and package have Qt.
     if not any("components_qt.dir" in entry.get("output", "") for entry in database):
         return 0
-    compiled = {PurePosixPath(os.path.relpath(entry["file"], ROOT).replace(os.sep, "/")).as_posix()
-                for entry in database}
+    compiled = {os.path.relpath(entry["file"], ROOT).replace(os.sep, "/") for entry in database}
     missing = unlisted(tracked, compiled, WINDOWS)
     for name in missing:
         print(f"{name}: tracked, and no list names it")

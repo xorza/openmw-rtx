@@ -53,10 +53,8 @@ def setup(build: Build, args: list[str]) -> int:
     weather, the sky and the lighting are read from — without which the sky is black. The file is
     written where the game reads it, and never over one that is there: a box that has one has
     settings in it."""
-    if len(args) != 1:
-        raise Refusal("setup takes the Morrowind directory: the one holding Morrowind.ini and Data Files")
-    install = Path(args[0]).resolve()
-    if not (install / "Morrowind.ini").is_file() or not (install / "Data Files").is_dir():
+    install = Path(args[0]).resolve() if len(args) == 1 else None
+    if install is None or not (install / "Morrowind.ini").is_file() or not (install / "Data Files").is_dir():
         raise Refusal("setup takes the Morrowind directory: the one holding Morrowind.ini and Data Files")
 
     cfg = game_folders(build).config / "openmw.cfg"

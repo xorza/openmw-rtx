@@ -17,9 +17,10 @@ def format_tree(args: list[str]) -> int:
     **Every source in the working tree, and not every one git tracks.** Upstream's
     `CI/check_clang_format.sh` walks `git ls-files`, which names a file a move has deleted and misses
     one it has created — so a tree with an uncommitted move failed it on the file that was gone and
-    passed it on the file that was new. CI pins clang-format 14; the desk's later ones disagree with it, and Windows has the one
-    `deps.windows_clang_format` takes out of LLVM's package. **In batches**, because one process for
-    every file leaves nothing to run beside it: 8.5 s on one core, and 1 s in batches of 64."""
+    passed it on the file that was new. CI pins clang-format 14; the desk's later ones disagree with
+    it, and Windows has the one `deps.windows_clang_format` takes out of LLVM's package. **In
+    batches**, because one process for every file leaves nothing to run beside it: 8.5 s on one core,
+    and 1 s in batches of 64."""
     if args not in ([], ["--check"]):
         raise Refusal("format takes nothing, or `--check`")
     mode = ["--dry-run", "-Werror"] if args else ["-i"]

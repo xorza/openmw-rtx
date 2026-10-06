@@ -3,6 +3,7 @@ run cut off mid-way, or a mirror that served something else, leaves nothing a la
 the file."""
 
 import hashlib
+import http.client
 import shutil
 import subprocess
 import sys
@@ -57,8 +58,8 @@ def digest_of(path: Path, algorithm: str) -> str:
 
 def download(url: str, file: Path, *, sha256: str | None = None, sha512: str | None = None) -> None:
     """`url` into `file`, checked against the digest given; three tries against a network or a server
-    that fails once in a while, and one against an answer that says the file is not there, or a
-    checksum that fails."""
+    that fails once in a while — a connection cut mid-file among them, which `http.client` raises as
+    its own — and one against an answer that says the file is not there, or a checksum that fails."""
     if not url.startswith("https://"):
         raise Refusal(f"{url} is not HTTPS")
     print(f"fetching {file.name}", file=sys.stderr)
@@ -69,7 +70,7 @@ def download(url: str, file: Path, *, sha256: str | None = None, sha512: str | N
             with _opener.open(url, timeout=60) as response, open(partial, "wb") as out:
                 shutil.copyfileobj(response, out, 1 << 20)
             break
-        except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
+        except (urllib.error.URLError, http.client.HTTPException, TimeoutError, ConnectionError) as error:
             refused = isinstance(error, urllib.error.HTTPError) and error.code < 500
             if refused or attempt == 2:
                 partial.unlink(missing_ok=True)

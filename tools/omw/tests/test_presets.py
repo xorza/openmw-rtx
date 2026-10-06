@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from omw.presets import digest, test_environment
-from omw.system import Refusal
+from omw.system import WINDOWS, Refusal, environment_key
 
 
 def presets_root(test: unittest.TestCase, content: dict) -> Path:
@@ -37,12 +37,13 @@ class TestEnvironmentTest(unittest.TestCase):
             {"name": "base", "hidden": True, "environment": {"A": "base", "B": "base", "GONE": None}},
             {"name": "other", "hidden": True, "environment": {"A": "other", "C": "other"}},
             {"name": "leaf", "inherits": ["base", "other"],
-             "environment": {"OPTIONS": "fixed:$penv{OPTIONS}", "HOME_TOO": "$env{HOME}/x"}},
+             "environment": {"OPTIONS": "fixed:$penv{OPTIONS}", "HOME_TOO": "$env{HOME}/x", "Cased": "$env{Home}"}},
         ]})
         env = {"OPTIONS": "mine=1", "HOME": "/h", "GONE": "here", "KEPT": "k"}
+        # A name in another case is the same variable where the system reads names without case.
         self.assertEqual(test_environment("leaf", env, root), {
             "OPTIONS": "fixed:mine=1", "HOME_TOO": "/h/x", "HOME": "/h", "KEPT": "k",
-            "A": "base", "B": "base", "C": "other",
+            "A": "base", "B": "base", "C": "other", environment_key("Cased"): "/h" if WINDOWS else "",
         })
 
     def test_a_preset_that_is_not_there_is_refused(self):

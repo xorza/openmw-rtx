@@ -11,7 +11,7 @@ from pathlib import Path
 
 from omw import deps
 from omw.build import Build
-from omw.system import ROOT, SYSTEM, WINDOWS, Refusal, output, read_text, require, run
+from omw.system import ROOT, SYSTEM, WINDOWS, Refusal, output, prepend_path, read_text, require, run
 
 DIST = ROOT / "dist"
 
@@ -65,8 +65,10 @@ def archive(build: Build, args: list[str]) -> int:
     else:
         _archive_linux(build, name)
     symbols(build, name)
+    # A folder by what it holds, since its own size says nothing of that: the Windows archive is one.
     for item in sorted(DIST.iterdir()):
-        print(f"{item.stat().st_size:>12} {item.name}")
+        files = [item] if item.is_file() else [file for file in item.rglob("*") if file.is_file()]
+        print(f"{sum(file.stat().st_size for file in files):>12} {item.name}")
     return 0
 
 
@@ -123,7 +125,7 @@ def _archive_linux(build: Build, name: str) -> None:
 
     env = dict(build.env, APPIMAGE_EXTRACT_AND_RUN="1", QMAKE=qmake,
                EXTRA_PLATFORM_PLUGINS="libqwayland-generic.so;libqwayland-egl.so", EXTRA_QT_MODULES="waylandcompositor")
-    env["PATH"] = os.pathsep.join([str(tools), env.get("PATH", "")])
+    prepend_path(env, "PATH", tools)
     run([tools / "linuxdeploy", "--appdir", appdir, *executables,
          "--deploy-deps-only", plugins,
          "--desktop-file", appdir / "usr" / "share" / "applications" / "org.openmw.launcher.desktop",

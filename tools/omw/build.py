@@ -9,6 +9,8 @@ import json
 import os
 import shutil
 import subprocess
+import sys
+import time
 from pathlib import Path
 
 from omw import deps, presets
@@ -36,6 +38,33 @@ QT_FLAVOURS = ("package", "full")
 
 # The file a directory keeps the digest it was last configured from in.
 CONFIGURED_FROM = "omw-preset.sha256"
+
+
+def manifest_inputs(query: str, directory: Path) -> list[Path]:
+    """The inputs `ninja -t query build.ninja` names, explicit, implicit and order-only alike: the
+    lines under `input:`, deeper than the headings, with their `|` or `||` taken off. A relative one
+    is from the build `directory`."""
+    inputs: list[Path] = []
+    within = False
+    for line in query.splitlines():
+        if line.startswith("  ") and not line.startswith("    "):
+            within = line.strip().startswith("input:")
+        elif within and line.startswith("    "):
+            inputs.append(directory / line.strip().removeprefix("||").removeprefix("|").strip())
+    return inputs
+
+
+def redate_ahead(paths: list[Path], now: float, root: Path = ROOT) -> list[Path]:
+    """The files of `paths` dated after `now`, each given the time `now`. **Only inside `root`**: one
+    outside it is not the driver's to touch, and is refused before any file is touched."""
+    ahead = [path for path in paths if path.is_file() and path.stat().st_mtime > now]
+    outside = next((path for path in ahead if not path.resolve().is_relative_to(root.resolve())), None)
+    if outside is not None:
+        raise Refusal(f"{outside} is dated after the clock, and build.ninja reads it, so every build.ninja CMake "
+                      "writes is older than it: give it the time now")
+    for path in ahead:
+        os.utime(path, (now, now))
+    return ahead
 
 
 def configured_from(directory: Path, digest: str) -> bool:
@@ -87,13 +116,10 @@ class Build:
             self._env = env
         return self._env
 
-    def cache_entries(self) -> list[str]:
-        """The build's CMake cache, an entry a line; none where it has no cache yet."""
-        cache = self.dir / "CMakeCache.txt"
-        return read_text(cache).splitlines() if cache.is_file() else []
-
     def cache_value(self, name: str) -> str | None:
-        for entry in self.cache_entries():
+        """The value of `name` in the build's CMake cache; none where it has no cache yet."""
+        cache = self.dir / "CMakeCache.txt"
+        for entry in read_text(cache).splitlines() if cache.is_file() else []:
             key, _, value = entry.partition("=")
             if key.split(":", 1)[0] == name:
                 return value
@@ -122,6 +148,7 @@ class Build:
         digest = presets.digest(env)
         stamp = self.dir / CONFIGURED_FROM
         if configured_from(self.dir, digest):
+            self._redate_manifest_inputs()
             # What CMake wrote is brought up to date with the CMake files as Ninja would before a
             # build, so what is asked of it before one — the tests it has — is not a stale answer.
             run(["cmake", "--build", self.dir, "--target", "build.ninja"], env=env, stdout=subprocess.DEVNULL)
@@ -134,6 +161,7 @@ class Build:
 
         stamp.unlink(missing_ok=True)
         run(["cmake", "-S", ROOT, "--preset", self.preset, "--fresh"], env=env, stdout=stdout)
+        self._redate_manifest_inputs()
 
         if WINDOWS:
             self._place_windows_runtime(windows_deps)
@@ -142,6 +170,21 @@ class Build:
 
         stamp.write_text(digest + "\n")
         self._configured = True
+
+    def _redate_manifest_inputs(self) -> None:
+        """**Nothing `build.ninja` is made from dated after the clock.** A checkout written while the
+        clock ran ahead, set right since, dates its CMake files later than any `build.ninja` CMake
+        writes from them, so Ninja writes it again on every try and gives up after a hundred, naming
+        neither the file nor the clock. Each such input is given the time now, which changes nothing
+        it holds."""
+        ninja = self.cache_value("CMAKE_MAKE_PROGRAM")
+        if not ninja:
+            raise Refusal(f"{self.dir} names no CMAKE_MAKE_PROGRAM, so no Ninja to ask what build.ninja reads")
+        query = output([ninja, "-C", self.dir, "-t", "query", "build.ninja"], env=self.env)
+        ahead = redate_ahead(manifest_inputs(query, self.dir), time.time())
+        if ahead:
+            print(f"omw: {len(ahead)} files build.ninja is made from were dated after the clock, {ahead[0]} among "
+                  "them; they carry the time now", file=sys.stderr)
 
     def _place_windows_runtime(self, windows_deps: Path) -> None:
         """**What vcpkg's own copy step misses, placed the way upstream's MSVC script places it.**
