@@ -544,10 +544,11 @@ These are the S§14, S§15 and S§16 items, and U › Performance, that no contr
 
 **Done**: the ripples step every frame by the time the water's clock moved, in time-corrected Verlet
 steps no longer than the springs stand (1.298 sixtieths) and at most four a frame; the change of look
-is in AGENTS.md's Accepted diff.
+is in AGENTS.md's Accepted diff. A sprite list without room for every run bins the tiles whose runs
+fit, a prefix, and only the tiles past it walk every sprite (`SPRITE_TILE_UNBINNED`); no bench
+measures it, since the frame it shortens is the rare one a storm's first frames make.
 
 - **Uniform frame times.**
-  - the per-tile sprite overflow;
   - the frozen-root sweep;
   - the sea synthesised once per water time;
   - the visibility gates' per-frame rerun.

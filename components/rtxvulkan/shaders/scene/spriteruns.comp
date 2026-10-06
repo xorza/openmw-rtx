@@ -57,25 +57,20 @@ void main()
 
     SpriteTileList list = SpriteTileList(bin.mList);
 
-    // Nothing to fill where the runs did not fit: the trace walks every sprite instead. Uniform
-    // over the dispatch, so a workgroup leaves whole and no barrier below waits for it.
-    if (list.at[0] == SPRITE_LIST_UNBINNED)
-        return;
-
     // **A lane past the last tile stays for the barriers**, which every lane of the workgroup has
-    // to reach; it tests nothing and writes nothing.
-    const bool present = tile < tiles;
+    // to reach; it tests nothing and writes nothing. So does a lane on a tile past the room, whose
+    // run has no slots to fill: the trace walks every sprite there instead.
+    const uint end = tile < tiles ? list.at[spriteStartSlot(tile + 1u)] : SPRITE_TILE_UNBINNED;
+    const bool present = (end & SPRITE_TILE_UNBINNED) == 0u;
 
     uint x = 0u;
     uint y = 0u;
     uint slot = 0u;
-    uint end = 0u;
     if (present)
     {
         x = tile % across;
         y = tile / across;
         slot = list.at[spriteStartSlot(tile)];
-        end = list.at[spriteStartSlot(tile + 1u)];
     }
 
     if (lane == 0u)
