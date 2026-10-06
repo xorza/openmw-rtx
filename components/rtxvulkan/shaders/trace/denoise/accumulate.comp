@@ -32,6 +32,7 @@
 #include "shared/sets.h"
 
 #include "lib/pixels.glsl"
+#include "lib/runningmean.glsl"
 #include "lib/sharedexponent.glsl"
 #include "lib/surfacematch.glsl"
 
@@ -331,12 +332,9 @@ void main()
         moments /= weight;
         frames /= weight;
 
-        // One over the count, floored at the longest history a pixel may keep: an exact mean while
-        // the history is short, an exponential one once it is long enough that its oldest frames
-        // describe a surface the light has since moved off.
+        // One over the count, floored at the longest history a pixel may keep (`historyAlpha`).
         count = min(frames + 1.0, ACCUMULATE_FRAMES);
-
-        const float alpha = 1.0 / count;
+        const float alpha = historyAlpha(frames);
 
         // **No outlier clamp on the sample.** A bounce is often a rare bright event: one that finds
         // a sunlit surface with probability `p` stands `sqrt((1 - p) / p)` deviations over the mean,

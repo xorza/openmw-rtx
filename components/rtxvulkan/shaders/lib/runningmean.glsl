@@ -18,6 +18,14 @@ struct RunningMean
     float mFrames;
 };
 
+/// The weight this frame takes in a running mean of `frames` frames: an exact mean while the
+/// history is short, an exponential one once it reaches `ACCUMULATE_FRAMES`. **One for every running
+/// mean**, the accumulator's, the glossy filter's and the pane filter's.
+float historyAlpha(float frames)
+{
+    return 1.0 / min(frames + 1.0, ACCUMULATE_FRAMES);
+}
+
 /// The history a texel holds, or the bilinear sum of several over the `weight` they sum to.
 RunningMean runningMeanOf(vec4 texel, float weight)
 {
@@ -44,7 +52,7 @@ RunningMean startedMean(vec3 sampled)
 ///        and one wherever the light does not turn with the view.
 RunningMean blendedMean(vec3 sampled, RunningMean held, float kept)
 {
-    const float alpha = max(1.0 - kept, 1.0 / min(held.mFrames + 1.0, ACCUMULATE_FRAMES));
+    const float alpha = max(1.0 - kept, historyAlpha(held.mFrames));
     return RunningMean(mix(held.mMean, sampled, alpha), 1.0 / alpha);
 }
 
