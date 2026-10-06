@@ -195,7 +195,7 @@ namespace Rtx
         // Every level of both tiles is written whole below — the first by the compose, the rest by
         // the chain — so none needs what the last frame left in it. Whatever last touched them,
         // the trace that sampled them or a reset's clear, is behind the head barrier
-        // `CommandPool::begin` recorded: a reset's own frame stands at its tick and never gets here.
+        // `CommandPool::begin` recorded: a reset's own frame moves no clock and never gets here.
         Barriers opened(commands);
         for (const Image* image : { &mSurface, &mCurvature })
             image->addTransition(opened, Use::sUndefined, Use::sComputeWrite);
