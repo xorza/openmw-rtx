@@ -61,6 +61,10 @@
 
 layout(local_size_x = ACCUMULATE_WORKGROUP, local_size_y = ACCUMULATE_WORKGROUP) in;
 
+/// Whether the slow mean is held under its ring's ceiling, and the ring's square loaded at all
+/// (`ACCUMULATE_CLAMP_SPEC_RING`).
+layout(constant_id = ACCUMULATE_CLAMP_SPEC_RING) const bool ACCUMULATE_RING = false;
+
 /// Which pixels hold a surface: one that does not has no mean to bound or to bound by.
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
 
@@ -93,10 +97,14 @@ const uint SPAN = ACCUMULATE_WORKGROUP + 2u * ACCUMULATE_CLAMP_REACH;
 
 const int RING = int(ACCUMULATE_RING_REACH);
 const int HOLE = int(ACCUMULATE_RING_HOLE);
-const uint RING_SPAN = ACCUMULATE_WORKGROUP + 2u * ACCUMULATE_RING_REACH;
 
-/// How far inside the ring's square the clamp's square starts.
-const int INSET = RING - REACH;
+/// How far the workgroup's tile of fast means reaches past it: the ring's, where the ring runs, and
+/// the clamp's square's where it does not.
+const int OUTER = ACCUMULATE_RING ? RING : REACH;
+const uint RING_SPAN = ACCUMULATE_WORKGROUP + 2u * uint(OUTER);
+
+/// How far inside the tile the clamp's square starts.
+const int INSET = OUTER - REACH;
 
 /// The fast mean at every pixel of the workgroup's ring, in YCoCg in `xyz` and its luminance in `w`,
 /// which is below nought where the pixel holds no surface; and over the clamp's square the samples of
@@ -113,7 +121,7 @@ void main()
     for (uint i = gl_LocalInvocationIndex; i < RING_SPAN * RING_SPAN; i += threads)
     {
         const uvec2 square = uvec2(i % RING_SPAN, i / RING_SPAN);
-        const ivec2 pixel = origin - RING + ivec2(square);
+        const ivec2 pixel = origin - OUTER + ivec2(square);
         const bool held = !outsideOf(uvec2(pixel), uvec2(frame.mWidth, frame.mHeight))
             && imageLoad(surfaceChannel, pixel).r != SURFACE_NO_NORMAL;
         const vec3 there = unpackRgb9e5(imageLoad(fast, pixel).x);
@@ -136,7 +144,7 @@ void main()
         return;
 
     const uvec2 fastPacked = imageLoad(fast, at).xy;
-    const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + RING;
+    const ivec2 centre = ivec2(gl_LocalInvocationID.xy) + OUTER;
     if (gFast[centre.y][centre.x].w < 0.0)
     {
         imageStore(fastOut, at, uvec4(fastPacked, 0u, 0u));
@@ -175,26 +183,28 @@ void main()
     // The ring's, likewise, over the square less its hole: ReBLUR's anti-firefly, which holds the
     // slow mean under it before the anti-lag reads it, in ReBLUR's order. **Every surface the ring
     // holds and not this one's alone**: a firefly is a bright pixel on a leaf a few pixels across,
-    // and a ring of that leaf is a ring of nothing.
+    // and a ring of that leaf is a ring of nothing. **Under the constant alone**, which the driver
+    // folds: without the ring the tile holds the clamp's square and no more.
     float ringCount = 0.0;
     float ringSum = 0.0;
     float ringSquares = 0.0;
-    for (int y = -RING; y <= RING; ++y)
-        for (int x = -RING; x <= RING; ++x)
-        {
-            const float there = gFast[centre.y + y][centre.x + x].w;
-            const float weight = there >= 0.0 && (abs(x) > HOLE || abs(y) > HOLE) ? 1.0 : 0.0;
-            ringCount += weight;
-            ringSum += weight * there;
-            ringSquares += weight * there * there;
-        }
+    if (ACCUMULATE_RING)
+        for (int y = -RING; y <= RING; ++y)
+            for (int x = -RING; x <= RING; ++x)
+            {
+                const float there = gFast[centre.y + y][centre.x + x].w;
+                const float weight = there >= 0.0 && (abs(x) > HOLE || abs(y) > HOLE) ? 1.0 : 0.0;
+                ringCount += weight;
+                ringSum += weight * there;
+                ringSquares += weight * there * there;
+            }
 
     const vec3 blend = imageLoad(blended, at).rgb;
     const float blendLit = dot(blend, LUMINANCE_WEIGHTS);
     const float frames = imageLoad(moments, at).a;
     const float young = frames <= ACCUMULATE_RING_FRAMES ? 1.0 : 0.0;
     const float slowHere = mix(
-        blendLit, ringHeldLuminance(blendLit, ringSum, ringSquares, ringCount), float(frame.mAntiFirefly) * young);
+        blendLit, ringHeldLuminance(blendLit, ringSum, ringSquares, ringCount), float(ACCUMULATE_RING) * young);
     const float ringScale = blendLit > 0.0 ? slowHere / blendLit : 1.0;
     const vec3 slow = blend * ringScale;
     const vec3 slowFill = imageLoad(fillBlended, at).rgb * ringScale;

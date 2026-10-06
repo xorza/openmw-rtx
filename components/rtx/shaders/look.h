@@ -1245,10 +1245,11 @@ namespace Rtx::Shaders
     /// noise.
     ///
     /// **What it costs is the ring's square and not its sum.** The clamp's median at the guild went
-    /// from 0.17 ms to 0.22 ms and its p95 from 0.58 to 0.69, the switch on or off alike, since off is
-    /// a factor of nought. Passing over the 81 taps where the history is long saved nothing (0.214
-    /// against 0.217 ms): what a pixel pays for is the 16×16 tile its workgroup loads where the
-    /// anti-lag's took 12×12, and the barrier between the two.
+    /// from 0.17 ms to 0.22 ms and its p95 from 0.58 to 0.69. Passing over the 81 taps where the
+    /// history is long saved nothing (0.214 against 0.217 ms): what a pixel pays for is the 16×16
+    /// tile its workgroup loads where the anti-lag's takes 12×12, and the barrier between the two.
+    /// **So off is a pipeline without it** (`ACCUMULATE_CLAMP_SPEC_RING`) and not a factor of nought,
+    /// which paid for the tile: the bench's clamp 0.18, 0.19 and 0.23 ms to 0.15, 0.17 and 0.22.
     ///
     /// **ReBLUR's other guard is not taken**: its temporal accumulation holds a blend under `2 + 38
     /// / (n + 1)` times the history of `n` frames it blends into (`REBLUR_TemporalAccumulation`).

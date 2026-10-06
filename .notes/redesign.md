@@ -514,8 +514,9 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
    it out. Neither filter has a spatial pass before the clamp, which ReLAX's has. The patch is in
    `~/.cache/omw-redesign/ab-meanclamp/`. The glossy roughness cap waits on
    `redesign_QUESTIONS.md`, "The glossy filter's roughness cap".
-7. The wavelet items from S§9. Then decide the anti-firefly ring (`.notes/todo.txt` item 1):
-   remove it, or give it a specialization constant.
+7. The wavelet items from S§9 (`review-shaders.md` lists what is left of them). The history fix's
+   normal power, the widest level's tap offset and the anti-firefly ring's specialization constant are
+   done.
 
 ### Phase 4. Participating media (D7)
 
