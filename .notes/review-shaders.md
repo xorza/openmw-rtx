@@ -120,14 +120,6 @@ Each item adds or loses light in the converged picture. A denoiser cannot remove
   of 1. That is more than the 0.13–0.2% for which the specular history went to full floats
   (`specular.h`). Target: the history (mean, variance) in `RG32F`. The scratch and visibility images,
   which are not fed back, stay in halves.
-- [ ] `shading.glsl:142-154` (`sunDraw`, `skyPick`, `lampDraw`, `shadowedPick` from
-  `randomSeed(key + lamps)`), `lights.glsl:529`, `random.glsl:255-274`, `scene.h:146-173`. The rays
-  whose one bit the shadow denoiser filters aim with hashed white noise, and so does the lamp
-  reservoir's pick. Only the bounce, the fog and the water read the blue-noise tile. NRD: "Using
-  'blue' noise helps to minimize shadow shimmering and flickering". Heitz & Belcour 2019 show
-  screen-space blue error for this one-sample direct-light estimate. Target: tile streams for the
-  sun disc pair and the lamp disc pair at the primary hit's `gather(split = true)`. Deeper paths keep
-  the hash. Prove it with `noise --ab`.
 - [ ] Related, `random.glsl:339-348`, `scene.h:183-185`. The bounce pair is two scalar blue-noise
   channels through the polar (Malley) map, which keeps neither the 2D stratification nor the spatial
   spectrum as well as a vector mask. STBN (Wolfe et al. 2022) publishes vec2 and cosine-hemisphere

@@ -180,7 +180,9 @@ SkyTerm joinedTerms(SkyTerm first, SkyTerm second, float scale)
 ///        what the eye sees splits — its own solid, and what the water's legs find — and the pane and
 ///        the bounce compose. Only with `PATH_SEEN`: the split terms do not carry the rate that
 ///        `PATH_INDIRECT` draws at.
-DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path, bool split)
+/// @param pixel,blue whether the shadow rays' draws come from the tile at `pixel`
+///        (`STREAM_SUN_DISC`): the eye's own split hit's. A literal at every call.
+DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path, bool split, uvec2 pixel, bool blue)
 {
     const vec3 position = surface.mPosition;
     const Facing facing = facingOf(surface);
@@ -220,10 +222,18 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     // A pair aims the sky's one ray and a draw picks which of its sources the ray goes to. Split,
     // one more picks whose bit the pixel keeps, the sky's or the lamps' — drawn only there, so a
     // path that composes steps the sequence it stepped.
-    const vec2 sunDraw = vec2(randomNext(state), randomNext(state));
-    const float skyPick = randomNext(state);
-    const vec2 lampDraw = vec2(randomNext(state), randomNext(state));
-    const float shadowedPick = split ? randomNext(state) : 0.0;
+    //
+    // **The eye's own split hit takes the same four from the tile** (`STREAM_SUN_DISC`), and the
+    // sequence steps past the hashed ones all the same, so the reservoir's draws stay where they
+    // were.
+    const vec2 sunHashed = vec2(randomNext(state), randomNext(state));
+    const float skyHashed = randomNext(state);
+    const vec2 lampHashed = vec2(randomNext(state), randomNext(state));
+    const float shadowedHashed = split ? randomNext(state) : 0.0;
+    const vec2 sunDraw = blue ? unitPair(pixel, STREAM_SUN_DISC) : sunHashed;
+    const float skyPick = blue ? randomAt(pixel, STREAM_SKY_PICK) : skyHashed;
+    const vec2 lampDraw = blue ? unitPair(pixel, STREAM_LAMP_DISC) : lampHashed;
+    const float shadowedPick = blue ? randomAt(pixel, STREAM_SHADOWED_PICK) : shadowedHashed;
 
     // **The sky's sources are weighed and drawn the way the lamps are.** What each would deliver
     // unshadowed is its weight — its cosine and its irradiance, which is everything about it that can
@@ -687,7 +697,7 @@ struct PathEnd
 PathEnd lightAtPathEnd(Surface hit, uint key, uint ambient, uint lamps, uint path, bool split, float ambientRate)
 {
     const float reaching = surfaceAmbient(hit, key + ambient, ambientRate);
-    const DirectLight lit = gather(hit, glossOf(hit), key, lamps, path, split);
+    const DirectLight lit = gather(hit, glossOf(hit), key, lamps, path, split, uvec2(0u), false);
 
     return PathEnd(SplitLight(litSurface(hit, lit.mDiffuse, lit.mSpecular), shadowedLight(hit, lit), lit.mOpen,
                        lit.mPenumbra),
@@ -748,7 +758,7 @@ struct SeenPane
 SeenPane shadePane(Surface hit, uint key, uint ambient, uint lamps)
 {
     const float reaching = surfaceAmbient(hit, key + ambient, AMBIENT_EXTERIOR_RATE);
-    const DirectLight lit = gather(hit, glossOf(hit), key, lamps, PATH_SEEN, false);
+    const DirectLight lit = gather(hit, glossOf(hit), key, lamps, PATH_SEEN, false, uvec2(0u), false);
 
     return SeenPane(litSurface(hit, vec3(0.0), vec3(0.0)),
         hit.mAlbedo * lit.mDiffuse + hit.mAmbientAlbedo * pathEnd(hit.mPosition, reaching), lit.mSpecular,
@@ -1100,7 +1110,7 @@ struct SeenSolid
 SeenSolid shadeSolid(Surface hit, uvec2 pixel, Cone cone)
 {
     const Gloss gloss = glossOf(hit);
-    const DirectLight lit = gather(hit, gloss, pixelKey(pixel), SEED_LAMPS_EYE, PATH_SEEN, true);
+    const DirectLight lit = gather(hit, gloss, pixelKey(pixel), SEED_LAMPS_EYE, PATH_SEEN, true, pixel, true);
     const Bounce bounced = bounceLight(hit, gloss, pixel, cone);
 
     // **The lamps' diffuse half goes to the shadow denoiser with the sky's, and not to the wavelet
