@@ -571,11 +571,17 @@ side, alternated: the frame median 5.46 → 5.36 ms, the p99 7.20 → 7.11, the 
 0.752, lower in every run; `noise` at the guild and the dawn deck the same to the hundredth, and the
 frame's mean darker by 0.004 and 0.006 of a level, the halves' rounding toward nought
 (`~/.cache/omw-redesign/ab-narrow`).
+**Measured and declined: the sprite runs' stride rects.** Each stride's union widened by the pass
+over sprites and tested by each workgroup before it loads the stride's rectangles. At the night
+storm over six runs a side: the sprite zone's median 0.049 → 0.055 ms, the four atomics a sprite
+costing more than the strides passed save, and its p99 1.08 → 1.09; the p99 is not the runs' walk
+(`.notes/ISSUES.md`; `~/.cache/omw-redesign/ab-strides`).
+
+**Declined by its bound: the sprite shade's batches in shared memory.** The shade zone is 0.011 ms
+at the night storm and 0.04 at the overcast deck, under a bench median's noise.
 
 - **Uniform frame times.**
 - **Unused work.**
-  - the sprite runs' stride rects;
-  - the sprite shade's batches in shared memory;
   - the single trace site in `visibility.rgen`;
 
 Each one is a `release bench` A/B, and is kept only if its median or p99 improves. A per-lane
