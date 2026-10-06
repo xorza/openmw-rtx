@@ -61,3 +61,24 @@ R2 sweep.**
 `noise` figure stood within 0.01 of it. `redesign.md`, Phase 2 step 1, has the figures.
 
 **Blocks.** Nothing.
+
+## The glossy filter's roughness cap (Phase 3 step 5, D2 point 5)
+
+**Found.** The plan takes ReBLUR's `1 − exp2(−200 r²)` cap on the glossy history's frames. NRD's
+current ReBLUR (`REBLUR_TemporalAccumulation.cs.hlsl`, `_NRD_GetSpecMagicCurve`) scales the frames by
+that curve times `r^0.25` only through its "responsive accumulation", whose `roughnessThreshold`
+defaults to 0 (`NRDSettings.h`: "useful for animated water"): with the default, the factor is one
+for every roughness over 0.001, and the cap is off. The anti-lag of the fast history is what bounds a
+reflection's lag there, which step 5 gives the glossy filter.
+
+**Options.**
+
+1. Drop the cap: the glossy filter's fast companion and clamp bound the lag, as NRD's defaults do.
+2. Take NRD's responsive accumulation whole, with a threshold of our own (for water), at least three
+   frames kept, and measure it with the glossy trail test step 5 adds.
+3. Take the plan's cap as written, always on.
+
+**Recommendation.** 1 now, and 2 only if the glossy trail test still shows a mirror's reflection
+dragging once the clamp is in.
+
+**Blocks.** The cap alone; the rest of step 5 goes on.

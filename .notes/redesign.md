@@ -505,9 +505,10 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
    test rebuilds through the previous jitter, and the reuse keeps its tap at the surface's own point.
    **Owed:** the GPU test of a still, jittered edge accumulating to its unjittered-centre mean, which
    needs an edge in the accumulator's own history, isolated from the wavelet.
-5. The fast companion and the YCoCg clamp for every running mean, and the glossy roughness cap.
-   Measure with `noise --walk` at a place with a mirror floor and a walking actor (add one to
-   `views.cfg`), and at a window lit by a lamp. Phase 2's D3.1 has already taken the lamp body out
+5. The fast companion and the YCoCg clamp for every running mean, and the glossy roughness cap
+   (**waiting on `redesign_QUESTIONS.md`**, "The glossy filter's roughness cap"). `noise` freezes the
+   world, so no actor walks in it: the lag is measured by trail tests beside `RtxBounceTrailTest`'s,
+   a bar over a glossy floor and over a pane, and `noise` holds the rest. Phase 2's D3.1 has already taken the lamp body out
    of the glossy channel, so the lag measured here is the filter's alone.
 6. D6: the specular demodulation, and the pane's lobe out of `CHANNEL_PANE`.
 7. The wavelet items from S§9. Then decide the anti-firefly ring (`.notes/todo.txt` item 1):
