@@ -460,6 +460,12 @@ namespace RtxTool
             "the one its shadow bit is drawn from, and over all but which a bit's own source makes the bit "
             "exact rather than drawn. Its light rides the drawn source's bit");
 
+        option(sFramed, "lamp-candidates",
+            number(atLeast<std::uint32_t>(0))->default_value(Rtx::Shaders::LAMP_CANDIDATES),
+            "how many lamp candidates a shading point that composes its light — a path's far end, a pane, a "
+            "water leg — draws from its cell where the cell holds more, resampled to the one it traces. "
+            "Nought walks every lamp, which the eye's own surface always does");
+
         option(sFramed, "hold", bpo::value<bool>()->default_value(false)->implicit_value(true),
             std::format("hold the queue behind the host after every frame's trace, as `check` does: `check` holds "
                         "{} milliseconds unless told --hold=false. The other leg of `repeat` runs under it, and a "
@@ -698,6 +704,7 @@ namespace RtxTool
                                          : Rtx::sNoiseSourceNames.require(noise, "a noise source");
         request.mLevelEpsilon = variables["level-epsilon"].as<float>();
         request.mShadowFloor = variables["shadow-floor"].as<float>();
+        request.mLampCandidates = variables["lamp-candidates"].as<std::uint32_t>();
         request.mBounceReuse
             = Rtx::sBounceReuseNames.require(variables["bounce-reuse"].as<std::string>(), "a bounce reuse");
         request.mAntilag = variables["antilag"].as<bool>();

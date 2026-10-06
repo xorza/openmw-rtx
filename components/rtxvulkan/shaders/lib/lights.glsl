@@ -556,7 +556,7 @@ GpuLight shownLightAt(uint row)
     return held;
 }
 
-/// Weighs every lamp reaching `from` into `kept`.
+/// Weighs every lamp reaching `from` into `kept`, or `candidates` of them drawn from the cell.
 ///
 /// **The surface's walk of the grid, about a point.** The air's — `lampsInAir` — walks the same grid
 /// along a ray, and the two feed one rule, `considerLamp`, so what unbiased means cannot come apart
@@ -569,16 +569,26 @@ GpuLight shownLightAt(uint row)
 /// @param gloss the surface's specular half, with its diffuse albedo, which weigh a lamp as
 ///        `surfaceCandidate` says.
 /// @param lampLit whether the lamps light the surface at all — `Surface::mLampLit`.
+/// @param candidates how many lamps to draw where the cell holds more, and nought for every one.
 void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing, float scale, Gloss gloss,
-    bool lampLit)
+    bool lampLit, uint candidates)
 {
     const bool sided = dot(facing.mNormal, facing.mNormal) > 0.0;
 
     // None, for a picture no lamp lights or a surface none lights: an empty run, selected, and the
     // loop is over.
     const uvec2 near = frame.mNoLamps != 0u || !lampLit ? uvec2(0u) : lampsWithin(lampsReaching(from));
-    for (uint i = near.x; i < near.y; ++i)
+
+    // **A fixed count of candidates where the run is longer than it**, drawn uniformly and
+    // resampled (RIS, Talbot 2005; Bitterli et al. 2020): each is offered at its own weight, and the
+    // total and the unshadowed sum are scaled by `n / M` after, which is the estimate's `1 / (M p)`
+    // for a pdf of `1 / n`. Every lamp otherwise, which is what a shorter run is anyway.
+    const uint count = near.y - near.x;
+    const bool sampled = candidates > 0u && count > candidates;
+    const uint steps = sampled ? candidates : count;
+    for (uint step = 0u; step < steps; ++step)
     {
+        const uint i = near.x + (sampled ? min(uint(randomNext(state) * float(count)), count - 1u) : step);
         const uint row = lightListAt(i);
         const GpuLight held = shownLightAt(row);
         const Lamp lamp = lampAt(held, from);
@@ -608,6 +618,10 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
         kept.mUnshadowed += candidate.mRadiance * (1.0 - candidate.mFresnel);
         considerLamp(kept, state, from, candidate, row);
     }
+
+    const float spread = sampled ? float(count) / float(steps) : 1.0;
+    kept.mTotal *= spread;
+    kept.mUnshadowed *= spread;
 }
 
 /// What every lamp that takes light away takes from a surface's direct lamp term, per unit albedo:

@@ -337,7 +337,10 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     // where the cosine was. A glossy surface weighs each lamp by both — `surfaceCandidate` says why —
     // and either estimate is unbiased under any weight positive where its term is.
     Reservoir kept = noLamps();
-    weighLamps(kept, state, position, facing, INV_PI, gloss, surface.mLampLit);
+    // **Every lamp at the eye's own split hit, whose unshadowed sum must be exact, and a fixed count
+    // of candidates everywhere else** (`VisibilityConstants::mLampCandidates`): a path's far end, a
+    // pane, a water leg cost what a lamp-dense cell costs only where it is seen.
+    weighLamps(kept, state, position, facing, INV_PI, gloss, surface.mLampLit, split ? 0u : frame.mLampCandidates);
     kept.mFrom = leaving;
 
     const Passage lampPass = kept.mWeight > 0.0 ? lampPassage(kept, stepOf(surface), lampDraw, split) : Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);

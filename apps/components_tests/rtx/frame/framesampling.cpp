@@ -74,6 +74,7 @@ namespace Rtx
                 .mLevelBias = -0.5f,
                 .mAveraged = true,
                 .mShadowFloor = 0.125f,
+                .mLampCandidates = 3u,
             };
             const InstanceCounts counts{ .mFirstPerson = 1 };
             Shaders::VisibilityConstants previous = stated();
@@ -102,6 +103,7 @@ namespace Rtx
             EXPECT_EQ(sampled.mLevelBias, -0.5f);
             EXPECT_EQ(sampled.mSoftEdgeDither, 1u) << "a world's frames are averaged";
             EXPECT_EQ(sampled.mShadowFloor, 0.125f) << "the run's floor";
+            EXPECT_EQ(sampled.mLampCandidates, 3u) << "the run's candidates";
             EXPECT_EQ(sampled.mArmsSpread, osg::Vec2f(1.5f, 1.0f));
             EXPECT_EQ(sampled.mUnitRight, osg::Vec3f(1.0f, 0.0f, 0.0f)) << "a right of two, taken unit";
             EXPECT_EQ(sampled.mUnitUp, osg::Vec3f(0.0f, 0.0f, 1.0f));
@@ -122,6 +124,7 @@ namespace Rtx
             EXPECT_EQ(picture.mNoise, Shaders::NOISE_BLUE_TILE);
             EXPECT_EQ(picture.mSoftEdgeDither, 0u) << "a picture stands alone, so the eye cuts its soft edges";
             EXPECT_EQ(picture.mShadowFloor, Shaders::SHADOW_DRAW_FLOOR) << "and draws its bits by the default floor";
+            EXPECT_EQ(picture.mLampCandidates, Shaders::LAMP_CANDIDATES) << "and its lamps by the default count";
 
             const Shaders::VisibilityConstants offset = sampleFrame(stated(),
                 FrameOptions{ .mJitter = osg::Vec2f(0.25f, 0.0f) }, RenderProfile{}, Reconstruction{}, counts, nullptr);

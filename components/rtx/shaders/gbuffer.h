@@ -220,6 +220,11 @@ namespace Rtx::Shaders
     /// showed a cost for.
     const float SHADOW_DRAW_FLOOR = 0.0f;
 
+    /// How many lamp candidates a shading point that composes its light draws from its cell, where
+    /// the cell holds more (`weighLamps`); nought walks every lamp. What a run asks for,
+    /// `VisibilityConstants::mLampCandidates`, unless it names another.
+    const uint LAMP_CANDIDATES = 8u;
+
     /// How many the set declares, which is the last of them and one more.
     const uint CHANNEL_COUNT = 18;
 

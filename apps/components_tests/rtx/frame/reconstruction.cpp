@@ -45,6 +45,10 @@ namespace Rtx
                           .mShadowFloor,
                 0.25f)
                 << "and the one a run names";
+            EXPECT_EQ(raw.mLampCandidates, Shaders::LAMP_CANDIDATES);
+            EXPECT_EQ(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mLampCandidates = 0u }, sUnscaled)
+                          .mLampCandidates,
+                0u);
 
             // **The same request, and an upscaler behind it.** The wavelet runs as it was asked,
             // since an upscaler reconstructs the frame the trace chain composed; the frame jitters

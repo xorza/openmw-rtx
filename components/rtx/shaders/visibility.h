@@ -493,6 +493,10 @@ namespace Rtx::Shaders
         /// `SHADOW_DRAW_FLOOR` unless a run names another, `Rtx::Reconstruction::mShadowFloor`.
         float mShadowFloor;
 
+        /// How many lamp candidates a shading point that composes its light draws from its cell —
+        /// `LAMP_CANDIDATES` unless a run names another, `Rtx::Reconstruction::mLampCandidates`.
+        uint mLampCandidates;
+
         /// Where every table a hit reads is. `GpuTables` says why it rides here.
         ///
         /// **Last, because it is eight-aligned and nothing before it is.** Anywhere else it would
@@ -537,8 +541,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1432, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1616, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1440, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1624, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 152, "PuffConstants must be scalar-packed on every side");
 #endif
 

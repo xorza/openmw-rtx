@@ -115,6 +115,10 @@ namespace Rtx
         /// (`Shaders::SHADOW_DRAW_FLOOR`), which a run names for the A/B.
         float mShadowFloor = Shaders::SHADOW_DRAW_FLOOR;
 
+        /// How many lamp candidates a point that composes its light draws (`Shaders::LAMP_CANDIDATES`),
+        /// nought for every lamp, which a run names for the A/B.
+        std::uint32_t mLampCandidates = Shaders::LAMP_CANDIDATES;
+
         /// What the trace makes of its bounce before anything filters it. None unless a run names a
         /// mode, which is the A/B.
         ///
@@ -253,6 +257,10 @@ namespace Rtx
         /// `ReconstructionRequest::mShadowFloor`, and the default for a picture.
         float mShadowFloor = Shaders::SHADOW_DRAW_FLOOR;
 
+        /// How many lamp candidates a point that composes its light draws:
+        /// `ReconstructionRequest::mLampCandidates`, and the default for a picture.
+        std::uint32_t mLampCandidates = Shaders::LAMP_CANDIDATES;
+
         /// Whether an upscaler reconstructed the frame.
         bool upscaled() const { return upscales(mUpscale); }
 
@@ -289,6 +297,7 @@ namespace Rtx
                 .mAntiFirefly = asked.mAntiFirefly,
                 .mAveraged = true,
                 .mShadowFloor = asked.mShadowFloor,
+                .mLampCandidates = asked.mLampCandidates,
             };
         }
 

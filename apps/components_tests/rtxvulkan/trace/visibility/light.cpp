@@ -887,6 +887,51 @@ namespace Rtx::Testing
             EXPECT_NEAR(darkened.z(), 0.5f * r, 0.01f * r) << "blue";
         }
 
+        /// **A point that composes its light draws a fixed count of lamps and keeps their mean.** The
+        /// half pane of the test above under twelve lamps of three colours, at three distances: the
+        /// pane draws two candidates of the twelve a pixel and resamples them, which over 64 frames
+        /// of the frame's 1024 pixels comes to the mean of the walk over every lamp, while one frame of
+        /// it is another draw than one frame of the walk.
+        TEST_F(RtxVisibilityTest, aComposingPointDrawsAFixedCountOfLampsAndKeepsTheirMean)
+        {
+            constexpr std::uint32_t size = 32;
+            std::vector<Light> lamps;
+            for (std::size_t at = 0; at < 12; ++at)
+            {
+                const float colour = static_cast<float>(at % 3);
+                lamps.push_back(Light{ .mPosition = osg::Vec3f(-30.0f + 6.0f * static_cast<float>(at),
+                                           -30.0f - 10.0f * static_cast<float>(at % 4), 0.0f),
+                    .mIntensity = osg::Vec3f(colour == 0.0f ? 1000.0f : 200.0f, colour == 1.0f ? 1000.0f : 200.0f,
+                        colour == 2.0f ? 1000.0f : 200.0f),
+                    .mReach = 500.0f });
+            }
+
+            const auto lit = [&](std::uint32_t candidates, std::uint32_t frames) {
+                SceneDesc scene;
+                addPane(scene, uprightQuadAt(400.0f, 0.0f), osg::Vec4f(1.0f, 1.0f, 1.0f, 0.5f));
+                for (const Light& lamp : lamps)
+                    scene.addLight(lamp);
+
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mAmbient = osg::Vec3f();
+
+                return shoot(scene, {}, camera, size,
+                    { .mFrames = frames, .mLampCandidates = candidates, .mIndirect = IndirectLight::Off });
+            };
+
+            const Frame walked = lit(0u, 64);
+            const Frame drawn = lit(2u, 64);
+            for (std::size_t channel = 0; channel < 3; ++channel)
+                EXPECT_NEAR(drawn.mean(channel), walked.mean(channel), walked.mean(channel) * 0.01f)
+                    << "channel " << channel;
+
+            EXPECT_NE(lit(2u, 1).mRadiance, lit(0u, 1).mRadiance) << "the count is not read";
+        }
+
         /// **A wall with a specular map reflects the lamp by the lobe the host evaluates**, a
         /// dielectric keeps what the lobe did not take for its diffuse half, and a normal map turns
         /// both through the tangent frame the rasterizer builds.

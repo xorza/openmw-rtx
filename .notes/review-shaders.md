@@ -382,14 +382,6 @@ items are departures from the published method that each cost gain or add bias. 
 
 ## 12. Light sampling for glossy surfaces and for many lamps
 
-- [ ] `lights.glsl:563-600` (`weighLamps`), `LAMPS_AT_A_POINT = 256` (`:134`). Weighted reservoir
-  sampling walks every lamp in the cell, at every shading point (primary, bounce, each pane layer,
-  both water legs), and on a glossy surface each candidate pays a full GGX evaluation. The cost grows
-  with lamp density, against the rule that frame times are uniform. Practice draws a fixed count of
-  candidates from a power-proportional distribution and resamples them (RIS: Bitterli et al. 2020,
-  RTXDI), or uses a light tree (Conty & Kulla 2018). Target: a per-cell power alias table built on the
-  host once a frame, and M candidates drawn from it with `W = Σ(p̂/p) / (M p̂)`, with a small M at
-  `PATH_INDIRECT` and in panes. Measure first.
 - [ ] `gloss.glsl:163-169`, `shading.glsl:928`. The spherical-cap VNDF sampler (Dupuy & Benyoub 2023,
   correct) draws reflections under the horizon, which are given weight 0. At grazing views on rough
   lobes that wastes samples. Eto & Tokuyoshi 2023, "Bounded VNDF Sampling for Smith-GGX Reflections",

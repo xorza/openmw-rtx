@@ -214,11 +214,10 @@ one answer:
    representative point and scales it by `(α / α′)²` (Karis 2013, eq. 10 and 14), the sun's at its
    seen disc. Evaluating D at `α′` alone, as this item first said, is the method Karis set aside
    because it makes a glossy surface look rough.
-5. **The cost is fixed below the primary hit.** The primary split hit keeps the full walk over the
-   cell's lamps, because point 2 needs the exact sum, and the walk is bounded by
-   `LAMPS_AT_A_POINT`. At bounce hits, pane layers, water legs and the fog, `weighLamps` draws a
-   fixed count M of candidates from the cell's run, with the uniform pdf `1/n`, and resamples them
-   (RIS). Where `n ≤ M` this is the walk that runs now.
+5. **The cost is fixed below the primary hit**, is done: a point that composes its light draws
+   `LAMP_CANDIDATES`, eight, uniformly from its cell and resamples them; the eye's split hit walks
+   every lamp. The guild, the planter, the yurt and the customs office hold no more than eight, so
+   no figure moved there.
 6. **The draws are blue at the primary hit.** The split hit's sun-disc pair, lamp-disc pair and
    pick come from tile streams. Deeper paths keep the hash: D4's replay needs every draw at a far
    end to come from a sequence keyed by the pixel and the frame, and the tile's per-frame turn is
@@ -229,7 +228,6 @@ one answer:
 
 **What goes away.**
 
-- the lamp-density cost at secondary hits;
 - the inconsistent sky-shadow flag.
 
 ### D4. The bounce's far end: a pure function of its sample
@@ -489,10 +487,12 @@ Take new baselines at the end of each phase.
 
 Order matters. D5 changes what every secondary ray meets, and D3 is measured on top of it.
 
-1. D3.5, M candidates below the primary hit, with
-   `noise --ab=<M>` and `bench` at a lamp-dense interior.
-2. D3.6, blue streams for split draws, and STBN for the bounce. `noise --ab`, all three legs.
-3. D3.7, the sky-shadow flag. The moons under water go with D7.3 in Phase 4.
+1. D3.6, blue streams for split draws, and STBN for the bounce. `noise --ab`, all three legs.
+2. D3.7, the sky-shadow flag. The moons under water go with D7.3 in Phase 4.
+3. The bounded VNDF for the glossy lobe (S§12, Eto and Tokuyoshi 2023): the cap in `visibleNormal`
+   shrunk so no reflection under the horizon is drawn, with the weight from its pdf. A GPU test that
+   no drawn direction leaves under the horizon at a grazing view, and `noise --ab` where a surface
+   has a lobe.
 
 ### Phase 2b. The still check's probe frame
 
@@ -637,7 +637,7 @@ These are local defects. Each one is fixed where it stands.
 | S§9 | Phase 3, step 7 |
 | S§10 | D9 (Phase 7) |
 | S§11 | D8 (Phase 6), D5 point 2 |
-| S§12 | D3 point 5 (Phase 2), the bounded VNDF in Phase 2 step 1 |
+| S§12 | the bounded VNDF (Phase 2 step 3) |
 | S§13 | D7 (Phase 4), the moons under water in D7.3 |
 | S§14 to S§16 | Phase 8, D7 (integrate, ambient ray), D10 (barriers) |
 | S§17 | Section 6 |
