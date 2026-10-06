@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -72,6 +73,7 @@ namespace RtxTool
             request.mStep = 0.0625f;
             request.mSetup.mSettled = false;
             request.mSetup.mRun.mMemoryBudget = 512ull * 1024 * 1024;
+            request.mMaps = std::nullopt;
 
             RunRecord record;
             record.begin(request);
@@ -106,8 +108,8 @@ namespace RtxTool
                   "level bias -1.000, indirect off, antilag on, history fix off, dual motion on, anti-firefly on, "
                   "shadow floor 0.0625, lamp candidates 4\n"
                   "     delight 0.50, gamma 2.20, show albedo, exposure fixed at 1.500, variants off, hold 8.0 ms\n"
-                  "     land 4.0 cells, viewing distance 7168, distant statics off, step 0.0625 s, walks streamed, "
-                  "memory budget 512 MiB, host pages ";
+                  "     land 4.0 cells, viewing distance 7168, distant statics off, maps player, step 0.0625 s, "
+                  "walks streamed, memory budget 512 MiB, host pages ";
             EXPECT_EQ(record.getReport().substr(0, expected.size()), expected) << record.getReport();
 
             // **This process's own share**, read as the first place is added: a share in whole per
@@ -128,7 +130,7 @@ namespace RtxTool
 
             const std::string json = read.str();
             constexpr std::string_view premises
-                = R"("measures": false, "hashed": true, "turnsWeather": true, "hugePageShare": )";
+                = R"("measures": false, "hashed": true, "turnsWeather": true, "maps": "player", "hugePageShare": )";
             constexpr std::string_view setup
                 = R"(  "filter": false, "jitter": false, "delight": 0.500, "gamma": 2.200, "show": "albedo", )"
                   R"("exposure": 1.5, "exposureHeld": false, "variants": false, "holdMs": 8.000,)";

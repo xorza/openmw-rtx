@@ -18,6 +18,7 @@
 #include <boost/program_options/variables_map.hpp>
 
 #include <apps/rtxtool/film.hpp>
+#include <apps/rtxtool/model/maprules.hpp>
 #include <apps/rtxtool/options.hpp>
 #include <apps/rtxtool/run.hpp>
 #include <apps/rtxtool/verbs.hpp>
@@ -115,7 +116,8 @@ namespace RtxTool
         }
 
         /// **A film is twenty seconds unless its length or its speed is named**, and never both: the
-        /// length sets the speed, so two named would be two answers to one question.
+        /// length sets the speed, so two named would be two answers to one question. The twenty are
+        /// nobody's, which is what lets them stand aside where they cannot be filled.
         TEST(RtxToolOptionsTest, aFilmIsItsLengthUnlessItsSpeedIsNamed)
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
@@ -137,13 +139,48 @@ namespace RtxTool
                 return std::string("nothing was refused");
             };
 
-            EXPECT_EQ(length({}), FilmPacing::sLengthByDefault);
+            EXPECT_EQ(length({}), (FilmLength{ .mSeconds = 20.0f, .mSource = FilmLengthSource::ByDefault }));
             EXPECT_EQ(FilmPacing::sLengthByDefault, 20.0f);
-            EXPECT_EQ(length({ "--length=35" }), 35.0f);
+            EXPECT_EQ(length({ "--length=35" }), (FilmLength{ .mSeconds = 35.0f, .mSource = FilmLengthSource::Named }));
             EXPECT_EQ(length({ "--speed=500" }), std::nullopt);
             EXPECT_EQ(refusal({ "--length=35", "--speed=500" }),
                 "--length sets the speed, so --speed cannot be named beside it");
             EXPECT_EQ(refusal({ "--length=0" }), "the argument ('0') for option '--length' is not a number >0");
+        }
+
+        /// **A run takes the shipped map rules unless the line names others**, and never the
+        /// player's, so two machines trace one scene; `view` is the played game and takes the
+        /// player's unless the line names rules. A spelling no rule has is refused with the ones
+        /// there are, the player's among the refused.
+        TEST(RtxToolOptionsTest, aRunTakesTheShippedMapsUnlessTheLineOrAWindowSaysOtherwise)
+        {
+            const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
+            const auto maps = [&](const std::vector<std::string>& line, Verbs verb) {
+                bpo::variables_map variables;
+                bpo::store(parse(options, line), variables);
+                bpo::notify(variables);
+                return mapRulesFrom(variables, verb);
+            };
+
+            EXPECT_EQ(maps({}, Verbs::Shot), MapRules::Shipped);
+            EXPECT_EQ(maps({}, Verbs::Bench), MapRules::Shipped);
+            EXPECT_EQ(maps({}, Verbs::View), std::nullopt);
+            EXPECT_EQ(maps({ "--maps=classic" }, Verbs::Noise), MapRules::Classic);
+            EXPECT_EQ(maps({ "--maps=metal-roughness" }, Verbs::Film), MapRules::MetalRoughness);
+            EXPECT_EQ(maps({ "--maps=shipped" }, Verbs::View), MapRules::Shipped);
+            for (const std::string spelling : { "mine", "player", "metal roughness" })
+            {
+                try
+                {
+                    maps({ "--maps=" + spelling }, Verbs::Shot);
+                    ADD_FAILURE() << spelling << " was not refused";
+                }
+                catch (const std::exception& error)
+                {
+                    EXPECT_EQ(std::string(error.what()),
+                        '"' + spelling + R"(" is not a map rule: shipped, classic or metal-roughness)");
+                }
+            }
         }
 
         /// The build decides the level nobody named, and the level is spelled the way the table
@@ -285,7 +322,8 @@ namespace RtxTool
             EXPECT_NE(lineFor("seconds").find("steps 1/60 of a second"), std::string::npos) << lineFor("seconds");
             EXPECT_NE(lineFor("seconds").find("the 20 seconds nobody named are 1200 frames"), std::string::npos);
             EXPECT_NE(lineFor("speed").find("11 metres a second is a drone"), std::string::npos) << lineFor("speed");
-            EXPECT_NE(lineFor("length").find("seconds, 20 where neither this nor --speed is named"), std::string::npos)
+            EXPECT_NE(
+                lineFor("length").find("taken out. 20 where neither this nor --speed is named"), std::string::npos)
                 << lineFor("length");
             EXPECT_NE(lineFor("cut-distance").find(": 2 exterior cells by default"), std::string::npos);
             EXPECT_NE(lineFor("encode").find("with libx264 at CRF 18 in yuv420p"), std::string::npos);

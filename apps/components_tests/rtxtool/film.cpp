@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -307,6 +308,12 @@ namespace RtxTool
         /// third take of five units makes 37 flown frames of 3505 units, `94.7` a frame: `31.67`,
         /// `5.28` and `0.05`. The whole parts are 31, 5 and nought, the frame left over goes to the
         /// largest remainder, the first's, and the third's frame comes back out of it: 31, 5 and 1.
+        ///
+        /// **A length nobody named stands aside where a named one is refused.** A flight of its own
+        /// three seconds leaves the default nothing to fill: thirty frames and the first, 31 and not
+        /// 50. A default of one second leaves the five keys no frame to fly, so they fly at the
+        /// hundred units a second: 3000 units are 300 frames and the first, and the hold's ten and
+        /// 500 units' fifty and the first are 61, 362 in all.
         TEST(RtxFilmTest, aLengthSetsTheSpeed)
         {
             std::vector<FilmKey> keys{
@@ -319,7 +326,7 @@ namespace RtxTool
             keys[3].mHold = 1.0f;
 
             FilmPacing pacing = pacingForTests();
-            pacing.mLength = 5.0f;
+            pacing.mLength = FilmLength{ .mSeconds = 5.0f };
             const FilmPlan plan = planFilm(keys, pacing);
             ASSERT_EQ(plan.mTakes.size(), 2u);
 
@@ -346,7 +353,7 @@ namespace RtxTool
 
             const auto refusal = [&](std::vector<FilmKey> film, float length) {
                 FilmPacing asked = pacingForTests();
-                asked.mLength = length;
+                asked.mLength = FilmLength{ .mSeconds = length };
                 try
                 {
                     planFilm(std::move(film), asked);
@@ -360,8 +367,39 @@ namespace RtxTool
             EXPECT_EQ(refusal({ keys[0] }, 5.0f),
                 "--length has nothing to set: no key of the film is flown to, where 5 s are");
             EXPECT_EQ(refusal(keys, 1.0f),
-                "--length is 1 s, and the holds, the stills, what stands on the spot and each take's first frame take "
-                "1.2 s of it, leaving less than a frame for each of the 2 takes that fly");
+                "--length is 1 s, and the holds, the stills, what stands on the spot, the keys' own seconds and each "
+                "take's first frame take 1.2 s of it, leaving less than a frame for each of the 2 takes that fly");
+
+            std::vector<FilmKey> given{ keys[0], keys[1] };
+            given[1].mSeconds = 3.0f;
+            EXPECT_EQ(
+                refusal(given, 5.0f), "--length has nothing to set: no key of the film is flown to, where 5 s are");
+
+            const auto byDefault = [&](std::vector<FilmKey> film, float length) {
+                FilmPacing asked = pacingForTests();
+                asked.mLength = FilmLength{ .mSeconds = length, .mSource = FilmLengthSource::ByDefault };
+                return planFilm(std::move(film), asked);
+            };
+            const FilmPlan own = byDefault(given, 5.0f);
+            EXPECT_EQ(own.getFrames(), 31u);
+            EXPECT_EQ(own.mDefaultTooShort, std::nullopt);
+            EXPECT_EQ(own.mPacing.mLength, std::nullopt);
+
+            const FilmPlan paced = byDefault(keys, 1.0f);
+            EXPECT_EQ(paced.getFrames(), 362u);
+            EXPECT_EQ(paced.mDefaultTooShort, 1.0f);
+            EXPECT_EQ(paced.mPacing.mLength, std::nullopt);
+            EXPECT_EQ(paced.getFrames(), planFilm(keys, pacingForTests()).getFrames()) << "the speed's own film";
+            EXPECT_TRUE(describePlan(paced).starts_with(
+                "film: 5 keys, 2 takes, 362 frames, 36.2 s at 10 frames a second\n"
+                "the 1 s a film is when neither --length nor --speed is named leave no frame to fly after the holds, "
+                "the stills, what stands on the spot, the keys' own seconds and each take's first frame, so every "
+                "flight is at --speed, 100 units a second\n"))
+                << describePlan(paced);
+
+            const FilmPlan filled = byDefault(keys, 5.0f);
+            EXPECT_EQ(filled.getFrames(), 50u) << "a default with room is the length";
+            EXPECT_EQ(filled.mDefaultTooShort, std::nullopt);
         }
 
         /// A hold is its key twice, both resting; a take of one key holds it for a still; each take

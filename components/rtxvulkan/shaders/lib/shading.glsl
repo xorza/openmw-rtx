@@ -453,8 +453,8 @@ vec3 pathEnd(vec3 position, float reaching)
 /// **Rounded to what the payload carries before anything is divided by it** (`packRgb9e5`, whose
 /// every value a half holds as well): the light divided by this and the channel the composite
 /// multiplies by are one number, so the two meet to the rounding of a product. The floor survives
-/// the rounding as a step of the shared exponent's mantissa, never nought, while no channel of the
-/// albedo reaches two.
+/// the rounding as a step of the shared exponent's mantissa, never nought, while every channel of
+/// the albedo rounds below four.
 vec3 specularModulation(Gloss gloss)
 {
     const vec3 rounded = unpackRgb9e5(packRgb9e5(max(gloss.mAlbedo, vec3(SPECULAR_ALBEDO_FLOOR))));

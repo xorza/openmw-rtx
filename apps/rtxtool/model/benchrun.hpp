@@ -18,6 +18,7 @@
 #include "benchrecord.hpp"
 #include "benchspec.hpp"
 #include "cameratrack.hpp"
+#include "maprules.hpp"
 
 namespace RtxTool
 {
@@ -398,6 +399,11 @@ namespace RtxTool
         /// and close. Otherwise the run closes any a script opens, and draws the interface only
         /// where `mHud` asks.
         bool mPlayed = false;
+
+        /// Which companion maps a model takes, as the line names them, or nothing for the player's
+        /// own: the shipped file's unless the line names others, and the player's in a window
+        /// somebody plays.
+        std::optional<MapRules> mMaps = MapRules::Shipped;
 
         /// Whether the game's HUD is drawn over the picture, and for a session nobody plays whether
         /// anything of the interface is. Off by default: a picture is of the world, and the bars and

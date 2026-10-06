@@ -15,6 +15,7 @@ namespace RtxTool
         mHeader.mSuite = request.mSuite;
         mHeader.mAsserts = Rtx::sAssertsOn;
         mHeader.mMeasures = request.mMeasures;
+        mHeader.mMaps = request.mMaps;
         mHeader.mHashed = !request.mHashes.empty() || !request.mAgainst.empty() || !request.mPictures.empty()
             || std::any_of(
                 request.mStops.begin(), request.mStops.end(), [](const Stop& stop) { return stop.mActions.mHash; });
