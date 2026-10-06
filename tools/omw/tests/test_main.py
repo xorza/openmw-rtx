@@ -2,7 +2,7 @@ import re
 import unittest
 
 from omw.main import BUILD_VERBS, BUILDLESS_VERBS, HARNESS_VERBS, USAGE, Line, parse
-from omw.system import FORK, ROOT, Refusal
+from omw.system import FORK, ROOT, Refusal, read_text
 from omw.testing import ctest_arguments
 
 
@@ -58,7 +58,7 @@ class ParseTest(unittest.TestCase):
                 self.assertTrue((ROOT / folder).is_dir())
 
     def test_the_harness_verbs_are_the_harness_own(self):
-        text = (ROOT / "apps" / "rtxtool" / "verbs.cpp").read_text()
+        text = read_text(ROOT / "apps" / "rtxtool" / "verbs.cpp")
         named = re.findall(r'std::pair\{ Verbs::\w+, std::string_view\("(\w+)"\) \}', text)
         self.assertEqual(tuple(named), HARNESS_VERBS)
 
