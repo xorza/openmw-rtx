@@ -110,8 +110,7 @@ namespace Rtx
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_MOMENTS, images.mMoments.describeStorage());
 
         dispatch(commands, clamp, clampWrites,
-            Shaders::AccumulateClampConstants{
-                .mWidth = camera.mWidth, .mHeight = camera.mHeight, .mAntilag = frame.mAntilag ? 1u : 0u },
+            Shaders::AccumulateClampConstants{ .mEyes = frame.mSampled.mEyes, .mAntilag = frame.mAntilag ? 1u : 0u },
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
     }
 

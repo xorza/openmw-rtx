@@ -202,13 +202,6 @@ items are departures from the published method that each cost gain or add bias. 
 
 ## 9. The wavelet's details differ from ReLAX and SVGF
 
-- [ ] `accumulateclamp.comp:154-172, 221`. `momentMean`, the short-history variance, is a flat 5×5
-  box over every surface pixel. Short histories stand at disocclusions, so the box mixes the
-  occluder's moments with the uncovered surface's. That raises the variance and loosens the
-  brightness test where it matters most. ReLAX weights the spatial estimate's taps by normal and
-  material (`RELAX_AtrousSmem.cs.hlsl`). SVGF uses a bilateral filter by depth and normal (Schied
-  2017, §4.2). Target: weight each tap by `facingWeight` and `coplanarWeight` (the surface is already
-  loaded for `gFast`) and normalize by the weight sum.
 - [ ] `atrous.comp:203, 235-236`. The wide level weighs a prefiltered centre variance
   (`varianceAround`, SVGF's 3×3) against each tap's raw variance (`light.a`). The prefilter exists
   because "an edge stopped by a noisy spread is a blotch", and the tap's raw value is the noisy

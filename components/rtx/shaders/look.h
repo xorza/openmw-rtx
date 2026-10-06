@@ -1353,7 +1353,7 @@ namespace Rtx::Shaders
     /// a pixel or two away: the fix's stand up to fourteen, where a shading normal on a curved or
     /// normal-mapped surface has turned ten or fifteen degrees, which 128 weighs at 0.14 and 0.012 and
     /// eight at 0.89 and 0.76. On a floor of stripes twenty degrees apart, the strip the eye turned to
-    /// kept 0.41 of its noise without the fix under eight, and 0.61 under 128
+    /// kept 0.51 of its noise without the fix under eight, and 0.72 under 128
     /// (`theHistoryFixFindsItsNeighboursOnABumpySurface`).
     const float ACCUMULATE_FIX_NORMAL_POWER = 8.0f;
 
