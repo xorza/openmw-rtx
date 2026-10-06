@@ -522,9 +522,13 @@ frame's curve runs a second time into a sixteen-bit picture, undithered (`Presen
 `Renderer::readDeepPixels`), and `noise` writes its reference from it (`Actions::mDeepCapture`); the
 bar stays a picture as shown, as the frame it is held against is.
 
-**Left**, in order: the bloom chain (a Karis average on the first halving, corner taps on odd
-levels, the histogram with the first halving). Run a walk from an interior into daylight and back
-with `film` to see the adaptation in stops.
+The frame's halving is a Karis average weighed by the exposure the frame before ended on
+(`BLOOM_SPEC_KARIS`), and every level stands on its source's corners, the tone pass's read of the
+finest one included.
+
+**Left**, in order: the histogram with the first halving, and the reduction and the glare between
+the coarse levels (a `release bench` A/B). Run a walk from an interior into daylight and back with
+`film` to see the adaptation in stops.
 
 ### Phase 8. Uniform frame times and unused work
 

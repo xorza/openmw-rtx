@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -60,12 +62,18 @@ namespace Rtx
             BloomPass mBloom;
             Image mFrame;
 
-            Bloomed(const Device& device, std::uint32_t width, std::uint32_t height)
+            /// What the frame's halving weighs its squares by: nought, the plain average, unless a
+            /// test of the Karis average says otherwise.
+            Buffer mExposure;
+
+            Bloomed(const Device& device, std::uint32_t width, std::uint32_t height, float exposure = 0.0f)
                 : mBloom(device)
                 , mFrame(Testing::makeTestImage(
                       device, VkExtent2D{ width, height }, VK_FORMAT_R32G32B32A32_SFLOAT, "test-bloom-frame"))
+                , mExposure(Buffer::hostWritten(device, sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "test"))
             {
                 mBloom.resize(width, height);
+                mExposure.writable<float>(0, 1).front() = exposure;
             }
 
             /// What the pyramid's finest level holds after one run, or nothing where there is no
@@ -73,7 +81,8 @@ namespace Rtx
             std::vector<float> over(const Device& device, std::span<const float> pixels)
             {
                 paint(device.getPool(), device, mFrame, pixels);
-                device.getPool().submitAndWait([&](VkCommandBuffer commands) { mBloom.record(commands, mFrame); });
+                device.getPool().submitAndWait(
+                    [&](VkCommandBuffer commands) { mBloom.record(commands, mFrame, mExposure); });
 
                 const Image* pyramid = mBloom.getPyramid();
                 return pyramid != nullptr ? Testing::readHalves(*pyramid) : std::vector<float>();
@@ -94,7 +103,9 @@ namespace Rtx
         {
             const Device& device = getDevice();
 
-            Bloomed run(device, sWidth, sHeight);
+            // Under the Karis average as well: every square of a flat frame weighs the same, so the
+            // weights divide back out.
+            Bloomed run(device, sWidth, sHeight, 1.0f);
             EXPECT_EQ(run.mBloom.getLevelCount(), Shaders::BLOOM_LEVELS) << "a frame with room for every halving";
 
             // Quarters, so the half floats the levels are kept in hold each of them exactly and what
@@ -170,6 +181,146 @@ namespace Rtx
                 EXPECT_GT(here, 0.0f) << "and the widest level still reaches there";
                 last = here;
             }
+        }
+
+        /// Every level stands on its source's corners, an odd source and an odd spread included, so
+        /// a ramp comes back the ramp.
+        ///
+        /// **The arithmetic.** The frame is 83 by 16 and holds its column's index in red, so texel
+        /// `i` is `i`. Both kernels are symmetric partitions of one and every tap lands on a texel
+        /// corner or a quarter of the way between centres, so over a ramp each is the ramp at the
+        /// point it stands on. Level 0, 41 across, puts texel `p` on the corner between frame texels
+        /// `2p` and `2p + 1`: `2p + ½`. Level 1, 20 across from 41, puts texel `r` on the corner
+        /// between level-0 texels `2r` and `2r + 1`: `4r + 1½`, which is the frame's ramp at that
+        /// texel's centre again. The tent back up reads level 1 at `(q + ½) / 2` of its texels:
+        /// `4 (q + ½) / 2 - ½ = 2q + ½`, level 0's own value, so the mix leaves it. Exact in half
+        /// floats, being halves under 64. Only where no tap reaches a clamped edge — level-0 texels
+        /// 8 to 30 — since a clamp is no ramp. Stretched over a level of odd width as it was, a
+        /// texel stood up to half a source texel off its corner and read the ramp that far off.
+        TEST_F(RtxBloomPassTest, everyLevelStandsOnItsSourcesCorners)
+        {
+            const Device& device = getDevice();
+
+            constexpr std::uint32_t width = 83;
+            constexpr std::uint32_t height = 16;
+            Bloomed run(device, width, height);
+            ASSERT_EQ(run.mBloom.getLevelCount(), 2u) << "16 high halves to 8 and 4, and no further";
+
+            std::vector<float> ramp(std::size_t{ width } * height * 4);
+            for (std::uint32_t y = 0; y < height; ++y)
+                for (std::uint32_t x = 0; x < width; ++x)
+                {
+                    ramp[(std::size_t{ y } * width + x) * 4] = static_cast<float>(x);
+                    ramp[(std::size_t{ y } * width + x) * 4 + 3] = 1.0f;
+                }
+
+            const std::vector<float> spread = run.over(device, ramp);
+            constexpr std::uint32_t across = width / 2;
+            ASSERT_EQ(spread.size(), std::size_t{ across } * (height / 2) * 4);
+            for (std::uint32_t q = 8; q <= 30; ++q)
+                for (std::uint32_t y = 0; y < height / 2; ++y)
+                    ASSERT_NEAR(redAt(spread, across, q, y), 2.0f * static_cast<float>(q) + 0.5f, 1.0e-3f)
+                        << "level-0 texel " << q << ", row " << y;
+        }
+
+        /// The frame's halving is the Karis average, the device's to the host's.
+        ///
+        /// **The host's reference** stands each tap on its corner, so a tap is the mean of the two
+        /// texels either side of it on each axis, held to the frame at its edges as the sampler
+        /// holds it: thirteen of them, five squares of four, each weighed by `0.5` or `0.125` and by
+        /// `1 / (1 + luminance × exposure)`, over their sum. An 8 by 8 frame halves once, to 4 by
+        /// 4, and to nothing more, so what the pass hands back is the halving itself. The frame
+        /// is a pattern under one in each channel and a firefly of fifty in red. Half floats keep
+        /// eleven bits, so the two agree to a thousandth of the value.
+        ///
+        /// **And the exposure matters**: at nought the weights are alike and the halving is the
+        /// plain average, and at one the squares that hold the firefly weigh less than those
+        /// beside them, so less of it spreads into the texels around its own. Its own texel keeps
+        /// its value: all five of its squares hold the firefly, and alike weights divide out.
+        TEST_F(RtxBloomPassTest, theFramesHalvingIsTheKarisAverage)
+        {
+            const Device& device = getDevice();
+
+            constexpr int size = 8;
+            constexpr int half = size / 2;
+            std::vector<float> frame(std::size_t{ size } * size * 4);
+            for (int y = 0; y < size; ++y)
+                for (int x = 0; x < size; ++x)
+                {
+                    float* const texel = &frame[(std::size_t(y) * size + std::size_t(x)) * 4];
+                    texel[0] = static_cast<float>((x * 5 + y * 3) % 8) / 8.0f;
+                    texel[1] = static_cast<float>((x * 3 + y * 7) % 8) / 8.0f;
+                    texel[2] = static_cast<float>((x + y * 5) % 8) / 8.0f;
+                    texel[3] = 1.0f;
+                }
+            frame[(std::size_t{ 3 } * size + 4) * 4] = 50.0f;
+
+            const auto at = [&](int x, int y, int channel) {
+                x = std::clamp(x, 0, size - 1);
+                y = std::clamp(y, 0, size - 1);
+                return frame[(std::size_t(y) * size + std::size_t(x)) * 4 + std::size_t(channel)];
+            };
+            // A tap on the corner at `(x, y)` in texels: the four texels around it.
+            const auto tap = [&](int x, int y, int channel) {
+                return 0.25f
+                    * (at(x - 1, y - 1, channel) + at(x, y - 1, channel) + at(x - 1, y, channel) + at(x, y, channel));
+            };
+            const auto halved = [&](int px, int py, int channel, float exposure) {
+                const int cx = 2 * px + 1;
+                const int cy = 2 * py + 1;
+                struct Square
+                {
+                    std::array<std::array<int, 2>, 4> mTaps;
+                    float mShare;
+                };
+                const std::array<Square, 5> squares{ {
+                    { { { { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } } }, 0.5f },
+                    { { { { -2, -2 }, { 0, -2 }, { -2, 0 }, { 0, 0 } } }, 0.125f },
+                    { { { { 0, -2 }, { 2, -2 }, { 0, 0 }, { 2, 0 } } }, 0.125f },
+                    { { { { -2, 0 }, { 0, 0 }, { -2, 2 }, { 0, 2 } } }, 0.125f },
+                    { { { { 0, 0 }, { 2, 0 }, { 0, 2 }, { 2, 2 } } }, 0.125f },
+                } };
+                float weighed = 0.0f;
+                float total = 0.0f;
+                for (const Square& square : squares)
+                {
+                    std::array<float, 3> mean{};
+                    for (const auto& [dx, dy] : square.mTaps)
+                        for (int c = 0; c < 3; ++c)
+                            mean[std::size_t(c)] += 0.25f * tap(cx + dx, cy + dy, c);
+                    const float luminance = 0.2126f * mean[0] + 0.7152f * mean[1] + 0.0722f * mean[2];
+                    const float weight = square.mShare / (1.0f + luminance * exposure);
+                    weighed += weight * mean[std::size_t(channel)];
+                    total += weight;
+                }
+                return weighed / total;
+            };
+
+            std::array<float, 2> beside{};
+            for (const float exposure : { 0.0f, 1.0f })
+            {
+                Bloomed run(device, size, size, exposure);
+                ASSERT_EQ(run.mBloom.getLevelCount(), 1u);
+                const std::vector<float> level = run.over(device, frame);
+                ASSERT_EQ(level.size(), std::size_t{ half } * half * 4);
+                for (int py = 0; py < half; ++py)
+                    for (int px = 0; px < half; ++px)
+                        for (int c = 0; c < 3; ++c)
+                        {
+                            const float expected = halved(px, py, c, exposure);
+                            EXPECT_NEAR(level[(std::size_t(py) * half + std::size_t(px)) * 4 + std::size_t(c)],
+                                expected, 1.0e-3f * expected + 1.0e-4f)
+                                << "texel " << px << ", " << py << " channel " << c << " at an exposure of "
+                                << exposure;
+                        }
+                for (int py = 0; py < half; ++py)
+                    for (int px = 0; px < half; ++px)
+                        if (px != 2 || py != 1)
+                            beside[exposure > 0.0f ? 1 : 0] += halved(px, py, 0, exposure);
+            }
+
+            // The reference at 15.80 plain and 14.33 weighed, which the device met texel by texel.
+            EXPECT_LT(beside[1], beside[0] - 1.0f) << "the Karis average left the firefly its spread";
         }
 
         /// A frame too small to halve is one the pass builds no pyramid for.

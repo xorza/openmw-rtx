@@ -16,10 +16,18 @@ namespace Rtx::Shaders
 
     /// Where `bloomdown.comp` and `bloomup.comp` bind what they read and write in set 0, and how
     /// many there are. The shader's layout and the pass's own layout and writes are numbered by
-    /// these and by nothing else, so the two cannot drift apart.
+    /// these and by nothing else, so the two cannot drift apart. The exposure is the halving's
+    /// alone, so the spread binds the first two.
     const uint BLOOM_BIND_SOURCE = 0;
     const uint BLOOM_BIND_LEVEL = 1;
-    const uint BLOOM_BINDINGS = 2;
+    const uint BLOOM_BIND_EXPOSURE = 2;
+    const uint BLOOM_SPREAD_BINDINGS = 2;
+    const uint BLOOM_HALVE_BINDINGS = 3;
+
+    /// Where `bloomdown.comp`'s specialization constant sits: `KARIS`, true for the frame's own
+    /// halving and false for every level after it.
+    const uint BLOOM_SPEC_KARIS = 0u;
+    const uint BLOOM_SPEC_COUNT = 1u;
 
     /// Threads along each edge of a bloom workgroup.
     const uint BLOOM_WORKGROUP = 8;
@@ -52,7 +60,11 @@ namespace Rtx::Shaders
         /// **The source's and not the destination's**, because both kernels are written in taps of
         /// the image they read: the thirteen-tap downsample reaches two source texels out and the
         /// nine-tap tent reaches one, and each is a fixed shape in the source's grid whatever the
-        /// destination's is.
+        /// destination's is. **And what places a destination texel in the source**: texel `p` of a
+        /// halving is the corner between source texels `2p` and `2p + 1`, which is
+        /// `(2p + 1) × mTexel`, and texel `q` of a spread stands at `(q + ½) / 2` source texels. A
+        /// source of odd width leaves its last column to the wide taps alone, where a destination
+        /// stretched over it put no tap on a corner and drifted half a texel across the level.
         vec2 mTexel;
 
         /// How much of what was sampled replaces what the destination already holds.

@@ -2,7 +2,9 @@
 
 #include <array>
 #include <cassert>
+#include <cstdint>
 #include <format>
+#include <span>
 
 #include <osg/Vec2f>
 
@@ -18,18 +20,30 @@ namespace Rtx
 {
     namespace
     {
-        /// What is being read, and what is being written. The first is sampled rather than loaded,
-        /// because both kernels are counted in bilinear fetches.
-        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::BLOOM_BINDINGS> sBindings{
+        /// What is being read, what is being written, and — for a halving — the exposure the Karis
+        /// average weighs by. The first is sampled rather than loaded, because both kernels are
+        /// counted in bilinear fetches.
+        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::BLOOM_HALVE_BINDINGS> sBindings{
             computeBinding(Shaders::BLOOM_BIND_SOURCE, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER),
             computeBinding(Shaders::BLOOM_BIND_LEVEL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
+            computeBinding(Shaders::BLOOM_BIND_EXPOSURE, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER),
         };
+
+        ComputePipeline<Shaders::BloomConstants> makeHalving(const Device& device, const bool karis)
+        {
+            std::array<std::uint32_t, Shaders::BLOOM_SPEC_COUNT> specialization{};
+            specialization[Shaders::BLOOM_SPEC_KARIS] = karis ? VK_TRUE : VK_FALSE;
+            return ComputePipeline<Shaders::BloomConstants>(device, sBindings, {}, "bloomdown.comp.spv",
+                karis ? "bloom halve frame" : "bloom halve", specialization);
+        }
     }
 
     BloomPass::BloomPass(const Device& device)
         : mDevice(device)
-        , mHalvePipeline(device, sBindings, {}, "bloomdown.comp.spv", "bloom halve")
-        , mSpreadPipeline(device, sBindings, {}, "bloomup.comp.spv", "bloom spread")
+        , mFramePipeline(makeHalving(device, true))
+        , mHalvePipeline(makeHalving(device, false))
+        , mSpreadPipeline(device, std::span(sBindings).first<Shaders::BLOOM_SPREAD_BINDINGS>(), {}, "bloomup.comp.spv",
+              "bloom spread")
         , mSampler(makeTargetSampler(device, "bloom"))
     {
     }
@@ -64,7 +78,7 @@ namespace Rtx
     }
 
     void BloomPass::run(VkCommandBuffer commands, const ComputePipeline<Shaders::BloomConstants>& pipeline,
-        const Image& source, const Image& target, float mix) const
+        const Image& source, const Image& target, const Buffer* exposure, float mix) const
     {
         // Sampled from `GENERAL` rather than moved to a read-only layout. A level is written as
         // a storage image and read as a sampled one within a few dispatches of each other, and the
@@ -72,6 +86,8 @@ namespace Rtx
         DescriptorWrites writes(pipeline);
         writes.image(Shaders::BLOOM_BIND_SOURCE, source.describeSampled(mSampler.get()));
         writes.image(Shaders::BLOOM_BIND_LEVEL, target.describeStorage());
+        if (exposure != nullptr)
+            writes.buffer(Shaders::BLOOM_BIND_EXPOSURE, exposure->describe());
 
         const Shaders::BloomConstants constants{
             .mWidth = target.getWidth(),
@@ -85,7 +101,7 @@ namespace Rtx
             Groups::covering(target.getWidth(), target.getHeight(), Shaders::BLOOM_WORKGROUP));
     }
 
-    void BloomPass::record(VkCommandBuffer commands, const Image& frame) const
+    void BloomPass::record(VkCommandBuffer commands, const Image& frame, const Buffer& exposure) const
     {
         assert((frame.getUsage() & VK_IMAGE_USAGE_SAMPLED_BIT) != 0 && "the pyramid samples the frame");
 
@@ -108,7 +124,7 @@ namespace Rtx
         const Image* source = &frame;
         for (const Image& level : mLevels)
         {
-            run(commands, mHalvePipeline, *source, level, 0.0f);
+            run(commands, source == &frame ? mFramePipeline : mHalvePipeline, *source, level, &exposure, 0.0f);
             handOver(commands, level);
             source = &level;
         }
@@ -130,7 +146,7 @@ namespace Rtx
                 written->addTransition(between, Use::sComputeWrite, Use::sComputeSample);
             between.flush();
 
-            run(commands, mSpreadPipeline, mLevels[level], finer, Shaders::BLOOM_SCATTER);
+            run(commands, mSpreadPipeline, mLevels[level], finer, nullptr, Shaders::BLOOM_SCATTER);
             written = &finer;
         }
 
