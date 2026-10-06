@@ -77,11 +77,12 @@ layout(local_size_x = ATROUS_WORKGROUP, local_size_y = ATROUS_WORKGROUP) in;
 ///
 /// **A sampled image and not a storage one, on every input this pass only reads.**
 /// `AtrousPass::sBindings` carries the measurement. A sampled declaration states no format, which
-/// is why these three name none where the target below does.
+/// is why these three name none. The targets name none either: the first level writes
+/// `ATROUS_CHANNEL` and every level after it `ATROUS_NARROW`.
 layout(set = SET_PASS, binding = ATROUS_BIND_SOURCE) uniform texture2D source;
 
-/// Where this level puts what it made of it.
-layout(set = SET_PASS, binding = ATROUS_BIND_FILTERED, ATROUS_CHANNEL) uniform writeonly image2D filtered;
+/// Where this level puts what it made of it, in full floats or in halves.
+layout(set = SET_PASS, binding = ATROUS_BIND_FILTERED) uniform writeonly image2D filtered;
 
 /// The shading normal's code in `r` and the distance from the eye in `g`, in world units, with the
 /// eye the ray left in its sign — `CHANNEL_SURFACE`, `packSurfaceDistance`. A ray that hit nothing
@@ -98,7 +99,7 @@ layout(set = SET_PASS, binding = ATROUS_BIND_SURFACE) uniform texture2D surfaceC
 /// by the ambient one is then the same light, and a surface whose two albedos are one is shown as
 /// the bounce alone would show it.
 layout(set = SET_PASS, binding = ATROUS_BIND_FILL_SOURCE) uniform texture2D fillSource;
-layout(set = SET_PASS, binding = ATROUS_BIND_FILL_FILTERED, ATROUS_CHANNEL) uniform writeonly image2D fillFiltered;
+layout(set = SET_PASS, binding = ATROUS_BIND_FILL_FILTERED) uniform writeonly image2D fillFiltered;
 
 /// The accumulator's moments, for how many frames each pixel's mean holds in `a`: whether the history
 /// fix rebuilds it, and how far apart its taps stand. Read only where `AtrousConstants::mFixFrames`

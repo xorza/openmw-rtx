@@ -563,11 +563,17 @@ measures, so the split by material and its rebuild are not built.
 `mArmsInFrame` read nought at the deck and at the guild: the harness's body readies nothing), so the
 arms' ray is never traced in a measured run and no A/B can keep the change. It waits for a place
 that stands the player with a weapon drawn; the finding stays in `review-shaders.md`.
+**Declined by its bound: the everywhere-presence word.** The atomic ORs it would save are a part of
+the sprite bin's whole zone, 0.03 ms at the dawn deck, under a bench median's noise.
+
+**Kept: the wavelet's narrow levels in `RGBA16F`** (`ATROUS_NARROW`). At the guild over six runs a
+side, alternated: the frame median 5.46 → 5.36 ms, the p99 7.20 → 7.11, the filter zone 0.774 →
+0.752, lower in every run; `noise` at the guild and the dawn deck the same to the hundredth, and the
+frame's mean darker by 0.004 and 0.006 of a level, the halves' rounding toward nought
+(`~/.cache/omw-redesign/ab-narrow`).
 
 - **Uniform frame times.**
 - **Unused work.**
-  - the everywhere-presence word;
-  - narrow wavelet levels in `RGBA16F`;
   - the sprite runs' stride rects;
   - the sprite shade's batches in shared memory;
   - the single trace site in `visibility.rgen`;

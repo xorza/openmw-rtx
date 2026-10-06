@@ -350,14 +350,6 @@ items are departures from the published method that each cost gain or add bias. 
   nodes along the ray (software traversal on RDNA), so a miss costs a full-length traversal, not "a
   mask a handful of instances carry". Target: `tmax` at the farthest first-person instance's bound,
   computed once a frame on the host, or a small top-level structure for the arms.
-- [ ] `scene/spriterects.comp:263-280`. A `PRESENCE_EVERYWHERE` row (the cloud shell) does an atomic
-  OR into every tile every frame, about 1000 a row at 4K, to say one global fact. Target: one
-  frame-wide presence word that `presenceAt` and `puffsCoverNothing` OR with the tile's.
-- [ ] `atrous.h:20-28` (`ATROUS_CHANNEL STORAGE_RGBA32F`), `atrouspass.cpp:319-371`,
-  `denoisehistory.cpp:331, 336-337`. The levels after the first read 9 taps × 32 bytes and write 32
-  bytes a pixel in full floats. `atrous.h` says those levels "are shown and never summed, and would
-  keep halves on their own". The fill's alpha is never read. Target: a ping-pong pair in `RGBA16F` for
-  the narrow levels. Level 1 reads the 32F history and writes 16F. Measure with `bench`.
 
 ## 16. Memory traffic and latency on the frame path
 

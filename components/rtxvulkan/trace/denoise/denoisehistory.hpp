@@ -22,10 +22,12 @@ namespace Rtx
         Colour,
         Moments,
         Blended,
-        Scratch,
+        Narrow,
+        NarrowOther,
         Fill,
         FillBlended,
-        FillScratch,
+        FillNarrow,
+        FillNarrowOther,
         Fast,
         FastBlended,
         ShadowMoments,
@@ -91,7 +93,7 @@ namespace Rtx
         void discard(VkCommandBuffer commands, const TemporalTurns::Step& step) const;
 
         /// The accumulator's and the wavelet's images: the three histories the accumulator reads and
-        /// writes, the blend it hands the cascade, and the scratch the cascade ping-pongs through.
+        /// writes, the blend it hands the cascade, and the pair its narrow levels ping-pong through.
         /// Past the surface's two, empty where the bounce's images were let go (`keepBounce`).
         struct AccumulateImages
         {
@@ -115,15 +117,17 @@ namespace Rtx
             /// and not a pair, because nothing reads it after the frame that wrote it.
             const Image& mBlended;
 
-            /// The cascade's other half of the ping-pong.
-            const Image& mScratch;
+            /// What the levels after the first write by turns, in `ATROUS_NARROW`.
+            const Image& mNarrow;
+            const Image& mNarrowOther;
 
-            /// The share of the bounce that is the fill, through the same four: last frame's mean,
-            /// the mean the first level writes, the blend and the scratch.
+            /// The share of the bounce that is the fill, through the same five: last frame's mean,
+            /// the mean the first level writes, the blend and the narrow pair.
             const Image& mFillBefore;
             const Image& mFill;
             const Image& mFillBlended;
-            const Image& mFillScratch;
+            const Image& mFillNarrow;
+            const Image& mFillNarrowOther;
 
             /// The fast means of the bounce and the fill (`ACCUMULATE_FAST`), last frame's and this
             /// one's, and the accumulator's blend of them, which the clamp reads at a pixel's
