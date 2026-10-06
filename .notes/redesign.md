@@ -524,7 +524,10 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
 In the order of D7's points. Each step is a `shot --against` at the fog and water places, and the
 fog's zones in `bench`. **Point 1 is done**: the froxel stores the density as a share of the
 weather's extinction, the light and the sun's transport times it, and `fogThrough` integrates them
-by `fogKept`. The pictures before it are in `~/.cache/omw-redesign/shots-before-d7`.
+by `fogKept`. The pictures before it are in `~/.cache/omw-redesign/shots-before-d7`. **Point 2 is
+done** (`slantCoverage`). **Owed:** a GPU test of a point at a bank's edge, lit as the clear air its
+slant leaves through, which needs a way for a test to state a coverage field: the field is
+procedural, and a test can only make it even, where the slant's coverage and the point's agree.
 
 ### Phase 5. The bounce's reuse (D4, decision 4)
 
