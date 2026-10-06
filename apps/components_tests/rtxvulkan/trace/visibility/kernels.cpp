@@ -23,9 +23,17 @@ namespace Rtx
     namespace
     {
         /// The three layouts every kernel of the pass names, which the renderer would own.
+        ///
+        /// **On the unvalidated device**, for the reason `getUnvalidatedHarness` gives: the layers
+        /// took a second over the seven kernels the suite's renderer made and they checked already.
         class RtxVisibilityKernelsTest : public Testing::DeviceTest
         {
         protected:
+            RtxVisibilityKernelsTest()
+                : Testing::DeviceTest(false)
+            {
+            }
+
             SetLayout mTextures = TextureArray::describeLayout(getDevice());
             SetLayout mChannels = GBuffer::describeLayout(getDevice());
             SetLayout mVolume = FogVolume::describeLayout(getDevice());

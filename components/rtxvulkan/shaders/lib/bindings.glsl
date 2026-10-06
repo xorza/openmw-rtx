@@ -496,9 +496,9 @@ layout(set = SET_VOLUME, binding = BIND_FOG_SLICE_SUNWARD) uniform sampler3D fog
 layout(set = SET_VOLUME, binding = BIND_FOG_SEEING) uniform sampler3D fogSeeing;
 
 /// The same eight, as the pass that fills each one writes it.
-layout(set = SET_VOLUME, binding = BIND_FOG_SCATTER_TARGET, FOG_VOLUME_FORMAT)
+layout(set = SET_VOLUME, binding = BIND_FOG_SCATTER_TARGET, FOG_HISTORY_FORMAT)
     uniform writeonly image3D fogScatterTarget;
-layout(set = SET_VOLUME, binding = BIND_FOG_SUNWARD_TARGET, FOG_VOLUME_FORMAT)
+layout(set = SET_VOLUME, binding = BIND_FOG_SUNWARD_TARGET, FOG_HISTORY_FORMAT)
     uniform writeonly image3D fogSunwardTarget;
 layout(set = SET_VOLUME, binding = BIND_FOG_LAMPS_TARGET, FOG_VOLUME_FORMAT) uniform writeonly image3D fogLampsTarget;
 layout(set = SET_VOLUME, binding = BIND_FOG_AIR_TARGET, FOG_VOLUME_FORMAT) uniform writeonly image3D fogVolumeAirTarget;

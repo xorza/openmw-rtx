@@ -96,7 +96,16 @@ namespace Rtx::Testing
                             FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                                 .mReconstruction = ReconstructionRequest{ .mDenoise = true, .mAntilag = antilag },
                                 .mExposure = FixedExposure{ 1.0f } });
-                        EXPECT_TRUE(mRenderer.finishFrame().has_value());
+
+                        // **Two frames in flight, as the game keeps them**, and not each waited out:
+                        // a frame here is a few dispatches at 96 pixels, and waiting each one out paid
+                        // the queue's round trip on every one of a few hundred, which took the sky's
+                        // test from 0.75 s to 1.3. The frames are the same frames either way, to the
+                        // last bit of every figure the tests read.
+                        mRenderer.collectFrame();
+                    }
+                    while (mRenderer.finishFrame().has_value())
+                    {
                     }
 
                     // The rows the frame's edges leave alone, averaged per column.
