@@ -640,8 +640,10 @@ namespace Rtx
         FrameLook::Exposure exposure = FrameLook::Held{};
         if (const FixedExposure* fixed = std::get_if<FixedExposure>(&rule))
             exposure = FrameLook::Fixed{ fixed->mScale };
-        else if (std::holds_alternative<MeasuredExposure>(rule))
-            exposure = FrameLook::Measured{ .mSeconds = options.mSinceLast, .mBias = options.mExposureBias };
+        else if (const MeasuredExposure* measured = std::get_if<MeasuredExposure>(&rule))
+            exposure = FrameLook::Measured{
+                .mSeconds = options.mSinceLast, .mBias = options.mExposureBias, .mStart = measured->mStart
+            };
 
         mDisplay.record(commands,
             Display{

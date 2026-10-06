@@ -8,6 +8,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/frame/debuglines.hpp>
+#include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
@@ -34,13 +35,16 @@ namespace Rtx
     /// timer, and cannot be handed any of them. Nothing here is held.
     struct FrameLook
     {
-        /// The eye adapts off the shown frame at its own rate — from nothing after `loseEye` — or is
+        /// The eye adapts off the shown frame at its own rate — from a bright day after `loseEye` — or is
         /// held at a value, or keeps the one the frame before ended on. A picture is measured off
         /// nothing, which `ExposurePass::getPictureExposure` says is a buffer of its own.
         struct Measured
         {
             float mSeconds;
             float mBias;
+
+            /// Where the eye starts after `loseEye`, `MeasuredExposure::mStart`.
+            EyeStart mStart;
         };
         struct Fixed
         {

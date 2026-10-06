@@ -429,6 +429,10 @@ namespace Rtx::Testing
         /// `RenderProfile::mDither` over the harness's, which dithers nothing.
         std::optional<bool> mDither{};
 
+        /// Seconds since the frame before, `FrameOptions::mSinceLast`, which a measured exposure
+        /// adapts over. Nought, so a frame moves no eye, unless a test settles one.
+        float mSinceLast = 0.0f;
+
         /// `RenderProfile::mAnisotropy` for the shot. One, so the level a cone names is the level
         /// read, which is what every test that measures a level off the mip ladder relies on.
         std::uint32_t mAnisotropy = 1;
@@ -498,6 +502,7 @@ namespace Rtx::Testing
                     sampled.mWaterTime = splitSeconds(waterSeconds);
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = shot.mFrames > 0 && shot.mAverage ? at + 1 : 0,
+                        .mSinceLast = shot.mSinceLast,
                         .mGlare = shot.mGlare,
                         .mNightEye = shot.mNightEye,
                         .mWaterSeconds = waterSeconds,
@@ -563,12 +568,17 @@ namespace Rtx::Testing
         /// the exposure the frame measured for itself.
         ///
         /// **The one thing here that wants the picture rather than the radiance**, because what
-        /// it measures is the exposure pass.
+        /// it measures is the exposure pass. **Settled**: the scene's first frame has no past and
+        /// holds a day's exposure (`EXPOSURE_DAY`), so the same frame is drawn again over a time the
+        /// eye closes the whole gap in, and that is the picture read.
         void renderPicture(const SceneDesc& scene, std::span<const TextureData> textures,
             const Shaders::VisibilityConstants& camera, std::uint32_t size, std::vector<std::uint8_t>& pixels,
             Shot shot = {})
         {
             shot.mExposure = std::nullopt;
+            shoot(scene, textures, camera, size, shot);
+            shot.mSetScene = false;
+            shot.mSinceLast = 1000.0f;
             shoot(scene, textures, camera, size, shot);
             mRenderer.readPixels(pixels);
 
