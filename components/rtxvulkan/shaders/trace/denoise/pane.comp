@@ -74,28 +74,17 @@ void main()
     const vec3 moved = imageLoad(paneMotion, at).xyz;
     const HistoryFootprint footprint = historyFootprint(at, frame.mEyes.mWorld.mJitter, moved);
 
+    // A texel no layer stood in holds no history, and would pull the mean toward nought.
+    RTX_HISTORY_SHARES(shares, footprint, extent, heldBefore, imageLoad(meanBefore, historyAt).a > 0.0, normal, seen.y,
+        moved, frame.mDistanceScale)
+    if (frame.mReset != 0u)
+        shares = vec4(0.0);
+
     vec4 heldMean = vec4(0.0);
-    float weight = 0.0;
-
-    if (frame.mReset == 0u)
-    {
-        for (int i = 0; i < 4; ++i)
-        {
-            const float bilinear = historyShare(footprint, i);
-            const ivec2 tap = historyTap(footprint, i);
-            if (bilinear <= 0.0 || outsideOf(tap, extent)
-                || !heldSurfaceMatches(imageLoad(heldBefore, tap), normal, seen.y, moved, frame.mDistanceScale))
-                continue;
-
-            // A texel no layer stood in holds no history, and would pull the mean toward nought.
-            const vec4 was = imageLoad(meanBefore, tap);
-            if (was.a <= 0.0)
-                continue;
-
-            heldMean += was * bilinear;
-            weight += bilinear;
-        }
-    }
+    for (int i = 0; i < 4; ++i)
+        if (shares[i] > 0.0)
+            heldMean += imageLoad(meanBefore, historyTap(footprint, i)) * shares[i];
+    const float weight = historyCovered(shares);
 
     RunningMean blended = startedMean(sampled);
     if (weight > 0.0)
