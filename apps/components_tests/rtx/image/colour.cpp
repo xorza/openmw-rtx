@@ -208,5 +208,20 @@ namespace Rtx
             EXPECT_GT(Shaders::displayGamma(0.25f, 1.0f / 2.0f), Shaders::displayGamma(0.25f, 1.0f / 1.5f))
                 << "a greater gamma did not lift the value further";
         }
+
+        /// **YCoCg, by hand, and back.** Red `(1, 0, 0)` is `(1/4, 1/2, -1/4)`, green `(0, 1, 0)` is
+        /// `(1/2, 0, 1/2)` and blue `(0, 0, 1)` is `(1/4, -1/2, -1/4)`: luma `(R + 2G + B) / 4` and the
+        /// two differences. A grey has no chroma, and its luma is itself. Every coefficient is a power of
+        /// two, so a colour of quarters goes there and back to the bit.
+        TEST(RtxYcocgTest, theAxesAreLumaAndTwoDifferencesAndTheWayBackIsExact)
+        {
+            EXPECT_EQ(Shaders::ycocgOf(osg::Vec3f(1.0f, 0.0f, 0.0f)), osg::Vec3f(0.25f, 0.5f, -0.25f));
+            EXPECT_EQ(Shaders::ycocgOf(osg::Vec3f(0.0f, 1.0f, 0.0f)), osg::Vec3f(0.5f, 0.0f, 0.5f));
+            EXPECT_EQ(Shaders::ycocgOf(osg::Vec3f(0.0f, 0.0f, 1.0f)), osg::Vec3f(0.25f, -0.5f, -0.25f));
+            EXPECT_EQ(Shaders::ycocgOf(osg::Vec3f(0.75f, 0.75f, 0.75f)), osg::Vec3f(0.75f, 0.0f, 0.0f));
+
+            const osg::Vec3f quarters(0.25f, 1.5f, 0.75f);
+            EXPECT_EQ(Shaders::rgbOfYcocg(Shaders::ycocgOf(quarters)), quarters);
+        }
     }
 }

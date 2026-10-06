@@ -92,6 +92,24 @@ namespace Rtx::Shaders
         return pow(encoded, inverseGamma);
     }
 
+    /// A linear colour as luma and two chroma differences, `(Y, Co, Cg)`: `Y = (R + 2G + B) / 4`,
+    /// `Co = (R - B) / 2`, `Cg = (2G - R - B) / 4`. **The space a history is clamped in**, as
+    /// ReLAX's is (`RELAX_HistoryClamping`): a box over its three axes holds a colour's brightness
+    /// apart from its hue, where RGB's three would let a change of hue through at one brightness.
+    /// Every coefficient a power of two, so the transform and `rgbOfYcocg` are exact inverses up to
+    /// a float's rounding of the sums.
+    RTX_SHADER vec3 ycocgOf(vec3 rgb)
+    {
+        return vec3(0.25f * rgb[0] + 0.5f * rgb[1] + 0.25f * rgb[2], 0.5f * rgb[0] - 0.5f * rgb[2],
+            0.5f * rgb[1] - 0.25f * rgb[0] - 0.25f * rgb[2]);
+    }
+
+    /// The colour `ycocgOf` gave `ycocg` for.
+    RTX_SHADER vec3 rgbOfYcocg(vec3 ycocg)
+    {
+        return vec3(ycocg[0] + ycocg[1] - ycocg[2], ycocg[0] + ycocg[2], ycocg[0] - ycocg[1] - ycocg[2]);
+    }
+
 #ifdef RTX_HOST
 }
 #endif
