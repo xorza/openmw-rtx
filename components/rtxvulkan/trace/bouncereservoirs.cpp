@@ -26,8 +26,29 @@ namespace Rtx
     {
         assert(width > 0 && height > 0);
 
-        mStride = reuses ? width : 1;
-        const VkDeviceSize pixels = reuses ? VkDeviceSize{ width } * height : 1;
+        mWidth = width;
+        mHeight = height;
+        mReuses = reuses;
+        allocate(mReuses && mDemanded);
+    }
+
+    void BounceReservoirs::demand()
+    {
+        assert(mReuses && "a reuse asked of reservoirs made for a chain that never reuses");
+        if (mDemanded)
+            return;
+
+        // A chain not yet sized makes them at its first resize.
+        mDemanded = true;
+        if (mWidth > 0)
+            allocate(true);
+    }
+
+    void BounceReservoirs::allocate(const bool full)
+    {
+        mFull = full;
+        mStride = full ? mWidth : 1;
+        const VkDeviceSize pixels = full ? VkDeviceSize{ mWidth } * mHeight : 1;
 
         mReservoirs
             = Buffer::deviceLocal(mDevice, pixels * sizeof(Shaders::GpuBounceReservoir), sUsage, "bounce-reservoirs");
@@ -38,10 +59,10 @@ namespace Rtx
         mThrough = Buffer::deviceLocal(mDevice, pixels * sizeof(std::uint32_t), sUsage, "bounce-through");
         mPaired = Buffer::deviceLocal(mDevice, pixels * sizeof(std::uint32_t), sUsage, "bounce-paired");
 
-        if (reuses)
+        if (full)
         {
             Batch batch(mDevice.getPool());
-            const std::vector<std::uint32_t> steps = bouncePairingSteps(height);
+            const std::vector<std::uint32_t> steps = bouncePairingSteps(mHeight);
             mPairing = uploadBuffer(batch, std::span<const std::uint32_t>(steps), sUsage, "bounce-pairing");
             batch.flush();
         }

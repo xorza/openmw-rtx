@@ -79,6 +79,15 @@ namespace Rtx
         mReservoirs.resize(mWidth, mHeight, mReuses && traced);
     }
 
+    void TraceChain::setReuse(const BounceReuse reuse)
+    {
+        if (reuse == BounceReuse::Off)
+            return;
+
+        assert(mReuses && "a reuse asked of a chain that keeps no reservoirs");
+        mReservoirs.demand();
+    }
+
     void TraceChain::grow(const std::uint32_t width, const std::uint32_t height)
     {
         if (holds(width, height))
@@ -106,6 +115,8 @@ namespace Rtx
 
         const BounceReuse reuse = what.mReconstruction.mBounceReuse;
         assert((mReuses || reuse == BounceReuse::Off) && "a reuse asked of a chain that keeps no reservoirs");
+        assert((reuse == BounceReuse::Off || mReservoirs.holdsEveryPixel())
+            && "a reuse whose reservoirs were not asked for before its recording opened");
         const bool history = mReservoirs.turn(reuse != BounceReuse::Off);
 
         mFogVolume->turn();

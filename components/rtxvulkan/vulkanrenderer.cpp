@@ -560,6 +560,7 @@ namespace Rtx
         // indirect light makes are uploaded by a submit of their own, which inside the open
         // recording would take the value what it already named was named for.
         mFrame.setIndirect(reconstruction.mIndirect);
+        mFrame.setReuse(reconstruction.mBounceReuse);
 
         GpuTimer& timer = frame.mTimer;
         const VkCommandBuffer commands = frame.mWorld.mCommands;

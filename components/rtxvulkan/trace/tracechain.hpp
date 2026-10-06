@@ -63,6 +63,12 @@ namespace Rtx
         /// matches its frame.
         void setIndirect(IndirectLight indirect);
 
+        /// Makes the bounce's reservoirs every pixel's the first time a frame asks for a reuse
+        /// (`BounceReservoirs::demand`), and nothing after. **Before the recording of that frame
+        /// opens**, for the reason `setIndirect` is: the pairings are uploaded by a submit of their
+        /// own. `record` asserts the chain matches its frame.
+        void setReuse(BounceReuse reuse);
+
         /// Makes the chain at least this big, keeping whatever extent it already reached on either
         /// axis. Nothing where it already `holds` the size. Grown and never shrunk, because a
         /// smaller picture uses a corner of a larger one's images rather than rebuilding them.

@@ -8,7 +8,12 @@
 // **The candidate is canonical and last frame's reservoir is shifted to it.** Last frame's sample
 // was found from last frame's visible point; reconnected to this one, the solid angle around it
 // changes by `shiftJacobian`, and the weights are the defensive pairwise MIS of the two inputs
-// (`canonicalWeight`, `neighbourWeight`), each by its confidence. Last frame's reservoir is found
+// (`canonicalWeight`, `neighbourWeight`), each by its confidence. **Not the balance heuristic**,
+// which a merge of two could take: with no visibility in the weights, the history's target for the
+// candidate counts what the history's point may not see, and the balance hands the history nearly
+// all of the weight at a confidence of twenty. Over the corner it carried 27 fireflies where the
+// plain bounce has 24, left the walk's error at 0.84 of no reuse's, over the 0.67 this stays under, and kept
+// 0.969 of a sunlit bounce's mean. Last frame's reservoir is found
 // at the pixel the motion vector names, among the four a bilinear fetch spans, and taken only where
 // it is the same surface (`heldSurfaceMatches`): the tree's one rule for a history.
 //
@@ -62,7 +67,8 @@ Held heldBefore(uvec2 pixel, BounceOrigin origin)
     // the two differ by the arms' spread, a share of a tolerance.
     const float tolerance = planeTolerance(frame.mEyes.mWorld, away, origin.mNormal, origin.mOffset / away);
 
-    Held held = Held(noBounce(), noOrigin());
+    BounceOrigin kept = noOrigin();
+    uint keptAt = 0u;
     float best = 0.0;
     for (int corner = 0; corner < 4; ++corner)
     {
@@ -80,10 +86,12 @@ Held heldBefore(uvec2 pixel, BounceOrigin origin)
             continue;
 
         best = share;
-        held = Held(unpackBounce(bounceHistory[at]), was);
+        kept = was;
+        keptAt = at;
     }
 
-    return held;
+    // The reservoir read once, of the tap kept: the origins decide, and only one reservoir is used.
+    return best > 0.0 ? Held(unpackBounce(bounceHistory[keptAt]), kept) : Held(noBounce(), noOrigin());
 }
 
 /// Last frame's reservoir merged into this pixel's candidate, or the candidate alone where last

@@ -114,11 +114,16 @@ struct BounceOrigin
 
     /// Whether the pixel left a bounce at all: a solid the eye found.
     bool mKept;
+
+    /// Whether the trace handed the point's bounce the sky without a ray (`escapesUntraced`): a ray
+    /// of the reuse's toward the sky from here is answered as the trace answered it.
+    bool mEscapes;
 };
 
 BounceOrigin noOrigin()
 {
-    return BounceOrigin(vec3(0.0), vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, 1.0), false, 0.0, vec3(0.0), false, 0.0, false);
+    return BounceOrigin(
+        vec3(0.0), vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, 1.0), false, 0.0, vec3(0.0), false, 0.0, false, false);
 }
 
 GpuBounceOrigin packOrigin(BounceOrigin origin)
@@ -132,7 +137,7 @@ GpuBounceOrigin packOrigin(BounceOrigin origin)
     packed.mReflectance = reflectance.r | (reflectance.g << 8u) | (reflectance.b << 16u);
     packed.mSheet = uint(round(clamp(origin.mTransmission, 0.0, 1.0) * 65535.0))
         | (origin.mGlossy ? BOUNCE_ORIGIN_GLOSSY : 0u) | (origin.mPlaned ? BOUNCE_ORIGIN_PLANED : 0u)
-        | (origin.mKept ? BOUNCE_ORIGIN_KEPT : 0u);
+        | (origin.mKept ? BOUNCE_ORIGIN_KEPT : 0u) | (origin.mEscapes ? BOUNCE_ORIGIN_ESCAPES : 0u);
     packed.mRounding = origin.mRounding;
     return packed;
 }
@@ -144,7 +149,7 @@ BounceOrigin unpackOrigin(GpuBounceOrigin packed)
     return BounceOrigin(packed.mOffset, unpackUnit(packed.mNormal),
         planed ? unpackUnit(packed.mPlane) : vec3(0.0, 0.0, 1.0), planed, packed.mRounding, vec3(reflectance) / 255.0,
         (packed.mSheet & BOUNCE_ORIGIN_GLOSSY) != 0u, float(packed.mSheet & 0xFFFFu) / 65535.0,
-        (packed.mSheet & BOUNCE_ORIGIN_KEPT) != 0u);
+        (packed.mSheet & BOUNCE_ORIGIN_KEPT) != 0u, (packed.mSheet & BOUNCE_ORIGIN_ESCAPES) != 0u);
 }
 
 /// What the diffuse half of `origin` makes of light arriving from `towards`, per unit albedo and

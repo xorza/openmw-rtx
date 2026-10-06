@@ -62,15 +62,15 @@ void main()
     if (frame.mBounceReuse == BOUNCE_REUSE_SPATIOTEMPORAL)
     {
         const uint paired = bouncePaired[at];
-        BounceReservoir neighbours[BOUNCE_NEIGHBOURS];
-        BounceOrigin origins[BOUNCE_NEIGHBOURS];
-        uint partnersPaired[BOUNCE_NEIGHBOURS];
         vec4 there = vec4(0.0);
         vec4 confidences = vec4(0.0);
         float total = float(own.mConfidence);
 
-        // Each partner, taken where it is a surface of this one's kind: its reservoir, and this
+        // Each partner, taken where it is a surface of this one's kind: its confidence, and this
         // pixel's sample shifted into its domain, seen from there or not, as this pixel's bit says.
+        //
+        // **Only those two kept for the loop after**, which reads the partner again: the reservoir
+        // and the visible point held across both loops are what the launch's registers went to.
         for (uint index = 0u; index < BOUNCE_NEIGHBOURS; ++index)
         {
             const ivec2 partner = partnerOf(pixel, index);
@@ -79,19 +79,14 @@ void main()
 
             const BounceOrigin near = unpackOrigin(bounceOrigins[tapAt]);
             const bool alike = inside && originsAlike(origin, near);
-
-            BounceReservoir reservoir = unpackBounce(bounceReservoirs[tapAt]);
-            reservoir.mConfidence = alike ? reservoir.mConfidence : 0u;
-            neighbours[index] = reservoir;
-            origins[index] = near;
-            partnersPaired[index] = bouncePaired[tapAt];
+            const uint confidence = alike ? bounceReservoirs[tapAt].mState & 0xFFu : 0u;
 
             const BounceReach ownThere = reachOf(own.mSample, origin.mOffset, near.mOffset);
             const float jacobian = shiftJacobian(own.mSample, origin.mOffset, near.mOffset);
             const bool seen = alike && jacobian > 0.0 && ((paired >> index) & 1u) != 0u;
             there[index] = seen ? bounceTarget(near, own.mSample, ownThere) * jacobian : 0.0;
-            confidences[index] = float(reservoir.mConfidence);
-            total += float(reservoir.mConfidence);
+            confidences[index] = float(confidence);
+            total += float(confidence);
         }
 
         const float ownMis = canonicalWeight(ownTarget, own.mConfidence, total, there, confidences);
@@ -100,15 +95,21 @@ void main()
 
         for (uint index = 0u; index < BOUNCE_NEIGHBOURS; ++index)
         {
-            const BounceReservoir near = neighbours[index];
-            const BounceOrigin nearOrigin = origins[index];
+            // The partner the loop above took, read again: nought confidence where it was not.
+            const ivec2 partner = partnerOf(pixel, index);
+            const bool inside = !outsideOf(partner, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight));
+            const uint tapAt = inside ? uint(partner.y) * frame.mBounceStride + uint(partner.x) : at;
+            const BounceOrigin nearOrigin = unpackOrigin(bounceOrigins[tapAt]);
+            BounceReservoir near = unpackBounce(bounceReservoirs[tapAt]);
+            near.mConfidence = uint(confidences[index]);
+            const uint partnerPaired = bouncePaired[tapAt];
             const float jacobian = shiftJacobian(near.mSample, nearOrigin.mOffset, origin.mOffset);
             const BounceReach here = reachOf(near.mSample, nearOrigin.mOffset, origin.mOffset);
             // **Taken only where this point can see it**, the partner's bit for the link that leads
             // back here: a target that ignored it would keep a neighbour's sample the final ray then
             // finds hidden, worth nothing that frame and twice as much the next. Over the corner it
             // took a tenth off the frame's error.
-            const bool seen = holdsBounce(near) && jacobian > 0.0 && ((partnersPaired[index] >> index) & 1u) != 0u;
+            const bool seen = holdsBounce(near) && jacobian > 0.0 && ((partnerPaired >> index) & 1u) != 0u;
             const float target = seen ? bounceTarget(origin, near.mSample, here) : 0.0;
             const float nearThere = jacobian > 0.0
                 ? bounceTarget(nearOrigin, near.mSample, reachOf(near.mSample, nearOrigin.mOffset, nearOrigin.mOffset))

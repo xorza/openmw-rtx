@@ -526,9 +526,13 @@ ends where it stops.
 
 ### Phase 5. The bounce's reuse (D4, decision 4)
 
-1. The rate coin out of validation, the far-ground flag, the balance MIS in the temporal merge,
-   allocation on demand, the pairs skip, the 32-byte origin, the single read, the live state, and
-   `pairingsFor` in the core.
+1. **Done**: the validation at the whole rate, with its fall measured past the rate the sample was
+   drawn at (a sunlit corner's reused mean 0.880 → 1.003 of the plain bounce's); the far-ground
+   flag (`BOUNCE_ORIGIN_ESCAPES`); allocation on demand (`TraceChain::setReuse`); the pairs skip;
+   the single read; the live state. The origin was 32 bytes already. **The balance MIS was tried
+   and declined**: with no visibility in the weights, it handed the history nearly all the weight,
+   and over the corner it carried 27 fireflies against the plain bounce's 24, left the walk's error
+   at 0.84 of no reuse's, and kept 0.969 of a sunlit mean (`bouncetemporal.comp` says so).
 2. Run `noise --ab=bounce-reuse=temporal,off --suite=bounce` (strafe, walk and still) and the
    outdoor `bench` again. Write the result into `.notes/reuse.md`.
 3. If the reuse now gains, do D4.1 (replay) and D4.4 (visibility state), and measure again. If it
