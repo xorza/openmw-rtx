@@ -33,8 +33,9 @@
 //
 // **And the variance the wavelet's brightness test reads**: a settled mean's own moments', and a
 // short history's, which its own cannot give yet (`ACCUMULATE_SETTLED`), that of the moments over
-// the same 5×5 square, `shortHistoryVariance`, ReLAX's spatial estimate. Here because the square is
-// here, and so one pass states which a pixel takes.
+// the same 5×5 square, each tap by how nearly it is the pixel's surface, `shortHistoryVariance`,
+// ReLAX's spatial estimate. Here because the square is here, and so one pass states which a pixel
+// takes.
 //
 // **The fill moves by the bounce's share.** `CHANNEL_FILL` is a share of the bounce, so the fill
 // moves toward its fast mean by the share the bounce's luma moved, as ReLAX moves a history's other
@@ -58,6 +59,7 @@
 #include "lib/historyclamp.glsl"
 #include "lib/pixels.glsl"
 #include "lib/sharedexponent.glsl"
+#include "lib/surfacematch.glsl"
 
 layout(local_size_x = ACCUMULATE_WORKGROUP, local_size_y = ACCUMULATE_WORKGROUP) in;
 
@@ -114,6 +116,11 @@ shared vec3 gSampled[SPAN][SPAN];
 shared vec3 gSampledFill[SPAN][SPAN];
 shared vec2 gMoments[SPAN][SPAN];
 
+/// Over the clamp's square, the surface each pixel holds, as the short history's variance weighs
+/// its taps by: the shading normal, and the point the ray met, from the eye that cast it.
+shared vec3 gNormals[SPAN][SPAN];
+shared vec3 gPositions[SPAN][SPAN];
+
 void main()
 {
     const uint threads = ACCUMULATE_WORKGROUP * ACCUMULATE_WORKGROUP;
@@ -122,7 +129,7 @@ void main()
     {
         const uvec2 square = uvec2(i % RING_SPAN, i / RING_SPAN);
         const ivec2 pixel = origin - OUTER + ivec2(square);
-        const bool held = !outsideOf(uvec2(pixel), uvec2(frame.mWidth, frame.mHeight))
+        const bool held = !outsideOf(uvec2(pixel), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight))
             && imageLoad(surfaceChannel, pixel).r != SURFACE_NO_NORMAL;
         const vec3 there = unpackRgb9e5(imageLoad(fast, pixel).x);
         gFast[square.y][square.x] = held ? vec4(ycocgOf(there), dot(there, LUMINANCE_WEIGHTS)) : vec4(-1.0);
@@ -136,11 +143,16 @@ void main()
         gSampled[square.y][square.x] = held ? imageLoad(sampled, pixel).rgb : vec3(0.0);
         gSampledFill[square.y][square.x] = held ? imageLoad(sampledFill, pixel).rgb : vec3(0.0);
         gMoments[square.y][square.x] = held ? imageLoad(moments, pixel).rg : vec2(0.0);
+        // No surface is `SURFACE_NO_NORMAL`, whose normal of nought weighs nought in the variance.
+        const vec2 seen = held ? imageLoad(surfaceChannel, pixel).rg : vec2(SURFACE_NO_NORMAL, 0.0);
+        gNormals[square.y][square.x] = unpackSurfaceNormal(seen.x);
+        gPositions[square.y][square.x]
+            = positionAlong(eyeOfPixel(seen.y, frame.mEyes), pixel, surfaceDistance(seen.y));
     }
     barrier();
 
     const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
-    if (outsideOf(uvec2(at), uvec2(frame.mWidth, frame.mHeight)))
+    if (outsideOf(uvec2(at), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
         return;
 
     const uvec2 fastPacked = imageLoad(fast, at).xy;
@@ -154,13 +166,12 @@ void main()
     const vec3 fastFillHere = unpackRgb9e5(fastPacked.y);
 
     // The square's statistics, in a fixed order, over the pixels that hold a surface; the centre is
-    // one of them: the fast means' box, the samples' mean, and the slow means' moments.
+    // one of them: the fast means' box and the samples' mean.
     float count = 0.0;
     vec3 fastSum = vec3(0.0);
     vec3 fastSquares = vec3(0.0);
     vec3 sampledSum = vec3(0.0);
     vec3 sampledFillSum = vec3(0.0);
-    vec2 momentSum = vec2(0.0);
     for (int y = -REACH; y <= REACH; ++y)
         for (int x = -REACH; x <= REACH; ++x)
         {
@@ -173,12 +184,10 @@ void main()
             fastSquares += weight * there.xyz * there.xyz;
             sampledSum += weight * gSampled[sampledTap.y][sampledTap.x];
             sampledFillSum += weight * gSampledFill[sampledTap.y][sampledTap.x];
-            momentSum += weight * gMoments[sampledTap.y][sampledTap.x];
         }
     const FastBox box = fastBoxOf(fastSum, fastSquares, count);
     const vec3 sampledMean = sampledSum / count;
     const vec3 sampledFillMean = sampledFillSum / count;
-    const vec2 momentMean = momentSum / count;
 
     // The ring's, likewise, over the square less its hole: ReBLUR's anti-firefly, which holds the
     // slow mean under it before the anti-lag reads it, in ReBLUR's order. **Every surface the ring
@@ -226,9 +235,35 @@ void main()
     const vec3 followed = fastHere + pushed * toward;
     const vec3 followedFill = fastFillHere + pushed * towardFill;
 
-    const vec2 own = gMoments[centre.y - INSET][centre.x - INSET];
-    const float variance = frames <= ACCUMULATE_SETTLED ? shortHistoryVariance(momentMean.x, momentMean.y, frames)
-                                                        : momentVariance(own.x, own.y);
+    // **A short history's variance is the square's moments, by how nearly each tap is this surface**
+    // (`facingWeight`, `coplanarWeight`), as ReLAX weighs its spatial estimate's taps and SVGF its
+    // bilateral one: a short history stands where something was uncovered, and a flat square mixed
+    // the occluder's moments into the uncovered surface's variance, which loosened the wavelet's
+    // brightness test where it matters. A branch, which only those pixels take: computed for every
+    // pixel, the weights cost the clamp 0.02 to 0.04 ms more on the bench, and under the branch 0.01
+    // to 0.02; what is left is the square's normals and points, which the workgroup loads either way.
+    const ivec2 own = centre - INSET;
+    float variance = momentVariance(gMoments[own.y][own.x].x, gMoments[own.y][own.x].y);
+    if (frames <= ACCUMULATE_SETTLED)
+    {
+        const vec3 normal = gNormals[own.y][own.x];
+        const vec3 position = gPositions[own.y][own.x];
+        const vec2 seenHere = imageLoad(surfaceChannel, at).rg;
+        const float footprint
+            = footprintAlong(eyeOfPixel(seenHere.y, frame.mEyes), surfaceDistance(seenHere.y));
+        vec2 momentSum = vec2(0.0);
+        float momentWeight = 0.0;
+        for (int y = -REACH; y <= REACH; ++y)
+            for (int x = -REACH; x <= REACH; ++x)
+            {
+                const ivec2 tap = own + ivec2(x, y);
+                const float alike = facingWeight(normal, gNormals[tap.y][tap.x], ATROUS_NORMAL_POWER)
+                    * coplanarWeight(normal, position, gPositions[tap.y][tap.x], footprint);
+                momentSum += alike * gMoments[tap.y][tap.x];
+                momentWeight += alike;
+            }
+        variance = shortHistoryVariance(momentSum.x / momentWeight, momentSum.y / momentWeight, frames);
+    }
     imageStore(blended, at, vec4(held, variance));
     imageStore(fillBlended, at, vec4(heldFill, 0.0));
     imageStore(fastOut, at, uvec4(packRgb9e5(followed), packRgb9e5(followedFill), 0u, 0u));

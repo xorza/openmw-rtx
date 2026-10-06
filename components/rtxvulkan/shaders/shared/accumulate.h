@@ -96,8 +96,9 @@ namespace Rtx::Shaders
     /// What the clamp reads that is not an image.
     struct AccumulateClampConstants
     {
-        uint mWidth;
-        uint mHeight;
+        /// The eyes the frame was traced with, which the short history's variance rebuilds each
+        /// tap's point through (`HistoryConstants::mEyes`).
+        Eyes mEyes;
 
         /// One where the slow mean is held to the fast one, nought where the run asked for the A/B
         /// without it (`Reconstruction::mAntilag`): a factor, so both runs take one path.
@@ -231,7 +232,7 @@ namespace Rtx::Shaders
     static_assert(sizeof(HistoryConstants) == 220, "HistoryConstants must be scalar-packed on every side");
     static_assert(sizeof(AccumulateConstants) == 224, "AccumulateConstants must be scalar-packed on every side");
     static_assert(
-        sizeof(AccumulateClampConstants) == 12, "AccumulateClampConstants must be scalar-packed on every side");
+        sizeof(AccumulateClampConstants) == 156, "AccumulateClampConstants must be scalar-packed on every side");
     static_assert(ACCUMULATE_RING_REACH >= ACCUMULATE_CLAMP_REACH && ACCUMULATE_RING_HOLE < ACCUMULATE_RING_REACH,
         "the clamp's square and the ring's hole are read out of the ring's square");
 #endif
