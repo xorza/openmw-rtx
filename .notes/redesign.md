@@ -325,7 +325,6 @@ and the gather runs through the D2 library.
   are anti-correlated.
 - σ itself is stored in half floats, under their normal range.
 - The sun's self-shadow charges a local coverage along a slant that leaves the bank.
-- A cloud layer is dimmed by the closed form, but the haze in front of it comes from the volume.
 
 **Contract.**
 
@@ -335,9 +334,6 @@ and the gather runs through the D2 library.
 2. **A column is charged with the coverage it crosses.** One `slantCoverage(from, direction,
    length)` helper reads the coverage at the slant's mean-value point, with the slant as its
    spacing. `fogThroughLeg` and `fogBeamDepth` both call it.
-4. **A stretch has one estimator.** Wherever the volume describes a stretch of air, the composite
-   reads its transmittance from `fogAlong(…).w`. The closed form serves only a march inside a
-   sprite.
 5. **The lamps' stretch uses one ray.** The lamp integral is cut at the surface found on the ray it
    is integrated along.
 
@@ -522,6 +518,8 @@ procedural, and a test can only make it even, where the slant's coverage and the
 **Point 3 is done**, with one change to the contract: the interface factor is computed in the shader
 from the source's direction (`waterCrossingOf`), not on the host. A stored factor is a second
 statement of the direction, and a writer that sets only the direction leaves it stale.
+**Point 4 is done**: a shell and an additive mesh are dimmed by `fogAlong(…).w`, and the sprites'
+march keeps the closed form per crossing.
 
 ### Phase 5. The bounce's reuse (D4, decision 4)
 
