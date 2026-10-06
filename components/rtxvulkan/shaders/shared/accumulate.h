@@ -102,12 +102,14 @@ namespace Rtx::Shaders
         /// One where the slow mean is held to the fast one, nought where the run asked for the A/B
         /// without it (`Reconstruction::mAntilag`): a factor, so both runs take one path.
         uint mAntilag;
-
-        /// One where the slow mean is held under its ring's ceiling (`ringHeldLuminance`), nought
-        /// where the run asked for the A/B without it (`Reconstruction::mAntiFirefly`): a factor, as
-        /// `mAntilag` is.
-        uint mAntiFirefly;
     };
+
+    /// Where `accumulateclamp.comp`'s specialization constant sits: `ACCUMULATE_RING`, whether the
+    /// slow mean is held under its ring's ceiling (`ringHeldLuminance`), as
+    /// `Reconstruction::mAntiFirefly` asks. **A constant and not a factor**, because the ring's square
+    /// is the most of what the clamp loads, and a factor of nought paid for all of it.
+    const uint ACCUMULATE_CLAMP_SPEC_RING = 0u;
+    const uint ACCUMULATE_CLAMP_SPEC_COUNT = 1u;
 
     /// How far the slow mean `slow` is moved toward the fast one `fast`, as a share of the way:
     /// nought where `slow` stands inside `[low, high]` grown to hold `fast`, and otherwise the
@@ -229,7 +231,7 @@ namespace Rtx::Shaders
     static_assert(sizeof(HistoryConstants) == 220, "HistoryConstants must be scalar-packed on every side");
     static_assert(sizeof(AccumulateConstants) == 224, "AccumulateConstants must be scalar-packed on every side");
     static_assert(
-        sizeof(AccumulateClampConstants) == 16, "AccumulateClampConstants must be scalar-packed on every side");
+        sizeof(AccumulateClampConstants) == 12, "AccumulateClampConstants must be scalar-packed on every side");
     static_assert(ACCUMULATE_RING_REACH >= ACCUMULATE_CLAMP_REACH && ACCUMULATE_RING_HOLE < ACCUMULATE_RING_REACH,
         "the clamp's square and the ring's hole are read out of the ring's square");
 #endif

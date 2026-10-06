@@ -2,6 +2,8 @@
 
 #include <array>
 #include <cassert>
+#include <cstdint>
+#include <string_view>
 
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/camera.h>
@@ -28,6 +30,16 @@ namespace Rtx
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_CLAMP_BINDINGS> sClampBindings
             = computeBindings<Shaders::ACCUMULATE_CLAMP_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
+        /// The clamp with the ring's ceiling or without it (`ACCUMULATE_CLAMP_SPEC_RING`).
+        ComputePipeline<Shaders::AccumulateClampConstants> makeClamp(
+            const Device& device, const bool ring, const std::string_view name)
+        {
+            std::array<std::uint32_t, Shaders::ACCUMULATE_CLAMP_SPEC_COUNT> specialization{};
+            specialization[Shaders::ACCUMULATE_CLAMP_SPEC_RING] = ring ? VK_TRUE : VK_FALSE;
+            return ComputePipeline<Shaders::AccumulateClampConstants>(
+                device, sClampBindings, {}, "accumulateclamp.comp.spv", name, specialization);
+        }
+
         /// The surface read, and its history written.
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_SURFACE_BINDINGS> sSurfaceBindings
             = computeBindings<Shaders::ACCUMULATE_SURFACE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -35,7 +47,8 @@ namespace Rtx
 
     AccumulatePass::AccumulatePass(const Device& device)
         : mPipeline(device, sBindings, {}, "accumulate.comp.spv", "accumulate")
-        , mClamp(device, sClampBindings, {}, "accumulateclamp.comp.spv", "accumulate-clamp")
+        , mClamp(makeClamp(device, false, "accumulate-clamp"))
+        , mClampRing(makeClamp(device, true, "accumulate-clamp-ring"))
         , mSurface(device, sSurfaceBindings, {}, "accumulatesurface.comp.spv", "accumulate-surface")
     {
     }
@@ -85,7 +98,8 @@ namespace Rtx
         images.mMoments.addTransition(blended, Use::sComputeWrite, Use::sComputeRead);
         blended.flush();
 
-        DescriptorWrites clampWrites(mClamp);
+        const ComputePipeline<Shaders::AccumulateClampConstants>& clamp = frame.mAntiFirefly ? mClampRing : mClamp;
+        DescriptorWrites clampWrites(clamp);
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST, images.mFastBlended.describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_BLENDED, images.mBlended.describeStorage());
@@ -95,11 +109,9 @@ namespace Rtx
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST_OUT, images.mFast.describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_MOMENTS, images.mMoments.describeStorage());
 
-        dispatch(commands, mClamp, clampWrites,
-            Shaders::AccumulateClampConstants{ .mWidth = camera.mWidth,
-                .mHeight = camera.mHeight,
-                .mAntilag = frame.mAntilag ? 1u : 0u,
-                .mAntiFirefly = frame.mAntiFirefly ? 1u : 0u },
+        dispatch(commands, clamp, clampWrites,
+            Shaders::AccumulateClampConstants{
+                .mWidth = camera.mWidth, .mHeight = camera.mHeight, .mAntilag = frame.mAntilag ? 1u : 0u },
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
     }
 
