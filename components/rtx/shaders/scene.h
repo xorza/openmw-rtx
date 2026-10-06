@@ -1074,7 +1074,7 @@ namespace Rtx::Shaders
         float mBand;
 
         /// What one layer of the emitter's texture lets through on average, as the base-two
-        /// logarithm the walk's two powers share: off its coarsest level, held under
+        /// logarithm the walk's two powers share: off the mean of its coarsest level, held under
         /// `SPRITE_ALPHA_LIMIT`.
         float mLayerThrough;
 

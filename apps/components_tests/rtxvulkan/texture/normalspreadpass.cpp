@@ -104,6 +104,12 @@ namespace Rtx
         /// of its fourth root, `0.8672`, 221. Its third: a quarter of the leaning quarter's half,
         /// and what the four means lose to each other, the leaning one `0.2929` shorter than the
         /// flat ones along z: `0.125 + 3 · 0.0858 / 16 = 0.1411`, a roughness of `0.6141`, 157.
+        ///
+        /// **And an odd extent's last texel is in its level** (`axisTaps`): a line of three, two flat
+        /// and the last leaning, is one texel a third each, and loses what each pair of the three
+        /// apart does, a ninth of each: the two flat ones nothing and the leaning one, whose bytes
+        /// lean 44.77°, `2 - 2 cos 44.77° = 0.5802` from each, `2 · 0.5802 / 9 = 0.1289`. Halved as
+        /// two, the leaning texel was dropped and the line lost nothing.
         TEST_F(RtxNormalSpreadPassTest, eachLevelLosesWhatItsNormalsDisagreeBy)
         {
             constexpr std::uint8_t flat[4]{ 128, 128, 255, 255 };
@@ -150,6 +156,15 @@ namespace Rtx
             EXPECT_NEAR(whole, 0.1411, 1e-4);
             EXPECT_EQ(byteOf(whole), 157);
             EXPECT_NEAR(int{ spread[1][0] }, byteOf(whole), 1) << "the whole map";
+
+            std::vector<std::uint8_t> line;
+            for (const std::uint8_t* texel : { flat, flat, right })
+                line.insert(line.end(), texel, texel + 4);
+            const double third = 2.0 * (decoded(line, 0) - decoded(line, 2)).length2() / 9.0;
+            EXPECT_NEAR(third, 0.1289, 1e-4);
+            const std::vector<std::vector<std::uint8_t>> spreadLine = spreadOf(line, 3, 1);
+            ASSERT_EQ(spreadLine.size(), 1u);
+            EXPECT_NEAR(int{ spreadLine[0][0] }, byteOf(third), 1) << "the odd line's last texel was dropped";
         }
     }
 }

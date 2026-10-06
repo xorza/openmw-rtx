@@ -6,8 +6,8 @@
 //
 // **One workgroup per texture, one thread per cell of the grid, over the sums `shadingsum.comp`
 // left.** `Rtx::ShadingMap` says what the estimate is: the mean linear luminance of each of the
-// grid's cells over the finest level, the empty cells filled with the mean of the rest, blurred
-// three by three around the wrap, and normalised to average one between the floor and the
+// grid's cells over the finest level, weighed by alpha, the empty cells filled with the mean of
+// the rest, blurred three by three, around the wrap where the texture repeats, and normalised to average one between the floor and the
 // ceiling. This is that, in the same arithmetic, on the device: the texture is uploaded anyway,
 // the map lives on the device and nothing reads it back, so an estimate made on the host walked
 // every texel of every texture on the frame a live model first stood — a spawned actor's ten
@@ -36,6 +36,11 @@ layout(set = SET_PASS, binding = SHADING_MAP_BIND_SUMS, scalar) readonly buffer 
 
 /// The map, as the trace samples it: `Rtx::encodeShading`'s unorm, one cell a texel.
 layout(set = SET_PASS, binding = SHADING_MAP_BIND_MAP, SHADING_MAP_FORMAT) uniform writeonly image2D map;
+
+layout(push_constant, scalar) uniform Push
+{
+    ShadingConstants read;
+};
 
 const uint CELLS = SHADING_EXTENT * SHADING_EXTENT;
 
@@ -70,29 +75,35 @@ void main()
     // This cell's texels, summed: empty for a cell a texture too small to reach every cell
     // reached nothing of.
     const float sum = sums[id].mSum;
-    const uint count = sums[id].mCount;
+    const float weight = sums[id].mWeight;
+    const bool resolved = weight > 0.0;
 
     // A texture smaller than the grid resolves into a handful of cells and leaves the rest
     // empty. Reading those as black would make the estimate a spike and drive the correction
     // into its clamps, so too few texels to resolve shading means the same as having none.
-    partSum[id] = count > 0u ? sum / float(count) : 0.0;
-    partCount[id] = count > 0u ? 1u : 0u;
+    partSum[id] = resolved ? sum / weight : 0.0;
+    partCount[id] = resolved ? 1u : 0u;
     reduce(id);
     const float total = partSum[0];
     const uint sampled = partCount[0];
 
-    // A texture that counted nothing is content, not a broken contract: a BC1 cutout whose
-    // every texel is a hole resolves no cell, and keeps the neutral map.
+    // A texture that counted nothing is content, not a broken contract: a cutout whose every texel
+    // is a hole resolves no cell, and keeps the neutral map.
     float value = 1.0;
     if (sampled > 0u)
     {
         const float average = total / float(sampled);
-        values[id] = count > 0u ? sum / float(count) : average;
+        values[id] = resolved ? sum / weight : average;
 
-        const uint left = (column + SHADING_EXTENT - 1u) % SHADING_EXTENT;
-        const uint right = (column + 1u) % SHADING_EXTENT;
-        const uint above = (row + SHADING_EXTENT - 1u) % SHADING_EXTENT;
-        const uint below = (row + 1u) % SHADING_EXTENT;
+        // Around the wrap along an axis the texture repeats, and held at the edge along one it
+        // clamps — `SHADING_BLUR_PASSES` says why each.
+        const bool clampsAcross = (read.mWrap & 1u) != 0u;
+        const bool clampsDown = (read.mWrap & 2u) != 0u;
+        const uint last = SHADING_EXTENT - 1u;
+        const uint left = clampsAcross ? max(column, 1u) - 1u : (column + last) % SHADING_EXTENT;
+        const uint right = clampsAcross ? min(column + 1u, last) : (column + 1u) % SHADING_EXTENT;
+        const uint above = clampsDown ? max(row, 1u) - 1u : (row + last) % SHADING_EXTENT;
+        const uint below = clampsDown ? min(row + 1u, last) : (row + 1u) % SHADING_EXTENT;
 
         for (uint pass = 0u; pass < SHADING_BLUR_PASSES; ++pass)
         {

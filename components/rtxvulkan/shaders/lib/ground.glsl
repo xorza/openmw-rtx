@@ -56,10 +56,17 @@ float paintedLight(uint slot, vec2 at)
 
 /// `texel`, read from `slot` at `at`, with `delight` of the light painted into it divided back out.
 ///
-/// **A texture drawn for a renderer with no bounce has the bounce drawn into it** — occlusion in
-/// the corners, a highlight along a rim, the glow a lamp throws on the wall behind it. Lighting it
-/// again puts every one of those in twice, so what is wanted from the file is the colour underneath
-/// and the estimate is what takes the rest off.
+/// **A texture drawn for a renderer with no bounce has the bounce drawn into it** — a wall darker
+/// toward its foot, a glow a lamp throws across it. Lighting it again puts those in twice, so what
+/// is wanted from the file is the colour underneath, and the estimate takes off what it can see.
+///
+/// **What it can see is light that changes slowly across the texture.** The estimate is a grid of
+/// 32 cells a side blurred three times over, about eleven texels on a 256-square texture: it takes
+/// off a gradient across the texture, and lets through occlusion in a corner or a highlight along a
+/// rim, a few texels wide, which it cannot tell from the paint. And an albedo that itself changes
+/// slowly — a wall painted darker in its lower half — is flattened as though it were light: the
+/// smoothness assumption every such estimate rests on (Land and McCann's Retinex), and where it
+/// fails.
 ///
 /// Only where an albedo is being read. The same sampler serves a cutout's mask, which is alpha and
 /// unaffected, and an emissive map, which is light rather than a surface and must keep what it was

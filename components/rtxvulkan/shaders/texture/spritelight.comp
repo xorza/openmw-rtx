@@ -16,10 +16,13 @@
 // the trace: made on the host it walked every texel of every level four times on the frame the
 // first flame of a cell stood, and it was the one texture reading the cell ring never read ahead.
 //
-// **One thread a texel and the whole line for each channel**, in the order the host multiplies
-// in — from the far edge inward — so the two agree to the last multiply and differ only in `pow`.
-// A level's worth of a sprite is a few thousand texels, and a texel's four walks are a few
-// hundred multiplies: a scan would save nothing anybody can measure and would sum in another order.
+// **A running product along each line, one channel a stage**: a lane walks its row or its column
+// from the edge the light comes from, writing each texel the product so far before multiplying its
+// own in, so a level costs a `pow` and a multiply a texel a channel. The order of the multiplies is
+// the host's — from the far edge inward — so the two agree to the last multiply and differ only in
+// `pow`. One channel a stage, because a texel's four are written by four lanes: each stage stores
+// the channels the stages before it wrote, read back as stored, beside its own, and a channel
+// stored once and read back is the byte it was.
 
 #include "scene.h"
 #include "shared/sets.h"
@@ -27,13 +30,13 @@
 
 #include "lib/pixels.glsl"
 
-layout(local_size_x = SPRITE_LIGHT_WORKGROUP, local_size_y = SPRITE_LIGHT_WORKGROUP) in;
+layout(local_size_x = SPRITE_LIGHT_WORKGROUP) in;
 
 /// The sprite, every level, fetched by texel.
 layout(set = SET_PASS, binding = SPRITE_LIGHT_BIND_SOURCE) uniform texture2D source;
 
-/// The level of the bake this dispatch writes.
-layout(set = SET_PASS, binding = SPRITE_LIGHT_BIND_BAKE, TEXTURE_WRITTEN_FORMAT) uniform writeonly image2D bake;
+/// The level of the bake this dispatch writes, and reads the stages before it back from.
+layout(set = SET_PASS, binding = SPRITE_LIGHT_BIND_BAKE, TEXTURE_WRITTEN_FORMAT) uniform image2D bake;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -51,30 +54,32 @@ float alphaAt(uint x, uint y)
     return texelFetch(source, ivec2(x, y), int(level.mLevel)).a;
 }
 
+/// Writes `light` into the channel this stage owns at `at`, beside what the stages before wrote.
+void keep(ivec2 at, float light)
+{
+    vec4 kept = level.mStage == SPRITE_LIGHT_FROM_RIGHT ? vec4(0.0) : imageLoad(bake, at);
+    kept[level.mStage] = light;
+    imageStore(bake, at, kept);
+}
+
 void main()
 {
-    const uvec2 texel = gl_GlobalInvocationID.xy;
-    if (outsideOf(texel, uvec2(level.mWidth, level.mHeight)))
+    const uint line = gl_GlobalInvocationID.x;
+    const bool rows = level.mStage < SPRITE_LIGHT_FROM_BELOW;
+    if (line >= (rows ? level.mHeight : level.mWidth))
         return;
 
-    const uint x = texel.x;
-    const uint y = texel.y;
+    // From the edge the light comes from: right to left for light from `+u`, left to right for
+    // light from `-u`, and so up and down a column.
+    const uint length = rows ? level.mWidth : level.mHeight;
+    const bool backward = level.mStage == SPRITE_LIGHT_FROM_RIGHT || level.mStage == SPRITE_LIGHT_FROM_BELOW;
 
-    float fromRight = 1.0;
-    for (uint at = level.mWidth; at-- > x + 1u;)
-        fromRight *= across(alphaAt(at, y), level.mWidth);
-
-    float fromLeft = 1.0;
-    for (uint at = 0u; at < x; ++at)
-        fromLeft *= across(alphaAt(at, y), level.mWidth);
-
-    float fromBelow = 1.0;
-    for (uint at = level.mHeight; at-- > y + 1u;)
-        fromBelow *= across(alphaAt(x, at), level.mHeight);
-
-    float fromAbove = 1.0;
-    for (uint at = 0u; at < y; ++at)
-        fromAbove *= across(alphaAt(x, at), level.mHeight);
-
-    imageStore(bake, ivec2(x, y), vec4(fromRight, fromLeft, fromBelow, fromAbove));
+    float light = 1.0;
+    for (uint step = 0u; step < length; ++step)
+    {
+        const uint along = backward ? length - 1u - step : step;
+        const uvec2 at = rows ? uvec2(along, line) : uvec2(line, along);
+        keep(ivec2(at), light);
+        light *= across(alphaAt(at.x, at.y), length);
+    }
 }

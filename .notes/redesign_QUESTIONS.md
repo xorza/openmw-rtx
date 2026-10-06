@@ -83,3 +83,41 @@ mean off the mean of its frames, `redesign.md` Phase 3 step 5), so nothing else 
 NRD's responsive accumulation with a threshold, measured with a trail test over a glossy floor.
 
 **Blocks.** The cap alone.
+
+**Decided (2026-10-06): 2, NRD's responsive accumulation with a threshold of our own, at least
+three frames kept, measured with a trail test over a glossy floor.**
+
+## Coverage-preserving alpha (Phase 6, D8's reduction)
+
+**Found.** The plan puts coverage-preserving alpha into the device's mip chain, against the
+material's alpha reference or 0.5. Two facts stand against it as written:
+
+- The device builds a chain only for a file that carried none: 187 vanilla files, most of them
+  particles — rain, smoke, flames — which blend and are not alpha-tested. Coverage preserved at 0.5
+  makes a blended texture denser with distance, so far rain and smoke would thicken.
+- A texture slot is keyed by file, wrap and encoding, not by material, so the reference a cutout
+  is tested at does not reach the slot; and the foliage that thins with distance has its file's own
+  chain, which this pass never touches.
+
+Upstream's rasterizer corrects the same loss at sampling time for every alpha-tested material
+(`adjust coverage for alpha test = true`, `alpha.glsl`: `alpha *= 1 + 0.25 * lod`), file chains
+included.
+
+**Options.**
+
+1. The rasterizer's rule in the trace: in `candidateStops`, for a masked material that is not
+   soft-edged, scale the sampled alpha by `1 + 0.25 * lod` before the test — the same picture as
+   the rasterizer, file chains included, and nothing at load.
+2. The plan as written, for generated chains only, at 0.5, for colour textures: fixes nothing a
+   vanilla cutout shows, and thickens far rain and smoke.
+3. True coverage preservation (Castaño) for every alpha-tested texture: rewrite each file's chain
+   at arrival per reference — a slot per (file, reference), and a pass that counts coverage per
+   level. The most exact, and the most cost at load and in memory.
+
+**Recommendation.** 1: it is the rasterizer's own answer, so the two renderers keep one picture,
+and it reaches the foliage the review saw thinning.
+
+**Blocks.** D8's coverage point only; the rest of Phase 6 is done.
+
+**Decided (2026-10-06): 1, the rasterizer's rule in `candidateStops`: a masked material that is
+not soft-edged scales its sampled alpha by `1 + 0.25 · lod` before the test.**

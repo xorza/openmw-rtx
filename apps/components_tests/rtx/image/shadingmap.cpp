@@ -12,6 +12,7 @@
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/image/shadingmap.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/texturewrap.hpp>
 
 namespace Rtx
 {
@@ -112,6 +113,46 @@ namespace Rtx
                 [](std::uint32_t x, std::uint32_t y) { return static_cast<std::uint8_t>((x + y) % 2 ? 20 : 220); });
 
             EXPECT_LT(furthestFromNeutral(ShadingMap(checks.mData)), 0.01f);
+        }
+
+        /// **A texel nothing was painted on weighs nothing**, in every format with alpha. A grey of
+        /// 137 with holes in the left half of the texture, every other pair of columns there black
+        /// at an alpha of nought, as a leaf card stores them: counted whole, the left half's cells
+        /// were half as bright as the right's and the map a step across the middle; weighed by
+        /// alpha, every cell is the grey, and the map is neutral.
+        TEST(RtxShadingMapTest, aHoleInACutoutWeighsNothing)
+        {
+            Testing::TestTexture holes
+                = painted(256, 256, [](std::uint32_t, std::uint32_t) { return std::uint8_t{ 137 }; });
+            for (std::uint32_t y = 0; y < 256; ++y)
+                for (std::uint32_t x = 0; x < 128; ++x)
+                    if (x % 4 < 2)
+                        for (std::size_t channel = 0; channel < 4; ++channel)
+                            holes.mBytes[(std::size_t{ y } * 256 + x) * 4 + channel] = 0;
+
+            EXPECT_LT(furthestFromNeutral(ShadingMap(holes.mData)), 0.01f);
+        }
+
+        /// **A clamped axis is blurred without its opposite edge.** A grey of 60 with its first
+        /// cell's column of texels white: repeating, the blur carries the white round the wrap into
+        /// the last three columns of cells, so the last stands over the middle one; clamped, the
+        /// last column of cells reads only itself and its left neighbour, sixty both, and stands
+        /// exactly where the middle does — before the normalising and after it.
+        TEST(RtxShadingMapTest, aClampedAxisIsBlurredWithoutItsOppositeEdge)
+        {
+            Testing::TestTexture banner = painted(
+                256, 256, [](std::uint32_t x, std::uint32_t) { return static_cast<std::uint8_t>(x < 8 ? 255 : 60); });
+            constexpr std::size_t last = 16 * sSide + sSide - 1;
+            constexpr std::size_t middle = 16 * sSide + 16;
+
+            const ShadingMap repeated(banner.mData);
+            EXPECT_GT(repeated.getValues()[last], 1.05f * repeated.getValues()[middle]) << "the wrap carried nothing";
+
+            banner.mData.mWrap = TextureWrap::ClampS;
+            const ShadingMap clamped(banner.mData);
+            EXPECT_EQ(clamped.getValues()[last], clamped.getValues()[middle])
+                << "a clamped axis took the opposite edge";
+            EXPECT_GT(clamped.getValues()[1], clamped.getValues()[middle]) << "and still blurs inside the texture";
         }
 
         /// A painted gradient is what lighting looks like, and the map has to find it.

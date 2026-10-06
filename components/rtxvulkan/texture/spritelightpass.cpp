@@ -24,8 +24,8 @@ namespace Rtx
     {
     }
 
-    void SpriteLightPass::recordLevel(
-        const VkCommandBuffer commands, const Image& source, const Image& bake, const std::uint32_t level) const
+    void SpriteLightPass::recordStage(const VkCommandBuffer commands, const Image& source, const Image& bake,
+        const std::uint32_t level, const std::uint32_t stage) const
     {
         assert(bake.getMipLevels() == source.getMipLevels() && "a bake shaped unlike its source");
         assert(level < bake.getMipLevels() && "a level past the bake");
@@ -39,9 +39,11 @@ namespace Rtx
             .mLevel = level,
             .mWidth = bake.getWidthAt(level),
             .mHeight = bake.getHeightAt(level),
+            .mStage = stage,
         };
 
-        dispatch(commands, mPipeline, writes, constants,
-            Groups::covering(constants.mWidth, constants.mHeight, Shaders::SPRITE_LIGHT_WORKGROUP));
+        // A lane a line: the rows for the stages across, the columns for the stages down.
+        const std::uint32_t lines = stage < Shaders::SPRITE_LIGHT_FROM_BELOW ? constants.mHeight : constants.mWidth;
+        dispatch(commands, mPipeline, writes, constants, Groups::along(lines, Shaders::SPRITE_LIGHT_WORKGROUP));
     }
 }

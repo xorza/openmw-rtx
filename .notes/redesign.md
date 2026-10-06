@@ -493,10 +493,15 @@ and the glow-lit chamber, the one place the reuse was kept for, had 3.15 of bias
 
 ### Phase 6. Texture facts (D8)
 
-The host and device rules change together, and the host/device tests hold them to each other. Take
-`shot --against` at foliage places, at a place with a single-level `_nh` replacer if the test data
-has one, and at smoke and fire. Time the arrival of a large replacer texture before and after the
-sprite light bake change.
+**Done but the coverage**: the odd-extent halving on both sides and in the normal spread
+(`rtx/shaders/halving.h`), data's and a normal map's even box, the shading map weighed by alpha in
+every format and clamped on a clamped axis, the emitter's mean alpha over the coarsest level, the
+bake as four running products, and `delitTexel`'s doc. Two changes to the contract: the mean alpha
+is taken in `spriteemitters.rgen` over every texel of the coarsest level (at most 64 reads an
+emitter) and not on `GpuEmitter`, because only the device knows which image stands in a slot and
+at which level; and `mTexels` stays on `GpuEmitterFrame` for the same reason. A 1024-square bake
+with its upload takes 3.3 to 5.3 ms. **Left: the coverage**, decided in `redesign_QUESTIONS.md`:
+the rasterizer's `1 + 0.25 · lod` in `candidateStops`.
 
 ### Phase 7. Exposure and display (D9)
 
