@@ -17,7 +17,9 @@
 //
 // **A bit is traced under exactly the conditions the resolve reads it under**: the two points
 // alike (`originsAlike`, the same both ways round), the sample worth something, and its shift not
-// refused.
+// refused. **And only where the partner's target for the sample is above nought**: both readers
+// multiply the bit by that target, so a ray there decides nothing — a sample behind the partner's
+// face, or one whose light its diffuse half takes none of.
 
 #include "shared/bouncereuse.h"
 #include "scene.h"
@@ -46,7 +48,11 @@ void main()
         if (!originsAlike(origin, near) || !(shiftJacobian(own.mSample, origin.mOffset, near.mOffset) > 0.0))
             continue;
 
-        const bool seen = bounceSeen(near, reachOf(own.mSample, origin.mOffset, near.mOffset));
+        const BounceReach there = reachOf(own.mSample, origin.mOffset, near.mOffset);
+        if (!(bounceTarget(near, own.mSample, there) > 0.0))
+            continue;
+
+        const bool seen = bounceSeen(near, there);
         paired |= seen ? 1u << link : 0u;
     }
 

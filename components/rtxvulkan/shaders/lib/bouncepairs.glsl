@@ -35,9 +35,13 @@ ivec2 partnerOf(uvec2 pixel, uint link)
 }
 
 /// Whether the visible point `origin` sees the sample along `reach`: a solid in between, or anything
-/// over the sky's direction within the world's reach, stops it.
+/// over the sky's direction within the world's reach, stops it. **The sky from a point the trace
+/// handed it untraced is seen**, as the trace answered (`BounceOrigin::mEscapes`).
 bool bounceSeen(BounceOrigin origin, BounceReach reach)
 {
+    if (reach.mDistance == 0.0 && origin.mEscapes)
+        return true;
+
     const float distance = reach.mDistance > 0.0 ? reach.mDistance - SHADOW_BIAS : frame.mReach;
     if (!(distance > SHADOW_BIAS))
         return true;

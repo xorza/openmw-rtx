@@ -10,7 +10,9 @@
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
+#include <apps/components_tests/rtx/support/layers.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
+#include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtxvulkan/trace/visibility/fixture.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/channel.hpp>
@@ -199,6 +201,110 @@ namespace Rtx::Testing
             EXPECT_LT(errors[1], 0.8f * errors[0])
                 << "the temporal reuse took little noise off a frame: " << errors[1] << " against " << errors[0];
             EXPECT_LT(errors[2], errors[1]) << "the neighbours took no noise off what the past left";
+        }
+
+        /// **The validation asks the far end at the whole rate, and measures a fall past the rate
+        /// the sample was drawn at.** The corner under a black sky that is still the light, so the
+        /// trace draws a far end's direct half at `INDIRECT_LIGHT_RATE`, nought or twice, and the far
+        /// end's light is that half and nothing else.
+        ///
+        /// Asked with the trace's own coin, the validation read nought for half the samples it
+        /// asked and took that for a fall: the reuse's mean fell to 0.880 of the plain bounce's.
+        /// Asked at the whole rate against the same fall, a kept sample stood at twice the answer
+        /// where nothing moved, which was the fall exactly, and the stored light's rounding decided
+        /// it: 0.947. Measured past the rate, 1.003, and the frame's error 0.053 where it was 0.068.
+        TEST_F(RtxBounceReuseTest, theValidationKeepsTheMeanOfASunlitBounce)
+        {
+            constexpr std::uint32_t size = 64;
+            const auto run = [&](BounceReuse reuse, std::uint32_t frames, std::uint32_t skipped, std::uint32_t first) {
+                Shaders::VisibilityConstants camera = cornerCamera(size);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+
+                std::vector<std::vector<float>> kept;
+                std::vector<float> read;
+                std::uint32_t at = 0;
+                shoot(makeCorner(), {}, camera, size,
+                    Shot{ .mFrames = frames,
+                        .mAverage = false,
+                        .mFirstFrame = first,
+                        .mBounceReuse = reuse,
+                        .mLoss = HistoryLoss::Cut,
+                        .mEachFrame = [&](const Frame&) {
+                            if (at++ < skipped)
+                                return;
+                            mRenderer.readChannel(Channel::Indirect, read);
+                            kept.push_back(luminanceOf(read));
+                        } });
+                return kept;
+            };
+
+            const float truth = wholeOf(meanOf(run(BounceReuse::Off, 256, 0, 10000)));
+            ASSERT_GT(truth, 0.0f);
+            EXPECT_NEAR(wholeOf(meanOf(run(BounceReuse::Temporal, 96, 32, 20000))) / truth, 1.0f, 0.02f);
+        }
+
+        /// **The reuse asks no ray of a sky the trace handed far ground untraced.** Ground nine
+        /// thousand units under the eye, past `BOUNCE_REACH`, so the trace hands its bounce the sky
+        /// without asking, and walls two thousand units tall round it, out of the eye's view, which
+        /// stand across every direction under 70° of elevation. The plain bounce takes the sky
+        /// through them, by the trace's rule; the reuse traced its kept samples' rays and the walls
+        /// stopped most of them, so the ground under the reuse was darker than the plain bounce.
+        /// The origin now says the trace handed it the sky (`BOUNCE_ORIGIN_ESCAPES`), and the reuse
+        /// answers as the trace did.
+        TEST_F(RtxBounceReuseTest, theReuseAsksNoRayOfASkyTheTraceHandedFarGround)
+        {
+            constexpr std::uint32_t size = 32;
+            constexpr std::array<std::uint8_t, 4> grey{ 128, 128, 128, 255 };
+            const std::array<TextureData, 1> textures{ describeTexel(grey) };
+
+            const auto run = [&](BounceReuse reuse, std::uint32_t frames, std::uint32_t skipped) {
+                SceneDesc scene;
+                const Index texture = scene.textures().add(VFS::Path::NormalizedView("ground.dds"));
+                const std::array layers{ layerOf(texture) };
+                Material ground;
+                ground.mKind = MaterialKind::Terrain;
+                ground.mLayers = scene.materials().addLayers(layers);
+                addQuad(scene, sheetAt(1000.0f, 0.0f), scene.addMaterial(ground));
+                for (const float side : { -1.0f, 1.0f })
+                {
+                    addQuad(scene, uprightQuadAt(1000.0f, side * 600.0f, osg::Vec2f(0.0f, 1000.0f)));
+                    addQuad(scene, uprightQuadAt(1000.0f, side * 600.0f, osg::Vec2f(0.0f, 1000.0f)), std::nullopt,
+                        osg::Matrixf::rotate(osg::PI_2f, osg::Vec3f(0.0f, 0.0f, 1.0f)));
+                }
+
+                Shaders::VisibilityConstants camera = makeCamera(
+                    osg::Vec3f(0.0f, -1.0f, 9000.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 4.0f, size, size, 100000.0f);
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mSkyHorizon = osg::Vec3f(0.5f, 0.5f, 0.5f);
+                camera.mSkyZenith = camera.mSkyHorizon;
+                camera.mAmbientFromSky = 1.0f;
+
+                std::vector<std::vector<float>> kept;
+                std::vector<float> read;
+                std::uint32_t at = 0;
+                shoot(scene, textures, camera, size,
+                    Shot{ .mFrames = frames,
+                        .mAverage = false,
+                        .mFirstFrame = 300,
+                        .mBounceReuse = reuse,
+                        .mLoss = HistoryLoss::Cut,
+                        .mEachFrame = [&](const Frame& each) {
+                            EXPECT_EQ(each.mHits, size * size) << "the eye sees the ground and nothing else";
+                            if (at++ < skipped)
+                                return;
+                            mRenderer.readChannel(Channel::Indirect, read);
+                            kept.push_back(luminanceOf(read));
+                        } });
+                return wholeOf(meanOf(kept));
+            };
+
+            // An even sky of a half, which every escape returns whole: the plain bounce is a half at
+            // every pixel and every frame, and so is the reuse's. Without the flag, 0.389 and 0.403.
+            const float plain = run(BounceReuse::Off, 4, 0);
+            EXPECT_NEAR(plain, 0.5f, 1e-4f);
+            EXPECT_NEAR(run(BounceReuse::Temporal, 32, 8), plain, 1e-4f);
+            EXPECT_NEAR(run(BounceReuse::Spatiotemporal, 32, 8), plain, 1e-4f);
         }
 
         /// **No light reaches the dark side of a wall of no thickness.** A floor in a room with no sky

@@ -88,11 +88,13 @@ namespace Rtx::Shaders
     };
 
     /// What `GpuBounceOrigin::mSheet` holds past the transmission: whether the surface has a lobe,
-    /// which takes `1 - F` off its diffuse half; whether `mPlane` holds a triangle; and whether the
-    /// pixel left a bounce at all.
+    /// which takes `1 - F` off its diffuse half; whether `mPlane` holds a triangle; whether the
+    /// pixel left a bounce at all; and whether the trace handed its bounce the sky without a ray,
+    /// as it does far ground out of doors (`escapesUntraced`).
     const uint BOUNCE_ORIGIN_GLOSSY = 0x10000u;
     const uint BOUNCE_ORIGIN_PLANED = 0x20000u;
     const uint BOUNCE_ORIGIN_KEPT = 0x40000u;
+    const uint BOUNCE_ORIGIN_ESCAPES = 0x80000u;
 
     /// Threads along each edge of the temporal pass's workgroup.
     const uint BOUNCE_TEMPORAL_WORKGROUP = 8;

@@ -31,6 +31,11 @@
 const uint PATH_SEEN = 0u;
 const uint PATH_INDIRECT = 1u;
 
+/// A diffuse far hit asked again by the reuse's validation: unseen as `PATH_INDIRECT` is, and at the
+/// whole rate. The validation holds one answer against a kept one, and a coin of a half reads as a
+/// fall of the light on every other ask.
+const uint PATH_VALIDATED = 2u;
+
 /// Which sources the shading point a ray left evaluated by their light samples, and so which of
 /// their geometry emits nothing to that ray: the sun's and the moons' discs, and every lamp's model
 /// (`INSTANCE_LAMP_BODY`). The sun's rule for every analytic source, **keyed by the ray's parent and
@@ -175,8 +180,9 @@ SkyTerm joinedTerms(SkyTerm first, SkyTerm second, float scale)
 /// @param lamps which draw sequence the lamp reservoir steps. **One per depth of the path**,
 ///        because a bounce shades a second surface and two reservoirs stepping one sequence would
 ///        keep correlated lamps at both ends of it.
-/// @param path `PATH_SEEN` or `PATH_INDIRECT`. It decides whether the moons are asked at all, and
-///        whether the rest of this is drawn at `INDIRECT_LIGHT_RATE` or spent on every hit.
+/// @param path `PATH_SEEN`, `PATH_INDIRECT` or `PATH_VALIDATED`. It decides whether the moons are
+///        asked at all, and whether the rest of this is drawn at `INDIRECT_LIGHT_RATE` or spent on
+///        every hit.
 /// @param split whether the sky's source and the lamps' diffuse half are handed back apart,
 ///        `DirectLight::mShadowedDiffuse` and the two beside it, for the shadow denoiser
 ///        (`CHANNEL_SHADOWED`). **A literal at every call**:
@@ -979,6 +985,15 @@ BounceDraw bounceDraw(Surface surface, Gloss gloss, float face, uvec2 pixel, Con
     return drawn;
 }
 
+/// Whether a surface's bounce is handed the escape rather than asked whether it escaped: far ground
+/// out of doors, which is the same answer a ray arrives at by tracing for it. `BOUNCE_REACH` says
+/// what that costs and why the room is not in it.
+bool escapesUntraced(Surface surface)
+{
+    const vec3 fromEye = surface.mPosition - frame.mOrigin;
+    return skyLights() && surface.mGround && dot(fromEye, fromEye) > BOUNCE_REACH * BOUNCE_REACH;
+}
+
 /// What arrives along a bounce's direction, times `weight`: the sky it escapes to, or the surface it
 /// lands on, shaded as the end of the path.
 ///
@@ -992,11 +1007,7 @@ Arriving bounceArriving(Surface surface, BounceDraw drawn, vec3 weight, uvec2 pi
     rate = 1.0;
     landed = skySample(drawn.mTowards, vec3(0.0));
 
-    // **Far ground out of doors is handed the escape rather than asked whether it escaped**, which
-    // is the same answer the miss below arrives at by tracing for it. `BOUNCE_REACH` says what that
-    // costs and why the room is not in it.
-    const vec3 fromEye = surface.mPosition - frame.mOrigin;
-    if (skyLights() && surface.mGround && dot(fromEye, fromEye) > BOUNCE_REACH * BOUNCE_REACH)
+    if (escapesUntraced(surface))
         return bounceEscape(surface.mPosition, drawn, weight, EVALUATED_GATHERED, landed);
 
     // Drawn last, so the side, the direction and the escape are the numbers they were. One path
@@ -1153,7 +1164,7 @@ SeenSolid shadeSolid(Surface hit, uvec2 pixel, Cone cone)
     seen.mBounceSample = bounced.mSample;
     seen.mBounceChance = bounced.mChance;
     seen.mOrigin = BounceOrigin(vec3(0.0), hit.mNormal, hit.mGeometric, dot(hit.mGeometric, hit.mGeometric) > 0.0,
-        hit.mRounding, hit.mSpecular, gloss.mGlossy, hit.mTransmission, true);
+        hit.mRounding, hit.mSpecular, gloss.mGlossy, hit.mTransmission, true, escapesUntraced(hit));
     return seen;
 }
 

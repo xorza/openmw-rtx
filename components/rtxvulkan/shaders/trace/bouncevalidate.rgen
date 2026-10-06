@@ -11,6 +11,8 @@
 // lit until the age cap let the samples go thirty frames on. Traced again from the point that kept
 // it and shaded as the trace shaded it, a sample the point no longer meets is let go, and one whose
 // light fell past `BOUNCE_VALIDATION_FALL` takes the light it has now, standing for one candidate.
+// **At the whole rate**, `PATH_VALIDATED`: the trace's own coin for the pixel dropped the far end's
+// direct light on every other ask, which read as a fall.
 // **A fall and not a rise**: a brighter light is what the trace's next candidates find and win with,
 // and a kept sample made brighter is a firefly where one rare candidate made it.
 //
@@ -64,14 +66,23 @@ void main()
     const float rounding = before.mRounding + summedRounding(frame.mOrigin, before.mOffset);
     const vec3 from
         = leaveSurface(position, (before.mPlaned ? before.mPlane : before.mNormal) * rounding, reach.mTowards);
-    const Surface hit = trace(WorldRay(from, reach.mTowards), 0.0,
-        Cone(eye.mWidth + eye.mSpread * length(offset), BOUNCE_SPREAD), solidMask(frame.mRayMask), false);
 
-    // The same point, to what the offset kept of it; anything nearer stands in front of it now,
-    // and anything farther is where it was moved from.
-    const bool met = held.mSample.mSky
-        ? !hit.mHit
-        : hit.mHit && abs(hit.mDistance - reach.mDistance) <= BOUNCE_VALIDATION_REACH * reach.mDistance;
+    // **The sky from a point the trace handed it untraced is met untraced**, as the trace met it
+    // (`BounceOrigin::mEscapes`). A branch over the ray, which these pixels never use.
+    bool met = true;
+    Surface hit;
+    hit.mHit = false;
+    if (!(held.mSample.mSky && before.mEscapes))
+    {
+        hit = trace(WorldRay(from, reach.mTowards), 0.0, Cone(eye.mWidth + eye.mSpread * length(offset), BOUNCE_SPREAD),
+            solidMask(frame.mRayMask), false);
+
+        // The same point, to what the offset kept of it; anything nearer stands in front of it now,
+        // and anything farther is where it was moved from.
+        met = held.mSample.mSky
+            ? !hit.mHit
+            : hit.mHit && abs(hit.mDistance - reach.mDistance) <= BOUNCE_VALIDATION_REACH * reach.mDistance;
+    }
 
     Arriving now = Arriving(vec3(0.0), vec3(0.0));
     if (met && held.mSample.mSky)
@@ -83,11 +94,16 @@ void main()
     }
     else if (met)
         now = bounceLanding(
-            hit, pixelKey(pixel), SEED_AMBIENT_VALIDATED, SEED_LAMPS_VALIDATED, PATH_INDIRECT, EVALUATED_GATHERED);
+            hit, pixelKey(pixel), SEED_AMBIENT_VALIDATED, SEED_LAMPS_VALIDATED, PATH_VALIDATED, EVALUATED_GATHERED);
 
+    // **The fall is measured past the rate the sample was drawn at**: the trace draws a far end's
+    // direct half at `INDIRECT_LIGHT_RATE` where the sky lights, and keeps it over that rate, so a
+    // kept sample stands at twice this whole-rate answer where nothing moved — which was the fall
+    // exactly, and the rounding of the stored light decided it. The sky is drawn at no rate.
+    const float drawnOver = skyLights() && !held.mSample.mSky ? 1.0 / INDIRECT_LIGHT_RATE : 1.0;
     if (!met)
         held = noBounce();
-    else if (dot(now.mWhole, LUMINANCE_WEIGHTS) * BOUNCE_VALIDATION_FALL
+    else if (dot(now.mWhole, LUMINANCE_WEIGHTS) * (BOUNCE_VALIDATION_FALL * drawnOver)
         < dot(held.mSample.mRadiance, LUMINANCE_WEIGHTS))
     {
         held.mSample.mRadiance = now.mWhole;

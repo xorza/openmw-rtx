@@ -11,3 +11,7 @@
   `FOG_VOLUME_FORMAT` = `RGBA16F`) are read back into their own blend (`FOG_VOLUME_HISTORY`) every
   frame and stored in halves, whose store this card rounds toward nought (`RtxHalfStoreTest`):
   the history `DenoiseHistory`'s fed-back rule refuses for the denoiser's images.
+
+- `RtxBounceTrailTest.theClampShortensTheSkysTrail`
+  (`apps/components_tests/rtxvulkan/trace/visibility/trail.cpp`) takes 1.3 s in the debug build,
+  over the one-second bound for a single test.
