@@ -39,6 +39,8 @@ namespace Rtx
                 .mReset = fresh ? 1u : 0u,
                 .mDistanceScale = mDistanceScale,
                 .mPreviousJitter = mSampled.mPreviousJitter,
+                .mPrevious = mSampled.mPrevious,
+                .mArmsSpread = mSampled.mArmsSpread,
             };
         }
     };

@@ -40,13 +40,8 @@ namespace Rtx
         writes.image(Shaders::SPECULAR_BIND_MEAN_BEFORE, images.mMeanBefore.describeStorage());
         writes.image(Shaders::SPECULAR_BIND_MEAN, images.mMean.describeStorage());
 
-        const Shaders::SpecularConstants constants{
-            .mHistory = frame.history(images.mFresh),
-            .mPrevious = sampled.mPrevious,
-            .mArmsSpread = sampled.mArmsSpread,
-        };
-
-        dispatch(commands, mPipeline, writes, constants, Groups::covering(width, height, Shaders::SPECULAR_WORKGROUP));
+        dispatch(commands, mPipeline, writes, frame.history(images.mFresh),
+            Groups::covering(width, height, Shaders::SPECULAR_WORKGROUP));
 
         images.mMean.transition(commands, Use::sComputeWrite, Use::sComputeRead);
         return images.mMean;

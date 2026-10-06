@@ -65,7 +65,6 @@ namespace Rtx
 
         const Shaders::AccumulateConstants constants{
             .mHistory = frame.history(images.mFresh),
-            .mPrevious = frame.mSampled.mPrevious,
             .mDualMotion = frame.mDualMotion ? 1u : 0u,
         };
 

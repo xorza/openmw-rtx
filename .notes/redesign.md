@@ -156,11 +156,14 @@ The copies have drifted apart:
    - is outside the screen;
    - is a different surface by the plane rule;
    - holds no history (a per-filter predicate: `a <= 0`, or `SHADOW_NO_RECEIVER`).
-3. **One match rule.** Plane distance `|n · (P_tap − P)|` against a threshold scaled by the
-   footprint and by `1 / lerp(0.05, 1, NoV)`. The same rule applies on the reprojection path and
-   on the occluder's path.
+3. **One match rule** (done): `samePlane`, ReLAX's plane distance against `ACCUMULATE_PLANE` of
+   the frustum's side over `lerp(0.05, 1, NoV)`, on every filter's taps, the occluder's path and
+   the bounce reuse.
 4. **History length.** One `historyAlpha(frames)` for every running mean (done). Scaling the frames by
-   the footprint's quality was measured and declined (Phase 3 step 3).
+   the footprint's quality was measured and declined: `frames * sqrt(quality)` moved no `noise`
+   figure by more than 0.01 on any leg, and the darkness `RtxBounceTrailTest` measures behind a
+   moving bar rose from 0.74 to 0.94 columns, since a shortened history called the wavelet's
+   history fix in from the still-shadowed floor.
 5. **One running mean with a fast companion.** Every running mean (diffuse, glossy, pane) keeps a
    fast mean beside the slow one. The slow mean is clamped to the neighbourhood of the fast means
    in YCoCg, per channel, by `accumulateclamp.comp`'s rule, moved into a shared library. The glossy
@@ -493,18 +496,12 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
 ### Phase 3. Temporal history (D2, D6, and the wavelet items)
 
 1. **The gather library is done** (`RTX_HISTORY_SHARES`): one rule for the four filters' taps, and the
-   shadow's "no history" test with it. The occluder's path keeps `samePlane` until step 3's one match
-   rule. **Owed:** a GPU test of the shadow's "no history" test — a tile with shadowed receivers, lit
+   shadow's "no history" test with it. **Owed:** a GPU test of the shadow's "no history" test — a tile with shadowed receivers, lit
    receivers and non-receivers on one plane, under a soft penumbra and a jittered history.
 2. **The registration rule is done**: means are fetched at `at + 0.5 + motion`, the held surface's plane
    test rebuilds through the previous jitter, and the reuse keeps its tap at the surface's own point.
    **Owed:** the GPU test of a still, jittered edge accumulating to its unjittered-centre mean, which
    needs an edge in the accumulator's own history, isolated from the wavelet.
-3. The plane match. **The history length by quality was tried and declined** (point 4): `frames *
-   sqrt(quality)` moved no `noise` figure by more than 0.01 on the native still, strafe or walk leg,
-   and the darkness `RtxBounceTrailTest` measures behind a moving bar rose from 0.74 to 0.94
-   columns, since a shortened history called the wavelet's history fix in from the still-shadowed
-   floor. The one `historyAlpha` stays.
 4. The fed-back precision rule and the history table in `DenoiseHistory`. The shadow history
    becomes `RG32F`.
 5. The fast companion and the YCoCg clamp for every running mean, and the glossy roughness cap.

@@ -831,8 +831,8 @@ namespace Rtx::Testing
         /// strip's taken from the last, back to the floor the bar first stood beside.
         ///
         /// **Each of those taps is another point of the floor**, five pixels on, and 3% further from
-        /// the eye here: the depth test refused every one, and the plane test takes them
-        /// (`samePlane`). **The table is advanced after each hand-over**, as `SceneUploader` does, or
+        /// the eye here: a depth test refused every one, and the plane test takes them
+        /// (`heldSurfaceMatches`). **The table is advanced after each hand-over**, as `SceneUploader` does, or
         /// the bar's motion is its whole travel since it stood still.
         ///
         /// Measured: 0.0097 without the dual vector and 0.0022 with it, where the floor beside a bar

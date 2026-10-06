@@ -3,7 +3,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
-#include <components/rtxvulkan/shaders/shared/specular.h>
+#include <components/rtxvulkan/shaders/shared/accumulate.h>
 
 #include "denoiseframe.hpp"
 #include "denoisehistory.hpp"
@@ -29,6 +29,6 @@ namespace Rtx
             const GBuffer& buffer, const DenoiseFrame& frame) const;
 
     private:
-        ComputePipeline<Shaders::SpecularConstants> mPipeline;
+        ComputePipeline<Shaders::HistoryConstants> mPipeline;
     };
 }

@@ -57,7 +57,7 @@ layout(set = SET_PASS, binding = SPECULAR_BIND_MEAN, SPECULAR_MEAN) uniform writ
 
 layout(push_constant, scalar) uniform Push
 {
-    SpecularConstants frame;
+    HistoryConstants frame;
 };
 
 /// How far the direction a surface is seen from may turn, in radians, before the reflection its
@@ -70,7 +70,7 @@ layout(push_constant, scalar) uniform Push
 float turnAllowed(float roughness, float facing)
 {
     const float lobe = atan(roughness * roughness * SPECULAR_LOBE_VOLUME / (1.0 - SPECULAR_LOBE_VOLUME));
-    return max(lobe * facing, frame.mHistory.mEyes.mWorld.mSpreadAngle);
+    return max(lobe * facing, frame.mEyes.mWorld.mSpreadAngle);
 }
 
 /// How much of the history is still the reflection the eye sees: ReLAX's
@@ -86,46 +86,33 @@ float reflectionKept(vec3 toEye, vec3 toEyeBefore, float allowed)
     return smoothstep(0.05, 0.95, kept);
 }
 
-/// The direction toward the previous eye from where the surface stood, read off the previous
-/// basis at `before`, the surface's own point on the previous screen — where this frame's jittered
-/// ray met it, carried by its motion, and not the footprint's centre. The arms' plane is the
-/// previous basis at the arms' own half extents, as `previousScreenThrough` reads it.
-vec3 toEyeBefore(vec2 before, bool arms)
-{
-    const vec2 uv = before / vec2(frame.mHistory.mEyes.mWorld.mWidth, frame.mHistory.mEyes.mWorld.mHeight) * 2.0 - 1.0;
-    const vec2 spread = arms ? frame.mArmsSpread : vec2(1.0);
-    return -directionAcross(frame.mPrevious, uv, spread);
-}
-
 void main()
 {
     const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
-    if (outsideOf(uvec2(at), uvec2(frame.mHistory.mEyes.mWorld.mWidth, frame.mHistory.mEyes.mWorld.mHeight)))
+    if (outsideOf(uvec2(at), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
         return;
 
     const vec4 sampled = imageLoad(specular, at);
     const vec2 seen = imageLoad(surfaceChannel, at).xy;
     const vec3 normal = unpackSurfaceNormal(seen.x);
-    const float away = surfaceDistance(seen.y);
 
     // A pixel with no surface reflects nothing, and a surface with no lobe has nothing to average.
     // Both write their sample, which is nought, and a history of no frames.
     const bool reflects = dot(normal, normal) > 0.0 && sampled.a >= 0.0;
 
-    const bool arms = surfaceOnArms(seen.y);
-    const vec3 toEye = -rayAt(eyeOfPixel(seen.y, frame.mHistory.mEyes), vec2(at)).mDirection;
+    const vec3 toEye = -rayAt(eyeOfPixel(seen.y, frame.mEyes), vec2(at)).mDirection;
 
     const vec3 moved = imageLoad(motion, at).xyz;
     const HistoryFootprint footprint = historyFootprint(at, moved);
+    const HistoryPlane plane = historyPlane(frame, at, seen, moved);
 
-    // Where there was no previous frame the basis is nought, and there is no direction to compare:
-    // no history, as a reset has none.
-    const bool previous = frame.mHistory.mReset == 0u && frame.mHistory.mEyes.mWorld.mOrthographic == 0u
-        && dot(frame.mPrevious.mForward, frame.mPrevious.mForward) > 0.0;
+    // A parallel projection has no direction a surface is seen from to compare; where there was no
+    // previous eye, the plane refuses every texel itself.
+    const bool previous = frame.mReset == 0u && frame.mEyes.mWorld.mOrthographic == 0u;
 
     // A texel that reflected nothing holds no history, and would pull the mean toward nought.
-    RTX_HISTORY_SHARES(shares, footprint, uvec2(frame.mHistory.mEyes.mWorld.mWidth, frame.mHistory.mEyes.mWorld.mHeight),
-        heldSurface, imageLoad(meanBefore, historyAt).a > 0.0, normal, away, moved, frame.mHistory.mDistanceScale)
+    RTX_HISTORY_SHARES(shares, footprint, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight),
+        heldSurface, imageLoad(meanBefore, historyAt).a > 0.0, plane)
     if (!previous)
         shares = vec4(0.0);
 
@@ -139,7 +126,10 @@ void main()
     if (weight > 0.0)
     {
         const float facing = abs(dot(normal, toEye));
-        const float kept = reflectionKept(toEye, toEyeBefore(vec2(at) + 0.5 + frame.mHistory.mEyes.mWorld.mJitter + moved.xy, arms), turnAllowed(sampled.a, facing));
+        // The direction toward the previous eye from where the surface stood: its point from that
+        // eye, where this frame's jittered ray met it and not the footprint's centre.
+        const vec3 toEyeBefore = -normalize(plane.mAnchor);
+        const float kept = reflectionKept(toEye, toEyeBefore, turnAllowed(sampled.a, facing));
         blended = blendedMean(sampled.rgb, runningMeanOf(held, weight), kept);
     }
 
