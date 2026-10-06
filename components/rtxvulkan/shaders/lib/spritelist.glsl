@@ -60,8 +60,8 @@ layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_BLOCKS) bu
 };
 
 /// The tiles' list, in `Rtx::RunList`'s shape: entry nought is the head, then where each tile's
-/// run starts, then the runs. `SPRITE_LIST_UNBINNED` says what entry nought holds on a frame whose
-/// runs did not fit.
+/// run starts, then the runs. `SPRITE_TILE_UNBINNED` says what a tile past the room holds, and
+/// `SPRITE_LIST_UNBINNED` what entry nought holds in a list with no runs at all.
 layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) buffer SpriteTileList
 {
     uint at[];
@@ -82,20 +82,42 @@ uint spriteStartSlot(uint tile)
     return tile;
 }
 
+/// What a walk over one tile reads: the slots `[mSlot, mEnd)`, and whether they name sprites
+/// outright rather than entries of the list — a tile with no run, which walks every sprite.
+struct SpriteRun
+{
+    uint mSlot;
+    uint mEnd;
+    bool mUnbinned;
+};
+
+/// `tile`'s run, `SpriteRun`: its own where it was binned, and every sprite where it was not.
+SpriteRun spriteRunOf(SpriteTileList list, uint tile)
+{
+    if (list.at[0] == SPRITE_LIST_UNBINNED)
+        return SpriteRun(0u, list.at[1], true);
+
+    const uint end = list.at[spriteStartSlot(tile + 1u)];
+    if ((end & SPRITE_TILE_UNBINNED) != 0u)
+        return SpriteRun(0u, end & ~SPRITE_TILE_UNBINNED, true);
+
+    return SpriteRun(list.at[spriteStartSlot(tile)], end, false);
+}
+
 /// Which tile a traced pixel is in, on a frame `width` pixels across.
 uint spriteTileOf(uvec2 pixel, uint width)
 {
     return (pixel.y / SPRITE_TILE) * spriteTilesOver(width) + pixel.x / SPRITE_TILE;
 }
 
-/// The `PRESENCE_` kinds a ray through a traced pixel's tile can meet — every kind where the frame
-/// binned nothing, which is a camera that draws no sprites and a frame whose runs did not fit.
+/// The `PRESENCE_` kinds a ray through a traced pixel's tile can meet — every kind where the tile
+/// was not binned, which is a camera that draws no sprites and a tile past the room.
 ///
 /// **Uniform over a tile, so a warp takes a walk or leaves it whole.**
 uint presenceAt(SpriteTileList list, SpritePresence presence, uint tracedWidth, uvec2 traced)
 {
-    return list.at[0] == SPRITE_LIST_UNBINNED ? PRESENCE_ADDITIVE | PRESENCE_MEDIUM
-                                               : presence.at[spriteTileOf(traced, tracedWidth)];
+    const uint tile = spriteTileOf(traced, tracedWidth);
+    return spriteRunOf(list, tile).mUnbinned ? PRESENCE_ADDITIVE | PRESENCE_MEDIUM : presence.at[tile];
 }
 
 /// Whether the puff layer holds nothing at a traced pixel: no sprite binned into its tile, no cloud
@@ -108,8 +130,8 @@ uint presenceAt(SpriteTileList list, SpritePresence presence, uint tracedWidth, 
 /// skips such a pixel, and the curve reads a transmittance of one there in place of an alpha the
 /// composite never wrote. That is most of every frame at the shown extent: on a clear day every
 /// pixel paid three loads and a store to write a one, which was 0.46 ms of a 4K frame and 0.27
-/// with the writes gone. A frame whose runs did not fit binned nothing, and every pixel of it
-/// walks every sprite — `SPRITE_LIST_UNBINNED`.
+/// with the writes gone. A tile past the room was not binned, and every pixel of it walks every
+/// sprite — `SPRITE_TILE_UNBINNED`.
 ///
 /// **Of the tile alone, and of nothing a ray through the pixel found**, so the answer is the same
 /// whichever point of the pixel the trace sampled.
@@ -117,12 +139,12 @@ uint presenceAt(SpriteTileList list, SpritePresence presence, uint tracedWidth, 
 /// @param arms whether the trace drew the pixel on an arm, `surfaceOnArms`.
 bool puffsCoverNothing(SpriteTileList list, SpritePresence presence, uint tracedWidth, uvec2 traced, bool arms)
 {
-    if (list.at[0] == SPRITE_LIST_UNBINNED || arms)
+    const uint tile = spriteTileOf(traced, tracedWidth);
+    const SpriteRun run = spriteRunOf(list, tile);
+    if (run.mUnbinned || arms)
         return false;
 
-    const uint tile = spriteTileOf(traced, tracedWidth);
-    return (presence.at[tile] & (PRESENCE_ADDITIVE | PRESENCE_MEDIUM)) == 0u
-        && list.at[spriteStartSlot(tile)] == list.at[spriteStartSlot(tile + 1u)];
+    return (presence.at[tile] & (PRESENCE_ADDITIVE | PRESENCE_MEDIUM)) == 0u && run.mSlot == run.mEnd;
 }
 
 /// A tile rect as one `uvec2`: the corner in `x` and the far corner in `y`, sixteen bits a

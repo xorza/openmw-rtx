@@ -1003,16 +1003,25 @@ namespace Rtx::Shaders
         return spriteTilesOver(width) * spriteTilesOver(height);
     }
 
-    /// What the sprite tiles' list holds in its first entry where its runs did not fit.
-    ///
-    /// **The list carries its own degenerate form, so the trace needs no second signal.** Where
-    /// the runs are binned, entry nought is where the runs begin — `tiles + 1`, never nought. Where
-    /// a frame's entries outgrew the buffer, `spritestarts.comp` writes nought there and the sprite
-    /// count in entry one, and the trace walks every sprite over every pixel for that frame: slow
-    /// and right. The host reads what the frame needed,
-    /// grows the buffer and the next frame is binned. `SpriteBin::record` says how the list
-    /// is sized so that this is a rare frame and never a wrong one.
+    /// What a sprite tiles' list holds in its first entry where it holds no runs at all: the
+    /// stand-in a trace that draws no sprites is handed (`TraceMedia`), two words long, whose
+    /// entry one is the count to walk, nought. Where the runs are binned, entry nought is where
+    /// they begin — `tiles + 1`, never nought.
     const uint SPRITE_LIST_UNBINNED = 0u;
+
+    /// The bit a tile's end entry carries where its run did not fit, beside the frame's sprite
+    /// count in the bits under it.
+    ///
+    /// **Only the tiles past the room are unbinned, and every one before them is whole.** The runs
+    /// lie in tile order, so the tiles whose ends fit the capacity are a prefix and are binned as
+    /// any frame's are; `spritestarts.comp` writes this into the end of every tile after them, and
+    /// those alone walk every sprite: slow and right. A storm that more than doubled in the two
+    /// frames the report lags, or a first step into rain, made every pixel of its frame walk every
+    /// sprite, the worst frame of a run. The host reads what the frame needed, grows the buffer,
+    /// and the next frame is binned whole; `SpriteBin::record` says how the list is sized so that
+    /// this is a rare frame. A valid end is under `SpriteListSize::sMostEntries` and never carries
+    /// the bit.
+    const uint SPRITE_TILE_UNBINNED = 0x80000000u;
 
     /// One particle system: what its sprites are drawn with, and a sphere that holds all of them,
     /// which is the whole spatial structure because one rejection throws a small emitter away for

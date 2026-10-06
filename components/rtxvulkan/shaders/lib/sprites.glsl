@@ -480,12 +480,13 @@ PuffLayer spritesAlong(uvec2 pixel, vec3 origin, vec3 direction, float limit, Co
     // cannot disagree about how many there are across.
     const uint tile = spriteTileOf(pixel, frame.mEyes.mWorld.mWidth);
 
-    // **Every sprite where the runs did not fit**, which is the list's own degenerate form and the
-    // march as it was before the tiles: `SPRITE_LIST_UNBINNED` says when a frame is handed it. The
-    // run is then every index in turn, so a slot names its sprite directly.
-    const bool unbinned = spriteTileListAt(0u) == SPRITE_LIST_UNBINNED;
-    uint slot = unbinned ? 0u : spriteTileListAt(spriteStartSlot(tile));
-    const uint last = unbinned ? spriteTileListAt(1u) : spriteTileListAt(spriteStartSlot(tile + 1u));
+    // **Every sprite where the tile's run did not fit**, which is the march as it was before the
+    // tiles: `SPRITE_TILE_UNBINNED` says when a tile is handed it. The run is then every index in
+    // turn, so a slot names its sprite directly.
+    const SpriteRun run = spriteRunOf(SpriteTileList(frame.mTables.mSpriteTileList), tile);
+    const bool unbinned = run.mUnbinned;
+    uint slot = run.mSlot;
+    const uint last = run.mEnd;
 
     // **Before anything is worked out for the walk.** A frame with no sprite in it, and a tile
     // with none, is most of the game, and what follows is a normalised cross, an exponential and

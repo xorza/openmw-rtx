@@ -414,8 +414,8 @@ GpuEmitterFrame emitterFrameAt(uint index)
 /// which is the order they composite in. `spritelist.glsl` states the shape.
 ///
 /// **Made on the device, by `SpriteBinPass`, ahead of the trace.** `spriterects.comp` says why the
-/// layer is binned per tile and the emitters are not, and `SPRITE_LIST_UNBINNED` what entry nought
-/// holds on the frame whose runs did not fit.
+/// layer is binned per tile and the emitters are not, and `SPRITE_TILE_UNBINNED` what a tile past
+/// the room holds.
 uint spriteTileListAt(uint slot)
 {
     return SpriteTileList(frame.mTables.mSpriteTileList).at[slot];
