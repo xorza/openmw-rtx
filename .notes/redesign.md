@@ -554,6 +554,11 @@ The sea is synthesised once per water time (`WavePass::holds`): the pictures of 
 the frame share one synthesis.
 A visibility gate watches `GameHour` by the hour it stands in, so a script that reads the hour runs
 as the hour turns and not on every frame.
+**Measured and declined: `NO_DUPLICATE_ANY_HIT` only where needed.** Its upper bound, the bit off
+on every geometry, against the bit everywhere, at the dawn deck over eight runs alternated: medians
+7.53 against 7.56 ms and the trace zone 3.48 against 3.49, within the runs' own spread; the mages'
+guild 5.34–5.37 on both sides (`~/.cache/omw-redesign/ab-nodup`). The bit costs this card nothing it
+measures, so the split by material and its rebuild are not built.
 
 - **Uniform frame times.**
 - **Unused work.**
@@ -563,7 +568,6 @@ as the hour turns and not on every frame.
   - the sprite runs' stride rects;
   - the sprite shade's batches in shared memory;
   - the single trace site in `visibility.rgen`;
-  - `NO_DUPLICATE_ANY_HIT` only where needed.
 
 Each one is a `release bench` A/B, and is kept only if its median or p99 improves. A per-lane
 branch is kept only with its measurement written beside it.
