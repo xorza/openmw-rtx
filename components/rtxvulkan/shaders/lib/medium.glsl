@@ -280,10 +280,11 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
 /// and the one point they came to is lit once, out of the froxel the air's own volume already
 /// filled for it — `puffLight` says what that reads and why it is not three rays of the walk's own.
 ///
-/// **The layer taken exactly and the band taken once**, which is what the geometry behind the
-/// layer is charged — so a cloud and the mountain behind it fade at one rate. `fogColumn` states
-/// the height falloff's integral in closed form, and the band is the term nothing integrates, so
-/// it is sampled at the path's mean-value point.
+/// **The air in front of it is the volume's**, `fogAlong`'s, which the geometry behind the layer
+/// is charged and the composite lays the haze in front of it from: one estimator for one stretch of
+/// air, so a cloud and the mountain behind it fade at one rate, and what the haze adds in front of a
+/// cloud is what the cloud lost to it. The closed form took the band once, at the stretch's
+/// middle, and left out the world's edge: inside a bank the layer and its haze disagreed.
 ///
 /// **The side the layer shows, off the crossing that hid the most of the pixel.** A cloud has a
 /// surface where a puff of smoke has only a ball's silhouette, so the wrap that gives a sprite a
@@ -306,7 +307,7 @@ GatheredLight gatheredLight(uvec2 pixel, vec3 origin, vec3 direction, float limi
 {
     GatheredLight lit;
     lit.mSeen = float(gathered.mCoveredAt) / float(gathered.mCoverage) * limit;
-    lit.mReaching = fogThroughLeg(origin, direction, lit.mSeen);
+    lit.mReaching = fogAlong(pixel, WorldRay(origin, direction), lit.mSeen).w;
 
     const vec3 normal = faceforward(gathered.mCoveringNormal, direction, gathered.mCoveringNormal);
     lit.mLight = puffLight(pixel, direction, lit.mSeen, ballPuff(normal, smokeThrow(direction)));

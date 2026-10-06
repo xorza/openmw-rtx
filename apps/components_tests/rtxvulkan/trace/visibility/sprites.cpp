@@ -465,6 +465,52 @@ namespace Rtx::Testing
             EXPECT_NEAR(both.mGreen / shell.mGreen, green, 1e-3f) << "the shell was weighed by its coverage";
         }
 
+        /// **A shell is dimmed by the air the volume says stands in front of it**, the estimator the
+        /// geometry behind it and the haze laid over it both read, and not by a closed form of its
+        /// own.
+        ///
+        /// The world's edge is the air here, which the volume's answer holds and the closed form did
+        /// not: no weather, a black sky, so the edge scatters nothing in and the frame is the shell
+        /// alone, times what the edge leaves of it. Level, so the edge's rise is one; the shell at
+        /// 400 against an edge at 800 has crossed
+        ///
+        ///   (e^(0.5 / 0.125) - 1) / (e^(1 / 0.125) - 1) = 53.598 / 2979.96 = 0.017986
+        ///
+        /// of the ramp, which leaves `256^-0.017986 = 0.90506` of it. The closed form left all of it.
+        TEST_F(RtxVisibilityTest, aShellIsDimmedByTheAirTheVolumeSaysIsInFrontOfIt)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+
+            const auto shot = [&](float edge) {
+                Shaders::VisibilityConstants camera = Testing::makeCameraAlong(
+                    osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 60.0f, size, size, 100000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mAmbientFromSky = 0.0f;
+                camera.mAmbient = osg::Vec3f();
+                camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
+                camera.mFogEdge = edge;
+
+                SceneDesc scene;
+                const std::array<TextureData, 1> textures{ describeTexel(white) };
+                const Index texture = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                addQuad(scene, uprightQuadAt(80.0f, 400.0f),
+                    scene.addMaterial(Material{ .mDiffuse = texture,
+                        .mOpacity = 0.5f,
+                        .mAlphaMode = AlphaMode::Blend,
+                        .mDiffuseNeverSolid = true }));
+
+                return shoot(scene, textures, camera, size, Shot{ .mLoss = HistoryLoss::Cut }).at(centre);
+            };
+
+            const float clear = shot(0.0f);
+            const float edged = shot(800.0f);
+            ASSERT_GT(clear, 0.01f) << "the shell is not lit, so this proves nothing";
+            EXPECT_NEAR(edged / clear, 0.90506f, 2e-3f);
+        }
+
         /// A sprite in front of the player's hand is looked for where the arms' ray crosses the
         /// world's picture, and not in the tile of the pixel the ray was cast for.
         ///
