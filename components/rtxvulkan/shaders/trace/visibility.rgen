@@ -139,7 +139,11 @@ void stackLayer(inout PaneStack stack, MediumAhead ahead, Answer layer)
 struct NearestPane
 {
     float mNormal;
+
+    /// With the arms' flag in its sign, `packSurfaceDistance`: the pane filter rebuilds the layer's
+    /// ray through the eye that cast it, as every pass does a solid's.
     float mDistance;
+
     vec3 mMotion;
 };
 
@@ -148,9 +152,9 @@ NearestPane noNearestPane()
     return NearestPane(SURFACE_NO_NORMAL, 0.0, vec3(0.0));
 }
 
-NearestPane nearestPaneOf(Answer layer)
+NearestPane nearestPaneOf(Answer layer, bool arms)
 {
-    return NearestPane(layer.mResponse.mNormal, layer.mDistance, layer.mMotion);
+    return NearestPane(layer.mResponse.mNormal, packSurfaceDistance(layer.mDistance, arms), layer.mMotion);
 }
 
 /// `stack` over `behind`, the whole path it stands part of the way along — the identity the launch
@@ -252,7 +256,7 @@ void main()
                 = mediumAhead(pixel, WorldRay(origin, direction), distance, distance, armsCone);
 
             if (layer == 0u)
-                nearest = nearestPaneOf(answer);
+                nearest = nearestPaneOf(answer, true);
             stackLayer(armsStack, ahead, answer);
 
             // Unshaded where it misses, as the arms' first ray is: a miss here is the world's to
@@ -327,7 +331,7 @@ void main()
         const MediumAhead ahead = mediumAhead(pixel, WorldRay(origin, direction), distance, distance, cone);
 
         if (layer == 0u)
-            nearest = nearestPaneOf(answer);
+            nearest = nearestPaneOf(answer, false);
         stackLayer(panes, ahead, answer);
 
         // The layer this trace is for, which on the last one the budget allows is the record that

@@ -485,7 +485,7 @@ namespace Rtx::Testing
         /// **A pixel whose surface went keeps only its candidate.** A red pillar stands before the
         /// corner's wall; after sixteen frames of the temporal reuse it is moved behind the eye, and
         /// the wall and the floor it stood in front of are pixels whose last reservoirs were the
-        /// pillar's. `heldSurfaceMatches` refuses those, so each shows its own candidate: the frame
+        /// pillar's. `samePlane` refuses those, so each shows its own candidate: the frame
         /// the reuse `own` shows, bit for bit, wherever the pillar stood a pixel in from its edge,
         /// where the fetch's nearest tap can be a pixel beside it. Everywhere else the history is
         /// kept, and the frame is not the candidate's.

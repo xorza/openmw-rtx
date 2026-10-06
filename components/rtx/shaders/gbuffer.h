@@ -33,8 +33,9 @@
 //
 // **Its third half is the step in distance**, which a half carries for the same reason: it is never
 // longer than the eye and the surface moved in a frame, whatever the surface's distance. A half
-// rounds it by 2^-11 of itself, and while the step is shorter than the distance that is a fortieth
-// of the `ACCUMULATE_DEPTH` a history is matched within.
+// rounds it by 2^-11 of itself, and while the step is shorter than the distance that is under a
+// twentieth of the plane a history is matched within: `ACCUMULATE_PLANE`, 1.2% of the distance at a
+// field of sixty degrees.
 //
 // Eight bytes a pixel, and 16 MiB of that at 1080p: there is no three-half storage format, and
 // the fourth stays nought.
@@ -151,9 +152,9 @@ namespace Rtx::Shaders
     const uint CHANNEL_PANE_ALBEDO = 10;
 
     /// The nearest layer's own surface, as `CHANNEL_SURFACE` holds the solid's — the normal's code,
-    /// and the distance along the ray — and its own motion, as `CHANNEL_MOTION` holds the solid's:
-    /// what the pane filter's history is matched and reprojected by. `SURFACE_NO_NORMAL` and nought
-    /// where no layer stands.
+    /// and the distance along the ray with the arms' flag in its sign — and its own motion, as `CHANNEL_MOTION` holds
+    /// the solid's: what the pane filter's history is matched and reprojected by. `SURFACE_NO_NORMAL` and nought where
+    /// no layer stands.
     const uint CHANNEL_PANE_SURFACE = 11;
     const uint CHANNEL_PANE_MOTION = 12;
 

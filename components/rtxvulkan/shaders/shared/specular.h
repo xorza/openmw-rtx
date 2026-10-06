@@ -1,12 +1,9 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_SHARED_SPECULAR_H
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_SHARED_SPECULAR_H
 
-#include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/portable.h>
 #include <components/rtx/shaders/storageformat.h>
-
-#include "accumulate.h"
 
 // What the glossy filter needs: a temporal accumulator over `CHANNEL_SPECULAR`, which
 // `specular.comp` says the shape of. Included verbatim by both sides, for the reason `visibility.h`
@@ -35,27 +32,6 @@ namespace Rtx::Shaders
 
     /// Threads along each edge of the glossy filter's workgroup.
     const uint SPECULAR_WORKGROUP = 8;
-
-    /// What the glossy filter reads that is not an image.
-    struct SpecularConstants
-    {
-        /// The accumulator's own: the two eyes a pixel's ray can have left, whether there is a
-        /// history to reuse, and what the surface history scaled a distance by — the same numbers,
-        /// because it is the same history.
-        HistoryConstants mHistory;
-
-        /// The previous frame's eye, `VisibilityConstants::mPrevious`, and how much wider the arms'
-        /// plane is — `mArmsSpread`: what the direction a surface was seen from on the previous
-        /// frame is read off. All nought where there was no previous frame.
-        Basis mPrevious;
-        vec2 mArmsSpread;
-    };
-
-    // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
-    // reads them are different compilers.
-#ifdef RTX_HOST
-    static_assert(sizeof(SpecularConstants) == 220, "SpecularConstants must be scalar-packed on every side");
-#endif
 
 #ifdef RTX_HOST
 }

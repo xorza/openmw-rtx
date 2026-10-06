@@ -133,9 +133,11 @@ namespace Rtx::Shaders
     }
 
     /// What a pass that keeps a history of the frame's surfaces is handed: the accumulator, which
-    /// writes the history a level of the wavelet reads, the pane filter and the shadow denoiser's
-    /// temporal half, which read and keep histories of their own over the same pixels. One record,
-    /// because all three are filled from one frame by one rule.
+    /// writes the history a level of the wavelet reads, and the glossy filter, the pane filter and
+    /// the shadow denoiser's temporal half, which read and keep histories of their own over the same
+    /// pixels. One record, because all four are filled from one frame by one rule
+    /// (`DenoiseFrame::history`) and hold their histories to a pixel's surface by one
+    /// (`heldSurfaceMatches`).
     struct HistoryConstants
     {
         /// The eyes the frame was traced with. **The jitter is why this is here**: the motion vector
@@ -162,16 +164,21 @@ namespace Rtx::Shaders
         /// what a history holding one frame's geometry was traced through, which a test that
         /// rebuilds the previous ray needs.
         vec2 mPreviousJitter;
+
+        /// The previous frame's eye, `VisibilityConstants::mPrevious`, and how much wider the arms'
+        /// plane is over it, `VisibilityConstants::mArmsSpread`: what a pixel's surface and the
+        /// history's texels are rebuilt through, from the eye that saw both, to be held to one
+        /// plane. All nought where there was no previous frame.
+        Basis mPrevious;
+        vec2 mArmsSpread;
     };
 
-    /// What the accumulator is handed: the history's record; the previous frame's eye,
-    /// `VisibilityConstants::mPrevious`, which a history taken along an occluder's motion is held to
-    /// this pixel's plane through; and whether a surface the previous frame did not see takes the
-    /// history that way at all (`occluderMotion`), nought or one.
+    /// What the accumulator is handed: the history's record, and whether a surface the previous
+    /// frame did not see takes the history along its occluder's motion (`occluderMotion`), nought
+    /// or one.
     struct AccumulateConstants
     {
         HistoryConstants mHistory;
-        Basis mPrevious;
         uint mDualMotion;
     };
 
@@ -219,8 +226,8 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(HistoryConstants) == 168, "HistoryConstants must be scalar-packed on every side");
-    static_assert(sizeof(AccumulateConstants) == 216, "AccumulateConstants must be scalar-packed on every side");
+    static_assert(sizeof(HistoryConstants) == 220, "HistoryConstants must be scalar-packed on every side");
+    static_assert(sizeof(AccumulateConstants) == 224, "AccumulateConstants must be scalar-packed on every side");
     static_assert(
         sizeof(AccumulateClampConstants) == 16, "AccumulateClampConstants must be scalar-packed on every side");
     static_assert(ACCUMULATE_RING_REACH >= ACCUMULATE_CLAMP_REACH && ACCUMULATE_RING_HOLE < ACCUMULATE_RING_REACH,

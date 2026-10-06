@@ -58,6 +58,9 @@ Held heldBefore(uvec2 pixel, BounceOrigin origin)
     const HistoryFootprint before
         = historyFootprint(ivec2(pixel), vec3(moved.xy + frame.mEyes.mWorld.mJitter, moved.z));
     const float away = length(origin.mOffset);
+    // The world's frustum for an arm's point too: a reservoir does not say which eye found it, and
+    // the two differ by the arms' spread, a share of a tolerance.
+    const float tolerance = planeTolerance(frame.mEyes.mWorld, away, origin.mNormal, origin.mOffset / away);
 
     Held held = Held(noBounce(), noOrigin());
     float best = 0.0;
@@ -69,12 +72,12 @@ Held heldBefore(uvec2 pixel, BounceOrigin origin)
             continue;
 
         const uint at = uint(tap.y) * frame.mBounceStride + uint(tap.x);
+        // Carried to this frame's eye, which every offset this pass compares is from: the plane
+        // test reads it off the reservoir's own origin, where the filters rebuild it from a distance.
         BounceOrigin was = unpackOrigin(bounceOriginsBefore[at]);
-        if (!was.mKept || !heldSurfaceMatches(vec4(was.mNormal, length(was.mOffset)), origin.mNormal, away, moved, 1.0))
-            continue;
-
-        // Carried to this frame's eye, which every offset this pass compares is from.
         was.mOffset -= frame.mCameraMotion;
+        if (!was.mKept || !samePlane(was.mNormal, was.mOffset, origin.mNormal, origin.mOffset, tolerance))
+            continue;
 
         best = share;
         held = Held(unpackBounce(bounceHistory[at]), was);

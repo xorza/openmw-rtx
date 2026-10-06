@@ -1264,14 +1264,17 @@ namespace Rtx::Shaders
     /// a history at all, where the cascade is weighing how much of a neighbour to take.
     const float ACCUMULATE_FACING = 0.9f;
 
-    /// How far off the centre pixel's distance a history may sit, as a share of that distance.
+    /// How far off a pixel's plane a history texel may stand and still be its surface, as a share of
+    /// the frustum's narrower side where the surface stands: ReLAX's disocclusion threshold, and
+    /// its default.
     ///
-    /// **Relative, because a tolerance in world units means something different at every range.**
-    /// Two per cent is well inside a wall's thickness at arm's length and well outside the step a
-    /// grazing floor takes between neighbouring pixels at the far end of a view. The floor under it
-    /// is the one part that has to be converted, and `HistoryConstants::mDistanceScale` is one
-    /// world unit in the units the distance is stored in.
-    const float ACCUMULATE_DEPTH = 0.02f;
+    /// **Off the plane and not along the ray**, so the far ground at a grazing angle, which steps a
+    /// long way in distance from one texel to the next, is one surface to its history as it is to
+    /// the wavelet (`ATROUS_PLANE_SIGMA`). **A share of the frustum, so the rule is one at every
+    /// resolution and every range**: at a field of sixty degrees, a hundredth of the side is 1.2% of
+    /// the distance, inside a wall's thickness at arm's length and far past what a half rounds a
+    /// stored distance by.
+    const float ACCUMULATE_PLANE = 0.01f;
 
     /// How far from a pixel the accumulator looks for a surface nearer the eye that carries the
     /// motion of what hid it last frame, in pixels (`occluderMotion`): rings at 1, 2, 4, 8 and 16,

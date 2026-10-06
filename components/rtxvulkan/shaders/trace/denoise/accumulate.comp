@@ -102,7 +102,6 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_FAST_OUT, ACCUMULATE_FAST) unif
 layout(push_constant, scalar) uniform Push
 {
     HistoryConstants frame;
-    Basis previous;
     uint dualMotion;
 };
 
@@ -118,44 +117,6 @@ struct Held
     float mFrames;
     float mWeight;
 };
-
-/// Whether a history texel lies on the plane of this pixel's surface, as the previous frame's eye
-/// saw both: `anchor` is this pixel's point from that eye, and the texel's is its own distance along
-/// that eye's ray through it.
-///
-/// **A plane and not a point**, for a texel the occluder's motion leads to: it is another point of
-/// the surface, as far off as the occluder moved, and the depth test's two per cent of one point's
-/// distance refused a floor three per cent further away five pixels on. **Both from the previous
-/// eye**, which is a basis and no place, so the two are differenced as `positionAlong`'s are.
-bool samePlane(ivec2 tap, vec3 normal, vec3 anchor)
-{
-    if (outsideOf(tap, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
-        return false;
-
-    const vec4 was = imageLoad(historySurface, tap);
-    if (dot(was.xyz, was.xyz) <= 0.0 || dot(was.xyz, normal) < ACCUMULATE_FACING)
-        return false;
-
-    Camera eye = frame.mEyes.mWorld;
-    eye.mBasis = previous;
-    const Ray ray = rayAt(eye, vec2(tap));
-    const vec3 there = ray.mOffset + ray.mDirection * (was.w / frame.mDistanceScale);
-    return abs(dot(there - anchor, normal)) <= ACCUMULATE_DEPTH * length(anchor);
-}
-
-/// The four texels `before` spans that lie on this pixel's plane through `anchor` (`samePlane`), by
-/// their bilinear shares: the occluder's footprint, as `RTX_HISTORY_SHARES` takes the pixel's own.
-vec4 planeShares(HistoryFootprint before, vec3 normal, vec3 anchor)
-{
-    vec4 shares = vec4(0.0);
-    for (int i = 0; i < 4; ++i)
-    {
-        const float bilinear = historyShare(before, i);
-        if (bilinear > 0.0 && samePlane(historyTap(before, i), normal, anchor))
-            shares[i] = bilinear;
-    }
-    return shares;
-}
 
 /// Adds the four texels `before` spans to `held`, each by its matched share.
 void gatherHistory(inout Held held, HistoryFootprint before, vec4 shares)
@@ -179,15 +140,15 @@ void gatherHistory(inout Held held, HistoryFootprint before, vec4 shares)
     }
 }
 
-/// Whether the pixel at `tap` holds a surface nearer the eye than `away` by more than the depth
-/// test's tolerance, and its motion in `xy` where it does.
-vec3 nearerAt(ivec2 tap, float away)
+/// Whether the pixel at `tap` holds a surface nearer the eye than `away` by more than `tolerance`,
+/// the pixel's own plane tolerance, and its motion in `xy` where it does.
+vec3 nearerAt(ivec2 tap, float away, float tolerance)
 {
     if (outsideOf(tap, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
         return vec3(0.0);
 
     const vec2 seen = imageLoad(surfaceChannel, tap).xy;
-    const bool nearer = seen.x != SURFACE_NO_NORMAL && surfaceDistance(seen.y) < away * (1.0 - ACCUMULATE_DEPTH);
+    const bool nearer = seen.x != SURFACE_NO_NORMAL && surfaceDistance(seen.y) < away - tolerance;
     return nearer ? vec3(imageLoad(motion, tap).xy, 1.0) : vec3(0.0);
 }
 
@@ -202,7 +163,7 @@ vec3 nearerAt(ivec2 tap, float away)
 /// out to `ACCUMULATE_DUAL_REACH` carries the occluder's motion, the one landing nearest `y` taken;
 /// `z = y - m` is then where that occluder now stands, and its own motion there must land on `y`
 /// within `ACCUMULATE_DUAL_MISS`, or what was found is not what hid the pixel.
-vec3 occluderMotion(ivec2 at, vec3 moved, float away)
+vec3 occluderMotion(ivec2 at, vec3 moved, float away, float tolerance)
 {
     const vec2 landed = vec2(at) + moved.xy;
     float nearest = 1e30;
@@ -212,7 +173,7 @@ vec3 occluderMotion(ivec2 at, vec3 moved, float away)
             for (int x = -1; x <= 1; ++x)
             {
                 const ivec2 tap = at + ivec2(x, y) * ring;
-                const vec3 there = (x == 0 && y == 0) ? vec3(0.0) : nearerAt(tap, away);
+                const vec3 there = (x == 0 && y == 0) ? vec3(0.0) : nearerAt(tap, away, tolerance);
                 const float miss = distance(vec2(tap) + there.xy, landed);
                 if (there.z > 0.0 && miss < nearest)
                 {
@@ -225,7 +186,7 @@ vec3 occluderMotion(ivec2 at, vec3 moved, float away)
         return vec3(0.0);
 
     const ivec2 occluder = ivec2(floor(landed - guess + 0.5));
-    const vec3 there = nearerAt(occluder, away);
+    const vec3 there = nearerAt(occluder, away, tolerance);
     const bool lands = there.z > 0.0 && distance(vec2(occluder) + there.xy, landed) < ACCUMULATE_DUAL_MISS;
     return lands ? vec3(there.xy, 1.0) : vec3(0.0);
 }
@@ -269,32 +230,28 @@ void main()
     Held held = Held(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), vec2(0.0), 0.0, 0.0);
     if (frame.mReset == 0u)
     {
-        RTX_HISTORY_SHARES(shares, before, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight),
-            historySurface, true, normal, away, moved, frame.mDistanceScale)
+        const HistoryPlane plane = historyPlane(frame, at, seen, moved);
+        const uvec2 extent = uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight);
+        RTX_HISTORY_SHARES(shares, before, extent, historySurface, true, plane)
         gatherHistory(held, before, shares);
 
         // **Where the surface was hidden and not off the screen**, the history along the occluder's
         // motion (`occluderMotion`). A branch, which only the pixels an occluder uncovered take:
-        // measured on the interiors, the accumulator's 0.28 ms became 0.29.
+        // measured on the interiors, the accumulator's 0.28 ms became 0.29. **Held to the pixel's
+        // own plane, as the pixel's own texels are**: a texel the occluder's motion leads to is
+        // another point of the surface, as far off as the occluder moved, which a test on one point's
+        // distance refused on a floor five pixels on.
         const vec2 landed = vec2(at) + 0.5 + moved.xy;
-        const bool hidden = dualMotion != 0u && dot(previous.mForward, previous.mForward) > 0.0
-            && !(held.mWeight > 0.0)
-            && !outsideOf(ivec2(floor(landed)), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight));
+        const bool hidden = dualMotion != 0u && dot(frame.mPrevious.mForward, frame.mPrevious.mForward) > 0.0
+            && !(held.mWeight > 0.0) && !outsideOf(ivec2(floor(landed)), extent);
         if (hidden)
         {
-            // This pixel's point as the previous eye saw it, at the pixel its own motion leads to and
-            // the distance it stood at, which the plane test holds the occluder's texels to.
-            Camera eye = frame.mEyes.mWorld;
-            eye.mBasis = previous;
-            const Ray seenBefore = rayAt(eye, vec2(at) + moved.xy);
-            const vec3 anchor = seenBefore.mOffset + seenBefore.mDirection * (away + moved.z);
-
-            const vec3 dual = occluderMotion(at, moved, away);
+            const vec3 dual = occluderMotion(at, moved, away, plane.mTolerance);
             if (dual.z > 0.0)
             {
-                const HistoryFootprint along
-                    = historyFootprint(at, vec3(dual.xy, moved.z));
-                gatherHistory(held, along, planeShares(along, normal, anchor));
+                const HistoryFootprint along = historyFootprint(at, vec3(dual.xy, moved.z));
+                RTX_HISTORY_SHARES(alongShares, along, extent, historySurface, true, plane)
+                gatherHistory(held, along, alongShares);
             }
         }
     }

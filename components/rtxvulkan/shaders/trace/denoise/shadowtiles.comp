@@ -286,16 +286,15 @@ void main()
         const float current = ((gOpen[square.y] >> square.x) & 1u) != 0u ? 1.0 : 0.0;
 
         const vec2 seen = imageLoad(surfaceChannel, at).rg;
-        const vec3 normal = unpackSurfaceNormal(seen.x);
-        const float away = surfaceDistance(seen.y);
         const vec3 moved = imageLoad(motion, at).xyz;
         const HistoryFootprint before = historyFootprint(at, moved);
+        const HistoryPlane plane = historyPlane(frame, at, seen, moved);
 
         // The moments at the nearest texel, as the SDK fetches them, and none where that texel is
         // another surface: the SDK's disocclusion.
         const ivec2 nearest = before.mLow + ivec2(greaterThanEqual(before.mAcross, vec2(0.5)));
         const bool held = frame.mReset == 0u && !outsideOf(nearest, extent)
-            && heldSurfaceMatches(imageLoad(heldSurface, nearest), normal, away, moved, frame.mDistanceScale);
+            && heldSurfaceMatches(imageLoad(heldSurface, nearest), nearest, plane);
         const vec3 previousMoments = held ? imageLoad(momentsBefore, nearest).xyz : vec3(0.0);
 
         const float samples = previousMoments.z + 1.0;
@@ -314,8 +313,8 @@ void main()
         // accumulator takes its own; the frame's own bit where none is, which is a history of one
         // sample. A texel that received nothing holds no history: its value is the frame's
         // nought, which pulled a terminator's history toward shadow.
-        RTX_HISTORY_SHARES(shares, before, extent, heldSurface, imageLoad(history, historyAt).y != SHADOW_NO_RECEIVER,
-            normal, away, moved, frame.mDistanceScale)
+        RTX_HISTORY_SHARES(
+            shares, before, extent, heldSurface, imageLoad(history, historyAt).y != SHADOW_NO_RECEIVER, plane)
         if (frame.mReset != 0u)
             shares = vec4(0.0);
 
