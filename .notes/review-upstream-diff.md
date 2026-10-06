@@ -105,47 +105,6 @@ The trace, the denoiser or the rasterizer shows a result that is not the light o
   rate is one), or draws it from `SEED_*_VALIDATED`. The fall test then compares estimators whose
   only noise is the lamp pick and the occlusion ray, as `BOUNCE_VALIDATION_FALL`'s comment says.
 
-### The temporal filters never see the previous frame's jitter
-
-> Open question from the merge: an accumulated history is the mean of many jittered samples, so its texel centre is the pixel centre, and only the last frame's surface channels and a short history sit at `+ jitterPrev`. Decide which histories take the previous jitter before the change, and measure with `noise --strafe`.
-
-- [ ] `components/rtxvulkan/shaders/lib/surfacematch.glsl:40` (`historyFootprint`), used by
-  `trace/denoise/accumulate.comp:267,292`, `trace/denoise/shadowtiles.comp:425`,
-  `trace/denoise/specular.comp:128`, `trace/denoise/pane.comp:185`, `trace/bouncetemporal.comp:150`.
-  **[bug]**
-  - **The defect.** The footprint is `corner = at + 0.5 + jitter + moved - 0.5`. That puts each
-    history texel `i` at `i + 0.5` on the previous unjittered screen. But texel `i` of every history
-    (the cascade's first level, the shadow history, the glossy and pane means, the surface history)
-    holds what the previous frame's ray through `i + 0.5 + jitterPrev` found.
-  - **The concrete failure.** Take a still eye under any jittered mode (FSR at every mode, native
-    included). `moved` is 0, so `corner = at + jitter`. Every frame each history is re-sampled as a
-    bilinear mix of the pixel and a neighbour, weighted by this frame's Halton offset. The correct
-    offset is `jitter - jitterPrev`.
-  - **What the error does.** It is `jitterPrev`, up to half a pixel per axis, random every frame. It
-    adds up as a sub-pixel random walk on each history:
-    - The glossy and pane means have no spatial pass, so their highlight and window edges smear.
-    - The shadow history's penumbra edge smears the same way.
-    - At silhouettes, the depth test (`heldSurfaceMatches`) reads the neighbour's distance and
-      accepts or refuses the wrong taps.
-  - **Not in the plumbing.** `HistoryConstants` (`accumulate.h:138`) carries only this frame's
-    `Eyes`. `Basis` (`camera.h:14`) states outright that a previous eye keeps "this frame's"
-    jitter. `FsrFrame::advance` keeps `mPreviousJitter` for FSR alone (`fsrframe.cpp:47`).
-  - **Field practice.** NRD asks for `cameraJitter` and `cameraJitterPrev` for this reason. FSR's
-    own reprojection uses `PreviousFrameJitter()`.
-  - **The tests cannot see it.** `aStillPictureHoldsStillThroughEveryUpscale` passes, because a
-    blur that is the same every frame holds still.
-  - **The same mistake in a second place.** `accumulate.comp:147-150` (`samePlane`) rebuilds the
-    previous frame's ray through `tap` with this frame's jitter (`eye = frame.mEyes.mWorld;
-    eye.mBasis = previous`). The stored `w` was measured along `tap + 0.5 + jitterPrev`.
-  - → **Target shape:**
-    - Carry the previous frame's world jitter in `HistoryConstants`. The host has it, and the
-      `ImagePair` turn says when it is valid.
-    - `historyFootprint` takes it and returns `corner = at + jitter - jitterPrev + moved.xy`.
-    - `samePlane` rebuilds through a camera with the previous basis and the previous jitter.
-    - `specular.comp`'s `toEyeBefore` and the accumulator's `anchor` read the unjittered previous
-      screen position. They stay as they are.
-    - This is one change in the shared helper plus one field, and all five filters pick it up.
-
 ### The spatiotemporal resolve keeps an unvalidated reservoir as history
 
 - [ ] `components/rtxvulkan/shaders/trace/bounceresolve.rgen:127,133,142` **[bug]**

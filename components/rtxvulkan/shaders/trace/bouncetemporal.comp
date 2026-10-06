@@ -52,7 +52,11 @@ struct Held
 Held heldBefore(uvec2 pixel, BounceOrigin origin)
 {
     const vec3 moved = imageLoad(motion, ivec2(pixel)).xyz;
-    const HistoryFootprint before = historyFootprint(ivec2(pixel), frame.mEyes.mWorld.mJitter, moved);
+    // **At the surface's own point and not the pixel's centre**: a reservoir carries its own origin
+    // and holds no mean, so the nearest matching tap is wanted where the jittered ray met the
+    // surface, and the jitter rides on the motion.
+    const HistoryFootprint before
+        = historyFootprint(ivec2(pixel), vec3(moved.xy + frame.mEyes.mWorld.mJitter, moved.z));
     const float away = length(origin.mOffset);
 
     Held held = Held(noBounce(), noOrigin());

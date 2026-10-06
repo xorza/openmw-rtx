@@ -263,7 +263,7 @@ void main()
     // along every edge; weighting the four and dropping the ones that are a different surface is
     // what keeps it smooth without dragging the wall behind into the floor in front.
     const vec3 moved = imageLoad(motion, at).xyz;
-    const HistoryFootprint before = historyFootprint(at, frame.mEyes.mWorld.mJitter, moved);
+    const HistoryFootprint before = historyFootprint(at, moved);
 
     Held held = Held(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), vec2(0.0), 0.0, 0.0);
     if (frame.mReset == 0u)
@@ -292,7 +292,7 @@ void main()
             if (dual.z > 0.0)
             {
                 const HistoryFootprint along
-                    = historyFootprint(at, frame.mEyes.mWorld.mJitter, vec3(dual.xy, moved.z));
+                    = historyFootprint(at, vec3(dual.xy, moved.z));
                 gatherHistory(held, along, planeShares(along, normal, anchor));
             }
         }
