@@ -151,6 +151,26 @@ float fogCoverageAt(vec3 position, float spacing)
         smoothstep(FOG_CLEARING, FOG_SOLID, fogShape(position, spacing)) / FOG_COVERAGE, 1.0, frame.mFogUniform);
 }
 
+/// The layer's falloff with height at a point: one at the fog's base and under it, `1/e` a scale
+/// height above it.
+///
+/// **How deep the layer stands is the weather's and not a constant.** `FOG_HEIGHT` is the bank clear
+/// weather makes in dead still air, and `mFogLift` is what every other weather does to it.
+float fogHeightAt(vec3 position)
+{
+    return exp(-max(position.z - fogBase(), 0.0) / (FOG_HEIGHT * frame.mFogLift));
+}
+
+/// The bank's coverage a stretch of `length` from `from` along `direction` is charged with: read at
+/// the stretch's middle, its mean-value point, with the stretch as the spacing the field is resolved
+/// at (D7). **One reading for every stretch charged by a closed form** — a leg a surface sent on, the
+/// path to a sprite emitter, and the slant a beam crosses to a point in the air — so none of them
+/// charges a column with the coverage of the one point it left from.
+float slantCoverage(vec3 from, vec3 direction, float length)
+{
+    return fogCoverageAt(from + direction * (0.5 * length), max(length, 1.0));
+}
+
 /// How much fog stands at a point, as a share of the weather's extinction (`mFogExtinction`): the
 /// layer's height falloff times the bank's coverage, nought to one. **What the froxel volume stores
 /// and blends** (D7), in a half's normal range where the extinction itself, a few hundred-thousandths
@@ -160,11 +180,7 @@ float fogCoverageAt(vec3 position, float spacing)
 ///        can resolve.
 float fogDensityAt(vec3 position, float spacing)
 {
-    // **How deep the layer stands is the weather's and not a constant.** `FOG_HEIGHT` is the bank
-    // clear weather makes in dead still air, and `mFogLift` is what every other weather does to it.
-    const float height = exp(-max(position.z - fogBase(), 0.0) / (FOG_HEIGHT * frame.mFogLift));
-
-    return height * fogCoverageAt(position, spacing);
+    return fogHeightAt(position) * fogCoverageAt(position, spacing);
 }
 
 /// The fog's extinction at a point, per world unit.
@@ -206,7 +222,7 @@ float fogPhase(float cosine)
     return mix(henyeyGreenstein(peak, cosine), draine, share);
 }
 
-/// How much fog stands between a point of the given `extinction` and the sky along the sun's line.
+/// How much fog stands between `position` and the sky along the line `towards` a light.
 ///
 /// **Fog shadows itself, and leaving that out is what makes single scattering white out.** Light
 /// reaching a point deep in a bank crossed the whole bank to get there; without this, every point is
@@ -214,15 +230,20 @@ float fogPhase(float cosine)
 /// eye then multiplies something already several times too large.
 ///
 /// Closed form rather than a second march: the density falls off exponentially with height, so the
-/// column along a straight line out of it integrates to `sigma * H / cos(zenith)`. Its assumption is
-/// that the coverage a point sits in continues along that line, which is what a bank looks like from
-/// inside one and is wrong only near an edge, where the fog is thin and the term is near one anyway.
+/// column along a straight line out of it integrates to `sigma * H / cos(zenith)`, `sigma` the
+/// density at the point's height. **Charged with the coverage the slant crosses** (`slantCoverage`,
+/// D7), and not with the point's own: an exponential's mean along the line lies one e-folding up it,
+/// `H / cos(zenith)` toward the light, which is the middle of a stretch twice that long — so a point
+/// at a bank's edge, its slant leaving the bank, is lit as the clear air it looks through and not as
+/// though the bank went on. A source on the horizon lights an infinite column; the floor on the
+/// cosine is what keeps that finite.
+///
 /// @param towards unit, from the point toward the light. Each source owes its own slant: at night
 ///        the sun points down, and a moon standing high crosses far less air than one on the rim.
-float fogBeamDepth(float extinction, vec3 towards)
+float fogBeamDepth(vec3 position, vec3 towards)
 {
-    // A source on the horizon lights an infinite column of fog; the floor is what keeps that finite.
-    return extinction * FOG_HEIGHT * frame.mFogLift / max(towards.z, 1.0e-3);
+    const float slant = FOG_HEIGHT * frame.mFogLift / max(towards.z, 1.0e-3);
+    return frame.mFogExtinction * fogHeightAt(position) * slantCoverage(position, towards, 2.0 * slant) * slant;
 }
 
 /// What the two moons put into the air along a ray, before their slant through the fog: each
@@ -312,9 +333,9 @@ struct FogSources
 /// column is a puff of smoke, and `puffLight` asks `daylightReaching` where the puff is.
 ///
 /// @param visible what a shadow ray found between the point and the sun.
-float sunInAir(float extinction, float visible)
+float sunInAir(vec3 position, float visible)
 {
-    return visible * exp(-fogBeamDepth(extinction, frame.mSun.mDirection));
+    return visible * exp(-fogBeamDepth(position, frame.mSun.mDirection));
 }
 
 /// What the two moons put into one point of the air.
@@ -328,13 +349,13 @@ float sunInAir(float extinction, float visible)
 ///
 /// @param lunar what a shadow ray found between the point and the moon the draw named, which is
 ///        read only where `FogSources::mMoonlit` said the pair was worth casting it.
-vec3 moonsInAir(float extinction, FogSources sources, float lunar)
+vec3 moonsInAir(vec3 position, FogSources sources, float lunar)
 {
     if (!sources.mMoonlit)
-        return sources.mTerms.mMasser * exp(-fogBeamDepth(extinction, frame.mMoons[0].mSource.mDirection))
-            + sources.mTerms.mSecunda * exp(-fogBeamDepth(extinction, frame.mMoons[1].mSource.mDirection));
+        return sources.mTerms.mMasser * exp(-fogBeamDepth(position, frame.mMoons[0].mSource.mDirection))
+            + sources.mTerms.mSecunda * exp(-fogBeamDepth(position, frame.mMoons[1].mSource.mDirection));
 
-    return sources.mDrawn * exp(-fogBeamDepth(extinction, sources.mDrawnSky.mDirection))
+    return sources.mDrawn * exp(-fogBeamDepth(position, sources.mDrawnSky.mDirection))
         * (lunar / sources.mChance);
 }
 
@@ -779,7 +800,7 @@ vec4 fogEdgeOver(vec3 direction, float from, float to)
 /// no other.
 float fogThroughLeg(vec3 origin, vec3 direction, float span)
 {
-    return exp(-fogColumn(origin, direction, span) * fogCoverageAt(origin + direction * (0.5 * span), max(span, 1.0)));
+    return exp(-fogColumn(origin, direction, span) * slantCoverage(origin, direction, span));
 }
 
 /// The air along a ray the eye did not cast, over `span` of it: what a mirror sees across, which

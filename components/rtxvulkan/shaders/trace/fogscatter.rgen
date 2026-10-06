@@ -147,7 +147,6 @@ void main()
     // The field's level from where the sample stands and not from the slice's own stride, which is
     // the same number at the slice's middle and a different one everywhere else in it.
     const float density = fogDensityAt(position, froxelStrideAt(along));
-    const float extinction = frame.mFogExtinction * density;
 
     // **The froxel's own middle is what reprojects, and not the point drawn inside it.** What the
     // history holds is this froxel's running average, so what has to be found in the previous frame
@@ -249,7 +248,7 @@ void main()
     // moment their share of the sky's term crossed `FOG_SHAFT_FLOOR`, where what the threshold is
     // for is a shaft nobody can see cut out of light that faint. `lunar` stands at one where no ray
     // was cast, so the light arrives unshadowed rather than not at all.
-    const vec3 moons = HAS_MOONS ? moonsInAir(extinction, sources, lunar) : vec3(0.0);
+    const vec3 moons = HAS_MOONS ? moonsInAir(position, sources, lunar) : vec3(0.0);
 
     // Everything below is a property of this *point* and of nothing along the ray, which is what
     // lets it be reprojected and averaged. The transmittance is the integrate pass's.
@@ -273,7 +272,7 @@ void main()
     // column's. Mie's forward peak is thousands of times isotropic within a degree and a column is a
     // quarter of one, so baking it here would smear the blaze around a low sun over four times its
     // width.
-    float transport = sources.mSunlit ? sunInAir(extinction, visible) : 0.0;
+    float transport = sources.mSunlit ? sunInAir(position, visible) : 0.0;
     float sunSource = density * transport;
 
     // **The lamps' seeing and the ambient's ride beside the sun's transport**, because the three are

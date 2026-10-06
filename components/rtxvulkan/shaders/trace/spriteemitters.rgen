@@ -35,7 +35,8 @@ void main()
     const bool parallel = frame.mEyes.mWorld.mOrthographic != 0u;
     const vec3 forward = frame.mEyes.mWorld.mBasis.mForward;
     const float along = parallel ? dot(toCentre, forward) : length(toCentre);
-    const vec3 halfway = parallel ? emitter.mCentre - forward * (0.5 * along) : frame.mOrigin + toCentre * 0.5;
+    const vec3 from = parallel ? emitter.mCentre - forward * along : frame.mOrigin;
+    const vec3 towards = parallel || !(along > 0.0) ? forward : toCentre / along;
 
     // **What one layer of this texture hides on average**, off its coarsest level, as the logarithm
     // the walk's two powers share: an outermost sprite raises it to nought and gets one, exactly.
@@ -43,6 +44,6 @@ void main()
     const float layerMean = textureLod(textures[nonuniformEXT(emitter.mTexture)], vec2(0.5), coarsest).a;
 
     // Both axes, because a streak carries them at different densities — `quadCrossing` says why.
-    EmitterFrames(frame.mTables.mEmitterFrames).at[index] = GpuEmitterFrame(fogCoverageAt(halfway, max(along, 1.0)),
+    EmitterFrames(frame.mTables.mEmitterFrames).at[index] = GpuEmitterFrame(slantCoverage(from, towards, along),
         log2(1.0 - min(layerMean, SPRITE_ALPHA_LIMIT)), vec2(textureSize(textures[nonuniformEXT(emitter.mTexture)], 0)));
 }
