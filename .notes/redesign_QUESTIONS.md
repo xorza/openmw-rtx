@@ -33,3 +33,25 @@ own.
 **Decided (2026-10-06): 3, the probe frame.** It is an item of the plan, after Phase 2.
 
 **Blocks.** Nothing.
+
+## A spatiotemporal mask for the bounce (Phase 2 step 1, D3.6's rest)
+
+**Found.** The bounce's pair is two scalar channels of the spatial tile, turned each frame by R2.
+Per pixel, its draws over frames are an R2 sequence, which is low-discrepancy in time already. What
+it lacks: the pair is not jointly blue across pixels within a frame, and the tile's 64-pixel period
+stays on screen. A vector STBN mask (Wolfe et al. 2022) fixes both. It has to be made offline — an
+optimiser over a 64 x 64 x 32 torus, minutes of work — and checked in as data, about 256 KB, with
+a loader beside the tile's.
+
+**Options.**
+
+1. Build it: a generator in the tree (a verb of `openmw-rtxtool` or a small tool), the mask checked
+   in under `files/rtx/`, read for `STREAM_BOUNCE`, measured with `noise` on every leg.
+2. A scalar STBN pair: two 3D void-and-cluster masks, the same loader, no joint 2D blue. Cheaper to
+   make and to trust, and it still takes the period off the screen.
+3. Drop it: the per-pixel R2 sweep stays, and the item leaves the plan.
+
+**Recommendation.** 1, measured against 3 before it stays: the bounce is the noisiest term the
+denoiser takes, and the noise A/B decides.
+
+**Blocks.** Nothing else; the step stays in the plan with a pointer here.

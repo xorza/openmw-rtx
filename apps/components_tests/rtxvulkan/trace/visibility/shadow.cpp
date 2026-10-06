@@ -85,6 +85,36 @@ namespace Rtx::Testing
                     EXPECT_EQ(filtered.mRadiance, raw.mRadiance);
                 }
 
+            // **And a picture with shadows off is open to the sky under the water as over it.** A
+            // slab in the water fifty units over the flooded floor, over half of it, under a sun 45
+            // degrees off the zenith from that side: bent to 32 degrees under the surface, its shadow
+            // runs `50 tan 32°` = 31 units past the slab's edge onto the bed the eye sees. The leg
+            // under the surface asked the occluders itself, where the leg over it asked the flag.
+            {
+                SCOPED_TRACE("a slab in the water");
+                Shaders::VisibilityConstants camera = overheadSun(size);
+                const float zenith = osg::DegreesToRadians(45.0f);
+                camera.mSun = Shaders::sunSource(
+                    osg::Vec3f(-std::sin(zenith), 0.0f, std::cos(zenith)), osg::Vec3f(2.0f, 2.0f, 2.0f));
+                SceneDesc scene = floorOf(true, camera);
+                addQuad(scene, roofOver(-4000.0f, 0.0f, -50.0f));
+                for (const std::uint32_t noShadows : { 0u, 1u })
+                {
+                    camera.mNoSkyShadows = noShadows;
+                    shoot(scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
+                    std::vector<float> sunlit;
+                    mRenderer.readChannel(Channel::Shadowed, sunlit);
+                    std::size_t shadowed = 0;
+                    for (std::size_t value = 0; value < sunlit.size(); value += 4)
+                        shadowed += sunlit[value + 3] == 0.0f ? 1 : 0;
+                    if (noShadows == 0u)
+                        EXPECT_GT(shadowed, std::size_t{ 2 * size })
+                            << "the slab cast no shadow, or this proves nothing";
+                    else
+                        EXPECT_EQ(shadowed, 0u) << "a picture with shadows off kept a shadow under the water";
+                }
+            }
+
             // **And the roofed floor beside a wall the sun does not light stays dark.** The wall
             // faces the eye square to the overhead sun, so the sun adds nothing to it and its bit is
             // one, since nothing was split off it. Counted in the temporal pass's local mean, those

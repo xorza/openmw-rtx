@@ -137,6 +137,12 @@ vec3 lightThroughWater(BentPath bent, float footprint)
 /// @param bent `sky`'s path to `position`.
 Passage skyPassageThrough(SkySource sky, vec3 position, vec3 step, BentPath bent, vec2 draw, bool nearest)
 {
+    // **The picture with shadows off is open to the sky under the water too**, as `skyPassage`
+    // answers over it: the leg under the surface asks `lightPassage` itself, and a hull over a
+    // flooded bed shaded a map tile whose dry ground beside it no roof did.
+    if (frame.mNoSkyShadows != 0u)
+        return Passage(1.0, 1.0, SHADOW_PENUMBRA_CLEAR);
+
     if (!(bent.mDepth > 0.0))
         return skyPassage(sky, position, step, draw, nearest);
 

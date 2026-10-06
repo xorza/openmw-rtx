@@ -87,15 +87,6 @@ The trace, the denoiser or the rasterizer shows a result that is not the light o
   (`ffx_fsr3upscaler.cpp` clears FRAME_INFO to `{-1, 1e8, 0, 0}`). The format is RGBA32F, so `1e8`
   is representable. Also fix the comment.
 
-### The two halves of a stopped shadow ray
-
-- [ ] `components/rtxvulkan/shaders/lib/underwater.glsl:135-145`, `:290` — **[bug]** `skyPassage`
-  returns open for `frame.mNoSkyShadows` (every picture inside the interface, `visibility.h:198-201`).
-  `skyPassageThrough`'s underwater leg calls `lightPassage` directly and ignores the flag. In a local
-  map tile or a preview, a submerged bed under a hull or a pier, and the water shaft march, are still
-  shadowed, while the dry ground beside them is not. → Target shape: the flag answers both legs.
-  Gate `skyPassageThrough` itself, so one test covers the surface, the shaft march and the froxel.
-
 ### What the reuse's validation reads
 
 - [ ] `components/rtxvulkan/shaders/trace/bouncevalidate.rgen:80`, `:84-90`;
