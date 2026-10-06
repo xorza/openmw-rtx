@@ -147,8 +147,8 @@ namespace Rtx::Shaders
     const uint CHANNEL_PANE = 9;
 
     /// What `CHANNEL_PANE` is multiplied back by: the layers' albedos, each times the same weight,
-    /// in `rgb`, held at `PANE_ALBEDO_FLOOR` from below. Demodulated for
-    /// the reason the bounce is, so texture a history is reprojected across stays sharp.
+    /// in `rgb`, held at `PANE_ALBEDO_FLOOR` from below. Demodulated for the reason the bounce is,
+    /// so texture a history is reprojected across stays sharp.
     const uint CHANNEL_PANE_ALBEDO = 10;
 
     /// The nearest layer's own surface, as `CHANNEL_SURFACE` holds the solid's — the normal's code,

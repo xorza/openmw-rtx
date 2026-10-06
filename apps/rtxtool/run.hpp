@@ -18,6 +18,7 @@
 #include <components/sdlutil/vsyncmode.hpp>
 
 #include "model/benchrun.hpp"
+#include "model/maprules.hpp"
 
 namespace Files
 {
@@ -177,6 +178,9 @@ namespace RtxTool
 
         /// Which day, counted from the one a new game begins on. Only the moons read it.
         int mDay = 0;
+
+        /// Which companion maps a model takes — `SessionRequest::mMaps`.
+        std::optional<MapRules> mMaps = MapRules::Shipped;
     };
 
     /// What a setting is where nobody has set it: the shipped default, out of the `defaults.bin`

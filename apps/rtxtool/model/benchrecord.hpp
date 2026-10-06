@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -22,6 +23,8 @@
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+
+#include "maprules.hpp"
 
 namespace RtxTool
 {
@@ -223,6 +226,10 @@ namespace RtxTool
 
         /// Whether a stop turns the weather through its frames.
         bool mTurnsWeather = false;
+
+        /// Which companion maps the models took, or nothing for the player's own —
+        /// `SessionRequest::mMaps`.
+        std::optional<MapRules> mMaps = MapRules::Shipped;
 
         /// The step every frame stood for, or nothing for the wall — `SessionRequest::mStep`.
         std::optional<float> mStep{};

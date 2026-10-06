@@ -1,5 +1,3 @@
 # Open issues
 
-- `film` stops with "--length has nothing to set" when the keys file's only flight carries `seconds` of its own.
-- No view or suite in `files/rtx/views.cfg` and `files/rtx/benches.cfg` runs with a replacer's companion maps: a measured run forces the shipped `[Shaders] auto use object normal/specular maps` and `[RTX] specular map layout = ignore` (`applyShippedContentRules`, `RtxSettings::derive` in `apps/rtxtool/main.cpp`), so `shot`, `check`, `noise` and `bench` never trace a `_spec` map, and only `view` shows what the maps do.
-- Upstream-merge PR #14 (run 37535135005) fails the Windows job at CMake configuration: `Could NOT find BZip2 (missing: BZIP2_LIBRARIES) (found version "1.0.8")`, reached from vcpkg's `boost_iostreams-config.cmake`. The PR brings upstream's runtime-dependency deployment changes to `CMakeLists.txt` and `cmake/FindOSGPlugins.cmake`; the other four jobs pass.
+- `rtx-gpu-tests` shard 0 (seed 14691) crashed once under `./omw gate` with SIGSEGV (SEGV_MAPERR) in a `libnvidia-glcore.so.615.71.09` worker thread, during the global setup, while other threads were in `Rtx::makeTracePipeline` under the validation layer (core of PID 76775, 2026-10-07 01:28). Fifteen reruns of the shard, warm, with `__GL_SHADER_DISK_CACHE=0`, and beside shard 1, passed.

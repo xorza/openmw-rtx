@@ -56,6 +56,24 @@ namespace RtxTool
     /// Whether `cell` is an exterior, spelt as a pair of integers the way `--cell` takes one.
     bool isExteriorCell(std::string_view cell);
 
+    /// Who named a film's length: the command line, or nobody, where `FilmPacing::sLengthByDefault`
+    /// stands in for a length and not for a speed.
+    enum class FilmLengthSource
+    {
+        Named,
+        ByDefault,
+    };
+
+    /// How long a film is to be, in seconds, and who said so: a named length that cannot be filled
+    /// refuses the film, and the default stands aside for the keys' own seconds and `mSpeed`.
+    struct FilmLength
+    {
+        float mSeconds = 0.0f;
+        FilmLengthSource mSource = FilmLengthSource::Named;
+
+        bool operator==(const FilmLength&) const = default;
+    };
+
     /// What paces a film: the command line's, each a default `film --help` states.
     struct FilmPacing
     {
@@ -72,8 +90,9 @@ namespace RtxTool
 
         /// **The film's length, for the eye's speed to fill.** Every flight is flown at the one
         /// speed that ends the film at this many seconds, after its holds, its stills, what stands
-        /// on the spot, and the keys' own `seconds`; or nothing for `mSpeed`.
-        std::optional<float> mLength;
+        /// on the spot, and the keys' own `seconds`; or nothing for `mSpeed`. A default length
+        /// leaves the film to `mSpeed` where it cannot be filled (`FilmLength`).
+        std::optional<FilmLength> mLength;
 
         /// Seconds the eye takes to reach its speed from a rest and to come back to one: at a
         /// take's ends, at a hold, and beside a turn on the spot (`Cruise`).
@@ -216,7 +235,17 @@ namespace RtxTool
     {
         std::vector<FilmKey> mKeys;
         std::vector<FilmTake> mTakes{};
+
+        /// What the film was timed by: the pacing it was asked for, without the default length
+        /// where that stood aside.
         FilmPacing mPacing;
+
+        /// The default length in seconds where it stood aside because the holds, the stills, what
+        /// stands on the spot, the keys' own seconds and the takes' first frames left no frame of it
+        /// to a take that flies: the one way a default leaves the film's speed to `mSpeed`, which the
+        /// plan says. A default with no flight to fill stands aside with nothing to say, since no
+        /// speed is read.
+        std::optional<float> mDefaultTooShort{};
 
         std::uint32_t getFrames() const;
     };
@@ -225,7 +254,7 @@ namespace RtxTool
     /// one speed along the path, `mSpeed` or what fills `mLength`; a segment that goes nowhere by
     /// the longest of what else it changes; a key's own seconds over either. Each take ends on a
     /// whole frame, and its speed is what fills that exactly. Throws where there is no key, and
-    /// where a length cannot be filled.
+    /// where a named length cannot be filled.
     FilmPlan planFilm(std::vector<FilmKey> keys, const FilmPacing& pacing);
 
     /// The plan as a person reads it before committing an hour of rendering to it: every take, why

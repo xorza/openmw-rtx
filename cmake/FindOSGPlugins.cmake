@@ -39,13 +39,15 @@ foreach(_library ${OSGPlugins_FIND_COMPONENTS})
     set(_component OSGPlugins_${_library})
 
     # On some systems, notably Debian and Ubuntu, the OSG plugins do not have
-    # the usual "lib" prefix. We temporarily add the empty string to the list
-    # of prefixes CMake searches for (via osg_find_library) to support these systems.
-    set(_saved_lib_prefix ${CMAKE_FIND_LIBRARY_PREFIXES}) # save CMAKE_FIND_LIBRARY_PREFIXES
-    list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "") # search libraries with no prefix
-    set(${_library_uc}_DIR ${OSGPlugins_LIB_DIR}) # to help function osg_find_library
-    osg_find_library(${_library_uc} ${_library}) # find it into ${_library_uc}_LIBRARIES
-    set(CMAKE_FIND_LIBRARY_PREFIXES ${_saved_lib_prefix}) # restore prefix
+    # the usual "lib" prefix, so the empty prefix is searched too. In a block, so the
+    # caller's prefixes come back whole: a list saved and restored unquoted loses its
+    # empty element, which turns MSVC's ";lib" into "lib" and hides every import
+    # library without the prefix from later searches.
+    block(SCOPE_FOR VARIABLES PROPAGATE ${_library_uc}_LIBRARY ${_library_uc}_LIBRARIES)
+        list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "")
+        set(${_library_uc}_DIR ${OSGPlugins_LIB_DIR}) # to help function osg_find_library
+        osg_find_library(${_library_uc} ${_library}) # find it into ${_library_uc}_LIBRARIES
+    endblock()
 
     if (${_library_uc}_LIBRARIES)
         set(${_component}_LIBRARY ${${_library_uc}_LIBRARIES}) # fake as if we call find_library

@@ -8,6 +8,7 @@
 #include <fstream>
 #include <optional>
 #include <stdexcept>
+#include <string_view>
 #include <system_error>
 #include <utility>
 #include <vector>
@@ -108,6 +109,10 @@ namespace RtxTool
 
     namespace
     {
+        /// What a length leaves no frame of to the flights, as `TakeDraft::mFixed` counts it.
+        constexpr std::string_view sFixedFrames
+            = "the holds, the stills, what stands on the spot, the keys' own seconds and each take's first frame";
+
         osg::Vec3f rotationOf(const FilmKey& key)
         {
             return key.mStop.mStand.getRotation();
@@ -509,39 +514,57 @@ namespace RtxTool
         // of its own flights, where carrying the part of a frame over into the next take would
         // start it between two frames.
         const Cruise cruise = pacing.getCruise();
-        std::vector<std::uint32_t> frames;
-        frames.reserve(drafts.size());
+        std::vector<CruiseLeg> legs;
+        std::uint64_t fixed = 0;
+        std::uint32_t flying = 0;
+        for (const TakeDraft& draft : drafts)
+        {
+            legs.insert(legs.end(), draft.mLegs.begin(), draft.mLegs.end());
+            // And the take's first frame, which it has before anything has moved.
+            fixed += std::uint64_t{ draft.mFixed } + 1;
+            flying += draft.mLegs.empty() ? 0u : 1u;
+        }
+
+        // **The frames the flights fill, where a length sets them.** A length nobody named stands
+        // aside where it cannot be filled; a named one refuses the film.
+        std::optional<std::uint32_t> flights;
         if (pacing.mLength.has_value())
         {
-            std::vector<CruiseLeg> legs;
-            std::uint64_t fixed = 0;
-            std::uint32_t flying = 0;
-            for (const TakeDraft& draft : drafts)
-            {
-                legs.insert(legs.end(), draft.mLegs.begin(), draft.mLegs.end());
-                // And the take's first frame, which it has before anything has moved.
-                fixed += std::uint64_t{ draft.mFixed } + 1;
-                flying += draft.mLegs.empty() ? 0u : 1u;
-            }
-
-            const std::uint32_t length = pacing.framesOf(*pacing.mLength);
+            const FilmLength asked = *pacing.mLength;
+            const bool named = asked.mSource == FilmLengthSource::Named;
+            const std::uint32_t length = pacing.framesOf(asked.mSeconds);
             if (legs.empty())
-                throw std::runtime_error(std::format(
-                    "--length has nothing to set: no key of the film is flown to, where {} s are", *pacing.mLength));
-            if (length < fixed + flying)
-                throw std::runtime_error(
-                    std::format("--length is {} s, and the holds, the stills, what stands on the "
-                                "spot and each take's first frame take {:.1f} s of it, leaving "
-                                "less than a frame for each of the {} takes that fly",
-                        *pacing.mLength, static_cast<double>(fixed) * double{ pacing.mStep }, flying));
+            {
+                if (named)
+                    throw std::runtime_error(std::format(
+                        "--length has nothing to set: no key of the film is flown to, where {} s are", asked.mSeconds));
+            }
+            else if (length < fixed + flying)
+            {
+                if (named)
+                    throw std::runtime_error(std::format(
+                        "--length is {} s, and {} take {:.1f} s of it, leaving less than a frame for each of the {} "
+                        "takes that fly",
+                        asked.mSeconds, sFixedFrames, static_cast<double>(fixed) * double{ pacing.mStep }, flying));
+                plan.mDefaultTooShort = asked.mSeconds;
+            }
+            else
+                flights = static_cast<std::uint32_t>(length - fixed);
 
-            const auto flights = static_cast<std::uint32_t>(length - fixed);
-            const double speed = cruise.speedFor(legs, static_cast<double>(flights));
+            if (!flights.has_value())
+                plan.mPacing.mLength.reset();
+        }
+
+        std::vector<std::uint32_t> frames;
+        frames.reserve(drafts.size());
+        if (flights.has_value())
+        {
+            const double speed = cruise.speedFor(legs, static_cast<double>(*flights));
             std::vector<double> shares;
             shares.reserve(drafts.size());
             for (const TakeDraft& draft : drafts)
                 shares.push_back(draft.mLegs.empty() ? 0.0 : draft.flightFramesAt(cruise, speed));
-            frames = apportion(shares, flights);
+            frames = apportion(shares, *flights);
         }
         else
         {
@@ -578,6 +601,11 @@ namespace RtxTool
             plan.mKeys.size(), plan.mTakes.size(), plan.getFrames(), seconds(plan.getFrames()), plan.mPacing.getRate());
 
         const FilmPacing& pacing = plan.mPacing;
+        if (plan.mDefaultTooShort.has_value())
+            text += std::format(
+                "the {:g} s a film is when neither --length nor --speed is named leave no frame to fly after {}, so "
+                "every flight is at --speed, {:g} units a second\n",
+                *plan.mDefaultTooShort, sFixedFrames, pacing.mSpeed);
         if (pacing.mClock.has_value())
             text += std::format(
                 "the clock at ×{:g} of the game's own over the whole film, the hours below as the first key's and "

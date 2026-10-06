@@ -14,6 +14,8 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
+#include "film.hpp"
+#include "model/maprules.hpp"
 #include "verbs.hpp"
 
 namespace Files
@@ -63,11 +65,16 @@ namespace RtxTool
     /// command line, which only the executable has: `sync` outside a Release build, `off` in one.
     ToolOptions makeOptions(Rtx::ValidationLevel validationByDefault);
 
-    /// How long a film is to be, or nothing where it flies at `--speed`: `--length`, or
-    /// `FilmPacing::sLengthByDefault` where neither is named — a film of a set length whatever the
-    /// keys add up to, and of a set pace only where somebody asked for the pace. Throws
-    /// `std::runtime_error` for both named at once, and for a length that is none.
-    std::optional<float> filmLengthFrom(const boost::program_options::variables_map& variables);
+    /// How long a film is to be and who said so, or nothing where `--speed` is named: `--length`, or
+    /// `FilmPacing::sLengthByDefault` where neither is named, which `planFilm` sets aside where the
+    /// keys leave it no frame to fill. Throws `std::runtime_error` for both named at once, and for a
+    /// length that is none.
+    std::optional<FilmLength> filmLengthFrom(const boost::program_options::variables_map& variables);
+
+    /// Which companion maps `verb`'s models take: `--maps`, or where it is not given, nothing for the
+    /// player's own under `view`, which is the played game, and `MapRules::Shipped` under every other
+    /// verb. Throws `Rtx::InputError` for a spelling `sMapRulesNames` has not.
+    std::optional<MapRules> mapRulesFrom(const boost::program_options::variables_map& variables, Verbs verb);
 
     /// The switches `readReconstruction` reads, by their names on the line: the ones `--versus`
     /// may name, since nothing else reads them.

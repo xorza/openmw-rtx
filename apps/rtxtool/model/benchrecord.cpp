@@ -301,6 +301,13 @@ namespace RtxTool
             return step.has_value() ? std::format("{:.4f} s", *step) : std::string("the wall");
         }
 
+        /// "player" for the player's own, which is no spelling of `--maps`: the line names only rules
+        /// another machine can repeat.
+        std::string_view describeMaps(const std::optional<MapRules>& maps)
+        {
+            return maps.has_value() ? sMapRulesNames.name(*maps) : "player";
+        }
+
         std::string_view describeSettled(const std::optional<bool>& settled)
         {
             if (!settled.has_value())
@@ -346,10 +353,10 @@ namespace RtxTool
             describeExposure(profile.mExposure), profile.mSpecializeLaunches ? "on" : "off",
             profile.mStressOverlapMs > 0.0 ? std::format("{:.1f} ms", profile.mStressOverlapMs) : std::string("none"));
         out += std::format(
-            "     land {:.1f} cells, viewing distance {:.0f}, distant statics {}, step {}, walks {}, "
+            "     land {:.1f} cells, viewing distance {:.0f}, distant statics {}, maps {}, step {}, walks {}, "
             "memory budget {}, host pages {}\n",
             mirror.mReach.mCells, mirror.mReach.mViewingDistance, mirror.mDistantStatics ? "on" : "off",
-            describeStep(header.mStep), describeSettled(header.mSetup.mSettled),
+            describeMaps(header.mMaps), describeStep(header.mStep), describeSettled(header.mSetup.mSettled),
             describeBudget(header.mSetup.mRun.mMemoryBudget), describeHugePages(header.mHugePageShare));
         return out;
     }
@@ -504,8 +511,9 @@ namespace RtxTool
             << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", header.mMeasured, header.mWarmup,
                    header.mValidating)
             << '\n'
-            << std::format(R"(  "asserts": {}, "measures": {}, "hashed": {}, "turnsWeather": {}, "hugePageShare": {},)",
-                   header.mAsserts, header.mMeasures, header.mHashed, header.mTurnsWeather,
+            << std::format(R"(  "asserts": {}, "measures": {}, "hashed": {}, "turnsWeather": {}, "maps": "{}", )"
+                           R"("hugePageShare": {},)",
+                   header.mAsserts, header.mMeasures, header.mHashed, header.mTurnsWeather, describeMaps(header.mMaps),
                    asJson(header.mHugePageShare))
             << '\n'
             << asJson(header.mSetup, header.mStep) << '\n'

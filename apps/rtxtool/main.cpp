@@ -42,6 +42,7 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
+#include <components/rtx/scene/specularlayout.hpp>
 #include <components/rtxvulkan/createrenderer.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/settings.hpp>
@@ -56,6 +57,7 @@
 #include "model/benchrun.hpp"
 #include "model/benchspec.hpp"
 #include "model/blockfile.hpp"
+#include "model/maprules.hpp"
 #include "model/wholenumber.hpp"
 #include "options.hpp"
 #include "run.hpp"
@@ -329,6 +331,8 @@ namespace RtxTool
             const auto spelled
                 = [&](const char* name) -> std::string_view { return variables[name].as<std::string>(); };
 
+            framed.mMaps = mapRulesFrom(variables, command.mVerb);
+
             // **The settings the ray tracer reads, from the harness's own sources and through the
             // game's one derivation.** Given on the line, the line's; a window's, the player's; a
             // measured run's, the file's default, every one of them — but for the upscaler, whose
@@ -342,6 +346,22 @@ namespace RtxTool
             // (`World::loadGroundcoverFiles`), so the run's answer is written where the world reads
             // it, as the companion maps' rules are.
             Settings::groundcover().mEnabled.set(grass);
+
+            // What a `_spec` map's channels mean under the rules the line named, or the player's.
+            const std::string specularLayout = [&]() -> std::string {
+                if (!framed.mMaps.has_value())
+                    return Settings::rtx().mSpecularMapLayout.get();
+                switch (*framed.mMaps)
+                {
+                    case MapRules::Shipped:
+                        return shippedDefault<std::string>(command.mConfig, "RTX", "specular map layout");
+                    case MapRules::Classic:
+                        return std::string(Rtx::sSpecularLayoutNames.name(Rtx::SpecularLayout::Classic));
+                    case MapRules::MetalRoughness:
+                        return std::string(Rtx::sSpecularLayoutNames.name(Rtx::SpecularLayout::MetalRoughness));
+                }
+                Crash::fatal("map rules with no name");
+            }();
 
             const MWRender::RtxSettings derived = MWRender::RtxSettings::derive(MWRender::RtxSettingValues{
                 .mUpscale = typed("upscale") ? spelled("upscale") : Settings::rtx().mUpscale.get(),
@@ -365,9 +385,7 @@ namespace RtxTool
                 .mGroundcoverPointLighting = watched
                     ? Settings::groundcover().mPointLighting.get()
                     : shippedDefault<bool>(command.mConfig, "Groundcover", "point lighting"),
-                .mSpecularMapLayout = watched
-                    ? Settings::rtx().mSpecularMapLayout.get()
-                    : shippedDefault<std::string>(command.mConfig, "RTX", "specular map layout"),
+                .mSpecularMapLayout = specularLayout,
                 .mIndirectLight = given("indirect") ? spelled("indirect")
                     : watched                       ? Settings::rtx().mIndirectLight.get()
                               : shippedDefault<std::string>(command.mConfig, "RTX", "indirect light"),
@@ -517,6 +535,7 @@ namespace RtxTool
             request.mStep = framed.mStep;
             request.mPlayed = policy.mPlayed;
             request.mMeasures = policy.mMeasures;
+            request.mMaps = framed.mMaps;
             request.mHud = variables["hud"].as<bool>();
             request.mSetup.mInterface = request.mPlayed || request.mHud;
             request.mVanity = variables["vanity"].as<bool>();

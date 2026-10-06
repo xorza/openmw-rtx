@@ -33,6 +33,7 @@
 #include "film.hpp"
 #include "model/benchrun.hpp"
 #include "model/blockfile.hpp"
+#include "model/maprules.hpp"
 #include "model/wholenumber.hpp"
 #include "numbervalue.hpp"
 #include "run.hpp"
@@ -497,6 +498,16 @@ namespace RtxTool
             "by the same ring. Not given, `settings-default.cfg`'s `[Terrain] object paging`, or "
             "the player's own under `view`");
 
+        option(sFramed, "maps", bpo::value<std::string>(),
+            std::format("which companion maps a model takes: {}. `shipped` is `settings-default.cfg`'s "
+                        "rules, which take none; `classic` and `metal-roughness` turn on `[Shaders] auto use "
+                        "object normal maps` and `auto use object specular maps` by the shipped name "
+                        "patterns, and set `[RTX] specular map layout` to that layout, which is how a "
+                        "replacer's maps reach the trace. Not given, `shipped`, or the player's own under "
+                        "`view`",
+                sMapRulesNames.list())
+                .c_str());
+
         option(sFramed, "grass", bpo::value<bool>()->implicit_value(true),
             "stand the plants the `--groundcover` files place, each an instance of its model, within "
             "`[Groundcover] rendering distance` of the eye; it is the game's `[Groundcover] enabled`. "
@@ -573,10 +584,11 @@ namespace RtxTool
                         "time, and --plan says where one asks for longer",
                 pacing.mSpeed / Constants::UnitsPerMeter));
         option(Verbs::Film, "length", number(atLeast(0.0f, true)),
-            std::format("the film's length in seconds, {:g} where neither this nor --speed is named: every "
-                        "flight at the one speed that fills it, which is the path's whole length over what "
-                        "is left once the holds, the stills, what stands on the spot and the keys' own "
-                        "seconds are taken out",
+            std::format("the film's length in seconds: every flight at the one speed that fills it, which "
+                        "is the path's whole length over what is left once the holds, the stills, what "
+                        "stands on the spot and the keys' own seconds are taken out. {:g} where neither this "
+                        "nor --speed is named, unless every flight has its own seconds or the rest leave no "
+                        "frame to fly, where the film is what the keys and --speed make it",
                 FilmPacing::sLengthByDefault)
                 .c_str());
         option(Verbs::Film, "ease", number(atLeast(0.0f))->default_value(pacing.mEase),
@@ -701,14 +713,28 @@ namespace RtxTool
         request.mAntiFirefly = variables["antifirefly"].as<bool>();
     }
 
-    std::optional<float> filmLengthFrom(const bpo::variables_map& variables)
+    std::optional<FilmLength> filmLengthFrom(const bpo::variables_map& variables)
     {
+        const bool speedNamed = !variables["speed"].defaulted();
         if (variables.count("length") == 0)
-            return variables["speed"].defaulted() ? std::optional(FilmPacing::sLengthByDefault) : std::nullopt;
+        {
+            if (speedNamed)
+                return std::nullopt;
+            return FilmLength{ .mSeconds = FilmPacing::sLengthByDefault, .mSource = FilmLengthSource::ByDefault };
+        }
 
-        if (!variables["speed"].defaulted())
+        if (speedNamed)
             throw std::runtime_error("--length sets the speed, so --speed cannot be named beside it");
-        return variables["length"].as<float>();
+        return FilmLength{ .mSeconds = variables["length"].as<float>(), .mSource = FilmLengthSource::Named };
+    }
+
+    std::optional<MapRules> mapRulesFrom(const bpo::variables_map& variables, const Verbs verb)
+    {
+        if (variables.count("maps") != 0)
+            return sMapRulesNames.require(variables["maps"].as<std::string>(), "a map rule");
+        if (verb == Verbs::View)
+            return std::nullopt;
+        return MapRules::Shipped;
     }
 
     std::filesystem::path ownConfigDirectory(const Files::ConfigurationManager& config)
