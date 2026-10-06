@@ -21,6 +21,17 @@ layout(set = SET_PASS, binding = BLOOM_BIND_SOURCE) uniform sampler2D source;
 /// The level being filled. Written outright, so nothing has to have cleared it.
 layout(set = SET_PASS, binding = BLOOM_BIND_LEVEL, BLOOM_LEVEL) uniform writeonly image2D level;
 
+/// What the curve scaled the frame before by, which the Karis average weighs the frame's squares
+/// with: the exposure this frame's curve will use is measured after the pyramid is begun, and one
+/// frame's lag in a weight on a veil mixed in at a twenty-fifth is under anything the eye sees.
+layout(set = SET_PASS, binding = BLOOM_BIND_EXPOSURE, scalar) readonly buffer Exposure
+{
+    float exposure;
+};
+
+/// Whether this is the frame's own halving, which takes the Karis average, `bloomHalved` says why.
+layout(constant_id = BLOOM_SPEC_KARIS) const bool KARIS = false;
+
 layout(push_constant, scalar) uniform Push
 {
     BloomConstants frame;
@@ -32,7 +43,7 @@ void main()
     if (outsideOf(pixel, uvec2(frame.mWidth, frame.mHeight)))
         return;
 
-    const vec2 uv = (vec2(pixel) + 0.5) / vec2(frame.mWidth, frame.mHeight);
+    const vec2 uv = (2.0 * vec2(pixel) + 1.0) * frame.mTexel;
 
-    imageStore(level, ivec2(pixel), vec4(bloomHalved(source, uv, frame.mTexel), 1.0));
+    imageStore(level, ivec2(pixel), vec4(bloomHalved(source, uv, frame.mTexel, KARIS ? exposure : 0.0), 1.0));
 }

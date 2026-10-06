@@ -122,7 +122,9 @@ void main()
     // added; `ToneConstants::mBloom` says why it lands here and not on the radiance image itself.
     if (frame.mBloom > 0.0)
     {
-        const vec2 uv = (vec2(pixel) + 0.5) / vec2(extent);
+        // Where the pixel's centre stands in the finest level, which halved this grid: `bloomup.comp`'s
+        // own placing, so a picture of odd width spreads the level it built and not one stretched.
+        const vec2 uv = (vec2(pixel) + 0.5) * 0.5 * frame.mBloomTexel;
         lit.rgb = mix(lit.rgb, bloomSpread(bloom, uv, frame.mBloomTexel), frame.mBloom);
     }
 

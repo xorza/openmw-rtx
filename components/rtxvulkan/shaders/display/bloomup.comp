@@ -33,7 +33,7 @@ void main()
         return;
 
     const ivec2 at = ivec2(pixel);
-    const vec2 uv = (vec2(pixel) + 0.5) / vec2(frame.mWidth, frame.mHeight);
+    const vec2 uv = (vec2(pixel) + 0.5) * 0.5 * frame.mTexel;
 
     const vec3 spread = bloomSpread(coarser, uv, frame.mTexel);
 

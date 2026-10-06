@@ -120,7 +120,7 @@ namespace Rtx
         if (look != nullptr)
         {
             openZone(timer, commands, "bloom");
-            mBloom.record(commands, shown);
+            mBloom.record(commands, shown, mExposure.getExposure());
             closeZone(timer, commands);
         }
 

@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <span>
 
+#include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -38,6 +40,14 @@ namespace Rtx
         , mPicture(Buffer::hostWritten(device, sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture exposure"))
     {
         mPicture.writable<float>(0, 1).front() = 1.0f;
+
+        // **One, before any frame**, because the pyramid's first halving reads what the frame
+        // before ended on (`BloomPass::record`), and the first frame has none: a buffer nobody
+        // wrote is whatever the allocation held.
+        const float one = 1.0f;
+        device.getPool().submitAndWait([&](VkCommandBuffer commands) {
+            mExposure.updateInline(commands, Use::sBufferComputeReadWrite, std::as_bytes(std::span(&one, 1)));
+        });
     }
 
     void ExposurePass::recordFixed(VkCommandBuffer commands, float value) const
