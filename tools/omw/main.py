@@ -129,7 +129,9 @@ def parse(argv: list[str]) -> Line:
     """**The flavour is a closed set of words**, so a first word that is one is the flavour and any
     other is the verb, and the flavour can be left out: debug, or the one flavour a verb is made of.
     **The verb stays before the switches.** The harness reads its verb off its first argument and
-    takes a leading dash to mean nobody named one, so a switch put first once ran `view` instead."""
+    takes a leading dash to mean nobody named one, so a switch put first once ran `view` instead.
+    **The flavour stays before the verb.** No verb takes a flavour's name for its first argument, and
+    `omw build release` once built a target called `release` in the debug tree."""
     flavour = argv[0] if argv and argv[0] in FLAVOURS else None
     rest = argv[1:] if flavour else argv
     if not rest or rest[0] in ("help", "-h", "--help"):
@@ -137,14 +139,17 @@ def parse(argv: list[str]) -> Line:
     verb, args = rest[0], rest[1:]
     if verb.startswith("-"):
         raise Refusal(f"name a verb before the switches: `omw {flavour or 'debug'} view {' '.join(rest)}`")
+    late = args[0] if args and args[0] in FLAVOURS else None
 
     if verb in BUILDLESS_VERBS:
-        if flavour is not None:
+        if flavour is not None or late is not None:
             raise Refusal(f"{verb} is not made of a build, so it takes no flavour")
         return Line(None, verb, args)
     if verb not in BUILD_VERBS and verb not in HARNESS_VERBS:
         known = [*BUILD_VERBS, *HARNESS_VERBS, *BUILDLESS_VERBS]
         raise Refusal(f"no verb or flavour is called {verb!r}: {', '.join(known)}, or a flavour first")
+    if late is not None:
+        raise Refusal(f"the flavour comes before the verb: `omw {' '.join([late, verb, *args[1:]])}`")
     own = BUILD_VERBS[verb].flavour if verb in BUILD_VERBS else None
     if own is not None and flavour not in (None, own):
         raise Refusal(f"{verb} is made of the {own} flavour: `omw {verb}`")

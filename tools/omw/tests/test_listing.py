@@ -35,5 +35,6 @@ class UnlistedTest(unittest.TestCase):
                 self.assertEqual(unlisted(tracked, compiled, windows), sorted([*forgotten, *unshield]))
                 self.assertEqual(unlisted(tracked, compiled - {own}, windows), sorted([*forgotten, *unshield, own]))
 
+
 if __name__ == "__main__":
     unittest.main()

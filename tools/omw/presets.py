@@ -7,7 +7,7 @@ import json
 import re
 from pathlib import Path
 
-from omw.system import ROOT, Refusal, read_text
+from omw.system import ROOT, Refusal, environment_key, read_text
 
 _MACRO = re.compile(r"\$(p?env)\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
@@ -37,19 +37,19 @@ def digest(env: dict[str, str], root: Path = ROOT) -> str:
         hashed.update(text.encode())
         names.update(name for _, name in _MACRO.findall(text))
     for name in sorted(names):
-        hashed.update(f"{name}={env.get(name, '')}\n".encode())
+        hashed.update(f"{name}={env.get(environment_key(name), '')}\n".encode())
     return hashed.hexdigest()
 
 
 def _expand(value: str, env: dict[str, str]) -> str:
-    return _MACRO.sub(lambda match: env.get(match.group(2), ""), value)
+    return _MACRO.sub(lambda match: env.get(environment_key(match.group(2)), ""), value)
 
 
 def test_environment(name: str, env: dict[str, str], root: Path = ROOT) -> dict[str, str]:
     """The `environment` of the test preset `name`, with what it inherits, expanded against `env`:
     what CTest runs the tests under, and so what every program of that flavour runs under. Only
     `$env{}` and `$penv{}` are read, which is all the presets use; a variable a preset names as
-    `null` is taken away."""
+    `null` is taken away. A name is matched as the system matches it, so on Windows without case."""
     presets = _test_presets(root)
 
     def gathered(preset_name: str) -> dict[str, str | None]:
@@ -66,9 +66,9 @@ def test_environment(name: str, env: dict[str, str], root: Path = ROOT) -> dict[
     result = dict(env)
     for variable, value in gathered(name).items():
         if value is None:
-            result.pop(variable, None)
+            result.pop(environment_key(variable), None)
         else:
-            result[variable] = _expand(value, env)
+            result[environment_key(variable)] = _expand(value, env)
     return result
 
 

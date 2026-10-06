@@ -1,10 +1,11 @@
 import hashlib
+import os
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
-from omw.build import CONFIGURED_FROM, configured_from
+from omw.build import CONFIGURED_FROM, configured_from, manifest_inputs, redate_ahead
 from omw.fetch import build_beside, download, partial_of, settle
 from omw.package import harness_files, prune_empty, used_osg_plugins
 from omw.system import Refusal, environment_key, parse_set_output
@@ -37,6 +38,54 @@ class ConfiguredFromTest(unittest.TestCase):
                 (folder / missing).unlink()
                 self.assertFalse(configured_from(folder, "abc"))
                 (folder / missing).write_text(content)
+
+
+class ManifestInputsTest(unittest.TestCase):
+    def test_every_kind_of_input_and_no_output_or_validation(self):
+        query = "".join(line + "\n" for line in (
+            "build.ninja:",
+            "  input: RERUN_CMAKE",
+            "    /checkout/build/CMakeFiles/cmake.verify_globs",
+            "    | /checkout/CMakeLists.txt",
+            "    | CMakeCache.txt",
+            "    || /checkout/files/settings-default.cfg",
+            "  outputs:",
+            "    /checkout/build/cmake_install.cmake",
+            "  validations:",
+            "    /checkout/build/validated",
+        ))
+        build = Path("/checkout/build")
+        self.assertEqual(manifest_inputs(query, build), [
+            build / "CMakeFiles" / "cmake.verify_globs", Path("/checkout/CMakeLists.txt"), build / "CMakeCache.txt",
+            Path("/checkout/files/settings-default.cfg"),
+        ])
+        self.assertEqual(manifest_inputs("build.ninja:\n  outputs:\n    x\n", build), [])
+
+
+class RedateAheadTest(unittest.TestCase):
+    def test_a_file_dated_after_the_clock_takes_its_time_and_one_outside_the_tree_is_refused(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        tree, elsewhere = folder / "tree", folder / "elsewhere"
+        tree.mkdir()
+        elsewhere.mkdir()
+        now = 1_800_000_000.0
+        dated = {tree / "ahead.cmake": now + 23_580, tree / "behind.cmake": now - 60, tree / "now.cmake": now,
+                 elsewhere / "ahead.cmake": now + 60}
+        for path, modified in dated.items():
+            path.write_text("")
+            os.utime(path, (modified, modified))
+
+        inside = [tree / "ahead.cmake", tree / "behind.cmake", tree / "now.cmake", tree / "missing.cmake"]
+        with self.assertRaises(Refusal):
+            redate_ahead([*inside, elsewhere / "ahead.cmake"], now, tree)
+        self.assertEqual((tree / "ahead.cmake").stat().st_mtime, now + 23_580, "a file was touched before the refusal")
+
+        # Only the one dated later than the clock moves, to the clock; one at it exactly is not after it.
+        self.assertEqual(redate_ahead(inside, now, tree), [tree / "ahead.cmake"])
+        self.assertEqual({path.name: path.stat().st_mtime for path in dated if path.parent == tree},
+                         {"ahead.cmake": now, "behind.cmake": now - 60, "now.cmake": now})
+        self.assertEqual(redate_ahead(inside, now, tree), [])
 
 
 class BuildBesideTest(unittest.TestCase):

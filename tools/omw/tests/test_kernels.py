@@ -1,7 +1,7 @@
 import struct
 import unittest
 
-from omw.kernels import Setting, SpecBool, moved, settings, spec_bools
+from omw.kernels import Setting, SpecBool, keyed, moved, settings, spec_bools
 from omw.system import Refusal
 
 MAGIC = 0x07230203
@@ -67,6 +67,14 @@ class MovedTest(unittest.TestCase):
         now = {"a/-": "1", "b/X=0": "9", "d/-": "4"}
         self.assertEqual(moved(before, now), ["b/X=0 2 9", "c/- 3 (none)", "d/- (none) 4"])
         self.assertEqual(moved(before, before), [])
+
+    def test_a_listing_is_keyed_by_module_and_tuple_and_any_other_line_is_refused(self):
+        self.assertEqual(keyed(["a - 1", "b X=0,Y=1 2"], "before.txt"), {"a/-": "1", "b/X=0,Y=1": "2"})
+        self.assertEqual(keyed([], "before.txt"), {})
+        with self.assertRaises(Refusal) as refused:
+            keyed(["a - 1", "-- Configuring done (4.1s)"], "before.txt")
+        self.assertEqual(str(refused.exception), "before.txt:2 is no `<module> <tuple> <digest>` line of a "
+                                                 "listing: '-- Configuring done (4.1s)'")
 
 
 if __name__ == "__main__":

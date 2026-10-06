@@ -112,12 +112,18 @@ def moved(before: dict[str, str], now: dict[str, str]) -> list[str]:
     return lines
 
 
-def _keyed(lines: list[str]) -> dict[str, str]:
-    keyed = {}
-    for line in lines:
-        module, label, digest = line.split()
-        keyed[f"{module}/{label}"] = digest
-    return keyed
+def keyed(lines: list[str], source: str) -> dict[str, str]:
+    """A listing's lines by module and tuple. **A line that is not `<module> <tuple> <digest>` is refused**:
+    the file `--against` names is whatever was redirected into it, a build's own lines or an error among
+    them."""
+    found = {}
+    for number, line in enumerate(lines, 1):
+        fields = line.split()
+        if len(fields) != 3:
+            raise Refusal(f"{source}:{number} is no `<module> <tuple> <digest>` line of a listing: {line!r}")
+        module, label, digest = fields
+        found[f"{module}/{label}"] = digest
+    return found
 
 
 def kernels(build: Build, args: list[str]) -> int:
@@ -134,6 +140,8 @@ def kernels(build: Build, args: list[str]) -> int:
     optimizer: str = named_optimizer
     # The optimizer the build strips its modules with, so the two cannot be different releases.
     disassembler = Path(optimizer).with_name("spirv-dis" + Path(optimizer).suffix)
+    if not disassembler.is_file():
+        raise Refusal(f"there is no spirv-dis beside {optimizer}")
     program_digest = build.dir / "components" / "rtxvulkan" / f"openmw-rtx-spirv-digest{EXE}"
 
     shaders = build.dir / "resources" / "rtx" / "shaders"
@@ -174,7 +182,9 @@ def kernels(build: Build, args: list[str]) -> int:
         print("\n".join(listed))
         return 0
 
-    changed = moved(_keyed(read_text(against).splitlines()), _keyed(listed))
+    if not against.is_file():
+        raise Refusal(f"there is no listing at {against}")
+    changed = moved(keyed(read_text(against).splitlines(), str(against)), keyed(listed, "the listing"))
     if not changed:
         print(f"kernels: all {len(listed)} the same as {against}")
         return 0

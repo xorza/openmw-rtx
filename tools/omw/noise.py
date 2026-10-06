@@ -11,11 +11,12 @@ which it keeps at 99%, so a second process beside it only shares the card.
 fewer runs, and the moving legs are where the denoiser's switches are mostly felt: the strafe and the
 walk are the default legs, each 150 units, as `look.h` quotes them, and a distance of nought leaves
 one out. An investigation narrows to the place and the leg that show the effect first, with
-`--views=` and `--strafe=0 --walk=0 --still`, and the whole suite is its verdict. **The still leg is not unmoved by them**: under the upscaler's jitter an edge
-keeps a short history however long the eye stands, and the anti-firefly ring moved the bounce
-suite's still frames by up to 0.09 of noise and 0.11 of bias. `--still` adds it, and `--strafe=N` or
-`--walk=N` moves a leg's distance. `--cut=N` adds the frame `N` frames after a cut, standing, once for
-each `N` named: the first frames after a door, where the fireflies were reported.
+`--views=` and `--strafe=0 --walk=0 --still`, and the whole suite is its verdict. **The still leg is
+not unmoved by them**: under the upscaler's jitter an edge keeps a short history however long the
+eye stands, and the anti-firefly ring moved the bounce suite's still frames by up to 0.09 of noise
+and 0.11 of bias. `--still` adds it, and `--strafe=N` or `--walk=N` moves a leg's distance.
+`--cut=N` adds the frame `N` frames after a cut, standing, once for each `N` named: the first frames
+after a door, where the fireflies were reported.
 
 **A boolean switch by its name**: `--ab=antifirefly` runs `--antifirefly=true` and then
 `--antifirefly=false`. A switch of values names its two: `--ab=bounce-reuse=own,spatiotemporal`.
