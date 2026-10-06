@@ -171,9 +171,8 @@ The copies have drifted apart:
 
 **Host shape.**
 
-- `HistoryConstants` gains the previous jitter. Its one source is the frame's sampling, the same
-  value `FsrFrame` keeps today in `mPreviousJitter` (`fsrframe.cpp:47`). `FsrFrame` then reads it
-  and does not keep its own copy.
+- `HistoryConstants` carries the previous jitter, from the frame's sampling
+  (`VisibilityConstants::mPreviousJitter`), which `FsrFrame` reads too (done).
 - `DenoiseHistory` declares each history once, with its role, from one table. The table replaces
   the 20 hand-written `Image` and `ImagePair` members, and the format rule in point 6 is checked
   where the table is built.
@@ -493,23 +492,22 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
 
 ### Phase 3. Temporal history (D2, D6, and the wavelet items)
 
-1. The previous jitter in `HistoryConstants`, from one source. `FsrFrame` reads it.
-2. **The gather library first, as a pure refactor.** Fold the four loops and the three
+1. **The gather library first, as a pure refactor.** Fold the four loops and the three
    `sameSurface` copies into it, with today's rules unchanged, the shadow's missing "no history"
    test excepted. `shot --against` must show no change outside the shadow's terminators, and
    `repeat` must agree. Every later step of this phase is then one change in one place.
-3. **The registration rule, test first.** Write the GPU test of a still, jittered edge, and see it
+2. **The registration rule, test first.** Write the GPU test of a still, jittered edge, and see it
    fail on step 2's code. Then change the fetch and the `samePlane` rebuild, and see it pass.
    Measure with `noise` on the jittered still leg, and with `--strafe=150 --walk=150`.
-4. The history length by quality, and the plane match, each with its own A/B switch.
-5. The fed-back precision rule and the history table in `DenoiseHistory`. The shadow history
+3. The history length by quality, and the plane match, each with its own A/B switch.
+4. The fed-back precision rule and the history table in `DenoiseHistory`. The shadow history
    becomes `RG32F`.
-6. The fast companion and the YCoCg clamp for every running mean, and the glossy roughness cap.
+5. The fast companion and the YCoCg clamp for every running mean, and the glossy roughness cap.
    Measure with `noise --walk` at a place with a mirror floor and a walking actor (add one to
    `views.cfg`), and at a window lit by a lamp. Phase 2's D3.1 has already taken the lamp body out
    of the glossy channel, so the lag measured here is the filter's alone.
-7. D6: the specular demodulation, and the pane's lobe out of `CHANNEL_PANE`.
-8. The wavelet items from S§9. Then decide the anti-firefly ring (`.notes/todo.txt` item 1):
+6. D6: the specular demodulation, and the pane's lobe out of `CHANNEL_PANE`.
+7. The wavelet items from S§9. Then decide the anti-firefly ring (`.notes/todo.txt` item 1):
    remove it, or give it a specialization constant.
 
 ### Phase 4. Participating media (D7)

@@ -64,11 +64,7 @@ namespace Rtx
         writes.image(Shaders::ACCUMULATE_BIND_FAST_OUT, images.mFastBlended.describeStorage());
 
         const Shaders::AccumulateConstants constants{
-            .mHistory = Shaders::HistoryConstants{
-                .mEyes = frame.mSampled.mEyes,
-                .mReset = images.mFresh ? 1u : 0u,
-                .mDistanceScale = frame.mDistanceScale,
-            },
+            .mHistory = frame.history(images.mFresh),
             .mPrevious = frame.mSampled.mPrevious,
             .mDualMotion = frame.mDualMotion ? 1u : 0u,
         };
@@ -118,11 +114,7 @@ namespace Rtx
         writes.image(Shaders::ACCUMULATE_SURFACE_BIND_SURFACE_OUT, images.mSurface.describeStorage());
 
         // A reset, since the kernel reads no history at all.
-        const Shaders::HistoryConstants constants{
-            .mEyes = frame.mSampled.mEyes,
-            .mReset = 1u,
-            .mDistanceScale = frame.mDistanceScale,
-        };
+        const Shaders::HistoryConstants constants = frame.history(true);
 
         dispatch(commands, mSurface, writes, constants,
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));

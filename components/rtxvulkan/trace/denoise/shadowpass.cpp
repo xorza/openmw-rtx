@@ -97,11 +97,7 @@ namespace Rtx
             writes.image(Shaders::SHADOW_TILES_BIND_MASK, images.mMask.describeStorage());
             writes.image(Shaders::SHADOW_TILES_BIND_PENUMBRA_TILES, images.mPenumbra.describeStorage());
 
-            const Shaders::HistoryConstants constants{
-                .mEyes = frame.mSampled.mEyes,
-                .mReset = images.mFresh ? 1u : 0u,
-                .mDistanceScale = frame.mDistanceScale,
-            };
+            const Shaders::HistoryConstants constants = frame.history(images.mFresh);
 
             dispatch(commands, mTiles, writes, constants, Groups::covering(width, height, Shaders::SHADOW_WORKGROUP));
         }

@@ -44,7 +44,7 @@ namespace Rtx
         const Shaders::ivec2 render(static_cast<int>(frame.mRender.width), static_cast<int>(frame.mRender.height));
         const Shaders::ivec2 output(static_cast<int>(frame.mOutput.width), static_cast<int>(frame.mOutput.height));
 
-        at.mPreviousJitter = at.mJitter;
+        at.mPreviousJitter = -frame.mPreviousJitter;
         at.mJitter = -frame.mCamera.mJitter;
 
         at.mPreviousRenderSize = at.mRenderSize;

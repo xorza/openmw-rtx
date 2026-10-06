@@ -1,6 +1,7 @@
 #pragma once
 
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/shaders/shared/accumulate.h>
 
 namespace Rtx
 {
@@ -28,5 +29,17 @@ namespace Rtx
         /// `Reconstruction::mAntiFirefly`: whether the accumulator holds a short history of the bounce
         /// under the light around it.
         bool mAntiFirefly;
+
+        /// What every temporal filter's history is handed this frame, from the one place each
+        /// field has: `fresh` where the history holds nothing to reuse.
+        Shaders::HistoryConstants history(bool fresh) const
+        {
+            return Shaders::HistoryConstants{
+                .mEyes = mSampled.mEyes,
+                .mReset = fresh ? 1u : 0u,
+                .mDistanceScale = mDistanceScale,
+                .mPreviousJitter = mSampled.mPreviousJitter,
+            };
+        }
     };
 }

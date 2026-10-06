@@ -35,7 +35,8 @@ namespace Rtx
                 && stated.mPrevious.mForward == osg::Vec3f() && stated.mPrevious.mRight == osg::Vec3f()
                 && stated.mPrevious.mUp == osg::Vec3f() && stated.mDelight == 0.0f && stated.mShow == 0u
                 && stated.mLitEnvironmentMaps == 0u && stated.mBounceTraced == 0u && stated.mSoftEdgeDither == 0u
-                && stated.mShadowFloor == 0.0f && stated.mLampCandidates == 0u;
+                && stated.mShadowFloor == 0.0f && stated.mLampCandidates == 0u
+                && stated.mPreviousJitter == osg::Vec2f();
         }
     }
 
@@ -92,10 +93,12 @@ namespace Rtx
         // The one subtraction of two world points, and it happens here. Two camera positions a
         // step apart subtract exactly in a float; the same difference taken on the device, between
         // coordinates six figures long, would be rounding. Nothing moved where no frame came before.
+        sampled.mPreviousJitter = sampled.mEyes.mWorld.mJitter;
         if (previous != nullptr)
         {
             sampled.mCameraMotion = stated.mOrigin - previous->mOrigin;
             sampled.mPrevious = previous->mEyes.mWorld.mBasis;
+            sampled.mPreviousJitter = previous->mEyes.mWorld.mJitter;
         }
 
         return sampled;

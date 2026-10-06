@@ -421,6 +421,7 @@ namespace Rtx
             .mRender = targets.mRender,
             .mOutput = targets.mOutput,
             .mCamera = inputs.mEyes.mWorld,
+            .mPreviousJitter = inputs.mPreviousJitter,
             .mJitterPhases = inputs.mJitterPhases,
             .mSeconds = inputs.mSeconds,
         });

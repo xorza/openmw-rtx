@@ -80,6 +80,7 @@ namespace Rtx
             Shaders::VisibilityConstants previous = stated();
             previous.mOrigin = osg::Vec3f(7.0f, 20.0f, 30.0f);
             previous.mEyes.mWorld.mBasis.mForward = osg::Vec3f(0.0f, 1.0f, 0.0f);
+            previous.mEyes.mWorld.mJitter = osg::Vec2f(0.375f, -0.125f);
 
             const Shaders::VisibilityConstants sampled
                 = sampleFrame(stated(), FrameOptions{}, RenderProfile{}, jittering, counts, &previous);
@@ -110,6 +111,7 @@ namespace Rtx
             EXPECT_EQ(sampled.mArmsInFrame, 1u);
             EXPECT_EQ(sampled.mCameraMotion, osg::Vec3f(3.0f, 0.0f, 0.0f));
             EXPECT_EQ(sampled.mPrevious.mForward, osg::Vec3f(0.0f, 1.0f, 0.0f));
+            EXPECT_EQ(sampled.mPreviousJitter, osg::Vec2f(0.375f, -0.125f)) << "where the frame before sampled";
 
             // What the statement carried passes through untouched.
             EXPECT_EQ(sampled.mOrigin, stated().mOrigin);
@@ -121,6 +123,7 @@ namespace Rtx
                 = sampleFrame(stated(), FrameOptions{}, RenderProfile{}, Reconstruction{}, counts, nullptr);
             EXPECT_EQ(picture.mEyes.mWorld.mJitter, osg::Vec2f());
             EXPECT_EQ(picture.mCameraMotion, osg::Vec3f());
+            EXPECT_EQ(picture.mPreviousJitter, picture.mEyes.mWorld.mJitter) << "no frame before it but itself";
             EXPECT_EQ(picture.mNoise, Shaders::NOISE_BLUE_TILE);
             EXPECT_EQ(picture.mSoftEdgeDither, 0u) << "a picture stands alone, so the eye cuts its soft edges";
             EXPECT_EQ(picture.mShadowFloor, Shaders::SHADOW_DRAW_FLOOR) << "and draws its bits by the default floor";
