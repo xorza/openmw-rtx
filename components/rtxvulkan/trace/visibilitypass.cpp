@@ -40,11 +40,9 @@
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/shaders/shared/bindings.h>
-#include <components/rtxvulkan/shaders/shared/bouncereuse.h>
 #include <components/rtxvulkan/shaders/shared/tables.h>
 #include <components/rtxvulkan/shaders/shared/tracerecords.h>
 
-#include "bouncereservoirs.hpp"
 #include "fogvolume.hpp"
 #include "gbuffer.hpp"
 #include "ripplepass.hpp"
@@ -115,12 +113,6 @@ namespace Rtx
                 = VkDescriptorSetLayoutBinding{ Shaders::BIND_COUNTS, sStorage, 1, sStages, nullptr };
             declared[Shaders::BIND_SUN_GLARE]
                 = VkDescriptorSetLayoutBinding{ Shaders::BIND_SUN_GLARE, sStorage, 1, sStages, nullptr };
-
-            // The bounce's reservoirs, which turn every frame and so are pushed with it.
-            for (const std::uint32_t binding : { Shaders::BIND_BOUNCE_RESERVOIRS, Shaders::BIND_BOUNCE_HISTORY,
-                     Shaders::BIND_BOUNCE_ORIGINS, Shaders::BIND_BOUNCE_ORIGINS_BEFORE, Shaders::BIND_BOUNCE_THROUGH,
-                     Shaders::BIND_BOUNCE_PAIRING, Shaders::BIND_BOUNCE_PAIRED })
-                declared[binding] = VkDescriptorSetLayoutBinding{ binding, sStorage, 1, sStages, nullptr };
 
             declared[Shaders::BIND_FRAME] = VkDescriptorSetLayoutBinding{ Shaders::BIND_FRAME,
                 VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, sStages, nullptr };
@@ -233,8 +225,7 @@ namespace Rtx
         // a hand takes up whatever is next, and a tuple taken last is the whole batch waiting on
         // one hand.
         constexpr std::array singles{ Kernel::Depth, Kernel::Integrate, Kernel::SpriteComposite, Kernel::SpriteShelter,
-            Kernel::SpriteEmitters, Kernel::BounceValidate, Kernel::BounceTemporal, Kernel::BouncePairs,
-            Kernel::BounceResolve };
+            Kernel::SpriteEmitters };
 
         std::vector<Wanted> wanted;
         wanted.reserve(2 * VisibilityVariant::sCount + singles.size());
@@ -361,22 +352,6 @@ namespace Rtx
                 mKernels.mSpriteEmitters = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
                     sharedSets(textureLayout), TraceShaders{ .mRaygen = "spriteemitters.rgen.spv" }, "sprite emitters");
                 return;
-            case Kernel::BounceValidate:
-                mKernels.mBounceValidate = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
-                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "bouncevalidate.rgen.spv" }, "bounce validate");
-                return;
-            case Kernel::BounceTemporal:
-                mKernels.mBounceTemporal = std::make_unique<ComputePipeline<NoConstants>>(
-                    mDevice, sBindings, sharedSets(textureLayout), "bouncetemporal.comp.spv", "bounce temporal");
-                return;
-            case Kernel::BouncePairs:
-                mKernels.mBouncePairs = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
-                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "bouncepairs.rgen.spv" }, "bounce pairs");
-                return;
-            case Kernel::BounceResolve:
-                mKernels.mBounceResolve = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
-                    sharedSets(textureLayout), TraceShaders{ .mRaygen = "bounceresolve.rgen.spv" }, "bounce resolve");
-                return;
         }
     }
 
@@ -480,15 +455,6 @@ namespace Rtx
             && "a trace with no glare query to count into");
         writes.buffer(Shaders::BIND_SUN_GLARE, inputs.mSubject.mSunGlare->describe());
 
-        const BounceReservoirs& reservoirs = inputs.mReservoirs;
-        writes.buffer(Shaders::BIND_BOUNCE_RESERVOIRS, reservoirs.getReservoirs().describe());
-        writes.buffer(Shaders::BIND_BOUNCE_HISTORY, reservoirs.getHistory().describe());
-        writes.buffer(Shaders::BIND_BOUNCE_ORIGINS, reservoirs.getOrigins().describe());
-        writes.buffer(Shaders::BIND_BOUNCE_ORIGINS_BEFORE, reservoirs.getOriginsBefore().describe());
-        writes.buffer(Shaders::BIND_BOUNCE_THROUGH, reservoirs.getThrough().describe());
-        writes.buffer(Shaders::BIND_BOUNCE_PAIRING, reservoirs.getPairing().describe());
-        writes.buffer(Shaders::BIND_BOUNCE_PAIRED, reservoirs.getPaired().describe());
-
         if (shown != nullptr)
         {
             assert(!shown->isEmpty() && "a composite over no frame");
@@ -516,13 +482,6 @@ namespace Rtx
         Shaders::VisibilityConstants described = constants;
 
         described.mComposed = composed ? 1u : 0u;
-        static_assert(static_cast<std::uint32_t>(BounceReuse::Off) == Shaders::BOUNCE_REUSE_OFF
-            && static_cast<std::uint32_t>(BounceReuse::Own) == Shaders::BOUNCE_REUSE_OWN
-            && static_cast<std::uint32_t>(BounceReuse::Temporal) == Shaders::BOUNCE_REUSE_TEMPORAL
-            && static_cast<std::uint32_t>(BounceReuse::Spatiotemporal) == Shaders::BOUNCE_REUSE_SPATIOTEMPORAL);
-        described.mBounceReuse = static_cast<std::uint32_t>(inputs.mBounceReuse);
-        described.mBounceStride = inputs.mReservoirs.getStride();
-        described.mBounceHistory = inputs.mBounceHistory ? 1u : 0u;
 
         described.mScreen = screenBasisOf(described.mEyes.mWorld.mBasis);
         described.mPreviousScreen = screenBasisOf(described.mPrevious);
@@ -697,76 +656,6 @@ namespace Rtx
         // The host's read of the count is ordered by whoever reads it: `renderFrame` records
         // `Buffer::orderForHostRead` after every pass that could add to it, and a picture's count
         // is read by nobody.
-    }
-
-    void VisibilityPass::recordBounceReuse(const VkCommandBuffer commands, const VisibilityInputs& inputs,
-        const Shaders::VisibilityConstants& constants, GpuTimer* const timer) const
-    {
-        if (inputs.mBounceReuse == BounceReuse::Off)
-            return;
-
-        const std::uint32_t width = constants.mEyes.mWorld.mWidth;
-        const std::uint32_t height = constants.mEyes.mWorld.mHeight;
-        assert(inputs.mReservoirs.getStride() >= width && "a reuse over reservoirs narrower than the trace");
-
-        // **Ahead of the hand-over, beside the trace's tail**: it reads and writes last frame's
-        // history and origins alone, which the trace neither reads nor writes, and the hand-over
-        // orders its writes before the temporal pass reads them.
-        if (inputs.mBounceReuse >= BounceReuse::Temporal && inputs.mBounceHistory)
-        {
-            openZone(timer, commands, "bounce validate");
-
-            const auto& validate = *kernels().mBounceValidate;
-            bind(commands, validate);
-            pushInputs(commands, validate, inputs);
-            validate.traceRays(commands, groupsFor(width, Shaders::BOUNCE_VALIDATION_ACROSS),
-                groupsFor(height, Shaders::BOUNCE_VALIDATION_DOWN));
-
-            closeZone(timer, commands);
-        }
-
-        // The trace's reservoirs and its motion vectors, written by the launch, read and merged into
-        // by the dispatch and read by the launch after it.
-        handOver(commands, Use::sBufferShaderReadWrite, Use::sBufferShaderReadWrite);
-
-        if (inputs.mBounceReuse >= BounceReuse::Temporal)
-        {
-            openZone(timer, commands, "bounce temporal");
-
-            const auto& temporal = *kernels().mBounceTemporal;
-            bind(commands, temporal);
-            pushInputs(commands, temporal, inputs);
-            vkCmdDispatch(commands, groupsFor(width, Shaders::BOUNCE_TEMPORAL_WORKGROUP),
-                groupsFor(height, Shaders::BOUNCE_TEMPORAL_WORKGROUP), 1);
-
-            closeZone(timer, commands);
-
-            handOver(commands, Use::sBufferShaderReadWrite, Use::sBufferShaderReadWrite);
-        }
-
-        // The pairs' bits, for the resolve to read at this pixel and at its partners.
-        if (inputs.mBounceReuse == BounceReuse::Spatiotemporal)
-        {
-            openZone(timer, commands, "bounce pairs");
-
-            const auto& pairs = *kernels().mBouncePairs;
-            bind(commands, pairs);
-            pushInputs(commands, pairs, inputs);
-            pairs.traceRays(commands, width, height);
-
-            closeZone(timer, commands);
-
-            handOver(commands, Use::sBufferShaderReadWrite, Use::sBufferShaderReadWrite);
-        }
-
-        openZone(timer, commands, "bounce resolve");
-
-        const auto& resolve = *kernels().mBounceResolve;
-        bind(commands, resolve);
-        pushInputs(commands, resolve, inputs);
-        resolve.traceRays(commands, width, height);
-
-        closeZone(timer, commands);
     }
 
     void VisibilityPass::recordSpriteComposite(const VkCommandBuffer commands, const VisibilityInputs& inputs,

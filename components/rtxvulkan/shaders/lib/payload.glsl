@@ -108,10 +108,6 @@ struct Answer
     /// end where it met nothing.
     bool mHit;
     float mDistance;
-
-    /// Whether the shader wrote the pixel's bounce reservoir and visible point, which the launch
-    /// writes as nothing everywhere else: the solid the eye found, or the bed under a waterline.
-    bool mBounceKept;
 };
 
 /// Everything the launch reads, at what a shader that answered nothing would leave it.
@@ -140,7 +136,6 @@ Answer noAnswer()
     answer.mWater = false;
     answer.mHit = false;
     answer.mDistance = 0.0;
-    answer.mBounceKept = false;
 
     return answer;
 }
@@ -192,7 +187,6 @@ const uint ANSWER_WATER = 1u << 0u;
 const uint ANSWER_PANE = 1u << 1u;
 const uint ANSWER_HIT = 1u << 2u;
 const uint ANSWER_OPEN = 1u << 3u;
-const uint ANSWER_BOUNCE_KEPT = 1u << 4u;
 
 /// Where the roughness sits in the flags word, as a byte: nought to one in steps of 1/254, and
 /// `ANSWER_NO_LOBE` for `SPECULAR_NO_LOBE`.
@@ -222,7 +216,7 @@ VisibilityPayload packAnswer(Answer answer)
     packed.mFlags = packHalf2x16(vec2(0.0, answer.mHit ? answer.mMisMoved : answer.mBackdropShown))
         | (answer.mWater ? ANSWER_WATER : 0u)
         | (answer.mPane ? ANSWER_PANE : 0u) | (answer.mHit ? ANSWER_HIT : 0u)
-        | (answer.mOpen ? ANSWER_OPEN : 0u) | (answer.mBounceKept ? ANSWER_BOUNCE_KEPT : 0u)
+        | (answer.mOpen ? ANSWER_OPEN : 0u)
         | ((answer.mRoughness < 0.0 ? ANSWER_NO_LOBE
                                      : uint(round(min(answer.mRoughness, 1.0) * float(ANSWER_ROUGHNESS_STEPS))))
             << ANSWER_ROUGHNESS_SHIFT);
@@ -256,7 +250,6 @@ Answer unpackAnswer(VisibilityPayload packed)
     answer.mPane = (packed.mFlags & ANSWER_PANE) != 0u;
     answer.mWater = (packed.mFlags & ANSWER_WATER) != 0u;
     answer.mHit = (packed.mFlags & ANSWER_HIT) != 0u;
-    answer.mBounceKept = (packed.mFlags & ANSWER_BOUNCE_KEPT) != 0u;
     const float highHalf = unpackHalf2x16(packed.mFlags).y;
     answer.mBackdropShown = answer.mHit ? 0.0 : highHalf;
     answer.mMisMoved = answer.mHit ? highHalf : 0.0;

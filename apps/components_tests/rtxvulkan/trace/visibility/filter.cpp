@@ -579,9 +579,7 @@ namespace Rtx::Testing
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = 0,
                         .mLoss = loss,
-                        .mReconstruction = ReconstructionRequest{ .mDenoise = filter,
-                            .mBounceReuse = BounceReuse::Off,
-                            .mIndirect = indirect },
+                        .mReconstruction = ReconstructionRequest{ .mDenoise = filter, .mIndirect = indirect },
                         .mExposure = FixedExposure{ 1.0f } });
             };
 
@@ -798,7 +796,6 @@ namespace Rtx::Testing
                             mRenderer.renderFrame(standing(at >= still ? to : from, 1000 + 100 * draw + at),
                                 FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                                     .mReconstruction = ReconstructionRequest{ .mDenoise = true,
-                                        .mBounceReuse = BounceReuse::Off,
                                         .mAntilag = antilag,
                                         .mHistoryFix = fix,
                                         .mAntiFirefly = false },
@@ -870,8 +867,8 @@ namespace Rtx::Testing
         /// Over four draws, the strip's spread from one draw to the next, over its mean. **The noise
         /// in the light's own units**: without the fix the brightness test passes over a fresh pixel's
         /// rare bright draws, and a strip darker for it is quieter by as much and no better for it.
-        /// **The clamp is off in every run**: with no reuse, its box of fifty samples mostly holds
-        /// none of a light this rare and holds the strip near nought, which is
+        /// **The clamp is off in every run**: its box of fifty samples mostly holds none of a light
+        /// this rare and holds the strip near nought, which is
         /// `ACCUMULATE_FAST_FRAMES`'s trade and not this test's question. So is the ring, which holds
         /// the fresh strip down before the fix borrows, `ACCUMULATE_RING_FRAMES`'s trade.
         ///
@@ -1009,7 +1006,6 @@ namespace Rtx::Testing
                         mRenderer.renderFrame(camera,
                             FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                                 .mReconstruction = ReconstructionRequest{ .mDenoise = true,
-                                    .mBounceReuse = BounceReuse::Off,
                                     .mAntilag = false,
                                     .mDualMotion = dual,
                                     .mAntiFirefly = false },
@@ -1100,10 +1096,8 @@ namespace Rtx::Testing
                     camera.mFrame = first + at;
                     mRenderer.renderFrame(camera,
                         FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
-                            .mReconstruction = ReconstructionRequest{ .mDenoise = true,
-                                .mBounceReuse = BounceReuse::Off,
-                                .mAntilag = false,
-                                .mAntiFirefly = ring },
+                            .mReconstruction
+                            = ReconstructionRequest{ .mDenoise = true, .mAntilag = false, .mAntiFirefly = ring },
                             .mExposure = FixedExposure{ 1.0f } });
                     EXPECT_TRUE(mRenderer.finishFrame().has_value());
                 }
@@ -1172,10 +1166,8 @@ namespace Rtx::Testing
                     camera.mFrame = 2000 + at;
                     mRenderer.renderFrame(camera,
                         FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
-                            .mReconstruction = ReconstructionRequest{ .mDenoise = filter,
-                                .mBounceReuse = BounceReuse::Off,
-                                .mAntilag = false,
-                                .mAntiFirefly = false },
+                            .mReconstruction
+                            = ReconstructionRequest{ .mDenoise = filter, .mAntilag = false, .mAntiFirefly = false },
                             .mExposure = FixedExposure{ 1.0f } });
                     EXPECT_TRUE(mRenderer.finishFrame().has_value());
                 }

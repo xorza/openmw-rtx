@@ -251,7 +251,7 @@ at the top, over all of them.
 - **`FrameRing`** keeps two frames in flight. The host places frame N+1 while the device traces
   N.
 - **`TraceChain`** is everything one camera's trace writes at one extent: the G-buffer, the fog
-  volume, the sprite bins, the denoiser's history, and the bounce's reservoirs where it reuses.
+  volume, the sprite bins and the denoiser's history.
   The world has one, and `PictureTracer` has one for the pictures inside the interface. The passes
   are shared.
 - **`DisplayChain`** runs after the trace and the upscaler: bloom, exposure, glare, tone, debug
@@ -266,27 +266,16 @@ at the top, over all of them.
   device in it. Its reactive and transparency-and-composition masks are the trace's own
   (`CHANNEL_UPSCALE_MASKS`): the share of a pixel's light whose image moves apart from the pixel's
   motion vector — the see-through layers', and what the water's rays show.
-- **The bounce's reuse** (`BounceReservoirs`, ReSTIR GI) runs where the reconstruction asks for it
-  (`Reconstruction::mBounceReuse`): the world's chain, never a picture's. The trace's bounce is each
-  pixel's candidate, which the hit shader writes as a reservoir beside the visible point it left.
-  Four kernels of `VisibilityPass` follow the trace: the validation traces and shades again last
-  frame's kept sample at one pixel in eight, the temporal merge takes last frame's reservoir into
-  the candidate, the pairs' pass traces the shift rays of each pair of pixels the pairings link
-  once for both (`BouncePairing`), and the resolve merges the two partners by those rays, traces the
-  final visibility ray and shades the kept sample into the channels the trace would have written.
-  The reuse keeps its own history, so it runs with or without the denoiser after it. **Off by
-  default**, one pipeline for every place: its gain was a correction for stages of the denoiser
-  that lost a rare bright sample's light, and with the anti-firefly ring off, no reuse stands level
-  with it where a room is lit by what glows in it, is better in the lit rooms, and saves 0.24 to
-  0.85 ms a room (`.notes/reuse.md`). The modes stay for A/Bs and for content they would serve, and
-  the world's chain keeps its reservoirs whatever a frame runs.
+- **No reuse of the bounce.** ReSTIR GI's reservoirs ran here as a temporal and a spatial reuse,
+  and were removed: once the denoiser kept a rare bright sample's light, they gained nothing at any
+  place and added bias in the room they were kept for (`.notes/reuse.md`).
 - **The indirect light** (`[RTX] indirect light`, `Reconstruction::mIndirect`) is `traced`, the
   bounce above and the passes that clean it, or `off`, none: the trace draws no diffuse bounce and
   traces only a glossy surface's reflection (`bounceTraced`), no surface a path ends at takes the
-  cell's ambient (`surfaceAmbient`), the reuse does not run, and the denoiser keeps the
+  cell's ambient (`surfaceAmbient`), and the denoiser keeps the
   accumulator's surface history alone. A menu changes it while the game runs
-  (`Renderer::setIndirectLight`), and the chain lets go of the reservoirs and the bounce's histories
-  where it is `off`.
+  (`Renderer::setIndirectLight`), and the chain lets go of the bounce's histories where it is
+  `off`.
 - **The denoiser** (`trace/denoise/`) runs where the frame is filtered. The accumulator averages
   the bounce's diffuse light over time and the wavelet spreads it across the screen, with the share
   of it that is fill beside it by the same weights: the composite puts the bounce back by the
@@ -386,10 +375,9 @@ On the host, in order:
 6. **GUI and present.** The host returns without waiting for the device.
 
 On the device, in record order: the sea and the ripples, the sprites, the fog, the trace, the
-bounce's reuse where it runs (the validation, the temporal merge, the pairs, the resolve), the
 denoiser where it runs (the accumulator and its clamp, the shadow denoiser, the glossy filter, the
-pane filter, the wavelet), the composite where a denoiser, the reuse or a sum needs one, the
-upscaler where one runs, the display chain, the GUI, the present.
+pane filter, the wavelet), the composite where a denoiser or a sum needs one, the upscaler where
+one runs, the display chain, the GUI, the present.
 
 Four clocks drive a frame, each with one source: host time (the wall in play, the frame count
 times a stated step in a measured run), simulation time, game time (the hour), and the sky's

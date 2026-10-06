@@ -73,10 +73,6 @@ set(RTX_SHADERS
     shaders/upscale/fsrinstability.comp
     shaders/upscale/fsrlumapyramid.comp
     shaders/upscale/fsrreactivity.comp
-    shaders/trace/bouncepairs.rgen
-    shaders/trace/bounceresolve.rgen
-    shaders/trace/bouncetemporal.comp
-    shaders/trace/bouncevalidate.rgen
     shaders/trace/fogdepth.rgen
     shaders/trace/fogintegrate.comp
     shaders/trace/fogscatter.rgen
@@ -171,8 +167,6 @@ set(RTX_SHADER_LIB
     shaders/lib/basis.glsl
     shaders/lib/bindings.glsl
     shaders/lib/bloom.glsl
-    shaders/lib/bouncepairs.glsl
-    shaders/lib/bouncereservoir.glsl
     shaders/lib/compose.glsl
     shaders/lib/counts.glsl
     shaders/lib/finite.glsl
@@ -339,7 +333,6 @@ set(RTX_VULKAN_FILES
     shaders/shared/atrous.h
     shaders/shared/bindings.h
     shaders/shared/bloom.h
-    shaders/shared/bouncereuse.h
     shaders/shared/composite.h
     shaders/shared/counts.h
     shaders/shared/exposure.h
@@ -402,8 +395,6 @@ set(RTX_VULKAN_FILES
     trace/denoise/specularpass.cpp
     trace/denoise/specularpass.hpp
     trace/denoise/temporalturns.hpp
-    trace/bouncereservoirs.cpp
-    trace/bouncereservoirs.hpp
     trace/fogvolume.cpp
     trace/fogvolume.hpp
     trace/gbuffer.cpp

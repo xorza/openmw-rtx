@@ -229,49 +229,11 @@ one answer:
 **What goes away.**
 
 
-### D4. The bounce's far end: a pure function of its sample
+### D4. The bounce's far end (removed with the reuse)
 
-**Cause.** A reservoir's stored radiance is a stochastic shading of the far end, and every later
-stage shades it again under other random numbers or other rules:
-
-- Validation re-shades with fresh seeds and with this frame's `INDIRECT_LIGHT_RATE` coin, which is
-  the trace's own coin for this pixel. It keeps the new value only when it falls.
-- The sky sample stores the receiver's water attenuation.
-- The far-ground escape is assumed without a record.
-- The resolve writes back an `own` sample whose visibility it did not test.
-
-The temporal merge also uses the defensive pairwise MIS where GRIS uses the balance heuristic. The
-reservoirs are allocated at full extent while the reuse is off.
-
-**Contract.**
-
-1. **Replay.** A sample carries the stamp of the frame that found it and the finder's pixel key
-   (`mState` has free high bits for the stamp, and the key needs one word). `randomSeedAt(key,
-   frame)` beside `randomSeed(key)` gives the same sequence for that stamp. Every stage that shades
-   the far end calls one `shadeFarEnd(hit, replay)`. In a static scene it then returns the stored
-   radiance exactly. A change in the result is a real change of light, and validation replaces the
-   value in both directions. **What replay needs of the rest:** every draw at the far end comes from
-   a hashed sequence keyed by the pixel and the frame (D3.6 keeps the tile streams to the primary
-   hit), and the `INDIRECT_LIGHT_RATE` coin is one of those draws. A lamp that flickers changes the
-   far end's light from frame to frame, and validation then follows it, which is correct.
-2. **The receiver's factors are applied, never stored.** Water attenuation at the receiver, the
-   far-ground escape rule, and the receiver's plane are applied in `bounceTarget` and in the
-   shading of the shift. The sample stores what the far end sends. `GpuBounceOrigin` carries the
-   far-ground state, so `bounceSeen` answers without a ray where the trace's own rule did.
-3. **MIS by the merge's shape.** A two-input temporal merge uses the generalized balance heuristic.
-   The spatial resolve keeps the defensive pairwise form.
-4. **Visibility is a state.** A reservoir written to the history carries "visibility established
-   this frame". The resolve writes `own` only where it is established. Otherwise it traces `own`, or
-   drops `own` if its age is above nought.
-5. **Cost follows the mode.** The chain allocates the full-extent reservoirs when a frame first
-   asks for a mode other than `Off`. Until then it holds the one-pixel stand-ins that pictures
-   already use. The pairs pass traces only where the target at the partner is above nought.
-   `GpuBounceOrigin` is padded to 32 bytes. The temporal kernel reads the best tap once. The
-   resolve keeps only confidences, `there` values and bits live between its loops.
-   `pairingsFor` is in the core (D11, done).
-
-Decision 4 orders this work: points 2 (the far-ground flag only), 3 and 5, together with the
-validation without the rate coin, come first. Point 1 comes only if the reuse then shows a gain.
+Decision 4's cheap fixes were made (`bd990fb38b`), and the A/B after them found no gain at any
+place: the reuse, its kernels and its reservoirs are removed, and D4.1 to D4.5 with them.
+`.notes/reuse.md` has the figures.
 
 ### D5. One ray contract for every ray
 
@@ -433,7 +395,6 @@ Each check lands with its contract, and each is one the gate runs.
 |---|---|
 | D2 | `RtxSourceTreeTest`: `historyShare` and `historyTap` appear in `surfacematch.glsl` alone. A GPU test: a still, jittered edge accumulates to its unjittered-centre mean. |
 | D3 | GPU tests: a mirror beside a lamp reflects the lamp's analytic lobe and no glow of its model (done); the split sky is every source's sum, and a source under a floor draws no bit (done); a lamp that takes light away takes it off the exact sum where one lamp is drawn (done). |
-| D4 | A GPU test: in a static scene, validation leaves every stored radiance as it was, bit for bit. |
 | D5 | GPU tests: a floor point half a unit from a wall gets no light from behind the wall; a pane of opacity one half is met by half the secondary rays, in the mean. |
 | D6 | A host test: the composite's remodulation inverts the trace's demodulation for every channel. |
 | D7 | Host tests: the froxel's blend of `σ·L` and `σ` equals the mean of `σ·L`; `waterColumn`'s closed form equals a numerical integral at several directions. |
@@ -526,17 +487,9 @@ ends where it stops.
 
 ### Phase 5. The bounce's reuse (D4, decision 4)
 
-1. **Done**: the validation at the whole rate, with its fall measured past the rate the sample was
-   drawn at (a sunlit corner's reused mean 0.880 → 1.003 of the plain bounce's); the far-ground
-   flag (`BOUNCE_ORIGIN_ESCAPES`); allocation on demand (`TraceChain::setReuse`); the pairs skip;
-   the single read; the live state. The origin was 32 bytes already. **The balance MIS was tried
-   and declined**: with no visibility in the weights, it handed the history nearly all the weight,
-   and over the corner it carried 27 fireflies against the plain bounce's 24, left the walk's error
-   at 0.84 of no reuse's, and kept 0.969 of a sunlit mean (`bouncetemporal.comp` says so).
-2. Run `noise --ab=bounce-reuse=temporal,off --suite=bounce` (strafe, walk and still) and the
-   outdoor `bench` again. Write the result into `.notes/reuse.md`.
-3. If the reuse now gains, do D4.1 (replay) and D4.4 (visibility state), and measure again. If it
-   does not gain, remove the reuse, its kernels and its reservoirs, and record why.
+**Done: removed.** After the cheap fixes the A/B moved no place by more than 0.02 in noise or bias,
+and the glow-lit chamber, the one place the reuse was kept for, had 3.15 of bias with it against
+1.63 without (`.notes/reuse.md`).
 
 ### Phase 6. Texture facts (D8)
 

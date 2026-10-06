@@ -389,10 +389,6 @@ namespace Rtx::Testing
         /// unless a test names the other.
         NoiseSource mNoise = NoiseSource::BlueNoiseTile;
 
-        /// What the trace makes of its bounce: none, for the reason the filter is off — a reused
-        /// bounce is what the neighbours and the frames before found. The tests of the reuse ask.
-        BounceReuse mBounceReuse = BounceReuse::Off;
-
         /// Where the indirect light comes from: the traced bounce every figure over this fixture was
         /// derived against, unless a test of none names the other.
         IndirectLight mIndirect = IndirectLight::Traced;
@@ -509,7 +505,6 @@ namespace Rtx::Testing
                             .mLevelEpsilon = shot.mLevelEpsilon,
                             .mShadowFloor = shot.mShadowFloor,
                             .mLampCandidates = shot.mLampCandidates,
-                            .mBounceReuse = shot.mBounceReuse,
                             .mIndirect = shot.mIndirect },
                         .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })
                                                                 : ExposureRule(MeasuredExposure{}),

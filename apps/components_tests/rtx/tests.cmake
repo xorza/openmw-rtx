@@ -26,7 +26,6 @@ set(RTX_TEST_FILES
     rtx/environment/wavecascade.cpp
     rtx/environment/wavespectrum.cpp
     rtx/frame/bluenoise.cpp
-    rtx/frame/bouncepairing.cpp
     rtx/frame/camera.cpp
     rtx/frame/framepast.cpp
     rtx/frame/framesampling.cpp
@@ -118,7 +117,6 @@ set(RTX_TEST_FILES
     rtxvulkan/pipeline/dispatch.cpp
     rtxvulkan/scene/sceneslots.cpp
     rtxvulkan/shaders/accumulate.cpp
-    rtxvulkan/shaders/bouncereuse.cpp
     rtxvulkan/shaders/exposure.cpp
     rtxvulkan/shaders/hitrecords.cpp
     rtxvulkan/shaders/medium.cpp
@@ -216,7 +214,6 @@ set(RTX_GPU_TEST_FILES
     rtxvulkan/trace/visibility/kernels.cpp
     rtxvulkan/trace/visibility/light.cpp
     rtxvulkan/trace/visibility/pane.cpp
-    rtxvulkan/trace/visibility/reuse.cpp
     rtxvulkan/trace/visibility/sea.cpp
     rtxvulkan/trace/visibility/shadow.cpp
     rtxvulkan/trace/visibility/specular.cpp

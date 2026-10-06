@@ -507,25 +507,8 @@ void main()
     const vec3 light = frame.mComposed != 0u ? pixelLight : shaded;
     RTX_STORE_COUNTED(direct, at, BOUNDARY_COLOUR, vec4(light, 1.0))
 
-    // **Where the bounce is reused, the resolve writes its two channels** out of what the reuse
-    // kept, and this hands it what it needs that only this launch knows: what the path took off the
-    // light in front of the bounce, and a reservoir of nothing where no shader kept a bounce — the
-    // sky, a pane, a picture of the maps.
-    if (frame.mBounceReuse != BOUNCE_REUSE_OFF)
-    {
-        const uint kept = pixel.y * frame.mBounceStride + pixel.x;
-        bounceThrough[kept] = packRgb9e5(transmittance);
-        if (!answer.mBounceKept)
-        {
-            bounceReservoirs[kept] = packBounce(noBounce());
-            bounceOrigins[kept] = packOrigin(noOrigin());
-        }
-    }
-    else
-    {
-        RTX_STORE_COUNTED(indirect, at, BOUNDARY_COLOUR, vec4(bounce, 1.0))
-        RTX_STORE_COUNTED(fill, at, BOUNDARY_COLOUR, vec4(filled, 1.0))
-    }
+    RTX_STORE_COUNTED(indirect, at, BOUNDARY_COLOUR, vec4(bounce, 1.0))
+    RTX_STORE_COUNTED(fill, at, BOUNDARY_COLOUR, vec4(filled, 1.0))
     RTX_STORE_COUNTED(shadowed, at, BOUNDARY_COLOUR, vec4(unshadowed, open))
     RTX_STORE_COUNTED(penumbra, at, BOUNDARY_GUIDE, vec4(answer.mPenumbra))
     RTX_STORE_COUNTED(specular, at, BOUNDARY_COLOUR, vec4(lobe, answer.mRoughness))
