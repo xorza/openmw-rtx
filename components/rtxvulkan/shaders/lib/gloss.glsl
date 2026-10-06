@@ -163,7 +163,7 @@ struct LobeSample
 {
     vec3 mTowards;
 
-    /// `F G2 / G1`, compensated: the lobe over the density it was drawn by. Nought where the
+    /// `F G2 / G1`, compensated and times `boundedWeight`: the lobe over the density it was drawn by. Nought where the
     /// reflection leaves below the shading normal's horizon, which no light arrives from.
     vec3 mWeight;
 };
@@ -180,8 +180,11 @@ LobeSample lobeSample(Gloss gloss, vec2 draw)
     const vec3 bitangent = around.mBitangent;
     const vec3 eye = vec3(dot(gloss.mToEye, tangent), dot(gloss.mToEye, bitangent), gloss.mToEyeCosine);
 
+    // **Bounded** (`boundedCap`): no draw is spent on a facet that reflects the eye under the
+    // horizon, and each weighs the bounded density's share of the whole cap's.
+    const float bound = boundedCap(eye, gloss.mAlpha);
     const float turn = TAU * draw.y;
-    const vec3 facet = visibleNormal(eye, gloss.mAlpha, draw.x, vec2(cos(turn), sin(turn)));
+    const vec3 facet = visibleNormal(eye, gloss.mAlpha, draw.x, vec2(cos(turn), sin(turn)), bound);
     const vec3 halfway = tangent * facet.x + bitangent * facet.y + gloss.mNormal * facet.z;
 
     LobeSample sampled;
@@ -193,7 +196,8 @@ LobeSample lobeSample(Gloss gloss, vec2 draw)
         return sampled;
 
     sampled.mWeight = fresnelAt(gloss, halfway) * gloss.mCompensation
-        * smithShadowingGivenMasking(gloss.mAlpha, gloss.mToEyeCosine, toLight);
+        * (smithShadowingGivenMasking(gloss.mAlpha, gloss.mToEyeCosine, toLight)
+            * boundedWeight(eye, gloss.mAlpha, bound));
 
     return sampled;
 }

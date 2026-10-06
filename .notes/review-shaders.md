@@ -372,14 +372,6 @@ items are departures from the published method that each cost gain or add bias. 
   the shimmer the mip chain was built to remove (ray cones: Akenine-Möller et al., JCGT 2021). Target:
   `texels.y * inverseAxis / max(swing * inverseAxis, ε)`. `swing` is known at `:348`.
 
-## 12. Light sampling for glossy surfaces and for many lamps
-
-- [ ] `gloss.glsl:163-169`, `shading.glsl:928`. The spherical-cap VNDF sampler (Dupuy & Benyoub 2023,
-  correct) draws reflections under the horizon, which are given weight 0. At grazing views on rough
-  lobes that wastes samples. Eto & Tokuyoshi 2023, "Bounded VNDF Sampling for Smith-GGX Reflections",
-  shrinks the cap so those are never drawn, for about one `sqrt`. Target: the bounded cap in
-  `visibleNormal`, with the weight from its pdf.
-
 ## 13. Media and water: smaller defects
 
 - [ ] `components/rtx/shaders/fogvolume.h:22`, `trace/fogvolume.cpp:46-49`, `fogscatter.rgen:264,
