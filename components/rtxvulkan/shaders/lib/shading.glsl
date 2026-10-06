@@ -123,7 +123,9 @@ SkyTerm skyTermOf(SkyChoice choice, vec3 position, float footprint, Gloss gloss)
     if (!(choice.mLight.mWeight > 0.0))
         return SkyTerm(vec3(0.0), vec3(0.0), vec3(0.0));
 
-    const vec3 water = lightThroughWater(bentPathAt(position, sunUnderWater(choice.mSky.mDirection)), footprint);
+    const vec3 water = lightThroughWater(
+        bentPathAt(position, sunUnderWater(choice.mSky.mDirection)), footprint,
+        waterCrossingOf(choice.mSky.mDirection).mInto);
     const vec3 diffuse = choice.mSky.mIrradiance * water * (choice.mCosine * INV_PI);
     return SkyTerm(diffuse, gloss.mGlossy ? diffuse * choice.mLight.mFresnel : vec3(0.0),
         gloss.mGlossy ? water * choice.mLight.mSpecular : vec3(0.0));

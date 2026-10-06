@@ -325,8 +325,6 @@ and the gather runs through the D2 library.
   are anti-correlated.
 - σ itself is stored in half floats, under their normal range.
 - The sun's self-shadow charges a local coverage along a slant that leaves the bank.
-- The water's sky term is the closed form for a vertical ray only, and its sun beam has no
-  interface factor.
 - A cloud layer is dimmed by the closed form, but the haze in front of it comes from the volume.
 
 **Contract.**
@@ -337,13 +335,6 @@ and the gather runs through the D2 library.
 2. **A column is charged with the coverage it crosses.** One `slantCoverage(from, direction,
    length)` helper reads the coverage at the slant's mean-value point, with the slant as its
    spacing. `fogThroughLeg` and `fogBeamDepth` both call it.
-3. **One closed form for a lit stretch of water.** `waterColumn` integrates each source,
-   whether sky or directional, with the general form `exp(−σkh)(1 − e^{−σgL}) / g`. For the sky,
-   `k = 1`. Each directional source enters with a host-computed interface factor
-   `(1 − F(θi)) cos θi / cos θt`, computed once a frame. Surfaces under water take `(1 − F)` from the
-   same table. **Every sky source, the moons with the sun**: the directional term walks
-   `skySourceAt` as a surface's `gather` does, so the water in front of a bed the moon lights is lit
-   by the same moon. The shaft march stays the sun's alone.
 4. **A stretch has one estimator.** Wherever the volume describes a stretch of air, the composite
    reads its transmittance from `fogAlong(…).w`. The closed form serves only a march inside a
    sprite.
@@ -524,10 +515,13 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
 In the order of D7's points. Each step is a `shot --against` at the fog and water places, and the
 fog's zones in `bench`. **Point 1 is done**: the froxel stores the density as a share of the
 weather's extinction, the light and the sun's transport times it, and `fogThrough` integrates them
-by `fogKept`. The pictures before it are in `~/.cache/omw-redesign/shots-before-d7`. **Point 2 is
+by `mediumKept`. The pictures before it are in `~/.cache/omw-redesign/shots-before-d7`. **Point 2 is
 done** (`slantCoverage`). **Owed:** a GPU test of a point at a bank's edge, lit as the clear air its
 slant leaves through, which needs a way for a test to state a coverage field: the field is
 procedural, and a test can only make it even, where the slant's coverage and the point's agree.
+**Point 3 is done**, with one change to the contract: the interface factor is computed in the shader
+from the source's direction (`waterCrossingOf`), not on the host. A stored factor is a second
+statement of the direction, and a writer that sets only the direction leaves it stale.
 
 ### Phase 5. The bounce's reuse (D4, decision 4)
 
