@@ -526,9 +526,17 @@ The frame's halving is a Karis average weighed by the exposure the frame before 
 (`BLOOM_SPEC_KARIS`), and every level stands on its source's corners, the tone pass's read of the
 finest one included.
 
-**Left**, in order: the histogram with the first halving, and the reduction and the glare between
-the coarse levels (a `release bench` A/B). Run a walk from an interior into daylight and back with
-`film` to see the adaptation in stops.
+**Declined without a build: the histogram with the first halving, and the reduction and the glare
+between the coarse levels.** What the overlap can save is at most the exposure and glare zones, 0.02
+and 0.00 ms in the gate's bench and 0.00 and 0.00 at the ship at dawn, under the noise of a
+`release bench` median, which Phase 8 keeps a change by; and it would tie the exposure's barriers to
+the pyramid's.
+
+**The walk, filmed** (the customs office, a cut to the ship's deck at noon with a turn on it, and a
+cut back; `~/.cache/omw-redesign/film-adapt`): each side is exposed as it should be, the room at a
+mean of 68 of 255 and the deck at 103. A cut shows no adaptation in a film, which warms up 128
+frames after the world stands whole; the turn on the deck moves the mean 103 → 109 → 102 over three
+seconds with no overshoot and no step.
 
 ### Phase 8. Uniform frame times and unused work
 
