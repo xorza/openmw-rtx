@@ -461,8 +461,9 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
    pane's blue 8.5% dark. The lamp a pixel draws is one of four by luminance, so the blue lamp comes
    rarely and bright: the slow mean holds it, the box of fast means seldom does, and the clamp takes
    it out. Neither filter has a spatial pass before the clamp, which ReLAX's has. The patch is in
-   `~/.cache/omw-redesign/ab-meanclamp/`. The glossy roughness cap waits on
-   `redesign_QUESTIONS.md`, "The glossy filter's roughness cap".
+   `~/.cache/omw-redesign/ab-meanclamp/`. **The glossy roughness cap is done** as decided in
+   `redesign_QUESTIONS.md`: ReBLUR's responsive accumulation under a perceptual roughness of a
+   quarter, at least three frames (`SPECULAR_RESPONSIVE_ROUGHNESS`); no place's picture moved.
 7. **The wavelet items from S§9 are done**: the history fix's normal power, the widest level's tap
    offset, the anti-firefly ring's specialization constant, the short history's geometry-weighted
    variance, and the fixed pixel's fast mean. Prefiltering each tap's variance was tried and

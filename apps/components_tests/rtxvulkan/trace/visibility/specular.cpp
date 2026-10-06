@@ -212,6 +212,32 @@ namespace Rtx::Testing
                     << "channel " << channel << ": what the rough lobe kept is no worse than a raw frame";
         }
 
+        /// **A sharp lobe's reflection follows a light that goes, before a still eye** (ReBLUR's
+        /// responsive accumulation, `SPECULAR_RESPONSIVE_ROUGHNESS`). The metal floor under its four
+        /// lamps for forty filtered frames, then the lamps go and nothing is left to light it: each
+        /// frame keeps `1 - 1 / n` of the last, `n` the frames the history holds, and four frames on
+        /// the floor holds `(1 - 1 / n)⁴` of its light. At a roughness of 5/255 = 0.0196 the cap is
+        /// `32 · lerp(0.0194, 1, smoothstep(0.0784)) = 1.17`, held at three, so `(2/3)⁴ = 0.1975`
+        /// is left; at one, thirty-two frames, `(31/32)⁴ = 0.8807`. Without the cap the sharp floor
+        /// kept the rough one's.
+        TEST_F(RtxVisibilityTest, aSharpLobesReflectionFollowsALightThatGoesBeforeAStillEye)
+        {
+            const auto left = [&](std::uint8_t roughness) {
+                GlossyFloor floor(roughness);
+                const Shaders::VisibilityConstants camera = darkCameraAt(osg::Vec3f(0.0f, -200.0f, 300.0f));
+                const Frame lit = shoot(floor.mScene, floor.mTextures, camera, sSize, filteredRun(40, 6000));
+
+                floor.mScene.clearPlacement();
+                const Frame dark = shoot(floor.mScene, floor.mTextures, camera, sSize,
+                    Shot{ .mFrames = 4, .mAverage = false, .mFirstFrame = 6040, .mFilter = true, .mSetScene = false });
+                EXPECT_GT(lit.mean(1), 0.0f) << "a floor that reflects nothing proves nothing";
+                return dark.mean(1) / lit.mean(1);
+            };
+
+            EXPECT_NEAR(left(5), 16.0f / 81.0f, 1e-3f) << "the sharp floor dragged its lamps";
+            EXPECT_NEAR(left(255), std::pow(31.0f / 32.0f, 4.0f), 1e-3f) << "the rough floor lost its history";
+        }
+
         /// **A replacer's speckled reflectance stays sharp under the glossy filter's history**, which
         /// holds the lobe's light per unit of its specular albedo (D6). A metal floor whose base
         /// colour, and so its F0, is a checker of single texels — 230 and 30, three pixels a square —

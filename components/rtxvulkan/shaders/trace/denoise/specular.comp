@@ -22,6 +22,10 @@
 // frame the eye turns: a noisier sharp reflection in motion, and never a reflection dragged behind
 // the thing it reflects.
 //
+// **And a sharp lobe keeps few frames whatever the view does** (`SPECULAR_RESPONSIVE_ROUGHNESS`):
+// ReBLUR's responsive accumulation, which is what bounds a mirror's lag behind a light that moves
+// before a still eye.
+//
 // **The accumulator's rules otherwise**: bilinear over the four texels the motion lands between,
 // each only if it is this surface by `heldSurfaceMatches`, against the accumulator's own surface
 // history; and `blendedMean` into a history of this pass's own.
@@ -86,6 +90,15 @@ float reflectionKept(vec3 toEye, vec3 toEyeBefore, float allowed)
     return smoothstep(0.05, 0.95, kept);
 }
 
+/// The most frames a history of a lobe this rough keeps: `SPECULAR_RESPONSIVE_ROUGHNESS` says the
+/// rule and why.
+float framesKept(float roughness)
+{
+    const float responsive = smoothstep(0.0, 1.0, max(roughness, 1e-3) / SPECULAR_RESPONSIVE_ROUGHNESS);
+    const float curve = (1.0 - exp2(-200.0 * roughness * roughness)) * pow(clamp(roughness, 0.0, 1.0), 0.25);
+    return max(ACCUMULATE_FRAMES * mix(curve, 1.0, responsive), SPECULAR_RESPONSIVE_FRAMES);
+}
+
 void main()
 {
     const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
@@ -130,7 +143,9 @@ void main()
         // eye, where this frame's jittered ray met it and not the footprint's centre.
         const vec3 toEyeBefore = -normalize(plane.mAnchor);
         const float kept = reflectionKept(toEye, toEyeBefore, turnAllowed(sampled.a, facing));
-        blended = blendedMean(sampled.rgb, runningMeanOf(held, weight), kept);
+        RunningMean history = runningMeanOf(held, weight);
+        history.mFrames = min(history.mFrames, framesKept(sampled.a) - 1.0);
+        blended = blendedMean(sampled.rgb, history, kept);
     }
 
     // Selected and not branched around, for the rule the tree keeps: a lane with no lobe runs the
