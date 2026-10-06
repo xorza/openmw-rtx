@@ -19,7 +19,6 @@
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
-#include <components/rtx/preprocess/imagefactcache.hpp>
 #include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -446,10 +445,10 @@ namespace Rtx
         MeshResolver mMeshes{ mScene, mPass, mContext.mContent.mPreprocessor };
 
         /// What the content says each surface is, and the textures those name.
-        MaterialResolver mMaterials{ mScene, mPass, mContext.mContent.mFacts, mContext.mSpecular };
+        MaterialResolver mMaterials{ mScene, mPass, mContext.mContent, mContext.mSpecular };
 
         /// The particle systems the walk met, and the sprite textures they hold.
-        EmitterResolver mEmitters{ mScene, mPass, mContext.mContent.mFacts };
+        EmitterResolver mEmitters{ mScene, mPass, mContext.mContent };
 
         /// The frozen subtrees, by their roots, held so a root the game freed cannot be mistaken
         /// for the one built where it stood; their keys in one buffer, a run a subtree; and what the

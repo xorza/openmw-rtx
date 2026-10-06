@@ -12,10 +12,7 @@
 
 namespace Rtx
 {
-    FinestTexels::FinestTexels(AlphaScratch& scratch)
-        : mScratch(scratch)
-    {
-    }
+    FinestTexels::FinestTexels() = default;
 
     FinestTexels::~FinestTexels() = default;
 

@@ -99,7 +99,7 @@ namespace Rtx
             SceneDesc scene;
             ThreadContent content;
             std::vector<TextureHold> holds;
-            const MoonFaces faces = addMoonFaces(scene, images, MoonSizes{ masser, secunda }, holds, content.mFacts);
+            const MoonFaces faces = addMoonFaces(scene, images, MoonSizes{ masser, secunda }, holds, content);
 
             // **A face that opens is lit as it is painted, and one that does not as the shipped
             // portrait**: an opaque red face averages red, and Secunda's keeps the shipped mean.
@@ -122,8 +122,7 @@ namespace Rtx
             // nought, or not a number, is a size the game draws and this does not.
             SceneDesc broken;
             std::vector<TextureHold> brokenHolds;
-            const MoonFaces unsized
-                = addMoonFaces(broken, images, MoonSizes{ -3.0f, 0.0f }, brokenHolds, content.mFacts);
+            const MoonFaces unsized = addMoonFaces(broken, images, MoonSizes{ -3.0f, 0.0f }, brokenHolds, content);
             EXPECT_EQ(unsized.of(Moon::Masser).mRadius, 0.0f);
             EXPECT_EQ(unsized.of(Moon::Secunda).mRadius, 0.0f);
             EXPECT_EQ(broken.refusals().count(Refused::Moon), 1u) << "Masser, and not Secunda";

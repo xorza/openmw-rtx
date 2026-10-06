@@ -71,25 +71,17 @@ namespace Rtx
     class MeshReader
     {
     public:
-        /// @param content this thread's, which shapes what is read.
-        explicit MeshReader(ContentPreprocessor& content)
-            : mContent(content)
-        {
-        }
-
-        /// Reads `read` into `into`, answering whether the drawable held a triangle to read, and an
-        /// error for a face this cannot build, saying why: a morph's base that is not the length of
-        /// its source, a triangle naming a vertex the drawable does not have, an array of normals,
-        /// coordinates or colours of another length than the vertices, or an array of a type this
-        /// does not read.
-        Misc::Result<bool, std::string> read(const DrawableRead& read, MeshReading& into);
+        /// Reads `read` into `into`, shaped by `content`, this thread's, answering whether the
+        /// drawable held a triangle to read, and an error for a face this cannot build, saying why:
+        /// a morph's base that is not the length of its source, a triangle naming a vertex the
+        /// drawable does not have, an array of normals, coordinates or colours of another length
+        /// than the vertices, or an array of a type this does not read.
+        Misc::Result<bool, std::string> read(ContentPreprocessor& content, const DrawableRead& read, MeshReading& into);
 
     private:
         /// Collects `geometry`'s triangles into `mTriangleScratch`, degenerate ones left out, and
         /// answers whether any is left. An error where one names a vertex at or past `vertices`.
         Misc::Result<bool, std::string> collectTriangles(const osg::Geometry& geometry, std::size_t vertices);
-
-        ContentPreprocessor& mContent;
 
         /// The triangles as the drawable names them, and the ones the fold kept. Refilled per
         /// drawable rather than reallocated, because a cell is tens of thousands of them.

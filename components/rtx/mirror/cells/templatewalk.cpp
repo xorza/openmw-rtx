@@ -143,7 +143,7 @@ namespace Rtx
             return;
 
         MeshReading reading;
-        const Misc::Result<bool, std::string> readMesh = mMeshes.read(read, reading);
+        const Misc::Result<bool, std::string> readMesh = mMeshes.read(mContent.mPreprocessor, read, reading);
         if (!readMesh.isOk())
         {
             refuse(readMesh.error());
@@ -163,7 +163,7 @@ namespace Rtx
 
         PreparedPart part;
         part.mDrawable = &drawable;
-        part.mMaterial = MaterialResolver::read(mShading, mContent.mFacts);
+        part.mMaterial = MaterialResolver::read(mShading, mContent);
         part.mLocal = osg::Matrixf(mHere);
         part.mShape = reading.mShape;
         part.mModes = mModes;

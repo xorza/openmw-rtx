@@ -39,7 +39,7 @@ namespace SceneUtil
 
 namespace Rtx
 {
-    class ImageFactCache;
+    struct ThreadContent;
     class SceneDesc;
     struct Shading;
 
@@ -80,13 +80,13 @@ namespace Rtx
         /// @param pass the walk in progress: its sweep stamp and its counts, read at every call.
         ///        Borrowed, so that the mirror and everything resolving into it cannot come to hold
         ///        two answers.
-        /// @param facts the thread's image facts, shared with the emitters for the reason
-        ///        `EmitterResolver` gives.
+        /// @param thread the thread's content, whose image facts are shared with the emitters for
+        ///        the reason `EmitterResolver` gives.
         /// @param specular what the `_spec` maps of materials mean — `WalkContext::mSpecular`.
-        MaterialResolver(SceneDesc& scene, const MirrorPass& pass, ImageFactCache& facts, SpecularLayout specular)
+        MaterialResolver(SceneDesc& scene, const MirrorPass& pass, ThreadContent& thread, SpecularLayout specular)
             : mScene(scene)
             , mPass(pass)
-            , mFacts(facts)
+            , mThread(thread)
             , mSpecularLayout(specular)
         {
         }
@@ -104,8 +104,8 @@ namespace Rtx
         /// Reads the chain of state sets in force at a drawable, for a thread that has no scene to
         /// resolve into. `resolve` is the same reading followed by `adopt`.
         ///
-        /// @param facts that thread's own cache of image facts.
-        static MaterialReading read(std::span<const Shading> shading, ImageFactCache& facts);
+        /// @param thread that thread's own content, whose image facts are read.
+        static MaterialReading read(std::span<const Shading> shading, ThreadContent& thread);
 
         /// The material slot for a reading, adding it where the mirror holds none under its key,
         /// with one hold taken on the entry — `MeshResolver::adopt` says why a hold. Standing only:
@@ -325,7 +325,7 @@ namespace Rtx
         Identity<const osg::Node, Animated> mAnimated{ mPass };
 
         /// The extractor's. The ring's reader has its own and hands its answers over in the reading.
-        ImageFactCache& mFacts;
+        ThreadContent& mThread;
 
         const SpecularLayout mSpecularLayout;
     };

@@ -22,7 +22,7 @@
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
-#include <components/rtx/preprocess/imagefactcache.hpp>
+#include <components/rtx/preprocess/threadcontent.hpp>
 
 namespace Rtx
 {
@@ -197,45 +197,45 @@ namespace Rtx
         /// because the two are different walks: an entry asked its mean has read no solid reach.
         TEST(RtxImageFactCacheTest, aFileIsReadOnceAndFoundByItsName)
         {
-            ContentPreprocessor content;
-            ImageFactCache facts(content);
+            ThreadContent thread;
 
             osg::ref_ptr<osg::Image> red
                 = makeSheetImage({ 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255 });
             red->setFileName("Textures\\VFX_Fire.dds");
-            const MeanTexel& first = facts.meanOf(*red);
+            const MeanTexel& first = thread.meanOf(*red);
             EXPECT_NEAR(first.mColour.x(), 1.0f, 1e-5f);
-            EXPECT_EQ(facts.size(), 1u);
-            EXPECT_FALSE(facts.of(*red).mReachesSolid.has_value()) << "a fact nobody asked for was read";
+            EXPECT_EQ(thread.mFacts.size(), 1u);
+            EXPECT_FALSE(thread.factsOf(*red).mReachesSolid.has_value()) << "a fact nobody asked for was read";
 
             // The same file spelt the way the texture table spells it, and painted differently:
             // the cache answers for the name and never reads the second image.
             osg::ref_ptr<osg::Image> again = makeSheetImage({ 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0 });
             again->setFileName("textures/vfx_fire.dds");
-            EXPECT_EQ(&facts.of(*again), &facts.of(*red)) << "a second spelling of one file made a second entry";
+            EXPECT_EQ(&thread.factsOf(*again), &thread.factsOf(*red))
+                << "a second spelling of one file made a second entry";
 
             // Found without an allocation, because the ring's reader asks for every material it
             // reads.
             const std::size_t allocated = Testing::getAllocationCount();
-            facts.of(*again);
+            thread.factsOf(*again);
             EXPECT_EQ(Testing::getAllocationCount(), allocated) << "a file already met was found through a new string";
-            EXPECT_EQ(&facts.meanOf(*again), &first);
-            EXPECT_NEAR(facts.meanOf(*again).mColour.x(), 1.0f, 1e-5f) << "the second image was read";
-            EXPECT_EQ(facts.size(), 1u);
+            EXPECT_EQ(&thread.meanOf(*again), &first);
+            EXPECT_NEAR(thread.meanOf(*again).mColour.x(), 1.0f, 1e-5f) << "the second image was read";
+            EXPECT_EQ(thread.mFacts.size(), 1u);
 
             // Asked once and kept: the solid reach read off solid red, and found again under the
             // second spelling without reading the second image, whose alpha is nought throughout.
-            EXPECT_TRUE(facts.reachesSolid(facts.of(*red), *red));
-            EXPECT_EQ(content.takeStats().at(ContentPassId::SolidReach).mAsked, 1u);
-            EXPECT_TRUE(facts.reachesSolid(facts.of(*again), *again)) << "the second image was read";
-            EXPECT_EQ(content.takeStats().at(ContentPassId::SolidReach).mAsked, 0u) << "a fact read twice";
+            EXPECT_TRUE(thread.reachesSolid(thread.factsOf(*red), *red));
+            EXPECT_EQ(thread.mPreprocessor.takeStats().at(ContentPassId::SolidReach).mAsked, 1u);
+            EXPECT_TRUE(thread.reachesSolid(thread.factsOf(*again), *again)) << "the second image was read";
+            EXPECT_EQ(thread.mPreprocessor.takeStats().at(ContentPassId::SolidReach).mAsked, 0u) << "a fact read twice";
 
             // An image with no name is one the texture table refuses, so nothing asks its facts.
             osg::ref_ptr<osg::Image> unnamed
                 = makeSheetImage({ 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255 });
             unnamed->setFileName("");
             Testing::expectAssertDies(
-                [&] { facts.of(*unnamed); }, "the facts of an image the texture table would have refused");
+                [&] { thread.factsOf(*unnamed); }, "the facts of an image the texture table would have refused");
         }
     }
 

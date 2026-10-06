@@ -406,7 +406,7 @@ namespace Rtx
             std::vector<TextureHold> moonHolds;
             ThreadContent thread;
             const Rtx::MoonFaces moons
-                = Rtx::addMoonFaces(scene, images, Rtx::MoonSizes{ 94.0f, 40.0f }, moonHolds, thread.mFacts);
+                = Rtx::addMoonFaces(scene, images, Rtx::MoonSizes{ 94.0f, 40.0f }, moonHolds, thread);
             EXPECT_EQ(scene.textures().getHolds(moons.of(Rtx::Moon::Masser).mSlot), 1u);
             EXPECT_EQ(scene.textures().getHolds(moons.of(Rtx::Moon::Secunda).mSlot), 1u);
 
@@ -472,7 +472,7 @@ namespace Rtx
                     .mAtmosphere = VFS::Path::Normalized("meshes/sky_atmosphere.nif"),
                     .mStars = VFS::Path::Normalized("meshes/sky_night_02.nif"),
                     .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif") },
-                thread.mFacts, holds);
+                thread, holds);
 
             ASSERT_EQ(content.mSheets.size(), 2u) << "both names held, so neither is asked again";
             EXPECT_EQ(content.drawable(0), nullptr) << "a grey sky";
@@ -497,7 +497,7 @@ namespace Rtx
                     .mAtmosphere = VFS::Path::Normalized("meshes/sky_atmosphere.nif"),
                     .mStars = VFS::Path::Normalized("meshes/sky_night_02.nif"),
                     .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif") },
-                thread.mFacts, takenHolds);
+                thread, takenHolds);
             EXPECT_NE(taken.textures().findFile(VFS::Path::NormalizedView("textures/tx_sky_clear.dds")), sNoIndex)
                 << "an alpha-only deck left out";
             EXPECT_EQ(taken.refusals().count(Refused::SkyLayer), 4u)
@@ -531,7 +531,7 @@ namespace Rtx
             ThreadContent thread;
             std::vector<TextureHold> holds;
             SkyContent content;
-            const std::uint32_t at = addCloudSheet(scene, scenes, thread.mFacts, holds, "tx_script_sky.dds", content);
+            const std::uint32_t at = addCloudSheet(scene, scenes, thread, holds, "tx_script_sky.dds", content);
 
             EXPECT_EQ(content.sheetNamed("tx_script_sky.dds"), at);
             const CloudSheet* const opened = content.drawable(at);
@@ -603,7 +603,7 @@ namespace Rtx
             ThreadContent thread;
             std::vector<TextureHold> holds;
             const Misc::Result<NightSky, std::string> sky = readNightSky(
-                scene, scenes, dome, VFS::Path::NormalizedView("meshes/sky_night_01.nif"), thread.mFacts, holds);
+                scene, scenes, dome, VFS::Path::NormalizedView("meshes/sky_night_01.nif"), thread, holds);
             ASSERT_TRUE(sky.isOk()) << sky.error();
 
             EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 1u);
@@ -639,7 +639,7 @@ namespace Rtx
 
             const Misc::Result<NightSky, std::string> night
                 = readNightSky(scene, scenes, VFS::Path::NormalizedView("meshes/sky_night_02.nif"),
-                    VFS::Path::NormalizedView("meshes/sky_night_01.nif"), thread.mFacts, holds);
+                    VFS::Path::NormalizedView("meshes/sky_night_01.nif"), thread, holds);
             ASSERT_FALSE(night.isOk()) << "a missing star dome was read as no stars";
             EXPECT_EQ(night.error(), "the archives hold neither it nor \"meshes/sky_night_01.nif\"");
 
@@ -648,7 +648,7 @@ namespace Rtx
                     .mAtmosphere = VFS::Path::Normalized("meshes/sky_atmosphere.nif"),
                     .mStars = VFS::Path::Normalized("meshes/sky_night_02.nif"),
                     .mStarsFallback = VFS::Path::Normalized("meshes/sky_night_01.nif") },
-                thread.mFacts, holds);
+                thread, holds);
 
             EXPECT_EQ(scene.refusals().count(Refused::SkyLayer), 5u)
                 << "the cloud cap, the atmosphere, the star dome, and the Clear and Overcast decks the seed names";
