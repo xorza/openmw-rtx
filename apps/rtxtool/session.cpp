@@ -115,6 +115,9 @@ namespace RtxTool
         if (mDone || !mStarted)
             return std::nullopt;
 
+        if (mProbe.has_value())
+            return mProbe;
+
         return currentStop().mSchedule.mSampleOffset + mMeasurer.getSeen();
     }
 
@@ -265,6 +268,14 @@ namespace RtxTool
             mHome.answer(mNote.getLeft(), report, context.mBackend.getExtents());
         }
 
+        if (mProbe.has_value())
+        {
+            mMeasurer.probe(currentStop(), context.mBackend, report.mFrame);
+            mProbe.reset();
+            advance();
+            return;
+        }
+
         switch (mMeasurer.frame(currentStop(), context, report, mCamera.hasArrived()))
         {
             case Measurer::Verdict::Going:
@@ -295,6 +306,17 @@ namespace RtxTool
             return;
         }
 
+        // **A still stands one frame more, for its probe**, after its record is written, so the
+        // probe is no frame of the stop's: nothing measures it and nothing writes its picture.
+        mProbe = mMeasurer.probeSample(stop);
+        if (mProbe.has_value())
+            return;
+
+        advance();
+    }
+
+    void Session::advance()
+    {
         mStarted = false;
         ++mAt;
 

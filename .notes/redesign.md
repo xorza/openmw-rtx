@@ -491,14 +491,6 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
    `noise`, all three legs, against the commit before. **Waiting on `redesign_QUESTIONS.md`**, "A
    spatiotemporal mask for the bounce".
 
-### Phase 2b. The still check's probe frame
-
-The check that a still's depth and motion do not move stands down on every averaged frame
-(`dbfc358b91`), because the eye's soft edges are drawn each frame. At the end of each still,
-trace one probe frame with the first frame's number and compare its surface and motion with the
-first frame's. Then the check stands again on every world still, and no picture moves. Test it in
-`RtxRunRecordTest` or the frame hashes' tests, with a still whose probe moved.
-
 ### Phase 3. Temporal history (D2, D6, and the wavelet items)
 
 1. The previous jitter in `HistoryConstants`, from one source. `FsrFrame` reads it.
