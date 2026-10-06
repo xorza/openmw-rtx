@@ -114,6 +114,10 @@ the window's size there, has it moved to the window on the first start, and the 
 - `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
   view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
   it.
+- A look of the ray tracer's own against upstream's: its ripple field steps every frame by the time
+  the water's clock moved (`RipplePass::record`), where upstream's steps once a sixtieth. The same
+  springs over the same time, at a cost every frame pays alike, and a wake that keeps its pace under
+  sixty frames a second, where upstream's slows.
 
 ## Where the code lives
 
