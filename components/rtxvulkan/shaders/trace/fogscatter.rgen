@@ -146,7 +146,8 @@ void main()
 
     // The field's level from where the sample stands and not from the slice's own stride, which is
     // the same number at the slice's middle and a different one everywhere else in it.
-    const float extinction = fogExtinctionAt(position, froxelStrideAt(along));
+    const float density = fogDensityAt(position, froxelStrideAt(along));
+    const float extinction = frame.mFogExtinction * density;
 
     // **The froxel's own middle is what reprojects, and not the point drawn inside it.** What the
     // history holds is this froxel's running average, so what has to be found in the previous frame
@@ -260,8 +261,11 @@ void main()
     // hour and which is the horizon's own colour at the horizon. Scattering the sky's mean here
     // instead is a look decision, and it is deliberately not taken: the content states a colour,
     // and a number the game states beats one derived here.
-    vec3 inscatter = frame.mFogColour + moons;
-    float density = extinction;
+    //
+    // **Stored times the density, as the sun's transport is below** (`FogSlice` says why): what the
+    // history and the tent average is what the integrate pass integrates.
+    vec3 source = density * (frame.mFogColour + moons);
+    float held = density;
 
     // **The sun without its irradiance and without its phase**, which is the whole of what the
     // second image is for: both are functions of the direction alone, so they factor out of the
@@ -270,6 +274,7 @@ void main()
     // quarter of one, so baking it here would smear the blaze around a low sun over four times its
     // width.
     float transport = sources.mSunlit ? sunInAir(extinction, visible) : 0.0;
+    float sunSource = density * transport;
 
     // **The lamps' seeing and the ambient's ride beside the sun's transport**, because the three are
     // filtered alike and for one reason: each is what a ray found, nought or one at an edge the grid
@@ -281,14 +286,15 @@ void main()
     if (reprojected)
     {
         const FogPoint was = unpackFogPoint(wasScatter, wasSunward);
-        inscatter = mix(inscatter, was.mInscatter, FOG_VOLUME_HISTORY);
-        density = mix(density, was.mExtinction, FOG_VOLUME_HISTORY);
+        source = mix(source, was.mSource, FOG_VOLUME_HISTORY);
+        held = mix(held, was.mDensity, FOG_VOLUME_HISTORY);
         transport = mix(transport, was.mSeeing.mTransport, FOG_VOLUME_HISTORY);
+        sunSource = mix(sunSource, was.mSeeing.mSunSource, FOG_VOLUME_HISTORY);
         seen = mix(seen, was.mSeeing.mLampsSeen, FOG_VOLUME_HISTORY);
         ambient = mix(ambient, was.mSeeing.mAmbientSeen, FOG_VOLUME_HISTORY);
     }
 
-    const FogPoint point = FogPoint(inscatter, density, FogSeeing(transport, seen, ambient));
+    const FogPoint point = FogPoint(source, held, FogSeeing(transport, seen, ambient, sunSource));
     RTX_STORE_COUNTED(fogScatterTarget, froxel, BOUNDARY_FOG, packFogScatter(point))
     RTX_STORE_COUNTED(fogSunwardTarget, froxel, BOUNDARY_FOG, packFogSeeing(point.mSeeing))
     RTX_STORE_COUNTED(fogLampsTarget, froxel, BOUNDARY_FOG, vec4(lampScatter, 0.0))

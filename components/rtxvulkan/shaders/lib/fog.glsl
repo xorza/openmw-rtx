@@ -151,17 +151,26 @@ float fogCoverageAt(vec3 position, float spacing)
         smoothstep(FOG_CLEARING, FOG_SOLID, fogShape(position, spacing)) / FOG_COVERAGE, 1.0, frame.mFogUniform);
 }
 
-/// The fog's extinction at a point, per world unit.
+/// How much fog stands at a point, as a share of the weather's extinction (`mFogExtinction`): the
+/// layer's height falloff times the bank's coverage, nought to one. **What the froxel volume stores
+/// and blends** (D7), in a half's normal range where the extinction itself, a few hundred-thousandths
+/// a unit, stood under it.
 ///
 /// @param spacing how far apart the march is sampling here, which decides how much of the field it
 ///        can resolve.
-float fogExtinctionAt(vec3 position, float spacing)
+float fogDensityAt(vec3 position, float spacing)
 {
     // **How deep the layer stands is the weather's and not a constant.** `FOG_HEIGHT` is the bank
     // clear weather makes in dead still air, and `mFogLift` is what every other weather does to it.
     const float height = exp(-max(position.z - fogBase(), 0.0) / (FOG_HEIGHT * frame.mFogLift));
 
-    return frame.mFogExtinction * height * fogCoverageAt(position, spacing);
+    return height * fogCoverageAt(position, spacing);
+}
+
+/// The fog's extinction at a point, per world unit.
+float fogExtinctionAt(vec3 position, float spacing)
+{
+    return frame.mFogExtinction * fogDensityAt(position, spacing);
 }
 
 /// What the fog sends toward the eye per steradian, `cosine` off the sun's line.
@@ -449,12 +458,12 @@ vec4 fogVolumeAlong(uvec2 pixel, vec3 direction, float distance)
     if (through <= 0.5)
     {
         fogThrough(air.mTransmittance, air.mScattered, air.mSunward,
-            fogSliceAt(across, (float(slice) + 0.5 * through) / slices), reach - behind);
+            fogSliceAt(across, (float(slice) + 0.5 * through) / slices), reach - behind, frame.mFogExtinction);
     }
     else
     {
         fogThrough(air.mTransmittance, air.mScattered, air.mSunward,
-            fogSliceAt(across, (float(slice) + 0.25) / slices), middle - behind);
+            fogSliceAt(across, (float(slice) + 0.25) / slices), middle - behind, frame.mFogExtinction);
 
         // **Flat where the next slice starts past the column's own surface**, which is the rule
         // the integrate pass carried the same half by: that slice holds none of this column's air,
@@ -463,7 +472,7 @@ vec4 fogVolumeAlong(uvec2 pixel, vec3 direction, float distance)
         const float surface = imageLoad(fogColumnDepth, ivec2(pixel / FOG_VOLUME_SCALE)).x;
         const float onward = froxelNear(slice + 1u) < surface ? 0.25 + 0.5 * through : 0.5;
         fogThrough(air.mTransmittance, air.mScattered, air.mSunward,
-            fogSliceAt(across, (float(slice) + onward) / slices), reach - middle);
+            fogSliceAt(across, (float(slice) + onward) / slices), reach - middle, frame.mFogExtinction);
     }
 
     const vec3 sun
