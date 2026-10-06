@@ -54,4 +54,7 @@ a loader beside the tile's.
 **Recommendation.** 1, measured against 3 before it stays: the bounce is the noisiest term the
 denoiser takes, and the noise A/B decides.
 
-**Blocks.** Nothing else; the step stays in the plan with a pointer here.
+**Decided (2026-10-06): 1, the vector STBN mask, kept only if `noise` on all three legs beats the
+R2 sweep.**
+
+**Blocks.** Nothing; Phase 2 step 1 is open to do.

@@ -16,11 +16,14 @@
 
 // What the passes keep, said once for both sides that have to agree.
 //
-// **The SDK's widths, but for the moments.** The temporal pass's answer and the filter's levels are
-// a mean and a variance in two halves, as the SDK stores them. The moments — a mean, a running sum
-// of squared deviations and a count — are `R11G11B10_FLOAT` there, a format no layout here names,
-// and are full floats here: they are a running mean, and a half store rounds toward nought on this
-// card (`RtxHalfStoreTest`), so a mean kept in halves falls a little at every store.
+// **Full floats where the SDK keeps halves.** The temporal pass's answer and the filter's levels are
+// a mean and a variance, which the SDK stores in two halves, and the moments — a mean, a running
+// sum of squared deviations and a count — which it stores in `R11G11B10_FLOAT`. Both are read back
+// into their own blend: the moments by the next frame's temporal pass, and the first level's answer
+// as the history it blends into. A half store rounds toward nought on this card (`RtxHalfStoreTest`),
+// so a history kept in halves fell a little at every store, and a penumbra stood 0.68% dark after
+// 256 frames (`RtxPenumbraDenoiseTest`). The levels after the first are scratch and could be
+// halves, but one pipeline writes all three, and a layout is the pipeline's.
 //
 // **The rays' bits, packed**: two words an 8×4 tile of pixels, bit `(y % 4) * 8 + x % 8` of each
 // for that pixel — the SDK's layout. The first is one where the pixel receives and its rays got
@@ -43,7 +46,7 @@
 // (`CHANNEL_PENUMBRA`), which the temporal pass widens to the tiles around it.
 
 #define SHADOW_MASK STORAGE_RG32UI
-#define SHADOW_REPROJECTED STORAGE_RG16F
+#define SHADOW_REPROJECTED STORAGE_RG32F
 #define SHADOW_MOMENTS STORAGE_RGBA32F
 #define SHADOW_TILES STORAGE_RG16F
 #define SHADOW_PENUMBRA_TILES STORAGE_R16F

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
-#include <string_view>
 
 #include <vulkan/vulkan_core.h>
 
@@ -14,19 +14,33 @@ namespace Rtx
 {
     class Device;
 
-    /// Two images of one history at one extent: the half the last frame wrote and the half this one
-    /// writes, by `TemporalTurns::Step`.
-    struct ImagePair
+    /// Every image one camera's denoisers keep, named once: the table in `denoisehistory.cpp` gives
+    /// each its format, its role, its grid and the filter it belongs to.
+    enum class DenoiseImage : std::uint8_t
     {
-        std::array<Image, 2> mImages;
-
-        /// Both halves, named `name-0` and `name-1`.
-        static ImagePair make(const Device& device, std::uint32_t width, std::uint32_t height, VkFormat format,
-            VkImageUsageFlags usage, std::string_view name);
-
-        const Image& before(const TemporalTurns::Step& step) const { return mImages[step.mBefore]; }
-        const Image& now(const TemporalTurns::Step& step) const { return mImages[step.mNow]; }
+        Surface,
+        Colour,
+        Moments,
+        Blended,
+        Scratch,
+        Fill,
+        FillBlended,
+        FillScratch,
+        Fast,
+        FastBlended,
+        ShadowMoments,
+        ShadowHistory,
+        ShadowScratch,
+        ShadowVisibility,
+        ShadowTiles,
+        ShadowPenumbra,
+        ShadowMask,
+        SpecularMean,
+        PaneMean,
+        PaneHeld,
     };
+
+    inline constexpr std::size_t sDenoiseImages = static_cast<std::size_t>(DenoiseImage::PaneHeld) + 1;
 
     /// Everything one camera's denoisers keep, at one extent: the four temporal filters' histories,
     /// what each writes of a frame's own, and the wavelet's scratch. A chain's and not the passes',
@@ -35,7 +49,10 @@ namespace Rtx
     ///
     /// **One owner, one turn and one discard.** Each filter's images are handed to its pass as one
     /// struct, built from the frame's turn, and what the frame writes whole — and, where a history
-    /// is fresh, what it would have read — is discarded in one barrier ahead of every pass.
+    /// is fresh, what it would have read — is discarded in one barrier ahead of every pass. **One
+    /// table**, which makes every image, discards it by its role and checks its format against that
+    /// role where it is written: a history read back into its own blend is never stored in a format
+    /// whose store may round toward nought (`Shaders::mayRoundTowardNought`).
     class DenoiseHistory
     {
     public:
@@ -178,36 +195,24 @@ namespace Rtx
     private:
         const Device& mDevice;
 
-        /// Makes the bounce's images at `mWidth` by `mHeight`.
-        void makeBounce();
+        /// Makes the images of the filter `filter` at `mWidth` by `mHeight`, anew.
+        void make(Temporal filter);
+
+        /// Lets the images of the filter `filter` go.
+        void release(Temporal filter);
+
+        /// The half of a pair the last frame wrote, the half this frame writes, and the one image of
+        /// what is not a pair.
+        const Image& before(DenoiseImage image, const TemporalTurns::Step& step) const;
+        const Image& now(DenoiseImage image, const TemporalTurns::Step& step) const;
+        const Image& only(DenoiseImage image) const;
 
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
 
-        /// Empty until `resize`, and the bounce's own past `mSurface` while `keepBounce` lets them go.
-        ImagePair mSurface;
-        ImagePair mColour;
-        ImagePair mMoments;
-        Image mBlended;
-        Image mScratch;
-        ImagePair mFill;
-        Image mFillBlended;
-        Image mFillScratch;
-        ImagePair mFast;
-        Image mFastBlended;
-
-        ImagePair mShadowMoments;
-        Image mShadowHistory;
-        Image mShadowScratch;
-        Image mShadowVisibility;
-        Image mShadowTiles;
-        Image mShadowPenumbra;
-        Image mShadowMask;
-
-        ImagePair mSpecularMeans;
-
-        ImagePair mPaneMeans;
-        ImagePair mPaneHeld;
+        /// Indexed by `DenoiseImage`: both halves of a pair, the first alone of what is not one.
+        /// Empty until `resize`, and the bounce's own while `keepBounce` lets them go.
+        std::array<std::array<Image, 2>, sDenoiseImages> mImages;
 
         /// Started again by `resize`, so the first frame after one reads no image nothing wrote.
         TemporalTurns mTurns;

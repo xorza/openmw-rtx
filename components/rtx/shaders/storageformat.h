@@ -42,6 +42,19 @@ namespace Rtx::Shaders
         Rgba16f,
         Rgba32f,
     };
+
+    /// Whether a store into `format` may round a value toward nought: a half's. The specification
+    /// leaves the rounding of a conversion to a narrower float to the implementation, and this
+    /// card's rounds toward nought (`RtxHalfStoreTest`).
+    ///
+    /// **What a history read back into its own blend is never stored in**, since the blend compounds
+    /// the store's error every frame where a frame's own image takes it once: a running mean of a
+    /// value no half holds exactly falls by one step a store, toward a bias of the history's length
+    /// in steps (`DenoiseHistory`).
+    constexpr bool mayRoundTowardNought(const StorageFormat format)
+    {
+        return format == StorageFormat::R16f || format == StorageFormat::Rg16f || format == StorageFormat::Rgba16f;
+    }
 }
 
 #define STORAGE_RGBA8 ::Rtx::Shaders::StorageFormat::Rgba8
