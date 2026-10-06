@@ -145,15 +145,24 @@ namespace MWScript
             std::uint32_t mGate = Terrain::sNoGate;
         };
 
-        /// One value some script's last run read, and whether this frame's read found it moved.
+        /// One value some script's last run read, whether it is watched by the hour, and whether
+        /// this frame's read found it moved.
+        ///
+        /// **`GameHour` by the hour it stands in, and every other value exactly.** The hour moves on
+        /// every frame, and a script that reads it — content that puts a lamp or a window out by
+        /// the hour — ran again on every frame, up to sixteen ways of sixteen frames each, on a
+        /// path that is otherwise a load or a step of the story. Run again as the hour turns, a
+        /// test against a whole hour answers on the frame it changes, and one against a part of an
+        /// hour within the hour.
         struct Watched
         {
             VisibilityInput mInput;
+            bool mHourly = false;
             bool mMoved = false;
         };
 
-        /// Whether a value a script's last run read is no longer what it read.
-        static bool moved(const VisibilityInput& input, const VisibilityReads& reads);
+        /// Whether a value a script's last run read is no longer what it read, `Watched` says how.
+        static bool moved(const Watched& watched, const VisibilityReads& reads);
 
         /// Records a gate's answer, and appends it to `changes` where the renderers have not heard
         /// it.

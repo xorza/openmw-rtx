@@ -552,9 +552,10 @@ walk reaches the entry again, and a root whose face changed stays thawed until a
 standing still, so a turning door is walked each frame and frozen on none.
 The sea is synthesised once per water time (`WavePass::holds`): the pictures of a cell crossing and
 the frame share one synthesis.
+A visibility gate watches `GameHour` by the hour it stands in, so a script that reads the hour runs
+as the hour turns and not on every frame.
 
 - **Uniform frame times.**
-  - the visibility gates' per-frame rerun.
 - **Unused work.**
   - the arms' `tmax`;
   - the everywhere-presence word;
