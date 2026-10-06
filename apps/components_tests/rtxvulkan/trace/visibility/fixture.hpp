@@ -381,6 +381,10 @@ namespace Rtx::Testing
         /// `ReconstructionRequest`'s, the default unless a test names another.
         float mShadowFloor = Shaders::SHADOW_DRAW_FLOOR;
 
+        /// How many lamps a composing point draws — `ReconstructionRequest`'s, the default unless a
+        /// test names another.
+        std::uint32_t mLampCandidates = Shaders::LAMP_CANDIDATES;
+
         /// Where the trace draws from: the tile every figure over this fixture was derived against,
         /// unless a test names the other.
         NoiseSource mNoise = NoiseSource::BlueNoiseTile;
@@ -504,6 +508,7 @@ namespace Rtx::Testing
                             .mNoise = shot.mNoise,
                             .mLevelEpsilon = shot.mLevelEpsilon,
                             .mShadowFloor = shot.mShadowFloor,
+                            .mLampCandidates = shot.mLampCandidates,
                             .mBounceReuse = shot.mBounceReuse,
                             .mIndirect = shot.mIndirect },
                         .mExposure = shot.mExposure.has_value() ? ExposureRule(FixedExposure{ *shot.mExposure })

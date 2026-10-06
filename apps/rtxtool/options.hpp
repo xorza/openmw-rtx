@@ -71,8 +71,9 @@ namespace RtxTool
 
     /// The switches `readReconstruction` reads, by their names on the line: the ones `--versus`
     /// may name, since nothing else reads them.
-    inline constexpr std::array sReconstructionSwitches = std::to_array<std::string_view>({ "filter", "jitter", "noise",
-        "level-epsilon", "shadow-floor", "bounce-reuse", "antilag", "history-fix", "dual-motion", "antifirefly" });
+    inline constexpr std::array sReconstructionSwitches
+        = std::to_array<std::string_view>({ "filter", "jitter", "noise", "level-epsilon", "shadow-floor",
+            "lamp-candidates", "bounce-reuse", "antilag", "history-fix", "dual-motion", "antifirefly" });
 
     /// Writes into `request` what each of `sReconstructionSwitches` says, `noise` at `auto` as the
     /// request's own default. Throws `std::runtime_error` for a noise source or a reuse no

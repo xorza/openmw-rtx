@@ -1021,6 +1021,8 @@ namespace RtxTool
                 // **And draws every source for its bit**: a floor rides a minor source's light on
                 // another's shadow, which is the bias the A/B of the floor measures.
                 truth.mShadowFloor = 0.0f;
+                // And weighs every lamp, which a fixed count of candidates estimates.
+                truth.mLampCandidates = 0u;
                 return truth;
             };
             const Rtx::ExposureRule held = Rtx::HeldExposure{};

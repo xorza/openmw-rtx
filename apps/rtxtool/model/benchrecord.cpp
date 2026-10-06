@@ -332,14 +332,15 @@ namespace RtxTool
         const Rtx::Reconstruction& resolved = header.mReconstruction;
         out += std::format(
             "     {}x{} from {}x{}, upscale {}, filter {}, jitter {}, noise {}, level bias {:.3f}, indirect {}, "
-            "bounce reuse {}, antilag {}, history fix {}, dual motion {}, anti-firefly {}, shadow floor {:.4f}\n",
+            "bounce reuse {}, antilag {}, history fix {}, dual motion {}, anti-firefly {}, shadow floor {:.4f}, lamp "
+            "candidates {}\n",
             header.mExtents.mOutputWidth, header.mExtents.mOutputHeight, header.mExtents.mRenderWidth,
             header.mExtents.mRenderHeight, Rtx::sUpscaleNames.name(resolved.mUpscale),
             resolved.mDenoised ? "on" : "off", resolved.mJitter ? "on" : "off",
             Rtx::sNoiseSourceNames.name(resolved.mNoise), resolved.mLevelBias,
             Rtx::sIndirectLightNames.name(resolved.mIndirect), Rtx::sBounceReuseNames.name(resolved.mBounceReuse),
             resolved.mAntilag ? "on" : "off", resolved.mHistoryFix ? "on" : "off", resolved.mDualMotion ? "on" : "off",
-            resolved.mAntiFirefly ? "on" : "off", resolved.mShadowFloor);
+            resolved.mAntiFirefly ? "on" : "off", resolved.mShadowFloor, resolved.mLampCandidates);
         out += std::format("     delight {:.2f}, gamma {:.2f}, show {}, exposure {}, variants {}, hold {}\n",
             profile.mDelight, profile.mGamma, Rtx::sSurfaceViewNames.name(profile.mShow),
             describeExposure(profile.mExposure), profile.mSpecializeLaunches ? "on" : "off",
@@ -480,35 +481,36 @@ namespace RtxTool
     {
         std::ofstream file(path);
 
-        file << "{\n"
-             << std::format(R"(  "suite": {},)", asJson(header.mSuite)) << '\n'
-             << std::format(R"(  "output": [{}, {}],)", header.mExtents.mOutputWidth, header.mExtents.mOutputHeight)
-             << '\n'
-             << std::format(R"(  "render": [{}, {}],)", header.mExtents.mRenderWidth, header.mExtents.mRenderHeight)
-             << '\n'
-             << std::format(R"(  "upscale": "{}", "denoised": {}, "jittered": {},)",
-                    Rtx::sUpscaleNames.name(header.mReconstruction.mUpscale), header.mReconstruction.mDenoised,
-                    header.mReconstruction.mJitter)
-             << '\n'
-             << std::format(
-                    R"(  "noise": "{}", "levelBias": {:.3f}, "indirect": "{}", "bounceReuse": "{}", "antilag": {}, )"
-                    R"("historyFix": {}, "dualMotion": {}, "antiFirefly": {}, "shadowFloor": {:.4f},)",
-                    Rtx::sNoiseSourceNames.name(header.mReconstruction.mNoise), header.mReconstruction.mLevelBias,
-                    Rtx::sIndirectLightNames.name(header.mReconstruction.mIndirect),
-                    Rtx::sBounceReuseNames.name(header.mReconstruction.mBounceReuse), header.mReconstruction.mAntilag,
-                    header.mReconstruction.mHistoryFix, header.mReconstruction.mDualMotion,
-                    header.mReconstruction.mAntiFirefly, header.mReconstruction.mShadowFloor)
-             << '\n'
-             << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", header.mMeasured, header.mWarmup,
-                    header.mValidating)
-             << '\n'
-             << std::format(
-                    R"(  "asserts": {}, "measures": {}, "hashed": {}, "turnsWeather": {}, "hugePageShare": {},)",
-                    header.mAsserts, header.mMeasures, header.mHashed, header.mTurnsWeather,
-                    asJson(header.mHugePageShare))
-             << '\n'
-             << asJson(header.mSetup, header.mStep) << '\n'
-             << R"(  "places": [)" << '\n';
+        file
+            << "{\n"
+            << std::format(R"(  "suite": {},)", asJson(header.mSuite)) << '\n'
+            << std::format(R"(  "output": [{}, {}],)", header.mExtents.mOutputWidth, header.mExtents.mOutputHeight)
+            << '\n'
+            << std::format(R"(  "render": [{}, {}],)", header.mExtents.mRenderWidth, header.mExtents.mRenderHeight)
+            << '\n'
+            << std::format(R"(  "upscale": "{}", "denoised": {}, "jittered": {},)",
+                   Rtx::sUpscaleNames.name(header.mReconstruction.mUpscale), header.mReconstruction.mDenoised,
+                   header.mReconstruction.mJitter)
+            << '\n'
+            << std::format(
+                   R"(  "noise": "{}", "levelBias": {:.3f}, "indirect": "{}", "bounceReuse": "{}", "antilag": {}, )"
+                   R"("historyFix": {}, "dualMotion": {}, "antiFirefly": {}, "shadowFloor": {:.4f}, "lampCandidates": {},)",
+                   Rtx::sNoiseSourceNames.name(header.mReconstruction.mNoise), header.mReconstruction.mLevelBias,
+                   Rtx::sIndirectLightNames.name(header.mReconstruction.mIndirect),
+                   Rtx::sBounceReuseNames.name(header.mReconstruction.mBounceReuse), header.mReconstruction.mAntilag,
+                   header.mReconstruction.mHistoryFix, header.mReconstruction.mDualMotion,
+                   header.mReconstruction.mAntiFirefly, header.mReconstruction.mShadowFloor,
+                   header.mReconstruction.mLampCandidates)
+            << '\n'
+            << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", header.mMeasured, header.mWarmup,
+                   header.mValidating)
+            << '\n'
+            << std::format(R"(  "asserts": {}, "measures": {}, "hashed": {}, "turnsWeather": {}, "hugePageShare": {},)",
+                   header.mAsserts, header.mMeasures, header.mHashed, header.mTurnsWeather,
+                   asJson(header.mHugePageShare))
+            << '\n'
+            << asJson(header.mSetup, header.mStep) << '\n'
+            << R"(  "places": [)" << '\n';
 
         for (std::size_t at = 0; at < places.size(); ++at)
         {

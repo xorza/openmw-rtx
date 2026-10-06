@@ -89,6 +89,7 @@ namespace RtxTool
                 { "noise", "white-hash" },
                 { "level-epsilon", "0.5" },
                 { "shadow-floor", "0.25" },
+                { "lamp-candidates", "0" },
                 { "bounce-reuse", "own" },
                 { "antilag", "false" },
                 { "history-fix", "false" },
