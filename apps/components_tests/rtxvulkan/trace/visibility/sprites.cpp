@@ -674,6 +674,11 @@ namespace Rtx::Testing
         /// The sprite is opaque and carries no lighting bake, so what a pixel shows is the fill
         /// alone. Only the middle row is read: those rays are level, so they meet neither sheet and
         /// the chord they cut is the same one in all three scenes.
+        ///
+        /// **And a cloud's shell in a frame with no sprite in it, by the same law**, because the air
+        /// asks what a point sees of the fill wherever a puff of either kind can read it
+        /// (`mPuffsInFrame`). Asked only where a sprite stood, the shell read the open fill in the
+        /// room too.
         TEST_F(RtxVisibilityTest, aRoomsFillReachesAPuffFromEverySideAndWhatIsNearTakesItAway)
         {
             constexpr std::uint32_t size = 33;
@@ -682,14 +687,25 @@ namespace Rtx::Testing
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             const std::array<TextureData, 1> puff{ describeTexel(white) };
 
-            const auto boxedAt = [&](float half) {
+            const auto boxedAt = [&](float half, bool shell, std::uint32_t frames) {
                 SceneDesc scene;
                 const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
-                const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
-                    .mRadius = 40.0f,
-                    .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
-                    .mAlpha = 1.0f } };
-                scene.addEmitter(sprites, cut, BlendKind::Over);
+                if (shell)
+                {
+                    addQuad(scene, uprightQuadAt(40.0f, 0.0f),
+                        scene.addMaterial(Material{ .mDiffuse = cut,
+                            .mOpacity = 0.5f,
+                            .mAlphaMode = AlphaMode::Blend,
+                            .mDiffuseNeverSolid = true }));
+                }
+                else
+                {
+                    const std::array<Sprite, 1> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
+                        .mRadius = 40.0f,
+                        .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                        .mAlpha = 1.0f } };
+                    scene.addEmitter(sprites, cut, BlendKind::Over);
+                }
 
                 // Nothing at all where the fill is whole, rather than sheets moved out of reach: a
                 // scene with no geometry is the one case where the answer cannot be the geometry's.
@@ -706,7 +722,7 @@ namespace Rtx::Testing
                 camera.mAmbient = osg::Vec3f(0.5f, 0.5f, 0.5f);
                 camera.mAmbientFromSky = 0.0f;
 
-                const Frame frame = shoot(scene, puff, camera, size, { .mFrames = 128 });
+                const Frame frame = shoot(scene, puff, camera, size, { .mFrames = frames });
 
                 // The middle row, whose rays leave the eye level and stay level.
                 float sum = 0.0f;
@@ -716,11 +732,19 @@ namespace Rtx::Testing
                 return sum;
             };
 
-            const float open = boxedAt(0.0f);
+            const float open = boxedAt(0.0f, false, 128);
             ASSERT_GT(open, 0.01f) << "the fill did not light the puff at all";
 
-            EXPECT_NEAR(boxedAt(70.0f) / open, 70.0f / reach, 0.08f) << "half of the sphere is left";
-            EXPECT_NEAR(boxedAt(105.0f) / open, 105.0f / reach, 0.08f) << "and three quarters in a taller room";
+            EXPECT_NEAR(boxedAt(70.0f, false, 128) / open, 70.0f / reach, 0.08f) << "half of the sphere is left";
+            EXPECT_NEAR(boxedAt(105.0f, false, 128) / open, 105.0f / reach, 0.08f)
+                << "and three quarters in a taller room";
+
+            // Sixteen frames, which hold the shell to the law within a hundredth: the open fill it read
+            // without the flag is a whole half away.
+            const float shellOpen = boxedAt(0.0f, true, 16);
+            ASSERT_GT(shellOpen, 0.01f) << "the fill did not light the shell at all";
+            EXPECT_NEAR(boxedAt(70.0f, true, 16) / shellOpen, 70.0f / reach, 0.08f)
+                << "half of the sphere is left for a shell with no sprite in the frame";
         }
 
         /// **A lamp lights a puff by the card's convention, as the sun and the fill do**: a white puff

@@ -243,9 +243,14 @@ void main()
     // frame's ambient the way a surface is, and what it sees of that is a question about the
     // point. Over the whole sphere, because the air has no side — `ambientReaching` says what that
     // means in a room and out of one.
-    const float ambientSeen
-        = ambientReaching(position, vec3(0.0), vec3(0.0), 0.0, 0.0, froxelKey(uvec2(column), slice) + SEED_AMBIENT_FOG,
-            AMBIENT_EXTERIOR_RATE);
+    //
+    // **And only in a frame a puff reads it in**, `mPuffsInFrame`, because nothing else does. Open
+    // where it was not asked, so a puff that enters a frame of none starts from the open fill and
+    // the history takes it to what its froxel sees.
+    const float ambientSeen = frame.mPuffsInFrame != 0u
+        ? ambientReaching(position, vec3(0.0), vec3(0.0), 0.0, 0.0, froxelKey(uvec2(column), slice) + SEED_AMBIENT_FOG,
+              AMBIENT_EXTERIOR_RATE)
+        : 1.0;
 
     // **Whatever the moons deliver, whether or not they were worth a ray.** `mMoonlit` gates the
     // shadow and nothing else: gating the energy with it stepped both moons out of the frame the

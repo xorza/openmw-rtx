@@ -432,6 +432,11 @@ namespace Rtx::Shaders
         /// interface — pays no second trace.
         uint mArmsInFrame;
 
+        /// Non-zero where the trace's sprite bin took a sprite, or a medium or additive placement:
+        /// anything `puffLight` lights. The air's ambient ray is cast for nothing else, and a frame
+        /// with none of them pays none — a fifth of what the air costs.
+        uint mPuffsInFrame;
+
         /// Which classes of instance this camera draws — the rasterizer's cull mask, in the bits
         /// `scene.h` names. The eye's rays cast with it whole and every other ray with
         /// `solidMask` of it; `MASK_PARTICLE` in it is whether the sprites are drawn at all.
