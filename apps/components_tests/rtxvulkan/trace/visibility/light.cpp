@@ -1128,6 +1128,31 @@ namespace Rtx::Testing
             EXPECT_EQ(lit(0, false, SurfaceView::Specular, 0.25f), osg::Vec3f(0.01f, 0.01f, 0.01f))
                 << "the tint on the reflectance";
 
+            // **The lobe's light is divided by its albedo held at `SPECULAR_ALBEDO_FLOOR` from
+            // below** (D6): the dielectric's own at the eye's 45°, and a tint of a twentieth, which
+            // takes the reflectance to 0.2% and the albedo under the floor in every channel, at the
+            // floor where it was one. To the shared exponent's nine-bit mantissa that
+            // `specularModulation` rounds to, `2^-9` of the value, and the host's 1e-4 above.
+            const auto albedoOf = [&](float tint) {
+                const float reflectance = Shaders::DIELECTRIC_F0 * tint;
+                const osg::Vec2f table = SpecularAlbedo::shared().at(normal * toEye, roughness);
+                return Shaders::specularAlbedoOf(reflectance, Shaders::specularEdge(reflectance), table.x(), table.y())
+                    * Shaders::specularCompensation(reflectance, table.y());
+            };
+            const float clear = albedoOf(1.0f);
+            ASSERT_GT(clear, Shaders::SPECULAR_ALBEDO_FLOOR);
+            ASSERT_LT(albedoOf(0.05f), Shaders::SPECULAR_ALBEDO_FLOOR);
+            for (const auto& [tint, wanted] :
+                { std::pair{ 1.0f, clear }, std::pair{ 0.05f, Shaders::SPECULAR_ALBEDO_FLOOR } })
+            {
+                lit(0, false, SurfaceView::Shaded, tint);
+                std::vector<float> modulation;
+                mRenderer.readChannel(Channel::SpecularAlbedo, modulation);
+                for (std::size_t channel = 0; channel < 3; ++channel)
+                    EXPECT_NEAR(modulation[centre + channel], wanted, wanted * (0x1p-9f + 1e-4f))
+                        << "a tint of " << tint << ", channel " << channel;
+            }
+
             // The same through the leaning map, decoded as `2 * byte / 255 - 1`.
             const osg::Vec3f painted(
                 2.0f * 191.0f / 255.0f - 1.0f, 2.0f * 128.0f / 255.0f - 1.0f, 2.0f * 221.0f / 255.0f - 1.0f);

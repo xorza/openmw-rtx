@@ -480,8 +480,7 @@ void main()
     // bounce's demodulation, for the bounce's reason.
     const vec3 paneDrawn = armsStack.mDrawn + armsStack.mThrough * panes.mDrawn;
     const vec3 paneAlbedoSum = armsStack.mAlbedo + armsStack.mThrough * panes.mAlbedo;
-    const vec3 paneModulation
-        = mix(vec3(1.0), paneAlbedoSum, greaterThanEqual(paneAlbedoSum, vec3(PANE_ALBEDO_FLOOR)));
+    const vec3 paneModulation = max(paneAlbedoSum, vec3(PANE_ALBEDO_FLOOR));
     const vec3 paneLight = paneDrawn / paneModulation;
 
     // **What the upscaler is told its motion vector does not describe**, `CHANNEL_UPSCALE_MASKS`:
