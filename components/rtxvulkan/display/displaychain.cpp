@@ -162,22 +162,40 @@ namespace Rtx
             share = &mSunGlare.getShare();
         }
 
+        const Shaders::ToneConstants constants = toneFor(what.mSampled, look, what.mUpscaled,
+            what.mTrace.mSprites.mTileList, what.mTrace.mSprites.mPresence, inputs.mSubject.mScene->getTextureTexels(),
+            mPuffs.getBlueNoise(), what.mExtent.width, what.mExtent.height);
+        const auto toneInto = [&](const Image& target, const Shaders::ToneConstants& into) {
+            mTone.record(commands,
+                Tone{
+                    .mColour = shown,
+                    .mExposure = *exposure,
+                    .mSunGlare = *share,
+                    .mBackdrop = channels.get(Channel::Backdrop),
+                    .mSurface = channels.get(Channel::Surface),
+                    .mLift = channels.get(Channel::Lift),
+                    .mBloom = look != nullptr ? mBloom.getPyramid() : nullptr,
+                    .mTextures = inputs.mSubject.mScene->getTextures(),
+                    .mTarget = target,
+                    .mConstants = into,
+                });
+        };
+
         openZone(timer, commands, "tone");
-        mTone.record(commands,
-            Tone{
-                .mColour = shown,
-                .mExposure = *exposure,
-                .mSunGlare = *share,
-                .mBackdrop = channels.get(Channel::Backdrop),
-                .mSurface = channels.get(Channel::Surface),
-                .mLift = channels.get(Channel::Lift),
-                .mBloom = look != nullptr ? mBloom.getPyramid() : nullptr,
-                .mTextures = inputs.mSubject.mScene->getTextures(),
-                .mTarget = what.mTarget,
-                .mConstants = toneFor(what.mSampled, look, what.mUpscaled, what.mTrace.mSprites.mTileList,
-                    what.mTrace.mSprites.mPresence, inputs.mSubject.mScene->getTextureTexels(), mPuffs.getBlueNoise(),
-                    what.mExtent.width, what.mExtent.height),
-            });
+        toneInto(what.mTarget, constants);
+
+        // **The curve run a second time, because a copy of the picture would carry its byte**, and
+        // the byte is what the second store is there to escape: a summed frame's mean falls between
+        // the byte's levels. Undithered, since sixteen bits round under anything measured against
+        // them.
+        if (look != nullptr && look->mDeep != nullptr)
+        {
+            Shaders::ToneConstants deep = constants;
+            deep.mDitherStep = 0.0f;
+            look->mDeep->transition(commands, Use::sUndefined, Use::sComputeWrite);
+            toneInto(*look->mDeep, deep);
+            look->mDeep->transition(commands, Use::sComputeWrite, what.mLeftAs);
+        }
         closeZone(timer, commands);
 
         if (look != nullptr)

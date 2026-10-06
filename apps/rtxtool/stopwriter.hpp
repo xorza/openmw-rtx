@@ -95,8 +95,9 @@ namespace RtxTool
             RunRecord& mRecord;
         };
 
-        /// The last measured frame, as a PNG.
-        void writeCapture(const Writing& into, const std::filesystem::path& file);
+        /// The last measured frame, as a PNG: as its bytes, or where `deep` its sum at sixteen bits a
+        /// channel (`Actions::mDeepCapture`).
+        void writeCapture(const Writing& into, const std::filesystem::path& file, bool deep);
 
         /// The last measured frame, added to `mean`, which is written once it holds its count.
         void addToMean(const Writing& into, const Actions::Mean& mean);
@@ -145,7 +146,8 @@ namespace RtxTool
         PictureMean mMean;
         std::filesystem::path mMeanFile;
 
-        /// What a finished mean is written from, refilled per mean and never freed.
-        std::vector<std::uint16_t> mMeanSamples;
+        /// What a sixteen-bit picture is written from — a finished mean, or a summed frame's own —
+        /// refilled per picture and never freed.
+        std::vector<std::uint16_t> mSamples;
     };
 }

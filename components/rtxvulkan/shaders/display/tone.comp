@@ -33,8 +33,9 @@ layout(local_size_x = TONE_WORKGROUP, local_size_y = TONE_WORKGROUP) in;
 /// The finished frame in linear radiance, at whatever resolution the pass before this produced.
 layout(set = SET_PASS, binding = TONE_BIND_COLOUR) uniform readonly image2D colour;
 
-/// The picture, as bytes a display understands.
-layout(set = SET_PASS, binding = TONE_BIND_TARGET, TONE_TARGET_FORMAT) uniform writeonly image2D target;
+/// The picture, as bytes a display understands: `TONE_TARGET_FORMAT`, or `TONE_DEEP_FORMAT` for a
+/// summed frame's second run. No format declared, so the one kernel stores into either.
+layout(set = SET_PASS, binding = TONE_BIND_TARGET) uniform writeonly image2D target;
 
 /// What the backdrop is seen through, at the trace's own extent. `bindings.glsl` declares the other
 /// end of it.

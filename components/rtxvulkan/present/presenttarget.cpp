@@ -1,5 +1,7 @@
 #include "presenttarget.hpp"
 
+#include <cassert>
+
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -26,5 +28,20 @@ namespace Rtx
             mPicture.clear(commands, Use::sUndefined, black, sResting);
             mShown.clear(commands, Use::sUndefined, black, sResting);
         });
+
+        mDeep = Image();
+    }
+
+    Image& PresentTarget::requireDeep(const Device& device)
+    {
+        assert(isOpen());
+
+        // The curve writes it as a storage image, and a read back copies it. Left undefined: the
+        // curve writes it whole before anything reads it.
+        if (mDeep.isEmpty())
+            mDeep = Image(device, mPicture.getWidth(), mPicture.getHeight(), TonePass::sDeepFormat,
+                VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, "deep picture");
+
+        return mDeep;
     }
 }

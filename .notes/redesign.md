@@ -517,9 +517,12 @@ the converged reference — the guild 1.20 → 1.58 of bias, the pond 1.51 → 1
 
 The tone pass dithers its eight-bit store, triangular off the blue-noise tile's thirteenth channel
 (`STREAM_DITHER`), which a world frame takes and a picture inside the interface does not; the test
-harness turns it off (`RenderProfile::mDither`), since its tests read the curve's bytes.
+harness turns it off (`RenderProfile::mDither`), since its tests read the curve's bytes. A summed
+frame's curve runs a second time into a sixteen-bit picture, undithered (`PresentTarget::requireDeep`,
+`Renderer::readDeepPixels`), and `noise` writes its reference from it (`Actions::mDeepCapture`); the
+bar stays a picture as shown, as the frame it is held against is.
 
-**Left**, in order: `noise`'s reference in sixteen bits, and the bloom chain (a Karis average on the first halving, corner taps on odd
+**Left**, in order: the bloom chain (a Karis average on the first halving, corner taps on odd
 levels, the histogram with the first halving). Run a walk from an interior into daylight and back
 with `film` to see the adaptation in stops.
 

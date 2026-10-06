@@ -961,7 +961,9 @@ namespace RtxTool
         /// order.** The reference averages
         /// `sNoiseReferenceFrames` frames traced unfiltered and jittered, from the white hash, which
         /// is a sequence neither of the others draws from, so it shares no sample with them, and at
-        /// no texture level epsilon; its exposure is measured as a played frame's is. The bar averages
+        /// no texture level epsilon; its exposure is measured as a played frame's is, and it is
+        /// written as the renderer summed it, at sixteen bits a channel and undithered
+        /// (`Actions::mDeepCapture`), so no byte stands under the bias measured against it. The bar averages
         /// `sNoiseBarFrames` frames, unfiltered and as the run otherwise traces — or, flown in, as many as the frame's
         /// history could hold, `noiseBarFramesAfter`. The frame is the run's own, after the warm-up its history
         /// converges over, upscaled as the run is — or, with `--strafe` or `--walk`, after it flew into the place
@@ -1116,8 +1118,10 @@ namespace RtxTool
                 const std::size_t first = into.size();
                 if (bar)
                 {
-                    into.push_back(picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, true, referenceOf(side),
-                        std::nullopt, Rtx::Upscale::Off));
+                    Stop reference = picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, true,
+                        referenceOf(side), std::nullopt, Rtx::Upscale::Off);
+                    reference.mActions.mDeepCapture = true;
+                    into.push_back(std::move(reference));
                     const Stop averaged
                         = picture(place, sNoiseBarSuffix, barFrames, true, side.unfiltered(), held, Rtx::Upscale::Off);
                     into.push_back(averaged);

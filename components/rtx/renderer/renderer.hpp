@@ -501,6 +501,12 @@ namespace Rtx
         /// frame path: it submits a copy and waits for it, so it is not const.
         virtual void readPixels(std::vector<std::uint8_t>& pixels) = 0;
 
+        /// The same picture at sixteen bits a channel, four samples a pixel: written by a frame that
+        /// sums (`FrameOptions::mAccumulate`) and by no other, since a mean of frames falls between
+        /// the levels a byte holds. Undithered and without the debug lines. Asked after a frame that
+        /// did not sum, it is an assert. Submits and waits, as `readPixels` does.
+        virtual void readDeepPixels(std::vector<std::uint16_t>& samples) = 0;
+
     protected:
         Renderer() = default;
     };
