@@ -27,21 +27,49 @@ layout(push_constant, scalar) uniform Push
     ExposureConstants frame;
 };
 
-/// **Sixty-four bits, because a bin's index times its population passes thirty-two.** The sum of
-/// the two over a frame runs to 255 times its pixels, which is over 2^32 past 16.8 million of them —
-/// an eight-thousand-line display, where a word would wrap a bright frame to a dark exposure.
-shared uint64 weighted[EXPOSURE_BINS];
+/// Each bin's population and the pixels in the bins under it, the black one left out: a scan, so a
+/// bin knows which share of the lit pixels it holds.
+shared uint below[EXPOSURE_BINS];
+
+/// What each bin adds to the trimmed mean: its index times how many of its pixels fall between the
+/// two shares (`EXPOSURE_LOW_SHARE`). **Floats and not a word**: a bin's index times its population
+/// passes thirty-two bits past 16.8 million pixels, and a float's rounding of a count that large is
+/// a part in sixteen million.
+shared float weighted[EXPOSURE_BINS];
 
 void main()
 {
     const uint index = gl_LocalInvocationIndex;
 
-    // Weighted by the bin's own index: summed and divided by the population, this is the mean bin,
-    // which is the mean *log* luminance because the bins are logarithmic.
-    weighted[index] = uint64(bins[index]) * index;
+    // Bin zero holds the pixels too dark to bin. They are left out of the shares as well as the
+    // mean — an interior is mostly them, and counting them would pull the average onto the floor
+    // and open the exposure until the lit parts blew out.
+    const uint black = bins[0];
+    const uint count = index == 0u ? 0u : bins[index];
+
+    // An inclusive scan of the populations, a step of twice the reach each time.
+    below[index] = count;
+    barrier();
+    for (uint reach = 1u; reach < EXPOSURE_BINS; reach <<= 1u)
+    {
+        const uint earlier = index >= reach ? below[index - reach] : 0u;
+        barrier();
+        below[index] += earlier;
+        barrier();
+    }
+
+    // **The mean bin over the lit pixels between the two shares**, which is the mean *log*
+    // luminance there because the bins are logarithmic: each bin counts the part of its population
+    // that falls between them.
+    const float lit = float(frame.mPixels - min(black, frame.mPixels));
+    const float low = lit * EXPOSURE_LOW_SHARE;
+    const float high = lit * EXPOSURE_HIGH_SHARE;
+    const float after = float(below[index]);
+    const float before = after - float(count);
+    weighted[index] = max(min(after, high) - max(before, low), 0.0) * float(index);
     barrier();
 
-    // Tree reduction over the workgroup: 256 values to one in eight steps.
+    // Tree reduction over the workgroup: 256 values to one in eight steps, in a fixed order.
     for (uint stride = EXPOSURE_BINS / 2u; stride > 0u; stride >>= 1u)
     {
         if (index < stride)
@@ -51,11 +79,6 @@ void main()
 
     if (index != 0u)
         return;
-
-    // Bin zero holds the pixels too dark to bin. They are left out of the divisor as well as
-    // contributing nothing to the sum — an interior is mostly them, and counting them would pull the
-    // average onto the floor and open the exposure until the lit parts blew out.
-    const uint black = bins[0];
 
     // **What this frame asks for, which is not yet what it gets.** Every branch below settles a
     // target and exactly one write happens after them, so the degenerate case is smoothed like any
@@ -69,8 +92,7 @@ void main()
     }
     else
     {
-        const float lit = float(frame.mPixels - black);
-        const float meanBin = float(weighted[0]) / lit;
+        const float meanBin = weighted[0] / (high - low);
 
         const float meanLuminance = binLuminance(meanBin);
 
@@ -100,6 +122,9 @@ void main()
 
     // `1 - exp(-dt / tau)` and not a fixed fraction per frame: the same share of the gap closes per
     // second whether the second held one frame or two hundred, so the picture does not change when
-    // the frame time does.
-    exposure = mix(held, target, clamp(1.0 - exp(-frame.mElapsed / tau), 0.0, 1.0));
+    // the frame time does. **In stops**, as the eye adapts: a share of the gap in the exposure
+    // itself closed a step up in a fifth of the time a step down took at the same rate, and turned
+    // the asymmetry the two rates are for around.
+    const float closed = clamp(1.0 - exp(-frame.mElapsed / tau), 0.0, 1.0);
+    exposure = held * exp2(log2(target / held) * closed);
 }

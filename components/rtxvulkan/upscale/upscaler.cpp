@@ -294,8 +294,15 @@ namespace Rtx
             VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT
                 | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT };
 
-        /// FSR's frame info at a reset: an exposure it has not measured, `-1`, and a luma of one.
-        constexpr VkClearColorValue sFreshFrameInfo{ .float32 = { -1.0f, 1.0f, 0.0f, 0.0f } };
+        /// FSR's frame info at a reset, as the SDK clears it: an exposure it has not measured, `-1`,
+        /// and a log luma of `1e8`, over `resetAutoExposureAverageSmoothing`, which is what tells its
+        /// luma pyramid there is no average to smooth from. Cleared to one, the reset was read as a
+        /// measured log luma of one and the frames after it smoothed from there.
+        ///
+        /// **FSR meters its own exposure, and not the display's.** Handed the display's, last
+        /// frame's, the still frames stood further from the converged reference: the guild 1.20 →
+        /// 1.58 of bias, the pond 1.51 → 1.71, the pier 1.32 → 1.39, the noise the same.
+        constexpr VkClearColorValue sFreshFrameInfo{ .float32 = { -1.0f, 1e8f, 0.0f, 0.0f } };
     }
 
     /// Every image the SDK's context creates, at the extents one resize names, in the SDK's formats,

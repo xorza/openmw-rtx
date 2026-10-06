@@ -508,9 +508,17 @@ arrival moved, by its alpha-tested plants; vanilla foliage blends. The dawn deck
 
 ### Phase 7. Exposure and display (D9)
 
-Exposure first, then FSR's input, then the dither, the bloom and the masks. Use `shot --against` and
-`noise --ab` for the masks. Run a walk from an interior into daylight and from daylight into an
-interior with `film`, to see the adaptation in stops.
+**Done**: the meter's mean over the lit pixels between their tenth and ninetieth shares
+(`EXPOSURE_LOW_SHARE`, Unreal's defaults), the adaptation in stops, FSR's reset sentinel at the
+SDK's `1e8`, and the masks held at 0.9 (`UPSCALE_MASK_CEILING`). **Tried and declined: FSR reading
+the display's exposure.** Handed last frame's through a texel, its still frames stood further from
+the converged reference — the guild 1.20 → 1.58 of bias, the pond 1.51 → 1.71, the pier 1.32 →
+1.39, the noise the same — so FSR meters its own (`upscaler.cpp` says so).
+
+**Left**, in order: the tone pass's triangular dither from the blue-noise tile, `noise`'s reference
+in sixteen bits, and the bloom chain (a Karis average on the first halving, corner taps on odd
+levels, the histogram with the first halving). Run a walk from an interior into daylight and back
+with `film` to see the adaptation in stops.
 
 ### Phase 8. Uniform frame times and unused work
 

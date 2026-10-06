@@ -125,6 +125,16 @@ namespace Rtx::Shaders
     /// And how long it takes to close, which is the eye meeting light rather than losing it.
     const float EXPOSURE_FALL_SECONDS = 0.5f;
 
+    /// The share of the lit pixels, from the darkest up, the meter leaves out below the mean, and
+    /// the share up to which it reads: the darkest tenth and the brightest tenth are left out.
+    /// **Unreal's defaults since 4.25** (`FCameraExposureSettings::LowPercent` and `HighPercent`):
+    /// a handful of flames at a luminance of one in a room at a hundredth of it no longer pulls the
+    /// eye shut, and a corner of shadow no longer opens it. Read as the mean of the log luminance
+    /// over what is left, which with nothing trimmed was the mean over every lit pixel and left the
+    /// histogram nothing to do.
+    const float EXPOSURE_LOW_SHARE = 0.1f;
+    const float EXPOSURE_HIGH_SHARE = 0.9f;
+
     /// How much the curve takes off the darkest channel once it has any to take. Khronos's own.
     const float TONE_SHADOW_OFFSET = 0.04f;
 
@@ -1381,6 +1391,12 @@ namespace Rtx::Shaders
     /// The fewest frames a responsive history keeps, NRD's default: a mirror's reflection is a sample
     /// of one lamp drawn among several, and fewer frames than this leave that draw in the picture.
     const float SPECULAR_RESPONSIVE_FRAMES = 3.0f;
+
+    /// The most either upscale mask says of a pixel (`CHANNEL_UPSCALE_MASKS`). **The FSR 3.1 guide's
+    /// own advice**: "it is unlikely that a reactive value of close to 1 will ever produce good
+    /// results … we recommend clamping the maximum reactive value to around 0.9". At one the
+    /// upscaler keeps nothing of its history and shows the jittered sample alone.
+    const float UPSCALE_MASK_CEILING = 0.9f;
 
     /// How sharply a tap's normal has to agree with the centre's, as the exponent on their cosine.
     ///
