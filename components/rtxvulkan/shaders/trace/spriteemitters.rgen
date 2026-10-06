@@ -43,7 +43,7 @@ void main()
     //
     // **The mean of the coarsest level, every texel of it**, which a box-filtered chain keeps as its
     // texture's own at every level: eight by eight where Morrowind's chains end, and one texel where
-    // the device made the chain. A chain stopping coarser is read on an eight-by-eight grid. Read at
+    // the device made the chain. A chain whose coarsest level is wider than eight is read on an eight-by-eight grid. Read at
     // the middle of the coarsest level instead, it was the peak of a radial puff and not its mean,
     // and vanilla smoke shadowed itself several times too darkly. **Here and not at the texture's
     // arrival**, because only the device knows which image stands in a slot and at which level it

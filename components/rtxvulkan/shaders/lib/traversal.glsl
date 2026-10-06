@@ -56,22 +56,11 @@ float alongShort(float distance)
 /// nearer than a unit was lost.
 ///
 /// @param step the triangle's unit normal, either way round, times how far the point can stand off
-///        the triangle: `stepOf`, which a point summed back from the eye widens
-///        (`summedRounding`). Nought for a point in the air, which has no surface to leave and starts
-///        where it is.
+///        the triangle: `stepOf`. Nought for a point in the air, which has no surface to leave and
+///        starts where it is.
 vec3 leaveSurface(vec3 point, vec3 step, vec3 direction)
 {
     return point + (dot(direction, step) < 0.0 ? -step : step);
-}
-
-/// What a point kept as `offset` from `eye` and summed back carries beyond its triangle's own
-/// rounding: the eye's ray times the hit's distance, and the sum, each a few units in the last
-/// place of the larger — eight of them, over the two magnitudes.
-float summedRounding(vec3 eye, vec3 offset)
-{
-    const vec3 eyeSize = abs(eye);
-    const vec3 offsetSize = abs(offset);
-    return 9.5367431640625e-7 * (max(max(eyeSize.x, eyeSize.y), eyeSize.z) + max(max(offsetSize.x, offsetSize.y), offsetSize.z));
 }
 
 /// Whether a material is meant to be seen through everywhere, rather than in the holes of a mask.

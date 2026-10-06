@@ -9,7 +9,7 @@ from typing import IO, cast
 
 from omw.build import Build
 from omw.noise import Figures, Leg, Plan, Side, ab, plan, read_report, read_sides, table, wants_ab
-from omw.system import ROOT, Refusal
+from omw.system import ROOT, Refusal, read_text
 
 
 class PlanTest(unittest.TestCase):
@@ -72,7 +72,7 @@ class ReportTest(unittest.TestCase):
         })
 
     def test_the_sides_part_where_the_harness_prints_its_versus_line(self):
-        text = (ROOT / "apps" / "rtxtool" / "main.cpp").read_text()
+        text = read_text(ROOT / "apps" / "rtxtool" / "main.cpp")
         printed = re.search(r'out\(\) << std::format\("(versus --)\{\}', text)
         self.assertIsNotNone(printed, "commandNoise no longer prints the versus line where this looks for it")
         place = ("  some-place                   noise: frame mean {} p99 9.00, 13 averaged mean 2.00 p99 20.00 — as clean; "
@@ -82,7 +82,7 @@ class ReportTest(unittest.TestCase):
         self.assertEqual(second["some-place"].mean, 0.80)
 
     def test_the_line_read_is_the_one_the_harness_prints(self):
-        text = (ROOT / "apps" / "rtxtool" / "compare.cpp").read_text()
+        text = read_text(ROOT / "apps" / "rtxtool" / "compare.cpp")
         printed = re.search(r'"(  \{:<28\} noise: frame mean .*?)"\s*"(.*?)"', text, re.DOTALL)
         self.assertIsNotNone(printed, "judgeNoise no longer prints a place's line where this looks for it")
         line = (printed.group(1) + printed.group(2)).removesuffix("\\n").replace("{:<28}", f"{'some-place':<28}")

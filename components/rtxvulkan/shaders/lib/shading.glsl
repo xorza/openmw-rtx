@@ -376,11 +376,10 @@ DirectLight gather(Surface surface, Gloss gloss, uint key, uint lamps, uint path
     // every pixel the held lamp outshone the darkening kept light the mean did not have, and the
     // ground near a negative lamp came out brighter than its own lamps leave it.
     const vec3 darkening = darkeningAt(position, facing, INV_PI, surface.mLampLit);
-    const vec3 unshadowed = split ? kept.mUnshadowed * lampPass.mThrough : kept.mUnshadowed;
     // `1 - min(d / u, 1)` is `max(u - d, 0) / u`, and exactly one where nothing darkens.
     const vec3 lampDiffuse = split
-        ? max(unshadowed - darkening, vec3(0.0))
-        : lampsArriving * (1.0 - min(darkening / max(unshadowed, vec3(1e-30)), vec3(1.0)));
+        ? max(lampsArriving - darkening, vec3(0.0))
+        : lampsArriving * (1.0 - min(darkening / max(kept.mUnshadowed, vec3(1e-30)), vec3(1.0)));
 
     if (gloss.mGlossy)
         specular += kept.mSpecular * (held * lampSeen);
