@@ -80,6 +80,16 @@ namespace RtxTool
         BenchPlace finish(const Stop& stop, const MWRender::FrameContext& context, const MWRender::FrameReport& report,
             float travelled, StopWriter& writer);
 
+        /// The sample a still's probe is traced with — its first measured frame's — or nothing where
+        /// `stop` takes no probe: a hashed still the camera does not fly, whose ray does not jitter,
+        /// since a jitter's step moves the motion of a frame against the one before it.
+        std::optional<std::uint32_t> probeSample(const Stop& stop) const;
+
+        /// Takes the probe of `stop`, the frame `submitted`, once `finish` has drained the ring: waits
+        /// for it, and fails the run where its surface or motion differs from the first measured
+        /// frame's (`FrameHashes::probeMoved`). Nothing of it is measured or written.
+        void probe(const Stop& stop, Rtx::Renderer& renderer, std::uint64_t submitted);
+
         /// Why the stop cannot go on, or empty.
         const std::string& getFailure() const { return mFailure; }
 

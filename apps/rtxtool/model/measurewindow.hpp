@@ -106,6 +106,10 @@ namespace RtxTool
         /// Frames taken since the stop began, those ahead of the measurement included.
         std::uint32_t getSeen() const { return mSeen; }
 
+        /// How many frames were seen ahead of the first measured one — the count it was traced at —
+        /// or nothing until the measurement opens.
+        std::optional<std::uint32_t> getMeasuredFrom() const { return mMeasuredFrom; }
+
         /// What the wait came to, for the stop's note and its failure.
         std::uint32_t getWaited() const { return mWaited; }
         std::uint32_t getLeastToStand() const { return mLeastToStand; }

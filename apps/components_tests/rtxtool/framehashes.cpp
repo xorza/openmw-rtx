@@ -304,10 +304,10 @@ namespace RtxTool
             EXPECT_NE(report.find("the scene was the same on every frame"), std::string::npos) << report;
         }
 
-        /// A still's light moves with the noise from frame to frame and its surface and motion do
-        /// not, so the first frame where either moves is the one named — and a frame of another view,
-        /// which stands somewhere else, is never compared with it.
-        TEST(RtxFrameHashesTest, aStillWhoseSurfaceOrMotionMovedNamesTheFirstFrameThatDid)
+        /// A still's probe, traced with its first frame's sample, moved where its surface or its
+        /// motion differs from that frame's — and not where only its light does, and not against
+        /// another view's frames, which stand somewhere else.
+        TEST(RtxFrameHashesTest, aStillsProbeMovedWhereItsSurfaceOrMotionDiffersFromTheFirstFrame)
         {
             Rtx::FrameDigest lit = digestOf(100);
             lit.mImages[Rtx::bindingOf(Rtx::Channel::Direct)] = hashOf(4242);
@@ -317,30 +317,24 @@ namespace RtxTool
             Rtx::FrameDigest moving = digestOf(100);
             moving.mImages[Rtx::bindingOf(Rtx::Channel::Motion)] = hashOf(4245);
 
-            FrameHashes steady;
-            add(steady, 1, sPixels, partsOf(100));
-            add(steady, 2, sOtherPixels, partsOf(100), lit);
-            EXPECT_EQ(steady.findStillMoved("somewhere"), std::nullopt) << "the light moved and nothing else";
-            EXPECT_EQ(steady.findStillMoved("nowhere"), std::nullopt) << "a view with no frames moved nothing";
+            FrameHashes still;
+            add(still, 1, sPixels, partsOf(100));
+            add(still, 2, sOtherPixels, partsOf(100), deeper);
+            EXPECT_FALSE(still.probeMoved("somewhere", digestOf(100))) << "the first frame again";
+            EXPECT_FALSE(still.probeMoved("somewhere", lit)) << "the light moved and nothing else";
+            EXPECT_TRUE(still.probeMoved("somewhere", deeper)) << "the depth moved";
+            EXPECT_TRUE(still.probeMoved("somewhere", moving)) << "the motion moved";
+            EXPECT_FALSE(still.probeMoved("nowhere", deeper)) << "a view with no frames moved nothing";
 
-            FrameHashes deepened = steady;
-            add(deepened, 3, sPixels, partsOf(100), deeper);
-            add(deepened, 4, sPixels, partsOf(100), moving);
-            EXPECT_EQ(deepened.findStillMoved("somewhere"), 3u);
-
-            FrameHashes moved = steady;
-            add(moved, 3, sPixels, partsOf(100), moving);
-            EXPECT_EQ(moved.findStillMoved("somewhere"), 3u);
-
-            // Another view first, with other depth: its frames are its own still, and this one's
+            // Another view first, with other depth: its first frame is its own, and this one's
             // first frame is still frame 1.
             FrameHashes elsewhereFirst;
             elsewhereFirst.note("elsewhere", 1, 50, partsOf(100));
             elsewhereFirst.picture(Finished{ 50, sPixels, deeper }.result());
             add(elsewhereFirst, 1, sPixels, partsOf(100));
-            add(elsewhereFirst, 2, sPixels, partsOf(100), lit);
-            EXPECT_EQ(elsewhereFirst.findStillMoved("somewhere"), std::nullopt);
-            EXPECT_EQ(elsewhereFirst.findStillMoved("elsewhere"), std::nullopt);
+            EXPECT_FALSE(elsewhereFirst.probeMoved("somewhere", digestOf(100)));
+            EXPECT_FALSE(elsewhereFirst.probeMoved("elsewhere", deeper));
+            EXPECT_TRUE(elsewhereFirst.probeMoved("elsewhere", digestOf(100)));
         }
 
         TEST(RtxFrameHashesTest, whatTheFrameHandedTheReconstructionIsAColumnOfItsOwn)
