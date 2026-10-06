@@ -209,11 +209,6 @@ items are departures from the published method that each cost gain or add bias. 
   material (`RELAX_AtrousSmem.cs.hlsl`). SVGF uses a bilateral filter by depth and normal (Schied
   2017, §4.2). Target: weight each tap by `facingWeight` and `coplanarWeight` (the surface is already
   loaded for `gFast`) and normalize by the weight sum.
-- [ ] `atrous.comp:230, 237-241` with `surfacematch.glsl:114-117`. The history fix uses the wavelet's
-  normal power, 128, on taps 7 to 14 pixels away. On the shading normal (`gbuffer.h:94`), 10° gives
-  0.14 and 15° gives 0.012, so on a normal-mapped or curved surface the fix finds almost no
-  neighbour. NRD's history fix uses a power of 8 (`RELAX_HistoryFix.cs.hlsl:20-23`,
-  `NRDSettings.h:398`). Target: `ACCUMULATE_FIX_NORMAL_POWER = 8`, selected by `fixing`.
 - [ ] `atrous.comp:203, 235-236`. The wide level weighs a prefiltered centre variance
   (`varianceAround`, SVGF's 3×3) against each tap's raw variance (`light.a`). The prefilter exists
   because "an edge stopped by a noisy spread is a blotch", and the tap's raw value is the noisy
@@ -229,13 +224,6 @@ items are departures from the published method that each cost gain or add bias. 
   mean of a fixed pixel stays the raw sample, and the next frame's box around it is as wide as the
   noise. Target: keep the fused pass, which saves bandwidth, and either weight the B3 by the fix
   kernel or say why one level fewer is acceptable.
-- [ ] `look.h:1396-1401`, `docs/rtx/architecture.md:303`, `atrous.comp:46-49`, `atrous.h:23`. The
-  docs call the cascade "ReLAX's shape: a 5×5 first level, then three 3×3". ReLAX's first level
-  (`RELAX_AtrousSmem`) is a 3×3 Gaussian; its 5×5 is only the spatial-variance branch, and it runs
-  5 levels by default (`NRDSettings.h:430`). `look.h:1401` says "the accumulator averages sixteen
-  frames" and `atrous.h:23` "up to sixteen"; `ACCUMULATE_FRAMES` is 32 (`look.h:1142`). Target: "SVGF's
-  B3 first level, then ReLAX's 3×3 levels", and the figures for 32 frames.
-
 ## 10. The display chain does not adapt and meter as its comments say
 
 - [ ] `display/exposure.comp:98-104` (`exposure = mix(held, target, 1 - exp(-dt / tau))`), `look.h:123, 126`.

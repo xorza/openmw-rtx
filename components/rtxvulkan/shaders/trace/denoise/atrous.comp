@@ -227,7 +227,8 @@ void main()
             // Two surfaces are the same surface where they face the same way and lie in the same
             // plane. Both tests are needed: a facing test alone joins two parallel walls a room
             // apart, and a plane test alone joins a floor to the wall standing on it.
-            const float facing = facingWeight(normal, facingThere);
+            const float facing
+                = facingWeight(normal, facingThere, fixing ? ACCUMULATE_FIX_NORMAL_POWER : ATROUS_NORMAL_POWER);
             const float coplanar = coplanarWeight(normal, position, positionAt(tap, there.y), footprint);
 
             // The third of SVGF's three, and the only one about the light rather than the surface.

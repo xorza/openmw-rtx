@@ -203,7 +203,7 @@ void main()
                 const vec2 there = inputAt(tap);
                 const float weight = kernelAt(x) * kernelAt(y) * exp(-abs(here.x - there.x) / deviation)
                     * coplanarWeight(normal, position, gPosition[tap.y][tap.x], footprint)
-                    * facingWeight(normal, unpackSurfaceNormal(tapNormal));
+                    * facingWeight(normal, unpackSurfaceNormal(tapNormal), ATROUS_NORMAL_POWER);
 
                 sum += vec2(weight, weight * weight) * there;
                 weightSum += weight;

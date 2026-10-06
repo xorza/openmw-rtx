@@ -1347,6 +1347,15 @@ namespace Rtx::Shaders
     /// seven pixels for a new pixel, so its taps reach fourteen, and four once three frames hold.
     const float ACCUMULATE_FIX_STRIDE = 14.0f;
 
+    /// How sharply a history fix's tap has to face the way the pixel does, as the exponent on their
+    /// cosine: NRD's `historyFixEdgeStoppingNormalPower`. **Not the wavelet's 128**, whose taps stand
+    /// a pixel or two away: the fix's stand up to fourteen, where a shading normal on a curved or
+    /// normal-mapped surface has turned ten or fifteen degrees, which 128 weighs at 0.14 and 0.012 and
+    /// eight at 0.89 and 0.76. On a floor of stripes twenty degrees apart, the strip the eye turned to
+    /// kept 0.41 of its noise without the fix under eight, and 0.61 under 128
+    /// (`theHistoryFixFindsItsNeighboursOnABumpySurface`).
+    const float ACCUMULATE_FIX_NORMAL_POWER = 8.0f;
+
     /// Where the far plane lands once a distance has been scaled for `ACCUMULATE_SURFACE`.
     ///
     /// **A half float is precise in proportion rather than in steps, so what a distance wants from
@@ -1407,12 +1416,13 @@ namespace Rtx::Shaders
     ///
     /// **A 5×5 first level and three 3×3 after it reach sixteen pixels**: the first takes two taps
     /// at its spacing and each later one a tap at its own, so the support is `2 + 2 + 4 + 8`. That
-    /// is the à-trous trick — the holes between taps grow while the tap count does not. ReLAX's
-    /// shape (`RELAX_AtrousSmem`, then `RELAX_Atrous`): the later levels weigh by the centre's
-    /// variance, which the levels before already averaged, and skip the prefilter's nine loads.
+    /// is the à-trous trick — the holes between taps grow while the tap count does not. SVGF's B3
+    /// first level, then ReLAX's later levels (`RELAX_Atrous`, whose first, `RELAX_AtrousSmem`, is a
+    /// 3×3 Gaussian and not this 5×5): the later levels weigh by the centre's variance, which the
+    /// levels before already averaged, and skip the prefilter's nine loads.
     ///
     /// **Not the five SVGF runs, because what the wide levels did is done over time now.** The
-    /// accumulator averages sixteen frames ahead of the cascade and FSR accumulates behind it, so a
+    /// accumulator averages `ACCUMULATE_FRAMES` ahead of the cascade and FSR accumulates behind it, so a
     /// level past the reach of sixteen spreads light that is already quiet. Three 5×5 levels, which
     /// reached fourteen, stood level with five at native (the guild 4.15/35 still and 4.32/36
     /// strafing, against 4.18/35 and 4.40/36). Measured against them at 1920×1080 under FSR

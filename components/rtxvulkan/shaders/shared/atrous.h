@@ -20,8 +20,8 @@
 // **Full floats, because the first level writes the bounce's running mean**, which the accumulator
 // blends into the next frame (`ACCUMULATE_COLOUR` is this format by definition). A half store
 // rounds toward nought on this card (`RtxHalfStoreTest`), so a mean kept in halves falls a little
-// at every store: up to one step a frame, which the blend's weight keeps at up to sixteen, about
-// 0.8 per cent under the mean of the same frames. One declaration writes every level, so every
+// at every store: up to one step a frame, which a blend of `ACCUMULATE_FRAMES` keeps at up to
+// thirty-two, about 1.6 per cent under the mean of the same frames. One declaration writes every level, so every
 // level is full float; the levels after the first are shown and never summed, and would keep halves
 // on their own.
 
