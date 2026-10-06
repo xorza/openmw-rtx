@@ -78,7 +78,8 @@ reflection's lag there, which step 5 gives the glossy filter.
    frames kept, and measure it with the glossy trail test step 5 adds.
 3. Take the plan's cap as written, always on.
 
-**Recommendation.** 1 now, and 2 only if the glossy trail test still shows a mirror's reflection
-dragging once the clamp is in.
+**Recommendation.** 2. The glossy filter's fast companion was tried and declined (it took a still
+mean off the mean of its frames, `redesign.md` Phase 3 step 5), so nothing else bounds a mirror's lag:
+NRD's responsive accumulation with a threshold, measured with a trail test over a glossy floor.
 
-**Blocks.** The cap alone; the rest of step 5 goes on.
+**Blocks.** The cap alone.
