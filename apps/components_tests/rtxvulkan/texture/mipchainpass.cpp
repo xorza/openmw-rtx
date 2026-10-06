@@ -14,6 +14,7 @@
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/image/mipchain.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/textureencoding.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -61,7 +62,7 @@ namespace Rtx
                     VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, name, 1);
                 const std::array regions{ wholeLevel(0, 0, VkExtent3D{ file.mWidth, file.mHeight, 1 }) };
                 arrival.upload(upload, source, file.mBytes, regions);
-                arrival.chain(source, chain, encoded);
+                arrival.chain(source, chain, encoded, file.mEncoding);
                 arrival.record(upload, passes);
                 upload.flush();
 
@@ -120,14 +121,16 @@ namespace Rtx
             }
         };
 
-        /// The device's chain is the host's, over the three textures `RtxMipChainTest` derives its
-        /// figures for by hand: four quads of four greys down to their mean, two white texels at
-        /// full alpha beside two black at none, and a display-encoded pair averaged in light.
+        /// The device's chain is the host's, over the textures `RtxMipChainTest` derives its figures
+        /// for by hand: four quads of four greys down to their mean, two white texels at full alpha
+        /// beside two black at none, as a colour and as data, a display-encoded pair averaged in
+        /// light, and a line of five whose last texel is read.
         ///
         /// The figures are stated again here, so the comparison is known to be of chains worth
         /// comparing: 85 is the mean of 100, 200, 0 and 40; 255 at 128 is white weighed by its
-        /// alpha over black at none; 188 is half of white in light, where 128 would be half of it
-        /// in bytes.
+        /// alpha over black at none, and data's even 128; 188 is half of white in light, where 128
+        /// would be half of it in bytes; 100 is `250 * 2 / 5`. And five by three, odd on both axes,
+        /// every texel a different grey, for the nine taps.
         TEST_F(RtxMipChainPassTest, theDeviceChainIsTheHostsToAByte)
         {
             Testing::TestTexture four;
@@ -164,6 +167,33 @@ namespace Rtx
             const std::vector<std::vector<std::uint8_t>> light = chainOf(encoded.mData, "encoded");
             ASSERT_EQ(light.size(), 2u);
             EXPECT_NEAR(int{ light[1][0] }, 188, 1) << "averaged in light and written back encoded";
+
+            Testing::TestTexture data;
+            addLevel(data, 2, 2, { 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0 });
+            data.describe(2, 2, "data");
+            data.mData.mEncoding = TextureEncoding::Data;
+            expectHosts(data.mData, "data over its alpha");
+            EXPECT_NEAR(int{ chainOf(data.mData, "data")[1][0] }, 128, 1) << "data was weighed by its alpha";
+
+            Testing::TestTexture line;
+            for (const std::uint8_t value : { 0, 0, 0, 0, 250 })
+                for (const std::uint8_t byte : { value, value, value, std::uint8_t{ 255 } })
+                    line.mBytes.push_back(byte);
+            line.mLevels.push_back(MipLevel{ 0, 5, 1 });
+            line.describe(5, 1, "line");
+            expectHosts(line.mData, "a line of five");
+            EXPECT_NEAR(int{ chainOf(line.mData, "line")[1][4] }, 100, 1) << "the last texel of an odd extent";
+
+            Testing::TestTexture odd;
+            for (std::uint32_t at = 0; at < 15; ++at)
+            {
+                const auto grey = static_cast<std::uint8_t>(17 * at);
+                for (const std::uint8_t byte : { grey, grey, grey, static_cast<std::uint8_t>(255 - 8 * at) })
+                    odd.mBytes.push_back(byte);
+            }
+            odd.mLevels.push_back(MipLevel{ 0, 5, 3 });
+            odd.describe(5, 3, "odd");
+            expectHosts(odd.mData, "five by three");
         }
 
         /// A block-compressed file is fetched through the format's own decoder, texel for texel,

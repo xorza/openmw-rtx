@@ -27,12 +27,17 @@ namespace Rtx
 
     namespace Use
     {
-        /// Nothing before this: the first write into a fresh image, or a discard at the start of a
-        /// frame. A discard waits for nothing of its own because the head barrier every command
-        /// buffer opens with (`CommandPool::begin`) has already ordered it after whatever the last
-        /// frame did — so the source is `NONE`, which is what synchronization2 deprecated
-        /// `TOP_OF_PIPE` in favour of for a first scope.
-        inline constexpr ImageUse sUndefined{ VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_2_NONE, 0 };
+        /// Nothing before this that the image keeps: the first write into a fresh image, or a
+        /// discard at the start of a frame, which throws its contents away.
+        ///
+        /// **Every stage as the first scope, and no access**, so the transition is ordered after all
+        /// that came before it on the queue and in its own buffer, and waits on no memory. A discard
+        /// is a write to the image, and an earlier frame or pass may still be reading it. Ordered
+        /// after the head barrier every command buffer opens with (`CommandPool::begin`), whose
+        /// second scope is every stage, it is ordered after the frame before as well: two
+        /// dependencies chain only where the first's second scope meets the second's first, and a
+        /// first scope of `NONE` meets nothing (`Presenter` says the same of the acquire).
+        inline constexpr ImageUse sUndefined{ VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0 };
 
         inline constexpr ImageUse sComputeWrite{ VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
             VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT };

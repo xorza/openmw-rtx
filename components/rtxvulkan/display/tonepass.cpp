@@ -5,13 +5,13 @@
 
 #include <osg/Vec2f>
 
-#include <components/rtx/shaders/bloom.h>
 #include <components/rtx/shaders/look.h>
-#include <components/rtx/shaders/tone.h>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/bloom.h>
+#include <components/rtxvulkan/shaders/shared/tone.h>
 
 namespace Rtx
 {

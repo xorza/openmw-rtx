@@ -18,6 +18,7 @@
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
+#include <components/rtxvulkan/shaders/shared/tracerecords.h>
 
 #include "placing.hpp"
 

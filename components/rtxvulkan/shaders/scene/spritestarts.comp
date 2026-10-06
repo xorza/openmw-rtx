@@ -9,11 +9,12 @@
 // counts, the chunk totals are scanned in shared memory, and each lane then walks its chunk again
 // turning counts into starts from where its chunk begins.
 //
-// **The one place that knows whether the runs fit**, so it is where the list's degenerate form is
-// written and where the frame's need is reported. `SPRITE_LIST_UNBINNED` says what the trace does
-// with the first and `SpriteBin::record` what the host does with the second.
+// **The one place that knows whether the runs fit**, so it is where a tile past the room is marked
+// and where the frame's need is reported. `SPRITE_TILE_UNBINNED` says what the trace does with the
+// first and `SpriteBin::record` what the host does with the second.
 
-#include "spritebin.h"
+#include "shared/tables.h"
+#include "shared/spritebin.h"
 
 #include "lib/spritelist.glsl"
 
@@ -64,26 +65,19 @@ void main()
     const uint total = chunkEnds[SPRITE_SCAN_WORKGROUP - 1u];
 
     // Where this chunk's first run starts: the runs' beginning, plus every chunk before this one.
+    // A tile whose run ends past the room is marked, and so is every tile after it, since the ends
+    // only rise.
+    const uint room = head + bin.mCapacity;
     uint running = head + chunkEnds[lane] - own;
     for (uint tile = first; tile < last; ++tile)
     {
         running += list.at[spriteCountSlot(tile)];
-        list.at[spriteCountSlot(tile)] = running;
+        list.at[spriteCountSlot(tile)] = running <= room ? running : SPRITE_TILE_UNBINNED | bin.mCount;
     }
 
     if (lane != 0u)
         return;
 
     Report(bin.mReport).at[0] = total;
-
-    if (total <= bin.mCapacity)
-    {
-        list.at[0] = head;
-        return;
-    }
-
-    // **After this lane's own chunk was written and not before**, because entry one is tile
-    // nought's end and this lane just wrote it: the degenerate form has to be the last word.
-    list.at[0] = SPRITE_LIST_UNBINNED;
-    list.at[1] = bin.mCount;
+    list.at[0] = head;
 }

@@ -83,7 +83,6 @@ namespace Rtx
             /// CPU sat through, for this frame.
             double mWallMs = 0.0;
             GpuZones mGpu;
-            BounceReuse mBounceReuse = BounceReuse::Off;
         };
 
         /// Draws one frame and waits for it, so what comes back is that frame's own report.
@@ -101,10 +100,7 @@ namespace Rtx
             if (!result.has_value())
                 return Drawn{};
 
-            return Drawn{ .mHits = result->mHits,
-                .mWallMs = wallMs,
-                .mGpu = result->mGpu,
-                .mBounceReuse = result->mReconstruction.mBounceReuse };
+            return Drawn{ .mHits = result->mHits, .mWallMs = wallMs, .mGpu = result->mGpu };
         }
 
         /// A frame accounts for its own device time, pass by pass.
@@ -140,15 +136,20 @@ namespace Rtx
 
             // **And the sea is not among them where the frame has none.** `makeCamera` names no
             // water, so nothing can sample the wave tiles and nothing should synthesise them; a
-            // frame that does name a level pays for them once, before the trace.
+            // frame that does name a level pays for them once, before the trace — at a moment of
+            // the water's clock no test of the shared renderer stood at, since tiles that already
+            // hold a frame's moment are read as they stand (`WavePass::holds`).
             EXPECT_FALSE(reports(drawn.mGpu.spans(), "waves")) << "a dry frame synthesised the sea";
 
             Shaders::VisibilityConstants flooded = camera;
             flooded.mWaterLevel = 0.0f;
-            const Drawn wet = draw(mRenderer, flooded);
+            constexpr double moment = 7919.25;
+            const Drawn wet = draw(mRenderer, flooded, moment);
             EXPECT_TRUE(reports(wet.mGpu.spans(), "waves")) << "a frame with water in it synthesised no sea";
             EXPECT_EQ(wet.mGpu.spans().front().mName, "waves")
                 << "the sea was synthesised somewhere other than before the trace";
+            EXPECT_FALSE(reports(draw(mRenderer, flooded, moment).mGpu.spans(), "waves"))
+                << "a second frame at the same moment synthesised the same sea again";
 
             for (const GpuSpan& span : drawn.mGpu.spans())
             {
@@ -213,39 +214,22 @@ namespace Rtx
             const Drawn settled = draw(mRenderer, camera);
             EXPECT_FALSE(reports(settled.mGpu.spans(), "blas")) << "nothing arrived, so nothing was built";
 
-            // **A frame that takes no indirect light runs none of the bounce's passes**:
-            // the accumulator keeps the surface's history alone, for the shadow denoiser and the
-            // glossy filter, and neither the clamp, the wavelet nor any kernel of the reuse opens a
-            // zone, though the request asked for the whole reuse. The traced frame beside it, asked
-            // the same, opens every one of them: the second of two, since the validation asks only
-            // what a frame before kept.
-            ReconstructionRequest reused = mRenderer.getProfile().mReconstruction;
-            reused.mDenoise = true;
-            reused.mBounceReuse = BounceReuse::Spatiotemporal;
-            draw(mRenderer, camera, 0.0, reused);
-            const Drawn traced = draw(mRenderer, camera, 0.0, reused);
-            reused.mIndirect = IndirectLight::Off;
-            const Drawn none = draw(mRenderer, camera, 0.0, reused);
+            // **A frame that takes no indirect light runs none of the bounce's passes**: the
+            // accumulator keeps the surface's history alone, for the shadow denoiser and the glossy
+            // filter, and neither the clamp nor the wavelet opens a zone. The traced frame beside it,
+            // asked the same, opens both.
+            ReconstructionRequest filtered = mRenderer.getProfile().mReconstruction;
+            filtered.mDenoise = true;
+            const Drawn traced = draw(mRenderer, camera, 0.0, filtered);
+            filtered.mIndirect = IndirectLight::Off;
+            const Drawn none = draw(mRenderer, camera, 0.0, filtered);
 
             EXPECT_TRUE(reports(none.mGpu.spans(), "accumulate")) << "the surface's history went unkept";
-            for (const char* const pass :
-                { "clamp", "filter", "bounce validate", "bounce temporal", "bounce pairs", "bounce resolve" })
+            for (const char* const pass : { "clamp", "filter" })
             {
                 EXPECT_TRUE(reports(traced.mGpu.spans(), pass)) << "no zone called " << pass;
                 EXPECT_FALSE(reports(none.mGpu.spans(), pass)) << "a frame with no indirect light ran " << pass;
             }
-
-            // **A request that names no reuse runs none of it**, the second frame as above, so a
-            // validation asking what a frame before kept would show here too.
-            ReconstructionRequest plain = reused;
-            plain.mIndirect = IndirectLight::Traced;
-            plain.mBounceReuse = ReconstructionRequest{}.mBounceReuse;
-            draw(mRenderer, camera, 0.0, plain);
-            const Drawn unreused = draw(mRenderer, camera, 0.0, plain);
-            EXPECT_EQ(unreused.mBounceReuse, BounceReuse::Off);
-            EXPECT_TRUE(reports(unreused.mGpu.spans(), "filter")) << "a frame that reuses nothing filters its bounce";
-            for (const char* const pass : { "bounce validate", "bounce temporal", "bounce pairs", "bounce resolve" })
-                EXPECT_FALSE(reports(unreused.mGpu.spans(), pass)) << "a request that names no reuse ran " << pass;
 
             // And as a menu sets it, for every frame that asks nothing of its own.
             mRenderer.setIndirectLight(IndirectLight::Off);

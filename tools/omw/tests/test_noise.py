@@ -9,7 +9,7 @@ from typing import IO, cast
 
 from omw.build import Build
 from omw.noise import Figures, Leg, Plan, Side, ab, plan, read_report, read_sides, table, wants_ab
-from omw.system import ROOT, Refusal
+from omw.system import ROOT, Refusal, read_text
 
 
 class PlanTest(unittest.TestCase):
@@ -61,35 +61,35 @@ class ReportTest(unittest.TestCase):
     def test_a_place_line_is_read_and_the_rest_passed_over(self):
         text = (
             "[01:50:20.009 I] Ray tracing session: stop 124 of 335\n"
-            "  balmora-mages-guild          noise: frame mean 1.24 p99 12, 13 averaged mean 3.59 p99 27 — as clean; "
+            "  balmora-mages-guild          noise: frame mean 1.24 p99 12.35, 13 averaged mean 3.59 p99 27.00 — as clean; "
             "bias: frame 2.10, 13 averaged 1.41; fireflies 0.40 in a thousand\n"
-            "  seyda-neen-pond              noise: frame mean 0.49 p99 3, 16 averaged mean 2.70 p99 21 — noisier; "
+            "  seyda-neen-pond              noise: frame mean 0.49 p99 3.00, 16 averaged mean 2.70 p99 21.00 — noisier; "
             "bias: frame 1.57, 16 averaged 0.53; fireflies 0.00 in a thousand\n"
             "  every frame is as clean as 13 frames averaged\n")
         self.assertEqual(read_report(text), {
-            "balmora-mages-guild": Figures(1.24, 12, 2.10, 0.40),
-            "seyda-neen-pond": Figures(0.49, 3, 1.57, 0.00),
+            "balmora-mages-guild": Figures(1.24, 12.35, 2.10, 0.40),
+            "seyda-neen-pond": Figures(0.49, 3.00, 1.57, 0.00),
         })
 
     def test_the_sides_part_where_the_harness_prints_its_versus_line(self):
-        text = (ROOT / "apps" / "rtxtool" / "main.cpp").read_text()
+        text = read_text(ROOT / "apps" / "rtxtool" / "main.cpp")
         printed = re.search(r'out\(\) << std::format\("(versus --)\{\}', text)
         self.assertIsNotNone(printed, "commandNoise no longer prints the versus line where this looks for it")
-        place = ("  some-place                   noise: frame mean {} p99 9, 13 averaged mean 2.00 p99 20 — as clean; "
+        place = ("  some-place                   noise: frame mean {} p99 9.00, 13 averaged mean 2.00 p99 20.00 — as clean; "
                  "bias: frame 0.50, 13 averaged 0.40; fireflies 0.25 in a thousand\n")
         first, second = read_sides(place.format("1.00") + printed.group(1) + "antilag=false\n" + place.format("0.80"))
         self.assertEqual(first["some-place"].mean, 1.00)
         self.assertEqual(second["some-place"].mean, 0.80)
 
     def test_the_line_read_is_the_one_the_harness_prints(self):
-        text = (ROOT / "apps" / "rtxtool" / "compare.cpp").read_text()
+        text = read_text(ROOT / "apps" / "rtxtool" / "compare.cpp")
         printed = re.search(r'"(  \{:<28\} noise: frame mean .*?)"\s*"(.*?)"', text, re.DOTALL)
         self.assertIsNotNone(printed, "judgeNoise no longer prints a place's line where this looks for it")
         line = (printed.group(1) + printed.group(2)).removesuffix("\\n").replace("{:<28}", f"{'some-place':<28}")
-        # Past the place: the p99, the frames averaged and their p99, the verdict, the frames again;
-        # every figure with decimals, the fireflies among them, is 1.25.
-        line = line.replace("{:.2f}", "1.25").replace("{}", "7", 3).replace("{}", "as clean", 1).replace("{}", "7")
-        self.assertEqual(read_report(line), {"some-place": Figures(1.25, 7, 1.25, 1.25)})
+        # Past the place: the frames averaged, the verdict, the frames again; every figure with
+        # decimals, the p99s and the fireflies among them, is 1.25.
+        line = line.replace("{:.2f}", "1.25").replace("{}", "7", 1).replace("{}", "as clean", 1).replace("{}", "7")
+        self.assertEqual(read_report(line), {"some-place": Figures(1.25, 1.25, 1.25, 1.25)})
 
 
 class TableTest(unittest.TestCase):
@@ -134,7 +134,7 @@ class AbTest(unittest.TestCase):
                     code = ab(cast(Build, _Harness(status)), ["--ab=antifirefly", f"--out={out}"])
                 self.assertEqual(code, expected)
                 if expected == 0:
-                    self.assertIn("  some-place                       1.00     0.80     9     8   0.50   0.60      0.25"
+                    self.assertIn("  some-place                       1.00     0.80  9.00  8.00   0.50   0.60      0.25"
                                   "      0.10", printed.getvalue())
                 else:
                     self.assertIn(f"the run failed with status {status}", refused.getvalue())

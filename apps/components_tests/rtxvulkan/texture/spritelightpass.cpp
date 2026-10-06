@@ -66,34 +66,47 @@ namespace Rtx
         /// one, over a sprite of two levels whose alphas are stated outright: a four-by-four with a
         /// dense middle and a two-by-two below it. Every channel of every texel of every level is
         /// compared, within a byte, because `pow` on the device and `std::pow` on the host differ in
-        /// the last place and a product of a few of them can cross a rounding boundary.
+        /// the last place and a product of a few of them can cross a rounding boundary. **And a
+        /// sprite six by three**, so its rows and its columns, which the device walks in stages of
+        /// their own, are lines of two lengths.
         TEST_F(RtxSpriteLightPassTest, theDeviceBakeIsTheHostsToAByte)
         {
+            const auto compare = [&](const Testing::TestTexture& sprite, std::size_t levels) {
+                const AlphaImage alpha(sprite.mData);
+                const Testing::SpriteLightBake host(alpha);
+                ASSERT_EQ(host.describe().mLevels.size(), levels);
+
+                const std::vector<std::vector<std::uint8_t>> device = bakeOf(sprite.mData);
+                ASSERT_EQ(device.size(), levels);
+
+                for (std::uint32_t level = 0; level < levels; ++level)
+                {
+                    const MipLevel& shape = sprite.mLevels[level];
+                    ASSERT_EQ(device[level].size(), std::size_t{ shape.mWidth } * shape.mHeight * 4)
+                        << "level " << level;
+
+                    for (std::uint32_t y = 0; y < shape.mHeight; ++y)
+                        for (std::uint32_t x = 0; x < shape.mWidth; ++x)
+                            for (std::uint32_t channel = 0; channel < 4; ++channel)
+                            {
+                                const std::size_t at = (std::size_t{ y } * shape.mWidth + x) * 4 + channel;
+                                EXPECT_NEAR(int{ device[level][at] }, int{ host.at(level, x, y, channel) }, 1)
+                                    << "level " << level << " at " << x << ", " << y << " channel " << channel;
+                            }
+                }
+            };
+
             Testing::TestTexture sprite;
             Testing::addAlphaLevel(sprite, 4, 4, { 0, 64, 64, 0, 32, 255, 255, 32, 32, 255, 200, 32, 0, 64, 64, 0 });
             Testing::addAlphaLevel(sprite, 2, 2, { 96, 160, 128, 64 });
+            compare(sprite, 2);
 
-            const AlphaImage alpha(sprite.mData);
-            const Testing::SpriteLightBake host(alpha);
-            ASSERT_EQ(host.describe().mLevels.size(), 2u);
+            Testing::TestTexture wide;
+            Testing::addAlphaLevel(
+                wide, 6, 3, { 10, 200, 40, 90, 255, 0, 120, 30, 180, 60, 220, 15, 5, 75, 140, 250, 35, 100 });
+            compare(wide, 1);
 
             const std::vector<std::vector<std::uint8_t>> device = bakeOf(sprite.mData);
-            ASSERT_EQ(device.size(), 2u);
-
-            for (std::uint32_t level = 0; level < 2; ++level)
-            {
-                const MipLevel& shape = sprite.mLevels[level];
-                ASSERT_EQ(device[level].size(), std::size_t{ shape.mWidth } * shape.mHeight * 4) << "level " << level;
-
-                for (std::uint32_t y = 0; y < shape.mHeight; ++y)
-                    for (std::uint32_t x = 0; x < shape.mWidth; ++x)
-                        for (std::uint32_t channel = 0; channel < 4; ++channel)
-                        {
-                            const std::size_t at = (std::size_t{ y } * shape.mWidth + x) * 4 + channel;
-                            EXPECT_NEAR(int{ device[level][at] }, int{ host.at(level, x, y, channel) }, 1)
-                                << "level " << level << " at " << x << ", " << y << " channel " << channel;
-                        }
-            }
 
             // And a value the doc of the host's test derives by hand, so the comparison is known to
             // be of a bake with shadows in it: the finest level's first row is `0, 64, 64, 0`, and

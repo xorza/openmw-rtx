@@ -108,6 +108,20 @@ namespace Rtx::Shaders
     const float EXPOSURE_MIN = 0.05f / DAYLIGHT_GAIN;
     const float EXPOSURE_MAX = 200.0f;
 
+    /// Where the eye starts once it has no past: a bright day's exposure, which the eye then
+    /// opens from toward what the frame measures.
+    ///
+    /// **Dark to normal, and never bright to normal.** A load or a cut resets the eye on the first
+    /// frame of a world that arrives over the frames after it, and taken outright, that frame's
+    /// measurement exposed for a world half there: the picture stood bright and closed over
+    /// `EXPOSURE_FALL_SECONDS`. Started at a day, an exterior in daylight starts where it settles
+    /// and an interior opens from the dark, as an eye does coming in from outside.
+    ///
+    /// **A day is the key lifted by the day's gain**, so the meter settles at
+    /// `(1 / DAYLIGHT_GAIN)^EXPOSURE_ADAPTATION`, `10^-0.75`, written as the literal it is for the
+    /// reason `portable.h` gives.
+    const float EXPOSURE_DAY = 0.17782794f;
+
     /// How long the exposure takes to open, as the time constant of an exponential approach, in
     /// seconds.
     ///
@@ -124,6 +138,16 @@ namespace Rtx::Shaders
 
     /// And how long it takes to close, which is the eye meeting light rather than losing it.
     const float EXPOSURE_FALL_SECONDS = 0.5f;
+
+    /// The share of the lit pixels, from the darkest up, the meter leaves out below the mean, and
+    /// the share up to which it reads: the darkest tenth and the brightest tenth are left out.
+    /// **Unreal's defaults since 4.25** (`FCameraExposureSettings::LowPercent` and `HighPercent`):
+    /// a handful of flames at a luminance of one in a room at a hundredth of it no longer pulls the
+    /// eye shut, and a corner of shadow no longer opens it. Read as the mean of the log luminance
+    /// over what is left, which with nothing trimmed was the mean over every lit pixel and left the
+    /// histogram nothing to do.
+    const float EXPOSURE_LOW_SHARE = 0.1f;
+    const float EXPOSURE_HIGH_SHARE = 0.9f;
 
     /// How much the curve takes off the darkest channel once it has any to take. Khronos's own.
     const float TONE_SHADOW_OFFSET = 0.04f;
@@ -782,9 +806,10 @@ namespace Rtx::Shaders
     }
 
     /// Water's index of refraction, and the reflectance it gives head-on: `((n - 1) / (n + 1))^2`,
-    /// 0.02037, which is why water is a window seen from above and a mirror seen along it.
+    /// 0.02037, which is why water is a window seen from above and a mirror seen along it. The
+    /// reflectance written as its value, for the reason `portable.h` gives.
     const float WATER_IOR = 1.333f;
-    const float WATER_F0 = ((WATER_IOR - 1.0f) / (WATER_IOR + 1.0f)) * ((WATER_IOR - 1.0f) / (WATER_IOR + 1.0f));
+    const float WATER_F0 = 0.020373188f;
 
     /// The most radiance the sun's disc is drawn with.
     ///
@@ -806,7 +831,9 @@ namespace Rtx::Shaders
     /// **The disc alone, because it is the only thing in the sky that can reach a ceiling at all.**
     /// A moon's face is held at 0.18, a star at the same, and the dome's own glow is a decoded
     /// weather colour — every one of them three orders below this.
-    const float MAX_SUN_RADIANCE = 1.0f / (EXPOSURE_MIN * WATER_F0);
+    ///
+    /// `1 / (EXPOSURE_MIN * WATER_F0)`, written as its value for the reason `portable.h` gives.
+    const float MAX_SUN_RADIANCE = 9816.824f;
 
     /// Extinction per world unit, per channel — how fast water swallows light along a path.
     ///
@@ -837,7 +864,11 @@ namespace Rtx::Shaders
     /// swamp coast and the Pacific. Every expectation a test makes about water derives from this
     /// sum, so a tuning pass is one line rather than five pieces of arithmetic that quietly stop
     /// describing the shader.
-    const vec3 WATER_EXTINCTION = vec3(0.262f, 0.059f, 0.024f) / UNITS_PER_METRE;
+    ///
+    /// `(0.262, 0.059, 0.024) / UNITS_PER_METRE`, a metre's extinction in each channel, written as
+    /// its values for the reason `portable.h` gives: `RtxSharedConstantTest` says the new ones when
+    /// the per-metre figures change.
+    const vec3 WATER_EXTINCTION = vec3(0.0037433251f, 0.00084296253f, 0.0003429f);
 
     /// The single-scattering albedo: the share of extinction that was scattering and not absorption,
     /// and so the part the water hands back as its own colour instead of swallowing.
@@ -874,7 +905,9 @@ namespace Rtx::Shaders
     /// falls toward blue where every real water's rises — molecular scattering goes as the fourth
     /// power of the wavenumber. What that costs is confined to the colour a very deep column
     /// settles at, which is the one thing the game states outright and this defers to.
-    const vec3 WATER_SCATTER_SHIPPED = vec3(12.0f, 30.0f, 37.0f) / 255.0f * 0.85f;
+    ///
+    /// `(12, 30, 37) / 255 * 0.85`, written as its values for the reason `portable.h` gives.
+    const vec3 WATER_SCATTER_SHIPPED = vec3(0.04f, 0.1f, 0.123333335f);
 
     /// How far forward water throws what it scatters.
     ///
@@ -926,7 +959,9 @@ namespace Rtx::Shaders
     ///
     /// The sun's term is its angular *diameter*, narrowed by refraction on the way in. A mip chain
     /// preserves the mean, so nothing here changes how much light arrives.
-    const float WATER_CAUSTIC_SPREAD = 2.0f * SUN_ANGULAR_RADIUS / WATER_IOR;
+    ///
+    /// `2 * SUN_ANGULAR_RADIUS / WATER_IOR`, written as its value for the reason `portable.h` gives.
+    const float WATER_CAUSTIC_SPREAD = 0.0069827456f;
 
     /// The depth a sea's caustics are boldest at, in world units.
     ///
@@ -1130,15 +1165,6 @@ namespace Rtx::Shaders
     /// the planter was 1.94 and 1.39 noisy and 1.90 and 2.25 biased, against 1.28 and 2.35 under
     /// the fixed reach, the noise of the first in sparse bright points the narrowed cascade no
     /// longer spread. Both lie on the curve the history length draws.
-    ///
-    /// **The bounce's reuse did not move the trade either.** A reservoir is a history of its own,
-    /// so a shorter one here might have cost the reused bounce nothing; it cost the standing frame
-    /// what it costs without the reuse, and gave the walked frame nothing back. With the reuse on,
-    /// frame noise standing and walked in, then bias standing, at 8, 16 and 32 frames:
-    ///
-    ///     guild's planter at night   1.12 / 1.69 / 2.27   0.93 / 1.62 / 2.26   0.70 / 1.48 / 2.33
-    ///     mages' guild               1.33 / 1.48 / 1.63   0.98 / 1.55 / 1.63   0.65 / 1.50 / 1.75
-    ///     Ahemmusa's yurt            1.96 / 2.58 / 1.52   1.32 / 2.69 / 1.53   0.74 / 2.66 / 1.67
     const float ACCUMULATE_FRAMES = 32.0f;
 
     /// The longest history the accumulator's fast mean keeps, which the slow one is clamped to: the
@@ -1234,10 +1260,11 @@ namespace Rtx::Shaders
     /// noise.
     ///
     /// **What it costs is the ring's square and not its sum.** The clamp's median at the guild went
-    /// from 0.17 ms to 0.22 ms and its p95 from 0.58 to 0.69, the switch on or off alike, since off is
-    /// a factor of nought. Passing over the 81 taps where the history is long saved nothing (0.214
-    /// against 0.217 ms): what a pixel pays for is the 16×16 tile its workgroup loads where the
-    /// anti-lag's took 12×12, and the barrier between the two.
+    /// from 0.17 ms to 0.22 ms and its p95 from 0.58 to 0.69. Passing over the 81 taps where the
+    /// history is long saved nothing (0.214 against 0.217 ms): what a pixel pays for is the 16×16
+    /// tile its workgroup loads where the anti-lag's takes 12×12, and the barrier between the two.
+    /// **So off is a pipeline without it** (`ACCUMULATE_CLAMP_SPEC_RING`) and not a factor of nought,
+    /// which paid for the tile: the bench's clamp 0.18, 0.19 and 0.23 ms to 0.15, 0.17 and 0.22.
     ///
     /// **ReBLUR's other guard is not taken**: its temporal accumulation holds a blend under `2 + 38
     /// / (n + 1)` times the history of `n` frames it blends into (`REBLUR_TemporalAccumulation`).
@@ -1253,14 +1280,17 @@ namespace Rtx::Shaders
     /// a history at all, where the cascade is weighing how much of a neighbour to take.
     const float ACCUMULATE_FACING = 0.9f;
 
-    /// How far off the centre pixel's distance a history may sit, as a share of that distance.
+    /// How far off a pixel's plane a history texel may stand and still be its surface, as a share of
+    /// the frustum's narrower side where the surface stands: ReLAX's disocclusion threshold, and
+    /// its default.
     ///
-    /// **Relative, because a tolerance in world units means something different at every range.**
-    /// Two per cent is well inside a wall's thickness at arm's length and well outside the step a
-    /// grazing floor takes between neighbouring pixels at the far end of a view. The floor under it
-    /// is the one part that has to be converted, and `HistoryConstants::mDistanceScale` is one
-    /// world unit in the units the distance is stored in.
-    const float ACCUMULATE_DEPTH = 0.02f;
+    /// **Off the plane and not along the ray**, so the far ground at a grazing angle, which steps a
+    /// long way in distance from one texel to the next, is one surface to its history as it is to
+    /// the wavelet (`ATROUS_PLANE_SIGMA`). **A share of the frustum, so the rule is one at every
+    /// resolution and every range**: at a field of sixty degrees, a hundredth of the side is 1.2% of
+    /// the distance, inside a wall's thickness at arm's length and far past what a half rounds a
+    /// stored distance by.
+    const float ACCUMULATE_PLANE = 0.01f;
 
     /// How far from a pixel the accumulator looks for a surface nearer the eye that carries the
     /// motion of what hid it last frame, in pixels (`occluderMotion`): rings at 1, 2, 4, 8 and 16,
@@ -1333,6 +1363,15 @@ namespace Rtx::Shaders
     /// seven pixels for a new pixel, so its taps reach fourteen, and four once three frames hold.
     const float ACCUMULATE_FIX_STRIDE = 14.0f;
 
+    /// How sharply a history fix's tap has to face the way the pixel does, as the exponent on their
+    /// cosine: NRD's `historyFixEdgeStoppingNormalPower`. **Not the wavelet's 128**, whose taps stand
+    /// a pixel or two away: the fix's stand up to fourteen, where a shading normal on a curved or
+    /// normal-mapped surface has turned ten or fifteen degrees, which 128 weighs at 0.14 and 0.012 and
+    /// eight at 0.89 and 0.76. On a floor of stripes twenty degrees apart, the strip the eye turned to
+    /// kept 0.51 of its noise without the fix under eight, and 0.72 under 128
+    /// (`theHistoryFixFindsItsNeighboursOnABumpySurface`).
+    const float ACCUMULATE_FIX_NORMAL_POWER = 8.0f;
+
     /// Where the far plane lands once a distance has been scaled for `ACCUMULATE_SURFACE`.
     ///
     /// **A half float is precise in proportion rather than in steps, so what a distance wants from
@@ -1352,6 +1391,26 @@ namespace Rtx::Shaders
     /// **ReLAX's, because it is the one published rule for how far a view may turn before a glossy
     /// history describes a different reflection**, and the constant is what that rule was tuned at.
     const float SPECULAR_LOBE_VOLUME = 0.75f;
+
+    /// The perceptual roughness under which the glossy filter's history shortens with the lobe:
+    /// ReBLUR's responsive accumulation (NRD's `ReblurResponsiveAccumulationSettings`), which caps the
+    /// frames at `ACCUMULATE_FRAMES · lerp(c, 1, smoothstep(r / this))`, `c` the specular curve
+    /// `(1 - 2^(-200 r²)) r^¼`. **What bounds a sharp reflection's lag**: the view's turn drops a
+    /// history only where the eye moves, and a lamp or a body moving before a still eye left a
+    /// mirror's reflection thirty-two frames behind it. NRD ships it off, at nought, and names
+    /// animated water as its use; here no fast history bounds the lag instead (`redesign.md`, Phase 3
+    /// step 5). At a quarter: 0.05 keeps seven frames, 0.02 three, and 0.15 twenty-seven.
+    const float SPECULAR_RESPONSIVE_ROUGHNESS = 0.25f;
+
+    /// The fewest frames a responsive history keeps, NRD's default: a mirror's reflection is a sample
+    /// of one lamp drawn among several, and fewer frames than this leave that draw in the picture.
+    const float SPECULAR_RESPONSIVE_FRAMES = 3.0f;
+
+    /// The most either upscale mask says of a pixel (`CHANNEL_UPSCALE_MASKS`). **The FSR 3.1 guide's
+    /// own advice**: "it is unlikely that a reactive value of close to 1 will ever produce good
+    /// results … we recommend clamping the maximum reactive value to around 0.9". At one the
+    /// upscaler keeps nothing of its history and shows the jittered sample alone.
+    const float UPSCALE_MASK_CEILING = 0.9f;
 
     /// How sharply a tap's normal has to agree with the centre's, as the exponent on their cosine.
     ///
@@ -1387,18 +1446,23 @@ namespace Rtx::Shaders
     /// 2.14 strafed and 2.20 to 2.07 walked in, and moved no other figure of any place by more
     /// than 0.01. It costs the square root at every tap and not once a pixel: the filter's median
     /// rose by 0.005 to 0.015 ms of 0.66 to 0.70 at the guild, the pier and the chamber.
+    ///
+    /// **The tap's own variance as the level reads it, and not prefiltered as the centre's is**
+    /// (`varianceAround`): prefiltered at the wide level, nine loads a tap, every place of every leg
+    /// held its noise and its bias to 0.01, and the filter rose from 0.58–0.82 ms to 1.42–1.87.
     const float ATROUS_LUMINANCE_SIGMA = 4.0f;
 
     /// How many levels the cascade runs, its taps standing 1, 2, 4 and 8 pixels apart.
     ///
     /// **A 5×5 first level and three 3×3 after it reach sixteen pixels**: the first takes two taps
     /// at its spacing and each later one a tap at its own, so the support is `2 + 2 + 4 + 8`. That
-    /// is the à-trous trick — the holes between taps grow while the tap count does not. ReLAX's
-    /// shape (`RELAX_AtrousSmem`, then `RELAX_Atrous`): the later levels weigh by the centre's
-    /// variance, which the levels before already averaged, and skip the prefilter's nine loads.
+    /// is the à-trous trick — the holes between taps grow while the tap count does not. SVGF's B3
+    /// first level, then ReLAX's later levels (`RELAX_Atrous`, whose first, `RELAX_AtrousSmem`, is a
+    /// 3×3 Gaussian and not this 5×5): the later levels weigh by the centre's variance, which the
+    /// levels before already averaged, and skip the prefilter's nine loads.
     ///
     /// **Not the five SVGF runs, because what the wide levels did is done over time now.** The
-    /// accumulator averages sixteen frames ahead of the cascade and FSR accumulates behind it, so a
+    /// accumulator averages `ACCUMULATE_FRAMES` ahead of the cascade and FSR accumulates behind it, so a
     /// level past the reach of sixteen spreads light that is already quiet. Three 5×5 levels, which
     /// reached fourteen, stood level with five at native (the guild 4.15/35 still and 4.32/36
     /// strafing, against 4.18/35 and 4.40/36). Measured against them at 1920×1080 under FSR
@@ -1406,6 +1470,19 @@ namespace Rtx::Shaders
     /// and from 0.78 to 0.56 at the ship, and move no place of the bounce suite by more than 0.01
     /// of noise or bias, still, strafed and walked in.
     const uint ATROUS_LEVELS = 4;
+
+    /// The step past which a level's eight outer taps stand off their lattice, by a hash of the pixel
+    /// and the frame, under a quarter of the step either way and truncated toward nought — at a step
+    /// of eight, a pixel either way or none, and two back on a draw of exactly nought: ReLAX's
+    /// (`RELAX_Atrous`), "to minimize ringing at large A-Trous steps". A fixed 3×3 lattice eight
+    /// pixels apart leaves the grid it samples on the picture, the à-trous artefact; moved per pixel
+    /// and per frame it averages away over time. The last level alone, whose step is eight. On the
+    /// history fix's scene the noise of two pixels eight apart, which share six of a fixed lattice's
+    /// nine taps, correlated at 0.645 and correlates at 0.424
+    /// (`theWidestLevelsTapsStandOffTheirLattice`); `noise` moved by no figure, being a measure of
+    /// how much noise and not of its shape. **It costs about 0.05 ms of the median frame**, where
+    /// neighbouring lanes fetch taps the offset scattered.
+    const uint ATROUS_JITTER_STEP = 4u;
 
     /// How much of a froxel's answer comes from where it stood last frame.
     ///

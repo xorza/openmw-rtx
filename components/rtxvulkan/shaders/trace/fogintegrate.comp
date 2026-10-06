@@ -123,7 +123,8 @@ FogSlice sliceAt(ivec2 column, uint slice, ivec2 grid, float surfaces[9], out ve
     const vec3 lamps = texelFetch(fogLamps, ivec3(column, int(slice)), 0).xyz;
     const FogPoint held = unpackFogPoint(point, seeing);
 
-    return FogSlice(held.mInscatter + lamps * held.mSeeing.mLampsSeen, held.mExtinction, held.mSeeing.mTransport);
+    return FogSlice(held.mSource + lamps * (held.mSeeing.mLampsSeen * held.mDensity), held.mDensity,
+        held.mSeeing.mSunSource);
 }
 
 void main()
@@ -183,8 +184,10 @@ void main()
         const float middle = froxelMiddle(slice);
         const float ahead = froxelFar(slice);
 
-        fogThrough(transmittance, scattered, sunward, fogSliceBetween(before, here, 0.75), middle - behind);
-        fogThrough(transmittance, scattered, sunward, fogSliceBetween(here, after, 0.25), ahead - middle);
+        fogThrough(transmittance, scattered, sunward, fogSliceBetween(before, here, 0.75), middle - behind,
+            frame.mFogExtinction);
+        fogThrough(transmittance, scattered, sunward, fogSliceBetween(here, after, 0.25), ahead - middle,
+            frame.mFogExtinction);
 
         // **The accumulation at the slice's far edge**, which is the depth `fogVolumeAlong` resolves
         // a distance to, and the slice's own sample beside it, which is what that read steps

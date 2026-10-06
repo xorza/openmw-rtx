@@ -13,7 +13,6 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/trace/denoise/denoisehistory.hpp>
 
-#include "bouncereservoirs.hpp"
 #include "fogvolume.hpp"
 #include "gbuffer.hpp"
 #include "spritebin.hpp"
@@ -42,23 +41,21 @@ namespace Rtx
         ///        traced and waited for one at a time.
         /// @param radiance how wide the radiance channels and the frame composed from them are
         ///        stored — the run's choice, which `Rtx::RadianceWidth` argues.
-        /// @param reuses whether this camera's bounce may be reused, which only a camera with a past
-        ///        can: the world's. A picture's keeps reservoirs of one pixel, which its trace binds
-        ///        and never reads.
         /// @param indirect what the indirect light is at first, which decides which of the bounce's
         ///        histories the first `resize` makes: `setIndirect` says the rest.
         TraceChain(const Device& device, const TracePasses& passes, std::uint32_t bins, RadianceWidth radiance,
-            bool reuses, IndirectLight indirect);
+            IndirectLight indirect);
 
         /// Builds the chain at exactly this extent, whatever it was before, and nothing where it
         /// already stands at it.
         void resize(std::uint32_t width, std::uint32_t height);
 
-        /// Makes or lets go of what only a traced bounce keeps — the reservoirs and the denoiser's
-        /// mean of the bounce — for frames whose indirect light is `indirect`, and says to every
-        /// history of the bounce that the frames before it are not its own. Nothing where the chain
-        /// keeps that already. **Where a menu changes it**, so the images are made off the frame
-        /// path; a frame asking for another reaches it too (`record`), which is a harness's stop.
+        /// Makes or lets go of what only a traced bounce keeps — the denoiser's mean of the bounce —
+        /// for frames whose indirect light is `indirect`, and says to every history of the bounce
+        /// that the frames before it are not its own. Nothing where the chain keeps that already.
+        /// **Where a menu changes it**, so the images are made off the frame path; and before the
+        /// recording of a frame that asks for another opens, a harness's stop. `record` asserts the
+        /// chain matches its frame.
         void setIndirect(IndirectLight indirect);
 
         /// Makes the chain at least this big, keeping whatever extent it already reached on either
@@ -104,7 +101,6 @@ namespace Rtx
         std::uint32_t mWidth = 0;
         std::uint32_t mHeight = 0;
         const RadianceWidth mRadiance;
-        const bool mReuses;
 
         /// What the bounce's histories are kept for.
         IndirectLight mIndirect;
@@ -119,9 +115,6 @@ namespace Rtx
 
         /// What the shared denoising passes keep of this camera, at the extent.
         DenoiseHistory mDenoise;
-
-        /// What the bounce's reuse keeps of this camera, at the extent.
-        BounceReservoirs mReservoirs;
 
         /// The running sum a reference is built out of, empty until a trace averages. Not a history
         /// and nothing here reprojects: a plain per-pixel total over however many frames the caller

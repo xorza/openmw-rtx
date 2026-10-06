@@ -13,8 +13,9 @@
 // worth having.
 #extension GL_EXT_nonuniform_qualifier : require
 
+#include "shared/tables.h"
 #include "scene.h"
-#include "sets.h"
+#include "shared/sets.h"
 
 /// Every texture the scene loaded, indexed by the slot a material, a layer or an emitter names —
 /// and at `TEXTURE_NEUTRAL` the one texel a material with no diffuse names instead.

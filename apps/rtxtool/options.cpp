@@ -399,16 +399,6 @@ namespace RtxTool
                 Rtx::sNoiseSourceNames.list())
                 .c_str());
 
-        option(sFramed, "bounce-reuse",
-            bpo::value<std::string>()->default_value(
-                std::string(Rtx::sBounceReuseNames.name(byDefault.mSetup.mRun.mProfile.mReconstruction.mBounceReuse))),
-            std::format("what the trace makes of the bounce it draws at each pixel before anything filters "
-                        "it: {}. `own` takes each pixel's own bounce through the reservoirs, `temporal` merges "
-                        "last frame's into it and `spatiotemporal` its neighbours' as well, which is ReSTIR GI. "
-                        "Naming one is the A/B",
-                Rtx::sBounceReuseNames.list())
-                .c_str());
-
         option(sFramed, "indirect", bpo::value<std::string>(),
             std::format("whether a surface takes light from anything that is not a light: {}. `traced` "
                         "follows one bounce and cleans it, `off` traces none and takes none. Not given, "
@@ -454,6 +444,17 @@ namespace RtxTool
         option(sFramed, "level-epsilon", number(anyNumber<float>())->default_value(0.0f),
             "levels added to the texture level bias past the ratio the upscaler sets, negative for "
             "sharper. Nought is the ratio alone, and off the upscaler nothing is biased");
+
+        option(sFramed, "shadow-floor", number(between(0.0f, 0.25f))->default_value(Rtx::Shaders::SHADOW_DRAW_FLOOR),
+            "the share of a pixel's light under which a sky source, or the sky against the lamps, is never "
+            "the one its shadow bit is drawn from, and over all but which a bit's own source makes the bit "
+            "exact rather than drawn. Its light rides the drawn source's bit");
+
+        option(sFramed, "lamp-candidates",
+            number(atLeast<std::uint32_t>(0))->default_value(Rtx::Shaders::LAMP_CANDIDATES),
+            "how many lamp candidates a shading point that composes its light — a path's far end, a pane, a "
+            "water leg — draws from its cell where the cell holds more, resampled to the one it traces. "
+            "Nought walks every lamp, which the eye's own surface always does");
 
         option(sFramed, "hold", bpo::value<bool>()->default_value(false)->implicit_value(true),
             std::format("hold the queue behind the host after every frame's trace, as `check` does: `check` holds "
@@ -692,8 +693,8 @@ namespace RtxTool
         request.mNoise = noise == "auto" ? Rtx::ReconstructionRequest{}.mNoise
                                          : Rtx::sNoiseSourceNames.require(noise, "a noise source");
         request.mLevelEpsilon = variables["level-epsilon"].as<float>();
-        request.mBounceReuse
-            = Rtx::sBounceReuseNames.require(variables["bounce-reuse"].as<std::string>(), "a bounce reuse");
+        request.mShadowFloor = variables["shadow-floor"].as<float>();
+        request.mLampCandidates = variables["lamp-candidates"].as<std::uint32_t>();
         request.mAntilag = variables["antilag"].as<bool>();
         request.mHistoryFix = variables["history-fix"].as<bool>();
         request.mDualMotion = variables["dual-motion"].as<bool>();

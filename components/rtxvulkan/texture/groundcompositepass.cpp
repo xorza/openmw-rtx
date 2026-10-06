@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <span>
 
-#include <components/rtx/shaders/ground.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
@@ -13,6 +12,7 @@
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/ground.h>
 
 namespace Rtx
 {

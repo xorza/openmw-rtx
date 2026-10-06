@@ -51,6 +51,7 @@ namespace RtxTool
             EXPECT_EQ(ahead, std::vector<Outcome>(5, Outcome::Ahead));
             EXPECT_EQ(window.getWaited(), 4u) << "the wait counts the frame that stood whole";
             EXPECT_EQ(window.getMeasuredIndex(), std::nullopt) << "one frame of the warm-up is still to run";
+            EXPECT_EQ(window.getMeasuredFrom(), std::nullopt);
 
             EXPECT_EQ(window.take(standing(0)).mOutcome, Outcome::Ahead);
             EXPECT_EQ(window.getMeasuredIndex(), 0u) << "the frame about to be taken opens the measurement";
@@ -60,6 +61,7 @@ namespace RtxTool
             EXPECT_EQ(first.mOutcome, Outcome::Measured);
             EXPECT_EQ(first.mDrawn, 1u);
             EXPECT_EQ(window.getSeen(), 7u);
+            EXPECT_EQ(window.getMeasuredFrom(), 6u) << "the seventh frame, traced at six seen";
 
             const MeasureWindow::Taken second = window.take(standing(0));
             EXPECT_FALSE(second.mOpened);

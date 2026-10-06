@@ -21,6 +21,7 @@ from omw.system import (
     jobs,
     msvc_environment,
     output,
+    read_text,
     resolved,
     run,
 )
@@ -43,7 +44,7 @@ def configured_from(directory: Path, digest: str) -> bool:
     and both halves of what the configure left — the cache the regeneration reads and the Ninja file
     it writes. A directory missing either is configured again, whatever its stamp says."""
     stamp = directory / CONFIGURED_FROM
-    return (stamp.is_file() and stamp.read_text().strip() == digest
+    return (stamp.is_file() and read_text(stamp).strip() == digest
             and (directory / "CMakeCache.txt").is_file() and (directory / "build.ninja").is_file())
 
 
@@ -89,7 +90,7 @@ class Build:
     def cache_entries(self) -> list[str]:
         """The build's CMake cache, an entry a line; none where it has no cache yet."""
         cache = self.dir / "CMakeCache.txt"
-        return cache.read_text(errors="replace").splitlines() if cache.is_file() else []
+        return read_text(cache).splitlines() if cache.is_file() else []
 
     def cache_value(self, name: str) -> str | None:
         for entry in self.cache_entries():

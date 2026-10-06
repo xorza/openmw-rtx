@@ -288,6 +288,12 @@ namespace RtxTool
         /// Where the last measured frame is written as a PNG, or empty for none.
         std::filesystem::path mCapture;
 
+        /// Whether the capture is the sum's own picture at sixteen bits a channel
+        /// (`Rtx::Renderer::readDeepPixels`), undithered, rather than the frame's bytes as shown:
+        /// a reference's, which a bias is measured against and whose byte would stand under it.
+        /// Only a stop that sums (`Schedule::mAccumulate`) has one.
+        bool mDeepCapture = false;
+
         /// A mean the last measured frame is added to, which the stop that adds the `mOf`th writes
         /// to `mFile` as a PNG: what a picture converges to, which no one stop draws. The stops one
         /// mean takes run one after another.

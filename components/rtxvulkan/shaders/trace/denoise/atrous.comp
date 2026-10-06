@@ -41,21 +41,28 @@
 // **Here and not in a pass of its own**, because the first level already reads the accumulator's
 // mean and writes the history: a pass before it would copy every pixel of every frame to rebuild
 // the few the eye just uncovered, and the history starts from the rebuilt mean either way. One path,
-// with the step and the weights selected.
+// with the step and the weights selected. **So a fixed pixel takes the fix in place of the B3 and
+// not before it**, one level fewer than ReLAX's, whose fix is a pass ahead of every level: the fix's
+// twenty-five taps stand four to seven pixels apart, a support of up to twenty-eight pixels the
+// B3's five at step one lies inside, and the narrow levels after it filter the fixed pixel as they
+// filter every other. **And its answer is the fast mean's too** (`fast`), which ReLAX's clamp makes
+// of its two histories.
 //
 // **Only the first level is wide** (`ATROUS_WIDE`): a 5×5 B3 kernel over a 3×3 prefilter of the
 // variance, and the history fix. Every level after it is ReLAX's later pass, a 3×3 Gaussian
 // weighed by the centre's own variance, which the level before already averaged: a third of the
 // taps, and a fourth level that reaches 16 pixels where three 5×5 levels reached 14.
 
-#include "accumulate.h"
-#include "atrous.h"
+#include "shared/accumulate.h"
+#include "shared/atrous.h"
 #include "camera.h"
 #include "colour.h"
 #include "gbuffer.h"
-#include "sets.h"
+#include "shared/sets.h"
 
+#include "lib/hash.glsl"
 #include "lib/pixels.glsl"
+#include "lib/sharedexponent.glsl"
 #include "lib/surfacematch.glsl"
 
 /// Whether this module is the first level, wide, or one of the narrow levels after it.
@@ -70,11 +77,12 @@ layout(local_size_x = ATROUS_WORKGROUP, local_size_y = ATROUS_WORKGROUP) in;
 ///
 /// **A sampled image and not a storage one, on every input this pass only reads.**
 /// `AtrousPass::sBindings` carries the measurement. A sampled declaration states no format, which
-/// is why these three name none where the target below does.
+/// is why these three name none. The targets name none either: the first level writes
+/// `ATROUS_CHANNEL` and every level after it `ATROUS_NARROW`.
 layout(set = SET_PASS, binding = ATROUS_BIND_SOURCE) uniform texture2D source;
 
-/// Where this level puts what it made of it.
-layout(set = SET_PASS, binding = ATROUS_BIND_FILTERED, ATROUS_CHANNEL) uniform writeonly image2D filtered;
+/// Where this level puts what it made of it, in full floats or in halves.
+layout(set = SET_PASS, binding = ATROUS_BIND_FILTERED) uniform writeonly image2D filtered;
 
 /// The shading normal's code in `r` and the distance from the eye in `g`, in world units, with the
 /// eye the ray left in its sign — `CHANNEL_SURFACE`, `packSurfaceDistance`. A ray that hit nothing
@@ -91,12 +99,19 @@ layout(set = SET_PASS, binding = ATROUS_BIND_SURFACE) uniform texture2D surfaceC
 /// by the ambient one is then the same light, and a surface whose two albedos are one is shown as
 /// the bounce alone would show it.
 layout(set = SET_PASS, binding = ATROUS_BIND_FILL_SOURCE) uniform texture2D fillSource;
-layout(set = SET_PASS, binding = ATROUS_BIND_FILL_FILTERED, ATROUS_CHANNEL) uniform writeonly image2D fillFiltered;
+layout(set = SET_PASS, binding = ATROUS_BIND_FILL_FILTERED) uniform writeonly image2D fillFiltered;
 
 /// The accumulator's moments, for how many frames each pixel's mean holds in `a`: whether the history
 /// fix rebuilds it, and how far apart its taps stand. Read only where `AtrousConstants::mFixFrames`
 /// asks.
 layout(set = SET_PASS, binding = ATROUS_BIND_MOMENTS) uniform texture2D moments;
+
+/// The accumulator's fast means, as the clamp wrote them: where the history fix rebuilds a pixel,
+/// its answer goes here too, so the next frame's fast mean starts from the rebuilt light and not
+/// from one raw sample — ReLAX's clamp copies the fixed history into the slow one, so after it the
+/// two hold one light (`RELAX_HistoryClamping`). Untouched everywhere else, and at every narrow
+/// level.
+layout(set = SET_PASS, binding = ATROUS_BIND_FAST, ACCUMULATE_FAST) uniform writeonly uimage2D fast;
 
 layout(push_constant, scalar) uniform Push
 {
@@ -194,6 +209,15 @@ void main()
     const int step = fixing ? int(floor(ACCUMULATE_FIX_STRIDE / (1.0 + held) + 0.5)) : int(level.mStep);
     const int reach = ATROUS_WIDE ? 2 : 1;
 
+    // **The outer taps off their lattice past `ATROUS_JITTER_STEP`**, ReLAX's offset: by a hash of
+    // the pixel and the frame, so `repeat` draws it again, and truncated as ReLAX truncates it. Not in
+    // the history fix, whose pass in ReLAX has no offset; a select, since a level's step is one step
+    // for every lane but a fixed one.
+    uint taps = seededKey(pixelKey(uvec2(at)) + SEED_WAVELET_TAPS, level.mFrame);
+    const vec2 drawn = vec2(randomNext(taps), randomNext(taps));
+    const bool jitters = !fixing && uint(step) > ATROUS_JITTER_STEP;
+    const ivec2 offset = jitters ? ivec2(float(step) * 0.5 * (drawn - 0.5)) : ivec2(0);
+
     // **How noisy this pixel still is, which is what makes the brightness test mean anything.** A
     // difference of one against a variance of four is nothing; the same difference against a settled
     // pixel is an edge. The epsilon is a divide guard and nothing else. The history fix has no
@@ -214,7 +238,7 @@ void main()
     for (int y = -reach; y <= reach; ++y)
         for (int x = -reach; x <= reach; ++x)
         {
-            const ivec2 tap = at + ivec2(x, y) * step;
+            const ivec2 tap = at + ivec2(x, y) * step + (x == 0 && y == 0 ? ivec2(0) : offset);
             if (outsideOf(tap, uvec2(level.mEyes.mWorld.mWidth, level.mEyes.mWorld.mHeight)))
                 continue;
 
@@ -227,7 +251,8 @@ void main()
             // Two surfaces are the same surface where they face the same way and lie in the same
             // plane. Both tests are needed: a facing test alone joins two parallel walls a room
             // apart, and a plane test alone joins a floor to the wall standing on it.
-            const float facing = facingWeight(normal, facingThere);
+            const float facing
+                = facingWeight(normal, facingThere, fixing ? ACCUMULATE_FIX_NORMAL_POWER : ATROUS_NORMAL_POWER);
             const float coplanar = coplanarWeight(normal, position, positionAt(tap, there.y), footprint);
 
             // The third of SVGF's three, and the only one about the light rather than the surface.
@@ -246,6 +271,10 @@ void main()
         }
 
     // The centre always passes its own tests, so the weight can only be zero if it underflowed.
-    imageStore(filtered, at, weight > 0.0 ? vec4(sum / weight, variance / (weight * weight)) : centre);
-    imageStore(fillFiltered, at, weight > 0.0 ? vec4(sumFill / weight, 0.0) : texelFetch(fillSource, at, 0));
+    const vec4 answer = weight > 0.0 ? vec4(sum / weight, variance / (weight * weight)) : centre;
+    const vec4 answerFill = weight > 0.0 ? vec4(sumFill / weight, 0.0) : texelFetch(fillSource, at, 0);
+    imageStore(filtered, at, answer);
+    imageStore(fillFiltered, at, answerFill);
+    if (fixing)
+        imageStore(fast, at, uvec4(packRgb9e5(answer.rgb), packRgb9e5(answerFill.rgb), 0u, 0u));
 }

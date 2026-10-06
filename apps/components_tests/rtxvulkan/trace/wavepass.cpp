@@ -290,6 +290,28 @@ namespace Rtx
             synthesise(waves, pool, 0.0);
             const std::vector<float> again = Testing::readHalves(surface, 0);
             EXPECT_EQ(again, before) << "the same moment is not the same sea";
+
+            // **And the tiles say which moment they hold**, which a trace at that moment reads as
+            // they stand rather than synthesising them again: the last one recorded, and no other.
+            EXPECT_TRUE(waves.holds(splitSeconds(0.0)));
+            EXPECT_FALSE(waves.holds(splitSeconds(2.0))) << "the tiles hold the moment before the last";
+        }
+
+        /// A sea described anew holds no moment: its tiles are the last sea's until it is
+        /// synthesised, and a trace at the last moment that read them as they stood would draw the
+        /// sea it replaced.
+        TEST_F(RtxWavePassTest, aSeaDescribedAnewHoldsNoMoment)
+        {
+            WavePass waves(getDevice());
+            EXPECT_TRUE(waves.holds(osg::Vec2f())) << "the first frame's tiles, which construction synthesised";
+
+            synthesise(waves, getPool(), 3.0);
+            ASSERT_TRUE(waves.holds(splitSeconds(3.0)));
+
+            SeaState rougher;
+            rougher.mSignificantHeight *= 2.0f;
+            waves.describe(rougher);
+            EXPECT_FALSE(waves.holds(splitSeconds(3.0))) << "a new sea read as the tiles of the old";
         }
     }
 }

@@ -10,7 +10,7 @@ import os
 from pathlib import PurePosixPath
 
 from omw.build import Build
-from omw.system import ROOT, WINDOWS, working_tree_files
+from omw.system import ROOT, WINDOWS, read_text, working_tree_files
 
 ELSEWHERE = {
     # Writes `tablesgen.hpp`, built by the `Makefile` beside it.
@@ -52,7 +52,7 @@ def unlisted(tracked: list[str], compiled: set[str], windows: bool) -> list[str]
 
 def check(build: Build) -> int:
     tracked = working_tree_files("apps/*.cpp", "components/*.cpp")
-    database = json.loads((build.dir / "compile_commands.json").read_text())
+    database = json.loads(read_text(build.dir / "compile_commands.json"))
     # Without Qt a build leaves out libraries no rule can name; debug, full and package have Qt.
     if not any("components_qt.dir" in entry.get("output", "") for entry in database):
         return 0

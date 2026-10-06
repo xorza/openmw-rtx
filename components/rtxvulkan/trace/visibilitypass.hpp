@@ -22,7 +22,6 @@
 
 namespace Rtx
 {
-    class BounceReservoirs;
     class Device;
     class DeviceScene;
     class FogVolume;
@@ -98,13 +97,6 @@ namespace Rtx
         /// Where the air in front of this camera is integrated, before the trace reads it. Sized to
         /// the camera, as the channels are, and so the chain's and not the pass's.
         const FogVolume& mFogVolume;
-
-        /// Where the bounce's reuse keeps its reservoirs, this frame's half turned to; what this
-        /// frame does with them, and whether last frame's half holds any to read. The chain's, as
-        /// the air is.
-        const BounceReservoirs& mReservoirs;
-        BounceReuse mBounceReuse = BounceReuse::Off;
-        bool mBounceHistory = false;
     };
 
     /// What a trace can be told at compile time, and so what keys a pipeline. Each is only ever
@@ -155,6 +147,10 @@ namespace Rtx
         VisibilityPass(const Device& device, const SetLayout& textureLayout, const SetLayout& channelLayout,
             const SetLayout& volumeLayout, bool counting, bool specialize);
 
+        /// Where the blue-noise tile is, named for the next submit: what the frame block carries,
+        /// and the tone pass's dither draws from.
+        VkDeviceAddress getBlueNoise() const { return mBlueNoise.addressFor(); }
+
         /// Waits `patience` at most for every kernel, and says how many are made; throws what making
         /// one threw. For a host drawing a loading screen while it waits. Recording needs no wait of
         /// its own: every launch reads its kernel through `kernels`, which waits.
@@ -195,15 +191,6 @@ namespace Rtx
         void record(VkCommandBuffer commands, const VisibilityInputs& inputs,
             const Shaders::VisibilityConstants& constants, GpuTimer* timer) const;
 
-        /// The bounce's reuse over what the trace left: last frame's reservoirs merged into this
-        /// frame's candidates, the pairs' shift rays traced once for both ends, the partners' merged
-        /// into each pixel's, the final visibility ray and the shade into `Channel::Indirect` and
-        /// `Channel::Fill` — as much of that as `VisibilityInputs::mBounceReuse` asks. After
-        /// `record` and before the channels are handed over, since the resolve writes two of them.
-        /// Nothing where no reuse runs, and the trace wrote both channels itself.
-        void recordBounceReuse(VkCommandBuffer commands, const VisibilityInputs& inputs,
-            const Shaders::VisibilityConstants& constants, GpuTimer* timer) const;
-
         /// Composites the puffs over `shown`, in place, at the picture's own extent: the
         /// sprites' shape and the cloud shells marched there against the bin the trace binned over its
         /// own grid, and the sprites' light read off the layer the trace left in `Channel::Puffs`. After
@@ -211,12 +198,13 @@ namespace Rtx
         /// `spritecomposite.rgen` says what an upscaler's overlay costs.
         ///
         /// @param shown the frame as it will be shown, in `GENERAL`.
+        /// @param eyes the frame's eyes as the trace cast them, at the traced extent the launch
+        ///        covers; the composite is handed them on the shown grid.
         /// @param extent how much of `shown` the picture is, from its corner: the whole of a
         ///        frame's, and a picture's own size inside an image that may be larger. The block is
-        ///        the one the trace wrote, so the traced camera and the bin are read from there.
-        /// @param traced the extent the trace ran at, its camera's, which the launch covers.
+        ///        the one the trace wrote, so the bin is read from there.
         void recordSpriteComposite(VkCommandBuffer commands, const VisibilityInputs& inputs, const Image& shown,
-            VkExtent2D extent, VkExtent2D traced, GpuTimer* timer) const;
+            const Shaders::Eyes& eyes, VkExtent2D extent, GpuTimer* timer) const;
 
     private:
         enum class Kernel
@@ -228,10 +216,6 @@ namespace Rtx
             SpriteComposite,
             SpriteShelter,
             SpriteEmitters,
-            BounceValidate,
-            BounceTemporal,
-            BouncePairs,
-            BounceResolve,
         };
 
         /// One kernel to make: which of the pass's launches, and for the two tables, which tuple.
@@ -341,15 +325,6 @@ namespace Rtx
             /// The pass that integrates the columns, which takes no tuple at all: every question was
             /// answered by the pass that filled the froxels.
             std::unique_ptr<ComputePipeline<NoConstants>> mIntegrate;
-
-            /// The bounce's reuse, which takes no tuple: the validation, a launch because it traces and
-            /// shades again what last frame kept; the temporal merge, a dispatch because it traces
-            /// nothing; the pairs, a launch because it traces a pair's shift rays once for both; and
-            /// the resolve, a launch because it traces the final visibility ray.
-            std::unique_ptr<TracePipeline<NoConstants>> mBounceValidate;
-            std::unique_ptr<ComputePipeline<NoConstants>> mBounceTemporal;
-            std::unique_ptr<TracePipeline<NoConstants>> mBouncePairs;
-            std::unique_ptr<TracePipeline<NoConstants>> mBounceResolve;
         };
 
         /// The kernels, once the compile is over: waits for it, and throws what it threw, every time

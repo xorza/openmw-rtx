@@ -288,6 +288,43 @@ namespace RtxTool
             mFailure = written.error();
     }
 
+    std::optional<std::uint32_t> Measurer::probeSample(const Stop& stop) const
+    {
+        const std::optional<std::uint32_t> from = mProgress.mWindow.getMeasuredFrom();
+        if (!stop.mSchedule.mFrozen || stop.mSchedule.mRoute.has_value() || !stop.mActions.mHash
+            || mProgress.mReconstruction.mJitter || !from.has_value())
+            return std::nullopt;
+
+        return stop.mSchedule.mSampleOffset + *from;
+    }
+
+    void Measurer::probe(const Stop& stop, Rtx::Renderer& renderer, const std::uint64_t submitted)
+    {
+        while (const std::optional<Rtx::FrameResult> finished = renderer.finishFrame())
+        {
+            if (finished->mFrame != submitted)
+                continue;
+
+            Crash::contract(finished->mDigest.has_value(), "a still's probe came back without its digest");
+
+            // **The same frame, traced again after the last measured one with the first one's
+            // sample**: the jitter and every dither of the eye's surface are the first frame's, so
+            // its surface and motion cannot move unless the code under them did. The build pins the
+            // float arithmetic the driver's second code could otherwise take apart, so a probe that
+            // moved was traced on a swapped code computing one of the operations left to the device
+            // — a division, a root, a transcendental — otherwise, and the stop's frames are then two
+            // codes' and no reference.
+            if (mRecord.getHashes().probeMoved(stop.mName, *finished->mDigest))
+            {
+                const std::string why
+                    = std::format("the driver's code changed during {}: its probe's depth or motion moved", stop.mName);
+                Log(Debug::Error) << "Ray tracing session: " << why;
+                mRecord.note(why + '\n');
+                mRecord.fail();
+            }
+        }
+    }
+
     BenchPlace Measurer::finish(const Stop& stop, const MWRender::FrameContext& context,
         const MWRender::FrameReport& report, const float travelled, StopWriter& writer)
     {
@@ -332,23 +369,6 @@ namespace RtxTool
             mRecord.note(why + '\n');
             mRecord.fail();
         }
-
-        // **A still is one frame traced again, and its depth and motion cannot move unless the
-        // code under them did.** Asked of every hashed still that nothing jittered and nothing
-        // flew. The build pins the float arithmetic the driver's second code could otherwise take
-        // apart (`Rtx::pinFloatArithmetic`), so a frame where either moved is a swapped code
-        // computing one of the operations left to the device — a division, a root, a
-        // transcendental — otherwise, and the stop's frames are then two codes' and no reference.
-        if (stop.mSchedule.mFrozen && !stop.mSchedule.mRoute.has_value() && stop.mActions.mHash
-            && !mProgress.mReconstruction.mJitter)
-            if (const std::optional<std::uint32_t> moved = mRecord.getHashes().findStillMoved(stop.mName))
-            {
-                const std::string why = std::format(
-                    "the driver's code changed during {}: depth or motion moved at frame {}", stop.mName, *moved);
-                Log(Debug::Error) << "Ray tracing session: " << why;
-                mRecord.note(why + '\n');
-                mRecord.fail();
-            }
 
         if (mRecord.empty())
         {

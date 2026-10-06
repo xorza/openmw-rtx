@@ -46,6 +46,9 @@ namespace Rtx
         /// The two eyes the trace sampled through, jitter and all.
         Shaders::Eyes mEyes;
 
+        /// Where inside its pixel the previous frame sampled: `VisibilityConstants::mPreviousJitter`.
+        Shaders::vec2 mPreviousJitter;
+
         /// `Reconstruction::mJitterPhases`: what the jitter the trace sampled with repeats after.
         std::uint32_t mJitterPhases = 0;
 

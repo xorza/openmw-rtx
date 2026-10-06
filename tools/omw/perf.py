@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import IO
 
 from omw.build import Build
-from omw.system import WINDOWS, Refusal, Switches, require
+from omw.system import WINDOWS, Refusal, Switches, read_text, require
 
 SAMPLES_A_SECOND = "5999"
 
@@ -74,12 +74,13 @@ def profile(build: Build, args: list[str]) -> int:
 
         bench = [str(part) for part in build.harness_line("bench", "--validation=off", "--window=false", *place,
                                                           f"--perf-control={control}", *extra)]
-        with open(out / "bench.txt", "w") as log:
+        with open(out / "bench.txt", "w", encoding="utf-8") as log:
             if offcpu:
                 code = _record_offcpu(build, record, bench, data, log)
             else:
                 recorded = subprocess.Popen([*record, "--", *bench], cwd=build.dir, env=build.env,
-                                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8",
+                                            errors="replace")
                 _tee(recorded, log)
                 code = recorded.wait()
     finally:
@@ -91,7 +92,8 @@ def profile(build: Build, args: list[str]) -> int:
 
 
 def _perf_report(*args: str) -> str:
-    return subprocess.run(["perf", "report", *args], capture_output=True, text=True, check=False).stdout
+    return subprocess.run(["perf", "report", *args], capture_output=True, encoding="utf-8", errors="replace",
+                          check=False).stdout
 
 
 def _narrow(line: str, width: int = 86) -> str:
@@ -115,7 +117,7 @@ def _report(data: Path, out: Path, slug: str, blocked: bool) -> None:
     read beat inline names that name the wrong thing."""
     wall = 0.0
     frames = 0.0
-    for line in (out / "bench.txt").read_text(errors="replace").splitlines():
+    for line in read_text(out / "bench.txt").splitlines():
         if re.search(r"frames in .* s ", line):
             fields = line.split()
             frames += float(fields[0])
@@ -217,14 +219,15 @@ def _record_offcpu(build: Build, record: list[str], bench: list[str], data: Path
     throughout, where it has a home, a Wayland socket and a GPU, and perf attaches to it."""
     elevate: list[str] = []
     perf = shutil.which("perf") or "perf"
-    capabilities = subprocess.run(["getcap", perf], capture_output=True, text=True, check=False).stdout
+    capabilities = subprocess.run(["getcap", perf], capture_output=True, encoding="utf-8", errors="replace",
+                                  check=False).stdout
     if "cap_bpf" not in capabilities:
         print("profile: perf carries no cap_bpf — it runs under sudo, and the harness does not")
         elevate = ["sudo"]
         subprocess.run(["sudo", "-v"], check=True)
 
     harness = subprocess.Popen(bench, cwd=build.dir, env=build.env, stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT, text=True)
+                               stderr=subprocess.STDOUT, encoding="utf-8", errors="replace")
     # The harness waits at its first place until perf opens the control fifo, so perf starts now.
     recorder = subprocess.Popen([*elevate, *record, "-p", str(harness.pid)])
     _tee(harness, log)

@@ -91,6 +91,48 @@ namespace Rtx
             return a * (end - from) + b * (std::sin(end) - std::sin(from));
         }
 
+        /// **A bounded draw spends fewer samples under the horizon and keeps the lobe's mean.** The
+        /// reflection of the eye about each drawn facet, over 2^16 Hammersley points, at an eye 84
+        /// degrees off the normal and three alphas: under the whole cap a share of the
+        /// reflections leave under the horizon and weigh nought; under the bounded cap
+        /// (`boundedCap`) fewer do, and each weighs `boundedWeight` of what it did. Both estimate one
+        /// integral, the lobe's directional albedo with no Fresnel, `E[G2 / G1]`, so their means
+        /// agree to the points' own error, 2e-3.
+        TEST(RtxBrdfTest, aBoundedDrawWastesFewerReflectionsAndKeepsTheLobesMean)
+        {
+            constexpr std::uint32_t samples = 1u << 16;
+            const osg::Vec3f eye(std::sqrt(1.0f - 0.1f * 0.1f), 0.0f, 0.1f);
+            for (const float alpha : { 0.3f, 0.6f, 1.0f })
+            {
+                const auto drawn = [&](float bound) {
+                    std::pair<double, double> wastedAndMean{ 0.0, 0.0 };
+                    for (std::uint32_t at = 0; at < samples; ++at)
+                    {
+                        const float turn = Shaders::TAU * (static_cast<float>(at) + 0.5f) / static_cast<float>(samples);
+                        const osg::Vec3f facet = Shaders::visibleNormal(
+                            eye, alpha, radicalInverse(at, 2), osg::Vec2f(std::cos(turn), std::sin(turn)), bound);
+                        const osg::Vec3f reflected = facet * (2.0f * (eye * facet)) - eye;
+                        if (!(reflected.z() > 0.0f))
+                        {
+                            wastedAndMean.first += 1.0 / samples;
+                            continue;
+                        }
+                        wastedAndMean.second
+                            += static_cast<double>(Shaders::smithShadowingGivenMasking(alpha, eye.z(), reflected.z())
+                                   * Shaders::boundedWeight(eye, alpha, bound))
+                            / samples;
+                    }
+                    return wastedAndMean;
+                };
+
+                const auto [wholeWasted, wholeMean] = drawn(1.0f);
+                const auto [boundedWasted, boundedMean] = drawn(Shaders::boundedCap(eye, alpha));
+                EXPECT_GT(wholeWasted, 0.01) << "alpha " << alpha << ": nothing to bound, or this proves nothing";
+                EXPECT_LT(boundedWasted, 0.5 * wholeWasted) << "alpha " << alpha;
+                EXPECT_NEAR(boundedMean, wholeMean, 2e-3) << "alpha " << alpha;
+            }
+        }
+
         /// **The visible normals are drawn by their density**, `G1 max(v.h, 0) D(h) / (n.v)`: a
         /// histogram of `visibleNormal`'s draws, bin by bin, against that density integrated over
         /// the bin.
@@ -130,7 +172,7 @@ namespace Rtx
                     {
                         const float turn = Shaders::TAU * (static_cast<float>(at) + 0.5f) / static_cast<float>(samples);
                         const osg::Vec3f facet = Shaders::visibleNormal(
-                            eye, alpha, radicalInverse(at, 2), osg::Vec2f(std::cos(turn), std::sin(turn)));
+                            eye, alpha, radicalInverse(at, 2), osg::Vec2f(std::cos(turn), std::sin(turn)), 1.0f);
 
                         const double x = facet.x();
                         const double y = facet.y();

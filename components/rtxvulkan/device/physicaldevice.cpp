@@ -19,6 +19,7 @@
 #include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 
+#include "requirements.hpp"
 #include "result.hpp"
 
 namespace Rtx
@@ -209,6 +210,35 @@ namespace Rtx
         if (const std::string missing = listMissingFormats(formats); !missing.empty())
         {
             profile.mObstacle = "missing format features for " + missing;
+            return profile;
+        }
+
+        // **What the shaders lean on that no feature names.** The upscaler's luma pyramid swaps
+        // within quads (`ffx_spd.h`), where Vulkan guarantees basic subgroup operations alone; and
+        // every push block is held to Vulkan 1.4's minimum, which a device reporting 1.4 and less
+        // breaks.
+        const VkPhysicalDeviceVulkan11Properties& subgroups = properties.mVulkan11;
+        if ((subgroups.subgroupSupportedOperations & VK_SUBGROUP_FEATURE_QUAD_BIT) == 0
+            || (subgroups.subgroupSupportedStages & VK_SHADER_STAGE_COMPUTE_BIT) == 0)
+        {
+            profile.mObstacle = "no quad subgroup operations in compute shaders";
+            return profile;
+        }
+
+        // Every module declares it (`pinFloatArithmetic`), and a device that does not honour it
+        // could fold every guard against a value that is not a number. For 32-bit floats, the one
+        // width a shipped module has: a module with another asks for a property this does not
+        // require, which validation names at the pipeline.
+        if (properties.mVulkan12.shaderSignedZeroInfNanPreserveFloat32 != VK_TRUE)
+        {
+            profile.mObstacle = "no preservation of signed zeros, infinities and NaNs in 32-bit floats";
+            return profile;
+        }
+
+        const std::uint32_t pushed = properties.mProperties2.properties.limits.maxPushConstantsSize;
+        if (pushed < sPushConstantsFloor)
+        {
+            profile.mObstacle = std::format("push constants of {} bytes, under {}", pushed, sPushConstantsFloor);
             return profile;
         }
 

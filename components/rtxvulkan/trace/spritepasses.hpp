@@ -2,9 +2,9 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/shaders/spritebin.h>
-#include <components/rtx/shaders/spriteshade.h>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/spritebin.h>
+#include <components/rtxvulkan/shaders/shared/spriteshade.h>
 
 namespace Rtx
 {

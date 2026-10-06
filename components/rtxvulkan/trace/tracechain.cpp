@@ -4,7 +4,6 @@
 #include <cassert>
 
 #include <components/rtx/renderer/channel.hpp>
-#include <components/rtx/shaders/composite.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
@@ -13,6 +12,7 @@
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/scene/spritesource.hpp>
+#include <components/rtxvulkan/shaders/shared/composite.h>
 #include <components/rtxvulkan/trace/denoise/denoised.hpp>
 
 #include "tracemedia.hpp"
@@ -24,14 +24,12 @@
 namespace Rtx
 {
     TraceChain::TraceChain(const Device& device, const TracePasses& passes, const std::uint32_t bins,
-        const RadianceWidth radiance, const bool reuses, const IndirectLight indirect)
+        const RadianceWidth radiance, const IndirectLight indirect)
         : mDevice(device)
         , mPasses(passes)
         , mRadiance(radiance)
-        , mReuses(reuses)
         , mIndirect(indirect)
         , mDenoise(device)
-        , mReservoirs(device)
     {
         assert(bins >= 1 && bins <= sFrameSlots && "a sprite bin past the frames in flight");
         mBins.reserve(bins);
@@ -54,9 +52,7 @@ namespace Rtx
 
         mChannels = std::make_unique<GBuffer>(mDevice, mPasses.mChannels, mWidth, mHeight, mRadiance);
         mFogVolume = std::make_unique<FogVolume>(mDevice, mPasses.mFog, mWidth, mHeight);
-        const bool traced = mIndirect == IndirectLight::Traced;
-        mDenoise.resize(mWidth, mHeight, traced);
-        mReservoirs.resize(mWidth, mHeight, mReuses && traced);
+        mDenoise.resize(mWidth, mHeight, mIndirect == IndirectLight::Traced);
 
         // Dropped rather than resized, because most runs never make one: sixteen bytes a pixel is
         // worth it to the reference mode and nothing to a window. The first averaging trace asks.
@@ -72,11 +68,8 @@ namespace Rtx
         if (!isBuilt())
             return;
 
-        // The denoiser's mean is fresh by the turn's own rule the next frame it runs, and the
-        // reservoirs are made anew, which is a reset.
-        const bool traced = indirect == IndirectLight::Traced;
-        mDenoise.keepBounce(traced);
-        mReservoirs.resize(mWidth, mHeight, mReuses && traced);
+        // The denoiser's mean is fresh by the turn's own rule the next frame it runs.
+        mDenoise.keepBounce(indirect == IndirectLight::Traced);
     }
 
     void TraceChain::grow(const std::uint32_t width, const std::uint32_t height)
@@ -96,24 +89,13 @@ namespace Rtx
         // turn. The air's is read by every trace, and the basis of nothing the frame carries says
         // so to it.
         if (what.mPastLost)
-        {
             mDenoise.reset();
-            mReservoirs.reset();
-        }
 
-        setIndirect(what.mReconstruction.mIndirect);
-
-        const BounceReuse reuse = what.mReconstruction.mBounceReuse;
-        assert((mReuses || reuse == BounceReuse::Off) && "a reuse asked of a chain that keeps no reservoirs");
-        const bool history = mReservoirs.turn(reuse != BounceReuse::Off);
+        assert(what.mReconstruction.mIndirect == mIndirect
+            && "a trace whose indirect light the chain was not set to before its recording opened");
 
         mFogVolume->turn();
-        const VisibilityInputs inputs{ .mSubject = what.mSubject,
-            .mChannels = *mChannels,
-            .mFogVolume = *mFogVolume,
-            .mReservoirs = mReservoirs,
-            .mBounceReuse = reuse,
-            .mBounceHistory = history };
+        const VisibilityInputs inputs{ .mSubject = what.mSubject, .mChannels = *mChannels, .mFogVolume = *mFogVolume };
 
         // Made by the first trace that averages, and that trace is the one that fills it: the first
         // write needs no contents and nothing to wait on, and every trace after reads what the last
@@ -126,12 +108,14 @@ namespace Rtx
         }
 
         // Before the trace and outside its zone, because the sea is a function of the clock and of
-        // nothing the camera does — one synthesis serves every ray. None where there is no sea,
-        // which is most interiors, and a fifth of a millisecond of device time in each of them.
-        if (inputs.mSubject.mSea)
+        // nothing the camera does — one synthesis serves every ray, and every trace at the same
+        // moment (`WavePass::holds`). None where there is no sea, which is most interiors, and a
+        // fifth of a millisecond of device time in each of them.
+        const WavePass& waves = inputs.mSubject.mMedia->getWaves();
+        if (inputs.mSubject.mSea && !waves.holds(what.mSampled.mWaterTime))
         {
             openZone(what.mTimer, commands, "waves");
-            inputs.mSubject.mMedia->getWaves().record(commands, what.mSampled.mWaterTime);
+            waves.record(commands, what.mSampled.mWaterTime);
             closeZone(what.mTimer, commands);
         }
 
@@ -179,7 +163,6 @@ namespace Rtx
 
         mChannels->begin(commands);
         mPasses.mVisibility.record(commands, inputs, what.mSampled, what.mTimer);
-        mPasses.mVisibility.recordBounceReuse(commands, inputs, what.mSampled, what.mTimer);
         mChannels->handOver(commands);
 
         // Where the bounce, the lobe's light and the layers' ended up: the filters' answers, or the
@@ -193,8 +176,8 @@ namespace Rtx
                 inputs.mSubject.mLamps, what.mReconstruction, what.mTimer)
             : Denoised::unfiltered(*mChannels);
 
-        // **Only where something is left to do**: a filter to put the albedo back in behind, a reused
-        // bounce to put back, or a sum to add the frame to. Anything else was composed by the trace,
+        // **Only where something is left to do**: a filter to put the albedo back in behind, or a sum
+        // to add the frame to. Anything else was composed by the trace,
         // into the channel that is the frame, and every pass after it reads the channel as
         // `handOver` left it.
         const Image& frame = mChannels->get(Channel::Direct);

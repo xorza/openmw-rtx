@@ -22,9 +22,9 @@
 // nothing reads back has no business crossing to the host at all.
 
 #include "colour.h"
-#include "ground.h"
+#include "shared/ground.h"
 #include "scene.h"
-#include "sets.h"
+#include "shared/sets.h"
 
 #include "lib/ground.glsl"
 #include "lib/pixels.glsl"

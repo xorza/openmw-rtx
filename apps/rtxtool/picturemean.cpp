@@ -3,6 +3,8 @@
 #include <cassert>
 #include <cstddef>
 
+#include <components/rtx/renderer/png.hpp>
+
 namespace RtxTool
 {
     void PictureMean::add(std::span<const std::uint8_t> pixels, std::uint32_t width, std::uint32_t height)
@@ -21,13 +23,14 @@ namespace RtxTool
         ++mCount;
     }
 
-    void PictureMean::mean(std::vector<std::uint8_t>& pixels) const
+    void PictureMean::mean(std::vector<std::uint16_t>& samples) const
     {
         assert(mCount > 0 && "the mean of no pictures");
 
-        pixels.resize(mSums.size());
+        samples.resize(mSums.size());
         for (std::size_t at = 0; at < mSums.size(); ++at)
-            pixels[at] = static_cast<std::uint8_t>((2 * mSums[at] + mCount) / (2 * mCount));
+            samples[at] = static_cast<std::uint16_t>(
+                (std::uint64_t{ mSums[at] } * 2 * Rtx::sSamplesPerLevel + mCount) / (std::uint64_t{ 2 } * mCount));
     }
 
     void PictureMean::clear()

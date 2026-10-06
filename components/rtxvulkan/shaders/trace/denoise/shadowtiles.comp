@@ -65,10 +65,10 @@
 //   is NVIDIA's SIGMA's rule (the distance to the occluder times the source's half angle, in
 //   pixels), and this pass hands it to the spatial levels, which run only as far.
 
-#include "accumulate.h"
+#include "shared/accumulate.h"
 #include "gbuffer.h"
-#include "sets.h"
-#include "shadow.h"
+#include "shared/sets.h"
+#include "shared/shadow.h"
 
 #include "lib/pixels.glsl"
 #include "lib/surfacematch.glsl"
@@ -164,15 +164,6 @@ vec2 horizontalNeighbourhood(uint row, uint column)
     }
 
     return moment;
-}
-
-/// Whether the history at `at` belongs to the surface this pixel shows.
-bool sameSurface(ivec2 at, vec3 normal, float distance, vec3 moved)
-{
-    if (outsideOf(at, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
-        return false;
-
-    return heldSurfaceMatches(imageLoad(heldSurface, at), normal, distance, moved, frame.mDistanceScale);
 }
 
 void main()
@@ -295,15 +286,15 @@ void main()
         const float current = ((gOpen[square.y] >> square.x) & 1u) != 0u ? 1.0 : 0.0;
 
         const vec2 seen = imageLoad(surfaceChannel, at).rg;
-        const vec3 normal = unpackSurfaceNormal(seen.x);
-        const float away = surfaceDistance(seen.y);
         const vec3 moved = imageLoad(motion, at).xyz;
-        const HistoryFootprint before = historyFootprint(at, frame.mEyes.mWorld.mJitter, moved);
+        const HistoryFootprint before = historyFootprint(at, moved);
+        const HistoryPlane plane = historyPlane(frame, at, seen, moved);
 
         // The moments at the nearest texel, as the SDK fetches them, and none where that texel is
         // another surface: the SDK's disocclusion.
         const ivec2 nearest = before.mLow + ivec2(greaterThanEqual(before.mAcross, vec2(0.5)));
-        const bool held = frame.mReset == 0u && sameSurface(nearest, normal, away, moved);
+        const bool held = frame.mReset == 0u && !outsideOf(nearest, extent)
+            && heldSurfaceMatches(imageLoad(heldSurface, nearest), nearest, plane);
         const vec3 previousMoments = held ? imageLoad(momentsBefore, nearest).xyz : vec3(0.0);
 
         const float samples = previousMoments.z + 1.0;
@@ -318,26 +309,23 @@ void main()
         const float low = neighbourhood - 0.5 * deviation;
         const float high = neighbourhood + 0.5 * deviation;
 
-        // The history bilinear over the taps that are this surface, as the accumulator takes its
-        // own; the frame's own bit where none is, which is a history of one sample.
-        float previous = current;
-        if (frame.mReset == 0u)
-        {
-            float sum = 0.0;
-            float weight = 0.0;
-            for (int i = 0; i < 4; ++i)
-            {
-                const float share = historyShare(before, i);
-                const ivec2 tap = historyTap(before, i);
-                if (share <= 0.0 || !sameSurface(tap, normal, away, moved))
-                    continue;
+        // The history bilinear over the taps that are this surface and received, as the
+        // accumulator takes its own; the frame's own bit where none is, which is a history of one
+        // sample. A texel that received nothing holds no history: its value is the frame's
+        // nought, which pulled a terminator's history toward shadow.
+        RTX_HISTORY_SHARES(
+            shares, before, extent, heldSurface, imageLoad(history, historyAt).y != SHADOW_NO_RECEIVER, plane)
+        if (frame.mReset != 0u)
+            shares = vec4(0.0);
 
-                sum += imageLoad(history, tap).x * share;
-                weight += share;
-            }
-            if (weight > 0.0)
-                previous = sum / weight;
-        }
+        float previous = current;
+        float sum = 0.0;
+        for (int i = 0; i < 4; ++i)
+            if (shares[i] > 0.0)
+                sum += imageLoad(history, historyTap(before, i)).x * shares[i];
+        const float weight = historyCovered(shares);
+        if (weight > 0.0)
+            previous = sum / weight;
 
         const float clamped = clamp(previous, low, high);
 

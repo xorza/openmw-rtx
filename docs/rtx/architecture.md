@@ -72,8 +72,10 @@ Shaders are GLSL, compiled by `glslc` and validated by `spirv-val` in one build 
 invalid module fails the build. Between the two, `Rtx::pinFloatArithmetic`
 (`components/rtxvulkan/spirv/spirvpin.hpp`) fixes the order and fusion of every float operation the
 Vulkan specification leaves open, so every compile of a module, the driver's recompiles
-included, computes the same frame. The structures both languages read live in
-`components/rtx/shaders/*.h`, which compile as C++ and as GLSL.
+included, computes the same frame. The structures both languages read are headers that compile as
+C++ and as GLSL, beside the C++ that reads them: `components/rtx/shaders/*.h` for what the core
+reads, and `components/rtxvulkan/shaders/shared/*.h` for what only the backend and its shaders read
+(the bindings, the passes' constants, the shader binding table's records).
 
 `./omw [flavour] <verb>` is the one command line over the CMake presets, on the desk and in CI.
 `./omw help` lists both.
@@ -163,7 +165,7 @@ source-tree test holds the order.
 | `mirror/`           | the walk from the scene graph; the cell ring in `cells/`, which runs inside it |
 | `environment/`      | the sky, the air and the sea a frame is told                             |
 | `view/`             | the pictures traced away from the eye                                    |
-| `shaders/`          | the structures C++ and GLSL both read                                    |
+| `shaders/`          | the structures core C++ and GLSL both read                               |
 
 - **`Rtx::Renderer`** (`renderer/renderer.hpp`) is one traced image, whichever API makes it. Each
   call is worth a whole scene or a whole frame, never an instance or a pixel: build, extend or
@@ -220,6 +222,7 @@ at the top, over all of them.
 
 | folder              | holds                                                                   |
 |---------------------|-------------------------------------------------------------------------|
+| `shaders/`          | the GLSL, by the folder of the pass that dispatches it; `lib/` shared, and `shared/` the headers only the backend and its shaders read |
 | `spirv/`            | the pinning and the kernel digest, a library of its own the build runs  |
 | `device/`           | the instance, the device, the timeline, the graveyard; `memory/` for buffers and images |
 | `pipeline/`         | compute, graphics and ray tracing pipelines, and how a dispatch is sized |
@@ -248,14 +251,14 @@ at the top, over all of them.
 - **`FrameRing`** keeps two frames in flight. The host places frame N+1 while the device traces
   N.
 - **`TraceChain`** is everything one camera's trace writes at one extent: the G-buffer, the fog
-  volume, the sprite bins, the denoiser's history, and the bounce's reservoirs where it reuses.
+  volume, the sprite bins and the denoiser's history.
   The world has one, and `PictureTracer` has one for the pictures inside the interface. The passes
   are shared.
 - **`DisplayChain`** runs after the trace and the upscaler: bloom, exposure, glare, tone, debug
   lines. The tone pass adds the glare fader and Night-Eye's lift in display values after the curve,
   where the meter never sees them, as the rasterizer adds both, and applies the player's
-  `[Video] gamma` before it stores the picture. The GUI draws after it, in display values, at the
-  frame's size, so the gamma does not reach it. The renderer blits the frame to the swapchain,
+  `[Video] gamma` and a triangular blue-noise dither before it stores the picture in eight bits.
+  The GUI draws after it, in display values, at the frame's size, so the gamma does not reach it. The renderer blits the frame to the swapchain,
   scaled to fit the window with black beside it (`Misc::present`), and never draws into it.
 - **`Upscaler`** is FSR 3.1.4's seven passes, from AMD's own headers in `extern/fidelityfx/`, with
   the renderer's callbacks (`shaders/upscale/fsrcallbacks.glsl`). It needs no extension, so it
@@ -263,27 +266,16 @@ at the top, over all of them.
   device in it. Its reactive and transparency-and-composition masks are the trace's own
   (`CHANNEL_UPSCALE_MASKS`): the share of a pixel's light whose image moves apart from the pixel's
   motion vector — the see-through layers', and what the water's rays show.
-- **The bounce's reuse** (`BounceReservoirs`, ReSTIR GI) runs where the reconstruction asks for it
-  (`Reconstruction::mBounceReuse`): the world's chain, never a picture's. The trace's bounce is each
-  pixel's candidate, which the hit shader writes as a reservoir beside the visible point it left.
-  Four kernels of `VisibilityPass` follow the trace: the validation traces and shades again last
-  frame's kept sample at one pixel in eight, the temporal merge takes last frame's reservoir into
-  the candidate, the pairs' pass traces the shift rays of each pair of pixels the pairings link
-  once for both (`BouncePairing`), and the resolve merges the two partners by those rays, traces the
-  final visibility ray and shades the kept sample into the channels the trace would have written.
-  The reuse keeps its own history, so it runs with or without the denoiser after it. **Off by
-  default**, one pipeline for every place: its gain was a correction for stages of the denoiser
-  that lost a rare bright sample's light, and with the anti-firefly ring off, no reuse stands level
-  with it where a room is lit by what glows in it, is better in the lit rooms, and saves 0.24 to
-  0.85 ms a room (`.notes/reuse.md`). The modes stay for A/Bs and for content they would serve, and
-  the world's chain keeps its reservoirs whatever a frame runs.
+- **No reuse of the bounce.** ReSTIR GI's reservoirs ran here as a temporal and a spatial reuse,
+  and were removed: once the denoiser kept a rare bright sample's light, they gained nothing at any
+  place and added bias in the room they were kept for (`.notes/reuse.md`).
 - **The indirect light** (`[RTX] indirect light`, `Reconstruction::mIndirect`) is `traced`, the
   bounce above and the passes that clean it, or `off`, none: the trace draws no diffuse bounce and
   traces only a glossy surface's reflection (`bounceTraced`), no surface a path ends at takes the
-  cell's ambient (`surfaceAmbient`), the reuse does not run, and the denoiser keeps the
+  cell's ambient (`surfaceAmbient`), and the denoiser keeps the
   accumulator's surface history alone. A menu changes it while the game runs
-  (`Renderer::setIndirectLight`), and the chain lets go of the reservoirs and the bounce's histories
-  where it is `off`.
+  (`Renderer::setIndirectLight`), and the chain lets go of the bounce's histories where it is
+  `off`.
 - **The denoiser** (`trace/denoise/`) runs where the frame is filtered. The accumulator averages
   the bounce's diffuse light over time and the wavelet spreads it across the screen, with the share
   of it that is fill beside it by the same weights: the composite puts the bounce back by the
@@ -300,8 +292,8 @@ at the top, over all of them.
   default: with a lamp's own model out of the bounce it holds no firefly the count sees, and it took
   a rare bright bounce's light with it. Where a mean holds `ACCUMULATE_FIX_FRAMES` frames or fewer — what the eye
   just uncovered or brought in at the frame's edge — the wavelet's first level rebuilds it from the surface around it (NRD's history fix).
-  The wavelet is ReLAX's shape: a 5×5 first level, then three 3×3 levels that weigh by the centre's
-  variance, a reach of sixteen pixels (`ATROUS_LEVELS`). The
+  The wavelet is SVGF's B3 first level, 5×5, then ReLAX's 3×3 levels (`RELAX_Atrous`) that weigh by
+  the centre's variance, a reach of sixteen pixels (`ATROUS_LEVELS`). The
   shadow denoiser filters the one bit a pixel kept of its rays to the sky's source and to a lamp, under
   the light both would add unshadowed, where the sky has a source that lights or the scene a lamp,
   and counts in its local mean only the pixels those sources light.
@@ -383,10 +375,9 @@ On the host, in order:
 6. **GUI and present.** The host returns without waiting for the device.
 
 On the device, in record order: the sea and the ripples, the sprites, the fog, the trace, the
-bounce's reuse where it runs (the validation, the temporal merge, the pairs, the resolve), the
 denoiser where it runs (the accumulator and its clamp, the shadow denoiser, the glossy filter, the
-pane filter, the wavelet), the composite where a denoiser, the reuse or a sum needs one, the
-upscaler where one runs, the display chain, the GUI, the present.
+pane filter, the wavelet), the composite where a denoiser or a sum needs one, the upscaler where
+one runs, the display chain, the GUI, the present.
 
 Four clocks drive a frame, each with one source: host time (the wall in play, the frame count
 times a stated step in a measured run), simulation time, game time (the hour), and the sky's

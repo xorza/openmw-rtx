@@ -18,17 +18,24 @@ namespace RtxTool
 {
     namespace
     {
-        /// A picture of one flat colour, so a test can then move exactly the pixels it means to.
-        Rtx::PngImage flat(std::uint32_t width, std::uint32_t height, std::uint8_t value)
+        /// A picture of one flat colour at an eight-bit `level`, so a test can then move exactly the
+        /// pixels it means to.
+        Rtx::PngImage flat(std::uint32_t width, std::uint32_t height, std::uint8_t level)
         {
             Rtx::PngImage image{ width, height, {} };
-            image.mPixels.assign(std::size_t{ width } * height * 4, value);
+            image.mSamples.assign(
+                std::size_t{ width } * height * 4, static_cast<std::uint16_t>(level * Rtx::sSamplesPerLevel));
             return image;
         }
 
-        std::uint8_t& channelAt(Rtx::PngImage& image, std::uint32_t x, std::uint32_t y, std::size_t channel)
+        std::uint16_t& sampleAt(Rtx::PngImage& image, std::uint32_t x, std::uint32_t y, std::size_t channel)
         {
-            return image.mPixels[(std::size_t{ y } * image.mWidth + x) * 4 + channel];
+            return image.mSamples[(std::size_t{ y } * image.mWidth + x) * 4 + channel];
+        }
+
+        void setLevel(Rtx::PngImage& image, std::uint32_t x, std::uint32_t y, std::size_t channel, std::uint8_t level)
+        {
+            sampleAt(image, x, y, channel) = static_cast<std::uint16_t>(level * Rtx::sSamplesPerLevel);
         }
 
         /// **A shot is refused against the directory it writes**, however the two are spelled: the
@@ -72,8 +79,8 @@ namespace RtxTool
 
             // One pixel, off by two in green; and a second off by thirty-seven in red, which is what
             // the worst has to come back as.
-            channelAt(after, 3, 4, 1) = 102;
-            channelAt(after, 7, 1, 0) = 63;
+            setLevel(after, 3, 4, 1, 102);
+            setLevel(after, 7, 1, 0, 63);
 
             const FrameDifference difference = compareFrames(before, after);
             EXPECT_FALSE(difference.same());
@@ -93,7 +100,7 @@ namespace RtxTool
             Rtx::PngImage after = before;
             for (std::uint32_t y = 0; y < 4; ++y)
                 for (std::uint32_t x = 0; x < 4; ++x)
-                    channelAt(after, x, y, 3) = 0;
+                    setLevel(after, x, y, 3, 0);
 
             EXPECT_TRUE(compareFrames(before, after).same());
         }
@@ -109,18 +116,28 @@ namespace RtxTool
             const Rtx::PngImage reference = flat(10, 10, 100);
             Rtx::PngImage picture = reference;
             for (std::uint32_t x = 0; x < 8; ++x)
-                channelAt(picture, x, 0, 1) = 96;
-            channelAt(picture, 0, 1, 2) = 120;
-            channelAt(picture, 1, 1, 0) = 255;
-            channelAt(picture, 2, 1, 3) = 0;
+                setLevel(picture, x, 0, 1, 96);
+            setLevel(picture, 0, 1, 2, 120);
+            setLevel(picture, 1, 1, 0, 255);
+            setLevel(picture, 2, 1, 3, 0);
 
             EXPECT_EQ(measureError(reference, reference).mMean, 0.0);
-            EXPECT_EQ(measureError(reference, reference).mP99, 0u);
+            EXPECT_EQ(measureError(reference, reference).mP99, 0.0);
 
             const PictureError error = measureError(picture, reference);
             EXPECT_FALSE(error.mMismatched);
             EXPECT_DOUBLE_EQ(error.mMean, (8.0 * 4.0 + 20.0 + 155.0) / 100.0);
-            EXPECT_EQ(error.mP99, 20u);
+            EXPECT_EQ(error.mP99, 20.0);
+
+            // **A mean stands between the levels, and its error is kept there**: a mean 129 samples
+            // over the frame, of the 257 a level is, reads as `129 / 257` = 0.502 of a level, where a
+            // mean rounded to a byte read as nought or one.
+            Rtx::PngImage between = reference;
+            for (std::uint16_t& sample : between.mSamples)
+                sample = static_cast<std::uint16_t>(sample + 129);
+            const PictureError half = measureError(reference, between);
+            EXPECT_DOUBLE_EQ(half.mMean, 129.0 / 257.0);
+            EXPECT_DOUBLE_EQ(half.mP99, 129.0 / 257.0);
 
             EXPECT_TRUE(measureError(picture, flat(10, 9, 100)).mMismatched);
             EXPECT_TRUE(measureError(Rtx::PngImage{}, reference).mMismatched);
@@ -132,7 +149,8 @@ namespace RtxTool
         /// 640 by 360, 3.3, held to 3. And never nought, however short the history.
         ///
         /// **And the frame a leg judges holds what the leg says.** Standing, the warm-up is the stop's
-        /// own and the bar sixteen; flown in, the flight's thirty frames; `--cut=N`, a warm-up of
+        /// own 128 frames and its history 130, held to sixteen at native and at ultra performance to
+        /// `130 * 230400 / 2073600` = 14.4, so 14; flown in, the flight's thirty frames; `--cut=N`, a warm-up of
         /// `N - 1` after the frame the cut resets, so `N + 1` frames of history: `--cut=1` at native
         /// holds 2 and is held to 2, at quality `2 * 921600 / 2073600` = 0.89, held to 1; `--cut=4`
         /// at native holds 5. A cut and a flight together are refused.
@@ -155,6 +173,7 @@ namespace RtxTool
             const NoiseFrame standing = taken(0, false, Rtx::Upscale::Native).value();
             EXPECT_FALSE(standing.mWarmup.has_value());
             EXPECT_EQ(standing.mBarFrames, sNoiseBarFrames);
+            EXPECT_EQ(taken(0, false, Rtx::Upscale::UltraPerformance).value().mBarFrames, 14u);
             const NoiseFrame flown = taken(0, true, Rtx::Upscale::Quality).value();
             EXPECT_FALSE(flown.mWarmup.has_value());
             EXPECT_EQ(flown.mBarFrames, 13u);
@@ -184,7 +203,7 @@ namespace RtxTool
             Rtx::PngImage picture = reference;
             const auto grey = [](Rtx::PngImage& image, std::uint32_t x, std::uint8_t level) {
                 for (std::size_t channel = 0; channel < 3; ++channel)
-                    channelAt(image, x, 0, channel) = level;
+                    setLevel(image, x, 0, channel, level);
             };
             grey(picture, 0, 255);
             grey(picture, 1, 180);
@@ -211,18 +230,18 @@ namespace RtxTool
             Rtx::PngImage offset = reference;
             for (std::uint32_t y = 0; y < 21; ++y)
                 for (std::uint32_t x = 0; x < 21; ++x)
-                    channelAt(offset, x, y, 1) = 132;
+                    setLevel(offset, x, y, 1, 132);
             EXPECT_NEAR(*blurredDifference(offset, reference, sNoiseBiasBlur), 4.0, 1e-4);
 
             Rtx::PngImage impulse = reference;
-            channelAt(impulse, 10, 10, 0) = 255;
+            setLevel(impulse, 10, 10, 0, 255);
             EXPECT_NEAR(*blurredDifference(impulse, reference, sNoiseBiasBlur), 127.0 / 441.0, 1e-4);
 
             Rtx::PngImage checker = reference;
             for (std::uint32_t y = 0; y < 21; ++y)
                 for (std::uint32_t x = 0; x < 21; ++x)
                     for (std::size_t channel = 0; channel < 3; ++channel)
-                        channelAt(checker, x, y, channel) = (x + y) % 2 == 0 ? 255 : 1;
+                        setLevel(checker, x, y, channel, (x + y) % 2 == 0 ? 255 : 1);
             EXPECT_LT(*blurredDifference(checker, reference, sNoiseBiasBlur), 1.0);
             EXPECT_NEAR(*blurredDifference(checker, reference, 0.1f), 127.0, 1e-3);
 
@@ -238,9 +257,9 @@ namespace RtxTool
         {
             const Rtx::PngImage before = flat(4, 4, 100);
             Rtx::PngImage oneLevel = before;
-            channelAt(oneLevel, 1, 2, 0) = 101;
+            setLevel(oneLevel, 1, 2, 0, 101);
             Rtx::PngImage twoLevels = before;
-            channelAt(twoLevels, 1, 2, 0) = 102;
+            setLevel(twoLevels, 1, 2, 0, 102);
 
             const FrameDifference none = compareFrames(before, before);
             const FrameDifference one = compareFrames(before, oneLevel);
@@ -293,7 +312,7 @@ namespace RtxTool
         {
             std::filesystem::create_directories(file.parent_path());
             const Misc::Result<void, std::string> written
-                = Rtx::writePng(file, image.mWidth, image.mHeight, image.mPixels);
+                = Rtx::writePng(file, image.mWidth, image.mHeight, image.mSamples);
             ASSERT_TRUE(written.isOk()) << written.error();
         }
 
@@ -311,9 +330,9 @@ namespace RtxTool
 
             const Rtx::PngImage before = flat(4, 4, 100);
             Rtx::PngImage oneLevel = before;
-            channelAt(oneLevel, 1, 2, 0) = 101;
+            setLevel(oneLevel, 1, 2, 0, 101);
             Rtx::PngImage moved = before;
-            channelAt(moved, 3, 3, 1) = 140;
+            setLevel(moved, 3, 3, 1, 140);
 
             writeTo(against / "same.png", before);
             writeTo(wrote / "same.png", before);
@@ -369,7 +388,8 @@ namespace RtxTool
             Rtx::PngImage image = flat(width, height, base);
             for (std::size_t pixel = 0; pixel < count; ++pixel)
                 for (std::size_t channel = 0; channel < 3; ++channel)
-                    image.mPixels[pixel * 4 + channel] = static_cast<std::uint8_t>(base + raised);
+                    image.mSamples[pixel * 4 + channel]
+                        = static_cast<std::uint16_t>((base + raised) * Rtx::sSamplesPerLevel);
             return image;
         }
 
@@ -431,7 +451,7 @@ namespace RtxTool
 
             const PictureError tail = measureError(raisedAt(10, 10, 100, 2, 10), limit);
             EXPECT_DOUBLE_EQ(tail.mMean, 0.2);
-            EXPECT_EQ(tail.mP99, 10u);
+            EXPECT_EQ(tail.mP99, 10.0);
 
             std::filesystem::remove_all(root);
         }

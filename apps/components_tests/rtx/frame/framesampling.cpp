@@ -11,6 +11,7 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 
@@ -68,12 +69,18 @@ namespace Rtx
         TEST(RtxFrameSamplingTest, everySampledFieldComesFromWhatDecidesIt)
         {
             const Reconstruction jittering{
-                .mJitter = true, .mNoise = NoiseSource::WhiteHash, .mLevelBias = -0.5f, .mAveraged = true
+                .mJitter = true,
+                .mNoise = NoiseSource::WhiteHash,
+                .mLevelBias = -0.5f,
+                .mAveraged = true,
+                .mShadowFloor = 0.125f,
+                .mLampCandidates = 3u,
             };
             const InstanceCounts counts{ .mFirstPerson = 1 };
             Shaders::VisibilityConstants previous = stated();
             previous.mOrigin = osg::Vec3f(7.0f, 20.0f, 30.0f);
             previous.mEyes.mWorld.mBasis.mForward = osg::Vec3f(0.0f, 1.0f, 0.0f);
+            previous.mEyes.mWorld.mJitter = osg::Vec2f(0.375f, -0.125f);
 
             const Shaders::VisibilityConstants sampled
                 = sampleFrame(stated(), FrameOptions{}, RenderProfile{}, jittering, counts, &previous);
@@ -96,12 +103,15 @@ namespace Rtx
             EXPECT_EQ(sampled.mNoise, Shaders::NOISE_WHITE_HASH);
             EXPECT_EQ(sampled.mLevelBias, -0.5f);
             EXPECT_EQ(sampled.mSoftEdgeDither, 1u) << "a world's frames are averaged";
+            EXPECT_EQ(sampled.mShadowFloor, 0.125f) << "the run's floor";
+            EXPECT_EQ(sampled.mLampCandidates, 3u) << "the run's candidates";
             EXPECT_EQ(sampled.mArmsSpread, osg::Vec2f(1.5f, 1.0f));
             EXPECT_EQ(sampled.mUnitRight, osg::Vec3f(1.0f, 0.0f, 0.0f)) << "a right of two, taken unit";
             EXPECT_EQ(sampled.mUnitUp, osg::Vec3f(0.0f, 0.0f, 1.0f));
             EXPECT_EQ(sampled.mArmsInFrame, 1u);
             EXPECT_EQ(sampled.mCameraMotion, osg::Vec3f(3.0f, 0.0f, 0.0f));
             EXPECT_EQ(sampled.mPrevious.mForward, osg::Vec3f(0.0f, 1.0f, 0.0f));
+            EXPECT_EQ(sampled.mPreviousJitter, osg::Vec2f(0.375f, -0.125f)) << "where the frame before sampled";
 
             // What the statement carried passes through untouched.
             EXPECT_EQ(sampled.mOrigin, stated().mOrigin);
@@ -113,8 +123,11 @@ namespace Rtx
                 = sampleFrame(stated(), FrameOptions{}, RenderProfile{}, Reconstruction{}, counts, nullptr);
             EXPECT_EQ(picture.mEyes.mWorld.mJitter, osg::Vec2f());
             EXPECT_EQ(picture.mCameraMotion, osg::Vec3f());
+            EXPECT_EQ(picture.mPreviousJitter, picture.mEyes.mWorld.mJitter) << "no frame before it but itself";
             EXPECT_EQ(picture.mNoise, Shaders::NOISE_BLUE_TILE);
             EXPECT_EQ(picture.mSoftEdgeDither, 0u) << "a picture stands alone, so the eye cuts its soft edges";
+            EXPECT_EQ(picture.mShadowFloor, Shaders::SHADOW_DRAW_FLOOR) << "and draws its bits by the default floor";
+            EXPECT_EQ(picture.mLampCandidates, Shaders::LAMP_CANDIDATES) << "and its lamps by the default count";
 
             const Shaders::VisibilityConstants offset = sampleFrame(stated(),
                 FrameOptions{ .mJitter = osg::Vec2f(0.25f, 0.0f) }, RenderProfile{}, Reconstruction{}, counts, nullptr);

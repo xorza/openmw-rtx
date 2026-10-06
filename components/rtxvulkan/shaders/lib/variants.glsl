@@ -1,6 +1,7 @@
 #ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_VARIANTS_GLSL
 #define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_LIB_VARIANTS_GLSL
 
+#include "shared/tracerecords.h"
 #include "visibility.h"
 
 // What kind of frame this is, told to the compiler rather than to the branch predictor.

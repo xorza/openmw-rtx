@@ -109,7 +109,14 @@ namespace RtxTool
 
         const Stop& currentStop() const { return mRequest.mStops[mAt]; }
 
+        /// Moves on to the next stop, or ends the run after the last.
+        void advance();
+
         SessionRequest mRequest;
+
+        /// The sample the current still's probe is traced with, while its one frame is due
+        /// (`Measurer::probeSample`): the stop stands until it has come back.
+        std::optional<std::uint32_t> mProbe;
 
         /// What the renderer is made with: the request's setup, and this as the run. After the
         /// request, which it refers into.

@@ -36,6 +36,13 @@
 // the literal is the correctly rounded value, its comment states the derivation, and
 // `RtxSharedConstantTest` holds the one to the other.
 //
+// **And where its arithmetic rounds a step the other side does not.** glslang keeps a literal at
+// its decimal value in double and folds a constant expression in double, rounding once where the
+// constant is emitted; C++ rounds every literal and every step to float. A derivation over inexact
+// literals is then two numbers, one a side, and the literal is the device's: the test computes each
+// in double and rounds once. A step whose operands are exact and whose one rounding is the result's
+// agrees on both sides and stays written as arithmetic.
+//
 // A value whose rounding is load-bearing: GLSL's `precise` forbids fusing its multiplies and adds,
 // so every compile of the shader agrees on it. `rayAt` says what that is for. Nothing on the host,
 // where the arithmetic is written as it is read.

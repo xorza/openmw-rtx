@@ -136,8 +136,11 @@ namespace RtxTool
         /// What `--exposure` asked for: a number to hold it at, or nothing to measure it.
         Rtx::ExposureRule parseExposure(std::string_view text)
         {
+            // **Settled at every stop**, where the game opens from a day: a stop starts with no past
+            // and warms up for less time than an eye takes to open in a room, and a measured picture
+            // is of the eye that place settles on.
             if (text == "auto")
-                return Rtx::MeasuredExposure{};
+                return Rtx::MeasuredExposure{ .mStart = Rtx::EyeStart::Settled };
 
             const std::optional<float> value = parseFloat(text);
             if (!value.has_value() || !(*value > 0.0f))
@@ -961,7 +964,9 @@ namespace RtxTool
         /// order.** The reference averages
         /// `sNoiseReferenceFrames` frames traced unfiltered and jittered, from the white hash, which
         /// is a sequence neither of the others draws from, so it shares no sample with them, and at
-        /// no texture level epsilon; its exposure is measured as a played frame's is. The bar averages
+        /// no texture level epsilon; its exposure is measured as a played frame's is, and it is
+        /// written as the renderer summed it, at sixteen bits a channel and undithered
+        /// (`Actions::mDeepCapture`), so no byte stands under the bias measured against it. The bar averages
         /// `sNoiseBarFrames` frames, unfiltered and as the run otherwise traces — or, flown in, as many as the frame's
         /// history could hold, `noiseBarFramesAfter`. The frame is the run's own, after the warm-up its history
         /// converges over, upscaled as the run is — or, with `--strafe` or `--walk`, after it flew into the place
@@ -1018,6 +1023,11 @@ namespace RtxTool
                 // run's epsilon: an epsilon is a knob on the frame, and a reference that moved with
                 // it would take the frame's softness for its own and report no bias at all.
                 truth.mLevelEpsilon = 0.0f;
+                // **And draws every source for its bit**: a floor rides a minor source's light on
+                // another's shadow, which is the bias the A/B of the floor measures.
+                truth.mShadowFloor = 0.0f;
+                // And weighs every lamp, which a fixed count of candidates estimates.
+                truth.mLampCandidates = 0u;
                 return truth;
             };
             const Rtx::ExposureRule held = Rtx::HeldExposure{};
@@ -1043,8 +1053,8 @@ namespace RtxTool
             const float walk = variables["walk"].as<float>();
             const bool flies = strafe > 0.0f || walk != 0.0f;
 
-            // A frame taken standing still has a history as long as the warm-up, which is more than
-            // any mode needs to hold sixteen samples a shown pixel.
+            // Each leg's frame is held to the samples a shown pixel its history could hold
+            // (`noiseFrameFor`), standing as well.
             const Rtx::FrameExtents extents
                 = Rtx::extentsFor(framed.mWindow.mWidth, framed.mWindow.mHeight, framed.mSetup.mRun.mProfile.mUpscale);
             const Misc::Result<NoiseFrame, std::string> taken
@@ -1111,8 +1121,10 @@ namespace RtxTool
                 const std::size_t first = into.size();
                 if (bar)
                 {
-                    into.push_back(picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, true, referenceOf(side),
-                        std::nullopt, Rtx::Upscale::Off));
+                    Stop reference = picture(place, sNoiseReferenceSuffix, sNoiseReferenceFrames, true,
+                        referenceOf(side), std::nullopt, Rtx::Upscale::Off);
+                    reference.mActions.mDeepCapture = true;
+                    into.push_back(std::move(reference));
                     const Stop averaged
                         = picture(place, sNoiseBarSuffix, barFrames, true, side.unfiltered(), held, Rtx::Upscale::Off);
                     into.push_back(averaged);

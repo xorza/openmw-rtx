@@ -216,9 +216,9 @@ namespace Rtx
         const VkImage presented = mSwapchain.getImage(index);
         const ImageUse firstWrite = letterboxed ? Use::sClearWrite : Use::sBlitWrite;
         // The source scope names the stage the acquire semaphore is waited at, or the transition
-        // is ordered against nothing and can run before the image is ours — which is what
-        // `sUndefined`'s `NONE` says, and why it is not the discard used here. Every transfer
-        // stage, because the first write is the clear or the blit.
+        // is ordered against nothing and can run before the image is ours: a first scope of `NONE`
+        // chains to no wait. Every transfer stage, because the first write is the clear or the
+        // blit, which is narrower than `sUndefined`'s every stage.
         Barriers taken(commands);
         taken.add(imageBarrier(presented, 0, 1,
             ImageUse{ VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_2_ALL_TRANSFER_BIT, 0 }, firstWrite));

@@ -4,10 +4,13 @@
 #include <cstdint>
 #include <span>
 
-#include <components/rtx/shaders/exposure.h>
+#include <components/rtx/shaders/look.h>
+#include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/exposure.h>
 
 namespace Rtx
 {
@@ -38,6 +41,14 @@ namespace Rtx
         , mPicture(Buffer::hostWritten(device, sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "picture exposure"))
     {
         mPicture.writable<float>(0, 1).front() = 1.0f;
+
+        // **A day's, before any frame**, which is where an eye with no past starts: the pyramid's
+        // first halving reads what the frame before ended on (`BloomPass::record`), and the first
+        // frame has none. A buffer nobody wrote is whatever the allocation held.
+        const float day = Shaders::EXPOSURE_DAY;
+        device.getPool().submitAndWait([&](VkCommandBuffer commands) {
+            mExposure.updateInline(commands, Use::sBufferComputeReadWrite, std::as_bytes(std::span(&day, 1)));
+        });
     }
 
     void ExposurePass::recordFixed(VkCommandBuffer commands, float value) const
@@ -49,8 +60,8 @@ namespace Rtx
         mExposure.updateInline(commands, Use::sBufferComputeReadWrite, std::as_bytes(std::span(&value, 1)));
     }
 
-    void ExposurePass::record(
-        VkCommandBuffer commands, const Image& frame, float elapsedSeconds, bool reset, float bias) const
+    void ExposurePass::record(VkCommandBuffer commands, const Image& frame, float elapsedSeconds,
+        const std::optional<EyeStart> reset, float bias) const
     {
         // Two frames in flight share one set of these buffers, and the previous frame's curve
         // reading them, its reduction writing the exposure this one moves toward, and its clear are
@@ -85,7 +96,9 @@ namespace Rtx
         const Shaders::ExposureConstants counted{
             .mPixels = frame.getWidth() * frame.getHeight(),
             .mElapsed = elapsedSeconds,
-            .mReset = reset ? 1u : 0u,
+            .mReset = !reset.has_value()  ? Shaders::EXPOSURE_RESET_NONE
+                : *reset == EyeStart::Day ? Shaders::EXPOSURE_RESET_DAY
+                                          : Shaders::EXPOSURE_RESET_SETTLED,
             .mBias = bias,
         };
 

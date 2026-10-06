@@ -6,9 +6,9 @@
 
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/shaders/camera.h>
-#include <components/rtx/shaders/pane.h>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/pane.h>
 #include <components/rtxvulkan/trace/gbuffer.hpp>
 
 namespace Rtx
@@ -41,11 +41,7 @@ namespace Rtx
         writes.image(Shaders::PANE_BIND_MEAN_BEFORE, images.mMeanBefore.describeStorage());
         writes.image(Shaders::PANE_BIND_MEAN, images.mMean.describeStorage());
 
-        const Shaders::HistoryConstants constants{
-            .mEyes = frame.mSampled.mEyes,
-            .mReset = images.mFresh ? 1u : 0u,
-            .mDistanceScale = frame.mDistanceScale,
-        };
+        const Shaders::HistoryConstants constants = frame.history(images.mFresh);
 
         dispatch(commands, mPipeline, writes, constants, Groups::covering(width, height, Shaders::PANE_WORKGROUP));
 

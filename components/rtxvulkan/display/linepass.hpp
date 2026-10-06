@@ -4,8 +4,8 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/shaders/line.h>
 #include <components/rtxvulkan/pipeline/graphicspipeline.hpp>
+#include <components/rtxvulkan/shaders/shared/line.h>
 
 namespace Rtx
 {

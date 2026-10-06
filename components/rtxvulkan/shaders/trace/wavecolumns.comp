@@ -13,7 +13,7 @@
 // **Unpacked where it is transformed**: a column of the three fields is the column of texels they
 // make, so the answer goes from shared memory to the textures, and never to memory and back.
 
-#include "sets.h"
+#include "shared/sets.h"
 #include "wave.h"
 
 #include "lib/wavelines.glsl"

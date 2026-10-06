@@ -45,7 +45,7 @@ namespace RtxTool
             // The format's own number first, stepped where the columns keep their names and a
             // value changes its meaning — a digest hashed another way — so a file an older build
             // wrote is refused rather than compared.
-            std::string header = "hashes 5: view,frame,upscale,denoise,picture";
+            std::string header = "hashes 6: view,frame,upscale,denoise,picture";
             for (std::size_t column = 0; column < sTracedColumns; ++column)
                 header += ',' + std::string(tracedName(column));
             for (const auto& [part, name] : sSceneParts.mNames)
@@ -299,26 +299,16 @@ namespace RtxTool
         return held;
     }
 
-    std::optional<std::uint32_t> FrameHashes::findStillMoved(const std::string_view view) const
+    bool FrameHashes::probeMoved(const std::string_view view, const Rtx::FrameDigest& probe) const
     {
-        const Frame* first = nullptr;
-        for (const Frame& frame : mFrames)
-        {
-            if (frame.mView != view || !frame.mPictured)
-                continue;
+        const auto first = std::find_if(
+            mFrames.begin(), mFrames.end(), [&](const Frame& frame) { return frame.mView == view && frame.mPictured; });
+        if (first == mFrames.end())
+            return false;
 
-            if (first == nullptr)
-            {
-                first = &frame;
-                continue;
-            }
-
-            for (const Rtx::Channel still : { Rtx::Channel::Surface, Rtx::Channel::Motion })
-                if (frame.mTraced[Rtx::bindingOf(still)] != first->mTraced[Rtx::bindingOf(still)])
-                    return frame.mFrame;
-        }
-
-        return std::nullopt;
+        return std::ranges::any_of(std::array{ Rtx::Channel::Surface, Rtx::Channel::Motion }, [&](Rtx::Channel still) {
+            return probe.mImages[Rtx::bindingOf(still)] != first->mTraced[Rtx::bindingOf(still)];
+        });
     }
 
     std::vector<FrameHashes::ViewDifference> FrameHashes::against(const FrameHashes& reference) const

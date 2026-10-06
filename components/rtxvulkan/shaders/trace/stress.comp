@@ -15,9 +15,9 @@
 // The rate is the device's own and the extension names none, so the host asks in ticks of the
 // queue's timestamp period, which `StressPass` says is the same counter.
 
-#include "counts.h"
-#include "sets.h"
-#include "stress.h"
+#include "shared/counts.h"
+#include "shared/sets.h"
+#include "shared/stress.h"
 
 layout(local_size_x = STRESS_WORKGROUP) in;
 

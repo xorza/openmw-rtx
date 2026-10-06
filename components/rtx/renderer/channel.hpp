@@ -32,6 +32,7 @@ namespace Rtx
         AmbientAlbedo = Shaders::CHANNEL_AMBIENT_ALBEDO,
         Lift = Shaders::CHANNEL_LIFT,
         Penumbra = Shaders::CHANNEL_PENUMBRA,
+        SpecularAlbedo = Shaders::CHANNEL_SPECULAR_ALBEDO,
     };
 
     inline constexpr std::uint32_t sChannelCount = Shaders::CHANNEL_COUNT;
@@ -62,6 +63,7 @@ namespace Rtx
         { Channel::AmbientAlbedo, "g-ambient-albedo" },
         { Channel::Lift, "g-lift" },
         { Channel::Penumbra, "g-penumbra" },
+        { Channel::SpecularAlbedo, "g-specular-albedo" },
     } } };
 
     /// Every channel in binding order, for a walk that wants them all.

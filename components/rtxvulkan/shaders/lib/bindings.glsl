@@ -30,15 +30,15 @@
 // query. Declared here and not in each stage, so a stage cannot reach the structure without it.
 #extension GL_EXT_ray_query : require
 
-#include "bindings.h"
-#include "bouncereuse.h"
+#include "shared/tables.h"
+#include "shared/bindings.h"
 #include "brdf.h"
-#include "counts.h"
-#include "fogvolume.h"
+#include "shared/counts.h"
+#include "shared/fogvolume.h"
 #include "gbuffer.h"
-#include "glare.h"
+#include "shared/glare.h"
 #include "scene.h"
-#include "sets.h"
+#include "shared/sets.h"
 #include "visibility.h"
 #include "wave.h"
 
@@ -90,8 +90,7 @@ layout(set = SET_CHANNELS, binding = CHANNEL_ALBEDO, GBUFFER_ALBEDO) uniform wri
 layout(set = SET_CHANNELS, binding = CHANNEL_SURFACE, GBUFFER_SURFACE) uniform image2D surfaceChannel;
 
 /// Where each surface stood on the previous frame's screen, less where it stands on this one. Read
-/// back by `bouncetemporal.comp` for where last frame's reservoir is, which is why it is not
-/// `writeonly`.
+/// back by the denoiser's passes for where each history is, which is why it is not `writeonly`.
 layout(set = SET_CHANNELS, binding = CHANNEL_MOTION, GBUFFER_MOTION) uniform image2D motion;
 
 /// How much of the backdrop this pixel still shows, per channel, in `rgb` — everything the trace put
@@ -151,6 +150,9 @@ layout(set = SET_CHANNELS, binding = CHANNEL_LIFT, GBUFFER_LIFT) uniform writeon
 /// How wide the penumbra is where the shadowed bit was kept, in pixels — `CHANNEL_PENUMBRA`.
 layout(set = SET_CHANNELS, binding = CHANNEL_PENUMBRA, GBUFFER_PENUMBRA) uniform writeonly image2D penumbra;
 
+/// What the lobe's light is multiplied back by — `CHANNEL_SPECULAR_ALBEDO`.
+layout(set = SET_CHANNELS, binding = CHANNEL_SPECULAR_ALBEDO, GBUFFER_ALBEDO) uniform writeonly image2D specularAlbedo;
+
 // The frame's counts, added to one atomic at a time where a ray ends: `FrameCounts::mMisses` and
 // `COUNTING` say why the misses and not the hits, which a room of nothing but hits made cost.
 layout(set = SET_PASS, binding = BIND_COUNTS, scalar) buffer Counted
@@ -164,45 +166,6 @@ layout(set = SET_PASS, binding = BIND_COUNTS, scalar) buffer Counted
 layout(set = SET_PASS, binding = BIND_SUN_GLARE, scalar) buffer SunGlare
 {
     SunGlareCount sunGlare;
-};
-
-/// The bounce's reservoirs and visible points, a traced pixel each, row by row at
-/// `VisibilityConstants::mBounceStride`: this frame's reservoirs, which the trace writes and the
-/// temporal pass merges into and the resolve reads, and the history, which the temporal pass reads
-/// last frame's off and the resolve writes the next frame's into; this frame's visible points and
-/// last frame's; and the path's transmittance in front of each pixel, `RGB9E5`, which the resolve
-/// puts back over the bounce it shades.
-layout(set = SET_PASS, binding = BIND_BOUNCE_RESERVOIRS, scalar) buffer BounceReservoirs
-{
-    GpuBounceReservoir bounceReservoirs[];
-};
-layout(set = SET_PASS, binding = BIND_BOUNCE_HISTORY, scalar) buffer BounceHistory
-{
-    GpuBounceReservoir bounceHistory[];
-};
-layout(set = SET_PASS, binding = BIND_BOUNCE_ORIGINS, scalar) buffer BounceOrigins
-{
-    GpuBounceOrigin bounceOrigins[];
-};
-layout(set = SET_PASS, binding = BIND_BOUNCE_ORIGINS_BEFORE, scalar) readonly buffer BounceOriginsBefore
-{
-    GpuBounceOrigin bounceOriginsBefore[];
-};
-layout(set = SET_PASS, binding = BIND_BOUNCE_THROUGH, scalar) buffer BounceThrough
-{
-    uint bounceThrough[];
-};
-
-/// The spatial reuse's two pairing textures, one after the other, a step a texel as two signed
-/// sixteen-bit halves; and a word a traced pixel at `VisibilityConstants::mBounceStride` whose bit `i`
-/// says whether link `i`'s partner sees the pixel's sample (`bouncepairs.rgen`).
-layout(set = SET_PASS, binding = BIND_BOUNCE_PAIRING, scalar) readonly buffer BouncePairing
-{
-    uint bouncePairing[];
-};
-layout(set = SET_PASS, binding = BIND_BOUNCE_PAIRED, scalar) buffer BouncePaired
-{
-    uint bouncePaired[];
 };
 
 // **A buffer and not a push constant.** The frame's description passed 256 bytes, which is every
@@ -451,8 +414,8 @@ GpuEmitterFrame emitterFrameAt(uint index)
 /// which is the order they composite in. `spritelist.glsl` states the shape.
 ///
 /// **Made on the device, by `SpriteBinPass`, ahead of the trace.** `spriterects.comp` says why the
-/// layer is binned per tile and the emitters are not, and `SPRITE_LIST_UNBINNED` what entry nought
-/// holds on the frame whose runs did not fit.
+/// layer is binned per tile and the emitters are not, and `SPRITE_TILE_UNBINNED` what a tile past
+/// the room holds.
 uint spriteTileListAt(uint slot)
 {
     return SpriteTileList(frame.mTables.mSpriteTileList).at[slot];

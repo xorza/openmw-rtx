@@ -2,9 +2,9 @@
 
 #include <array>
 
-#include <components/rtx/shaders/glare.h>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
+#include <components/rtxvulkan/shaders/shared/glare.h>
 
 namespace Rtx
 {

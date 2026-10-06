@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from omw.build import Build
-from omw.system import Refusal, Switches
+from omw.system import Refusal, Switches, read_text
 
 # The distance `look.h` quotes the moving legs at.
 DEFAULT_DISTANCE = "150"
@@ -45,8 +45,8 @@ _VERSUS = "versus --"
 
 # One place's line of the harness's report, as `RtxTool::judgeNoise` prints it.
 _PLACE = re.compile(
-    r"^  (?P<place>\S+)\s+noise: frame mean (?P<mean>[\d.]+) p99 (?P<p99>\d+), (?P<frames>\d+) averaged mean "
-    r"[\d.]+ p99 \d+ — (?:as clean|noisier); bias: frame (?P<bias>[\d.]+), \d+ averaged [\d.]+; "
+    r"^  (?P<place>\S+)\s+noise: frame mean (?P<mean>[\d.]+) p99 (?P<p99>[\d.]+), (?P<frames>\d+) averaged mean "
+    r"[\d.]+ p99 [\d.]+ — (?:as clean|noisier); bias: frame (?P<bias>[\d.]+), \d+ averaged [\d.]+; "
     r"fireflies (?P<fireflies>[\d.]+) in a thousand$")
 
 
@@ -75,7 +75,7 @@ class Figures:
     """One place's frame, as a leg's run measured it: its noise's mean and 99th percentile, its bias
     against the converged reference, and its fireflies in a thousand pixels."""
     mean: float
-    p99: int
+    p99: float
     bias: float
     fireflies: float
 
@@ -133,7 +133,7 @@ def read_report(text: str) -> dict[str, Figures]:
     for line in text.splitlines():
         matched = _PLACE.match(line)
         if matched:
-            found[matched["place"]] = Figures(float(matched["mean"]), int(matched["p99"]), float(matched["bias"]),
+            found[matched["place"]] = Figures(float(matched["mean"]), float(matched["p99"]), float(matched["bias"]),
                                               float(matched["fireflies"]))
     return found
 
@@ -160,7 +160,7 @@ def table(leg: str, sides: tuple[Side, Side], first: dict[str, Figures], second:
         if x is None or y is None:
             lines.append(f"  {place:<28} measured on one side only")
             continue
-        lines.append(f"  {place:<28} {x.mean:>{mean}.2f} {y.mean:>{mean}.2f} {x.p99:>{p99}} {y.p99:>{p99}} "
+        lines.append(f"  {place:<28} {x.mean:>{mean}.2f} {y.mean:>{mean}.2f} {x.p99:>{p99}.2f} {y.p99:>{p99}.2f} "
                      f"{x.bias:>{bias}.2f} {y.bias:>{bias}.2f} {x.fireflies:>{fly}.2f} {y.fireflies:>{fly}.2f}")
     return "\n".join(lines)
 
@@ -176,10 +176,10 @@ def ab(build: Build, args: list[str]) -> int:
         folder = out / leg.label.replace(" ", "")
         log = folder.with_suffix(".log")
         print(f"noise: {leg.label}, {first.switch} against {second.switch}", flush=True)
-        with open(log, "w") as written:
+        with open(log, "w", encoding="utf-8") as written:
             ended = build.harness("noise", first.switch, f"--versus={second.switch.removeprefix('--')}",
                                   *leg.switches, *asked.rest, f"--out={folder}", stdout=written, stderr=written)
-        reports = read_sides(log.read_text(errors="replace"))
+        reports = read_sides(read_text(log))
         if ended.returncode not in JUDGED or not all(reports):
             print(f"the run failed with status {ended.returncode}, see {log}", file=sys.stderr)
             return 1

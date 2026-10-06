@@ -31,6 +31,10 @@ struct SurfaceResponse
     /// What the fill is multiplied by: the ambient albedo, `Surface::mAmbientAlbedo`, with none of
     /// the path either. `mDiffuse` wherever the material states no ambient colour of its own.
     vec3 mAmbient;
+
+    /// What the lobe's light is multiplied by: `specularModulation`, the split-sum specular albedo as
+    /// the payload carries it, and one wherever there is no lobe to take apart.
+    vec3 mSpecular;
 };
 
 /// A pixel with no surface behind it: the sky, or a ray that reached nothing.
@@ -39,6 +43,6 @@ struct SurfaceResponse
 /// bounce of nought, and the filters know the sky by `SURFACE_NO_NORMAL`.
 SurfaceResponse noResponse()
 {
-    return SurfaceResponse(SURFACE_NO_NORMAL, vec3(0.0), vec3(0.0));
+    return SurfaceResponse(SURFACE_NO_NORMAL, vec3(0.0), vec3(0.0), vec3(1.0));
 }
 #endif

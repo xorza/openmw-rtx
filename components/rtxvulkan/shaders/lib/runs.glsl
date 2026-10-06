@@ -9,6 +9,7 @@
 // and is reached through a table of addresses; a run is one address the host hands over whole,
 // which `Rtx::SceneDesc` never lets straddle a block.
 
+#include "shared/tables.h"
 #include "scene.h"
 #include "skinning.h"
 

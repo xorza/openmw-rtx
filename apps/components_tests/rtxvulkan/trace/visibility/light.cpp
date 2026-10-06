@@ -683,6 +683,74 @@ namespace Rtx::Testing
             }
         }
 
+        /// **A cutout keeps its coverage with distance, as the rasterizer keeps it.** A checker of
+        /// opaque texels and holes, cut at 0.6, whose file carries one level: the chain the device
+        /// makes holds an alpha of a half at every level under it, which the test fails, so a
+        /// canopy read from a few levels down had no leaves. The alpha is raised by a quarter a
+        /// level (`alpha.glsl`'s scale): tiled sixteen times across a card that fills the frame, a
+        /// pixel covers four texels, the read stands two levels down, and `0.5 · 1.5 = 0.75` passes —
+        /// every pixel the card. Tiled once, a texel is four pixels a side, nothing is raised, and the
+        /// checker shows as its own bilinear read: pixels a quarter and three quarters of a texel off
+        /// its centre read `0.875² + 0.125² = 0.781` in the middle two by two of an opaque texel and
+        /// `0.875 · 0.625 + 0.125 · 0.375 = 0.594` beside them, so four of every thirty-two pixels
+        /// are the card. A raise of a hundredth would take the second over the cut and the share to
+        /// three eighths.
+        TEST_F(RtxVisibilityTest, aCutoutKeepsItsCoverageWithDistanceAsTheRasterizerKeepsIt)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::uint32_t extent = 16;
+
+            std::vector<std::uint8_t> bytes(std::size_t{ extent } * extent * 4);
+            for (std::uint32_t y = 0; y < extent; ++y)
+                for (std::uint32_t x = 0; x < extent; ++x)
+                {
+                    std::uint8_t* const texel = &bytes[(std::size_t{ y } * extent + x) * 4];
+                    texel[0] = 255;
+                    texel[3] = (x + y) % 2 == 0 ? 255 : 0;
+                }
+
+            const MipLevel level{ 0, extent, extent };
+            const TextureData data{
+                .mFormat = TextureFormat::Rgba8Unorm,
+                .mWidth = extent,
+                .mHeight = extent,
+                .mBytes = std::as_bytes(std::span(bytes)),
+                .mLevels = std::span(&level, 1),
+                .mCompleteChain = true,
+            };
+            const std::span<const TextureData> textures(&data, 1);
+
+            const std::array masked = cardAt(-50.0f);
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -150.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            const auto cardShare = [&](float tiles) {
+                std::array<osg::Vec2f, 4> uv = sQuadUv;
+                for (osg::Vec2f& corner : uv)
+                    corner *= tiles;
+
+                SceneDesc scene = makeWall();
+                const Index mesh
+                    = scene.addMesh(MeshArrays{ .mPositions = masked, .mTexCoords = uv, .mIndices = sQuadIndices });
+                const Index material = scene.addMaterial(Material{
+                    .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("checker.dds")),
+                    .mAlphaTest = { .mReference = 0.6f },
+                    .mAlphaMode = AlphaMode::Cutout,
+                });
+                scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
+
+                const std::vector<std::uint8_t> shot
+                    = shoot(scene, textures, camera, size, Shot{ .mFrames = 1, .mShow = SurfaceView::Albedo }).bytes();
+                std::size_t card = 0;
+                for (std::size_t i = 0; i < shot.size(); i += 4)
+                    card += shot[i + 1] == 0 ? 1 : 0;
+                return static_cast<float>(card) / static_cast<float>(size * size);
+            };
+
+            EXPECT_EQ(cardShare(16.0f), 1.0f) << "the far canopy lost its coverage";
+            EXPECT_EQ(cardShare(1.0f), 0.125f) << "the near checker was raised as well";
+        }
+
         /// A wall lit by one lamp, at the radiance the falloff says and nowhere else.
         ///
         /// The centre pixel looks straight at the origin, where the wall's normal is (0, -1, 0) and
@@ -840,6 +908,96 @@ namespace Rtx::Testing
             EXPECT_LT(darkened, clear) << "the darkening did not reach the wall";
             EXPECT_EQ(render(aside, osg::Vec3f(), true, 0, std::span(&taking, 1)), darkened)
                 << "the quad shadowed a lamp that takes light away";
+        }
+
+        /// **A lamp that takes light away takes it off the lamps' exact sum on a surface that draws one
+        /// lamp, too.** A white pane half there, which the eye peels and shades with its lamps
+        /// composed (`shadePane`), over a black sky, under a red lamp and a blue one at one place,
+        /// and a white lamp there that takes half of either away. Each alone lights the frame `r` in
+        /// its own channel, so the darkened sum is `r / 2` in red and in blue.
+        ///
+        /// The pane draws one lamp a pixel by its luminance: red with a chance of `p = 0.2126 /
+        /// 0.2848 = 0.7465`, delivering `r / p` in red, and blue otherwise, `r / (1 - p)` in blue.
+        /// Clamped after that one-lamp draw, red came to `p (r / p - r / 2) = 0.627 r` and blue to
+        /// `0.873 r`; scaled by the exact sum's darkened share, each comes to `r / 2`.
+        TEST_F(RtxVisibilityTest, aLampThatTakesLightAwayTakesItOffTheExactSumWhereOneLampIsDrawn)
+        {
+            constexpr std::uint32_t size = 32;
+            const auto lit = [&](std::span<const Light> lamps) {
+                SceneDesc scene;
+                addPane(scene, uprightQuadAt(400.0f, 0.0f), osg::Vec4f(1.0f, 1.0f, 1.0f, 0.5f));
+                for (const Light& lamp : lamps)
+                    scene.addLight(lamp);
+
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mAmbient = osg::Vec3f();
+
+                const Frame frame = shoot(scene, {}, camera, size, { .mFrames = 16, .mIndirect = IndirectLight::Off });
+                return osg::Vec3f(frame.mean(0), frame.mean(1), frame.mean(2));
+            };
+
+            const auto lampOf = [](const osg::Vec3f& intensity) {
+                return Light{ .mPosition = osg::Vec3f(0.0f, -50.0f, 0.0f), .mIntensity = intensity, .mReach = 500.0f };
+            };
+            const std::array red{ lampOf(osg::Vec3f(4000.0f, 0.0f, 0.0f)) };
+            const float r = lit(red).x();
+            ASSERT_GT(r, 0.01f) << "the pane is lit, or this proves nothing";
+
+            const std::array lamps{ lampOf(osg::Vec3f(4000.0f, 0.0f, 0.0f)), lampOf(osg::Vec3f(0.0f, 0.0f, 4000.0f)),
+                lampOf(osg::Vec3f(-2000.0f, -2000.0f, -2000.0f)) };
+            const osg::Vec3f darkened = lit(lamps);
+            EXPECT_NEAR(darkened.x(), 0.5f * r, 0.01f * r) << "red";
+            EXPECT_EQ(darkened.y(), 0.0f) << "green";
+            EXPECT_NEAR(darkened.z(), 0.5f * r, 0.01f * r) << "blue";
+        }
+
+        /// **A point that composes its light draws a fixed count of lamps and keeps their mean.** The
+        /// half pane of the test above under twelve lamps of three colours, at three distances: the
+        /// pane draws two candidates of the twelve a pixel and resamples them, which over 64 frames
+        /// of the frame's 1024 pixels comes to the mean of the walk over every lamp, while one frame of
+        /// it is another draw than one frame of the walk.
+        TEST_F(RtxVisibilityTest, aComposingPointDrawsAFixedCountOfLampsAndKeepsTheirMean)
+        {
+            constexpr std::uint32_t size = 32;
+            std::vector<Light> lamps;
+            for (std::size_t at = 0; at < 12; ++at)
+            {
+                const float colour = static_cast<float>(at % 3);
+                lamps.push_back(Light{ .mPosition = osg::Vec3f(-30.0f + 6.0f * static_cast<float>(at),
+                                           -30.0f - 10.0f * static_cast<float>(at % 4), 0.0f),
+                    .mIntensity = osg::Vec3f(colour == 0.0f ? 1000.0f : 200.0f, colour == 1.0f ? 1000.0f : 200.0f,
+                        colour == 2.0f ? 1000.0f : 200.0f),
+                    .mReach = 500.0f });
+            }
+
+            const auto lit = [&](std::uint32_t candidates, std::uint32_t frames) {
+                SceneDesc scene;
+                addPane(scene, uprightQuadAt(400.0f, 0.0f), osg::Vec4f(1.0f, 1.0f, 1.0f, 0.5f));
+                for (const Light& lamp : lamps)
+                    scene.addLight(lamp);
+
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mAmbient = osg::Vec3f();
+
+                return shoot(scene, {}, camera, size,
+                    { .mFrames = frames, .mLampCandidates = candidates, .mIndirect = IndirectLight::Off });
+            };
+
+            const Frame walked = lit(0u, 64);
+            const Frame drawn = lit(2u, 64);
+            for (std::size_t channel = 0; channel < 3; ++channel)
+                EXPECT_NEAR(drawn.mean(channel), walked.mean(channel), walked.mean(channel) * 0.01f)
+                    << "channel " << channel;
+
+            EXPECT_NE(lit(2u, 1).mRadiance, lit(0u, 1).mRadiance) << "the count is not read";
         }
 
         /// **A wall with a specular map reflects the lamp by the lobe the host evaluates**, a
@@ -1400,6 +1558,11 @@ namespace Rtx::Testing
         /// estimate is the two lobes summed. Weighed by the cosine and the irradiance, as the sky's
         /// pick was, a frame holding the sun gives `2.4 / 2` of its lobe and one holding the moon
         /// `2.4 / 0.4` of hers: the sum only where the moon's lobe is a fifth of the sun's.
+        ///
+        /// **Each lobe at its disc's representative point** (`reflectionAt`): the mirror direction of
+        /// the eye's ray, `(-1, -1, 0) / sqrt 2`, stands 45 degrees off the sun and 8 off Masser,
+        /// so each is taken at its disc's rim toward it — the sun's real half angle, Masser's 0.05 —
+        /// and scaled by `(α / α′)²`, `α′ = α + sine / 3`.
         TEST_F(RtxVisibilityTest, aMetalHoldsTheSkySourceItsLobeReturnsAndIsSampledWithNoNoise)
         {
             constexpr std::uint32_t size = 33;
@@ -1446,7 +1609,16 @@ namespace Rtx::Testing
             const float reflectance = 128.0f / 255.0f;
             const float roughness = 128.0f / 255.0f;
             const osg::Vec3f toEye = osg::Vec3f(1.0f, -1.0f, 0.0f) / std::sqrt(2.0f);
-            const auto lobe = [&](const osg::Vec3f& toLight, float irradiance) {
+            const osg::Vec3f mirror = normal * (2.0f * (normal * toEye)) - toEye;
+            const auto lobe = [&](const osg::Vec3f& toCentre, float irradiance, float sine) {
+                const float cosine = std::sqrt(1.0f - sine * sine);
+                const float along = mirror * toCentre;
+                osg::Vec3f across = mirror - toCentre * along;
+                across.normalize();
+                const osg::Vec3f toLight = along >= cosine ? mirror : toCentre * cosine + across * sine;
+                const float widened = Shaders::ggxAlpha(roughness) + sine / 3.0f;
+                const float normalisation
+                    = (Shaders::ggxAlpha(roughness) / widened) * (Shaders::ggxAlpha(roughness) / widened);
                 osg::Vec3f halfway = toEye + toLight;
                 halfway.normalize();
                 const float toLightCosine = normal * toLight;
@@ -1457,11 +1629,11 @@ namespace Rtx::Testing
                     reflectance, Shaders::specularEdge(reflectance), Shaders::schlickWeight(toEye * halfway));
                 return irradiance * fresnel * Shaders::specularCompensation(reflectance, table.y())
                     * Shaders::ggxDistribution(alpha, normal * halfway)
-                    * Shaders::smithVisibility(alpha, eyeCosine, toLightCosine) * toLightCosine;
+                    * Shaders::smithVisibility(alpha, eyeCosine, toLightCosine) * toLightCosine * normalisation;
             };
 
-            const float sun = lobe(toSun, sunlight);
-            const float moon = lobe(toMoon, moonlight);
+            const float sun = lobe(toSun, sunlight, std::sin(Shaders::SUN_ANGULAR_RADIUS));
+            const float moon = lobe(toMoon, moonlight, std::sin(0.05f));
             ASSERT_GT(std::abs(moon / sun - 0.2f), 0.05f) << "the directions no longer tell the two targets apart";
 
             const Frame frame = shoot(scene, textures, camera, size);
@@ -2509,22 +2681,75 @@ namespace Rtx::Testing
             EXPECT_LT(floorUnder(glowingAt(-100.0f)), 0.005f) << "and it stops at the triangle";
         }
 
+        /// A bounce meets a see-through pane as often as the pane is there.
+        ///
+        /// **The blend the eye draws, in the mean, for every ray that commits a hit.** A grey floor
+        /// under a glowing sheet that covers every direction it gathers from comes to its albedo, a
+        /// half, for the sheet's radiance of one (`aBounceDoesNotGatherThroughTheTriangleItLeft`
+        /// says why one). A black pane between them, unlit and glowing nothing, takes the share of
+        /// that it covers: met solid by every bounce, it took all of it at any opacity. At an
+        /// opacity of one the floor is dark, at a half it is `0.5 * 0.5` = 0.25, and at a quarter
+        /// `0.5 * 0.75` = 0.375.
+        TEST_F(RtxVisibilityTest, aBounceMeetsASeeThroughPaneAsOftenAsThePaneIsThere)
+        {
+            constexpr std::uint32_t size = 32;
+
+            const auto floorUnder = [&](float opacity) {
+                SceneDesc scene;
+                addQuad(scene, sheetAt(40000.0f, 0.0f));
+
+                Material glowing;
+                glowing.mEmissiveColour = osg::Vec3f(0.125f, 0.125f, 0.125f);
+                glowing.mTwoSided = true;
+                addQuad(scene, sheetAt(40000.0f, 100.0f), scene.addMaterial(glowing));
+                addPane(scene, sheetAt(40000.0f, 50.0f), osg::Vec4f(0.0f, 0.0f, 0.0f, opacity), 1.0f, true);
+
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, -1.0f, 20.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+                camera.mSkyHorizon = osg::Vec3f();
+                camera.mSkyZenith = osg::Vec3f();
+                camera.mSun.mIrradiance = osg::Vec3f();
+                camera.mAmbient = osg::Vec3f();
+                camera.mAmbientFromSky = 1.0f;
+
+                return shoot(scene, {}, camera, size, { .mFrames = 64 }).mean();
+            };
+
+            EXPECT_LT(floorUnder(1.0f), 0.005f) << "a whole pane stops every bounce";
+            EXPECT_NEAR(floorUnder(0.5f), 0.25f, 0.01f) << "half a pane stops half of them";
+            EXPECT_NEAR(floorUnder(0.25f), 0.375f, 0.01f) << "and a quarter a quarter";
+        }
+
         /// **A lamp's own model glows to the eye and lights nothing by the bounce** (`bounceLanding`,
         /// `INSTANCE_LAMP_BODY`): its lamp delivers that light already.
         ///
         /// A glowing sheet over a grey floor and nothing else, the sheet two-sided so the eye under
         /// it sees it. Its radiance is `1 * 0.125 * EMISSIVE_INTENSITY`, one, and it covers every
         /// direction the floor gathers from, so the floor comes to its albedo, a half — and to
-        /// nothing where the sheet is a lamp's model, under the trace's own bounce and under the
-        /// temporal reuse, whose validation shades a kept sample by the same rule. Looked at, the
+        /// nothing where the sheet is a lamp's model. Looked at, the
         /// sheet is one either way: its glow is the eye's, and the floor it would bounce off is dark.
         TEST_F(RtxVisibilityTest, aLampsOwnModelGlowsToTheEyeAndLightsNothingByTheBounce)
         {
             constexpr std::uint32_t size = 32;
 
-            const auto under = [](bool lampBody) {
+            // A grey floor, or a white metal one, whose every ray off it is its lobe's.
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+            constexpr std::array<std::uint8_t, 4> metalTexel{ 255, 128, 255, 255 };
+            const std::array<TextureData, 2> metalTextures{ describeTexel(white, 0), describeTexel(metalTexel, 1) };
+            const auto under = [](bool lampBody, bool metal = false) {
                 SceneDesc scene;
-                addQuad(scene, sheetAt(40000.0f, 0.0f));
+                if (metal)
+                {
+                    const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("white.dds"));
+                    const Index map = scene.textures().add(
+                        VFS::Path::NormalizedView("white_spec.dds"), TextureWrap::Repeat, TextureEncoding::Data);
+                    scene.addInstance(MeshInstance{
+                        .mMesh = scene.addMesh(MeshArrays{
+                            .mPositions = sheetAt(40000.0f, 0.0f), .mTexCoords = sQuadUv, .mIndices = sQuadIndices }),
+                        .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse, .mSpecular = map }) });
+                }
+                else
+                    addQuad(scene, sheetAt(40000.0f, 0.0f));
 
                 const Index glowing = scene.addMaterial(
                     Material{ .mEmissiveColour = osg::Vec3f(0.125f, 0.125f, 0.125f), .mTwoSided = true });
@@ -2534,26 +2759,32 @@ namespace Rtx::Testing
                 return scene;
             };
 
-            const auto seen = [&](const SceneDesc& scene, const osg::Vec3f& looking, BounceReuse reuse) {
-                Shaders::VisibilityConstants camera
-                    = Testing::makeCamera(osg::Vec3f(0.0f, -1.0f, 50.0f), looking, 60.0f, size, size, 100000.0f);
-                camera.mSkyHorizon = osg::Vec3f();
-                camera.mSkyZenith = osg::Vec3f();
-                camera.mSun.mIrradiance = osg::Vec3f();
-                camera.mAmbient = osg::Vec3f();
-                camera.mAmbientFromSky = 1.0f;
+            const auto seen
+                = [&](const SceneDesc& scene, const osg::Vec3f& looking, std::span<const TextureData> textures = {}) {
+                      Shaders::VisibilityConstants camera
+                          = Testing::makeCamera(osg::Vec3f(0.0f, -1.0f, 50.0f), looking, 60.0f, size, size, 100000.0f);
+                      camera.mSkyHorizon = osg::Vec3f();
+                      camera.mSkyZenith = osg::Vec3f();
+                      camera.mSun.mIrradiance = osg::Vec3f();
+                      camera.mAmbient = osg::Vec3f();
+                      camera.mAmbientFromSky = 1.0f;
 
-                return shoot(scene, {}, camera, size, { .mFrames = 64, .mBounceReuse = reuse }).mean();
-            };
+                      return shoot(scene, textures, camera, size, { .mFrames = 64 }).mean();
+                  };
 
             const osg::Vec3f down(0.0f, 0.0f, 0.0f);
             const osg::Vec3f up(0.0f, 0.0f, 100.0f);
-            for (const BounceReuse reuse : { BounceReuse::Off, BounceReuse::Temporal })
-            {
-                EXPECT_NEAR(seen(under(false), down, reuse), 0.5f, 0.01f) << "a glow lights by its bounce";
-                EXPECT_LT(seen(under(true), down, reuse), 0.005f) << "a lamp's model lit what its lamp lights";
-                EXPECT_NEAR(seen(under(true), up, reuse), 1.0f, 0.01f) << "a lamp's model stopped glowing";
-            }
+            EXPECT_NEAR(seen(under(false), down), 0.5f, 0.01f) << "a glow lights by its bounce";
+            EXPECT_LT(seen(under(true), down), 0.005f) << "a lamp's model lit what its lamp lights";
+            EXPECT_NEAR(seen(under(true), up), 1.0f, 0.01f) << "a lamp's model stopped glowing";
+
+            // **And by the lobe, which `gather` reached the lamp with already.** A white metal gives
+            // a glow back whole, as it gives the sky back (`aGlossyFloorUnderAnEvenSkyGivesBackWhatItReflects`),
+            // and a lamp's model none: its lamp reaches the lobe by its light sample, and the model
+            // reflected beside that was the lamp twice.
+            EXPECT_NEAR(seen(under(false, true), down, metalTextures), 1.0f, 0.02f) << "a metal reflects a glow";
+            EXPECT_LT(seen(under(true, true), down, metalTextures), 0.005f)
+                << "a metal reflected a lamp's model beside its lamp";
         }
 
         /// A bounce is drawn by the cosine, and a half is the number that says so.

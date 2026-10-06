@@ -20,9 +20,9 @@
 // ask the device directly it had to be put to a whole traced frame and answered by elimination —
 // which cost a day and reached the wrong answer twice.
 
-#include "probe.h"
+#include "shared/probe.h"
 #include "scene.h"
-#include "sets.h"
+#include "shared/sets.h"
 
 #include "lib/runs.glsl"
 

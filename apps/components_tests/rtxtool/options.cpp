@@ -68,19 +68,19 @@ namespace RtxTool
                 return variables;
             };
 
-            const bpo::variables_map variables = read({ "--antilag=false", "--bounce-reuse=temporal" });
+            const bpo::variables_map variables = read({ "--antilag=false", "--lamp-candidates=4" });
             Rtx::ReconstructionRequest played{ .mIndirect = Rtx::IndirectLight::Off };
             readReconstruction(variables, played);
             ASSERT_FALSE(played.mAntilag);
-            ASSERT_EQ(played.mBounceReuse, Rtx::BounceReuse::Temporal);
+            ASSERT_EQ(played.mLampCandidates, 4u);
 
             Rtx::ReconstructionRequest ringed = played;
             ringed.mAntiFirefly = true;
             EXPECT_EQ(options.versus(variables, played, "antifirefly=true"), ringed);
             EXPECT_EQ(options.versus(variables, played, "antifirefly"), ringed) << "the implicit value";
-            Rtx::ReconstructionRequest whole = played;
-            whole.mBounceReuse = Rtx::BounceReuse::Spatiotemporal;
-            EXPECT_EQ(options.versus(variables, played, "bounce-reuse=spatiotemporal"), whole);
+            Rtx::ReconstructionRequest every = played;
+            every.mLampCandidates = 0;
+            EXPECT_EQ(options.versus(variables, played, "lamp-candidates=0"), every);
             EXPECT_EQ(options.versus(variables, played, "antilag=false"), played) << "the same side again";
 
             const std::array<std::pair<std::string_view, std::string_view>, sReconstructionSwitches.size()> moved{ {
@@ -88,7 +88,8 @@ namespace RtxTool
                 { "jitter", "true" },
                 { "noise", "white-hash" },
                 { "level-epsilon", "0.5" },
-                { "bounce-reuse", "own" },
+                { "shadow-floor", "0.25" },
+                { "lamp-candidates", "0" },
                 { "antilag", "false" },
                 { "history-fix", "false" },
                 { "dual-motion", "false" },
@@ -107,8 +108,10 @@ namespace RtxTool
             }
 
             EXPECT_THROW(options.versus(variables, played, "delight=0.5"), std::runtime_error);
-            EXPECT_THROW(options.versus(variables, played, "bounce-reuse=sideways"), std::runtime_error);
+            EXPECT_THROW(options.versus(variables, played, "noise=sideways"), std::runtime_error);
             EXPECT_THROW(options.versus(variables, played, "antifirefly=maybe"), std::runtime_error);
+            EXPECT_THROW(options.versus(variables, played, "shadow-floor=0.5"), std::runtime_error)
+                << "a floor over a quarter, which can leave a pixel nothing to draw";
         }
 
         /// **A film is twenty seconds unless its length or its speed is named**, and never both: the

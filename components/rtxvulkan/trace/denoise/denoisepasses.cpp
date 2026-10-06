@@ -126,6 +126,8 @@ namespace Rtx
         Barriers blends(commands);
         for (const Image* image : { &accumulated.mBlended, &accumulated.mFillBlended, &accumulated.mMoments })
             image->addTransition(blends, Use::sComputeWrite, Use::sComputeReadOrSample);
+        // The history fix writes its answer over the clamp's fast means.
+        accumulated.mFast.addTransition(blends, Use::sComputeWrite, Use::sComputeWrite);
 
         blends.flush();
 

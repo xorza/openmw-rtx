@@ -27,7 +27,7 @@ namespace Rtx
         /// Formats and Vulkan Formats" table, one row per qualifier `storageformat.h` spells.
         TEST(RtxFormatsTest, aStorageFormatIsTheOneTheSpecificationPairsItsQualifierWith)
         {
-            constexpr std::array<std::pair<StorageFormat, VkFormat>, 12> sTable{ {
+            constexpr std::array<std::pair<StorageFormat, VkFormat>, 13> sTable{ {
                 { StorageFormat::Rgba8, VK_FORMAT_R8G8B8A8_UNORM },
                 { StorageFormat::R8, VK_FORMAT_R8_UNORM },
                 { StorageFormat::Rg8, VK_FORMAT_R8G8_UNORM },
@@ -38,12 +38,22 @@ namespace Rtx
                 { StorageFormat::Rg16f, VK_FORMAT_R16G16_SFLOAT },
                 { StorageFormat::Rg32f, VK_FORMAT_R32G32_SFLOAT },
                 { StorageFormat::Rg32ui, VK_FORMAT_R32G32_UINT },
+                { StorageFormat::Rgba16, VK_FORMAT_R16G16B16A16_UNORM },
                 { StorageFormat::Rgba16f, VK_FORMAT_R16G16B16A16_SFLOAT },
                 { StorageFormat::Rgba32f, VK_FORMAT_R32G32B32A32_SFLOAT },
             } };
 
             for (const auto& [format, expected] : sTable)
+            {
                 EXPECT_EQ(toVulkanFormat(format), expected) << "layout " << static_cast<int>(format);
+
+                // A half's store may round toward nought, and no other format's here: the unsigned
+                // normalised ones round to nearest by the specification, and the integers store
+                // what they are handed.
+                const bool half = expected == VK_FORMAT_R16_SFLOAT || expected == VK_FORMAT_R16G16_SFLOAT
+                    || expected == VK_FORMAT_R16G16B16A16_SFLOAT;
+                EXPECT_EQ(Shaders::mayRoundTowardNought(format), half) << "layout " << static_cast<int>(format);
+            }
         }
 
         /// **Every format this uploads is the block or order its file holds, with the curve where it
@@ -90,7 +100,7 @@ namespace Rtx
                 std::uint32_t mBytes;
                 TexelDecode mDecode;
             };
-            constexpr std::array<Row, 14> sTable{ {
+            constexpr std::array<Row, 15> sTable{ {
                 { VK_FORMAT_R8_UNORM, 1, TexelDecode::Unorm8 },
                 { VK_FORMAT_R8G8_UNORM, 2, TexelDecode::Unorm8 },
                 { VK_FORMAT_R16_UNORM, 2, TexelDecode::Bytes },
@@ -102,6 +112,7 @@ namespace Rtx
                 { VK_FORMAT_R16G16_SFLOAT, 4, TexelDecode::Half },
                 { VK_FORMAT_R32_SFLOAT, 4, TexelDecode::Float },
                 { VK_FORMAT_R32_UINT, 4, TexelDecode::Bytes },
+                { VK_FORMAT_R16G16B16A16_UNORM, 8, TexelDecode::Bytes },
                 { VK_FORMAT_R16G16B16A16_SFLOAT, 8, TexelDecode::Half },
                 { VK_FORMAT_R32G32_SFLOAT, 8, TexelDecode::Float },
                 { VK_FORMAT_R32G32B32A32_SFLOAT, 16, TexelDecode::Float },
@@ -117,7 +128,7 @@ namespace Rtx
             // Every storage layout a pass declares can be read back, since a channel is one.
             for (const StorageFormat format : { StorageFormat::Rgba8, StorageFormat::R16, StorageFormat::R16f,
                      StorageFormat::R32f, StorageFormat::R32ui, StorageFormat::Rg16f, StorageFormat::Rg32f,
-                     StorageFormat::Rgba16f, StorageFormat::Rgba32f })
+                     StorageFormat::Rgba16, StorageFormat::Rgba16f, StorageFormat::Rgba32f })
                 EXPECT_GT(formatInfoOf(toVulkanFormat(format)).mTexelBytes, 0u) << static_cast<int>(format);
 
             Testing::expectDies(

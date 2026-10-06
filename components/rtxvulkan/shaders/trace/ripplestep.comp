@@ -18,8 +18,8 @@
 // million texels. A texel loops over the frame's impulses, which is nought on nearly every frame
 // and a handful when somebody wades.
 
-#include "ripple.h"
-#include "sets.h"
+#include "shared/ripple.h"
+#include "shared/sets.h"
 #include "lib/pixels.glsl"
 
 layout(local_size_x = RIPPLE_WORKGROUP, local_size_y = RIPPLE_WORKGROUP) in;
@@ -70,13 +70,11 @@ void main()
     const float neighbours = was(texel + ivec2(1, 0)).x + was(texel - ivec2(1, 0)).x + was(texel + ivec2(0, 1)).x
         + was(texel - ivec2(0, 1)).x;
 
-    // `applySprings`, verbatim: the coupling to the four neighbours, the height held back by both
-    // dampings and the coupling it gave away, and the step before subtracted through the
-    // velocity's damping.
-    const float a = RIPPLE_STIFFNESS;
-    const float udamp = RIPPLE_HEIGHT_DAMPING;
-    const float vdamp = RIPPLE_VELOCITY_DAMPING;
-    const float next = a * neighbours + ((2.0 - udamp - vdamp) - 4.0 * a) * held.x - (1.0 - vdamp) * held.y;
+    // `applySprings` over a step of any length, `RippleStepConstants` says how: what the height
+    // moved over the last step carried on, and the coupling to the four neighbours less what the
+    // height gives away and its own damping, as an acceleration.
+    const float pull = RIPPLE_STIFFNESS * (neighbours - 4.0 * held.x) - RIPPLE_HEIGHT_DAMPING * held.x;
+    const float next = held.x + (held.x - held.y) * step.mCarry + pull * step.mScale;
 
     // Bounded by the constant as every loop here is, and the count below it: the host never hands
     // more than the buffer holds, and a count that said otherwise would read past it.

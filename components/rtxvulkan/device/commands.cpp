@@ -34,6 +34,7 @@ namespace Rtx
 
     void CommandPool::defer(VkCommandBuffer commands)
     {
+        close(commands);
         checkVk(vkEndCommandBuffer(commands), "vkEndCommandBuffer");
         mDeferred.push_back(commands);
     }
@@ -41,6 +42,8 @@ namespace Rtx
     std::uint64_t CommandPool::submitWithDeferred(VkCommandBuffer commands,
         const std::span<const VkSemaphoreSubmitInfo> waits, const std::span<const VkSemaphoreSubmitInfo> signals)
     {
+        assert(mOpen.empty() && "a submit while a frame's recording is open, which would take the value it named for");
+
         mSubmitScratch.clear();
         mSubmitScratch.reserve(mDeferred.size() + 1);
         for (const VkCommandBuffer deferred : mDeferred)
@@ -91,6 +94,7 @@ namespace Rtx
     std::uint64_t CommandPool::submit(VkCommandBuffer commands, const std::span<const VkSemaphoreSubmitInfo> waits,
         const std::span<const VkSemaphoreSubmitInfo> signals)
     {
+        close(commands);
         checkVk(vkEndCommandBuffer(commands), "vkEndCommandBuffer");
 
         const std::uint64_t value = submitWithDeferred(commands, waits, signals);
@@ -128,6 +132,7 @@ namespace Rtx
         // Neither ended nor submitted: a buffer still being recorded is not pending, so this is
         // where a recording nobody wants goes back. Reset first, because a begin resets a buffer
         // that was ended and not one still recording.
+        close(commands);
         checkVk(vkResetCommandBuffer(commands, 0), "vkResetCommandBuffer");
         recycle(std::span<const VkCommandBuffer>(&commands, 1));
     }
@@ -222,6 +227,13 @@ namespace Rtx
 
     void CommandPool::begin(VkCommandBuffer commands)
     {
+        assert(std::ranges::find(mOpen, commands) == mOpen.end() && "a recording begun twice");
+        mOpen.push_back(commands);
+        open(commands);
+    }
+
+    void CommandPool::open(VkCommandBuffer commands)
+    {
         const VkCommandBufferBeginInfo begin{
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
             .pNext = nullptr,
@@ -244,14 +256,20 @@ namespace Rtx
 
     void CommandPool::end(VkCommandBuffer commands)
     {
+        close(commands);
         checkVk(vkEndCommandBuffer(commands), "vkEndCommandBuffer");
     }
 
     VkCommandBuffer CommandPool::begin()
     {
         const VkCommandBuffer commands = take();
-        begin(commands);
+        open(commands);
         return commands;
+    }
+
+    void CommandPool::close(VkCommandBuffer commands)
+    {
+        std::erase(mOpen, commands);
     }
 
     void CommandPool::endAndWait(VkCommandBuffer commands)

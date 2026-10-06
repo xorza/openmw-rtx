@@ -362,7 +362,7 @@ namespace Rtx
         /// path to the same number.
         ///
         /// **The level is Masser's, and it stays Masser's because the two tints are normalised on
-        /// Masser's own luminance.** The portraits differ in brightness as well as in hue, and that
+        /// the shipped Masser's luminance.** The portraits differ in brightness as well as in hue, and that
         /// difference is a fact about the bodies rather than the art — so a single albedo can only
         /// speak for one moon, and this is the one it speaks for.
         TEST(RtxMoonBuilderTest, aFullMasserDeliversWhatALitDiscOfItsSizeDoes)
@@ -377,6 +377,28 @@ namespace Rtx
             // And it is red, which is the only reason to draw Masser rather than a bright dot: its
             // portrait averages 0.0332 against 0.0099, and the light it reflects carries that.
             EXPECT_GT(full.mIrradiance.x(), 3.0f * full.mIrradiance.y());
+        }
+
+        /// A portrait that hides a moon, painted black or clear, takes that moon's light and leaves
+        /// the other's as it was.
+        ///
+        /// **The level is the shipped portrait's, not the one that opened.** Measured on the opened
+        /// Masser, a hidden one is a mean of nought: its own tint `0 / 0` and Secunda's `x / 0`,
+        /// which the fade's nought turns into NaN by day as well as by night.
+        TEST(RtxMoonBuilderTest, aHiddenMasserLightsNothingAndSecundaAsBefore)
+        {
+            MoonFaces hidden = configured();
+            hidden.of(Moon::Masser).mMean = osg::Vec3f();
+
+            const MoonPlacement masser = placeMoon(hidden, Moon::Masser, 90.0f, 35.0f, 0.0f, /*alpha=*/1.0f);
+            EXPECT_EQ(masser.mIrradiance, osg::Vec3f());
+
+            const MoonPlacement before = placeMoon(configured(), Moon::Secunda, 90.0f, -50.0f, 0.0f, /*alpha=*/1.0f);
+            const MoonPlacement after = placeMoon(hidden, Moon::Secunda, 90.0f, -50.0f, 0.0f, /*alpha=*/1.0f);
+            EXPECT_EQ(after.mIrradiance, before.mIrradiance);
+
+            const MoonPlacement faded = placeMoon(hidden, Moon::Masser, 90.0f, 35.0f, 0.0f, /*alpha=*/0.0f);
+            EXPECT_EQ(faded.mIrradiance, osg::Vec3f()) << "a fade of nought over a tint of NaN";
         }
 
         /// The same formula, asked about the moon everyone can check.

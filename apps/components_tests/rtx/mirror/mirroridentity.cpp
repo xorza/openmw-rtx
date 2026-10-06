@@ -52,7 +52,8 @@ namespace Rtx
 
         /// **A dropped hold is a sweep owed**, even on an epoch that reached everything else: the
         /// entry is stale the moment nothing holds it, and `whole` has to say so or the row it names
-        /// leaks until something else dies.
+        /// leaks until something else dies. **Unless the walk then reaches it**, as a frozen root's
+        /// own walk does the frame it thaws: then nothing is stale and no sweep is owed.
         TEST_F(RtxKeptTest, droppingTheLastHoldOwesASweepThatTakesTheEntry)
         {
             mKept.add(1, Known{ .mIndex = 10 });
@@ -75,6 +76,18 @@ namespace Rtx
             });
             EXPECT_EQ(dropped, 1u);
             EXPECT_TRUE(mKept.whole()) << "an empty map is whole";
+
+            // A hold dropped on an entry from an old epoch, which the walk then stamps: reached, and
+            // the map whole.
+            mKept.add(3, Known{ .mIndex = 30 });
+            mKept.hold(mKept.find(3));
+            nextEpoch();
+            mKept.drop(mKept.find(3));
+            EXPECT_FALSE(mKept.whole()) << "dropped and not yet reached";
+            mKept.stamp(mKept.find(3));
+            EXPECT_TRUE(mKept.whole()) << "a dropped entry the walk reached owed a sweep";
+            EXPECT_EQ(mKept.retire(), 0u);
+            EXPECT_NE(mKept.find(3), mKept.end());
 
             // The other way round: a hold dropped on an entry the epoch stamped is a reached entry
             // again, and owes nothing.

@@ -4,13 +4,13 @@
 #include <cstdint>
 
 #include <components/rtx/shaders/scene.h>
-#include <components/rtx/shaders/spritebin.h>
-#include <components/rtx/shaders/spriteshade.h>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
+#include <components/rtxvulkan/shaders/shared/spritebin.h>
+#include <components/rtxvulkan/shaders/shared/spriteshade.h>
 
 #include "spritepasses.hpp"
 
@@ -64,6 +64,8 @@ namespace Rtx
         // Past the need as the tables above are; the pass is told the capacity the rule gave, which
         // the buffer holds.
         mTileList.outgrow(mListSize.getBytes());
+
+        mPuffs = count > 0 || source.mPresenceCount > 0;
 
         // The placement's table, whole, because the shade writes over what it reads: the copy is
         // what lets a second trace against the same placement — a picture, or the frame after a

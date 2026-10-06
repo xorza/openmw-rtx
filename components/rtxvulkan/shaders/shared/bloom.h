@@ -1,0 +1,95 @@
+#ifndef OPENMW_COMPONENTS_RTXVULKAN_SHADERS_SHARED_BLOOM_H
+#define OPENMW_COMPONENTS_RTXVULKAN_SHADERS_SHARED_BLOOM_H
+
+#include <components/rtx/shaders/hosttypes.h>
+#include <components/rtx/shaders/look.h>
+#include <components/rtx/shaders/portable.h>
+#include <components/rtx/shaders/storageformat.h>
+
+// What the lens does with the light the frame already has. Included verbatim by both sides, for the
+// reason `visibility.h` is.
+
+#ifdef RTX_HOST
+namespace Rtx::Shaders
+{
+#endif
+
+    /// Where `bloomdown.comp` and `bloomup.comp` bind what they read and write in set 0, and how
+    /// many there are. The shader's layout and the pass's own layout and writes are numbered by
+    /// these and by nothing else, so the two cannot drift apart. The exposure is the halving's
+    /// alone, so the spread binds the first two.
+    const uint BLOOM_BIND_SOURCE = 0;
+    const uint BLOOM_BIND_LEVEL = 1;
+    const uint BLOOM_BIND_EXPOSURE = 2;
+    const uint BLOOM_SPREAD_BINDINGS = 2;
+    const uint BLOOM_HALVE_BINDINGS = 3;
+
+    /// Where `bloomdown.comp`'s specialization constant sits: `KARIS`, true for the frame's own
+    /// halving and false for every level after it.
+    const uint BLOOM_SPEC_KARIS = 0u;
+    const uint BLOOM_SPEC_COUNT = 1u;
+
+    /// Threads along each edge of a bloom workgroup.
+    const uint BLOOM_WORKGROUP = 8;
+
+    /// How many halvings the pyramid is built over.
+    ///
+    /// **A count and not a stopping size, so the spread is the same picture at every resolution.**
+    /// A pyramid taken down to a fixed number of texels is a wider blur on a bigger frame, and this
+    /// renderer is looked at through a harness that renders a tenth of the pixels the game does.
+    /// Six halvings put the coarsest level at a sixty-fourth of the frame's width, which is where
+    /// the widest tap of the widest tent sits.
+    const uint BLOOM_LEVELS = 6;
+
+    /// How narrow a level may be before it is not worth building.
+    ///
+    /// A tent reads its own neighbours, so a level thinner than this is mostly its own edge clamp.
+    /// Only a frame far smaller than anything played on reaches it.
+    const uint BLOOM_NARROWEST = 4;
+
+    /// What one dispatch of the pyramid is told.
+    struct BloomConstants
+    {
+        /// The extent being written, which is the level this dispatch fills and not the one it
+        /// reads.
+        uint mWidth;
+        uint mHeight;
+
+        /// One texel of the image being *sampled*, in that image's own texture coordinates.
+        ///
+        /// **The source's and not the destination's**, because both kernels are written in taps of
+        /// the image they read: the thirteen-tap downsample reaches two source texels out and the
+        /// nine-tap tent reaches one, and each is a fixed shape in the source's grid whatever the
+        /// destination's is. **And what places a destination texel in the source**: texel `p` of a
+        /// halving is the corner between source texels `2p` and `2p + 1`, which is
+        /// `(2p + 1) × mTexel`, and texel `q` of a spread stands at `(q + ½) / 2` source texels. A
+        /// source of odd width leaves its last column to the wide taps alone, where a destination
+        /// stretched over it put no tap on a corner and drifted half a texel across the level.
+        vec2 mTexel;
+
+        /// How much of what was sampled replaces what the destination already holds.
+        ///
+        /// `BLOOM_SCATTER` between two levels of the pyramid, `BLOOM_STRENGTH` where the pyramid
+        /// reaches the picture, and unread by the downsample, which overwrites.
+        float mMix;
+    };
+
+    // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
+    // reads them are different compilers.
+#ifdef RTX_HOST
+    static_assert(sizeof(BloomConstants) == 20, "BloomConstants must be scalar-packed on every side");
+#endif
+
+#ifdef RTX_HOST
+}
+#endif
+
+// The pyramid's own format.
+//
+// **Half floats, where the frame is whole ones.** What the pyramid carries is a blurred copy mixed
+// back at a twentieth, so a step of one part in a thousand of it is one part in twenty thousand of
+// the picture — and the levels are read and written far more often than anything else in the frame,
+// which makes their bandwidth the only thing about them that costs.
+#define BLOOM_LEVEL STORAGE_RGBA16F
+
+#endif

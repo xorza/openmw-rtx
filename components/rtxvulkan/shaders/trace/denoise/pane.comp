@@ -22,11 +22,11 @@
 // each only if it is this layer by `heldSurfaceMatches`, and `blendedMean` into the history, with the
 // whole of it kept — a layer's light does not turn with the view.
 
-#include "accumulate.h"
+#include "shared/accumulate.h"
 #include "gbuffer.h"
 #include "look.h"
-#include "pane.h"
-#include "sets.h"
+#include "shared/pane.h"
+#include "shared/sets.h"
 
 #include "lib/pixels.glsl"
 #include "lib/runningmean.glsl"
@@ -50,7 +50,6 @@ layout(set = SET_PASS, binding = PANE_BIND_HELD, ACCUMULATE_SURFACE) uniform wri
 layout(set = SET_PASS, binding = PANE_BIND_MEAN_BEFORE, PANE_MEAN) uniform readonly image2D meanBefore;
 layout(set = SET_PASS, binding = PANE_BIND_MEAN, PANE_MEAN) uniform writeonly image2D mean;
 
-/// The eye's camera serves the arms' layers too: the two are jittered alike.
 layout(push_constant, scalar) uniform Push
 {
     HistoryConstants frame;
@@ -66,36 +65,24 @@ void main()
     const vec3 sampled = imageLoad(paneChannel, at).rgb;
     const vec2 seen = imageLoad(paneSurface, at).xy;
     const vec3 normal = unpackSurfaceNormal(seen.x);
-    const float scaled = seen.y * frame.mDistanceScale;
 
     // A pixel no layer stands in writes its sample, which is nought, and a history of nothing.
     const bool stands = dot(normal, normal) > 0.0;
 
     const vec3 moved = imageLoad(paneMotion, at).xyz;
-    const HistoryFootprint footprint = historyFootprint(at, frame.mEyes.mWorld.mJitter, moved);
+    const HistoryFootprint footprint = historyFootprint(at, moved);
+    const HistoryPlane plane = historyPlane(frame, at, seen, moved);
+
+    // A texel no layer stood in holds no history, and would pull the mean toward nought.
+    RTX_HISTORY_SHARES(shares, footprint, extent, heldBefore, imageLoad(meanBefore, historyAt).a > 0.0, plane)
+    if (frame.mReset != 0u)
+        shares = vec4(0.0);
 
     vec4 heldMean = vec4(0.0);
-    float weight = 0.0;
-
-    if (frame.mReset == 0u)
-    {
-        for (int i = 0; i < 4; ++i)
-        {
-            const float bilinear = historyShare(footprint, i);
-            const ivec2 tap = historyTap(footprint, i);
-            if (bilinear <= 0.0 || outsideOf(tap, extent)
-                || !heldSurfaceMatches(imageLoad(heldBefore, tap), normal, seen.y, moved, frame.mDistanceScale))
-                continue;
-
-            // A texel no layer stood in holds no history, and would pull the mean toward nought.
-            const vec4 was = imageLoad(meanBefore, tap);
-            if (was.a <= 0.0)
-                continue;
-
-            heldMean += was * bilinear;
-            weight += bilinear;
-        }
-    }
+    for (int i = 0; i < 4; ++i)
+        if (shares[i] > 0.0)
+            heldMean += imageLoad(meanBefore, historyTap(footprint, i)) * shares[i];
+    const float weight = historyCovered(shares);
 
     RunningMean blended = startedMean(sampled);
     if (weight > 0.0)
@@ -104,5 +91,5 @@ void main()
     // Selected and not branched around, for the rule the tree keeps: a lane with no layer runs the
     // blend over a history of nothing and keeps none of it.
     imageStore(mean, at, stands ? texelOf(blended) : vec4(sampled, 0.0));
-    imageStore(held, at, stands ? vec4(normal, scaled) : vec4(0.0));
+    imageStore(held, at, heldSurfaceOf(seen, frame.mDistanceScale));
 }

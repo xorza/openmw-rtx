@@ -3,12 +3,12 @@ import unittest
 
 from omw.build import Build
 from omw.repeat import DIFFERED_STATUS, repeat
-from omw.system import ROOT, Refusal
+from omw.system import ROOT, Refusal, read_text
 
 
 class RepeatTest(unittest.TestCase):
     def test_the_differed_status_is_the_harness_own(self):
-        text = (ROOT / "apps" / "rtxtool" / "model" / "benchrun.hpp").read_text()
+        text = read_text(ROOT / "apps" / "rtxtool" / "model" / "benchrun.hpp")
         stated = re.search(r"inline constexpr int sDifferedStatus = (\d+);", text)
         self.assertIsNotNone(stated)
         self.assertEqual(int(stated.group(1)), DIFFERED_STATUS)

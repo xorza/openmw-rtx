@@ -26,9 +26,9 @@
 #include <components/rtx/scene/ripple.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/look.h>
-#include <components/rtx/shaders/ripple.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/shaders/shared/ripple.h>
 
 #include "fixture.hpp"
 
@@ -50,8 +50,11 @@ namespace Rtx::Testing
         /// no flux across a horizontal patch, so what lands on the bottom is what fell on the top
         /// times whatever the longer path took.
         ///
-        /// Nothing else adds. The scattering term `(1 - T^2) / 2` meets a black ambient, and the
-        /// sky is black, so all the surface reflects is the two per cent it takes off the way in.
+        /// **And the surface takes its Fresnel share twice**: off the sun on the way in, Schlick's
+        /// `F0 + (1 - F0)(1 - cos)^5` at the sun's own zenith, and off the eye's view on the way out,
+        /// the two per cent the vertical view loses.
+        ///
+        /// Nothing else adds. The scattering term meets a black ambient, and the sky is black.
         int throughFlatWater(float depth, float zenith, std::size_t channel)
         {
             const float sine = std::sin(zenith) / Shaders::WATER_IOR;
@@ -60,8 +63,10 @@ namespace Rtx::Testing
             const float down = std::exp(-Shaders::WATER_EXTINCTION[channel] * depth / refracted);
             const float up = std::exp(-Shaders::WATER_EXTINCTION[channel] * depth);
             const float bed = 0.5f * sSunOverWater * std::cos(zenith) * Shaders::INV_PI;
+            const float grazing = std::pow(1.0f - std::cos(zenith), 5.0f);
+            const float in = 1.0f - (Shaders::WATER_F0 + (1.0f - Shaders::WATER_F0) * grazing);
 
-            return encodeSrgb(bed * down * up * (1.0f - Shaders::WATER_F0));
+            return encodeSrgb(bed * down * up * in * (1.0f - Shaders::WATER_F0));
         }
 
         /// Water is seen by a camera and not by a shadow ray, and the mask is what says so.
@@ -521,20 +526,22 @@ namespace Rtx::Testing
         ///
         /// **Open water with no bed under it and a white sky**, which puts the two answers as far
         /// apart as they go. No sun, so nothing is marched and the column is its closed form: at a
-        /// hundred units down that is
+        /// hundred units down, along a ray whose downward share is `d.z`, that is
         ///
-        ///   scatter * (1 - T^2) / 2 * ambient * exp(-o * 100)
+        ///   scatter * (1 - T^g) / g * ambient * exp(-o * 100),  g = 1 - d.z
         ///
         /// with `T` the transmittance over the whole column, which is nought in every channel — so
-        /// the first factor is the asymptote `deepWaterSettlesAtHalfWhatOneAttenuatedLegWouldGive`
-        /// measures from over the surface, dimmed here by the water above the eye and crossing no
-        /// surface to lose its Fresnel share. That is 31, 61 and 69 of 255. Against a far plane at
-        /// two thousand units, blue keeps half of itself and the sky behind it reads 195, three
-        /// quarters of the scale away.
+        /// the first factor settles at `1 / g`: a half straight down, the asymptote
+        /// `deepWaterSettlesAtHalfWhatOneAttenuatedLegWouldGive` measures from over the surface, and
+        /// more toward the frame's corners, where the ray runs nearer level and every point it
+        /// scatters from stands nearer the light. Dimmed by the water above the eye and crossing no
+        /// surface to lose its Fresnel share: 31, 61 and 69 of 255 at the centre. Against a far
+        /// plane at two thousand units, blue keeps half of itself and the sky behind it reads 195,
+        /// three quarters of the scale away.
         ///
-        /// **And the same byte over the whole frame**, which is the half that was visible: what the
-        /// column settles at depends on neither the ray nor the far plane, so nothing here can draw
-        /// an edge across the water.
+        /// **And every pixel its own ray's closed form**, which is the half that was visible: what
+        /// the column settles at depends on the ray's angle and not on the far plane, so nothing here
+        /// can draw an edge across the water.
         TEST_F(RtxVisibilityTest, aRayThatFindsNothingUnderTheSurfaceIsWaterRatherThanSky)
         {
             constexpr std::uint32_t size = 33;
@@ -553,23 +560,25 @@ namespace Rtx::Testing
             const Frame frame = shoot(makeOpenWater(4000.0f), {}, camera, size);
             EXPECT_EQ(frame.mHits, 0u) << "the sheet is overhead, so every ray leaves the scene";
 
-            std::array<int, 3> lowest{ 255, 255, 255 };
-            std::array<int, 3> highest{ 0, 0, 0 };
-            for (std::size_t at = 0; at < frame.mRadiance.size(); at += 4)
-                for (std::size_t channel = 0; channel < 3; ++channel)
+            // Each pixel's ray, the eye looking all but straight down: across and down the image
+            // plane at `tan 30°` of the frame's half width, so its downward share is
+            // `1 / sqrt(1 + (x² + y²) tan² 30°)`.
+            const float half = std::tan(osg::DegreesToRadians(30.0f));
+            for (std::uint32_t y = 0; y < size; ++y)
+                for (std::uint32_t x = 0; x < size; ++x)
                 {
-                    lowest[channel] = std::min(lowest[channel], int{ frame.byte(at + channel) });
-                    highest[channel] = std::max(highest[channel], int{ frame.byte(at + channel) });
+                    const float across = (2.0f * (static_cast<float>(x) + 0.5f) / size - 1.0f) * half;
+                    const float down = (2.0f * (static_cast<float>(y) + 0.5f) / size - 1.0f) * half;
+                    const float g = 1.0f + 1.0f / std::sqrt(1.0f + across * across + down * down);
+                    const std::size_t at = (std::size_t{ y } * size + x) * 4;
+                    for (std::size_t channel = 0; channel < 3; ++channel)
+                    {
+                        const float settled = Shaders::WATER_SCATTER_SHIPPED[channel] / g
+                            * std::exp(-Shaders::WATER_EXTINCTION[channel] * eye);
+                        ASSERT_NEAR(int{ frame.byte(at + channel) }, encodeSrgb(settled), 1)
+                            << "channel " << channel << " at " << x << ", " << y;
+                    }
                 }
-
-            for (std::size_t channel = 0; channel < 3; ++channel)
-            {
-                const float settled = Shaders::WATER_SCATTER_SHIPPED[channel] * 0.5f
-                    * std::exp(-Shaders::WATER_EXTINCTION[channel] * eye);
-
-                EXPECT_NEAR(lowest[channel], encodeSrgb(settled), 1) << "channel " << channel;
-                EXPECT_EQ(lowest[channel], highest[channel]) << "channel " << channel << " draws an edge";
-            }
         }
 
         /// A pixel of water with no water under it is the ground beside it, and how much water is
@@ -853,6 +862,59 @@ namespace Rtx::Testing
 
             EXPECT_GT(forward, 0.0) << "the water is lit by the sun at all";
             EXPECT_NEAR(forward / backward, 13.7, 1.5) << forward << " toward the sun, " << backward << " away";
+        }
+
+        /// **A moon lights the water in front of the eye, as it lights a bed under it.** Masser
+        /// overhead and no sun, an eye a thousand units down looking level into open water: every
+        /// point of the ray stands under the same thousand units, so the column is the moon's closed
+        /// form with `g = 1`,
+        ///
+        ///   scatter * E * (1 - F0) * HG(0.92, 0) * exp(-o * 1000) * (1 - exp(-o * L))
+        ///
+        /// with `1 - F0` what the surface lets in of a light overhead, which goes on unbent, and
+        /// `HG(0.92, 0) = 0.1536 / (4 pi * 1.8464^1.5) = 0.0048718`: the moon's light runs straight
+        /// down and the ray level, a right angle. `L` is the far plane, so the last factor is one in
+        /// every channel. The same frame with the moon dark is black, so all of this is the moon's.
+        TEST_F(RtxVisibilityTest, aMoonLightsTheWaterInFrontOfTheEye)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr float eye = 1000.0f;
+            const osg::Vec3f moonlight(1000.0f, 1000.0f, 1000.0f);
+
+            const auto look = [&](const osg::Vec3f& irradiance) {
+                Shaders::VisibilityConstants camera = Testing::makeCamera(
+                    osg::Vec3f(0.0f, 0.0f, -eye), osg::Vec3f(0.0f, 1000.0f, -eye), 60.0f, size, size, 100000.0f);
+                camera.mWaterLevel = 0.0f;
+                camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(0.0f, 0.0f, 0.0f));
+
+                Shaders::MoonDisc masser{};
+                masser.mSource = Shaders::moonSource(osg::Vec3f(0.0f, 0.0f, 1.0f), irradiance, 0.02f);
+                masser.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
+                masser.mUp = osg::Vec3f(0.0f, 1.0f, 0.0f);
+                masser.mColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
+                masser.mAlpha = 1.0f;
+                masser.mFace = Shaders::NO_TEXTURE;
+                camera.mMoons[0] = masser;
+                camera.mMoons[1] = Shaders::MoonDisc{};
+
+                return shoot(makeOpenWater(4000.0f), {}, camera, size,
+                    { .mSea = SeaState{ .mSignificantHeight = 0.0f }, .mIndirect = IndirectLight::Off });
+            };
+
+            const Frame lit = look(moonlight);
+            const Frame dark = look(osg::Vec3f(0.0f, 0.0f, 0.0f));
+
+            const double phase = (1.0 - 0.92 * 0.92) / (4.0 * osg::PI * std::pow(1.0 + 0.92 * 0.92, 1.5));
+            ASSERT_NEAR(phase, 0.0048718, 1e-7);
+            for (std::size_t channel = 0; channel < 3; ++channel)
+            {
+                const double o = Shaders::WATER_EXTINCTION[channel];
+                const double expected = double{ Shaders::WATER_SCATTER_SHIPPED[channel] } * double{ moonlight[channel] }
+                    * (1.0 - double{ Shaders::WATER_F0 }) * phase * std::exp(-o * double{ eye });
+                EXPECT_NEAR(double{ lit.at(centre + channel) }, expected, expected * 1e-3) << "channel " << channel;
+                EXPECT_EQ(dark.at(centre + channel), 0.0f) << "channel " << channel;
+            }
         }
 
         /// A shaft's shadow is the share of the sun's disc an edge hides, and not the share of a line.
