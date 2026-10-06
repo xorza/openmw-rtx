@@ -44,7 +44,7 @@ namespace Rtx::Shaders
 
     /// One step of the store, `TONE_TARGET_FORMAT`'s: what `ToneConstants::mDitherStep` is when the
     /// frame dithers.
-    const float TONE_DITHER_STEP = 1.0 / 255.0;
+    const float TONE_DITHER_STEP = 1.0f / 255.0f;
 
     /// Threads along each edge of the tone pass's workgroup.
     const uint TONE_WORKGROUP = 8;
