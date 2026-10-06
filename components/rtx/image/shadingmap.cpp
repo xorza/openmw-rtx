@@ -1,31 +1,35 @@
 #include "shadingmap.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <span>
 
 #include <osg/Vec3f>
 
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/shadingmap.h>
 
+#include "alphaimage.hpp"
 #include "colour.hpp"
 #include "colourblock.hpp"
 #include "texels.hpp"
 #include "texturedata.hpp"
+#include "texturewrap.hpp"
 
 namespace Rtx
 {
     namespace
     {
-        /// What one block or one texel contributes: the sum of its colours in linear light, and
-        /// how many counted. A transparent texel is not a colour and does not belong in an average
-        /// of them.
+        /// What one block or one texel contributes: the sum of its colours in linear light, each
+        /// weighed by its alpha, and the alpha summed — `Shaders::ShadingSum` says why.
         struct TexelSum
         {
             osg::Vec3f mSum;
-            std::uint32_t mCount = 0;
+            float mWeight = 0.0f;
         };
 
         osg::Vec3f linearOf(const osg::Vec3f& colour, bool srgb)
@@ -33,8 +37,11 @@ namespace Rtx
             return srgb ? toLinear(colour) : colour;
         }
 
-        /// The colours of a block, from its palette and the indices that chose it.
-        TexelSum blockSum(std::span<const std::byte, 8> bytes, bool punchThrough, bool srgb)
+        /// The colours of the block whose first texel is at `x`, `y`, from its palette and the
+        /// indices that chose it, each weighed by its alpha: what the image holds, so a texel the
+        /// block pads past the image's edge weighs nothing.
+        TexelSum blockSum(std::span<const std::byte, 8> bytes, bool punchThrough, bool srgb, const AlphaImage& alpha,
+            std::uint32_t x, std::uint32_t y)
         {
             const ColourBlock block = ColourBlock::read(bytes, punchThrough);
             std::array<osg::Vec3f, 4> palette{};
@@ -42,13 +49,16 @@ namespace Rtx
                 palette[entry] = linearOf(block.mPalette[entry], srgb);
 
             TexelSum total;
-            for (std::size_t texel = 0; texel < 16; ++texel)
+            for (std::uint32_t texel = 0; texel < 16; ++texel)
             {
-                if (block.isTransparent(texel))
+                const std::uint32_t across = x + texel % 4;
+                const std::uint32_t down = y + texel / 4;
+                if (across >= alpha.getWidth() || down >= alpha.getHeight())
                     continue;
 
-                total.mSum += palette[block.indexAt(texel)];
-                ++total.mCount;
+                const float weight = alpha.at(0, across, down) / 255.0f;
+                total.mSum += palette[block.indexAt(texel)] * weight;
+                total.mWeight += weight;
             }
 
             return total;
@@ -65,6 +75,7 @@ namespace Rtx
             const std::uint32_t width = std::max(level.mWidth, 1u);
             const std::uint32_t height = std::max(level.mHeight, 1u);
             const bool srgb = isSrgb(texture.mFormat);
+            const AlphaImage alpha(texture);
 
             const TexelLayout layout = layoutOf(texture.mFormat);
             if (layout.isBlocked())
@@ -78,15 +89,21 @@ namespace Rtx
                         // boundary is not split between two.
                         const std::span<const std::byte, 8> colour
                             = colourHalfAt(texture.mBytes, level.blockOffset(column, row, layout.mBytes), layout);
-                        sink(column * 4 + 2, row * 4 + 2, blockSum(colour, isBc1(texture.mFormat), srgb));
+                        sink(column * 4 + 2, row * 4 + 2,
+                            blockSum(colour, isBc1(texture.mFormat), srgb, alpha, column * 4, row * 4));
                     }
                 return;
             }
 
             for (std::uint32_t y = 0; y < height; ++y)
                 for (std::uint32_t x = 0; x < width; ++x)
+                {
+                    const float weight = alpha.at(0, x, y) / 255.0f;
                     sink(x, y,
-                        TexelSum{ linearOf(looseColourAt(texture, level.texelOffset(x, y, layout.mBytes)), srgb), 1 });
+                        TexelSum{
+                            linearOf(looseColourAt(texture, level.texelOffset(x, y, layout.mBytes)), srgb) * weight,
+                            weight });
+                }
         }
     }
 
@@ -103,7 +120,7 @@ namespace Rtx
         const std::uint32_t width = std::max(level.mWidth, 1u);
         const std::uint32_t height = std::max(level.mHeight, 1u);
         std::array<float, std::size_t{ sExtent } * sExtent> sums{};
-        std::array<std::uint32_t, std::size_t{ sExtent } * sExtent> counts{};
+        std::array<float, std::size_t{ sExtent } * sExtent> weights{};
 
         // Where a texel or a block lands in the grid. A texture smaller than the grid leaves cells
         // untouched, which is what the fill below is for.
@@ -119,7 +136,7 @@ namespace Rtx
             const std::size_t cell = cellOf(x, y);
             // Rec. 709, in linear light, which is where a luminance means anything.
             sums[cell] += texels.mSum * Shaders::LUMINANCE_WEIGHTS;
-            counts[cell] += texels.mCount;
+            weights[cell] += texels.mWeight;
         });
 
         // A texture smaller than the grid resolves into a handful of cells and leaves the rest
@@ -128,15 +145,15 @@ namespace Rtx
         float total = 0.0f;
         std::uint32_t sampled = 0;
         for (std::size_t cell = 0; cell < mValues.size(); ++cell)
-            if (counts[cell] > 0)
+            if (weights[cell] > 0.0f)
             {
-                mValues[cell] = sums[cell] / static_cast<float>(counts[cell]);
+                mValues[cell] = sums[cell] / weights[cell];
                 total += mValues[cell];
                 ++sampled;
             }
 
-        // A texture that counted nothing is content, not a broken contract: `blockSum` refuses a
-        // transparent texel, so a BC1 cutout whose every texel is transparent resolves no cell.
+        // A texture that counted nothing is content, not a broken contract: a cutout whose every
+        // texel is a hole weighs nothing, and resolves no cell.
         if (sampled == 0)
         {
             mValues.fill(1.0f);
@@ -145,19 +162,22 @@ namespace Rtx
 
         const float average = total / static_cast<float>(sampled);
         for (std::size_t cell = 0; cell < mValues.size(); ++cell)
-            if (counts[cell] == 0)
+            if (!(weights[cell] > 0.0f))
                 mValues[cell] = average;
 
-        // Wrapping, because Morrowind's textures tile and a great many of them rely on it: a blur
-        // that clamped at the edges would invent a gradient across every wall.
+        // Around the wrap along an axis the texture repeats, and held at the edge along one it
+        // clamps: `Shaders::SHADING_BLUR_PASSES` says why each.
+        const bool clampsAcross = clampsS(texture.mWrap);
+        const bool clampsDown = clampsT(texture.mWrap);
+        const std::uint32_t last = sExtent - 1;
         std::array<float, std::size_t{ sExtent } * sExtent> scratch{};
         for (std::uint32_t pass = 0; pass < Shaders::SHADING_BLUR_PASSES; ++pass)
         {
             for (std::uint32_t y = 0; y < sExtent; ++y)
                 for (std::uint32_t x = 0; x < sExtent; ++x)
                 {
-                    const std::uint32_t left = (x + sExtent - 1) % sExtent;
-                    const std::uint32_t right = (x + 1) % sExtent;
+                    const std::uint32_t left = clampsAcross ? std::max(x, 1u) - 1 : (x + last) % sExtent;
+                    const std::uint32_t right = clampsAcross ? std::min(x + 1, last) : (x + 1) % sExtent;
                     const std::size_t row = std::size_t{ y } * sExtent;
                     scratch[row + x] = (mValues[row + left] + mValues[row + x] + mValues[row + right]) / 3.0f;
                 }
@@ -165,8 +185,10 @@ namespace Rtx
             for (std::uint32_t y = 0; y < sExtent; ++y)
                 for (std::uint32_t x = 0; x < sExtent; ++x)
                 {
-                    const std::size_t above = std::size_t{ (y + sExtent - 1) % sExtent } * sExtent;
-                    const std::size_t below = std::size_t{ (y + 1) % sExtent } * sExtent;
+                    const std::size_t above
+                        = std::size_t{ clampsDown ? std::max(y, 1u) - 1 : (y + last) % sExtent } * sExtent;
+                    const std::size_t below
+                        = std::size_t{ clampsDown ? std::min(y + 1, last) : (y + 1) % sExtent } * sExtent;
                     const std::size_t here = std::size_t{ y } * sExtent;
                     mValues[here + x] = (scratch[above + x] + scratch[here + x] + scratch[below + x]) / 3.0f;
                 }

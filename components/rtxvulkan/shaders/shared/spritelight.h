@@ -19,11 +19,19 @@ namespace Rtx::Shaders
     const uint SPRITE_LIGHT_BIND_BAKE = 1;
     const uint SPRITE_LIGHT_BINDINGS = 2;
 
-    /// Lanes along each side of one workgroup, which the kernel declares and the pass divides a
-    /// level's extent by.
-    const uint SPRITE_LIGHT_WORKGROUP = 16u;
+    /// Lanes in one workgroup, a line of texels each, which the kernel declares and the pass
+    /// divides a level's rows or columns by.
+    const uint SPRITE_LIGHT_WORKGROUP = 64u;
 
-    /// One level of the bake, which is one dispatch.
+    /// The four stages of a level's bake, in the order they run, each the channel it writes: light
+    /// from `+u` along every row, from `-u`, from `+v` down every column, and from `-v`.
+    const uint SPRITE_LIGHT_FROM_RIGHT = 0u;
+    const uint SPRITE_LIGHT_FROM_LEFT = 1u;
+    const uint SPRITE_LIGHT_FROM_BELOW = 2u;
+    const uint SPRITE_LIGHT_FROM_ABOVE = 3u;
+    const uint SPRITE_LIGHT_STAGES = 4u;
+
+    /// One stage of one level of the bake, which is one dispatch.
     struct SpriteLightConstants
     {
         /// Which level of the source is read and which of the bake is written.
@@ -31,10 +39,13 @@ namespace Rtx::Shaders
 
         uint mWidth;
         uint mHeight;
+
+        /// Which channel this dispatch runs, `SPRITE_LIGHT_FROM_*`.
+        uint mStage;
     };
 
 #ifdef RTX_HOST
-    static_assert(sizeof(SpriteLightConstants) == 12, "SpriteLightConstants must be scalar-packed on every side");
+    static_assert(sizeof(SpriteLightConstants) == 16, "SpriteLightConstants must be scalar-packed on every side");
 }
 #endif
 

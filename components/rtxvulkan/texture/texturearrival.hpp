@@ -7,6 +7,8 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
@@ -52,10 +54,10 @@ namespace Rtx
         void clearNeutral(const Image& map);
 
         /// `MipChainPass` from `source`, uploaded in this run, into `chain`, met undefined.
-        void chain(const Image& source, const Image& chain, bool encoded);
+        void chain(const Image& source, const Image& chain, bool encoded, TextureEncoding encoding);
 
         /// `ShadingPass` of `source` into `map`, met undefined.
-        void shade(const Image& source, const Image& map, bool punchThrough);
+        void shade(const Image& source, const Image& map, TextureWrap wrap);
 
         /// `NormalSpreadPass` of `map` into `spread` through `means`, both met undefined.
         void spread(const Image& map, const Image& means, const Image& spread);
@@ -85,13 +87,14 @@ namespace Rtx
             const Image* mSource;
             const Image* mChain;
             bool mEncoded;
+            TextureEncoding mEncoding;
         };
 
         struct Shade
         {
             const Image* mSource;
             const Image* mMap;
-            bool mPunchThrough;
+            TextureWrap mWrap;
         };
 
         struct Spread

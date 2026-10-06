@@ -327,7 +327,7 @@ namespace Rtx
         {
             const Image& held = arrival.hold(std::move(*upload));
             arrival.upload(batch, held, data.mBytes, regions);
-            arrival.chain(held, mImage, isSrgb(data.mFormat));
+            arrival.chain(held, mImage, isSrgb(data.mFormat), data.mEncoding);
         }
         else
             arrival.upload(batch, mImage, bytes, regions);
@@ -338,7 +338,7 @@ namespace Rtx
                 arrival.clearNeutral(mCompanion);
                 break;
             case TextureCompanion::Shading:
-                arrival.shade(mImage, mCompanion, isBc1(data.mFormat));
+                arrival.shade(mImage, mCompanion, data.mWrap);
                 break;
             case TextureCompanion::Spread:
                 arrival.spread(mImage, arrival.hold(std::move(*means)), mCompanion);

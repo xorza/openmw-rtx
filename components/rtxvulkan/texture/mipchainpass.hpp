@@ -4,6 +4,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/image/textureencoding.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/mipchain.h>
 
@@ -30,8 +31,9 @@ namespace Rtx
         ///
         /// @param encoded whether `chain`'s own format is display-encoded, so the box averages in
         ///        light and writes back encoded.
-        void recordLevel(
-            VkCommandBuffer commands, const Image& source, const Image& chain, std::uint32_t level, bool encoded) const;
+        /// @param encoding what the texels are, which says whether the alpha is coverage.
+        void recordLevel(VkCommandBuffer commands, const Image& source, const Image& chain, std::uint32_t level,
+            bool encoded, TextureEncoding encoding) const;
 
     private:
         ComputePipeline<Shaders::MipChainConstants> mPipeline;

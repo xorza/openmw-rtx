@@ -1208,15 +1208,36 @@ namespace Rtx::Testing
         /// does not. `spriteshade.h` counts one whole layer, and the shader thins the sun by the
         /// texture's mean alpha — its one texel, `128/255` — to `0.49804` of the card's worth from
         /// the side. Nothing stands over either, so the sky is untouched, and the ambient is nought.
+        ///
+        /// **The mean, and not the middle of the coarsest level.** A puff of sixteen texels square
+        /// opaque over its middle four by four, with its file's chain stopping at eight by eight, as
+        /// Morrowind's do: its mean alpha is a sixteenth, so one layer of it leaves `15/16` of the
+        /// sun; read at the coarsest level's middle, it was all alpha and left almost nothing.
         TEST_F(RtxVisibilityTest, aPuffInTheShadeOfItsOwnEmitterIsThinnedByOneLayer)
         {
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
 
             constexpr std::array<std::uint8_t, 4> half{ 255, 255, 255, 128 };
-            const std::array<TextureData, 1> puff{ describeTexel(half) };
+            const std::array<TextureData, 1> halfPuff{ describeTexel(half) };
 
-            const auto lit = [&](bool shaded) {
+            Testing::TestTexture radial;
+            for (const std::uint32_t side : { 16u, 8u })
+            {
+                radial.mLevels.push_back(MipLevel{ static_cast<std::uint32_t>(radial.mBytes.size()), side, side });
+                for (std::uint32_t y = 0; y < side; ++y)
+                    for (std::uint32_t x = 0; x < side; ++x)
+                    {
+                        const bool middle
+                            = x >= side * 3 / 8 && x < side * 5 / 8 && y >= side * 3 / 8 && y < side * 5 / 8;
+                        radial.mBytes.insert(radial.mBytes.end(), 3, std::uint8_t{ 255 });
+                        radial.mBytes.push_back(middle ? 255 : 0);
+                    }
+            }
+            radial.describe(16, 16, "radial");
+            const std::array<TextureData, 1> radialPuff{ radial.mData };
+
+            const auto lit = [&](bool shaded, std::span<const TextureData> puff) {
                 SceneDesc scene;
                 const Index cut = scene.textures().add(VFS::Path::NormalizedView("sprite.dds"));
                 std::vector<Sprite> sprites{ Sprite{ .mPosition = osg::Vec3f(0.0f, 0.0f, 0.0f),
@@ -1243,9 +1264,14 @@ namespace Rtx::Testing
                 return frame.at(centre);
             };
 
-            const float alone = lit(false);
+            const float alone = lit(false, halfPuff);
             ASSERT_GT(alone, 0.1f) << "the sun did not reach the puff at all";
-            EXPECT_NEAR(lit(true) / alone, 1.0f - sHalfAlpha, 0.01f) << "one layer of a half-alpha texture";
+            EXPECT_NEAR(lit(true, halfPuff) / alone, 1.0f - sHalfAlpha, 0.01f) << "one layer of a half-alpha texture";
+
+            const float radialAlone = lit(false, radialPuff);
+            ASSERT_GT(radialAlone, 0.1f) << "the sun did not reach the radial puff at all";
+            EXPECT_NEAR(lit(true, radialPuff) / radialAlone, 15.0f / 16.0f, 0.01f)
+                << "one layer of a puff whose mean alpha is a sixteenth";
         }
 
         /// A drop under a roof is not drawn, and a hearth's smoke under the same roof is.

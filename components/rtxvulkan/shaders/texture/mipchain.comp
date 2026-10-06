@@ -14,15 +14,18 @@
 //
 // **The finest level is fetched and not filtered**, texel for texel out of the upload through a
 // view with no curve under it, so the bytes a file holds are the bytes the chain's first level
-// holds. **Every other level is the box over the one above it, with each colour weighed by the
-// alpha carrying it**: a punch-through block stores black where nothing was painted, and an even
-// mean draws a dark rim round every leaf card and every raindrop one level down. In light and not
-// in bytes, because the mean of two stored bytes is not the byte of their mean; the alpha is
-// linear in every format and is the even mean of its own. Where nothing in a quad was painted
-// there is no weight to divide by, and the even mean is what is left — the host's rule, texel for
+// holds. **Every other level is the box over the one above it** (`axisTaps`), **and a colour's are
+// weighed by the alpha carrying them**: a punch-through block stores black where nothing was
+// painted, and an even mean draws a dark rim round every leaf card and every raindrop one level
+// down. In light and not in bytes, because the mean of two stored bytes is not the byte of their
+// mean; the alpha is linear in every format and is the even mean of its own. Where nothing under a
+// texel was painted there is no weight to divide by, and the even mean is what is left. **Data and
+// a normal map take the even box** (`MipChainConstants::mCoverage`): their alpha is a height or a
+// gloss, and weighing by it took a dark texel's height out of the mean. The host's rule, texel for
 // texel, so that `RtxMipChainPassTest` can hold the two to a byte.
 
 #include "colour.h"
+#include "halving.h"
 #include "shared/mipchain.h"
 #include "scene.h"
 #include "shared/sets.h"
@@ -63,26 +66,29 @@ void main()
         return;
     }
 
-    // The level above's last texel serves twice along an odd edge, which is how the host halves
-    // an odd extent: the quad is 2x..2x+1, held inside the level.
-    const ivec2 last = imageSize(above) - 1;
+    const uvec2 extentAbove = uvec2(imageSize(above));
+    const AxisTaps across = axisTaps(x, extentAbove.x);
+    const AxisTaps down = axisTaps(y, extentAbove.y);
     const bool encoded = level.mEncoded != 0u;
 
+    // **Nine taps, weighed by the two axes' weights**, a weight of nought where an axis takes two:
+    // its third tap is held inside the level and counts for nothing.
     vec3 weighed = vec3(0.0);
     vec3 even = vec3(0.0);
     float painted = 0.0;
-    for (int dy = 0; dy < 2; ++dy)
-        for (int dx = 0; dx < 2; ++dx)
+    for (uint dy = 0u; dy < 3u; ++dy)
+        for (uint dx = 0u; dx < 3u; ++dx)
         {
-            const ivec2 at = min(ivec2(2u * x + uint(dx), 2u * y + uint(dy)), last);
-            const vec4 texel = imageLoad(above, at);
+            const float weight = across.mWeights[dx] * down.mWeights[dy];
+            const uvec2 at = min(uvec2(across.mFirst + dx, down.mFirst + dy), extentAbove - 1u);
+            const vec4 texel = imageLoad(above, ivec2(at));
             const vec3 colour = encoded ? decodeSrgb(texel.rgb) : texel.rgb;
 
-            even += colour;
-            weighed += colour * texel.a;
-            painted += texel.a;
+            even += colour * weight;
+            weighed += colour * (texel.a * weight);
+            painted += texel.a * weight;
         }
 
-    const vec3 mean = painted > 0.0 ? weighed / painted : even / 4.0;
-    imageStore(into, ivec2(x, y), vec4(encoded ? encodeSrgb(mean) : mean, painted / 4.0));
+    const vec3 mean = level.mCoverage != 0u && painted > 0.0 ? weighed / painted : even;
+    imageStore(into, ivec2(x, y), vec4(encoded ? encodeSrgb(mean) : mean, painted));
 }

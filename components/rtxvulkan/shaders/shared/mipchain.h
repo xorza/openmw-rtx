@@ -36,10 +36,15 @@ namespace Rtx::Shaders
         /// Whether the bytes are display-encoded, so the box averages in light and writes back
         /// encoded; nought for a format with no curve under it.
         uint mEncoded;
+
+        /// Whether the alpha is coverage, as a colour's is (`Rtx::TextureEncoding::Colour`), and
+        /// the colours are weighed by it; nought for data and a normal map, whose alpha is a
+        /// channel like any other — a height, a gloss — and whose box is even.
+        uint mCoverage;
     };
 
 #ifdef RTX_HOST
-    static_assert(sizeof(MipChainConstants) == 16, "MipChainConstants must be scalar-packed on every side");
+    static_assert(sizeof(MipChainConstants) == 20, "MipChainConstants must be scalar-packed on every side");
 }
 #endif
 

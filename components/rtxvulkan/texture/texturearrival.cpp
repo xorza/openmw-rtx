@@ -14,6 +14,7 @@
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
+#include <components/rtxvulkan/shaders/shared/spritelight.h>
 
 #include "texturepasses.hpp"
 
@@ -65,14 +66,15 @@ namespace Rtx
         mClears.push_back(&map);
     }
 
-    void TextureArrival::chain(const Image& source, const Image& chain, const bool encoded)
+    void TextureArrival::chain(
+        const Image& source, const Image& chain, const bool encoded, const TextureEncoding encoding)
     {
-        mChains.push_back(Chain{ .mSource = &source, .mChain = &chain, .mEncoded = encoded });
+        mChains.push_back(Chain{ .mSource = &source, .mChain = &chain, .mEncoded = encoded, .mEncoding = encoding });
     }
 
-    void TextureArrival::shade(const Image& source, const Image& map, const bool punchThrough)
+    void TextureArrival::shade(const Image& source, const Image& map, const TextureWrap wrap)
     {
-        mShades.push_back(Shade{ .mSource = &source, .mMap = &map, .mPunchThrough = punchThrough });
+        mShades.push_back(Shade{ .mSource = &source, .mMap = &map, .mWrap = wrap });
     }
 
     void TextureArrival::spread(const Image& map, const Image& means, const Image& spread)
@@ -163,7 +165,7 @@ namespace Rtx
             spread.mSpread->addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
         }
         for (const Bake& bake : mBakes)
-            bake.mBake->addTransition(barriers, Use::sUndefined, Use::sComputeWrite);
+            bake.mBake->addTransition(barriers, Use::sUndefined, Use::sComputeReadWrite);
     }
 
     void TextureArrival::recordChains(const VkCommandBuffer commands, Barriers& barriers, const TexturePasses& passes)
@@ -184,7 +186,8 @@ namespace Rtx
 
             for (const Chain& chain : mChains)
                 if (level < chain.mChain->getMipLevels())
-                    passes.mChain.recordLevel(commands, *chain.mSource, *chain.mChain, level, chain.mEncoded);
+                    passes.mChain.recordLevel(
+                        commands, *chain.mSource, *chain.mChain, level, chain.mEncoded, chain.mEncoding);
         }
 
         for (const Chain& chain : mChains)
@@ -204,14 +207,14 @@ namespace Rtx
         // After the chains, because a texture's own chain is what its estimate reads.
         barriers.flush();
         for (std::size_t at = 0; at < mShades.size(); ++at)
-            passes.mShading.recordSum(commands, *mShades[at].mSource, sumsOf(at), mShades[at].mPunchThrough);
+            passes.mShading.recordSum(commands, *mShades[at].mSource, sumsOf(at), mShades[at].mWrap);
 
         barriers.add(memoryBarrier(Use::sBufferComputeWrite, Use::sBufferComputeRead));
         barriers.flush();
         for (std::size_t at = 0; at < mShades.size(); ++at)
         {
             const Shade& shade = mShades[at];
-            passes.mShading.recordMap(commands, *shade.mSource, *shade.mMap, sumsOf(at), shade.mPunchThrough);
+            passes.mShading.recordMap(commands, *shade.mSource, *shade.mMap, sumsOf(at), shade.mWrap);
         }
 
         for (const Shade& shade : mShades)
@@ -247,13 +250,22 @@ namespace Rtx
         if (mBakes.empty())
             return;
 
-        // After the chains, because a bake's source may have arrived in this run.
-        barriers.flush();
-        for (const Bake& bake : mBakes)
-            for (std::uint32_t level = 0; level < bake.mBake->getMipLevels(); ++level)
-                passes.mBake.recordLevel(commands, *bake.mSource, *bake.mBake, level);
+        // After the chains, because a bake's source may have arrived in this run. A stage of every
+        // level of every bake at once, and the next after a barrier, since it reads back what this
+        // one wrote.
+        for (std::uint32_t stage = 0; stage < Shaders::SPRITE_LIGHT_STAGES; ++stage)
+        {
+            if (stage > 0)
+                for (const Bake& bake : mBakes)
+                    bake.mBake->addTransition(barriers, Use::sComputeReadWrite, Use::sComputeReadWrite);
+            barriers.flush();
+
+            for (const Bake& bake : mBakes)
+                for (std::uint32_t level = 0; level < bake.mBake->getMipLevels(); ++level)
+                    passes.mBake.recordStage(commands, *bake.mSource, *bake.mBake, level, stage);
+        }
 
         for (const Bake& bake : mBakes)
-            bake.mBake->addTransition(barriers, Use::sComputeWrite, Use::sTextureSample);
+            bake.mBake->addTransition(barriers, Use::sComputeReadWrite, Use::sTextureSample);
     }
 }

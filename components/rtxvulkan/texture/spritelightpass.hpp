@@ -20,11 +20,15 @@ namespace Rtx
     public:
         explicit SpriteLightPass(const Device& device);
 
-        /// Records level `level` of `source`'s bake into `bake`. `source` is met as a texture the
-        /// trace samples, which is how an upload leaves it; `bake` is met where a dispatch writes
-        /// it. A level reads `source` alone, so every level of every bake runs without a barrier
-        /// between. `bake` must hold as many levels as `source` and be writable as storage at each.
-        void recordLevel(VkCommandBuffer commands, const Image& source, const Image& bake, std::uint32_t level) const;
+        /// Records stage `stage` (`SPRITE_LIGHT_FROM_*`) of level `level` of `source`'s bake into
+        /// `bake`. `source` is met as a texture the trace samples, which is how an upload leaves it;
+        /// `bake` is met where a dispatch reads and writes it. A stage reads back what the stages
+        /// before it wrote, so the caller orders each stage after the one before; a level reads
+        /// `source` alone, so every level of every bake runs one stage without a barrier between.
+        /// `bake` must hold as many levels as `source` and be readable and writable as storage at
+        /// each.
+        void recordStage(VkCommandBuffer commands, const Image& source, const Image& bake, std::uint32_t level,
+            std::uint32_t stage) const;
 
     private:
         ComputePipeline<Shaders::SpriteLightConstants> mPipeline;

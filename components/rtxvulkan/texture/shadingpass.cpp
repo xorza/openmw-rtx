@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cassert>
+#include <cstdint>
 
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/shadingmap.h>
@@ -24,13 +25,13 @@ namespace Rtx
             computeBinding(Shaders::SHADING_MAP_BIND_MAP, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE),
         };
 
-        /// What both dispatches are told: the image's own size, and whether it punches through.
-        Shaders::ShadingConstants constantsOf(const Image& source, const bool punchThrough)
+        /// What both dispatches are told: the image's own size, and how it is addressed.
+        Shaders::ShadingConstants constantsOf(const Image& source, const TextureWrap wrap)
         {
             return Shaders::ShadingConstants{
                 .mWidth = source.getWidth(),
                 .mHeight = source.getHeight(),
-                .mPunchThrough = punchThrough ? 1u : 0u,
+                .mWrap = static_cast<std::uint32_t>(wrap),
             };
         }
     }
@@ -42,7 +43,7 @@ namespace Rtx
     }
 
     void ShadingPass::recordSum(const VkCommandBuffer commands, const Image& source, const VkDescriptorBufferInfo& sums,
-        const bool punchThrough) const
+        const TextureWrap wrap) const
     {
         assert(sums.range == sSumBytes && "sums of another size than the card");
 
@@ -50,17 +51,17 @@ namespace Rtx
         summing.image(Shaders::SHADING_SUM_BIND_SOURCE,
             source.describeSampled(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
         summing.buffer(Shaders::SHADING_SUM_BIND_SUMS, sums);
-        dispatch(commands, mSum, summing, constantsOf(source, punchThrough), Groups{ .mX = Shaders::SHADING_EXTENT });
+        dispatch(commands, mSum, summing, constantsOf(source, wrap), Groups{ .mX = Shaders::SHADING_EXTENT });
     }
 
     void ShadingPass::recordMap(const VkCommandBuffer commands, const Image& source, const Image& map,
-        const VkDescriptorBufferInfo& sums, const bool punchThrough) const
+        const VkDescriptorBufferInfo& sums, const TextureWrap wrap) const
     {
         assert(sums.range == sSumBytes && "sums of another size than the card");
 
         DescriptorWrites mapping(mMap);
         mapping.buffer(Shaders::SHADING_MAP_BIND_SUMS, sums);
         mapping.image(Shaders::SHADING_MAP_BIND_MAP, map.describeStorage());
-        dispatch(commands, mMap, mapping, constantsOf(source, punchThrough), Groups{});
+        dispatch(commands, mMap, mapping, constantsOf(source, wrap), Groups{});
     }
 }

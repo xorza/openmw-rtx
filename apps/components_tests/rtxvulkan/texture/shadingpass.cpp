@@ -12,6 +12,7 @@
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/image/shadingmap.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -48,7 +49,7 @@ namespace Rtx
                 Texture source;
                 EXPECT_TRUE(
                     source.standFile(device, upload, arrival, data, first, name, regions, MemoryUse::Essential).isOk());
-                arrival.shade(source.getImage(), map, isBc1(data.mFormat));
+                arrival.shade(source.getImage(), map, data.mWrap);
                 arrival.record(upload, passes);
                 upload.flush();
 
@@ -91,6 +92,27 @@ namespace Rtx
 
             compare(TextureFormat::Rgba8Unorm, 2, "linear two tones");
             const std::vector<std::uint16_t> encoded = compare(TextureFormat::Rgba8Srgb, 32, "encoded two tones");
+
+            // **And the two rules a texture's own facts decide**: holes weighed by their alpha, and a
+            // clamped axis blurred without its opposite edge, each the host's to two steps.
+            const auto compareData = [&](const TextureData& data, std::string_view name) {
+                const ShadingMap host(data);
+                const std::vector<std::uint16_t> device = mapOf(data, name);
+                ASSERT_EQ(device.size(), ShadingMap::sCells);
+                for (std::size_t cell = 0; cell < device.size(); ++cell)
+                    EXPECT_NEAR(int{ device[cell] }, encodeShading(host.getValues()[cell]), 2)
+                        << name << " at cell " << cell;
+            };
+
+            Testing::TestTexture holes = Testing::paintTwoTones(32, 96, TextureFormat::Rgba8Unorm);
+            for (std::size_t texel = 0; texel < holes.mBytes.size() / 4; texel += 3)
+                for (std::size_t channel = 0; channel < 4; ++channel)
+                    holes.mBytes[texel * 4 + channel] = 0;
+            compareData(holes.mData, "two tones with holes");
+
+            Testing::TestTexture clamped = Testing::paintTwoTones(32, 96, TextureFormat::Rgba8Unorm);
+            clamped.mData.mWrap = TextureWrap::Clamp;
+            compareData(clamped.mData, "clamped two tones");
 
             // And the shape, so the comparison is known to be of a map worth comparing.
             constexpr std::size_t middle = 16 * ShadingMap::sExtent + 16;
