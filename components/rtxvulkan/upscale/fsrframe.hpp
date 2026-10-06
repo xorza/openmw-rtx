@@ -43,6 +43,10 @@ namespace Rtx
             /// The eye the trace sampled through, its jitter set: what the field of view is read off.
             Shaders::Camera mCamera;
 
+            /// Where inside its pixel the frame before sampled, from the frame's sampling
+            /// (`VisibilityConstants::mPreviousJitter`) and not kept here a second time.
+            Shaders::vec2 mPreviousJitter;
+
             /// `Reconstruction::mJitterPhases`: what the sequence the trace sampled from repeats
             /// after, which the state walks toward a step a frame.
             std::uint32_t mJitterPhases = 0;

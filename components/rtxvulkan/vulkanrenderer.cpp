@@ -626,6 +626,7 @@ namespace Rtx
                     .mMotion = channels.get(Channel::Motion),
                     .mMasks = channels.get(Channel::UpscaleMasks),
                     .mEyes = sampled.mEyes,
+                    .mPreviousJitter = sampled.mPreviousJitter,
                     .mJitterPhases = reconstruction.mJitterPhases,
                     .mSeconds = options.mSinceLast,
                     .mSlot = mRing.getRecordingSlot(),

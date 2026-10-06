@@ -41,11 +41,7 @@ namespace Rtx
         writes.image(Shaders::SPECULAR_BIND_MEAN, images.mMean.describeStorage());
 
         const Shaders::SpecularConstants constants{
-            .mHistory = Shaders::HistoryConstants{
-                .mEyes = sampled.mEyes,
-                .mReset = images.mFresh ? 1u : 0u,
-                .mDistanceScale = frame.mDistanceScale,
-            },
+            .mHistory = frame.history(images.mFresh),
             .mPrevious = sampled.mPrevious,
             .mArmsSpread = sampled.mArmsSpread,
         };

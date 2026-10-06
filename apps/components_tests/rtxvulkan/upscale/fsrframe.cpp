@@ -29,14 +29,16 @@ namespace Rtx
             return camera;
         }
 
-        /// Quality's eighteen phases at 1920 wide, unless a test names others.
-        FsrFrame::Frame frameAt(
-            VkExtent2D render, VkExtent2D output, const osg::Vec2f& jitter, std::uint32_t phases = 18)
+        /// Quality's eighteen phases at 1920 wide, unless a test names others, after a frame that
+        /// sampled at `previous`.
+        FsrFrame::Frame frameAt(VkExtent2D render, VkExtent2D output, const osg::Vec2f& jitter,
+            const osg::Vec2f& previous = osg::Vec2f(), std::uint32_t phases = 18)
         {
             return FsrFrame::Frame{
                 .mRender = render,
                 .mOutput = output,
                 .mCamera = eyeWithJitter(jitter),
+                .mPreviousJitter = previous,
                 .mJitterPhases = phases,
                 .mSeconds = 0.016f,
             };
@@ -74,10 +76,11 @@ namespace Rtx
             EXPECT_FLOAT_EQ(first.mDeviceToViewDepth.w(), 0.5f);
             EXPECT_FALSE(state.readsSecond()) << "the SDK's first frame reads the first of each pair";
 
-            // The next frame carries this one's jitter and extents as the previous ones, counts one,
-            // and turns to the other of each pair.
-            const Shaders::FsrConstants& second
-                = state.advance(frameAt({ 1280, 720 }, { 1920, 1080 }, osg::Vec2f(-0.5f, 0.5f)));
+            // The next frame carries this one's extents as the previous ones and the jitter the
+            // frame's sampling says came before it, negated, counts one, and turns to the other of
+            // each pair.
+            const Shaders::FsrConstants& second = state.advance(
+                frameAt({ 1280, 720 }, { 1920, 1080 }, osg::Vec2f(-0.5f, 0.5f), osg::Vec2f(0.25f, -0.125f)));
             EXPECT_EQ(second.mPreviousJitter, osg::Vec2f(-0.25f, 0.125f));
             EXPECT_EQ(second.mJitter, osg::Vec2f(0.5f, -0.5f));
             EXPECT_EQ(second.mPreviousRenderSize, Shaders::ivec2(1280, 720));
@@ -87,8 +90,8 @@ namespace Rtx
             // A reset starts the count again and keeps what it carries, for one frame only.
             state.reset();
             EXPECT_TRUE(state.isFresh());
-            const Shaders::FsrConstants& reset
-                = state.advance(frameAt({ 1280, 720 }, { 1920, 1080 }, osg::Vec2f(0.0f, 0.0f)));
+            const Shaders::FsrConstants& reset = state.advance(
+                frameAt({ 1280, 720 }, { 1920, 1080 }, osg::Vec2f(0.0f, 0.0f), osg::Vec2f(-0.5f, 0.5f)));
             EXPECT_EQ(reset.mFrameIndex, 0.0f);
             EXPECT_EQ(reset.mPreviousJitter, osg::Vec2f(0.5f, -0.5f));
             EXPECT_EQ(reset.mPreviousRenderSize, Shaders::ivec2(1280, 720));
@@ -132,13 +135,22 @@ namespace Rtx
         TEST(RtxFsrFrameTest, aNewPhaseCountIsWalkedToUnlessTheHistoryIsReset)
         {
             FsrFrame state;
-            EXPECT_EQ(state.advance(frameAt({ 1280, 720 }, { 1920, 1080 }, osg::Vec2f(), 18)).mJitterPhases, 18.0f);
-            EXPECT_EQ(state.advance(frameAt({ 960, 540 }, { 1920, 1080 }, osg::Vec2f(), 32)).mJitterPhases, 19.0f);
-            EXPECT_EQ(state.advance(frameAt({ 960, 540 }, { 1920, 1080 }, osg::Vec2f(), 32)).mJitterPhases, 20.0f);
-            EXPECT_EQ(state.advance(frameAt({ 960, 540 }, { 1920, 1080 }, osg::Vec2f(), 8)).mJitterPhases, 19.0f)
+            EXPECT_EQ(
+                state.advance(frameAt({ 1280, 720 }, { 1920, 1080 }, osg::Vec2f(), osg::Vec2f(), 18)).mJitterPhases,
+                18.0f);
+            EXPECT_EQ(
+                state.advance(frameAt({ 960, 540 }, { 1920, 1080 }, osg::Vec2f(), osg::Vec2f(), 32)).mJitterPhases,
+                19.0f);
+            EXPECT_EQ(
+                state.advance(frameAt({ 960, 540 }, { 1920, 1080 }, osg::Vec2f(), osg::Vec2f(), 32)).mJitterPhases,
+                20.0f);
+            EXPECT_EQ(state.advance(frameAt({ 960, 540 }, { 1920, 1080 }, osg::Vec2f(), osg::Vec2f(), 8)).mJitterPhases,
+                19.0f)
                 << "and a step down where the count asked for fell below";
             state.reset();
-            EXPECT_EQ(state.advance(frameAt({ 960, 540 }, { 1920, 1080 }, osg::Vec2f(), 32)).mJitterPhases, 32.0f);
+            EXPECT_EQ(
+                state.advance(frameAt({ 960, 540 }, { 1920, 1080 }, osg::Vec2f(), osg::Vec2f(), 32)).mJitterPhases,
+                32.0f);
         }
 
         /// **The pyramids' dispatch is `ffxSpdSetup` over the whole frame, by hand.** A workgroup a

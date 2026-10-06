@@ -497,6 +497,11 @@ namespace Rtx::Shaders
         /// `LAMP_CANDIDATES` unless a run names another, `Rtx::Reconstruction::mLampCandidates`.
         uint mLampCandidates;
 
+        /// Where inside its pixel the previous frame sampled — its world eye's jitter — or this
+        /// frame's where it has none: the one source of it for every history and for the
+        /// upscaler, `Rtx::sampleFrame`.
+        vec2 mPreviousJitter;
+
         /// Where every table a hit reads is. `GpuTables` says why it rides here.
         ///
         /// **Last, because it is eight-aligned and nothing before it is.** Anywhere else it would
@@ -541,8 +546,8 @@ namespace Rtx::Shaders
 
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
-    static_assert(offsetof(VisibilityConstants, mTables) == 1440, "GpuTables must land eight-aligned and last");
-    static_assert(sizeof(VisibilityConstants) == 1624, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(offsetof(VisibilityConstants, mTables) == 1448, "GpuTables must land eight-aligned and last");
+    static_assert(sizeof(VisibilityConstants) == 1632, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 152, "PuffConstants must be scalar-packed on every side");
 #endif
 

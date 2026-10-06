@@ -157,6 +157,11 @@ namespace Rtx::Shaders
         /// stored distance inside a half's proportional range, and it is only derived from the same
         /// value.
         float mDistanceScale;
+
+        /// Where inside its pixel the previous frame sampled, `VisibilityConstants::mPreviousJitter`:
+        /// what a history holding one frame's geometry was traced through, which a test that
+        /// rebuilds the previous ray needs.
+        vec2 mPreviousJitter;
     };
 
     /// What the accumulator is handed: the history's record; the previous frame's eye,
@@ -214,8 +219,8 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(HistoryConstants) == 160, "HistoryConstants must be scalar-packed on every side");
-    static_assert(sizeof(AccumulateConstants) == 208, "AccumulateConstants must be scalar-packed on every side");
+    static_assert(sizeof(HistoryConstants) == 168, "HistoryConstants must be scalar-packed on every side");
+    static_assert(sizeof(AccumulateConstants) == 216, "AccumulateConstants must be scalar-packed on every side");
     static_assert(
         sizeof(AccumulateClampConstants) == 16, "AccumulateClampConstants must be scalar-packed on every side");
     static_assert(ACCUMULATE_RING_REACH >= ACCUMULATE_CLAMP_REACH && ACCUMULATE_RING_HOLE < ACCUMULATE_RING_REACH,
