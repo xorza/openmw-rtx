@@ -48,7 +48,7 @@ TAKEN = {"--window": "false", "--upscale": "off", "--filter": "false"}
 
 # What would walk another way than `WALK` says, and what each run sets for itself.
 WALK_SWITCHES = (*WALK, "--suite", "--frames")
-RUN_SWITCHES = ("--hold", "--hashes", "--against")
+RUN_SWITCHES = ("--hold", "--out", "--against")
 
 
 def _tail(log: Path) -> str:
@@ -57,7 +57,7 @@ def _tail(log: Path) -> str:
 
 def repeat(build: Build, args: list[str]) -> int:
     switches = Switches("repeat", "two runs of one binary walk one place and must agree; the rest of the "
-                                  "line goes to every run of `bench`, `--exposure=1 --pictures=<dir>` to read one")
+                                  "line goes to every run of `bench`, `--exposure=1 --pictures` to read one")
     switches.add_argument("--pairs", type=int, default=1, help="comparisons, over one more run than this")
     asked, extra = switches.parse_known_args(args)
     pairs: int = asked.pairs
@@ -76,11 +76,11 @@ def repeat(build: Build, args: list[str]) -> int:
     def run(index: int) -> tuple[Path, int]:
         log = out / f"{index}.log"
         held = ["--hold"] if index % 2 else []
-        against = [f"--against={out / f'{index - 1}.csv'}"] if index else []
+        against = [f"--against={out / str(index - 1)}"] if index else []
         # **Through a pipe and not into the log**: the crash monitor shares the run's output and
         # ends after the harness, so a file handed to the harness is still open when it returns,
         # and Windows refuses to remove it. A pipe ends with its last writer.
-        ended = build.harness("bench", *bench, *held, f"--hashes={out / f'{index}.csv'}", *against,
+        ended = build.harness("bench", *bench, *held, f"--out={out / str(index)}", *against,
                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         log.write_bytes(ended.stdout)
         return log, ended.returncode

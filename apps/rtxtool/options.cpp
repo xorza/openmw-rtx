@@ -522,8 +522,8 @@ namespace RtxTool
             "`settings-default.cfg`'s `[RTX] distant land cells`, or the player's own under `view`");
 
         option(Verbs::Shot | Verbs::Bench, "against", bpo::value<std::string>()->default_value(""),
-            "what to subtract this run from: the directory a previous `shot` wrote, or the file "
-            "a previous `bench --hashes` wrote, which says which frames of the run now trace "
+            "what to subtract this run from: the directory a previous `shot` or `bench --out` wrote, "
+            "the `hashes.csv` in it, which says which frames of the run now trace "
             "something else, which frames now draw something else, and which parts of the scene "
             "moved. The reference is always a run of the previous build on this machine and never "
             "a corpus in the tree: the picture is a function of the driver and the card as much as "
@@ -537,23 +537,20 @@ namespace RtxTool
             "reported beside the verdict, and `shot` holds that picture to within one level of "
             "255, as it holds every doll and map tile, which are denoised whatever the filter");
 
-        option(Verbs::Bench, "hashes", bpo::value<std::string>()->default_value(""),
-            "write one row a frame to this file — the picture, every image the trace wrote, what "
-            "the frame handed the reconstruction and every part of the scene, each as a hash — "
-            "the oracle a moving camera has instead of `shot`'s stills, since six hundred frames "
-            "of pictures is a few hundred megabytes. Reading a frame back waits on the device, so "
-            "a run under this or --against is not a benchmark and its times are not comparable "
-            "with one");
+        option(Verbs::Bench, "pictures", bpo::bool_switch(),
+            "write every measured frame's picture into --out as <view>-<frame>.png, beside its "
+            "hash, which is what a pair that differed is diffed pixel by pixel from: a hash names "
+            "the frame and never where in it. A PNG a frame on the frame path, some sixty "
+            "milliseconds each, so a run under this is further still from a benchmark");
 
-        option(Verbs::Bench, "pictures", bpo::value<std::string>()->default_value(""),
-            "write every measured frame's picture into this directory as <view>-<frame>.png, "
-            "beside its hash, which is what a pair that differed is diffed pixel by pixel from: a "
-            "hash names the frame and never where in it. A PNG a frame on the frame path, some "
-            "sixty milliseconds each, so a run under this is further still from a benchmark");
-
-        option(Verbs::Shot | Verbs::Check | Verbs::Film | Verbs::View | Verbs::Noise, "out",
+        option(Verbs::Shot | Verbs::Bench | Verbs::Check | Verbs::Film | Verbs::View | Verbs::Noise, "out",
             bpo::value<std::string>()->default_value(""),
-            "the directory to write every picture into, as <view>.png beside <view>-doll.png, "
+            "the directory to write into: a `bench`'s `hashes.csv`, one row a frame — the picture, "
+            "every image the trace wrote, what the frame handed the reconstruction and every part "
+            "of the scene, each as a hash, the oracle a moving camera has instead of `shot`'s stills "
+            "— which a `bench` writes only where this is named, since reading a frame back waits on "
+            "the device and a run under this or --against is no benchmark; and every picture, as "
+            "<view>.png beside <view>-doll.png, "
             "<view>-map.png and <view>-textures.png, a film's frames/000000.png onwards and "
             "<keys>.mp4, the picture of each Home press in a `view` as <view>-<n>.png, with the "
             "block Home prints inside it as the PNG's Description, or `noise`'s five pictures of a "
