@@ -898,8 +898,8 @@ namespace Rtx::Testing
                 camera.mMoons[0] = masser;
                 camera.mMoons[1] = Shaders::MoonDisc{};
 
-                return shoot(makeOpenWater(4000.0f), {}, camera, size,
-                    { .mSea = SeaState{ .mSignificantHeight = 0.0f }, .mIndirect = IndirectLight::Off });
+                return shoot(
+                    makeOpenWater(4000.0f), {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f } });
             };
 
             const Frame lit = look(moonlight);

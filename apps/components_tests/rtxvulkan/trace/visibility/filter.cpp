@@ -560,12 +560,6 @@ namespace Rtx::Testing
         ///
         /// **And the reset's own sample is a history of one**, so a filtered frame after it is not a
         /// fresh reset's picture: the same exact claim, the other way round.
-        ///
-        /// **A frame that takes no indirect light ends the bounce's history too**, though
-        /// the denoisers run on it: it keeps the surface's history and lets the bounce's mean go, so
-        /// the traced frame after it reads none — the fresh reset's picture again, with the mean's
-        /// images let go and made again between them. So does a traced frame after a menu let the
-        /// images go and made them again with no frame between.
         TEST_F(RtxVisibilityTest, aResetSurvivesAFrameThatHasNoHistoryToReset)
         {
             constexpr std::uint32_t size = 64;
@@ -586,14 +580,13 @@ namespace Rtx::Testing
             mRenderer.resize(size, size);
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, {});
 
-            const auto renderOne = [&](std::uint32_t frame, bool filter, HistoryLoss loss = HistoryLoss::None,
-                                       IndirectLight indirect = IndirectLight::Traced) {
+            const auto renderOne = [&](std::uint32_t frame, bool filter, HistoryLoss loss = HistoryLoss::None) {
                 Shaders::VisibilityConstants sampled = camera;
                 sampled.mFrame = frame;
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = 0,
                         .mLoss = loss,
-                        .mReconstruction = ReconstructionRequest{ .mDenoise = filter, .mIndirect = indirect },
+                        .mReconstruction = ReconstructionRequest{ .mDenoise = filter },
                         .mExposure = FixedExposure{ 1.0f } });
             };
 
@@ -651,29 +644,6 @@ namespace Rtx::Testing
             ASSERT_EQ(skipped.size(), single.size());
             EXPECT_EQ(mostTheyDifferBy(skipped, single), 0.0f)
                 << "a filtered frame after an unfiltered one read a history from before it";
-
-            for (std::uint32_t frame = 0; frame < Shaders::ACCUMULATE_FRAMES; ++frame)
-                renderOne(frame + 300, true);
-            renderOne(measured + 2, true, HistoryLoss::None, IndirectLight::Off);
-            renderOne(measured, true);
-            const std::vector<float> resumed = radiance();
-
-            ASSERT_EQ(resumed.size(), single.size());
-            EXPECT_EQ(mostTheyDifferBy(resumed, single), 0.0f)
-                << "a traced frame after one with no indirect light read a mean of the bounce from before it";
-
-            // **And where the menu lets the mean's images go and makes them again with no frame
-            // between**, the frame after reads none of what the new images hold.
-            for (std::uint32_t frame = 0; frame < Shaders::ACCUMULATE_FRAMES; ++frame)
-                renderOne(frame + 400, true);
-            mRenderer.setIndirectLight(IndirectLight::Off);
-            mRenderer.setIndirectLight(IndirectLight::Traced);
-            renderOne(measured, true);
-            const std::vector<float> remade = radiance();
-
-            ASSERT_EQ(remade.size(), single.size());
-            EXPECT_EQ(mostTheyDifferBy(remade, single), 0.0f)
-                << "a traced frame read the mean's images the menu had just made as a history";
 
             // And a filtered frame in its place keeps the sample the reset took. Counted as no
             // history, it would blend at a weight of one — the next frame alone, which is the fresh

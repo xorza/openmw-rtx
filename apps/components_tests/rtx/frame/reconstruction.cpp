@@ -1,7 +1,6 @@
 #include <array>
 #include <cstdint>
 #include <optional>
-#include <string>
 
 #include <gtest/gtest.h>
 
@@ -150,15 +149,10 @@ namespace Rtx
         /// A picture — a doll, a map tile — is one frame, denoised as one: the wavelet and the
         /// accumulator's pass-through, no jitter since nothing puts it together across frames, the
         /// tile's noise and the texture level its footprint asks. Every field against the rule for
-        /// the same request with nothing upscaling, which is what a picture is. Its indirect light is
-        /// the one it is handed, the world's.
+        /// the same request with nothing upscaling, which is what a picture is.
         TEST(RtxReconstructionTest, aPictureIsOneDenoisedFrameWithNothingMovedInsideItsPixel)
         {
-            for (const IndirectLight indirect : { IndirectLight::Traced, IndirectLight::Off })
-                EXPECT_EQ(Reconstruction::forPicture(indirect).mIndirect, indirect)
-                    << sIndirectLightNames.name(indirect);
-
-            const Reconstruction picture = Reconstruction::forPicture(IndirectLight::Traced);
+            const Reconstruction picture = Reconstruction::forPicture();
             EXPECT_TRUE(picture.mDenoised);
             EXPECT_EQ(picture.mUpscale, Upscale::Off);
             EXPECT_FALSE(picture.mJitter);
@@ -179,29 +173,17 @@ namespace Rtx
         }
 
         /// **The trace composes the frame only where nothing comes after it**: no filter.
-        ///
-        /// **With no indirect light there is nothing to filter**, since it holds no draw: the
-        /// bounce's filters run on no frame, while the denoisers it was asked for still run for the
-        /// rest. A request that says nothing traces the bounce.
         TEST(RtxReconstructionTest, aTraceComposesOnlyWhereNothingFollows)
         {
-            EXPECT_EQ(ReconstructionRequest{}.mIndirect, IndirectLight::Traced);
-
-            for (const IndirectLight indirect : { IndirectLight::Traced, IndirectLight::Off })
-                for (const bool denoise : { false, true })
-                    for (const Upscale upscale : { Upscale::Off, Upscale::Quality })
-                    {
-                        const Reconstruction resolved = Reconstruction::resolve(upscale,
-                            ReconstructionRequest{ .mDenoise = denoise, .mIndirect = indirect },
-                            upscale == Upscale::Off ? sUnscaled : sHalved);
-                        const bool traced = indirect == IndirectLight::Traced;
-                        const std::string asked = std::string(sIndirectLightNames.name(indirect))
-                            + (denoise ? ", filtered" : ", unfiltered");
-                        EXPECT_EQ(resolved.mIndirect, indirect) << asked;
-                        EXPECT_EQ(resolved.mDenoised, denoise) << asked;
-                        EXPECT_EQ(resolved.composedByTrace(), !denoise) << asked;
-                        EXPECT_EQ(resolved.filtersBounce(), denoise && traced) << asked;
-                    }
+            for (const bool denoise : { false, true })
+                for (const Upscale upscale : { Upscale::Off, Upscale::Quality })
+                {
+                    const Reconstruction resolved = Reconstruction::resolve(upscale,
+                        ReconstructionRequest{ .mDenoise = denoise }, upscale == Upscale::Off ? sUnscaled : sHalved);
+                    const char* const asked = denoise ? "filtered" : "unfiltered";
+                    EXPECT_EQ(resolved.mDenoised, denoise) << asked;
+                    EXPECT_EQ(resolved.composedByTrace(), !denoise) << asked;
+                }
 
             EXPECT_TRUE(ReconstructionRequest{}.mAntilag);
             EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mAntilag);
@@ -211,17 +193,17 @@ namespace Rtx
             EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mHistoryFix);
             EXPECT_FALSE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mHistoryFix = false }, sUnscaled)
                              .mHistoryFix);
-            EXPECT_FALSE(Reconstruction::forPicture(IndirectLight::Traced).mHistoryFix);
+            EXPECT_FALSE(Reconstruction::forPicture().mHistoryFix);
             EXPECT_TRUE(ReconstructionRequest{}.mDualMotion);
             EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mDualMotion);
             EXPECT_FALSE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mDualMotion = false }, sUnscaled)
                              .mDualMotion);
-            EXPECT_FALSE(Reconstruction::forPicture(IndirectLight::Traced).mDualMotion);
+            EXPECT_FALSE(Reconstruction::forPicture().mDualMotion);
             EXPECT_FALSE(ReconstructionRequest{}.mAntiFirefly);
             EXPECT_FALSE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{}, sUnscaled).mAntiFirefly);
             EXPECT_TRUE(Reconstruction::resolve(Upscale::Off, ReconstructionRequest{ .mAntiFirefly = true }, sUnscaled)
                             .mAntiFirefly);
-            EXPECT_FALSE(Reconstruction::forPicture(IndirectLight::Traced).mAntiFirefly);
+            EXPECT_FALSE(Reconstruction::forPicture().mAntiFirefly);
 
             // **An unfiltered request keeps what the trace reads and nothing the filters read**: a
             // request with every filter switch turned from its default is the default request once
@@ -233,12 +215,8 @@ namespace Rtx
             EXPECT_EQ(turned.unfiltered(), ReconstructionRequest{}.unfiltered());
             for (const ReconstructionRequest& traced :
                 { ReconstructionRequest{ .mJitter = true }, ReconstructionRequest{ .mNoise = NoiseSource::WhiteHash },
-                    ReconstructionRequest{ .mLevelEpsilon = 0.5f },
-                    ReconstructionRequest{ .mIndirect = IndirectLight::Off } })
+                    ReconstructionRequest{ .mLevelEpsilon = 0.5f } })
                 EXPECT_NE(traced.unfiltered(), ReconstructionRequest{}.unfiltered());
-
-            EXPECT_EQ(sIndirectLightNames.name(IndirectLight::Traced), "traced");
-            EXPECT_EQ(sIndirectLightNames.named("off"), IndirectLight::Off);
         }
 
         /// The spellings a report and a command line write, and `auto` left to the harness as its

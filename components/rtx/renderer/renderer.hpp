@@ -477,11 +477,6 @@ namespace Rtx
         /// it from a file or a command line refuses anything else first.
         virtual void setGamma(float gamma) = 0;
 
-        /// `ReconstructionRequest::mIndirect` of the profile, changed while the frames run: a menu
-        /// change. What only a traced bounce keeps is made or let go here, and the next frame's
-        /// bounce starts with no history.
-        virtual void setIndirectLight(IndirectLight indirect) = 0;
-
         /// How many of the kernels a trace needs are made, waiting `patience` at most for the rest,
         /// and rethrowing what making one threw. The renderer starts making them as it is made, on
         /// threads of its own, and returns without them — ten seconds on a cold cache — so a host

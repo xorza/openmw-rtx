@@ -401,13 +401,6 @@ namespace RtxTool
                 Rtx::sNoiseSourceNames.list())
                 .c_str());
 
-        option(sFramed, "indirect", bpo::value<std::string>(),
-            std::format("whether a surface takes light from anything that is not a light: {}. `traced` "
-                        "follows one bounce and cleans it, `off` traces none and takes none. Not given, "
-                        "`settings-default.cfg`'s `[RTX] indirect light`, or the player's own under `view`",
-                Rtx::sIndirectLightNames.list())
-                .c_str());
-
         option(sFramed, "antilag",
             bpo::value<bool>()
                 ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mAntilag)

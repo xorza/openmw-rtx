@@ -350,14 +350,13 @@ namespace RtxTool
             header.mHashed ? ", every frame hashed" : "", header.mTurnsWeather ? ", the weather turned" : "");
         const Rtx::Reconstruction& resolved = header.mReconstruction;
         out += std::format(
-            "     {}x{} from {}x{}, upscale {}, filter {}, jitter {}, noise {}, level bias {:.3f}, indirect {}, "
+            "     {}x{} from {}x{}, upscale {}, filter {}, jitter {}, noise {}, level bias {:.3f}, "
             "antilag {}, history fix {}, dual motion {}, anti-firefly {}, shadow floor {:.4f}, lamp "
             "candidates {}\n",
             header.mExtents.mOutputWidth, header.mExtents.mOutputHeight, header.mExtents.mRenderWidth,
             header.mExtents.mRenderHeight, Rtx::sUpscaleNames.name(resolved.mUpscale),
             resolved.mDenoised ? "on" : "off", resolved.mJitter ? "on" : "off",
-            Rtx::sNoiseSourceNames.name(resolved.mNoise), resolved.mLevelBias,
-            Rtx::sIndirectLightNames.name(resolved.mIndirect), resolved.mAntilag ? "on" : "off",
+            Rtx::sNoiseSourceNames.name(resolved.mNoise), resolved.mLevelBias, resolved.mAntilag ? "on" : "off",
             resolved.mHistoryFix ? "on" : "off", resolved.mDualMotion ? "on" : "off",
             resolved.mAntiFirefly ? "on" : "off", resolved.mShadowFloor, resolved.mLampCandidates);
         out += std::format("     delight {:.2f}, gamma {:.2f}, show {}, exposure {}, variants {}, hold {}\n",
@@ -512,13 +511,12 @@ namespace RtxTool
                    header.mReconstruction.mJitter)
             << '\n'
             << std::format(
-                   R"(  "noise": "{}", "levelBias": {:.3f}, "indirect": "{}", "antilag": {}, )"
+                   R"(  "noise": "{}", "levelBias": {:.3f}, "antilag": {}, )"
                    R"("historyFix": {}, "dualMotion": {}, "antiFirefly": {}, "shadowFloor": {:.4f}, "lampCandidates": {},)",
                    Rtx::sNoiseSourceNames.name(header.mReconstruction.mNoise), header.mReconstruction.mLevelBias,
-                   Rtx::sIndirectLightNames.name(header.mReconstruction.mIndirect), header.mReconstruction.mAntilag,
-                   header.mReconstruction.mHistoryFix, header.mReconstruction.mDualMotion,
-                   header.mReconstruction.mAntiFirefly, header.mReconstruction.mShadowFloor,
-                   header.mReconstruction.mLampCandidates)
+                   header.mReconstruction.mAntilag, header.mReconstruction.mHistoryFix,
+                   header.mReconstruction.mDualMotion, header.mReconstruction.mAntiFirefly,
+                   header.mReconstruction.mShadowFloor, header.mReconstruction.mLampCandidates)
             << '\n'
             << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", header.mMeasured, header.mWarmup,
                    header.mValidating)

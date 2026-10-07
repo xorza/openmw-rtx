@@ -389,9 +389,6 @@ namespace RtxTool
                     ? Settings::groundcover().mPointLighting.get()
                     : shippedDefault<bool>(command.mConfig, "Groundcover", "point lighting"),
                 .mSpecularMapLayout = specularLayout,
-                .mIndirectLight = given("indirect") ? spelled("indirect")
-                    : watched                       ? Settings::rtx().mIndirectLight.get()
-                              : shippedDefault<std::string>(command.mConfig, "RTX", "indirect light"),
                 .mAnisotropy = watched ? Settings::general().mAnisotropy.get()
                                        : shippedDefault<int>(command.mConfig, "General", "anisotropy"),
                 .mGamma = given("gamma") ? variables["gamma"].as<float>()
@@ -415,7 +412,6 @@ namespace RtxTool
             profile.mAnisotropy = derived.mAnisotropy;
             profile.mGamma = derived.mGamma;
             profile.mLitEnvironmentMaps = derived.mLitEnvironmentMaps;
-            profile.mReconstruction.mIndirect = derived.mIndirect;
             profile.mDelight = variables["delight"].as<float>();
             profile.mShow = Rtx::sSurfaceViewNames.require(variables["show"].as<std::string>(), "a surface view");
             profile.mExposure = parseExposure(variables["exposure"].as<std::string>());
