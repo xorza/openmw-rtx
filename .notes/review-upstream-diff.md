@@ -41,12 +41,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   writer of another party's field. Target shape: the seam takes a host-side description (eyes, world
   reading, options), and only the backend fills the device block. (medium)
 
-## Owners that are not pinned or encapsulated as the conventions say
-
-- [ ] `components/rtx/view/offscreentrace.cpp:202-234` — `pick() const` advances the shared traversal
-  counter, changes `mPoseStamp`, and runs a cull, through `unique_ptr` members. Target shape: make `pick`
-  non-const. (low)
-
 ## The driver and its dependencies
 
 - [ ] `tools/omw/deps.py:92-99` (`appimage_tools`), `:102-115` (`crash_tool`) — the AppImage tools and

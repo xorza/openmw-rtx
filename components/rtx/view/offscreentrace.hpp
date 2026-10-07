@@ -144,7 +144,7 @@ namespace Rtx
         /// through that point. The one place a skinned body is still posed on the processor: the
         /// drawable's own copy holds the bind pose, so the subject is put through a cull of its own
         /// once per pick.
-        bool pick(float x, float y, osg::NodePath& hit) const;
+        bool pick(float x, float y, osg::NodePath& hit);
 
     private:
         /// The camera this picture is taken with, as the trace takes it. What `traceInto` traces
