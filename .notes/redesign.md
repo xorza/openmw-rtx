@@ -611,9 +611,10 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.3 Crash reports, CI and the release
 
-- **[bug] Windows fail-fast crashes get no report**: `/GS`, heap corruption and `__fastfail` skip
+- **[bug] Windows fail-fast crashes get no dump**: `/GS`, heap corruption and `__fastfail` skip
   the in-process filter, and nothing ships or registers `crashpad_wer.dll`. Target: build, install
-  and `RegisterWerModule` it, and have the monitor log the exit code when no dump came.
+  and `RegisterWerModule` it. Blocked: question 11 in `redesign_QUESTIONS.md`. (The monitor logs
+  the exit code when no dump came: done.)
 - **[bug, check on the AppImage] The monitor runs from the AppImage's mount after the game is
   gone.** Packaging and the dialog run after exit, when the mount may be gone. Target: verify by
   crashing the AppImage with `OPENMW_CRASH_DIALOG=1`; if confirmed, keep the mount for the

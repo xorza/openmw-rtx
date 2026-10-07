@@ -158,3 +158,25 @@ section of AGENTS.md is the user's policy, so the call is the user's.
 Revert is the other option for each row: the hunk goes, with what depends on it.
 
 **What it blocks.** Only section 6.10.
+
+## 11. Section 6.3: the WER module for Windows' fail-fast crashes
+
+**Item.** Section 6.3's "Windows fail-fast crashes get no report". A `/GS` failure, a heap
+corruption or a `__fastfail` ends the process past every filter inside it, so Crashpad's handler
+never sees it. The monitor now logs the exit code such an end leaves (the half that needs no call).
+What would take a dump is Crashpad's `crashpad_wer.dll`, which the Windows Error Reporting service
+loads outside the game; Crashpad's CMake build already has the target.
+
+**Why it needs a call.** Windows calls the module only where a registry value names its full path,
+under `Software\Microsoft\Windows\Windows Error Reporting\RuntimeExceptionHelperModules`, in
+`HKEY_CURRENT_USER` or `HKEY_LOCAL_MACHINE` ("WER Settings", Microsoft Learn). The fork ships a
+portable archive and no installer, so the game itself would write the value into the player's
+registry, where it outlives a moved or deleted copy of the game.
+
+| Option | What it does | Cost |
+|---|---|---|
+| **A. The game registers itself under the player's key** (my pick) | At start, the Windows client writes the value under `HKEY_CURRENT_USER` for the DLL beside the executable, removes a value of its own name that points elsewhere, and calls `RegisterWerModule`; the package ships the DLL. | A registry value a player did not ask for, one per place the game ran from. |
+| B. Only an installer registers it | The DLL ships, and only a future installer writes the value. | No dump until there is an installer. |
+| C. No WER module | The exit code line is what a fail-fast leaves. | No dump for these crashes. |
+
+**What it blocks.** Only the WER half of this item.

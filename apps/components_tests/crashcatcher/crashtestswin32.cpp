@@ -42,6 +42,11 @@ namespace CrashTests
         into.push_back({ "pure-call", "Crash: a pure virtual function was called", {}, {}, true, crashed });
         into.push_back(
             { "invalid-parameter", "Crash: the C runtime was given an invalid parameter", {}, {}, true, crashed });
+
+        // **A fail-fast ends the process past every filter inside it**, so no summary and no dump:
+        // the monitor's line is what is left, with the code `__fastfail` exits by.
+        into.push_back(
+            { "fast-fail", "Crash: ", {}, "The game ended with STATUS_STACK_BUFFER_OVERRUN and left no dump", false });
     }
 
     std::optional<int> runModeOfThisSystem(std::string_view mode)
@@ -50,6 +55,11 @@ namespace CrashTests
         {
             Derived derived;
             return 0;
+        }
+        if (mode == "fast-fail")
+        {
+            // `FAST_FAIL_FATAL_APP_EXIT`, as `abort` asks it where the C runtime fails fast.
+            __fastfail(7);
         }
         if (mode == "invalid-parameter")
         {
