@@ -8,6 +8,7 @@
 #include <osg/Callback>
 #include <osg/Geometry>
 #include <osg/Group>
+#include <osg/LOD>
 #include <osg/Matrix>
 #include <osg/MatrixTransform>
 #include <osg/Matrixf>
@@ -128,6 +129,8 @@ namespace Rtx::Testing
         /// **A reference that changes on its own is walked on every frame**: a controller on its
         /// root, a state set a controller writes, a switch anywhere under it. And **what the game
         /// hangs on a frozen root thaws it**: a state set, which an enchantment's glow is, or a child.
+        /// **A level of detail does not change**: the walk takes the nearest level, which the ranges
+        /// choose and not the eye, so its reference freezes standing that level alone.
         TEST_F(RtxFrozenSubtreeTest, aReferenceThatChangesIsWalkedEveryFrameAndOneTheGameChangesThaws)
         {
             const std::vector<std::pair<const char*, std::function<void(osg::MatrixTransform&)>>> changing{
@@ -154,6 +157,23 @@ namespace Rtx::Testing
                     EXPECT_GT(frame().mMeshesReused, 0u) << what << " froze";
 
                 mCell->removeChild(reference);
+                frame();
+            }
+
+            {
+                const osg::ref_ptr<osg::MatrixTransform> leveled = addReference(osg::Vec3f());
+                osg::ref_ptr<osg::LOD> levels = new osg::LOD;
+                levels->addChild(makeQuad(), 100.0f, 1000.0f);
+                levels->addChild(makeQuad(), 0.0f, 100.0f);
+                leveled->addChild(levels);
+
+                frame();
+                const ExtractionStats passed = frame();
+                EXPECT_EQ(passed.mMeshesReused, 0u) << "a level of detail kept its reference walked";
+                // Its own quad and the nearer level, and not the farther one.
+                EXPECT_EQ(passed.mPassedFrozen, 2u);
+
+                mCell->removeChild(leveled);
                 frame();
             }
 
