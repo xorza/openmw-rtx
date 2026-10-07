@@ -214,7 +214,7 @@ class PruneTest(unittest.TestCase):
             kept = sorted(deps.pinned_names())
             for name in kept:
                 (folder / name).mkdir()
-            (folder / "vulkan-sdk-0.0.1").mkdir()
+            (folder / "vulkan-sdk-0.0.1-00000000").mkdir()
             (folder / "appimage").mkdir()
             (folder / f"{kept[0]}.partial").mkdir()
             (folder / "LLVM-14.0.6-win64.exe").write_bytes(b"left over")
