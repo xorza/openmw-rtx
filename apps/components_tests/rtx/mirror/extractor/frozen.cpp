@@ -64,8 +64,7 @@ namespace Rtx::Testing
             {
                 mScene.clearPlacement();
                 mRing.follow(WorldAround{});
-                const ExtractionStats stats
-                    = mExtractor.extractWorld(*mRoot, osg::Matrixf::identity(), 0, mFrame++, mRing);
+                const ExtractionStats stats = mExtractor.extractWorld(*mRoot, 0, mFrame++, mRing);
                 mExtractor.retire();
                 return stats;
             }

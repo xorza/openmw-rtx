@@ -644,11 +644,11 @@ namespace Rtx
     }
 
     ExtractionStats SceneExtractor::extractWorld(
-        const osg::Node& root, const osg::Matrixf& transform, std::size_t anchor, std::size_t frame, CellRing& ring)
+        const osg::Node& root, std::size_t anchor, std::size_t frame, CellRing& ring)
     {
         assert(ring.adoptsThrough(*this) && "a ring made on another extractor adopts into its scene");
 
-        return walk(root, transform, anchor, frame, &ring, false);
+        return walk(root, osg::Matrixf::identity(), anchor, frame, &ring, false);
     }
 
     ExtractionStats SceneExtractor::extractPrecipitation(

@@ -30,11 +30,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   first.** Target shape: the comments say what the filters do now. Then `./omw release noise --cut=N`
   measures the lag on a lamp change, and the measurement decides whether each filter gets fast means
   and `heldToFast`, as ReLAX clamps specular. (medium)
-- [ ] `components/rtx/mirror/sceneextractor.cpp:1003` — `FrozenFace::of(root, mHere)` does not include
-  `mRoot`, but placements are `mHere * mRoot` (:167). A mask change thaws frozen runs (:700-703), but a
-  change of `extractWorld`'s `transform` does not. This is latent: the only caller gives identity
-  (`apps/openmw/mwrender/rtx/worldmirror.cpp:320`). Target shape: thaw when the root transform changes, or
-  remove the parameter. (low)
 - [ ] `components/rtx/image/mipchain.hpp:24-70`, `ownedtexture.cpp:44-54` — `OwnedTexture::describe`
   never sets `mEncoding`, so a chain built from a data or normal map says `Colour`, and `getCompanion()`
   returns `Shading`. Production uses only `MipChain::wantedFor`. `build`, `describe` and all of

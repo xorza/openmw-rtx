@@ -469,8 +469,7 @@ namespace Rtx::Testing
             {
                 mScene.clearPlacement();
                 mRing.follow(mAround);
-                const ExtractionStats stats
-                    = mExtractor.extractWorld(*mEmpty, osg::Matrixf::identity(), 0, frame, mRing);
+                const ExtractionStats stats = mExtractor.extractWorld(*mEmpty, 0, frame, mRing);
                 mScene.placements().advance();
                 return stats;
             }
@@ -588,7 +587,7 @@ namespace Rtx::Testing
             WalkContext context{ .mSpecular = SpecularLayout::Ignore };
             SceneDesc other;
             SceneExtractor stranger(other, context);
-            expectAssertDies([&] { stranger.extractWorld(*mEmpty, osg::Matrixf::identity(), 0, 1, mRing); },
+            expectAssertDies([&] { stranger.extractWorld(*mEmpty, 0, 1, mRing); },
                 "a ring made on another extractor adopts into its scene");
         }
 
@@ -1589,8 +1588,7 @@ namespace Rtx::Testing
         {
             start();
             walk(mWalked++);
-            expectAssertDies([&] { mExtractor.extractWorld(*mEmpty, osg::Matrixf::identity(), 0, mWalked, mRing); },
-                "a call out of its turn");
+            expectAssertDies([&] { mExtractor.extractWorld(*mEmpty, 0, mWalked, mRing); }, "a call out of its turn");
         }
 
         /// Content whose one template is a morph the reader refuses: three vertices over a base
