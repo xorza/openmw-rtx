@@ -160,7 +160,7 @@ float varianceAround(ivec2 at)
             if (texelFetch(surfaceChannel, tap, 0).r == SURFACE_NO_NORMAL)
                 continue;
 
-            const float w = (x == 0 ? 0.5 : 0.25) * (y == 0 ? 0.5 : 0.25);
+            const float w = tentWeight(ivec2(x, y));
             sum += texelFetch(source, tap, 0).a * w;
             weight += w;
         }

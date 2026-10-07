@@ -126,17 +126,15 @@ vec2 inputAt(ivec2 square)
     return unpackHalf2x16(gInput[square.y][square.x]);
 }
 
-/// The SDK's 3×3 Gaussian over the variance, `1/4` at the centre, `1/8` along the axes and `1/16`
-/// at the corners. A select and not a table, for the reason `atrous.comp`'s `kernelAt` gives. A
-/// pixel that receives nothing adds a variance of nought, as the SDK's sky does.
+/// The SDK's 3×3 Gaussian over the variance, which is the tent (`tentWeight`). A pixel that
+/// receives nothing adds a variance of nought, as the SDK's sky does.
 float filteredVariance(ivec2 square)
 {
     float variance = 0.0;
     for (int y = -1; y <= 1; ++y)
         for (int x = -1; x <= 1; ++x)
         {
-            const float weight = (x == 0 ? 0.5 : 0.25) * (y == 0 ? 0.5 : 0.25);
-            variance += weight * max(inputAt(square + ivec2(x, y)).y, 0.0);
+            variance += tentWeight(ivec2(x, y)) * max(inputAt(square + ivec2(x, y)).y, 0.0);
         }
     return variance;
 }
