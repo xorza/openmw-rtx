@@ -11,6 +11,8 @@
 #include <gtest/gtest.h>
 
 #include <osg/BoundingBox>
+#include <osg/Callback>
+#include <osg/CopyOp>
 #include <osg/Matrixf>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
@@ -516,6 +518,25 @@ namespace Rtx
             EXPECT_FALSE(givesLight(describe(100, 0x00FFFFFF, ESM::Light::Negative)));
             EXPECT_FALSE(givesLight(describe(100, 0x00000000, 0))) << "black";
             EXPECT_FALSE(givesLight(describe(100, 0x00FFFFFF, ESM::Light::OffDefault)));
+        }
+
+        /// **A copied lamp answers with the controller it runs.** A deep copy of the callbacks clones
+        /// the whole chain, so the source's controller drives the source and not the copy — and OSG
+        /// clones a `LightController`, which declares no clone of its own, as a plain callback, so
+        /// the copy runs none and answers none. A shallow copy shares the chain, and the controller.
+        TEST(RtxLightBuilderTest, aCopiedLampAnswersWithTheControllerItRuns)
+        {
+            const osg::ref_ptr<SceneUtil::LightSource> source = SceneUtil::createLightSource(
+                describe(100, 0x00FFFFFF, ESM::Light::Flicker), Testing::sLightMask, /*isExterior=*/false);
+            ASSERT_NE(source->getController(), nullptr);
+
+            const osg::ref_ptr<SceneUtil::LightSource> deep
+                = new SceneUtil::LightSource(*source, osg::CopyOp::DEEP_COPY_CALLBACKS);
+            EXPECT_EQ(deep->getController(), nullptr) << "the copy answers with a controller it does not run";
+
+            const osg::ref_ptr<SceneUtil::LightSource> shallow
+                = new SceneUtil::LightSource(*source, osg::CopyOp::SHALLOW_COPY);
+            EXPECT_EQ(shallow->getController(), source->getController());
         }
 
         /// A lamp any number of which is not finite is refused by every route to one.

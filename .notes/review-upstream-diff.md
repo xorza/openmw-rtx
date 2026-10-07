@@ -30,10 +30,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   first.** Target shape: the comments say what the filters do now. Then `./omw release noise --cut=N`
   measures the lag on a lamp change, and the measurement decides whether each filter gets fast means
   and `heldToFast`, as ReLAX clamps specular. (medium)
-- [ ] `components/sceneutil/lightmanager.cpp:673` — the copy constructor copies `mController` as is.
-  `SceneUtil::CopyOp` sets `DEEP_COPY_CALLBACKS`, so a cloned light runs a cloned controller while
-  `getController()` returns the original's. Target shape: in the copy, find the copied callback, or get
-  `getController()` from the update-callback chain. (low)
 ## The crash catcher: hang handling
 
 - [ ] `components/crashcatcher/crashpadmonitor.cpp:447`, `:374-389` — the watch sends the hang request
