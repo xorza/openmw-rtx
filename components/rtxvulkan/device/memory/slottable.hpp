@@ -78,6 +78,17 @@ namespace Rtx
                 owed.owe(mAppended);
         }
 
+        /// Makes the host rows and every copy room for `rows`, so no `sync` up to there makes a copy
+        /// again: for a table that grows on the frame path and whose reach is known when it is
+        /// opened. Adds no row; a copy made here is empty and owes everything.
+        void reserve(std::size_t rows)
+        {
+            mRows.reserve(rows);
+            for (std::uint32_t slot = 0; slot < mCopies.count(); ++slot)
+                if (mCopies.at(FrameSlot{ slot }).growTo(std::max(rows * sizeof(Row), sizeof(Row))))
+                    mOwed.at(FrameSlot{ slot }).oweEverything();
+        }
+
         /// Whether `slot`'s copy would change if it were synced now — what an early return asks,
         /// because a copy can carry a debt from frames ago while the scene stands still.
         bool owes(FrameSlot slot) const { return mOwed.at(slot).owesAnything(); }

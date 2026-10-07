@@ -34,11 +34,11 @@ namespace Rtx
     }
 
     DeviceScene::DeviceScene(const Device& device, Batch& batch, const ScenePasses& passes, const SceneDesc& scene,
-        std::span<const TextureData> textures, const std::uint32_t anisotropy)
+        std::span<const TextureData> textures, const std::uint32_t anisotropy, const std::uint32_t placementRoom)
         : mPasses(passes)
         , mRecords(recordsOf(scene))
         , mEveryMesh(everyMeshOf(scene))
-        , mAcceleration(device, batch, scene, mEveryMesh, sFrameSlots)
+        , mAcceleration(device, batch, scene, mEveryMesh, sFrameSlots, placementRoom)
         , mBuffers(device, batch, scene, mEveryMesh, mRecords, sFrameSlots)
         , mSkinTables(device, batch, scene, sFrameSlots)
         , mTextures(device, batch, passes.mTextureLayout, passes.mTextures,

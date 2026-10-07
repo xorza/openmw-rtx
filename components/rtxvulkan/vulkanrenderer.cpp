@@ -60,6 +60,13 @@ namespace Rtx
 {
     namespace
     {
+        /// The placement slots a world's top level is made with room for. A world grows as cells
+        /// arrive, and a growth past the room is the structure and both copies of its rows made
+        /// again on the frame a cell arrives on; the suites' largest place reaches 80,324, so this is
+        /// three times that, at 16 MiB of rows a copy. A picture's scene is opened at what it holds,
+        /// since a doll grows by a piece of armour and not by a town.
+        constexpr std::uint32_t sWorldPlacementRoom = 1u << 18;
+
         /// The instance a window needs, which is the headless one plus whatever SDL asks for — the
         /// surface among it, which is what tells the device to take a swapchain.
         std::vector<const char*> surfaceExtensionsFor(const RendererOptions& options)
@@ -242,8 +249,9 @@ namespace Rtx
         mDevice.getMemory().refreshBudget(mDevice.getTimeline().getNext());
 
         Batch setup(mDevice.getPool());
-        DeviceScene& held = mScenes.hold(
-            slot, std::make_unique<DeviceScene>(mDevice, setup, mScenePasses, scene, textures, mProfile.mAnisotropy));
+        DeviceScene& held = mScenes.hold(slot,
+            std::make_unique<DeviceScene>(mDevice, setup, mScenePasses, scene, textures, mProfile.mAnisotropy,
+                slot.isWorld() ? sWorldPlacementRoom : 0u));
 
         // A picture's scene rides the next submit, as an arrival does: its placement and its trace
         // are deferred behind it, and the barrier every upload and build ends in orders them. The
