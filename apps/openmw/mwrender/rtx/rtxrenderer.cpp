@@ -357,7 +357,7 @@ namespace MWRender
         mRipples.splash(position);
     }
 
-    void RtxRenderer::poseForIntersection(osg::Drawable& drawable)
+    void RtxRenderer::poseForIntersection(osg::Drawable& drawable) noexcept
     {
         mPoser.pose(drawable, getFrameStamp());
     }
