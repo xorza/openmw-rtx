@@ -2,6 +2,7 @@
 
 import subprocess
 import sys
+import textwrap
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -26,8 +27,7 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                two runs of one binary walk one place and must agree
   kernels [--against=<file>]   one digest per shader and tuple of its constants; against an earlier
                                listing, which tuples moved
-  gate                         format check, the driver's tests, build, the listing check, the
-                               release compile, test, check, repeat — stops at the first failure
+  gate                         {gate}
   exec <command> [args]        a command in the build directory, under the flavour's environment
   archive [name]               the release archive into dist/, with its symbols: the package flavour
   profile [args]               the harness's CPU side under perf: the release flavour
@@ -53,6 +53,10 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   package   build-package   release with the launcher, the wizard and the importers, portable
   full      build-full      debug with every program the tree has, the CS, the launcher and the wizard among them
 """
+# The gate's steps, from the one place they are stated, wrapped to the column the verbs' words stand in.
+USAGE = USAGE.replace("{gate}", textwrap.fill(gate.STEPS + " — stops at the first failure", width=100,
+                                              initial_indent=" " * 31, subsequent_indent=" " * 31).lstrip())
+
 
 
 # The harness's own verbs, `sNames` in `apps/rtxtool/verbs.cpp`, which a test holds this to: a word

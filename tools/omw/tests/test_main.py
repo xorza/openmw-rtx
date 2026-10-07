@@ -1,6 +1,8 @@
 import re
 import unittest
 
+from omw import gate
+from omw.build import Build
 from omw.main import BUILD_VERBS, BUILDLESS_VERBS, HARNESS_VERBS, USAGE, Line, parse
 from omw.system import FORK, ROOT, Refusal, read_text
 from omw.testing import ctest_arguments
@@ -55,6 +57,20 @@ class ParseTest(unittest.TestCase):
         for verb in [*BUILD_VERBS, *HARNESS_VERBS, *BUILDLESS_VERBS]:
             with self.subTest(verb=verb):
                 self.assertRegex(USAGE, rf"(?m)^  (\w+, )*{verb}\b")
+
+    def test_the_gate_is_refused_where_the_build_has_no_tests_and_says_its_steps_once(self):
+        # Before anything builds: the flavours whose presets build no test.
+        for flavour in ("release", "package"):
+            with self.subTest(flavour=flavour):
+                with self.assertRaises(Refusal) as refused:
+                    gate.gate(Build(flavour), [])
+                self.assertEqual(str(refused.exception),
+                                 f"the {flavour} build has no tests, and a gate is its tests: `omw debug gate` runs them")
+
+        # The help's line is `gate.STEPS`, wrapped, and AGENTS.md names none of the steps itself.
+        said = " ".join(re.search(r"(?ms)^  gate +(.*?)\s+—\s+stops", USAGE).group(1).split())
+        self.assertEqual(said, gate.STEPS)
+        self.assertIn("the steps `./omw help` lists", " ".join(read_text(ROOT / "AGENTS.md").split()))
 
     def test_every_fork_folder_is_a_folder(self):
         for folder in FORK:
