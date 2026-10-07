@@ -116,28 +116,6 @@ namespace Rtx
     class DeformerTable : public HeldRows<Deformer>
     {
     public:
-        /// Copies a skin's runs and influences into the shared tables and returns the rig's index.
-        /// The row arrives with nothing on it; `SceneDesc::addMesh` is what calls this, and stands
-        /// the first mesh on the row in the same call, because a row no mesh stands on is one
-        /// nothing frees.
-        Index addRig(const RigSpec& rig);
-
-        /// The same for a morph's targets.
-        Index addMorph(const MorphSpec& morph);
-
-        /// Gives `range` the runs its kind needs, and counts one more mesh on the deformer it names.
-        /// Nothing for a mesh that stands. The words it hands out are zeroed, which a first pose
-        /// may equal — `MeshRange::mPosed` says why it counts regardless.
-        void stand(MeshRange& range);
-
-        /// Writes one mesh's pose, laid as `packBones` or `packWeights` lays it, over the words it
-        /// holds. @return whether they differ from the ones it held.
-        bool pose(const MeshRange& range, std::span<const PoseWord> words);
-
-        /// Gives a deforming mesh's runs back: its bind run, its pose run, and its deformer's
-        /// where this was the last mesh standing on it.
-        void release(MeshRange& range);
-
         /// What poses `mesh`: its deformer's kind, or `Deform::None` for a mesh that stands.
         Deform kindOf(const MeshRange& mesh) const
         {
@@ -165,6 +143,33 @@ namespace Rtx
         void clearArrivals();
 
     private:
+        /// The scene adds and poses a deformer, and a mesh stands on and leaves one, so every write
+        /// that crosses the two tables is made through them.
+        friend class SceneDesc;
+        friend class MeshTable;
+
+        /// Copies a skin's runs and influences into the shared tables and returns the rig's index.
+        /// The row arrives with nothing on it; `SceneDesc::addMesh` is what calls this, and stands
+        /// the first mesh on the row in the same call, because a row no mesh stands on is one
+        /// nothing frees.
+        Index addRig(const RigSpec& rig);
+
+        /// The same for a morph's targets.
+        Index addMorph(const MorphSpec& morph);
+
+        /// Gives `range` the runs its kind needs, and counts one more mesh on the deformer it names.
+        /// Nothing for a mesh that stands. The words it hands out are zeroed, which a first pose
+        /// may equal — `MeshRange::mPosed` says why it counts regardless.
+        void stand(MeshRange& range);
+
+        /// Writes one mesh's pose, laid as `packBones` or `packWeights` lays it, over the words it
+        /// holds. @return whether they differ from the ones it held.
+        bool pose(const MeshRange& range, std::span<const PoseWord> words);
+
+        /// Gives a deforming mesh's runs back: its bind run, its pose run, and its deformer's
+        /// where this was the last mesh standing on it.
+        void release(MeshRange& range);
+
         /// Files `deformer` in a slot and among the arrivals.
         Index take(const Deformer& deformer);
 

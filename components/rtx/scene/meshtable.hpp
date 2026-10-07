@@ -40,15 +40,6 @@ namespace Rtx
         /// asserts it.
         static Misc::Result<void, std::string> checkFits(const MeshArrays& arrays);
 
-        /// Copies the vertex data into the shared buffers and returns the new mesh's index. The
-        /// mesh fits a block — `checkFits`. A deforming mesh is stood on `deformer` in
-        /// `deformers`, which must hold it.
-        Index add(DeformerTable& deformers, const MeshArrays& arrays, FoldedShape shape, Index deformer);
-
-        /// What a pose that changed does beside its rows: the reach, and the mesh named for the
-        /// frame, once.
-        void notePosed(Index mesh, const osg::BoundingBoxf& bounds);
-
         const BlockedValues<osg::Vec3f>& getPositions() const { return mPositions; }
         const BlockedValues<osg::Vec3f>& getNormals() const { return mNormals; }
         const BlockedValues<osg::Vec2f>& getTexCoords() const { return mTexCoords; }
@@ -88,8 +79,18 @@ namespace Rtx
 
     private:
         /// What `SceneDesc::holdMesh` and `SceneDesc::drop` stand on, so every hold on a mesh is
-        /// taken and given back in one place.
+        /// taken and given back in one place, and every write that crosses into the deformers is
+        /// made through the scene.
         friend class SceneDesc;
+
+        /// Copies the vertex data into the shared buffers and returns the new mesh's index. The
+        /// mesh fits a block — `checkFits`. A deforming mesh is stood on `deformer` in
+        /// `deformers`, which must hold it.
+        Index add(DeformerTable& deformers, const MeshArrays& arrays, FoldedShape shape, Index deformer);
+
+        /// What a pose that changed does beside its rows: the reach, and the mesh named for the
+        /// frame, once.
+        void notePosed(Index mesh, const osg::BoundingBoxf& bounds);
 
         void hold(Index mesh) { mRows.hold(mesh); }
 

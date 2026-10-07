@@ -43,12 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Owners that are not pinned or encapsulated as the conventions say
 
-- [ ] `components/rtx/scene/materialtable.hpp:39,45`, `meshtable.hpp:46,50`, `deformertable.hpp:123-139` —
-  the cross-table writers (`MaterialTable::add`/`set`, `MeshTable::add`/`notePosed`,
-  `DeformerTable::addRig`/`addMorph`/`stand`/`pose`/`release`) are public, while `hold`/`drop` are private
-  behind `friend class SceneDesc`. Through the mutable `SceneDesc::materials()`, a caller can `set` a
-  material and skip `PlacementTable::rewriteWearing`. No such caller exists now. Target shape: private,
-  with `friend SceneDesc`. (low)
 - [ ] `components/rtx/view/offscreentrace.cpp:202-234` — `pick() const` advances the shared traversal
   counter, changes `mPoseStamp`, and runs a cull, through `unique_ptr` members. Target shape: make `pick`
   non-const. (low)
