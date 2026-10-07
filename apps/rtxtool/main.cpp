@@ -72,16 +72,15 @@ namespace RtxTool
 
         constexpr std::string_view applicationName = "RtxTool";
 
-        /// Opens the log, loads the settings and hands the crash catcher what it reads of both: the
-        /// version every report carries and how long without a frame is a hang. The game's own
-        /// sequence, `parseOptions` in `apps/openmw/main.cpp`, restated, so a hang in the harness is
-        /// reported as one in the game is.
+        /// Opens the log, loads the settings and hands the crash catcher what it reads of them: where
+        /// the reports go and how long without a frame is a hang. The game's own sequence,
+        /// `parseOptions` in `apps/openmw/main.cpp`, restated, so a hang in the harness is reported
+        /// as one in the game is.
         void startLogAndSettings(const Files::ConfigurationManager& config)
         {
             Debug::setupLogging(config.getLogPath(), applicationName);
             Debug::setCrashReports(config.getUserDataPath());
             Log(Debug::Info) << Version::getOpenmwVersionDescription();
-            Crash::annotate("version", Version::getOpenmwVersionDescription());
 
             Settings::Manager::load(config);
             Crash::setHangLimit(std::chrono::seconds(Settings::general().mCrashHangSeconds));

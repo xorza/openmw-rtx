@@ -33,11 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The crash catcher: setup, the keeper, and leftovers
 
-- [ ] `apps/openmw/main.cpp:73-79`, `apps/rtxtool/main.cpp:80-86` — setupLogging → `setCrashReports` →
-  `annotate("version")` → load settings → `setHangLimit` is written two times. The launcher, CS, wizard,
-  navmeshtool and bulletobjecttool call none of it, so their reports have no version. Target shape:
-  `wrapApplication` (`components/debug/debugging.cpp:470-490`) annotates the version for every
-  application, and one `Debug` call holds the settings half. (low)
 - [ ] `components/debug/debugging.cpp:397`, `:476` — the folder name `"crashes"` is written two times.
   Target shape: one constant. (low)
 - [ ] `components/crashcatcher/crashpadclient.cpp:91`, `:124` — the application name goes to the monitor

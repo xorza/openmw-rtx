@@ -19,6 +19,7 @@
 #pragma warning(pop)
 #endif
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/files/conversion.hpp>
 #include <components/files/fixedpath.hpp>
@@ -26,6 +27,7 @@
 #include <components/misc/strings/conversion.hpp>
 #include <components/misc/strings/lower.hpp>
 #include <components/platform/process.hpp>
+#include <components/version/version.hpp>
 
 #ifdef _WIN32
 #include <components/misc/windows.hpp>
@@ -484,6 +486,9 @@ namespace Debug
             if (const char* const after = std::getenv("OPENMW_CRASH_END_AFTER_MS"))
                 settings.mAnswering
                     = Crash::EndAfter{ std::chrono::milliseconds(Misc::StringUtils::toNumeric<int>(after, 0)) };
+            // Every application's reports carry the build they came from, the launcher's and the
+            // editor's as well as the game's.
+            Crash::annotate("version", Version::getOpenmwVersionDescription());
             if (const Misc::Result<Crash::Installed, std::string_view> installed = Crash::install(settings);
                 !installed.isOk())
                 Log(Debug::Warning) << "No crash catcher: " << installed.error();
