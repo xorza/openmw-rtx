@@ -30,10 +30,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   first.** Target shape: the comments say what the filters do now. Then `./omw release noise --cut=N`
   measures the lag on a lamp change, and the measurement decides whether each filter gets fast means
   and `heldToFast`, as ReLAX clamps specular. (medium)
-- [ ] `components/rtxvulkan/shaders/trace/denoise/accumulateclamp.comp:135` — the ring tile loads `fast`
-  at each apron pixel, also at negative coordinates and past the frame, with no guard (the loads at
-  `:144-148` have one). The device does not enable `robustImageAccess`. Target shape:
-  `held ? unpackRgb9e5(imageLoad(fast, pixel).x) : vec3(0.0)`. (low)
 - [ ] `components/rtx/mirror/emitterresolver.cpp:137-138,161-162` — when the sprite slot is granted but
   the table refuses the bake, `mLighting` stays empty. `add` tries again only while `mSlot` is empty, so
   this emitter is never baked, while later emitters on the same file are. Target shape: give the bake its
