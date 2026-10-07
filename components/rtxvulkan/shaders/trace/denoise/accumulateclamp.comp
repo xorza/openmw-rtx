@@ -17,7 +17,7 @@
 // slow mean to noise. The same samples over `ACCUMULATE_FAST_FRAMES`, taken over a 5×5 square, are
 // quiet enough to bound it and short enough to follow the light: where the slow mean stands outside
 // the fast one's mean ± two deviations over the square, on any axis of YCoCg, it is moved to that
-// edge (`heldToFast`, which the glossy and pane filters hold their means by too).
+// edge (`heldToFast`).
 //
 // **Then ReLAX's push**, on both means: where the clamp moved the slow mean, both go on toward the
 // square's mean of samples in proportion (`antilagAcceleration`). The fast mean follows the light
