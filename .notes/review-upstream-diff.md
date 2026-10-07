@@ -40,9 +40,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   `tracemedia.cpp:58`). `leavesSamplingAlone` (`frame/framesampling.cpp:29-39,46`) exists only to catch a
   writer of another party's field. Target shape: the seam takes a host-side description (eyes, world
   reading, options), and only the backend fills the device block. (medium)
-- [ ] `tools/omw/repeat.py:47`, `tools/omw/perf.py:75` — both pass `--validation=off`, which `bench`'s
-  `VerbPolicy` (`validationForMeasuring`) already applies. `repeat` also refuses `--validation=sync`
-  because of it. Target shape: remove both. (low)
 - [ ] `components/rtx/frame/bluenoise.hpp:17`, `frame/specularalbedo.hpp:26`,
   `environment/fogbuilder.hpp:26` — blue noise and the specular albedo table are process-lifetime
   `shared()` singletons. The fog field is a value that `bakeFogNoise()` makes again for each

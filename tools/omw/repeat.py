@@ -44,7 +44,7 @@ DIFFERED_STATUS = 3
 # **What `repeat` sets on every run, in one list**: what the walk is and how it is taken. Named twice,
 # `bench` refuses the line and the run reads as failed, so each is refused here first.
 WALK = {"--views": "one-cell-walk", "--seconds": "6"}
-TAKEN = {"--window": "false", "--upscale": "off", "--filter": "false", "--validation": "off"}
+TAKEN = {"--window": "false", "--upscale": "off", "--filter": "false"}
 
 # What would walk another way than `WALK` says, and what each run sets for itself.
 WALK_SWITCHES = (*WALK, "--suite", "--frames")

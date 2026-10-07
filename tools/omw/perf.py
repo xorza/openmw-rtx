@@ -72,7 +72,7 @@ def profile(build: Build, args: list[str]) -> int:
             # denominated in.
             record += ["-e", "task-clock", "-F", SAMPLES_A_SECOND, "--call-graph", "fp"]
 
-        bench = [str(part) for part in build.harness_line("bench", "--validation=off", "--window=false", *place,
+        bench = [str(part) for part in build.harness_line("bench", "--window=false", *place,
                                                           f"--perf-control={control}", *extra)]
         with open(out / "bench.txt", "w", encoding="utf-8") as log:
             if offcpu:
