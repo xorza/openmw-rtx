@@ -1,6 +1,8 @@
 #include "sdlgraphicswindow.hpp"
 
-#include <SDL_video.h>
+#include <SDL3/SDL_video.h>
+
+#include "sdlvideowrapper.hpp"
 
 #ifdef OPENMW_GL4ES_MANUAL_INIT
 #include "gl4esinit.h"
@@ -47,7 +49,7 @@ namespace SDLUtil
         if (!mWindow)
             return false;
 
-        SDL_SetWindowBordered(mWindow, flag ? SDL_TRUE : SDL_FALSE);
+        SDL_SetWindowBordered(mWindow, flag);
         return true;
     }
 
@@ -56,13 +58,9 @@ namespace SDLUtil
         if (!mWindow)
             return false;
 
-        int w, h;
-        SDL_GetWindowSize(mWindow, &w, &h);
-        int dw, dh;
-        SDL_GL_GetDrawableSize(mWindow, &dw, &dh);
-
+        const float density = SDL_GetWindowPixelDensity(mWindow);
         SDL_SetWindowPosition(mWindow, x, y);
-        SDL_SetWindowSize(mWindow, width / (dw / w), height / (dh / h));
+        SDL_SetWindowSize(mWindow, windowPoints(width, density), windowPoints(height, density));
         return true;
     }
 
@@ -211,7 +209,7 @@ namespace SDLUtil
             return false;
         }
 
-        return SDL_GL_MakeCurrent(mWindow, mContext) == 0;
+        return SDL_GL_MakeCurrent(mWindow, mContext);
     }
 
     bool GraphicsWindowSDL2::releaseContextImplementation()
@@ -222,13 +220,13 @@ namespace SDLUtil
             return false;
         }
 
-        return SDL_GL_MakeCurrent(nullptr, nullptr) == 0;
+        return SDL_GL_MakeCurrent(nullptr, nullptr);
     }
 
     void GraphicsWindowSDL2::closeImplementation()
     {
         if (mContext)
-            SDL_GL_DeleteContext(mContext);
+            SDL_GL_DestroyContext(mContext);
         mContext = nullptr;
 
         if (mWindow && mOwnsWindow)
@@ -271,7 +269,7 @@ namespace SDLUtil
 
         if (mode == VSyncMode::Adaptive)
         {
-            if (SDL_GL_SetSwapInterval(-1) == -1)
+            if (!SDL_GL_SetSwapInterval(-1))
             {
                 OSG_NOTICE << "Adaptive vsync unsupported" << std::endl;
                 setSwapInterval(VSyncMode::Enabled);
@@ -279,7 +277,7 @@ namespace SDLUtil
         }
         else if (mode == VSyncMode::Enabled)
         {
-            if (SDL_GL_SetSwapInterval(1) == -1)
+            if (!SDL_GL_SetSwapInterval(1))
             {
                 OSG_NOTICE << "Vertical synchronization unsupported, disabling" << std::endl;
                 setSwapInterval(VSyncMode::Disabled);

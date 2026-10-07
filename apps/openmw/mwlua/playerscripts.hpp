@@ -1,7 +1,7 @@
 #ifndef MWLUA_PLAYERSCRIPTS_H
 #define MWLUA_PLAYERSCRIPTS_H
 
-#include <SDL_events.h>
+#include <SDL3/SDL_events.h>
 
 #include <components/sdlutil/events.hpp>
 

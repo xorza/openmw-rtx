@@ -1,13 +1,12 @@
 #include <signal.h>
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 bool initSDL()
 {
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
-    SDL_SetMainReady();
     // Required for determining screen resolution and such on the Graphics tab
-    if (SDL_Init(SDL_INIT_VIDEO) != 0)
+    if (!SDL_Init(SDL_INIT_VIDEO))
     {
         return false;
     }

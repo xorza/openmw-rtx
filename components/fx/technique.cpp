@@ -9,7 +9,7 @@
 #include <osg/Texture2D>
 #include <osg/Texture3D>
 
-#include <SDL_opengl_glext.h>
+#include <SDL3/SDL_opengl_glext.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>

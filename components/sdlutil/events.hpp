@@ -1,9 +1,9 @@
 #ifndef _SFO_EVENTS_H
 #define _SFO_EVENTS_H
 
-#include <SDL_events.h>
-#include <SDL_types.h>
-#include <SDL_version.h>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_oldnames.h>
+#include <SDL3/SDL_stdinc.h>
 
 ////////////
 // Events //

@@ -9,7 +9,10 @@ RUN apt-get update \
     && apt-get update \
     && apt-get install -y --no-install-recommends openmw openmw-launcher \
     && apt-get install -y --no-install-recommends git build-essential cmake \
-    libopenal-dev libopenscenegraph-dev libbullet-dev libsdl2-dev \
+    libopenal-dev libopenscenegraph-dev libbullet-dev \
+    libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev libxtst-dev \
+    libxkbcommon-dev libwayland-dev libdecor-0-dev libegl-dev libgl-dev libdrm-dev libgbm-dev libdbus-1-dev \
+    libibus-1.0-dev libudev-dev \
     libmygui-dev libunshield-dev liblz4-dev libtinyxml-dev libqt5opengl5-dev \
     libboost-program-options-dev libboost-iostreams-dev \
     libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev \

@@ -8,7 +8,7 @@
 #include <memory>
 #include <thread>
 
-#include <SDL_messagebox.h>
+#include <SDL3/SDL_messagebox.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/strings/conversion.hpp>
@@ -336,7 +336,7 @@ namespace Crash
                 1, &button, nullptr };
 
             int buttonId;
-            if (SDL_ShowMessageBox(&messageBoxData, &buttonId) == 0 && buttonId == 0)
+            if (SDL_ShowMessageBox(&messageBoxData, &buttonId) && buttonId == 0)
                 mFreezeAbort = true;
         });
 

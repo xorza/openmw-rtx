@@ -5,7 +5,7 @@
 #include <sstream>
 #include <thread>
 
-#include <SDL_messagebox.h>
+#include <SDL3/SDL_messagebox.h>
 
 #include <components/misc/strings/conversion.hpp>
 

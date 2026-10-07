@@ -1,6 +1,6 @@
 #include "postprocessor.hpp"
 
-#include <SDL_opengl_glext.h>
+#include <SDL3/SDL_opengl_glext.h>
 #include <algorithm>
 #include <chrono>
 #include <thread>
@@ -315,6 +315,7 @@ namespace MWRender
         }
 
         mCanvases[frameId]->setPostProcessing(mUsePostProcessing);
+        mCanvases[frameId]->setGammaContrast(Settings::video().mGamma, Settings::video().mContrast);
         mCanvases[frameId]->setTextureNormals(mNormals ? getTexture(Tex_Normal, frameId) : nullptr);
         mCanvases[frameId]->setMask(mUnderwater, mExteriorFlag);
         mCanvases[frameId]->setCalculateAvgLum(mHDR);

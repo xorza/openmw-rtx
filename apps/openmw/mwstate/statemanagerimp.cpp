@@ -4,7 +4,7 @@
 #include <fstream>
 #include <sstream>
 
-#include <SDL_clipboard.h>
+#include <SDL3/SDL_clipboard.h>
 
 #include <components/debug/debuglog.hpp>
 

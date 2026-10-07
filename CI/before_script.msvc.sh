@@ -742,6 +742,7 @@ fi
 add_cmake_opts -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}"
 add_cmake_opts -DOPENMW_USE_SYSTEM_SQLITE3=OFF
 add_cmake_opts -DOPENMW_USE_SYSTEM_YAML_CPP=OFF
+add_cmake_opts -DOPENMW_USE_SYSTEM_SDL3=OFF
 if [ ! -z $CI ]; then
 	case $STEP in
 		components )

@@ -1,7 +1,7 @@
 #ifndef OPENMW_COMPONENTS_SDLUTIL_SDLGRAPHICSWINDOW_H
 #define OPENMW_COMPONENTS_SDLUTIL_SDLGRAPHICSWINDOW_H
 
-#include <SDL_video.h>
+#include <SDL3/SDL_video.h>
 
 #include <osgViewer/GraphicsWindow>
 
@@ -79,7 +79,7 @@ namespace SDLUtil
         /** Get focus on if the pointer is in this window.*/
         void grabFocusIfPointerInWindow() override {}
 
-        /** WindowData is used to pass in the SDL2 window handle attached to the GraphicsContext::Traits structure. */
+        /** WindowData is used to pass in the SDL window handle attached to the GraphicsContext::Traits structure. */
         struct WindowData : public osg::Referenced
         {
             WindowData(SDL_Window* window)

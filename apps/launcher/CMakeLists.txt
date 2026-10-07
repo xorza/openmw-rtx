@@ -69,7 +69,7 @@ if (NOT APPLE)
 endif ()
 
 target_link_libraries(openmw-launcher PUBLIC
-    SDL2::SDL2
+    SDL3::SDL3
     ${OPENAL_LIBRARY}
     components_qt
 )

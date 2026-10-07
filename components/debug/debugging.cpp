@@ -40,7 +40,7 @@
 
 #endif
 
-#include <SDL_messagebox.h>
+#include <SDL3/SDL_messagebox.h>
 
 namespace Debug
 {

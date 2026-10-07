@@ -13,6 +13,7 @@ declare -rA GROUPED_DEPS=(
   [clang]="binutils clang make cmake ccache curl unzip git pkg-config mold"
   [coverity]="binutils clang make cmake ccache curl unzip git pkg-config file"
   [coverity_upload]="curl"
+  # libsdl2-dev is for the target branch, which the job preprocesses as well, until it uses SDL3.
   [gcc_preprocess]="
     binutils
     build-essential
@@ -22,6 +23,7 @@ declare -rA GROUPED_DEPS=(
     gcc
     git
     libclang-dev
+    libsdl2-dev
     ninja-build
     python3-clang
     python3-pip
@@ -29,15 +31,21 @@ declare -rA GROUPED_DEPS=(
   "
 
   # Common dependencies for building OpenMW.
+  #
+  # Ubuntu 24.04 has no SDL3, so it is built from source, with the window systems and input devices it supports.
   [openmw-deps]="
     libboost-program-options-dev
     libboost-system-dev libboost-iostreams-dev
 
     libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev
-    libsdl2-dev libqt6opengl6-dev qt6-tools-dev qt6-tools-dev-tools libopenal-dev
+    libqt6opengl6-dev qt6-tools-dev qt6-tools-dev-tools libopenal-dev
     libunshield-dev libtinyxml-dev libbullet-dev liblz4-dev libpng-dev libjpeg-dev
     libluajit-5.1-dev librecast-dev libsqlite3-dev ca-certificates libicu-dev
     libyaml-cpp-dev libqt6svg6 libqt6svg6-dev
+
+    libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev libxtst-dev
+    libxkbcommon-dev libwayland-dev libdecor-0-dev libegl-dev libgl-dev libdrm-dev libgbm-dev libdbus-1-dev
+    libibus-1.0-dev libudev-dev
   "
 
   # These dependencies can alternatively be built and linked statically.
@@ -88,7 +96,6 @@ declare -rA GROUPED_DEPS=(
     libpng16-16
     libqt6opengl6
     librecast1
-    libsdl2-2.0-0
     libsqlite3-0
     libswresample4
     libswscale7
