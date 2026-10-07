@@ -31,13 +31,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   measures the lag on a lamp change, and the measurement decides whether each filter gets fast means
   and `heldToFast`, as ReLAX clamps specular. (medium)
 
-## Facts of one layer are in another layer
-
-- [ ] `apps/openmw/mwrender/framedescriber.cpp:119-123` — four `RenderingManager` members (`describeEye`,
-  `describeFrame`, `renderFrame`, `notifyJumped`) are defined in `framedescriber.cpp`, so that
-  `renderingmanager.cpp` stays like upstream's. The comment says "three". Target shape: define them in
-  `renderingmanager.cpp`, or make them `FrameDescriber` methods. (low)
-
 ## One truth has more than one source
 
 - [ ] `components/rtx/renderer/renderer.hpp:438-439,492` — `traceGuiTexture` and `renderFrame` take the
