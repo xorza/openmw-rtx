@@ -478,12 +478,12 @@ vec4 fogVolumeAlong(uvec2 pixel, vec3 direction, float distance)
     const float middle = froxelMiddle(slice);
     if (through <= 0.5)
     {
-        fogThrough(air.mTransmittance, air.mScattered, air.mSunward,
+        air = fogThrough(air,
             fogSliceAt(across, (float(slice) + 0.5 * through) / slices), reach - behind, frame.mFogExtinction);
     }
     else
     {
-        fogThrough(air.mTransmittance, air.mScattered, air.mSunward,
+        air = fogThrough(air,
             fogSliceAt(across, (float(slice) + 0.25) / slices), middle - behind, frame.mFogExtinction);
 
         // **Flat where the next slice starts past the column's own surface**, which is the rule
@@ -492,7 +492,7 @@ vec4 fogVolumeAlong(uvec2 pixel, vec3 direction, float distance)
         // stood in. A pixel that sees past the column's surface is in a later slice and bends.
         const float surface = imageLoad(fogColumnDepth, ivec2(pixel / FOG_VOLUME_SCALE)).x;
         const float onward = froxelNear(slice + 1u) < surface ? 0.25 + 0.5 * through : 0.5;
-        fogThrough(air.mTransmittance, air.mScattered, air.mSunward,
+        air = fogThrough(air,
             fogSliceAt(across, (float(slice) + onward) / slices), reach - middle, frame.mFogExtinction);
     }
 

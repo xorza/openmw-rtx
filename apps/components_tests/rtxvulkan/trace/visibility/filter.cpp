@@ -1427,7 +1427,7 @@ namespace Rtx::Testing
             EXPECT_LT(together / alone, 0.55) << "the noise eight pixels apart moves together";
         }
 
-        /// **The composite puts back what the trace divided out** (D6): every channel a filter
+        /// **The composite puts back what the trace divided out**: every channel a filter
         /// averages holds light per unit of the albedo the composite multiplies back, and one frame
         /// through the filters is the frame the trace composed itself, to the rounding of the
         /// channels it is stored in. A floor under a two-sided sheet that glows with a radiance of
