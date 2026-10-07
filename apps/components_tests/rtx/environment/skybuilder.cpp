@@ -1,6 +1,6 @@
+#include <algorithm>
 #include <array>
 #include <cmath>
-#include <algorithm>
 #include <cstdint>
 #include <initializer_list>
 #include <limits>
