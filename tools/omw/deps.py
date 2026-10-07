@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 import zipfile
@@ -226,9 +227,39 @@ def sdk_environment(env: dict[str, str]) -> None:
             prepend_path(env, "PATH", base / "bin")
 
 
+def pinned_names() -> set[str]:
+    """Every name in deps/ that the pins give this system: what each getter above leaves there."""
+    names = {vulkan_sdk_dir().name, pinned_folder("appimage", *pins.APPIMAGE_TOOLS.values()).name}
+    names |= {pinned_folder(name, pin).name for (name, system), pin in pins.CRASH_TOOLS.items() if system == SYSTEM}
+    if WINDOWS:
+        dependency_set = f"vcpkg-x64-windows-2022-{msvc_versions()['VCPKG_TAG']}"
+        names |= {dependency_set, f"{dependency_set}-manifest.txt", "Qt", f"clang-format-{pins.LLVM_RELEASE}"}
+    return names
+
+
+def prune() -> None:
+    """**What deps/ holds that the pins no longer name, removed**: a version replaced, and a partial a
+    stopped fetch left. Every name there is a getter's, so whatever none of them names is stale, and a
+    cache restored from an older run sheds it rather than carrying it into every run after."""
+    if not DEPS.is_dir():
+        return
+    keep = pinned_names()
+    stale = [entry for entry in DEPS.iterdir() if entry.name not in keep]
+    qt = DEPS / "Qt"
+    if WINDOWS and qt.is_dir():
+        stale += [entry for entry in qt.iterdir() if entry.name != msvc_versions()["QT_VER"]]
+    for entry in stale:
+        print(f"removing {entry.relative_to(DEPS)}, which no pin names", file=sys.stderr)
+        if entry.is_dir() and not entry.is_symlink():
+            shutil.rmtree(entry)
+        else:
+            entry.unlink()
+
+
 def bootstrap() -> None:
     """The Vulkan SDK, run once to prove it: a tool left out, or one that needs a library it did not
-    bring, stops here by name and not in the middle of a configure."""
+    bring, stops here by name and not in the middle of a configure. Then deps/ shed of what no pin
+    names."""
     sdk = vulkan_sdk()
     env = dict(os.environ)
     sdk_environment(env)
@@ -238,3 +269,4 @@ def bootstrap() -> None:
             raise Refusal(f"{sdk} holds no {tool}")
         subprocess.run([found, "--version"], check=True, env=env, stdout=subprocess.DEVNULL)
     print(f"Vulkan SDK: {sdk}")
+    prune()

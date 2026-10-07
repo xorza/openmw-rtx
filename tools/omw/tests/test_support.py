@@ -5,7 +5,9 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
+from omw import deps
 from omw.build import CONFIGURED_FROM, Build, configured_from, manifest_inputs, redate_ahead
 from omw.deps import pinned_folder
 from omw.fetch import build_beside, download, extract_member, partial_of, settle
@@ -202,6 +204,24 @@ class PinnedFolderTest(unittest.TestCase):
         self.assertNotEqual(pinned_folder("crash", old), pinned_folder("crash", new))
         self.assertNotEqual(pinned_folder("tools", old, other), pinned_folder("tools", new, other),
                             "one pin of several changed and the folder did not")
+
+
+class PruneTest(unittest.TestCase):
+    def test_what_no_pin_names_goes_and_what_one_names_stays(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        with mock.patch.object(deps, "DEPS", folder):
+            kept = sorted(deps.pinned_names())
+            for name in kept:
+                (folder / name).mkdir()
+            (folder / "vulkan-sdk-0.0.1").mkdir()
+            (folder / "appimage").mkdir()
+            (folder / f"{kept[0]}.partial").mkdir()
+            (folder / "LLVM-14.0.6-win64.exe").write_bytes(b"left over")
+            deps.prune()
+            self.assertEqual(sorted(path.name for path in folder.iterdir()), kept)
+            deps.prune()
+            self.assertEqual(sorted(path.name for path in folder.iterdir()), kept, "a second prune took more")
 
 
 class UsedOsgPluginsTest(unittest.TestCase):
