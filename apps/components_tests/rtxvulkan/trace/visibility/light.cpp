@@ -1624,7 +1624,7 @@ namespace Rtx::Testing
             camera.mSkyHorizon = osg::Vec3f();
             camera.mSkyZenith = osg::Vec3f();
             camera.mSun = Shaders::sunSource(toSun, osg::Vec3f(sunlight, sunlight, sunlight));
-            camera.mMoons[0].mSource = Shaders::moonSource(toMoon, osg::Vec3f(moonlight, moonlight, moonlight), 0.05f);
+            camera.mMoons[0].mSource = Shaders::skySource(toMoon, osg::Vec3f(moonlight, moonlight, moonlight), 0.05f);
             camera.mMoons[0].mRight = osg::Vec3f(0.0f, 0.0f, 1.0f);
             camera.mMoons[0].mUp = osg::Vec3f(1.0f, 0.0f, 0.0f);
             camera.mMoons[0].mColour = osg::Vec3f(1.0f, 1.0f, 1.0f);

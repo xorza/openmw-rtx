@@ -34,7 +34,6 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/meshtable.hpp>
-#include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/rowhold.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>

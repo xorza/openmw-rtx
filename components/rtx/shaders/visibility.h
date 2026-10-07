@@ -17,7 +17,6 @@
 // this header needs that `hosttypes.h` does not carry.
 #ifdef RTX_HOST
 
-#include <cmath>
 #include <cstddef>
 
 namespace Rtx::Shaders
@@ -522,13 +521,10 @@ namespace Rtx::Shaders
     };
 
 #ifdef RTX_HOST
-    /// The sun as the frame carries it, with the one limb every sun is drawn from, by the rule
-    /// `moonSource` draws a moon's: the sine of its angle, on the host, which alone writes it. The
-    /// host's one spelling of `mSun`, so a frame assembled by hand cannot leave the cone at nought and
-    /// cast a hard edge.
+    /// The sun as the frame carries it, with the one limb every sun is drawn from (`skySource`).
     inline SkySource sunSource(const vec3& direction, const vec3& irradiance)
     {
-        return SkySource{ direction, irradiance, std::sin(SUN_SHADOW_RADIUS) };
+        return skySource(direction, irradiance, SUN_SHADOW_RADIUS);
     }
 
     /// Whether a source in the sky lights anything this frame: the sun, or a moon. A moon that is
