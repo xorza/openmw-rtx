@@ -3,8 +3,6 @@
 Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without tests and without
 `extern/fidelityfx`. Whoever addresses an item deletes it. When a group is empty, delete its heading.
 
-Whoever fixes one of these deletes it from the issue log as well.
-
 ## The frame path allocates, copies, or rebuilds behind a threshold
 
 - [ ] `components/rtx/scene/lightgrid.cpp:83-86,102-106,151-165` — `rebuild` runs each frame
