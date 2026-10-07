@@ -58,7 +58,7 @@ namespace Rtx
     ///
     /// @param specialization one word per specialization constant, as `ComputePipeline` takes them:
     ///        every stage's, but a closest-hit stage that names its own.
-    Owned<VkPipeline, vkDestroyPipeline> makeTracePipeline(const Device& device, VkPipelineLayout layout,
+    Owned<VkPipeline, vkDestroyPipeline> makeTracePipeline(const Device& device, const PipelineLayout& layout,
         const TraceShaders& shaders, std::string_view name, std::span<const std::uint32_t> specialization);
 
     /// The records a launch reads its shaders out of: every group's handle, in video memory the
@@ -128,7 +128,7 @@ namespace Rtx
         TracePipeline(const Device& device, PipelineLayout&& layout, const TraceShaders& shaders, std::string_view name,
             std::span<const std::uint32_t> specialization)
             : TypedPipeline<Constants>(std::move(layout),
-                makeTracePipeline(device, layout.getHandle(), shaders, name, specialization),
+                makeTracePipeline(device, layout, shaders, name, specialization),
                 VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR)
             , mTable(device, this->getHandle(), shaders, name)
         {

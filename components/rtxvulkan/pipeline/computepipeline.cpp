@@ -7,7 +7,7 @@
 
 namespace Rtx
 {
-    Owned<VkPipeline, vkDestroyPipeline> makeComputePipeline(const Device& device, const VkPipelineLayout layout,
+    Owned<VkPipeline, vkDestroyPipeline> makeComputePipeline(const Device& device, const PipelineLayout& layout,
         const std::string_view module, const std::string_view name, const std::span<const std::uint32_t> specialization)
     {
         PipelineCreation creation(device, name);
@@ -20,14 +20,14 @@ namespace Rtx
             .flags = PipelineCreation::sFlags,
             .stage = {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .pNext = code.stage(module),
+                .pNext = code.stage(module, layout.getBindings()),
                 .flags = 0,
                 .stage = VK_SHADER_STAGE_COMPUTE_BIT,
                 .module = VK_NULL_HANDLE,
                 .pName = "main",
                 .pSpecializationInfo = constants.getInfo(),
             },
-            .layout = layout,
+            .layout = layout.getHandle(),
             .basePipelineHandle = VK_NULL_HANDLE,
             .basePipelineIndex = 0,
         };
