@@ -66,9 +66,9 @@ namespace Rtx
 
     /// Turns what the content says a surface is into the scene's materials, and keeps the textures
     /// they name. Keyed on the chain of state sets that state anything (`ChainKeys`); a controller
-    /// rewriting one is the exception, and `resolve` reads that one again on every frame. The animation is here because
-    /// OpenMW animates shading with a state set that belongs to the traversal rather than to the graph, so a walk has
-    /// to build it.
+    /// rewriting one is the exception, and `resolve` reads that one again on every frame. The
+    /// animation is here because OpenMW animates shading with a state set that belongs to the
+    /// traversal rather than to the graph, so a walk has to build it.
     class MaterialResolver
     {
     public:

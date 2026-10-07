@@ -39,12 +39,6 @@ namespace RtxTool
             sampleAt(image, x, y, channel) = static_cast<std::uint16_t>(level * Rtx::sSamplesPerLevel);
         }
 
-        /// **A shot is refused against the directory it writes**, however the two are spelled: the
-        /// pictures land over their references before either is read, so every one would judge the
-        /// same. Another directory, one that does not exist yet, and no `--against` at all are not.
-        ///
-        /// **In a directory of this run's own**, because one shared by name was removed under this
-        /// test by another copy of the binary running beside it.
         /// **An unfiltered picture at a held exposure warms over the air's decay** (`sAirFrames`),
         /// where a filtered one warms over four accumulator lengths (`sHistoryFrames`): the air keeps
         /// 0.9 of itself a frame, and the accumulator's `(31/32)^128 = 0.0172` is passed at
@@ -55,6 +49,12 @@ namespace RtxTool
             EXPECT_EQ(RtxTool::sAirFrames, 39u);
         }
 
+        /// **A shot is refused against the directory it writes**, however the two are spelled: the
+        /// pictures land over their references before either is read, so every one would judge the
+        /// same. Another directory, one that does not exist yet, and no `--against` at all are not.
+        ///
+        /// **In a directory of this run's own**, because one shared by name was removed under this
+        /// test by another copy of the binary running beside it.
         TEST(RtxCompareTest, aRunIsNotComparedAgainstWhatItWrites)
         {
             const std::filesystem::path root = TestingOpenMW::currentTestDirPath();

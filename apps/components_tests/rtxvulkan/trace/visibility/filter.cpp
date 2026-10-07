@@ -852,9 +852,9 @@ namespace Rtx::Testing
         /// in the light's own units**: without the fix the brightness test passes over a fresh pixel's
         /// rare bright draws, and a strip darker for it is quieter by as much and no better for it.
         /// **The clamp is off in every run**: its box of fifty samples mostly holds none of a light
-        /// this rare and holds the strip near nought, which is
-        /// `ACCUMULATE_FAST_FRAMES`'s trade and not this test's question. So is the ring, which holds
-        /// the fresh strip down before the fix borrows, `ACCUMULATE_RING_FRAMES`'s trade.
+        /// this rare and holds the strip near nought, which is `ACCUMULATE_FAST_FRAMES`'s trade and
+        /// not this test's question. So is the ring, which holds the fresh strip down before the fix
+        /// borrows, `ACCUMULATE_RING_FRAMES`'s trade.
         ///
         /// **And a settled history keeps its light under the brightness test**
         /// (`ATROUS_LUMINANCE_SIGMA`): the whole frame held still, against 128 unfiltered frames where

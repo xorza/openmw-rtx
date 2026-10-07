@@ -58,7 +58,6 @@ USAGE = USAGE.replace("{gate}", textwrap.fill(gate.STEPS + " — stops at the fi
                                               initial_indent=" " * 31, subsequent_indent=" " * 31).lstrip())
 
 
-
 # The harness's own verbs, `sNames` in `apps/rtxtool/verbs.cpp`, which a test holds this to: a word
 # that is none of these and none of the driver's is refused before anything is configured or built.
 HARNESS_VERBS = ("info", "scene", "shot", "view", "bench", "check", "film", "noise")

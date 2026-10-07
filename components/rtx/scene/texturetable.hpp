@@ -139,7 +139,7 @@ namespace Rtx
         }
 
         /// How many new textures were refused because `sCapacity` slots stood, ever, and since the
-        /// last `clearArrivals`: drawn neutral, and reported by `SceneTextures` on the hand-over
+        /// last `clearArrivals`: drawn neutral, and reported by `SceneUploader` on the hand-over
         /// that met the limit.
         std::uint32_t getRefused() const { return mRefused; }
         std::uint32_t getRefusedArrivals() const { return mRefusedArrivals; }

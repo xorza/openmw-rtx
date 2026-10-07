@@ -514,7 +514,8 @@ void addPuff(inout PuffLayers layers, vec3 light, float alpha, float at)
     layers.mAt[SPRITE_LAYERS - 1] = shares > 0.0
         ? (layers.mAt[SPRITE_LAYERS - 1] * frontShare + layers.mAt[SPRITE_LAYERS] * backShare) / shares
         : layers.mAt[SPRITE_LAYERS - 1];
-    layers.mLayers[SPRITE_LAYERS - 1] = vec4(front.rgb + (1.0 - front.a) * back.rgb, front.a + (1.0 - front.a) * back.a);
+    layers.mLayers[SPRITE_LAYERS - 1]
+        = vec4(front.rgb + (1.0 - front.a) * back.rgb, front.a + (1.0 - front.a) * back.a);
     layers.mLayers[SPRITE_LAYERS] = vec4(0.0);
     layers.mAt[SPRITE_LAYERS] = 3.0e38;
 }
