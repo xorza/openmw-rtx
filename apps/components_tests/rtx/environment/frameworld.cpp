@@ -10,6 +10,7 @@
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
+#include <apps/components_tests/rtx/support/allocations.hpp>
 #include <components/rtx/environment/cloudshell.hpp>
 #include <components/rtx/environment/fogbuilder.hpp>
 #include <components/rtx/environment/frameworld.hpp>
@@ -46,15 +47,22 @@ namespace Rtx
             return textures;
         }
 
-        /// A reading whose numbers are distinct, so a field taken from the wrong one shows.
+        const SkyContent& sky()
+        {
+            static const SkyContent sheets = skyWithSheets();
+            return sheets;
+        }
+
         /// `describeWorld` for a test that reads the constants, with the options it wrote handed back.
-        FrameOptions describe(const WorldReading& reading, FogDrift& drift, Shaders::VisibilityConstants& constants)
+        FrameOptions describe(const WorldReading& reading, FogDrift& drift, Shaders::VisibilityConstants& constants,
+            const SkyContent& sheets = sky())
         {
             FrameOptions options;
-            describeWorld(reading, drift, constants, options);
+            describeWorld(reading, sheets, drift, constants, options);
             return options;
         }
 
+        /// A reading whose numbers are distinct, so a field taken from the wrong one shows.
         WorldReading reading()
         {
             return WorldReading{
@@ -74,7 +82,6 @@ namespace Rtx
                 .mOutdoors = true,
                 .mGlare = 1.0f,
                 .mStarRoll = 0.125f,
-                .mSky = skyWithSheets(),
                 .mClouds = Rtx::CloudCrossing{
                     .mSheet = 0,
                     .mNext = 0,
@@ -150,12 +157,18 @@ namespace Rtx
         /// fails here, rather than quietly carrying whatever the camera left behind.
         TEST(RtxFrameWorldTest, everyNumberTheWorldDecidesReachesTheFrame)
         {
-            const WorldReading read = distinctReading();
+            const WorldReading made = distinctReading();
 
+            // **A frame's reading and its description allocate nothing**: the sky's sheets, whose names
+            // are strings, are borrowed from where load made them and never copied into a reading.
             Rtx::Shaders::VisibilityConstants constants{};
             FogDrift drift;
             FrameOptions options;
-            describeWorld(read, drift, constants, options);
+            const std::size_t before = Testing::getAllocationCount();
+            const WorldReading read = made;
+            describeWorld(read, sky(), drift, constants, options);
+            const std::size_t after = Testing::getAllocationCount();
+            EXPECT_EQ(after, before) << after - before << " allocations to read and describe a frame's world";
 
             const Skylight& light = read.mDaylight.mLight;
             EXPECT_EQ(constants.mSun.mDirection, light.mSun.mPosition);
@@ -270,18 +283,18 @@ namespace Rtx
             // The deck and the stars come out of the builders both hosts share, and this is the one
             // place that says the frame is handed what those built rather than a second reading.
             const Shaders::StarField stars
-                = describeStars(read.mDaylight.mStarFade, read.mGlare, read.mStarRoll, read.mSky);
+                = describeStars(read.mDaylight.mStarFade, read.mGlare, read.mStarRoll, sky());
             EXPECT_EQ(constants.mStars.mFade, stars.mFade);
             EXPECT_EQ(constants.mStars.mTurn, stars.mTurn);
             EXPECT_EQ(constants.mStars.mTexture, stars.mTexture);
             EXPECT_EQ(constants.mStars.mGlow, stars.mGlow);
 
             EXPECT_EQ(constants.mClouds.mBlend, read.mClouds.mBlend);
-            EXPECT_EQ(constants.mClouds.mTexture,
-                static_cast<std::uint32_t>(read.mSky.mSheets[read.mClouds.mSheet].mTexture));
+            EXPECT_EQ(
+                constants.mClouds.mTexture, static_cast<std::uint32_t>(sky().mSheets[read.mClouds.mSheet].mTexture));
             EXPECT_EQ(constants.mClouds.mScroll, read.mClouds.mScroll);
-            EXPECT_EQ(constants.mClouds.mCurvature, read.mSky.mShell.mCurvature);
-            EXPECT_EQ(constants.mClouds.mRings, read.mSky.mShell.mRings);
+            EXPECT_EQ(constants.mClouds.mCurvature, sky().mShell.mCurvature);
+            EXPECT_EQ(constants.mClouds.mRings, sky().mShell.mRings);
             EXPECT_FLOAT_EQ(constants.mClouds.mNextBearing.x(), 0.28f);
             EXPECT_FLOAT_EQ(constants.mClouds.mNextBearing.y(), 0.96f);
 
@@ -514,7 +527,7 @@ namespace Rtx
         {
             Rtx::Shaders::VisibilityConstants constants{};
             FogDrift drift;
-            describe(WorldReading{}, drift, constants);
+            describe(WorldReading{}, drift, constants, SkyContent{});
 
             // **One statement of "no sun", and the disc reads it too.** There is no second field to
             // leave set: a frame with no irradiance draws no disc, casts nothing and lights no haze.
@@ -643,8 +656,8 @@ namespace Rtx
             EXPECT_NE(outside.mFogColour, inside.mFogColour) << "one flag, and it decided nothing";
 
             const SkyBudget budget
-                = skyBudget(open.mDaylight.mSkyHorizon, open.mDaylight.mSkyZenith, open.mSky.mAtmosphere.mZenithShare,
-                    describeStars(open.mDaylight.mStarFade, open.mGlare, open.mStarRoll, open.mSky).mGlow,
+                = skyBudget(open.mDaylight.mSkyHorizon, open.mDaylight.mSkyZenith, sky().mAtmosphere.mZenithShare,
+                    describeStars(open.mDaylight.mStarFade, open.mGlare, open.mStarRoll, sky()).mGlow,
                     open.mDaylight.mLight.mAmbient);
             EXPECT_EQ(outside.mFogColour, fogColour(budget.mMean, open.mDaylight.mFog.mColour));
         }

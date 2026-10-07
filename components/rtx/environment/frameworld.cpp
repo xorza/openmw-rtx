@@ -105,8 +105,8 @@ namespace Rtx
         return offsets;
     }
 
-    void describeWorld(
-        const WorldReading& reading, FogDrift& drift, Shaders::VisibilityConstants& constants, FrameOptions& options)
+    void describeWorld(const WorldReading& reading, const SkyContent& sky, FogDrift& drift,
+        Shaders::VisibilityConstants& constants, FrameOptions& options)
     {
         const Daylight& day = reading.mDaylight;
 
@@ -128,14 +128,13 @@ namespace Rtx
         for (MoonPlacement& moon : moons)
             moon.mIrradiance *= gain;
 
-        Shaders::StarField stars = reading.mOutdoors
-            ? describeStars(day.mStarFade, reading.mGlare, reading.mStarRoll, reading.mSky)
-            : noStars();
+        Shaders::StarField stars
+            = reading.mOutdoors ? describeStars(day.mStarFade, reading.mGlare, reading.mStarRoll, sky) : noStars();
         stars.mFade *= gain;
         stars.mGlow *= gain;
 
         const SkyBudget budget = reading.mOutdoors
-            ? skyBudget(horizon, zenith, reading.mSky.mAtmosphere.mZenithShare, stars.mGlow, light.mAmbient)
+            ? skyBudget(horizon, zenith, sky.mAtmosphere.mZenithShare, stars.mGlow, light.mAmbient)
             : SkyBudget{};
 
         Fog air = day.mFog;
@@ -154,7 +153,7 @@ namespace Rtx
 
         constants.mSkyHorizon = horizon;
         constants.mSkyZenith = zenith;
-        constants.mSkyRamp = reading.mSky.mAtmosphere.mRamp;
+        constants.mSkyRamp = sky.mAtmosphere.mRamp;
         constants.mSkyDrawn = reading.mSkyDrawn ? 1u : 0u;
         constants.mSkyFill = budget.mFill;
 
@@ -172,10 +171,9 @@ namespace Rtx
 
         if (reading.mOutdoors)
         {
-            constants.mClouds
-                = describeClouds(reading.mClouds, deckLight(light.mSunAloft, budget.mMean, moons), reading.mSky);
+            constants.mClouds = describeClouds(reading.mClouds, deckLight(light.mSunAloft, budget.mMean, moons), sky);
 
-            describePatches(reading.mStarRoll, reading.mSky, constants.mSkyPatches);
+            describePatches(reading.mStarRoll, sky, constants.mSkyPatches);
 
             for (std::size_t moon = 0; moon < moons.size(); ++moon)
                 constants.mMoons[moon] = describeMoon(moons[moon], constants.mSun.mDirection);

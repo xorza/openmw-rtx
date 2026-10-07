@@ -108,7 +108,7 @@ namespace MWRender
     Rtx::AirClock SkyReader::describe(
         const Rtx::WorldReading& reading, Rtx::Shaders::VisibilityConstants& constants, Rtx::FrameOptions& options)
     {
-        Rtx::describeWorld(reading, mDrift, constants, options);
+        Rtx::describeWorld(reading, mSkyContent, mDrift, constants, options);
         return Rtx::AirClock{ .mSky = mClock, .mCarried = mDrift.get() };
     }
 
@@ -209,7 +209,6 @@ namespace MWRender
             .mSkyDrawn = skyShown,
             .mGlare = weather.mGlareView,
             .mStarRoll = Sky::starRoll(world.mGameTime),
-            .mSky = mSkyContent,
             .mMoons = moons,
             .mClouds = Rtx::CloudCrossing{
                 // The sheets the weather names, as the rasterizer is handed them. The one ahead
