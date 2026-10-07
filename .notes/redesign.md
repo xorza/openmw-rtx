@@ -472,9 +472,8 @@ In the order of D7's points. Each step is a `shot --against` at the fog and wate
 fog's zones in `bench`. **Point 1 is done**: the froxel stores the density as a share of the
 weather's extinction, the light and the sun's transport times it, and `fogThrough` integrates them
 by `mediumKept`. The pictures before it are in `~/.cache/omw-redesign/shots-before-d7`. **Point 2 is
-done** (`slantCoverage`). **Owed, decided (2026-10-07): `FogVolume` takes its `FogNoise` from its caller, and a test hands a field that varies with height alone:** a GPU test of a point at a bank's edge, lit as the clear air its
-slant leaves through, which needs a way for a test to state a coverage field: the field is
-procedural, and a test can only make it even, where the slant's coverage and the point's agree.
+done** (`slantCoverage`), held by `aPointUnderABanksTopIsLitThroughTheClearAirItsSlantCrosses`, which
+states the field through `VulkanRenderer::setFogField`.
 **Point 3 is done**, with one change to the contract: the interface factor is computed in the shader
 from the source's direction (`waterCrossingOf`), not on the host. A stored factor is a second
 statement of the direction, and a writer that sets only the direction leaves it stale.

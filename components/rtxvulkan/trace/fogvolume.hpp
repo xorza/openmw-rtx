@@ -12,14 +12,19 @@
 namespace Rtx
 {
     class Device;
+    struct FogNoise;
 
     /// The fog's fractal field, on the device, drawn once for the run: what the weather, the hour
     /// and the cell decide are numbers the shader already has. `Rtx::bakeFogNoise` says what is in it.
     class FogTile
     {
     public:
-        /// Submits the one upload and waits for it. Not on the frame path.
-        explicit FogTile(const Device& device);
+        /// Submits the upload of `noise` and waits for it. Not on the frame path.
+        FogTile(const Device& device, const FogNoise& noise);
+
+        /// Draws `noise` over the field, every level, and waits for it: for a test that states the
+        /// field a trace reads. Nothing may be in flight.
+        void describe(const Device& device, const FogNoise& noise);
 
         /// The shape a coverage band is cut out of, and a second field decorrelated from it.
         const Image& getField() const { return mField; }

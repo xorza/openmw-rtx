@@ -6,6 +6,7 @@
 #include <span>
 #include <vector>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/rtx/environment/fogbuilder.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
@@ -20,13 +21,22 @@
 
 namespace Rtx
 {
-    FogTile::FogTile(const Device& device)
+    FogTile::FogTile(const Device& device, const FogNoise& noise)
         : mField(device, Shaders::FOG_FIELD_SIZE, Shaders::FOG_FIELD_SIZE, VK_FORMAT_R8G8_UNORM,
             VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, "fog field", Shaders::FOG_FIELD_LEVELS,
             Shaders::FOG_FIELD_SIZE)
         , mSampler(makeContentSampler(device, "fog field"))
     {
-        const FogNoise noise = bakeFogNoise();
+        describe(device, noise);
+    }
+
+    void FogTile::describe(const Device& device, const FogNoise& noise)
+    {
+        Crash::contract(noise.mOffsets.size() == Shaders::FOG_FIELD_LEVELS, "a fog field with another chain");
+        std::size_t texels = 0;
+        for (std::uint32_t level = 0; level < Shaders::FOG_FIELD_LEVELS; ++level)
+            texels += std::size_t{ mField.getWidthAt(level) } * mField.getHeightAt(level) * mField.getDepthAt(level);
+        Crash::contract(noise.mBytes.size() == 2 * texels, "a fog field of another size");
 
         // Every level uploaded rather than halved from the one above, because each is stretched
         // back to one spread (`bakeFogNoise`). Seventy-three kilobytes, once.
