@@ -655,7 +655,7 @@ left goes with it.
 
 ## 8. Two items from play (2026-10-07)
 
-### 8.1 The camera that spins
+### 8.1 The camera that spins (waits on `redesign_QUESTIONS.md` question 3)
 
 **Found.** In the game, the camera sometimes turns fast by itself, as if the mouse moved. The mouse
 is sound. Nothing reproduces it on demand, so the cause is not known yet.
