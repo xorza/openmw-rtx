@@ -638,8 +638,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.7 Design, duplication and dead code
 
-- **[code] FSR's dead Lanczos table and `FFX_PREFER_WAVE64`** (`fsrcallbacks.glsl`). Target:
-  remove both.
 - **[code] `Use::sAnyGeneralWrite` and `ValidationLog::clear` have no reader.** Target: remove.
 - **[code] Each descriptor's type and count are written twice**, in the C++ layout and in GLSL.
   Target: `openmw-rtx-spirv` writes each module's binding table, and a test holds the layouts to it.

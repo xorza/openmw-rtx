@@ -79,9 +79,6 @@
 #endif // #if defined(FFX_GPU)
 
 #if defined(FFX_GPU)
-#ifndef FFX_PREFER_WAVE64
-#define FFX_PREFER_WAVE64
-#endif // FFX_PREFER_WAVE64
 
 #if defined(FSR3UPSCALER_BIND_CB_FSR3UPSCALER)
 layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_CB_FSR3UPSCALER, scalar) uniform cbFSR3UPSCALER_t
@@ -542,20 +539,12 @@ FfxFloat32 Exposure()
 }
 #endif
 
-// BEGIN: FSR3UPSCALER_BIND_SRV_LANCZOS_LUT
-#if defined(FSR3UPSCALER_BIND_SRV_LANCZOS_LUT)
-layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_LANCZOS_LUT) uniform texture2D  r_lanczos_lut;
-#endif
-
+// The SDK's table of Lanczos weights, which the reference reprojection never reads and this binds
+// nowhere. A body all the same, because `Lanczos2_UseLUT` names it whether or not anything reaches it.
 FfxFloat32 SampleLanczos2Weight(FfxFloat32 x)
 {
-#if defined(FSR3UPSCALER_BIND_SRV_LANCZOS_LUT)
-	return textureLod(sampler2D(r_lanczos_lut, s_LinearClamp), FfxFloat32x2(x / 2.0, 0.5), 0.0).x; 
-#else
-    return 0.f;
-#endif
+    return 0.0;
 }
-// END: FSR3UPSCALER_BIND_SRV_LANCZOS_LUT
 
 #if defined(FSR3UPSCALER_BIND_SRV_DILATED_REACTIVE_MASKS)
 layout (set = SET_PASS, binding = FSR3UPSCALER_BIND_SRV_DILATED_REACTIVE_MASKS) uniform texture2D  r_dilated_reactive_masks;
