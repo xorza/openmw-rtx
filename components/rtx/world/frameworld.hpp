@@ -8,7 +8,6 @@
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
-#include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/sunglare.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
@@ -90,6 +89,31 @@ namespace Rtx
         osg::Vec3f mNightEye{};
     };
 
+    /// What a frame's world decides beside its block: what the display chain washes and lifts the
+    /// picture by, and the sea's clock. Written by `describeWorld` and read by the renderer, and
+    /// never stated by a host, which hands the world (`WorldReading`) and not what it comes to.
+    struct WorldOptions
+    {
+        /// What to multiply the measured exposure by: the hour, which the histogram cannot see
+        /// (`Rtx::Skylight::mExposureBias`). A fixed exposure is not touched by it.
+        float mExposureBias = 1.0f;
+
+        /// The sun glare fader over the picture, which the display chain washes it with. None for a
+        /// frame no world was described over.
+        SunGlare mGlare{};
+
+        /// What Night-Eye adds to the ambient, in the engine's colour values, which the display
+        /// chain lays over the picture after the curve (`ToneConstants::mNightEye`). None for a
+        /// frame no world was described over.
+        osg::Vec3f mNightEye{};
+
+        /// The water's clock in seconds, as the host keeps it, which the wake steps by: what the
+        /// frame block carries split in two for a shader (`VisibilityConstants::mWaterTime`), here
+        /// whole, so a step boundary is read off the clock and not off its split rebuilt. Filled
+        /// where the world describes the frame (`describeWorld`).
+        double mWaterSeconds = 0.0;
+    };
+
     /// How far the air has been carried downwind since a run began, in world units: the integral
     /// of the wind over the sky's clock, kept across frames by whoever traces them. What the
     /// shader takes off a position is a displacement, and a wind times the clock is not one: it
@@ -143,10 +167,11 @@ namespace Rtx
     /// reduced against the scale's tile in double and handed over as a fraction of it.
     std::array<osg::Vec3f, Shaders::FOG_SCALES> fogOffsets(const osg::Vec2d& carried, double skySeconds);
 
-    /// Writes the frame's world half into the constants it is traced with, and into the options
-    /// what rides beside them: the exposure's bias (`Skylight::mExposureBias`, carried), the sky's
-    /// clock and the glare fader. The camera's half is the builders' (`makeCameraFromView`) and is
-    /// left alone, and so is every option the world does not decide. The order is the whole of what
+    /// Writes the frame's world half into the constants it is traced with, and into `options` what
+    /// rides beside them: the exposure's bias (`Skylight::mExposureBias`, carried), the glare
+    /// fader, Night-Eye's lift and the sea's clock. The camera's half is the viewpoint's
+    /// (`constantsFor`) and is left alone. The renderer calls it, over the world a host reads and
+    /// the viewpoint it hands beside it (`Renderer::renderFrame`). The order is the whole of what
     /// this is for: the stars before the sky's budget, the budget before the air, and both before
     /// the deck. One call and not twenty assignments at the reader, so the order is stated where
     /// the fields are and a field added is placed by it. `drift` is stepped here by this reading's
@@ -156,5 +181,5 @@ namespace Rtx
     /// @param sky where the sky's own sheets sit in the scene's texture table: made at load
     ///        (`addSkyContent`) and borrowed by every frame, never copied into one.
     void describeWorld(const WorldReading& reading, const SkyContent& sky, FogDrift& drift,
-        Shaders::VisibilityConstants& constants, FrameOptions& options);
+        Shaders::VisibilityConstants& constants, WorldOptions& options);
 }

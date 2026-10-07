@@ -78,11 +78,11 @@ namespace Rtx
         mExtentHeight = std::clamp(height, 1u, mRequest.mHeight);
     }
 
-    std::optional<Shaders::VisibilityConstants> OffscreenTrace::describeCamera() const
+    std::optional<Viewpoint> OffscreenTrace::describeCamera() const
     {
         const SceneUtil::Framing& framing = mRequest.mFraming;
         const auto* perspective = std::get_if<SceneUtil::Perspective>(&framing.mProjection);
-        std::optional<Shaders::VisibilityConstants> camera = perspective != nullptr
+        std::optional<Viewpoint> camera = perspective != nullptr
             ? makeCameraFromView(
                 mView, perspective->mFieldOfView, mExtentWidth, mExtentHeight, framing.mNear, framing.mFar)
             : makeOrthographicCameraFromView(mView, std::get<SceneUtil::Orthographic>(framing.mProjection).mWidth,
@@ -94,22 +94,6 @@ namespace Rtx
         // `ViewRequest::mRowOrder` says why the GUI's copy comes out the other way up.
         if (mRequest.mRowOrder == RowOrder::BottomFirst)
             camera->mEyes.mWorld.mBasis.mUp = -camera->mEyes.mWorld.mBasis.mUp;
-
-        // Where the light stands, unit, in the sense `ViewRequest::mLight` states it and the
-        // trace takes it.
-        osg::Vec3f sun = mRequest.mLight.mDirection;
-        if (sun.length2() > 0.f)
-            sun.normalize();
-
-        camera->mSun = Shaders::sunSource(sun, irradianceOf(mRequest.mLight.mDiffuse));
-        camera->mAmbient = irradianceOf(mRequest.mLight.mAmbient);
-        camera->mTransparentBackground = mRequest.mClear.a() < 1.f ? 1 : 0;
-        camera->mRayMask = mRequest.mRayMask;
-        camera->mNoLamps = mRequest.mLamps ? 0 : 1;
-
-        // A picture inside the interface is lit by its own flat sun, which the rasterizer draws
-        // with shadows off, the doll's and the map's alike.
-        camera->mNoSkyShadows = 1;
 
         return camera;
     }
@@ -181,9 +165,15 @@ namespace Rtx
 
     void OffscreenTrace::traceInto(const GuiSlot texture, const bool readBack)
     {
-        const std::optional<Shaders::VisibilityConstants> camera = describeCamera();
+        const std::optional<Viewpoint> camera = describeCamera();
         if (!camera.has_value())
             return;
+
+        // Where the light stands, unit, in the sense `ViewRequest::mLight` states it and the
+        // trace takes it.
+        osg::Vec3f sun = mRequest.mLight.mDirection;
+        if (sun.length2() > 0.f)
+            sun.normalize();
 
         const osg::Vec4f& clear = mRequest.mClear;
         mRenderer.traceGuiTexture(texture, *camera,
@@ -191,6 +181,11 @@ namespace Rtx
                 .mClear = { clear.r(), clear.g(), clear.b(), clear.a() },
                 .mScene = mSubject != nullptr ? mSubject->mSlot.get() : SceneSlot::world(),
                 .mReadBack = readBack,
+                .mRayMask = mRequest.mRayMask,
+                .mLamps = mRequest.mLamps,
+                .mLight = PictureLight{ .mDirection = sun,
+                    .mIrradiance = irradianceOf(mRequest.mLight.mDiffuse),
+                    .mAmbient = irradianceOf(mRequest.mLight.mAmbient) },
             });
     }
 
@@ -205,7 +200,7 @@ namespace Rtx
             return false;
 
         Subject& subject = *mSubject;
-        const std::optional<Shaders::VisibilityConstants> camera = describeCamera();
+        const std::optional<Viewpoint> camera = describeCamera();
         if (!camera.has_value())
             return false;
 

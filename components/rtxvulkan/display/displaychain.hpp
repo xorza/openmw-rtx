@@ -40,7 +40,7 @@ namespace Rtx
         /// `ExposurePass::getPictureExposure` says is a buffer of its own.
         ExposureRule mExposure;
 
-        /// What a measured eye's scale is offset by, `FrameOptions::mExposureBias`.
+        /// What a measured eye's scale is offset by, `WorldOptions::mExposureBias`.
         float mExposureBias;
 
         /// How long since the frame before, which the eye and the glare both ease over.

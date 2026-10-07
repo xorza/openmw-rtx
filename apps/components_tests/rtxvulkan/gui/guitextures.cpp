@@ -544,10 +544,10 @@ namespace Rtx
         /// Straight down at a sheet from a hundred units up, over a box two hundred across.
         Shaders::VisibilityConstants makeMapCamera(std::uint32_t extent)
         {
-            Shaders::VisibilityConstants camera = makeOrthographicCameraFromView(
+            Shaders::VisibilityConstants camera = constantsFor(makeOrthographicCameraFromView(
                 osg::Matrixf::lookAt(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(), osg::Vec3f(0.0f, 1.0f, 0.0f)),
                 200.0f, 200.0f, extent, extent, 1.0f, 10000.0f)
-                                                      .value();
+                                                                   .value());
 
             // Travelling straight down onto a sheet that faces up, so it is lit square on and the
             // picture is something rather than a coverage mask with nothing in it.
@@ -565,6 +565,45 @@ namespace Rtx
         {
             const std::uint8_t grey = Testing::displayedGrey(0.5f * Shaders::INV_PI);
             return { grey, grey, grey, 255 };
+        }
+
+        /// **A picture from a viewpoint is the picture of the block its options lay over it**: the
+        /// map camera's sheet under the map camera's sun, with a backdrop that stops where nothing
+        /// was hit, traced once from the viewpoint and the options the seam takes and once from the
+        /// block a test writes whole, with the sky source's shadow off as every picture has it. The
+        /// lit sheet at the middle says the comparison has something in it.
+        TEST_F(RtxGuiDrawTest, aPictureFromAViewpointIsThePictureOfTheBlockItsOptionsLayOverIt)
+        {
+            constexpr std::uint32_t extent = 16;
+
+            mRenderer.setScene(Rtx::SceneSlot::world(), makeSheet(25.0f), {});
+
+            const GuiSlot stated = mRenderer.addGuiTexture(extent, extent);
+            const GuiSlot written = mRenderer.addGuiTexture(extent, extent);
+            mHeld.push_back(stated);
+            mHeld.push_back(written);
+
+            const Viewpoint view = makeOrthographicCameraFromView(
+                osg::Matrixf::lookAt(osg::Vec3f(0.0f, 0.0f, 100.0f), osg::Vec3f(), osg::Vec3f(0.0f, 1.0f, 0.0f)),
+                200.0f, 200.0f, extent, extent, 1.0f, 10000.0f)
+                                       .value();
+            mRenderer.traceGuiTexture(stated, view,
+                GuiTraceOptions{ .mLight = PictureLight{ .mDirection = osg::Vec3f(0.0f, 0.0f, 1.0f),
+                                     .mIrradiance = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                                     .mAmbient = osg::Vec3f() } });
+
+            Shaders::VisibilityConstants camera = makeMapCamera(extent);
+            camera.mTransparentBackground = 1;
+            camera.mNoSkyShadows = 1;
+            mRenderer.traceGuiTexture(written, camera, GuiTraceOptions{});
+
+            std::vector<std::uint8_t> fromView;
+            mRenderer.readGuiTexture(stated, fromView);
+            std::vector<std::uint8_t> fromBlock;
+            mRenderer.readGuiTexture(written, fromBlock);
+            EXPECT_EQ(fromView, fromBlock);
+            EXPECT_EQ(Testing::rgbaAt(fromView, extent, 8, 8), sheetLit());
+            EXPECT_EQ(Testing::rgbaAt(fromView, extent, 1, 1)[3], 0) << "the backdrop stops where nothing was hit";
         }
 
         /// A picture traced into the table the GUI draws from, and where it stops.

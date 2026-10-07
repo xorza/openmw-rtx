@@ -115,7 +115,8 @@ through a phase state machine that every entry point asserts.
 
 - `WorldMirror` mirrors the scene graph into the core's scene description each frame (the walk),
   places the sea, runs the cell ring, and hands the result to the backend.
-- `SkyReader` turns the game's sky and weather into the core's `WorldReading`.
+- `SkyReader` turns the game's sky and weather into the core's `WorldReading`, and keeps the sky's
+  clock. What a reading comes to, and the air carried across frames, are the backend's.
 - `RippleEmitters` says what disturbs the water, by the rasterizer's own rule.
 - `ViewQueue`, `TracedView` and `TracedOverlay` make the pictures inside the interface.
 - `TracedGround` is the seam's ground with no chunks: the ray tracer draws terrain itself.
@@ -372,8 +373,9 @@ On the host, in order:
 3. **Hand over.** The frame before last is collected where the ring is full. `SceneUploader`
    places, extends or rebuilds the backend's scene.
 4. **Views.** Queued pictures inside the interface are traced.
-5. **Trace.** The camera and the world are turned into the frame's constants, and the backend
-   records the frame.
+5. **Trace.** The host asks for the frame (`Rtx::FrameRequest`): the eyes, what they draw, the
+   world as `SkyReader` read it, and the options. The backend lays the world over the viewpoint
+   (`describeWorld`), carries the air on, samples the result, and records the frame.
 6. **GUI and present.** The host returns without waiting for the device.
 
 On the device, in record order: the sea and the ripples, the sprites, the fog, the trace, the

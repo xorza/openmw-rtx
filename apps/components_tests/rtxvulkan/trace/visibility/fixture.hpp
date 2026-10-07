@@ -135,7 +135,7 @@ namespace Rtx::Testing
         // 400 units of water along the view, which the frame sees `sin 10°` of.
         const float across = 400.0f * std::sin(grazing);
         Shaders::VisibilityConstants camera
-            = makeOrthographicCameraFromView(view, across, across, size, size, 1.0f, 5000.0f).value();
+            = constantsFor(makeOrthographicCameraFromView(view, across, across, size, size, 1.0f, 5000.0f).value());
         camera.mWaterLevel = 0.0f;
         return camera;
     }
@@ -450,7 +450,7 @@ namespace Rtx::Testing
         /// The sun glare fader over the picture. None, for every test not about it.
         SunGlare mGlare{};
 
-        /// What Night-Eye adds to the ambient (`FrameOptions::mNightEye`). None, for every test not
+        /// What Night-Eye adds to the ambient (`WorldOptions::mNightEye`). None, for every test not
         /// about it.
         osg::Vec3f mNightEye{};
 
@@ -522,9 +522,6 @@ namespace Rtx::Testing
                 mRenderer.renderFrame(sampled,
                     FrameOptions{ .mAccumulate = shot.mFrames > 0 && shot.mAverage ? at + 1 : 0,
                         .mSinceLast = shot.mSinceLast,
-                        .mGlare = shot.mGlare,
-                        .mNightEye = shot.mNightEye,
-                        .mWaterSeconds = waterSeconds,
                         .mLoss = at == shot.mLossAt ? shot.mLoss : HistoryLoss::None,
                         .mReconstruction = ReconstructionRequest{ .mDenoise = shot.mFilter,
                             .mJitter = shot.mJitter,
@@ -540,7 +537,8 @@ namespace Rtx::Testing
                         .mLitEnvironmentMaps = shot.mLitEnvironmentMaps,
                         .mDither = shot.mDither,
                         .mJitter = shot.mOffset,
-                        .mDebug = shot.mDebug });
+                        .mDebug = shot.mDebug },
+                    WorldOptions{ .mGlare = shot.mGlare, .mNightEye = shot.mNightEye, .mWaterSeconds = waterSeconds });
 
                 // Every frame hits the same primary geometry, so the last one's count is the answer
                 // rather than a sum to be divided back down.

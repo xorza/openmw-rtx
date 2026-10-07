@@ -724,7 +724,10 @@ namespace MWRender
 
         // After the step, so the frame is drawn at the moment asked for and not one step past it.
         if (const std::optional<Rtx::AirClock> held = mRun.getHeldAir())
+        {
             mSky.holdAir(*held);
+            mRenderer->holdAir(*held);
+        }
 
         // **Ahead of the trace and not after the present**, so the frame this draws is the one the
         // window's own extent asked for rather than the one behind it.
@@ -829,14 +832,14 @@ namespace MWRender
 
         mPhase.step(Phase::Tracing, Phase::Views);
         const Crash::NoteScope tracing("tracing");
-        const std::optional<Rtx::Shaders::VisibilityConstants> constants = describeTrace(frame, view);
-        if (!constants.has_value())
+        std::optional<Rtx::FrameRequest> request = describeTrace(frame, view);
+        if (!request.has_value())
         {
             mRenderer->skipFrame();
             return;
         }
 
-        trace(frame, *constants, report, since);
+        trace(frame, std::move(*request), report, since);
     }
 
     void RtxRenderer::finishBehind(FrameReport& report)
@@ -884,8 +887,7 @@ namespace MWRender
                              << mWalked.mFound.mSkippedUnknown << " it has no reader for";
     }
 
-    std::optional<Rtx::Shaders::VisibilityConstants> RtxRenderer::describeTrace(
-        const SceneFrame& frame, const osg::Matrixd& view)
+    std::optional<Rtx::FrameRequest> RtxRenderer::describeTrace(const SceneFrame& frame, const osg::Matrixd& view)
     {
         const Rtx::FrameExtents extents = mRenderer->getExtents();
 
@@ -902,14 +904,14 @@ namespace MWRender
         // **The frame's field of view and not the setting's.** `WorldState` carries the one the
         // world settled on, which is the override wherever something asked for one — a zoom, a
         // cutscene, a script — and the setting only where nothing did.
-        std::optional<Rtx::Shaders::VisibilityConstants> constants = Rtx::makeCameraFromView(view,
-            frame.mEye.mFieldOfView, extents.mRenderWidth, extents.mRenderHeight, Rtx::sNearPlane, Rtx::sFarPlane);
+        std::optional<Rtx::Viewpoint> camera = Rtx::makeCameraFromView(view, frame.mEye.mFieldOfView,
+            extents.mRenderWidth, extents.mRenderHeight, Rtx::sNearPlane, Rtx::sFarPlane);
 
         // **Asked of the builder rather than tested for here**: a test here would be a copy of
         // the builder's contract with two places to be right. Reported once, because a camera
         // nobody filled in and a real defect look identical from here until it is said how often
         // it happens.
-        if (!constants.has_value())
+        if (!camera.has_value())
         {
             if (!mComplained)
             {
@@ -923,15 +925,13 @@ namespace MWRender
         // A script's projection offset: the same fraction of the picture at the traced extent as at
         // the frame's. The arms' eye is built after it and keeps it, as the rasterizer shifts the
         // arms' projection too.
-        Rtx::shiftPicture(constants->mEyes.mWorld, frame.mEye.mProjectionShift);
+        Rtx::shiftPicture(camera->mEyes.mWorld, frame.mEye.mProjectionShift);
 
         // The arms' own eye, at the field of view the game draws them through.
-        constants->mEyes.mArms = Rtx::cameraAtFieldOfView(constants->mEyes.mWorld, frame.mEye.mArmsFieldOfView);
+        camera->mEyes.mArms = Rtx::cameraAtFieldOfView(camera->mEyes.mWorld, frame.mEye.mArmsFieldOfView);
 
         // What the game decided the eye sees, read where the rasterizer reads it.
         const ViewDescription described = describeView(worldViewMask());
-        constants->mRayMask = described.mRayMask;
-        constants->mNoLamps = described.mLamps ? 0 : 1;
 
         // **What the sampler and the jitter are walked by, and leaving it at zero is a bug with two
         // faces.** The bounce samples the same point every frame, so nothing ever converges; and the
@@ -942,18 +942,25 @@ namespace MWRender
         // **The stop's own count where a run is being made, and the game's frame number
         // otherwise.** `RtxRun::getSampleFrame` says why: a measured run has to walk the same
         // sequence twice, and a game's frame number carries the loading screen's frames with it.
-        constants->mFrame = mRun.getSampleFrame().value_or(static_cast<std::uint32_t>(frame.mWhen.getFrameNumber()));
-
-        return constants;
+        return Rtx::FrameRequest{
+            .mView = *camera,
+            .mRayMask = described.mRayMask,
+            .mLamps = described.mLamps,
+            .mSampleFrame = mRun.getSampleFrame().value_or(static_cast<std::uint32_t>(frame.mWhen.getFrameNumber())),
+            .mWorld = {},
+            .mSky = nullptr,
+            .mOptions = {},
+        };
     }
 
-    void RtxRenderer::trace(const SceneFrame& frame, Rtx::Shaders::VisibilityConstants constants, FrameReport& report,
-        const std::optional<double> since)
+    void RtxRenderer::trace(
+        const SceneFrame& frame, Rtx::FrameRequest request, FrameReport& report, const std::optional<double> since)
     {
         mSky.follow(
             frame.mSky, mMirror.getScene(), *getResources().getSceneManager(), mMirror.getWalkContext().mContent);
-        const Rtx::WorldReading read = mSky.read(frame.mSky, frame.mWorld, frame.mPrecipitation,
-            frame.mWhen.getSimulationTime(), frame.mEye.closesAirAt(mMirror.getReach()));
+        request.mWorld = mSky.read(frame.mSky, frame.mWorld, frame.mPrecipitation, frame.mWhen.getSimulationTime(),
+            frame.mEye.closesAirAt(mMirror.getReach()));
+        request.mSky = &mSky.getContent();
 
         const double now = getFrameClock().getNow();
         const float sinceLast = mTracedAt.has_value() ? static_cast<float>(now - *mTracedAt) : 0.0f;
@@ -962,7 +969,7 @@ namespace MWRender
         // **The schedule's and not the profile's**, because a warm-up is not averaged in — a picture
         // of a half-built cell in the sum is what `RtxRun::getAccumulated` exists to keep out.
         // Nothing of the profile is handed back: the backend reads its own.
-        Rtx::FrameOptions options{
+        request.mOptions = Rtx::FrameOptions{
             .mAccumulate = mRun.getAccumulated(),
             .mSinceLast = sinceLast,
             .mLoss = std::exchange(mLoss, Rtx::HistoryLoss::None),
@@ -970,12 +977,6 @@ namespace MWRender
             .mExposure = mRun.getExposure(),
             .mReadBack = mRun.wantsFrameCopy(),
         };
-
-        // **The bias is carried rather than worked out here**, because a room is the exception to
-        // the rule that would derive it — `Rtx::Skylight::mExposureBias`. Whichever light this cell
-        // got settled it, and a second derivation at the frame is a second place to get the
-        // exception wrong.
-        report.mAir = mSky.describe(read, constants, options);
 
         // **Timed, because a profiler cannot read it.** The record and the submit are almost
         // entirely inside the driver, which carries no frame pointer, so perf attributes what they
@@ -985,11 +986,12 @@ namespace MWRender
         // What the debug modes drew, read off the world root here, after the game's own update
         // has rebuilt them for this frame and before the frame is recorded.
         if (mWorldRoot != nullptr)
-            options.mDebug = mDebugWalk.walk(*mWorldRoot, worldViewMask());
+            request.mOptions.mDebug = mDebugWalk.walk(*mWorldRoot, worldViewMask());
 
         report.mFrame = mRenderer->getFrameCount();
-        mRenderer->renderFrame(constants, options);
-        report.mConstants = constants;
+        const Rtx::FrameTraced traced = mRenderer->renderFrame(request);
+        report.mConstants = traced.mConstants;
+        report.mAir = Rtx::AirClock{ .mSky = mSky.getClock(), .mCarried = traced.mCarried };
 
         report.mSpend.at(Rtx::Timing::Trace) = Rtx::since(tracing, std::chrono::steady_clock::now());
         report.mSpend.at(Rtx::Timing::Present) = mTimer.takePresent();

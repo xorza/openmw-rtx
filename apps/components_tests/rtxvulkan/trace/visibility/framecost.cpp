@@ -91,7 +91,7 @@ namespace Rtx::Testing
             // number and the reason written down beside it.
             constexpr std::size_t budgetPerFrame = 0;
 
-            Renderer& renderer = getUnvalidatedRenderer();
+            VulkanRenderer& renderer = getUnvalidatedRenderer();
 
             // A wall to trace, and a second one behind it skinned to one bone so that there is a body
             // to pose.

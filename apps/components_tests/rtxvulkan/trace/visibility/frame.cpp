@@ -122,10 +122,12 @@ namespace Rtx::Testing
             Frame frame;
 
             frame = shoot(scene, {},
-                makeOrthographicCameraFromView(view, 200.0f, 200.0f, size, size, 1.0f, 10000.0f).value(), size);
+                constantsFor(makeOrthographicCameraFromView(view, 200.0f, 200.0f, size, size, 1.0f, 10000.0f).value()),
+                size);
             const std::uint32_t parallel = frame.mHits;
 
-            frame = shoot(scene, {}, makeCameraFromView(view, 90.0f, size, size, 1.0f, 10000.0f).value(), size);
+            frame = shoot(
+                scene, {}, constantsFor(makeCameraFromView(view, 90.0f, size, size, 1.0f, 10000.0f).value()), size);
             const std::uint32_t pinhole = frame.mHits;
 
             EXPECT_EQ(parallel, 16u * 16u);

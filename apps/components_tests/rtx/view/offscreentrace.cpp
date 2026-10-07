@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 #include <utility>
 #include <vector>
 
@@ -12,12 +13,12 @@
 #include <osg/Node>
 #include <osg/NodeVisitor>
 #include <osg/StateSet>
-#include <osg/Vec2f>
+#include <osg/Vec3f>
+#include <osg/Vec4f>
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/countingrenderer.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
-#include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/renderer/slot.hpp>
@@ -82,32 +83,37 @@ namespace Rtx
             EXPECT_EQ(renderer.mViewDropped, (std::vector<std::uint32_t>{ 0 }));
         }
 
-        /// **A picture states none of what its sampling decides, whatever the profile says.** The
-        /// renderer applies its own texture rules to a picture as to a frame (`Rtx::sampleFrame`),
-        /// and a field a picture stated would be a second writer — which the sampling refuses. Two
-        /// profiles apart, so a picture that copied the profile in would show here.
-        TEST(RtxOffscreenTraceTest, aPictureLeavesItsSamplingToTheRenderer)
+        /// **A picture hands its own light, what it draws and its backdrop**, which no world
+        /// describes: the renderer lays them over the viewpoint (`VulkanRenderer::traceGuiTexture`).
+        /// The light's direction unit, and its colours as irradiance, `decodeColour(c) * pi`: a
+        /// white diffuse is pi, and a black ambient nought.
+        TEST(RtxOffscreenTraceTest, aPictureHandsItsLightWhatItDrawsAndItsBackdrop)
         {
             WalkContext context{ .mSpecular = SpecularLayout::Ignore };
             Testing::CountingRenderer renderer;
             OffscreenTrace world(renderer,
                 ViewRequest{ .mWidth = 64,
                     .mHeight = 64,
-                    .mRayMask = Shaders::MASK_EVERY_CLASS,
-                    .mFraming = { .mProjection = SceneUtil::Perspective{ .mFieldOfView = 60.f } } },
+                    .mRayMask = Shaders::MASK_STATIC,
+                    .mLamps = false,
+                    .mFraming = { .mProjection = SceneUtil::Perspective{ .mFieldOfView = 60.f } },
+                    .mLight = { .mDirection = osg::Vec3f(0.f, 0.f, 2.f),
+                        .mDiffuse = osg::Vec4f(1.f, 1.f, 1.f, 1.f),
+                        .mAmbient = osg::Vec4f(0.f, 0.f, 0.f, 1.f) },
+                    .mClear = osg::Vec4f(0.f, 0.f, 0.f, 0.5f) },
                 context);
+            world.traceInto(GuiSlot::at(0), false);
 
-            for (const auto& [delight, albedo] : { std::pair{ 0.25f, false }, std::pair{ 0.75f, true } })
-            {
-                renderer.mProfile.mDelight = delight;
-                renderer.mProfile.mShow = albedo ? SurfaceView::Albedo : SurfaceView::Shaded;
-                world.traceInto(GuiSlot::at(0), false);
-
-                ASSERT_TRUE(renderer.mTraced.has_value());
-                EXPECT_EQ(renderer.mTraced->mDelight, 0.0f);
-                EXPECT_EQ(renderer.mTraced->mShow, 0u);
-                EXPECT_EQ(renderer.mTraced->mEyes.mWorld.mJitter, osg::Vec2f());
-            }
+            ASSERT_TRUE(renderer.mTraced.has_value());
+            const GuiTraceOptions& options = renderer.mTraced->mOptions;
+            EXPECT_EQ(options.mRayMask, Shaders::MASK_STATIC);
+            EXPECT_FALSE(options.mLamps);
+            EXPECT_EQ(options.mClear[3], 0.5f);
+            EXPECT_EQ(options.mLight.mDirection, osg::Vec3f(0.f, 0.f, 1.f));
+            const float pi = std::numbers::pi_v<float>;
+            EXPECT_EQ(options.mLight.mIrradiance, osg::Vec3f(pi, pi, pi));
+            EXPECT_EQ(options.mLight.mAmbient, osg::Vec3f());
+            EXPECT_EQ(renderer.mTraced->mView.mEyes.mWorld.mWidth, 64u);
         }
 
         /// **The slot is the handle's, and one handle gives it back.** Moved, the slot goes with the

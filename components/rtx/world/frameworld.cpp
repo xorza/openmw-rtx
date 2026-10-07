@@ -105,7 +105,7 @@ namespace Rtx
     }
 
     void describeWorld(const WorldReading& reading, const SkyContent& sky, FogDrift& drift,
-        Shaders::VisibilityConstants& constants, FrameOptions& options)
+        Shaders::VisibilityConstants& constants, WorldOptions& options)
     {
         const Daylight& day = reading.mDaylight;
 
