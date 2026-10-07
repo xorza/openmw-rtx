@@ -166,6 +166,12 @@ def table(leg: str, sides: tuple[Side, Side], first: dict[str, Figures], second:
     return "\n".join(lines)
 
 
+def leg_log(folder: Path) -> Path:
+    """The log beside a leg's folder: its whole name and `.log`, which `with_suffix` is not for a
+    decimal distance's — `walk1.5` became `walk1.log`, the log of a leg of one."""
+    return folder.parent / (folder.name + ".log")
+
+
 def ab(build: Build, args: list[str]) -> int:
     asked = plan(args)
     out = asked.out or Path(tempfile.mkdtemp(prefix="omw-noise-ab-"))
@@ -175,7 +181,7 @@ def ab(build: Build, args: list[str]) -> int:
     tables: list[str] = []
     for leg in asked.legs:
         folder = out / leg.label.replace(" ", "")
-        log = folder.with_suffix(".log")
+        log = leg_log(folder)
         print(f"noise: {leg.label}, {first.switch} against {second.switch}", flush=True)
         with open(log, "w", encoding="utf-8") as written:
             ended = build.harness("noise", first.switch, f"--versus={second.switch.removeprefix('--')}",
