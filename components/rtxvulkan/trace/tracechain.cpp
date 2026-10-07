@@ -4,6 +4,7 @@
 #include <cassert>
 
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
@@ -97,7 +98,7 @@ namespace Rtx
         const WavePass& waves = inputs.mSubject.mMedia->getWaves();
         if (inputs.mSubject.mSea && !waves.holds(what.mSampled.mWaterTime))
         {
-            openZone(what.mTimer, commands, "waves");
+            openZone(what.mTimer, commands, FrameZone::Waves);
             waves.record(commands, what.mSampled.mWaterTime);
             closeZone(what.mTimer, commands);
         }
@@ -171,7 +172,7 @@ namespace Rtx
             // this is the dependency that keeps it so.
             frame.transition(commands, Use::sAnyShaderRead, Use::sComputeReadWrite);
 
-            openZone(what.mTimer, commands, "composite");
+            openZone(what.mTimer, commands, FrameZone::Composite);
             mPasses.mComposite.record(commands, *mChannels, resolved, mSum.isEmpty() ? nullptr : &mSum,
                 Shaders::CompositeConstants{
                     .mWidth = what.mSampled.mEyes.mWorld.mWidth,

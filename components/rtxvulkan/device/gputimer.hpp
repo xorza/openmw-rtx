@@ -2,10 +2,11 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <string_view>
 #include <vector>
 
 #include <vulkan/vulkan_core.h>
+
+#include <components/rtx/renderer/framezone.hpp>
 
 #include "device.hpp"
 #include "handles.hpp"
@@ -29,9 +30,9 @@ namespace Rtx
         /// `frame` is what a checkpoint the zones set names it as.
         void beginFrame(std::uint64_t frame = 0);
 
-        /// Opens a zone. `name` is stored rather than copied, so it must outlive the frame. Also
-        /// names the region for a capture, where the build and the instance carry the labels.
-        void open(VkCommandBuffer commands, const char* name);
+        /// Opens a zone. Also names the region for a capture, where the build and the instance
+        /// carry the labels.
+        void open(VkCommandBuffer commands, FrameZone zone);
 
         /// Closes the zone `open` started. Every open is closed before the next is opened.
         void close(VkCommandBuffer commands);
@@ -56,6 +57,7 @@ namespace Rtx
         struct Zone
         {
             Checkpoint mCheckpoint;
+            FrameZone mZone = FrameZone::Count;
             std::uint32_t mFirstQuery = 0;
         };
 
@@ -69,10 +71,10 @@ namespace Rtx
     /// Brackets a piece of work where there is a timer to bracket it with. A scene arriving and a
     /// picture inside the interface record the same commands and are not frames, so zones opened
     /// there would land in whichever frame report came next.
-    inline void openZone(GpuTimer* timer, VkCommandBuffer commands, const char* name)
+    inline void openZone(GpuTimer* timer, VkCommandBuffer commands, FrameZone zone)
     {
         if (timer != nullptr)
-            timer->open(commands, name);
+            timer->open(commands, zone);
     }
 
     inline void closeZone(GpuTimer* timer, VkCommandBuffer commands)

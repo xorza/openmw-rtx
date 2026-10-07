@@ -5,6 +5,7 @@
 #include <volk.h>
 
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -137,7 +138,7 @@ namespace Rtx
 
             if (!recorded)
             {
-                openZone(what.mTimer, commands, "skin");
+                openZone(what.mTimer, commands, FrameZone::Skin);
                 recorded = true;
             }
 

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstddef>
 
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/digest.h>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
@@ -44,7 +45,7 @@ namespace Rtx
             described[at] = images[at]->describeStorage();
         }
 
-        openZone(timer, commands, "digest");
+        openZone(timer, commands, FrameZone::Digest);
 
         // Cleared on the queue; the last frame's copy out of it is behind the head barrier
         // `CommandPool::begin` recorded.

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cassert>
+#include <string_view>
 
 #include <volk.h>
 
@@ -54,9 +55,10 @@ namespace Rtx
         mFrame = frame;
     }
 
-    void GpuTimer::open(VkCommandBuffer commands, const char* name)
+    void GpuTimer::open(VkCommandBuffer commands, const FrameZone zone)
     {
-        mDevice.beginLabel(commands, name);
+        const std::string_view name = sFrameZoneNames.name(zone);
+        mDevice.beginLabel(commands, name.data());
 
         assert(mOpen == mZones.size() && "a zone was opened while another was still open");
 
@@ -66,9 +68,9 @@ namespace Rtx
             return;
 
         const auto first = static_cast<std::uint32_t>(mZones.size()) * 2;
-        const Zone& zone = mZones.emplace_back(
-            Zone{ .mCheckpoint = Checkpoint{ .mName = name, .mFrame = mFrame }, .mFirstQuery = first });
-        mDevice.checkpoint(commands, &zone.mCheckpoint);
+        const Zone& opened = mZones.emplace_back(
+            Zone{ .mCheckpoint = Checkpoint{ .mName = name, .mFrame = mFrame }, .mZone = zone, .mFirstQuery = first });
+        mDevice.checkpoint(commands, &opened.mCheckpoint);
 
         if (!mSupported)
             return;
@@ -121,7 +123,7 @@ namespace Rtx
             // two landed.
             const std::uint64_t elapsed = (ended - began) & mMask;
 
-            into.add(GpuSpan{ .mName = zone.mCheckpoint.mName, .mMs = static_cast<double>(elapsed) * mPeriod / 1.0e6 });
+            into.add(GpuSpan{ .mZone = zone.mZone, .mMs = static_cast<double>(elapsed) * mPeriod / 1.0e6 });
         }
     }
 }

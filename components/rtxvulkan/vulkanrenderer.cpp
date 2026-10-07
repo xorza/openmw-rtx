@@ -29,6 +29,7 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -614,7 +615,7 @@ namespace Rtx
             if (!reconstruction.upscaled())
                 return traced.mColour;
 
-            timer.open(commands, "upscale");
+            timer.open(commands, FrameZone::Upscale);
             const HandedImage upscaled = mUpscaler.record(commands,
                 UpscaleInputs{
                     .mColour = traced.mColour.mImage,
