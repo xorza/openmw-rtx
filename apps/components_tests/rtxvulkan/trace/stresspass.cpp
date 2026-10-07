@@ -57,20 +57,22 @@ namespace Rtx
         /// real-time clock advances by the microsecond.
         ///
         /// **And the two counters at one rate, which the extension does not promise**: from the
-        /// shortest frame of the four-millisecond hold to the shortest of the eight-millisecond one,
-        /// the zone grows by what the loop does, within 15%. A difference, because what the zone
-        /// holds past the loop — the launch, the drain, another process's slice of a card the other
-        /// suites share — is about the same on both and cancels; a third of a millisecond of it
-        /// stood on every frame under the gate. A loop whose clock ran slower than the timestamp
-        /// period says would hold the queue longer than asked, which the lower bounds above let
-        /// through.
+        /// shortest frame of the four-millisecond hold to the shortest of the twenty-four-millisecond
+        /// one, the zone grows by what the loop does, within 15%. A difference, because the launch
+        /// and the drain the zone holds past the loop are the same on both and cancel. Another
+        /// process's slice of the card does not cancel, and does not grow with the hold: on a
+        /// desktop it stood on every frame of a hold, up to 1.7 ms of it, and beside the other GPU
+        /// shard the two holds' shortest frames differed by up to 0.8 ms. So the holds are twenty
+        /// milliseconds apart, where 1.7 ms moves the rate by 8.5%, under the 15% asked. A loop whose
+        /// clock ran slower than the timestamp period says would hold the queue longer than asked,
+        /// which the lower bounds above let through.
         TEST_F(RtxStressPassTest, theHoldIsTheTimeAskedOnEveryFrameWhateverTheCardsClock)
         {
             Device& device = getDevice();
             GpuTimer timer(device);
 
             StressPass four(device, 4.0);
-            StressPass eight(device, 8.0);
+            StressPass twentyFour(device, 24.0);
             if (device.getPhysicalDevice().getProperties().mProperties2.properties.vendorID == 0x10de)
             {
                 EXPECT_EQ(four.getTickMs(), 1.0e-6) << "NVIDIA's clock counts nanoseconds";
@@ -82,12 +84,12 @@ namespace Rtx
 
             std::array<double, 2> shortestZoneMs{};
             std::array<double, 2> heldThenMs{};
-            for (StressPass* const hold : { &four, &eight })
+            for (StressPass* const hold : { &four, &twentyFour })
             {
                 const std::size_t which = hold == &four ? 0 : 1;
                 shortestZoneMs[which] = std::numeric_limits<double>::infinity();
-                // The asked time in ticks, at the pass's own rate: 4 ms and 8 ms.
-                EXPECT_NEAR(hold->getTicks() * hold->getTickMs(), hold == &four ? 4.0 : 8.0, hold->getTickMs());
+                // The asked time in ticks, at the pass's own rate: 4 ms and 24 ms.
+                EXPECT_NEAR(hold->getTicks() * hold->getTickMs(), hold == &four ? 4.0 : 24.0, hold->getTickMs());
                 const double tenMicroseconds = 0.01 / hold->getTickMs();
 
                 for (std::uint64_t frame = 0; frame < 8; ++frame)

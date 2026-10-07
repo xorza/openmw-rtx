@@ -128,7 +128,9 @@ namespace Rtx
                     ShaderCode code(device);
                     code.stage("visibility.rgen.spv", BindingTable{});
                 },
-                "visibility.rgen.spv: binding [0-9]+ is in the module and not in the layout");
+                // `.+` for the number: gtest reads its own syntax on Windows, which has no bracket
+                // class, and POSIX's elsewhere, which has no `\d`.
+                "visibility.rgen.spv: binding .+ is in the module and not in the layout");
         }
     }
 }

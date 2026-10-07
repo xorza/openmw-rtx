@@ -30,6 +30,7 @@ is N comparisons, over N + 1 runs rather than 2N, and each run past the first is
 its phase that two comparisons read."""
 
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -76,9 +77,12 @@ def repeat(build: Build, args: list[str]) -> int:
         log = out / f"{index}.log"
         held = ["--hold"] if index % 2 else []
         against = [f"--against={out / f'{index - 1}.csv'}"] if index else []
-        with open(log, "w", encoding="utf-8") as written:
-            ended = build.harness("bench", *bench, *held, f"--hashes={out / f'{index}.csv'}", *against,
-                                  stdout=written, stderr=written)
+        # **Through a pipe and not into the log**: the crash monitor shares the run's output and
+        # ends after the harness, so a file handed to the harness is still open when it returns,
+        # and Windows refuses to remove it. A pipe ends with its last writer.
+        ended = build.harness("bench", *bench, *held, f"--hashes={out / f'{index}.csv'}", *against,
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        log.write_bytes(ended.stdout)
         return log, ended.returncode
 
     first, code = run(0)
