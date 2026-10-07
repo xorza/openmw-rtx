@@ -33,7 +33,7 @@ add_openmw_dir (mwrender
     )
 add_openmw_dir (mwrender/rtx
     classmasks debugwalk framereport frametimer rippleemitters rtxrenderer rtxrun rtxsettings rtxsupport rtxwindow skyreader
-    tracedground tracedgroundcover tracedoverlay tracedterrain tracedview viewqueue worldmirror
+    pendingpaints tracedground tracedgroundcover tracedoverlay tracedterrain tracedview viewqueue worldmirror
     )
 
 add_openmw_dir (mwinput

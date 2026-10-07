@@ -1,6 +1,5 @@
 #include "tracedoverlay.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <utility>
@@ -39,34 +38,13 @@ namespace MWRender
 
     void TracedOverlay::paintTile(const SceneUtil::ImageRegion& destination, std::shared_ptr<OffscreenView> tile)
     {
-        // Asked for here and read at `finish`: the copy costs a transfer off the device per redraw
-        // of the tile from now on, which is the price upstream paid to copy the overlay back.
-        tile->keepCopy();
-
-        // The last word for a rectangle wins, so a cell crossed twice before its picture came back
-        // is painted once, from the later tile.
-        const auto same = std::find_if(mPending.begin(), mPending.end(),
-            [&](const Pending& pending) { return pending.mDestination == destination; });
-        if (same != mPending.end())
-            same->mTile = std::move(tile);
-        else
-            mPending.push_back(Pending{ .mDestination = destination, .mTile = std::move(tile) });
+        mPending.add(destination, std::move(tile));
     }
 
     void TracedOverlay::finish()
     {
-        std::erase_if(mPending, [&](Pending& pending) {
-            // A tile nothing else holds is one the local map let go of before it was drawn, and
-            // nothing will draw it now: kept, it would be polled for ever and hold its slot.
-            if (pending.mTile.use_count() == 1)
-                return true;
-
-            const osg::Image* drawn = pending.mTile->getCopy();
-            if (drawn == nullptr)
-                return false;
-
-            composite(pending.mDestination, *drawn);
-            return true;
+        mPending.finish([this](const SceneUtil::ImageRegion& destination, const osg::Image& drawn) {
+            composite(destination, drawn);
         });
     }
 

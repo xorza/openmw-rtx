@@ -9,6 +9,7 @@
 #include <components/sceneutil/imageregion.hpp>
 
 #include "../mapoverlay.hpp"
+#include "pendingpaints.hpp"
 
 namespace MyGUI
 {
@@ -63,13 +64,6 @@ namespace MWRender
         void finish();
 
     private:
-        /// A cell asked for and not yet painted, because its picture has not come back.
-        struct Pending
-        {
-            SceneUtil::ImageRegion mDestination;
-            std::shared_ptr<OffscreenView> mTile;
-        };
-
         /// `compositeTile` into the image, and the texture told where it changed.
         void composite(const SceneUtil::ImageRegion& destination, const osg::Image& tile);
 
@@ -89,9 +83,7 @@ namespace MWRender
         /// One cell's worth of composited pixels, kept so painting one allocates nothing.
         std::vector<std::uint8_t> mCellScratch;
 
-        /// Tiles whose picture has not come back yet, in the order asked. A second ask for a
-        /// rectangle replaces the first.
-        std::vector<Pending> mPending;
+        PendingPaints mPending;
 
         std::unique_ptr<MyGUI::ITexture> mGuiTexture;
     };

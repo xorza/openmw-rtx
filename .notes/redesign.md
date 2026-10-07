@@ -606,10 +606,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
   the same blind spot. Target: a twin only where the reversed corners also carry equal coordinates
   and colours, and a mesh flagged so a ray takes the face its winding faces. Count the differing
   pairs over the vanilla archives first.
-- **[bug] The overlay drops a pending paint the local map let go of.** `TracedOverlay::finish`
-  erases a pending paint whose tile `use_count() == 1`; a cell crossed quickly after a load stays
-  black on the world map for the session. Target: the pending paint keeps its view until the copy
-  lands, and an explicit stop where the map lets go.
 
 ### 6.2 Upstream files (decision 5: approved)
 
