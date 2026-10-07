@@ -134,7 +134,7 @@ namespace Rtx
             writes.image(Shaders::ATROUS_BIND_FAST, images.mFast.describeStorage());
 
             level.mStep = 1u << pass;
-            level.mFixFrames = pass == 0 && frame.mHistoryFix ? Shaders::ACCUMULATE_FIX_FRAMES : 0.0f;
+            level.mFixFrames = pass == 0 && frame.mFilters.mHistoryFix ? Shaders::ACCUMULATE_FIX_FRAMES : 0.0f;
 
             dispatch(commands, pipeline, writes, level,
                 Groups::covering(camera.mWidth, camera.mHeight, Shaders::ATROUS_WORKGROUP));

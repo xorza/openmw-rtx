@@ -72,7 +72,7 @@ namespace Rtx
 
         const Shaders::AccumulateConstants constants{
             .mHistory = frame.history(images.mFresh),
-            .mDualMotion = frame.mDualMotion ? 1u : 0u,
+            .mDualMotion = frame.mFilters.mDualMotion ? 1u : 0u,
         };
 
         dispatch(commands, mPipeline, writes, constants,
@@ -92,7 +92,8 @@ namespace Rtx
         images.mMoments.addTransition(blended, Use::sComputeWrite, Use::sComputeRead);
         blended.flush();
 
-        const ComputePipeline<Shaders::AccumulateClampConstants>& clamp = frame.mAntiFirefly ? mClampRing : mClamp;
+        const ComputePipeline<Shaders::AccumulateClampConstants>& clamp
+            = frame.mFilters.mAntiFirefly ? mClampRing : mClamp;
         DescriptorWrites clampWrites(clamp);
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST, images.mFastBlended.describeStorage());
@@ -104,7 +105,8 @@ namespace Rtx
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_MOMENTS, images.mMoments.describeStorage());
 
         dispatch(commands, clamp, clampWrites,
-            Shaders::AccumulateClampConstants{ .mEyes = frame.mSampled.mEyes, .mAntilag = frame.mAntilag ? 1u : 0u },
+            Shaders::AccumulateClampConstants{
+                .mEyes = frame.mSampled.mEyes, .mAntilag = frame.mFilters.mAntilag ? 1u : 0u },
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
     }
 }
