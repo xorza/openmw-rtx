@@ -18,7 +18,6 @@
 
 #include "deformertable.hpp"
 #include "light.hpp"
-#include "lightbuilder.hpp"
 #include "material.hpp"
 #include "materialtable.hpp"
 #include "mesh.hpp"

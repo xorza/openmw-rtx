@@ -27,8 +27,8 @@
 #include <components/nifosg/autotransform.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/scene/light.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/sceneutil/lampbody.hpp>

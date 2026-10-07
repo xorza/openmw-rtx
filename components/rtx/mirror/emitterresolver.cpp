@@ -19,8 +19,8 @@
 #include <components/rtx/common/finite.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/textureencoding.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>

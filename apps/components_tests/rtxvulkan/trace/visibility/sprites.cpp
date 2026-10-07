@@ -24,7 +24,6 @@
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/scene/light.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>

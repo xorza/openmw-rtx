@@ -14,15 +14,14 @@
 
 #include <components/rtx/common/finite.hpp>
 #include <components/rtx/image/colour.hpp>
+#include <components/rtx/scene/material.hpp>
+#include <components/rtx/scene/mesh.hpp>
+#include <components/rtx/scene/sprite.hpp>
+#include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/sceneutil/lightmanager.hpp>
-
-#include "material.hpp"
-#include "mesh.hpp"
-#include "sprite.hpp"
-#include "surface.hpp"
 
 namespace Rtx
 {

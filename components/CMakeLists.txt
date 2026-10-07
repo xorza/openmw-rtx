@@ -414,8 +414,8 @@ add_component_dir (rtx/image
     )
 
 add_component_dir (rtx/mirror
-    chainkeys contentmemory drawableposer emitterresolver extractionstats materialresolver meshreader meshresolver
-    mirroridentity mirrorpass nodekind posecull poseupdate sceneadopter sceneextractor shading statereading
+    chainkeys contentmemory drawableposer emitterresolver extractionstats lightbuilder materialresolver meshreader
+    meshresolver mirroridentity mirrorpass nodekind posecull poseupdate sceneadopter sceneextractor shading statereading
     walkcontext worlddescent
     )
 
@@ -442,7 +442,7 @@ add_component_dir (rtx/renderer
     )
 
 add_component_dir (rtx/scene
-    compositequeue deformertable instancerecord light lightbuilder lightgrid material materialtable mesh
+    compositequeue deformertable instancerecord light lightgrid material materialtable mesh
     meshtable placementtable refusal refusals ripple rowhold scenedesc scenetextures specularlayout sprite
     surface texturetable
     )
