@@ -614,9 +614,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 - **[bug] Windows fail-fast crashes get no report**: `/GS`, heap corruption and `__fastfail` skip
   the in-process filter, and nothing ships or registers `crashpad_wer.dll`. Target: build, install
   and `RegisterWerModule` it, and have the monitor log the exit code when no dump came.
-- **[bug] The macOS hang report allocates in a signal handler** on a thread the kernel picks
-  (`onHangSignal` → `CRASHPAD_SIMULATE_CRASH`). Target: the handler only signals (a semaphore or a
-  pipe), and a reporter thread calls `reportHang()`, as Windows does.
 - **[bug, check on the AppImage] The monitor runs from the AppImage's mount after the game is
   gone.** Packaging and the dialog run after exit, when the mount may be gone. Target: verify by
   crashing the AppImage with `OPENMW_CRASH_DIALOG=1`; if confirmed, keep the mount for the
@@ -635,9 +632,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 - **[decision] The glossy filter has no virtual-motion history** (`specular.comp`): a sharp lobe
   resets at each turn. ReLAX's needs the lobe's hit distance stored. Decide whether that is worth a
   channel. Blocked: question 9 in `redesign_QUESTIONS.md`.
-
-### 6.7 Design, duplication and dead code
-
 
 ### 6.10 Fork hunks the Accepted diff does not cover
 

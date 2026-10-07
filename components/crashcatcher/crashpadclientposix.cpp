@@ -8,15 +8,21 @@
 
 #include "crashnote.hpp"
 
-// Linux's alternate signal stack, which macOS has no call for.
+// Linux's alternate signal stack, which macOS has no call for; and macOS's pipe to the thread that
+// takes a hang report.
 #if !defined(__APPLE__)
 #include <client/crashpad_client.h>
+#else
+#include <fcntl.h>
+#include <thread>
+#include <unistd.h>
 #endif
 
 namespace Crash::Client
 {
     namespace
     {
+#if !defined(__APPLE__)
         void onHangSignal(int)
         {
             // **The interrupted code's `errno` is put back**: the report makes system calls of its
@@ -26,6 +32,38 @@ namespace Crash::Client
             reportHang();
             errno = interrupted;
         }
+#else
+        /// The pipe a hang request crosses, from the handler to the thread that takes the report.
+        int sHangPipe[2] = { -1, -1 };
+
+        /// **On macOS the handler only asks**: Crashpad's simulated crash builds a Mach message and
+        /// allocates, which no signal handler may, on whichever thread the kernel handed the
+        /// signal. One byte down a pipe is what a handler may do, and the reporter takes the report
+        /// on a thread of its own, as the monitor's thread does on Windows. Never blocking: a pipe
+        /// full of requests already asks for a report.
+        void onHangSignal(int)
+        {
+            const int interrupted = errno;
+            const char asked = 1;
+            [[maybe_unused]] const ssize_t written = write(sHangPipe[1], &asked, 1);
+            errno = interrupted;
+        }
+
+        void takeHangReports()
+        {
+            for (;;)
+            {
+                char asked = 0;
+                const ssize_t got = read(sHangPipe[0], &asked, 1);
+                if (got == 1)
+                    reportHang();
+                else if (got < 0 && errno == EINTR)
+                    continue;
+                else
+                    return;
+            }
+        }
+#endif
 
 #if !defined(__APPLE__)
         /// **A fault waits out a report another thread is writing**, which it would write over: the
@@ -56,6 +94,16 @@ namespace Crash::Client
 
     void hookEveryEnd(Heartbeat&)
     {
+#if defined(__APPLE__)
+        if (pipe(sHangPipe) == 0)
+        {
+            for (const int end : sHangPipe)
+                fcntl(end, F_SETFD, FD_CLOEXEC);
+            fcntl(sHangPipe[1], F_SETFL, O_NONBLOCK);
+            std::thread(takeHangReports).detach();
+        }
+#endif
+
         // The monitor asks with `SIGUSR2`, on the thread's own stack and not the alternate one
         // Crashpad sizes for its own fault handler: a request arrives on a sound stack, and a whole
         // dump taken inside a signal frame outgrows the alternate one where the processor's saved
