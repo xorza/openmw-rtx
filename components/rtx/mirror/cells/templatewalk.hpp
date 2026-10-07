@@ -9,6 +9,7 @@
 #include <osg/NodeVisitor>
 
 #include <components/misc/result.hpp>
+#include <components/rtx/mirror/chainkeys.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/mirror/nodekind.hpp>
 #include <components/rtx/mirror/shading.hpp>
@@ -91,6 +92,10 @@ namespace Rtx
         /// The state sets in force where the walk is standing, nearest last. Kept across walks and
         /// refilled, because a model is hundreds of drawables and the thread reads thousands.
         std::vector<Shading> mShading;
+
+        /// The keys of the chains `mShading` has stood in, for this model alone: a reading holds
+        /// its own key (`MaterialReading::mKey`), so they are dropped at each model's start.
+        ChainKeys mKeys;
 
         /// Notes why a drawable is left out, the first time the model leaves one.
         void refuse(std::string_view why);

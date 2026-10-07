@@ -547,7 +547,7 @@ namespace Rtx
 
     void SceneExtractor::Traversal::pushShading(const osg::StateSet& stateSet, const bool animated)
     {
-        mShading.push_back(Shading::under(mShading, stateSet, animated));
+        mShading.push_back(Shading::under(mShading, stateSet, animated, mExtractor.mChainKeys));
     }
 
     void SceneExtractor::Traversal::apply(osg::Drawable& drawable)
@@ -599,6 +599,7 @@ namespace Rtx
         mFrozen.reserve(sFrozenBudget);
         mMeshes.reserve(sMeshBudget, sDeformerBudget);
         mMaterials.reserve(sMaterialBudget, sTextureBudget, sAnimatedBudget);
+        mChainKeys.reserve(sMaterialBudget);
         mEmitters.reserve(sEmitterBudget);
         mGlows.reserve(sEffectBudget);
     }
@@ -759,6 +760,11 @@ namespace Rtx
         };
         mMeshesFreed = mScene.meshes().getFreedCount();
         mMaterialsFreed = mScene.materials().getFreedCount();
+
+        // A key goes once no material is held under it, so only a sweep that let a material go
+        // can have left one held by nothing else.
+        if (went.mMaterials > 0)
+            mChainKeys.retire();
 
         // Swept whatever the two tables above did, because an image a material stopped reading, a
         // state set whose node left the graph and a sprite's texture each go stale on a frame where

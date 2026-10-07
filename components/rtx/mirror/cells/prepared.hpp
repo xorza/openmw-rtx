@@ -168,11 +168,6 @@ namespace Rtx
         /// The modes the part is shown in: every branch of a `NightDaySwitch` is read, because
         /// which one the world shows is the frame's to say (`CellPlacer::setNightDay`).
         NightDayModes mModes;
-
-        /// The key `mMaterial` is held under where the part is groundcover's: an object of the
-        /// reader's own, because the reading is the template's with upstream's override on it, and
-        /// the template's own state set keys the material a static of the same model wears.
-        osg::ref_ptr<const osg::StateSet> mOwnKey;
     };
 
     /// A model read whole on a thread that is not the frame's: its parts, the folded geometry of

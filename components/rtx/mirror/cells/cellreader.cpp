@@ -152,8 +152,7 @@ namespace Rtx
                 };
                 reading.mDescribed->mLampLit = mGroundcover->lampLit();
                 reading.mDiffuseFacts.reset();
-                part.mOwnKey = new osg::StateSet;
-                reading.mKey = part.mOwnKey.get();
+                reading.mKey = new osg::StateSet;
             }
         });
 

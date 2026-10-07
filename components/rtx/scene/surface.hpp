@@ -442,4 +442,10 @@ namespace Rtx
 
     /// One state set on its own, under no lock.
     bool describeStateSet(const osg::StateSet& stateSet, SurfaceDescription& into);
+
+    /// Whether `stateSet` holds anything `describeStateSet` reads into a description: an attribute
+    /// or a mode it carries or reports unread, a texture, or a uniform. One that holds only the
+    /// raster pipeline's — a depth test, a program, a winding — describes nothing, and a material
+    /// key passes it by (`ChainKeys`).
+    bool describesAnything(const osg::StateSet& stateSet);
 }

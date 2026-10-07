@@ -70,6 +70,7 @@ namespace Rtx
         mHere = osg::Matrix();
         mModes = NightDayModes{};
         mShading.clear();
+        mKeys.clear();
         setTraversalMask(mask);
 
         // OSG's visitor API is non-const throughout, and this walk writes nothing: the cast happens
@@ -87,7 +88,7 @@ namespace Rtx
 
     void TemplateWalk::pushShading(const osg::StateSet& stateSet)
     {
-        mShading.push_back(Shading::under(mShading, stateSet, false));
+        mShading.push_back(Shading::under(mShading, stateSet, false, mKeys));
     }
 
     void TemplateWalk::apply(osg::Node& node)
