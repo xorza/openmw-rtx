@@ -62,7 +62,7 @@ namespace MWInput
         if (sticks == nullptr)
             Log(Debug::Error) << "Failed to get the joysticks: " << SDL_GetError();
 
-        for (int i = 0; i < numSticks; i++)
+        for (int i = 0; sticks != nullptr && i < numSticks; i++)
         {
             const SDL_JoystickID stick = sticks[i];
             if (SDL_IsGamepad(stick))
