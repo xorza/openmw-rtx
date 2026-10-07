@@ -43,9 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The driver and its dependencies
 
-- [ ] `tools/omw/perf.py:121-124` — gets the frame count and wall time with a regex over the bench report
-  text, although `bench --json` writes the same figures. Target shape: `profile` passes `--json` and reads
-  it. (low)
 - [ ] `tools/omw/noise.py:48-51` — gets the A/B table with a regex over `judgeNoise`'s sentence
   (`apps/rtxtool/compare.cpp:315`). Target shape: `noise` writes a machine-readable record for each side,
   and `noise.py` reads it. (low)
