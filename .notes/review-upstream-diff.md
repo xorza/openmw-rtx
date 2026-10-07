@@ -43,10 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Sibling APIs disagree
 
-- [ ] `apps/rtxtool/hosted.cpp:85,200`, `apps/rtxtool/main.cpp:924` — the `printLeft` argument always
-  equals `request.mPlayed`. Seven call sites (`main.cpp:551,833,882,924,972,1210,1282`) give `variables,
-  config, resources, window` again, although `runStops(Command, Framed, …)` exists. Target shape:
-  `runHosted(const Command&, const Framed&, SessionRequest)`. (low)
 - [ ] `components/rtxvulkan/shaders/trace/denoise/accumulate.comp:103-107` — the push block is written
   field by field (`HistoryConstants frame; uint dualMotion;`), but the host pushes
   `Shaders::AccumulateConstants` (`shared/accumulate.h:176-180`). All other passes declare their header's
