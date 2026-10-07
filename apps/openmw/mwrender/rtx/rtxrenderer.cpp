@@ -580,7 +580,9 @@ namespace MWRender
 
     void RtxRenderer::saveScreenshot() noexcept
     {
-        const osg::ref_ptr<osg::Image> taken = readFrame();
+        // Three channels, as the rasterizer reads its screenshots: the JPEG writer `screenshot
+        // format` may name refuses four (`Rtx::Channels::Rgb`).
+        const osg::ref_ptr<osg::Image> taken = readFrame(0, 0, Rtx::Channels::Rgb);
         if (taken == nullptr)
         {
             Log(Debug::Warning) << "Ray tracing has no frame to write a screenshot from";

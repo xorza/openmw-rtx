@@ -21,11 +21,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Wrong behaviour in a single place
 
-- [ ] `apps/openmw/mwrender/rtx/rtxrenderer.cpp:583` — `saveScreenshot` gives the writer `readFrame()`
-  with the default `Rtx::Channels::Rgba`. The JPEG writer refuses four channels
-  (`components/rtx/renderer/frameimage.hpp:35-36`), and `files/settings-default.cfg:401` offers `jpg`. Under
-  the ray tracer, F12 with `screenshot format = jpg` writes no file. The rasterizer reads `GL_RGB`
-  (`glrenderer.cpp:653`). Target shape: `readFrame(0, 0, Rtx::Channels::Rgb)`, as `capture` does. (medium)
 - [ ] `components/rtxvulkan/shaders/lib/historyclamp.glsl:63-66`, `trace/denoise/accumulateclamp.comp:20` —
   both say that the glossy and pane filters keep their means with `heldToFast`. Only
   `accumulateclamp.comp` includes the library. `trace/denoise/specular.comp:126-151` and
