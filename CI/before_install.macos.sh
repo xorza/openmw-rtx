@@ -8,16 +8,16 @@ brew tap --repair
 brew update --quiet
 
 brew install curl p7zip
-# The Vulkan backend compiles here though no Mac traces rays. glslc and the SPIR-V tools and headers
-# from Homebrew; the Vulkan headers installed here, at the SDK `tools/omw/pins.py` pins for the other
-# systems. No loader: no program links it, because volk loads it at run time.
-brew install shaderc spirv-tools spirv-headers
-
-VULKAN_SDK_VERSION=$(python3 -c 'import sys; sys.path.insert(0, "tools"); from omw import pins; print(pins.VULKAN_SDK_WINDOWS_VERSION)')
-git -c advice.detachedHead=false clone --quiet --depth 1 --branch "vulkan-sdk-${VULKAN_SDK_VERSION}" \
-    "https://github.com/KhronosGroup/Vulkan-Headers.git" "$DEPS_DIR/Vulkan-Headers"
-cmake -S "$DEPS_DIR/Vulkan-Headers" -B "$DEPS_DIR/Vulkan-Headers/build" -D CMAKE_INSTALL_PREFIX="$DEPS_DIR/vulkan"
-cmake --install "$DEPS_DIR/Vulkan-Headers/build"
+# The Vulkan backend compiles here though no Mac traces rays: glslc, the SPIR-V tools and the headers
+# from the SDK `tools/omw/pins.py` pins, as the other systems take theirs, into `VULKAN_SDK`
+# (`deps_versions.sh`). No loader: no program links it, because volk loads it at run time.
+read -r SDK_URL SDK_SHA256 SDK_VERSION < <(python3 -c 'import sys; sys.path.insert(0, "tools"); from omw import pins
+print(pins.VULKAN_SDK_MACOS.url, pins.VULKAN_SDK_MACOS.sha256, pins.VULKAN_SDK_WINDOWS_VERSION)')
+curl -fsSL "$SDK_URL" -o "$DEPS_DIR/vulkansdk.zip"
+echo "$SDK_SHA256  $DEPS_DIR/vulkansdk.zip" | shasum -a 256 -c -
+unzip -q "$DEPS_DIR/vulkansdk.zip" -d "$DEPS_DIR/vulkansdk-installer"
+"$DEPS_DIR/vulkansdk-installer/vulkansdk-macOS-$SDK_VERSION.app/Contents/MacOS/vulkansdk-macOS-$SDK_VERSION" \
+    --root "${VULKAN_SDK%/macOS}" --accept-licenses --default-answer --confirm-command install
 
 pip install aqtinstall
 aqt install-qt -O /tmp/Qt mac desktop $QT_VER && rm aqtinstall.log

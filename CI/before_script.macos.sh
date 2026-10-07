@@ -8,6 +8,9 @@ DEPENDENCIES_ROOT_PATH="/tmp/openmw-deps"
 
 source ./CI/macos/deps_versions.sh
 
+# The SDK's glslc and SPIR-V tools, which configuring finds by name and keeps by path.
+export PATH="$VULKAN_SDK/bin:$PATH"
+
 while getopts VCkEd: ARG
 do
     case $ARG in
@@ -85,10 +88,9 @@ CMAKE_CONF_OPTS+=(
     -DVCPKG_HOST_TRIPLET="$VCPKG_TARGET_TRIPLET"
     -DVCPKG_TARGET_TRIPLET="$VCPKG_TARGET_TRIPLET"
     -DCMAKE_TOOLCHAIN_FILE="$DEPENDENCIES_ROOT_PATH/scripts/buildsystems/vcpkg.cmake"
-    # The headers `before_install.macos.sh` installed, and Homebrew's SPIR-V headers, each by name:
-    # Homebrew's whole prefix would compete with the vcpkg set.
-    -D Vulkan_INCLUDE_DIR="/tmp/vulkan/include"
-    -D OPENMW_SPIRV_HEADERS="$(brew --prefix)/include"
+    # The SDK `before_install.macos.sh` installed, by name: Homebrew's whole prefix would compete
+    # with the vcpkg set. Its SPIR-V headers stand beside the Vulkan ones.
+    -D Vulkan_INCLUDE_DIR="$VULKAN_SDK/include"
 )
 
 if [[ "${CMAKE_BUILD_TYPE}" ]]; then
