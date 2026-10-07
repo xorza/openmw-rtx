@@ -210,11 +210,13 @@ namespace MWRender
         /// Clear all worldspace-specific data
         void notifyWorldSpaceChanged();
 
-        /// The player was put somewhere rather than walked there, inside a worldspace the
-        /// renderer is still drawing: `ActionTeleport` — a door, `coc`, Recall, a boat. The
-        /// world's effects and the water's ripples stay, which is what tells it from
-        /// `notifyWorldSpaceChanged`; the renderer is told of the cut either way.
-        void notifyTeleport();
+        /// The picture cut, inside a worldspace the renderer is still drawing: the player was put
+        /// somewhere rather than walked there (`ActionTeleport` — a door, `coc`, Recall, a boat), or
+        /// a write of `GameHour` moved the clock past the frame's own step
+        /// (`MWWorld::World::noteHourWritten`). The world's effects and the water's ripples stay,
+        /// which is what tells it from `notifyWorldSpaceChanged`; the renderer is told of the cut
+        /// either way.
+        void notifyCut();
 
         /// `ptr` was put somewhere else in one step rather than walked there — a door, a teleport,
         /// a script's `Position` — and its history from where it stood is no history of where it
