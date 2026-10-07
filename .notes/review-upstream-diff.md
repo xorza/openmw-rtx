@@ -18,9 +18,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   cell pushes it past the threshold. Without resizable BAR, the old and new copies are both in the
   ~246 MiB host-written heap until the graveyard collects the old one. Target shape: fixed-size blocks
   with an address table, as `BlockedBuffer` has, or a capacity set at load. (medium)
-- [ ] `components/rtxvulkan/device/memory/image.hpp:208` — `mLevelViews` is a heap `std::vector` that
-  each arriving image with a chain or a second format allocates. The level count is at most 15. Target
-  shape: a fixed inline array with a count. (low)
 
 ## A typed referent is carried as a string and parsed back
 
