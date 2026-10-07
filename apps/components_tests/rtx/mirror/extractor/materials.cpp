@@ -1300,6 +1300,65 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.placements().getRows()[1].mInstance.mMaterial, 1u);
         }
 
+        /// **One shared state set under two parents that name two textures is two materials**
+        /// (`ChainKeys`). NifOsg puts an `NiNode`'s own texturing on that node's state set, and
+        /// `SharedStateManager` makes equal state sets one object across files: here one quad
+        /// whose own state set turns culling off stands under two parents, each painting its own
+        /// texture. Keyed on the quad's state set alone, the first chain met decided both. And the
+        /// same chains walked again resolve to the same two materials, so nothing arrives twice.
+        TEST_F(RtxSceneExtractorTest, aSharedStateSetUnderTwoParentsWearsEachParentsTexture)
+        {
+            osg::ref_ptr<osg::Geometry> quad = makeQuad();
+            quad->getOrCreateStateSet()->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
+
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            std::vector<osg::ref_ptr<const osg::StateSet>> painted;
+            for (const char* const file : { "textures/tx_first.dds", "textures/tx_second.dds" })
+            {
+                osg::ref_ptr<osg::Group> parent = new osg::Group;
+                paint(*parent->getOrCreateStateSet(), file);
+                painted.emplace_back(parent->getStateSet());
+                parent->addChild(quad);
+                root->addChild(parent);
+            }
+
+            walk(*root, 0, 1);
+
+            const auto materials = mScene.materials().getRows();
+            const auto textures = mScene.textures().getRows();
+            ASSERT_EQ(materials.size(), 2u);
+            ASSERT_EQ(textures.size(), 2u);
+            const auto placements = mScene.placements().getRows();
+            ASSERT_EQ(placements.size(), 2u);
+            for (std::size_t at = 0; at < 2; ++at)
+            {
+                const Material& worn = materials[placements[at].mInstance.mMaterial];
+                EXPECT_TRUE(worn.mTwoSided) << "the quad's own state set is in force at " << at;
+                ASSERT_NE(worn.mDiffuse, sNoIndex);
+                EXPECT_EQ(textures[worn.mDiffuse].mPath,
+                    VFS::Path::NormalizedView(at == 0 ? "textures/tx_first.dds" : "textures/tx_second.dds"))
+                    << "placement " << at << " wears its own parent's texture";
+            }
+
+            mExtractor.retire();
+            mScene.clearPlacement();
+            const ExtractionStats again = walk(*root, 0, 2);
+            EXPECT_EQ(again.mMaterialsAdded, 0u);
+            EXPECT_EQ(again.mMaterialsReused, 2u);
+            mExtractor.retire();
+
+            // **And a key goes with the last material under it**: the graph let go of, the walk
+            // meets nothing, and nothing but this test holds the parents' state sets, which the
+            // pairs of the two chains held.
+            root = nullptr;
+            const osg::ref_ptr<osg::Group> empty = new osg::Group;
+            mScene.clearPlacement();
+            walk(*empty, 0, 3);
+            EXPECT_EQ(mExtractor.retire().mMaterials, 2u);
+            for (const osg::ref_ptr<const osg::StateSet>& parent : painted)
+                EXPECT_EQ(parent->referenceCount(), 1) << "a key outlived its material";
+        }
+
         /// A material a controller rewrites resolves its texture out of the image, not its name.
         ///
         /// **Every frame it is met, because that is what an animated material costs.** The state set

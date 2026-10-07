@@ -64,7 +64,7 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Switch> branches = new osg::Switch;
             osg::ref_ptr<osg::Geometry> off = makeQuad();
             osg::ref_ptr<osg::Geometry> on = makeQuad();
-            osg::StateSet* onState = on->getOrCreateStateSet();
+            on->getOrCreateStateSet();
             branches->addChild(off, false);
             branches->addChild(on, true);
             moved->addChild(branches);
@@ -115,7 +115,8 @@ namespace Rtx::Testing
             EXPECT_EQ(model.mPositions.size(), 12u) << "three quads' corners, appended in turn";
 
             EXPECT_EQ(model.mParts[0].mDrawable, on.get());
-            EXPECT_EQ(model.mParts[0].mMaterial.mKey, onState) << "held under the drawable's own state set";
+            EXPECT_EQ(model.mParts[0].mMaterial.mKey, rootState)
+                << "the drawable's own state set states nothing, and the root's is the chain's one link";
             ASSERT_TRUE(model.mParts[0].mMaterial.mDescribed.has_value());
             EXPECT_EQ(model.mParts[0].mMaterial.mDescribed->mDiffuseColour, (EncodedColour{ 0.25f, 0.5f, 0.75f }))
                 << "and the root's state set was in force at it";

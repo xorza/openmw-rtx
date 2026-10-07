@@ -48,9 +48,10 @@ namespace Rtx
     /// for as long as the model that carries them stands.
     struct MaterialReading
     {
-        /// The state set the material is held under: the nearest one to the drawable. Null where
-        /// the chain was empty, which is a drawable that wears nothing.
-        const osg::StateSet* mKey = nullptr;
+        /// What the material is held under: the chain's key (`Shading::materialKey`), held, since
+        /// the walk that read it keeps its keys only while it reads. Null where the chain was
+        /// empty, which is a drawable that wears nothing.
+        osg::ref_ptr<const osg::StateSet> mKey;
 
         /// What the content said, or nothing where nothing did.
         std::optional<SurfaceDescription> mDescribed{};
@@ -62,15 +63,14 @@ namespace Rtx
     };
 
     /// Turns what the content says a surface is into the scene's materials, and keeps the textures
-    /// they name. Keyed on the state set, which OpenMW's optimizer makes a meaningful identity; a
-    /// controller rewriting one is the exception, and `resolve` reads that one again on every
-    /// frame. The animation is here because OpenMW animates shading with a state set that belongs
-    /// to the traversal rather than to the graph, so a walk has to build it.
+    /// they name. Keyed on the chain of state sets that state anything (`ChainKeys`); a controller
+    /// rewriting one is the exception, and `resolve` reads that one again on every frame. The animation is here because
+    /// OpenMW animates shading with a state set that belongs to the traversal rather than to the graph, so a walk has
+    /// to build it.
     class MaterialResolver
     {
     public:
-        /// A material slot and the state set it is held under, because which state set of a chain
-        /// names a material is this class's answer.
+        /// A material slot and the key it is held under (`Shading::materialKey`).
         struct Resolved
         {
             Index mIndex = sNoIndex;
@@ -112,7 +112,7 @@ namespace Rtx
         /// a reading carries no controller. `sNoIndex` and no hold for a reading with no key.
         Index adopt(const MaterialReading& reading);
 
-        /// Gives one `adopt` back, by the state set the reading named. Nothing for null.
+        /// Gives one `adopt` back, by the key the reading named. Nothing for null.
         void release(const osg::StateSet* key);
 
         /// Takes one hold on the material the walk in progress resolved under `key`, until `release`
@@ -309,9 +309,8 @@ namespace Rtx
         SceneDesc& mScene;
         const MirrorPass& mPass;
 
-        /// Which state set each material came from, and the sea under the one it has not got —
-        /// `resolveWater`. Owning, so that a state set cannot go while the entry stands: see
-        /// `ByAddress`.
+        /// Which chain each material came from, by its key, and the sea under the key it has not got
+        /// — `resolveWater`. Owning, so that a key cannot go while the entry stands: see `ByAddress`.
         Identity<const osg::StateSet, HeldMaterial> mMaterials{ mPass };
 
         /// Which slot each image the walk has met stands in, so an animated material re-read every

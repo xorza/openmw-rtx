@@ -24,6 +24,7 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
 
+#include "chainkeys.hpp"
 #include "emitterresolver.hpp"
 #include "extractionstats.hpp"
 #include "materialresolver.hpp"
@@ -446,6 +447,10 @@ namespace Rtx
 
         /// What the content says each surface is, and the textures those name.
         MaterialResolver mMaterials{ mScene, mPass, mContext.mContent, mContext.mSpecular };
+
+        /// The keys the walk's chains of state sets fold to, which `mMaterials` holds its entries
+        /// under.
+        ChainKeys mChainKeys;
 
         /// The particle systems the walk met, and the sprite textures they hold.
         EmitterResolver mEmitters{ mScene, mPass, mContext.mContent };

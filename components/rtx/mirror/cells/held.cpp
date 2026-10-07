@@ -42,7 +42,7 @@ namespace Rtx
                 .mMesh = mesh,
                 .mMaterial = material,
                 .mDrawable = part.mDrawable.get(),
-                .mKey = part.mMaterial.mKey,
+                .mKey = part.mMaterial.mKey.get(),
             });
         }
     }

@@ -596,16 +596,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.1 Pictures that are quietly wrong (fork code, no approval needed)
 
-- **[bug] A material is keyed on the nearest state set but read from the whole chain.**
-  `MaterialResolver::resolve` and `read` (`materialresolver.cpp`, `MaterialReading{ .mKey =
-  shading.back().mStateSet }`) key on the last link, while `describeSurface` folds every link
-  (textures, two-sidedness, `OVERRIDE` locks). NifOsg puts an `NiNode`'s own texturing and stencil
-  properties on that node's state set, and `SharedStateManager` (`SHARE_ALL`) makes equal state sets
-  one object across files. Two shapes with equal own state sets under parents that name different
-  textures or sidedness resolve to one material, and the first one met decides; the ring adopts
-  under the same key. Target: key on the chain's identity, folded while the chain is built
-  (`Shading::under`, as `mAnimatedThrough` is) from the links that state something, by one function
-  both `resolve` and `read` call. The highest priority in this list.
 - **[bug, conditional] An animated copy is keyed on a drawable that clones share.**
   `MaterialResolver::animate` keys `mAnimated` on the node handed in (`mAnimated.reach(&node)`);
   for a drawable with its own state set under an animated chain that is the drawable, which

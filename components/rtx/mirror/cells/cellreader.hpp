@@ -113,7 +113,8 @@ namespace Rtx
         /// as a static: upstream's groundcover states an alpha test of 128 / 255 with no blend over
         /// every model it draws, `OVERRIDE` both, because MGE's content states no alpha it can be
         /// trusted with (`MWRender::Groundcover`). Each part wears that reading under a key of its
-        /// own (`PreparedPart::mOwnKey`).
+        /// own, an object the reading holds, since the template's chain keys the material a static
+        /// of the same model wears.
         PreparedModel* readModel(VFS::Path::NormalizedView path, bool groundcover);
 
         /// `readModel` for a reference: null where it stands nothing, no model or one with no part,

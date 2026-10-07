@@ -211,7 +211,7 @@ namespace Rtx
         if (shading.empty())
             return MaterialReading{};
 
-        MaterialReading reading{ .mKey = shading.back().mStateSet };
+        MaterialReading reading{ .mKey = shading.back().materialKey() };
         if (!describeSurface(shading, reading.mDescribed.emplace()))
         {
             reading.mDescribed.reset();
@@ -241,9 +241,9 @@ namespace Rtx
         if (reading.mKey == nullptr)
             return sNoIndex;
 
-        Entry known = reuse(reading.mKey);
+        Entry known = reuse(reading.mKey.get());
         if (known == mMaterials.end())
-            known = adopt(reading.mKey, describe(reading, false, nullptr));
+            known = adopt(reading.mKey.get(), describe(reading, false, nullptr));
 
         mMaterials.hold(known);
         return known->second.mRow.get();
@@ -274,13 +274,13 @@ namespace Rtx
         if (shading.empty())
             return Resolved{};
 
-        // The material's identity is the state set nearest the drawable. Two drawables that share
-        // it share their shading: OpenMW's optimizer collapses equivalent state sets into one
-        // object, so sharing the pointer means sharing the values, and what the parents above
-        // contribute in this graph is light and render-bin state rather than material.
+        // The material's identity is the chain's key: two drawables under one chain of stating
+        // state sets share their shading, and `ChainKeys` says why the nearest state set alone
+        // does not.
         const Shading& own = shading.back();
+        const osg::StateSet* const key = own.materialKey();
 
-        if (const Entry known = reuse(own.mStateSet); known != mMaterials.end())
+        if (const Entry known = reuse(key); known != mMaterials.end())
         {
             // Read again, because a controller rewrote it since the last frame. The state set
             // is the same object — that is what lets the material keep its slot and every placement
@@ -296,20 +296,19 @@ namespace Rtx
                 mScene.setMaterial(held.mRow.get(), readMaterial(shading, &*held.mWorn));
             }
 
-            return Resolved{ .mIndex = known->second.mRow.get(), .mKey = own.mStateSet };
+            return Resolved{ .mIndex = known->second.mRow.get(), .mKey = key };
         }
 
         // An arrival under a controller starts wearing what it wears from its first frame.
         if (!own.mAnimated)
-            return Resolved{ .mIndex = adopt(own.mStateSet, readMaterial(shading, nullptr))->second.mRow.get(),
-                .mKey = own.mStateSet };
+            return Resolved{ .mIndex = adopt(key, readMaterial(shading, nullptr))->second.mRow.get(), .mKey = key };
 
         Worn worn;
         const Material material = readMaterial(shading, &worn);
-        const Entry added = adopt(own.mStateSet, material);
+        const Entry added = adopt(key, material);
         added->second.mWorn = worn;
 
-        return Resolved{ .mIndex = added->second.mRow.get(), .mKey = own.mStateSet };
+        return Resolved{ .mIndex = added->second.mRow.get(), .mKey = key };
     }
 
     Index MaterialResolver::takeTexture(const TextureUse& use, Worn* const worn, const TextureEncoding encoding)
