@@ -77,6 +77,22 @@ def configured_from(directory: Path, digest: str) -> bool:
             and (directory / "CMakeCache.txt").is_file() and (directory / "build.ninja").is_file())
 
 
+def targets_of(tests: list[dict]) -> dict[str, bool]:
+    """Each target CTest's tests name (`OPENMW_TARGET`), and whether every test of it needs a device."""
+    found: dict[str, bool] = {}
+    for test in tests:
+        properties = {property["name"]: property["value"] for property in test.get("properties", [])}
+        if "OPENMW_TARGET" in properties:
+            target = properties["OPENMW_TARGET"]
+            found[target] = found.get(target, True) and "device" in properties.get("LABELS", [])
+    return found
+
+
+def device_free(tests: list[dict]) -> list[str]:
+    """The targets of `tests` that run without a device: those with a test not labelled `device`."""
+    return sorted(target for target, device in targets_of(tests).items() if not device)
+
+
 class Build:
     def __init__(self, flavour: str):
         if flavour not in FLAVOURS:
@@ -234,11 +250,11 @@ class Build:
         listing = output(["ctest", "--test-dir", self.dir, "--show-only=json-v1"], env=self.env)
         return json.loads(listing).get("tests", [])
 
-    def test_targets(self) -> list[str]:
+    def test_targets(self, without_device: bool = False) -> list[str]:
         """The targets the tests run, which `cmake/Tests.cmake` names on each: a test whose binary is
-        not built yet has no command in CTest's listing."""
-        return sorted({property["value"] for test in self.tests() for property in test.get("properties", [])
-                       if property["name"] == "OPENMW_TARGET"})
+        not built yet has no command in CTest's listing. `without_device` leaves out a target whose
+        every test is labelled `device`, which a box with no driver never runs."""
+        return device_free(self.tests()) if without_device else sorted(targets_of(self.tests()))
 
     def binary(self, name: str) -> Path:
         return self.dir / f"{name}{EXE}"

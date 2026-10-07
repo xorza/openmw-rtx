@@ -13,9 +13,11 @@ from omw.system import CI, Refusal, refuse_unsupported
 USAGE = """\
 omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI, on Linux and Windows.
 
-  build [targets]              format the tree, except on CI, whose checks job checks it once;
+  build [--without-device] [targets]
+                               format the tree, except on CI, whose checks job checks it once;
                                configure where the presets changed, then build the harness, the game
-                               and the tests the build has, or the targets named; then check that
+                               and the tests the build has, those a box with no driver runs where
+                               `--without-device` says so, or the targets named; then check that
                                every source the tree tracks is one the build compiles
   test [--without-device] [ctest args]
                                every suite through CTest, the crash matrix and the GPU binary among
@@ -81,7 +83,9 @@ def _build(build: Build, args: list[str]) -> int:
     every build job; after the build, `listing.check`."""
     if not CI and formatting.format_tree([]) != 0:
         return 1
-    build.build(args or build.default_targets + build.test_targets())
+    without_device = "--without-device" in args
+    targets = [arg for arg in args if arg != "--without-device"]
+    build.build(targets or build.default_targets + build.test_targets(without_device))
     return listing.check(build)
 
 

@@ -64,7 +64,9 @@ jobs:
           ccache-size: 2000M
 
       - name: Build
-        run: python omw "$FLAVOUR" build
+        # What the run below runs and nothing it leaves out: the GPU binary, built under a
+        # sanitizer, would never start here.
+        run: python omw "$FLAVOUR" build --without-device
 
       - name: Test
         # Shuffled, as every suite is: the test preset sets `GTEST_SHUFFLE`.

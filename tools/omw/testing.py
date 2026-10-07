@@ -16,7 +16,7 @@ def test(build: Build, args: list[str]) -> int:
     if args and not args[0].startswith("-"):
         return _one(build, args[0], args[1:])
 
-    targets = build.test_targets()
+    targets = build.test_targets(without_device="--without-device" in args)
     if not targets:
         raise Refusal(f"the {build.flavour} build has no tests: `omw debug test` runs them")
     build.build(targets)
