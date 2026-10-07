@@ -443,8 +443,9 @@ Order matters. D5 changes what every secondary ray meets, and D3 is measured on 
 ### Phase 3. Temporal history (D2, D6, and the wavelet items)
 
 1. **The gather library is done** (`RTX_HISTORY_SHARES`): one rule for the four filters' taps, and the
-   shadow's "no history" test with it. **Owed:** a GPU test of the shadow's "no history" test — a tile with shadowed receivers, lit
-   receivers and non-receivers on one plane, under a soft penumbra and a jittered history.
+   shadow's "no history" test with it, held by `aShadowsHistoryTakesNothingFromAPixelThatReceivesNothing`:
+   lit receivers, receivers in a soft penumbra and non-receivers on one plane, under an eye that moves
+   half a pixel a frame. Unjittered, because a jittered pixel at the seam lands on either side of it.
 2. **The registration rule is done**: means are fetched at `at + 0.5 + motion`, the held surface's plane
    test rebuilds through the previous jitter, and the reuse keeps its tap at the surface's own point.
    Its GPU test is the pane filter's, which no spatial pass follows

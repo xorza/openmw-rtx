@@ -17,6 +17,7 @@
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/colour.h>
@@ -555,6 +556,96 @@ namespace Rtx::Testing
         TEST_F(RtxPenumbraDenoiseTest, theShadowDenoiserTakesTheNoiseOffAPenumbraSeenThroughTheWater)
         {
             penumbraOn(true);
+        }
+
+        /// **A shadow's history takes nothing from a pixel that receives nothing.** A floor of two
+        /// halves on one plane, the near one lit by a lamp and the far one a material the lamps do not
+        /// light, so every pixel of it is a non-receiver, whose history holds nought. Bars ten units
+        /// wide every thirty, thirty units over the floor, cross the seam under a lamp ten units
+        /// across sixty units up, so every tile along the seam holds lit receivers, receivers in a
+        /// soft penumbra, and non-receivers. The eye moves half a pixel a frame across the seam, so
+        /// each history fetch falls between two texels, one of them across the seam for the row
+        /// beside it. Held against the same run over a floor the lamp lights whole: the near half's
+        /// rays and bits are the same in both, so the row beside the seam filters to the same light.
+        /// A tap taken from a non-receiver pulls its history toward nought, and the row reads darker:
+        /// measured at +0.7% against the whole floor, the spatial filter's own difference across the
+        /// seam, and at -7.5% with every tap taken.
+        TEST_F(RtxVisibilityTest, aShadowsHistoryTakesNothingFromAPixelThatReceivesNothing)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::uint32_t frames = 32;
+
+            // Half of the 346 units the frame spans over its 64 pixels.
+            constexpr float step = 2.7f;
+
+            const auto run = [&](bool farLit, std::vector<float>* unshadowed) {
+                SceneDesc scene;
+                addQuad(scene,
+                    std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, -4000.0f, 0.0f),
+                        osg::Vec3f(4000.0f, -4000.0f, 0.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f),
+                        osg::Vec3f(-4000.0f, 0.0f, 0.0f) });
+                addQuad(scene,
+                    std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, 0.0f, 0.0f), osg::Vec3f(4000.0f, 0.0f, 0.0f),
+                        osg::Vec3f(4000.0f, 4000.0f, 0.0f), osg::Vec3f(-4000.0f, 4000.0f, 0.0f) },
+                    scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mLampLit = farLit }));
+                for (int bar = -6; bar <= 6; ++bar)
+                {
+                    const float middle = 30.0f * static_cast<float>(bar);
+                    addQuad(scene,
+                        std::array<osg::Vec3f, 4>{ osg::Vec3f(middle - 5.0f, -400.0f, 30.0f),
+                            osg::Vec3f(middle + 5.0f, -400.0f, 30.0f), osg::Vec3f(middle + 5.0f, 400.0f, 30.0f),
+                            osg::Vec3f(middle - 5.0f, 400.0f, 30.0f) });
+                }
+                scene.addLight(Light{ .mPosition = osg::Vec3f(0.0f, 0.0f, 60.0f),
+                    .mIntensity = osg::Vec3f(4000.0f, 4000.0f, 4000.0f),
+                    .mReach = 2000.0f,
+                    .mSourceRadius = 10.0f });
+
+                Frame last;
+                for (std::uint32_t at = 0; at < frames; ++at)
+                {
+                    const float along = step * static_cast<float>(at);
+                    Shaders::VisibilityConstants camera = Testing::makeCamera(osg::Vec3f(0.0f, along - 1.0f, 300.0f),
+                        osg::Vec3f(0.0f, along, 0.0f), 60.0f, size, size, 100000.0f);
+                    camera.mSkyHorizon = osg::Vec3f();
+                    camera.mSkyZenith = osg::Vec3f();
+                    camera.mSun.mIrradiance = osg::Vec3f();
+                    camera.mFrame = 3000 + at;
+                    last = shoot(scene, {}, camera, size,
+                        { .mFilter = true,
+                            .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
+                            .mSetScene = at == 0 });
+                }
+                if (unshadowed != nullptr)
+                    mRenderer.readChannel(Channel::Shadowed, *unshadowed);
+                return last;
+            };
+
+            std::vector<float> unshadowed;
+            const Frame seam = run(false, &unshadowed);
+            const Frame whole = run(true, nullptr);
+
+            // The near half's row beside the seam: a receiver whose neighbour across it receives
+            // nothing, which the bars' own pixels never are.
+            const auto receives = [&](std::size_t pixel) {
+                return unshadowed[pixel * 4] + unshadowed[pixel * 4 + 1] + unshadowed[pixel * 4 + 2] > 0.0f;
+            };
+            double seamSum = 0.0;
+            double wholeSum = 0.0;
+            std::size_t counted = 0;
+            for (std::size_t y = 1; y + 1 < size; ++y)
+                for (std::size_t x = 0; x < size; ++x)
+                {
+                    const std::size_t pixel = y * size + x;
+                    if (!receives(pixel) || (receives(pixel - size) && receives(pixel + size)))
+                        continue;
+                    seamSum += static_cast<double>(seam.mRadiance[pixel * 4 + 1]);
+                    wholeSum += static_cast<double>(whole.mRadiance[pixel * 4 + 1]);
+                    ++counted;
+                }
+
+            ASSERT_GE(counted, size / 2) << "the seam is in the frame";
+            EXPECT_NEAR(seamSum / wholeSum, 1.0, 0.025) << "the row beside the seam took history from across it";
         }
 
         /// **The lamps' light is the shadow denoiser's, exact where nothing stands in its way and quieter
