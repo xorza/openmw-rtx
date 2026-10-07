@@ -374,13 +374,14 @@ namespace RtxTool
         if (into.mReport.mWalked.mAgain.has_value())
         {
             const Rtx::ExtractionStats& again = *into.mReport.mWalked.mAgain;
-            into.mRecord.note(
-                std::format("\nsecond pass over the same graph\n"
-                            "  new meshes:           {} (should be 0)\n"
-                            "  new materials:        {} (should be 0)\n"
-                            "  drawables resolved:   {} to a known mesh\n"
-                            "  stood again:          {} (should be 0)\n",
-                    again.mMeshesAdded, again.mMaterialsAdded, again.mMeshesReused, again.mRestood));
+            into.mRecord.note(std::format(
+                "\nsecond pass over the same graph\n"
+                "  new meshes:           {} (should be 0)\n"
+                "  new materials:        {} (should be 0)\n"
+                "  drawables resolved:   {} to a known mesh\n"
+                "  passed frozen:        {}\n"
+                "  stood again:          {} (should be 0)\n",
+                again.mMeshesAdded, again.mMaterialsAdded, again.mMeshesReused, again.mPassedFrozen, again.mRestood));
         }
     }
 
@@ -590,11 +591,15 @@ namespace RtxTool
                 }
 
                 const Rtx::ExtractionStats& again = *report.mWalked.mAgain;
+                // **What it resolved or passed frozen**: a second walk over a world that stood still
+                // passes every reference that froze, and resolves only what did not.
                 found = std::format(
-                    "{} meshes and {} materials added by the second walk, {} drawables resolved, {} stood again",
-                    again.mMeshesAdded, again.mMaterialsAdded, again.mMeshesReused, again.mRestood);
-                return again.mMeshesAdded == 0 && again.mMaterialsAdded == 0 && again.mMeshesReused > 0
-                    && again.mRestood == 0;
+                    "{} meshes and {} materials added by the second walk, {} drawables resolved, "
+                    "{} passed frozen, {} stood again",
+                    again.mMeshesAdded, again.mMaterialsAdded, again.mMeshesReused, again.mPassedFrozen,
+                    again.mRestood);
+                return again.mMeshesAdded == 0 && again.mMaterialsAdded == 0
+                    && again.mMeshesReused + again.mPassedFrozen > 0 && again.mRestood == 0;
             }
 
             case Check::SurfacesDescribed:

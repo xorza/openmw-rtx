@@ -982,6 +982,7 @@ namespace Rtx
             return false;
 
         mPass.getStats().mInstances += run.mInstances;
+        mPass.getStats().mPassedFrozen += run.mKeys.mCount;
         return true;
     }
 

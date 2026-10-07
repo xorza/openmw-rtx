@@ -90,7 +90,7 @@ namespace Rtx::Testing
         ///
         /// What a walk resolved is what `mMeshesReused` counts: one for the quad on a frame that
         /// walks the reference, and nought on one that passes it, while `mInstances` counts the
-        /// placement either way, as the report reads it.
+        /// placement either way, as the report reads it, and `mPassedFrozen` the quad a pass stood.
         TEST_F(RtxFrozenSubtreeTest, aStillReferenceIsPassedAndKeptAndAMovedOneIsWalkedAgain)
         {
             const osg::ref_ptr<osg::MatrixTransform> reference = addReference(osg::Vec3f(10.0f, 0.0f, 0.0f));
@@ -104,6 +104,7 @@ namespace Rtx::Testing
                 const ExtractionStats passed = frame();
                 EXPECT_EQ(passed.mMeshesReused, 0u) << "a frozen reference was walked";
                 EXPECT_EQ(passed.mInstances, 1u) << "a passed reference was not counted";
+                EXPECT_EQ(passed.mPassedFrozen, 1u) << "what a pass stood was not counted";
                 EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u) << "a sweep dropped what a hold keeps";
                 EXPECT_EQ(standing(), osg::Vec3f(10.0f, 0.0f, 0.0f));
             }
@@ -111,6 +112,7 @@ namespace Rtx::Testing
             reference->setMatrix(osg::Matrix::translate(0.0f, 20.0f, 0.0f));
             const ExtractionStats moved = frame();
             EXPECT_EQ(moved.mMeshesReused, 1u) << "a moved reference was passed";
+            EXPECT_EQ(moved.mPassedFrozen, 0u);
             EXPECT_EQ(standing(), osg::Vec3f(0.0f, 20.0f, 0.0f));
 
             EXPECT_EQ(frame().mMeshesReused, 1u) << "it froze on the frame it moved";
