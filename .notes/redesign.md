@@ -641,8 +641,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.9 Conventions
 
-- **[code] `RtxRenderer::poseForIntersection` and `groundReadsGates` lack `noexcept`**, against the
-  class's own contract.
 - **[code] `threadcounterswin32.cpp` repeats the POSIX file's macOS branch.** Target: one
   `threadcountersnone.cpp` that CMake chooses, and a Linux-only file.
 - **[code] Include blocks in the crash catcher and the platform**: `crashpadmonitor.cpp`'s first
