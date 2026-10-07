@@ -17,6 +17,10 @@
 #include <boost/program_options/value_semantic.hpp>
 #include <boost/program_options/variables_map.hpp>
 
+#include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/blockfile.hpp>
+#include <apps/rtxtool/model/maprules.hpp>
+#include <apps/rtxtool/model/wholenumber.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
@@ -31,10 +35,6 @@
 
 #include "compare.hpp"
 #include "film.hpp"
-#include "model/benchrun.hpp"
-#include "model/blockfile.hpp"
-#include "model/maprules.hpp"
-#include "model/wholenumber.hpp"
 #include "numbervalue.hpp"
 #include "run.hpp"
 #include "verbs.hpp"

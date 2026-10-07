@@ -21,13 +21,12 @@
 #include <osgUtil/IntersectionVisitor>
 #include <osgUtil/LineSegmentIntersector>
 
+#include <apps/openmw/mwrender/objectpaging.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
 #include <components/sceneutil/userdata.hpp>
 #include <components/terrain/cellborder.hpp>
 #include <components/terrain/storage.hpp>
 #include <components/terrain/view.hpp>
-
-#include "../objectpaging.hpp"
-#include "../vismask.hpp"
 
 namespace MWRender
 {

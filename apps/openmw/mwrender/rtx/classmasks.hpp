@@ -5,9 +5,8 @@
 
 #include <osg/Node>
 
+#include <apps/openmw/mwrender/vismask.hpp>
 #include <components/rtx/scene/mesh.hpp>
-
-#include "../vismask.hpp"
 
 namespace MWRender
 {

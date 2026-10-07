@@ -6,17 +6,16 @@
 #include <optional>
 #include <string>
 
+#include <apps/rtxtool/instruments/cardwatch.hpp>
+#include <apps/rtxtool/instruments/frametimes.hpp>
+#include <apps/rtxtool/instruments/scenedigest.hpp>
+#include <apps/rtxtool/instruments/threadcounters.hpp>
+#include <apps/rtxtool/model/benchrecord.hpp>
+#include <apps/rtxtool/model/measurewindow.hpp>
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/renderer.hpp>
-
-#include "instruments/cardwatch.hpp"
-#include "instruments/frametimes.hpp"
-#include "instruments/scenedigest.hpp"
-#include "instruments/threadcounters.hpp"
-#include "model/benchrecord.hpp"
-#include "model/measurewindow.hpp"
 
 namespace MWRender
 {

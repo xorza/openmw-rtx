@@ -6,9 +6,9 @@
 
 #include <osg/ref_ptr>
 
+#include <apps/openmw/mwrender/mapoverlay.hpp>
 #include <components/sceneutil/imageregion.hpp>
 
-#include "../mapoverlay.hpp"
 #include "pendingpaints.hpp"
 
 namespace MyGUI

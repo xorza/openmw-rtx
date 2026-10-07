@@ -23,6 +23,13 @@
 #include <osg/Vec3f>
 
 #include <apps/openmw/mwrender/rtx/rtxsettings.hpp>
+#include <apps/rtxtool/instruments/drivercache.hpp>
+#include <apps/rtxtool/model/benchrecord.hpp>
+#include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/benchspec.hpp>
+#include <apps/rtxtool/model/blockfile.hpp>
+#include <apps/rtxtool/model/maprules.hpp>
+#include <apps/rtxtool/model/wholenumber.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
@@ -52,13 +59,6 @@
 #include "compare.hpp"
 #include "film.hpp"
 #include "harnessfolder.hpp"
-#include "instruments/drivercache.hpp"
-#include "model/benchrecord.hpp"
-#include "model/benchrun.hpp"
-#include "model/benchspec.hpp"
-#include "model/blockfile.hpp"
-#include "model/maprules.hpp"
-#include "model/wholenumber.hpp"
 #include "options.hpp"
 #include "run.hpp"
 #include "verbs.hpp"

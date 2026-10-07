@@ -12,6 +12,9 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
+#include <apps/openmw/mwrender/sceneframe.hpp>
+#include <apps/openmw/mwrender/sky.hpp>
+#include <apps/openmw/mwrender/skystate.hpp>
 #include <apps/openmw/mwrender/skyutil.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/misc/constants.hpp>
@@ -25,10 +28,6 @@
 #include <components/sky/moonstate.hpp>
 #include <components/sky/skyclock.hpp>
 #include <components/vfs/manager.hpp>
-
-#include "../sceneframe.hpp"
-#include "../sky.hpp"
-#include "../skystate.hpp"
 
 namespace MWRender
 {

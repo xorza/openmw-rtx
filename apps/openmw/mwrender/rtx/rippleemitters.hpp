@@ -5,10 +5,9 @@
 
 #include <osg/Vec3f>
 
+#include <apps/openmw/mwrender/sceneframe.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/rtx/scene/ripple.hpp>
-
-#include "../../mwworld/ptr.hpp"
-#include "../sceneframe.hpp"
 
 namespace MWWorld
 {

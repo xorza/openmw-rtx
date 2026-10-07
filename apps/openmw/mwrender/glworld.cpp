@@ -13,6 +13,9 @@
 #include <osg/Vec4f>
 #include <osgViewer/Viewer>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwgui/postprocessorhud.hpp>
 #include <components/debug/debugdraw.hpp>
 #include <components/fx/stateupdater.hpp>
 #include <components/misc/constants.hpp>
@@ -30,9 +33,6 @@
 #include <components/stereo/stereomanager.hpp>
 #include <components/terrain/world.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwgui/postprocessorhud.hpp"
 #include "postprocessor.hpp"
 #include "precipitationocclusion.hpp"
 #include "renderingmanager.hpp"

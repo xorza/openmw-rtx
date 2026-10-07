@@ -5,11 +5,10 @@
 #include <osg/Vec2f>
 #include <osg/ref_ptr>
 
+#include <apps/openmw/mwrender/offscreenview.hpp>
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/view/offscreentrace.hpp>
-
-#include "../offscreenview.hpp"
 
 namespace osg
 {

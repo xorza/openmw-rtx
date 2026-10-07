@@ -8,7 +8,7 @@
 
 #include <osg/Vec3f>
 
-#include "model/skycrossing.hpp"
+#include <apps/rtxtool/model/skycrossing.hpp>
 
 namespace ESM
 {

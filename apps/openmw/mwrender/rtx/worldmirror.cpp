@@ -16,6 +16,13 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <apps/openmw/mwrender/sceneframe.hpp>
+#include <apps/openmw/mwrender/searules.hpp>
+#include <apps/openmw/mwrender/sky.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
+#include <apps/openmw/mwworld/cell.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/weather.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/misc/result.hpp>
@@ -37,13 +44,6 @@
 #include <components/terrain/world.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "../../mwworld/cell.hpp"
-#include "../../mwworld/cellstore.hpp"
-#include "../../mwworld/weather.hpp"
-#include "../sceneframe.hpp"
-#include "../searules.hpp"
-#include "../sky.hpp"
-#include "../vismask.hpp"
 #include "classmasks.hpp"
 #include "tracedgroundcover.hpp"
 
