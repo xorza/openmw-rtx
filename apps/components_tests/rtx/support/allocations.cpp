@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <new>
 
-#include <components/platform/memory.hpp>
+#include "testplatform.hpp"
 
 namespace
 {
@@ -14,7 +14,7 @@ namespace
     void* allocate(std::size_t size, std::align_val_t alignment)
     {
         ++tAllocations;
-        return Platform::Memory::allocateAligned(size, static_cast<std::size_t>(alignment));
+        return Rtx::Testing::TestPlatform::allocateAligned(size, static_cast<std::size_t>(alignment));
     }
 
     void* allocate(std::size_t size)
@@ -104,22 +104,22 @@ void operator delete[](void* memory, std::size_t) noexcept
 
 void operator delete(void* memory, std::align_val_t) noexcept
 {
-    Platform::Memory::freeAligned(memory);
+    Rtx::Testing::TestPlatform::freeAligned(memory);
 }
 
 void operator delete[](void* memory, std::align_val_t) noexcept
 {
-    Platform::Memory::freeAligned(memory);
+    Rtx::Testing::TestPlatform::freeAligned(memory);
 }
 
 void operator delete(void* memory, std::size_t, std::align_val_t) noexcept
 {
-    Platform::Memory::freeAligned(memory);
+    Rtx::Testing::TestPlatform::freeAligned(memory);
 }
 
 void operator delete[](void* memory, std::size_t, std::align_val_t) noexcept
 {
-    Platform::Memory::freeAligned(memory);
+    Rtx::Testing::TestPlatform::freeAligned(memory);
 }
 
 void operator delete(void* memory, const std::nothrow_t&) noexcept
@@ -134,10 +134,10 @@ void operator delete[](void* memory, const std::nothrow_t&) noexcept
 
 void operator delete(void* memory, std::align_val_t, const std::nothrow_t&) noexcept
 {
-    Platform::Memory::freeAligned(memory);
+    Rtx::Testing::TestPlatform::freeAligned(memory);
 }
 
 void operator delete[](void* memory, std::align_val_t, const std::nothrow_t&) noexcept
 {
-    Platform::Memory::freeAligned(memory);
+    Rtx::Testing::TestPlatform::freeAligned(memory);
 }

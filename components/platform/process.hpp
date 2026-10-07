@@ -188,8 +188,4 @@ namespace Platform::Process
             text.remove_prefix(comma + 1);
         }
     }
-
-    /// Leaves the system nothing to keep of this process when it aborts: for a process that dies on
-    /// purpose, as a death test's child does, whose core nobody wants.
-    void disableCoreDump();
 }

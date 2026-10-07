@@ -155,6 +155,7 @@ set(RTX_TEST_SUPPORT
     rtx/support/spritelightbake.cpp
     rtx/support/spritelightbake.hpp
     rtx/support/statistics.hpp
+    rtx/support/testplatform.hpp
     rtx/support/testcamera.hpp
     rtx/support/testtexture.hpp
     rtx/support/wavemoments.hpp
@@ -251,6 +252,7 @@ target_compile_definitions(components-tests PRIVATE OPENMW_RTX_SHADER_DIR="${RTX
 # The same `main.cpp`, which sets up the settings' defaults both binaries read.
 openmw_add_executable(rtx-gpu-tests main.cpp rtx/support/allocations.cpp
                       ${RTX_GPU_TEST_FILES} ${RTX_GPU_TEST_SUPPORT} ${RTX_TEST_SUPPORT})
+target_sources(rtx-gpu-tests PRIVATE rtx/support/testplatform$<IF:$<BOOL:${WIN32}>,win32,posix>.cpp)
 target_link_libraries(rtx-gpu-tests
     GTest::GTest
     GMock::GMock

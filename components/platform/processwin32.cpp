@@ -181,6 +181,4 @@ namespace Platform::Process
 
         return fastest.size();
     }
-
-    void disableCoreDump() {}
 }

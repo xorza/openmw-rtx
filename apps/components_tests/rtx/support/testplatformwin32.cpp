@@ -1,8 +1,10 @@
-#include "memory.hpp"
+#include "testplatform.hpp"
+
+#include <cstddef>
 
 #include <malloc.h>
 
-namespace Platform::Memory
+namespace Rtx::Testing::TestPlatform
 {
     void* allocateAligned(const std::size_t size, const std::size_t alignment) noexcept
     {
@@ -13,4 +15,8 @@ namespace Platform::Memory
     {
         _aligned_free(memory);
     }
+
+    // A crash on Windows leaves a dump only where something asks for one, and the test binaries ask
+    // for none.
+    void disableCoreDump() {}
 }

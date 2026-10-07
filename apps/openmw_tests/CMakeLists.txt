@@ -66,6 +66,8 @@ endif()
 source_group(apps\\openmw-tests FILES ${UNITTEST_SRC_FILES})
 
 openmw_add_executable(openmw-tests ${UNITTEST_SRC_FILES})
+target_sources(openmw-tests PRIVATE
+    ${OpenMW_SOURCE_DIR}/apps/components_tests/rtx/support/testplatform$<IF:$<BOOL:${WIN32}>,win32,posix>.cpp)
 
 target_link_libraries(openmw-tests
     GTest::GTest

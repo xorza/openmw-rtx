@@ -630,9 +630,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
   or prune by count.
 - **[bug] `shellWord` is not one word under `cmd`** (`processwin32.cpp`): `%NAME%` expands inside
   quotes. Target: escape or refuse, or spawn the encoder (`film.cpp`) with an argument vector.
-- **[code] Test-only code in the library**: `Platform::Memory::allocateAligned`/`freeAligned` and
-  `Process::disableCoreDump` serve only the tests, and `allocateAligned`'s rounding wraps near
-  `SIZE_MAX`. Target: move them to the test support, or check the size.
 - **[code] The macOS leg takes Homebrew's shaderc and SPIR-V tools of the day**
   (`CI/before_install.macos.sh`), not the pinned SDK's, and spells the headers' path twice. Target:
   the pinned tools, and one variable.

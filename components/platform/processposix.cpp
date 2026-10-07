@@ -14,18 +14,16 @@
 #include <vector>
 
 #include <signal.h>
-#include <sys/resource.h>
 #include <unistd.h>
 
-// The system calls that are each system's own: a thread's id, the running file, and Linux's ways to
-// leave no core and to keep the threads to the performance cores.
+// The system calls that are each system's own: a thread's id, the running file, and Linux's way to
+// keep the threads to the performance cores.
 #if defined(__linux__)
 #include <fstream>
 #include <iterator>
 #include <set>
 
 #include <sched.h>
-#include <sys/prctl.h>
 #include <sys/syscall.h>
 #elif defined(__APPLE__)
 #include <mach-o/dyld.h>
@@ -224,20 +222,5 @@ namespace Platform::Process
         if (WIFSIGNALED(status))
             return CommandEnd{ .mSignal = WTERMSIG(status) };
         return CommandEnd{ .mExitCode = static_cast<std::uint32_t>(WEXITSTATUS(status)) };
-    }
-
-    void disableCoreDump()
-    {
-        // **Non-dumpable on Linux, where a zero core limit is not enough.** With `core_pattern` a
-        // pipe to `systemd-coredump`, the kernel starts the collector for every abort whatever the
-        // limit says, and the collector's start was what a death test cost: five took 964 ms, 252 ms
-        // under a zero limit and 9 ms non-dumpable, which starts nothing and puts nothing in the
-        // journal.
-#if defined(__linux__)
-        prctl(PR_SET_DUMPABLE, 0);
-#else
-        const rlimit none{ .rlim_cur = 0, .rlim_max = 0 };
-        setrlimit(RLIMIT_CORE, &none);
-#endif
     }
 }
