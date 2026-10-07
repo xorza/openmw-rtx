@@ -625,10 +625,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
   gone.** Packaging and the dialog run after exit, when the mount may be gone. Target: verify by
   crashing the AppImage with `OPENMW_CRASH_DIALOG=1`; if confirmed, keep the mount for the
   monitor's lifetime.
-- **[design] Session packages accumulate without bound** (`crashpackage.cpp`): every session with
-  a dump writes a zip nothing deletes. Target: write only for a session the player is told about,
-  or prune by count.
-
 ### 6.4 Measurements that can mislead
 
 - **[design] `omw release gate` ends `clean` with no test run** (`gate.py`: "has none" and on).
