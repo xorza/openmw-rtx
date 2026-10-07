@@ -41,13 +41,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   writer of another party's field. Target shape: the seam takes a host-side description (eyes, world
   reading, options), and only the backend fills the device block. (medium)
 
-## Sibling APIs disagree
-
-- [ ] `components/rtxvulkan/shaders/trace/denoise/accumulate.comp:103-107` — the push block is written
-  field by field (`HistoryConstants frame; uint dualMotion;`), but the host pushes
-  `Shaders::AccumulateConstants` (`shared/accumulate.h:176-180`). All other passes declare their header's
-  struct. Target shape: `AccumulateConstants constants;`. (low)
-
 ## Owners that are not pinned or encapsulated as the conventions say
 
 - [ ] `apps/openmw/mwrender/framedescriber.hpp:66,126` — `FrameDescriber::mFrame` (filled at
