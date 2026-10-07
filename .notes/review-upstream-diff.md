@@ -33,9 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Facts of one layer are in another layer
 
-- [ ] `components/platform/process.hpp:122-192` — `hugePageShare(rollup)` and `parseCpuList` parse
-  Linux-only text and are not platform differences, but they are in the cross-platform process header.
-  Target shape: move them beside their Linux caller, or into the harness's instruments. (low)
 - [ ] `apps/openmw/mwrender/framedescriber.cpp:119-123` — four `RenderingManager` members (`describeEye`,
   `describeFrame`, `renderFrame`, `notifyJumped`) are defined in `framedescriber.cpp`, so that
   `renderingmanager.cpp` stays like upstream's. The comment says "three". Target shape: define them in

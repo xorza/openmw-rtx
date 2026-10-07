@@ -16,6 +16,8 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include "linuxtext.hpp"
+
 // The system calls that are each system's own: a thread's id, the running file, and Linux's way to
 // keep the threads to the performance cores.
 #if defined(__linux__)
@@ -144,7 +146,7 @@ namespace Platform::Process
 #if defined(__linux__)
         std::ifstream file("/proc/self/smaps_rollup");
         const std::string rollup{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
-        return hugePageShare(rollup);
+        return LinuxText::hugePageShare(rollup);
 #else
         return std::nullopt;
 #endif
@@ -157,7 +159,7 @@ namespace Platform::Process
         // a choice to make.
         std::ifstream file("/sys/devices/cpu_core/cpus");
         const std::string text{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };
-        const std::optional<std::vector<std::uint32_t>> cpus = parseCpuList(text);
+        const std::optional<std::vector<std::uint32_t>> cpus = LinuxText::parseCpuList(text);
         if (!cpus.has_value())
             return 0;
 

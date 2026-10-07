@@ -567,6 +567,7 @@ add_component_dir(platform
     platform
     appendfile
     file
+    linuxtext
     process
     sharedmemory
     fifo
