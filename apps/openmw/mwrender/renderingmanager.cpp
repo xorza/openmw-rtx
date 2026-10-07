@@ -850,7 +850,7 @@ namespace MWRender
         mRenderer.notifyCut();
     }
 
-    void RenderingManager::notifyTeleport()
+    void RenderingManager::notifyCut()
     {
         mRenderer.notifyCut();
     }

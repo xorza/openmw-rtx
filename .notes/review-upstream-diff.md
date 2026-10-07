@@ -43,10 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Sibling APIs disagree
 
-- [ ] `apps/openmw/mwworld/worldimp.cpp:554` — a clock jump (`noteHourWritten`) calls
-  `RenderingManager::notifyTeleport`, whose doc (`renderingmanager.hpp:211-217`) speaks only of
-  `ActionTeleport`. The seam calls this `notifyCut`. Target shape: rename it `RenderingManager::notifyCut`
-  and document both callers. (low)
 - [ ] `components/rtx/environment/moonbuilder.hpp:159-160` — `addMoonFaces` takes `(…, holds, thread)`,
   but `addCloudSheet`, `addSkyContent` and `readNightSky` take `(…, thread, holds)`
   (`skybuilder.hpp:102-113`, `nightsky.hpp:334-336`). (low)
