@@ -33,13 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Facts of one layer are in another layer
 
-- [ ] `components/rtx/scene/lightbuilder.hpp:14`, `lightbuilder.cpp:19-20` — only `mirror/` calls
-  `lightbuilder` (`makeLight`, the `SceneUtil::LightSource`/`LightCommon` readers, `Glow`), but it makes
-  `scene/` include `SceneUtil::LightManager`/`LightController`. Target shape: `scene/` keeps the `Light`
-  row only. The readers and `Glow` move into `mirror/`. (medium)
-- [ ] `components/rtx/scene/scenedesc.hpp:21` — includes `lightbuilder.hpp` but uses only `light.hpp`, so
-  each file that includes the scene compiles against `SceneUtil::LightController`. Target shape: remove
-  the include. (low)
 - [ ] `components/rtx/scene/surface.hpp:49,127,153,222,270,375`, `surface.cpp:21` — the state-set reading
   vocabulary (`UnreadState`/`whyUnread`, `TextureRole`/`sTextureRoleNames` with OpenGL uniform names,
   `TextureUse`, `SurfaceDescription`, `setTexture(osg::Texture*)`) is used only by `mirror/`. `scene/` needs

@@ -27,9 +27,9 @@
 #include <apps/components_tests/rtx/support/graphlight.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/scene/light.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>

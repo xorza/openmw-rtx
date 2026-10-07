@@ -18,8 +18,8 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/camera.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/specularlayout.hpp>

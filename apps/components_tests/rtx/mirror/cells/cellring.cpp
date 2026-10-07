@@ -62,12 +62,12 @@
 #include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/rtx/mirror/cells/readermemory.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/light.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/placementtable.hpp>

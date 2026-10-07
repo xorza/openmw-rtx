@@ -53,6 +53,7 @@ set(RTX_TEST_FILES
     rtx/mirror/extractor/skinning.cpp
     rtx/mirror/extractor/stats.cpp
     rtx/mirror/extractor/walk.cpp
+    rtx/mirror/lightbuilder.cpp
     rtx/mirror/meshreader.cpp
     rtx/mirror/mirroridentity.cpp
     rtx/mirror/nodekind.cpp
@@ -70,7 +71,6 @@ set(RTX_TEST_FILES
     rtx/renderer/shaderdirectory.cpp
     rtx/scene/compositequeue.cpp
     rtx/scene/instancerecord.cpp
-    rtx/scene/lightbuilder.cpp
     rtx/scene/lightgrid.cpp
     rtx/scene/refusals.cpp
     rtx/scene/scenedesc.cpp

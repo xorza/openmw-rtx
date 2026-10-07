@@ -25,7 +25,6 @@
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/scene/light.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>

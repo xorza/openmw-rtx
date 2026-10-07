@@ -22,8 +22,8 @@
 #include <apps/components_tests/rtx/support/statistics.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/misc/result.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/scene/light.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>

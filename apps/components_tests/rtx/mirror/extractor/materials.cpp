@@ -44,11 +44,11 @@
 #include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/rtx/mirror/cells/templatewalk.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/mirror/lightbuilder.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/mirror/statereading.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/light.hpp>
-#include <components/rtx/scene/lightbuilder.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>

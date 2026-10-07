@@ -11,10 +11,9 @@
 #include <osg/Vec3f>
 
 #include <components/misc/result.hpp>
+#include <components/rtx/scene/light.hpp>
+#include <components/rtx/scene/sprite.hpp>
 #include <components/sceneutil/lightcontroller.hpp>
-
-#include "light.hpp"
-#include "sprite.hpp"
 
 namespace SceneUtil
 {
