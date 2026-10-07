@@ -137,7 +137,8 @@ namespace Rtx::Testing
             constexpr float away = 200.0f;
             SceneDesc scene;
             addPane(scene, uprightQuadAt(4000.0f, away), osg::Vec4f(0.5f, 0.5f, 0.5f, 0.5f));
-            const Index blocker = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mTwoSided = true });
+            const Index blocker
+                = scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f), .mTwoSided = true });
             addQuad(scene, uprightQuadAt(1000.0f, -50.0f, osg::Vec2f(-1000.0f + 0.3f, 0.0f)), blocker);
             scene.addLight(Light{
                 .mPosition = osg::Vec3f(0.0f, -100.0f, 0.0f),
