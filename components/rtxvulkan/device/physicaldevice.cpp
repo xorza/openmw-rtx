@@ -108,6 +108,20 @@ namespace Rtx
             return missing;
         }
 
+        /// Appends what each required texture image the device does not take was for.
+        std::string listMissingImages(std::span<const std::optional<VkImageFormatProperties>> taken)
+        {
+            const std::span<const RequiredImage> required = getRequiredTextureImages();
+            assert(taken.size() == required.size() && "the image answers are read in the table's order");
+
+            std::string missing;
+            for (std::size_t at = 0; at < required.size(); ++at)
+                if (!taken[at].has_value())
+                    appendListed(missing, required[at].mFor);
+
+            return missing;
+        }
+
         /// The largest heap holding a memory type a `Buffer::hostWritten` could come out of — the
         /// largest and not the sum, because a buffer goes in one heap.
         VkDeviceSize hostWrittenBytes(const VkPhysicalDeviceMemoryProperties& memory)
@@ -160,8 +174,25 @@ namespace Rtx
             for (const RequiredFormat& required : getRequiredFormats())
                 vkGetPhysicalDeviceFormatProperties(handle, required.mFormat, &formats.emplace_back());
 
+            // A combination the device does not take is an answer, and every other failure is the
+            // driver's.
+            std::vector<std::optional<VkImageFormatProperties>> images;
+            for (const RequiredImage& required : getRequiredTextureImages())
+            {
+                VkImageFormatProperties properties{};
+                const VkResult asked = vkGetPhysicalDeviceImageFormatProperties(handle, required.mFormat,
+                    VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, required.mUsage, required.mFlags, &properties);
+                if (asked == VK_ERROR_FORMAT_NOT_SUPPORTED)
+                    images.emplace_back();
+                else
+                {
+                    checkVk(asked, "vkGetPhysicalDeviceImageFormatProperties");
+                    images.emplace_back(properties);
+                }
+            }
+
             found.mProfile = PhysicalDevice::profileOf(
-                *found.mProperties, supported, getDeviceExtensions(handle), queues, formats);
+                *found.mProperties, supported, getDeviceExtensions(handle), queues, formats, images);
 
             return found;
         }
@@ -169,10 +200,16 @@ namespace Rtx
 
     PhysicalDevice::Profile PhysicalDevice::profileOf(const DeviceProperties& properties, DeviceFeatures& supported,
         std::span<const std::string> extensions, std::span<const VkQueueFamilyProperties> queues,
-        std::span<const VkFormatProperties> formats)
+        std::span<const VkFormatProperties> formats, std::span<const std::optional<VkImageFormatProperties>> images)
     {
         Profile profile;
         profile.mHostWrittenBytes = hostWrittenBytes(properties.mMemory);
+
+        profile.mTextureSide = properties.mProperties2.properties.limits.maxImageDimension2D;
+        for (const std::optional<VkImageFormatProperties>& taken : images)
+            if (taken.has_value())
+                profile.mTextureSide
+                    = std::min({ profile.mTextureSide, taken->maxExtent.width, taken->maxExtent.height });
 
         const std::optional<std::uint32_t> family = findQueueFamily(queues);
         if (family.has_value())
@@ -210,6 +247,12 @@ namespace Rtx
         if (const std::string missing = listMissingFormats(formats); !missing.empty())
         {
             profile.mObstacle = "missing format features for " + missing;
+            return profile;
+        }
+
+        if (const std::string missing = listMissingImages(images); !missing.empty())
+        {
+            profile.mObstacle = "no texture images for " + missing;
             return profile;
         }
 

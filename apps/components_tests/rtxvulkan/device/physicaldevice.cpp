@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -95,11 +96,20 @@ namespace Rtx
                 for (const RequiredFormat& required : getRequiredFormats())
                     mFormats.push_back(VkFormatProperties{
                         .linearTilingFeatures = 0, .optimalTilingFeatures = required.mFeatures, .bufferFeatures = 0 });
+
+                // And every image a texture is made as, at the side every card of the targets takes.
+                mProperties.mProperties2.properties.limits.maxImageDimension2D = 32768;
+                for (std::size_t at = 0; at < getRequiredTextureImages().size(); ++at)
+                    mImages.push_back(VkImageFormatProperties{ .maxExtent = { 32768, 32768, 1 },
+                        .maxMipLevels = 16,
+                        .maxArrayLayers = 2048,
+                        .sampleCounts = VK_SAMPLE_COUNT_1_BIT,
+                        .maxResourceSize = VkDeviceSize{ 1 } << 40 });
             }
 
             PhysicalDevice::Profile profile()
             {
-                return PhysicalDevice::profileOf(mProperties, mFeatures, mExtensions, mQueues, mFormats);
+                return PhysicalDevice::profileOf(mProperties, mFeatures, mExtensions, mQueues, mFormats, mImages);
             }
 
             DeviceProperties mProperties;
@@ -107,6 +117,7 @@ namespace Rtx
             std::vector<std::string> mExtensions;
             std::vector<VkQueueFamilyProperties> mQueues;
             std::vector<VkFormatProperties> mFormats;
+            std::vector<std::optional<VkImageFormatProperties>> mImages;
         };
 
         /// Two cards this fork targets, and the profile differs in exactly what their hardware does.
@@ -135,6 +146,23 @@ namespace Rtx
             EXPECT_EQ(onTuring.mQueueFamily, 0u);
             EXPECT_EQ(onAda.mQueueFamily, 0u);
             EXPECT_EQ(onTuring.mTimestampBits, 64u);
+            EXPECT_EQ(onTuring.mTextureSide, 32768u);
+        }
+
+        /// **A texture's side is the least any image it is made as takes, and the device's own limit
+        /// above that**; and a device that takes no image of one of them is refused, named for what
+        /// the image was for, at selection rather than by the first texture to arrive.
+        TEST(RtxPhysicalDeviceTest, aTexturesSideIsTheLeastItsImagesTakeAndAnImageNoneTakesIsAnObstacle)
+        {
+            Card card(&describeTuring);
+            ASSERT_GE(card.mImages.size(), 2u);
+            card.mImages.back()->maxExtent.height = 16384;
+            EXPECT_EQ(card.profile().mTextureSide, 16384u) << "the least of the images";
+            card.mProperties.mProperties2.properties.limits.maxImageDimension2D = 8192;
+            EXPECT_EQ(card.profile().mTextureSide, 8192u) << "the device's own limit";
+
+            card.mImages.front().reset();
+            EXPECT_EQ(card.profile().mObstacle, "no texture images for " + getRequiredTextureImages().front().mFor);
         }
 
         /// An optional extension is taken where the device lists it and left where it does not.

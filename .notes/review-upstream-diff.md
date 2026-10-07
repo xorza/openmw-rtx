@@ -33,12 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## Device capabilities are asked outside `PhysicalDevice::profileOf`
 
-- [ ] `components/rtxvulkan/texture/texture.cpp:187,463` (`sideLimitOf`) — each `TextureArray` asks
-  `vkGetPhysicalDeviceImageFormatProperties` about BC1–5, their sRGB twins, and the written format with
-  `MUTABLE|EXTENDED_USAGE` storage, through `checkVk`. These formats are not in `getRequiredFormats`. A
-  card without one is not refused by name at selection, and throws a bare `DeviceError` during start-up.
-  The answer is also calculated again for each scene. Target shape: add the formats and usages to the
-  required-format table, and calculate the side limit once into `PhysicalDevice::Profile`. (medium)
 - [ ] `components/rtxvulkan/device/physicaldevice.cpp:126`, `device/device.cpp:114`,
   `vulkanrenderer.cpp:75,94`, `present/swapchain.cpp:98` — device selection does not consider the window.
   The queue family is the first with the wanted flags, without a present-support check. `VK_KHR_swapchain`

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 
 #include <vulkan/vulkan_core.h>
@@ -76,6 +77,50 @@ namespace Rtx
 
         Crash::fatal("a storage format with no Vulkan format");
     }
+
+    /// A format with a transfer curve and its twin without one: the same bytes in the same
+    /// compatibility class, read through the curve or as the bytes they are.
+    struct CurveTwins
+    {
+        VkFormat mEncoded;
+        VkFormat mLinear;
+    };
+
+    /// Every format a texture is uploaded or written in that has a curve, beside its twin — one
+    /// table, so the two directions below cannot disagree.
+    constexpr std::array sCurveTwins{
+        CurveTwins{ VK_FORMAT_BC1_RGBA_SRGB_BLOCK, VK_FORMAT_BC1_RGBA_UNORM_BLOCK },
+        CurveTwins{ VK_FORMAT_BC2_SRGB_BLOCK, VK_FORMAT_BC2_UNORM_BLOCK },
+        CurveTwins{ VK_FORMAT_BC3_SRGB_BLOCK, VK_FORMAT_BC3_UNORM_BLOCK },
+        CurveTwins{ VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_R8G8B8A8_UNORM },
+        CurveTwins{ VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_B8G8R8A8_UNORM },
+    };
+
+    /// `format` with its transfer curve taken off: the same bytes, read as the bytes they are.
+    /// A format with no curve is its own.
+    constexpr VkFormat withoutCurve(const VkFormat format)
+    {
+        for (const CurveTwins& twins : sCurveTwins)
+            if (twins.mEncoded == format)
+                return twins.mLinear;
+        return format;
+    }
+
+    /// `format` read through a transfer curve, which is how the trace samples a written texture
+    /// whose file was display-encoded.
+    constexpr VkFormat withCurve(const VkFormat format)
+    {
+        for (const CurveTwins& twins : sCurveTwins)
+            if (twins.mLinear == format)
+                return twins.mEncoded;
+        Crash::fatal("a format with no twin under a curve");
+    }
+
+    /// What a texture is created with: one made from a file, uploaded and sampled; and one the device
+    /// writes, a chain, a bake or a composite, stored by a dispatch and sampled.
+    inline constexpr VkImageUsageFlags sUploadedTextureUsage
+        = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    inline constexpr VkImageUsageFlags sWrittenTextureUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
     /// How many bytes a texel of `format` takes, which is what an image made from it is priced at.
     constexpr std::uint32_t texelBytes(const Shaders::StorageFormat format)
