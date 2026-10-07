@@ -132,11 +132,17 @@ namespace Rtx
         /// Settles what a drop took out of the arrivals, so they can be read.
         void compact() { mChanges.compact(); }
 
-        void clearArrivals() { mChanges.clearArrivals(); }
+        void clearArrivals()
+        {
+            mChanges.clearArrivals();
+            mRefusedArrivals = 0;
+        }
 
-        /// How many new textures were refused because `sCapacity` slots stood, ever. Drawn neutral,
-        /// and reported by `SceneTextures`.
+        /// How many new textures were refused because `sCapacity` slots stood, ever, and since the
+        /// last `clearArrivals`: drawn neutral, and reported by `SceneTextures` on the hand-over
+        /// that met the limit.
         std::uint32_t getRefused() const { return mRefused; }
+        std::uint32_t getRefusedArrivals() const { return mRefusedArrivals; }
 
         /// The formats of the images the standing slots keep, one count a slot.
         const FormatCensus& getFormats() const { return mFormats; }
@@ -189,6 +195,7 @@ namespace Rtx
 
         std::uint64_t mRevision = 0;
         std::uint32_t mRefused = 0;
+        std::uint32_t mRefusedArrivals = 0;
         FormatCensus mFormats;
     };
 
