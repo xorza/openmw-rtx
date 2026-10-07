@@ -111,6 +111,12 @@ namespace MWRender
         /// Takes the cell's grid down and keeps it for the next cell to arrive.
         void unloadCell(int x, int y) override;
 
+        /// Shows or hides the two answers and the borders, as `Terrain::QuadTreeWorld` hangs or
+        /// takes down its root: `RenderingManager::enableTerrain` turns the last worldspace's ground
+        /// off when another's comes on, and the distance and the ring this one answers for are the
+        /// last worldspace's.
+        void enable(bool enabled) override;
+
         /// What `segment`, `visitor`'s in this node's frame, meets of the distance's ground, inserted
         /// into its intersections as a loaded grid's would be. Called by the node this hangs under the
         /// terrain root, which the visitor enters whatever the segment.
@@ -192,5 +198,8 @@ namespace MWRender
 
         /// The group the cell borders stand under, of the terrain's mask.
         osg::ref_ptr<osg::Group> mBorders;
+
+        /// The terrain's mask, which `enable` gives the borders back.
+        const unsigned int mNodeMask;
     };
 }

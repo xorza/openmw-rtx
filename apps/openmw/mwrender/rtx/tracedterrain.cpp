@@ -178,6 +178,7 @@ namespace MWRender
         , mColours(new osg::Vec4ubArray)
         , mDistance(distance)
         , mBorders(new osg::Group)
+        , mNodeMask(nodeMask)
     {
         mBorders->setNodeMask(nodeMask);
         worldRoot.addChild(mBorders);
@@ -195,6 +196,13 @@ namespace MWRender
         for (const osg::ref_ptr<osg::Node>& hung : { osg::ref_ptr<osg::Node>(mBorders), mStaticsAnswer })
             while (hung->getNumParents() > 0)
                 hung->getParent(0)->removeChild(hung);
+    }
+
+    void TracedTerrain::enable(const bool enabled)
+    {
+        mAnswer->setNodeMask(enabled ? ~0u : 0u);
+        mStaticsAnswer->setNodeMask(enabled ? static_cast<unsigned int>(Mask_Static) : 0u);
+        mBorders->setNodeMask(enabled ? mNodeMask : 0u);
     }
 
     Terrain::View* TracedTerrain::createView()
