@@ -17,7 +17,6 @@ namespace Rtx
 {
     class Device;
     class Image;
-    class Instance;
 
     /// The surface, the swapchain, and everything that keeps a frame from overtaking the one in
     /// front of it: a semaphore per swapchain image and not per frame in flight, the timeline
@@ -33,7 +32,7 @@ namespace Rtx
         /// submit of the device's pool like any other, so it signals the timeline and carries what
         /// was deferred ahead of it — a submit of its own that took a timeline value would let the
         /// graveyard free what a deferred batch names before it ran.
-        Presenter(const Device& device, const Instance& instance, SDL_Window* window, SDLUtil::VSyncMode verticalSync);
+        Presenter(const Device& device, const Surface& surface, SDL_Window* window, SDLUtil::VSyncMode verticalSync);
         ~Presenter();
 
         /// Blits `frame`, in `VK_IMAGE_LAYOUT_GENERAL` and left there, onto the next swapchain
@@ -85,8 +84,8 @@ namespace Rtx
         /// that, every frame the two differed waited the device idle and made the swapchain again.
         VkExtent2D mAsked;
 
-        /// Before the swapchain, which is made on it and goes first.
-        Surface mSurface;
+        /// What the swapchain is made on: the renderer's, which outlives this.
+        const Surface& mSurface;
         Swapchain mSwapchain;
 
         /// What an acquire signals and the blit behind it waits.

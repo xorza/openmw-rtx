@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <span>
@@ -63,22 +64,27 @@ namespace Rtx
         /// @param formats what the device offers for each of `getRequiredFormats`, in that order.
         /// @param images what the device takes of each of `getRequiredTextureImages`, in that order:
         ///        nothing for an image it does not take at all.
+        /// @param presents for each of `queues`, whether it presents to the window; empty for a
+        ///        renderer with no window, which needs neither a queue that presents nor a swapchain.
         static Profile profileOf(const DeviceProperties& properties, DeviceFeatures& supported,
             std::span<const std::string> extensions, std::span<const VkQueueFamilyProperties> queues,
-            std::span<const VkFormatProperties> formats,
-            std::span<const std::optional<VkImageFormatProperties>> images);
+            std::span<const VkFormatProperties> formats, std::span<const std::optional<VkImageFormatProperties>> images,
+            std::span<const VkBool32> presents);
+
+        /// Whether a queue family of a device presents to the window; empty for no window.
+        using PresentQuery = std::function<bool(VkPhysicalDevice device, std::uint32_t family)>;
 
         /// Picks a device, preferring discrete over anything else. Throws `Unsupported` listing
         /// every candidate and what each was missing when none qualifies — the one moment where a
         /// wall of text is the useful answer.
-        static PhysicalDevice select(VkInstance instance);
+        static PhysicalDevice select(VkInstance instance, const PresentQuery& presents);
 
         VkPhysicalDevice getHandle() const { return mHandle; }
 
         const DeviceProperties& getProperties() const { return *mProperties; }
 
-        /// Queue family with graphics and compute, which on the target hardware is also the one
-        /// that can present.
+        /// The queue family with graphics and compute, and that presents to the window where there
+        /// is one.
         std::uint32_t getQueueFamily() const { return mProfile.mQueueFamily; }
 
         /// How many bits of the device's clock the chosen queue writes into a timestamp, or nought

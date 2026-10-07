@@ -134,12 +134,16 @@ namespace Rtx
             return most;
         }
 
-        /// The queue family that can do everything this renderer submits, where there is one.
-        std::optional<std::uint32_t> findQueueFamily(std::span<const VkQueueFamilyProperties> queues)
+        /// The queue family that can do everything this renderer submits, and presents to the window
+        /// where there is one, where there is such a family. Graphics and compute and no more: a
+        /// family that does either does transfers whether or not it says so, which Vulkan leaves it
+        /// free not to.
+        std::optional<std::uint32_t> findQueueFamily(
+            std::span<const VkQueueFamilyProperties> queues, std::span<const VkBool32> presents)
         {
-            constexpr VkQueueFlags wanted = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT;
+            constexpr VkQueueFlags wanted = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
             for (std::uint32_t at = 0; at < queues.size(); ++at)
-                if ((queues[at].queueFlags & wanted) == wanted)
+                if ((queues[at].queueFlags & wanted) == wanted && (presents.empty() || presents[at] == VK_TRUE))
                     return at;
 
             return std::nullopt;
@@ -152,7 +156,7 @@ namespace Rtx
             PhysicalDevice::Profile mProfile;
         };
 
-        Candidate examine(VkPhysicalDevice handle)
+        Candidate examine(VkPhysicalDevice handle, const PhysicalDevice::PresentQuery& presentsTo)
         {
             Candidate found;
             found.mProperties = std::make_unique<DeviceProperties>();
@@ -191,8 +195,13 @@ namespace Rtx
                 }
             }
 
+            std::vector<VkBool32> presents;
+            if (presentsTo)
+                for (std::uint32_t family = 0; family < queues.size(); ++family)
+                    presents.push_back(presentsTo(handle, family) ? VK_TRUE : VK_FALSE);
+
             found.mProfile = PhysicalDevice::profileOf(
-                *found.mProperties, supported, getDeviceExtensions(handle), queues, formats, images);
+                *found.mProperties, supported, getDeviceExtensions(handle), queues, formats, images, presents);
 
             return found;
         }
@@ -200,7 +209,8 @@ namespace Rtx
 
     PhysicalDevice::Profile PhysicalDevice::profileOf(const DeviceProperties& properties, DeviceFeatures& supported,
         std::span<const std::string> extensions, std::span<const VkQueueFamilyProperties> queues,
-        std::span<const VkFormatProperties> formats, std::span<const std::optional<VkImageFormatProperties>> images)
+        std::span<const VkFormatProperties> formats, std::span<const std::optional<VkImageFormatProperties>> images,
+        std::span<const VkBool32> presents)
     {
         Profile profile;
         profile.mHostWrittenBytes = hostWrittenBytes(properties.mMemory);
@@ -211,7 +221,8 @@ namespace Rtx
                 profile.mTextureSide
                     = std::min({ profile.mTextureSide, taken->maxExtent.width, taken->maxExtent.height });
 
-        const std::optional<std::uint32_t> family = findQueueFamily(queues);
+        assert((presents.empty() || presents.size() == queues.size()) && "an answer for every family or for none");
+        const std::optional<std::uint32_t> family = findQueueFamily(queues, presents);
         if (family.has_value())
         {
             profile.mQueueFamily = *family;
@@ -235,6 +246,14 @@ namespace Rtx
         if (const std::string missing = listMissingExtensions(extensions, properties.mVulkan12); !missing.empty())
         {
             profile.mObstacle = "missing extensions: " + missing;
+            return profile;
+        }
+
+        // A window is shown through a swapchain, which a device that cannot make one would refuse at
+        // its creation, after every other answer here said yes.
+        if (!presents.empty() && !has(extensions, VK_KHR_SWAPCHAIN_EXTENSION_NAME))
+        {
+            profile.mObstacle = std::string("missing extensions: ") + VK_KHR_SWAPCHAIN_EXTENSION_NAME;
             return profile;
         }
 
@@ -287,7 +306,9 @@ namespace Rtx
 
         if (!family.has_value())
         {
-            profile.mObstacle = "no queue family with graphics, compute and transfer";
+            profile.mObstacle = presents.empty()
+                ? "no queue family with graphics and compute"
+                : "no queue family with graphics and compute that presents to the window";
             return profile;
         }
 
@@ -310,7 +331,7 @@ namespace Rtx
             [name](const char* const listed) { return std::strcmp(listed, name) == 0; });
     }
 
-    PhysicalDevice PhysicalDevice::select(VkInstance instance)
+    PhysicalDevice PhysicalDevice::select(VkInstance instance, const PresentQuery& presents)
     {
         const std::vector<VkPhysicalDevice> handles = enumerateVk<VkPhysicalDevice>(
             "vkEnumeratePhysicalDevices", [&](std::uint32_t* count, VkPhysicalDevice* into) {
@@ -325,7 +346,7 @@ namespace Rtx
 
         for (const VkPhysicalDevice handle : handles)
         {
-            Candidate found = examine(handle);
+            Candidate found = examine(handle, presents);
             if (!found.mProfile.mObstacle.empty())
             {
                 rejections += "\n  ";

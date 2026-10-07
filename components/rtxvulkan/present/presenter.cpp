@@ -32,10 +32,10 @@ namespace Rtx
     }
 
     Presenter::Presenter(
-        const Device& device, const Instance& instance, SDL_Window* window, const SDLUtil::VSyncMode verticalSync)
+        const Device& device, const Surface& surface, SDL_Window* window, const SDLUtil::VSyncMode verticalSync)
         : mDevice(device)
         , mAsked(drawableSize(window))
-        , mSurface(instance, window)
+        , mSurface(surface)
         , mSwapchain(device, mSurface, mAsked, verticalSync)
     {
         try

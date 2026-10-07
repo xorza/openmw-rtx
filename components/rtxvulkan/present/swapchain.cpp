@@ -6,6 +6,7 @@
 #include <string_view>
 #include <vector>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/rtx/common/error.hpp>
@@ -95,8 +96,8 @@ namespace Rtx
         , mVerticalSync(verticalSync)
     {
         const VkPhysicalDevice physical = device.getPhysicalDevice().getHandle();
-        if (!surface.supports(physical, device.getQueueFamily()))
-            throw Unsupported("the queue this renderer submits on cannot present to this surface");
+        Crash::contract(surface.supports(physical, device.getQueueFamily()),
+            "a device chosen for a queue that does not present to its window (`PhysicalDevice::select`)");
 
         mFormat = chooseFormat(surface, physical);
         mPresentMode = presentModeFor(surface, physical, mVerticalSync);
