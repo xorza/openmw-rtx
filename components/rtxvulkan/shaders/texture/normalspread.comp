@@ -22,7 +22,7 @@
 // children where both axes above are odd, so the spread is of the texels the level's normal holds.
 
 #include "brdf.h"
-#include "halving.h"
+#include "shared/halving.h"
 #include "shared/normalspread.h"
 #include "shared/sets.h"
 

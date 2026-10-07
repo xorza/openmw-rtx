@@ -353,6 +353,7 @@ set(RTX_VULKAN_FILES
     shaders/shared/ground.h
     shaders/shared/gui.h
     shaders/shared/halfstore.h
+    shaders/shared/halving.h
     shaders/shared/line.h
     shaders/shared/mipchain.h
     shaders/shared/normalspread.h
