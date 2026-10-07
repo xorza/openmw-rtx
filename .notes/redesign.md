@@ -632,8 +632,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
   the drawn source's `mThrough`), against `gbuffer.h`'s "`rgb` is exact per pixel". Target: filter
   `mThrough` with the bit (SIGMA's translucency), or drop "exact". Blocked: question 8 in
   `redesign_QUESTIONS.md`.
-- **[bug] The star field's seam**: `mTile = 1 / mUvRate` (`nightsky.cpp`), so `u` jumps at azimuth
-  ±π unless `2π / mTile` is whole. Target: round it, or confirm the unwrap.
 - **[decision] The glossy filter has no virtual-motion history** (`specular.comp`): a sharp lobe
   resets at each turn. ReLAX's needs the lobe's hit distance stored. Decide whether that is worth a
   channel.

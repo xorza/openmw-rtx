@@ -70,6 +70,20 @@ namespace Rtx
             return state;
         }
 
+        /// The holds a read took, given back however the test ends, since a hold left standing aborts
+        /// the binary.
+        struct Given
+        {
+            SceneDesc& mScene;
+            std::vector<TextureHold>& mHolds;
+
+            ~Given()
+            {
+                for (TextureHold& hold : mHolds)
+                    mScene.drop(std::move(hold));
+            }
+        };
+
         /// **A patch is read where the graph places it and wears the sheet its path binds**, as the
         /// cloud shell and the atmosphere read theirs. The dome hangs under a quarter turn about
         /// `x`, so a patch modelled toward `y` stands overhead. Its sheet is bound two nodes above
@@ -100,17 +114,7 @@ namespace Rtx
             ThreadContent thread;
             std::vector<TextureHold> holds;
 
-            // Given back however the test ends, since a hold left standing aborts the binary.
-            struct Given
-            {
-                SceneDesc& mScene;
-                std::vector<TextureHold>& mHolds;
-                ~Given()
-                {
-                    for (TextureHold& hold : mHolds)
-                        mScene.drop(std::move(hold));
-                }
-            } given{ scene, holds };
+            const Given given{ scene, holds };
 
             const NightSky sky = readNightSky(scene, *dome, thread, holds);
 
@@ -134,6 +138,50 @@ namespace Rtx
             EXPECT_EQ(scene.textures().getRows()[overridden.mTexture].mPath,
                 VFS::Path::NormalizedView("textures/warrior.dds"))
                 << "the parent's OVERRIDE gave way to the drawable's own";
+        }
+
+        /// **A field's tile is a whole number of them around the sky**, or its `u` jumps where the
+        /// azimuth wraps. A band unwrapped at 1.3 tiles a radian measures `2π · 1.3 = 8.168` tiles
+        /// around, which no seamless dome holds: the field is laid at eight, `π / 4` a tile. Sixteen
+        /// columns from a tenth of a radian up to 1.4, so the sheet spans 10.6 tiles across and 1.69
+        /// up, both over the span that makes it a field.
+        TEST(RtxNightSkyTest, aFieldsTileIsAWholeNumberOfThemAroundTheSky)
+        {
+            constexpr float rate = 1.3f;
+            constexpr int columns = 16;
+            osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
+            osg::ref_ptr<osg::Vec2Array> coords = new osg::Vec2Array;
+            for (int column = 0; column <= columns; ++column)
+                for (const float elevation : { 0.1f, 1.4f })
+                {
+                    const float azimuth = 2.0f * osg::PIf * static_cast<float>(column) / columns;
+                    vertices->push_back(osg::Vec3f(std::cos(elevation) * std::cos(azimuth),
+                                            std::cos(elevation) * std::sin(azimuth), std::sin(elevation))
+                        * 1000.0f);
+                    coords->push_back(osg::Vec2f(azimuth, osg::PI_2f - elevation) * rate);
+                }
+
+            osg::ref_ptr<osg::Geometry> band = new osg::Geometry;
+            band->setVertexArray(vertices);
+            band->setTexCoordArray(0, coords, osg::Array::BIND_PER_VERTEX);
+            osg::ref_ptr<osg::DrawElementsUShort> triangles = new osg::DrawElementsUShort(GL_TRIANGLES);
+            for (int column = 0; column < columns; ++column)
+                for (const int corner : { 0, 2, 3, 0, 3, 1 })
+                    triangles->push_back(static_cast<unsigned short>(2 * column + corner));
+            band->addPrimitiveSet(triangles);
+            band->setStateSet(binding("textures/stars.dds"));
+
+            osg::ref_ptr<osg::Group> dome = new osg::Group;
+            dome->addChild(band);
+
+            SceneDesc scene;
+            ThreadContent thread;
+            std::vector<TextureHold> holds;
+            const Given given{ scene, holds };
+
+            const NightSky sky = readNightSky(scene, *dome, thread, holds);
+            ASSERT_NE(sky.mField, sNoIndex) << "the band was not read as a field";
+            EXPECT_FLOAT_EQ(sky.mTile, osg::PIf / 4.0f);
         }
     }
 }

@@ -48,7 +48,8 @@ namespace Rtx
 
         /// How much sky one tile of that sheet covers, in radians — the unwrap is isotropic, which
         /// is what keeps a star round. The median of that rate over every edge, so a mesh that
-        /// disagrees with itself somewhere still lands where most of it says.
+        /// disagrees with itself somewhere still lands where most of it says, and a whole number of
+        /// tiles around the sky.
         float mTile = 0.0f;
 
         /// The elevation the field fades out below, in radians. `MWRender::ModVertexAlphaVisitor`

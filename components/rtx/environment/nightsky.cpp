@@ -248,6 +248,16 @@ namespace Rtx
         /// leaves a factor of two either side of this: its widest patch repeats half a tile across
         /// its short axis and its field two whole ones.
         constexpr float sTiledSpan = 1.5f;
+
+        /// The sky one tile covers, in radians, from the unwrap's measured rate in tiles a radian.
+        /// **A whole number of tiles around**, because a dome closes seamlessly only on one, and the
+        /// field's `u` runs from the azimuth, which wraps at a half turn: Morrowind's measures
+        /// 7.9999992 around, and a count off a whole one is a seam in the west.
+        float tileOf(float rate)
+        {
+            const float around = std::max(std::round(2.0f * osg::PIf * rate), 1.0f);
+            return 2.0f * osg::PIf / around;
+        }
     }
 
     NightSky readNightSky(
@@ -285,7 +295,7 @@ namespace Rtx
                 holds.push_back(std::move(held));
 
                 sky.mField = slot;
-                sky.mTile = layer.mUvRate > 0.0f ? 1.0f / layer.mUvRate : 0.0f;
+                sky.mTile = layer.mUvRate > 0.0f ? tileOf(layer.mUvRate) : 0.0f;
                 sky.mHorizon = layer.mKeptFrom;
 
                 // The field is laid over the whole dome, so its own mean is what it adds to the
