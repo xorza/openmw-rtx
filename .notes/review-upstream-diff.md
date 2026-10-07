@@ -5,12 +5,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The frame path allocates, copies, or rebuilds behind a threshold
 
-- [ ] `components/rtx/environment/frameworld.hpp:55` — `WorldReading::mSky` holds `SkyContent` by value.
-  `SkyReader::read` fills it with `.mSky = mSkyContent` (`apps/openmw/mwrender/rtx/skyreader.cpp:212`)
-  once a frame (`rtxrenderer.cpp:983`). Thus each frame copies `std::vector<CloudSheet>`, and each sheet
-  has a heap `std::string mName` (`skybuilder.hpp:49,75`). Target shape: the reading borrows the sky
-  content (`const SkyContent&`, or a separate `describeWorld` argument). Only the per-frame scalars stay
-  in the reading. (high)
 - [ ] `components/rtx/scene/lightgrid.cpp:83-86,102-106,151-165` — `rebuild` runs each frame
   (`rtxvulkan/scene/scenebuffers.cpp:341`). It matches lamps by index into a list sorted by position
   (`scenedesc.cpp:284`), so a lamp that appears or goes (a glow effect, a bolt) rebuilds the full grid.

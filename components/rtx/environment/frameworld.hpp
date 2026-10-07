@@ -52,9 +52,6 @@ namespace Rtx
         /// How far the star sphere has turned, `Sky::starRoll` of the game's clock.
         float mStarRoll = 0.0f;
 
-        /// Where the sky's own sheets sit in the scene's texture table.
-        SkyContent mSky;
-
         /// Masser and Secunda, placed and with their faces named. An input and not a derivation:
         /// the angles come from the weather system, and nothing here can work them out.
         std::array<MoonPlacement, 2> mMoons{};
@@ -155,6 +152,9 @@ namespace Rtx
     /// the fields are and a field added is placed by it. `drift` is stepped here by this reading's
     /// clock and wind, because the heading it blows along is the deck's, which is settled here and
     /// nowhere else.
-    void describeWorld(
-        const WorldReading& reading, FogDrift& drift, Shaders::VisibilityConstants& constants, FrameOptions& options);
+    ///
+    /// @param sky where the sky's own sheets sit in the scene's texture table: made at load
+    ///        (`addSkyContent`) and borrowed by every frame, never copied into one.
+    void describeWorld(const WorldReading& reading, const SkyContent& sky, FogDrift& drift,
+        Shaders::VisibilityConstants& constants, FrameOptions& options);
 }
