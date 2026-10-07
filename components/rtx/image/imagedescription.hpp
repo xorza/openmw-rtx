@@ -43,9 +43,9 @@ namespace Rtx
     std::size_t laidBytes(const osg::Image& image, TextureFormat format);
 
     /// Describes one image, read as `encoding`, for a backend's uploader: the first slice of each
-    /// level, spanned where
-    /// the image holds them back to back in a format uploaded as it is, and laid into `texels`
-    /// where it does not — widened from sixteen bits a texel, or gathered from a volume's levels.
+    /// level, spanned where the image holds them back to back in a format uploaded as it is, and
+    /// laid into `texels` where it does not — widened from sixteen bits a texel, or gathered from
+    /// a volume's levels.
     /// Levels are appended to `levels` and laid texels to `texels`, and the description spans what
     /// it added, so neither may grow again while it is alive. The levels are the file's own; a
     /// backend completes a chain the file did not carry, on the device. An error, adding nothing,
