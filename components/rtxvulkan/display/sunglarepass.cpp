@@ -2,6 +2,8 @@
 
 #include <array>
 
+#include <components/rtx/renderer/framezone.hpp>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/glare.h>
@@ -36,8 +38,11 @@ namespace Rtx
                 VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT });
     }
 
-    void SunGlarePass::record(const VkCommandBuffer commands, const float elapsedSeconds, const bool reset) const
+    void SunGlarePass::record(
+        const VkCommandBuffer commands, const float elapsedSeconds, const bool reset, GpuTimer* timer) const
     {
+        openZone(timer, commands, FrameZone::Glare);
+
         // The counts the launch added to. The share this easing moves was last read by the
         // previous frame's curve and written by its easing, both behind the head barrier
         // `CommandPool::begin` recorded.
@@ -58,5 +63,7 @@ namespace Rtx
 
         // The curve reads what the easing wrote.
         mShare.transition(commands, Use::sBufferComputeWrite, Use::sBufferComputeRead);
+
+        closeZone(timer, commands);
     }
 }

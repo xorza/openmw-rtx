@@ -15,6 +15,7 @@ namespace Rtx
 {
     class Device;
     class GBuffer;
+    class GpuTimer;
     class Image;
 
     /// The shadow denoiser: a port of AMD's FidelityFX Shadow Denoiser over the one bit a pixel
@@ -33,7 +34,7 @@ namespace Rtx
         /// alongside (`DenoisePasses::record`). `buffer` must have been handed over, and
         /// `DenoiseHistory::discard` has readied the images.
         const Image& record(VkCommandBuffer commands, const DenoiseHistory::ShadowImages& images, const GBuffer& buffer,
-            const DenoiseFrame& frame) const;
+            const DenoiseFrame& frame, GpuTimer* timer) const;
 
     private:
         ComputePipeline<Shaders::ShadowMaskConstants> mMask;

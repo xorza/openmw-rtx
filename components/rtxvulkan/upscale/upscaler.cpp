@@ -30,8 +30,10 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -424,8 +426,10 @@ namespace Rtx
         mTargets.reset();
     }
 
-    HandedImage Upscaler::record(const VkCommandBuffer commands, const UpscaleInputs& inputs)
+    HandedImage Upscaler::record(const VkCommandBuffer commands, const UpscaleInputs& inputs, GpuTimer* timer)
     {
+        openZone(timer, commands, FrameZone::Upscale);
+
         assert(mTargets != nullptr && "an upscale before a resize");
         Targets& targets = *mTargets;
 
@@ -605,6 +609,7 @@ namespace Rtx
         between();
         run(Pass::Accumulate, Groups::covering(output.width, output.height, Shaders::FSR_WORKGROUP));
 
+        closeZone(timer, commands);
         return HandedImage{ .mImage = targets.mOutputImage, .mLeftAs = Use::sComputeReadWrite };
     }
 }

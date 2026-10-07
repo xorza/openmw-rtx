@@ -5,7 +5,9 @@
 #include <cstdint>
 
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/camera.h>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/pane.h>
@@ -25,8 +27,10 @@ namespace Rtx
     }
 
     const Image& PanePass::record(VkCommandBuffer commands, const DenoiseHistory::PaneImages& images,
-        const GBuffer& buffer, const DenoiseFrame& frame) const
+        const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
     {
+        openZone(timer, commands, FrameZone::Pane);
+
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         const std::uint32_t width = camera.mWidth;
         const std::uint32_t height = camera.mHeight;
@@ -45,6 +49,7 @@ namespace Rtx
 
         dispatch(commands, mPipeline, writes, constants, Groups::covering(width, height, Shaders::PANE_WORKGROUP));
 
+        closeZone(timer, commands);
         return images.mMean;
     }
 }

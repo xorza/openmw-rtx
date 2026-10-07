@@ -12,6 +12,7 @@
 namespace Rtx
 {
     class Device;
+    class GpuTimer;
     class Image;
 
     /// How bright the frame is, as the one number the display curve scales it by. Two dispatches,
@@ -34,12 +35,12 @@ namespace Rtx
         ///        first frame, and any frame the renderer was told has no past — or nothing where it
         ///        moves from the exposure the frame before left.
         void record(VkCommandBuffer commands, const Image& frame, float elapsedSeconds, std::optional<EyeStart> reset,
-            float bias) const;
+            float bias, GpuTimer* timer) const;
 
         /// Holds the frame's exposure at `value` instead, measuring nothing — what a pixel test and
         /// a converged reference are built at. The frame's buffer either way, so the curve never
         /// learns which it got.
-        void recordFixed(VkCommandBuffer commands, float value) const;
+        void recordFixed(VkCommandBuffer commands, float value, GpuTimer* timer) const;
 
         /// One float, written by whichever of the two calls above ran.
         const Buffer& getExposure() const { return mExposure; }

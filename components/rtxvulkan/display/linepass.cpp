@@ -7,6 +7,8 @@
 #include <volk.h>
 
 #include <components/rtx/frame/debuglines.hpp>
+#include <components/rtx/renderer/framezone.hpp>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -61,7 +63,7 @@ namespace Rtx
     {
     }
 
-    void LinePass::record(const VkCommandBuffer commands, const Lines& what) const
+    void LinePass::record(const VkCommandBuffer commands, const Lines& what, GpuTimer* timer) const
     {
         const Image& target = what.mTarget;
         const Image& surface = what.mSurface;
@@ -77,6 +79,8 @@ namespace Rtx
 
         if (lineCount == 0 && triangleCount == 0)
             return;
+
+        openZone(timer, commands, FrameZone::Lines);
 
         // `line.vert` writes Vulkan's own clip space, `+Y` down as the picture is indexed.
         beginDrawingOver(commands, target, ClipUp::Down, Underneath::Kept);
@@ -106,5 +110,7 @@ namespace Rtx
         draw(mTriangles, lineCount, triangleCount);
 
         vkCmdEndRendering(commands);
+
+        closeZone(timer, commands);
     }
 }

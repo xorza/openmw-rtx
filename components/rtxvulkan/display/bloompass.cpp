@@ -8,8 +8,10 @@
 
 #include <osg/Vec2f>
 
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -101,8 +103,10 @@ namespace Rtx
             Groups::covering(target.getWidth(), target.getHeight(), Shaders::BLOOM_WORKGROUP));
     }
 
-    void BloomPass::record(VkCommandBuffer commands, const Image& frame, const Buffer& exposure) const
+    void BloomPass::record(VkCommandBuffer commands, const Image& frame, const Buffer& exposure, GpuTimer* timer) const
     {
+        openZone(timer, commands, FrameZone::Bloom);
+
         assert((frame.getUsage() & VK_IMAGE_USAGE_SAMPLED_BIT) != 0 && "the pyramid samples the frame");
 
         // A frame too small for even one level has no pyramid, which `getPyramid` says and the
@@ -153,5 +157,7 @@ namespace Rtx
         // What the curve samples: the finest level, which a pyramid of one level handed over above.
         if (written != nullptr)
             handOver(commands, *written);
+
+        closeZone(timer, commands);
     }
 }

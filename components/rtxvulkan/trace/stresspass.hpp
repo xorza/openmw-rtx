@@ -48,7 +48,7 @@ namespace Rtx
         /// Records the hold into `commands`, timed as `FrameZone::Stress`, leaving what the
         /// loop's clock read in `counts`: the frame's own block, so the reading is the frame's and
         /// not whichever frame in flight wrote last.
-        void record(VkCommandBuffer commands, GpuTimer& timer, const Buffer& counts);
+        void record(VkCommandBuffer commands, const Buffer& counts, GpuTimer* timer);
 
     private:
         ComputePipeline<Shaders::StressConstants> mPipeline;

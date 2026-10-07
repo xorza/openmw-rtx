@@ -50,13 +50,13 @@ namespace Rtx
                         commands, frame.getHandle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &colour, 1, &whole);
 
                     frame.transition(commands, Use::sClearWrite, Use::sComputeRead);
-                    pass.record(commands, frame, 0.0f, EyeStart::Day, 1.0f);
+                    pass.record(commands, frame, 0.0f, EyeStart::Day, 1.0f, nullptr);
                 });
 
                 // A submit of its own, whose head barrier orders its histogram's clear after the
                 // reduction above read it.
                 getPool().submitAndWait([&](VkCommandBuffer commands) {
-                    pass.record(commands, frame, sSettling, std::nullopt, 1.0f);
+                    pass.record(commands, frame, sSettling, std::nullopt, 1.0f, nullptr);
 
                     pass.getExposure().transition(commands, Use::sBufferComputeWrite, Use::sBufferCopyRead);
                     pass.getExposure().copyTo(commands, read, sizeof(float));
@@ -121,7 +121,7 @@ namespace Rtx
                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
                         frame.transition(commands, Use::sCopyWrite, Use::sComputeRead);
                         pass.record(commands, frame, metered.mElapsed,
-                            metered.mReset ? std::optional(metered.mStart) : std::nullopt, 1.0f);
+                            metered.mReset ? std::optional(metered.mStart) : std::nullopt, 1.0f, nullptr);
 
                         pass.getExposure().transition(commands, Use::sBufferComputeWrite, Use::sBufferCopyRead);
                         pass.getExposure().copyTo(commands, read, sizeof(float));

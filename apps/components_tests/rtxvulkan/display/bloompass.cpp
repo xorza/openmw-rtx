@@ -82,7 +82,7 @@ namespace Rtx
             {
                 paint(device.getPool(), device, mFrame, pixels);
                 device.getPool().submitAndWait(
-                    [&](VkCommandBuffer commands) { mBloom.record(commands, mFrame, mExposure); });
+                    [&](VkCommandBuffer commands) { mBloom.record(commands, mFrame, mExposure, nullptr); });
 
                 const Image* pyramid = mBloom.getPyramid();
                 return pyramid != nullptr ? Testing::readHalves(*pyramid) : std::vector<float>();

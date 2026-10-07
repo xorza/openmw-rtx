@@ -6,7 +6,9 @@
 #include <string_view>
 
 #include <components/rtx/renderer/channel.hpp>
+#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/camera.h>
+#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -49,8 +51,10 @@ namespace Rtx
     }
 
     void AccumulatePass::record(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
-        const GBuffer& buffer, const DenoiseFrame& frame) const
+        const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
     {
+        openZone(timer, commands, FrameZone::Accumulate);
+
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
         assert(images.mBlended.getWidth() >= camera.mWidth && images.mBlended.getHeight() >= camera.mHeight);
 
@@ -77,11 +81,15 @@ namespace Rtx
 
         dispatch(commands, mPipeline, writes, constants,
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
+
+        closeZone(timer, commands);
     }
 
     void AccumulatePass::recordClamp(VkCommandBuffer commands, const DenoiseHistory::AccumulateImages& images,
-        const GBuffer& buffer, const DenoiseFrame& frame) const
+        const GBuffer& buffer, const DenoiseFrame& frame, GpuTimer* timer) const
     {
+        openZone(timer, commands, FrameZone::Clamp);
+
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
 
         // The clamp reads a neighbour's fast blend and samples, so every pixel's blend is behind it,
@@ -108,5 +116,7 @@ namespace Rtx
             Shaders::AccumulateClampConstants{
                 .mEyes = frame.mSampled.mEyes, .mAntilag = frame.mFilters.mAntilag ? 1u : 0u },
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::ACCUMULATE_WORKGROUP));
+
+        closeZone(timer, commands);
     }
 }
