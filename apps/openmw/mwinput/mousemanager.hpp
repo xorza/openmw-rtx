@@ -45,8 +45,8 @@ namespace MWInput
         void setMouseLookEnabled(bool enabled) { mMouseLookEnabled = enabled; }
         void setGuiCursorEnabled(bool enabled) { mGuiCursorEnabled = enabled; }
 
-        int getMouseMoveX() const { return mMouseMoveX; }
-        int getMouseMoveY() const { return mMouseMoveY; }
+        float getMouseMoveX() const { return mMouseMoveX; }
+        float getMouseMoveY() const { return mMouseMoveY; }
 
     private:
         BindingsManager* mBindingsManager;
@@ -61,8 +61,8 @@ namespace MWInput
         float mLastWarpX;
         float mLastWarpY;
 
-        int mMouseMoveX;
-        int mMouseMoveY;
+        float mMouseMoveX;
+        float mMouseMoveY;
     };
 }
 #endif

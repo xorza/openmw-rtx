@@ -5,7 +5,8 @@
 #include <string>
 #include <vector>
 
-#include <SDL_gamecontroller.h>
+#include <SDL3/SDL_gamepad.h>
+#include <SDL3/SDL_oldnames.h>
 #include <cstdint>
 #include <osg/Vec2f>
 
@@ -77,8 +78,8 @@ namespace MWBase
         virtual float getActionValue(int action) const = 0; // returns value in range [0, 1]
         virtual bool isControllerButtonPressed(SDL_GameControllerButton button) const = 0;
         virtual float getControllerAxisValue(SDL_GameControllerAxis axis) const = 0; // returns value in range [-1, 1]
-        virtual int getMouseMoveX() const = 0;
-        virtual int getMouseMoveY() const = 0;
+        virtual float getMouseMoveX() const = 0;
+        virtual float getMouseMoveY() const = 0;
         virtual void warpMouseToWidget(MyGUI::Widget* widget) = 0;
 
         /// Actions available for binding to keyboard buttons

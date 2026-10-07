@@ -3,7 +3,7 @@
 #include <MyGUI_Button.h>
 #include <MyGUI_InputManager.h>
 
-#include <SDL.h>
+#include <SDL3/SDL.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/esm/refid.hpp>
@@ -25,9 +25,11 @@
 namespace MWInput
 {
     ControllerManager::ControllerManager(BindingsManager* bindingsManager, MouseManager* mouseManager,
-        const std::filesystem::path& userControllerBindingsFile, const std::filesystem::path& controllerBindingsFile)
+        SDL_Window* window, const std::filesystem::path& userControllerBindingsFile,
+        const std::filesystem::path& controllerBindingsFile)
         : mBindingsManager(bindingsManager)
         , mMouseManager(mouseManager)
+        , mWindow(window)
         , mGyroAvailable(false)
         , mGamepadGuiCursorEnabled(true)
         , mGuiCursorEnabled(true)
@@ -39,7 +41,7 @@ namespace MWInput
         if (!controllerBindingsFile.empty())
         {
             const int result
-                = SDL_GameControllerAddMappingsFromFile(Files::pathToUnicodeString(controllerBindingsFile).c_str());
+                = SDL_AddGamepadMappingsFromFile(Files::pathToUnicodeString(controllerBindingsFile).c_str());
             if (result < 0)
                 Log(Debug::Error) << "Failed to add game controller mappings from file \"" << controllerBindingsFile
                                   << "\": " << SDL_GetError();
@@ -48,38 +50,41 @@ namespace MWInput
         if (!userControllerBindingsFile.empty())
         {
             const int result
-                = SDL_GameControllerAddMappingsFromFile(Files::pathToUnicodeString(userControllerBindingsFile).c_str());
+                = SDL_AddGamepadMappingsFromFile(Files::pathToUnicodeString(userControllerBindingsFile).c_str());
             if (result < 0)
                 Log(Debug::Error) << "Failed to add game controller mappings from user file \""
                                   << userControllerBindingsFile << "\": " << SDL_GetError();
         }
 
         // Open all presently connected sticks
-        const int numSticks = SDL_NumJoysticks();
-        if (numSticks < 0)
-            Log(Debug::Error) << "Failed to get number of joysticks: " << SDL_GetError();
+        int numSticks = 0;
+        SDL_JoystickID* sticks = SDL_GetJoysticks(&numSticks);
+        if (sticks == nullptr)
+            Log(Debug::Error) << "Failed to get the joysticks: " << SDL_GetError();
 
         for (int i = 0; i < numSticks; i++)
         {
-            if (SDL_IsGameController(i))
+            const SDL_JoystickID stick = sticks[i];
+            if (SDL_IsGamepad(stick))
             {
-                SDL_ControllerDeviceEvent evt;
-                evt.which = i;
+                SDL_ControllerDeviceEvent evt{};
+                evt.which = stick;
                 static const int fakeDeviceID = 1;
                 ControllerManager::controllerAdded(fakeDeviceID, evt);
-                if (const char* name = SDL_GameControllerNameForIndex(i))
+                if (const char* name = SDL_GetGamepadNameForID(stick))
                     Log(Debug::Info) << "Detected game controller: " << name;
                 else
                     Log(Debug::Warning) << "Detected game controller without a name: " << SDL_GetError();
             }
             else
             {
-                if (const char* name = SDL_JoystickNameForIndex(i))
+                if (const char* name = SDL_GetJoystickNameForID(stick))
                     Log(Debug::Info) << "Detected unusable controller: " << name;
                 else
                     Log(Debug::Warning) << "Detected unusable controller without a name: " << SDL_GetError();
             }
         }
+        SDL_free(sticks);
 
         mBindingsManager->setJoystickDeadZone(Settings::input().mJoystickDeadZone);
     }
@@ -333,7 +338,7 @@ namespace MWInput
         }
 
         // Some keys will work even when Text Input windows/modals are in focus.
-        if (SDL_IsTextInputActive())
+        if (SDL_TextInputActive(mWindow))
             return false;
 
         winMgr->injectKeyPress(key, 0, false);
@@ -447,7 +452,7 @@ namespace MWInput
         SDL_GameController* cntrl = mBindingsManager->getControllerOrNull();
         constexpr float axisMaxAbsoluteValue = 32768;
         if (cntrl != nullptr)
-            return SDL_GameControllerGetAxis(cntrl, axis) / axisMaxAbsoluteValue;
+            return SDL_GetGamepadAxis(cntrl, axis) / axisMaxAbsoluteValue;
         return 0;
     }
 
@@ -455,7 +460,7 @@ namespace MWInput
     {
         SDL_GameController* cntrl = mBindingsManager->getControllerOrNull();
         if (cntrl)
-            return SDL_GameControllerGetButton(cntrl, button) > 0;
+            return SDL_GetGamepadButton(cntrl, button) > 0;
         else
             return false;
     }
@@ -466,9 +471,9 @@ namespace MWInput
         SDL_GameController* cntrl = mBindingsManager->getControllerOrNull();
         if (!cntrl)
             return;
-        if (!SDL_GameControllerHasSensor(cntrl, SDL_SENSOR_GYRO))
+        if (!SDL_GamepadHasSensor(cntrl, SDL_SENSOR_GYRO))
             return;
-        if (const int result = SDL_GameControllerSetSensorEnabled(cntrl, SDL_SENSOR_GYRO, SDL_TRUE); result < 0)
+        if (!SDL_SetGamepadSensorEnabled(cntrl, SDL_SENSOR_GYRO, true))
         {
             Log(Debug::Error) << "Failed to enable game controller sensor: " << SDL_GetError();
             return;
@@ -487,8 +492,7 @@ namespace MWInput
         SDL_GameController* cntrl = mBindingsManager->getControllerOrNull();
         if (cntrl && mGyroAvailable)
         {
-            const int result = SDL_GameControllerGetSensorData(cntrl, SDL_SENSOR_GYRO, gyro, 3);
-            if (result < 0)
+            if (!SDL_GetGamepadSensorData(cntrl, SDL_SENSOR_GYRO, gyro, 3))
                 Log(Debug::Error) << "Failed to get game controller sensor data: " << SDL_GetError();
         }
         return std::array<float, 3>({ gyro[0], gyro[1], gyro[2] });
@@ -498,7 +502,7 @@ namespace MWInput
     {
         SDL_GameController* cntrl = mBindingsManager->getControllerOrNull();
         if (cntrl)
-            return SDL_GameControllerGetType(cntrl);
+            return SDL_GetGamepadType(cntrl);
         return 0;
     }
 
@@ -511,16 +515,37 @@ namespace MWInput
             || controllerType == SDL_CONTROLLER_TYPE_PS5;
         bool isSwitch = controllerType == SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO;
 
+        // SDL3 names the face buttons by their position, so the icon follows the label the pad prints on the
+        // button: the south button of a Nintendo pad is labelled B.
+        SDL_GameController* cntrl = mBindingsManager->getControllerOrNull();
+        const auto gamepadButton = static_cast<SDL_GameControllerButton>(button);
+        const SDL_GamepadButtonLabel label = cntrl != nullptr
+            ? SDL_GetGamepadButtonLabel(cntrl, gamepadButton)
+            : SDL_GetGamepadButtonLabelForType(SDL_GAMEPAD_TYPE_STANDARD, gamepadButton);
+        switch (label)
+        {
+            case SDL_GAMEPAD_BUTTON_LABEL_A:
+                return "textures/omw_steam_button_a.dds";
+            case SDL_GAMEPAD_BUTTON_LABEL_B:
+                return "textures/omw_steam_button_b.dds";
+            case SDL_GAMEPAD_BUTTON_LABEL_X:
+                return "textures/omw_steam_button_x.dds";
+            case SDL_GAMEPAD_BUTTON_LABEL_Y:
+                return "textures/omw_steam_button_y.dds";
+            case SDL_GAMEPAD_BUTTON_LABEL_CROSS:
+                return "textures/omw_psx_button_x.dds";
+            case SDL_GAMEPAD_BUTTON_LABEL_CIRCLE:
+                return "textures/omw_psx_button_circle.dds";
+            case SDL_GAMEPAD_BUTTON_LABEL_SQUARE:
+                return "textures/omw_psx_button_square.dds";
+            case SDL_GAMEPAD_BUTTON_LABEL_TRIANGLE:
+                return "textures/omw_psx_button_triangle.dds";
+            case SDL_GAMEPAD_BUTTON_LABEL_UNKNOWN:
+                break;
+        }
+
         switch (button)
         {
-            case SDL_CONTROLLER_BUTTON_A:
-                if (isPsx)
-                    return "textures/omw_psx_button_x.dds";
-                return "textures/omw_steam_button_a.dds";
-            case SDL_CONTROLLER_BUTTON_B:
-                if (isPsx)
-                    return "textures/omw_psx_button_circle.dds";
-                return "textures/omw_steam_button_b.dds";
             case SDL_CONTROLLER_BUTTON_BACK:
                 return "textures/omw_steam_button_view.dds";
             case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
@@ -548,14 +573,6 @@ namespace MWInput
                 return "textures/omw_steam_button_r3.dds";
             case SDL_CONTROLLER_BUTTON_START:
                 return "textures/omw_steam_button_menu.dds";
-            case SDL_CONTROLLER_BUTTON_X:
-                if (isPsx)
-                    return "textures/omw_psx_button_square.dds";
-                return "textures/omw_steam_button_x.dds";
-            case SDL_CONTROLLER_BUTTON_Y:
-                if (isPsx)
-                    return "textures/omw_psx_button_triangle.dds";
-                return "textures/omw_steam_button_y.dds";
             case SDL_CONTROLLER_BUTTON_GUIDE:
             case SDL_CONTROLLER_BUTTON_MISC1:
             case SDL_CONTROLLER_BUTTON_PADDLE1:

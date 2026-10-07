@@ -32,11 +32,11 @@ namespace MWInput
         , mInputWrapper(std::make_unique<SDLUtil::InputWrapper>(window, viewer, grab))
         , mBindingsManager(std::make_unique<BindingsManager>(userFile, userFileExists))
         , mControlSwitch(std::make_unique<ControlSwitch>())
-        , mActionManager(std::make_unique<ActionManager>(mBindingsManager.get(), std::move(takeScreenshot)))
-        , mKeyboardManager(std::make_unique<KeyboardManager>(mBindingsManager.get()))
+        , mActionManager(std::make_unique<ActionManager>(mBindingsManager.get(), window, std::move(takeScreenshot)))
+        , mKeyboardManager(std::make_unique<KeyboardManager>(mBindingsManager.get(), window))
         , mMouseManager(std::make_unique<MouseManager>(mBindingsManager.get(), mInputWrapper.get(), window))
         , mControllerManager(std::make_unique<ControllerManager>(
-              mBindingsManager.get(), mMouseManager.get(), userControllerBindingsFile, controllerBindingsFile))
+              mBindingsManager.get(), mMouseManager.get(), window, userControllerBindingsFile, controllerBindingsFile))
         , mSensorManager(std::make_unique<SensorManager>())
         , mGyroManager(std::make_unique<GyroManager>())
     {
@@ -210,12 +210,12 @@ namespace MWInput
         return mControllerManager->getAxisValue(axis);
     }
 
-    int InputManager::getMouseMoveX() const
+    float InputManager::getMouseMoveX() const
     {
         return mMouseManager->getMouseMoveX();
     }
 
-    int InputManager::getMouseMoveY() const
+    float InputManager::getMouseMoveY() const
     {
         return mMouseManager->getMouseMoveY();
     }

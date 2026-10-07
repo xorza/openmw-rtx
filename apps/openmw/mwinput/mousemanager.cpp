@@ -154,12 +154,12 @@ namespace MWInput
 
         input->setJoystickLastUsed(false);
         MWBase::Environment::get().getLuaManager()->inputEvent({ MWBase::LuaManager::InputEvent::MouseWheel,
-            MWBase::LuaManager::InputEvent::WheelChange{ arg.x, arg.y } });
+            MWBase::LuaManager::InputEvent::WheelChange{ arg.integer_x, arg.integer_y } });
 
         if (mGuiCursorEnabled)
         {
             if (MyGUI::Widget* widget = MyGUI::InputManager::getInstance().getMouseFocusWidget())
-                LuaUi::dispatchMouseWheel(widget, mGuiCursorX, mGuiCursorY, arg.preciseX, arg.preciseY);
+                LuaUi::dispatchMouseWheel(widget, mGuiCursorX, mGuiCursorY, arg.x, arg.y);
         }
     }
 
@@ -299,9 +299,9 @@ namespace MWInput
 
     void MouseManager::warpMouse()
     {
-        float guiUiScale = Settings::gui().mScalingFactor;
-        mInputWrapper->warpMouse(
-            static_cast<int>(mGuiCursorX * guiUiScale), static_cast<int>(mGuiCursorY * guiUiScale));
+        // The scale mouseMoved divides by, so that the pointer lands where the cursor is drawn.
+        const float uiScale = MWBase::Environment::get().getWindowManager()->getScalingFactor();
+        mInputWrapper->warpMouse(mGuiCursorX * uiScale, mGuiCursorY * uiScale);
     }
 
     void MouseManager::warpMouseToWidget(MyGUI::Widget* widget)

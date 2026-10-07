@@ -1316,7 +1316,7 @@ namespace MWGui
 
         if (changeRes)
         {
-            SDLUtil::setVideoMode(mWindow, Settings::video().mResolutionX, Settings::video().mResolutionY,
+            SDLUtil::VideoWrapper::setVideoMode(mWindow, Settings::video().mResolutionX, Settings::video().mResolutionY,
                 Settings::video().mWindowMode, Settings::video().mWindowBorder);
         }
     }

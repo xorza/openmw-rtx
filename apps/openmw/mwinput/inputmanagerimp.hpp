@@ -89,8 +89,8 @@ namespace MWInput
         float getActionValue(int action) const override;
         bool isControllerButtonPressed(SDL_GameControllerButton button) const override;
         float getControllerAxisValue(SDL_GameControllerAxis axis) const override;
-        int getMouseMoveX() const override;
-        int getMouseMoveY() const override;
+        float getMouseMoveX() const override;
+        float getMouseMoveY() const override;
         void warpMouseToWidget(MyGUI::Widget* widget) override;
 
         int getNumActions() override { return A_Last; }
