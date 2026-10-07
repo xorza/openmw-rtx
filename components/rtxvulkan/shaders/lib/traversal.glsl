@@ -141,7 +141,7 @@ float surfaceOpacity(GpuInstance instance, GpuMaterial material)
 /// `GL_CULL_FACE` on, so the content states which face of a surface is there, and a ray standing in
 /// for that pass states it the same way. A bounce, which carries light, meets a surface from either
 /// side instead: a wall met from behind that stopped nothing would leak the light behind it. A ray
-/// to a light has a rule of its own, `lightThrough`.
+/// to a light has a rule of its own, `lightPassage`.
 ///
 /// `SceneAcceleration::placeRow` is where a row says it is drawn from both faces, and
 /// `InstanceRecord::mTwoSided` is what the content said.
@@ -731,7 +731,7 @@ struct Passage
 };
 
 /// What the ray from `from` to what stands `distance` away along `towards` meets, past the surfaces
-/// whose faces `faces` does not cull — `lightThrough` and `ambientThrough`, which say which.
+/// whose faces `faces` does not cull — `lightPassage` and `ambientThrough`, which say which.
 ///
 /// No cone here, so the cutout is decided at the finest mip. A shadow ray carries no footprint, and
 /// aliasing in a leaf's shadow is worth far less than aliasing on the leaf.
@@ -791,7 +791,9 @@ float throughToward(vec3 from, vec3 towards, float distance, uint faces)
     return passage.mOpen * passage.mThrough;
 }
 
-/// How much of a light `distance` away along `towards` reaches `from`: the sun, a moon or a lamp.
+/// What the ray from `from` to a light `distance` away along `towards` meets — the sun, a moon or a
+/// lamp — in `Passage`'s two halves, and the nearest solid's distance where `nearest` asks
+/// (`passageToward`).
 ///
 /// **Only a face turned toward the light casts, which is the rasterizer's rule.** Its shadow map is
 /// drawn from the light with the scene's own back-face culling, so what stops the light there is
@@ -803,13 +805,6 @@ float throughToward(vec3 from, vec3 towards, float distance, uint faces)
 /// eye culls that face and never sees it, so neither does the light. A two-sided placement casts
 /// from either side, since its row turns culling off (`SceneAcceleration::placeRow`), and that
 /// includes every doubled card, which the fold made one.
-float lightThrough(vec3 from, vec3 towards, float distance)
-{
-    return throughToward(from, towards, distance, gl_RayFlagsCullFrontFacingTrianglesEXT);
-}
-
-/// The same ray as `lightThrough`, with its two halves apart, and the nearest solid's distance
-/// where `nearest` asks (`passageToward`).
 Passage lightPassage(vec3 from, vec3 towards, float distance, bool nearest)
 {
     return passageToward(from, towards, distance, gl_RayFlagsCullFrontFacingTrianglesEXT, nearest);
@@ -821,7 +816,7 @@ Passage lightPassage(vec3 from, vec3 towards, float distance, bool nearest)
 /// question but whether anything stands over the point — the pillow over the sheet, the floor
 /// under a lid — and the rasterizer, which has no such term, has no rule to follow. A surface met
 /// from the side it faces stands over the point as much as one met from behind, so this culls
-/// neither face where the lights cull one (`lightThrough`).
+/// neither face where the lights cull one (`lightPassage`).
 float ambientThrough(vec3 from, vec3 towards, float distance)
 {
     return throughToward(from, towards, distance, gl_RayFlagsNoneEXT);
