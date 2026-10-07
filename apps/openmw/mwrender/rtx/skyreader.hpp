@@ -5,9 +5,7 @@
 #include <osg/Vec3f>
 
 #include <components/rtx/environment/skybuilder.hpp>
-#include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/scene/rowhold.hpp>
-#include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/moon.hpp>
 #include <components/rtx/world/skycontent.hpp>
@@ -81,9 +79,17 @@ namespace MWRender
             mClock.step(seconds, timeScale, cloudSpeed, mTimescaleClouds);
         }
 
-        /// Stands the air's clocks at `air`, in place of wherever this session's frames carried them:
-        /// the sky's own and the fog's carry together, because they are one moment.
-        void holdAir(const Rtx::AirClock& air);
+        /// Stands the sky's clock where `air` says, in place of wherever this session's frames
+        /// stepped it. The fog's carry is the renderer's (`Rtx::Renderer::holdAir`), and a host
+        /// holds both together, because they are one moment.
+        void holdAir(const Rtx::AirClock& air) { mClock = air.mSky; }
+
+        /// Where the sky's clock stands, which a frame's air is recorded with.
+        const Sky::SkyClock& getClock() const { return mClock; }
+
+        /// Where the sky's sheets stand in the world's texture table, which a frame is described
+        /// with (`Rtx::FrameRequest::mSky`): from `attach` to `detach`.
+        const Rtx::SkyContent& getContent() const { return mSkyContent; }
 
         /// Opens a sheet the weather names that the sky does not hold yet, once — a script's
         /// `weather.cloudTexture` — as the rasterizer loads one when the name changes. Every frame,
@@ -97,11 +103,6 @@ namespace MWRender
         /// @param reach how far the world is built, in units, which the open air closes over.
         Rtx::WorldReading read(const SkyState& sky, const WorldState& world, const Precipitation& falling,
             double seconds, float reach) const;
-
-        /// Writes the world's half of the frame off `reading` (`Rtx::describeWorld`), carrying the
-        /// fog on by the reading's clock, and answers where the air's clocks stood for the frame.
-        Rtx::AirClock describe(
-            const Rtx::WorldReading& reading, Rtx::Shaders::VisibilityConstants& constants, Rtx::FrameOptions& options);
 
     private:
         /// The sky's own meshes, as the settings name them, and each weather's sheet, as the
@@ -122,10 +123,6 @@ namespace MWRender
         /// `Weather_Timescale_Clouds`, read where a world is attached: the content's word on how
         /// its decks are paced (`Sky::cloudScrollStep`).
         bool mTimescaleClouds = false;
-
-        /// How far the air has been carried since the run began: the one world fact that is an
-        /// integral over the frames rather than a reading of one, so it lives beside the clock.
-        Rtx::FogDrift mDrift;
 
         /// What a script paints Secunda, `Moons_Script_Color` decoded, read once as the
         /// rasterizer's `SkyManager` reads it. `WorldState::mMoonRed` says when.

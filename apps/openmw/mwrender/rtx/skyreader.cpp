@@ -107,19 +107,6 @@ namespace MWRender
         mMoonFaces = Rtx::MoonFaces{};
     }
 
-    void SkyReader::holdAir(const Rtx::AirClock& air)
-    {
-        mClock = air.mSky;
-        mDrift.hold(air.mCarried, air.mSky.mSeconds);
-    }
-
-    Rtx::AirClock SkyReader::describe(
-        const Rtx::WorldReading& reading, Rtx::Shaders::VisibilityConstants& constants, Rtx::FrameOptions& options)
-    {
-        Rtx::describeWorld(reading, mSkyContent, mDrift, constants, options);
-        return Rtx::AirClock{ .mSky = mClock, .mCarried = mDrift.get() };
-    }
-
     Rtx::WorldReading SkyReader::read(const SkyState& sky, const WorldState& world, const Precipitation& falling,
         const double seconds, const float reach) const
     {

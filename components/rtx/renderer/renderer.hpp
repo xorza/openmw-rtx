@@ -12,9 +12,14 @@
 #include <utility>
 #include <vector>
 
+#include <osg/Vec2d>
+#include <osg/Vec3f>
+
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/namedenum.hpp>
+#include <components/rtx/frame/camera.hpp>
+#include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -23,6 +28,7 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/frameworld.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 
 #include "framedigest.hpp"
@@ -35,8 +41,8 @@ struct SDL_Window;
 
 namespace Rtx
 {
-    struct FrameOptions;
     class SceneDesc;
+    struct SkyContent;
 
     /// How much of the graphics API's own checking a run loads. One level and not three switches,
     /// because each finer check needs the one under it and the two finer ones are never loaded
@@ -358,10 +364,21 @@ namespace Rtx
         std::optional<FrameDigest> mDigest;
     };
 
+    /// The light a picture inside the interface stands in, which no world describes: a flat sun
+    /// and an ambient, as the rasterizer lights its previews, in the renderer's irradiance. Drawn
+    /// with no sky source's shadow, the doll's and the map's alike, as the rasterizer draws them.
+    struct PictureLight
+    {
+        /// Toward the sun, unit, or nought for none.
+        osg::Vec3f mDirection;
+        osg::Vec3f mIrradiance;
+        osg::Vec3f mAmbient;
+    };
+
     /// What a picture inside the interface is asked for, beyond where its camera stands. How much
     /// of the texture the picture fills, from its top-left corner, is the camera's own extent; the
-    /// rest is left at `mClear`. The inventory doll's window resizes and the texture behind it
-    /// does not.
+    /// rest is left at `mClear`, whose alpha below one is a picture over the interface's own. The
+    /// inventory doll's window resizes and the texture behind it does not.
     struct GuiTraceOptions
     {
         /// What the rest of the texture holds, red first: transparent black for a picture the GUI
@@ -375,6 +392,48 @@ namespace Rtx
         /// Whether to leave a copy of the whole texture where `takeGuiCopy` can hand it to the host,
         /// which is the one time a picture inside the interface comes back to main memory.
         bool mReadBack = false;
+
+        /// Which classes the picture draws, `Shaders::MASK_*`, and whether the lamps light it: a map
+        /// tile leaves the actors out, and the rasterizer lights its previews by no lamp.
+        std::uint32_t mRayMask = Shaders::MASK_EVERY_CLASS;
+        bool mLamps = true;
+
+        PictureLight mLight{};
+    };
+
+    /// One frame as a host asks for it: where it is seen from and what the eye draws, the world it
+    /// stands in, and what it asks over the profile. **The host states and the renderer
+    /// describes**: the renderer lays the world over the viewpoint (`describeWorld`) and samples
+    /// what that comes to (`sampleFrame`), so no field of the block it traces has two writers, and
+    /// what a host could set and lose is not offered to it.
+    struct FrameRequest
+    {
+        Viewpoint mView;
+
+        /// Which classes the eye draws, `Shaders::MASK_*`, and whether the lamps light anything:
+        /// what the game's view mask and its lighting toggle say.
+        std::uint32_t mRayMask = Shaders::MASK_EVERY_CLASS;
+        bool mLamps = true;
+
+        /// The sampler's frame, which the draws and the jitter walk — `VisibilityConstants::mFrame`.
+        std::uint32_t mSampleFrame = 0;
+
+        WorldReading mWorld;
+
+        /// Where the sky's own sheets stand in the world's texture table, as the content was read
+        /// (`addSkyContent`): borrowed for the call.
+        const SkyContent* mSky = nullptr;
+
+        FrameOptions mOptions;
+    };
+
+    /// What a frame was traced with, as the renderer described it: the block before the frame's
+    /// sampling, which a harness digests beside the scene, and how far the air stood carried
+    /// downwind after it (`FogDrift`), which a harness records to stand the air there again.
+    struct FrameTraced
+    {
+        Shaders::VisibilityConstants mConstants{};
+        osg::Vec2d mCarried;
     };
 
     /// One traced image, whichever API produced it: what a scene is handed to, what the interface
@@ -436,9 +495,7 @@ namespace Rtx
         /// exposure is one, because a still has no previous frame. Recorded and not run: the picture
         /// rides the next submit, reads the copy of the scene its last placement wrote, and the next
         /// placement of that scene waits for the frame it rode.
-        virtual void traceGuiTexture(
-            GuiSlot texture, const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options)
-            = 0;
+        virtual void traceGuiTexture(GuiSlot texture, const Viewpoint& view, const GuiTraceOptions& options) = 0;
 
         /// The copy the last `traceGuiTexture` with `mReadBack` left of `texture`, four bytes a
         /// pixel, tightly packed, row zero first, into `into` as far as it reaches. False until the
@@ -490,7 +547,15 @@ namespace Rtx
         /// drawn it, so the caller can place the next one meanwhile, and `finishFrame` reads back
         /// what it came to, the reconstruction it resolved among it (`FrameResult::mReconstruction`):
         /// one road for that, the frame's own result. At most `sFramesInFlight` frames are in flight.
-        virtual void renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) = 0;
+        /// What comes back at once is what the frame was described as, which the host holds no copy
+        /// of. The air is carried on by the reading's clock, from where the last frame or `holdAir`
+        /// left it.
+        virtual FrameTraced renderFrame(const FrameRequest& request) = 0;
+
+        /// Stands the air where `air` says it was carried, as of its sky clock, so the next frame at
+        /// that clock is drawn in the air a harness recorded rather than wherever this session's
+        /// frames carried it.
+        virtual void holdAir(const AirClock& air) = 0;
 
         /// Closes the frame this frame's placements of the world opened, with no trace: where a
         /// placement is not followed by `renderFrame`, because the host refused the camera. Without

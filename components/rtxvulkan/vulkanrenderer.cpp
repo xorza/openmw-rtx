@@ -527,7 +527,31 @@ namespace Rtx
         return mTracePasses.mVisibility.awaitKernels(patience);
     }
 
-    void VulkanRenderer::renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options)
+    FrameTraced VulkanRenderer::renderFrame(const FrameRequest& request)
+    {
+        assert(request.mSky != nullptr && "a frame described with no sky to read its sheets from");
+
+        FrameTraced traced{ .mConstants = constantsFor(request.mView), .mCarried = {} };
+        Shaders::VisibilityConstants& constants = traced.mConstants;
+        constants.mRayMask = request.mRayMask;
+        constants.mNoLamps = request.mLamps ? 0u : 1u;
+        constants.mFrame = request.mSampleFrame;
+
+        WorldOptions described;
+        describeWorld(request.mWorld, *request.mSky, mDrift, constants, described);
+        traced.mCarried = mDrift.get();
+
+        renderFrame(constants, request.mOptions, described);
+        return traced;
+    }
+
+    void VulkanRenderer::holdAir(const AirClock& air)
+    {
+        mDrift.hold(air.mCarried, air.mSky.mSeconds);
+    }
+
+    void VulkanRenderer::renderFrame(
+        const Shaders::VisibilityConstants& camera, const FrameOptions& options, const WorldOptions& described)
     {
         const DeviceScene* const held = mScenes.find(SceneSlot::world());
         assert(held != nullptr && "renderFrame before setScene");
@@ -589,7 +613,7 @@ namespace Rtx
         if (subject.mSea)
         {
             mMedia.stepRipples(commands, mRing.getRecordingSlot(), osg::Vec2f(camera.mOrigin.x(), camera.mOrigin.y()),
-                options.mWaterSeconds, &timer);
+                described.mWaterSeconds, &timer);
             mMedia.placeRipples(sampled);
         }
 
@@ -659,11 +683,11 @@ namespace Rtx
                 .mLeftAs = PresentTarget::sResting,
                 .mFrame = FrameLook{
                     .mExposure = options.mExposure.value_or(mProfile.mExposure),
-                    .mExposureBias = options.mExposureBias,
+                    .mExposureBias = described.mExposureBias,
                     .mSeconds = options.mSinceLast,
-                    .mGlare = options.mGlare,
+                    .mGlare = described.mGlare,
                     .mInverseGamma = mInverseGamma,
-                    .mNightEye = options.mNightEye,
+                    .mNightEye = described.mNightEye,
                     .mDither = options.mDither.value_or(mProfile.mDither),
                     .mDeep = deep,
                     .mDebug = options.mDebug,
@@ -700,6 +724,19 @@ namespace Rtx
         // Not drained, because the scene's objects bury themselves: a drain here idled the whole
         // device every time the inventory closed.
         mScenes.drop(scene);
+    }
+
+    void VulkanRenderer::traceGuiTexture(const GuiSlot texture, const Viewpoint& view, const GuiTraceOptions& options)
+    {
+        Shaders::VisibilityConstants camera = constantsFor(view);
+        camera.mSun = Shaders::sunSource(options.mLight.mDirection, options.mLight.mIrradiance);
+        camera.mAmbient = options.mLight.mAmbient;
+        camera.mNoSkyShadows = 1;
+        camera.mTransparentBackground = options.mClear[3] < 1.0f ? 1u : 0u;
+        camera.mRayMask = options.mRayMask;
+        camera.mNoLamps = options.mLamps ? 0u : 1u;
+
+        traceGuiTexture(texture, camera, options);
     }
 
     void VulkanRenderer::traceGuiTexture(

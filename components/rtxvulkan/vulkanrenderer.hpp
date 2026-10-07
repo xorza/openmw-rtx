@@ -24,6 +24,7 @@
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/frameworld.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
@@ -82,7 +83,8 @@ namespace Rtx
         FrameExtents getExtents() const override;
         const RenderProfile& getProfile() const override { return mProfile; }
         JobProgress awaitKernels(std::chrono::milliseconds patience) override;
-        void renderFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options) override;
+        FrameTraced renderFrame(const FrameRequest& request) override;
+        void holdAir(const AirClock& air) override;
         std::uint64_t getFrameCount() const override;
         std::optional<FrameResult> finishFrame() override;
         std::optional<FrameResult> collectFrame() override;
@@ -96,8 +98,7 @@ namespace Rtx
         void sendGuiTexture(GuiSlot texture) override;
         void dropGuiTexture(GuiSlot texture) override;
         void drawGui(std::span<const GuiVertex> vertices, std::span<const GuiBatch> batches) override;
-        void traceGuiTexture(
-            GuiSlot texture, const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options) override;
+        void traceGuiTexture(GuiSlot texture, const Viewpoint& view, const GuiTraceOptions& options) override;
         bool takeGuiCopy(GuiSlot texture, std::span<std::uint8_t> into) override;
         void finishGuiTraces() override;
         void readPixels(std::vector<std::uint8_t>& pixels) override;
@@ -141,6 +142,17 @@ namespace Rtx
         /// Moves whatever the API has complained about since the last call into `errors`, so that
         /// clearing before a test and reading after it are the same call.
         void takeValidationErrors(std::vector<std::string>& errors);
+
+        /// A frame traced from a block written whole, which the request's `renderFrame` describes
+        /// and then hands here: what a test of one field traces, which no world describes the way
+        /// the test needs it. Every field `sampleFrame` writes is left at nought.
+        void renderFrame(const Shaders::VisibilityConstants& constants, const FrameOptions& options,
+            const WorldOptions& described = {});
+
+        /// The same, for a picture inside the interface, from a block the viewpoint's
+        /// `traceGuiTexture` lays its options over.
+        void traceGuiTexture(
+            GuiSlot texture, const Shaders::VisibilityConstants& camera, const GuiTraceOptions& options);
 
     private:
         /// @param width, height what the frame is presented at. What it is traced at is that over
@@ -218,6 +230,11 @@ namespace Rtx
         /// would leave the step from its origin in the frame's motion, and a door 80000 units from
         /// the eye would store an infinite distance at every pixel.
         std::optional<Shaders::VisibilityConstants> mPreviousCamera;
+
+        /// How far the air has been carried since the renderer began: the one fact of a frame's
+        /// world that is an integral over the frames rather than a reading of one, stepped where
+        /// each frame is described (`describeWorld`).
+        FogDrift mDrift;
 
         /// What this renderer's own events cost the next traced frame — a new extent, a new world,
         /// the first frame of all — which the frame folds the host's `FrameOptions::mLoss` into and

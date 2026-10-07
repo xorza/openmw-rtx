@@ -3,31 +3,6 @@
 Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without tests and without
 `extern/fidelityfx`. Whoever addresses an item deletes it. When a group is empty, delete its heading.
 
-## One truth has more than one source
-
-- [ ] `components/rtx/renderer/renderer.hpp:438-439,492` — `traceGuiTexture` and `renderFrame` take the
-  1624-byte `Shaders::VisibilityConstants` as "the camera". Four parties write its fields: the camera
-  builder (`frame/camera.cpp:47-86`), `describeWorld` (`world/frameworld.cpp:108-214`, called by
-  the game's `SkyReader::describe`, which also splits the rest into `FrameOptions`), `sampleFrame`, and
-  the backend (`visibilitypass.cpp:484-527`, `tracemedia.cpp:58`). `leavesSamplingAlone`
-  (`frame/framesampling.cpp:29-39,46`) exists only to catch a writer of another party's field, and the
-  harness reads the block back (`FrameReport::mConstants`, the scene digest). **Decided 2026-10-08: a
-  host description at the seam**, the largest change in the plan: about 40 files over the core, the
-  backend, both hosts (`RtxRenderer::describeTrace` and `trace`, `SkyReader`), `OffscreenTrace`, the
-  harness's instruments and their tests. Target shape: `renderFrame` takes a frame request — the two
-  eyes as `Shaders::Camera`, the ray mask and the lamp flag, the `WorldReading`, the `FrameOptions` —
-  and `traceGuiTexture` the same eyes; the backend calls `describeWorld` and `sampleFrame` and owns the
-  block and the fog drift `SkyReader` keeps now; `leavesSamplingAlone` goes; and the harness reads the
-  block from the frame result, not from what it handed in. **Decided 2026-10-08: split `environment/`
-  first.** `renderer/` stands before `environment/` (`RtxSourceTreeTest`), and `environment/` cannot
-  move up, since `nightsky.cpp` reads `mirror/statereading.hpp`. So what describes a frame's world —
-  `WorldReading`, `SkyContent`'s indices, `describeWorld`, `FogDrift` — moves to a folder before
-  `renderer/`, and what reads the sky out of the content (`nightsky`, `skybuilder`, the moon faces)
-  stays after `mirror/`. The drift is the harness's to hold (`SkyReader::holdAir`, from a stop's
-  `AirClock`), so `Renderer` gains `holdAir` and the frame hands the air back. The tests drive
-  `VulkanRenderer` and write the block directly (about 600 fields in 25 files): the backend keeps a
-  block-taking `renderFrame` overload of its own, off the seam. (high)
-
 ## Shader structure
 
 - [ ] `components/rtxvulkan/shaders/lib/sprites.glsl:467-520` — `PuffLayers::mLayers[5]`/`mAt[5]`, walked

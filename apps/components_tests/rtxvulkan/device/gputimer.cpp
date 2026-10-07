@@ -85,13 +85,13 @@ namespace Rtx
         };
 
         /// Draws one frame and waits for it, so what comes back is that frame's own report.
-        Drawn draw(Renderer& renderer, Shaders::VisibilityConstants camera, double waterSeconds = 0.0,
+        Drawn draw(VulkanRenderer& renderer, Shaders::VisibilityConstants camera, double waterSeconds = 0.0,
             std::optional<ReconstructionRequest> reconstruction = std::nullopt)
         {
             camera.mWaterTime = splitSeconds(waterSeconds);
             const auto start = std::chrono::steady_clock::now();
-            renderer.renderFrame(
-                camera, FrameOptions{ .mWaterSeconds = waterSeconds, .mReconstruction = reconstruction });
+            renderer.renderFrame(camera, FrameOptions{ .mReconstruction = reconstruction },
+                WorldOptions{ .mWaterSeconds = waterSeconds });
             const std::optional<FrameResult> result = renderer.finishFrame();
             const double wallMs = since(start, std::chrono::steady_clock::now());
 

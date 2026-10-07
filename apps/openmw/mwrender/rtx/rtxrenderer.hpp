@@ -285,17 +285,16 @@ namespace MWRender
         /// report, and says whether it was rebuilt from nothing.
         void handOver(const SceneFrame& frame, FrameReport& report);
 
-        /// Everything the frame is traced with that is the host's to say: the eye the frame
-        /// arrived with, built for the render extent, the arms' own, the classes the eye sees, the
-        /// sample to take, and the profile's rules for the textures. The world's half is
-        /// `Rtx::describeWorld`'s. Nothing for a camera the builder refused, which is reported once.
-        std::optional<Rtx::Shaders::VisibilityConstants> describeTrace(
-            const SceneFrame& frame, const osg::Matrixd& view);
+        /// The eye's half of the frame, which is the host's to say: the eye the frame arrived with,
+        /// built for the render extent, the arms' own, the classes the eye sees and the sample to
+        /// take. The world's half is `trace`'s. Nothing for a camera the builder refused, which is
+        /// reported once.
+        std::optional<Rtx::FrameRequest> describeTrace(const SceneFrame& frame, const osg::Matrixd& view);
 
-        /// Traces one frame from `constants`, with the world's sky described into it, and closes
-        /// the report with what it came to.
-        void trace(const SceneFrame& frame, Rtx::Shaders::VisibilityConstants constants, FrameReport& report,
-            std::optional<double> since);
+        /// Traces one frame from `request`, with the world the frame stands in read into it, and
+        /// closes the report with what it came to.
+        void trace(
+            const SceneFrame& frame, Rtx::FrameRequest request, FrameReport& report, std::optional<double> since);
 
         /// What a measured stop is allowed to look at beyond the report.
         FrameContext describeContext();

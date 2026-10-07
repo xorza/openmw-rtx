@@ -54,10 +54,10 @@ namespace Rtx
         }
 
         /// `describeWorld` for a test that reads the constants, with the options it wrote handed back.
-        FrameOptions describe(const WorldReading& reading, FogDrift& drift, Shaders::VisibilityConstants& constants,
+        WorldOptions describe(const WorldReading& reading, FogDrift& drift, Shaders::VisibilityConstants& constants,
             const SkyContent& sheets = sky())
         {
-            FrameOptions options;
+            WorldOptions options;
             describeWorld(reading, sheets, drift, constants, options);
             return options;
         }
@@ -163,7 +163,7 @@ namespace Rtx
             // are strings, are borrowed from where load made them and never copied into a reading.
             Rtx::Shaders::VisibilityConstants constants{};
             FogDrift drift;
-            FrameOptions options;
+            WorldOptions options;
             const SkyContent& sheets = sky();
             const std::size_t before = Testing::getAllocationCount();
             const WorldReading read = made;
@@ -611,7 +611,7 @@ namespace Rtx
             EXPECT_EQ(hidden.mMoons[0].mSource.mIrradiance, open.mMoons[0].mSource.mIrradiance);
         }
 
-        /// The bias is the light's, and this is the only thing between it and `FrameOptions`.
+        /// The bias is the light's, and this is the only thing between it and `WorldOptions`.
         ///
         /// **Carried and never derived, because a room is the exception to the rule that would
         /// derive it** — `Skylight::mExposureBias`. So `mOutdoors` must not reach this one: a

@@ -10,12 +10,12 @@
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 
+#include <components/rtx/frame/camera.hpp>
 #include <components/rtx/mirror/walkcontext.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/slot.hpp>
-#include <components/rtx/shaders/visibility.h>
 #include <components/sceneutil/offscreenframing.hpp>
 
 #include "viewscene.hpp"
@@ -150,7 +150,7 @@ namespace Rtx
         /// The camera this picture is taken with, as the trace takes it. What `traceInto` traces
         /// with and what `pick` builds its ray from, so the two cannot disagree. Nothing for a view
         /// with no basis, which neither can use.
-        std::optional<Shaders::VisibilityConstants> describeCamera() const;
+        std::optional<Viewpoint> describeCamera() const;
 
         Renderer& mRenderer;
 
