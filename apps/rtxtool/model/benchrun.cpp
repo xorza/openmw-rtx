@@ -172,8 +172,11 @@ namespace RtxTool
         // **Arriving at the last frame and not before it**: the route moves the eye at each measured
         // frame, `frames - 1` steps from the first to the last.
         return Approach{
-            .mFrom
-            = Stand{ .mCell = mCell, .mEye = *mEye - right * left - ahead * behind, .mLook = look, .mLamps = mLamps },
+            .mFrom = Stand{ .mCell = mCell,
+                .mEye = *mEye - right * left - ahead * behind,
+                .mLook = look,
+                .mLamps = mLamps,
+                .mArms = mArms },
             .mRoute = Route{ .mTo = *mEye,
                 .mLookTo = look,
                 .mSpeed = std::hypot(left, behind) / (step * static_cast<float>(frames - 1)),

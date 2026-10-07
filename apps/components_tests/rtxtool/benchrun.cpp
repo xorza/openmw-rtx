@@ -105,6 +105,12 @@ namespace RtxTool
             unlit.mLamps = false;
             EXPECT_FALSE(unlit.approachFrom(150.0f, 0.0f, 1.0f / 60.0f, 30).mFrom.mLamps);
 
+            // **And through the same eye**: an armed stand is flown into armed.
+            EXPECT_TRUE(fromWest.mFrom.mArms.empty());
+            Stand armed = north;
+            armed.mArms = "iron longsword";
+            EXPECT_EQ(armed.approachFrom(150.0f, 0.0f, 1.0f / 60.0f, 30).mFrom.mArms, "iron longsword");
+
             const Stand east{ .mEye = osg::Vec3f(100.0f, 200.0f, 300.0f),
                 .mLook = osg::Vec3f(1100.0f, 200.0f, 300.0f) };
             const osg::Vec3f fromNorth = *east.approachFrom(150.0f, 0.0f, 1.0f / 60.0f, 30).mFrom.mEye;

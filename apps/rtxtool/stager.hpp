@@ -16,9 +16,9 @@ namespace RtxTool
     struct Stop;
 
     /// Puts the world where a stop stands, once, at its start: the player in the stop's cell, the
-    /// clock and the sky, the seed, the rate the clock runs at, god mode, the interface, and the walls
-    /// where the camera is flown or followed rather than walked. What moves while the stop runs is
-    /// `CameraDriver`'s. The statics are what the session asks of the world between frames, because
+    /// clock and the sky, the seed, the rate the clock runs at, god mode, the interface, the weapon
+    /// an armed stop holds, and the walls where the camera is flown or followed rather than walked. What moves while
+    /// the stop runs is `CameraDriver`'s. The statics are what the session asks of the world between frames, because
     /// the game undoes a stop there: the history the first uncounted frames leave, a menu a script
     /// opens, and what holds the world paused where a frame says it stood so.
     class Stager
@@ -57,7 +57,19 @@ namespace RtxTool
         /// A body walking at Morrowind's pace crosses a cell in a minute.
         static void boostPlayer();
 
+        /// Gives the player `weapon`, the id of one the content holds, in the right hand and drawn,
+        /// and says so where the content holds none of that id.
+        static Misc::Result<void, std::string> arm(MWBase::World& world, const std::string& weapon);
+
+        /// Puts away whatever the player holds drawn, so a stop after an armed one stands as every
+        /// stop before it did. Nothing where nothing is drawn.
+        static void disarm(MWBase::World& world);
+
         /// Turns the player's collision off, as `tcl` does.
         static void turnCollisionOff(MWBase::World& world);
+
+        /// Turns it on again, which drops the player onto the ground under them
+        /// (`World::adjustPosition`).
+        static void turnCollisionOn(MWBase::World& world);
     };
 }

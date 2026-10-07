@@ -195,6 +195,21 @@ namespace RtxTool
             std::filesystem::remove(third);
             ASSERT_EQ(dark.size(), 1u);
             EXPECT_FALSE(dark.front().mStand.mLamps);
+            EXPECT_TRUE(dark.front().mStand.mArms.empty()) << "an unarmed place writes no arms";
+
+            // **An armed place writes its weapon**, or a window flown with it pastes a view that
+            // measures the world alone.
+            RtxTool::Stop armed = spot;
+            armed.mStand.mArms = "iron longsword";
+            const std::filesystem::path fourth = TestingOpenMW::outputFilePath("viewpoint-armed.cfg");
+            {
+                std::ofstream out(fourth);
+                out << describeBlock(armed);
+            }
+            const std::vector<RtxTool::Stop> held = loadViews(fourth);
+            std::filesystem::remove(fourth);
+            ASSERT_EQ(held.size(), 1u);
+            EXPECT_EQ(held.front().mStand.mArms, "iron longsword");
         }
 
         /// A window opened by `--cell` has no view to replace: `stopFor` names the stop after the
@@ -550,9 +565,13 @@ hour = 19.25
 [ship-unlit]
 like = ship
 lamps = false
+
+[ship-armed]
+like = ship
+arms = iron longsword
 )");
 
-            ASSERT_EQ(read.size(), std::size_t{ 5 });
+            ASSERT_EQ(read.size(), std::size_t{ 6 });
 
             // A place that fixes nothing keeps both conditions absent, which is what lets a run name
             // them.
@@ -601,6 +620,14 @@ lamps = false
             ASSERT_NE(unlit, nullptr);
             EXPECT_FALSE(unlit->mStand.mLamps);
             EXPECT_TRUE(dawn->mStand.mLamps);
+
+            // **A place is seen through the body's own eye only where it says so**, by the weapon's
+            // id as written, spaces and all.
+            EXPECT_TRUE(noon->mStand.mArms.empty());
+            const RtxTool::Stop* armed = findView(read, "ship-armed");
+            ASSERT_NE(armed, nullptr);
+            EXPECT_EQ(armed->mStand.mArms, "iron longsword");
+            EXPECT_EQ(*armed->mStand.mEye, osg::Vec3f(100.0f, 200.0f, 300.0f));
         }
 
         /// Every way of writing a condition or a likeness wrong is a refusal.
@@ -647,6 +674,10 @@ lamps = false
 
             EXPECT_THROW(readViews(std::string(sShip) + "[unlit]\nlike = ship\nlamps = off\n"), std::runtime_error)
                 << "lamps that are not true or false";
+            EXPECT_THROW(readViews(std::string(sShip) + "[armed]\nlike = ship\narms =\n"), std::runtime_error)
+                << "arms that name no weapon";
+            EXPECT_THROW(readViews("[armed]\ncell = -2,-9\narms = iron longsword\n"), std::runtime_error)
+                << "arms with no eye to see them through";
 
             EXPECT_THROW(readViews(std::string(sShip) + "[dawn]\nlike = nowhere\n"), std::runtime_error)
                 << "like a view that is not there";
