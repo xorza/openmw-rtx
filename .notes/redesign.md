@@ -621,10 +621,6 @@ device here measures the GL path's memory, and the change would be checked only 
   a Windows machine: run the packaged game with a `fast-fail` crash (`crash-tests`' Windows mode),
   and see that a dump arrives in the crash folder and the registry value names the DLL beside the
   executable. No machine here runs Windows.
-- **[bug, check on the AppImage] The monitor runs from the AppImage's mount after the game is
-  gone.** Packaging and the dialog run after exit, when the mount may be gone. Target: verify by
-  crashing the AppImage with `OPENMW_CRASH_DIALOG=1`; if confirmed, keep the mount for the
-  monitor's lifetime. Blocked: question 12 in `redesign_QUESTIONS.md`.
 ### 6.5 Performance (each one measured before it stays)
 
 - **[perf] FSR runs with the driver's wave size** (`fsrcallbacks.glsl`). Target: request 64-lane
