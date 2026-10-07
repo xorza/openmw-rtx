@@ -465,6 +465,83 @@ namespace Rtx::Testing
             EXPECT_NEAR(both.mGreen / shell.mGreen, green, 1e-3f) << "the shell was weighed by its coverage";
         }
 
+        /// **Puffs on one pixel are drawn in order of depth, whatever order their emitter holds
+        /// them in**: a thin red puff in front of a dense green one shows its own red as it does
+        /// alone, and the green behind it as the green alone times what the red lets through. The
+        /// green is first in the emitter's array. Weighed by alpha alone, the dense far puff won:
+        /// at alphas of 0.3 and 0.9 the red kept `(1 - 0.7 * 0.1) / 1.2 = 0.775` of itself.
+        TEST_F(RtxVisibilityTest, puffsOnOnePixelAreDrawnInOrderOfDepth)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+            constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
+
+            Shaders::VisibilityConstants camera = Testing::makeCameraAlong(
+                osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mAmbientFromSky = 0.0f;
+            camera.mAmbient = osg::Vec3f();
+            camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(4.0f, 4.0f, 4.0f));
+
+            const Sprite farGreen{ .mPosition = osg::Vec3f(0.0f, 600.0f, 0.0f),
+                .mRadius = 60.0f,
+                .mColour = osg::Vec3f(0.0f, 1.0f, 0.0f),
+                .mAlpha = 0.9f };
+            const Sprite nearRed{ .mPosition = osg::Vec3f(0.0f, 300.0f, 0.0f),
+                .mRadius = 60.0f,
+                .mColour = osg::Vec3f(1.0f, 0.0f, 0.0f),
+                .mAlpha = 0.3f };
+
+            struct Seen
+            {
+                float mRed = 0.0f;
+                float mGreen = 0.0f;
+                float mThrough = 0.0f;
+            };
+
+            const auto shot = [&](std::span<const Sprite> sprites) {
+                SceneDesc scene;
+                std::array<TextureData, 1> textures{ describeTexel(white) };
+                scene.addEmitter(
+                    sprites, scene.textures().add(VFS::Path::NormalizedView("white.dds")), BlendKind::Over);
+                const Frame frame = shoot(scene, textures, camera, size, Shot{ .mLoss = HistoryLoss::Cut });
+                return Seen{
+                    .mRed = frame.at(centre), .mGreen = frame.at(centre + 1), .mThrough = frame.at(centre + 3)
+                };
+            };
+
+            const Seen red = shot(std::array{ nearRed });
+            const Seen green = shot(std::array{ farGreen });
+            const Seen both = shot(std::array{ farGreen, nearRed });
+            ASSERT_GT(red.mRed, 0.0f);
+            ASSERT_GT(green.mGreen, 0.0f);
+            ASSERT_LT(red.mThrough, 1.0f);
+
+            EXPECT_NEAR(both.mThrough, red.mThrough * green.mThrough, 1e-4f);
+            EXPECT_NEAR(both.mRed / red.mRed, 1.0f, 2e-3f) << "the near puff was dimmed by the far one";
+            EXPECT_NEAR(both.mGreen / green.mGreen, red.mThrough, 2e-3f)
+                << "the far puff was not seen through the near";
+
+            // **And past the layers a walk keeps apart**, where the farthest are merged: five green
+            // puffs at a half behind the red, held in no order, are the five alone seen through it.
+            std::array<Sprite, 5> greens{};
+            for (std::size_t at = 0; at < greens.size(); ++at)
+            {
+                greens[at] = farGreen;
+                greens[at].mPosition.y() = 500.0f + 100.0f * static_cast<float>((at * 3) % greens.size());
+                greens[at].mAlpha = 0.5f;
+            }
+            std::array<Sprite, 6> stack{};
+            std::copy(greens.begin(), greens.end(), stack.begin());
+            stack.back() = nearRed;
+
+            const Seen alone = shot(greens);
+            const Seen stacked = shot(stack);
+            EXPECT_NEAR(stacked.mRed / red.mRed, 1.0f, 2e-3f) << "the merge dimmed the near puff";
+            EXPECT_NEAR(stacked.mGreen / alone.mGreen, red.mThrough, 2e-3f) << "the merge lost the order";
+        }
+
         /// **A shell is dimmed by the air the volume says stands in front of it**, the estimator the
         /// geometry behind it and the haze laid over it both read, and not by a closed form of its
         /// own.
