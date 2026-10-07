@@ -25,7 +25,10 @@ namespace Crash
         /// is this same executable.
         std::uint64_t mNotes = 0;
 
+        /// The application's name, read off Crashpad's own `product` annotation, which the game
+        /// starts the monitor with (`Settings::mApplication`): not written a second time.
         std::string mApplication;
+
         std::string mIssues;
 
         /// `Settings::mAnswering`.

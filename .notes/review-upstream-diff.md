@@ -33,10 +33,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The crash catcher: setup, the keeper, and leftovers
 
-- [ ] `components/crashcatcher/crashpadclient.cpp:91`, `:124` — the application name goes to the monitor
-  two times: as `--openmw-application` (`crashmonitorarguments.cpp:44`) and as Crashpad's `product`
-  annotation. Target shape: `MonitorArguments::read` takes it from Crashpad's argument, as it does for
-  `--database` (`crashmonitorarguments.cpp:84-85`). (low)
 - [ ] `components/crashcatcher/crashimagelinux.cpp:181-188` — the keeper does not reset SIGCHLD to
   `SIG_DFL`. With an inherited `SIG_IGN`, the kernel reaps children itself and sends no SIGCHLD, so
   `sigwaitinfo` never wakes, the keeper outlives the game, and the image stays mounted. Target shape:

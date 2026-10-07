@@ -21,11 +21,11 @@ namespace
         Crash::MonitorArguments written;
         written.mClient = 4242;
         written.mNotes = 0x7ffd12345678;
-        written.mApplication = "crash-tests";
         written.mIssues = "https://github.com/xorza/openmw-rtx/issues";
         written.mAnswering = Crash::EndAfter{ std::chrono::milliseconds(1500) };
 
-        std::vector<std::string> line{ "openmw", "--database=/home/x/crashes" };
+        // The name is Crashpad's annotation, which it hands its handler and the monitor reads.
+        std::vector<std::string> line{ "openmw", "--database=/home/x/crashes", "--annotation=product=crash-tests" };
         for (const std::string& argument : written.write())
             line.push_back(argument);
         line.push_back("--initial-client-fd=3");
@@ -39,7 +39,8 @@ namespace
         EXPECT_EQ(read.mAnswering, Crash::Answering(Crash::EndAfter{ std::chrono::milliseconds(1500) }));
         EXPECT_EQ(read.mDatabase, std::filesystem::path("/home/x/crashes"));
 
-        const std::vector<std::string> crashpads{ "openmw", "--database=/home/x/crashes", "--initial-client-fd=3" };
+        const std::vector<std::string> crashpads{ "openmw", "--database=/home/x/crashes",
+            "--annotation=product=crash-tests", "--initial-client-fd=3" };
         EXPECT_EQ(handler, crashpads);
 
         // **Each of the three answerings goes and comes back as itself.**
