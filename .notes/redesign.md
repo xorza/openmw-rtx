@@ -166,8 +166,8 @@ The copies have drifted apart:
    history fix in from the still-shadowed floor.
 5. **One running mean with a fast companion.** The bounce's slow mean is clamped to the
    neighbourhood of its fast means in YCoCg, per channel, by a shared library (done). The glossy and
-   pane filters' companions were declined (Phase 3 step 5), and the glossy roughness cap waits on a
-   question.
+   pane filters' companions were declined (Phase 3 step 5), and the glossy roughness cap is done
+   (`SPECULAR_RESPONSIVE_ROUGHNESS`).
 6. **Fed-back precision** (done). A history that is read back into its own blend is never stored in
    a format whose store may round toward nought (`mayRoundTowardNought`); `DenoiseHistory`'s table
    names each image's role and checks it at compile time. The shadow history is `RG32F`.
@@ -220,9 +220,7 @@ one answer:
    no figure moved there.
 6. **The draws are blue at the primary hit.** Done for the split hit's shadow rays: its sun pair,
    lamp pair and two picks come from tile streams (`STREAM_SUN_DISC`), and deeper paths keep the
-   hash, which D4's replay needs. **Left:** the bounce pair takes a vec2 or cosine STBN mask in place
-   of two scalar channels, whose per-frame turn moves the values and leaves the 64-pixel period on
-   screen.
+   hash. The bounce pair's STBN mask was tried and declined (Phase 2 step 1).
 7. **One flag answers one question**, is done: `frame.mNoSkyShadows` opens the leg under the water as
    it opens the one over it. The moons in the water column go with D7.3.
 
@@ -235,7 +233,7 @@ Decision 4's cheap fixes were made (`bd990fb38b`), and the A/B after them found 
 place: the reuse, its kernels and its reservoirs are removed, and D4.1 to D4.5 with them.
 `.notes/reuse.md` has the figures.
 
-### D5. One ray contract for every ray
+### D5. One ray contract for every ray (done)
 
 **Cause.**
 
@@ -249,7 +247,7 @@ place: the reuse, its kernels and its reservoirs are removed, and D4.1 to D4.5 w
    nought, the peel carries on `CONTINUATION_ULPS` past its layer, and a committing ray meets a
    see-through surface as often as it is there (`MEET_BY_CHANCE`).
 2. **Coverage at every level.** The mip chain preserves alpha-test coverage at the material's
-   reference (D8). The trace then needs no LOD scale in `candidateStops`.
+   reference (D8). Done, with the rasterizer's LOD scale kept in `candidateStops` (Phase 6).
 
 **What goes away.** The thin far foliage.
 
@@ -279,7 +277,7 @@ The pane redesign also removes the wasted gather that U › "pane and glossy fil
 for pixels whose answer they throw away" reports. The pane's history then holds only diffuse light,
 and the gather runs through the D2 library.
 
-### D7. Participating media: store the product, and keep one estimator per stretch
+### D7. Participating media: store the product, and keep one estimator per stretch (done)
 
 **Cause.**
 
@@ -366,7 +364,7 @@ same rule on the host and on the device (`MipChain`, `ShadingMap`):
     coarse levels.
 - The reactive and transparency masks are clamped to 0.9 at the store.
 
-### D10. Frame state changes before recording, and barriers between dependency levels
+### D10. Frame state changes before recording, and barriers between dependency levels (done)
 
 **Cause.**
 
@@ -394,10 +392,10 @@ Each check lands with its contract, and each is one the gate runs.
 | D3 | GPU tests: a mirror beside a lamp reflects the lamp's analytic lobe and no glow of its model (done); the split sky is every source's sum, and a source under a floor draws no bit (done); a lamp that takes light away takes it off the exact sum where one lamp is drawn (done). |
 | D5 | GPU tests: a floor point half a unit from a wall gets no light from behind the wall (done, `theFloorAtAWallsFootIsShadowedByTheWallNoMatterHowNear`); a pane of opacity one half is met by half the secondary rays, in the mean (done, `aBounceMeetsASeeThroughPaneAsOftenAsThePaneIsThere`). |
 | D6 | A GPU test: one frame through the filters is the frame the trace composed itself, on a grey floor and a metal one (done, `theCompositePutsBackWhatTheTraceDividedOut`). |
-| D7 | Host tests: the froxel's blend of `σ·L` and `σ` equals the mean of `σ·L`; `waterColumn`'s closed form equals a numerical integral at several directions. |
+| D7 | Host tests: the froxel's blend of `σ·L` and `σ` equals the mean of `σ·L`, and a stretch integrates it at the midpoint rule's order (done, `aStretchIntegratesTheProductItsFroxelsHold`); `waterColumn`'s closed form equals a numerical integral at several directions (done, `theWatersColumnGathersItsClosedForm`). |
 | D8 | The host/device tests that exist, plus: an odd extent's halving reads every texel of the level above, and preserves its sum (done, `anOddExtentIsHalvedByTheBoxOfItsOwnWidth`). |
 | D9 | A GPU test: adaptation closes a gap at the same rate in stops either way, after the asymmetry the constants state (done, `theMeterLeavesOutTheBrightestTenthAndAdaptsInStops`). |
-| D10 | `CommandPool`'s open recordings, asserted at each submit (done). Synchronization validation clean on one `shot` run. |
+| D10 | `CommandPool`'s open recordings, asserted at each submit (done). Synchronization validation clean on one `shot` run (done: every place and its map under `--validation=sync`, which a validation error aborts). |
 
 ## 5. Implementation plan
 
@@ -473,7 +471,7 @@ In the order of D7's points. Each step is a `shot --against` at the fog and wate
 fog's zones in `bench`. **Point 1 is done**: the froxel stores the density as a share of the
 weather's extinction, the light and the sun's transport times it, and `fogThrough` integrates them
 by `mediumKept`. The pictures before it are in `~/.cache/omw-redesign/shots-before-d7`. **Point 2 is
-done** (`slantCoverage`). **Owed:** a GPU test of a point at a bank's edge, lit as the clear air its
+done** (`slantCoverage`). **Owed, decided (2026-10-07): `FogVolume` takes its `FogNoise` from its caller, and a test hands a field that varies with height alone:** a GPU test of a point at a bank's edge, lit as the clear air its
 slant leaves through, which needs a way for a test to state a coverage field: the field is
 procedural, and a test can only make it even, where the slant's coverage and the point's agree.
 **Point 3 is done**, with one change to the contract: the interface factor is computed in the shader
@@ -560,7 +558,7 @@ measures, so the split by material and its rebuild are not built.
 **Not measurable yet: the arms' `tmax`.** No bench place draws the arms (a probe of
 `mArmsInFrame` read nought at the deck and at the guild: the harness's body readies nothing), so the
 arms' ray is never traced in a measured run and no A/B can keep the change. It waits for a place
-that stands the player with a weapon drawn; the finding is in section 6.5.
+that stands the player with a weapon drawn, which section 6.5 now adds.
 **Declined by its bound: the everywhere-presence word.** The atomic ORs it would save are a part of
 the sprite bin's whole zone, 0.03 ms at the dawn deck, under a bench median's noise.
 
@@ -583,14 +581,7 @@ over the eye and the layer draw the same pictures at every place, and are slower
 median 3.68 → 3.82 ms at the dawn deck and 1.75 → 1.77 at the guild over six runs a side
 (`~/.cache/omw-redesign/ab-site`).
 
-**Stopped here on the user's word** (2026-10-06): Phase 8 is done; Phase 9 and section 6 are not
-started.
-
-- **Uniform frame times.**
-- **Unused work.**
-
-Each one is a `release bench` A/B, and is kept only if its median or p99 improves. A per-lane
-branch is kept only with its measurement written beside it.
+**Done** on the user's word (2026-10-06).
 
 ### Phase 9. The rest of the tree
 
@@ -746,8 +737,9 @@ a cost and is kept only with its measurement, **[code]** changes neither.
   changeable test, `sceneextractor.cpp`), though the mirror always takes the nearest level. Target:
   take `Lod` out.
 - **[perf] The arms' ray runs to `mFar`** with `MASK_FIRST_PERSON` (`visibility.rgen`), a full
-  traversal on a miss. Target: `tmax` at the farthest first-person bound. Not measurable until a
-  bench place stands the player with a weapon drawn (Phase 8).
+  traversal on a miss. Target: `tmax` at the farthest first-person bound. Decided (2026-10-07):
+  first a bench place that stands the player with a weapon drawn (the harness's body readies it),
+  then the A/B.
 - **[perf] The shadow filter rebuilds every position at every level** (`shadowfilter.comp`,
   `readSquare`). Target: positions and normals once a frame.
 - **[perf] FSR runs in full floats with the driver's wave size** (`fsrcallbacks.glsl`, `FFX_HALF 0`).
