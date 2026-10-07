@@ -7,19 +7,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 Whoever fixes one of these deletes it from the issue log as well.
 
-- [ ] `components/rtxvulkan/shaders/trace/visibility.rgen:486-490` — a pane's first filtered frame is
-  0.04–0.07% darker than the frame the trace composes. Reproduced at full float, frame 2000, the pane
-  `(0.3, 0.37, 0.41)` at opacity 0.43 under `addLampsBefore`: red 0.006459 against 0.006455, green
-  0.007967 against 0.007963; every other channel is nought at the centre. **The cause:** the trace
-  divides the layers' light by `paneModulation`, rounded to a half by
-  `unpackHalf2x16(packHalf2x16(x))`, and composes with it; the composite multiplies by
-  `CHANNEL_PANE_ALBEDO` as stored. The stored albedo is 0.12890625, and the trace composed with
-  0.12900: the driver folds the round trip back to `x` (both instructions are in the module), and
-  the store then rounds toward nought. Target shape: round to a half by integer operations no compiler
-  folds — the low 13 mantissa bits cleared, exact for every value from `PANE_ALBEDO_FLOOR` (1/255,
-  past the least normal half) to 65504 — as `specularModulation` rounds by bits; the comment says why
-  the GLSL round trip is not used; and a test of `pane.cpp` holds the first filtered frame to the
-  composed one, to the bit, with that pane. (medium)
 - [ ] `trace/denoise/specular.comp:126-151`, `trace/denoise/pane.comp:77-92` — both blend with
   `blendedMean`, with no fast mean and no box, so a rough reflection, or a pane's light, keeps up to
   `ACCUMULATE_FRAMES` of old light after a lamp changes on a still surface; only the bounce is clamped,

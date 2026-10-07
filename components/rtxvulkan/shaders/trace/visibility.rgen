@@ -485,9 +485,15 @@ void main()
     const vec3 paneAlbedoSum = armsStack.mAlbedo + armsStack.mThrough * panes.mAlbedo;
     // **Rounded to what `CHANNEL_PANE_ALBEDO` holds before anything is divided by it**, as
     // `specularModulation` is: the light divided by this and the channel the composite multiplies by
-    // are one number, so the two meet to the rounding of a product. A half holds the floor.
-    const vec3 paneHeld = max(paneAlbedoSum, vec3(PANE_ALBEDO_FLOOR));
-    const vec3 paneModulation = vec3(unpackHalf2x16(packHalf2x16(paneHeld.rg)), unpackHalf2x16(packHalf2x16(paneHeld.bb)).x);
+    // are one number, so the two meet to the rounding of a product.
+    //
+    // **By its bits, and not by `unpackHalf2x16(packHalf2x16(x))`**, which this card's driver folds
+    // back to `x`: the trace then composed with 0.129 and the store kept 0.12890625, rounding toward
+    // nought, so a pane's first filtered frame came out 0.07% darker than the frame the trace
+    // composed. The 13 bits a half has not, cleared, leave a value every store of a half keeps exactly,
+    // over the whole range between the floor — past the least normal half — and the greatest half.
+    const vec3 paneHeld = clamp(paneAlbedoSum, vec3(PANE_ALBEDO_FLOOR), vec3(65504.0));
+    const vec3 paneModulation = uintBitsToFloat(floatBitsToUint(paneHeld) & 0xffffe000u);
     const vec3 paneLight = paneDrawn / paneModulation;
 
     // **What the upscaler is told its motion vector does not describe**, `CHANNEL_UPSCALE_MASKS`:

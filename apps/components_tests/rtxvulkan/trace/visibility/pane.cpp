@@ -119,6 +119,26 @@ namespace Rtx::Testing
             }
         }
 
+        /// **A pane's first filtered frame is the frame the trace composes, to the bit**: the pane
+        /// filter starts its mean at the frame's own light, and the composite multiplies it back by
+        /// the albedo the trace divided it by. A pane whose albedo no half holds — `(0.3, 0.37, 0.41)`
+        /// at 0.43, a red of 0.129 that a half holds as 0.12890625 at the least — under the four
+        /// lamps, against the black sky, so the pane is the whole of every pixel.
+        TEST_F(RtxVisibilityTest, aPanesFirstFilteredFrameIsTheComposedFrame)
+        {
+            SceneDesc scene;
+            addPane(scene, uprightQuadAt(4000.0f, 200.0f), osg::Vec4f(0.3f, 0.37f, 0.41f, 0.43f));
+            addLampsBefore(scene, 200.0f);
+            Shaders::VisibilityConstants camera = darkEyeAt(osg::Vec3f());
+            camera.mFrame = 2000;
+
+            const Frame composed = shoot(scene, {}, camera, sSize);
+            const Frame filtered = shoot(scene, {}, camera, sSize, filteredRun(1, 2000));
+            ASSERT_GT(composed.mean(0), 0.0f) << "a pane that is lit by nothing proves nothing";
+            for (std::size_t value = 0; value < composed.mRadiance.size(); ++value)
+                ASSERT_EQ(filtered.at(value), composed.at(value)) << "value " << value;
+        }
+
         /// **A jittered still's history is registered at the pixel's centre**: a
         /// mean of many jittered samples stands for the pixel, and is fetched at `at + 0.5 + motion`,
         /// never at this frame's jitter against the last. Over a still eye that jitters, sixteen
