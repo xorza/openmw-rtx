@@ -5,10 +5,6 @@
 
 #include <osg/Math>
 
-#include <components/crashcatcher/crash.hpp>
-#include <components/esm/refid.hpp>
-#include <components/esm/stringrefid.hpp>
-#include <components/esm3/loadregn.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/look.h>
@@ -179,27 +175,6 @@ namespace Rtx
         const float offset = dip / descent;
 
         return std::max(sunShareAt(hour - offset, times), sunShareAt(hour + offset, times));
-    }
-
-    std::optional<std::uint32_t> weatherIndex(std::string_view weather)
-    {
-        const int index = ESM::Weather::refIdToIndex(ESM::RefId::stringRefId(weather));
-        if (index < 0)
-            return std::nullopt;
-
-        return static_cast<std::uint32_t>(index);
-    }
-
-    std::string_view weatherName(std::uint32_t weather)
-    {
-        if (weather >= sWeatherCount)
-            return {};
-
-        // The table's own interned spelling, which outlives every caller.
-        const ESM::RefId id = ESM::Weather::indexToRefId(static_cast<int>(weather));
-        const ESM::StringRefId* const named = id.getIf<ESM::StringRefId>();
-        Crash::contract(named != nullptr, "a weather ESM::Weather does not name by a string");
-        return named->getValue();
     }
 
     Daylight makeRoomLight(const ESM::Cell::AMBIstruct& room)

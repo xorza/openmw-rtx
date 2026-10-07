@@ -19,12 +19,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   ~246 MiB host-written heap until the graveyard collects the old one. Target shape: fixed-size blocks
   with an address table, as `BlockedBuffer` has, or a capacity set at load. (medium)
 
-## A typed referent is carried as a string and parsed back
-
-- [ ] `components/rtx/environment/skylight.hpp:164-181` — the ten weathers are `std::uint32_t` constants
-  with an `sNoSheet` sentinel, in the sun-light header. Target shape: a `Weather` enum with its name
-  table in its own file. (low)
-
 ## Wrong behaviour in a single place
 
 - [ ] `apps/openmw/mwrender/rtx/rtxrenderer.cpp:583` — `saveScreenshot` gives the writer `readFrame()`

@@ -4,6 +4,7 @@
 #include <string>
 
 #include <components/misc/result.hpp>
+#include <components/rtx/environment/weather.hpp>
 
 namespace MWBase
 {
@@ -48,9 +49,8 @@ namespace RtxTool
         static std::string describePause();
 
     private:
-        /// Puts the sky under `weather`, as `Rtx::weatherIndex` numbers it, over the player's region,
-        /// as `changeweather` would.
-        static void setWeather(MWBase::World& world, std::uint32_t weather);
+        /// Puts the sky under `weather` over the player's region, as `changeweather` would.
+        static void setWeather(MWBase::World& world, Rtx::Weather weather);
 
         /// Gives the player every attribute and skill at 255, a Speed of 2000, level 255 and ten
         /// million gold, through the calls the console's `setspeed`, `setlevel` and `additem` make.

@@ -27,6 +27,7 @@
 #include <components/files/conversion.hpp>
 #include <components/misc/constants.hpp>
 #include <components/platform/process.hpp>
+#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -265,8 +266,7 @@ namespace RtxTool
                 Rtx::sSurfaceViewNames.list())
                 .c_str());
 
-        option(sOneSky, "weather",
-            bpo::value<std::string>()->default_value(std::string(Rtx::weatherName(sDefaultWeather))),
+        option(sOneSky, "weather", bpo::value<std::string>()->default_value(std::string(Rtx::nameOf(sDefaultWeather))),
             std::format("which weather's sun, sky and precipitation an exterior stands under, named as the "
                         "content files spell it: {}. The ones that drop something drop it here too. Given, "
                         "it beats a weather a view fixes for itself",

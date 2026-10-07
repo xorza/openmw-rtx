@@ -32,6 +32,7 @@
 #include "frameworld.hpp"
 #include "skylight.hpp"
 #include "skysheet.hpp"
+#include "weather.hpp"
 
 namespace Rtx
 {
@@ -111,10 +112,10 @@ namespace Rtx
         // Every weather's sheet now, under a megabyte for all ten, so a storm arriving costs no
         // upload. Empty where the weather names none, which the shipped fallbacks do for ash and
         // blight; named once where two weathers share one.
-        for (std::uint32_t weather = 0; weather < sWeatherCount; ++weather)
+        for (std::size_t weather = 0; weather < sWeatherCount; ++weather)
         {
-            const std::string_view sheet
-                = Fallback::Map::getString("Weather_" + std::string(weatherName(weather)) + "_Cloud_Texture");
+            const std::string_view sheet = Fallback::Map::getString(
+                "Weather_" + std::string(nameOf(static_cast<Weather>(weather))) + "_Cloud_Texture");
             if (!sheet.empty() && loaded.sheetNamed(sheet) == sNoSheet)
                 addCloudSheet(scene, scenes, thread, holds, sheet, loaded);
         }

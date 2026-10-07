@@ -15,6 +15,7 @@
 #include <apps/rtxtool/model/camerapath.hpp>
 #include <apps/rtxtool/model/cameratrack.hpp>
 #include <apps/rtxtool/model/cruise.hpp>
+#include <components/rtx/environment/weather.hpp>
 
 namespace RtxTool
 {
@@ -31,7 +32,7 @@ namespace RtxTool
         const osg::Vec3f& getEye() const { return *mStop.mStand.mEye; }
         const osg::Vec3f& getLook() const { return *mStop.mStand.mLook; }
         float getHour() const { return *mStop.mSky.mHour; }
-        std::uint32_t getWeather() const { return *mStop.mSky.mWeather; }
+        Rtx::Weather getWeather() const { return *mStop.mSky.mWeather; }
 
         /// How long the flight to this key takes, in place of the length its changes derive.
         std::optional<float> mSeconds{};
@@ -115,10 +116,10 @@ namespace RtxTool
         /// length; or nothing for the keys' hours.
         std::optional<float> mClock;
 
-        /// The weathers the sky turns through over the whole film, round and round, as
-        /// `Rtx::weatherIndex` numbers them, where the weathers the keys name are left alone and
-        /// set no segment's length; or none for the keys' weathers.
-        std::vector<std::uint32_t> mTurn;
+        /// The weathers the sky turns through over the whole film, round and round, where the
+        /// weathers the keys name are left alone and set no segment's length; or none for the keys'
+        /// weathers.
+        std::vector<Rtx::Weather> mTurn;
 
         /// How long each weather of `mTurn` stands before the crossing into the next.
         float mWeatherHold = 4.0f;

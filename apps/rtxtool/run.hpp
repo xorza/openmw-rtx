@@ -16,6 +16,7 @@
 #include <apps/rtxtool/model/maprules.hpp>
 #include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/sdlutil/vsyncmode.hpp>
@@ -243,7 +244,7 @@ namespace RtxTool
     /// names one: what a picture of a place is taken at. Not the hour a budget is written against
     /// — a low sun doubles the trace — which is why the views the target is judged on fix `hour`.
     inline constexpr float sDefaultHour = 12.0f;
-    inline constexpr std::uint32_t sDefaultWeather = Rtx::sWeatherClear;
+    inline constexpr Rtx::Weather sDefaultWeather = Rtx::Weather::Clear;
 
     /// One stop from a view file entry and the sky the command line named. A view id names one
     /// frame, so a place measured at dawn says so in `mSky.mHour`; the command line still wins, as

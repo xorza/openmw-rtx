@@ -9,6 +9,8 @@
 
 #include <osg/Vec3f>
 
+#include <components/rtx/environment/weather.hpp>
+
 #include "camerapath.hpp"
 #include "cruise.hpp"
 
@@ -29,8 +31,7 @@ namespace RtxTool
         /// The hour of the day, from 0 up to 24.
         float mHour = 0.0f;
 
-        /// A weather, as `Rtx::weatherIndex` numbers them.
-        std::uint32_t mWeather = 0;
+        Rtx::Weather mWeather = Rtx::Weather::Clear;
 
         /// Whether the camera stands still here, as on either side of a hold. A take's first and
         /// last keys always do.
@@ -65,8 +66,8 @@ namespace RtxTool
 
         /// The weather the sky leaves, the one it goes to, and how far it has crossed, nought to one.
         /// The two are the same where no crossing runs.
-        std::uint32_t mWeather = 0;
-        std::uint32_t mNextWeather = 0;
+        Rtx::Weather mWeather = Rtx::Weather::Clear;
+        Rtx::Weather mNextWeather = Rtx::Weather::Clear;
         float mCrossed = 0.0f;
     };
 
@@ -84,9 +85,8 @@ namespace RtxTool
         /// the keys name.
         std::optional<double> mClockPerFrame;
 
-        /// The weathers turned through, as `Rtx::weatherIndex` numbers them, or none for the
-        /// crossings the keys make.
-        std::vector<std::uint32_t> mWeathers{};
+        /// The weathers turned through, or none for the crossings the keys make.
+        std::vector<Rtx::Weather> mWeathers{};
 
         /// Frames each weather stands before the crossing into the next, and frames the crossing
         /// takes, one at least.
@@ -149,7 +149,7 @@ namespace RtxTool
         struct Knot
         {
             double mFrame = 0.0;
-            std::uint32_t mWeather = 0;
+            Rtx::Weather mWeather = Rtx::Weather::Clear;
 
             /// The yaw unwrapped against the knot before and the hours counted forward from the
             /// first, so each channel is continuous.

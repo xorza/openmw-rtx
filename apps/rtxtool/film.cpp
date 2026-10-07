@@ -22,6 +22,7 @@
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/environment/weather.hpp>
 
 #include "run.hpp"
 
@@ -419,14 +420,14 @@ namespace RtxTool
         {
             const SkyRun run = skyRunOf(plan.mPacing, 0);
             if (run.mWeathers.empty())
-                return std::string(Rtx::weatherName(key.getWeather()));
+                return std::string(Rtx::nameOf(key.getWeather()));
 
             TrackPose sky;
             run.turnAt(frame, sky);
             if (sky.mNextWeather == sky.mWeather)
-                return std::string(Rtx::weatherName(sky.mWeather));
+                return std::string(Rtx::nameOf(sky.mWeather));
 
-            return std::format("{} → {}", Rtx::weatherName(sky.mWeather), Rtx::weatherName(sky.mNextWeather));
+            return std::format("{} → {}", Rtx::nameOf(sky.mWeather), Rtx::nameOf(sky.mNextWeather));
         }
 
         std::string_view describeCut(const FilmCut cut)
@@ -464,7 +465,7 @@ namespace RtxTool
                 case FilmPace::Clock:
                     return std::format("{:.2f} hours of clock", segment.mHours);
                 case FilmPace::Weather:
-                    return std::format("the sky crossing into {}", to.getWeather());
+                    return std::format("the sky crossing into {}", Rtx::nameOf(to.getWeather()));
                 case FilmPace::Still:
                     return "nothing changes";
             }
@@ -614,8 +615,8 @@ namespace RtxTool
         if (!pacing.mTurn.empty())
         {
             std::string names;
-            for (const std::uint32_t weather : pacing.mTurn)
-                names += std::format("{}{}", names.empty() ? "" : ", ", Rtx::weatherName(weather));
+            for (const Rtx::Weather weather : pacing.mTurn)
+                names += std::format("{}{}", names.empty() ? "" : ", ", Rtx::nameOf(weather));
             text += std::format(
                 "the weather through {} and round again, each standing {:.1f} s and crossing in {:.1f} s\n", names,
                 pacing.mWeatherHold, pacing.mCrossingSeconds);

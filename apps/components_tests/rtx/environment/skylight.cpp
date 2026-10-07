@@ -8,6 +8,7 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/rtx/environment/fogbuilder.hpp>
 #include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
@@ -163,26 +164,31 @@ namespace Rtx
         /// sky over a rainstorm without anything failing to compile, so there is none.
         TEST(RtxSkylightTest, aWeatherNameIndexesTheOrderTheEngineRegistersThemIn)
         {
-            EXPECT_EQ(weatherIndex("Clear"), Rtx::sWeatherClear);
-            EXPECT_EQ(weatherIndex("Cloudy"), Rtx::sWeatherCloudy);
-            EXPECT_EQ(weatherIndex("Foggy"), Rtx::sWeatherFoggy);
-            EXPECT_EQ(weatherIndex("Overcast"), Rtx::sWeatherOvercast);
-            EXPECT_EQ(weatherIndex("Rain"), Rtx::sWeatherRain);
-            EXPECT_EQ(weatherIndex("Thunderstorm"), Rtx::sWeatherThunderstorm);
-            EXPECT_EQ(weatherIndex("Ashstorm"), Rtx::sWeatherAshstorm);
-            EXPECT_EQ(weatherIndex("Blight"), Rtx::sWeatherBlight);
-            EXPECT_EQ(weatherIndex("Snow"), Rtx::sWeatherSnow);
-            EXPECT_EQ(weatherIndex("Blizzard"), Rtx::sWeatherBlizzard);
+            EXPECT_EQ(weatherNamed("Clear"), Weather::Clear);
+            EXPECT_EQ(weatherNamed("Cloudy"), Weather::Cloudy);
+            EXPECT_EQ(weatherNamed("Foggy"), Weather::Foggy);
+            EXPECT_EQ(weatherNamed("Overcast"), Weather::Overcast);
+            EXPECT_EQ(weatherNamed("Rain"), Weather::Rain);
+            EXPECT_EQ(weatherNamed("Thunderstorm"), Weather::Thunderstorm);
+            EXPECT_EQ(weatherNamed("Ashstorm"), Weather::Ashstorm);
+            EXPECT_EQ(weatherNamed("Blight"), Weather::Blight);
+            EXPECT_EQ(weatherNamed("Snow"), Weather::Snow);
+            EXPECT_EQ(weatherNamed("Blizzard"), Weather::Blizzard);
 
-            EXPECT_FALSE(weatherIndex("Drizzle").has_value());
+            EXPECT_FALSE(weatherNamed("Drizzle").has_value());
 
-            // **Any case, as the game reads a weather's id**, and the name each index spells is
+            // **Any case, as the game reads a weather's id**, and the name each weather spells is
             // `ESM::Weather`'s own, which is the one spelling a `Weather_<name>_*` key is made of.
-            EXPECT_EQ(weatherIndex("clear"), Rtx::sWeatherClear);
-            EXPECT_EQ(weatherIndex("ASHSTORM"), Rtx::sWeatherAshstorm);
-            EXPECT_EQ(weatherName(Rtx::sWeatherAshstorm), "Ashstorm");
-            EXPECT_EQ(weatherName(Rtx::sWeatherCount), "") << "past the ten";
-            EXPECT_FALSE(weatherIndex("").has_value());
+            EXPECT_EQ(weatherNamed("clear"), Weather::Clear);
+            EXPECT_EQ(weatherNamed("ASHSTORM"), Weather::Ashstorm);
+            EXPECT_EQ(nameOf(Weather::Ashstorm), "Ashstorm");
+            EXPECT_FALSE(weatherNamed("").has_value());
+
+            // **A script id is the same count**, and one past the ten, or the game's "none", is none.
+            EXPECT_EQ(weatherOfScriptId(scriptIdOf(Weather::Blight)), Weather::Blight);
+            EXPECT_EQ(weatherOfScriptId(9), Weather::Blizzard);
+            EXPECT_FALSE(weatherOfScriptId(10).has_value()) << "past the ten";
+            EXPECT_FALSE(weatherOfScriptId(-1).has_value()) << "no weather arriving";
         }
 
         /// **The sun's cone is two degrees, and its limb is that angle's sine**, by the rule a moon's
