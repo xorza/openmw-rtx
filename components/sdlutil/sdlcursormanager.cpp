@@ -89,6 +89,8 @@ namespace SDLUtil
     void SDLCursorManager::_setGUICursor(std::string_view name)
     {
         auto it = mCursorMap.find(name);
+        if (it == mCursorMap.end())
+            it = mCursorMap.find("arrow");
         if (it != mCursorMap.end())
             SDL_SetCursor(it->second);
     }

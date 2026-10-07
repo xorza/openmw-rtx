@@ -18,6 +18,10 @@ namespace SDLUtil
             int w = 0;
             int h = 0;
             SDL_GetDisplayBounds(SDL_GetDisplayForWindow(window), &rect);
+
+            // SDL3 sizes a window when the system gets round to it, and the size asked for a moment
+            // ago is not yet the one this reads.
+            SDL_SyncWindow(window);
             SDL_GetWindowSize(window, &w, &h);
 
             int x = rect.x;
@@ -36,6 +40,11 @@ namespace SDLUtil
     int windowPoints(int pixels, float density)
     {
         return static_cast<int>(std::lround(static_cast<double>(pixels) / static_cast<double>(density)));
+    }
+
+    int displayPixels(int points, float density)
+    {
+        return static_cast<int>(std::lround(static_cast<double>(points) * static_cast<double>(density)));
     }
 
     void setVideoMode(SDL_Window* window, int width, int height, Settings::WindowMode windowMode, bool windowBorder)

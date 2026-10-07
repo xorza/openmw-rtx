@@ -1338,7 +1338,8 @@ namespace MWGui
 
     void WindowManager::fitCursors()
     {
-        const float scale = mScalingFactor * mRenderer.getPresentation().shownScale();
+        const float shown = mRenderer.getPresentation().shownScale();
+        const float scale = mScalingFactor * shown;
         // Nought where SDL cannot say, which is one: a cursor drawn at its own pixels.
         const float asked = SDL_GetWindowDisplayScale(mRenderer.getWindow());
         const float displayScale = asked > 0.f ? asked : 1.f;
@@ -1347,6 +1348,7 @@ namespace MWGui
 
         mCursorScale = scale;
         mCursorDisplayScale = displayScale;
+        mLuaCursorScale = shown;
         mCursorManager->dropCursors();
         createCursors();
     }
@@ -1873,8 +1875,8 @@ namespace MWGui
                                               .mHotspot = MyGUI::IntPoint(hotspotX, hotspotY),
                                               .mRotation = rotation })
                                       .first->second;
-        if (!createScaledCursor(
-                name, VFS::Path::Normalized(cursor.mPath), cursor.mRotation, cursor.mHotspot, cursor.mSize))
+        if (!createScaledCursor(name, VFS::Path::Normalized(cursor.mPath), cursor.mRotation, cursor.mHotspot,
+                cursor.mSize, mLuaCursorScale))
             Log(Debug::Warning) << "Failed to load Lua cursor texture: " << path;
     }
 
@@ -2510,23 +2512,23 @@ namespace MWGui
 
             const VFS::Path::Normalized path(imgSetPointer->getImageSet()->getIndexInfo(0, 0).texture);
             createScaledCursor(imgSetPointer->getResourceName(), path, imgSetPointer->getRotation(),
-                imgSetPointer->getHotSpot(), imgSetPointer->getSize());
+                imgSetPointer->getHotSpot(), imgSetPointer->getSize(), mCursorScale);
         }
 
         for (const auto& [name, cursor] : mLuaCursors)
-            createScaledCursor(
-                name, VFS::Path::Normalized(cursor.mPath), cursor.mRotation, cursor.mHotspot, cursor.mSize);
+            createScaledCursor(name, VFS::Path::Normalized(cursor.mPath), cursor.mRotation, cursor.mHotspot,
+                cursor.mSize, mLuaCursorScale);
     }
 
     bool WindowManager::createScaledCursor(std::string_view name, const VFS::Path::Normalized& path, double rotation,
-        MyGUI::IntPoint hotspot, MyGUI::IntSize size)
+        MyGUI::IntPoint hotspot, MyGUI::IntSize size, const float scale)
     {
         osg::ref_ptr<osg::Image> image = mResourceSystem->getImageManager()->getImage(path);
         if (!image.valid())
             return false;
 
         const auto pixels
-            = [this](int units) { return static_cast<int>(std::lround(static_cast<float>(units) * mCursorScale)); };
+            = [scale](int units) { return static_cast<int>(std::lround(static_cast<float>(units) * scale)); };
         mCursorManager->createCursor(name, rotation, image, pixels(hotspot.left), pixels(hotspot.top),
             std::max(1, pixels(size.width)), std::max(1, pixels(size.height)), mCursorDisplayScale);
         return true;
