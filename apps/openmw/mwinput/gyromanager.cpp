@@ -5,6 +5,7 @@
 #include "../mwbase/world.hpp"
 #include "../mwworld/player.hpp"
 
+#include <components/debug/debuglog.hpp>
 #include <components/settings/values.hpp>
 
 namespace MWInput
@@ -37,7 +38,7 @@ namespace MWInput
         }
     }
 
-    void GyroManager::update(float dt, std::array<float, 3> values) const
+    void GyroManager::update(float dt, std::array<float, 3> values)
     {
         if (mGuiCursorEnabled)
             return;
@@ -45,6 +46,16 @@ namespace MWInput
         const float threshold = Settings::input().mGyroInputThreshold;
         const float gyroH = getAxisValue(Settings::input().mGyroHorizontalAxis, threshold, values);
         const float gyroV = getAxisValue(Settings::input().mGyroVerticalAxis, threshold, values);
+
+        // TODO: remove with the spinning camera's fix (`.notes/redesign.md` 8.1). when the gyroscope starts and stops
+        // turning the camera.
+        const bool turning = gyroH != 0.f || gyroV != 0.f;
+        if (turning != mTurning)
+        {
+            mTurning = turning;
+            Log(Debug::Warning) << "Mouse diagnostic: the gyroscope " << (turning ? "turns" : "rests") << " at ("
+                                << gyroH << ", " << gyroV << ")";
+        }
 
         if (gyroH == 0.f && gyroV == 0.f)
             return;

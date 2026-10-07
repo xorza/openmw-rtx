@@ -4,6 +4,7 @@
 #include <MyGUI_InputManager.h>
 #include <MyGUI_RenderManager.h>
 
+#include <components/debug/debuglog.hpp>
 #include <components/lua_ui/input.hpp>
 #include <components/sdlutil/sdlinputwrapper.hpp>
 #include <components/sdlutil/sdlmappings.hpp>
@@ -240,6 +241,17 @@ namespace MWInput
 
         float xAxis = mBindingsManager->getActionValue(A_LookLeftRight) * 2.0f - 1.0f;
         float yAxis = mBindingsManager->getActionValue(A_LookUpDown) * 2.0f - 1.0f;
+
+        // TODO: remove with the spinning camera's fix (`.notes/redesign.md` 8.1). when a look axis starts and stops
+        // turning the camera.
+        const bool turning = xAxis != 0 || yAxis != 0;
+        if (turning != mLookAxisTurning)
+        {
+            mLookAxisTurning = turning;
+            Log(Debug::Warning) << "Mouse diagnostic: the look axes " << (turning ? "turn" : "rest") << " at (" << xAxis
+                                << ", " << yAxis << ")";
+        }
+
         if (xAxis == 0 && yAxis == 0)
             return;
 
