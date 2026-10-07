@@ -604,9 +604,9 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.2 Upstream files (decision 5: approved)
 
-- **[perf] Rasterizer local-map tiles keep their render targets** (waits on `redesign_QUESTIONS.md` question 6). `GlTileView` holds the RTT
-  camera, FBO and `D24S8` buffer for every mapped segment; upstream freed them once drawn. Target:
-  drop the attachments after the draw, and make them again on `redraw`.
+**Declined (2026-10-07): freeing the rasterizer's local-map render targets.** `GlTileView` keeps the
+RTT camera, FBO and `D24S8` buffer of every mapped segment, where upstream freed them once drawn: no
+device here measures the GL path's memory, and the change would be checked only by a played session.
 
 ### 6.3 Crash reports, CI and the release
 
