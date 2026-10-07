@@ -410,10 +410,6 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
         <translation>Błąd podczas odbierania liczby ekranów</translation>
     </message>
     <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetNumVideoDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;Błąd SDL_GetNumVideoDisplays:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
-    </message>
-    <message>
         <source>Screen </source>
         <translation>Ekran </translation>
     </message>
@@ -422,12 +418,12 @@ do domyślnych czcionek Morrowind. Zaznacz to pole, jeśli nadal wolisz oryginal
         <translation>Błąd podczas odbierania rozdzielczości</translation>
     </message>
     <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetNumDisplayModes failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;Błąd SDL_GetNumDisplayModes:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
+        <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
+        <translation>&lt;br&gt;&lt;b&gt;Błąd SDL_GetDisplays:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
     </message>
     <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplayMode failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;Błąd SDL_GetDisplayMode:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
+        <source>&lt;br&gt;&lt;b&gt;SDL_GetFullscreenDisplayModes failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
+        <translation>&lt;br&gt;&lt;b&gt;Błąd SDL_GetFullscreenDisplayModes:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
     </message>
     <message>
         <source>Custom window size is available only in Windowed mode.</source>

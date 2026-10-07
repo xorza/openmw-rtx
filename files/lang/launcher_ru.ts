@@ -408,10 +408,6 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
         <translation>Не удалось получить количество экранов</translation>
     </message>
     <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetNumVideoDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;Вызов SDL_GetNumVideoDisplays завершился с ошибкой:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
-    </message>
-    <message>
         <source>Screen </source>
         <translation>Экран </translation>
     </message>
@@ -420,12 +416,12 @@ to default Morrowind fonts. Check this box if you still prefer original fonts ov
         <translation>Не удалось получить доступные разрешения экрана</translation>
     </message>
     <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetNumDisplayModes failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;SDL_GetNumDisplayModes failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
+        <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplays failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
+        <translation>&lt;br&gt;&lt;b&gt;Вызов SDL_GetDisplays завершился с ошибкой:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
     </message>
     <message>
-        <source>&lt;br&gt;&lt;b&gt;SDL_GetDisplayMode failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
-        <translation>&lt;br&gt;&lt;b&gt;Вызов SDL_GetDisplayMode завершился с ошибкой:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
+        <source>&lt;br&gt;&lt;b&gt;SDL_GetFullscreenDisplayModes failed:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</source>
+        <translation>&lt;br&gt;&lt;b&gt;Вызов SDL_GetFullscreenDisplayModes завершился с ошибкой:&lt;/b&gt;&lt;br&gt;&lt;br&gt;</translation>
     </message>
     <message>
         <source>Custom window size is available only in Windowed mode.</source>

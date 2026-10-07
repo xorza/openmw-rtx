@@ -3,6 +3,8 @@
 
 #include <functional>
 
+struct SDL_Window;
+
 namespace MWInput
 {
     class BindingsManager;
@@ -10,7 +12,7 @@ namespace MWInput
     class ActionManager
     {
     public:
-        ActionManager(BindingsManager* bindingsManager, std::function<void()> takeScreenshot);
+        ActionManager(BindingsManager* bindingsManager, SDL_Window* window, std::function<void()> takeScreenshot);
 
         void update(float dt);
 
@@ -37,6 +39,7 @@ namespace MWInput
         void handleGuiArrowKey(int action);
 
         BindingsManager* mBindingsManager;
+        SDL_Window* mWindow;
         std::function<void()> mTakeScreenshot;
 
         float mTimeIdle;

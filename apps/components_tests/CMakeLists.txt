@@ -22,7 +22,6 @@ file(GLOB UNITTEST_SRC_FILES
 
     misc/compression.cpp
     misc/progressreporter.cpp
-    misc/testdisplay.cpp
     misc/testendianness.cpp
     misc/testmathutil.cpp
     misc/testresourcehelpers.cpp

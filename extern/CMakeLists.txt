@@ -74,6 +74,24 @@ if(NOT OPENMW_USE_SYSTEM_MYGUI)
     set(MyGUI_LIBRARIES MyGUIEngine PARENT_SCOPE)
 endif()
 
+if(NOT OPENMW_USE_SYSTEM_SDL3)
+
+    # Static, so that a package does not depend on an SDL3 that the target system may not provide.
+    set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+    set(SDL_STATIC ON CACHE BOOL "" FORCE)
+    set(SDL_TEST_LIBRARY OFF CACHE BOOL "")
+    set(SDL_EXAMPLES OFF CACHE BOOL "")
+    set(SDL_TESTS OFF CACHE BOOL "")
+
+    include(FetchContent)
+    FetchContent_Declare(SDL3
+        URL https://github.com/libsdl-org/SDL/releases/download/release-3.4.18/SDL3-3.4.18.tar.gz
+        URL_HASH SHA512=e59df7c19af3ce567e89b987aaf7852ea680beb52acd97dff0fad0688b20a8e0724a4ce33c655a88095d25dadba0e5615c95297ae6327bec149c902ffd2eb15b
+        SOURCE_DIR fetched/sdl3
+    )
+    FetchContent_MakeAvailable(SDL3)
+endif()
+
 if(NOT OPENMW_USE_SYSTEM_OSG)
 
     set(BUILD_OSG_APPLICATIONS OFF CACHE BOOL "")

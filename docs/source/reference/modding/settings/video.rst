@@ -155,8 +155,8 @@ Video Settings
    :range: > 0.0
    :default: 1.0
 
-   This setting controls the contrast correction for all video in the game.
-   It has been reported to not work on some Linux systems.
+   This setting controls the contrast correction of the rendered scene.
+   It does not apply to the GUI or to videos.
 
 
 .. omw-setting::
@@ -166,9 +166,6 @@ Video Settings
    :default: 1.0
    :location: :bdg-success:`Launcher > Display` :bdg-info:`In Game > Options > Video > Detail Level`
 
-   This setting controls the gamma correction for all video in the game.
+   This setting controls the gamma correction of the rendered scene.
    Gamma is an exponent that makes colors brighter if greater than 1.0 and darker if less than 1.0.
-
-   .. warning::
-
-      This setting is only supported on Windows platform. The setting will not be displayed in the in-game menu if not available.
+   It does not apply to the GUI or to videos.

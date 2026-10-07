@@ -19,8 +19,9 @@
 // For BT_NO_PROFILE
 #include <LinearMath/btQuickprof.h>
 
-#include <SDL_clipboard.h>
-#include <SDL_keyboard.h>
+#include <SDL3/SDL_clipboard.h>
+#include <SDL3/SDL_keyboard.h>
+#include <SDL3/SDL_video.h>
 
 #include <components/debug/debuglog.hpp>
 
@@ -158,6 +159,7 @@ namespace MWGui
         , mResourceSystem(resourceSystem)
         , mWorkQueue(workQueue)
         , mViewer(viewer)
+        , mWindow(window)
         , mConsoleOnlyScripts(consoleOnlyScripts)
         , mCurrentModals()
         , mHud(nullptr)
@@ -206,12 +208,7 @@ namespace MWGui
         , mWindowVisible(true)
         , mCfgMgr(cfgMgr)
     {
-        int w, h;
-        SDL_GetWindowSize(window, &w, &h);
-        int dw, dh;
-        SDL_GL_GetDrawableSize(window, &dw, &dh);
-
-        mScalingFactor = Settings::gui().mScalingFactor * (dw / w);
+        mScalingFactor = Settings::gui().mScalingFactor * SDL_GetWindowPixelDensity(window);
         constexpr VFS::Path::NormalizedView resourcePath("mygui");
         mGuiPlatform = std::make_unique<MyGUIPlatform::Platform>(viewer, guiRoot, resourceSystem->getImageManager(),
             resourceSystem->getVFS(), mScalingFactor, resourcePath, logpath / "MyGUI.log");
@@ -304,7 +301,6 @@ namespace MWGui
             += MyGUI::newDelegate(this, &WindowManager::onClipboardRequested);
 
         mVideoWrapper = std::make_unique<SDLUtil::VideoWrapper>(window, viewer);
-        mVideoWrapper->setGammaContrast(Settings::video().mGamma, Settings::video().mContrast);
 
         mGuiPlatform->getRenderManagerPtr()->enableShaders(mResourceSystem->getSceneManager()->getShaderManager());
 
@@ -1316,13 +1312,11 @@ namespace MWGui
 
             else if (setting.first == "Video" && setting.second == "vsync mode")
                 mVideoWrapper->setSyncToVBlank(Settings::video().mVsyncMode);
-            else if (setting.first == "Video" && (setting.second == "gamma" || setting.second == "contrast"))
-                mVideoWrapper->setGammaContrast(Settings::video().mGamma, Settings::video().mContrast);
         }
 
         if (changeRes)
         {
-            mVideoWrapper->setVideoMode(Settings::video().mResolutionX, Settings::video().mResolutionY,
+            SDLUtil::setVideoMode(mWindow, Settings::video().mResolutionX, Settings::video().mResolutionY,
                 Settings::video().mWindowMode, Settings::video().mWindowBorder);
         }
     }
@@ -1931,19 +1925,13 @@ namespace MWGui
                 capturesInput = widget->castType<MyGUI::EditBox>(false);
         }
 
-        // The SDL_IsTextInputActive() check helps to avoid duplicate calls in SDL2.
-        // This may no longer be required when switching to SDL3 where the function
-        // has also been renamed to SDL_TextInputActive() and returns bool instead
-        // of SDL_bool.
-
-        const bool inputActive = SDL_IsTextInputActive() == SDL_TRUE;
-        if (capturesInput == inputActive)
+        if (capturesInput == SDL_TextInputActive(mWindow))
             return;
 
         if (capturesInput)
-            SDL_StartTextInput();
+            SDL_StartTextInput(mWindow);
         else
-            SDL_StopTextInput();
+            SDL_StopTextInput(mWindow);
     }
 
     void WindowManager::setEnemy(const MWWorld::Ptr& enemy)

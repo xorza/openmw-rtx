@@ -2,7 +2,7 @@
 
 #include <MyGUI_InputManager.h>
 
-#include <SDL_keyboard.h>
+#include <SDL3/SDL_keyboard.h>
 
 #include <components/settings/values.hpp>
 
@@ -27,8 +27,10 @@
 namespace MWInput
 {
 
-    ActionManager::ActionManager(BindingsManager* bindingsManager, std::function<void()> takeScreenshot)
+    ActionManager::ActionManager(
+        BindingsManager* bindingsManager, SDL_Window* window, std::function<void()> takeScreenshot)
         : mBindingsManager(bindingsManager)
+        , mWindow(window)
         , mTakeScreenshot(std::move(takeScreenshot))
         , mTimeIdle(0.f)
     {
@@ -252,7 +254,7 @@ namespace MWInput
         if (MWBase::Environment::get().getWindowManager()->isGuiMode())
         {
             bool joystickUsed = MWBase::Environment::get().getInputManager()->joystickLastUsed();
-            if (!SDL_IsTextInputActive() && !mBindingsManager->isLeftOrRightButton(A_Activate, joystickUsed))
+            if (!SDL_TextInputActive(mWindow) && !mBindingsManager->isLeftOrRightButton(A_Activate, joystickUsed))
                 MWBase::Environment::get().getWindowManager()->injectKeyPress(MyGUI::KeyCode::Return, 0, false);
         }
         else if (MWBase::Environment::get().getInputManager()->getControlSwitch("playercontrols"))
@@ -276,7 +278,7 @@ namespace MWInput
         if (joystickUsed)
             return;
 
-        if (SDL_IsTextInputActive())
+        if (SDL_TextInputActive(mWindow))
             return;
 
         if (mBindingsManager->isLeftOrRightButton(action, joystickUsed))

@@ -161,6 +161,8 @@ else()
 endif()
 option(MYGUI_STATIC "Link static build of Mygui into the binaries" ${_mygui_static_default})
 
+option(OPENMW_USE_SYSTEM_SDL3 "Use system provided SDL3 library" ON)
+
 option(OPENMW_USE_SYSTEM_RECASTNAVIGATION "Use system provided recastnavigation library" OFF)
 if(OPENMW_USE_SYSTEM_RECASTNAVIGATION)
     set(_recastnavigation_static_default OFF)
@@ -405,9 +407,6 @@ endif()
 
 # Platform specific
 if (WIN32)
-    # Suppress WinMain(), provided by SDL
-    add_compile_definitions(SDL_MAIN_HANDLED)
-
     # Get rid of useless crud from windows.h
     add_compile_definitions(
         NOMINMAX # name conflict with std::min, std::max
@@ -551,7 +550,11 @@ find_package(Boost 1.70.0 CONFIG REQUIRED COMPONENTS ${BOOST_COMPONENTS} OPTIONA
 if(OPENMW_USE_SYSTEM_MYGUI)
     find_package(MyGUI 3.4.3 REQUIRED)
 endif()
-find_package(SDL2 2.26 REQUIRED)
+if(OPENMW_USE_SYSTEM_SDL3)
+    find_package(SDL3 3.2.12 REQUIRED CONFIG)
+endif()
+# The gamepad code keeps SDL2's names, which SDL3 renamed and keeps as aliases in SDL_oldnames.h.
+add_compile_definitions(SDL_ENABLE_OLD_NAMES)
 find_package(OpenAL REQUIRED)
 find_package(ZLIB REQUIRED)
 

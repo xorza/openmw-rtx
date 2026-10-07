@@ -13,7 +13,7 @@
 #include <MyGUI_UString.h>
 #include <MyGUI_Window.h>
 
-#include <SDL_video.h>
+#include <SDL3/SDL_video.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/configurationmanager.hpp>
@@ -25,6 +25,7 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/lightmanager.hpp>
+#include <components/sdlutil/sdlvideowrapper.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp>
@@ -314,20 +315,6 @@ namespace MWGui
         getWidget(mObjectShadowsButton, "ObjectShadowsButton");
         getWidget(mShadowMapResolution, "ShadowMapResolution");
 
-#ifndef WIN32
-        // hide gamma controls since it currently does not work under Linux
-        MyGUI::ScrollBar* gammaSlider;
-        getWidget(gammaSlider, "GammaSlider");
-        gammaSlider->setVisible(false);
-        MyGUI::TextBox* textBox;
-        getWidget(textBox, "GammaText");
-        textBox->setVisible(false);
-        getWidget(textBox, "GammaTextDark");
-        textBox->setVisible(false);
-        getWidget(textBox, "GammaTextLight");
-        textBox->setVisible(false);
-#endif
-
         mMainWidget->castType<MyGUI::Window>()->eventWindowChangeCoord
             += MyGUI::newDelegate(this, &SettingsWindow::onWindowResize);
 
@@ -381,15 +368,16 @@ namespace MWGui
             += MyGUI::newDelegate(this, &SettingsWindow::onResetDefaultBindings);
 
         // fill resolution list
-        const int screen = Settings::video().mScreen;
-        int numDisplayModes = SDL_GetNumDisplayModes(screen);
+        int numDisplayModes = 0;
+        SDL_DisplayMode** displayModes
+            = SDL_GetFullscreenDisplayModes(SDLUtil::displayAt(Settings::video().mScreen), &numDisplayModes);
         std::vector<std::pair<int, int>> resolutions;
         for (int i = 0; i < numDisplayModes; i++)
         {
-            SDL_DisplayMode mode;
-            SDL_GetDisplayMode(screen, i, &mode);
-            resolutions.emplace_back(mode.w, mode.h);
+            const osg::Vec2i pixels = SDLUtil::modePixels(*displayModes[i]);
+            resolutions.emplace_back(pixels.x(), pixels.y());
         }
+        SDL_free(displayModes);
         std::sort(resolutions.begin(), resolutions.end(), sortResolutions);
         for (std::pair<int, int>& resolution : resolutions)
         {
