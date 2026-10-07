@@ -14,7 +14,6 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/common/clock.hpp>
-#include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/framezone.hpp>
@@ -23,6 +22,7 @@
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/frameworld.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
 
 namespace Rtx

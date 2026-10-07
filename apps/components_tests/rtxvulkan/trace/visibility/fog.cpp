@@ -19,9 +19,6 @@
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/common/index.hpp>
-#include <components/rtx/environment/fogbuilder.hpp>
-#include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/scene/light.hpp>
@@ -33,6 +30,9 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/fogbuilder.hpp>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/moon.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"

@@ -41,9 +41,6 @@
 #include <components/platform/platform.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/common/error.hpp>
-#include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/environment/skylight.hpp>
-#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
@@ -51,6 +48,9 @@
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtx/scene/specularlayout.hpp>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/skylight.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/rtxvulkan/createrenderer.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/settings.hpp>

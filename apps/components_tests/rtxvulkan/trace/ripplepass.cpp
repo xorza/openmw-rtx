@@ -12,9 +12,9 @@
 
 #include <apps/components_tests/rtx/support/device/harness.hpp>
 #include <apps/components_tests/rtx/support/device/readback.hpp>
-#include <components/rtx/environment/fogbuilder.hpp>
 #include <components/rtx/scene/ripple.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/world/fogbuilder.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/shaders/shared/ripple.h>

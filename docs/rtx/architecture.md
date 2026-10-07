@@ -163,9 +163,10 @@ source-tree test holds the order.
 | `preprocess/`       | `ContentPreprocessor`, its keys, cache and costs; the passes in `shape/` and `texture/` |
 | `scene/`            | `SceneDesc`, its rows and tables, and what makes textures of it          |
 | `frame/`            | what a frame is asked for and sampled with: the camera, the reconstruction |
+| `world/`            | the sky, the air and the water a frame is told                           |
 | `renderer/`         | `Rtx::Renderer` and what it hands, reports and writes                    |
 | `mirror/`           | the walk from the scene graph, what it reads a surface and a lamp as; the cell ring in `cells/`, which runs inside it |
-| `environment/`      | the sky, the air and the sea a frame is told                             |
+| `environment/`      | the sky read out of the content files, and the sea's waves               |
 | `view/`             | the pictures traced away from the eye                                    |
 
 - **`Rtx::Renderer`** (`renderer/renderer.hpp`) is one traced image, whichever API makes it. Each
@@ -198,8 +199,9 @@ source-tree test holds the order.
   is counted into the walk's stats and the `preprocess` row of a frame.
 - **`Rtx::SceneUploader`** hands a scene to the backend once a frame, in the cheapest of three
   ways: place what moved, extend with what arrived, or rebuild.
-- **The world a frame is told** (`environment/`) turns a `WorldReading` into the frame's
-  constants: sun, moons, sky, clouds, fog, water.
+- **The world a frame is told** (`world/`) turns a `WorldReading` into the frame's
+  constants: sun, moons, sky, clouds, fog, water. What it draws with, the sky's sheets and the
+  meshes they are laid on, is read out of the content once (`environment/`).
 - **Materials.** `ShadingMap` estimates the light painted into a vanilla texture, to divide it
   out. Companion maps (`_n`, `_nh`, `_spec`) and tangents reach the material as data slots. The
   surface model is glTF 2.0's metal-roughness (`shaders/brdf.h`), shared with the host, which
@@ -441,7 +443,7 @@ Rendering changes are checked without a window. `AGENTS.md` lists the commands.
 | what the scene is                         | `components/rtx/scene/scenedesc.hpp`                                                   |
 | the cells past the active grid            | `components/rtx/mirror/cells/cellring.hpp`                                             |
 | what is computed from content, and cached | `components/rtx/preprocess/contentpreprocessor.hpp`, `contentpass.hpp`                 |
-| the sky, the air and the sea              | `components/rtx/environment/frameworld.hpp`, `mwrender/rtx/skyreader.hpp`              |
+| the sky, the air and the sea              | `components/rtx/world/frameworld.hpp`, `mwrender/rtx/skyreader.hpp`              |
 | the surface model                         | `components/rtx/shaders/brdf.h`                                                        |
 | what a frame is on the device             | `components/rtx/shaders/visibility.h`, `scene.h`                                       |
 | the backend's frame                       | `components/rtxvulkan/vulkanrenderer.hpp`, `trace/tracechain.hpp`, `display/displaychain.hpp` |

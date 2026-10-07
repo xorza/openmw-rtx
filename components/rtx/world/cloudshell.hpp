@@ -1,22 +1,7 @@
 #pragma once
 
-#include <string>
-
 #include <osg/Vec2f>
 #include <osg/Vec3f>
-
-#include <components/misc/result.hpp>
-#include <components/vfs/pathutil.hpp>
-
-namespace osg
-{
-    class Node;
-}
-
-namespace Resource
-{
-    class SceneManager;
-}
 
 namespace Rtx
 {
@@ -45,14 +30,4 @@ namespace Rtx
         /// radius between rings. On Morrowind's own cap 1.17, 1.72 and 2.50 tiles.
         osg::Vec3f mRings;
     };
-
-    /// Reads it off the cloud mesh the configuration names, which the host passes in. An error
-    /// where the file does not exist, as `readNightSky` answers, saying why and leaving the name to
-    /// whoever reports it. A mesh that is there and says nothing hangs no layer, which the overload
-    /// below says.
-    Misc::Result<CloudShell, std::string> readCloudShell(
-        Resource::SceneManager& scenes, VFS::Path::NormalizedView mesh);
-
-    /// The same reading, of a mesh already in hand.
-    CloudShell readCloudShell(const osg::Node& mesh);
 }

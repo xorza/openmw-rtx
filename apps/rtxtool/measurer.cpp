@@ -24,11 +24,11 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/result.hpp>
-#include <components/rtx/environment/skylight.hpp>
-#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/png.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
+#include <components/rtx/world/skylight.hpp>
+#include <components/rtx/world/weather.hpp>
 
 #include "film.hpp"
 #include "stager.hpp"

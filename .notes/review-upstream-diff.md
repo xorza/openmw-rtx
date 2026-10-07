@@ -7,7 +7,7 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 - [ ] `components/rtx/renderer/renderer.hpp:438-439,492` — `traceGuiTexture` and `renderFrame` take the
   1624-byte `Shaders::VisibilityConstants` as "the camera". Four parties write its fields: the camera
-  builder (`frame/camera.cpp:47-86`), `describeWorld` (`environment/frameworld.cpp:108-214`, called by
+  builder (`frame/camera.cpp:47-86`), `describeWorld` (`world/frameworld.cpp:108-214`, called by
   the game's `SkyReader::describe`, which also splits the rest into `FrameOptions`), `sampleFrame`, and
   the backend (`visibilitypass.cpp:484-527`, `tracemedia.cpp:58`). `leavesSamplingAlone`
   (`frame/framesampling.cpp:29-39,46`) exists only to catch a writer of another party's field, and the
@@ -68,7 +68,7 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   shape: correct comments, and an assert that the texture is a `SlotTexture`. (low)
 - [ ] `components/rtx/view/offscreentrace.hpp:80` — names `readGuiTexture`, which no longer exists
   (`Renderer::takeGuiCopy`/`takeCopy`). (low)
-- [ ] `components/rtx/environment/moonbuilder.cpp:72-74` — `foldedPhase` says "Morrowind's phases are
+- [ ] `components/rtx/world/moon.cpp:46-48` — `foldedPhase` says "Morrowind's phases are
   multiples of a quarter pi, so the fold is a subtraction". The phase is now the continuous
   `MoonState::mPhaseEighths`. (low)
 - [ ] `components/sky/vertexrules.hpp:41-46` — says "exactly white, and nothing else", but

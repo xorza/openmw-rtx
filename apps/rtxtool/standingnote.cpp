@@ -13,8 +13,8 @@
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/timestamp.hpp>
-#include <components/rtx/environment/skylight.hpp>
-#include <components/rtx/environment/weather.hpp>
+#include <components/rtx/world/skylight.hpp>
+#include <components/rtx/world/weather.hpp>
 
 #include "run.hpp"
 #include "stager.hpp"

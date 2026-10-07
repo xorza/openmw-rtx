@@ -27,12 +27,12 @@
 #include <components/files/conversion.hpp>
 #include <components/misc/constants.hpp>
 #include <components/platform/process.hpp>
-#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/shaders/look.h>
+#include <components/rtx/world/weather.hpp>
 
 #include "compare.hpp"
 #include "film.hpp"

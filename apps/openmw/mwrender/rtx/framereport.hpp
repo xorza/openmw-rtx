@@ -5,7 +5,6 @@
 
 #include <osg/Vec3f>
 
-#include <components/rtx/environment/frameworld.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
@@ -14,6 +13,7 @@
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/frameworld.hpp>
 
 namespace Rtx
 {

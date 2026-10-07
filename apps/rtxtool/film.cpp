@@ -21,8 +21,8 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
-#include <components/rtx/environment/skylight.hpp>
-#include <components/rtx/environment/weather.hpp>
+#include <components/rtx/world/skylight.hpp>
+#include <components/rtx/world/weather.hpp>
 
 #include "run.hpp"
 

@@ -5,7 +5,7 @@
 #include <osg/Math>
 #include <osg/Vec3f>
 
-#include <components/rtx/environment/skylight.hpp>
+#include <components/rtx/world/skylight.hpp>
 #include <components/sky/timeofday.hpp>
 
 namespace Rtx

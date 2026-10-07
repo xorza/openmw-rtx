@@ -41,8 +41,8 @@
 #include <components/esm3/loadskil.hpp>
 #include <components/esm3/loadweap.hpp>
 #include <components/misc/rng.hpp>
-#include <components/rtx/environment/skylight.hpp>
-#include <components/rtx/environment/weather.hpp>
+#include <components/rtx/world/skylight.hpp>
+#include <components/rtx/world/weather.hpp>
 
 namespace RtxTool
 {

@@ -24,9 +24,9 @@
 #include <apps/rtxtool/run.hpp>
 #include <apps/rtxtool/verbs.hpp>
 #include <components/files/conversion.hpp>
-#include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/environment/weather.hpp>
 #include <components/rtx/renderer/shaderdirectory.hpp>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories/video.hpp>
 #include <components/settings/values.hpp>

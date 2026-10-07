@@ -21,7 +21,7 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
-#include <components/rtx/environment/weather.hpp>
+#include <components/rtx/world/weather.hpp>
 #include <components/settings/categories.hpp>
 #include <components/settings/parser.hpp>
 #include <components/settings/values.hpp>

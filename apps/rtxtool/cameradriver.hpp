@@ -9,7 +9,7 @@
 #include <osg/Vec3f>
 
 #include <apps/rtxtool/model/skycrossing.hpp>
-#include <components/rtx/environment/weather.hpp>
+#include <components/rtx/world/weather.hpp>
 
 namespace ESM
 {

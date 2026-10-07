@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <span>
 
-#include <components/rtx/environment/weather.hpp>
+#include <components/rtx/world/weather.hpp>
 
 namespace RtxTool
 {

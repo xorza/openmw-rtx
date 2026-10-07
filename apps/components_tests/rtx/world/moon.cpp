@@ -16,7 +16,7 @@
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/heldimages.hpp>
 #include <components/fallback/fallback.hpp>
-#include <components/rtx/environment/moonbuilder.hpp>
+#include <components/rtx/environment/moonfaces.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
@@ -27,6 +27,7 @@
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
+#include <components/rtx/world/moon.hpp>
 #include <components/sky/moonstate.hpp>
 #include <components/vfs/manager.hpp>
 

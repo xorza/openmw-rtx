@@ -27,8 +27,6 @@
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/common/runs.hpp>
-#include <components/rtx/environment/frameworld.hpp>
-#include <components/rtx/environment/moonbuilder.hpp>
 #include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/camera.hpp>
@@ -46,6 +44,8 @@
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/moon.hpp>
 #include <components/rtxvulkan/scene/sceneacceleration.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/scene/skinpass.hpp>
