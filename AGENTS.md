@@ -217,7 +217,7 @@ the core is a bug whether or not a second backend ever arrives.
 - `./omw repeat --pairs=10` after touching anything a frame reads: two processes walk
   `one-cell-walk` for six seconds with the upscaler and the denoiser off, the second with the queue
   held behind the host, and must agree frame for frame. A pair that finds nothing has found nothing.
-  Read a difference with `--exposure=1` and `--pictures=<dir>`.
+  Read a difference with `--exposure=1` and `--pictures`.
 - **The denoised frame is not bit-exact on this card** (`docs/rtx/architecture.md`; notes in
   `6b3978a065`): under a busy queue, the first wavelet dispatch after a pipeline drain sometimes
   differs by an ulp on identical inputs, one level of 255. The card's, not a missing barrier.

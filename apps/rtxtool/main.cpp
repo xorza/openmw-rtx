@@ -453,9 +453,9 @@ namespace RtxTool
             return &requireView(views, name);
         }
 
-        /// What a `shot` writes its frames' hashes to, beside the pictures, and reads a reference's
-        /// from.
-        constexpr std::string_view sShotHashes = "hashes.csv";
+        /// What a `shot` and a `bench --out` write their frames' hashes to, beside the pictures, and
+        /// read a reference's from, in the directory `--against` names.
+        constexpr std::string_view sRunHashes = "hashes.csv";
 
         /// Runs `stop` for `frames` once the world stood whole and its histories converged over
         /// `sHistoryFrames`, so its pictures are the ones a player standing there sees. Still where
@@ -734,7 +734,7 @@ namespace RtxTool
         /// `--views`, with `--against` saying which pictures a change moved.
         ///
         /// **The frame is judged by its hashes and not by its pixels.** Every frame of a stop is
-        /// hashed the way a `bench --hashes` hashes one — the trace's own images, what the frame
+        /// hashed the way a `bench --out` hashes one — the trace's own images, what the frame
         /// handed the reconstruction, the scene — into `hashes.csv` beside the pictures, and
         /// `--against` compares that table first. `FrameHashes` says why the picture past an
         /// upscaler cannot be the verdict; the tile, the doll and the sheet are traced
@@ -797,9 +797,9 @@ namespace RtxTool
             clearPictures(out, written);
 
             SessionRequest request = sessionFor(command, framed, std::move(stops));
-            request.mHashes = out / sShotHashes;
+            request.mHashes = out / sRunHashes;
             if (!against.empty())
-                request.mAgainst = against / sShotHashes;
+                request.mAgainst = against / sRunHashes;
 
             // Compared whatever the session answered, because a moved frame is what fails it, and
             // the run where something moved is the run whose tiles, dolls and sheets are wanted.
@@ -823,16 +823,24 @@ namespace RtxTool
 
             const BenchSpec spec = specFrom(variables);
             const std::vector<Rtx::Weather> turn = weathersToTurn(variables);
-            const bool hashing = !variables["hashes"].as<std::string>().empty()
-                || !variables["against"].as<std::string>().empty() || !variables["pictures"].as<std::string>().empty();
+            // **Nothing written and nothing hashed unless asked**: a bench measures, and a frame read
+            // back waits on the device. `--out` is where its hashes go, and its pictures where asked.
+            const std::filesystem::path out = variables["out"].defaulted() ? std::filesystem::path() : outOf(command);
+            const std::filesystem::path against = variables["against"].as<std::string>();
+            const bool pictures = variables["pictures"].as<bool>();
+            if (pictures && out.empty())
+                throw std::runtime_error("--pictures writes into --out, and no --out was named");
+            if (!out.empty())
+            {
+                std::filesystem::create_directories(out);
+                if (const Misc::Result<void, std::string> checked = checkAgainst(out, against); !checked.isOk())
+                    throw std::runtime_error(checked.error());
+            }
+            const bool hashing = !out.empty() || !against.empty();
 
             const std::filesystem::path frameTimes = variables["frame-times"].as<std::string>();
             if (!frameTimes.empty())
                 std::filesystem::create_directories(frameTimes);
-
-            const std::filesystem::path pictures = variables["pictures"].as<std::string>();
-            if (!pictures.empty())
-                std::filesystem::create_directories(pictures);
 
             for (Stop& stop : stops)
             {
@@ -846,9 +854,12 @@ namespace RtxTool
             SessionRequest request = sessionFor(command, framed, std::move(stops));
             request.mSuite = run.mSuite;
             request.mJson = variables["json"].as<std::string>();
-            request.mHashes = variables["hashes"].as<std::string>();
-            request.mAgainst = variables["against"].as<std::string>();
-            request.mPictures = pictures;
+            if (!out.empty())
+                request.mHashes = out / sRunHashes;
+            if (!against.empty())
+                request.mAgainst = against / sRunHashes;
+            if (pictures)
+                request.mPictures = out;
             request.mPerfControl = variables["perf-control"].as<std::string>();
             request.mSetup.mSettled = run.mSettled;
 

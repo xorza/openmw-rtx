@@ -43,11 +43,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The driver and its dependencies
 
-- [ ] `apps/rtxtool/options.cpp:524,540,548,554`, `apps/rtxtool/main.cpp:826-828,876-878` — `--against`
-  is a directory under `shot` and a file under `bench`. `shot` writes `hashes.csv` into `--out`, while
-  `bench` needs `--hashes=<file>` and `--pictures=<dir>`, and ignores `--out`. Target shape: `bench` takes
-  `--out=<dir>`, and `--against=<dir>` means the same for both verbs. `repeat.py`'s `RUN_SWITCHES` becomes
-  smaller. (medium)
 - [ ] `tools/omw/listing.py:59` — `check` returns success and prints nothing when the build has no
   `components_qt` (`asan`, `tsan`, `release`, and `debug` on Windows). Target shape: say that the check was
   skipped and why, or exclude the Qt-only libraries by rule. (low)
