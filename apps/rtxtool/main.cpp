@@ -959,9 +959,7 @@ namespace RtxTool
 
             for (Stop& stop : stops)
             {
-                // **Two measured frames, because one of the claims is about a pair of them.** A
-                // still camera resolving to a still picture cannot be asked of one frame.
-                measureFrames(stop, 2);
+                measureFrames(stop);
 
                 for (const Check check : every)
                     if (canAsk(check, stop, framed.mSetup.mRun.mProfile))
