@@ -68,12 +68,6 @@ float skyVisible(SkySource sky, vec3 position, vec3 step, vec2 draw)
     return passage.mOpen * passage.mThrough;
 }
 
-/// The same for a caller that has an index and not a source.
-float skyVisible(vec3 position, vec3 step, uint source, vec2 draw)
-{
-    return skyVisible(skySourceAt(source), position, step, draw);
-}
-
 /// Which lamps one cell of the grid holds, as a range into the light list.
 ///
 /// **A shading point should not have to ask every lamp in the cell whether it is near.** Walking

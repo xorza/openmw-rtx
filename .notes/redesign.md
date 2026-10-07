@@ -638,8 +638,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.7 Design, duplication and dead code
 
-- **[code] `skyVisible`'s two overloads take their arguments in two orders** (`lights.glsl`).
-  Target: one overload.
 - **[code] `lightThrough` has no caller** (`traversal.glsl`) and comments still name it. Target:
   remove it and point them at `lightPassage`.
 - **[code] FSR's dead Lanczos table and `FFX_PREFER_WAVE64`** (`fsrcallbacks.glsl`). Target:
