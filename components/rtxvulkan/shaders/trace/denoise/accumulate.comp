@@ -102,8 +102,7 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_FAST_OUT, ACCUMULATE_FAST) unif
 
 layout(push_constant, scalar) uniform Push
 {
-    HistoryConstants frame;
-    uint dualMotion;
+    AccumulateConstants frame;
 };
 
 /// What the history holds of this pixel's surface, summed over the taps that are it, each by its
@@ -145,7 +144,7 @@ void gatherHistory(inout Held held, HistoryFootprint before, vec4 shares)
 /// the pixel's own plane tolerance, and its motion in `xy` where it does.
 vec3 nearerAt(ivec2 tap, float away, float tolerance)
 {
-    if (outsideOf(tap, uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
+    if (outsideOf(tap, uvec2(frame.mHistory.mEyes.mWorld.mWidth, frame.mHistory.mEyes.mWorld.mHeight)))
         return vec3(0.0);
 
     const vec2 seen = imageLoad(surfaceChannel, tap).xy;
@@ -195,7 +194,7 @@ vec3 occluderMotion(ivec2 at, vec3 moved, float away, float tolerance)
 void main()
 {
     const ivec2 at = ivec2(gl_GlobalInvocationID.xy);
-    if (outsideOf(uvec2(at), uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight)))
+    if (outsideOf(uvec2(at), uvec2(frame.mHistory.mEyes.mWorld.mWidth, frame.mHistory.mEyes.mWorld.mHeight)))
         return;
 
     const vec3 sampled = imageLoad(indirect, at).rgb;
@@ -214,7 +213,7 @@ void main()
         // stray infinity into a NaN rather than into nothing.
         RTX_STORE_COUNTED(blendedOut, at, vec4(sampled, 0.0))
         RTX_STORE_COUNTED(fillBlendedOut, at, vec4(sampledFill, 0.0))
-        RTX_STORE_COUNTED(surfaceOut, at, heldSurfaceOf(seen, frame.mDistanceScale))
+        RTX_STORE_COUNTED(surfaceOut, at, heldSurfaceOf(seen, frame.mHistory.mDistanceScale))
         RTX_STORE_COUNTED(momentsOut, at, vec4(0.0))
         RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(sampled), packRgb9e5(sampledFill), 0u, 0u))
 
@@ -229,10 +228,10 @@ void main()
     const HistoryFootprint before = historyFootprint(at, moved);
 
     Held held = Held(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0), vec2(0.0), 0.0, 0.0);
-    if (frame.mReset == 0u)
+    if (frame.mHistory.mReset == 0u)
     {
-        const HistoryPlane plane = historyPlane(frame, at, seen, moved);
-        const uvec2 extent = uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight);
+        const HistoryPlane plane = historyPlane(frame.mHistory, at, seen, moved);
+        const uvec2 extent = uvec2(frame.mHistory.mEyes.mWorld.mWidth, frame.mHistory.mEyes.mWorld.mHeight);
         RTX_HISTORY_SHARES(shares, before, extent, historySurface, true, plane)
         gatherHistory(held, before, shares);
 
@@ -243,7 +242,7 @@ void main()
         // another point of the surface, as far off as the occluder moved, which a test on one point's
         // distance refused on a floor five pixels on.
         const vec2 landed = vec2(at) + 0.5 + moved.xy;
-        const bool hidden = dualMotion != 0u && dot(frame.mPrevious.mForward, frame.mPrevious.mForward) > 0.0
+        const bool hidden = frame.mDualMotion != 0u && dot(frame.mHistory.mPrevious.mForward, frame.mHistory.mPrevious.mForward) > 0.0
             && !(held.mWeight > 0.0) && !outsideOf(ivec2(floor(landed)), extent);
         if (hidden)
         {
@@ -311,7 +310,7 @@ void main()
 
     RTX_STORE_COUNTED(blendedOut, at, vec4(blended, 0.0))
     RTX_STORE_COUNTED(fillBlendedOut, at, vec4(blendedFill, 0.0))
-    RTX_STORE_COUNTED(surfaceOut, at, heldSurfaceOf(seen, frame.mDistanceScale))
+    RTX_STORE_COUNTED(surfaceOut, at, heldSurfaceOf(seen, frame.mHistory.mDistanceScale))
     RTX_STORE_COUNTED(momentsOut, at, vec4(blendedMoments, 0.0, count))
     RTX_STORE_WORDS(fastOut, at, uvec4(packRgb9e5(blendedFast), packRgb9e5(blendedFastFill), 0u, 0u))
 }
