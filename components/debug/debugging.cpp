@@ -105,6 +105,10 @@ namespace Debug
         /// configured one: `setCrashReports`.
         bool sReportsNamed = false;
 
+        /// The folder under the user data folder that the reports go to, both before the configuration
+        /// names that folder and after.
+        constexpr std::string_view sReportFolder = "crashes";
+
         class DebugOutputBase : public boost::iostreams::sink
         {
         public:
@@ -396,7 +400,7 @@ namespace Debug
     void setCrashReports(const std::filesystem::path& userData)
     {
         if (!sReportsNamed)
-            Crash::setReportFolder(userData / "crashes");
+            Crash::setReportFolder(userData / sReportFolder);
     }
 
     void setupLogging(const std::filesystem::path& logDir, std::string_view appName)
@@ -475,7 +479,7 @@ namespace Debug
             const std::optional<std::filesystem::path> reports
                 = Platform::Process::environmentPath("OPENMW_CRASH_REPORTS");
             sReportsNamed = reports.has_value();
-            settings.mReportFolder = reports.value_or(Files::FixedPath<>("openmw").getUserDataPath() / "crashes");
+            settings.mReportFolder = reports.value_or(Files::FixedPath<>("openmw").getUserDataPath() / sReportFolder);
             // As the fatal error box below: none for whoever started the game from a shell; none
             // where a harness asks, which a box waiting for a click would stop; and a harness's End
             // in place of the player's where it names one.
