@@ -109,7 +109,8 @@ namespace Rtx
 
             PhysicalDevice::Profile profile()
             {
-                return PhysicalDevice::profileOf(mProperties, mFeatures, mExtensions, mQueues, mFormats, mImages);
+                return PhysicalDevice::profileOf(
+                    mProperties, mFeatures, mExtensions, mQueues, mFormats, mImages, mPresents);
             }
 
             DeviceProperties mProperties;
@@ -118,6 +119,9 @@ namespace Rtx
             std::vector<VkQueueFamilyProperties> mQueues;
             std::vector<VkFormatProperties> mFormats;
             std::vector<std::optional<VkImageFormatProperties>> mImages;
+
+            /// Empty for a renderer with no window, which every case here is but the one that asks.
+            std::vector<VkBool32> mPresents;
         };
 
         /// Two cards this fork targets, and the profile differs in exactly what their hardware does.
@@ -147,6 +151,33 @@ namespace Rtx
             EXPECT_EQ(onAda.mQueueFamily, 0u);
             EXPECT_EQ(onTuring.mTimestampBits, 64u);
             EXPECT_EQ(onTuring.mTextureSide, 32768u);
+        }
+
+        /// **A queue is chosen for what this renderer submits and, where there is a window, for
+        /// presenting to it**: graphics and compute, whether or not the family says it transfers,
+        /// which Vulkan leaves it free not to; the first family that presents where the first that
+        /// can do the rest does not; and a device with no family that presents, or no swapchain, is
+        /// refused by name at selection rather than when the swapchain is made.
+        TEST(RtxPhysicalDeviceTest, aQueueIsChosenForWhatIsSubmittedAndForTheWindow)
+        {
+            Card card(&describeTuring);
+            card.mQueues.front().queueFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
+            EXPECT_EQ(card.profile().mObstacle, "") << "a family that does not say it transfers";
+
+            card.mExtensions.emplace_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+            card.mQueues.push_back(sWholeQueue);
+            card.mPresents = { VK_FALSE, VK_TRUE };
+            const PhysicalDevice::Profile windowed = card.profile();
+            EXPECT_EQ(windowed.mObstacle, "");
+            EXPECT_EQ(windowed.mQueueFamily, 1u) << "the family that presents";
+
+            card.mPresents = { VK_FALSE, VK_FALSE };
+            EXPECT_EQ(
+                card.profile().mObstacle, "no queue family with graphics and compute that presents to the window");
+
+            card.mPresents = { VK_FALSE, VK_TRUE };
+            std::erase(card.mExtensions, VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+            EXPECT_EQ(card.profile().mObstacle, "missing extensions: VK_KHR_swapchain");
         }
 
         /// **A texture's side is the least any image it is made as takes, and the device's own limit
@@ -286,7 +317,7 @@ namespace Rtx
             {
                 Card split(&describeTuring);
                 split.mQueues.front().queueFlags = VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT;
-                EXPECT_EQ(split.profile().mObstacle, "no queue family with graphics, compute and transfer");
+                EXPECT_EQ(split.profile().mObstacle, "no queue family with graphics and compute");
             }
             {
                 // The whole of what makes such a card unusable: `Buffer::hostWritten` has nowhere to

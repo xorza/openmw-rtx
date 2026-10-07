@@ -31,18 +31,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   measures the lag on a lamp change, and the measurement decides whether each filter gets fast means
   and `heldToFast`, as ReLAX clamps specular. (medium)
 
-## Device capabilities are asked outside `PhysicalDevice::profileOf`
-
-- [ ] `components/rtxvulkan/device/physicaldevice.cpp:126`, `device/device.cpp:114`,
-  `vulkanrenderer.cpp:75,94`, `present/swapchain.cpp:98` — device selection does not consider the window.
-  The queue family is the first with the wanted flags, without a present-support check. `VK_KHR_swapchain`
-  is added to `vkCreateDevice` without a check that the device has it. Present support is first tested in
-  `Swapchain`, after all pipelines are compiled. Target shape: `select`/`profileOf` take whether a surface
-  is necessary and a present-support answer, and each failure becomes a named obstacle. (medium)
-- [ ] `components/rtxvulkan/device/physicaldevice.cpp:126` — `wanted` requires `VK_QUEUE_TRANSFER_BIT`. The
-  spec makes TRANSFER optional to report on a graphics or compute family, so a conformant driver can be
-  refused. Target shape: require `GRAPHICS|COMPUTE` only. (low)
-
 ## Facts of one layer are in another layer
 
 - [ ] `apps/openmw/mwrender/rtx/rtxwindow.cpp:38`, `rtxrenderer.cpp:200-203` — the game side selects

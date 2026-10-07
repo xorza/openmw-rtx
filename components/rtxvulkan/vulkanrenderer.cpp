@@ -69,12 +69,23 @@ namespace Rtx
 
             return Surface::getInstanceExtensions();
         }
+
+        /// Whether a queue family presents to `surface`, or nothing to ask for no window.
+        PhysicalDevice::PresentQuery presentsTo(const Surface* surface)
+        {
+            if (surface == nullptr)
+                return {};
+
+            return
+                [surface](VkPhysicalDevice device, std::uint32_t family) { return surface->supports(device, family); };
+        }
     }
 
     VulkanRenderer::VulkanRenderer(const RendererOptions& options)
         : mInstance(options.mRun.mValidation, surfaceExtensionsFor(options))
-        , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle()), options.mShaders,
-              PipelineCacheSpec{ .mDirectory = options.mCacheDirectory })
+        , mSurface(options.mWindow != nullptr ? std::make_unique<Surface>(mInstance, options.mWindow) : nullptr)
+        , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle(), presentsTo(mSurface.get())),
+              options.mShaders, PipelineCacheSpec{ .mDirectory = options.mCacheDirectory })
         , mCounting(options.mCounting)
         , mProfile(options.mRun.mProfile)
         , mInverseGamma(1.0f / mProfile.mGamma)
@@ -93,7 +104,7 @@ namespace Rtx
         mDevice.getMemory().limitBudget(options.mRun.mMemoryBudget);
 
         if (options.mWindow != nullptr)
-            mPresenter = std::make_unique<Presenter>(mDevice, mInstance, options.mWindow, options.mVerticalSync);
+            mPresenter = std::make_unique<Presenter>(mDevice, *mSurface, options.mWindow, options.mVerticalSync);
 
         createTargets(options.mWidth, options.mHeight);
     }

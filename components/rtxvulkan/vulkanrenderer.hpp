@@ -49,6 +49,7 @@ namespace Rtx
 {
     struct FogNoise;
     class Presenter;
+    class Surface;
 
     /// `Renderer` over Vulkan.
     class VulkanRenderer final : public Renderer
@@ -162,6 +163,10 @@ namespace Rtx
         // Declaration order is destruction order reversed, and everything below the device is built
         // on it.
         Instance mInstance;
+
+        /// The window's surface, or null for no window: before the device, which is chosen for a
+        /// queue that presents to it, and after the presenter, which presents to it.
+        std::unique_ptr<Surface> mSurface;
 
         Device mDevice;
 
