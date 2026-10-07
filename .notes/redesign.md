@@ -638,8 +638,6 @@ a cost and is kept only with its measurement, **[code]** changes neither.
 
 ### 6.7 Design, duplication and dead code
 
-- **[code] `sunSource` and `moonSource` spell one rule twice** (`visibility.h`, `sky.h`); `sky.h`
-  names `std::sin` without `<cmath>`. Target: one `skySource`.
 - **[code] `spirvfile.cpp` defines its own SPIR-V magic** beside `spv::MagicNumber`. Target: use it.
 - **[code] The 3×3 tent is written three times** (`atrous.comp`, `shadowfilter.comp`'s
   `filteredVariance`, `fogTentWeight`). Target: one `tentWeight`.

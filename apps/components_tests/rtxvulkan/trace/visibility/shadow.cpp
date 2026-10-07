@@ -228,7 +228,7 @@ namespace Rtx::Testing
                 Shaders::VisibilityConstants camera = overheadSun(size);
                 camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), sunlight);
                 Shaders::MoonDisc masser{};
-                masser.mSource = Shaders::moonSource(
+                masser.mSource = Shaders::skySource(
                     osg::Vec3f(0.0f, std::sin(tilt), std::cos(tilt)), moonlight, moonAngularRadius(94.0f));
                 masser.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
                 masser.mUp = osg::Vec3f(0.0f, -std::cos(tilt), std::sin(tilt));

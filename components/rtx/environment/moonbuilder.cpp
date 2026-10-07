@@ -159,7 +159,7 @@ namespace Rtx
     {
         return Shaders::MoonDisc{
             .mSource
-            = Shaders::moonSource(placement.mDirection, placement.getPaintedIrradiance(), placement.mAngularRadius),
+            = Shaders::skySource(placement.mDirection, placement.getPaintedIrradiance(), placement.mAngularRadius),
             .mRight = placement.mRight,
             .mUp = placement.mUp,
             .mColour = placement.mColour,

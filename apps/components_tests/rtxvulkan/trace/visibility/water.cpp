@@ -889,7 +889,7 @@ namespace Rtx::Testing
                 camera.mSun = Shaders::sunSource(osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(0.0f, 0.0f, 0.0f));
 
                 Shaders::MoonDisc masser{};
-                masser.mSource = Shaders::moonSource(osg::Vec3f(0.0f, 0.0f, 1.0f), irradiance, 0.02f);
+                masser.mSource = Shaders::skySource(osg::Vec3f(0.0f, 0.0f, 1.0f), irradiance, 0.02f);
                 masser.mRight = osg::Vec3f(1.0f, 0.0f, 0.0f);
                 masser.mUp = osg::Vec3f(0.0f, 1.0f, 0.0f);
                 masser.mColour = osg::Vec3f(1.0f, 1.0f, 1.0f);
