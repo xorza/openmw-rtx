@@ -97,6 +97,14 @@ namespace Rtx
                 mFlags.resize(count);
         }
 
+        /// The same, and room in the list for every one of them, so no `add` up to `count` goes to
+        /// the allocator: for a set a frame fills, which a load sizes.
+        void reserve(std::size_t count)
+        {
+            grow(count);
+            mSlots.reserve(count);
+        }
+
         /// Puts `slot` in the set, once however many times it is named.
         void add(Index slot)
         {

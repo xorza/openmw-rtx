@@ -748,6 +748,15 @@ namespace Rtx::Shaders
         uvec3 mSize;
     };
 
+    /// One cell of the light grid: its two runs in the light list, the lamps that light it and then
+    /// those that take light away — `Rtx::LightGrid::getCells` says why apart from the list. One
+    /// 16-byte row, so a shaded point reads both runs in one fetch.
+    struct GpuLightCell
+    {
+        uvec2 mCount;
+        uvec2 mFirst;
+    };
+
     /// The flat index of the grid's cell `x`, `y`, `z` in a grid `width` by `height` across: the
     /// one arithmetic the host's binning and the shader's lookup have to agree on. Scalars, because
     /// a vector's members are spelled apart in the two languages.
@@ -796,8 +805,8 @@ namespace Rtx::Shaders
         uint64 mMasks;
         uint64 mLights;
 
-        /// The light grid's list: where each cell's run starts, then the runs. `Rtx::LightGrid`
-        /// says why the starts and the runs are one list.
+        /// The light grid: a `GpuLightCell` a cell, and the list their runs stand in.
+        uint64 mLightCells;
         uint64 mLightList;
 
         uint64 mBlueNoise;
@@ -813,7 +822,7 @@ namespace Rtx::Shaders
         /// One `GpuEmitterFrame` a row of `mEmitters`, the trace's own like the sprites.
         uint64 mEmitterFrames;
 
-        /// The sprite tiles' list, in the same shape over the screen's tiles.
+        /// The sprite tiles' list, the shape `spritelist.glsl` reads.
         uint64 mSpriteTileList;
 
         /// One word a screen tile of the same grid: the `PRESENCE_` kinds of instance a ray through
@@ -1215,13 +1224,14 @@ namespace Rtx::Shaders
         "the lamp body's bit stands above every ray mask's");
     static_assert(sizeof(GpuLight) == 40, "GpuLight must be scalar-packed on every side");
     static_assert(sizeof(GpuLightGrid) == 28, "GpuLightGrid must be scalar-packed on every side");
+    static_assert(sizeof(GpuLightCell) == 16, "GpuLightCell must be scalar-packed on every side");
     static_assert(sizeof(GpuLayer) == 64, "GpuLayer must be scalar-packed on every side");
     static_assert(sizeof(GpuMaterial) == 108, "GpuMaterial must be scalar-packed on every side");
     static_assert(sizeof(GpuSprite) == 56, "GpuSprite must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitter) == 40, "GpuEmitter must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitterFrame) == 16, "GpuEmitterFrame must be scalar-packed on every side");
     static_assert(sizeof(GpuPresence) == 24, "GpuPresence must be scalar-packed on every side");
-    static_assert(sizeof(GpuTables) == 184, "GpuTables must be scalar-packed on every side");
+    static_assert(sizeof(GpuTables) == 192, "GpuTables must be scalar-packed on every side");
 
 #endif
 

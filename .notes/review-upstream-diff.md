@@ -5,24 +5,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 
 ## The frame path allocates, copies, or rebuilds behind a threshold
 
-- [ ] `components/rtx/scene/lightgrid.cpp:83-86,102-106,151-165` — `rebuild` runs each frame
-  (`rtxvulkan/scene/scenebuffers.cpp:341`), and a lamp whose box changes cells — a carried torch, every
-  few frames — re-`fill`s the whole `RunList`; a lamp that appears, goes or moves past the extent
-  `build`s it again. At 400 lamps over 3×3 exterior cells (a 51×51×8 grid, 58,364 entries, `-O2`, this
-  desk) `build` takes 98 µs and `fill` 95 µs, so padding the extent saves only the 3 µs between them:
-  the frames that pay ~0.1 ms are the ones on which a lamp crosses a cell. **Decided 2026-10-08: an
-  incremental grid.** Target shape: each cell keeps fixed-capacity slots (or a delta list), a lamp
-  that moves writes only the cells it left and entered, and a cell that overflows has a rule of its
-  own; `lightRunInCell` (`lib/lights.glsl`) and the upload in `scenebuffers.cpp` read the new layout.
-  **Decided 2026-10-08: the upload incremental as well.** The list is written to the device whole
-  every frame (`scenebuffers.cpp:350-359`, 233 KB today), and fixed slots make it cells × 2 keys ×
-  capacity long: 20,808 cells at 8–32 lamps a cell is 1.3–5.3 MB, a copy of which costs more than the
-  grid saves. So: fixed slots a cell key, in ascending lamp order (the list a fresh fill makes); a moved
-  lamp leaves and enters only the cells its box changed; each frame slot's copy writes only the cell
-  keys changed since it was written, as `SlotTable` tracks its rows; overflow builds the grid with a
-  larger capacity. `GpuLightGrid` gains the capacity, and `lightRunInCell` reads a count and a stride.
-  A lamp that comes or goes still builds the grid whole: `SceneDesc::orderLights` sorts the lamps by
-  position every frame, so an index is no identity, and a moving lamp keeps its index. (high)
 - [ ] `components/rtxvulkan/device/memory/slottable.hpp:99-100`, `growablebuffer.cpp:19` — when the rows
   outgrow a copy, `SlotTable::sync` doubles it, makes a new host-written buffer, and rewrites every row,
   on the frame a cell pushes the table past its size. Five tables grow so: the mesh, instance and
@@ -41,7 +23,7 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
 ## One truth has more than one source
 
 - [ ] `components/rtx/renderer/renderer.hpp:438-439,492` — `traceGuiTexture` and `renderFrame` take the
-  1616-byte `Shaders::VisibilityConstants` as "the camera". Four parties write its fields: the camera
+  1624-byte `Shaders::VisibilityConstants` as "the camera". Four parties write its fields: the camera
   builder (`frame/camera.cpp:47-86`), `describeWorld` (`environment/frameworld.cpp:108-214`, called by
   the game's `SkyReader::describe`, which also splits the rest into `FrameOptions`), `sampleFrame`, and
   the backend (`visibilitypass.cpp:484-527`, `tracemedia.cpp:58`). `leavesSamplingAlone`
@@ -91,11 +73,6 @@ Scope: `git diff 2f0688aa59 HEAD` (merge base with `upstream/master`), without t
   rays". (low)
 - [ ] `components/rtxvulkan/shaders/lib/payload.glsl:10` — says "twenty-five words". The struct has
   twenty-six (`:144`). (low)
-- [ ] `components/rtxvulkan/shaders/lib/bindings.glsl:350-352` — gives cell `c`'s lamps as
-  `at[at[c]] .. at[at[c + 1]]`, but `lightRunInCell` (`lib/lights.glsl:95-98`) indexes `2c + key`, with two
-  runs for each cell. (low)
-- [ ] `components/rtxvulkan/shaders/lib/bindings.glsl:308` — says `IndexList` is "the light grid's, and
-  the sprite tiles'". The sprite tiles read `SpriteTileList` (`lib/spritelist.glsl:65`). (low)
 - [ ] `components/rtxvulkan/trace/tracemedia.hpp:59` — "Nothing may be in flight: `WavePass::describe`
   says why" contradicts `WavePass::describe` (`wavepass.hpp:35-37`) and `VulkanRenderer::setSea`
   (`vulkanrenderer.hpp:115-117`). Target shape: one statement of the contract. (low)

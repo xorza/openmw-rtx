@@ -59,8 +59,8 @@ layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_BLOCKS) bu
     uvec2 at[];
 };
 
-/// The tiles' list, in `Rtx::RunList`'s shape: entry nought is the head, then where each tile's
-/// run starts, then the runs. `SPRITE_TILE_UNBINNED` says what a tile past the room holds, and
+/// The tiles' list: entry nought is the head, then where each tile's run starts, counted from the
+/// front, then the runs. `SPRITE_TILE_UNBINNED` says what a tile past the room holds, and
 /// `SPRITE_LIST_UNBINNED` what entry nought holds in a list with no runs at all.
 layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) buffer SpriteTileList
 {

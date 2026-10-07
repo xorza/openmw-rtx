@@ -305,7 +305,12 @@ layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) read
     GpuLight at[];
 };
 
-/// A list of `uint`: the light grid's, and the sprite tiles'.
+layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) readonly buffer LightCellTable
+{
+    GpuLightCell at[];
+};
+
+/// A list of `uint`: the light grid's.
 layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) readonly buffer IndexList
 {
     uint at[];
@@ -347,10 +352,12 @@ GpuLight lightAt(uint index)
     return LightTable(frame.mTables.mLights).at[index];
 }
 
-/// The light grid's list: where each cell's run starts, counted from the front of the list, with a
-/// sentinel so the last cell's end needs no special case — and after those starts, every cell's
-/// lamps run together in cell order. Cell `c`'s lamps are `at[at[c]] .. at[at[c + 1]]`.
-/// `Rtx::LightGrid` says why one list and not two.
+GpuLightCell lightCellAt(uint cell)
+{
+    return LightCellTable(frame.mTables.mLightCells).at[cell];
+}
+
+/// One lamp of the light grid's list, which the cells' runs stand in — `Rtx::LightGrid::getCells`.
 uint lightListAt(uint slot)
 {
     return IndexList(frame.mTables.mLightList).at[slot];
